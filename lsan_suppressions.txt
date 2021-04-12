@@ -1,0 +1,9 @@
+leak:set_completer_delims
+leak:thread_PyThread_start_new_thread
+leak:PyThread_allocate_lock
+leak:pymain_parse_cmdline_impl
+leak:PyArena_New
+leak:pymain_init
+# Below were added for 3.8
+leak:new_interpreter
+leak:Py_NewInterpreter

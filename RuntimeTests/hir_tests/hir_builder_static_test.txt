@@ -1,0 +1,1306 @@
+HIRBuilderStaticTest
+---
+---
+TestInvokeMethod
+---
+class C:
+    def f(self) -> int:
+        return 1
+
+def test(c: C):
+    return c.f()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "c">
+    v0 = CheckVar<0; "c"> v0 {
+      NextInstrOffset 4
+      Locals<1> v0
+    }
+    v1 = InvokeMethod<1> v0 {
+      NextInstrOffset 8
+      Locals<1> v0
+    }
+    Return v1
+  }
+}
+---
+TestInvokeAsyncMethod
+---
+class C:
+    async def f(self) -> int:
+        return 1
+
+async def test(c: C):
+    return await c.f()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "c">
+    v1 = InitialYield
+    v1 = CheckExc v1 {
+      NextInstrOffset 0
+      Locals<1> v0
+    }
+    v0 = CheckVar<0; "c"> v0 {
+      NextInstrOffset 4
+      Locals<1> v0
+    }
+    v2 = InvokeMethod<1, awaited> v0 {
+      NextInstrOffset 8
+      Locals<1> v0
+    }
+    CondBranchCheckType<4, 2, WaitHandle> v2
+  }
+
+  bb 4 (preds 0) {
+    v4 = WaitHandleLoadCoroOrResult v2
+    v5 = WaitHandleLoadWaiter v2
+    WaitHandleRelease v2
+    CondBranch<5, 6> v5
+  }
+
+  bb 5 (preds 4) {
+    v3 = YieldFrom v5 v4
+    v3 = CheckExc v3 {
+      NextInstrOffset 8
+      Locals<1> v0
+      Stack<1> v2
+    }
+    Branch<3>
+  }
+
+  bb 6 (preds 4) {
+    v3 = Assign v4
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v6 = CallCFunc<_PyCoro_GetAwaitableIter> v2
+    v6 = CheckExc v6 {
+      NextInstrOffset 8
+      Locals<1> v0
+    }
+    CondBranchCheckType<7, 8, ObjectUser[coroutine:Exact]> v6
+  }
+
+  bb 7 (preds 2) {
+    v7 = CallCFunc<_PyGen_yf> v6
+    CondBranch<9, 8> v7
+  }
+
+  bb 9 (preds 7) {
+    RaiseStatic<RuntimeError, "coroutine is being awaited already", <<0>>> {
+      NextInstrOffset 8
+    }
+  }
+
+  bb 8 (preds 2, 7) {
+    v8 = LoadConst<NoneType>
+    v3 = YieldFrom v8 v6
+    v3 = CheckExc v3 {
+      NextInstrOffset 8
+      Locals<1> v0
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 5, 6, 8) {
+    v1 = Assign v3
+    Branch<1>
+  }
+
+  bb 1 (preds 3) {
+    Return v1
+  }
+}
+---
+TestInvokeMethod2
+---
+class C:
+    def f(self, x) -> int:
+        return 1
+
+def test(c: C):
+    return c.f(1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "c">
+    v0 = CheckVar<0; "c"> v0 {
+      NextInstrOffset 4
+      Locals<1> v0
+    }
+    v1 = LoadConst<LongExact[1]>
+    v2 = InvokeMethod<2> v0 v1 {
+      NextInstrOffset 10
+      Locals<1> v0
+    }
+    Return v2
+  }
+}
+---
+TestLoadField
+---
+class C:
+    x: int
+    def __init__(self):
+        self.x = 42
+
+def test(c: C):
+    return c.x
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "c">
+    v0 = CheckVar<0; "c"> v0 {
+      NextInstrOffset 4
+      Locals<1> v0
+    }
+    v1 = LoadField<16> v0
+    v1 = CheckField<2> v1 {
+      NextInstrOffset 6
+      Locals<1> v0
+    }
+    Return v1
+  }
+}
+---
+TestStoreField
+---
+class C:
+    x: int
+    def __init__(self):
+        self.x = 42
+
+def test(c: C, x: int):
+    c.x = x
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "c">
+    v1 = LoadArg<1; "x">
+    v1 = CheckVar<1; "x"> v1 {
+      NextInstrOffset 4
+      Locals<2> v0 v1
+    }
+    v0 = CheckVar<0; "c"> v0 {
+      NextInstrOffset 6
+      Locals<2> v0 v1
+      Stack<1> v1
+    }
+    v2 = LoadField<16> v0
+    StoreField<16> v0 v1 v2
+    v3 = LoadConst<NoneType>
+    Return v3
+  }
+}
+---
+TestCast
+---
+from __static__ import cast
+class C:
+    pass
+
+def test(x) -> C:
+    return cast(C, x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "x">
+    v0 = CheckVar<0; "x"> v0 {
+      NextInstrOffset 4
+      Locals<1> v0
+    }
+    v1 = Cast<C> v0 {
+      NextInstrOffset 6
+      Locals<1> v0
+    }
+    Return v1
+  }
+}
+---
+TestCastOptional
+---
+from __static__ import cast
+from typing import Optional
+
+class C:
+    pass
+
+def test(x) -> Optional[C]:
+    return cast(Optional[C], x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "x">
+    v0 = CheckVar<0; "x"> v0 {
+      NextInstrOffset 4
+      Locals<1> v0
+    }
+    v1 = Cast<Optional[C]> v0 {
+      NextInstrOffset 6
+      Locals<1> v0
+    }
+    Return v1
+  }
+}
+---
+TestStorePrimitiveLocal
+---
+from __static__ import int32
+
+def test():
+    x: int32 = 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v1 = LoadConst<CInt32[42]>
+    v0 = Assign v1
+    v2 = LoadConst<NoneType>
+    Return v2
+  }
+}
+---
+TestStoreLoadPrimitiveLocal
+---
+from __static__ import int32
+
+def test():
+    x: int32 = 42
+    y: int32 = x
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CInt32[42]>
+    v0 = Assign v2
+    v1 = Assign v0
+    v3 = LoadConst<NoneType>
+    Return v3
+  }
+}
+---
+TestIntAdd
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 100
+    z: int64 = x + y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[100]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<Add> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntSub
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 100
+    z: int64 = x - y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[100]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<Subtract> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntDiv
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 100
+    z: int64 = x / y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[100]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<FloorDivide> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntMul
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 100
+    z: int64 = x * y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[100]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<Multiply> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntOr
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 100
+    z: int64 = x | y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[100]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<Or> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntXor
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 100
+    z: int64 = x ^ y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[100]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<Xor> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntAnd
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 100
+    z: int64 = x & y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[100]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<And> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntLShift
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 5
+    z: int64 = x << y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[5]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<LShift> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntRShift
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 2
+    z: int64 = x >> y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CInt64[2]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<RShift> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntRShiftUnsigned
+---
+from __static__ import uint64
+
+def test():
+    x: uint64 = 42
+    y: uint64 = 2
+    z: uint64 = x >> y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CUInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CUInt64[2]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<RShiftUnsigned> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntDivideUnsigned
+---
+from __static__ import uint64
+
+def test():
+    x: uint64 = 42
+    y: uint64 = 2
+    z: uint64 = x / y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CUInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CUInt64[2]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<FloorDivideUnsigned> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestIntModUnsigned
+---
+from __static__ import uint64
+
+def test():
+    x: uint64 = 42
+    y: uint64 = 2
+    z: uint64 = x % y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3 = LoadConst<CUInt64[42]>
+    v0 = Assign v3
+    v4 = LoadConst<CUInt64[2]>
+    v1 = Assign v4
+    v5 = IntBinaryOp<ModuloUnsigned> v0 v1
+    v2 = Assign v5
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestLtUn
+---
+from __static__ import uint64
+
+def test():
+    x: uint64 = 42
+    y: uint64 = 2
+    if x < y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CUInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CUInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<LessThanUnsigned> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestGtUn
+---
+from __static__ import uint64
+
+def test():
+    x: uint64 = 42
+    y: uint64 = 2
+    if x > y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CUInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CUInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<GreaterThanUnsigned> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestGtEqUn
+---
+from __static__ import uint64
+
+def test():
+    x: uint64 = 42
+    y: uint64 = 2
+    if x >= y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CUInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CUInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<GreaterThanEqualUnsigned> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestLtEqUn
+---
+from __static__ import uint64
+
+def test():
+    x: uint64 = 42
+    y: uint64 = 2
+    if x <= y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CUInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CUInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<LessThanEqualUnsigned> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestEq
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 2
+    if x == y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<Equal> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestNe
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 2
+    if x != y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<NotEqual> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestLt
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 2
+    if x < y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<LessThan> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestGt
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 2
+    if x > y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<GreaterThan> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestGtEq
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 2
+    if x >= y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<GreaterThanEqual> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestLtEq
+---
+from __static__ import int64
+
+def test():
+    x: int64 = 42
+    y: int64 = 2
+    if x <= y:
+      return 42
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CInt64[42]>
+    v0 = Assign v2
+    v3 = LoadConst<CInt64[2]>
+    v1 = Assign v3
+    v4 = IntCompare<LessThanEqual> v0 v1
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<LongExact[42]>
+    Return v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+TestFastLenArray
+---
+from __static__ import int64, Array
+
+def test():
+    return len(Array[int64]([1, 3, 5]))
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadGlobalCached<0; "Array">
+    v0 = GuardIs<0xdeadbeef> v0
+    v1 = LoadGlobalCached<1; "int64">
+    v1 = GuardIs<0xdeadbeef> v1
+    v2 = BinaryOp<Subscript> v0 v1 {
+      NextInstrOffset 8
+    }
+    v3 = LoadConst<LongExact[1]>
+    v4 = LoadConst<LongExact[3]>
+    v5 = LoadConst<LongExact[5]>
+    v6 = MakeListTuple<list, 3> {
+      NextInstrOffset 16
+      Stack<4> v2 v3 v4 v5
+    }
+    InitListTuple<list, 3> v6 v3 v4 v5
+    v7 = Assign v6
+    v8 = VectorCall<1> v2 v7 {
+      NextInstrOffset 18
+    }
+    v9 = LoadField<16> v8
+    v10 = PrimitiveBox<true> v9
+    v10 = CheckExc v10 {
+      NextInstrOffset 22
+    }
+    Return v10
+  }
+}
+---
+TestFastLenList
+---
+
+def test():
+    return len([1, 3, 5])
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<LongExact[1]>
+    v1 = LoadConst<LongExact[3]>
+    v2 = LoadConst<LongExact[5]>
+    v3 = MakeListTuple<list, 3> {
+      NextInstrOffset 10
+      Stack<3> v0 v1 v2
+    }
+    InitListTuple<list, 3> v3 v0 v1 v2
+    v4 = Assign v3
+    v5 = LoadField<16> v4
+    v6 = PrimitiveBox<true> v5
+    v6 = CheckExc v6 {
+      NextInstrOffset 14
+    }
+    Return v6
+  }
+}
+---
+TestInvokeFunction
+---
+def x(a: str, b: int) -> str:
+    return a + str(b)
+
+def test() -> str:
+    return x("hello", 123)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<UnicodeExact["hello"]>
+    v1 = LoadConst<LongExact[123]>
+    v3 = InvokeStaticFunction<jittestmodule.x, 2, Unicode> v0 v1 {
+      NextInstrOffset 10
+    }
+    Return v3
+  }
+}
+---
+TestInvokeAsyncFunction
+---
+async def x(a: str, b: int) -> str:
+    return a + str(b)
+
+async def test() -> str:
+    return await x("hello", 123)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = InitialYield
+    v0 = CheckExc v0 {
+      NextInstrOffset 0
+    }
+    v1 = LoadConst<UnicodeExact["hello"]>
+    v2 = LoadConst<LongExact[123]>
+    v4 = InvokeStaticFunction<jittestmodule.x, 2, Unicode> v1 v2 {
+      NextInstrOffset 10
+    }
+    v5 = CallCFunc<_PyCoro_GetAwaitableIter> v4
+    v5 = CheckExc v5 {
+      NextInstrOffset 12
+    }
+    CondBranchCheckType<2, 3, ObjectUser[coroutine:Exact]> v5
+  }
+
+  bb 2 (preds 0) {
+    v6 = CallCFunc<_PyGen_yf> v5
+    CondBranch<4, 3> v6
+  }
+
+  bb 4 (preds 2) {
+    RaiseStatic<RuntimeError, "coroutine is being awaited already", <<0>>> {
+      NextInstrOffset 12
+    }
+  }
+
+  bb 3 (preds 0, 2) {
+    v7 = LoadConst<NoneType>
+    v8 = YieldFrom v7 v5
+    v8 = CheckExc v8 {
+      NextInstrOffset 16
+    }
+    v0 = Assign v8
+    Branch<1>
+  }
+
+  bb 1 (preds 3) {
+    v9 = Cast<str> v0 {
+      NextInstrOffset 18
+    }
+    Return v9
+  }
+}
+---
+TestLoadIterableArg
+---
+def x(a: int, b: int, c: str, d: float, e: float) -> int:
+    return 7
+
+def test() -> int:
+    p = ("hi", 0.1, 0.2)
+    return x(1, 3, *p)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v1 = LoadConst<TupleExact[tuple:0xdeadbeef]>
+    v0 = Assign v1
+    v2 = LoadConst<LongExact[1]>
+    v3 = LoadConst<LongExact[3]>
+    v0 = CheckVar<0; "p"> v0 {
+      NextInstrOffset 12
+      Locals<1> v0
+      Stack<2> v2 v3
+    }
+    v4 = CheckTuple v0
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = Assign v0
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v5 = GetTuple v0 {
+      NextInstrOffset 14
+      Locals<1> v0
+      Stack<2> v2 v3
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v6 = LoadConst<CInt64[0]>
+    v7 = PrimitiveBox<true> v6
+    v7 = CheckExc v7 {
+      NextInstrOffset 14
+      Locals<1> v0
+      Stack<2> v2 v3
+    }
+    v8 = BinaryOp<Subscript> v5 v7 {
+      NextInstrOffset 14
+      Locals<1> v0
+      Stack<2> v2 v3
+    }
+    v9 = Cast<str> v8 {
+      NextInstrOffset 18
+      Locals<1> v0
+      Stack<3> v2 v3 v5
+    }
+    v10 = CheckTuple v5
+    CondBranch<4, 5> v10
+  }
+
+  bb 4 (preds 3) {
+    v11 = Assign v5
+    Branch<6>
+  }
+
+  bb 5 (preds 3) {
+    v11 = GetTuple v5 {
+      NextInstrOffset 22
+      Locals<1> v0
+      Stack<3> v2 v3 v9
+    }
+    Branch<6>
+  }
+
+  bb 6 (preds 4, 5) {
+    v12 = LoadConst<CInt64[1]>
+    v13 = PrimitiveBox<true> v12
+    v13 = CheckExc v13 {
+      NextInstrOffset 22
+      Locals<1> v0
+      Stack<3> v2 v3 v9
+    }
+    v14 = BinaryOp<Subscript> v11 v13 {
+      NextInstrOffset 22
+      Locals<1> v0
+      Stack<3> v2 v3 v9
+    }
+    v15 = Cast<float> v14 {
+      NextInstrOffset 26
+      Locals<1> v0
+      Stack<4> v2 v3 v9 v11
+    }
+    v16 = CheckTuple v11
+    CondBranch<7, 8> v16
+  }
+
+  bb 7 (preds 6) {
+    v17 = Assign v11
+    Branch<9>
+  }
+
+  bb 8 (preds 6) {
+    v17 = GetTuple v11 {
+      NextInstrOffset 30
+      Locals<1> v0
+      Stack<4> v2 v3 v9 v15
+    }
+    Branch<9>
+  }
+
+  bb 9 (preds 7, 8) {
+    v18 = LoadConst<CInt64[2]>
+    v19 = PrimitiveBox<true> v18
+    v19 = CheckExc v19 {
+      NextInstrOffset 30
+      Locals<1> v0
+      Stack<4> v2 v3 v9 v15
+    }
+    v20 = BinaryOp<Subscript> v17 v19 {
+      NextInstrOffset 30
+      Locals<1> v0
+      Stack<4> v2 v3 v9 v15
+    }
+    v21 = Cast<float> v20 {
+      NextInstrOffset 34
+      Locals<1> v0
+      Stack<5> v2 v3 v9 v15 v17
+    }
+    v23 = InvokeStaticFunction<jittestmodule.x, 5, Long> v2 v3 v9 v15 v21 {
+      NextInstrOffset 42
+      Locals<1> v0
+    }
+    Return v23
+  }
+}
+---
+TestArrayGet
+---
+from __static__ import Array, int8, box
+
+def test() -> int:
+    content = list(range(255))
+    a = Array[int8](content)
+    return box(a[111])
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadGlobalCached<0; "list">
+    v2 = GuardIs<0xdeadbeef> v2
+    v3 = LoadGlobalCached<1; "range">
+    v3 = GuardIs<0xdeadbeef> v3
+    v4 = LoadConst<LongExact[255]>
+    v5 = VectorCall<1> v3 v4 {
+      NextInstrOffset 10
+      Locals<2> v0 v1
+      Stack<1> v2
+    }
+    v6 = VectorCall<1> v2 v5 {
+      NextInstrOffset 12
+      Locals<2> v0 v1
+    }
+    v0 = Assign v6
+    v7 = LoadGlobalCached<2; "Array">
+    v7 = GuardIs<0xdeadbeef> v7
+    v8 = LoadGlobalCached<3; "int8">
+    v8 = GuardIs<0xdeadbeef> v8
+    v9 = BinaryOp<Subscript> v7 v8 {
+      NextInstrOffset 20
+      Locals<2> v0 v1
+    }
+    v0 = CheckVar<0; "content"> v0 {
+      NextInstrOffset 22
+      Locals<2> v0 v1
+      Stack<1> v9
+    }
+    v10 = VectorCall<1> v9 v0 {
+      NextInstrOffset 24
+      Locals<2> v0 v1
+    }
+    v1 = Assign v10
+    v1 = CheckVar<1; "a"> v1 {
+      NextInstrOffset 28
+      Locals<2> v0 v1
+    }
+    v11 = LoadConst<LongExact[111]>
+    v12 = IntUnbox<CInt64> v11
+    v13 = IsNegativeAndErrOccurred v12 {
+      NextInstrOffset 32
+      Locals<2> v0 v1
+      Stack<1> v1
+    }
+    v14 = CheckSequenceBounds v1 v12 {
+      NextInstrOffset 34
+      Locals<2> v0 v1
+    }
+    v15 = LoadField<24> v1
+    v16 = LoadArrayItem v15 v14 v1
+    v17 = PrimitiveBox<true> v16
+    v17 = CheckExc v17 {
+      NextInstrOffset 36
+      Locals<2> v0 v1
+    }
+    v18 = Cast<int> v17 {
+      NextInstrOffset 38
+      Locals<2> v0 v1
+    }
+    Return v18
+  }
+}
+---
+TestArraySet
+---
+from __static__ import Array, int8
+
+def test() -> Array[int8]:
+    a = Array[int8]([1, 3, -5])
+    a[1] = 7
+    return a
+---
+fun jittestmodule:test {
+  bb 0 {
+    v1 = LoadGlobalCached<0; "Array">
+    v1 = GuardIs<0xdeadbeef> v1
+    v2 = LoadGlobalCached<1; "int8">
+    v2 = GuardIs<0xdeadbeef> v2
+    v3 = BinaryOp<Subscript> v1 v2 {
+      NextInstrOffset 8
+      Locals<1> v0
+    }
+    v4 = LoadConst<LongExact[1]>
+    v5 = LoadConst<LongExact[3]>
+    v6 = LoadConst<LongExact[-5]>
+    v7 = MakeListTuple<list, 3> {
+      NextInstrOffset 16
+      Locals<1> v0
+      Stack<4> v3 v4 v5 v6
+    }
+    InitListTuple<list, 3> v7 v4 v5 v6
+    v8 = Assign v7
+    v9 = VectorCall<1> v3 v8 {
+      NextInstrOffset 18
+      Locals<1> v0
+    }
+    v0 = Assign v9
+    v10 = LoadConst<CInt8[7]>
+    v0 = CheckVar<0; "a"> v0 {
+      NextInstrOffset 24
+      Locals<1> v0
+      Stack<1> v10
+    }
+    v11 = LoadConst<LongExact[1]>
+    v12 = IntUnbox<CInt64> v11
+    v13 = IsNegativeAndErrOccurred v12 {
+      NextInstrOffset 28
+      Locals<1> v0
+      Stack<2> v10 v0
+    }
+    v14 = CheckSequenceBounds v0 v12 {
+      NextInstrOffset 30
+      Locals<1> v0
+    }
+    v15 = LoadField<24> v0
+    StoreArrayItem v15 v14 v10 v0
+    v0 = CheckVar<0; "a"> v0 {
+      NextInstrOffset 32
+      Locals<1> v0
+    }
+    Return v0
+  }
+}
+---
+TestRefineType
+---
+from typing import List
+
+def test(it) -> List:
+    return sorted(it)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "it">
+    v1 = LoadGlobalCached<0; "sorted">
+    v1 = GuardIs<0xdeadbeef> v1
+    v0 = CheckVar<0; "it"> v0 {
+      NextInstrOffset 6
+      Locals<1> v0
+      Stack<1> v1
+    }
+    v2 = VectorCall<1> v1 v0 {
+      NextInstrOffset 8
+      Locals<1> v0
+    }
+    v2 = RefineType<List> v2
+    Return v2
+  }
+}
+---
+TestPrimitiveDouble
+---
+from __static__ import double
+
+def test() -> None:
+    d: double = 1.14
+---
+fun jittestmodule:test {
+  bb 0 {
+    v1 = LoadConst<CDouble[1.14]>
+    v0 = Assign v1
+    v2 = LoadConst<NoneType>
+    Return v2
+  }
+}
+---

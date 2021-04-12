@@ -1,0 +1,19 @@
+CallOptimizationTest
+---
+CallOptimization
+---
+TypeIsTurnedIntoFieldLoad
+---
+def test(x):
+  return type(x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "x">
+    v4:OptObject = LoadGlobalCached<0; "type">
+    v5:TypeExact[type:obj] = GuardIs<0xdeadbeef> v4
+    v7:Object = LoadField<8> v3
+    Return v7
+  }
+}
+---

@@ -1,0 +1,149 @@
+PhiEliminationTest
+---
+PhiElimination
+---
+EliminatesSimpleTrivialPhi
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadConst<NoneType>
+    v1 = LoadConst<NoneType>
+    CondBranch<1, 2> v0
+  }
+  bb 1 {
+    Branch<2>
+  }
+  bb 2 {
+    v3 = Phi<0, 1> v1 v1
+    Return v3
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:NoneType = LoadConst<NoneType>
+    v1:NoneType = LoadConst<NoneType>
+    Branch<2>
+  }
+
+  bb 2 (preds 0) {
+    Return v1
+  }
+}
+---
+EliminatesTrivialPhisWithSelfInput
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadConst<NoneType>
+    CondBranch<1, 3> v0
+  }
+  bb 1 {
+    v1 = Phi<0, 2> v0 v1
+    Branch<2>
+  }
+  bb 2 {
+    CondBranch<1, 3> v1
+  }
+  bb 3 {
+    v3 = Phi<0, 2> v0 v1
+    Return v3
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:NoneType = LoadConst<NoneType>
+    CondBranch<2, 3> v0
+  }
+
+  bb 2 (preds 0, 2) {
+    CondBranch<2, 3> v0
+  }
+
+  bb 3 (preds 0, 2) {
+    Return v0
+  }
+}
+---
+EliminatesCascadingTrivialPhis
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadConst<NoneType>
+    Branch<1>
+  }
+  bb 1 {
+    v1 = Phi<0, 4> v0 v2
+    CondBranch<2, 3> v1
+  }
+  bb 2 {
+    Branch<4>
+  }
+  bb 3 {
+    Branch<4>
+  }
+  bb 4 {
+    v2 = Phi<2, 3> v1 v1
+    Branch<1>
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:NoneType = LoadConst<NoneType>
+    Branch<1>
+  }
+
+  bb 1 (preds 0, 1) {
+    Branch<1>
+  }
+}
+---
+DoesntEliminateNontrivialPhis
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadConst<NoneType>
+    CondBranch<1, 3> v0
+  }
+  bb 1 {
+    v1 = Phi<0, 2> v0 v2
+    Branch<2>
+  }
+  bb 2 {
+    v2 = LoadConst<NoneType>
+    CondBranch<1, 3> v1
+  }
+  bb 3 {
+    v3 = Phi<0, 2> v0 v1
+    Return v3
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:NoneType = LoadConst<NoneType>
+    CondBranch<1, 3> v0
+  }
+
+  bb 1 (preds 0, 2) {
+    v1:NoneType = Phi<0, 2> v0 v2
+    Branch<2>
+  }
+
+  bb 2 (preds 1) {
+    v2:NoneType = LoadConst<NoneType>
+    CondBranch<1, 3> v1
+  }
+
+  bb 3 (preds 0, 2) {
+    v3:NoneType = Phi<0, 2> v0 v1
+    Return v3
+  }
+}
+---

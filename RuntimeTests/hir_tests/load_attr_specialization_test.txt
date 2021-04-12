@@ -1,0 +1,161 @@
+LoadAttrSpecializationTest
+---
+LoadAttrSpecialization
+---
+LoadAttrFromTypeIsSpecialized
+---
+class Foo:
+  pass
+
+def test():
+  return Foo.bar
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "Foo">
+    v3:TypeExact[Foo:obj] = GuardIs<0xdeadbeef> v2
+    v7:OptObject = LoadTypeAttrCacheItem<0, 0>
+    v8:Object = Compare<Is> v7 v3 {
+      NextInstrOffset 0
+    }
+    v9:CInt32 = IsTruthy v8 {
+      NextInstrOffset 0
+    }
+    CondBranch<2, 3> v9
+  }
+
+  bb 2 (preds 0) {
+    v5:Object = LoadTypeAttrCacheItem<0, 1>
+    Branch<1>
+  }
+
+  bb 3 (preds 0) {
+    v6:Object = FillTypeAttrCache<0, 1> v3 {
+      NextInstrOffset 4
+    }
+    Branch<1>
+  }
+
+  bb 1 (preds 2, 3) {
+    v4:Object = Phi<2, 3> v5 v6
+    Return v4
+  }
+}
+---
+LoadAttrFromBuiltinTypeIsSpecialized
+---
+def test():
+  return int.__add__
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "int">
+    v3:TypeExact[int:obj] = GuardIs<0xdeadbeef> v2
+    v7:OptObject = LoadTypeAttrCacheItem<0, 0>
+    v8:Object = Compare<Is> v7 v3 {
+      NextInstrOffset 0
+    }
+    v9:CInt32 = IsTruthy v8 {
+      NextInstrOffset 0
+    }
+    CondBranch<2, 3> v9
+  }
+
+  bb 2 (preds 0) {
+    v5:Object = LoadTypeAttrCacheItem<0, 1>
+    Branch<1>
+  }
+
+  bb 3 (preds 0) {
+    v6:Object = FillTypeAttrCache<0, 1> v3 {
+      NextInstrOffset 4
+    }
+    Branch<1>
+  }
+
+  bb 1 (preds 2, 3) {
+    v4:Object = Phi<2, 3> v5 v6
+    Return v4
+  }
+}
+---
+LoadAttrFromModuleIsUnspecialized
+---
+import sys
+
+def test():
+  return sys.path
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "sys">
+    v3:ObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v4:Object = LoadAttr<1; "path"> v3 {
+      NextInstrOffset 4
+    }
+    Return v4
+  }
+}
+---
+RemovesTrampolineBlocks
+---
+class Klass:
+  pass
+
+def test(cond, val):
+  x = val if cond else Klass.attr
+---
+fun jittestmodule:test {
+  bb 0 {
+    v10:Nullptr = LoadConst<Nullptr>
+    v8:Object = LoadArg<0; "cond">
+    v9:Object = LoadArg<1; "val">
+    v12:CInt32 = IsTruthy v8 {
+      NextInstrOffset 4
+      Locals<3> v8 v9 v10
+    }
+    CondBranch<1, 2> v12
+  }
+
+  bb 1 (preds 0) {
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v15:OptObject = LoadGlobalCached<0; "Klass">
+    v16:TypeExact[Klass:obj] = GuardIs<0xdeadbeef> v15
+    v27:OptObject = LoadTypeAttrCacheItem<0, 0>
+    v28:Object = Compare<Is> v27 v16 {
+      NextInstrOffset 0
+    }
+    v29:CInt32 = IsTruthy v28 {
+      NextInstrOffset 0
+    }
+    CondBranch<5, 6> v29
+  }
+
+  bb 5 (preds 2) {
+    v25:Object = LoadTypeAttrCacheItem<0, 1>
+    Branch<4>
+  }
+
+  bb 6 (preds 2) {
+    v26:Object = FillTypeAttrCache<0, 1> v16 {
+      NextInstrOffset 12
+      Locals<3> v8 v9 v10
+    }
+    Branch<4>
+  }
+
+  bb 4 (preds 5, 6) {
+    v17:Object = Phi<5, 6> v25 v26
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 4) {
+    v19:Object = Phi<1, 4> v9 v17
+    v24:NoneType = LoadConst<NoneType>
+    Return v24
+  }
+}
+---

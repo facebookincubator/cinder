@@ -1,0 +1,51 @@
+RefcountInsertionStaticTest
+---
+RefcountInsertion
+---
+IntFieldInitNoRefCount
+---
+from __static__ import int32
+
+class Test:
+    def __init__(self) -> None:
+        self.x: int32 = 0
+
+test = Test.__init__
+---
+fun jittestmodule:Test.__init__ {
+  bb 0 {
+    v5:Object = LoadArg<0; "self">
+    v6:CInt32[0] = LoadConst<CInt32[0]>
+    v8:Nullptr = LoadConst<Nullptr>
+    v9:CInt32 = IntConvert<CInt32> v6
+    StoreField<16> v5 v9 v8
+    v10:NoneType = LoadConst<NoneType>
+    Incref v10
+    Return v10
+  }
+}
+---
+StoreFieldIncRef
+---
+from __static__ import int32
+
+class Test:
+    def __init__(self) -> None:
+        self.x = 0
+
+test = Test.__init__
+---
+fun jittestmodule:Test.__init__ {
+  bb 0 {
+    v4:Object = LoadArg<0; "self">
+    v5:LongExact[0] = LoadConst<LongExact[0]>
+    v7:OptObject = LoadField<16> v4
+    Incref v5
+    StoreField<16> v4 v5 v7
+    XDecref v7
+    v8:NoneType = LoadConst<NoneType>
+    Incref v8
+    Return v8
+  }
+}
+---

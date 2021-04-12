@@ -1,0 +1,11 @@
+{
+  /* Avoid auto-reformat of upstream C files. Ideally this would be a
+     per-language setting so we could still have formatOnSave of Jit/ and
+     RuntimeTests/ cpp files, but that breaks down with `.h` files, which are
+     auto-detected as "cpp", not "c", so there's no way on a per-language basis
+     to distinguish .h files in upstream C code vs .h files in our cpp code. And
+     we can't modify the file association for .h files because VSCode doesn't
+     support "files.associations" setting in implicit workspace settings files.
+   */
+    "editor.formatOnSave": false
+}

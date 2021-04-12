@@ -1,0 +1,6703 @@
+InterpreterTest
+---
+SimpleAssign
+---
+x = 1
+---
+x
+---
+---
+SimpleAddition
+---
+x = 1
+y = x + 1
+---
+---
+2 4 StrictModuleNotImplementedException
+---
+BuiltinTypeAssign
+---
+x = str
+y = int
+z = bool
+---
+x y z
+---
+---
+StringLiteral
+---
+x = ""
+y = "abcd"
+z = 'abcd\n'
+---
+x y z
+---
+---
+StringLen
+---
+x = "".__len__()
+y = "abcd".__len__()
+z = 'abcd\n'.__len__()
+---
+x y z
+---
+---
+StringLenNone
+---
+x = "".__lenx__()
+---
+---
+1 4 StrictModuleUnhandledException(AttributeError)
+---
+ListLiteral
+---
+x = []
+y = [1, 2, 3]
+z = [[1]]
+---
+x y z
+---
+---
+ListLen
+---
+x = [].__len__()
+y = [1, 2, 3].__len__()
+z = [[1], 3].__len__()
+---
+x y z
+---
+---
+ListAppend
+---
+x = []
+x.append([])
+x.append(23)
+---
+x
+---
+---
+TupleLiteral
+---
+x = ()
+y = (1, 2, 3)
+z = (1,)
+---
+x y z
+---
+---
+TupleIndex
+---
+t = (1, 2)
+x = t.index(1)
+---
+x
+---
+---
+IntCompare
+---
+x = (1).__eq__(1)
+y = (1).__eq__(2)
+---
+x y
+---
+---
+test_float @disabled
+---
+x = 1.0
+y = x.is_integer()
+---
+x y
+---
+---
+test_int_divide @disabled
+---
+x = 1 / 2
+---
+x
+---
+---
+test_int_float @disabled
+---
+x = 1 + 1.0
+---
+x
+---
+---
+test_float_int @disabled
+---
+x = 1.0 + 1.0
+---
+x
+---
+---
+test_complex_float @disabled
+---
+x = 1j + 1.0
+---
+x
+---
+---
+test_float_complex @disabled
+---
+x = 1.0 + 1j
+---
+x
+---
+---
+test_int_complex @disabled
+---
+x = 1 + 1j
+---
+x
+---
+---
+test_int_new @disabled
+---
+a = int(42)
+b = int('42')
+c = int()
+---
+a b c
+---
+---
+test_int_new_unsupported @disabled
+---
+a = int(3j)
+---
+---
+StrictModuleNotSupportedException
+---
+test_int_new_bad_cls @disabled
+---
+int.__new__(object)
+a = int(3j)
+---
+---
+StrictModuleTypeError
+---
+test_int_new_bad_str @disabled
+---
+a = int('abc')
+---
+---
+StrictModuleUnhandledException
+---
+test_complex_int @disabled
+---
+x = 1j + 1.0
+---
+x
+---
+---
+test_mro @disabled
+---
+class C:
+    pass
+x = C.mro() == [C, object]
+---
+x
+---
+---
+test_mro_explicit_obj @disabled
+---
+class C(object):
+    pass
+x = C.mro() == [C, object]
+---
+x
+---
+---
+test_mro_inheritance @disabled
+---
+class C:
+    pass
+
+class D(C):
+    pass
+x = D.mro() == [D, C, object]
+---
+x
+---
+---
+test_mro_multiple_inheritance @disabled
+---
+class C:
+    pass
+
+class D:
+    pass
+
+class E(C, D):
+    pass
+x = E.mro() == [E, C, D, object]
+---
+x
+---
+---
+test_mro_conflict @disabled
+---
+
+class A:
+    pass
+
+
+class B:
+    pass
+
+
+class C(B, A):
+    pass
+
+
+class D(A, B):
+    pass
+
+
+class E(C, D):
+    pass
+---
+---
+StrictModuleTypeError
+---
+test_metaclass_attr_resolution @disabled
+---
+class MC(type):
+    x = 42
+
+
+class C(metaclass=MC):
+    x = 'abc'
+
+x_inst = C().x
+x_cls = C.x
+---
+x_inst x_cls
+---
+---
+test_metaclass_attr_property @disabled
+---
+
+class MC(type):
+    @property
+    def x(self):
+        return 42
+
+
+class C(metaclass=MC):
+    x = 'abc'
+
+x_inst = C().x
+x_cls = C.x
+---
+x_inst x_cls
+---
+---
+test_metaclass_extra_kwargs @disabled
+---
+
+class MC(type):
+    def __new__(cls, name, bases, dct, extra=0):
+        ret = super().__new__(cls, name, bases, dct)
+        ret.extra = extra
+        return ret
+
+class C(metaclass=MC):
+    pass
+
+class D(metaclass=MC, extra=1):
+    pass
+
+x = C.extra
+y = D.extra
+---
+x y
+---
+---
+test_metaclass_prepare @disabled
+---
+
+class MC(type):
+    @classmethod
+    def __prepare__(self, name, bases):
+        res = {'abc': 42}
+        return res
+
+class C(metaclass=MC):
+    pass
+
+x = C().abc
+---
+x
+---
+---
+test_metaclass_prepare_dict_subclass @disabled
+---
+
+class mydict(dict):
+    def __setitem__(self, index, value):
+        super().__setitem__(index.upper(), value)
+
+class MC(type):
+    @classmethod
+    def __prepare__(self, name, bases):
+        res = mydict()
+        return res
+
+class C(metaclass=MC):
+    abc = 42
+
+x = C().ABC
+---
+x
+---
+---
+test_metaclass_override_call @disabled
+---
+
+class MC(type):
+    def __call__(self, *args):
+        return args
+
+class C(metaclass=MC):
+    pass
+
+x = C(42)
+y = C('abc')
+---
+x y
+---
+---
+test_init_subclass @disabled
+---
+
+class Base:
+    def __init_subclass__(cls, extra=0):
+        cls.extra = extra
+
+class C(Base):
+    def __init_subclass__(cls, extra=0):
+        super().__init_subclass__(extra + 1)
+
+class D(Base, extra=1):
+    pass
+
+class E(C, extra=1):
+    pass
+
+x = C.extra
+y = D.extra
+z = E.extra
+n = getattr(Base, "extra", None)
+---
+x y z n
+---
+---
+test_cell_meth_with_instance @disabled
+---
+x = bytes.upper(b'abc')
+---
+x
+---
+---
+test_cell_meth_missing_instance @disabled
+---
+bytes.upper()
+---
+---
+StrictModuleTypeError
+---
+test_cell_meth_bad_self @disabled
+---
+bytes.upper(42)
+---
+---
+StrictModuleTypeError
+---
+test_property_reinit @disabled
+---
+class C:
+    @property
+    def f(self):
+        return 42
+
+def g(self):
+    return "abc"
+
+C.f.__init__(g)
+x = C().f
+---
+x
+---
+---
+test_property_no_setting @disabled
+---
+class C:
+    @property
+    def f(self):
+        return 42
+
+C().f = 42
+---
+---
+StrictModuleAttributeError
+---
+test_property_no_deleting @disabled
+---
+class C:
+    @property
+    def f(self):
+        return 42
+
+del C().f
+---
+---
+StrictModuleAttributeError
+---
+test_property_no_getting @disabled
+---
+class C:
+    f = property(None, lambda x, y: None)
+
+x = C().f
+---
+---
+StrictModuleAttributeError
+---
+test_property_init_fset @disabled
+---
+class C:
+    def x(self, value):
+        self.v = 'abc'
+    f = property(None, x, None)
+
+a = C()
+a.f = 42
+x = a.v
+---
+x
+---
+---
+test_property_init_fdel @disabled
+---
+class C:
+    def x(self):
+        self.v = 'abc'
+    f = property(None, None, x)
+
+a = C()
+del a.f
+x =  a.v
+---
+x
+---
+---
+test_classmethod_get @disabled
+---
+class C:
+    val = 42
+    @classmethod
+    def f(cls):
+        return cls.val
+class D(C):
+    val = 43
+
+t0 = C.f()
+t1 = D.f()
+t2 = C().f()
+t3 = D().f()
+t4 = C.__dict__['f'].__get__(C, C)()
+t5 = C.__dict__['f'].__get__(D, D)()
+t6 = C.__dict__['f'].__get__(C, C())()
+t7 = C.__dict__['f'].__get__(D, D())()
+---
+t0 t1 t2 t3 t4 t5 t6 t7
+---
+---
+test_subclass_type @disabled
+---
+class C(type):
+    pass
+
+x = C('foo', (), {})
+---
+---
+---
+test_subclass_object @disabled
+---
+class C(object):
+    pass
+
+x = C()
+---
+---
+---
+test_subclass_int @disabled
+---
+class C(int):
+    pass
+
+x = C()
+y = x + 1
+---
+y
+---
+---
+test_namedtuple_def @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x, y")
+x = P._fields[0]
+y = P._fields[1]
+---
+x y
+---
+---
+test_namedtuple_def_keyword_args @disabled
+---
+from collections import namedtuple
+P = namedtuple(typename="P", field_names="x, y")
+x = P._fields[0]
+y = P._fields[1]
+---
+x y
+---
+---
+test_namedtuple_access @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x, y")
+p = P(1, '2')
+a = p.x
+b = p[1]
+---
+a b
+---
+---
+test_namedtuple_access_2 @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", ["x", "y"])
+p = P(1, '2')
+a = p.x
+b = p[1]
+---
+a b
+---
+---
+test_namedtuple_replace @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x, y")
+p = P(1, '2')
+p1 = p._replace(y=2)
+a = p1.x
+b = p1.y
+---
+a b
+---
+---
+test_namedtuple_error_underscored_name @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x, _y")
+---
+---
+StrictModuleUnhandledException
+---
+test_namedtuple_error_keyword_name @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x, def")
+---
+---
+StrictModuleUnhandledException
+---
+test_namedtuple_error_non_identifier_name @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x, ?")
+---
+---
+StrictModuleUnhandledException
+---
+test_namedtuple_duplicate_name @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x x")
+---
+---
+StrictModuleUnhandledException
+---
+test_namedtuple_fields @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x y")
+p = P(1, 2)
+d = p._fields
+f = d[0]
+---
+f
+---
+---
+test_namedtuple_kwargs @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x y")
+p = P(x = 1, y = 2)
+x = p.x
+y = p.y
+---
+x y
+---
+---
+test_namedtuple_kwargs_subclass @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x y")
+class Q(P):
+    pass
+q = Q(x = 1, y = 2)
+x = q.x
+y = q.y
+---
+x y
+---
+---
+test_classmethod @disabled
+---
+class C:
+    @classmethod
+    def f(cls):
+        return 42
+
+x = C.f
+y = C.f()
+z = C().f()
+a = y == z
+b = y == 42
+---
+a b
+---
+---
+test_classmethod_no_args @disabled
+---
+
+classmethod()
+---
+---
+StrictModuleTypeError
+---
+test_classmethod_too_many_args @disabled
+---
+
+classmethod(1, 2)
+---
+---
+StrictModuleTypeError
+---
+test_classmethod_kw_args @disabled
+---
+
+classmethod(x=2)
+---
+---
+StrictModuleTypeError
+---
+test_staticmethod @disabled
+---
+class C:
+    @staticmethod
+    def f(x):
+        return x
+
+x = C.f
+y = C.f(42)
+z = C().f(42)
+a = z == y
+b = y == 42
+---
+a b
+---
+---
+test_staticmethod_no_args @disabled
+---
+
+staticmethod()
+---
+---
+StrictModuleTypeError
+---
+test_staticmethod_too_many_args @disabled
+---
+
+staticmethod(1, 2)
+---
+---
+StrictModuleTypeError
+---
+test_staticmethod_kw_args @disabled
+---
+
+staticmethod(x=2)
+---
+---
+StrictModuleTypeError
+---
+test_int_object_subtype @disabled
+---
+class C(int, object):
+    pass
+
+
+x = C(1)
+y = x + 1
+---
+y
+---
+---
+test_int_bool_add @disabled
+---
+
+x = True + 3
+y = 3 + False
+z = 4 - True
+---
+x y z
+---
+---
+test_object_int_add_unsupported @disabled
+---
+
+x = object() + 3
+---
+---
+StrictModuleTypeError
+---
+test_int_subtype @disabled
+---
+class C(int):
+    pass
+
+x = C(4) % 4
+y = 4 % C(4)
+---
+x y
+---
+---
+test_int_subtype_pow @disabled
+---
+class C(int):
+    pass
+
+x = C(4).__pow__(4, None)
+y = (4).__pow__(C(4), None)
+---
+x y
+---
+---
+test_int_subtype_pow_bad_mod @disabled
+---
+class C(int):
+    pass
+
+x = C(1).__pow__(2, 'abc')
+---
+---
+StrictModuleUnhandledException
+---
+test_int_subtype_unary @disabled
+---
+class C(int):
+    pass
+
+x = ~C(4)
+---
+x
+---
+---
+test_int_subtype_overrides @disabled
+---
+class C(int):
+    def __add__(self, other):
+        return "hello"
+
+    def __radd__(self, other):
+        return "goodbye"
+    pass
+
+x = C(42) + 42
+y = 42 + C(42)
+z = C(42) + C(42)
+---
+x y z
+---
+---
+test_int_duner_methods @disabled
+---
+x = int.__rxor__(4, 4)
+---
+x
+---
+---
+test_int_unary_duner_methods @disabled
+---
+x = int.__neg__(4)
+---
+x
+---
+---
+test_float_object_subtype_add @disabled
+---
+class C(float):
+    pass
+
+
+x = C(1) + 2.0
+---
+x
+---
+---
+test_float_object_subtype_reverse_add @disabled
+---
+class C(float):
+    pass
+
+
+x = 1.0 + C(2)
+---
+x
+---
+---
+test_complex_object_subtype_add_disallowed @disabled
+---
+class C(complex):
+    pass
+
+
+x = C(1) + 2j
+---
+---
+StrictModuleNotSupportedException
+---
+test_complex_object_subtype_reverse_add_disallowed @disabled
+---
+class C(complex):
+    pass
+
+
+x = 1j + C(2)
+---
+---
+StrictModuleNotSupportedException
+---
+test_float_invert @disabled
+---
+x = ~42.0
+---
+---
+StrictModuleTypeError
+---
+test_complex_abs @disabled
+---
+x = abs(42j)
+---
+x
+---
+---
+test_complex_invert @disabled
+---
+x = ~42j
+---
+---
+StrictModuleTypeError
+---
+test_zero_div_int @disabled
+---
+x = 1/0
+---
+---
+StrictModuleZeroDivisionError
+---
+test_zero_div_float @disabled
+---
+x = 1.0/0.0
+---
+---
+StrictModuleZeroDivisionError
+---
+test_zero_div_complex @disabled
+---
+x = 0j/0j
+---
+---
+StrictModuleZeroDivisionError
+---
+test_numeric_bin_ops @disabled
+---
+x = -1.1 != -1.1
+---
+x
+---
+---
+test_numeric_builtin_ops @disabled
+---
+x = abs(-1.1)
+---
+x
+---
+---
+test_numeric_divmod @disabled
+---
+x = divmod(-1.1, -1.1)
+---
+x
+---
+---
+test_method @disabled
+---
+class C:
+    def f(self):
+        return 42
+
+
+x = C().f()
+---
+x
+---
+---
+test_method_from_class @disabled
+---
+class C:
+    def f(self):
+        return self
+
+
+x = C.f
+y = C.f(42)
+---
+y
+---
+---
+test_dataclass_def @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+---
+---
+---
+test_dataclass_instantiation @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+c = C(1)
+a = c.a
+---
+a
+---
+---
+test_dataclass_frozen_conflict @disabled
+---
+from dataclasses import dataclass
+@dataclass(frozen=True)
+class C:
+    a: int
+@dataclass
+class D(C):
+    b: int
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_default @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int = 1
+c = C()
+c1 = C(2)
+a = c.a
+a1 = c1.a
+---
+a a1
+---
+---
+test_dataclass_default_fixed @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int = 1
+c = C()
+C.a = 2
+c1 = C()
+a = c.a
+a1 = c1.a
+---
+a a1
+---
+---
+test_dataclass_default_inheritance @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int = 1
+
+@dataclass
+class D(C):
+    b: int = 2
+d = D(b = 3)
+d1 = D()
+a = d.a
+b = d.b
+a1 = d1.a
+b1 = d1.b
+---
+a a1 b b1
+---
+---
+test_dataclass_post_init @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+    def __post_init__(self):
+        self.b = self.a + 1
+        self.d = self.a
+c = C(1)
+b = c.b
+d = c.d
+---
+b d
+---
+---
+test_dataclass_init_conflict @disabled
+---
+from dataclasses import dataclass
+@dataclass(frozen=True)
+class C:
+    a: int
+    b: int
+c = C(1, a=1)
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_field_default @disabled
+---
+from dataclasses import field, dataclass
+@dataclass
+class C:
+    a: int = field(default=1)
+
+c = C()
+a = c.a
+c1 = C(2)
+a1 = c1.a
+---
+a a1
+---
+---
+test_dataclass_field_default_factory @disabled
+---
+from dataclasses import field, dataclass
+def fact():
+    return 1
+@dataclass
+class C:
+    a: int = field(default_factory=fact)
+
+c = C()
+a = c.a
+c1 = C(2)
+a1 = c1.a
+---
+a a1
+---
+---
+test_namedtuple_default_and_factory @disabled
+---
+from dataclasses import field, dataclass
+def fact():
+    return 1
+@dataclass
+class C:
+    a: int = field(default_factory=fact, default=1)
+---
+---
+StrictModuleTypeError
+---
+test_namedtuple_default_order @disabled
+---
+from dataclasses import field, dataclass
+def fact():
+    return 1
+@dataclass
+class C:
+    a: int = field(default=1)
+    b: int
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_field_pos_arg @disabled
+---
+from dataclasses import field
+f = field(1)
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_corrupted_annotation @disabled
+---
+from dataclasses import dataclass
+class C:
+    a: int
+C.__annotations__[2] = 3
+c = dataclass(C)
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_corrupted_fields @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+C.__dataclass_fields__ = 1
+@dataclass
+class D(C):
+    b: int
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_corrupted_fields_1 @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+C.__dataclass_fields__["b"] = 1
+@dataclass
+class D(C):
+    b: int
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_init_var_post_init @disabled
+---
+from dataclasses import InitVar, dataclass, field
+@dataclass
+class C:
+    a: int
+    b: InitVar[int]
+    c: int = field(init=False)
+    def __post_init__(self, b):
+        self.c = b
+
+c = C(1, 2)
+ca = c.a
+cc = c.c
+---
+ca cc
+---
+---
+test_dataclass_init_var_post_init_future_annotations @disabled
+---
+from __future__ import annotations
+from dataclasses import InitVar, dataclass, field
+@dataclass
+class C:
+    a: int
+    b: InitVar[int]
+    c: int = field(init=False)
+    def __post_init__(self, b):
+        self.c = b
+
+c = C(1, 2)
+ca = c.a
+cc = c.c
+---
+ca cc
+---
+---
+test_dataclass_init_var_not_field @disabled
+---
+from dataclasses import InitVar, dataclass, field
+@dataclass
+class C:
+    a: int
+    b: InitVar[int]
+    c: int = field(init=False)
+    def __post_init__(self, b):
+        self.c = b
+
+c = C(1, 2)
+ca = c.a
+cc = c.c
+---
+ca cc
+---
+---
+test_dataclass_replace @disabled
+---
+from dataclasses import dataclass, replace
+@dataclass
+class C:
+    a: int
+
+c = C(1)
+c1 = replace(c, a=2)
+a = c1.a
+---
+a
+---
+---
+test_dataclass_replace_non_dataclass @disabled
+---
+from dataclasses import replace
+class C:
+    a: int
+
+c = C()
+c1 = replace(c, a=2)
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_replace_no_initvar @disabled
+---
+from dataclasses import dataclass, replace, InitVar
+@dataclass
+class C:
+    a: int
+    b: InitVar[int]
+
+c = C(1, 2)
+c1 = replace(c, a=2)
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_replace_no_init @disabled
+---
+from dataclasses import dataclass, replace, field
+@dataclass
+class C:
+    a: int
+    b: int = field(init=False)
+
+c = C(1)
+c1 = replace(c, a=2, b=1)
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_replace_partial @disabled
+---
+from dataclasses import dataclass, replace
+@dataclass
+class C:
+    a: int
+    b: int
+c = C(1, 3)
+c1 = replace(c, a=2)
+a = c1.a
+b = c1.b
+---
+a b
+---
+---
+test_dataclass_replace_too_many_posarg @disabled
+---
+from dataclasses import dataclass, replace
+@dataclass
+class C:
+    a: int
+    b: int
+c = C(1, 2)
+d = replace(c, 1)
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_replace_named_obj @disabled
+---
+from dataclasses import dataclass, replace
+@dataclass
+class C:
+    a: int
+    b: int
+c = C(1, 2)
+d = replace(obj=c, a=2)
+a = d.a
+---
+a
+---
+---
+test_dataclass_make @disabled
+---
+from dataclasses import make_dataclass
+C = make_dataclass("C", ["x", "y"])
+c = C(1, 2)
+x = c.x
+y = c.y
+---
+x y
+---
+---
+test_dataclass_make_with_field @disabled
+---
+from dataclasses import make_dataclass, field
+C = make_dataclass("C", ["x", ("y", int, field(init=False))])
+c = C(1)
+c.y = 2
+x = c.x
+y = c.y
+---
+x y
+---
+---
+test_dataclass_make_with_namespace @disabled
+---
+from dataclasses import make_dataclass, field
+C = make_dataclass(
+    "C",
+    ["x", ("y", int)],
+    namespace = {"f": lambda self: self.y}
+)
+c = C(1, 2)
+x = c.x
+y = c.f()
+---
+x y
+---
+---
+test_dataclass_make_with_bases @disabled
+---
+from dataclasses import make_dataclass, field, dataclass
+@dataclass
+class B:
+    a: int
+
+C = make_dataclass(
+    "C",
+    ["x", ("y", int)],
+    bases = (B,)
+)
+c = C(1, 2, 3)
+a = c.a
+x = c.x
+y = c.y
+---
+a x y
+---
+---
+test_tuple_constructor @disabled
+---
+t1 = tuple()
+t2 = tuple([1, 2])
+x = t2[0]
+---
+t1 t2 x
+---
+---
+test_tuple_constructor_non_iter @disabled
+---
+t1 = tuple(1)
+---
+---
+StrictModuleTypeError
+---
+test_dict_constructor @disabled
+---
+d1 = dict()
+d2 = dict([(1, 2)])
+d3 = dict({1:2})
+d4 = dict(a=1)
+d5 = dict({1:2}, a=1)
+---
+d1 d2 d3 d4 d5
+---
+---
+test_dict_bad_arg @disabled
+---
+d1 = dict((1, 2))
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_asdict @disabled
+---
+from dataclasses import dataclass, asdict
+@dataclass
+class C:
+    a: int
+    b: int
+c = C(1, 2)
+d = asdict(c)
+---
+d
+---
+---
+test_dataclass_asdict_with_subclass @disabled
+---
+from dataclasses import dataclass, asdict
+@dataclass
+class C:
+    a: int
+    b: int
+@dataclass
+class D(C):
+    x: int
+c = D(1, 2, 3)
+d = asdict(c)
+---
+d
+---
+---
+test_dataclass_asdict_with_list_tuple @disabled
+---
+from dataclasses import dataclass, asdict
+@dataclass
+class C:
+    a: object
+    b: int
+c = C([C(3, 4), 1], (5, 6))
+d = asdict(c)
+d_a = d["a"]
+d_a_0 = d_a[0]
+d_a_1 = d_a[1]
+d_b = d["b"]
+d_b_0 = d_b[0]
+d_b_1 = d_b[1]
+---
+d_a_0 d_a_1 d_b_0 d_b_1
+---
+---
+test_dataclass_asdict_with_namedtuple @disabled
+---
+from dataclasses import dataclass, asdict
+from collections import namedtuple
+@dataclass
+class C:
+    a: object
+
+T = namedtuple("T", "x, y")
+c = C(T(C(1), 2))
+d = asdict(c)
+d_a = d["a"]
+d_a_0 = d_a[0]
+d_a_1 = d_a[1]
+---
+d_a_0 d_a_1
+---
+---
+test_dataclass_asdict_with_None @disabled
+---
+from dataclasses import dataclass, asdict
+from typing import Optional
+@dataclass
+class C:
+    a: int
+    b: Optional[int]
+c = C(1, None)
+d = asdict(c)
+---
+d
+---
+---
+test_dataclasses_fields @disabled
+---
+from dataclasses import dataclass, fields
+@dataclass
+class C:
+    a: int
+    b: int
+fs = fields(C)
+f0 = fs[0]
+f1 = fs[1]
+n0 = f0.name
+n1 = f1.name
+l = len(fs)
+---
+l n0 n1
+---
+---
+test_dataclasses_fields_instance @disabled
+---
+from dataclasses import dataclass, fields
+@dataclass
+class C:
+    a: int
+    b: int
+c = C(1, 2)
+fs = fields(c)
+f0 = fs[0]
+f1 = fs[1]
+n0 = f0.name
+n1 = f1.name
+l = len(fs)
+---
+l n0 n1
+---
+---
+test_dataclasses_fields_pseudo_fields @disabled
+---
+from dataclasses import dataclass, fields, InitVar
+@dataclass
+class C:
+    a: int
+    b: int
+    c: InitVar[int]
+c = C(1, 2, 3)
+fs = fields(c)
+f0 = fs[0]
+f1 = fs[1]
+n0 = f0.name
+n1 = f1.name
+l = len(fs)
+---
+l n0 n1
+---
+---
+test_typing_iterable @disabled
+---
+from typing import Iterable
+t = Iterable[str]
+n = t._name
+args = t.__args__
+params = t.__parameters__
+---
+n args params
+---
+---
+test_typing_namedtuple @disabled
+---
+from typing import NamedTuple
+Employee = NamedTuple('Employee', name=str, id=int)
+employee = Employee('joe', 42)
+name = employee.name
+id = employee.id
+---
+name id
+---
+---
+test_typing_namedtuple_fields @disabled
+---
+from typing import NamedTuple
+Employee = NamedTuple('Employee', [('name', str), ('id', int)])
+employee = Employee('joe', 42)
+name = employee.name
+id = employee.id
+---
+name id
+---
+---
+test_typing_namedtuple_fields_and_kwargs @disabled
+---
+from typing import NamedTuple
+Employee = NamedTuple('Employee', [('name', str), ('id', int)], name=str, id=int)
+---
+---
+StrictModuleUnhandledException
+---
+test_typing_namedtuple_meta_no_get @disabled
+---
+from typing import NamedTupleMeta
+NamedTupleMeta('foo', (), 42)
+---
+---
+StrictModuleUnhandledException
+---
+test_typing_namedtuple_inheritance @disabled
+---
+from typing import NamedTuple
+class Employee(NamedTuple):
+    name: str
+    id: int
+
+employee = Employee('joe', 42)
+name = employee.name
+id = employee.id
+---
+name id
+---
+---
+test_typing_namedtuple_inheritance_empty @disabled
+---
+from typing import NamedTuple
+class Employee(NamedTuple):
+    pass
+
+employee = Employee()
+l = len(employee)
+---
+l
+---
+---
+test_typing_typeddict @disabled
+---
+from typing_extensions import TypedDict
+class Employee(TypedDict, total=False):
+    age: int
+
+employee = Employee(age=3)
+
+age = employee["age"]
+total = Employee.__total__
+---
+age total
+---
+---
+test_typing_literal_single_value @disabled
+---
+from typing_extensions import Literal
+
+Mode = Literal[2]
+x = Mode.__args__[0]
+---
+x
+---
+---
+test_typing_literal @disabled
+---
+from typing_extensions import Literal
+
+Mode = Literal[1, 2]
+x = Mode.__args__[0]
+---
+x
+---
+---
+test_typing_literal_call_type @disabled
+---
+from typing_extensions import Literal
+
+type(Literal)("NewLiteral", "some doc")
+---
+---
+---
+test_dataclass_classvar @disabled
+---
+from typing import ClassVar
+from dataclasses import dataclass
+@dataclass
+class C:
+    b: ClassVar[str]
+    a: int
+c = C(1)
+a = c.a
+---
+a
+---
+---
+test_dataclass_classvar_future_annotations @disabled
+---
+from __future__ import annotations
+from typing import ClassVar
+from dataclasses import dataclass
+@dataclass
+class C:
+    b: ClassVar[str]
+    a: int
+c = C(1)
+a = c.a
+---
+a
+---
+---
+test_dataclass_classvar_default @disabled
+---
+from typing import ClassVar
+from dataclasses import dataclass
+@dataclass
+class C:
+    b: ClassVar[str] = 2
+    a: int
+c = C(1)
+a = c.a
+b = c.b
+---
+a b
+---
+---
+test_dataclass_classvar_default_factory @disabled
+---
+from typing import ClassVar
+from dataclasses import dataclass, field
+@dataclass
+class C:
+    b: ClassVar[str] = field(default_factory=f)
+    a: int
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_classvar_fields @disabled
+---
+from typing import ClassVar
+from dataclasses import dataclass, fields
+@dataclass
+class C:
+    a: int
+    b: int
+    c: ClassVar[int] = 3
+c = C(1, 2)
+fs = fields(c)
+f0 = fs[0]
+f1 = fs[1]
+n0 = f0.name
+n1 = f1.name
+l = len(fs)
+---
+n0 n1 l
+---
+---
+test_dataclass_classvar_replace @disabled
+---
+from typing import ClassVar
+from dataclasses import dataclass, replace
+@dataclass
+class C:
+    a: int
+    b: int
+    c: ClassVar[int] = 3
+c = C(1, 2)
+d = replace(c, c=4)
+---
+---
+StrictModuleTypeError
+---
+test_isinstance @disabled
+---
+class C:
+    pass
+
+class D(C):
+    pass
+
+class A:
+    pass
+
+class B:
+    __class__ = A
+
+c = C()
+d = D()
+b = B()
+t1 = isinstance(c, C)
+t2 = isinstance(d, D)
+t3 = isinstance(d, C)
+t4 = isinstance(c, D)
+t5 = isinstance(d, (C, A))
+t6 = isinstance(b, B)
+t7 = isinstance([], list)
+---
+t1 t2 t3 t4 t5 t6 t7
+---
+---
+test_isinstance_with_instance_check @disabled
+---
+class Meta(type):
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, cls.__subclass__)
+
+class C:
+    pass
+
+class D(metaclass=Meta):
+    __subclass__ = (C,)
+
+class E(D):
+    pass
+
+c = C()
+d = D()
+e = E()
+t1 = isinstance(c, D) # yes
+t2 = isinstance(d, D) # yes, since d.type == D
+t3 = isinstance(c, E) # yes
+t4 = isinstance(e, D) # no, since D.__subclass__ does not have D itself
+---
+t1 t2 t3 t4
+---
+---
+test_isinstance_with_metaclass @disabled
+---
+class Meta(type):
+    pass
+
+class D(metaclass=Meta):
+    pass
+
+class E(D):
+    pass
+
+d = D()
+e = E()
+t1 = isinstance(d, D) # yes
+t2 = isinstance(d, E) # no
+t3 = isinstance(e, D) # yes
+t4 = isinstance(e, E) # yes
+---
+t1 t2 t3 t4
+---
+---
+test_isinstance_bad_type_arg @disabled
+---
+class D:
+    pass
+
+d = D()
+t1 = isinstance(d, 1)
+---
+---
+StrictModuleTypeError
+---
+test_isinstance_missing_arg @disabled
+---
+t1 = isinstance(1)
+---
+---
+StrictModuleTypeError
+---
+test_issubclass @disabled
+---
+class C:
+    pass
+
+class D(C):
+    pass
+
+class A:
+    pass
+
+class B:
+    __class__ = A
+
+t1 = issubclass(C, C)
+t2 = issubclass(D, D)
+t3 = issubclass(D, C)
+t4 = issubclass(C, D)
+t5 = issubclass(D, (C, A))
+t6 = issubclass(B, B)
+t7 = issubclass(list, list)
+---
+t1 t2 t3 t4 t5 t6 t7
+---
+---
+test_subclasscheck_bases @disabled
+---
+class C:
+    def __init__(self, *bases):
+        self.__bases__ = bases
+
+t1 = object.__subclasscheck__(C(42))
+t2 = object.__subclasscheck__(C(object))
+---
+t1 t2
+---
+---
+test_subclasscheck_bases_raises_attr_error @disabled
+---
+class C:
+    @property
+    def __bases__(self):
+        raise AttributeError('no way')
+
+
+t1 = object.__subclasscheck__(C())
+---
+---
+StrictModuleUnhandledException
+---
+test_subclasscheck_bad_raises_other_error @disabled
+---
+class C:
+    @property
+    def __bases__(self):
+        raise ValueError('no way')
+
+
+t1 = object.__subclasscheck__(C())
+---
+---
+StrictModuleUnhandledException
+---
+test_subclasscheck_bad_bases @disabled
+---
+class C:
+    __bases__ = 42
+
+t1 = object.__subclasscheck__(C())
+---
+---
+StrictModuleUnhandledException
+---
+test_subclasscheck_self_bad_bases @disabled
+---
+class MC(type):
+    __bases__ = 42
+class C(metaclass=MC):
+    pass
+
+t1 = C.__subclasscheck__(42)
+---
+---
+StrictModuleUnhandledException
+---
+test_issubclass_bad_type @disabled
+---
+issubclass(42, object)
+---
+---
+StrictModuleUnhandledException
+---
+test_issubclass_bad_derived @disabled
+---
+issubclass(object, 42)
+---
+---
+StrictModuleUnhandledException
+---
+test_unknown_call_display_name @disabled
+---
+x = "abc".unknown_method(1)
+---
+---
+StrictModuleUnhandledException(AttributeError)
+---
+test_star_args @disabled
+---
+def f(a, b):
+    return a
+
+def g(a, b):
+    return b
+
+w = f(*(1, 'abc'))
+x = f(*('abc', 1))
+y = g(*(1, 'abc'))
+z = g(*('abc', 1))
+---
+w x y z
+---
+---
+test_custom_len @disabled
+---
+class C:
+    def __len__(self):
+        return 3
+
+c = C()
+l = len(c)
+---
+l
+---
+---
+test_iterable_len @disabled
+---
+l1 = len([])
+l2 = len([1])
+l3 = len((1,))
+l4 = len((1, 2))
+l5 = len({1:1})
+l6 = len('ab')
+---
+l1 l2 l3 l4 l5 l6
+---
+---
+test_len_not_implemented @disabled
+---
+class C:
+    pass
+len(C())
+---
+---
+StrictModuleTypeError
+---
+test_bool @disabled
+---
+b1 = bool()
+b2 = bool(1)
+b3 = bool(0)
+b4 = bool(1.1)
+b5 = bool([])
+b6 = bool([1])
+b7 = bool(True)
+b8 = bool(False)
+b9 = bool("abc")
+b10 = bool("")
+class C:
+    pass
+class D:
+    def __bool__(self):
+        return False
+c = C()
+d = D()
+b11 = bool(c)
+b12 = bool(d)
+b13 = bool(0.0)
+b14 = bool(None)
+---
+b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14
+---
+---
+test_conditional @disabled
+---
+b1 = 1 and 0
+b2 = None and 1
+b3 = "" or None
+b4 = "" and None
+b5 = 1 or 2
+b6= [] or None or 1
+class C:
+    def __init__(self, x):
+        self.x = x
+    def __bool__(self):
+        return self.x
+c1 = C(True)
+c2 = C(False)
+c = c1 and c2
+cx = c.x
+b7 = not []
+b8 = not [1]
+class D:
+    def __len__(self):
+        return 1 + 1
+b9 = bool(D())
+---
+b1 b2 b3 b4 b5 b6 b7 b8 b9 cx
+---
+---
+test_for_loop @disabled
+---
+l = [1, 2, 3, 4]
+for i in l:
+    pass
+---
+i
+---
+---
+test_for_loop_body @disabled
+---
+l = [1, 2, 3, 4]
+x = 0
+for i in l:
+    x = i
+---
+x
+---
+---
+test_if @disabled
+---
+t = True
+x = 0
+if t:
+    x = 1
+else:
+    x = 2
+---
+x
+---
+---
+test_if_none @disabled
+---
+x = None
+if x:
+    y = 1
+else:
+    y = 2
+---
+y
+---
+---
+test_for_loop_if @disabled
+---
+l = [[True, 1], [False, 2], [True, 3], [False, 4]]
+x = 0
+y = 0
+for s in l:
+    t = s[0]
+    v = s[1]
+    if t:
+        x = v
+    else:
+        y = x
+---
+x y
+---
+---
+test_for_loop_class_def @disabled
+---
+l = [1, 3, 4]
+for s in l:
+    class C:
+        def f(self):
+            return 1
+a = C().f()
+---
+a
+---
+---
+test_exception_construction @disabled
+---
+exc = Exception(1)
+a = exc.args
+---
+a
+---
+---
+test_attribute_error_construction @disabled
+---
+exc = AttributeError(1)
+a = exc.args
+---
+a
+---
+---
+test_attribute_error_try_catch @disabled
+---
+try:
+    x = 1
+    raise AttributeError(2)
+except AttributeError as a:
+    x = a.args[0]
+else:
+    x = 3
+finally:
+    y = 4
+---
+x y
+---
+---
+test_attribute_error_try_catch_all @disabled
+---
+try:
+    x = 1
+    raise AttributeError(2)
+except:
+    x = 2
+else:
+    x = 3
+finally:
+    y = 4
+---
+x y
+---
+---
+test_attribute_error_try_catch_multi_level @disabled
+---
+try:
+    x = 1
+    try:
+        raise Exception(3)
+    except AttributeError as e:
+        x = 2
+except Exception as e:
+    x = e.args[0]
+else:
+    x = 4
+finally:
+    y = 5
+---
+x y
+---
+---
+test_attribute_raised_on_access @disabled
+---
+x = 1
+try:
+    x.foo
+except AttributeError as e:
+    x = 2
+---
+x
+---
+---
+test_getattr_builtin @disabled
+---
+class C:
+    a: int
+c = C()
+c.a = 1
+a = getattr(c, "a")
+---
+a
+---
+---
+test_getattr_non_string @disabled
+---
+class C:
+    a: int
+c = C()
+c.a = 1
+a = getattr(c, 1)
+---
+---
+StrictModuleTypeError
+---
+test_getattr_raises_attr_error @disabled
+---
+class C:
+    @property
+    def x(self):
+        raise AttributeError()
+c = C()
+a = getattr(c, "x", 42)
+---
+a
+---
+---
+test_getattr_raises_other @disabled
+---
+class C:
+    @property
+    def x(self):
+        raise TypeError()
+c = C()
+a = getattr(c, "x", 42)
+---
+---
+StrictModuleUnhandledException
+---
+test_setattr_builtin @disabled
+---
+class C:
+    a: int
+c = C()
+setattr(c, "a", 1)
+a = c.a
+---
+a
+---
+---
+test_setattr_non_string @disabled
+---
+class C:
+    a: int
+c = C()
+setattr(c, 1, 2)
+---
+---
+StrictModuleTypeError
+---
+test_hasattr_builtin @disabled
+---
+class C:
+    a: int
+c = C()
+b1 = hasattr(c, "a")
+c.a = 1
+b2 = hasattr(c, "a")
+---
+b1 b2
+---
+---
+test_hasattr_non_string @disabled
+---
+class C:
+    a: int
+c = C()
+b = hasattr(c, 1)
+---
+---
+StrictModuleTypeError
+---
+test_hasattr_raises_attr_error @disabled
+---
+class C:
+    @property
+    def x(self):
+        raise AttributeError()
+c = C()
+a = hasattr(c, "x")
+---
+a
+---
+---
+test_hasattr_raises_other @disabled
+---
+class C:
+    @property
+    def x(self):
+        raise TypeError()
+c = C()
+a = hasattr(c, "x")
+---
+---
+StrictModuleUnhandledException
+---
+test_math @disabled
+---
+a = b'abc'
+b = b'def'
+c = len(a + b)
+d = c + 1
+e = 1 + c
+f = c / 1
+g = 1 / c
+---
+c d e f g
+---
+---
+test_div @disabled
+---
+a = b'abc'
+b = b'def'
+c = len(a + b)
+d = c / 2
+---
+c d
+---
+---
+test_float_math @disabled
+---
+a = b'abc'
+b = b'def'
+c = len(a + b)
+d = c / 2
+e = d + 1.0
+---
+e
+---
+---
+test_float_math_rev @disabled
+---
+a = b'abc'
+b = b'def'
+c = len(a + b)
+d = c / 2
+e = 1 + d
+---
+e
+---
+---
+test_complex_math @disabled
+---
+a = b'abc'
+b = b'def'
+c = len(a + b)
+d = c / 2
+e = 3j + d
+---
+e
+---
+---
+test_complex_math_rev @disabled
+---
+a = b'abc'
+b = b'def'
+c = len(a + b)
+d = c / 2
+e = d + 3j
+---
+e
+---
+---
+test_dict_copy @disabled
+---
+x = {'abc': 42}
+y = x.copy()
+y['abc'] = 'foo'
+a = y['abc']
+b = x['abc']
+---
+a b
+---
+---
+test_dict_get @disabled
+---
+x = {'abc': 42}
+y = x.get('abc')
+z = x.get('dne')
+---
+y z
+---
+---
+test_dict_get_default @disabled
+---
+x = {'abc': 42}
+y = x.get('foo', 'bar')
+---
+y
+---
+---
+test_dict_setdefault @disabled
+---
+x = {}
+ret = x.setdefault(42, 'abc')
+y = x[42]
+---
+y ret
+---
+---
+test_dict_setdefault_exists @disabled
+---
+x = {42:'def'}
+ret = x.setdefault(42, 'abc')
+y = x[42]
+---
+y ret
+---
+---
+test_dict_pop @disabled
+---
+x = {'abc': 42, 'foo': 'bar'}
+y = x.pop('abc')
+---
+y
+---
+---
+test_dict_pop_default @disabled
+---
+x = {'abc': 42, 'foo': 'bar'}
+y = x.pop('quox', 'baz')
+---
+y
+---
+---
+test_dict_pop_not_present @disabled
+---
+x = {'abc': 42, 'foo': 'bar'}
+y = x.pop('baz')
+---
+---
+StrictModuleUnhandledException
+---
+test_dict_update @disabled
+---
+x = {}
+y = {'abc':42}
+x.update(y)
+y['abc'] = 100
+z = x['abc']
+---
+z
+---
+---
+test_dict_update_kw @disabled
+---
+x = {}
+y = {'abc':42}
+x.update(y, foo=100)
+z1 = x['abc']
+z2 = x['foo']
+---
+z1 z2
+---
+---
+test_dict_update_kwonly @disabled
+---
+x = {}
+x.update(abc=42)
+z = x['abc']
+---
+z
+---
+---
+test_dict_update_iterable @disabled
+---
+x = {}
+x.update([(1, 2), ])
+z = x[1]
+---
+z
+---
+---
+test_dict_update_non_iterable @disabled
+---
+x = {}
+x.update(None)
+---
+---
+StrictModuleTypeError
+---
+test_dict_update_non_iterable_entry @disabled
+---
+x = {}
+x.update([None])
+---
+---
+StrictModuleUnhandledException
+---
+test_dict_update_bad_entry_len @disabled
+---
+x = {}
+x.update([(1, )])
+---
+---
+StrictModuleUnhandledException
+---
+test_dict_getitem @disabled
+---
+d = {1:2}
+y = d.__getitem__(1)
+---
+y
+---
+---
+test_dict_getitem_error @disabled
+---
+d = {1:2}
+y = d.__getitem__(2)
+---
+---
+StrictModuleUnhandledException
+---
+test_dict_contains @disabled
+---
+d = {2:3}
+x = d.__contains__(2)
+y = d.__contains__(3)
+---
+x y
+---
+---
+test_dict_getitem_unknown @disabled
+---
+from x import y
+d = {1:2}
+y = d.__getitem__(y)
+---
+---
+UnknownValueAttributeException
+---
+test_dict_contains_unknown @disabled
+---
+from x import y
+d = {2:3}
+x = d.__contains__(y)
+---
+---
+UnknownValueAttributeException
+---
+test_dict_subclass_getitem @disabled
+---
+class mydict(dict):
+    def __getitem__(self, index):
+        res = super().__getitem__(index)
+        return res.upper()
+
+d = mydict()
+d['foo'] = 'bar'
+x = d['foo']
+---
+x
+---
+---
+test_dict_subclass_setitem @disabled
+---
+class mydict(dict):
+    def __setitem__(self, index, value):
+        return super().__setitem__(index, value.upper())
+
+d = mydict()
+d['foo'] = 'bar'
+x = d['foo']
+---
+x
+---
+---
+test_dict_subclass_missing @disabled
+---
+class mydict(dict):
+    def __missing__(self, key):
+        return key
+d = mydict()
+d['foo'] = 'bar'
+x = d['foo']
+y = d['zed']
+---
+x y
+---
+---
+test_dict_subclass_missing_not_called @disabled
+---
+class mydict(dict):
+    def __missing__(self, key):
+        return key
+
+    def __getitem__(self, key):
+        return 1
+d = mydict()
+d['foo'] = 'bar'
+x = d['foo']
+y = d['zed']
+---
+x y
+---
+---
+test_class_getitem @disabled
+---
+class C:
+    def __class_getitem__(cls, index):
+        return (cls.__name__, index)
+
+x, y = C[42]
+---
+x y
+---
+---
+test_class_getitem_inheritance @disabled
+---
+class C:
+    def __class_getitem__(cls, index):
+        return (cls.__name__, index)
+
+class D(C): pass
+
+x, y = D[42]
+---
+x y
+---
+---
+test_class_getitem_mc @disabled
+---
+class MC(type):
+    def __getitem__(self, index):
+        return index + 1
+
+class C:
+    def __class_getitem__(cls, index):
+        return (cls.__name__, index)
+
+x, y = C[42]
+---
+x y
+---
+---
+test_generic_dict @disabled
+---
+__name__ = 'abc'
+from typing import DefaultDict, Generic, TypeVar
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
+
+class FallbackDict(DefaultDict[_KT, _VT], Generic[_KT, _VT]):
+    pass
+
+fd  = FallbackDict()
+---
+---
+---
+test_dunder_class @disabled
+---
+x = 42
+y = x.__class__
+---
+y
+---
+---
+test_dunder_class_defined @disabled
+---
+class C:
+    __class__ = 42
+
+x = C().__class__
+---
+x
+---
+---
+test_str_lower @disabled
+---
+x = 'ABC'.lower()
+---
+x
+---
+---
+test_str_upper @disabled
+---
+x = 'abc'.upper()
+---
+x
+---
+---
+test_str_strip @disabled
+---
+x = ' abc '.strip()
+---
+x
+---
+---
+test_str_strip_arg @disabled
+---
+x = 'babcb'.strip('b')
+---
+x
+---
+---
+test_str_strip_bad_arg @disabled
+---
+x = 'babcb'.strip(42)
+---
+---
+StrictModuleUnhandledException
+---
+test_str_join @disabled
+---
+x = ','.join(['abc','def'])
+---
+x
+---
+---
+test_str_join_non_str @disabled
+---
+x = ','.join(['abc', 1])
+---
+---
+StrictModuleUnhandledException
+---
+test_str_join_non_primary @disabled
+---
+x = ','.join(['abc', object()])
+---
+---
+StrictModuleTypeError
+---
+test_str_bad_index @disabled
+---
+x = "abc"[-5]
+---
+---
+StrictModuleUnhandledException
+---
+test_str_unsupported_index @disabled
+---
+x = "abc"[0.0]
+---
+---
+StrictModuleUnhandledException
+---
+test_str_slice_unsupported @disabled
+---
+x = "abc"[0.0:1]
+---
+---
+StrictModuleUnhandledException
+---
+test_str_formatting @disabled
+---
+x = "%s" % ("foo", )
+y = "%s/%s" % ("foo", "bar")
+z = "%s/%s" % (42, "bar")
+a = "%r/%r" % (1, 2)
+---
+x y z a
+---
+---
+test_func_dict @disabled
+---
+def f(a):
+    pass
+f.__dict__['a'] = 2
+a = f.__dict__['a']
+---
+a
+---
+---
+test_func_annotations @disabled
+---
+def f(a: 42, b: int, *args: str, x:bool=False, **kwargs: complex) -> None:
+    pass
+ann = f.__annotations__
+a = ann['a']
+b = ann['b']
+args = ann['args']
+x = ann['x']
+kwargs = ann['kwargs']
+ret = ann['return']
+---
+a b args x kwargs ann
+---
+---
+test_func_no_defaults @disabled
+---
+def f(a, b) -> None:
+    pass
+defaults = f.__defaults__
+kwdefaults = f.__kwdefaults__
+---
+defaults kwdefaults
+---
+---
+test_func_defaults @disabled
+---
+def f(a = 1, b = 2) -> None:
+    pass
+defaults = f.__defaults__
+a = defaults[0]
+b = defaults[1]
+---
+a b defaults
+---
+---
+test_func_kwdefaults @disabled
+---
+def f(*, a = 1) -> None:
+    pass
+kwdefaults = f.__kwdefaults__
+a = kwdefaults["a"]
+---
+a kwdefaults
+---
+---
+test_func_dict_non_string_key @disabled
+---
+def f(a):
+    pass
+f.__dict__[2] = 1
+---
+---
+StrictModuleTypeError
+---
+test_set_func_dict @disabled
+---
+def f(a):
+    pass
+f.__dict__ = {'a': 1}
+a = f.__dict__['a']
+---
+a
+---
+---
+test_set_func_dict_no_string @disabled
+---
+def f(a):
+    pass
+f.__dict__ = {'a': 1, 2: 2}
+a = f.__dict__['a']
+---
+---
+StrictModuleTypeError
+---
+test_reset_func_dict @disabled
+---
+def f(a):
+    pass
+f.__dict__['a'] = 2
+a1 = f.__dict__['a']
+f.__dict__ = {'a': 1}
+a2 = f.__dict__['a']
+---
+a1 a2
+---
+---
+test_dunder_dict_identity @disabled
+---
+def f(a):
+    pass
+d1 = f.__dict__
+f.__dict__['a'] = 2
+d2 = f.__dict__
+b = d1 is d2
+---
+b
+---
+---
+test_type_dict @disabled
+---
+class C:
+    a: int = 2
+a = C.__dict__['a']
+---
+a
+---
+---
+test_set_type_dict @disabled
+---
+class C:
+    a: int = 2
+C.__dict__ = {'a': 1}
+d = C.__dict__
+---
+---
+StrictModuleUnhandledException
+---
+test_edit_type_dict @disabled
+---
+class C:
+    a: int = 2
+C.__dict__["a"] = 3
+---
+---
+StrictModuleTypeError
+---
+test_type_mro @disabled
+---
+
+x = int.__mro__[0]
+---
+x
+---
+---
+test_super_basic @disabled
+---
+class C:
+    def f(self):
+        return 1
+class D(C):
+    def f(self):
+        return super(D, self).f()
+a = D().f()
+---
+a
+---
+---
+test_super_outside_class @disabled
+---
+class C:
+    def f(self):
+        return 1
+class D(C):
+    def f(self):
+        return 2
+a = super(D, D()).f()
+b = D().f()
+---
+a b
+---
+---
+test_super_single_inheritance_search @disabled
+---
+class C:
+    def f(self):
+        return 1
+class D(C):
+    def f(self):
+        return 2
+
+class E(D):
+    pass
+a = super(E, E()).f() # D.f
+b = super(D, E()).f() # C.f
+c = super(D, D()).f() # C.f
+---
+a b c
+---
+---
+test_super_not_subtype @disabled
+---
+class C:
+    def f(self):
+        return 1
+class D(C):
+    def f(self):
+        return 2
+
+super(D, C()).f()
+---
+---
+StrictModuleUnhandledException
+---
+test_super_descr_get @disabled
+---
+class C:
+    def f(self):
+        return 1
+class D(C):
+    def f(self):
+        return 2
+
+s = super(D)
+class E(D):
+    mysuper = s
+a = E().mysuper.f() # invoke s.__get__(E()).f() -> super(D, E()).f() = 1
+---
+a
+---
+---
+test_super_base_call @disabled
+---
+class C:
+    def f(self):
+        return 1
+class D(C):
+    def f(self):
+        return super(D, self).f()
+
+a = D().f()
+---
+a
+---
+---
+test_super_unknown_base @disabled
+---
+from outside import unknown
+class A:
+    def f(self):
+        return 1
+class C(unknown, A):
+    def __new__(cls, *args, **kwargs):
+        obj = object.__new__(cls, *args, **kwargs)
+        return obj
+
+    def __init__(self):
+        pass
+c = C()
+super(A, c).f()
+---
+---
+StrictModuleTypeError
+---
+test_super_multiple_inheritance @disabled
+---
+class A:
+    def f(self):
+        return 1
+class B(A):
+    def f(self):
+        return 2
+
+class C(A):
+    def f(self):
+        return 3
+
+class D(B, C): # DBCA
+    pass
+
+a = super(D, D()).f()
+b = super(C, D()).f()
+c = super(B, D()).f()
+---
+a b c
+---
+---
+test_super_multiple_inheritance_2 @disabled
+---
+class A:
+    def f(self):
+        return 1
+class B(A):
+    def f(self):
+        return super(B, self).f()
+
+class C(A):
+    def f(self):
+        return 3
+
+class D(B, C): # DBCA
+    def f(self):
+        return super(D, self).f()
+
+a = super(D, D()).f()
+b = super(C, D()).f()
+c = super(B, D()).f()
+d = super(B, B()).f()
+---
+a b c d
+---
+---
+test_super_multiple_inheritance_3 @disabled
+---
+class A:
+    def f(self):
+        return 4
+class B(A): # BA
+    def f(self):
+        return 10 * (super(B, self).f()) + 1
+
+class C(A): # CA
+    def f(self):
+        return 10 * (super(C, self).f()) + 2
+
+class D(B, C): # DBCA
+    def f(self):
+        return 10 * (super(D, self).f()) + 3
+
+a = D().f()
+---
+a
+---
+---
+test_dunder_class_cell @disabled
+---
+class A:
+    def f(self):
+        return __class__
+
+class B(A):
+    def f(self):
+        return super(B, self).f()
+
+    def g(self):
+        return __class__
+a = A().f() == A
+b = B().f() == A
+c = B().g() == B
+---
+a b c
+---
+---
+test_magical_super_multiple_inheritance @disabled
+---
+class A:
+    def f(self):
+        return 4
+class B(A): # BA
+    def f(self):
+        return 10 * (super().f()) + 1
+
+class C(A): # CA
+    def f(self):
+        return 10 * (super().f()) + 2
+
+class D(B, C): # DBCA
+    def f(self):
+        return 10 * (super().f()) + 3
+
+a = D().f()
+---
+a
+---
+---
+test_magical_super_outside_method @disabled
+---
+class A:
+    def f(self):
+        return 1
+class B(A):
+    pass
+__class__ = B
+def f(self):
+    return super().f() # should not use __class__
+f(B())
+---
+---
+StrictModuleUnhandledException
+---
+test_super_shadow_dunder_class @disabled
+---
+class B:
+    def f(self): return 1
+class C(B):
+    def f(self):
+        return super().f()
+    __class__ = 2
+
+a = C().f()
+---
+a
+---
+---
+test_callable @disabled
+---
+def f():
+    pass
+class A:
+    pass
+class B:
+    def g(self):
+        return 1
+class C:
+    def __call__(self):
+        pass
+c = C()
+b1 = callable(f)
+b2 = callable(A)
+b3 = callable(B)
+b4 = callable(A())
+b5 = callable(B.g)
+b6 = callable(B().g)
+b7 = callable(B().g())
+b8 = callable(C)
+b9 = callable(c)
+---
+b1 b2 b3 b4 b5 b6 b7 b8 b9
+---
+---
+test_callable_on_unknown @disabled
+---
+import unknown
+b = callable(unknown)
+---
+b
+---
+---
+test_dunder_call @disabled
+---
+class B:
+    def __call__(self):
+        return 1
+b = B() != 1
+a = b() == 1
+---
+a b
+---
+---
+test_list_add @disabled
+---
+l1 = [1, 2]
+l2 = [1, 3]
+l3 = [1, 2] + [1, 3]
+l4 = l1 + l2
+---
+l3 l4
+---
+---
+test_list_multiply @disabled
+---
+l1 = [1, 2]
+l2 = l1 * 3
+l3 = [] * 3
+---
+l2 l3
+---
+---
+test_list_eq @disabled
+---
+l1 = [1, 2, 3]
+l2 = [1, 2]
+b1 = l1 == l2
+l2.append(3)
+b2 = l1 == l2
+---
+b1 b2
+---
+---
+test_list_eq_subclass @disabled
+---
+class MyList(list):
+    pass
+l1 = MyList()
+b1 = l1 == []
+b2 = [] == l1
+b3 = l1 == [1]
+b4 = [1] == l1
+l1.append(1)
+b5 = l1 == [1]
+b6 = [1] == l1
+---
+b1 b2 b3 b4 b5 b6
+---
+---
+test_list_add_subclass @disabled
+---
+class MyList(list):
+    pass
+MyList() + [1]
+---
+---
+StrictModuleNotSupportedException
+---
+test_list_radd_subclass @disabled
+---
+class MyList(list):
+    pass
+[1] + MyList()
+---
+---
+StrictModuleNotSupportedException
+---
+test_tuple_add @disabled
+---
+l1 = (1, 2)
+l2 = (1, 3)
+l3 = (1, 2) + (1, 3)
+l4 = l1 + l2
+---
+l3 l4
+---
+---
+test_tuple_add_subclass @disabled
+---
+class MyTuple(tuple):
+    pass
+MyTuple() + (1, 2)
+---
+---
+StrictModuleNotSupportedException
+---
+test_tuple_radd_subclass @disabled
+---
+class MyTuple(tuple):
+    pass
+(1, 2) + MyTuple()
+---
+---
+StrictModuleNotSupportedException
+---
+test_tuple_eq @disabled
+---
+b1 = () == ()
+b2 = () == (1,)
+b3 = (1,) == (1,)
+b4 = (1,2,3) == (1,2,3)
+---
+b1 b2 b3 b4
+---
+---
+test_tuple_eq_subclass @disabled
+---
+class MyTuple(tuple):
+    pass
+l1 = MyTuple()
+b1 = l1 == ()
+b2 = l1 == (1,)
+b3 = () == l1
+b4 = (1, ) == l1
+---
+b1 b2 b3 b4
+---
+---
+test_tuple_index @disabled
+---
+x = (1, 2)[0]
+---
+x
+---
+---
+test_tuple_slice @disabled
+---
+x = (1, 2, 3, 4)[0:2]
+---
+x
+---
+---
+test_tuple_bad_slice @disabled
+---
+x = (1, 2, 3, 4)['abc']
+---
+---
+StrictModuleUnhandledException
+---
+test_tuple_bad_index @disabled
+---
+x = (1, 2)[-5]
+---
+---
+StrictModuleUnhandledException
+---
+test_int_multiple_compare @disabled
+---
+x = 10
+b = 1 < x < 100 > 5
+c = 1 < x > 5
+d = 1 < x == 10 > 100
+---
+b c d
+---
+---
+test_star_assignment @disabled
+---
+x = [1, 2, 3, 4]
+a, *b, c, d = x
+e, *f = x
+*g, = x
+*h, i = x
+j, *k, l = x
+m, n, *o, p, q = x
+---
+a b c d e f g h i j k l m n o p q
+---
+---
+test_call_functions @disabled
+---
+def f(a, b, c):
+    return a + b + c
+
+def g(a, b, *args):
+    return a + b + args[0]
+
+def h(a, b, *args, c, d, **kwargs):
+    return a + b + d + kwargs["f"]
+
+def j(f, /, **kwargs):
+    return f + kwargs["f"]
+
+x = f(1, b=2, c=3)
+y = g(1, 2, 3, 4, 5)
+z = h(1, 2, 3, 4, c = 5, d = 6, e = 7, f = 8)
+w = j(2, f=3)
+---
+x y z w
+---
+---
+test_function_member_get @disabled
+---
+def f(x):
+    "something"
+    return x
+a = f.__name__
+b = f.__qualname__
+c = f.__module__
+d = f.__doc__
+---
+a b c d
+---
+---
+test_function_member_set @disabled
+---
+def f(x):
+    "something"
+    return x
+f.__name__ = "g"
+f.__qualname__ = "x.y"
+f.__module__ = "m"
+f.__doc__ = "something"
+a = f.__name__
+b = f.__qualname__
+c = f.__module__
+d = f.__doc__
+---
+a b c d
+---
+---
+test_function_member_deletion_allowed @disabled
+---
+def f(x):
+    return x
+f.__module__ = "m"
+f.__doc__ = "something"
+a = f.__module__
+b = f.__doc__
+del f.__module__
+del f.__doc__
+c = f.__module__
+d = f.__doc__
+---
+a b c d
+---
+---
+test_function_member_deletion_disallowed @disabled
+---
+def f(x):
+    return x
+
+del f.__name__
+---
+---
+StrictModuleUnhandledException
+---
+test_set_init @disabled
+---
+
+s1 = set()
+s2 = set([1, 2])
+s3 = set(s2)
+s4 = set()
+s4.__init__([2, 3, 4])
+l1 = len(s1)
+l2 = len(s2)
+l3 = len(s3)
+l4 = len(s4)
+---
+s1 s2 s3 s4 l1 l2 l3 l4
+---
+---
+test_set_init_too_many_args @disabled
+---
+
+s1 = set(1, 2)
+---
+---
+StrictModuleUnhandledException
+---
+test_set_init_not_iterable @disabled
+---
+
+s1 = set(1)
+---
+---
+StrictModuleTypeError
+---
+test_set_methods @disabled
+---
+s = set([1, 2])
+l1 = len(s)
+s.add(3)
+l2 = len(s)
+s.add(1)
+l3 = len(s)
+s.update([5, 6])
+l4 = len(s)
+s.update([5, 6])
+l5 = len(s)
+b1 = set().issubset(s)
+b2 = set() <= s
+b3 = s <= set()
+---
+l1 l2 l3 l4 l5 b1 b2 b3
+---
+---
+test_frozenset_init @disabled
+---
+
+s1 = frozenset()
+s2 = frozenset([1, 2])
+s3 = frozenset(s2)
+s4 = frozenset()
+l1 = len(s1)
+l2 = len(s2)
+l3 = len(s3)
+l4 = len(s4)
+---
+s1 s2 s3 l1 l2 l3 l4
+---
+---
+test_frozenset_init_too_many_args @disabled
+---
+
+s1 = frozenset(1, 2)
+---
+---
+StrictModuleUnhandledException
+---
+test_frozenset_init_not_iterable @disabled
+---
+
+s1 = frozenset(1)
+---
+---
+StrictModuleTypeError
+---
+test_set_frozenset_binop @disabled
+---
+l = set([1, 2])
+r = frozenset([3, 4])
+x = l | r
+y = r | l
+a = type(x) == set
+b = type(y) == frozenset
+---
+x y a b
+---
+---
+test_iscoroutinefunction @disabled
+---
+from asyncio import iscoroutinefunction
+def f():
+    pass
+
+async def g():
+    pass
+
+class C:
+    def h(self):
+        pass
+    async def j(self):
+        pass
+
+c = C()
+b1 = iscoroutinefunction(f)
+b2 = iscoroutinefunction(g)
+b3 = iscoroutinefunction(C.h)
+b4 = iscoroutinefunction(C.j)
+b5 = iscoroutinefunction(c.h)
+b6 = iscoroutinefunction(c.j)
+---
+b1 b2 b3 b4 b5 b6
+---
+---
+test_asyncio_Lock @disabled
+---
+from asyncio import Lock
+---
+---
+---
+test_asyncio_Lock_unknown @disabled
+---
+from asyncio import Lock
+x = lock.foo
+---
+---
+UnknownValueAttributeException
+---
+test_private_name_in_class_with_underscore @disabled
+---
+class __C__:
+    __x = 1
+x = __C__._C____x
+---
+x
+---
+---
+test_comprehension @disabled
+---
+l1 = [1, 2, 3]
+l2 = [6, 7, 8]
+l3 = [[1, 2, 3], [4, 5, 6]]
+z1 = [(x, y) for x in l1 for y in l2]
+z2 = [w for j in l3 for w in j]
+z3 = [v for k in z1 for v in k]
+z4 = [u for m in z1 for u in m if u > 1 and u < 8]
+---
+z1 z2 z3 z4
+---
+---
+test_functools_wraps @disabled
+---
+def recursive_repr(fillvalue='...'):
+    """Decorator to make a repr function return fillvalue for a recursive call"""
+
+    def decorating_function(user_function):
+        repr_running = set()
+
+        def wrapper(self):
+            key = id(self), get_ident()
+            if key in repr_running:
+                return fillvalue
+            repr_running.add(key)
+            try:
+                result = user_function(self)
+            finally:
+                repr_running.discard(key)
+            return result
+        wrapper.__module__ = getattr(user_function, '__module__')
+        wrapper.__doc__ = getattr(user_function, '__doc__')
+        wrapper.__name__ = getattr(user_function, '__name__')
+        wrapper.__qualname__ = getattr(user_function, '__qualname__')
+        wrapper.__annotations__ = getattr(user_function, '__annotations__', {})
+        return wrapper
+    return decorating_function
+WRAPPER_ASSIGNMENTS = ('__module__', '__name__', '__qualname__', '__doc__',
+    '__annotations__')
+WRAPPER_UPDATES = '__dict__',
+
+
+def update_wrapper(wrapper, wrapped, assigned=WRAPPER_ASSIGNMENTS, updated=
+    WRAPPER_UPDATES):
+    """Update a wrapper function to look like the wrapped function
+
+       wrapper is the function to be updated
+       wrapped is the original function
+       assigned is a tuple naming the attributes assigned directly
+       from the wrapped function to the wrapper function (defaults to
+       functools.WRAPPER_ASSIGNMENTS)
+       updated is a tuple naming the attributes of the wrapper that
+       are updated with the corresponding attribute from the wrapped
+       function (defaults to functools.WRAPPER_UPDATES)
+    """
+    for attr in assigned:
+        try:
+            value = getattr(wrapped, attr)
+        except AttributeError:
+            pass
+        else:
+            setattr(wrapper, attr, value)
+    for attr in updated:
+        getattr(wrapper, attr).update(getattr(wrapped, attr, {}))
+    wrapper.__wrapped__ = wrapped
+    return wrapper
+
+
+def wraps(wrapped, assigned=WRAPPER_ASSIGNMENTS, updated=WRAPPER_UPDATES):
+    """Decorator factory to apply update_wrapper() to a wrapper function
+
+       Returns a decorator that invokes update_wrapper() with the decorated
+       function as the wrapper argument and the arguments to wraps() as the
+       remaining arguments. Default arguments are as for update_wrapper().
+       This is a convenience function to simplify applying partial() to
+       update_wrapper().
+    """
+    return partial(update_wrapper, wrapped=wrapped, assigned=assigned,
+        updated=updated)
+
+
+class partial:
+    """New function with partial application of the given arguments
+    and keywords.
+    """
+    __slots__ = 'func', 'args', 'keywords', '__dict__', '__weakref__'
+
+    def __new__(cls, func, /, *args, **keywords):
+        if not callable(func):
+            raise TypeError('the first argument must be callable')
+        if hasattr(func, 'func'):
+            args = func.args + args
+            keywords = {**func.keywords, **keywords}
+            func = func.func
+        self = super(partial, cls).__new__(cls)
+        self.func = func
+        self.args = args
+        self.keywords = keywords
+        return self
+
+    def __call__(self, /, *args, **keywords):
+        keywords = {**self.keywords, **keywords}
+        return self.func(*self.args, *args, **keywords)
+
+    @recursive_repr()
+    def __repr__(self):
+        qualname = type(self).__qualname__
+        args = [repr(self.func)]
+        args.extend(repr(x) for x in self.args)
+        args.extend(f'{k}={v!r}' for k, v in self.keywords.items())
+        if type(self).__module__ == 'functools':
+            return f"functools.{qualname}({', '.join(args)})"
+        return f"{qualname}({', '.join(args)})"
+
+    def __reduce__(self):
+        return type(self), (self.func,), (self.func, self.args, self.
+            keywords or None, self.__dict__ or None)
+
+    def __setstate__(self, state):
+        if not isinstance(state, tuple):
+            raise TypeError('argument to __setstate__ must be a tuple')
+        if len(state) != 4:
+            raise TypeError(f'expected 4 items in state, got {len(state)}')
+        func, args, kwds, namespace = state
+        if not callable(func) or not isinstance(args, tuple
+            ) or kwds is not None and not isinstance(kwds, dict
+            ) or namespace is not None and not isinstance(namespace, dict):
+            raise TypeError('invalid partial state')
+        args = tuple(args)
+        if kwds is None:
+            kwds = {}
+        elif type(kwds) is not dict:
+            kwds = dict(kwds)
+        if namespace is None:
+            namespace = {}
+        self.__dict__ = namespace
+        self.func = func
+        self.args = args
+        self.keywords = kwds
+
+
+def _gt_from_lt(self, other, NotImplemented=NotImplemented):
+    """Return a > b.  Computed by @total_ordering from (not a < b) and (a != b)."""
+    op_result = self.__lt__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result and self != other
+
+
+def _le_from_lt(self, other, NotImplemented=NotImplemented):
+    """Return a <= b.  Computed by @total_ordering from (a < b) or (a == b)."""
+    op_result = self.__lt__(other)
+    return op_result or self == other
+
+
+def _ge_from_lt(self, other, NotImplemented=NotImplemented):
+    """Return a >= b.  Computed by @total_ordering from (not a < b)."""
+    op_result = self.__lt__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result
+
+
+def _ge_from_le(self, other, NotImplemented=NotImplemented):
+    """Return a >= b.  Computed by @total_ordering from (not a <= b) or (a == b)."""
+    op_result = self.__le__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result or self == other
+
+
+def _lt_from_le(self, other, NotImplemented=NotImplemented):
+    """Return a < b.  Computed by @total_ordering from (a <= b) and (a != b)."""
+    op_result = self.__le__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return op_result and self != other
+
+
+def _gt_from_le(self, other, NotImplemented=NotImplemented):
+    """Return a > b.  Computed by @total_ordering from (not a <= b)."""
+    op_result = self.__le__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result
+
+
+def _lt_from_gt(self, other, NotImplemented=NotImplemented):
+    """Return a < b.  Computed by @total_ordering from (not a > b) and (a != b)."""
+    op_result = self.__gt__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result and self != other
+
+
+def _ge_from_gt(self, other, NotImplemented=NotImplemented):
+    """Return a >= b.  Computed by @total_ordering from (a > b) or (a == b)."""
+    op_result = self.__gt__(other)
+    return op_result or self == other
+
+
+def _le_from_gt(self, other, NotImplemented=NotImplemented):
+    """Return a <= b.  Computed by @total_ordering from (not a > b)."""
+    op_result = self.__gt__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result
+
+
+def _le_from_ge(self, other, NotImplemented=NotImplemented):
+    """Return a <= b.  Computed by @total_ordering from (not a >= b) or (a == b)."""
+    op_result = self.__ge__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result or self == other
+
+
+def _gt_from_ge(self, other, NotImplemented=NotImplemented):
+    """Return a > b.  Computed by @total_ordering from (a >= b) and (a != b)."""
+    op_result = self.__ge__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return op_result and self != other
+
+
+def _lt_from_ge(self, other, NotImplemented=NotImplemented):
+    """Return a < b.  Computed by @total_ordering from (not a >= b)."""
+    op_result = self.__ge__(other)
+    if op_result is NotImplemented:
+        return op_result
+    return not op_result
+
+
+_convert = {'__lt__': [('__gt__', _gt_from_lt), ('__le__', _le_from_lt), (
+    '__ge__', _ge_from_lt)], '__le__': [('__ge__', _ge_from_le), ('__lt__',
+    _lt_from_le), ('__gt__', _gt_from_le)], '__gt__': [('__lt__',
+    _lt_from_gt), ('__ge__', _ge_from_gt), ('__le__', _le_from_gt)],
+    '__ge__': [('__le__', _le_from_ge), ('__gt__', _gt_from_ge), ('__lt__',
+    _lt_from_ge)]}
+
+
+def total_ordering(cls):
+    """Class decorator that fills in missing ordering methods"""
+    roots = {op for op in _convert if getattr(cls, op, None) is not getattr
+        (object, op, None)}
+    if not roots:
+        raise ValueError(
+            'must define at least one ordering operation: < > <= >=')
+    root = max(roots)
+    for opname, opfunc in _convert[root]:
+        if opname not in roots:
+            setattr(cls, opname, opfunc)
+    return cls
+
+
+for v in _convert.values():
+    for opname, opfunc in v:
+        opfunc.__name__ = opname
+
+
+def _lru_cache_wrapper(user_function, maxsize, typed, _CacheInfo):
+
+    def wrapper(*args, **kwds):
+        raise Exception(
+            'lru cache cannot be called at the top-level in a strict module')
+    return wrapper
+
+
+def lru_cache(maxsize=128, typed=False):
+    """Least-recently-used cache decorator.
+
+    If *maxsize* is set to None, the LRU features are disabled and the cache
+    can grow without bound.
+
+    If *typed* is True, arguments of different types will be cached separately.
+    For example, f(3.0) and f(3) will be treated as distinct calls with
+    distinct results.
+
+    Arguments to the cached function must be hashable.
+
+    View the cache statistics named tuple (hits, misses, maxsize, currsize)
+    with f.cache_info().  Clear the cache and statistics with f.cache_clear().
+    Access the underlying function with f.__wrapped__.
+
+    See:  http://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)
+
+    """
+    if isinstance(maxsize, int):
+        if maxsize < 0:
+            maxsize = 0
+    elif callable(maxsize) and isinstance(typed, bool):
+        user_function, maxsize = maxsize, 128
+        wrapper = _lru_cache_wrapper(user_function, maxsize, typed, _CacheInfo)
+        return update_wrapper(wrapper, user_function)
+    elif maxsize is not None:
+        raise TypeError(
+            'Expected first argument to be an integer, a callable, or None')
+
+    def decorating_function(user_function):
+        wrapper = _lru_cache_wrapper(user_function, maxsize, typed, _CacheInfo)
+        return update_wrapper(wrapper, user_function)
+    return decorating_function
+
+def h(a):
+    return a or False
+
+def invert_h(a):
+    b = h(a)
+    return not b
+update_wrapper(invert_h, h)
+b1 = invert_h(None)
+b2 = invert_h.__wrapped__(None)
+
+def f(a, b, c):
+    return a + b - c
+
+fc = partial(f, a=1, b=2)
+x1 = fc(c = 3)
+x2 = fc(c = 0)
+f.__dict__ = {"a": 1, "b": 2}
+@wraps(f)
+def g(*args):
+    return f(*args)
+a = g.__dict__["a"]
+b = g.__dict__["b"]
+---
+b1 b2 x1 x2 a b
+---
+---
+test_str_init @disabled
+---
+x = str("foo")
+
+class C:
+    def __str__(self):
+        return "bar"
+
+c = str(C())
+
+d = str()
+---
+x c d
+---
+---
+test_str_init_non_string @disabled
+---
+class C:
+    def __str__(self):
+        return 1
+
+str(C())
+---
+---
+StrictModuleTypeError
+---
+test_str_compare @disabled
+---
+b1 = "" > ""
+b2 = "a" == "a"
+b3 = "A" < "a"
+b4 = "foo" < "bar"
+b5 = "bar" < "baz"
+b6 = "abc" < "bbc" > "bac"
+---
+b1 b2 b3 b4 b5 b6
+---
+---
+test_str_subclass_compare @disabled
+---
+class C(str):
+    pass
+
+class D(str):
+    def __str__(self):
+        return "ab"
+
+class E(str):
+    def __gt__(self, other):
+        return True
+
+
+b1 = C() > ""
+b2 = D() > "a"
+b3 = D() > "b"
+b4 = E() > 1
+b5 = E() > ""
+b6 = E() < "a"
+b7 = "" > C()
+b8 = "a" > D()
+b9 = "b" > D()
+b10 = 1 < E()
+b11 = "" > E()
+b12 = "a" < E()
+---
+b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12
+---
+---
+test_min_max @disabled
+---
+x1 = max(1, 2)
+x2 = max(1, 2, 3, 4, 3, 2, 1)
+def f(a):
+    return -a
+x3 = max(3, 2, 4, key=f)
+x4 = max([], default=1)
+x5 = max([1, 2, 3, 2, 1])
+x6 = max([3, 2, 1], default=0)
+x7 = max([2, 5, 1, 4], key=f)
+x8 = min(3, 1, 2)
+x9 = min([3, 1, 5, 4, 2])
+x10 = max("a", "b", "o", "u", "about")
+---
+x1 x2 x3 x4 x5 x6 x7 x8 x9 x10
+---
+---
+test_max_unknown_keyword @disabled
+---
+x = max(1, 3, default=5)
+---
+---
+StrictModuleTypeError
+---
+test_max_iterable_no_default @disabled
+---
+x = max([])
+---
+---
+StrictModuleUnhandledException
+---
+test_not_implemented @disabled
+---
+def f():
+    return NotImplemented
+a = f()
+---
+a
+---
+---
+test_cached_class_property @disabled
+---
+from strict_modules import cached_classproperty
+
+class C:
+    @cached_classproperty
+    def f(cls):
+        return 42
+
+a = C.f
+b = C.f
+---
+a b
+---
+---
+test_cached_class_property_set @disabled
+---
+from strict_modules import cached_classproperty
+
+class C:
+    @cached_classproperty
+    def f(cls):
+        return cls
+
+C.f = 42
+a = C.f
+---
+a
+---
+---
+test_cached_class_property_bad_init @disabled
+---
+from strict_modules import cached_classproperty
+
+class C:
+    f = cached_classproperty(None)
+---
+---
+StrictModuleUnhandledException
+---
+test_cached_class_property_uninit @disabled
+---
+from strict_modules import cached_classproperty
+
+class C:
+    f = cached_classproperty.__new__(cached_classproperty)
+
+a = C.f
+---
+---
+StrictModuleUnhandledException
+---
+test_cached_property @disabled
+---
+from strict_modules import cached_property
+
+class C:
+    @cached_property
+    def f(self):
+        return 42
+
+inst = C()
+a = inst.f
+b = inst.f
+---
+a b
+---
+---
+test_cached_property_class_access @disabled
+---
+from strict_modules import cached_property
+
+class C:
+    @cached_property
+    def f(self):
+        return 42
+
+a = C.f != 42
+---
+a
+---
+---
+test_star_in_list @disabled
+---
+l1 = [2, 3]
+l2 = [1, *l1, 5]
+---
+l2
+---
+---
+test_cast @disabled
+---
+from typing import cast
+x = cast(int, 1)
+y = cast(str, 2) # no runtime conversion
+---
+x y
+---
+---
+test_dict_view @disabled
+---
+d = {1:2, 3:4}
+k = d.keys()
+v = d.values()
+i = d.items()
+l1 = [i for i in k]
+l2 = [i for i in v]
+l3 = [i+j for i, j in i]
+d.update({5:6})
+l4 = [i for i in k]
+l5 = [i for i in v]
+l6 = [i+j for i, j in i]
+---
+l1 l2 l3 l4 l5 l6
+---
+---
+test_loop_continue @disabled
+---
+a, b = 0, 0
+for i in [1, 2, 3]:
+    a = i
+    if a > 1:
+        continue
+    b = i
+---
+a b
+---
+---
+test_loop_break @disabled
+---
+a, b = 0, 0
+for i in [1, 2, 3]:
+    a = i
+    if a > 1:
+        break
+    b = i
+---
+a b
+---
+---
+test_contains_iterable @disabled
+---
+l1 = [1, '2' ,'3']
+l2 = (1, '2', '3')
+b1 = 1 in l1
+b2 = 4 in l1
+b3 = '2' in l2
+b4 = 5 in l2
+b5 = '2' not in l1
+b6 = 4 not in l1
+b7 = '3' not in l2
+b8 = 5 not in l2
+class C:
+    def __init__(self, v):
+        self.v = v
+    def __contains__(self, item):
+        return item < self.v
+b9 = 1 in C(2)
+b10 = 2 in C(2)
+c1 = C(1)
+c2 = C(2)
+c3 = C(1)
+l3 = [c1, c2]
+x = l3[0]
+b11 = c1 in l3
+b12 = c3 in l3
+b13 = 1025 in [1025, 1026]
+b14 = 1 not in C(2)
+b15 = 2 not in C(2)
+---
+b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15
+---
+---
+test_contains_unsupported @disabled
+---
+class C:
+    pass
+1 in C()
+---
+---
+StrictModuleTypeError
+---
+test_rich_comparison_eq_ne @disabled
+---
+class A:
+    def __eq__(self, other):
+        return 1
+class B:
+    def __eq__(self, other):
+        return 2
+class C(A):
+    def __eq__(self, other):
+        return 0
+    def __ne__(self, other):
+        return 4
+class D:
+    def __eq__(self, other):
+        return NotImplemented
+class E:
+    pass
+e = E()
+
+x0 = A() == A()
+x1 = A() == B()
+x2 = A() == C()
+x3 = B() == C()
+x4 = A() != B()
+x5 = A() != C()
+x6 = B() != C()
+x7 = C() != B()
+x8 = D() != C()
+x9 = E() == E()
+x10 = e == e
+x11 = E() != E()
+x12 = e != e
+---
+x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12
+---
+---
+test_rich_comparison @disabled
+---
+class A:
+    def __le__(self, other):
+        return 1
+class B:
+    def __le__(self, other):
+        return 2
+class C(A):
+    def __ge__(self, other):
+        return 3
+class D:
+    pass
+
+class E:
+    def __le__(self, other):
+        return NotImplemented
+x1 = A() <= B()
+x2 = B() <= A()
+x3 = A() <= C()
+x4 = B() <= C()
+x5 = D() <= C()
+x6 = A() >= A()
+x7 = A() >= B()
+x8 = B() >= A()
+x9 = E() <= C()
+---
+x1 x2 x3 x4 x5 x6 x7 x8 x9
+---
+---
+test_while_loop @disabled
+---
+x = 1
+while x < 100:
+    x = x + 1
+y = 1
+while y > 100:
+    y = y - 1
+---
+x y
+---
+---
+test_while_loop_else @disabled
+---
+x = 1
+while x < 100:
+    x = x + 1
+else:
+    y = 1
+---
+x y
+---
+---
+test_while_loop_continue @disabled
+---
+x = y = 1
+
+while x < 100:
+    x = x + 1
+    if x > 50:
+        continue
+    y = y + 1
+---
+x y
+---
+---
+test_while_loop_break @disabled
+---
+x = 1
+while x < 100:
+    x = x + 1
+    if x > 50:
+        break
+else:
+    x = 99
+y = 1
+while y < 50:
+    y = y + 1
+    if y > 50:
+        break
+else:
+    y = 99
+---
+x y
+---
+---
+test_rich_comparison_not_implemented @disabled
+---
+class A:
+    def __le__(self, other):
+        return NotImplemented
+class B:
+    pass
+
+A() <= B()
+---
+---
+StrictModuleUnhandledException
+---
+test_fstring_empty @disabled
+---
+s = f'abc'
+---
+s
+---
+---
+test_fstring_join_unknown @disabled
+---
+s = f'{x}'
+---
+---
+UnknownValueAttributeException
+---
+test_fstring_simple @disabled
+---
+x = 'foo'
+s = f'{x}'
+---
+s
+---
+---
+test_fstring_unsupported_conversion @disabled
+---
+x = 'foo'
+s = f'{x!a}'
+---
+---
+StrictModuleNotSupportedException
+---
+test_fstring_str_conversion @disabled
+---
+x = 'foo'
+s = f'{x!s}'
+---
+s
+---
+---
+test_fstring_repr_conversion @disabled
+---
+class C:
+    def __repr__(self):
+        return 'obj'
+s = f'{C()!r}'
+---
+s
+---
+---
+test_fstring_str_format_spec @disabled
+---
+x = 'foo'
+s = f'{x:5}'
+---
+s
+---
+---
+test_fstring_str_conversion_from_int @disabled
+---
+x = 42
+s = f'{x!s}'
+---
+s
+---
+---
+test_fstring_int @disabled
+---
+x = 42
+s = f'{x}'
+---
+s
+---
+---
+test_fstring_format_spec @disabled
+---
+s = f'{42:3}'
+---
+s
+---
+---
+test_type_str @disabled
+---
+x = type("abc")
+---
+x
+---
+---
+test_type_none @disabled
+---
+x = type(None)
+---
+x
+---
+---
+test_function_call_exception @disabled
+---
+import unknown
+def f():
+    unknown.g()
+x = f()
+---
+---
+StrictModuleUnsafeCallException
+---
+test_with_enter @disabled
+---
+class A:
+    def __enter__(self):
+        return 1
+    def __exit__(self, exc_tp, exc, tb):
+        pass
+with A() as a:
+    pass
+---
+a
+---
+---
+test_with_exit @disabled
+---
+class A:
+    x = 1
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_tp, exc, tb):
+        self.x = 2
+with A() as a:
+    pass
+x = a.x
+---
+x
+---
+---
+test_with_exit_exception @disabled
+---
+class A:
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_tp, exc, tb):
+        pass
+x = 2
+try:
+    with A() as a:
+        raise Exception()
+except Exception:
+    x = 1
+---
+x
+---
+---
+test_with_exit_suppress_exception @disabled
+---
+class A:
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_tp, exc, tb):
+        return True
+x = 2
+try:
+    with A() as a:
+        raise Exception()
+except Exception:
+    x = 1
+---
+x
+---
+---
+test_with_multiple_context_managers @disabled
+---
+l = []
+class A:
+    def __enter__(self):
+        l.append(1)
+    def __exit__(self, exc_tp, exc, tb):
+        l.append(2)
+class B:
+    def __enter__(self):
+        l.append(3)
+    def __exit__(self, exc_tp, exc, tb):
+        l.append(4)
+with A(), B():
+    l.append(5)
+---
+l
+---
+---
+test_with_return_from_context_manager @disabled
+---
+l = []
+class A:
+    def __enter__(self):
+        l.append(1)
+    def __exit__(self, exc_tp, exc, tb):
+        l.append(2)
+def f():
+    with A():
+        return 3
+b = f()
+---
+l b
+---
+---
+test_list_ctor @disabled
+---
+l = [1, 2]
+l1 = list(l)
+---
+l l1
+---
+---
+test_list_ctor_non_iterable @disabled
+---
+l = list(42)
+---
+---
+StrictModuleTypeError
+---
+test_enumerate @disabled
+---
+l = [1, 2]
+enum = list(enumerate(l))
+---
+enum
+---
+---
+test_enumerate_non_iterable @disabled
+---
+enumerate(42)
+---
+---
+StrictModuleTypeError
+---
+test_key_error @disabled
+---
+x = 'abc'
+d = {}
+try:
+    d['not present']
+except KeyError:
+    x = 42
+---
+x
+---
+---
+test_object_init @disabled
+---
+
+x = object()
+y = x.__init__()
+---
+y
+---
+---
+test_object_init_arg @disabled
+---
+
+x = object()
+y = x.__init__(1)
+---
+---
+StrictModuleUnhandledException
+---
+test_object_init_kwarg @disabled
+---
+
+x = object()
+y = x.__init__(x=1)
+---
+---
+StrictModuleUnhandledException
+---
+test_object_hash_exist @disabled
+---
+o = object()
+h = o.__hash__
+h()
+---
+---
+---
+test_yield_unsupported @disabled
+---
+def coroutine_func():
+    x = 1
+    yield
+    x = 2
+x = coroutine_func()
+x.__next__()
+---
+---
+StrictModuleCoroutineFunctionNotSupportedException
+---
+test_yield_from_unsupported @disabled
+---
+def coroutine_func():
+    x = 1
+    yield
+    x = 2
+
+def coroutine_func_2():
+    yield from coroutine_func()
+
+x = coroutine_func_2()
+x.__next__()
+---
+---
+StrictModuleCoroutineFunctionNotSupportedException
+---
+test_async_call @disabled
+---
+async def f(l):
+    l[0] = 1
+l = [0]
+f(l)
+---
+l
+---
+---
+test_method_attr @disabled
+---
+
+class C:
+    def f(self):
+        pass
+C.f.foo = 42
+
+inst = C()
+x = inst.f.foo
+---
+x
+---
+---
+test_classmethod_subclass @disabled
+---
+
+class mycls(classmethod):
+    pass
+
+class D:
+    @mycls
+    def f(self):
+        pass
+
+x = type(D.__dict__['f']).__name__
+---
+x
+---
+---
+test_staticmethod_subclass @disabled
+---
+
+class mycls(staticmethod):
+    pass
+
+class D:
+    @mycls
+    def f(self):
+        pass
+
+x = type(D.f).__name__
+---
+x
+---
+---
+test_descriptor_get @disabled
+---
+class C:
+    def __get__(self, inst, ctx):
+        if inst is not None:
+            return inst.value, ctx.__name__, 42
+        return None, ctx.__name__, 100
+
+class D:
+    def __init__(self):
+        self.value = 'abc'
+    desc = C()
+
+abc, name, const = D().desc
+none, name2, const2 = D.desc
+---
+abc name const none name2 const2
+---
+---
+test_function_defaults @disabled
+---
+def f(a, b, *, c):
+    pass
+
+def g(a, b=1, c=2):
+    pass
+
+def h(a, b=1, *, c=2):
+    pass
+
+def i(a, *args, c):
+    pass
+
+def j(a, *args, c=2):
+    pass
+
+d1 = f.__kwdefaults__
+d2 = g.__kwdefaults__
+d3 = h.__kwdefaults__
+d4 = i.__kwdefaults__
+d5 = j.__kwdefaults__
+d6 = f.__defaults__
+d7 = g.__defaults__
+d8 = h.__defaults__
+d9 = i.__defaults__
+d0 = j.__defaults__
+---
+d0 d1 d2 d3 d4 d5 d6 d7 d8 d9
+---
+---
+test_map_list @disabled
+---
+l = [1 ,2, 3]
+def f(v):
+    return v + 1
+i = map(f, l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_map_list_stop @disabled
+---
+l = [1 ,2, 3]
+def f(v):
+    return v + 1
+i = map(f, l)
+a = next(i)
+b = next(i)
+c = next(i)
+d = next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_call @disabled
+---
+class C:
+    def __init__(self):
+        self.x = 0
+    def f(self):
+        self.x = self.x + 1
+        return self.x
+obj = C()
+i = iter(obj.f, 4)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_any_all @disabled
+---
+x = any([True, False, False])
+y = all([True, False, False])
+z = all([True, True, True])
+w = any([False, False, False])
+---
+x y z w
+---
+---
+test_empty_bytearray @disabled
+---
+a = bytearray()
+t = type(a)
+---
+t
+---
+---
+test_empty_bytearray_iter @disabled
+---
+a = bytearray()
+i = iter(a)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_exec_one_scope @disabled
+---
+code = 'y = x'
+d = {'x': 2}
+exec(code, d)
+y = d['y']
+---
+y
+---
+---
+test_exec_two_scopes @disabled
+---
+code = "x = 1"
+d1 = {'x': 0}
+d2 = {'x': 3}
+exec(code, d1, d2)
+x1 = d1['x']
+x2 = d2['x']
+---
+x1 x2
+---
+---
+test_exec_import @disabled
+---
+code = 'import x'
+exec(code, {})
+---
+---
+ImportInExecDisallowedException
+---
+test_object_repr @disabled
+---
+class C:
+    pass
+s = repr(C())
+a = s == "<C object>"
+---
+a
+---
+---
+test_object_module @disabled
+---
+class C:
+    pass
+x = C()
+x.__module__ = "mod1"
+y = x.__module__
+C.__module__ = "mod2"
+z = C.__module__
+---
+y z
+---
+---
+test_method_func @disabled
+---
+class C:
+    def __init__(self, x):
+        self.x = x
+    def f(self):
+        pass
+f1 = C(1).f.__func__
+f2 = C.f
+c2 = C(2)
+a1 = f1(c2)
+a2 = f2(c2)
+---
+a1 a2
+---
+---
+test_function_defaults_get_set @disabled
+---
+def f(x, y = 1):
+    return x + y
+d1 = f.__defaults__
+a1 = f(1)
+f.__defaults__ = (2,)
+d2 = f.__defaults__
+a2 = f(1)
+f.__defaults__ = (2, 3)
+d3 = f.__defaults__
+a3 = f()
+---
+d1 a1 d1 d2 d3 a1 a2 a3
+---
+---
+test_dict_del @disabled
+---
+d = {1: 2, 3: 4}
+del d[1]
+---
+d
+---
+---
+test_list_extend @disabled
+---
+l = [1, 2]
+l.extend([2, 3])
+---
+l
+---
+---
+test_tuple_index_method
+---
+l = (3, 5)
+x = l.index(5)
+---
+x
+---
+---
+test_str_replace @disabled
+---
+s = "foobar"
+s1 = s.replace("o", "a")
+---
+s1
+---
+---
+test_str_startswith @disabled
+---
+s = "foobar"
+b1 = s.startswith("foo")
+b2 = s.startswith("bar")
+---
+b1 b2
+---
+---
+test_orig_bases @disabled
+---
+class C:
+    def __init__(self, x):
+        self.x = x
+    def __mro_entries__(self, orig):
+        return (C,)
+CI = C(2)
+class D(CI):
+    pass
+b1 = C in D.mro()
+x = D.__orig_bases__[0].x
+---
+b1 x
+---
+---
+test_str_split @disabled
+---
+s = "a,b,c"
+l = s.split(",")
+---
+l
+---
+---
+test_loose_instance_check @disabled
+---
+from unknown import x
+loose_isinstance(x, tuple) # no error
+---
+---
+---
+test_yield_lambda @disabled
+---
+f = lambda: (yield)
+f()
+---
+---
+---
+test_future_annotations @disabled
+---
+from __future__ import annotations
+def f() -> unknown[int]:
+    pass
+---
+---
+---
+test_future_annotations_function @disabled
+---
+from __future__ import annotations
+def f():
+    class C:
+        x: unknown[int] = 1
+    return C
+C = f()
+---
+---
+---
+test_variable_local_annotations @disabled
+---
+def f():
+    x : unknown() = 1
+    return x
+x = f()
+---
+x
+---
+---
+test_range_loop @disabled
+---
+for i in range(10):
+    pass
+---
+i
+---
+---
+test_custom_iter @disabled
+---
+class Iterable:
+    def __iter__(self):
+        return Iterator()
+
+class Iterator:
+    def __init__(self):
+        self.i = 0
+    def __next__(self):
+        if self.i == 0:
+            self.i += 1
+            return 42
+        raise StopIteration()
+
+l = list(Iterable())
+---
+l
+---
+---
+test_generator_iter @disabled
+---
+def gen_f():
+    for x in [1, 2, 3]:
+        yield x
+
+z = 0
+for y in gen_f():
+    z = y
+---
+---
+StrictModuleCoroutineFunctionNotSupportedException
+---
+test_known_unknown_obj_no_usage @disabled
+---
+obj = _known_unknown_obj("foo")
+class C:
+    x = obj
+---
+---
+---
+test_known_unknown_obj_usage @disabled
+---
+obj = _known_unknown_obj("foo")
+class C:
+    x = obj
+    def __init__(self):
+        self.y = self.x.attr
+c = C()
+---
+---
+UnsafeCallException
+---
+test_known_unknown_callable_usage @disabled
+---
+obj = _known_unknown_callable("thread.lock")
+class C:
+    x = obj.acquire()
+---
+---
+UnknownValueAttributeException
+---
+test_new_return_different_typed_instance @disabled
+---
+class C:
+    def __new__(cls, name, *args, **kwargs):
+        return D
+
+    def __init__(self, x):
+        raise Exception("should not be called")
+
+class D:
+    pass
+
+c = C("D")
+success = c is D
+---
+success
+---
+---
+test_thrift_enum @disabled
+---
+from thrift.py3.types import Enum
+class C(Enum):
+    __doc__ = "1, 2, 3, "
+    a: C = ...
+    b: C = ...
+    c: C = ...
+a = int(C.a)
+b = int(C.b)
+c = int(C.c)
+sa = str(C.a)
+sb = str(C.b)
+sc = str(C.c)
+---
+a b c sa sb sc
+---
+---
+test_builtin_TYPE_CHECKING @disabled
+---
+x = 1
+if TYPE_CHECKING:
+    x = 2
+---
+---
+---
+test_print @disabled
+---
+print(2)
+print("abc", flush=True)
+print(2, 3, "abc", sep = ' ', end = '')
+---
+---
+---
+test_int_ops_0 @disabled
+---
+x = 42 + 3
+---
+x
+---
+---
+test_int_ops_1 @disabled
+---
+x = 42 - 3
+---
+x
+---
+---
+test_int_ops_2 @disabled
+---
+x = 42 * 3
+---
+x
+---
+---
+test_int_ops_3 @disabled
+---
+x = 42 / 3
+---
+x
+---
+---
+test_int_ops_4 @disabled
+---
+x = 42 << 3
+---
+x
+---
+---
+test_int_ops_5 @disabled
+---
+x = 42 >> 3
+---
+x
+---
+---
+test_int_ops_6 @disabled
+---
+x = 42 | 3
+---
+x
+---
+---
+test_int_ops_7 @disabled
+---
+x = 42 & 3
+---
+x
+---
+---
+test_int_ops_8 @disabled
+---
+x = 42 ^ 3
+---
+x
+---
+---
+test_int_ops_9 @disabled
+---
+x = 42 % 3
+---
+x
+---
+---
+test_int_ops_10 @disabled
+---
+x = 42 ** 3
+---
+x
+---
+---
+test_int_ops_11 @disabled
+---
+x = 42 // 3
+---
+x
+---
+---
+test_int_unary_ops_0 @disabled
+---
+x = +42
+---
+x
+---
+---
+test_int_unary_ops_1 @disabled
+---
+x = -42
+---
+x
+---
+---
+test_int_unary_ops_2 @disabled
+---
+x = ~42
+---
+x
+---
+---
+test_float_ops_0 @disabled
+---
+x = 42.0 + 3.0
+---
+x
+---
+---
+test_float_ops_1 @disabled
+---
+x = 42.0 - 3.0
+---
+x
+---
+---
+test_float_ops_2 @disabled
+---
+x = 42.0 * 3.0
+---
+x
+---
+---
+test_float_ops_3 @disabled
+---
+x = 42.0 / 3.0
+---
+x
+---
+---
+test_float_ops_4 @disabled
+---
+x = 42.0 % 3.0
+---
+x
+---
+---
+test_float_ops_5 @disabled
+---
+x = 42.0 ** 3.0
+---
+x
+---
+---
+test_float_ops_6 @disabled
+---
+x = 42.0 // 3.0
+---
+x
+---
+---
+test_float_error_ops_0 @disabled
+---
+x = 42.0 << 3.0
+---
+---
+StrictModuleTypeError
+---
+test_float_error_ops_1 @disabled
+---
+x = 42.0 >> 3.0
+---
+---
+StrictModuleTypeError
+---
+test_float_error_ops_2 @disabled
+---
+x = 42.0 | 3.0
+---
+---
+StrictModuleTypeError
+---
+test_float_error_ops_3 @disabled
+---
+x = 42.0 & 3.0
+---
+---
+StrictModuleTypeError
+---
+test_float_error_ops_4 @disabled
+---
+x = 42.0 ^ 3.0
+---
+---
+StrictModuleTypeError
+---
+test_float_unary_ops_0 @disabled
+---
+x = +42.0
+---
+x
+---
+---
+test_float_unary_ops_1 @disabled
+---
+x = -42.0
+---
+x
+---
+---
+test_complex_ops_0 @disabled
+---
+x = (42.0+0j) + (3.0+0j)
+---
+x
+---
+---
+test_complex_ops_1 @disabled
+---
+x = (42.0+0j) - (3.0+0j)
+---
+x
+---
+---
+test_complex_ops_2 @disabled
+---
+x = (42.0+0j) * (3.0+0j)
+---
+x
+---
+---
+test_complex_ops_3 @disabled
+---
+x = (42.0+0j) / (3.0+0j)
+---
+x
+---
+---
+test_complex_ops_4 @disabled
+---
+x = (42.0+0j) ** (3.0+0j)
+---
+x
+---
+---
+test_complex_unary_ops_0 @disabled
+---
+x = +42j
+---
+x
+---
+---
+test_complex_unary_ops_1 @disabled
+---
+x = -42j
+---
+x
+---
+---
+test_complex_error_ops_0 @disabled
+---
+x = (42.0+0j) << (3.0+0j)
+---
+---
+StrictModuleTypeError
+---
+test_complex_error_ops_1 @disabled
+---
+x = (42.0+0j) >> (3.0+0j)
+---
+---
+StrictModuleTypeError
+---
+test_complex_error_ops_2 @disabled
+---
+x = (42.0+0j) | (3.0+0j)
+---
+---
+StrictModuleTypeError
+---
+test_complex_error_ops_3 @disabled
+---
+x = (42.0+0j) & (3.0+0j)
+---
+---
+StrictModuleTypeError
+---
+test_complex_error_ops_4 @disabled
+---
+x = (42.0+0j) ^ (3.0+0j)
+---
+---
+StrictModuleTypeError
+---
+test_complex_error_ops_5 @disabled
+---
+x = (42.0+0j) // (3.0+0j)
+---
+---
+StrictModuleTypeError
+---
+test_complex_error_ops_6 @disabled
+---
+x = (42.0+0j) % (3.0+0j)
+---
+---
+StrictModuleTypeError
+---
+test_str_index_0 @disabled
+---
+x = "abc"[0]
+---
+x
+---
+---
+test_str_index_1 @disabled
+---
+x = "abc"[-1]
+---
+x
+---
+---
+test_str_index_2 @disabled
+---
+x = "abc"[1:2]
+---
+x
+---
+---
+test_str_index_3 @disabled
+---
+x = "abc"[0:-1]
+---
+x
+---
+---
+test_str_index_4 @disabled
+---
+x = "abc"[::-1]
+---
+x
+---
+---
+test_str_index_5 @disabled
+---
+x = ""[1:2]
+---
+x
+---
+---
+test_str_isidentifier_0 @disabled
+---
+x = "abc".isidentifier()
+---
+x
+---
+---
+test_str_isidentifier_1 @disabled
+---
+x = "def".isidentifier()
+---
+x
+---
+---
+test_str_isidentifier_2 @disabled
+---
+x = "01".isidentifier()
+---
+x
+---
+---
+test_str_isidentifier_3 @disabled
+---
+x = "abc def".isidentifier()
+---
+x
+---
+---
+test_func_code_0 @disabled
+---
+def f(b, a): d = 1; c = 2
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_1 @disabled
+---
+def f(*, x = 1): pass
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_2 @disabled
+---
+def f(*args): pass
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_3 @disabled
+---
+def f(**kwargs): pass
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_4 @disabled
+---
+def f(*args, **kwargs): pass
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_5 @disabled
+---
+def f(): yield 42
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_6 @disabled
+---
+def f(): lambda: (yield 42)
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_7 @disabled
+---
+def f(): lambda: (yield 42)
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_8 @disabled
+---
+async def f(): pass
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_9 @disabled
+---
+async def f(): await foo
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_10 @disabled
+---
+async def f(): yield 42
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_11 @disabled
+---
+def f():
+    def f():        yield 42
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_12 @disabled
+---
+def f():
+    async def f():        yield 42
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_13 @disabled
+---
+def f():
+    class C:        pass
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_14 @disabled
+---
+def f():
+    x = 2
+    def g():        return x
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_15 @disabled
+---
+def f(x):
+    def g():        return x
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_func_code_16 @disabled
+---
+def f(x):
+    x = 2
+    def g():
+        nonlocal x
+        x = 3
+code = f.__code__
+argcount = code.co_argcount
+varnames = code.co_varnames
+kwonly = code.co_kwonlyargcount
+name = code.co_name
+flags = code.co_flags
+---
+argcount varnames kwonly name flags
+---
+---
+test_set_binop_0 @disabled
+---
+l = set((1, 2))
+r = set((3, 4))
+a = l & r
+o = l | r
+x = l ^ r
+---
+l r a o x
+---
+---
+test_set_binop_1 @disabled
+---
+l = set((1, 2))
+r = set((1, 2))
+a = l & r
+o = l | r
+x = l ^ r
+---
+l r a o x
+---
+---
+test_set_binop_2 @disabled
+---
+l = set((1, 2))
+r = set((2, 3))
+a = l & r
+o = l | r
+x = l ^ r
+---
+l r a o x
+---
+---
+test_frozenset_binop_0 @disabled
+---
+l = frozenset((1, 2))
+r = frozenset((3, 4))
+a = l & r
+o = l | r
+x = l ^ r
+---
+l r a o x
+---
+---
+test_frozenset_binop_1 @disabled
+---
+l = frozenset((1, 2))
+r = frozenset((1, 2))
+a = l & r
+o = l | r
+x = l ^ r
+---
+l r a o x
+---
+---
+test_frozenset_binop_2 @disabled
+---
+l = frozenset((1, 2))
+r = frozenset((2, 3))
+a = l & r
+o = l | r
+x = l ^ r
+---
+l r a o x
+---
+---
+test_iterator_0 @disabled
+---
+l = [1, 2, 3]
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_1 @disabled
+---
+l = (1, 2, 3)
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_2 @disabled
+---
+l = {1, 2, 3}
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_3 @disabled
+---
+l = (i for i in [1, 2, 3])
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_4 @disabled
+---
+l = {1:3, 2:4, 3:5}.keys()
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_5 @disabled
+---
+l = {3:1, 4:2, 5:3}.values()
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_6 @disabled
+---
+l = {1:3, 2:4, 3:5}.items()
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_7 @disabled
+---
+l = 'abc'
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_8 @disabled
+---
+l = b'abc'
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_9 @disabled
+---
+l = range(3)
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_10 @disabled
+---
+l = zip([1, 2, 3], [4, 5, 6])
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+---
+a b c
+---
+---
+test_iterator_stop_0 @disabled
+---
+l = [1, 2, 3]
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_1 @disabled
+---
+l = (1, 2, 3)
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_2 @disabled
+---
+l = {1, 2, 3}
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_3 @disabled
+---
+l = (i for i in [1, 2, 3])
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_4 @disabled
+---
+l = {1:3, 2:4, 3:5}.keys()
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_5 @disabled
+---
+l = {3:1, 4:2, 5:3}.values()
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_6 @disabled
+---
+l = {1:3, 2:4, 3:5}.items()
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_7 @disabled
+---
+l = 'abc'
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_8 @disabled
+---
+l = b'abc'
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_9 @disabled
+---
+l = range(3)
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iterator_stop_10 @disabled
+---
+l = zip([1, 2, 3], [4, 5, 6])
+i = l.__iter__()
+a = i.__next__()
+b = i.__next__()
+c = i.__next__()
+i.__next__()
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_0 @disabled
+---
+l = [1, 2, 3]
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_1 @disabled
+---
+l = (1, 2, 3)
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_2 @disabled
+---
+l = {1, 2, 3}
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_3 @disabled
+---
+l = (i for i in [1, 2, 3])
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_4 @disabled
+---
+l = {1:3, 2:4, 3:5}.keys()
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_5 @disabled
+---
+l = {3:1, 4:2, 5:3}.values()
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_6 @disabled
+---
+l = {1:3, 2:4, 3:5}.items()
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_7 @disabled
+---
+l = 'abc'
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_8 @disabled
+---
+l = b'abc'
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_9 @disabled
+---
+l = range(3)
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_10 @disabled
+---
+l = zip([1, 2, 3], [4, 5, 6])
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_iter_next_stop_0 @disabled
+---
+l = [1, 2, 3]
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_1 @disabled
+---
+l = (1, 2, 3)
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_2 @disabled
+---
+l = {1, 2, 3}
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_3 @disabled
+---
+l = (i for i in [1, 2, 3])
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_4 @disabled
+---
+l = {1:3, 2:4, 3:5}.keys()
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_5 @disabled
+---
+l = {3:1, 4:2, 5:3}.values()
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_6 @disabled
+---
+l = {1:3, 2:4, 3:5}.items()
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_7 @disabled
+---
+l = 'abc'
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_8 @disabled
+---
+l = b'abc'
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_9 @disabled
+---
+l = range(3)
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_iter_next_stop_10 @disabled
+---
+l = zip([1, 2, 3], [4, 5, 6])
+i = iter(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_reversed_next_0 @disabled
+---
+l = [1, 2, 3]
+i = reversed(l)
+a = next(i)
+b = next(i)
+c = next(i)
+---
+a b c
+---
+---
+test_reversed_stop_0 @disabled
+---
+l = [1, 2, 3]
+i = reversed(l)
+a = next(i)
+b = next(i)
+c = next(i)
+next(i)
+---
+---
+StrictModuleUnhandledException
+---
+test_dunder_repr_0 @disabled
+---
+x = (None).__repr__()
+y = repr(None)
+z = str(None)
+---
+x y z
+---
+---
+test_dunder_repr_1 @disabled
+---
+x = (True).__repr__()
+y = repr(True)
+z = str(True)
+---
+x y z
+---
+---
+test_dunder_repr_2 @disabled
+---
+x = (1).__repr__()
+y = repr(1)
+z = str(1)
+---
+x y z
+---
+---
+test_dunder_repr_3 @disabled
+---
+x = (1.5).__repr__()
+y = repr(1.5)
+z = str(1.5)
+---
+x y z
+---
+---
+test_dunder_repr_4 @disabled
+---
+x = (2j).__repr__()
+y = repr(2j)
+z = str(2j)
+---
+x y z
+---
+---
+test_dunder_repr_5 @disabled
+---
+x = ((1, 2)).__repr__()
+y = repr((1, 2))
+z = str((1, 2))
+---
+x y z
+---
+---
+test_dunder_repr_6 @disabled
+---
+x = ([1, 2]).__repr__()
+y = repr([1, 2])
+z = str([1, 2])
+---
+x y z
+---
+---
+test_dunder_repr_7 @disabled
+---
+x = ({1, 2}).__repr__()
+y = repr({1, 2})
+z = str({1, 2})
+---
+x y z
+---
+---
+test_dunder_repr_8 @disabled
+---
+x = ({1: 2}).__repr__()
+y = repr({1: 2})
+z = str({1: 2})
+---
+x y z
+---
+---
+test_dunder_repr_9 @disabled
+---
+x = ('abc').__repr__()
+y = repr('abc')
+z = str('abc')
+---
+x y z
+---
+---
+test_union_builtin_syntax_0 @disabled
+---
+t = int | str
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_1 @disabled
+---
+t = int | str | float
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_2 @disabled
+---
+t = int | (str | float)
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_3 @disabled
+---
+t = int | None
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_4 @disabled
+---
+t = None | int
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_5 @disabled
+---
+t = str | None
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_6 @disabled
+---
+t = None | str
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_7 @disabled
+---
+t = int | int
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_syntax_8 @disabled
+---
+t = str | str
+is_int_instance = isinstance(1, t)
+is_str_instance = isinstance('a', t)
+is_None_instance = isinstance(None, t)
+has_int = issubclass(int, t)
+has_str = issubclass(str, t)
+arg_size = len(t.__args__)
+---
+is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+---
+---
+test_union_builtin_with_typing_0 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = int | str
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_1 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = int | List[str]
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_2 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = List[int] | str
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_3 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = Union[int, str] | float
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_4 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = float | Union[int, str]
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_5 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = float | Union[int, str] | float
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_6 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = Union[str, int] | None
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_7 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = None | Union[str, int]
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_8 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = Union[int, None] | str
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_9 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = None | Union[str, None]
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---
+test_union_builtin_with_typing_10 @disabled
+---
+from typing import Union, List
+from types import Union as TypesUnion
+t = Union[int, int] | int
+is_types_union = isinstance(t, TypesUnion)
+arg_size = len(t.__args__)
+---
+is_types_union arg_size
+---
+---

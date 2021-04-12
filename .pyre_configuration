@@ -1,0 +1,12 @@
+{
+  "logger": "/usr/local/bin/scribe_cat",
+  "version": "ed3118eb72fc65949189cfd529ee4987f2cbf348",
+  "source_directories": [
+    "Lib/compiler",
+    "Tools/scripts/perf",
+    "Tools/scripts/workflow"
+  ],
+  "unstable_client": "Tools/scripts/pyre/pyre_client",
+  "stable_client": "Tools/scripts/pyre/stable/pyre_client",
+  "strict": true
+}

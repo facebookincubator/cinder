@@ -1,0 +1,7 @@
+test_asyncio
+test_ast
+test_clinic
+test_functools
+test_pyice
+test_sys
+test_tools

@@ -1,0 +1,1059 @@
+#include "Jit/codegen/autogen.h"
+#include "Jit/codegen/gen_asm_utils.h"
+#include "Jit/codegen/x86_64.h"
+#include "Jit/lir/instruction.h"
+#include "Jit/util.h"
+#include "asmjit/x86/x86operand.h"
+
+#include <type_traits>
+#include <vector>
+
+using namespace asmjit;
+using namespace jit::lir;
+using namespace jit::codegen;
+
+namespace jit {
+namespace codegen {
+namespace autogen {
+
+#define ANY "*"
+
+namespace {
+// Add a pattern to an existing trie tree. If the trie tree is nullptr, create a
+// new one.
+std::unique_ptr<PatternNode> addPattern(
+    std::unique_ptr<PatternNode> patterns,
+    const std::string& s,
+    PatternNode::func_t func) {
+  JIT_DCHECK(!s.empty(), "pattern string should not be empty.");
+
+  if (patterns == nullptr) {
+    patterns = std::make_unique<PatternNode>();
+  }
+
+  PatternNode* cur = patterns.get();
+  for (auto& c : s) {
+    auto iter = cur->next.find(c);
+    if (iter == cur->next.end()) {
+      cur = cur->next.emplace(c, std::make_unique<PatternNode>())
+                .first->second.get();
+      continue;
+    }
+    cur = iter->second.get();
+  }
+
+  JIT_DCHECK(cur->func == nullptr, "Found duplicated pattern.");
+  cur->func = func;
+
+  return patterns;
+}
+
+// Find the function associated to the pattern given in s.
+PatternNode::func_t findByPattern(
+    const PatternNode* patterns,
+    const std::string& s) {
+  auto cur = patterns;
+  for (auto& c : s) {
+    auto iter = cur->next.find(c);
+    if (iter != cur->next.end()) {
+      cur = iter->second.get();
+      continue;
+    }
+
+    iter = cur->next.find('?');
+    if (iter != cur->next.end()) {
+      cur = iter->second.get();
+      continue;
+    }
+
+    iter = cur->next.find('*');
+    if (iter != cur->next.end()) {
+      cur = iter->second.get();
+      break;
+    }
+
+    return nullptr;
+  }
+
+  return cur->func;
+}
+
+} // namespace
+
+// this function generates operand patterns from the inputs and outputs
+// of a given instruction instr and calls the correspoinding code generation
+// functions.
+void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
+    const {
+  auto opcode = instr->opcode();
+  if (opcode == Instruction::kBind) {
+    return;
+  }
+  auto& instr_map = map_get(instr_rule_map_, opcode);
+
+  std::string pattern;
+  pattern.reserve(instr->getNumInputs() + instr->getNumOutputs());
+
+  if (instr->getNumOutputs()) {
+    auto operand = instr->output();
+
+    switch (operand->type()) {
+      case OperandBase::kReg:
+        pattern += (operand->isFp() ? "X" : "R");
+        break;
+      case OperandBase::kStack:
+      case OperandBase::kMem:
+      case OperandBase::kInd:
+        pattern += "M";
+        break;
+      default:
+        JIT_CHECK(false, "Output operand has to be of type register or memory");
+        break;
+    }
+  }
+
+  instr->foreachInputOperand([&](const OperandBase* operand) {
+    switch (operand->type()) {
+      case OperandBase::kReg:
+        pattern += (operand->isFp() ? "x" : "r");
+        break;
+      case OperandBase::kStack:
+      case OperandBase::kMem:
+      case OperandBase::kInd:
+        pattern += "m";
+        break;
+      case OperandBase::kImm:
+        pattern += "i";
+        break;
+      case OperandBase::kLabel:
+        pattern += "b";
+        break;
+      default:
+        JIT_CHECK(false, "Illegal input type.");
+        break;
+    }
+  });
+
+  auto func = findByPattern(instr_map.get(), pattern);
+  JIT_CHECK(
+      func != nullptr,
+      "No pattern match found for opcode %s: %s",
+      InstrProperty::getProperties(instr).name,
+      pattern);
+  func(env, instr);
+}
+
+namespace {
+
+// Translate GUARD instruction
+void TranslateGuard(Environ* env, const Instruction* instr) {
+  auto as = env->as;
+#ifdef __ASM_DEBUG
+  as->nop();
+#endif
+  auto deopt_label = as->newLabel();
+  auto kind = instr->getInput(0)->getConstant();
+  auto reg = x86::rax;
+  if (kind != kAlwaysFail) {
+    reg = AutoTranslator::getGp(instr->getInput(2));
+  }
+
+  auto emit_cmp = [&](intptr_t target) {
+    if (!fitsInt32(target)) {
+      // TODO(tiansi): add a rewrite pass to do this in the future, so we can
+      // save a pair of push and pop.
+      auto tmp_reg = reg == x86::rax ? x86::rcx : x86::rax;
+      as->push(tmp_reg);
+      as->mov(tmp_reg, target);
+      as->cmp(reg, tmp_reg);
+      as->pop(tmp_reg);
+    } else {
+      as->cmp(reg, target);
+    }
+  };
+
+  size_t start_input = 3;
+  switch (kind) {
+    case kNotNull: {
+      as->test(reg, reg);
+      as->jz(deopt_label);
+      break;
+    }
+    case kNotNegative: {
+      as->test(reg, reg);
+      as->js(deopt_label);
+      break;
+    }
+    case kNotNone: {
+      auto none = reinterpret_cast<intptr_t>(Py_None);
+      emit_cmp(none);
+      as->jz(deopt_label);
+      break;
+    }
+    case kAlwaysFail:
+      as->jmp(deopt_label);
+      start_input = 2;
+      break;
+    case kIs:
+      auto target = instr->getInput(3)->getConstant();
+      env->code_rt->addReference(reinterpret_cast<PyObject*>(target));
+      emit_cmp(target);
+      as->jne(deopt_label);
+      start_input = 4;
+      break;
+  }
+
+  auto index = instr->getInput(1)->getConstant();
+  auto& deopt_meta = env->rt->getDeoptMetadata(index);
+  // skip the first a few inputs in Guard, which are
+  // condition, kind, index
+  for (size_t i = start_input; i < instr->getNumInputs(); i++) {
+    auto loc = instr->getInput(i)->getPhyRegOrStackSlot();
+    deopt_meta.live_values[i - start_input].location = loc;
+  }
+  env->deopt_exits.emplace_back(index, deopt_label);
+}
+
+void TranslateCompare(Environ* env, const Instruction* instr) {
+  auto as = env->as;
+  const OperandBase* inp1 = instr->getInput(1);
+  if (inp1->type() == OperandBase::kImm) {
+    as->cmp(AutoTranslator::getGp(instr->getInput(0)), inp1->getConstant());
+  } else {
+    as->cmp(
+        AutoTranslator::getGp(instr->getInput(0)), AutoTranslator::getGp(inp1));
+  }
+  auto output = AutoTranslator::getGp(instr->output());
+  switch (instr->opcode()) {
+    case Instruction::kEqual:
+      as->sete(output);
+      break;
+    case Instruction::kNotEqual:
+      as->setne(output);
+      break;
+    case Instruction::kGreaterThanSigned:
+      as->setg(output);
+      break;
+    case Instruction::kGreaterThanEqualSigned:
+      as->setge(output);
+      break;
+    case Instruction::kLessThanSigned:
+      as->setl(output);
+      break;
+    case Instruction::kLessThanEqualSigned:
+      as->setle(output);
+      break;
+    case Instruction::kGreaterThanUnsigned:
+      as->seta(output);
+      break;
+    case Instruction::kGreaterThanEqualUnsigned:
+      as->setae(output);
+      break;
+    case Instruction::kLessThanUnsigned:
+      as->setb(output);
+      break;
+    case Instruction::kLessThanEqualUnsigned:
+      as->setbe(output);
+      break;
+    default:
+      JIT_CHECK(false, "bad instruction for TranslateCompare");
+      break;
+  }
+  if (instr->output()->dataType() != OperandBase::k8bit) {
+    as->movzx(
+        AutoTranslator::getGp(instr->output()),
+        asmjit::x86::gpb(instr->output()->getPhyRegister()));
+  }
+}
+
+// Store meta-data about this yield in a generator suspend data pointed to by
+// suspend_data_r. Data includes things like the address to resume execution at,
+// and owned entries in the suspended spill data needed for GC operations etc.
+void emitStoreGenYieldPoint(
+    x86::Builder* as,
+    Environ* env,
+    const Instruction* yield,
+    asmjit::Label resume_label,
+    x86::Gp suspend_data_r,
+    x86::Gp scratch_r) {
+  bool is_yield_from =
+      yield->isYieldFrom() || yield->isYieldFromSkipInitialSend();
+
+  auto calc_spill_offset = [&](size_t live_input_n) {
+    int mem_loc = yield->getInput(live_input_n)->getPhyRegOrStackSlot();
+    JIT_CHECK(mem_loc < 0, "Expected variable to have memory location");
+    return mem_loc / kPointerSize;
+  };
+
+  std::vector<ptrdiff_t> pyobj_offs;
+  size_t input_n = yield->getNumInputs() - 1;
+  uint64_t owned_lived_inputs_n = yield->getInput(input_n)->getConstant();
+  while (owned_lived_inputs_n) {
+    input_n--;
+    owned_lived_inputs_n--;
+    pyobj_offs.push_back(calc_spill_offset(input_n));
+  }
+
+  auto yield_from_offset = is_yield_from ? calc_spill_offset(2) : 0;
+  auto* gen_yield_point = env->rt->addGenYieldPoint(
+      GenYieldPoint{std::move(pyobj_offs), is_yield_from, yield_from_offset});
+
+  env->unresolved_gen_entry_labels.emplace(gen_yield_point, resume_label);
+
+  as->mov(scratch_r, reinterpret_cast<uint64_t>(gen_yield_point));
+  auto yieldPointOffset = GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
+  as->mov(x86::qword_ptr(suspend_data_r, yieldPointOffset), scratch_r);
+}
+
+// On resuming the sent in value may source depends on the type of yield, and
+// and new tstate is always in RDX from resume entry-point args.
+void emitLoadResumedYieldInputs(
+    asmjit::x86::Builder* as,
+    const Instruction* instr,
+    PhyLocation sent_in_source_loc,
+    x86::Gp tstate_reg) {
+  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  as->mov(x86::ptr(x86::rbp, tstate_loc), tstate_reg);
+
+  const lir::Operand* target = instr->output();
+  if (target->type() != OperandBase::kNone) {
+    int target_loc = target->getPhyRegOrStackSlot();
+    if (target_loc > 0) {
+      if (target_loc == sent_in_source_loc) {
+        as->mov(x86::gpq(target_loc), x86::gpq(sent_in_source_loc));
+      }
+    } else {
+      as->mov(x86::ptr(x86::rbp, target_loc), x86::gpq(sent_in_source_loc));
+    }
+  }
+}
+
+void translateYieldInitial(Environ* env, const Instruction* instr) {
+  asmjit::x86::Builder* as = env->as;
+
+  // Load tstate into RSI for call to JITRT_MakeGenObject*.
+  // TODO(jbower) Avoid reloading tstate in from memory if it was already in a
+  // register before spilling. Still needs to be in memory though so it can be
+  // recovered after calling JITRT_MakeGenObject* which will trash it.
+  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  as->mov(x86::rsi, x86::ptr(x86::rbp, tstate_loc));
+
+  // Make a generator object to be returned by the epilogue.
+  as->lea(x86::rdi, x86::ptr(env->gen_resume_entry_label));
+  JIT_CHECK(env->spill_size % kPointerSize == 0, "Bad spill alignment");
+  as->mov(x86::rdx, (env->spill_size / kPointerSize) + 1);
+  as->mov(x86::rcx, reinterpret_cast<uint64_t>(env->code_rt->GetCode()));
+  if (env->code_rt->GetCode()->co_flags & CO_COROUTINE) {
+    as->call(reinterpret_cast<uint64_t>(JITRT_MakeGenObjectCoro));
+  } else if (env->code_rt->GetCode()->co_flags & CO_ASYNC_GENERATOR) {
+    as->call(reinterpret_cast<uint64_t>(JITRT_MakeGenObjectAsyncGen));
+  } else {
+    as->call(reinterpret_cast<uint64_t>(JITRT_MakeGenObject));
+  }
+  // Resulting generator is now in RAX for filling in below and epilogue return.
+  const auto gen_reg = x86::rax;
+
+  // Exit early if return from JITRT_MakeGenObject was NULL.
+  auto initial_yield_exit = as->newLabel();
+  as->test(gen_reg, gen_reg);
+  as->jz(initial_yield_exit);
+
+  // Set RDI to gen->gi_jit_data for use in emitStoreGenYieldPoint() and data
+  // copy using 'movsq' below.
+  auto gi_jit_data_offset = GET_STRUCT_MEMBER_OFFSET(PyGenObject, gi_jit_data);
+  as->mov(x86::rdi, x86::ptr(gen_reg, gi_jit_data_offset));
+
+  // Arbitrary scratch register for use in emitStoreGenYieldPoint().
+  auto scratch_r = x86::r9;
+  auto resume_label = as->newLabel();
+  emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rdi, scratch_r);
+
+  // Store variables spilled by this point to generator.
+  as->mov(x86::rsi, x86::rbp);
+  int current_spill_bytes = env->initial_yield_spill_size_;
+  JIT_CHECK(current_spill_bytes % kPointerSize == 0, "Bad spill alignment");
+  as->mov(x86::rcx, (current_spill_bytes / kPointerSize) + 1);
+  as->std();
+  as->rep().movsq();
+  as->cld();
+
+  as->bind(initial_yield_exit);
+
+  // Perform some epilogue work here and then jump to hard-exit portion of
+  // epilogue to complete exit. Specifically we make unlinking include a clear
+  // of tstate->frame->f_back. This clearing of f_back only when returning a
+  // generator matches CPython's generator handling in _PyEval_EvalCodeWithName.
+
+  // Load tstate into RDI for calls in emitEpilogueUnlinkFrame(). Tstate may
+  // have been trashed by the call to JITRT_MakeGenObject so load it from spill.
+  as->mov(x86::rdi, x86::ptr(x86::rbp, tstate_loc));
+
+  EmitEpilogueUnlinkFrame(
+      as,
+      x86::rdi,
+      JITRT_InitialYieldUnlinkFrame,
+      JITRT_InitialYieldUnlinkTinyFrame,
+      env->frame_mode);
+
+  // Jump to bottom half of epilogue
+  as->jmp(env->hard_exit_label);
+
+  // Resumed execution in this generator begins here
+  as->bind(resume_label);
+
+  // Clear yield point as it's no longer valid
+  size_t yield_point_offset =
+      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
+  as->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
+
+  // Sent in value is in RSI, and tstate is in RDX from resume entry-point args
+  emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rdx);
+}
+
+void translateYieldValue(Environ* env, const Instruction* instr) {
+  asmjit::x86::Builder* as = env->as;
+
+  // Make sure tstate is in RDI for use in epilogue.
+  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  as->mov(x86::rdi, x86::ptr(x86::rbp, tstate_loc));
+
+  // Value to send goes to RAX so it can be yielded (returned) by epilogue.
+  int value_out_loc = instr->getInput(1)->getPhyRegOrStackSlot();
+  JIT_CHECK(value_out_loc < 0, "value to send out should be spilled");
+  as->mov(x86::rax, x86::ptr(x86::rbp, value_out_loc));
+
+  // Arbitrary scratch register for use in emitStoreGenYieldPoint()
+  auto scratch_r = x86::r9;
+  auto resume_label = as->newLabel();
+  emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rbp, scratch_r);
+
+  // Jump to epilogue
+  as->jmp(env->exit_for_yield_label);
+
+  // Resumed execution in this generator begins here
+  as->bind(resume_label);
+
+  // Clear yield point as it's no longer valid
+  size_t yield_point_offset =
+      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
+  as->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
+
+  // Sent in value is in RSI, and tstate is in RDX from resume entry-point args
+  emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rdx);
+}
+
+void translateYieldFrom(Environ* env, const Instruction* instr) {
+  asmjit::x86::Builder* as = env->as;
+  bool skip_initial_send = instr->isYieldFromSkipInitialSend();
+
+  // Make sure tstate is in RDI for use in epilogue and here.
+  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  auto tstate_phys_reg = x86::rdi;
+  as->mov(tstate_phys_reg, x86::ptr(x86::rbp, tstate_loc));
+
+  // If we're skipping the initial send the send value is actually the first
+  // value to yield and so needs to go into RAX to be returned. Otherwise,
+  // put initial send value in RSI, the same location future send values will
+  // be on resume.
+  int send_value_loc = instr->getInput(1)->getPhyRegOrStackSlot();
+  JIT_CHECK(send_value_loc < 0, "value to send out should be spilled");
+  const auto send_value_phys_reg =
+      skip_initial_send ? PhyLocation::RAX : PhyLocation::RSI;
+  as->mov(x86::gpq(send_value_phys_reg), x86::ptr(x86::rbp, send_value_loc));
+
+  // Arbitrary scratch register for use in emitStoreGenYieldPoint()
+  auto scratch_r = x86::r9;
+  auto resume_label = as->newLabel();
+  emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rbp, scratch_r);
+
+  if (skip_initial_send) {
+    as->jmp(env->exit_for_yield_label);
+  } else {
+    // Setup call to JITRT_YieldFrom
+
+    // Put tstate and the current generator into RDX and RDI respectively, and
+    // set finish_yield_from (RCX) to 0. This register setup matches that when
+    // `resume_label` is reached from the resume entry.
+    as->mov(x86::rdx, tstate_phys_reg);
+    auto gen_offs = GET_STRUCT_MEMBER_OFFSET(GenDataFooter, gen);
+    as->mov(x86::rdi, x86::ptr(x86::rbp, gen_offs));
+    as->xor_(x86::rcx, x86::rcx);
+  }
+
+  // Resumed execution begins here
+  as->bind(resume_label);
+
+  // Save tstate from resume to callee-saved reigster.
+  as->mov(x86::rbx, x86::rdx);
+
+  // 'send_value', and 'finish_yield_from' will already be in RSI and RCX
+  // respectively, either from code above on initial start or from resume entry
+  // point args.
+
+  // Load sub-iterator into RDI
+  int iter_loc = instr->getInput(2)->getPhyRegOrStackSlot();
+  JIT_CHECK(iter_loc < 0, "Iter should be spilled");
+  as->mov(x86::rdi, x86::ptr(x86::rbp, iter_loc));
+
+  as->call(reinterpret_cast<uint64_t>(JITRT_YieldFrom));
+  // Yielded or final result value now in RAX. If the result was NULL then
+  // done will be set so we'll correctly jump to the following CheckExc.
+  const auto yf_result_phys_reg = PhyLocation::RAX;
+  const auto done_r = x86::rdx;
+
+  // Restore tstate from callee-saved register.
+  as->mov(tstate_phys_reg, x86::rbx);
+
+  // If not done, jump to epilogue which will yield/return the value from
+  // JITRT_YieldFrom in RAX.
+  as->test(done_r, done_r);
+  as->jz(env->exit_for_yield_label);
+
+  // Clear yield point as it's no longer valid
+  size_t yield_point_offset =
+      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
+  as->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
+
+  emitLoadResumedYieldInputs(as, instr, yf_result_phys_reg, tstate_phys_reg);
+}
+
+// ***********************************************************************
+// The following templates and macros implement the auto generation table.
+// The generator table defines a hash table, whose key is instruction type,
+// and value is another hash table mapping instruction operand pattern and
+// a function carrying out certain Actions for the instruction with the
+// operand pattern.
+// The list of Actions are encoded in the template class RuleActions as its
+// template arguments. Currently, there are two types of Actions:
+//   * AsmAction - generate an asm instruction
+//   * CallAction - call a user defined instruction
+// The Action classes are also templates, whose argument lists encode the
+// parameters for the Action. For example, an AsmAction's argument list has
+// the assembly instruction mnemonic and its operands.
+// ***********************************************************************
+template <int N>
+const OperandBase* LIROperandMapper(const Instruction* instr) {
+  auto num_outputs = instr->getNumOutputs();
+  if (N < num_outputs) {
+    return instr->output();
+  } else {
+    return instr->getInput(N - num_outputs);
+  }
+}
+
+template <int N>
+int LIROperandSizeMapper(const Instruction* instr) {
+  auto size_type = InstrProperty::getProperties(instr).opnd_size_type;
+  switch (size_type) {
+    case kDefault:
+      return LIROperandMapper<N>(instr)->sizeInBits();
+    case kAlways64:
+      return 64;
+    case kOut:
+      return LIROperandMapper<0>(instr)->sizeInBits();
+  }
+
+  JIT_CHECK(false, "Unknown size type");
+}
+
+template <int N>
+struct ImmOperand {
+  using asmjit_type = const asmjit::Imm&;
+
+  static asmjit::Imm GetAsmOperand(Environ*, const Instruction* instr) {
+    return asmjit::Imm(LIROperandMapper<N>(instr)->getConstant());
+  }
+};
+
+template <typename T>
+struct ImmOperandNegate {
+  using asmjit_type = const asmjit::Imm&;
+
+  static asmjit::Imm GetAsmOperand(Environ* env, const Instruction* instr) {
+    return asmjit::Imm(-T::GetAsmOperand(env, instr).i64());
+  }
+};
+
+template <typename T>
+struct ImmOperandInvert {
+  using asmjit_type = const asmjit::Imm&;
+
+  static asmjit::Imm GetAsmOperand(Environ* env, const Instruction* instr) {
+    return asmjit::Imm(~T::GetAsmOperand(env, instr).u64());
+  }
+};
+
+template <int N>
+struct RegOperand {
+  using asmjit_type = const asmjit::x86::Gp&;
+  static asmjit::x86::Gp GetAsmOperand(Environ*, const Instruction* instr) {
+    auto size = LIROperandSizeMapper<N>(instr);
+    switch (size) {
+      case 8:
+        return asmjit::x86::gpb(LIROperandMapper<N>(instr)->getPhyRegister());
+      case 16:
+        return asmjit::x86::gpw(LIROperandMapper<N>(instr)->getPhyRegister());
+      case 32:
+        return asmjit::x86::gpd(LIROperandMapper<N>(instr)->getPhyRegister());
+      case 64:
+        return asmjit::x86::gpq(LIROperandMapper<N>(instr)->getPhyRegister());
+    }
+    JIT_CHECK(false, "Incorrect operand size.");
+  }
+};
+
+template <int N>
+struct XmmOperand {
+  using asmjit_type = const asmjit::x86::Xmm&;
+  static asmjit::x86::Xmm GetAsmOperand(Environ*, const Instruction* instr) {
+    return asmjit::x86::xmm(
+        LIROperandMapper<N>(instr)->getPhyRegister() -
+        PhyLocation::XMM_REG_BASE);
+  }
+};
+
+#define OP(v)                                       \
+  typename std::conditional_t<                      \
+      pattern[v] == 'i',                            \
+      ImmOperand<v>,                                \
+      std::conditional_t<                           \
+          (pattern[v] == 'x' || pattern[v] == 'X'), \
+          XmmOperand<v>,                            \
+          RegOperand<v>>>
+
+asmjit::x86::Mem AsmIndirectOperandBuilder(const OperandBase* operand) {
+  JIT_DCHECK(operand->isInd(), "operand should be an indirect reference");
+
+  auto indirect = operand->getMemoryIndirect();
+
+  OperandBase* base = indirect->getBaseRegOperand();
+  OperandBase* index = indirect->getIndexRegOperand();
+
+  if (index == nullptr) {
+    return asmjit::x86::ptr(
+        x86::gpq(base->getPhyRegister()), indirect->getOffset());
+  } else {
+    return asmjit::x86::ptr(
+        x86::gpq(base->getPhyRegister()),
+        x86::gpq(index->getPhyRegister()),
+        indirect->getMultipiler(),
+        indirect->getOffset());
+  }
+}
+
+template <int N>
+struct MemOperand {
+  using asmjit_type = const asmjit::x86::Mem&;
+  static asmjit::x86::Mem GetAsmOperand(Environ*, const Instruction* instr) {
+    const OperandBase* operand = LIROperandMapper<N>(instr);
+    auto size = LIROperandSizeMapper<N>(instr) / 8;
+    asmjit::x86::Mem memptr;
+    if (operand->isStack()) {
+      memptr = asmjit::x86::ptr(asmjit::x86::rbp, operand->getStackSlot());
+    } else if (operand->isMem()) {
+      memptr = asmjit::x86::ptr(
+          reinterpret_cast<uint64_t>(operand->getMemoryAddress()));
+    } else if (operand->isInd()) {
+      memptr = AsmIndirectOperandBuilder(operand);
+    } else {
+      JIT_CHECK(false, "Unsupported operand type.");
+    }
+
+    memptr.setSize(size);
+    return memptr;
+  }
+};
+
+#define MEM(m) MemOperand<m>
+#define STK(v) MemOperand<v>
+
+template <int N>
+struct LabelOperand {
+  using asmjit_type = const asmjit::Label&;
+  static asmjit::Label GetAsmOperand(Environ* env, const Instruction* instr) {
+    auto block = LIROperandMapper<N>(instr)->getBasicBlock();
+    return map_get(env->block_label_map, block);
+  }
+};
+
+#define LBL(v) LabelOperand<v>
+
+template <typename... Args>
+struct OperandList;
+
+template <typename FuncType, FuncType func, typename OpndList>
+struct AsmAction;
+
+template <typename FuncType, FuncType func, typename... OpndTypes>
+struct AsmAction<FuncType, func, OperandList<OpndTypes...>> {
+  static void eval(Environ* env, const Instruction* instr) {
+    (env->as->*func)(OpndTypes::GetAsmOperand(env, instr)...);
+  }
+};
+
+template <typename... Args>
+struct AsminstructionType {
+  using type =
+      asmjit::Error (asmjit::x86::EmitterExplicitT<asmjit::x86::Builder>::*)(
+          typename Args::asmjit_type...);
+};
+
+template <void (*func)(Environ*, const Instruction*)>
+struct CallAction {
+  static void eval(Environ* env, const Instruction* instr) {
+    func(env, instr);
+  }
+};
+
+template <typename... Actions>
+struct RuleActions;
+
+template <typename AAction, typename... Actions>
+struct RuleActions<AAction, Actions...> {
+  static void eval(Environ* env, const Instruction* instr) {
+    AAction::eval(env, instr);
+    RuleActions<Actions...>::eval(env, instr);
+  }
+};
+
+template <>
+struct RuleActions<> {
+  static void eval(Environ*, const Instruction*) {}
+};
+
+} // namespace
+
+#define ASM(instr, args...)                    \
+  AsmAction<                                   \
+      typename AsminstructionType<args>::type, \
+      &asmjit::x86::Builder::instr,            \
+      OperandList<args>>
+
+#define CALL(func) CallAction<func>
+
+#define BEGIN_RULE_TABLE void AutoTranslator::initTable() {
+#define END_RULE_TABLE }
+
+#define BEGIN_RULES(__t)                                \
+  {                                                     \
+    auto& __rules = instr_rule_map_                     \
+                        .emplace(                       \
+                            std::piecewise_construct,   \
+                            std::forward_as_tuple(__t), \
+                            std::forward_as_tuple())    \
+                        .first->second;
+
+#define END_RULES }
+#define GEN(s, actions...)                                  \
+  {                                                         \
+    UNUSED constexpr char pattern[] = s;                    \
+    using rule_actions = RuleActions<actions>;              \
+    auto gen = [](Environ* env, const Instruction* instr) { \
+      rule_actions::eval(env, instr);                       \
+    };                                                      \
+    __rules = addPattern(std::move(__rules), s, gen);       \
+  }
+
+// ***********************************************************************
+// Definition of Auto Generation Table
+// The table consisting of multiple rules, and the rules for the same LIR
+// instruction are grouped by BEGIN_RULES(LIR instruction type) and
+// END_RULES.
+// GEN defines a rule for a certain operand pattern of the LIR instruction,
+// and maps it to a list of actions:
+//   GEN(<operand pattern>, action1, action2, ...)
+//
+// TODO(tiansi): define macros for the operand pattern to make it more readable.
+// The operand pattern is defined by a string, and each character in the string
+// correpsonds to an operand of the instruction. The character can be one
+// of the following:
+//   * 'R' - general purpose register operand output
+//   * 'r' - general purpose register operand input
+//   * 'X' - XMM floating-point register operand output
+//   * 'x' - XMM floating-point register operand input
+//   * 'i' - immediate operand input
+//   * 'M' - memory stack operand output
+//   * 'm' - memory stack operand input
+// Wildcards "?" and "*" can also be used in patterns, where "?" represents any
+// one of the types listed above and "*" represents one or more above types.
+// Please note that while "?" can appear anywhere in a pattern, "*" can only be
+// used at the end of a pattern.
+// The actions can be ASM and CALL, meaning generating an assembly instruction
+// and call a user-defined function, respectively. The first argument of ASM
+// action is the mnemonic of the instruction to be generated, and the following
+// arguments are the operands to the instruction. Currently, we have four types
+// of assembly instruction operands:
+//   * OP  - either an immediate operand or register oeprand
+//   * STK - a memory stack location [RBP - ?]
+//   * LBL - a label to a basic block
+//   * MEM - a memory operand. The size of the memory operand will be set to the
+//           size of the LIR instruction operand specified by the first argument
+//           of MEM.
+// The assembly instruction operands are constructed from one or more LIR
+// instruction operands. To specify the LIR operands, we use indices
+// of the pattern string. For example:
+//   GEN("Rri", ASM(mov, OP(0), MEM(0, 1, 2)))
+// means generating a mov instruction, whose first operand is a
+// register/immediate operand, constructed from the only output of the LIR
+// instruction, and the second operand is memory operand, constructed from the
+// register input and the immediate input of the LIR instruction. The size of
+// the memory operand is set to the size of the output of the LIR instruction.
+// ***********************************************************************
+
+// clang-format off
+BEGIN_RULE_TABLE
+
+BEGIN_RULES(Instruction::kLea)
+  GEN("Rm", ASM(lea, OP(0), MEM(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kCall)
+  GEN("Ri", ASM(call, OP(1)));
+  GEN("Rr", ASM(call, OP(1)));
+  GEN("i", ASM(call, OP(0)));
+  GEN("r", ASM(call, OP(0)));
+  GEN("m", ASM(call, STK(0)));
+END_RULES
+
+BEGIN_RULES(Instruction::kMove)
+  GEN("Rr", ASM(mov, OP(0), OP(1)));
+  GEN("Ri", ASM(mov, OP(0), OP(1)));
+  GEN("Rm", ASM(mov, OP(0), MEM(1)));
+  GEN("Mr", ASM(mov, MEM(0), OP(1)));
+  GEN("Mi", ASM(mov, MEM(0), OP(1)));
+  GEN("Mm", ASM(push, MEM(1)), ASM(pop, MEM(0)));
+  GEN("Xx", ASM(movsd, OP(0), OP(1)));
+  GEN("Xm", ASM(movsd, OP(0), MEM(1)));
+  GEN("Mx", ASM(movsd, MEM(0), OP(1)));
+  GEN("Xr", ASM(movq, OP(0), OP(1)));
+  GEN("Rx", ASM(movq, OP(0), OP(1)));
+END_RULES
+
+BEGIN_RULES(Instruction::kGuard)
+  GEN(ANY, CALL(TranslateGuard));
+END_RULES
+
+BEGIN_RULES(Instruction::kNegate)
+  GEN("Ri", ASM(mov, OP(0), ImmOperandNegate<OP(1)>))
+  GEN("Rr", ASM(mov, OP(0), OP(1)), ASM(neg, OP(0)))
+  GEN("Rm", ASM(mov, OP(0), STK(1)), ASM(neg, OP(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kInvert)
+  GEN("Ri", ASM(mov, OP(0), ImmOperandInvert<OP(1)>))
+  GEN("Rr", ASM(mov, OP(0), OP(1)), ASM(not_, OP(0)))
+  GEN("Rm", ASM(mov, OP(0), STK(1)), ASM(not_, OP(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kMovZX)
+  GEN("Rr", ASM(movzx, OP(0), OP(1)))
+  GEN("Rm", ASM(movzx, OP(0), STK(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kMovSX)
+  GEN("Rr", ASM(movsx, OP(0), OP(1)))
+  GEN("Rm", ASM(movsx, OP(0), STK(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kMovSXD)
+  GEN("Rr", ASM(movsxd, OP(0), OP(1)))
+  GEN("Rm", ASM(movsxd, OP(0), STK(1)))
+END_RULES
+
+#define DEF_BINARY_OP_RULES(name, instr) \
+  BEGIN_RULES(Instruction::name) \
+    GEN("ri", ASM(instr, OP(0), OP(1))) \
+    GEN("rr", ASM(instr, OP(0), OP(1))) \
+    GEN("rm", ASM(instr, OP(0), STK(1))) \
+    GEN("Rri", ASM(mov, OP(0), OP(1)), ASM(instr, OP(0), OP(2))) \
+    GEN("Rrr", ASM(mov, OP(0), OP(1)), ASM(instr, OP(0), OP(2))) \
+    GEN("Rrm", ASM(mov, OP(0), OP(1)), ASM(instr, OP(0), STK(2))) \
+  END_RULES
+
+DEF_BINARY_OP_RULES(kAdd, add)
+DEF_BINARY_OP_RULES(kSub, sub)
+DEF_BINARY_OP_RULES(kAnd, and_)
+DEF_BINARY_OP_RULES(kOr, or_)
+DEF_BINARY_OP_RULES(kXor, xor_)
+DEF_BINARY_OP_RULES(kMul, imul)
+
+#undef DEF_BINARY_OP_RULES
+
+BEGIN_RULES(Instruction::kFadd)
+  GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(addsd, OP(0), OP(2)))
+  GEN("xx", ASM(addsd, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kFsub)
+  GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(subsd, OP(0), OP(2)))
+  GEN("xx", ASM(subsd, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kFmul)
+  GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(mulsd, OP(0), OP(2)))
+  GEN("xx", ASM(mulsd, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kFdiv)
+  GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(divsd  , OP(0), OP(2)))
+  GEN("xx", ASM(divsd, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kPush)
+  GEN("r", ASM(push, OP(0)))
+  GEN("m", ASM(push, STK(0)))
+  GEN("i", ASM(push, OP(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kPop)
+  GEN("R", ASM(pop, OP(0)))
+  GEN("M", ASM(pop, STK(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kExchange)
+  GEN("Rr", ASM(xchg, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kCmp)
+  GEN("rr", ASM(cmp, OP(0), OP(1)))
+  GEN("ri", ASM(cmp, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kTest)
+  GEN("rr", ASM(test, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranch)
+  GEN("b", ASM(jmp, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchZ)
+  GEN("b", ASM(jz, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchNZ)
+  GEN("b", ASM(jnz, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchA)
+  GEN("b", ASM(ja, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchB)
+  GEN("b", ASM(jb, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchAE)
+  GEN("b", ASM(jae, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchBE)
+  GEN("b", ASM(jbe, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchG)
+  GEN("b", ASM(jg, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchL)
+  GEN("b", ASM(jl, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchGE)
+  GEN("b", ASM(jge, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchLE)
+  GEN("b", ASM(jle, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kEqual)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kNotEqual)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kGreaterThanSigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kGreaterThanEqualSigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kLessThanSigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kLessThanEqualSigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kGreaterThanUnsigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kGreaterThanEqualUnsigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kLessThanUnsigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kLessThanEqualUnsigned)
+  GEN("Rrr", CALL(TranslateCompare))
+  GEN("Rri", CALL(TranslateCompare))
+END_RULES
+
+BEGIN_RULES(Instruction::kInc)
+  GEN("r", ASM(inc, OP(0)))
+  GEN("m", ASM(inc, STK(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kDec)
+  GEN("r", ASM(dec, OP(0)))
+  GEN("m", ASM(dec, STK(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBitTest)
+  GEN("ri", ASM(bt, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kYieldInitial)
+  GEN(ANY, CALL(translateYieldInitial));
+END_RULES
+
+BEGIN_RULES(Instruction::kYieldFrom)
+  GEN(ANY, CALL(translateYieldFrom));
+END_RULES
+
+BEGIN_RULES(Instruction::kYieldFromSkipInitialSend)
+  GEN(ANY, CALL(translateYieldFrom));
+END_RULES
+
+BEGIN_RULES(Instruction::kYieldValue)
+  GEN(ANY, CALL(translateYieldValue));
+END_RULES
+
+END_RULE_TABLE
+// clang-format on
+
+} // namespace autogen
+} // namespace codegen
+} // namespace jit

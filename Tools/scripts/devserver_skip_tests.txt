@@ -1,0 +1,9 @@
+test_socket
+test_distutils
+test_email
+test_gdb
+test_shutil
+test_ssl
+test_smtpnet
+test_urllib2net
+test_normalization

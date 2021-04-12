@@ -1,0 +1,25 @@
+RedundantConversionEliminationTest
+---
+RedundantConversionElimination
+---
+LoadConst
+---
+from __static__ import box, int64
+
+def test():
+    x: int64 = 0
+    return box(x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Nullptr = LoadConst<Nullptr>
+    v4:CInt64[0] = LoadConst<CInt64[0]>
+    v6:OptLongExact = PrimitiveBox<true> v4
+    v7:LongExact = CheckExc v6 {
+      NextInstrOffset 10
+      Locals<1> v4
+    }
+    Return v7
+  }
+}
+---

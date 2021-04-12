@@ -1,0 +1,29 @@
+{
+  "name": "irviewer",
+  "version": "0.0.1",
+  "description": "A graphical Cinder JIT IR viewer",
+  "private": true,
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.10.4",
+    "jest": "^26.4.2",
+    "prettier": "2.1.2",
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12"
+  },
+  "jest": {
+    "moduleDirectories": [
+      "node_modules",
+      "src"
+    ]
+  },
+  "dependencies": {
+    "d3": "^6.2.0",
+    "dagre-d3": "^0.6.4",
+    "jquery": "^3.5.1"
+  }
+}
