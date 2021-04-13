@@ -3525,6 +3525,27 @@ class GatherTests:
 
         self.loop.run_until_complete(drive())
 
+    def test_gather_contextvars(self):
+        async def a(var, sleep):
+            if sleep:
+                await asyncio.sleep(0)
+            var.set(10)
+        async def b(var, sleep):
+            if sleep:
+                await asyncio.sleep(0)
+            var.set(20)
+        async def go():
+            async def test(sleep_a, sleep_b):
+                var = contextvars.ContextVar("var")
+                var.set(42)
+                await asyncio.gather(a(var, sleep_a), b(var, sleep_a))
+                self.assertEqual(var.get(), 42)
+            await test(False, False)
+            await test(False, True)
+            await test(True, False)
+            await test(True, True)
+        self.loop.run_until_complete(go())
+
 def modify_context(val):
     _modify_current_context(val)
     try:

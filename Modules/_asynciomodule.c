@@ -6838,31 +6838,56 @@ _start_coroutine_helper(PyThreadState *tstate,
                         int *finished)
 {
     PyObject *res = NULL;
-    PyObject *yielded = coro_send(tstate, coro, Py_None, &res);
-    if (yielded != NULL) {
-        *finished = 0;
-        assert(res == NULL);
-        PyObject *fut = suspended_coroutine_to_future(coro, loop);
-        if (fut == NULL) {
-            Py_DECREF(yielded);
-            return NULL;
-        }
-
-        PyMethodTableRef *t = get_or_create_method_table(Py_TYPE(fut));
-
-        // link task to yielded future so it will be woken up
-        // once future is fulfilled
-        res = t->set_fut_waiter(fut, yielded);
-        Py_DECREF(yielded);
-        if (res == NULL) {
-            Py_DECREF(fut);
-            return NULL;
-        }
-        Py_DECREF(res);
-        return fut;
+    PyObject *context = PyContext_CopyCurrent();
+    if (context == NULL) {
+        return NULL;
     }
-    *finished = 1;
-    return res;
+    if (PyContext_Enter(context)) {
+        Py_DECREF(context);
+        return NULL;
+    }
+
+    PyObject *yielded = coro_send(tstate, coro, Py_None, &res);
+    if (yielded == NULL) {
+        int failed = PyContext_Exit(context);
+        Py_DECREF(context);
+        if (failed) {
+            return NULL;
+        }
+        *finished = 1;
+        return res;
+    }
+
+    *finished = 0;
+    assert(res == NULL);
+    PyObject *fut = suspended_coroutine_to_future(coro, loop);
+
+    int failed = PyContext_Exit(context);
+    Py_DECREF(context);
+    if (failed) {
+        Py_DECREF(yielded);
+        Py_XDECREF(fut);
+        return NULL;
+    }
+
+    if (fut == NULL) {
+        Py_DECREF(yielded);
+        return NULL;
+    }
+
+
+    PyMethodTableRef *t = get_or_create_method_table(Py_TYPE(fut));
+
+    // link task to yielded future so it will be woken up
+    // once future is fulfilled
+    res = t->set_fut_waiter(fut, yielded);
+    Py_DECREF(yielded);
+    if (res == NULL) {
+        Py_DECREF(fut);
+        return NULL;
+    }
+    Py_DECREF(res);
+    return fut;
 }
 
 static PyObject *
