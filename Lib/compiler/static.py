@@ -4616,12 +4616,12 @@ class CIntType(CType):
 
         arg = node.args[0]
         arg_type = code_gen.get_type(arg)
-        code_gen.visit(arg)
         if isinstance(arg_type, CIntInstance):
+            code_gen.visit(arg)
             if arg_type != self.instance:
                 self.instance.emit_convert(arg_type, code_gen)
         else:
-            code_gen.emit("INT_UNBOX", self.instance.as_oparg())
+            self.instance.emit_unbox(arg, code_gen)
 
 
 class CDoubleInstance(CInstance["CDoubleType"]):

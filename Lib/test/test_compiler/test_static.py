@@ -13236,23 +13236,25 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertTrue(t())
 
     def test_unbox_final_inlined(self):
-        codestr = """
-        from typing import Final
-        from __static__ import int64, unbox
+        for func in ["unbox", "int64"]:
+            with self.subTest(func=func):
+                codestr = f"""
+                from typing import Final
+                from __static__ import int64, unbox
 
-        MY_FINAL: Final[int] = 111
+                MY_FINAL: Final[int] = 111
 
-        def t() -> bool:
-            i: int64 = 64
-            if i < unbox(MY_FINAL):
-                return True
-            else:
-                return False
-        """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
-            t = mod["t"]
-            self.assertInBytecode(t, "PRIMITIVE_LOAD_CONST", (111, TYPED_INT64))
-            self.assertEqual(t(), True)
+                def t() -> bool:
+                    i: int64 = 64
+                    if i < {func}(MY_FINAL):
+                        return True
+                    else:
+                        return False
+                """
+                with self.in_module(codestr) as mod:
+                    t = mod["t"]
+                    self.assertInBytecode(t, "PRIMITIVE_LOAD_CONST", (111, TYPED_INT64))
+                    self.assertEqual(t(), True)
 
     def test_augassign_inexact(self):
         codestr = """
