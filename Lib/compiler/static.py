@@ -2819,13 +2819,18 @@ class BoxFunction(Object[Class]):
         if len(node.args) != 1:
             raise visitor.syntax_error("box only accepts a single argument", node)
 
-        for arg in node.args:
-            visitor.visit(arg)
-            if not isinstance(visitor.get_type(arg), CInstance):
-                raise visitor.syntax_error(
-                    f"can't box non-primitive: {visitor.get_type(arg).name}", node
-                )
-        visitor.set_type(node, DYNAMIC)
+        arg = node.args[0]
+        visitor.visit(arg)
+        arg_type = visitor.get_type(arg)
+
+        if isinstance(arg_type, CIntInstance):
+            visitor.set_type(node, INT_EXACT_TYPE.instance)
+        elif isinstance(arg_type, CDoubleInstance):
+            visitor.set_type(node, FLOAT_EXACT_TYPE.instance)
+        else:
+            raise visitor.syntax_error(
+                f"can't box non-primitive: {arg_type.name}", node
+            )
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:

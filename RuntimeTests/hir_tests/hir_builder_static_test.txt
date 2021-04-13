@@ -1193,11 +1193,7 @@ fun jittestmodule:test {
       NextInstrOffset 36
       Locals<2> v0 v1
     }
-    v18 = Cast<int> v17 {
-      NextInstrOffset 38
-      Locals<2> v0 v1
-    }
-    Return v18
+    Return v17
   }
 }
 ---

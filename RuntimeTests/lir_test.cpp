@@ -127,16 +127,16 @@ BB %0 - succs: %3
        %1:Object = Bind R10:Object
        %2:Object = Bind R11:Object
 
-BB %3 - preds: %0 - succs: %12
+BB %3 - preds: %0 - succs: %10
 
-# v4:Nullptr = LoadConst<Nullptr>
+# v3:Nullptr = LoadConst<Nullptr>
        %4:Object = Move 0(0x0):Object
 
-# v5:CDouble[3.1415] = LoadConst<CDouble[3.1415]>
+# v4:CDouble[3.1415] = LoadConst<CDouble[3.1415]>
         %5:64bit = Move 4614256447914709615(0x400921cac083126f):Object
        %6:Double = Move %5:64bit
 
-# v7:OptFloatExact = PrimitiveBox<false> v5
+# v6:OptFloatExact = PrimitiveBox<false> v4
        %7:Object = Call)");
   // Note - we only check whether the LIR has the stuff we care about
   ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);

@@ -11322,6 +11322,20 @@ class StaticRuntimeTests(StaticTestBase):
                         f"failing case: {[src, dest, val, actual, expected]}",
                     )
 
+    def test_no_cast_after_box(self):
+        codestr = """
+            from __static__ import int64, box
+
+            def f(x: int) -> int:
+                y = int64(x) + 1
+                return box(y)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertNotInBytecode(f, "CAST")
+            self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (1, TYPED_INT64))
+            self.assertEqual(f(3), 4)
+
     def test_rand(self):
         codestr = """
         from __static__ import rand, RAND_MAX, box, int64
@@ -13218,6 +13232,7 @@ class StaticRuntimeTests(StaticTestBase):
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             t = mod["t"]
             self.assertInBytecode(t, "PRIMITIVE_LOAD_CONST", (3.14159, TYPED_DOUBLE))
+            self.assertNotInBytecode(t, "CAST")
             self.assertEqual(t(), 3.14159)
             self.assert_jitted(t)
 
