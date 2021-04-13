@@ -54,7 +54,9 @@ class BytecodeInstruction {
       case FOR_ITER:
       case POP_JUMP_IF_FALSE:
       case JUMP_IF_FALSE_OR_POP:
-      case JUMP_IF_TRUE_OR_POP: {
+      case JUMP_IF_NONZERO_OR_POP:
+      case JUMP_IF_TRUE_OR_POP:
+      case JUMP_IF_ZERO_OR_POP: {
         return true;
       }
       default: {

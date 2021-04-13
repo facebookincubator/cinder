@@ -134,7 +134,9 @@ const std::unordered_set<int> kSupportedOpcodes = {
     JUMP_ABSOLUTE,
     JUMP_FORWARD,
     JUMP_IF_FALSE_OR_POP,
+    JUMP_IF_NONZERO_OR_POP,
     JUMP_IF_TRUE_OR_POP,
+    JUMP_IF_ZERO_OR_POP,
     LIST_APPEND,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
@@ -436,7 +438,9 @@ static bool should_snapshot(
     // basic block doesn't make sense anyway.
     case FOR_ITER:
     case JUMP_IF_FALSE_OR_POP:
+    case JUMP_IF_NONZERO_OR_POP:
     case JUMP_IF_TRUE_OR_POP:
+    case JUMP_IF_ZERO_OR_POP:
     // These are all control instructions. Taking a snapshot after them in the
     // same basic block doesn't make sense, as control immediately transfers
     // to another basic block.
@@ -895,7 +899,9 @@ void HIRBuilder::translate(
           break;
         }
         case JUMP_IF_FALSE_OR_POP:
-        case JUMP_IF_TRUE_OR_POP: {
+        case JUMP_IF_NONZERO_OR_POP:
+        case JUMP_IF_TRUE_OR_POP:
+        case JUMP_IF_ZERO_OR_POP: {
           emitJumpIf(tc, bc_instr);
           break;
         }
@@ -1215,7 +1221,8 @@ void HIRBuilder::translate(
         queue.emplace_back(condbr->false_bb(), new_frame);
         break;
       }
-      case JUMP_IF_FALSE_OR_POP: {
+      case JUMP_IF_FALSE_OR_POP:
+      case JUMP_IF_ZERO_OR_POP: {
         auto condbr = static_cast<CondBranch*>(last_instr);
         auto new_frame = tc.frame;
         new_frame.stack.pop();
@@ -1223,6 +1230,7 @@ void HIRBuilder::translate(
         queue.emplace_back(condbr->false_bb(), tc.frame);
         break;
       }
+      case JUMP_IF_NONZERO_OR_POP:
       case JUMP_IF_TRUE_OR_POP: {
         auto condbr = static_cast<CondBranch*>(last_instr);
         auto new_frame = tc.frame;
@@ -1923,12 +1931,17 @@ void HIRBuilder::emitJumpIf(
   Register* var = tc.frame.stack.top();
 
   Py_ssize_t true_offset, false_offset;
+  bool check_truthy = true;
   switch (bc_instr.opcode()) {
+    case JUMP_IF_NONZERO_OR_POP:
+      check_truthy = false;
     case JUMP_IF_TRUE_OR_POP: {
       true_offset = bc_instr.oparg();
       false_offset = bc_instr.NextInstrOffset();
       break;
     }
+    case JUMP_IF_ZERO_OR_POP:
+      check_truthy = false;
     case JUMP_IF_FALSE_OR_POP: {
       false_offset = bc_instr.oparg();
       true_offset = bc_instr.NextInstrOffset();
@@ -1947,12 +1960,16 @@ void HIRBuilder::emitJumpIf(
   BasicBlock* true_block = getBlockAtOff(true_offset);
   BasicBlock* false_block = getBlockAtOff(false_offset);
 
-  Register* tval = temps_.allocateNextTruthy();
-  // Registers that hold the result of `IsTruthy` are guaranteed to never be
-  // the home of a value left on the stack at the end of a basic block, so we
-  // don't need to worry about potentially storing a PyObject in them.
-  tc.emit<IsTruthy>(tval, var, tc.frame);
-  tc.emit<CondBranch>(tval, true_block, false_block);
+  if (check_truthy) {
+    Register* tval = temps_.allocateNextTruthy();
+    // Registers that hold the result of `IsTruthy` are guaranteed to never be
+    // the home of a value left on the stack at the end of a basic block, so we
+    // don't need to worry about potentially storing a PyObject in them.
+    tc.emit<IsTruthy>(tval, var, tc.frame);
+    tc.emit<CondBranch>(tval, true_block, false_block);
+  } else {
+    tc.emit<CondBranch>(var, true_block, false_block);
+  }
 }
 
 void HIRBuilder::emitLoadAttr(

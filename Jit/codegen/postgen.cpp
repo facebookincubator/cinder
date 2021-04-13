@@ -107,9 +107,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteCondBranch(
   // In this case, we don't need to generate a separate register for %3.
   // We can prevent this happening by removing the output of the first
   // instruction and the input of the second.
-  // Assumptions for now, which can be lifted in the future:
-  //   1. the output of Compare instruction should only be used by CondBranch
-  // instruction;
+  // If the output of the compare is used later, we can't remove it.
 
   auto instr = instr_iter->get();
   if (!instr->isCondBranch()) {
@@ -131,10 +129,12 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteCondBranch(
     return kUnchanged;
   }
 
-  // here, we can assume that the sole purpose of a compare instruction is to
-  // generate the condition operand for a following conditional branch. There is
-  // no other instruction in the current LIR that is able to consume the output
-  // of compare instructions.
+  // if the output of the compare has more than one use, we can't remove it
+  Operand* output = flag_affecting_instr->output();
+  if (output->numUses() > 1) {
+    return kUnchanged;
+  }
+
   JIT_CHECK(
       static_cast<LinkedOperand*>(cond)->getLinkedInstr() ==
           flag_affecting_instr,
@@ -144,7 +144,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteCondBranch(
   // Setting the output to None is effectively removing the output of
   // flag_affecting_instr and all the input operands that linked to it.
   // As a result, no register will be allocated for this operand.
-  flag_affecting_instr->output()->setNone();
+  output->setNone();
   return kChanged;
 }
 

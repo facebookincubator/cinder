@@ -1229,39 +1229,35 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(f(), 100)
         self.assert_jitted(f)
 
-    def test_int_compare_or_dynamic(self):
+    def test_int_compare_or(self):
         codestr = """
-        from __static__ import ssize_t
-        def cond():
-            return True
+        from __static__ import box, ssize_t
 
         def testfunc():
             i: ssize_t = 0
-            j = i > 0 or cond()
-            return j
+            j = i > 2 or i < -2
+            return box(j)
         """
 
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             f = mod["testfunc"]
             self.assertInBytecode(f, "JUMP_IF_NONZERO_OR_POP")
-            self.assertEqual(f(), True)
+            self.assertEqual(f(), 0)
 
-    def test_int_compare_or_dynamic_false(self):
+    def test_int_compare_and(self):
         codestr = """
-        from __static__ import ssize_t
-        def cond():
-            return False
+        from __static__ import box, ssize_t
 
         def testfunc():
             i: ssize_t = 0
-            j = i > 0 or cond()
-            return j
+            j = i > 2 and i > 3
+            return box(j)
         """
 
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             f = mod["testfunc"]
-            self.assertInBytecode(f, "JUMP_IF_NONZERO_OR_POP")
-            self.assertEqual(f(), False)
+            self.assertInBytecode(f, "JUMP_IF_ZERO_OR_POP")
+            self.assertEqual(f(), 0)
 
     def test_int_binop(self):
         tests = [

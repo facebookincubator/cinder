@@ -581,15 +581,18 @@ void PostRegAllocRewrite::doRewriteCondBranch(
     auto cmp0 = flag_affecting_instr->getInput(0);
     auto cmp1 = flag_affecting_instr->getInput(1);
 
-    if (cmp1->type() == OperandBase::kImm && cmp1->getConstant() == 0) {
-      // compare with 0 case - generate test Reg, Reg
-      auto loc = cmp0->getPhyRegister();
-      flag_affecting_instr->setOpcode(Instruction::kTest);
-      flag_affecting_instr->setNumInputs(0);
-      flag_affecting_instr->allocatePhyRegisterInput(loc);
-      flag_affecting_instr->allocatePhyRegisterInput(loc);
-    } else {
-      flag_affecting_instr->setOpcode(Instruction::kCmp);
+    // if the comparison output is otherwise unused, we can simplify the compare
+    if (flag_affecting_instr->output()->type() == OperandBase::kNone) {
+      if (cmp1->type() == OperandBase::kImm && cmp1->getConstant() == 0) {
+        // compare with 0 case - generate test Reg, Reg
+        auto loc = cmp0->getPhyRegister();
+        flag_affecting_instr->setOpcode(Instruction::kTest);
+        flag_affecting_instr->setNumInputs(0);
+        flag_affecting_instr->allocatePhyRegisterInput(loc);
+        flag_affecting_instr->allocatePhyRegisterInput(loc);
+      } else {
+        flag_affecting_instr->setOpcode(Instruction::kCmp);
+      }
     }
 
     convert_to_branchcc(branchcc_opcode);

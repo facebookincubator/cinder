@@ -362,6 +362,9 @@ class Operand : public OperandBase {
     return false;
   }
 
+  int numUses() const {
+    return uses_.size();
+  }
   void addUse(LinkedOperand* use);
   void removeUse(LinkedOperand* use);
 
