@@ -460,7 +460,7 @@ class SymbolTable:
         s.visit(tree)
 
         # Analyze the types of objects within local scopes
-        type_binder = TypeBinder(s, filename, self, name)
+        type_binder = TypeBinder(s, filename, self, name, optimize)
         type_binder.visit(tree)
 
         # Compile the code w/ the static compiler
@@ -2239,7 +2239,7 @@ class Function(Callable[Class]):
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
         res = super().bind_call(node, visitor, type_ctx)
-        if self.inline:
+        if self.inline and visitor.optimize == 2:
             assert isinstance(self.node.body[0], ast.Return)
 
             return self.bind_inline_call(node, visitor, type_ctx) or res
@@ -2250,7 +2250,7 @@ class Function(Callable[Class]):
         if not self.can_call_self(node, False):
             return super().emit_call(node, code_gen)
 
-        if self.inline:
+        if self.inline and code_gen.optimization_lvl == 2:
             return self.emit_inline_call(node, code_gen)
 
         return self.emit_call_self(node, code_gen)
@@ -5321,12 +5321,14 @@ class TypeBinder(GenericVisitor):
         filename: str,
         symtable: SymbolTable,
         module_name: str,
+        optimize: int = 0,
     ) -> None:
         super().__init__(module_name, filename)
         self.symbols = symbols
         self.scopes: List[BindingScope] = []
         self.symtable = symtable
         self.cur_mod: ModuleTable = symtable[module_name]
+        self.optimize = optimize
         self.terminals: Dict[AST, TerminalKind] = {}
         self.inline_depth = 0
 
@@ -6455,6 +6457,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
             graph,
             symtable=self.symtable,
             modname=self.modname,
+            optimization_lvl=self.optimization_lvl,
         )
         if not isinstance(tree, ast.ClassDef):
             self._processArgTypes(tree, gen)
@@ -6554,7 +6557,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
         )
         graph.setFlag(cls.consts.CO_STATICALLY_COMPILED)
 
-        type_binder = TypeBinder(s, filename, symtable, module_name)
+        type_binder = TypeBinder(s, filename, symtable, module_name, optimize)
         type_binder.visit(tree)
 
         code_gen = cls(None, tree, s, graph, symtable, module_name, flags, optimize)

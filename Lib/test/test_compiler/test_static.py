@@ -209,13 +209,13 @@ class StaticTestBase(CompilerTest):
             self.compile(code)
 
     @contextmanager
-    def in_module(self, code, name=None, code_gen=StaticCodeGenerator):
+    def in_module(self, code, name=None, code_gen=StaticCodeGenerator, optimize=0):
         if name is None:
             # get our callers name to avoid duplicating names
             name = sys._getframe().f_back.f_back.f_code.co_name
 
         try:
-            compiled = self.compile(code, code_gen, name)
+            compiled = self.compile(code, code_gen, name, optimize)
             m = type(sys)(name)
             d = m.__dict__
             sys.modules[name] = m
@@ -231,14 +231,19 @@ class StaticTestBase(CompilerTest):
 
     @contextmanager
     def in_strict_module(
-        self, code, name=None, code_gen=StaticCodeGenerator, enable_patching=False
+        self,
+        code,
+        name=None,
+        code_gen=StaticCodeGenerator,
+        optimize=0,
+        enable_patching=False,
     ):
         if name is None:
             # get our callers name to avoid duplicating names
             name = sys._getframe().f_back.f_back.f_code.co_name
 
         try:
-            compiled = self.compile(code, code_gen, name)
+            compiled = self.compile(code, code_gen, name, optimize)
             d = {"__name__": name}
             m = StrictModule(d, enable_patching)
             sys.modules[name] = m
@@ -9439,10 +9444,21 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return f(1,2)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
-            g = mod["g"]
-            self.assertInBytecode(g, "LOAD_CONST", 3)
-            self.assertEqual(g(), 3)
+        # we only inline at opt level 2 to avoid test patching problems
+        # TODO longer term we might need something better here (e.g. emit both
+        # inlined code and call and a guard to choose); assuming
+        # non-patchability at opt 2 works for IG but isn't generally valid
+        for opt in [0, 1, 2]:
+            with self.subTest(opt=opt):
+                with self.in_module(codestr, optimize=opt) as mod:
+                    g = mod["g"]
+                    if opt == 2:
+                        self.assertInBytecode(g, "LOAD_CONST", 3)
+                    else:
+                        self.assertInBytecode(
+                            g, "INVOKE_FUNCTION", (("test_inline_func", "f"), 2)
+                        )
+                    self.assertEqual(g(), 3)
 
     def test_inline_kwarg(self):
         codestr = """
@@ -9455,7 +9471,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return f(x=1,y=2)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
             self.assertInBytecode(g, "LOAD_CONST", 3)
             self.assertEqual(g(), 3)
@@ -9471,7 +9487,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return f(x=1,y=2)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
             self.assertInBytecode(g, "LOAD_CONST", None)
             self.assertEqual(g(), None)
@@ -9489,7 +9505,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return f(1)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
             # We don't currently inline math with finals
             self.assertInBytecode(g, "LOAD_CONST", 42)
@@ -9510,7 +9526,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return f(1,2)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
             self.assertInBytecode(g, "LOAD_CONST", 4)
             self.assertEqual(g(), 4)
@@ -9530,7 +9546,7 @@ class StaticCompilationTests(StaticTestBase):
             def g(a,b):
                 return f(a,b)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
             self.assertInBytecode(g, "LOAD_CONST", 3)
             self.assertInBytecode(g, "BINARY_ADD")
@@ -9547,7 +9563,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return f(1,2)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
             self.assertInBytecode(
                 g, "INVOKE_FUNCTION", ((("test_inline_recursive", "f"), 2))
@@ -9564,7 +9580,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return f(1)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
             self.assertInBytecode(g, "LOAD_CONST", 3)
 
@@ -9581,8 +9597,9 @@ class StaticCompilationTests(StaticTestBase):
             def g(arg: int) -> int:
                 return f(int64(arg))
         """
-        with self.in_module(codestr) as mod:
+        with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
+            self.assertInBytecode(g, "PRIMITIVE_BOX")
             self.assertEqual(g(3), 3)
 
     def test_augassign_primitive_int(self):
