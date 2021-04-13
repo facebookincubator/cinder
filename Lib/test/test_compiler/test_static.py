@@ -143,7 +143,7 @@ def type_mismatch(from_type: str, to_type: str) -> str:
 
 
 def optional(type: str) -> str:
-    return f"typing.Optional[{type}]"
+    return f"Optional[{type}]"
 
 
 def init_xxclassloader():
@@ -326,7 +326,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"reveal_type\(x or None\): 'typing.Optional\[builtins.int\]'",
+            r"reveal_type\(x or None\): 'Optional\[int\]'",
         ):
             self.compile(codestr)
 
@@ -338,7 +338,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"reveal_type\(x\): 'builtins.int', 'x' has declared type 'typing.Optional\[builtins.int\]' and local type 'builtins.int'",
+            r"reveal_type\(x\): 'int', 'x' has declared type 'Optional\[int\]' and local type 'int'",
         ):
             self.compile(codestr)
 
@@ -394,11 +394,11 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: int) -> Optional[int]:
                 return C().foo(x)
         """
-        self.assertReturns(codestr, "typing.Optional[builtins.int]")
+        self.assertReturns(codestr, "Optional[int]")
 
     def test_mixed_binop(self):
         with self.assertRaisesRegex(
-            TypedSyntaxError, "cannot add int64 and Exact\\[builtins.int\\] instance"
+            TypedSyntaxError, "cannot add int64 and Exact\\[int\\]"
         ):
             self.bind_module(
                 """
@@ -412,7 +412,7 @@ class StaticCompilationTests(StaticTestBase):
             )
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, "cannot add Exact\\[builtins.int\\] instance and int64"
+            TypedSyntaxError, "cannot add Exact\\[int\\] and int64"
         ):
             self.bind_module(
                 """
@@ -1669,9 +1669,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(x)
         """
 
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("builtins.str", "int64")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("str", "int64")):
             self.compile(codestr)
 
     def test_uninit_value(self):
@@ -1703,7 +1701,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, "can't box non-primitive: Exact\\[builtins.str\\]"
+            TypedSyntaxError, "can't box non-primitive: Exact\\[str\\]"
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -1892,7 +1890,7 @@ class StaticCompilationTests(StaticTestBase):
         )
         node = mod.body[-1]
         types = syms.modules["foo"].types
-        self.assertEqual(types[node.value].name, "foo.C instance")
+        self.assertEqual(types[node.value].name, "foo.C")
 
     def test_cmpop(self):
         codestr = """
@@ -1922,17 +1920,15 @@ class StaticCompilationTests(StaticTestBase):
             else:
                 return 2
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("builtins.bool", "cbool")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("bool", "cbool")):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
     def test_bind_instance(self) -> None:
         mod, syms = self.bind_module("class C: pass\na: C = C()")
         assign = mod.body[1]
         types = syms.modules["foo"].types
-        self.assertEqual(types[assign.target].name, "foo.C instance")
-        self.assertEqual(repr(types[assign.target]), "<foo.C instance>")
+        self.assertEqual(types[assign.target].name, "foo.C")
+        self.assertEqual(repr(types[assign.target]), "<foo.C>")
 
     def test_bind_func_def(self) -> None:
         mod, syms = self.bind_module(
@@ -1945,7 +1941,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertTrue(isinstance(modtable.children["f"], Function))
 
     def assertReturns(self, code: str, typename: str) -> None:
-        actual = self.bind_final_return(code).klass.name
+        actual = self.bind_final_return(code).name
         self.assertEqual(actual, typename)
 
     def bind_final_return(self, code: str) -> Value:
@@ -2841,7 +2837,8 @@ class StaticCompilationTests(StaticTestBase):
                     self.x: int = 42
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "conflicting type definitions for slot x in class foo.C"
+            TypedSyntaxError,
+            r"conflicting type definitions for slot x in Type\[foo.C\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -2855,7 +2852,7 @@ class StaticCompilationTests(StaticTestBase):
                 def __init__(self):
                     self.x: Optional[str] = "foo"
             """,
-            "conflicting type definitions for slot x in class <module>.C",
+            r"conflicting type definitions for slot x in Type\[<module>.C\]",
         )
 
     def test_slotification_conflicting_members(self):
@@ -2865,7 +2862,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: object
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "slot conflicts with other member x in class foo.C"
+            TypedSyntaxError, r"slot conflicts with other member x in Type\[foo.C\]"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -2876,7 +2873,7 @@ class StaticCompilationTests(StaticTestBase):
                 def x(self): pass
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "function conflicts with other member x in class foo.C"
+            TypedSyntaxError, r"function conflicts with other member x in Type\[foo.C\]"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -2992,9 +2989,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            re.escape(
-                "'typing.Optional[foo.C] instance': 'NoneType' object has no attribute 'x'"
-            ),
+            re.escape("Optional[foo.C]: 'NoneType' object has no attribute 'x'"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -3007,9 +3002,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            re.escape(
-                "'typing.Optional[builtins.int] instance': 'NoneType' object is not subscriptable"
-            ),
+            re.escape("Optional[int]: 'NoneType' object is not subscriptable"),
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -3022,9 +3015,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            re.escape(
-                "'typing.Optional[builtins.int] instance': bad operand type for unary -: 'NoneType'"
-            ),
+            re.escape("Optional[int]: bad operand type for unary -: 'NoneType'"),
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -3102,7 +3093,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_optional_union_syntax_error(self):
@@ -3113,7 +3104,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Union[int, None]) -> int:
                 return x
             """,
-            type_mismatch("typing.Optional[builtins.int]", "builtins.int"),
+            type_mismatch("Optional[int]", "int"),
         )
 
     def test_union_can_assign_to_broader_union(self):
@@ -3126,7 +3117,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Union[int, str]) -> Union[int, str, B]:
                 return x
             """,
-            "typing.Union[builtins.int, builtins.str]",
+            "Union[int, str]",
         )
 
     def test_union_can_assign_to_same_union(self):
@@ -3137,7 +3128,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Union[int, str]) -> Union[int, str]:
                 return x
             """,
-            "typing.Union[builtins.int, builtins.str]",
+            "Union[int, str]",
         )
 
     def test_union_can_assign_from_individual_element(self):
@@ -3148,7 +3139,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: int) -> Union[int, str]:
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_union_cannot_assign_from_broader_union(self):
@@ -3161,8 +3152,8 @@ class StaticCompilationTests(StaticTestBase):
                 return x
             """,
             type_mismatch(
-                "typing.Union[builtins.int, builtins.str, <module>.B]",
-                "typing.Union[builtins.int, builtins.str]",
+                "Union[int, str, <module>.B]",
+                "Union[int, str]",
             ),
         )
 
@@ -3174,7 +3165,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Union[int]) -> int:
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_union_simplify_related(self):
@@ -3198,7 +3189,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Union[int, int]) -> int:
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_union_flatten_nested(self):
@@ -3210,7 +3201,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Union[int, Union[str, B]]):
                 return x
             """,
-            "typing.Union[builtins.int, builtins.str, foo.B]",
+            "Union[int, str, foo.B]",
         )
 
     def test_union_deep_simplify(self):
@@ -3223,7 +3214,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_union_dynamic_element(self):
@@ -3245,7 +3236,7 @@ class StaticCompilationTests(StaticTestBase):
                     return x
                 return 1
             """,
-            type_mismatch("typing.Union[builtins.int, builtins.str]", "builtins.int"),
+            type_mismatch("Union[int, str]", "int"),
         )
 
     def test_union_or_syntax_none(self):
@@ -3256,7 +3247,7 @@ class StaticCompilationTests(StaticTestBase):
                     return x
                 return 1
             """,
-            type_mismatch("typing.Optional[Exact[builtins.int]]", "builtins.int"),
+            type_mismatch("Optional[int]", "int"),
         )
 
     def test_union_or_syntax_builtin_type(self):
@@ -3280,7 +3271,7 @@ class StaticCompilationTests(StaticTestBase):
                     return x
                 return 1
             """,
-            type_mismatch("typing.Optional[Exact[builtins.int]]", "builtins.int"),
+            type_mismatch("Optional[int]", "int"),
         )
 
     def test_union_or_syntax_annotation(self):
@@ -3289,7 +3280,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: int|str) -> int:
                 return x
             """,
-            type_mismatch("typing.Union[builtins.int, builtins.str]", "builtins.int"),
+            type_mismatch("Union[int, str]", "int"),
         )
 
     def test_union_or_syntax_error(self):
@@ -3298,7 +3289,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 x = int | "foo"
             """,
-            r"unsupported operand type(s) for |: builtins.type and Exact\[builtins.str\]",
+            r"unsupported operand type(s) for |: Type\[Exact\[int\]\] and Exact\[str\]",
         )
 
     def test_union_or_syntax_annotation_bad_type(self):
@@ -3327,7 +3318,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: A | B):
                 return x.attr
             """,
-            "typing.Union[builtins.int, builtins.str]",
+            "Union[int, str]",
         )
 
     def test_union_attr_error(self):
@@ -3340,7 +3331,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x.attr
             """,
             re.escape(
-                "'typing.Optional[<module>.A] instance': 'NoneType' object has no attribute 'attr'"
+                "Optional[<module>.A]: 'NoneType' object has no attribute 'attr'"
             ),
         )
 
@@ -3356,9 +3347,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: int | int64):
                 return x()
             """,
-            re.escape(
-                "'typing.Union[builtins.int, __static__.int64] instance': cannot call int64"
-            ),
+            re.escape("Union[int, int64]: cannot call int64"),
         )
 
     def test_union_subscr(self):
@@ -3369,7 +3358,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Array[int64] | Array[double]):
                 return x[0]
             """,
-            "typing.Union[__static__.int64, __static__.double]",
+            "Union[int64, double]",
         )
 
     def test_union_unaryop(self):
@@ -3380,7 +3369,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: int | int64):
                 return -x
             """,
-            "typing.Union[builtins.int, __static__.int64]",
+            "Union[int, int64]",
         )
 
     def test_union_isinstance_reverse_narrow(self):
@@ -3391,7 +3380,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_union_isinstance_reverse_narrow_supertype(self):
@@ -3405,7 +3394,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_union_isinstance_reverse_narrow_other_union(self):
@@ -3431,7 +3420,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return x
             """,
-            "builtins.int",
+            "int",
         )
 
     def test_union_isinstance_tuple(self):
@@ -4488,7 +4477,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[builtins.int]", "typing.Optional[T]")
+            TypedSyntaxError, type_mismatch("Exact[int]", "Optional[T]")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -4512,7 +4501,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("typing.Optional[T]", optional("foo.C"))
+            TypedSyntaxError, type_mismatch("Optional[T]", optional("foo.C"))
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -4873,9 +4862,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 0
                 reveal_type(G)
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, r"typing.Optional\[builtins.int\]"
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, r"Optional\[int\]"):
             self.compile(codestr)
 
     def test_narrow_conditional_widened(self):
@@ -5236,7 +5223,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("typing.Optional[builtins.int]", "builtins.None"),
+            type_mismatch("Optional[int]", "None"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -5249,7 +5236,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"'>' not supported between 'typing.Optional\[builtins\.int\] instance' and 'Exact\[builtins\.int\] instance'",
+            r"'>' not supported between 'Optional\[int\]' and 'Exact\[int\]'",
         ):
             self.compile(codestr)
 
@@ -5262,7 +5249,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"'>' not supported between 'Exact\[builtins\.int\] instance' and 'typing.Optional\[builtins\.int\] instance'",
+            r"'>' not supported between 'Exact\[int\]' and 'Optional\[int\]'",
         ):
             self.compile(codestr)
 
@@ -5742,7 +5729,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y = 42
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "int8 cannot be assigned to builtins.object"
+            TypedSyntaxError, "int8 cannot be assigned to object"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -5782,7 +5769,7 @@ class StaticCompilationTests(StaticTestBase):
                 return box(x)
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[builtins.int]", "int16")
+            TypedSyntaxError, type_mismatch("Exact[int]", "int16")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -5830,9 +5817,7 @@ class StaticCompilationTests(StaticTestBase):
                 y: str
                 x, y = [a, b]
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, "builtins.int cannot be assigned to builtins.str"
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, "int cannot be assigned to str"):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
     def test_tuple_assign_tuple(self):
@@ -5843,9 +5828,7 @@ class StaticCompilationTests(StaticTestBase):
                 y: str
                 x, y = a, b
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, "builtins.int cannot be assigned to builtins.str"
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, "int cannot be assigned to str"):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
     def test_tuple_assign_constant(self):
@@ -5858,7 +5841,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"type mismatch: Exact\[builtins.int\] cannot be assigned to builtins.str",
+            r"type mismatch: Exact\[int\] cannot be assigned to str",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -5983,7 +5966,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, "Cannot assign a <dynamic class> to <int64 class>"
+            TypedSyntaxError, "Cannot assign a dynamic to int64"
         ):
             self.compile(codestr)
 
@@ -6018,7 +6001,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: builtins.int positional argument type mismatch int8",
+            "type mismatch: int positional argument type mismatch int8",
         ):
             self.compile(codestr)
 
@@ -6104,7 +6087,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"create instances of a generic type Exact\[__static__.Array\[T\]\]",
+            r"create instances of a generic Type\[Exact\[Array\[T\]\]\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6118,8 +6101,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[__static__.Array[__static__.char]]",
-                "__static__.Array[__static__.int64]",
+                "Exact[Array[char]]",
+                "Array[int64]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -6138,8 +6121,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "__static__.Array[__static__.int64]",
-                "Exact[__static__.Array[__static__.int64]]",
+                "Array[int64]",
+                "Exact[Array[int64]]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -6266,7 +6249,7 @@ class StaticCompilationTests(StaticTestBase):
                 return y
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[builtins.str]", "builtins.int")
+            TypedSyntaxError, type_mismatch("Exact[str]", "int")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6292,8 +6275,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[__static__.Array[__static__.char]]",
-                "Exact[__static__.Array[__static__.int64]]",
+                "Exact[Array[char]]",
+                "Exact[Array[int64]]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -6310,8 +6293,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[__static__.Array[__static__.char]]",
-                "Exact[__static__.Array[__static__.int64]]",
+                "Exact[Array[char]]",
+                "Exact[Array[int64]]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -6326,7 +6309,7 @@ class StaticCompilationTests(StaticTestBase):
                 return y
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[builtins.str]", "builtins.int")
+            TypedSyntaxError, type_mismatch("Exact[str]", "int")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6340,7 +6323,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[builtins.str]", "builtins.int")
+            TypedSyntaxError, type_mismatch("Exact[str]", "int")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6943,7 +6926,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: builtins.None positional argument type mismatch foo.C",
+            "type mismatch: None positional argument type mismatch foo.C",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7110,7 +7093,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("typing.Optional[builtins.int]", "builtins.int"),
+            type_mismatch("Optional[int]", "int"),
         ):
             self.compile(codestr)
 
@@ -7127,7 +7110,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("typing.Optional[builtins.int]", "builtins.int"),
+            type_mismatch("Optional[int]", "int"),
         ):
             self.compile(codestr)
 
@@ -7304,7 +7287,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "cannot create instances of a generic type xxclassloader.spamobj\\[T\\]",
+            r"cannot create instances of a generic Type\[xxclassloader.spamobj\[T\]\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7541,7 +7524,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[builtins.int\\] positional argument type mismatch builtins.str",
+            "type mismatch: Exact\\[int\\] positional argument type mismatch str",
         ):
             code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7578,7 +7561,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[builtins.int\\] positional argument type mismatch typing.Optional\\[builtins.str\\]",
+            "type mismatch: Exact\\[int\\] positional argument type mismatch Optional\\[str\\]",
         ):
             code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7608,7 +7591,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[builtins.int\\] positional argument type mismatch typing.Optional\\[builtins.str\\]",
+            "type mismatch: Exact\\[int\\] positional argument type mismatch Optional\\[str\\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7621,7 +7604,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[builtins.int\\] positional argument type mismatch typing.Optional\\[builtins.str\\]",
+            "type mismatch: Exact\\[int\\] positional argument type mismatch Optional\\[str\\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7704,7 +7687,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[builtins.int]", "builtins.str"),
+            type_mismatch("Exact[int]", "str"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7718,7 +7701,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[builtins.int]", "builtins.str"),
+            type_mismatch("Exact[int]", "str"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7732,7 +7715,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[builtins.str]", "builtins.int"),
+            type_mismatch("Exact[str]", "int"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7794,8 +7777,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[__static__.chkdict[builtins.str, builtins.str]]",
-                "__static__.chkdict[builtins.int, builtins.int]",
+                "Exact[chkdict[str, str]]",
+                "chkdict[int, int]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -7810,9 +7793,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch(
-                "Exact[__static__.chkdict[builtins.str, builtins.str]]", "builtins.in"
-            ),
+            type_mismatch("Exact[chkdict[str, str]]", "int"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7917,8 +7898,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[__static__.chkdict[foo.B, builtins.str]]",
-                "__static__.chkdict[foo.B, builtins.int]",
+                "Exact[chkdict[foo.B, Exact[str]]]",
+                "chkdict[foo.B, int]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -7936,8 +7917,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[__static__.chkdict[builtins.object, builtins.int]]",
-                "__static__.chkdict[foo.B, builtins.int]",
+                "Exact[chkdict[object, Exact[int]]]",
+                "chkdict[foo.B, int]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -8688,7 +8669,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: int8 positional argument type mismatch builtins.int",
+            "type mismatch: int8 positional argument type mismatch int",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo.py")
 
@@ -9170,7 +9151,7 @@ class StaticCompilationTests(StaticTestBase):
         # Note - this will raise even without the Final, we don't allow assignments to slots
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[builtins.int]", "types.MemberDescriptorType"),
+            type_mismatch("Exact[int]", "types.MemberDescriptorType"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9185,7 +9166,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "Cannot assign to a Final attribute of class foo.C:x",
+            "Cannot assign to a Final attribute of foo.C:x",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9200,7 +9181,7 @@ class StaticCompilationTests(StaticTestBase):
                 self.x = 4
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "Cannot assign to a Final attribute of class foo.C:x"
+            TypedSyntaxError, "Cannot assign to a Final attribute of foo.C:x"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9216,7 +9197,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "Cannot assign to a Final attribute of class foo.D:x",
+            "Cannot assign to a Final attribute of foo.D:x",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9232,7 +9213,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "Cannot assign to a Final attribute of class foo.D:x",
+            "Cannot assign to a Final attribute of foo.D:x",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9249,7 +9230,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "Cannot assign to a Final attribute of class foo.D:x",
+            "Cannot assign to a Final attribute of foo.D:x",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9266,7 +9247,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "Cannot assign to a Final attribute of class foo.D:x",
+            "Cannot assign to a Final attribute of foo.D:x",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9286,7 +9267,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "Cannot assign to a Final attribute of class foo.D:x",
+            "Cannot assign to a Final attribute of foo.D:x",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9341,7 +9322,7 @@ class StaticCompilationTests(StaticTestBase):
                 pass
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "Cannot assign to a Final attribute of class foo.D:f"
+            TypedSyntaxError, "Cannot assign to a Final attribute of foo.D:f"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9358,7 +9339,7 @@ class StaticCompilationTests(StaticTestBase):
             f = print
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "Cannot assign to a Final attribute of class foo.D:f"
+            TypedSyntaxError, "Cannot assign to a Final attribute of foo.D:f"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9379,7 +9360,7 @@ class StaticCompilationTests(StaticTestBase):
                 pass
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "Cannot assign to a Final attribute of class foo.E:f"
+            TypedSyntaxError, "Cannot assign to a Final attribute of foo.E:f"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
