@@ -670,6 +670,13 @@ static inline PyObject* call_method(
           nargs | _Py_VECTORCALL_INVOKED_METHOD | is_awaited_flag,
           kwnames);
     }
+    case JITRT_CALL_KIND_METHOD_LIKE: {
+      return _PyObject_Vectorcall(
+          callable,
+          args,
+          nargs | _Py_VECTORCALL_INVOKED_METHOD | is_awaited_flag,
+          kwnames);
+    }
     case JITRT_CALL_KIND_WRAPPER_DESCR: {
       PyWrapperDescrObject* func = (PyWrapperDescrObject*)callable;
       return func->d_vectorcall(
@@ -816,6 +823,9 @@ static PyObject* __attribute__((noinline)) get_method_slow_path(
       found_kind = JITRT_CALL_KIND_FUNC;
     } else if (Py_TYPE(descr) == &PyMethodDescr_Type) {
       found_kind = JITRT_CALL_KIND_METHOD_DESCR;
+    } else if (PyType_HasFeature(
+                   Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
+      found_kind = JITRT_CALL_KIND_METHOD_LIKE;
     } else {
       f = descr->ob_type->tp_descr_get;
       if (f != NULL && PyDescr_IsData(descr)) {
@@ -842,7 +852,8 @@ static PyObject* __attribute__((noinline)) get_method_slow_path(
   }
 
   if (found_kind == JITRT_CALL_KIND_FUNC ||
-      found_kind == JITRT_CALL_KIND_METHOD_DESCR) {
+      found_kind == JITRT_CALL_KIND_METHOD_DESCR ||
+      found_kind == JITRT_CALL_KIND_METHOD_LIKE) {
     *call_kind = found_kind;
     fill_method_cache(cache, obj, tp, descr, found_kind);
     return descr;
@@ -913,6 +924,9 @@ PyObject* JITRT_GetMethodFromSuper(
       *call_kind = JITRT_CALL_KIND_METHOD_DESCR;
     } else if (Py_TYPE(result) == &PyWrapperDescr_Type) {
       *call_kind = JITRT_CALL_KIND_WRAPPER_DESCR;
+    } else if (PyType_HasFeature(
+                   Py_TYPE(result), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
+      *call_kind = JITRT_CALL_KIND_METHOD_LIKE;
     } else {
       *call_kind = JITRT_CALL_KIND_OTHER;
     }

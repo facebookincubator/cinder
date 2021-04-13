@@ -1572,6 +1572,7 @@ order (MRO) for bases """
     def test_refleaks_in_classmethod___init__(self):
         gettotalrefcount = support.get_attribute(sys, 'gettotalrefcount')
         cm = classmethod(None)
+        cm.__init__(None)
         refs_before = gettotalrefcount()
         for i in range(100):
             cm.__init__(None)
@@ -1655,6 +1656,7 @@ order (MRO) for bases """
     def test_refleaks_in_staticmethod___init__(self):
         gettotalrefcount = support.get_attribute(sys, 'gettotalrefcount')
         sm = staticmethod(None)
+        sm.__init__(None)
         refs_before = gettotalrefcount()
         for i in range(100):
             sm.__init__(None)

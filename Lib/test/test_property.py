@@ -178,6 +178,7 @@ class PropertyTests(unittest.TestCase):
     def test_refleaks_in___init__(self):
         gettotalrefcount = support.get_attribute(sys, 'gettotalrefcount')
         fake_prop = property('fget', 'fset', 'fdel', 'doc')
+        fake_prop.__init__('fget', 'fset', 'fdel', 'doc')
         refs_before = gettotalrefcount()
         for i in range(100):
             fake_prop.__init__('fget', 'fset', 'fdel', 'doc')
