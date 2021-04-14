@@ -1,5 +1,6 @@
 import memoize
 import unittest
+from functools import update_wrapper
 
 def mock_cache_fetcher():
     return {}
@@ -10,7 +11,8 @@ class TestMemoizeFuncWrapper(unittest.TestCase):
     @staticmethod
     def memoize_func_decorator(cache_fetcher):
         def inner(f):
-            return memoize.memoize_func_wrapper(f, cache_fetcher)
+            wrapper = memoize.memoize_func_wrapper(f, cache_fetcher)
+            return update_wrapper(wrapper, f)
         return inner
 
     def test_non_callable_user_func_throws(self):
@@ -130,6 +132,15 @@ class TestMemoizeFuncWrapper(unittest.TestCase):
         self.assertEqual(len(cache), 2)
         self.assertEqual(count, 2)
 
+    def test_memoize_with_update_wrapper(self):
+        def cache_fetcher():
+            {}
+
+        @self.memoize_func_decorator(cache_fetcher)
+        def test_meth(a, b):
+            return a+b
+
+        self.assertEqual(test_meth.__name__, "test_meth")
 
 if __name__ == '__main__':
     unittest.main()

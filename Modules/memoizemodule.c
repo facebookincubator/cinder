@@ -71,6 +71,7 @@ struct memoize_func_wrapper_object {
     vectorcallfunc vectorcall;
     PyObject *cache_fetcher;
     PyObject *func;
+    PyObject *dict;
 };
 
 static int
@@ -78,6 +79,7 @@ memoize_wrapper_tp_traverse(memoize_func_wrapper_object *self, visitproc visit, 
 {
     Py_VISIT(self->func);
     Py_VISIT(self->cache_fetcher);
+    Py_VISIT(self->dict);
     return 0;
 }
 
@@ -86,6 +88,7 @@ memoize_wrapper_tp_clear(memoize_func_wrapper_object *self)
 {
     Py_CLEAR(self->func);
     Py_CLEAR(self->cache_fetcher);
+    Py_CLEAR(self->dict);
     return 0;
 }
 
@@ -107,6 +110,11 @@ memoize_wrapper_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     }
     return PyMethod_New(self, obj);
 }
+
+static PyGetSetDef memoize_func_wrapper_getsetlist[] = {
+    {"__dict__", PyObject_GenericGetDict, PyObject_GenericSetDict},
+    {NULL}
+};
 
 static PyTypeObject memoize_func_wrapper_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -141,12 +149,12 @@ static PyTypeObject memoize_func_wrapper_type = {
     0,                                    /* tp_iternext */
     0,                                    /* tp_methods */
     0,                                    /* tp_members */
-    0,                                    /* tp_getset */
+    memoize_func_wrapper_getsetlist,      /* tp_getset */
     0,                                    /* tp_base */
     0,                                    /* tp_dict */
     memoize_wrapper_descr_get,            /* tp_descr_get */
     0,                                    /* tp_descr_set */
-    0,                                    /* tp_dictoffset */
+    offsetof(memoize_func_wrapper_object, dict), /* tp_dictoffset */
     memoize_memoize_func_wrapper___init__, /* tp_init */
     0,                                    /* tp_alloc */
     PyType_GenericNew,                    /* tp_new */
