@@ -4596,7 +4596,7 @@ main_loop:
              * The oparg for this opcode indicates the type of the unboxed value
              * that goes onto the stack. (Used by the JIT). */
             PyObject *top = TOP();
-            if (!PyLong_CheckExact(top)) {
+            if (!PyLong_CheckExact(top) && !PyBool_Check(top)) {
                 PyErr_Format(PyExc_TypeError, "expected int, got %s", Py_TYPE(top)->tp_name);
                 goto error;
             }
