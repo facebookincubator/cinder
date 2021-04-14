@@ -10,6 +10,7 @@
 // clang-format on
 
 #include "Jit/dict_watch.h"
+#include "Jit/codegen/gen_asm.h"
 
 #include "Objects/dict-common.h"
 #include "switchboard.h"
@@ -661,15 +662,23 @@ void GlobalCache::init() const {
   }
 }
 
-void GlobalCache::update(PyObject* dict, PyObject* new_value) const {
+void GlobalCache::update(
+    PyObject* dict,
+    PyObject* new_value,
+    std::vector<GlobalCache>& to_disable) const {
   PyObject* builtins = key().builtins;
   if (dict == key().globals) {
     if (new_value == nullptr && key().globals != builtins) {
-      JIT_CHECK(_PyDict_CanWatch(builtins), "Bad builtins dict");
+      if (!_PyDict_CanWatch(builtins)) {
+        // builtins is no longer watchable. Mark this cache for disabling.
+        to_disable.emplace_back(*this);
+        return;
+      }
+
       // Fall back to the builtin (which may also be null).
       *valuePtr() = PyDict_GetItem(builtins, key().name);
 
-      // it changed, and it changes from something to nothing, so
+      // it changed, and it changed from something to nothing, so
       // we weren't watching builtins and need to start now.
       if (!isWatchedDictKey(builtins, key().name, *this)) {
         watchDictKey(builtins, key().name, *this);
@@ -690,6 +699,7 @@ void GlobalCache::update(PyObject* dict, PyObject* new_value) const {
 
 void GlobalCache::disable() const {
   *valuePtr() = nullptr;
+  jit::codegen::NativeGenerator::runtime()->forgetLoadGlobalCache(*this);
 }
 
 } // namespace jit

@@ -68,6 +68,32 @@ func.__code__ = func.__code__
       << "Didn't remove subscription";
 }
 
+TEST_F(PyJITContextTest, UnwatchableBuiltins) {
+  // This is a C++ test rather than in test_cinderjit so we can guarantee a
+  // fresh runtime state with a watchable builtins dict when the test begins.
+  const char* py_src = R"(
+import builtins
+
+def del_foo():
+    global foo
+    del foo
+
+def func():
+    foo
+    builtins.__dict__[42] = 42
+    del_foo()
+
+foo = "hello"
+)";
+
+  Ref<PyFunctionObject> func(compileAndGet(py_src, "func"));
+  ASSERT_EQ(_PyJITContext_CompileFunction(jit_ctx_, func), PYJIT_RESULT_OK);
+
+  Ref<PyObject> empty_tuple(PyTuple_New(0));
+  Ref<PyObject> result(PyObject_Call(func, empty_tuple, nullptr));
+  ASSERT_EQ(result, Py_None);
+}
+
 TEST_F(
     PyJITContextTest,
     DISABLED_CompiledFunctionsAreDeoptimizedWhenTypeDependenciesChange) {

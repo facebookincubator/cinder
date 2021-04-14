@@ -18,6 +18,15 @@ std::unordered_map<
     std::unordered_map<PyObject*, std::set<GlobalCache>>>
     g_dict_watchers;
 
+void disableCaches(const std::vector<GlobalCache>& to_disable) {
+  for (auto& cache : to_disable) {
+    PyObject* name = cache.key().name;
+    PyObject* dict = cache.key().globals;
+    cache.disable();
+    unwatchDictKey(dict, name, cache);
+  }
+}
+
 } // namespace
 
 bool isWatchedDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
@@ -82,9 +91,11 @@ void _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
   if (key_it == dict_it->second.end()) {
     return;
   }
+  std::vector<jit::GlobalCache> to_disable;
   for (auto& cache : key_it->second) {
-    cache.update(reinterpret_cast<PyObject*>(dict), value);
+    cache.update(reinterpret_cast<PyObject*>(dict), value, to_disable);
   }
+  jit::disableCaches(to_disable);
 }
 
 void _PyJIT_NotifyDictUnwatch(PyObject* dict) {
@@ -93,8 +104,6 @@ void _PyJIT_NotifyDictUnwatch(PyObject* dict) {
       dict_it != jit::g_dict_watchers.end(), "dict %p has no watchers", dict);
   for (auto& pair : dict_it->second) {
     for (auto cache : pair.second) {
-      cache.disable();
-
       // Unsubscribe from the corresponding globals/builtins dict if needed.
       PyObject* globals = cache.key().globals;
       PyObject* builtins = cache.key().builtins;
@@ -111,7 +120,7 @@ void _PyJIT_NotifyDictUnwatch(PyObject* dict) {
         }
       }
 
-      jit::codegen::NativeGenerator::runtime()->forgetLoadGlobalCache(cache);
+      cache.disable();
     }
   }
   jit::g_dict_watchers.erase(dict_it);
@@ -121,11 +130,13 @@ void _PyJIT_NotifyDictClear(PyObject* dict) {
   auto dict_it = jit::g_dict_watchers.find(dict);
   JIT_CHECK(
       dict_it != jit::g_dict_watchers.end(), "dict %p has no watchers", dict);
+  std::vector<jit::GlobalCache> to_disable;
   for (auto& key_pair : dict_it->second) {
     for (auto& cache : key_pair.second) {
-      cache.update(dict, nullptr);
+      cache.update(dict, nullptr, to_disable);
     }
   }
+  jit::disableCaches(to_disable);
 }
 
 PyObject** _PyJIT_GetGlobalCache(PyObject* globals, PyObject* key) {

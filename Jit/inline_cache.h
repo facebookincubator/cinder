@@ -248,7 +248,15 @@ class GlobalCache {
   void init() const;
 
   // Update the cached value after an update to one of the dicts.
-  void update(PyObject* dict, PyObject* new_value) const;
+  //
+  // to_disable collects caches that must be disabled because their builtins
+  // dict is unwatchable and the value has been deleted from the globals
+  // dict. The caller is responsible for safely disabling any caches in this
+  // list.
+  void update(
+      PyObject* dict,
+      PyObject* new_value,
+      std::vector<GlobalCache>& to_disable) const;
 
   // Disable the cache by clearing out its value. Unsubscribing from any
   // watched dicts is left to the caller since it can involve complicated
