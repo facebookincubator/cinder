@@ -832,6 +832,48 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         break;
       }
+      case Opcode::kDoubleBinaryOp: {
+        auto instr = static_cast<const DoubleBinaryOp*>(&i);
+        std::string op;
+
+        switch (instr->op()) {
+          case BinaryOpKind::kAdd: {
+            op = "Fadd";
+            break;
+          }
+          case BinaryOpKind::kSubtract: {
+            op = "Fsub";
+            break;
+          }
+          case BinaryOpKind::kMultiply: {
+            op = "Fmul";
+            break;
+          }
+          case BinaryOpKind::kTrueDivide: {
+            op = "Fdiv";
+            break;
+          }
+          default: {
+            JIT_CHECK(false, "Invalid operation for DoubleBinaryOp");
+            break;
+          }
+        }
+
+        // Our formatter for Registers tries to be clever with constant values,
+        // and this backfires in certain situations (it converts registers to
+        // immediates). We have to manually format the name and type here to
+        // work around that.
+        auto codestr = fmt::format(
+            "{} {}, {}:{}, {}:{}",
+            op,
+            instr->dst(),
+            instr->left()->name(),
+            instr->left()->type().unspecialized(),
+            instr->right()->name(),
+            instr->right()->type().unspecialized());
+        bbb.AppendCode(codestr);
+        break;
+      }
       case Opcode::kIntCompare: {
         auto instr = static_cast<const IntCompare*>(&i);
         std::string op;

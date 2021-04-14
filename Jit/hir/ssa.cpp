@@ -320,6 +320,17 @@ Type outputType(const Instr& instr) {
           ltype);
       return ltype;
     }
+    case Opcode::kDoubleBinaryOp: {
+      auto& binop = static_cast<const DoubleBinaryOp&>(instr);
+      Type ltype = binop.left()->type();
+      Type rtype = binop.right()->type();
+      JIT_CHECK(
+          (ltype <= TCDouble && rtype <= TCDouble),
+          "DoubleBinaryOp cannot operate on types %s and %s",
+          ltype,
+          rtype);
+      return TCDouble;
+    }
     case Opcode::kIntCompare:
       return TCInt32;
     case Opcode::kPrimitiveUnaryOp:

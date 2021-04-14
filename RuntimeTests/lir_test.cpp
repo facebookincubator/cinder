@@ -142,6 +142,45 @@ BB %3 - preds: %0 - succs: %10
   ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);
 }
 
+TEST_F(LIRGeneratorTest, StaticAddDouble) {
+  const char* pycode = R"(
+from __static__ import double, box
+
+def f() -> float:
+  d: double = 1.14
+  e: double = 2.00
+  return box(d + e)
+)";
+
+  Ref<PyObject> pyfunc(compileStaticAndGet(pycode, "f"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto lir_str = getLIRString(pyfunc.get());
+
+  auto lir_expected = fmt::format(R"(Function:
+BB %0 - succs: %3
+       %1:Object = Bind R10:Object
+       %2:Object = Bind R11:Object
+
+BB %3 - preds: %0 - succs: %13
+
+# v6:Nullptr = LoadConst<Nullptr>
+       %4:Object = Move 0(0x0):Object
+
+# v7:CDouble[1.14] = LoadConst<CDouble[1.14]>
+        %5:64bit = Move 4607812922747849277(0x3ff23d70a3d70a3d):Object
+       %6:Double = Move %5:64bit
+
+# v9:CDouble[2.0] = LoadConst<CDouble[2.0]>
+        %7:64bit = Move 4611686018427387904(0x4000000000000000):Object
+       %8:Double = Move %7:64bit
+
+# v11:CDouble = DoubleBinaryOp<Add> v7 v9
+       %9:Double = Fadd %6:Double, %8:Double)");
+  // Note - we only check whether the LIR has the stuff we care about
+  ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);
+}
+
 // disabled due to unstable Guard instruction
 TEST_F(LIRGeneratorTest, DISABLED_Fallthrough) {
   const char* src = R"(

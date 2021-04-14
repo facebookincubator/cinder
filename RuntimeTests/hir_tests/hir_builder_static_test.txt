@@ -1300,3 +1300,28 @@ fun jittestmodule:test {
   }
 }
 ---
+TestPrimitiveDoubleAddOp
+---
+from __static__ import double, box
+
+def test() -> float:
+    d: double = 1.14
+    e: double = 2.00
+    return box(d + e)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2 = LoadConst<CDouble[1.14]>
+    v0 = Assign v2
+    v3 = LoadConst<CDouble[2.0]>
+    v1 = Assign v3
+    v4 = DoubleBinaryOp<Add> v0 v1
+    v5 = PrimitiveBox<false> v4
+    v5 = CheckExc v5 {
+      NextInstrOffset 18
+      Locals<2> v0 v1
+    }
+    Return v5
+  }
+}
+---

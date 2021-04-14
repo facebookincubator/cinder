@@ -2156,9 +2156,10 @@ void HIRBuilder::emitIntUnbox(
   tc.frame.stack.push(tmp);
 }
 
-static inline BinaryOpKind get_int_bin_op_kind(
+static inline BinaryOpKind get_primitive_bin_op_kind(
     const jit::BytecodeInstruction& bc_instr) {
   switch (bc_instr.oparg()) {
+    case PRIM_OP_ADD_DBL:
     case PRIM_OP_ADD_INT: {
       return BinaryOpKind::kAdd;
     }
@@ -2180,6 +2181,7 @@ static inline BinaryOpKind get_int_bin_op_kind(
     case PRIM_OP_MOD_UN_INT: {
       return BinaryOpKind::kModuloUnsigned;
     }
+    case PRIM_OP_MUL_DBL:
     case PRIM_OP_MUL_INT: {
       return BinaryOpKind::kMultiply;
     }
@@ -2192,14 +2194,49 @@ static inline BinaryOpKind get_int_bin_op_kind(
     case PRIM_OP_RSHIFT_UN_INT: {
       return BinaryOpKind::kRShiftUnsigned;
     }
+    case PRIM_OP_SUB_DBL:
     case PRIM_OP_SUB_INT: {
       return BinaryOpKind::kSubtract;
     }
     case PRIM_OP_XOR_INT: {
       return BinaryOpKind::kXor;
     }
+    case PRIM_OP_DIV_DBL: {
+      return BinaryOpKind::kTrueDivide;
+    }
     default: {
       JIT_CHECK(false, "unhandled binary op %d", bc_instr.oparg());
+      // NOTREACHED
+      break;
+    }
+  }
+}
+
+static inline bool is_double_binop(int oparg) {
+  switch (oparg) {
+    case PRIM_OP_ADD_INT:
+    case PRIM_OP_AND_INT:
+    case PRIM_OP_DIV_INT:
+    case PRIM_OP_DIV_UN_INT:
+    case PRIM_OP_LSHIFT_INT:
+    case PRIM_OP_MOD_INT:
+    case PRIM_OP_MOD_UN_INT:
+    case PRIM_OP_MUL_INT:
+    case PRIM_OP_OR_INT:
+    case PRIM_OP_RSHIFT_INT:
+    case PRIM_OP_RSHIFT_UN_INT:
+    case PRIM_OP_SUB_INT:
+    case PRIM_OP_XOR_INT: {
+      return false;
+    }
+    case PRIM_OP_ADD_DBL:
+    case PRIM_OP_SUB_DBL:
+    case PRIM_OP_DIV_DBL:
+    case PRIM_OP_MUL_DBL: {
+      return true;
+    }
+    default: {
+      JIT_CHECK(false, "Invalid binary op %d", oparg);
       // NOTREACHED
       break;
     }
@@ -2243,9 +2280,14 @@ void HIRBuilder::emitPrimitiveBinaryOp(
   Register* left = stack.pop();
   Register* result = temps_.Allocate();
 
-  BinaryOpKind op_kind = get_int_bin_op_kind(bc_instr);
+  BinaryOpKind op_kind = get_primitive_bin_op_kind(bc_instr);
 
-  tc.emit<IntBinaryOp>(op_kind, result, left, right);
+  if (is_double_binop(bc_instr.oparg())) {
+    tc.emit<DoubleBinaryOp>(op_kind, result, left, right);
+  } else {
+    tc.emit<IntBinaryOp>(op_kind, result, left, right);
+  }
+
   stack.push(result);
 }
 

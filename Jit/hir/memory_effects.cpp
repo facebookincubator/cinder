@@ -32,6 +32,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kBuildString:
     case Opcode::kCast:
     case Opcode::kDeopt:
+    case Opcode::kDoubleBinaryOp:
     case Opcode::kFormatValue:
     case Opcode::kIntBinaryOp:
     case Opcode::kPrimitiveUnaryOp:

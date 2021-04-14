@@ -117,6 +117,7 @@ bool Instr::isReplayable() const {
     case Opcode::kCheckField:
     case Opcode::kCheckNeg:
     case Opcode::kCheckVar:
+    case Opcode::kDoubleBinaryOp:
     case Opcode::kFormatValue:
     case Opcode::kGuard:
     case Opcode::kLoadArrayItem:

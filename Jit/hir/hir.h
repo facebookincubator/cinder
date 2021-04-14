@@ -242,6 +242,7 @@ struct FrameState {
   V(Decref)                     \
   V(DeleteSubscr)               \
   V(Deopt)                      \
+  V(DoubleBinaryOp)             \
   V(FillTypeAttrCache)          \
   V(FormatValue)                \
   V(GetIter)                    \
@@ -880,7 +881,7 @@ enum class BinaryOpKind {
   kFloorDivideUnsigned,
   kModuloUnsigned,
   kRShiftUnsigned,
-  kNumBinaryOps
+  kNumBinaryOps,
 };
 
 const char* GetBinaryOpName(BinaryOpKind op);
@@ -1725,10 +1726,36 @@ class INSTR_CLASS(Cast, HasOutput, Operands<1>, DeoptBase) {
   bool optional_;
 };
 
-// Perform a binary operation (e.g. '+', '-') on primitive operands
+// Perform a binary operation (e.g. '+', '-') on primitive int operands
 class INSTR_CLASS(IntBinaryOp, HasOutput, Operands<2>) {
  public:
   IntBinaryOp(BinaryOpKind op, Register* dst, Register* left, Register* right)
+      : InstrT(dst, left, right), op_(op) {}
+
+  BinaryOpKind op() const {
+    return op_;
+  }
+
+  Register* left() const {
+    return GetOperand(0);
+  }
+
+  Register* right() const {
+    return GetOperand(1);
+  }
+
+ private:
+  BinaryOpKind op_;
+};
+
+// Perform a binary operation (e.g. '+', '-') on primitive double operands
+class INSTR_CLASS(DoubleBinaryOp, HasOutput, Operands<2>) {
+ public:
+  DoubleBinaryOp(
+      BinaryOpKind op,
+      Register* dst,
+      Register* left,
+      Register* right)
       : InstrT(dst, left, right), op_(op) {}
 
   BinaryOpKind op() const {

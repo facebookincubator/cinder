@@ -365,6 +365,10 @@ static std::string format_immediates(const Instr& instr) {
       }
       return targets;
     }
+    case Opcode::kDoubleBinaryOp: {
+      const auto& bin_op = static_cast<const DoubleBinaryOp&>(instr);
+      return GetBinaryOpName(bin_op.op());
+    }
     case Opcode::kLoadArg: {
       const auto& load = static_cast<const LoadArg&>(instr);
       return format_varname(load, load.arg_idx());

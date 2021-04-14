@@ -188,7 +188,6 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       instr_str == "LessThanEqualUnsigned" || instr_str == "Fadd" ||
       instr_str == "Fsub" || instr_str == "Fmul" || instr_str == "Fdiv") {
     Instruction* instr = nullptr;
-
     if (instr_str == "Add") {
       instr = createInstr(Instruction::kAdd);
     } else if (instr_str == "Sub") {

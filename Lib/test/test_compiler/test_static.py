@@ -13303,7 +13303,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(t, "INPLACE_ADD")
             self.assertEqual(t(), 3)
 
-    @skipIf(cinderjit is not None, "not supported under the JIT yet")
     def test_double_binop(self):
         tests = [
             (1.732, 2.0, "+", 3.732),
@@ -13311,6 +13310,11 @@ class StaticRuntimeTests(StaticTestBase):
             (1.732, 2.0, "/", 0.866),
             (1.732, 2.0, "*", 3.464),
         ]
+
+        if cinderjit is not None:
+            # test for division by zero
+            tests.append((1.732, 0.0, "/", float("inf")))
+
         for x, y, op, res in tests:
             codestr = f"""
             from __static__ import double, box
