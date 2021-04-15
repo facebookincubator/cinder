@@ -77,6 +77,8 @@ TESTS_TO_SERIALIZE = {
 # Use the fdb debugging tool to invoke rr
 RR_RECORD_BASE_CMD = [
     "fdb",
+    "--caller-to-log",
+    "cinder-jit-test-runner",
     "replay",
     "record",
 ]
