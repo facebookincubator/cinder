@@ -519,7 +519,7 @@ void LinearScanAllocator::linearScan() {
         break;
       }
 
-      freeStackSlot(interval->allocated_loc);
+      freeStackSlot(interval->vreg);
       ++end_iter;
     }
     stack_intervals.erase(stack_intervals.begin(), end_iter);
@@ -694,7 +694,7 @@ void LinearScanAllocator::allocateBlockedReg(
 
   auto first_current_use = getUseAtOrAfter(current->vreg, current_start);
   if (first_current_use >= reg_use) {
-    auto stack_slot = getStackSlot();
+    auto stack_slot = getStackSlot(current->vreg);
     current->allocateTo(stack_slot);
 
     // first_current_use can be MAX_LOCATION when vreg is in a loop and there is
@@ -788,14 +788,20 @@ void LinearScanAllocator::splitAndSave(
   allocated_.emplace_back(std::move(new_interval));
 }
 
-int LinearScanAllocator::getStackSlot() {
-  if (free_stack_slots_.empty()) {
-    max_stack_slot_ -= 8;
-    return max_stack_slot_;
+int LinearScanAllocator::getStackSlot(const Operand* operand) {
+  int slot = map_get(operand_to_slot_, operand, 0);
+  if (slot < 0) {
+    return slot;
   }
 
-  auto slot = free_stack_slots_.back();
-  free_stack_slots_.pop_back();
+  if (free_stack_slots_.empty()) {
+    max_stack_slot_ -= 8;
+    slot = max_stack_slot_;
+  } else {
+    slot = free_stack_slots_.back();
+    free_stack_slots_.pop_back();
+  }
+  operand_to_slot_.emplace(operand, slot);
   return slot;
 }
 

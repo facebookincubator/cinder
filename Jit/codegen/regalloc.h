@@ -236,8 +236,14 @@ class LinearScanAllocator {
   splitAndSave(LiveInterval* interval, LIRLocation loc, UnhandledQueue& queue);
   static void markDisallowedRegisters(std::vector<LIRLocation>& locs);
 
-  int getStackSlot();
-  void freeStackSlot(int slot) {
+  // map operand to stack slot upon spilling
+  std::unordered_map<const lir::Operand*, int> operand_to_slot_;
+  int getStackSlot(const lir::Operand* operand);
+  void freeStackSlot(const lir::Operand* operand) {
+    int slot = map_get(operand_to_slot_, operand, 0);
+    JIT_DCHECK(slot < 0, "should not map an operand to a register");
+
+    operand_to_slot_.erase(operand);
     free_stack_slots_.push_back(slot);
   }
 
