@@ -37,8 +37,8 @@ def test(x):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v5:Nullptr = LoadConst<Nullptr>
     v4:Object = LoadArg<0; "x">
+    v5:Nullptr = LoadConst<Nullptr>
     v7:CInt32 = IsTruthy v4 {
       NextInstrOffset 4
       Locals<2> v4 v5
@@ -72,8 +72,8 @@ def test(x):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v6:Nullptr = LoadConst<Nullptr>
     v5:Object = LoadArg<0; "x">
+    v6:Nullptr = LoadConst<Nullptr>
     v8:CInt32 = IsTruthy v5 {
       NextInstrOffset 4
       Locals<2> v5 v6
@@ -108,8 +108,8 @@ def test(x):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v7:Nullptr = LoadConst<Nullptr>
     v6:Object = LoadArg<0; "x">
+    v7:Nullptr = LoadConst<Nullptr>
     v9:CInt32 = IsTruthy v6 {
       NextInstrOffset 4
       Locals<2> v6 v7

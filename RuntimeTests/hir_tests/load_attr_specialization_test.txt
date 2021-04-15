@@ -107,9 +107,9 @@ def test(cond, val):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v10:Nullptr = LoadConst<Nullptr>
     v8:Object = LoadArg<0; "cond">
     v9:Object = LoadArg<1; "val">
+    v10:Nullptr = LoadConst<Nullptr>
     v12:CInt32 = IsTruthy v8 {
       NextInstrOffset 4
       Locals<3> v8 v9 v10

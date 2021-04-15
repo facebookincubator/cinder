@@ -224,6 +224,7 @@ bool checkFunc(const Function& func, std::ostream& err) {
     env.defined = env.assign.GetIn(&block);
 
     bool phi_section = true;
+    bool allow_prologue_loads = env.block == func.cfg.entry_block;
     for (auto& instr : block) {
       env.instr = &instr;
 
@@ -241,6 +242,20 @@ bool checkFunc(const Function& func, std::ostream& err) {
       } else {
         phi_section = false;
       }
+
+      if (instr.IsLoadArg() || instr.IsLoadCurrentFunc()) {
+        if (!allow_prologue_loads) {
+          fmt::print(
+              err,
+              "ERROR: '{}' in bb {} comes after non-LoadArg instruction\n",
+              instr,
+              block.id);
+          env.ok = false;
+        }
+      } else {
+        allow_prologue_loads = false;
+      }
+
       checkTerminator(env);
       checkRegisters(env);
     }
@@ -348,12 +363,11 @@ Type outputType(const Instr& instr) {
     case Opcode::kLoadArg: {
       return static_cast<const LoadArg&>(instr).type();
     }
+    case Opcode::kLoadCurrentFunc:
+      return TFunc;
     case Opcode::kLoadEvalBreaker:
       return TCInt32;
-    case Opcode::kLoadClosureCell:
-      return TCell;
     case Opcode::kMakeCell:
-    case Opcode::kMakeNullCell:
       return TCell;
     case Opcode::kMakeDict:
       return TDict;
@@ -624,11 +638,15 @@ Register* SSAify::GetDefine(SSABasicBlock* ssablock, Register* reg) {
     // a Nullptr from LoadConst. Place it after the initialization of the args
     // which explicitly come first.
     if (null_reg_ == nullptr) {
-      auto& front = ssablock->block->front();
+      auto it = ssablock->block->begin();
+      while (it != ssablock->block->end() &&
+             (it->IsLoadArg() || it->IsLoadCurrentFunc())) {
+        ++it;
+      }
       null_reg_ = irfunc_->env.AllocateRegister();
       auto loadnull = LoadConst::create(null_reg_, TNullptr);
-      loadnull->copyBytecodeOffset(front);
-      loadnull->InsertBefore(front);
+      loadnull->copyBytecodeOffset(*it);
+      loadnull->InsertBefore(*it);
     }
     ssablock->local_defs.emplace(reg, null_reg_);
     return null_reg_;

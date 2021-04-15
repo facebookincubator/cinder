@@ -435,6 +435,8 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     NEW_INSTR(IsErrStopAsyncIteration, dst);
   } else if (strcmp(opcode, "ClearError") == 0) {
     NEW_INSTR(ClearError);
+  } else if (strcmp(opcode, "LoadCurrentFunc") == 0) {
+    NEW_INSTR(LoadCurrentFunc, dst);
   } else {
     JIT_CHECK(0, "Unknown opcode: %s", opcode);
   }

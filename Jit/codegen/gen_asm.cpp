@@ -546,13 +546,13 @@ void NativeGenerator::generatePrologue(
   // Allocate a Python frame.
 
   // Save and restore incoming args across the call.
+  as_->push(x86::rdi); // func
   as_->push(x86::rsi); // args
-  as_->push(x86::rax); // padding
 
   generateLinkFrame();
 
-  as_->pop(x86::rax); // padding
   as_->pop(x86::r10); // args (moved to r10 so we can replace rsi)
+  as_->pop(x86::rax); // func
 
   // Move arguments into their expected registers and then
   // use r10 as the base for additional args.
@@ -1067,11 +1067,16 @@ bool canLoadStoreAddr(asmjit::x86::Gp reg, int64_t addr) {
 static void raiseUnboundLocalError(PyFrameObject* frame, int name_idx) {
   auto co_vars = JITRT_GetVarnameTuple(frame->f_code, &name_idx);
   JIT_CHECK(name_idx >= 0, "Bad name_idx");
+  PyObject* exc = PyExc_UnboundLocalError;
+  const char* fmt = "local variable '%.200s' referenced before assignment";
+  if (co_vars == frame->f_code->co_freevars) {
+    exc = PyExc_NameError;
+    fmt =
+        "free variable '%.200s' referenced before assignment in enclosing "
+        "scope";
+  }
   format_exc_check_arg(
-      PyThreadState_Get(),
-      PyExc_UnboundLocalError,
-      "local variable '%.200s' referenced before assignment",
-      PyTuple_GetItem(co_vars, name_idx));
+      PyThreadState_Get(), exc, fmt, PyTuple_GetItem(co_vars, name_idx));
 }
 
 static void raiseAttributeError(PyFrameObject* frame, int field_idx) {

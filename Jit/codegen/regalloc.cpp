@@ -430,7 +430,7 @@ void LinearScanAllocator::reserveRegisters(
     while (!phy_regs.Empty()) {
       PhyLocation phy_reg = phy_regs.GetFirst();
       phy_regs.RemoveFirst();
-      vregs.emplace(phy_reg, nullptr);
+      vregs.emplace(phy_reg, nullptr).first->second.setPhyRegister(phy_reg);
     }
     return vregs;
   }();
@@ -887,10 +887,6 @@ void LinearScanAllocator::rewriteLIR() {
 void LinearScanAllocator::rewriteInstrOutput(
     Instruction* instr,
     const std::unordered_map<const Operand*, const LiveInterval*>& mapping) {
-  if (instr->opcode() == Instruction::kBind) {
-    return;
-  }
-
   auto output = instr->output();
   if (output->isInd()) {
     rewriteInstrOneIndirectOperand(output->getMemoryIndirect(), mapping);
@@ -911,6 +907,14 @@ void LinearScanAllocator::rewriteInstrOutput(
     instr->setOpcode(Instruction::kNop);
   } else {
     PhyLocation loc = map_get(mapping, output)->allocated_loc;
+    if (instr->opcode() == Instruction::kBind) {
+      PhyLocation in_reg = instr->getInput(0)->getPhyRegister();
+      JIT_CHECK(
+          loc == in_reg,
+          "Output of Bind (%s) is not same as input (%s)",
+          loc,
+          in_reg);
+    }
     output->setPhyRegOrStackSlot(loc);
   }
 }

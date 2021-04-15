@@ -125,8 +125,8 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadArg:
     case Opcode::kLoadCellItem:
     case Opcode::kStealCellItem:
-    case Opcode::kLoadClosureCell:
     case Opcode::kLoadConst:
+    case Opcode::kLoadCurrentFunc:
     case Opcode::kLoadEvalBreaker:
     case Opcode::kLoadField:
     case Opcode::kLoadGlobalCached:
@@ -201,7 +201,6 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadMethod:
     case Opcode::kLoadMethodSuper:
     case Opcode::kMakeCell:
-    case Opcode::kMakeNullCell:
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
     case Opcode::kMakeListTuple:

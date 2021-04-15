@@ -397,14 +397,18 @@ void HIRBuilder::addLoadArgs(TranslationContext& tc, int num_args) {
 
 // Add a LoadClosureCell instruction for each freevar and a MakeCell for
 // each cellvar.
-void HIRBuilder::addInitializeCells(TranslationContext& tc) {
+void HIRBuilder::addInitializeCells(
+    TranslationContext& tc,
+    Register* cur_func) {
   Py_ssize_t ncellvars = PyTuple_GET_SIZE(code_->co_cellvars);
   Py_ssize_t nfreevars = PyTuple_GET_SIZE(code_->co_freevars);
 
+  Register* null_reg = ncellvars > 0 ? temps_.Allocate() : nullptr;
   for (int i = 0; i < ncellvars; i++) {
-    int arg;
+    int arg = CO_CELL_NOT_AN_ARG;
     auto dst = tc.frame.cells[i];
     JIT_CHECK(dst != nullptr, "No register for cell %d", i);
+    Register* cell_contents = null_reg;
     if (code_->co_cell2arg != NULL &&
         (arg = code_->co_cell2arg[i]) != CO_CELL_NOT_AN_ARG) {
       // cell is for argument local number `arg`
@@ -414,17 +418,28 @@ void HIRBuilder::addInitializeCells(TranslationContext& tc) {
           i,
           arg,
           tc.frame.locals.size());
-      tc.emit<MakeCell>(dst, tc.frame.locals[arg], tc.frame);
-    } else {
-      tc.emit<MakeNullCell>(dst, tc.frame);
+      cell_contents = tc.frame.locals[arg];
+    }
+    tc.emit<MakeCell>(dst, cell_contents, tc.frame);
+    if (arg != CO_CELL_NOT_AN_ARG) {
+      // Clear the local once we have it in a cell.
+      tc.frame.locals[arg] = null_reg;
     }
   }
 
+  if (nfreevars == 0) {
+    return;
+  }
+
+  JIT_CHECK(cur_func != nullptr, "No cur_func in function with freevars");
+  Register* func_closure = temps_.Allocate();
+  tc.emit<LoadField>(
+      func_closure, cur_func, offsetof(PyFunctionObject, func_closure), TTuple);
   for (int i = 0; i < nfreevars; i++) {
     auto cell_idx = i + ncellvars;
     Register* dst = tc.frame.cells[cell_idx];
     JIT_CHECK(dst != nullptr, "No register for cell %ld", cell_idx);
-    tc.emit<LoadClosureCell>(dst, i);
+    tc.emit<LoadTupleItem>(dst, func_closure, i);
   }
 }
 
@@ -502,10 +517,7 @@ static bool should_snapshot(
   }
 }
 
-FrameMode getFrameMode(PyObject* func) {
-  PyFunctionObject* funcobj = reinterpret_cast<PyFunctionObject*>(func);
-  PyCodeObject* code = reinterpret_cast<PyCodeObject*>(funcobj->func_code);
-
+static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
   /* check for code specific flags */
   if (code->co_flags & CO_TINY_FRAME) {
     if (code->co_flags & kCoFlagsAnyGenerator) {
@@ -614,7 +626,7 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
 
   auto irfunc = std::make_unique<Function>();
   irfunc->fullname = funcFullname(func);
-  irfunc->frameMode = getFrameMode(func);
+  irfunc->frameMode = getFrameMode(func->func_code);
   irfunc->setPyFunc(func);
   globals_ = irfunc->globals;
   builtins_ = irfunc->builtins;
@@ -639,12 +651,18 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
 
   // Insert LoadArg, LoadClosureCell, and MakeCell/MakeNullCell instructions
   // for the entry block
-  FrameState initial_state;
-  AllocateRegistersForLocals(&irfunc->env, initial_state);
-  AllocateRegistersForCells(&irfunc->env, initial_state);
+  TranslationContext entry_tc{entry_block, FrameState{}};
+  AllocateRegistersForLocals(&irfunc->env, entry_tc.frame);
+  AllocateRegistersForCells(&irfunc->env, entry_tc.frame);
 
-  TranslationContext entry_tc{entry_block, initial_state};
   addLoadArgs(entry_tc, irfunc->numArgs());
+  Register* cur_func = nullptr;
+  if (irfunc->uses_runtime_func) {
+    cur_func = temps_.Allocate();
+    entry_tc.emit<LoadCurrentFunc>(cur_func);
+  }
+  addInitializeCells(entry_tc, cur_func);
+
   if (code_->co_flags & kCoFlagsAnyGenerator) {
     // InitialYield must be after args are loaded so they can be spilled to
     // the suspendable state. It must also come before anything which can
@@ -652,15 +670,14 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
     // in a generator object.
     addInitialYield(entry_tc);
   }
-  addInitializeCells(entry_tc);
 
   BasicBlock* first_block = getBlockAtOff(0);
   if (entry_block != first_block) {
     entry_block->append<Branch>(first_block);
   }
 
-  TranslationContext tc{first_block, initial_state};
-  translate(*irfunc, bc_instrs, tc);
+  entry_tc.block = first_block;
+  translate(*irfunc, bc_instrs, entry_tc);
 
   irfunc->cfg.RemoveTrampolineBlocks();
   irfunc->cfg.removeUnreachableBlocks();
@@ -2032,7 +2049,7 @@ void HIRBuilder::emitLoadDeref(
   Register* dst = temps_.Allocate();
   auto frame_idx = tc.frame.locals.size() + idx;
   tc.emit<LoadCellItem>(dst, src);
-  tc.emit<CheckVar>(dst, dst, frame_idx);
+  tc.emit<CheckVar>(dst, dst, frame_idx, tc.frame);
   tc.frame.stack.push(dst);
 }
 

@@ -49,17 +49,14 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kBinaryOp:
     case Opcode::kBuildSlice:
     case Opcode::kBuildString:
-    case Opcode::kVectorCall:
-    case Opcode::kVectorCallKW:
-    case Opcode::kVectorCallStatic:
     case Opcode::kCallCFunc:
     case Opcode::kCallEx:
     case Opcode::kCallExKw:
     case Opcode::kCallMethod:
-    case Opcode::kCheckSequenceBounds:
-    case Opcode::kCheckTuple:
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
+    case Opcode::kCheckSequenceBounds:
+    case Opcode::kCheckTuple:
     case Opcode::kClearError:
     case Opcode::kCompare:
     case Opcode::kCompareBool:
@@ -71,32 +68,32 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kImportFrom:
     case Opcode::kImportName:
     case Opcode::kInPlaceOp:
+    case Opcode::kInitialYield:
     case Opcode::kIntBinaryOp:
-    case Opcode::kPrimitiveBox:
     case Opcode::kIntCompare:
     case Opcode::kIntConvert:
     case Opcode::kIntUnbox:
     case Opcode::kInvokeIterNext:
-    case Opcode::kInvokeStaticFunction:
     case Opcode::kInvokeMethod:
+    case Opcode::kInvokeStaticFunction:
     case Opcode::kIsErrStopAsyncIteration:
+    case Opcode::kIsInstance:
     case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kIsTruthy:
-    case Opcode::kIsInstance:
     case Opcode::kListAppend:
     case Opcode::kListExtend:
-    case Opcode::kLoadArrayItem:
     case Opcode::kLoadArg:
+    case Opcode::kLoadArrayItem:
     case Opcode::kLoadAttr:
     case Opcode::kLoadAttrSpecial:
     case Opcode::kLoadAttrSuper:
     case Opcode::kLoadCellItem:
-    case Opcode::kLoadClosureCell:
     case Opcode::kLoadConst:
+    case Opcode::kLoadCurrentFunc:
     case Opcode::kLoadEvalBreaker:
+    case Opcode::kLoadField:
     case Opcode::kLoadFunction:
     case Opcode::kLoadFunctionIndirect:
-    case Opcode::kLoadField:
     case Opcode::kLoadGlobal:
     case Opcode::kLoadGlobalCached:
     case Opcode::kLoadMethod:
@@ -108,12 +105,13 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
     case Opcode::kMakeListTuple:
-    case Opcode::kMakeNullCell:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
     case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:
+    case Opcode::kPrimitiveBox:
+    case Opcode::kPrimitiveUnaryOp:
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:
     case Opcode::kRunPeriodicTasks:
@@ -125,12 +123,13 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kStoreSubscr:
     case Opcode::kUnaryOp:
     case Opcode::kUnpackExToTuple:
-    case Opcode::kPrimitiveUnaryOp:
-    case Opcode::kYieldValue:
-    case Opcode::kYieldFrom:
-    case Opcode::kInitialYield:
+    case Opcode::kVectorCall:
+    case Opcode::kVectorCallKW:
+    case Opcode::kVectorCallStatic:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:
+    case Opcode::kYieldFrom:
+    case Opcode::kYieldValue:
       return false;
 
     case Opcode::kBranch:

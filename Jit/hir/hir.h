@@ -277,8 +277,8 @@ struct FrameState {
   V(LoadAttrSpecial)            \
   V(LoadAttrSuper)              \
   V(LoadCellItem)               \
-  V(LoadClosureCell)            \
   V(LoadConst)                  \
+  V(LoadCurrentFunc)            \
   V(LoadEvalBreaker)            \
   V(LoadField)                  \
   V(LoadFunction)               \
@@ -291,7 +291,6 @@ struct FrameState {
   V(LoadTypeAttrCacheItem)      \
   V(LoadVarObjectSize)          \
   V(MakeCell)                   \
-  V(MakeNullCell)               \
   V(MakeDict)                   \
   V(MakeFunction)               \
   V(MakeListTuple)              \
@@ -2240,23 +2239,9 @@ class LoadSuperBase : public DeoptBase {
 DEFINE_SIMPLE_INSTR(LoadMethodSuper, HasOutput, Operands<3>, LoadSuperBase);
 DEFINE_SIMPLE_INSTR(LoadAttrSuper, HasOutput, Operands<3>, LoadSuperBase);
 
-// Load a cell from function's closure into the allocated register. A
-// LoadClosureCell for each freevar is automatically inserted in the entry block
-// to ensure these registers are initialized with the cells from the function's
-// closure.
-class INSTR_CLASS(LoadClosureCell, HasOutput, Operands<0>) {
- public:
-  LoadClosureCell(Register* dst, int closure_idx)
-      : InstrT(dst), closure_idx_(closure_idx) {}
-
-  // Index into the function's closure tuple
-  int closure_idx() const {
-    return closure_idx_;
-  }
-
- private:
-  int closure_idx_;
-};
+// Load the current PyFunctionObject* into a Register. Must not appear after
+// any non-LoadArg instructions.
+DEFINE_SIMPLE_INSTR(LoadCurrentFunc, HasOutput, Operands<0>);
 
 // Load the value from the cell in operand
 DEFINE_SIMPLE_INSTR(LoadCellItem, HasOutput, Operands<1>);
@@ -2420,11 +2405,9 @@ class INSTR_CLASS(Return, Operands<1>) {
 // Assign one register to another
 DEFINE_SIMPLE_INSTR(Assign, HasOutput, Operands<1>);
 
-// This initializes a register to the value of an argument. Arg instructions
-// are inserted in the beginning of the entry block during bytecode translation
-// to ensure that registers corresponding to arguments are always initialized.
-// This simplifies definite assignment analysis (used to remove unnecessary
-// null checks) and liveness analysis.
+// Load the value of an argument to the current function. Reads from implicit
+// state set up by the function prologue and must not appear after any
+// non-LoadArg instruction.
 class INSTR_CLASS(LoadArg, HasOutput, Operands<0>) {
  public:
   LoadArg(Register* dst, uint arg_idx)
@@ -2603,12 +2586,6 @@ class INSTR_CLASS(MakeCell, HasOutput, Operands<1>, DeoptBase) {
     return GetOperand(0);
   }
 };
-
-// Create a cell holding NULL and place the cell in dst. Having both this and
-// MakeCell avoids needing to allocate another register just to place NULL in
-// it; these null-initialized and subsequently unused registers confuse later
-// analysis passes.
-DEFINE_SIMPLE_INSTR(MakeNullCell, HasOutput, Operands<0>, DeoptBase);
 
 // Allocate an empty dict with the given capacity, or the default capacity if 0
 // is given.

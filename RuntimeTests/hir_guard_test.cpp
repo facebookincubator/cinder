@@ -26,14 +26,14 @@ TEST(GuardTest, BindFrameStateFromBlock) {
   const char* hir = R"(
 fun test {
   bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
     Snapshot {
       NextInstrOffset 0
       Stack<0>
       BlockStack {
       }
     }
-    v0 = LoadArg<0>
-    v1 = LoadArg<1>
     Guard v1
     Return v1
   }
@@ -58,13 +58,13 @@ fun test {
 TEST(GuardTest, BindFrameStateFromInstr) {
   const char* hir = R"(fun test {
   bb 0 {
+    v0 = LoadArg<0>
     Snapshot {
       NextInstrOffset 0
       Stack<0>
       BlockStack {
       }
     }
-    v0 = LoadArg<0>
     v1 = LoadGlobal<0>
     CheckExc v1 {
       NextInstrOffset 2
@@ -106,13 +106,13 @@ TEST(GuardTest, BindFrameStateFromInstrWithStack) {
   const char* hir = R"(
 fun __main__:test {
   bb 0 {
+    v0 = LoadArg<0>
     Snapshot {
       NextInstrOffset 0
       Stack<0>
       BlockStack {
       }
     }
-    v0 = LoadArg<0>
     CheckVar<-1> v0 {
       NextInstrOffset 6
       Stack<0>

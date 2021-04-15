@@ -249,10 +249,10 @@ def test(a, b, l):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v17:Nullptr = LoadConst<Nullptr>
     v14:Object = LoadArg<0; "a">
     v15:Object = LoadArg<1; "b">
     v16:Object = LoadArg<2; "l">
+    v17:Nullptr = LoadConst<Nullptr>
     v21:Object = GetIter v16 {
       LiveValues<4> b:v14 b:v15 b:v16 unc:v17
       NextInstrOffset 8
@@ -341,8 +341,8 @@ def test(l):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v19:Nullptr = LoadConst<Nullptr>
     v18:Object = LoadArg<0; "l">
+    v19:Nullptr = LoadConst<Nullptr>
     v20:Object = LoadGlobal<0; "something"> {
       LiveValues<2> b:v18 unc:v19
       NextInstrOffset 2
@@ -452,8 +452,8 @@ def test(l):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v15:Nullptr = LoadConst<Nullptr>
     v14:Object = LoadArg<0; "l">
+    v15:Nullptr = LoadConst<Nullptr>
     v16:Object = LoadGlobal<0; "something"> {
       LiveValues<2> b:v14 unc:v15
       NextInstrOffset 2
@@ -610,9 +610,9 @@ def test(pred, val):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v7:Nullptr = LoadConst<Nullptr>
     v5:Object = LoadArg<0; "pred">
     v6:Object = LoadArg<1; "val">
+    v7:Nullptr = LoadConst<Nullptr>
     v9:CInt32 = IsTruthy v5 {
       LiveValues<3> b:v5 b:v6 unc:v7
       NextInstrOffset 4
@@ -646,8 +646,8 @@ def test(val):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v4:Nullptr = LoadConst<Nullptr>
     v3:Object = LoadArg<0; "val">
+    v4:Nullptr = LoadConst<Nullptr>
     v5:LongExact[1] = LoadConst<LongExact[1]>
     Incref v3
     Return v3
@@ -664,58 +664,60 @@ def test(a):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v12:Nullptr = LoadConst<Nullptr>
-    v11:Object = LoadArg<0; "a">
-    v13:Cell = MakeCell v11 {
-      LiveValues<2> b:v11 unc:v12
+    v12:Object = LoadArg<0; "a">
+    v13:Nullptr = LoadConst<Nullptr>
+    v14:Cell = MakeCell v12 {
+      LiveValues<2> b:v12 unc:v13
       NextInstrOffset 0
-      Locals<2> v11 v12
-      Cells<1> v12
+      Locals<2> v12 v13
+      Cells<1> v13
     }
-    v14:OptObject = LoadCellItem v13
-    v15:Object = CheckVar<0; "a"> v14 {
-      LiveValues<4> b:v11 unc:v12 o:v13 b:v14
-      NextInstrOffset 0
+    v15:OptObject = LoadCellItem v14
+    v16:Object = CheckVar<0; "a"> v15 {
+      LiveValues<3> unc:v13 o:v14 b:v15
+      NextInstrOffset 2
+      Locals<2> v13 v13
+      Cells<1> v14
     }
-    Incref v15
-    v16:Object = LoadMethod<0; "foo"> v15 {
-      LiveValues<4> b:v11 unc:v12 o:v13 o:v15
+    Incref v16
+    v17:Object = LoadMethod<0; "foo"> v16 {
+      LiveValues<3> unc:v13 o:v14 o:v16
       NextInstrOffset 4
-      Locals<2> v11 v12
-      Cells<1> v13
-      Stack<1> v15
+      Locals<2> v13 v13
+      Cells<1> v14
+      Stack<1> v16
     }
-    v17:Object = CallMethod<2> v15 v16 {
-      LiveValues<5> b:v11 unc:v12 o:v13 o:v15 o:v16
+    v18:Object = CallMethod<2> v16 v17 {
+      LiveValues<4> unc:v13 o:v14 o:v16 o:v17
       NextInstrOffset 6
-      Locals<2> v11 v12
-      Cells<1> v13
+      Locals<2> v13 v13
+      Cells<1> v14
     }
-    Decref v15
     Decref v16
     Decref v17
-    v18:Tuple = MakeListTuple<tuple, 1> {
-      LiveValues<3> b:v11 unc:v12 o:v13
+    Decref v18
+    v19:Tuple = MakeListTuple<tuple, 1> {
+      LiveValues<2> unc:v13 o:v14
       NextInstrOffset 12
-      Locals<2> v11 v12
-      Cells<1> v13
-      Stack<1> v13
+      Locals<2> v13 v13
+      Cells<1> v14
+      Stack<1> v14
     }
-    Incref v13
-    InitListTuple<tuple, 1> v18 v13
-    v20:Code["g"] = LoadConst<Code["g"]>
-    v21:UnicodeExact["test.<locals>.g"] = LoadConst<UnicodeExact["test.<locals>.g"]>
-    v22:Func = MakeFunction v21 v20 {
-      LiveValues<6> b:v11 unc:v12 o:v13 o:v18 b:v20 b:v21
+    Incref v14
+    InitListTuple<tuple, 1> v19 v14
+    v21:Code["g"] = LoadConst<Code["g"]>
+    v22:UnicodeExact["test.<locals>.g"] = LoadConst<UnicodeExact["test.<locals>.g"]>
+    v23:Func = MakeFunction v22 v21 {
+      LiveValues<5> unc:v13 o:v14 o:v19 b:v21 b:v22
       NextInstrOffset 18
-      Locals<2> v11 v12
-      Cells<1> v13
-      Stack<1> v18
+      Locals<2> v13 v13
+      Cells<1> v14
+      Stack<1> v19
     }
-    Decref v13
-    SetFunctionAttr<func_closure> v18 v22
-    InitFunction v22
-    Return v22
+    Decref v14
+    SetFunctionAttr<func_closure> v19 v23
+    InitFunction v23
+    Return v23
   }
 }
 ---
@@ -731,8 +733,8 @@ def test(timings):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v12:Nullptr = LoadConst<Nullptr>
     v11:Object = LoadArg<0; "timings">
+    v12:Nullptr = LoadConst<Nullptr>
     v14:CInt32 = IsTruthy v11 {
       LiveValues<2> b:v11 unc:v12
       NextInstrOffset 4
@@ -841,10 +843,10 @@ def test(a, b, c):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v18:Nullptr = LoadConst<Nullptr>
     v15:Object = LoadArg<0; "a">
     v16:Object = LoadArg<1; "b">
     v17:Object = LoadArg<2; "c">
+    v18:Nullptr = LoadConst<Nullptr>
     v19:OptObject = LoadGlobalCached<0; "dict">
     v20:TypeExact[dict:obj] = GuardIs<0xdeadbeef> v19 {
       LiveValues<5> b:v15 b:v16 b:v17 unc:v18 b:v19

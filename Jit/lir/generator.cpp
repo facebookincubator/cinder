@@ -163,6 +163,9 @@ BasicBlock* LIRGenerator::GenerateEntryBlock() {
 
   bindVReg("__asm_extra_args", jit::codegen::PhyLocation::R10);
   bindVReg("__asm_tstate", jit::codegen::PhyLocation::R11);
+  if (func_->uses_runtime_func) {
+    bindVReg("__asm_func", jit::codegen::PhyLocation::RAX);
+  }
 
   return block;
 }
@@ -564,7 +567,6 @@ static int bytes_from_cint_type(Type type) {
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     const hir::BasicBlock* hir_bb) {
   BasicBlockBuilder bbb(env_, lir_func_);
-  constexpr size_t PTR_Size = sizeof(void*);
 
   for (auto& i : *hir_bb) {
     auto opcode = i.opcode();
@@ -576,17 +578,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           bbb.AppendCode(
               "Load {}, __asm_extra_args, {}",
               instr->dst(),
-              (instr->arg_idx() - env_->arg_locations.size()) * PTR_Size);
+              (instr->arg_idx() - env_->arg_locations.size()) * kPointerSize);
         } else {
           bbb.AppendCode("LoadArg {} {}", instr->dst(), instr->arg_idx());
         }
         break;
       }
-      case Opcode::kLoadClosureCell: {
-        auto instr = static_cast<const LoadClosureCell*>(&i);
-        auto addr = reinterpret_cast<uint64_t>(&(PyTuple_GET_ITEM(
-            GetHIRFunction()->pyfunc->func_closure, instr->closure_idx())));
-        bbb.AppendCode("Load {}, {:#x}", instr->dst(), addr);
+      case Opcode::kLoadCurrentFunc: {
+        bbb.AppendCode("Move {}, __asm_func", i.GetOutput());
         break;
       }
       case Opcode::kMakeCell: {
@@ -596,15 +595,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->dst(),
             reinterpret_cast<uint64_t>(PyCell_New),
             instr->val());
-        break;
-      }
-      case Opcode::kMakeNullCell: {
-        auto instr = static_cast<const MakeNullCell*>(&i);
-        bbb.AppendCode(
-            "Call {}, {:#x}, {}",
-            instr->dst(),
-            reinterpret_cast<uint64_t>(PyCell_New),
-            NULL);
         break;
       }
       case Opcode::kStealCellItem:
@@ -1766,7 +1756,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               "Store {}, {}, {}",
               instr->GetOperand(i),
               base,
-              ob_item_offset + ((i - 1) * PTR_Size));
+              ob_item_offset + ((i - 1) * kPointerSize));
         }
         break;
       }
@@ -1775,7 +1765,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         const size_t item_offset =
             GET_STRUCT_MEMBER_OFFSET(PyTupleObject, ob_item) +
-            instr->idx() * PTR_Size;
+            instr->idx() * kPointerSize;
         bbb.AppendCode(
             "Load {} {} {}", instr->GetOutput(), instr->tuple(), item_offset);
         break;
@@ -2420,7 +2410,8 @@ void LIRGenerator::FixOperands() {
       }
     }
 
-    JIT_DCHECK(def_instr != nullptr, "unable to find def instruction.");
+    JIT_DCHECK(
+        def_instr != nullptr, "unable to find def instruction for '%s'.", name);
 
     auto& operands = pair.second;
     for (auto& operand : operands) {

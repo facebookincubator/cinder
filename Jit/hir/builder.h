@@ -395,7 +395,7 @@ class HIRBuilder {
       const FrameState& frame);
   void addInitialYield(TranslationContext& tc);
   void addLoadArgs(TranslationContext& tc, int num_args);
-  void addInitializeCells(TranslationContext& tc);
+  void addInitializeCells(TranslationContext& tc, Register* cur_func);
   void AllocateRegistersForLocals(Environment* env, FrameState& state);
   void AllocateRegistersForCells(Environment* env, FrameState& state);
   void moveOverwrittenStackRegisters(TranslationContext& tc, Register* dst);

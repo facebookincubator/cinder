@@ -16,6 +16,7 @@ TEST_F(HIRParserTest, ParsesHIR) {
   const char* ir =
       R"(fun user_id {
             bb 0 {
+              v00 = LoadCurrentFunc
               v0 = InitialYield
               CheckVar<-1> v0 {
               }
@@ -68,6 +69,9 @@ TEST_F(HIRParserTest, ParsesHIR) {
   ASSERT_EQ(blocks_it->id, 0);
   auto it = blocks_it->begin();
   auto end = blocks_it->end();
+  ASSERT_NE(it, end);
+  ASSERT_EQ(it->opcode(), Opcode::kLoadCurrentFunc);
+  ++it;
   ASSERT_NE(it, end);
   ASSERT_EQ(it->opcode(), Opcode::kInitialYield);
   {

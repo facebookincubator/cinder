@@ -48,7 +48,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
     case Opcode::kMakeListTuple:
-    case Opcode::kMakeNullCell:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
     case Opcode::kRefineType:
@@ -164,9 +163,9 @@ MemoryEffects memoryEffects(const Instr& inst) {
       return {false, AEmpty, {3, 2}, AInObjectAttr};
 
     case Opcode::kLoadArg:
+    case Opcode::kLoadCurrentFunc:
       return borrowFrom(inst, AFuncArgs);
 
-    case Opcode::kLoadClosureCell:
     case Opcode::kLoadConst:
     case Opcode::kGuardIs:
       return borrowFrom(inst, AEmpty);

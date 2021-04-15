@@ -202,32 +202,33 @@ static std::string format_immediates(const Instr& instr) {
   switch (instr.opcode()) {
     case Opcode::kAssign:
     case Opcode::kBuildString:
-    case Opcode::kCheckSequenceBounds:
-
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:
     case Opcode::kCheckNone:
+    case Opcode::kCheckSequenceBounds:
+    case Opcode::kCheckTuple:
     case Opcode::kClearError:
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
-    case Opcode::kGuard:
     case Opcode::kGetIter:
+    case Opcode::kGetTuple:
+    case Opcode::kGuard:
     case Opcode::kIncref:
     case Opcode::kInitFunction:
     case Opcode::kInvokeIterNext:
     case Opcode::kIsErrStopAsyncIteration:
-    case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kIsInstance:
+    case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kIsTruthy:
     case Opcode::kListAppend:
     case Opcode::kListExtend:
     case Opcode::kLoadArrayItem:
     case Opcode::kLoadCellItem:
+    case Opcode::kLoadCurrentFunc:
     case Opcode::kLoadEvalBreaker:
     case Opcode::kLoadVarObjectSize:
     case Opcode::kMakeCell:
-    case Opcode::kMakeNullCell:
     case Opcode::kMakeFunction:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
@@ -244,8 +245,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kStealCellItem:
     case Opcode::kStoreArrayItem:
     case Opcode::kStoreSubscr:
-    case Opcode::kGetTuple:
-    case Opcode::kCheckTuple:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:
     case Opcode::kWaitHandleRelease:
@@ -391,10 +390,6 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kLoadAttrSuper: {
       return format_load_super(static_cast<const LoadSuperBase&>(instr));
-    }
-    case Opcode::kLoadClosureCell: {
-      const auto& load = static_cast<const LoadClosureCell&>(instr);
-      return fmt::format("{}", load.closure_idx());
     }
     case Opcode::kLoadConst: {
       const auto& load = static_cast<const LoadConst&>(instr);
