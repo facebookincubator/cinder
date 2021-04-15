@@ -55,13 +55,7 @@ def test(a, b):
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
   CodeRuntime code_rt{
-      reinterpret_cast<PyFunctionObject*>(func.get()),
-      code,
-      FrameMode::kNormal,
-      0,
-      0,
-      0,
-      0};
+      code, PyFunction_GetGlobals(func), FrameMode::kNormal, 0, 0, 0, 0};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -114,13 +108,7 @@ def test(a, b):
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
   CodeRuntime code_rt{
-      reinterpret_cast<PyFunctionObject*>(func.get()),
-      code,
-      FrameMode::kNormal,
-      0,
-      0,
-      0,
-      0};
+      code, PyFunction_GetGlobals(func), FrameMode::kNormal, 0, 0, 0, 0};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -174,13 +162,7 @@ def test(a, b):
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
   CodeRuntime code_rt{
-      reinterpret_cast<PyFunctionObject*>(func.get()),
-      code,
-      FrameMode::kNormal,
-      0,
-      0,
-      0,
-      0};
+      code, PyFunction_GetGlobals(func), FrameMode::kNormal, 0, 0, 0, 0};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -246,13 +228,7 @@ def test(num):
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
   CodeRuntime code_rt{
-      reinterpret_cast<PyFunctionObject*>(func.get()),
-      code,
-      FrameMode::kNormal,
-      0,
-      0,
-      0,
-      0};
+      code, PyFunction_GetGlobals(func), FrameMode::kNormal, 0, 0, 0, 0};
 
   DeoptMetadata dm;
   dm.live_values = {num_val, fact_val, tmp_val};
@@ -311,13 +287,7 @@ def test(x, y):
     ASSERT_EQ(((unsigned char*)code->co_rawcode)[jump_index], POP_JUMP_IF_ZERO);
 
     CodeRuntime code_rt{
-        reinterpret_cast<PyFunctionObject*>(func.get()),
-        code,
-        FrameMode::kNormal,
-        0,
-        0,
-        0,
-        0};
+        code, PyFunction_GetGlobals(func), FrameMode::kNormal, 0, 0, 0, 0};
 
     DeoptMetadata dm;
     dm.live_values = {a_val};

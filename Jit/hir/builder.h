@@ -91,13 +91,19 @@ class HIRBuilder {
  public:
   HIRBuilder() = default;
 
-  // Translate the bytecode for func into HIR.
+  // Translate the bytecode for code into HIR, in the context of the given
+  // globals.
   //
   // The resulting IR is un-optimized and does not yet have refcount operations.
   // Later passes will insert refcount operations using liveness analysis.
   //
   // TODO(mpage): Consider using something like Either here to indicate reason
   // for failure.
+  std::unique_ptr<Function> BuildHIR(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> globals,
+      const std::string& fullname);
+
   std::unique_ptr<Function> BuildHIR(BorrowedRef<PyFunctionObject> func);
 
  private:
@@ -123,8 +129,7 @@ class HIRBuilder {
       CFG& cfg,
       TranslationContext& tc,
       jit::BytecodeInstructionBlock::Iterator& bc_it,
-      const jit::BytecodeInstructionBlock& bc_instrs,
-      PyObject* func);
+      const jit::BytecodeInstructionBlock& bc_instrs);
   void emitCallEx(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,
@@ -220,7 +225,6 @@ class HIRBuilder {
   bool emitInvokeFunction(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,
-      PyObject* cur_func,
       bool is_awaited);
   void emitGetIter(TranslationContext& tc);
   void emitGetYieldFromIter(CFG& cfg, TranslationContext& tc);
@@ -413,8 +417,8 @@ class HIRBuilder {
   BasicBlock* getBlockAtOff(Py_ssize_t off);
 
   BorrowedRef<PyCodeObject> code_;
-  BorrowedRef<> globals_;
-  BorrowedRef<> builtins_;
+  BorrowedRef<PyDictObject> globals_;
+  BorrowedRef<PyDictObject> builtins_;
   BlockMap block_map_;
 
   // Map index of END_ASYNC_FOR bytecodes to FrameState of paired YIELD_FROMs

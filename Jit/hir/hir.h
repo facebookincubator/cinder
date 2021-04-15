@@ -3297,10 +3297,9 @@ class Function {
  public:
   Function();
 
-  Ref<PyFunctionObject> pyfunc;
   Ref<PyCodeObject> code;
-  Ref<PyObject> globals;
-  Ref<PyObject> builtins;
+  Ref<PyDictObject> globals;
+  Ref<PyDictObject> builtins;
 
   // Fully-qualified name of the function
   std::string fullname;
@@ -3324,8 +3323,8 @@ class Function {
   // Return the number of locals + cellvars + freevars
   Py_ssize_t numVars() const;
 
-  // Set pyfunc and a number of other members that are derived from it.
-  void setPyFunc(PyFunctionObject* func);
+  // Set code and a number of other members that are derived from it.
+  void setCode(BorrowedRef<PyCodeObject> code);
 
   void Print() const;
 

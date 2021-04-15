@@ -179,8 +179,8 @@ void* NativeGenerator::GetEntryPoint() {
   env_.rt = runtime();
   PyCodeObject* code_obj = func->code;
   env_.code_rt = env_.rt->AllocateRuntime(
-      func->pyfunc,
       code_obj,
+      GetFunction()->globals,
       func->frameMode,
       num_lm_caches,
       num_la_caches,
@@ -250,7 +250,7 @@ void* NativeGenerator::GetEntryPoint() {
         false,
         "Failed to emit code for '%s': '%s' failed with '%s'\n\n"
         "Builder contents on failure:\n%s",
-        funcFullname(env_.code_rt->GetFunction()),
+        GetFunction()->fullname,
         ex.expr,
         ex.message,
         s.data());

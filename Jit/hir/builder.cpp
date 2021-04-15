@@ -603,6 +603,11 @@ BasicBlock* HIRBuilder::getBlockAtOff(Py_ssize_t off) {
   return it->second;
 }
 
+std::unique_ptr<Function> HIRBuilder::BuildHIR(
+    BorrowedRef<PyFunctionObject> func) {
+  return BuildHIR(func->func_code, func->func_globals, funcFullname(func));
+}
+
 // This performs an abstract interpretation over the bytecode for func in order
 // to translate it from a stack to register machine. The translation proceeds
 // in two passes over the bytecode. First, basic block boundaries are
@@ -616,24 +621,28 @@ BasicBlock* HIRBuilder::getBlockAtOff(Py_ssize_t off) {
 // are a few bytecodes that do not (e.g. SETUP_FINALLY). We will need to deal
 // with that if we ever want to support compiling them.
 std::unique_ptr<Function> HIRBuilder::BuildHIR(
-    BorrowedRef<PyFunctionObject> func) {
-  JIT_DCHECK(PyFunction_Check(func), "didn't supply a function object");
-  code_ = reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals,
+    const std::string& fullname) {
+  JIT_DCHECK(PyCode_Check(code), "didn't supply a code object");
+  code_ = code;
   if (!can_translate(code_)) {
-    JIT_DLOG("Can't translate all opcodes in function %p", func);
+    JIT_DLOG("Can't translate all opcodes in %s", fullname);
     return nullptr;
   }
 
   auto irfunc = std::make_unique<Function>();
-  irfunc->fullname = funcFullname(func);
-  irfunc->frameMode = getFrameMode(func->func_code);
-  irfunc->setPyFunc(func);
+  irfunc->fullname = fullname;
+  irfunc->frameMode = getFrameMode(code);
+  irfunc->setCode(code);
+  irfunc->globals.reset(globals);
+  irfunc->builtins.reset(PyEval_GetBuiltins());
   globals_ = irfunc->globals;
   builtins_ = irfunc->builtins;
   temps_ = TempAllocator(&irfunc->env);
   if (code_->co_flags & CO_STATICALLY_COMPILED) {
     irfunc->return_type =
-        resolve_type_descr(_PyClassLoader_GetReturnTypeDescr(func));
+        resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code));
   }
 
   BytecodeInstructionBlock bc_instrs{code_};
@@ -801,7 +810,7 @@ void HIRBuilder::translate(
         case CALL_METHOD:
         case INVOKE_FUNCTION:
         case INVOKE_METHOD: {
-          emitAnyCall(irfunc.cfg, tc, bc_it, bc_instrs, irfunc.pyfunc);
+          emitAnyCall(irfunc.cfg, tc, bc_it, bc_instrs);
           break;
         }
         case COMPARE_OP: {
@@ -1438,8 +1447,7 @@ void HIRBuilder::emitAnyCall(
     CFG& cfg,
     TranslationContext& tc,
     jit::BytecodeInstructionBlock::Iterator& bc_it,
-    const jit::BytecodeInstructionBlock& bc_instrs,
-    PyObject* func) {
+    const jit::BytecodeInstructionBlock& bc_instrs) {
   BytecodeInstruction bc_instr = *bc_it;
   int idx = bc_instr.index();
   bool is_awaited = code_->co_flags & CO_COROUTINE &&
@@ -1471,7 +1479,7 @@ void HIRBuilder::emitAnyCall(
       break;
     }
     case INVOKE_FUNCTION: {
-      call_used_is_awaited = emitInvokeFunction(tc, bc_instr, func, is_awaited);
+      call_used_is_awaited = emitInvokeFunction(tc, bc_instr, is_awaited);
       break;
     }
     case INVOKE_METHOD: {
@@ -1713,33 +1721,6 @@ void HIRBuilder::emitLoadIterableArg(
   tc.frame.stack.push(tuple);
 }
 
-void tryRecursiveCompile(PyObject* func, PyObject* cur_func) {
-  // If the target function isn't compiled yet attempt
-  // to compile it now.  We'll limit the depth to which
-  // we do these recursive compilations though, and also
-  // ignore recursive functions
-  if (func == cur_func) {
-    return;
-  }
-  const int max_compile_depth = 10;
-  static int compile_depth = 0;
-  static PyObject* recursive_compiles[max_compile_depth];
-
-  if (!_PyJIT_IsCompiled(func) && compile_depth < max_compile_depth) {
-    int compiling = false;
-    for (int i = 0; i < compile_depth; i++) {
-      if (recursive_compiles[i] == func) {
-        compiling = true;
-      }
-    }
-    if (!compiling) {
-      recursive_compiles[compile_depth++] = func;
-      _PyJIT_CompileFunction((PyFunctionObject*)func);
-      recursive_compiles[--compile_depth] = NULL;
-    }
-  }
-}
-
 bool HIRBuilder::tryEmitDirectMethodCall(
     PyMethodDef* method,
     TranslationContext& tc,
@@ -1810,7 +1791,6 @@ bool get_static_func_ret_type(PyObject* func, Type* ret_type) {
 bool HIRBuilder::emitInvokeFunction(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr,
-    PyObject* cur_func,
     bool is_awaited) {
   PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
   PyObject* target = PyTuple_GET_ITEM(descr, 0);
@@ -1827,7 +1807,7 @@ bool HIRBuilder::emitInvokeFunction(
   bool is_container_immutable = true;
   if (_PyClassLoader_IsImmutable(container)) {
     if (is_static_func && PyFunction_Check(func)) {
-      tryRecursiveCompile(func, cur_func);
+      _PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func));
 
       // Direct invoke is safe whether we succeeded in JIT-compiling or not,
       // it'll just have an extra indirection if not JIT compiled.

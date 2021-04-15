@@ -2052,7 +2052,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const MakeFunction*>(&i);
         auto code = instr->codeobj();
         auto qualname = instr->qualname();
-        PyObject* globals = GetHIRFunction()->pyfunc->func_globals;
+        PyObject* globals = GetHIRFunction()->globals;
 
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {:#x}, {}",

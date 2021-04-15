@@ -49,23 +49,22 @@ class LoadMethodCachePool {
 class CodeRuntime {
  public:
   explicit CodeRuntime(
-      PyFunctionObject* py_func,
       PyCodeObject* py_code,
+      PyObject* globals,
       jit::hir::FrameMode frame_mode,
       std::size_t num_lm_caches,
       std::size_t num_la_caches,
       std::size_t num_sa_caches,
       std::size_t num_lat_caches)
-      : py_func_(py_func),
-        py_code_(py_code),
+      : py_code_(py_code),
         frame_mode_(frame_mode),
         load_method_cache_pool_(num_lm_caches),
         load_attr_cache_pool_(num_la_caches),
         store_attr_cache_pool_(num_sa_caches),
         load_type_attr_caches_(
             std::make_unique<LoadTypeAttrCache[]>(num_lat_caches)),
-        globals_(py_func->func_globals),
-        builtins_(_PyFunction_GetBuiltins(py_func_)) {}
+        globals_(globals),
+        builtins_(PyEval_GetBuiltins()) {}
 
   ~CodeRuntime() {}
 
@@ -76,9 +75,6 @@ class CodeRuntime {
   // Release any references this CodeRuntime holds to Python objects.
   void releaseReferences();
 
-  PyFunctionObject* GetFunction() {
-    return py_func_;
-  }
   PyCodeObject* GetCode() {
     return py_code_;
   }
@@ -110,7 +106,6 @@ class CodeRuntime {
   void addReference(PyObject* obj);
 
  private:
-  PyFunctionObject* py_func_;
   PyCodeObject* py_code_;
   jit::hir::FrameMode frame_mode_;
   LoadMethodCachePool load_method_cache_pool_;

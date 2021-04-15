@@ -180,6 +180,13 @@ class Ref : public RefBase<T> {
     ptr_ = obj;
   }
 
+  template <
+      typename X = T,
+      typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
+  void reset(PyObject* obj) {
+    reset(reinterpret_cast<T*>(obj));
+  }
+
   static Ref steal(T* obj) {
     return Ref(obj, StealTag{});
   }

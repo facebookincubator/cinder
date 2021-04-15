@@ -829,11 +829,8 @@ bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code) {
   return PyTuple_GET_SIZE(code->co_freevars) > 0;
 }
 
-void Function::setPyFunc(PyFunctionObject* func) {
-  pyfunc.reset(func);
-  code.reset(reinterpret_cast<PyCodeObject*>(func->func_code));
-  globals.reset(func->func_globals);
-  builtins.reset(_PyFunction_GetBuiltins(func));
+void Function::setCode(BorrowedRef<PyCodeObject> code) {
+  this->code.reset(code);
   uses_runtime_func = usesRuntimeFunc(code);
 }
 

@@ -290,7 +290,13 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
 PyObject *
 _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func)
 {
-    PyCodeObject *code = (PyCodeObject *)func->func_code;
+    return _PyClassLoader_GetCodeReturnTypeDescr(
+        (PyCodeObject *)func->func_code);
+}
+
+PyObject *
+_PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject* code)
+{
     return PyTuple_GET_ITEM(
         code->co_consts, PyTuple_GET_SIZE(code->co_consts) - 1);
 }

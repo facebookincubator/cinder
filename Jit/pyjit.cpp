@@ -602,9 +602,27 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
   if (jit_ctx == nullptr) {
     return PYJIT_NOT_INITIALIZED;
   }
+  if (_PyJIT_IsCompiled(reinterpret_cast<PyObject*>(func))) {
+    return PYJIT_RESULT_OK;
+  }
+
   CompilationTimer timer;
+  const int kMaxCompileDepth = 10;
+  static std::vector<PyObject*> active_compiles;
+  // Don't attempt the compilation if there are already too many active
+  // compilations or this function's code is one of them.
+  if (active_compiles.size() == kMaxCompileDepth ||
+      std::find(
+          active_compiles.begin(), active_compiles.end(), func->func_code) !=
+          active_compiles.end()) {
+    return PYJIT_RESULT_UNKNOWN_ERROR;
+  }
+
   jit_reg_functions.erase(func);
-  return _PyJITContext_CompileFunction(jit_ctx, func);
+  active_compiles.push_back(func->func_code);
+  _PyJIT_Result result = _PyJITContext_CompileFunction(jit_ctx, func);
+  active_compiles.pop_back();
+  return result;
 }
 
 int _PyJIT_RegisterFunction(PyFunctionObject* func) {

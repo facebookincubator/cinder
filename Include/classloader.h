@@ -61,6 +61,8 @@ void _PyClassLoader_ClearCache(void);
 
 PyObject *
 _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func);
+PyObject *
+_PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject *code);
 
 /* These need to be kept in sync with the version in Lib/compiler/static.py */
 #define TYPED_INT_UNSIGNED 0

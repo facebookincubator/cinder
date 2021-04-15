@@ -8288,9 +8288,10 @@ class StaticCompilationTests(StaticTestBase):
             g = mod.g
             self.assertEqual(g(True), 0)
             # we should have done some level of pre-jitting
+            self.assert_not_jitted(mod.f2)
             self.assert_not_jitted(mod.f1)
             self.assert_not_jitted(mod.f0)
-            [self.assert_jitted(getattr(mod, f"f{i}")) for i in range(2, 12)]
+            [self.assert_jitted(getattr(mod, f"f{i}")) for i in range(3, 12)]
             self.assertEqual(g(False), 42)
             self.assertInBytecode(
                 g,
