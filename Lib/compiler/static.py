@@ -152,6 +152,7 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     FAST_LEN_ARRAY,
     FAST_LEN_STR,
     TYPED_DOUBLE,
+    RAND_MAX,
     rand,
 )
 
@@ -411,7 +412,9 @@ class SymbolTable:
                 "pydict": DICT_TYPE,
                 "PyDict": DICT_TYPE,
                 "Vector": VECTOR_TYPE,
-                "RAND_MAX": INT_TYPE.instance,
+                "RAND_MAX": NumClass(
+                    TypeName("builtins", "int"), pytype=int, literal_value=RAND_MAX
+                ).instance,
                 "rand": reflect_builtin_function(rand),
             },
         )
@@ -3067,15 +3070,29 @@ class NumClass(Class):
         name: TypeName,
         pytype: Optional[Type[object]] = None,
         is_exact: bool = False,
+        literal_value: Optional[int] = None,
     ) -> None:
+        bases: List[Class] = [OBJECT_TYPE]
+        if literal_value is not None:
+            is_exact = True
+            bases = [INT_EXACT_TYPE]
         instance = NumExactInstance(self) if is_exact else NumInstance(self)
         super().__init__(
             name,
-            [OBJECT_TYPE],
+            bases,
             instance,
             pytype=pytype,
             is_exact=is_exact,
         )
+        self.literal_value = literal_value
+
+    def can_assign_from(self, src: Class) -> bool:
+        if isinstance(src, NumClass):
+            if self.literal_value is not None:
+                return src.literal_value == self.literal_value
+            if self.is_exact and src.is_exact and self.type_descr == src.type_descr:
+                return True
+        return super().can_assign_from(src)
 
 
 class NumInstance(Object[NumClass]):
@@ -3100,12 +3117,20 @@ class NumInstance(Object[NumClass]):
 
 
 class NumExactInstance(NumInstance):
+    @property
+    def name(self) -> str:
+        if self.klass.literal_value is not None:
+            return f"Literal[{self.klass.literal_value}]"
+        return super().name
+
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> bool:
         ltype = visitor.get_type(node.left)
         rtype = visitor.get_type(node.right)
-        if ltype.klass is INT_EXACT_TYPE and rtype.klass is INT_EXACT_TYPE:
+        if INT_EXACT_TYPE.can_assign_from(
+            ltype.klass
+        ) and INT_EXACT_TYPE.can_assign_from(rtype.klass):
             if isinstance(node.op, ast.Div):
                 visitor.set_type(node, FLOAT_EXACT_TYPE.instance)
             else:
@@ -4527,6 +4552,10 @@ class CIntInstance(CInstance["CIntType"]):
         final_val = code_gen.get_final_literal(node)
         if final_val is not None:
             return self.emit_constant(final_val, code_gen)
+        typ = code_gen.get_type(node).klass
+        if isinstance(typ, NumClass) and typ.literal_value is not None:
+            code_gen.emit("PRIMITIVE_LOAD_CONST", (typ.literal_value, self.as_oparg()))
+            return
         code_gen.visit(node)
         code_gen.emit("INT_UNBOX", self.as_oparg())
 

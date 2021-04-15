@@ -11363,6 +11363,19 @@ class StaticRuntimeTests(StaticTestBase):
             test = mod["test"]
             self.assertEqual(type(test()), int)
 
+    def test_rand_max_inlined(self):
+        codestr = """
+            from __static__ import rand, RAND_MAX, box, int64
+
+            def f() -> int:
+                x: int64 = rand() // int64(RAND_MAX)
+                return box(x)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST")
+            self.assertIsInstance(f(), int)
+
     def test_array_get_primitive_idx(self):
         codestr = """
             from __static__ import Array, int8, box
