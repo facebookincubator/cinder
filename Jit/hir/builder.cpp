@@ -965,6 +965,9 @@ void HIRBuilder::translate(
           // TODO add irfunc.return_type to Return instr here to validate that
           // all values flowing to return are of correct type; will require
           // consistency of static compiler and JIT types, see T86480663
+          JIT_CHECK(
+              tc.frame.block_stack.isEmpty(),
+              "Returning with non-empty block stack");
           tc.emit<Return>(reg);
           break;
         }
@@ -1275,7 +1278,7 @@ void HIRBuilder::translate(
           FrameState new_frame = tc.frame;
           new_frame.stack.pop();
           queue.emplace_back(condbr->true_bb(), tc.frame);
-          queue.emplace_back(condbr->false_bb(), new_frame);
+          queue.emplace_back(condbr->false_bb(), std::move(new_frame));
           break;
         }
         for (std::size_t i = 0; i < last_instr->numEdges(); i++) {
@@ -2877,37 +2880,40 @@ void HIRBuilder::emitForIter(
 void HIRBuilder::emitGetYieldFromIter(CFG& cfg, TranslationContext& tc) {
   Register* iter_in = tc.frame.stack.pop();
 
-  // Dissallow 'yield from' on 'async' functions.
-  if (!(code_->co_flags & (CO_COROUTINE | CO_ITERABLE_COROUTINE))) {
-    TranslationContext is_coro_path{cfg.AllocateBlock(), tc.frame};
-    TranslationContext continue_path{cfg.AllocateBlock(), tc.frame};
-    tc.emit<CondBranchCheckType>(
-        iter_in,
-        Type::fromTypeExact(&PyCoro_Type),
-        is_coro_path.block,
-        continue_path.block);
-    is_coro_path.emit<RaiseStatic>(
+  bool in_coro = code_->co_flags & (CO_COROUTINE | CO_ITERABLE_COROUTINE);
+  BasicBlock* done_block = cfg.AllocateBlock();
+  BasicBlock* next_block = cfg.AllocateBlock();
+  BasicBlock* nop_block = cfg.AllocateBlock();
+  BasicBlock* is_coro_block = in_coro ? nop_block : cfg.AllocateBlock();
+
+  tc.emit<CondBranchCheckType>(
+      iter_in, Type::fromTypeExact(&PyCoro_Type), is_coro_block, next_block);
+
+  if (!in_coro) {
+    tc.block = is_coro_block;
+    tc.emit<RaiseStatic>(
         0,
         PyExc_TypeError,
         "cannot 'yield from' a coroutine object in a non-coroutine generator",
         tc.frame);
-    tc.block = continue_path.block;
   }
 
-  TranslationContext slow_path{cfg.AllocateBlock(), tc.frame};
-  TranslationContext fast_path{cfg.AllocateBlock(), tc.frame};
-  BasicBlock* done = cfg.AllocateBlock();
+  tc.block = next_block;
+
+  BasicBlock* slow_path = cfg.AllocateBlock();
   Register* iter_out = temps_.Allocate();
-  tc.emit<CondBranchCheckType>(iter_in, TGen, fast_path.block, slow_path.block);
+  tc.emit<CondBranchCheckType>(iter_in, TGen, nop_block, slow_path);
 
-  slow_path.emit<GetIter>(iter_out, iter_in, tc.frame);
-  slow_path.emit<Branch>(done);
+  tc.block = slow_path;
+  tc.emit<GetIter>(iter_out, iter_in, tc.frame);
+  tc.emit<Branch>(done_block);
 
-  fast_path.emit<Assign>(iter_out, iter_in);
-  fast_path.emit<Branch>(done);
+  tc.block = nop_block;
+  tc.emit<Assign>(iter_out, iter_in);
+  tc.emit<Branch>(done_block);
+
+  tc.block = done_block;
   tc.frame.stack.push(iter_out);
-
-  tc.block = done;
 }
 
 void HIRBuilder::emitUnpackEx(
@@ -3098,6 +3104,16 @@ void HIRBuilder::emitEndAsyncFor(
       end_async_for_frame_state_.at(bc_instr.index());
   tc.emit<CheckExc>(is_stop, is_stop, yield_from_frame);
   tc.emit<ClearError>();
+
+  // Pop finally block and discard exhausted async iterator.
+  const ExecutionBlock& b = tc.frame.block_stack.top();
+  JIT_CHECK(
+      static_cast<int>(tc.frame.stack.size()) == b.stack_level,
+      "Bad stack depth in END_ASYNC_FOR: block stack expects %d, stack is %d",
+      b.stack_level,
+      tc.frame.stack.size());
+  tc.frame.block_stack.pop();
+  tc.frame.stack.pop();
 }
 
 void HIRBuilder::emitGetAIter(TranslationContext& tc) {
