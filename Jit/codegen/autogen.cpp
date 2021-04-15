@@ -367,7 +367,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
 
   // Arbitrary scratch register for use in emitStoreGenYieldPoint().
   auto scratch_r = x86::r9;
-  auto resume_label = as->newLabel();
+  asmjit::Label resume_label = as->newLabel();
   emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rdi, scratch_r);
 
   // Store variables spilled by this point to generator.
@@ -403,11 +403,6 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   // Resumed execution in this generator begins here
   as->bind(resume_label);
 
-  // Clear yield point as it's no longer valid
-  size_t yield_point_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
-  as->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
-
   // Sent in value is in RSI, and tstate is in RDX from resume entry-point args
   emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rdx);
 }
@@ -436,11 +431,6 @@ void translateYieldValue(Environ* env, const Instruction* instr) {
   // Resumed execution in this generator begins here
   as->bind(resume_label);
 
-  // Clear yield point as it's no longer valid
-  size_t yield_point_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
-  as->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
-
   // Sent in value is in RSI, and tstate is in RDX from resume entry-point args
   emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rdx);
 }
@@ -465,13 +455,9 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
       skip_initial_send ? PhyLocation::RAX : PhyLocation::RSI;
   as->mov(x86::gpq(send_value_phys_reg), x86::ptr(x86::rbp, send_value_loc));
 
-  // Arbitrary scratch register for use in emitStoreGenYieldPoint()
-  auto scratch_r = x86::r9;
-  auto resume_label = as->newLabel();
-  emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rbp, scratch_r);
-
+  asmjit::Label yield_label = as->newLabel();
   if (skip_initial_send) {
-    as->jmp(env->exit_for_yield_label);
+    as->jmp(yield_label);
   } else {
     // Setup call to JITRT_YieldFrom
 
@@ -485,6 +471,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   }
 
   // Resumed execution begins here
+  auto resume_label = as->newLabel();
   as->bind(resume_label);
 
   // Save tstate from resume to callee-saved reigster.
@@ -511,13 +498,16 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   // If not done, jump to epilogue which will yield/return the value from
   // JITRT_YieldFrom in RAX.
   as->test(done_r, done_r);
-  as->jz(env->exit_for_yield_label);
+  asmjit::Label done_label = as->newLabel();
+  as->jnz(done_label);
 
-  // Clear yield point as it's no longer valid
-  size_t yield_point_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
-  as->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
+  as->bind(yield_label);
+  // Arbitrary scratch register for use in emitStoreGenYieldPoint()
+  auto scratch_r = x86::r9;
+  emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rbp, scratch_r);
+  as->jmp(env->exit_for_yield_label);
 
+  as->bind(done_label);
   emitLoadResumedYieldInputs(as, instr, yf_result_phys_reg, tstate_phys_reg);
 }
 

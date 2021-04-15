@@ -695,6 +695,9 @@ PyObject* _PyJIT_GenSend(
   }
 
   // Enter generated code.
+  JIT_DCHECK(
+      gen_footer->yieldPoint != nullptr,
+      "Attempting to resume a generator with no yield point");
   PyObject* result =
       gen_footer->resumeEntry((PyObject*)gen, arg, tstate, finish_yield_from);
 
@@ -729,8 +732,7 @@ PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
   PyObject* yf = NULL;
   if (gen_footer->state != _PyJitGenState_Completed && gen_footer->yieldPoint) {
-    yf = reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)
-             ->yieldFromValue(gen_footer);
+    yf = gen_footer->yieldPoint->yieldFromValue(gen_footer);
     Py_XINCREF(yf);
   }
   return yf;

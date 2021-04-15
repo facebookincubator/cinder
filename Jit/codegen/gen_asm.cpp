@@ -830,10 +830,12 @@ void NativeGenerator::generateResumeEntry() {
   // RBP = gen->gi_jit_data
   as_->mov(x86::rbp, jit_data_r);
 
-  // Resume generator execution
+  // Resume generator execution: load and clear yieldPoint, then jump to the
+  // resume target.
   size_t yield_point_offset =
       GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
   as_->mov(scratch_r, x86::ptr(x86::rbp, yield_point_offset));
+  as_->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
   size_t resume_target_offset =
       GET_STRUCT_MEMBER_OFFSET(GenYieldPoint, resume_target_);
   as_->jmp(x86::ptr(scratch_r, resume_target_offset));
