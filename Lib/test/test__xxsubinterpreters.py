@@ -46,21 +46,28 @@ def _run_output(interp, request, shared=None):
 
 @contextlib.contextmanager
 def _running(interp):
-    r, w = os.pipe()
+    r1, w1 = os.pipe()
+    r2, w2 = os.pipe()
     def run():
         interpreters.run_string(interp, dedent(f"""
-            # wait for "signal"
-            with open({r}) as rpipe:
-                rpipe.read()
+            # signal that we're started
+            with open({w1}, mode='wb', buffering=0) as wpipe:
+               wpipe.write(b'0')
+            # wait for "signal" to finish
+            with open({r2}, mode='rb', buffering=0) as rpipe:
+                rpipe.read(1)
             """))
 
     t = threading.Thread(target=run)
     t.start()
+    # Wait for t to start:
+    with open(r1, mode='rb', buffering=0) as rpipe:
+        rpipe.read(1)
 
     yield
 
-    with open(w, 'w') as spipe:
-        spipe.write('done')
+    with open(w2, mode='wb', buffering=0) as wpipe:
+        wpipe.write(b'1')
     t.join()
 
 
