@@ -741,8 +741,8 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteByteMultiply(
     block->allocateInstrBefore(
         instr_iter,
         Instruction::kMove,
-        OutPhyReg(PhyLocation::RAX),
-        PhyReg(input0->getPhyRegister()));
+        OutPhyReg(PhyLocation::RAX, OperandBase::k8bit),
+        PhyReg(in_reg, OperandBase::k8bit));
     input0->setPhyRegister(PhyLocation::RAX);
   }
   // asmjit only recognizes 8-bit imul if RAX is passed as 16-bit.
@@ -752,8 +752,8 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteByteMultiply(
     block->allocateInstrBefore(
         std::next(instr_iter),
         Instruction::kMove,
-        OutPhyReg(out_reg),
-        PhyReg(PhyLocation::RAX));
+        OutPhyReg(out_reg, OperandBase::k8bit),
+        PhyReg(PhyLocation::RAX, OperandBase::k8bit));
   }
   return kChanged;
 }
