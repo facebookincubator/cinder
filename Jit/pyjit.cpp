@@ -42,21 +42,27 @@ JitConfig jit_config;
 static _PyJITContext* jit_ctx;
 static JITList* g_jit_list{nullptr};
 static std::set<PyFunctionObject*> jit_reg_functions;
+static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
+    jit_time_functions;
 
 static double total_compliation_time = 0.0;
 
 struct CompilationTimer {
-  CompilationTimer() : start(std::chrono::steady_clock::now()) {}
+  explicit CompilationTimer(PyFunctionObject* f)
+      : start(std::chrono::steady_clock::now()), func(f) {}
 
   ~CompilationTimer() {
     auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> time_span =
         std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
 
-    total_compliation_time += time_span.count();
+    double time = time_span.count();
+    total_compliation_time += time;
+    jit_time_functions.emplace(func, time_span);
   }
 
   std::chrono::steady_clock::time_point start;
+  PyFunctionObject* func{nullptr};
 };
 
 static PyObject*
@@ -179,6 +185,19 @@ static PyObject* get_compiled_functions(PyObject* /* self */, PyObject*) {
 static PyObject* get_compilation_time(PyObject* /* self */, PyObject*) {
   PyObject* res =
       PyLong_FromLong(static_cast<long>(total_compliation_time * 1000));
+  return res;
+}
+
+static PyObject* get_function_compilation_time(
+    PyObject* /* self */,
+    PyObject* func) {
+  auto iter =
+      jit_time_functions.find(reinterpret_cast<PyFunctionObject*>(func));
+  if (iter == jit_time_functions.end()) {
+    Py_RETURN_NONE;
+  }
+
+  PyObject* res = PyLong_FromLong(iter->second.count() * 1000);
   return res;
 }
 
@@ -307,6 +326,11 @@ static PyMethodDef jit_methods[] = {
      get_compilation_time,
      METH_NOARGS,
      "Return the total time used for JIT compiling functions in milliseconds."},
+    {"get_function_compilation_time",
+     get_function_compilation_time,
+     METH_O,
+     "Return the time used for JIT compiling a given function in "
+     "milliseconds."},
     {"get_compiled_size",
      get_compiled_size,
      METH_O,
@@ -606,7 +630,7 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
     return PYJIT_RESULT_OK;
   }
 
-  CompilationTimer timer;
+  CompilationTimer timer(func);
   const int kMaxCompileDepth = 10;
   static std::vector<PyObject*> active_compiles;
   // Don't attempt the compilation if there are already too many active
