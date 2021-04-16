@@ -6256,6 +6256,15 @@ class TypeBinder(GenericVisitor):
                 self.check_can_assign_from(type_ctx.klass, var_type.klass, node)
         else:
             self.set_type(node, self.cur_mod.resolve_name(node.id) or DYNAMIC)
+
+        type = self.get_type(node)
+        if (
+            isinstance(type, UnionInstance)
+            and not type.klass.is_generic_type_definition
+        ):
+            effect = IsInstanceEffect(node.id, type, NONE_TYPE.instance, self)
+            return effect.not_()
+
         return NO_EFFECT
 
     def visitList(
