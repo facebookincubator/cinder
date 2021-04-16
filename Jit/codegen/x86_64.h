@@ -14,6 +14,7 @@ namespace codegen {
 // A physical location (register or stack slot). If this represents a stack
 // slot (is_memory() is true) then `loc` is relative to RBP.
 struct PhyLocation {
+  PhyLocation() : loc(REG_INVALID) {}
   constexpr PhyLocation(int l) : loc(l) {}
   constexpr operator int() const {
     return loc;

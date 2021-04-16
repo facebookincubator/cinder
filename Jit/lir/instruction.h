@@ -279,6 +279,14 @@ class Instruction {
     }
   }
 
+  template <typename Func>
+  void foreachInputOperand(const Func& f) {
+    for (size_t i = 0; i < this->getNumInputs(); i++) {
+      auto operand = getInput(i);
+      f(operand);
+    }
+  }
+
   // replace the input operand at index with operand.
   void replaceInputOperand(size_t index, std::unique_ptr<OperandBase> operand) {
     inputs_[index] = std::move(operand);
@@ -290,8 +298,21 @@ class Instruction {
     return opnd;
   }
 
-  void appendInputOperand(std::unique_ptr<OperandBase> operand) {
+  // Release the input operand at index from the instruction without
+  // deallocating it. The original index of inputs_ will be left with
+  // a null std::unique_ptr, which is supposed be removed from inputs_
+  // by an operation to follow.
+  std::unique_ptr<OperandBase> releaseInputOperand(size_t index) {
+    auto& operand = inputs_.at(index);
+    operand->releaseFromInstr();
+    return std::move(inputs_.at(index));
+  }
+
+  OperandBase* appendInputOperand(std::unique_ptr<OperandBase> operand) {
+    auto opnd = operand.get();
+    opnd->assignToInstr(this);
     inputs_.push_back(std::move(operand));
+    return opnd;
   }
 
   // get the operand associated to a given predecessor in a phi instruction

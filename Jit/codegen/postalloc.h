@@ -70,6 +70,10 @@ class PostRegAllocRewrite : public Rewrite {
   // rewrite 8-bit multiply to use single-operand imul
   static RewriteResult rewriteByteMultiply(instr_iter_t instr_iter);
 
+  // replace memory input with register when possible within a basic block
+  // and remove the unnecessary moves after the replacement
+  static RewriteResult optimizeMoveSequence(jit::lir::BasicBlock* basicblock);
+
   // insert a move from an operand to a memory location given by base + index.
   // this function handles cases where operand is a >32-bit immediate and
   // operand is a stack location.

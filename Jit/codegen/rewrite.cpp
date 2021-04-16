@@ -1,7 +1,6 @@
 #include "Jit/codegen/rewrite.h"
 #include "Jit/codegen/x86_64.h"
 
-#include "Jit/jit_rt.h"
 #include "Jit/lir/block.h"
 #include "Jit/lir/operand.h"
 #include "Jit/log.h"
@@ -11,8 +10,7 @@
 #include <unordered_set>
 
 using namespace jit::lir;
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 void Rewrite::run() {
   // collect all stages
@@ -92,5 +90,4 @@ Instruction* Rewrite::findRecentFlagAffectingInstr(instr_iter_t instr_iter) {
   return nullptr;
 }
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

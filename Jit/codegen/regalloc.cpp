@@ -169,6 +169,7 @@ void LinearScanAllocator::initialize() {
   vreg_interval_.clear();
   vreg_phy_uses_.clear();
   regalloc_blocks_.clear();
+  vreg_last_use_.clear();
 
   max_stack_slot_ = 0;
   free_stack_slots_.clear();
@@ -290,7 +291,16 @@ void LinearScanAllocator::calculateLiveIntervals() {
 
       auto register_input = [&](const OperandBase* operand, bool reguse) {
         auto def = operand->getDefine();
-        getIntervalByVReg(def).addRange({bb_start_id, instr_id + 1});
+
+        auto pair = vreg_interval_.emplace(def, def);
+        pair.first->second.addRange({bb_start_id, instr_id + 1});
+
+        // if the def is not live before, record the last use
+        if (!live.count(def) && operand->isLinked()) {
+          vreg_last_use_[def].emplace(
+              static_cast<const LinkedOperand*>(operand), instr_id);
+        }
+
         live.insert(def);
         if (reguse) {
           vreg_phy_uses_[def].emplace(instr_id);
@@ -370,7 +380,23 @@ void LinearScanAllocator::calculateLiveIntervals() {
     if (loop_iter != loop_ends.end()) {
       for (auto& loop_end_id : loop_iter->second) {
         for (auto& opnd : live) {
-          getIntervalByVReg(opnd).addRange({bb_start_id, loop_end_id});
+          LiveRange loop_range(bb_start_id, loop_end_id);
+          getIntervalByVReg(opnd).addRange(loop_range);
+          // if the last use is in a loop, it is not a real last use
+          auto opnd_iter = vreg_last_use_.find(opnd);
+          if (opnd_iter == vreg_last_use_.end()) {
+            continue;
+          }
+          auto& uses = opnd_iter->second;
+          for (auto use_iter = uses.begin(); use_iter != uses.end();) {
+            LIRLocation use_loc = use_iter->second;
+            if (loop_range.isInRange(use_loc)) {
+              use_iter = uses.erase(use_iter);
+              continue;
+            }
+
+            ++use_iter;
+          }
         }
       }
     }
@@ -816,6 +842,13 @@ void LinearScanAllocator::rewriteLIR() {
     }
   };
 
+  std::unordered_set<const lir::LinkedOperand*> last_use_vregs;
+  for (auto& use_pair : vreg_last_use_) {
+    for (auto& pair : use_pair.second) {
+      last_use_vregs.emplace(pair.first);
+    }
+  }
+
   // mapping before the first basic block
   while (allocated_iter != allocated_.end() &&
          (*allocated_iter)->startLocation() <= START_LOCATION) {
@@ -860,7 +893,7 @@ void LinearScanAllocator::rewriteLIR() {
       rewriteLIREmitCopies(bb, instr_iter, std::move(copies));
 
       auto instr = instr_iter->get();
-      rewriteInstrOutput(instr, mapping);
+      rewriteInstrOutput(instr, mapping, &last_use_vregs);
 
       auto instr_opcode = instr->opcode();
       if (instr_opcode == Instruction::kNop) {
@@ -870,7 +903,7 @@ void LinearScanAllocator::rewriteLIR() {
 
       // phi node inputs have to be handled by its predecessor
       if (instr_opcode != Instruction::kPhi) {
-        rewriteInstrInputs(instr, mapping);
+        rewriteInstrInputs(instr, mapping, &last_use_vregs);
       }
       ++instr_iter;
     }
@@ -880,7 +913,7 @@ void LinearScanAllocator::rewriteLIR() {
       succ->foreachPhiInstr([this, &bb, &mapping](Instruction* phi) {
         auto index = phi->getOperandIndexByPredecessor(bb);
         JIT_DCHECK(index != -1, "missing predecessor in phi instruction.");
-        rewriteInstrOneInput(phi, index, mapping);
+        rewriteInstrOneInput(phi, index, mapping, nullptr);
       });
     }
 
@@ -892,10 +925,16 @@ void LinearScanAllocator::rewriteLIR() {
 
 void LinearScanAllocator::rewriteInstrOutput(
     Instruction* instr,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping) {
+    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
+    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
+  if (instr->opcode() == Instruction::kBind) {
+    return;
+  }
+
   auto output = instr->output();
   if (output->isInd()) {
-    rewriteInstrOneIndirectOperand(output->getMemoryIndirect(), mapping);
+    rewriteInstrOneIndirectOperand(
+        output->getMemoryIndirect(), mapping, last_use_vregs);
     return;
   }
 
@@ -927,20 +966,23 @@ void LinearScanAllocator::rewriteInstrOutput(
 
 void LinearScanAllocator::rewriteInstrInputs(
     Instruction* instr,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping) {
+    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
+    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
   for (size_t i = 0; i < instr->getNumInputs(); i++) {
-    rewriteInstrOneInput(instr, i, mapping);
+    rewriteInstrOneInput(instr, i, mapping, last_use_vregs);
   }
 }
 
 void LinearScanAllocator::rewriteInstrOneInput(
     Instruction* instr,
     size_t i,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping) {
+    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
+    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
   auto input = instr->getInput(i);
 
   if (input->isInd()) {
-    rewriteInstrOneIndirectOperand(input->getMemoryIndirect(), mapping);
+    rewriteInstrOneIndirectOperand(
+        input->getMemoryIndirect(), mapping, last_use_vregs);
     return;
   }
 
@@ -953,30 +995,50 @@ void LinearScanAllocator::rewriteInstrOneInput(
   new_input->setDataType(input->dataType());
   new_input->setPhyRegOrStackSlot(phyreg);
 
+  if (last_use_vregs != nullptr &&
+      last_use_vregs->count(static_cast<LinkedOperand*>(input))) {
+    new_input->setLastUse();
+  }
+
   instr->replaceInputOperand(i, std::move(new_input));
 }
 
 void LinearScanAllocator::rewriteInstrOneIndirectOperand(
     MemoryIndirect* indirect,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping) {
+    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
+    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
   auto base = indirect->getBaseRegOperand();
   PhyLocation base_phy_reg = (base->isLinked() || base->isVreg())
       ? map_get(mapping, base->getDefine())->allocated_loc
       : PhyLocation(base->getPhyRegister());
 
+  bool base_last_use = last_use_vregs != nullptr && base->isLinked() &&
+      last_use_vregs->count(static_cast<LinkedOperand*>(base));
+
   auto index = indirect->getIndexRegOperand();
   PhyLocation index_phy_reg = PhyLocation::REG_INVALID;
+  bool index_last_use = false;
   if (index != nullptr) {
     index_phy_reg = index->isVreg()
         ? map_get(mapping, index->getDefine())->allocated_loc
         : PhyLocation(index->getPhyRegister());
-  }
 
+    index_last_use = last_use_vregs != nullptr && base->isLinked() &&
+        last_use_vregs->count(static_cast<LinkedOperand*>(base));
+  }
   indirect->setMemoryIndirect(
       base_phy_reg,
       index_phy_reg,
       indirect->getMultipiler(),
       indirect->getOffset());
+
+  if (base_last_use) {
+    indirect->getBaseRegOperand()->setLastUse();
+  }
+
+  if (index_last_use) {
+    indirect->getIndexRegOperand()->setLastUse();
+  }
 }
 
 void LinearScanAllocator::rewriteLIRUpdateMapping(

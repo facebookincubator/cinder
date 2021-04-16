@@ -4,7 +4,6 @@
 #include "Jit/codegen/rewrite.h"
 
 namespace jit::codegen {
-
 // Rewrites after LIR generation
 class PostGenerationRewrite : public Rewrite {
  public:

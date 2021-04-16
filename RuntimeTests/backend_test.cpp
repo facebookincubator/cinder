@@ -1,4 +1,6 @@
+#include "Jit/codegen/environ.h"
 #include "Jit/codegen/gen_asm.h"
+#include "Jit/codegen/x86_64.h"
 #include "Jit/lir/instruction.h"
 #include "gtest/gtest.h"
 
@@ -312,6 +314,54 @@ TEST_F(BackendTest, ManyArguments) {
   double result = func();
 
   ASSERT_DOUBLE_EQ(result, expected);
+}
+
+TEST_F(BackendTest, MoveSequenceOptTest) {
+  auto lirfunc = std::make_unique<Function>();
+  auto bb = lirfunc->allocateBasicBlock();
+
+  bb->allocateInstr(
+      Instruction::kMove, nullptr, OutStk(-16), PhyReg(PhyLocation::RAX));
+  bb->allocateInstr(
+      Instruction::kMove, nullptr, OutStk(-24), PhyReg(PhyLocation::RSI));
+  bb->allocateInstr(
+      lir::Instruction::kMove, nullptr, OutStk(-32), PhyReg(PhyLocation::RCX));
+
+  auto call = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      Imm(0),
+      lir::Stk(-16),
+      lir::Stk(-24),
+      lir::Stk(-32));
+  call->getInput(3)->setLastUse();
+
+  Environ env;
+  PostRegAllocRewrite post_rewrite(lirfunc.get(), &env);
+  post_rewrite.run();
+
+  lirfunc->print();
+
+  /*
+  BB %0
+  [RBP - 16]:Object = Move RAX:Object
+  [RBP - 24]:Object = Move RSI:Object
+        RDI:Object = Move RAX:Object
+        RDX:Object = Move RCX:Object
+                     Xor RAX:Object, RAX:Object
+                     Call RAX:Object
+  */
+  ASSERT_EQ(bb->getNumInstrs(), 6);
+  auto& instrs = bb->instructions();
+
+  auto iter = instrs.begin();
+
+  ASSERT_EQ((*(iter++))->opcode(), Instruction::kMove);
+  ASSERT_EQ((*(iter++))->opcode(), Instruction::kMove);
+  ASSERT_EQ((*(iter++))->opcode(), Instruction::kMove);
+  ASSERT_EQ((*(iter++))->opcode(), Instruction::kMove);
+  ASSERT_EQ((*(iter++))->opcode(), Instruction::kXor);
+  ASSERT_EQ((*(iter++))->opcode(), Instruction::kCall);
 }
 
 } // namespace jit::codegen

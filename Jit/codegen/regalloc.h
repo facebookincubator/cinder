@@ -5,6 +5,7 @@
 #include "Jit/codegen/copy_graph.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/lir/lir.h"
+#include "Jit/lir/operand.h"
 #include "Jit/log.h"
 #include "Jit/util.h"
 
@@ -91,6 +92,11 @@ struct LiveInterval {
   PhyLocation allocated_loc{PhyLocation::REG_INVALID};
   bool fixed{false}; // whether the allocated_loc is fixed.
 
+  void addRange(const LiveRange& range) {
+    LiveRange r = range;
+    addRange(std::move(r));
+  }
+
   void addRange(LiveRange&& range);
   void setFrom(LIRLocation loc);
   LIRLocation startLocation() const {
@@ -170,6 +176,14 @@ class LinearScanAllocator {
   std::unordered_map<const lir::Operand*, std::set<LIRLocation>> vreg_phy_uses_;
   std::unordered_map<const lir::BasicBlock*, RegallocBlockState>
       regalloc_blocks_;
+  // collect the last uses for all the vregs
+  // key: def operand
+  // value: a map with key: the use operand
+  //                   value: use location
+  std::unordered_map<
+      const lir::Operand*,
+      std::unordered_map<const lir::LinkedOperand*, LIRLocation>>
+      vreg_last_use_;
 
   // stack slot number always starts from -8, and it's up to the code generator
   // to translate stack slot number into the form of (RBP - offset).
@@ -251,20 +265,24 @@ class LinearScanAllocator {
   void rewriteInstrOutput(
       lir::Instruction* instr,
       const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping);
+          mapping,
+      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
   void rewriteInstrInputs(
       lir::Instruction* instr,
       const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping);
+          mapping,
+      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
   void rewriteInstrOneInput(
       lir::Instruction* instr,
       size_t i,
       const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping);
+          mapping,
+      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
   void rewriteInstrOneIndirectOperand(
       lir::MemoryIndirect* indirect,
       const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping);
+          mapping,
+      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
 
   using CopyGraphWithOperand =
       CopyGraphWithType<const lir::OperandBase::DataType>;

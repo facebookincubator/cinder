@@ -1,10 +1,5 @@
 #include "Jit/codegen/postalloc.h"
-#include "Jit/codegen/environ.h"
-#include "Jit/codegen/regalloc.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/lir/operand.h"
-#include "Jit/util.h"
+#include <optional>
 
 using namespace jit::lir;
 
@@ -19,7 +14,9 @@ void PostRegAllocRewrite::registerRewrites() {
   registerOneRewriteFunction(rewriteBinaryOpInstrs);
   registerOneRewriteFunction(removePhiInstructions);
   registerOneRewriteFunction(rewriteByteMultiply);
-  registerOneRewriteFunction(optimizeMoveInstrs);
+
+  registerOneRewriteFunction(optimizeMoveSequence, 1);
+  registerOneRewriteFunction(optimizeMoveInstrs, 1);
 }
 
 Rewrite::RewriteResult PostRegAllocRewrite::removePhiInstructions(
@@ -149,8 +146,7 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
         if (operand_imm) {
           move->allocatePhyRegisterInput(PhyLocation::RAX);
         } else {
-          move->allocatePhyRegOrStackInput(operand->getPhyRegOrStackSlot())
-              ->setDataType(OperandBase::kDouble);
+          move->appendInputOperand(instr->releaseInputOperand(i));
         }
       } else {
         insertMoveToMemoryLocation(
@@ -163,12 +159,7 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
     if (arg_reg < num_arg_regs) {
       auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove);
       move->output()->setPhyRegister(ARGUMENT_REGS[arg_reg++]);
-      if (operand_imm) {
-        move->allocateImmediateInput(
-            operand->getConstant(), operand->dataType());
-      } else {
-        move->allocatePhyRegOrStackInput(operand->getPhyRegOrStackSlot());
-      }
+      move->appendInputOperand(instr->releaseInputOperand(i));
     } else {
       insertMoveToMemoryLocation(
           block, instr_iter, PhyLocation::RSP, stack_arg_size, operand);
@@ -215,14 +206,9 @@ int PostRegAllocRewrite::rewriteVectorCallFunctions(instr_iter_t instr_iter) {
       Imm(num_args | flag | PY_VECTORCALL_ARGUMENTS_OFFSET));
 
   // first argument - set rdi
-  auto self = instr->getInput(2);
   auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove);
   move->output()->setPhyRegister(PhyLocation::RDI);
-  if (self->type() == OperandBase::kImm) {
-    move->allocateImmediateInput(self->getConstant());
-  } else {
-    move->allocatePhyRegOrStackInput(self->getPhyRegOrStackSlot());
-  }
+  move->appendInputOperand(instr->releaseInputOperand(2)); // self
 
   constexpr PhyLocation TMP_REG = PhyLocation::RAX;
   for (size_t i = kFirstArg; i < kFirstArg + num_args; i++) {
@@ -233,7 +219,7 @@ int PostRegAllocRewrite::rewriteVectorCallFunctions(instr_iter_t instr_iter) {
   }
 
   // check if kwnames is provided
-  auto last_input = instr->getInput(instr->getNumInputs() - 1);
+  auto last_input = instr->releaseInputOperand(instr->getNumInputs() - 1);
   if (last_input->isImm()) {
     JIT_DCHECK(last_input->getConstant() == 0, "kwnames must be 0 or variable");
     block->allocateInstrBefore(
@@ -242,11 +228,9 @@ int PostRegAllocRewrite::rewriteVectorCallFunctions(instr_iter_t instr_iter) {
         PhyReg(PhyLocation::RCX),
         PhyReg(PhyLocation::RCX));
   } else {
-    block->allocateInstrBefore(
-        instr_iter,
-        Instruction::kMove,
-        OutPhyReg(PhyLocation::RCX),
-        PhyRegStack(last_input->getPhyRegOrStackSlot()));
+    auto move = block->allocateInstrBefore(
+        instr_iter, Instruction::kMove, OutPhyReg(PhyLocation::RCX));
+    move->appendInputOperand(std::move(last_input));
 
     // Subtract the length of kwnames (always a tuple) from nargsf (rdx)
     size_t ob_size_offs = GET_STRUCT_MEMBER_OFFSET(PyVarObject, ob_size);
@@ -279,16 +263,11 @@ int PostRegAllocRewrite::rewriteGetMethodFunctionWorker(
       "Number of inputs is greater than available ARGUMENT_REGS");
 
   for (size_t i = CALL_OPERAND_ARG_START; i < num_inputs; i++) {
-    auto arg = instr->getInput(i);
     auto reg = ARGUMENT_REGS[i - 1];
 
     auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove);
     move->output()->setPhyRegister(reg);
-    if (arg->type() == OperandBase::kImm) {
-      move->allocateImmediateInput(arg->getConstant(), arg->dataType());
-    } else {
-      move->allocatePhyRegOrStackInput(arg->getPhyRegOrStackSlot());
-    }
+    move->appendInputOperand(instr->releaseInputOperand(i));
   }
 
   block->allocateInstrBefore(
@@ -790,6 +769,147 @@ void PostRegAllocRewrite::insertMoveToMemoryLocation(
 
   block->allocateInstrBefore(
       instr_iter, Instruction::kMove, OutInd(base, index), PhyReg(loc));
+}
+
+// record register-to-memory moves and map between them.
+class RegisterToMemoryMoves {
+ public:
+  void addRegisterToMemoryMove(
+      PhyLocation from,
+      PhyLocation to,
+      Rewrite::instr_iter_t instr_iter) {
+    JIT_DCHECK(
+        from.is_register() && to.is_memory(),
+        "Must be a move from register to memory");
+    invalidateMemory(to);
+    invalidateRegister(from);
+
+    reg_to_mem_[from] = to;
+    mem_to_reg_[to] = {from, instr_iter};
+  }
+
+  void invalidate(PhyLocation loc) {
+    if (loc.is_register()) {
+      invalidateRegister(loc);
+    } else {
+      invalidateMemory(loc);
+    }
+  }
+
+  PhyLocation getRegisterFromMemory(PhyLocation mem) {
+    auto iter = mem_to_reg_.find(mem);
+    if (iter != mem_to_reg_.end()) {
+      return iter->second.first;
+    }
+
+    return PhyLocation::REG_INVALID;
+  }
+
+  std::optional<Rewrite::instr_iter_t> getInstrFromMemory(PhyLocation mem) {
+    auto iter = mem_to_reg_.find(mem);
+    if (iter == mem_to_reg_.end()) {
+      return std::nullopt;
+    }
+
+    return iter->second.second;
+  }
+
+  void clear() {
+    reg_to_mem_.clear();
+    mem_to_reg_.clear();
+  }
+
+  bool isEmpty() {
+    return reg_to_mem_.empty();
+  }
+
+ private:
+  std::unordered_map<PhyLocation, PhyLocation> reg_to_mem_;
+  std::unordered_map<PhyLocation, std::pair<PhyLocation, Rewrite::instr_iter_t>>
+      mem_to_reg_;
+
+  void invalidateRegister(PhyLocation reg) {
+    auto iter = reg_to_mem_.find(reg);
+    if (iter != reg_to_mem_.end()) {
+      mem_to_reg_.erase(iter->second);
+      reg_to_mem_.erase(iter);
+    }
+  }
+  void invalidateMemory(PhyLocation mem) {
+    auto iter = mem_to_reg_.find(mem);
+    if (iter != mem_to_reg_.end()) {
+      reg_to_mem_.erase(iter->second.first);
+      mem_to_reg_.erase(iter);
+    }
+  }
+};
+
+Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveSequence(
+    BasicBlock* basicblock) {
+  auto changed = kUnchanged;
+  RegisterToMemoryMoves registerMemoryMoves;
+
+  for (auto instr_iter = basicblock->instructions().begin();
+       instr_iter != basicblock->instructions().end();
+       ++instr_iter) {
+    auto& instr = *instr_iter;
+    // TODO: do not optimize for yield for now. They need to be special cased.
+    if (!instr->isAnyYield()) {
+      instr->foreachInputOperand([&](OperandBase* operand) {
+        if (!operand->isStack()) {
+          return;
+        }
+
+        PhyLocation stack_slot = operand->getStackSlot();
+        auto reg = registerMemoryMoves.getRegisterFromMemory(stack_slot);
+        if (reg == PhyLocation::REG_INVALID) {
+          return;
+        }
+
+        auto opnd = static_cast<Operand*>(operand);
+        opnd->setPhyRegister(reg);
+        changed = kChanged;
+
+        // if the stack location operand can be replaced by the register it came
+        // from and this is the last use of the operand, we can remove the move
+        // instruction moving from the register to the stack location.
+        if (opnd->isLastUse()) {
+          auto opt_iter = registerMemoryMoves.getInstrFromMemory(stack_slot);
+          JIT_CHECK(opt_iter.has_value(), "There must be a def instruction.");
+          basicblock->instructions().erase(*opt_iter);
+        }
+      });
+    }
+
+    auto invalidateOperand = [&](const OperandBase* opnd) {
+      if (opnd->isStack() || opnd->isReg()) {
+        registerMemoryMoves.invalidate(opnd->getPhyRegOrStackSlot());
+      }
+    };
+
+    if (instr->isMove() || instr->isPush() || instr->isPop()) {
+      if (instr->isMove()) {
+        Operand* out = instr->output();
+        OperandBase* in = instr->getInput(0);
+        if (out->isStack() && in->isReg()) {
+          registerMemoryMoves.addRegisterToMemoryMove(
+              in->getPhyRegister(), out->getStackSlot(), instr_iter);
+        } else {
+          invalidateOperand(out);
+        }
+      } else if (instr->isPop()) {
+        auto opnd = instr->output();
+        invalidateOperand(opnd);
+      }
+    } else {
+      // TODO: for now, we always clear the cache when we hit an instruction
+      // other than MOVE, PUSH, and POP, since our main goal is to optimize the
+      // operand copies before a function call. Consider a more fine-grained
+      // control of what to invalidate for better results.
+      registerMemoryMoves.clear();
+    }
+  }
+  return changed;
 }
 
 } // namespace jit::codegen

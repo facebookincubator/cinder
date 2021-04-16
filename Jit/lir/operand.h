@@ -34,6 +34,8 @@ class MemoryIndirect;
 class OperandBase {
  public:
   explicit OperandBase(Instruction* parent) : parent_instr_(parent) {}
+  OperandBase(const OperandBase& ob)
+      : parent_instr_(ob.parent_instr_), last_use_(ob.last_use_) {}
   virtual ~OperandBase() {}
 
   /* operand types:
@@ -134,13 +136,28 @@ class OperandBase {
   const Instruction* instr() const {
     return parent_instr_;
   }
+  void releaseFromInstr() {
+    parent_instr_ = nullptr;
+  }
+  void assignToInstr(Instruction* instr) {
+    parent_instr_ = instr;
+  }
 
   bool isFp() const {
     return dataType() == kDouble;
   }
 
+  bool isLastUse() const {
+    return last_use_;
+  }
+
+  void setLastUse() {
+    last_use_ = true;
+  }
+
  private:
   Instruction* parent_instr_;
+  bool last_use_{false};
 };
 
 // memory reference: [base_reg + index_reg * (2^index_multiplier) + offset]

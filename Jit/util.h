@@ -101,7 +101,7 @@ auto& map_get(M& map, const K& key) {
 // Look up an item in the given map. If the key doesn't exist, return the
 // default value.
 template <typename M>
-const typename M::mapped_type& map_get(
+const typename M::mapped_type map_get(
     M& map,
     const typename M::key_type& key,
     const typename M::mapped_type& def) {
