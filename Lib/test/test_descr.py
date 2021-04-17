@@ -1269,6 +1269,8 @@ order (MRO) for bases """
                 def __eq__(self, other):
                     return False
             g = G()
+            # Warm up any relevant caches:
+            g==g
             orig_objects = len(gc.get_objects())
             for i in range(10):
                 g==g

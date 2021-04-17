@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <chrono>
 #include <memory>
-#include <set>
+#include <unordered_set>
 
 #include "Jit/hir/builder.h"
 #include "Jit/jit_context.h"
@@ -31,7 +31,6 @@ struct JitConfig {
   InitState init_state{JIT_NOT_INITIALIZED};
 
   int is_enabled{0};
-  int compile_nested_funcs{0};
   FrameMode frame_mode{PY_FRAME};
   int are_type_slots_enabled{0};
   int allow_jit_list_wildcards{0};
@@ -41,7 +40,7 @@ JitConfig jit_config;
 
 static _PyJITContext* jit_ctx;
 static JITList* g_jit_list{nullptr};
-static std::set<PyFunctionObject*> jit_reg_functions;
+static std::unordered_set<PyFunctionObject*> jit_reg_functions;
 static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
     jit_time_functions;
 
@@ -79,8 +78,8 @@ disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
 
   if (nargs == 0 || args[0] == Py_True) {
     // compile all of the pending functions before shutting down
-    std::set<PyFunctionObject*> func_copy(jit_reg_functions);
-    for (auto func : func_copy) {
+    std::unordered_set<PyFunctionObject*> func_copy = jit_reg_functions;
+    for (PyFunctionObject* func : func_copy) {
       _PyJIT_CompileFunction(func);
     }
   }
@@ -179,7 +178,7 @@ static PyObject* get_jit_list(PyObject* /* self */, PyObject*) {
 }
 
 static PyObject* get_compiled_functions(PyObject* /* self */, PyObject*) {
-  return _PyJITContext_GetCompiledFunctions();
+  return _PyJITContext_GetCompiledFunctions(jit_ctx);
 }
 
 static PyObject* get_compilation_time(PyObject* /* self */, PyObject*) {
@@ -242,21 +241,6 @@ static PyObject* jit_frame_mode(PyObject* /* self */, PyObject*) {
   }
 
   return PyLong_FromLong(i);
-}
-
-static PyObject* set_compile_nested(PyObject* /* self */, PyObject* flag) {
-  int res = PyObject_IsTrue(flag);
-  PyObject* retval = NULL;
-  if (res >= 0) {
-    retval = jit_config.compile_nested_funcs ? Py_True : Py_False;
-    jit_config.compile_nested_funcs = res;
-    Py_INCREF(retval);
-  } else {
-    PyErr_SetString(
-        PyExc_RuntimeError,
-        "could not evaluate truthiness of arg to set_compile_nested");
-  }
-  return retval;
 }
 
 static PyObject* get_supported_opcodes(PyObject* /* self */, PyObject*) {
@@ -344,11 +328,6 @@ static PyMethodDef jit_methods[] = {
      METH_O,
      "Return stack size in bytes used for register spills for a JIT-compiled "
      "function."},
-    {"set_compile_nested",
-     set_compile_nested,
-     METH_O,
-     "Set whether nested functions should be compiled. Returns previous "
-     "value."},
     {"jit_force_normal_frame",
      jit_force_normal_frame,
      METH_O,
@@ -534,13 +513,7 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  auto compiler = new jit::Compiler();
-  if (compiler == NULL) {
-    JIT_LOG("failed creating compiler");
-    return -1;
-  }
-
-  jit_ctx = _PyJITContext_New(compiler);
+  jit_ctx = _PyJITContext_New(std::make_unique<jit::Compiler>());
   if (jit_ctx == NULL) {
     JIT_LOG("failed creating global jit context");
     return -1;
@@ -629,6 +602,9 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
   if (_PyJIT_IsCompiled(reinterpret_cast<PyObject*>(func))) {
     return PYJIT_RESULT_OK;
   }
+  if (!_PyJIT_OnJitList(func)) {
+    return PYJIT_RESULT_CANNOT_SPECIALIZE;
+  }
 
   CompilationTimer timer(func);
   const int kMaxCompileDepth = 10;
@@ -664,6 +640,10 @@ void _PyJIT_UnregisterFunction(PyFunctionObject* func) {
 }
 
 int _PyJIT_Finalize() {
+  // Always release references from Runtime objects: C++ clients may have
+  // invoked the JIT directly without initializing a full _PyJITContext.
+  jit::codegen::NativeGenerator::runtime()->releaseReferences();
+
   if (jit_config.init_state != JIT_INITIALIZED) {
     return 0;
   }
@@ -672,8 +652,6 @@ int _PyJIT_Finalize() {
   g_jit_list = nullptr;
 
   jit_config.init_state = JIT_FINALIZED;
-
-  _PyJITContext_Finalize();
 
   JIT_CHECK(jit_ctx != NULL, "jit_ctx not initialized");
   Py_CLEAR(jit_ctx);
@@ -687,10 +665,6 @@ int _PyJIT_TinyFrame() {
 
 int _PyJIT_NoFrame() {
   return jit_config.frame_mode == NO_FRAME;
-}
-
-int _PyJIT_CompileNested() {
-  return jit_config.compile_nested_funcs;
 }
 
 PyObject* _PyJIT_GenSend(

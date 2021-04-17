@@ -20,8 +20,9 @@ int register_raw_debug_symbol(
     size_t code_size,
     size_t stack_size);
 
-int register_pyfunction_debug_symbol(
-    PyFunctionObject* original_func,
+int register_pycode_debug_symbol(
+    PyCodeObject* codeobj,
+    const char* fullname,
     jit::CompiledFunction* compiled_func);
 
 #endif // Py_JIT_GDB_SUPPORT_H

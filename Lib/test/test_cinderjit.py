@@ -5,6 +5,7 @@ import dis
 import gc
 import sys
 import threading
+import types
 import unittest
 import warnings
 import weakref
@@ -25,6 +26,20 @@ except:
     cinderjit = None
 
 
+# Decorator to return a new version of the function with an alternate globals
+# dict.
+def with_globals(gbls):
+    def decorator(func):
+        new_func = type(func)(
+            func.__code__, gbls, func.__name__, func.__defaults__, func.__closure__
+        )
+        new_func.__module__ = func.__module__
+        new_func.__kwdefaults__ = func.__kwdefaults__
+        return new_func
+
+    return decorator
+
+
 @unittest.failUnlessJITCompiled
 def get_meaning_of_life(obj):
     return obj.meaning_of_life()
@@ -32,24 +47,6 @@ def get_meaning_of_life(obj):
 
 def nothing():
     return 0
-
-
-if cinderjit is None:
-
-    @contextmanager
-    def compile_nested(flag):
-        yield
-
-
-else:
-
-    @contextmanager
-    def compile_nested(flag):
-        orig = cinderjit.set_compile_nested(flag)
-        try:
-            yield
-        finally:
-            cinderjit.set_compile_nested(orig)
 
 
 def _simpleFunc(a, b):
@@ -386,8 +383,6 @@ class LoadMethodCacheTests(unittest.TestCase):
 
         for i in range(100):
             list(f(obj, False))
-        if cinderjit is not None:
-            self.assertFalse(cinderjit.is_jit_compiled(f))
         list(f(obj, True))
 
         self.assertEqual(get_meaning_of_life(obj), 0)
@@ -404,8 +399,6 @@ class LoadMethodCacheTests(unittest.TestCase):
 
         for i in range(100):
             list(f(obj, False))
-        if cinderjit is not None:
-            self.assertFalse(cinderjit.is_jit_compiled(f))
         list(f(obj, True))
 
         self.assertEqual(get_meaning_of_life(obj), 0)
@@ -695,12 +688,6 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 return "who's there?"
             return super().__getitem__(key)
 
-    def with_globals(gbls):
-        def decorator(func):
-            return type(func)(func.__code__, gbls)
-
-        return decorator
-
     @with_globals(MyGlobals())
     def return_knock_knock(self):
         return knock_knock
@@ -778,7 +765,6 @@ class ClosureTests(unittest.TestCase):
             str(ctx.exception), "local variable 'a' referenced before assignment"
         )
 
-    @compile_nested(True)
     def test_freevars(self):
         x = 1
 
@@ -790,7 +776,6 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(nested(), 2)
 
-    @compile_nested(True)
     def test_freevars_multiple_closures(self):
         def get_func(a):
             @unittest.failUnlessJITCompiled
@@ -804,6 +789,63 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(f1(), 1)
         self.assertEqual(f2(), 2)
+
+    def test_nested_func(self):
+        @unittest.failUnlessJITCompiled
+        def add(a, b):
+            return a + b
+
+        self.assertEqual(add(1, 2), 3)
+        self.assertEqual(add("eh", "bee"), "ehbee")
+
+    @staticmethod
+    def make_adder(a):
+        @unittest.failUnlessJITCompiled
+        def add(b):
+            return a + b
+
+        return add
+
+    def test_nested_func_with_closure(self):
+        add_3 = self.make_adder(3)
+        add_7 = self.make_adder(7)
+
+        self.assertEqual(add_3(10), 13)
+        self.assertEqual(add_7(12), 19)
+        self.assertEqual(add_3(add_7(-100)), -90)
+        with self.assertRaises(TypeError):
+            add_3("ok")
+
+    def test_nested_func_with_different_globals(self):
+        @unittest.failUnlessJITCompiled
+        @with_globals({"A_GLOBAL_CONSTANT": 0xDEADBEEF})
+        def return_global():
+            return A_GLOBAL_CONSTANT
+
+        self.assertEqual(return_global(), 0xDEADBEEF)
+
+        return_other_global = with_globals({"A_GLOBAL_CONSTANT": 0xFACEB00C})(
+            return_global
+        )
+        self.assertEqual(return_other_global(), 0xFACEB00C)
+
+        self.assertEqual(return_global(), 0xDEADBEEF)
+        self.assertEqual(return_other_global(), 0xFACEB00C)
+
+    def test_nested_func_outlives_parent(self):
+        @unittest.failUnlessJITCompiled
+        def nested(x):
+            @unittest.failUnlessJITCompiled
+            def inner(y):
+                return x + y
+
+            return inner
+
+        nested_ref = weakref.ref(nested)
+        add_5 = nested(5)
+        nested = None
+        self.assertIsNone(nested_ref())
+        self.assertEqual(add_5(10), 15)
 
 
 class TempNameTests(unittest.TestCase):
@@ -1435,6 +1477,24 @@ class GeneratorsTest(unittest.TestCase):
     async def small_coro(self):
         return 1
 
+    def test_generator_globals(self):
+        val1 = "a value"
+        val2 = "another value"
+        gbls = {"A_GLOBAL": val1}
+
+        @with_globals(gbls)
+        def gen():
+            yield A_GLOBAL
+            yield A_GLOBAL
+
+        g = gen()
+        self.assertIs(g.__next__(), val1)
+        gbls["A_GLOBAL"] = val2
+        del gbls
+        self.assertIs(g.__next__(), val2)
+        with self.assertRaises(StopIteration):
+            g.__next__()
+
 
 class CoroutinesTest(unittest.TestCase):
     @unittest.failUnlessJITCompiled
@@ -1804,6 +1864,7 @@ class AsyncGeneratorsTest(unittest.TestCase):
         else:
             self.fail("Expected ValueError to be raised")
 
+
 class Err1(Exception):
     pass
 
@@ -2170,6 +2231,7 @@ class UnpackSequenceTests(unittest.TestCase):
         self.assertEqual(self._unpack_ex_arg(seq, "c"), [3, 4, 5])
         self.assertEqual(self._unpack_ex_arg(seq, "d"), 6)
 
+
 class DeleteSubscrTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def _delit(self, container, key):
@@ -2383,6 +2445,7 @@ class SuperAccessTest(unittest.TestCase):
     def test_super_attr(self):
         self.assertEqual(ClassB().x, 42)
         self.assertEqual(ClassB().x_2arg, 42)
+
 
 class RegressionTests(StaticTestBase):
     # Detects an issue in the backend where the Store instruction generated 32-

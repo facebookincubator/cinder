@@ -314,8 +314,7 @@ func_set_closure(PyFunctionObject *op,
     }
 
     Py_INCREF(value);
-    Py_XDECREF(op->func_closure);
-    op->func_closure = value;
+    Py_XSETREF(op->func_closure, value);
     Switchboard_Notify(g_switchboard, (PyObject *)op);
     return 0;
 }
@@ -450,6 +449,7 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
 
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
+    Switchboard_Notify(g_switchboard, (PyObject *)op);
     PyEntry_init(op); // reset entry point
     return 0;
 }

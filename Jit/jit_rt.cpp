@@ -1330,7 +1330,7 @@ static inline PyObject* make_gen_object(
     Py_INCREF(f);
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(
-          _PyCoro_NewTstate(tstate, f, code->co_name, NULL));
+          _PyCoro_NewTstate(tstate, f, code->co_name, code->co_qualname));
 
       JIT_MaterializeTopFrame(tstate);
 
@@ -1345,10 +1345,10 @@ static inline PyObject* make_gen_object(
       }
     } else if (mode == MakeGenObjectMode::kAsyncGenerator) {
       gen = reinterpret_cast<PyGenObject*>(
-          PyAsyncGen_New(f, code->co_name, NULL));
+          PyAsyncGen_New(f, code->co_name, code->co_qualname));
     } else {
       gen = reinterpret_cast<PyGenObject*>(
-          PyGen_NewWithQualName(f, code->co_name, NULL));
+          PyGen_NewWithQualName(f, code->co_name, code->co_qualname));
     }
   }
   if (gen == NULL) {

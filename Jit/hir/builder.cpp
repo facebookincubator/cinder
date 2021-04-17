@@ -3135,17 +3135,21 @@ void HIRBuilder::emitGetANext(TranslationContext& tc) {
 Register* HIRBuilder::emitSetupWithCommon(
     TranslationContext& tc,
     _Py_Identifier* enter_id,
-    _Py_Identifier* exit_id) {
+    _Py_Identifier* exit_id,
+    bool swap_lookup) {
   // Load the enter and exit attributes from the manager, push exit, and return
   // the result of calling enter().
   auto& stack = tc.frame.stack;
   Register* manager = stack.pop();
-
   Register* enter = temps_.Allocate();
-  tc.emit<LoadAttrSpecial>(enter, manager, enter_id, tc.frame);
-
   Register* exit = temps_.Allocate();
-  tc.emit<LoadAttrSpecial>(exit, manager, exit_id, tc.frame);
+  if (swap_lookup) {
+    tc.emit<LoadAttrSpecial>(exit, manager, exit_id, tc.frame);
+    tc.emit<LoadAttrSpecial>(enter, manager, enter_id, tc.frame);
+  } else {
+    tc.emit<LoadAttrSpecial>(enter, manager, enter_id, tc.frame);
+    tc.emit<LoadAttrSpecial>(exit, manager, exit_id, tc.frame);
+  }
   stack.push(exit);
 
   Register* enter_result = temps_.Allocate();
@@ -3160,7 +3164,7 @@ void HIRBuilder::emitBeforeAsyncWith(TranslationContext& tc) {
   _Py_IDENTIFIER(__aenter__);
   _Py_IDENTIFIER(__aexit__);
   tc.frame.stack.push(
-      emitSetupWithCommon(tc, &PyId___aenter__, &PyId___aexit__));
+      emitSetupWithCommon(tc, &PyId___aenter__, &PyId___aexit__, true));
 }
 
 void HIRBuilder::emitSetupAsyncWith(
@@ -3178,7 +3182,7 @@ void HIRBuilder::emitSetupWith(
   _Py_IDENTIFIER(__enter__);
   _Py_IDENTIFIER(__exit__);
   Register* enter_result =
-      emitSetupWithCommon(tc, &PyId___enter__, &PyId___exit__);
+      emitSetupWithCommon(tc, &PyId___enter__, &PyId___exit__, false);
   emitSetupFinally(tc, bc_instr);
   tc.frame.stack.push(enter_result);
 }

@@ -3,6 +3,8 @@
 
 #include "Python.h"
 
+#include "Jit/ref.h"
+
 namespace jit {
 
 namespace detail {
@@ -20,8 +22,9 @@ void capsuleDestructor(PyObject* capsule) {
 // Create a PyCapsule to hold the given C++ object, with a destructor that
 // deletes the object.
 template <typename T>
-PyObject* makeCapsule(T* ptr) {
-  return PyCapsule_New(ptr, nullptr, detail::capsuleDestructor<T>);
+Ref<> makeCapsule(T* ptr) {
+  return Ref<>::steal(
+      PyCapsule_New(ptr, nullptr, detail::capsuleDestructor<T>));
 }
 
 } // namespace jit

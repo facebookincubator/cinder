@@ -47,11 +47,11 @@ SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 __all__ = ['TestResult', 'TestCase', 'IsolatedAsyncioTestCase', 'TestSuite',
            'TextTestRunner', 'TestLoader', 'FunctionTestCase', 'main',
            'defaultTestLoader', 'SkipTest', 'skip', 'skipIf', 'skipUnless',
-           'skipUnderCinderJIT', 'skipUnderCinderJITNotFullFrame', 
+           'skipUnderCinderJIT', 'skipUnderCinderJITNotFullFrame',
            'skipUnlessCinderJITEnabled', 'failUnlessJITCompiled', 'skipIfDebug',
            'skipIfASANEnabled', 'expectedFailure', 'TextTestResult',
            'installHandler', 'registerResult', 'removeResult', 'removeHandler',
-           'addModuleCleanup', 'skipUnderUwsgi']
+           'addModuleCleanup', 'skipUnderUwsgi', 'hasInfiniteRecursion']
 
 # Expose obsolete functions for backwards compatibility
 __all__.extend(['getTestCaseNames', 'makeSuite', 'findTestCases'])
@@ -63,7 +63,8 @@ from .async_case import IsolatedAsyncioTestCase
 from .case import (addModuleCleanup, TestCase, FunctionTestCase, SkipTest, skip,
                    skipIf, skipUnderCinderJIT, skipUnless, skipUnlessCinderJITEnabled,
                    skipUnderCinderJITNotFullFrame, skipIfDebug, skipUnderUwsgi,
-                   skipIfASANEnabled, failUnlessJITCompiled, expectedFailure)
+                   skipIfASANEnabled, failUnlessJITCompiled, expectedFailure,
+                   hasInfiniteRecursion)
 from .suite import BaseTestSuite, TestSuite
 from .loader import (TestLoader, defaultTestLoader, makeSuite, getTestCaseNames,
                      findTestCases)

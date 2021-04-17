@@ -47,6 +47,7 @@ class TestBreak(unittest.TestCase):
         finally:
             unittest.removeResult(result)
 
+    @unittest.skipUnderCinderJIT("Eval breaker timing: T87023404")
     def testInterruptCaught(self):
         default_handler = signal.getsignal(signal.SIGINT)
 
@@ -69,6 +70,7 @@ class TestBreak(unittest.TestCase):
         self.assertTrue(result.breakCaught)
 
 
+    @unittest.skipUnderCinderJIT("Eval breaker timing: T87023404")
     def testSecondInterrupt(self):
         # Can't use skipIf decorator because the signal handler may have
         # been changed after defining this method.

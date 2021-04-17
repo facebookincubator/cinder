@@ -69,6 +69,10 @@ class NativeGenerator {
     return func_;
   }
 
+  CodeRuntime* codeRuntime() const {
+    return env_.code_rt;
+  }
+
   static Runtime* runtime() {
     return &s_jit_asm_code_rt_;
   }

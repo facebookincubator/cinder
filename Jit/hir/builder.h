@@ -357,7 +357,8 @@ class HIRBuilder {
   Register* emitSetupWithCommon(
       TranslationContext& tc,
       _Py_Identifier* enter_id,
-      _Py_Identifier* exit_id);
+      _Py_Identifier* exit_id,
+      bool swap_lookup);
   void emitBeforeAsyncWith(TranslationContext& tc);
   void emitSetupAsyncWith(
       TranslationContext& tc,

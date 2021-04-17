@@ -139,6 +139,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(PyObject* func) {
   if (g_debug) {
     return std::make_unique<CompiledFunctionDebug>(
         reinterpret_cast<vectorcallfunc>(entry),
+        ngen->codeRuntime(),
         func_size,
         stack_size,
         spill_stack_size,
@@ -147,6 +148,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(PyObject* func) {
   } else {
     return std::make_unique<CompiledFunction>(
         reinterpret_cast<vectorcallfunc>(entry),
+        ngen->codeRuntime(),
         func_size,
         stack_size,
         spill_stack_size);

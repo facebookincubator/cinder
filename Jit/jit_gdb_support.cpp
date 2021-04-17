@@ -161,8 +161,9 @@ int register_raw_debug_symbol(
   return 1;
 }
 
-int register_pyfunction_debug_symbol(
-    PyFunctionObject* original_func,
+int register_pycode_debug_symbol(
+    PyCodeObject* codeobj,
+    const char* fullname,
     jit::CompiledFunction* compiled_func) {
   if (!g_gdb_support) {
     return 1;
@@ -187,8 +188,6 @@ int register_pyfunction_debug_symbol(
     return 0;
   }
 
-  PyCodeObject* codeobj =
-      (PyCodeObject*)PyFunction_GetCode((PyObject*)original_func);
   PyObject* sourcefile = codeobj->co_filename;
   const char* filename = "<unknown>";
   if (sourcefile != NULL && PyUnicode_Check(sourcefile)) {
@@ -199,29 +198,10 @@ int register_pyfunction_debug_symbol(
     }
   }
 
-  PyObject* mn = PyFunction_GetModule((PyObject*)original_func);
-  const char* modulename = "<unknown>";
-  if (mn != NULL && PyUnicode_Check(mn)) {
-    modulename = PyUnicode_AsUTF8(mn);
-    if (modulename == NULL) {
-      modulename = "<module name failed to encode to UTF8>";
-      JIT_DLOG("Failed to encode module name for ELFObjectContext");
-    }
-  }
-  PyObject* qn = original_func->func_qualname;
-  const char* qualname = "<unknown>";
-  if (qn != NULL && PyUnicode_Check(qn)) {
-    qualname = PyUnicode_AsUTF8(qn);
-    if (qualname == NULL) {
-      qualname = "<qualified name failed to encode to UTF8>";
-      JIT_DLOG("Failed to encode qualified name for ELFObjectContext");
-    }
-  }
-
   ELFObjectContext* ctx = elfctx_new(
       ss_sprintf_alloc("%s", filename),
       codeobj->co_firstlineno,
-      ss_sprintf_alloc("%s:%s", modulename, qualname),
+      ss_sprintf_alloc("%s", fullname),
       code,
       code_size,
       stack_size);
@@ -231,7 +211,7 @@ int register_pyfunction_debug_symbol(
     return 0;
   }
 
-  if (!register_elf_ctx(ctx, "PyFunctionObject", original_func)) {
+  if (!register_elf_ctx(ctx, "PyFunctionObject", code)) {
     elfctx_free(ctx);
     return 0;
   }

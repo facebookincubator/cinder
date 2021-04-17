@@ -477,12 +477,12 @@ class TracebackFormatTests(unittest.TestCase):
         actual = stderr_g.getvalue().splitlines()
         self.assertEqual(actual, expected)
 
-    @unittest.skipIfDebug("Recursion overflows the C stack in debug")
+    @unittest.hasInfiniteRecursion
     def test_recursive_traceback_python(self):
         self._check_recursive_traceback_display(traceback.print_exc)
 
     @cpython_only
-    @unittest.skipIfDebug("Recursion overflows the C stack in debug")
+    @unittest.hasInfiniteRecursion
     def test_recursive_traceback_cpython_internal(self):
         from _testcapi import exception_print
         def render_exc():
@@ -990,6 +990,7 @@ class TestStack(unittest.TestCase):
         s = traceback.StackSummary.extract(iter([(f, 6)]))
         self.assertEqual(s[0].locals, None)
 
+    @unittest.skipUnderCinderJIT("Incorrect line numbers: T63031461")
     def test_format_locals(self):
         def some_inner(k, v):
             a = 1

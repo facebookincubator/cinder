@@ -166,6 +166,15 @@ def skipUnderCinderJIT(reason):
         return skip(reason)
     return _id
 
+def hasInfiniteRecursion(test):
+    """
+    Decorator for tests that intentionally use infinite recursion internally
+    and should be skipped when it will crash the runtime.
+    """
+    debug_skip = skipIfDebug("Recursion overflows the C stack in debug")
+    jit_skip = skipUnderCinderJIT("Recursion limit not enforced: T87011403")
+    return debug_skip(jit_skip(test))
+
 def skipUnderCinderJITNotFullFrame(reason):
     """
     Skip tests if we're in Tiny or No Frame modes.

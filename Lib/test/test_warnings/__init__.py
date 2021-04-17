@@ -106,6 +106,7 @@ class FilterTests(BaseTest):
             self.assertRaises(UserWarning, self.module.warn,
                                 "FilterTests.test_error")
 
+    @unittest.skipUnderCinderJIT("Incorrect line numbers: T63031461")
     def test_error_after_default(self):
         with original_warnings.catch_warnings(module=self.module) as w:
             self.module.resetwarnings()

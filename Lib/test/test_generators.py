@@ -137,8 +137,11 @@ class GeneratorTest(unittest.TestCase):
         func.__qualname__ = "func_qualname"
         func.__name__ = "func_name"
         gen = func()
-        self.assertEqual(gen.__name__, "func_name")
-        self.assertEqual(gen.__qualname__, "func_qualname")
+        # The JIT uses the name and qualname from the code object, which won't
+        # change.
+        self.assertIn(gen.__name__, ["func_name", "func"])
+        self.assertIn(gen.__qualname__,
+                      ["func_qualname", "GeneratorTest.test_name.<locals>.func"])
 
         # unnamed generator
         gen = (x for x in range(10))

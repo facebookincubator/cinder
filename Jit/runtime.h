@@ -64,7 +64,13 @@ class CodeRuntime {
         load_type_attr_caches_(
             std::make_unique<LoadTypeAttrCache[]>(num_lat_caches)),
         globals_(globals),
-        builtins_(PyEval_GetBuiltins()) {}
+        builtins_(PyEval_GetBuiltins()) {
+    // TODO(T88040922): Until we work out something smarter, force code and
+    // globals objects for compiled functions to live as long as the JIT is
+    // initialized.
+    addReference(py_code_);
+    addReference(globals_);
+  }
 
   ~CodeRuntime() {}
 
@@ -106,14 +112,14 @@ class CodeRuntime {
   void addReference(PyObject* obj);
 
  private:
-  PyCodeObject* py_code_;
+  BorrowedRef<PyCodeObject> py_code_;
   jit::hir::FrameMode frame_mode_;
   LoadMethodCachePool load_method_cache_pool_;
   InlineCachePool<LoadAttrCache> load_attr_cache_pool_;
   InlineCachePool<StoreAttrCache> store_attr_cache_pool_;
   std::unique_ptr<LoadTypeAttrCache[]> load_type_attr_caches_;
-  PyObject* globals_;
-  PyObject* builtins_;
+  BorrowedRef<PyDictObject> globals_;
+  BorrowedRef<PyDictObject> builtins_;
 
   std::unordered_set<Ref<PyObject>> references_;
 };

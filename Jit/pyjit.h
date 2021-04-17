@@ -147,14 +147,6 @@ PyAPI_FUNC(int) _PyJIT_TinyFrame(void);
  */
 PyAPI_FUNC(int) _PyJIT_NoFrame(void);
 
-/*
- * Returns whether the JIT should compile nested functions.
- *
- * Returns 1 if nested functions should be compiled; 0 otherwise.
- *
- */
-PyAPI_FUNC(int) _PyJIT_CompileNested(void);
-
 /* Dict-watching callbacks, invoked by dictobject.c when appropriate. */
 
 /*

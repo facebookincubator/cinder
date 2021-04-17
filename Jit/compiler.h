@@ -3,6 +3,7 @@
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/hir/hir.h"
+#include "Jit/runtime.h"
 #include "Jit/util.h"
 
 #include "Python.h"
@@ -18,10 +19,12 @@ class CompiledFunction {
  public:
   CompiledFunction(
       vectorcallfunc entry,
+      CodeRuntime* code_runtime,
       int func_size,
       int stack_size,
       int spill_stack_size)
       : entry_point_(entry),
+        code_runtime_(code_runtime),
         code_size_(func_size),
         stack_size_(stack_size),
         spill_stack_size_(spill_stack_size) {}
@@ -38,13 +41,18 @@ class CompiledFunction {
 
   virtual void PrintHIR() const;
   virtual void Disassemble() const;
-  virtual int GetCodeSize() const {
+
+  CodeRuntime* codeRuntime() const {
+    return code_runtime_;
+  }
+
+  int GetCodeSize() const {
     return code_size_;
   }
-  virtual int GetStackSize() const {
+  int GetStackSize() const {
     return stack_size_;
   }
-  virtual int GetSpillStackSize() const {
+  int GetSpillStackSize() const {
     return spill_stack_size_;
   }
 
@@ -52,6 +60,7 @@ class CompiledFunction {
   DISALLOW_COPY_AND_ASSIGN(CompiledFunction);
 
   vectorcallfunc entry_point_;
+  CodeRuntime* code_runtime_;
   int code_size_;
   int stack_size_;
   int spill_stack_size_;
@@ -63,17 +72,23 @@ class CompiledFunctionDebug : public CompiledFunction {
  public:
   CompiledFunctionDebug(
       vectorcallfunc entry,
+      CodeRuntime* code_runtime,
       int func_size,
       int stack_size,
       int spill_stack_size,
       std::unique_ptr<hir::Function> irfunc,
       std::unique_ptr<codegen::NativeGenerator> ngen)
-      : CompiledFunction(entry, func_size, stack_size, spill_stack_size),
+      : CompiledFunction(
+            entry,
+            code_runtime,
+            func_size,
+            stack_size,
+            spill_stack_size),
         irfunc_(std::move(irfunc)),
         ngen_(std::move(ngen)) {}
 
-  virtual void Disassemble() const override;
-  virtual void PrintHIR() const override;
+  void Disassemble() const override;
+  void PrintHIR() const override;
 
  private:
   std::unique_ptr<hir::Function> irfunc_;

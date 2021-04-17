@@ -233,6 +233,7 @@ class GCTests(unittest.TestCase):
         else:
             self.assertEqual(gc.collect(), 2)
 
+    @unittest.skipUnderCinderJIT("Assumes locals live as long as frame")
     @refcount_test
     def test_frame(self):
         def f():

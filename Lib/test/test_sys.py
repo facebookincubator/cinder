@@ -220,8 +220,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(sys.getrecursionlimit(), 10000)
         sys.setrecursionlimit(oldlimit)
 
-    @unittest.skipUnderCinderJIT("flakily stack overflows in opt build under JIT")
-    @unittest.skipIfDebug("Recursion overflows the C stack in debug")
+    @unittest.hasInfiniteRecursion
     def test_recursionlimit_recovery(self):
         if hasattr(sys, 'gettrace') and sys.gettrace():
             self.skipTest('fatal error if run with a trace function')
@@ -246,6 +245,7 @@ class SysModuleTest(unittest.TestCase):
             sys.setrecursionlimit(oldlimit)
 
     @test.support.cpython_only
+    @unittest.skipUnderCinderJIT("Recursion limit not enforced: T87011403")
     def test_setrecursionlimit_recursion_depth(self):
         # Issue #25274: Setting a low recursion limit must be blocked if the
         # current recursion depth is already higher than the "lower-water
@@ -375,6 +375,7 @@ class SysModuleTest(unittest.TestCase):
 
     # sys._current_frames() is a CPython-only gimmick.
     @test.support.reap_threads
+    @unittest.skipUnderCinderJIT("Incorrect line numbers: T63031461")
     def test_current_frames(self):
         import threading
         import traceback
@@ -1498,6 +1499,8 @@ class SizeofTest(unittest.TestCase):
             # cache misses are tracked
             self.assertEqual(misses2 + 1, misses3)
 
+    @unittest.skipUnderCinderJIT(
+        "Assumes implementation details of a non-JIT method cache")
     def test_get_method_cache_stats(self):
         if sysconfig.get_config_var('Py_DEBUG') == 0:
             return

@@ -8,25 +8,49 @@
 #include "Jit/compiler.h"
 #include "Jit/pyjit_result.h"
 #include "Jit/pyjit_typeslots.h"
+#include "Jit/util.h"
 
-#ifndef Py_LIMITED_API
+#include <functional>
+#include <memory>
 
-extern PyTypeObject _PyJITContext_Type;
+// Lookup key for _PyJITContext::compiled_codes: a code object and a globals
+// dict it was JIT-compiled with.
+struct CompilationKey {
+  // These are both weak references; the values are kept alive by strong
+  // references in the corresponding jit::CodeRuntime.
+  PyObject* code;
+  PyObject* globals;
+
+  CompilationKey(PyObject* code, PyObject* globals)
+      : code(code), globals(globals) {}
+
+  bool operator==(const CompilationKey& other) const {
+    return code == other.code && globals == other.globals;
+  }
+};
+
+template <>
+struct std::hash<CompilationKey> {
+  std::size_t operator()(const CompilationKey& key) const {
+    std::hash<PyObject*> hasher;
+    return jit::combineHash(hasher(key.code), hasher(key.globals));
+  }
+};
 
 /*
  * A JIT context encapsulates all the state managed by an instance of the
  * JIT.
- *
  */
-typedef struct {
-  PyObject_HEAD
+struct _PyJITContext {
+  PyObject_HEAD;
 
-      /* Code generator used by targeted, one off code generators
-       */
-      CodeGen* code_gen;
+  /*
+   * Code generator used by targeted, one off code generators
+   */
+  CodeGen* code_gen;
 
   /* General purpose jit compiler; may be null */
-  jit::Compiler* jit_compiler;
+  std::unique_ptr<jit::Compiler> jit_compiler;
 
   /*
    * A dictionary containing deoptimization information for compiled objects.
@@ -37,13 +61,14 @@ typedef struct {
   PyObject* deopt_info;
 
   /*
-   * A dictionary containing pointers to jit::CompiledFunctions.
-   *
-   * Keys are weak references to function objects.
-   * Values are PyCapsules containing the corresponding jit::CompiledFunction.
+   * Compiled code objects, keyed by PyCodeObject* and the globals dict they
+   * were compiled with.
    */
-  PyObject* jit_functions;
-} _PyJITContext;
+  std::unordered_map<CompilationKey, std::unique_ptr<jit::CompiledFunction>>
+      compiled_codes;
+
+  PyObject* weakreflist;
+};
 
 /*
  * Register the _PyJITContext type with the runtime. This needs to be called
@@ -51,24 +76,16 @@ typedef struct {
  */
 int _PyJITContext_Init(void);
 
-/* Clean up any global state needed by JIT contexts */
-void _PyJITContext_Finalize(void);
-
 /*
  * Allocate a new JIT context.
  *
- * compiler is a handle to a generate purpose JIT compiler. Ownership is
- * transferred to the JIT context.
+ * compiler is a handle to a general purpose JIT compiler.
  *
- * max_code_size is the total amount of memory to allocate to executable code.
- * It is rounded up to the nearest multiple of the system page size.
- *
- * Returns a new reference.
- *
+ * Returns a new reference. Any compiled objects will be deoptimized when the
+ * _PyJITContext is destroyed; callers must ensure it is kept alive as long as
+ * necessary.
  */
-_PyJITContext* _PyJITContext_New(jit::Compiler* compiler);
-
-void _PyJITContext_Free(_PyJITContext* ctx);
+_PyJITContext* _PyJITContext_New(std::unique_ptr<jit::Compiler> compiler);
 
 /*
  * Generate specialized functions for type object slots. Calls the other
@@ -78,7 +95,7 @@ void _PyJITContext_Free(_PyJITContext* ctx);
  * Returns PYJIT_RESULT_OK on success.
  */
 _PyJIT_Result _PyJITContext_SpecializeType(
-    _PyJITContext* ctx,
+    BorrowedRef<_PyJITContext> ctx,
     PyTypeObject* type,
     _PyJIT_TypeSlots* slots);
 
@@ -91,7 +108,7 @@ _PyJIT_Result _PyJITContext_SpecializeType(
  */
 _PyJIT_Result _PyJITContext_CompileFunction(
     _PyJITContext* ctx,
-    PyFunctionObject* func);
+    BorrowedRef<PyFunctionObject> func);
 
 /*
  * Return whether or not this context compiled the supplied function.jit_
@@ -132,7 +149,7 @@ int _PyJITContext_GetSpillStackSize(_PyJITContext* ctx, PyObject* func);
  * Returns a new reference.
  *
  */
-PyObject* _PyJITContext_GetCompiledFunctions(void);
+PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx);
 
 /*
  * Print the HIR for func to stdout if it was JIT-compiled.
@@ -150,18 +167,4 @@ int _PyJITContext_PrintHIR(_PyJITContext* ctx, PyObject* func);
  */
 int _PyJITContext_Disassemble(_PyJITContext* ctx, PyObject* func);
 
-/*
- * Add type as a dependency for func.
- *
- * func will be de-optimized if type is modified.
- * NB: This is intended to be used by tests only.
- *
- * Returns 0 on success or -1 on error.
- */
-int _PyJITContext_AddTypeDependency(
-    _PyJITContext* ctx,
-    PyFunctionObject* func,
-    PyObject* type);
-
-#endif /* Py_LIMITED_API */
 #endif /* Py_JIT_H */
