@@ -882,6 +882,15 @@ unbox_primitive_int_and_decref(PyObject *x)
     return res;
 }
 
+static inline int8_t
+unbox_primitive_bool_and_decref(PyObject *x)
+{
+    assert(PyBool_Check(x));
+    int8_t res = (x == Py_True) ? 1 : 0;
+    Py_DECREF(x);
+    return res;
+}
+
 static inline PyObject *
 _PySuperLookupMethodOrAttr(PyThreadState *tstate,
                            PyObject *global_super,
@@ -4435,11 +4444,16 @@ main_loop:
                 if (_PyClassLoader_ResolveType(type_descr, &type, &optional, &primitive)) {
                     goto error;
                 }
-                if (primitive != TYPED_OBJECT) {
-                    assert(primitive <= TYPED_INT64); /* we don't have non-int primitives yet */
+                if (primitive == TYPED_BOOL) {
+                    optional = 0;
+                    type = &PyBool_Type;
+                    Py_INCREF(type);
+                } else if (primitive <= TYPED_INT64) {
                     optional = 0;
                     type = &PyLong_Type;
                     Py_INCREF(type);
+                } else {
+                    assert(primitive == TYPED_OBJECT);
                 }
 
                 if (!_PyObject_TypeCheckOptional(val, type, optional)) {
@@ -4452,7 +4466,7 @@ main_loop:
                         Py_TYPE(val)->tp_name);
                     Py_DECREF(type);
                     goto error;
-                } else if (primitive != TYPED_OBJECT) {
+                } else if (primitive <= TYPED_INT64) {
                     size_t value;
                     if (!_PyClassLoader_OverflowCheck(val, primitive, &value)) {
                         PyErr_SetString(
@@ -7073,6 +7087,9 @@ load_field(int field_type, void *addr)
 {
     PyObject *value;
     switch (field_type) {
+    case TYPED_BOOL:
+        value = PyBool_FromLong(*(int8_t *)addr);
+        break;
     case TYPED_INT8:
         value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((int8_t *)addr));
         break;
@@ -7108,6 +7125,9 @@ static inline void
 store_field(int field_type, void *addr, PyObject *value)
 {
     switch (field_type) {
+    case TYPED_BOOL:
+        *(int8_t *)addr = (int8_t)unbox_primitive_bool_and_decref(value);
+        break;
     case TYPED_INT8:
         *(int8_t *)addr = (int8_t)unbox_primitive_int_and_decref(value);
         break;
@@ -7132,6 +7152,8 @@ store_field(int field_type, void *addr, PyObject *value)
     case TYPED_UINT64:
         *(uint64_t *)addr = (uint64_t)unbox_primitive_int_and_decref(value);
         break;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "unsupported field type");
     }
 }
 

@@ -2138,8 +2138,12 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
             return NULL;
         }
 
-        if (prim_type != TYPED_OBJECT) {
-            assert(prim_type <= TYPED_INT64); /* only int support so far */
+        if (prim_type == TYPED_BOOL) {
+            cur_check->tai_type = &PyBool_Type;
+            cur_check->tai_optional = 0;
+            Py_INCREF(&PyBool_Type);
+        } else if (prim_type != TYPED_OBJECT) {
+            assert(prim_type <= TYPED_INT64);
             cur_check->tai_type = &PyLong_Type;
             cur_check->tai_optional = 0;
             Py_INCREF(&PyLong_Type);

@@ -1925,20 +1925,6 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(x, "INT_COMPARE_OP", 0)
         self.assertInBytecode(x, "COMPARE_OP", "==")
 
-    def test_boolean_cast(self):
-        codestr = """
-        from __static__ import cbool
-
-        def f(y: bool) -> int:
-            x: cbool = y
-            if x:
-                return 1
-            else:
-                return 2
-        """
-        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("bool", "cbool")):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
-
     def test_bind_instance(self) -> None:
         mod, syms = self.bind_module("class C: pass\na: C = C()")
         assign = mod.body[1]
@@ -13097,6 +13083,42 @@ class StaticRuntimeTests(StaticTestBase):
                     )
                     self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
                     self.assertEqual(f(), 1 if b == "True" else 2)
+
+    def test_boolean_field(self):
+        codestr = """
+            from __static__ import cbool
+
+            class C:
+                def __init__(self, x: cbool) -> None:
+                    self.x: cbool = x
+
+            def f(c: C):
+                if c.x:
+                    return True
+                return False
+        """
+        with self.in_module(codestr) as mod:
+            f, C = mod["f"], mod["C"]
+            self.assertInBytecode(f, "LOAD_FIELD", ("test_boolean_field", "C", "x"))
+            self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
+            self.assertIs(C(True).x, True)
+            self.assertIs(C(False).x, False)
+            self.assertIs(f(C(True)), True)
+            self.assertIs(f(C(False)), False)
+
+    def test_boolean_cast(self):
+        codestr = """
+        from __static__ import cbool
+
+        def f(y: bool) -> int:
+            x: cbool = y
+            if x:
+                return 1
+            else:
+                return 2
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("bool", "cbool")):
+            self.compile(codestr, StaticCodeGenerator, modname="foo")
 
     def test_chkdict_del(self):
         codestr = """
