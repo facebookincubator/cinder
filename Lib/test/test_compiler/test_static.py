@@ -1247,7 +1247,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             f = mod["testfunc"]
             self.assertInBytecode(f, "JUMP_IF_NONZERO_OR_POP")
-            self.assertEqual(f(), 0)
+            self.assertIs(f(), False)
 
     def test_int_compare_and(self):
         codestr = """
@@ -1262,7 +1262,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             f = mod["testfunc"]
             self.assertInBytecode(f, "JUMP_IF_ZERO_OR_POP")
-            self.assertEqual(f(), 0)
+            self.assertIs(f(), False)
 
     def test_int_binop(self):
         tests = [
@@ -9633,19 +9633,22 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(a(3), 5)
 
     def test_primitive_compare_immediate_no_branch_on_result(self):
-        codestr = """
-            from __static__ import box, int64, int32
+        for rev in [True, False]:
+            compare = "0 == xp" if rev else "xp == 0"
+            codestr = f"""
+                from __static__ import box, int64, int32
 
-            def f(x: int) -> int:
-                xp = int64(x)
-                return box(xp == 0)
-        """
-        with self.in_module(codestr) as mod:
-            f = mod["f"]
-            self.assertEqual(f(3), 0)
-            self.assertEqual(f(0), 1)
-            # TODO T88522684 this should be bool, not int
-            self.assertEqual(type(f(0)), int)
+                def f(x: int) -> int:
+                    xp = int64(x)
+                    y = {compare}
+                    return box(y)
+            """
+            with self.subTest(rev=rev):
+                with self.in_module(codestr) as mod:
+                    f = mod["f"]
+                    self.assertEqual(f(3), 0)
+                    self.assertEqual(f(0), 1)
+                    self.assertIs(f(0), True)
 
 
 class StaticRuntimeTests(StaticTestBase):

@@ -931,12 +931,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           func = reinterpret_cast<uint64_t>(JITRT_BoxI32);
         } else if (src_type <= (TCDouble)) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
-        } else if (src_type <= (TCUInt8 | TCUInt16 | TNullptr)) {
+        } else if (src_type <= (TCBool | TCUInt8 | TCUInt16 | TNullptr)) {
           bbb.AppendCode(
               "ConvertUnsigned {}:CUInt32, {}:{}", tmp, src, src_type);
           src = tmp;
+          func = reinterpret_cast<uint64_t>(
+              (src_type <= TCBool) ? JITRT_BoxBool : JITRT_BoxU32);
           src_type = TCUInt32;
-          func = reinterpret_cast<uint64_t>(JITRT_BoxU32);
         } else if (src_type <= (TCInt8 | TCInt16 | TNullptr)) {
           bbb.AppendCode("Convert {}:CInt32, {}:{}", tmp, src, src_type);
           src = tmp;

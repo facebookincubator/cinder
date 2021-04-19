@@ -307,6 +307,7 @@ void HIRBuilder::addInitialYield(TranslationContext& tc) {
 Type prim_type_to_type(int prim_type) {
   switch (prim_type) {
     case TYPED_BOOL:
+      return TCBool;
     case TYPED_CHAR:
     case TYPED_INT8:
       return TCInt8;

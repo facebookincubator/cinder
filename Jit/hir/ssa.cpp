@@ -347,7 +347,7 @@ Type outputType(const Instr& instr) {
       return TCDouble;
     }
     case Opcode::kIntCompare:
-      return TCInt32;
+      return TCBool;
     case Opcode::kPrimitiveUnaryOp:
       // TODO if we have a specialized input type we should really be
       // constant-folding

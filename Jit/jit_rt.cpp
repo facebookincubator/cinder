@@ -1054,6 +1054,10 @@ PyObject* JITRT_BoxU32(uint32_t i) {
   return PyLong_FromUnsignedLong(i);
 }
 
+PyObject* JITRT_BoxBool(uint32_t i) {
+  return PyBool_FromLong(i);
+}
+
 PyObject* JITRT_BoxI64(int64_t i) {
   return PyLong_FromSsize_t(i);
 }

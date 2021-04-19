@@ -331,6 +331,7 @@ uint32_t JITRT_ModUnsigned32(uint32_t x, uint32_t y);
 
 PyObject* JITRT_BoxI32(int32_t i);
 PyObject* JITRT_BoxU32(uint32_t i);
+PyObject* JITRT_BoxBool(uint32_t i);
 PyObject* JITRT_BoxI64(int64_t i);
 PyObject* JITRT_BoxU64(uint64_t i);
 PyObject* JITRT_BoxDouble(double_t d);

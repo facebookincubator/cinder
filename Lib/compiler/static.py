@@ -4408,7 +4408,7 @@ class CIntInstance(CInstance["CIntType"]):
             )
 
         visitor.set_type(op, compare_type)
-        visitor.set_type(node, INT64_TYPE.instance)
+        visitor.set_type(node, CBOOL_TYPE.instance)
         return True
 
     def bind_reverse_compare(
@@ -4436,7 +4436,7 @@ class CIntInstance(CInstance["CIntType"]):
                 )
 
             visitor.set_type(op, compare_type)
-            visitor.set_type(node, INT64_TYPE.instance)
+            visitor.set_type(node, CBOOL_TYPE.instance)
             return True
 
         return False
@@ -4717,7 +4717,7 @@ class CDoubleType(CType):
         )
 
 
-CBOOL_TYPE = CIntType(TYPED_INT_8BIT, True, name_override="cbool")
+CBOOL_TYPE = CIntType(TYPED_INT_8BIT, False, name_override="cbool")
 
 INT8_TYPE = CIntType(TYPED_INT_8BIT, True)
 INT16_TYPE = CIntType(TYPED_INT_16BIT, True)

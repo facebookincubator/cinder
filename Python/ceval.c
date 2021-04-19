@@ -4621,9 +4621,6 @@ main_loop:
             goto error;
         }
 
-// TODO T88522684 the JIT should produce cbool instead of int32 on primitive
-// compares, and we can go back to Py_True/Py_False here instead of int 1/0
-
 #define INT_CMP_OPCODE_UNSIGNED(opid, op)                                     \
     case opid: {                                                              \
         r = POP();                                                            \
@@ -4632,7 +4629,8 @@ main_loop:
         left = (size_t)PyLong_AsVoidPtr(l);                                   \
         Py_DECREF(r);                                                         \
         Py_DECREF(l);                                                         \
-        res = (left op right) ? PyLong_FromLong(1) : PyLong_FromLong(0);      \
+        res = (left op right) ? Py_True : Py_False;                           \
+        Py_INCREF(res);                                                       \
         PUSH(res);                                                            \
         FAST_DISPATCH();                                                      \
     }
@@ -4645,7 +4643,8 @@ main_loop:
         sleft = (Py_ssize_t)PyLong_AsVoidPtr(l);                              \
         Py_DECREF(r);                                                         \
         Py_DECREF(l);                                                         \
-        res = (sleft op sright) ? PyLong_FromLong(1) : PyLong_FromLong(0);    \
+        res = (sleft op sright) ? Py_True : Py_False;                         \
+        Py_INCREF(res);                                                       \
         PUSH(res);                                                            \
         FAST_DISPATCH();                                                      \
     }
@@ -7044,9 +7043,10 @@ static inline PyObject *
 box_primitive(int type, Py_ssize_t value)
 {
     switch (type) {
+    case TYPED_BOOL:
+        return PyBool_FromLong((int8_t)value);
     case TYPED_INT8:
     case TYPED_CHAR:
-    case TYPED_BOOL:
         return PyLong_FromSsize_t((int8_t)value);
     case TYPED_INT16:
         return PyLong_FromSsize_t((int16_t)value);

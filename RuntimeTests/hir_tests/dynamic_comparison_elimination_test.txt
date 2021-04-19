@@ -12,7 +12,7 @@ fun jittestmodule:test {
   bb 0 {
     v6:Object = LoadArg<0; "x">
     v7:Object = LoadArg<1; "y">
-    v11:CInt32 = IntCompare<Equal> v6 v7
+    v11:CBool = IntCompare<Equal> v6 v7
     CondBranch<1, 2> v11
   }
 
@@ -37,7 +37,7 @@ fun jittestmodule:test {
   bb 0 {
     v6:Object = LoadArg<0; "x">
     v7:Object = LoadArg<1; "y">
-    v11:CInt32 = IntCompare<NotEqual> v6 v7
+    v11:CBool = IntCompare<NotEqual> v6 v7
     CondBranch<1, 2> v11
   }
 
@@ -66,7 +66,7 @@ fun jittestmodule:test {
     v11:OptObject = LoadGlobalCached<1; "str">
     v12:TypeExact[str:obj] = GuardIs<0xdeadbeef> v11
     v17:Type = LoadField<8> v7
-    v18:CInt32 = IntCompare<Equal> v17 v12
+    v18:CBool = IntCompare<Equal> v17 v12
     CondBranch<1, 3> v18
   }
 
