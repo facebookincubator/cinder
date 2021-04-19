@@ -200,9 +200,24 @@ class StaticTestBase(CompilerTest):
         peephole_enabled=True,
         ast_optimizer_enabled=True,
     ):
-        return super().compile(
-            code, generator, modname, optimize, peephole_enabled, ast_optimizer_enabled
-        )
+        if (
+            not peephole_enabled
+            or not ast_optimizer_enabled
+            or generator is not StaticCodeGenerator
+        ):
+            return super().compile(
+                code,
+                generator,
+                modname,
+                optimize,
+                peephole_enabled,
+                ast_optimizer_enabled,
+            )
+
+        symtable = SymbolTable()
+        code = inspect.cleandoc("\n" + code)
+        tree = ast.parse(code)
+        return symtable.compile(modname, f"{modname}.py", tree, optimize)
 
     def type_error(self, code, pattern):
         with self.assertRaisesRegex(TypedSyntaxError, pattern):

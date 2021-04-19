@@ -472,7 +472,9 @@ class SymbolTable:
         )
         graph.setFlag(StaticCodeGenerator.consts.CO_STATICALLY_COMPILED)
 
-        code_gen = StaticCodeGenerator(None, tree, s, graph, self, name, optimize)
+        code_gen = StaticCodeGenerator(
+            None, tree, s, graph, self, name, flags=0, optimization_lvl=optimize
+        )
         code_gen.visit(tree)
 
         return code_gen.getCode()
