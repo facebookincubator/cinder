@@ -88,16 +88,11 @@ struct LiveInterval {
     }
   };
 
-  std::set<LiveRange, LiveRangeCompare> ranges;
+  std::vector<LiveRange> ranges;
   PhyLocation allocated_loc{PhyLocation::REG_INVALID};
   bool fixed{false}; // whether the allocated_loc is fixed.
 
-  void addRange(const LiveRange& range) {
-    LiveRange r = range;
-    addRange(std::move(r));
-  }
-
-  void addRange(LiveRange&& range);
+  void addRange(LiveRange range);
   void setFrom(LIRLocation loc);
   LIRLocation startLocation() const {
     JIT_DCHECK(

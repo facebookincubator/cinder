@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <limits>
 #include <queue>
 #include <stack>
 #include <type_traits>
@@ -18,36 +19,58 @@ using namespace jit::lir;
 namespace jit {
 namespace codegen {
 
-void LiveInterval::addRange(LiveRange&& range) {
+void LiveInterval::addRange(LiveRange range) {
+  constexpr int kInitRangeSize = 8;
   if (ranges.empty()) {
+    ranges.reserve(kInitRangeSize);
     JIT_DCHECK(range.start < range.end, "Invalid range.");
-    ranges.insert(std::move(range));
+    ranges.push_back(std::move(range));
     return;
   }
 
   auto& start = range.start;
   auto& end = range.end;
 
-  auto iter = ranges.lower_bound(start);
+  auto iter =
+      std::lower_bound(ranges.begin(), ranges.end(), start, LiveRangeCompare());
 
-  // check if can merge with *iter
-  while (iter != ranges.end() && end >= iter->start) {
-    end = std::max(end, iter->end);
-    iter = ranges.erase(iter);
+  constexpr int kRemovedRange = std::numeric_limits<int>::min();
+
+  auto cur_iter = iter;
+  // check if can merge with *cur_iter
+  while (cur_iter != ranges.end() && end >= cur_iter->start) {
+    end = std::max(end, cur_iter->end);
+    cur_iter->start = kRemovedRange;
+    ++cur_iter;
   }
 
   // check if we can merge with iter - 1
+  bool merged = false;
   if (iter != ranges.begin()) {
     auto prev_iter = std::prev(iter);
     if (start <= prev_iter->end) {
-      start = prev_iter->start;
-      end = std::max(end, prev_iter->end);
-      ranges.erase(prev_iter);
+      prev_iter->end = std::max(end, prev_iter->end);
+      merged = true;
     }
   }
 
-  JIT_DCHECK(range.start < range.end, "Invalid range.");
-  ranges.insert(std::move(range));
+  if (!merged) {
+    JIT_DCHECK(range.start < range.end, "Invalid range.");
+    if (iter != ranges.end() && iter->start == kRemovedRange) {
+      *iter = std::move(range);
+    } else {
+      ranges.insert(iter, std::move(range));
+    }
+  }
+
+  ranges.erase(
+      std::remove_if(
+          ranges.begin(),
+          ranges.end(),
+          [kRemovedRange](auto& range) -> bool {
+            return range.start == kRemovedRange;
+          }),
+      ranges.end());
 }
 
 void LiveInterval::setFrom(LIRLocation loc) {
@@ -68,14 +91,13 @@ void LiveInterval::setFrom(LIRLocation loc) {
   if (loc >= iter->end) {
     ranges.erase(iter);
   } else {
-    LiveRange range{std::max(loc, iter->start), iter->end};
-    ranges.erase(iter);
-    ranges.insert(std::move(range));
+    iter->start = std::max(loc, iter->start);
   }
 }
 
 bool LiveInterval::covers(LIRLocation loc) const {
-  auto iter = ranges.upper_bound(loc);
+  auto iter =
+      std::upper_bound(ranges.begin(), ranges.end(), loc, LiveRangeCompare());
 
   if (iter == ranges.begin()) {
     return false;
@@ -102,7 +124,8 @@ LIRLocation LiveInterval::intersectWith(const LiveRange& range) const {
     return INVALID_LOCATION;
   }
 
-  auto iter = ranges.lower_bound(range.start);
+  auto iter = std::lower_bound(
+      ranges.begin(), ranges.end(), range.start, LiveRangeCompare());
 
   // iter is the first candidate that starts at or after range.start. The
   // intersection could be with the previous candidate, so check that first.
@@ -143,23 +166,21 @@ std::unique_ptr<LiveInterval> LiveInterval::splitAt(LIRLocation loc) {
   }
 
   auto new_interval = std::make_unique<LiveInterval>(vreg, allocated_loc);
-  auto iter = ranges.lower_bound(loc);
+  auto iter =
+      std::lower_bound(ranges.begin(), ranges.end(), loc, LiveRangeCompare());
 
   --iter;
 
   // if loc is within the range pointed by iter
   if (loc < iter->end) {
     // need to split the current range
-    new_interval->ranges.emplace(loc, iter->end);
-
-    LiveRange new_range(iter->start, loc);
-    iter = ranges.erase(iter);
-    ranges.insert(new_range);
-  } else {
-    ++iter;
+    new_interval->ranges.emplace_back(loc, iter->end);
+    iter->end = loc;
   }
 
-  new_interval->ranges.insert(iter, ranges.end());
+  ++iter;
+
+  new_interval->ranges.insert(new_interval->ranges.end(), iter, ranges.end());
   ranges.erase(iter, ranges.end());
 
   return new_interval;
