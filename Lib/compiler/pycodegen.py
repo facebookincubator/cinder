@@ -37,7 +37,7 @@ from .visitor import ASTVisitor, walk
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
-    from typing import List, Optional, Sequence, Union
+    from typing import List, Optional, Sequence, Union, Type
 
 try:
     import _parser  # pyre-ignore[21]
@@ -2015,8 +2015,15 @@ class CodeGenerator(ASTVisitor):
             self.emit("LOAD_CONST", None)
         self.emit("RETURN_VALUE")
 
-    def make_child_codegen(self, tree: AST, graph: PyFlowGraph) -> CodeGenerator:
-        return type(self)(self, tree, self.symbols, graph, self.optimization_lvl)
+    def make_child_codegen(
+        self,
+        tree: AST,
+        graph: PyFlowGraph,
+        codegen_type: Optional[Type[CinderCodeGenerator]] = None,
+    ) -> CodeGenerator:
+        if codegen_type is None:
+            codegen_type = type(self)
+        return codegen_type(self, tree, self.symbols, graph, self.optimization_lvl)
 
     def make_func_codegen(
         self, func: AST, name: str, first_lineno: int

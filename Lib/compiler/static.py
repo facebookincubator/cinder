@@ -172,7 +172,7 @@ from .pycodegen import (
     wrap_aug,
     FOR_LOOP,
 )
-from .symbols import Scope, SymbolVisitor, ModuleScope
+from .symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
 from .unparse import to_expr
 from .visitor import ASTVisitor, ASTRewriter, TAst
 
@@ -397,6 +397,9 @@ class SymbolTable:
                 "ssize_t": INT64_TYPE,
                 "cbool": CBOOL_TYPE,
                 "inline": INLINE_TYPE,
+                # This is a way to disable the static compiler for
+                # individual functions/methods
+                "_donotcompile": DONOTCOMPILE_TYPE,
                 "int8": INT8_TYPE,
                 "int16": INT16_TYPE,
                 "int32": INT32_TYPE,
@@ -1039,6 +1042,7 @@ class Class(Object["Class"]):
         self.is_exact = is_exact
         self.is_final = False
         self.allow_weakrefs = False
+        self.donotcompile = False
         if pytype:
             self.members.update(make_type_dict(self, pytype))
         # store attempted slot redefinitions during type declaration, for resolution in finish_bind
@@ -2235,6 +2239,7 @@ class Function(Callable[Class]):
         self.module = module
         self.process_args(module)
         self.inline = False
+        self.donotcompile = False
 
     @property
     def name(self) -> str:
@@ -2543,6 +2548,19 @@ class InlineFunctionDecorator(Class):
 
         real_fn.inline = True
         return fn
+
+
+class DoNotCompileDecorator(Class):
+    def bind_decorate_function(
+        self, visitor: DeclarationVisitor, fn: Function | StaticMethod
+    ) -> Optional[Value]:
+        real_fn = fn.function if isinstance(fn, StaticMethod) else fn
+        real_fn.donotcompile = True
+        return fn
+
+    def bind_decorate_class(self, klass: Class) -> Class:
+        klass.donotcompile = True
+        return klass
 
 
 class BuiltinFunction(Callable[Class]):
@@ -3659,6 +3677,7 @@ FINAL_METHOD_TYPE = TypingFinalDecorator(TypeName("typing", "final"))
 ALLOW_WEAKREFS_TYPE = AllowWeakrefsDecorator(TypeName("__static__", "allow_weakrefs"))
 DYNAMIC_RETURN_TYPE = DynamicReturnDecorator(TypeName("__static__", "dynamic_return"))
 INLINE_TYPE = InlineFunctionDecorator(TypeName("__static__", "inline"))
+DONOTCOMPILE_TYPE = DoNotCompileDecorator(TypeName("__static__", "_donotcompile"))
 
 RESOLVED_INT_TYPE = ResolvedTypeRef(INT_TYPE)
 RESOLVED_STR_TYPE = ResolvedTypeRef(STR_TYPE)
@@ -6487,9 +6506,45 @@ class Static38CodeGenerator(CinderCodeGenerator):
         self._tmpvar_loopidx_count = 0
         self.cur_mod: ModuleTable = self.symtable.modules[modname]
 
+    def _is_static_compiler_disabled(self, node: AST) -> bool:
+        if not isinstance(node, (AsyncFunctionDef, FunctionDef, ClassDef)):
+            # Static compilation can only be disabled for functions and classes.
+            return False
+        scope = self.scope
+        fn = None
+        if isinstance(scope, ClassScope):
+            klass = self.cur_mod.resolve_name(scope.name)
+            if klass:
+                assert isinstance(klass, Class)
+                if klass.donotcompile:
+                    # If static compilation is disabled on the entire class, it's skipped for all contained
+                    # methods too.
+                    return True
+                fn = klass.get_own_member(node.name)
+
+        if fn is None:
+            # Wasn't a method, let's check if it's a module level function
+            fn = self.cur_mod.resolve_name(node.name)
+
+        if isinstance(fn, (Function, StaticMethod)):
+            return (
+                fn.donotcompile
+                if isinstance(fn, Function)
+                else fn.function.donotcompile
+            )
+
+        return False
+
     def make_child_codegen(
-        self, tree: AST, graph: PyFlowGraph
-    ) -> Static38CodeGenerator:
+        self,
+        tree: AST,
+        graph: PyFlowGraph,
+        codegen_type: Optional[Type[CinderCodeGenerator]] = None,
+    ) -> CodeGenerator:
+        if self._is_static_compiler_disabled(tree):
+            return super().make_child_codegen(
+                tree, graph, codegen_type=CinderCodeGenerator
+            )
         graph.setFlag(self.consts.CO_STATICALLY_COMPILED)
         if self.cur_mod.noframe:
             graph.setFlag(self.consts.CO_NO_FRAME)

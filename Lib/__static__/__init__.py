@@ -443,6 +443,10 @@ def inline(func):
     return func
 
 
+def _donotcompile(func):
+    return func
+
+
 def cast(typ, val):
     union_args = None
     if type(typ) is _GenericAlias:
