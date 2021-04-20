@@ -7,6 +7,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "Jit/containers.h"
+
 namespace jit {
 namespace lir {
 
@@ -21,7 +23,7 @@ class Parser {
   // code.
   std::unique_ptr<Function> parse(const std::string& code);
 
-  const std::unordered_map<int, Instruction*> getOutputInstrMap() const {
+  const UnorderedMap<int, Instruction*> getOutputInstrMap() const {
     return output_index_map_;
   }
 
@@ -64,13 +66,13 @@ class Parser {
   Instruction* instr_{nullptr};
 
   // mapping basic block indices to basic block objects
-  std::unordered_map<int, BasicBlock*> block_index_map_;
+  UnorderedMap<int, BasicBlock*> block_index_map_;
   // mapping output vreg number to the instruction generating the output
-  std::unordered_map<int, Instruction*> output_index_map_;
+  UnorderedMap<int, Instruction*> output_index_map_;
 
   // basic block and instruction references to be fixed
-  std::unordered_map<Operand*, int> basic_block_refs_;
-  std::unordered_map<LinkedOperand*, int> instr_refs_;
+  UnorderedMap<Operand*, int> basic_block_refs_;
+  UnorderedMap<LinkedOperand*, int> instr_refs_;
 };
 
 } // namespace lir

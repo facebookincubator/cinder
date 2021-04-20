@@ -14,9 +14,9 @@
 #include <ostream>
 #include <queue>
 #include <set>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
+
+#include "Jit/containers.h"
 
 namespace jit {
 namespace codegen {
@@ -35,7 +35,7 @@ struct RegallocBlockState {
   int block_start_index;
   // the first instruction of the basic block before rewrite.
   lir::Instruction* block_first_instr;
-  std::unordered_set<const lir::Operand*> livein;
+  UnorderedSet<const lir::Operand*> livein;
 
   RegallocBlockState(
       const lir::BasicBlock* b,
@@ -167,17 +167,16 @@ class LinearScanAllocator {
 
  private:
   lir::Function* func_;
-  std::unordered_map<const lir::Operand*, LiveInterval> vreg_interval_;
-  std::unordered_map<const lir::Operand*, std::set<LIRLocation>> vreg_phy_uses_;
-  std::unordered_map<const lir::BasicBlock*, RegallocBlockState>
-      regalloc_blocks_;
+  UnorderedMap<const lir::Operand*, LiveInterval> vreg_interval_;
+  UnorderedMap<const lir::Operand*, std::set<LIRLocation>> vreg_phy_uses_;
+  UnorderedMap<const lir::BasicBlock*, RegallocBlockState> regalloc_blocks_;
   // collect the last uses for all the vregs
   // key: def operand
   // value: a map with key: the use operand
   //                   value: use location
-  std::unordered_map<
+  UnorderedMap<
       const lir::Operand*,
-      std::unordered_map<const lir::LinkedOperand*, LIRLocation>>
+      UnorderedMap<const lir::LinkedOperand*, LIRLocation>>
       vreg_last_use_;
 
   // stack slot number always starts from -8, and it's up to the code generator
@@ -222,21 +221,21 @@ class LinearScanAllocator {
 
   // record vreg-to-physical-location mapping at the end of each basic block,
   // which is needed for resolve edges.
-  std::unordered_map<
+  UnorderedMap<
       const lir::BasicBlock*,
-      std::unordered_map<const lir::Operand*, const LiveInterval*>>
+      UnorderedMap<const lir::Operand*, const LiveInterval*>>
       bb_vreg_end_mapping_;
 
   void linearScan();
   bool tryAllocateFreeReg(
       LiveInterval* current,
-      std::unordered_set<LiveInterval*>& active,
-      std::unordered_set<LiveInterval*>& inactive,
+      UnorderedSet<LiveInterval*>& active,
+      UnorderedSet<LiveInterval*>& inactive,
       UnhandledQueue& unhandled);
   void allocateBlockedReg(
       LiveInterval* current,
-      std::unordered_set<LiveInterval*>& active,
-      std::unordered_set<LiveInterval*>& inactive,
+      UnorderedSet<LiveInterval*>& active,
+      UnorderedSet<LiveInterval*>& inactive,
       UnhandledQueue& unhandled);
   LIRLocation getUseAtOrAfter(const lir::Operand* vreg, LIRLocation loc) const;
 
@@ -246,7 +245,7 @@ class LinearScanAllocator {
   static void markDisallowedRegisters(std::vector<LIRLocation>& locs);
 
   // map operand to stack slot upon spilling
-  std::unordered_map<const lir::Operand*, int> operand_to_slot_;
+  UnorderedMap<const lir::Operand*, int> operand_to_slot_;
   int getStackSlot(const lir::Operand* operand);
   void freeStackSlot(const lir::Operand* operand) {
     int slot = map_get(operand_to_slot_, operand, 0);
@@ -259,25 +258,31 @@ class LinearScanAllocator {
   void rewriteLIR();
   void rewriteInstrOutput(
       lir::Instruction* instr,
-      const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping,
-      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
+      const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping,
+      const UnorderedSet<const lir::LinkedOperand*>* last_use_vregs);
   void rewriteInstrInputs(
       lir::Instruction* instr,
-      const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping,
-      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
+      const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping,
+      const UnorderedSet<const lir::LinkedOperand*>* last_use_vregs);
   void rewriteInstrOneInput(
       lir::Instruction* instr,
       size_t i,
-      const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping,
-      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
+      const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping,
+      const UnorderedSet<const lir::LinkedOperand*>* last_use_vregs);
   void rewriteInstrOneIndirectOperand(
       lir::MemoryIndirect* indirect,
-      const std::unordered_map<const lir::Operand*, const LiveInterval*>&
-          mapping,
-      const std::unordered_set<const lir::LinkedOperand*>* last_use_vregs);
+      const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping,
+      const UnorderedSet<const lir::LinkedOperand*>* last_use_vregs);
+  void rewriteInstrInputs(
+      lir::Instruction* instr,
+      const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping);
+  void rewriteInstrOneInput(
+      lir::Instruction* instr,
+      size_t i,
+      const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping);
+  void rewriteInstrOneIndirectOperand(
+      lir::MemoryIndirect* indirect,
+      const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping);
 
   using CopyGraphWithOperand =
       CopyGraphWithType<const lir::OperandBase::DataType>;
@@ -286,7 +291,7 @@ class LinearScanAllocator {
   // if the mapping is changed for a virtual register, insert a MOV
   // instruction.
   void rewriteLIRUpdateMapping(
-      std::unordered_map<const lir::Operand*, const LiveInterval*>& mapping,
+      UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping,
       LiveInterval* interval,
       CopyGraphWithOperand* copies);
   // emit copies before instr_iter

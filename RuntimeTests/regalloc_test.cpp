@@ -27,9 +27,9 @@ class LinearScanAllocatorTest : public ::testing::Test {
     return lhs->vreg < rhs->vreg;
   }
 
-  std::unordered_map<const Operand*, int> buildOperandToIndexMap(
-      const std::unordered_map<int, Instruction*>& map) {
-    std::unordered_map<const Operand*, int> res;
+  UnorderedMap<const Operand*, int> buildOperandToIndexMap(
+      const UnorderedMap<int, Instruction*>& map) {
+    UnorderedMap<const Operand*, int> res;
     for (auto& m : map) {
       res.emplace(m.second->output(), m.first);
     }
@@ -37,10 +37,10 @@ class LinearScanAllocatorTest : public ::testing::Test {
   }
 
   template <typename T>
-  std::unordered_map<int, T> buildIndexMap(
-      const std::unordered_map<const Operand*, T>& opnd_interval,
-      const std::unordered_map<const Operand*, int>& opnd_index) {
-    std::unordered_map<int, T> res;
+  UnorderedMap<int, T> buildIndexMap(
+      const UnorderedMap<const Operand*, T>& opnd_interval,
+      const UnorderedMap<const Operand*, int>& opnd_index) {
+    UnorderedMap<int, T> res;
     for (auto& oi : opnd_interval) {
       auto iter = opnd_index.find(oi.first);
 
@@ -247,9 +247,8 @@ BB %28
       << "Incorrect results - no registers have been spilled.";
 
   std::vector<LiveInterval*> intervals;
-  std::unordered_map<int, std::vector<LiveInterval*>> loc_interval_map;
-  std::unordered_map<const Operand*, std::vector<LiveInterval*>>
-      vreg_location_map;
+  UnorderedMap<int, std::vector<LiveInterval*>> loc_interval_map;
+  UnorderedMap<const Operand*, std::vector<LiveInterval*>> vreg_location_map;
   for (auto& alloc : lsallocator.allocated_) {
     if (!opnd_id_map.count(alloc->vreg)) {
       continue;

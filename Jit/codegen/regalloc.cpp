@@ -233,10 +233,10 @@ void LinearScanAllocator::calculateLiveIntervals() {
   // block is the last block of a loop starting at the loop header.
   // The key is the pointer to the loop header and the value std::vector<int>
   // is a vector of the block ids of all the associated loop ends.
-  std::unordered_map<const BasicBlock*, std::vector<int>> loop_ends;
+  UnorderedMap<const BasicBlock*, std::vector<int>> loop_ends;
 
 #ifdef Py_DEBUG
-  std::unordered_set<const Operand*> seen_outputs;
+  UnorderedSet<const Operand*> seen_outputs;
 #endif
 
   int total_instrs = 0;
@@ -244,7 +244,7 @@ void LinearScanAllocator::calculateLiveIntervals() {
     total_instrs += bb->getNumInstrs();
   }
 
-  std::unordered_set<const BasicBlock*> visited_blocks;
+  UnorderedSet<const BasicBlock*> visited_blocks;
   for (auto iter = basic_blocks.rbegin(); iter != basic_blocks.rend(); ++iter) {
     BasicBlock* bb = *iter;
 
@@ -263,7 +263,7 @@ void LinearScanAllocator::calculateLiveIntervals() {
 
     auto& successors = bb->successors();
 
-    std::unordered_set<const Operand*> live;
+    UnorderedSet<const Operand*> live;
 
     for (auto succ : successors) {
       // each successor's livein is live
@@ -481,8 +481,8 @@ void LinearScanAllocator::spillRegistersForYield(int instr_id) {
 void LinearScanAllocator::reserveRegisters(
     int instr_id,
     PhyRegisterSet phy_regs) {
-  static const std::unordered_map<PhyLocation, Operand> vregs = [] {
-    std::unordered_map<PhyLocation, Operand> vregs;
+  static const UnorderedStablePointerMap<PhyLocation, Operand> vregs = []() {
+    UnorderedStablePointerMap<PhyLocation, Operand> vregs;
     PhyRegisterSet phy_regs = ALL_REGISTERS;
     while (!phy_regs.Empty()) {
       PhyLocation phy_reg = phy_regs.GetFirst();
@@ -539,8 +539,8 @@ void LinearScanAllocator::linearScan() {
     allocated_.emplace_back(std::move(new_interval));
   }
 
-  std::unordered_set<LiveInterval*> active;
-  std::unordered_set<LiveInterval*> inactive;
+  UnorderedSet<LiveInterval*> active;
+  UnorderedSet<LiveInterval*> inactive;
 
   struct LiveIntervalPtrEndLess {
     bool operator()(const LiveInterval* lhs, const LiveInterval* rhs) const {
@@ -554,7 +554,7 @@ void LinearScanAllocator::linearScan() {
     }
   };
 
-  std::set<LiveInterval*, LiveIntervalPtrEndLess> stack_intervals;
+  OrderedSet<LiveInterval*, LiveIntervalPtrEndLess> stack_intervals;
 
   UnhandledQueue unhandled;
   for (auto& interval : allocated_) {
@@ -627,8 +627,8 @@ void LinearScanAllocator::linearScan() {
 
 bool LinearScanAllocator::tryAllocateFreeReg(
     LiveInterval* current,
-    std::unordered_set<LiveInterval*>& active,
-    std::unordered_set<LiveInterval*>& inactive,
+    UnorderedSet<LiveInterval*>& active,
+    UnorderedSet<LiveInterval*>& inactive,
     UnhandledQueue& unhandled) {
   if (current->fixed) {
     return true;
@@ -704,14 +704,13 @@ bool LinearScanAllocator::tryAllocateFreeReg(
 
 void LinearScanAllocator::allocateBlockedReg(
     LiveInterval* current,
-    std::unordered_set<LiveInterval*>& active,
-    std::unordered_set<LiveInterval*>& inactive,
+    UnorderedSet<LiveInterval*>& active,
+    UnorderedSet<LiveInterval*>& inactive,
     UnhandledQueue& unhandled) {
   std::vector<LIRLocation> nextUsePos(PhyLocation::NUM_REGS, MAX_LOCATION);
 
-  std::unordered_map<PhyLocation, LiveInterval*> reg_active_interval;
-  std::unordered_map<PhyLocation, std::vector<LiveInterval*>>
-      reg_inactive_intervals;
+  UnorderedMap<PhyLocation, LiveInterval*> reg_active_interval;
+  UnorderedMap<PhyLocation, std::vector<LiveInterval*>> reg_inactive_intervals;
 
   bool is_fp = current->vreg->isFp();
 
@@ -863,7 +862,7 @@ int LinearScanAllocator::getStackSlot(const Operand* operand) {
 }
 
 void LinearScanAllocator::rewriteLIR() {
-  std::unordered_map<const Operand*, const LiveInterval*> mapping;
+  UnorderedMap<const Operand*, const LiveInterval*> mapping;
 
   auto allocated_iter = allocated_.begin();
 
@@ -873,7 +872,7 @@ void LinearScanAllocator::rewriteLIR() {
     }
   };
 
-  std::unordered_set<const lir::LinkedOperand*> last_use_vregs;
+  UnorderedSet<const lir::LinkedOperand*> last_use_vregs;
   for (auto& use_pair : vreg_last_use_) {
     for (auto& pair : use_pair.second) {
       last_use_vregs.emplace(pair.first);
@@ -956,8 +955,8 @@ void LinearScanAllocator::rewriteLIR() {
 
 void LinearScanAllocator::rewriteInstrOutput(
     Instruction* instr,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
-    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
+    const UnorderedMap<const Operand*, const LiveInterval*>& mapping,
+    const UnorderedSet<const LinkedOperand*>* last_use_vregs) {
   if (instr->opcode() == Instruction::kBind) {
     return;
   }
@@ -997,8 +996,8 @@ void LinearScanAllocator::rewriteInstrOutput(
 
 void LinearScanAllocator::rewriteInstrInputs(
     Instruction* instr,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
-    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
+    const UnorderedMap<const Operand*, const LiveInterval*>& mapping,
+    const UnorderedSet<const LinkedOperand*>* last_use_vregs) {
   for (size_t i = 0; i < instr->getNumInputs(); i++) {
     rewriteInstrOneInput(instr, i, mapping, last_use_vregs);
   }
@@ -1007,8 +1006,8 @@ void LinearScanAllocator::rewriteInstrInputs(
 void LinearScanAllocator::rewriteInstrOneInput(
     Instruction* instr,
     size_t i,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
-    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
+    const UnorderedMap<const Operand*, const LiveInterval*>& mapping,
+    const UnorderedSet<const LinkedOperand*>* last_use_vregs) {
   auto input = instr->getInput(i);
 
   if (input->isInd()) {
@@ -1036,8 +1035,8 @@ void LinearScanAllocator::rewriteInstrOneInput(
 
 void LinearScanAllocator::rewriteInstrOneIndirectOperand(
     MemoryIndirect* indirect,
-    const std::unordered_map<const Operand*, const LiveInterval*>& mapping,
-    const std::unordered_set<const LinkedOperand*>* last_use_vregs) {
+    const UnorderedMap<const Operand*, const LiveInterval*>& mapping,
+    const UnorderedSet<const LinkedOperand*>* last_use_vregs) {
   auto base = indirect->getBaseRegOperand();
   PhyLocation base_phy_reg = (base->isLinked() || base->isVreg())
       ? map_get(mapping, base->getDefine())->allocated_loc
@@ -1073,7 +1072,7 @@ void LinearScanAllocator::rewriteInstrOneIndirectOperand(
 }
 
 void LinearScanAllocator::rewriteLIRUpdateMapping(
-    std::unordered_map<const jit::lir::Operand*, const LiveInterval*>& mapping,
+    UnorderedMap<const jit::lir::Operand*, const LiveInterval*>& mapping,
     LiveInterval* interval,
     CopyGraphWithOperand* copies) {
   auto vreg = interval->vreg;
@@ -1093,7 +1092,7 @@ void LinearScanAllocator::rewriteLIRUpdateMapping(
 
 void LinearScanAllocator::resolveEdges() {
   // collect intervals that are live at beginning of a basic block
-  std::unordered_map<BasicBlock*, std::vector<LiveInterval*>> bb_interval_map;
+  UnorderedMap<BasicBlock*, std::vector<LiveInterval*>> bb_interval_map;
   auto& blocks = func_->basicblocks();
 
   for (auto& interval : allocated_) {
