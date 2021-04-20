@@ -74,6 +74,9 @@ class PostRegAllocRewrite : public Rewrite {
   // and remove the unnecessary moves after the replacement
   static RewriteResult optimizeMoveSequence(jit::lir::BasicBlock* basicblock);
 
+  // rewrite division instructions to use correct registers
+  static RewriteResult rewriteDivide(instr_iter_t instr_iter);
+
   // insert a move from an operand to a memory location given by base + index.
   // this function handles cases where operand is a >32-bit immediate and
   // operand is a stack location.
@@ -84,6 +87,12 @@ class PostRegAllocRewrite : public Rewrite {
       int index,
       const lir::OperandBase* operand,
       PhyLocation temp = PhyLocation::RAX);
+
+  static bool insertMoveToRegister(
+      lir::BasicBlock* block,
+      instr_iter_t instr_iter,
+      lir::Operand* op,
+      PhyLocation location);
 };
 
 } // namespace jit::codegen

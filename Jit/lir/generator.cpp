@@ -686,6 +686,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const IntBinaryOp*>(&i);
         std::string op;
         std::string convert;
+        std::string extra_arg = "";
         uint64_t helper = 0;
         switch (instr->op()) {
           case BinaryOpKind::kAdd:
@@ -746,30 +747,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             }
             break;
           case BinaryOpKind::kFloorDivide:
-            switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
-              case 1:
-              case 2:
-                convert = "Convert";
-              case 3:
-                helper = reinterpret_cast<uint64_t>(JITRT_Divide32);
-                break;
-              case 4:
-                helper = reinterpret_cast<uint64_t>(JITRT_Divide64);
-                break;
-            }
+            op = "Div";
+            extra_arg = "0, ";
             break;
           case BinaryOpKind::kFloorDivideUnsigned:
-            switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
-              case 1:
-              case 2:
-                convert = "ConvertUnsigned";
-              case 3:
-                helper = reinterpret_cast<uint64_t>(JITRT_DivideUnsigned32);
-                break;
-              case 4:
-                helper = reinterpret_cast<uint64_t>(JITRT_DivideUnsigned64);
-                break;
-            }
+            op = "DivUn";
+            extra_arg = "0, ";
             break;
           case BinaryOpKind::kModulo:
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
@@ -817,7 +800,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               "Call {} {:#x}, {}, {}", instr->dst(), helper, left, right);
         } else {
           bbb.AppendCode(
-              "{} {}, {}, {}", op, instr->dst(), instr->left(), instr->right());
+              "{} {}, {} {}, {}",
+              op,
+              instr->dst(),
+              extra_arg,
+              instr->left(),
+              instr->right());
         }
 
         break;

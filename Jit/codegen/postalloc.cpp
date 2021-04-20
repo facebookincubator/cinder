@@ -17,6 +17,7 @@ void PostRegAllocRewrite::registerRewrites() {
 
   registerOneRewriteFunction(optimizeMoveSequence, 1);
   registerOneRewriteFunction(optimizeMoveInstrs, 1);
+  registerOneRewriteFunction(rewriteDivide);
 }
 
 Rewrite::RewriteResult PostRegAllocRewrite::removePhiInstructions(
@@ -735,6 +736,169 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteByteMultiply(
         PhyReg(PhyLocation::RAX, OperandBase::k8bit));
   }
   return kChanged;
+}
+
+Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
+    instr_iter_t instr_iter) {
+  Instruction* instr = instr_iter->get();
+  if (!instr->isDiv() && !instr->isDivUn()) {
+    return kUnchanged;
+  }
+
+  bool changed = false;
+  Operand* output = static_cast<Operand*>(instr->output());
+
+  BasicBlock* block = instr->basicblock();
+
+  Operand* dividend_upper = nullptr;
+  Operand* dividend_lower;
+  Operand* divisor;
+  if (instr->getNumInputs() == 3) {
+    dividend_upper = static_cast<Operand*>(instr->getInput(0));
+    dividend_lower = static_cast<Operand*>(instr->getInput(1));
+    divisor = static_cast<Operand*>(instr->getInput(2));
+  } else {
+    dividend_lower = static_cast<Operand*>(instr->getInput(0));
+    divisor = static_cast<Operand*>(instr->getInput(1));
+  }
+
+  PhyLocation out_reg = PhyLocation::RAX;
+  if (output->type() != OperandBase::kNone) {
+    out_reg = output->getPhyRegister();
+  } else {
+    JIT_CHECK(
+        dividend_lower->type() == OperandBase::kReg,
+        "input should be in register");
+    out_reg = dividend_lower->getPhyRegister();
+  }
+
+  if (dividend_lower->dataType() == OperandBase::k8bit) {
+    // 8-bit division uses 16-bits from ax instead of using
+    // dx as the upper word, so we need to sign extend it to
+    // be a 16-bit input (we'll use the size from the divisor
+    // as the size of the instruction, setting the size on
+    // divided_lower here is just tracking that we've done
+    // the transformation).  When we do this we'll re-write
+    // it down to the 2 input form and make dividend_lower
+    // be 16-bit.
+    JIT_CHECK(
+        instr->getNumInputs() == 3,
+        "8-bit should always start with 3 operands");
+    auto move = block->allocateInstrBefore(
+        instr_iter,
+        dividend_lower->type() == OperandBase::kImm ? Instruction::kMove
+            : instr->isDiv()                        ? Instruction::kMovSX
+                                                    : Instruction::kMovZX,
+        OutPhyReg(PhyLocation::RAX, OperandBase::k16bit));
+
+    if (dividend_lower->type() == OperandBase::kImm) {
+      dividend_lower->setDataType(OperandBase::k16bit);
+    }
+
+    auto divisor_removed = instr->removeInputOperand(2);
+    auto div_lower_removed = instr->removeInputOperand(1);
+    move->appendInputOperand(std::move(div_lower_removed));
+
+    instr->removeInputOperand(0); // Imm/rdx, no longer used
+
+    instr->addOperands(PhyReg(PhyLocation::RAX, OperandBase::k16bit));
+    instr->appendInputOperand(std::move(divisor_removed));
+    changed = true;
+  } else {
+    // dividend lower needs to be in rax, we reserved the register
+    // in reg_alloc.
+    changed |= insertMoveToRegister(
+        block, instr_iter, dividend_lower, PhyLocation::RAX);
+
+    if (dividend_upper != nullptr &&
+        (dividend_upper->type() != OperandBase::kReg ||
+         dividend_upper->getPhyRegister() != PhyLocation::RDX)) {
+      JIT_CHECK(
+          (dividend_upper->type() == OperandBase::kImm &&
+           dividend_upper->getConstant() == 0),
+          "only immediate 0 is supported");
+
+      if (instr->isDiv()) {
+        // extend rax into rdx
+        Instruction::Opcode extend;
+        switch (dividend_lower->sizeInBits()) {
+          case 16:
+            extend = Instruction::kCwd;
+            break;
+          case 32:
+            extend = Instruction::kCdq;
+            break;
+          case 64:
+            extend = Instruction::kCqo;
+            break;
+        }
+        block->allocateInstrBefore(
+            instr_iter,
+            extend,
+            OutPhyReg(PhyLocation::RDX),
+            PhyReg(PhyLocation::RAX));
+      } else {
+        // zero rdx
+        block->allocateInstrBefore(
+            instr_iter,
+            Instruction::kXor,
+            PhyReg(PhyLocation::RDX),
+            PhyReg(PhyLocation::RDX));
+      }
+
+      dividend_upper->setPhyRegister(PhyLocation::RDX);
+      dividend_upper->setDataType(dividend_lower->dataType());
+      changed = true;
+    }
+  }
+
+  if (out_reg != PhyLocation::RAX) {
+    block->allocateInstrBefore(
+        std::next(instr_iter),
+        Instruction::kMove,
+        OutPhyReg(out_reg, dividend_lower->dataType()),
+        PhyReg(PhyLocation::RAX, dividend_lower->dataType()));
+    changed = true;
+  }
+  output->setNone();
+
+  return changed ? kChanged : kUnchanged;
+}
+
+bool PostRegAllocRewrite::insertMoveToRegister(
+    lir::BasicBlock* block,
+    instr_iter_t instr_iter,
+    Operand* op,
+    PhyLocation location) {
+  if (op->type() != OperandBase::kReg || op->getPhyRegister() != location) {
+    auto move = block->allocateInstrBefore(
+        instr_iter, Instruction::kMove, OutPhyReg(location, op->dataType()));
+
+    switch (op->type()) {
+      case OperandBase::kReg:
+        move->addOperands(PhyReg(op->getPhyRegister(), op->dataType()));
+        break;
+      case OperandBase::kImm:
+        move->addOperands(Imm(op->getConstant()));
+        break;
+      case OperandBase::kStack:
+        move->addOperands(Stk(op->getPhyRegOrStackSlot(), op->dataType()));
+        break;
+      case OperandBase::kMem:
+        JIT_CHECK(false, "unsupported: div from mem");
+        break;
+      case OperandBase::kVreg:
+      case OperandBase::kLabel:
+      case OperandBase::kInd:
+      case OperandBase::kNone:
+        JIT_CHECK(false, "unexpected operand base");
+        break;
+    }
+
+    op->setPhyRegister(location);
+    return true;
+  }
+  return false;
 }
 
 void PostRegAllocRewrite::insertMoveToMemoryLocation(

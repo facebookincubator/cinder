@@ -179,9 +179,9 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       instr_str == "Add" || instr_str == "Sub" || instr_str == "And" ||
       instr_str == "Xor" || instr_str == "Or" || instr_str == "LShift" ||
       instr_str == "RShift" || instr_str == "RShiftUn" || instr_str == "Mul" ||
-      instr_str == "Equal" || instr_str == "NotEqual" ||
-      instr_str == "GreaterThanSigned" || instr_str == "LessThanSigned" ||
-      instr_str == "GreaterThanEqualSigned" ||
+      instr_str == "Div" || instr_str == "DivUn" || instr_str == "Equal" ||
+      instr_str == "NotEqual" || instr_str == "GreaterThanSigned" ||
+      instr_str == "LessThanSigned" || instr_str == "GreaterThanEqualSigned" ||
       instr_str == "LessThanEqualSigned" ||
       instr_str == "GreaterThanUnsigned" || instr_str == "LessThanUnsigned" ||
       instr_str == "GreaterThanEqualUnsigned" ||
@@ -234,11 +234,15 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       instr = createInstr(Instruction::kFmul);
     } else if (instr_str == "Fdiv") {
       instr = createInstr(Instruction::kFdiv);
+    } else if (instr_str == "Div") {
+      instr = createInstr(Instruction::kDiv);
+    } else if (instr_str == "DivUn") {
+      instr = createInstr(Instruction::kDivUn);
     } else {
       JIT_CHECK(false, "Unknown LIR instruction: %s", instr_str);
     }
 
-    for (size_t i = 2; i < 4; i++) {
+    for (size_t i = 2; i < tokens.size(); i++) {
       if (IsConstant(tokens[i])) {
         CreateInstrImmediateInput(instr, tokens[i]);
       } else {

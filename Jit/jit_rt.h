@@ -313,14 +313,6 @@ int32_t JITRT_ShiftRight32(int32_t x, int32_t y);
 uint64_t JITRT_ShiftRightUnsigned64(uint64_t x, uint64_t y);
 uint32_t JITRT_ShiftRightUnsigned32(uint32_t x, uint32_t y);
 
-/* Helper methods to implement signed division */
-int64_t JITRT_Divide64(int64_t x, int64_t y);
-int32_t JITRT_Divide32(int32_t x, int32_t y);
-
-/* Helper methods to implement unsigned division */
-uint64_t JITRT_DivideUnsigned64(uint64_t x, uint64_t y);
-uint32_t JITRT_DivideUnsigned32(uint32_t x, uint32_t y);
-
 /* Helper methods to implement signed modulus */
 int64_t JITRT_Mod64(int64_t x, int64_t y);
 int32_t JITRT_Mod32(int32_t x, int32_t y);

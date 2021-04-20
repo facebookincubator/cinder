@@ -7,6 +7,27 @@ namespace jit::codegen {
 Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
     instr_iter_t instr_iter) {
   auto instr = instr_iter->get();
+  auto block = instr->basicblock();
+
+  if (instr->isDiv() || instr->isDivUn()) {
+    auto divisor = instr->getInput(2);
+    if (divisor->type() == OperandBase::kImm) {
+      // div doesn't support an immediate as the divisor
+      auto constant = divisor->getConstant();
+      auto constant_size = divisor->dataType();
+
+      auto move = block->allocateInstrBefore(
+          instr_iter,
+          Instruction::kMove,
+          OutVReg(constant_size),
+          Imm(constant, constant_size));
+
+      instr->removeInputOperand(2);
+      instr->allocateLinkedInput(move);
+      return kChanged;
+    }
+    return kUnchanged;
+  }
 
   if (!instr->isAdd() && !instr->isSub() && !instr->isXor() &&
       !instr->isAnd() && !instr->isOr() && !instr->isMul() &&
@@ -37,7 +58,6 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
   auto constant = input0->getConstant();
   auto constant_size = input0->dataType();
 
-  auto block = instr->basicblock();
   auto move = block->allocateInstrBefore(
       instr_iter, Instruction::kMove, OutVReg(), Imm(constant, constant_size));
 

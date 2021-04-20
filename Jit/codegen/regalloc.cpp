@@ -350,6 +350,16 @@ void LinearScanAllocator::calculateLiveIntervals() {
           (instr->getInput(0)->dataType() == OperandBase::k8bit)) {
         // see rewriteByteMultiply
         reserveRegisters(instr_id, PhyRegisterSet(PhyLocation::RAX));
+      } else if (
+          instr_opcode == Instruction::kDiv ||
+          instr_opcode == Instruction::kDivUn) {
+        PhyRegisterSet reserved(PhyLocation::RAX);
+
+        if (instr->getInput(1)->dataType() != OperandBase::k8bit) {
+          reserved = reserved | PhyLocation::RDX;
+        }
+
+        reserveRegisters(instr_id, reserved);
       }
 
       if (instr->isAnyYield()) {

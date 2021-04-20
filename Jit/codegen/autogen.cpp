@@ -871,6 +871,20 @@ DEF_BINARY_OP_RULES(kOr, or_)
 DEF_BINARY_OP_RULES(kXor, xor_)
 DEF_BINARY_OP_RULES(kMul, imul)
 
+BEGIN_RULES(Instruction::kDiv)
+  GEN("rrr", ASM(idiv, OP(0), OP(1), OP(2)) )
+  GEN("rrm", ASM(idiv, OP(0), OP(1), STK(2)) )
+  GEN("rr", ASM(idiv, OP(0), OP(1)) )
+  GEN("rm", ASM(idiv, OP(0), STK(1)) )
+END_RULES
+
+BEGIN_RULES(Instruction::kDivUn)
+  GEN("rrr", ASM(div, OP(0), OP(1), OP(2)) )
+  GEN("rrm", ASM(div, OP(0), OP(1), STK(2)) )
+  GEN("rr", ASM(div, OP(0), OP(1)) )
+  GEN("rm", ASM(div, OP(0), STK(1)) )
+END_RULES
+
 #undef DEF_BINARY_OP_RULES
 
 BEGIN_RULES(Instruction::kFadd)
@@ -902,6 +916,18 @@ END_RULES
 BEGIN_RULES(Instruction::kPop)
   GEN("R", ASM(pop, OP(0)))
   GEN("M", ASM(pop, STK(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kCdq)
+  GEN("Rr", ASM(cdq, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kCwd)
+  GEN("Rr", ASM(cwd, OP(0), OP(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kCqo)
+  GEN("Rr", ASM(cqo, OP(0), OP(1)))
 END_RULES
 
 BEGIN_RULES(Instruction::kExchange)

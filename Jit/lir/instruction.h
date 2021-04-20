@@ -42,7 +42,8 @@ enum class FlagEffects {
   X(Sub, FlagEffects::kSet, kOut, 1, {1})                                   \
   X(And, FlagEffects::kSet, kOut, 1, {1})                                   \
   X(Xor, FlagEffects::kSet, kOut, 1, {1})                                   \
-  X(Div, FlagEffects::kSet, kOut, 1, {1})                                   \
+  X(Div, FlagEffects::kSet, kDefault, 1, {1})                               \
+  X(DivUn, FlagEffects::kSet, kDefault, 1, {1})                             \
   X(Mul, FlagEffects::kSet, kOut, 1, {1})                                   \
   X(Or, FlagEffects::kSet, kOut, 1, {1})                                    \
   X(Fadd, FlagEffects::kNone, kAlways64, 1, {1, 1})                         \
@@ -69,6 +70,9 @@ enum class FlagEffects {
   X(Move, FlagEffects::kNone, kOut)                                         \
   X(Push)                                                                   \
   X(Pop, FlagEffects::kNone, kDefault, 0)                                   \
+  X(Cdq)                                                                    \
+  X(Cwd)                                                                    \
+  X(Cqo)                                                                    \
   X(Branch)                                                                 \
   X(BranchNZ)                                                               \
   X(BranchZ)                                                                \

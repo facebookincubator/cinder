@@ -17,7 +17,7 @@ class PostGenerationRewrite : public Rewrite {
  private:
   // Fix constant input position
   // If a binary operation has a constant input, always put it as the
-  // second operand.
+  // second operand (or move the 2nd to a register for div instructions)
   static RewriteResult rewriteBinaryOpConstantPosition(instr_iter_t instr_iter);
 
   // Rewrite binary instructions with > 32-bit constant.
