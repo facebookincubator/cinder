@@ -752,14 +752,11 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
 
   Operand* dividend_upper = nullptr;
   Operand* dividend_lower;
-  Operand* divisor;
   if (instr->getNumInputs() == 3) {
     dividend_upper = static_cast<Operand*>(instr->getInput(0));
     dividend_lower = static_cast<Operand*>(instr->getInput(1));
-    divisor = static_cast<Operand*>(instr->getInput(2));
   } else {
     dividend_lower = static_cast<Operand*>(instr->getInput(0));
-    divisor = static_cast<Operand*>(instr->getInput(1));
   }
 
   PhyLocation out_reg = PhyLocation::RAX;
@@ -831,6 +828,8 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
           case 64:
             extend = Instruction::kCqo;
             break;
+          default:
+            Py_UNREACHABLE();
         }
         block->allocateInstrBefore(
             instr_iter,

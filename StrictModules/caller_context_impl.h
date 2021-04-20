@@ -26,6 +26,7 @@ template <typename... Args>
     std::shared_ptr<StrictType> excType,
     Args&&... args) const {
   exception(std::move(excType), std::forward<Args>(args)...)->raise();
+  Py_UNREACHABLE();
 }
 
 template <typename... Args>

@@ -88,7 +88,8 @@ static PyMethodDef StrictModuleLoader_methods[] = {
      PyDoc_STR("check(mod_name: str) -> None")},
     {NULL, NULL, 0, NULL} /* sentinel */
 };
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 PyTypeObject StrictModuleLoader_Type = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "strictmodule.StrictModuleLoader",
     .tp_basicsize = sizeof(StrictModuleLoaderObject),
@@ -100,6 +101,7 @@ PyTypeObject StrictModuleLoader_Type = {
     .tp_init = (initproc)StrictModuleLoaderObject_init,
     .tp_new = StrictModuleLoaderObject_new,
 };
+#pragma GCC diagnostic pop
 #ifdef __cplusplus
 }
 #endif

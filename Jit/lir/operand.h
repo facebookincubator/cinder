@@ -114,6 +114,8 @@ class OperandBase {
       case kDouble:
       case kObject:
         return 64;
+      default:
+        Py_UNREACHABLE();
     }
   }
 
@@ -125,6 +127,7 @@ class OperandBase {
       FOREACH_OPERAND_DATA_TYPE(DATA_TYPE_NAME_CASE)
 #undef DATA_TYPE_NAME_CASE
     }
+    Py_UNREACHABLE();
   }
 
   virtual Type type() const = 0;

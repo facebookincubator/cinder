@@ -141,7 +141,7 @@ static void DeoptInfo_Free(PyObject* deopt_info) {
 static void deopt_func(BorrowedRef<_PyJITContext> ctx, BorrowedRef<> func_ref);
 static void deopt_type(BorrowedRef<_PyJITContext> ctx, BorrowedRef<> type_ref);
 
-static void _PyJITContext_Free(BorrowedRef<_PyJITContext> ctx);
+static void _PyJITContext_Free(_PyJITContext* ctx);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -185,11 +185,11 @@ _PyJITContext* _PyJITContext_New(std::unique_ptr<jit::Compiler> compiler) {
   return ctx.release();
 }
 
-void _PyJITContext_Free(BorrowedRef<_PyJITContext> ctx) {
+void _PyJITContext_Free(_PyJITContext* ctx) {
   JIT_DLOG("Finalizing _PyJITContext");
 
   if (ctx->weakreflist != nullptr) {
-    PyObject_ClearWeakRefs(ctx);
+    PyObject_ClearWeakRefs(reinterpret_cast<PyObject*>(ctx));
   }
 
   /* De-optimize any remaining compiled functions or types. */

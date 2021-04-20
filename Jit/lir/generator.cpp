@@ -621,12 +621,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (ty <= TCDouble) {
           auto tmp_name = GetSafeTempName();
           double_t spec_value = ty.doubleSpec();
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+          uint64_t v = *reinterpret_cast<uint64_t*>(&spec_value);
+#pragma GCC diagnostic pop
           // This loads the bits of the double into memory
-          bbb.AppendCode(
-              "Move {}:{}, {:#x}",
-              tmp_name,
-              TCUInt64,
-              *reinterpret_cast<uint64_t*>(&spec_value));
+          bbb.AppendCode("Move {}:{}, {:#x}", tmp_name, TCUInt64, v);
           // This moves the value into a floating point register
           bbb.AppendCode(
               "Move {}:{}, {}",
@@ -980,6 +980,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else if (ty <= TCInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxI32);
           convert = "Convert";
+        } else {
+          Py_UNREACHABLE();
         }
 
         if (convert == "") {

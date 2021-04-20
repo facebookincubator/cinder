@@ -47,7 +47,7 @@ bool StrictInt::eq(const BaseStrictObject& other) const {
   try {
     const StrictNumeric& num = dynamic_cast<const StrictNumeric&>(other);
     return num.getReal() == value_ && num.getImaginary() == 0;
-  } catch (std::bad_cast) {
+  } catch (std::bad_cast&) {
     return false;
   }
 }
