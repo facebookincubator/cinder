@@ -1,0 +1,97 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "ubuntu/xenial64"
+  # sudo apt-get update
+  # sudo apt-get install -y build-essential
+  # sudo apt-get install -y cmake
+  # sudo apt-get install pkg-config zip g++ zlib1g-dev unzip python
+  # sudo apt-get install -y libboost1.55-dev
+  # wget https://github.com/bazelbuild/bazel/releases/download/0.22.0/bazel-0.22.0-installer-linux-x86_64.sh
+  # chmod +x ./bazel-0.22.0-installer-linux-x86_64.sh
+  # ./bazel-0.22.0-installer-linux-x86_64.sh
+  # ./bazel-bin/hashtable_benchmarks --benchmark_format=json > benchmark-results.json
+
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  config.vm.provider "virtualbox" do |vb|
+     vb.customize ["modifyvm", :id, "--cableconnected1", "on"]
+
+     # Display the VirtualBox GUI when booting the machine
+     vb.gui = false
+
+     # Customize the amount of memory on the VM:
+     vb.memory = "16384"
+  end
+  #
+  # Define a Vagrant Push strategy for pushing to Atlas. Other push strategies
+  # such as FTP and Heroku are also available. See the documentation at
+  # https://docs.vagrantup.com/v2/push/atlas.html for more information.
+  # config.push.define "atlas" do |push|
+  #   push.app = "YOUR_ATLAS_USERNAME/YOUR_APPLICATION_NAME"
+  # end
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  config.vm.provision "shell", inline: <<-SHELL
+    sudo apt-get update
+    sudo apt-get install -y build-essential
+    sudo apt-get install -y cmake
+    sudo apt-get install -y ninja-build
+    sudo apt-get install -y pkg-config zip zlib1g-dev unzip python python-pip
+    # for folly
+    sudo apt-get install -y libboost-all-dev libevent-dev libdouble-conversion-dev \
+         libgoogle-glog-dev libgflags-dev libiberty-dev liblz4-dev liblzma-dev \
+         libsnappy-dev zlib1g-dev binutils-dev libjemalloc-dev libssl-dev pkg-config
+    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    sudo apt-get install -y python3 python3-pip
+    sudo apt-get update
+    sudo apt-get install -y gcc-8 g++-8
+    python3 -m pip install --upgrade pip
+    python3 -m pip install perf
+    cd /vagrant
+    git clone --recurse-submodules https://github.com/greg7mdp/map_benchmark.git
+    ./map_benchmark/tools/build.sh
+    sudo apt install -y ruby-full
+  SHELL
+end

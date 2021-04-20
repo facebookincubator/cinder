@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>The Parallel Hashmap (Gregory Popovitch)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <link href="http://fonts.googleapis.com/css?family=Inconsolata" rel="stylesheet">
+    
+    <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+    <link href="css/colors.css" rel="stylesheet">
+    <link rel="alternate" type="application/atom+xml" title="The Parallel Hashmap" href="rss/atom.xml" />
+
+          <style type="text/css">
+    a.sourceLine { display: inline-block; line-height: 1.25; }
+    a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+    a.sourceLine:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode { white-space: pre; position: relative; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    code.sourceCode { white-space: pre-wrap; }
+    a.sourceLine { text-indent: -1em; padding-left: 1em; }
+    }
+    pre.numberSource a.sourceLine
+      { position: relative; left: -4em; }
+    pre.numberSource a.sourceLine::before
+      { content: attr(title);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; pointer-events: all; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {  }
+    @media screen {
+    a.sourceLine::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+      </style>
+            <link rel="stylesheet" href="css/style.css" />
+                          </head>
+
+  <body>
+
+    <div>
+
+        <div class="row">
+
+          <div class="span9 body">
+<!--<h1>article</h1>--!>
+<div style="display:none">
+<p><span class="math display">\[\newcommand{\andalso}{\quad\quad}
+\newcommand{\infabbrev}[2]{\infax{#1 \quad\eqdef\quad #2}}
+\newcommand{\infrule}[2]{\displaystyle \dfrac{#1}{#2}}
+\newcommand{\ar}{\rightarrow}
+\newcommand{\Int}{\mathtt{Int}}
+\newcommand{\Bool}{\mathtt{Bool}}
+\newcommand{\becomes}{\Downarrow}
+\newcommand{\trule}[1]{(\textbf{#1})}
+\newcommand{\FV}[1]{\mathtt{fv}(#1)}
+\newcommand{\FTV}[1]{\mathtt{ftv}(#1)}
+\newcommand{\BV}[1]{\mathtt{bv}(#1)}
+\newcommand{\compiles}[1]{\text{C}\llbracket{#1}\rrbracket}
+\newcommand{\exec}[1]{\text{E}\llbracket{#1}\rrbracket}
+\renewcommand{\t}[1]{\mathtt{#1}}
+\newcommand{\ite}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\]</span></p>
+</div>
+<h1 id="the-parallel-hashmap">The Parallel Hashmap</h1>
+<p>or Abseiling from the shoulders of giants - © Gregory Popovitch - March 10, 2019</p>
+<p>[tl;dr] We present a novel hashmap design, the Parallel Hashmap. Built on top of Abseil's <em>flat_hash_map</em>, the Parallel Hashmap has lower space requirements, is nearly as fast as the underlying <em>flat_hash_map</em>, and can be used from multiple threads with high levels of concurrency.</p>
+<h3 id="a-quick-look-at-the-current-state-of-the-art">A quick look at the current state of the art</h3>
+<p>If you haven't been living under a rock, you know that Google open sourced late last year their Abseil library, which includes a very efficient flat hash table implementation. The <em>absl::flat_hash_map</em> stores the values directly in a memory array, which avoids memory indirections (this is referred to as closed hashing).</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/closed_hashing.png?raw=true" alt="closed_hashing" /></p>
+<p>Using parallel SSE2 instructions, the flat hash table is able to look up items by checking 16 slots in parallel, which allows the implementation to remain fast even when the table is filled to 87.5% capacity.</p>
+<p>The graphs below show a comparison of time and memory usage necessary to insert up to 100 million values (each value is composed of two 8-byte integers), between the default hashmap of Visual Studio 2017 (std::unordered_map), and Abseil's flat_hash_map:</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/stl_flat_both.PNG?raw=true" alt="stl_flat comparison" /></p>
+<p>On the bottom graph, we can see that, as expected, the Abseil <em>flat_hash_map</em> is significantly faster that the default stl implementation, typically about three times faster.</p>
+<h3 id="the-peak-memory-usage-issue">The peak memory usage issue</h3>
+<p>The top graph shown the memory usage for both tables.</p>
+<p>I used a separate thread to monitor the memory usage, which allows to track the increased memory usage when the table resizes. Indeed, both tables have a peak memory usage that is significantly higher than the memory usage seen between insertions.</p>
+<p>In the case of Abseil's <em>flat_hash_map</em>, the values are stored directly in a memory array. The memory usage is constant until the table needs to resize, which is why we see these horizontal sections of memory usage.</p>
+<p>When the <em>flat_hash_map</em> reaches 87.5% occupancy, a new array of twice the size is allocated, the values are moved (rehashed) from the smaller to the larger array, and then the smaller array, now empty, is freed. So we see that during the resize, the occupancy is only one third of 87.5%, or 29.1%, and when the smaller array is released, occupancy is half of 87.5% or 43.75%.</p>
+<p>The default STL implementation is also subject to this higher peak memory usage, since it typically is implemented with an array of buckets, each bucket having a pointer to a linked list of nodes containing the values. In order to maintain O(1) lookups, the array of buckets also needs to be resized as the table size grows, requiring a 3x temporary memory requirement for moving the old bucket array (1x) to the newly allocated, larger (2x) array. In between the bucket array resizes, the default STL implementation memory usage grows at a constant rate as new values are added to the linked lists.</p>
+<blockquote>
+<p>Instead of having a separate linked list for each bucket, <em>std::unordered_map</em> implementations often use a single linked list (making iteration faster), with buckets pointing to locations within the single linked list. <em>absl::node_hash_map</em>, on the other hand, has each bucket pointing to a single value, and collisions are handled with open addressing like for the <em>absl::flat_hash_map</em>.</p>
+</blockquote>
+<p>This peak memory usage can be the limiting factor for large tables. Suppose you are on a machine with 32 GB of ram, and the <em>flat_hash_map</em> needs to resize when you inserted 10 GB of values in it. 10 GB of values means the array size is 11.42 GB (resizing at 87.5% occupancy), and we need to allocate a new array of double size (22.85 GB), which obviously will not be possible on our 32 GB machine.</p>
+<p>For my work developing mechanical engineering software, this has kept me from using flat hash maps, as the high peak memory usage was the limiting factor for the size of FE models which could be loaded on a given machine. So I used other types of maps, such as <a href="https://github.com/greg7mdp/sparsepp">sparsepp</a> or Google's <a href="https://code.google.com/archive/p/cpp-btree/">cpp-btree</a>.</p>
+<p>When the Abseil library was open sourced, I started pondering the issue again. Compared to Google's old dense_hash_map which resized at 50% capacity, the new <em>absl::flat_hash_map</em> resizing at 87.5% capacity was more memory friendly, but it still had these significant peaks of memory usage when resizing.</p>
+<p>If only there was a way to eliminate those peaks, the <em>flat_hash_map</em> would be close to perfect. But how?</p>
+<h3 id="the-peak-memory-usage-solution">The peak memory usage solution</h3>
+<p>Suddenly, it hit me. I had a solution. I would create a hash table that internally is made of an array of 16 hash tables (the submaps). When inserting or looking up an item, the index of the target submap would be decided by the hash of the value to insert. For example, if for a given <code>size_t hashval</code>, the index for the internal submap would be computed with:</p>
+<p><code>submap_index = (hashval ^ (hashval &gt;&gt; 4)) &amp; 0xF;</code></p>
+<p>providing an index between 0 and 15.</p>
+<blockquote>
+<p>In the actual implementation, the size of the array of hash tables is configurable to a power of two, so it can be 2, 4, 8, 16, 32, ... The following illustration shows a parallel_hash_map with 8 submaps.</p>
+</blockquote>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/index_computation.png?raw=true" alt="index_computation" /></p>
+<p>The benefit of this approach would be that the internal tables would each resize on its own when they reach 87.5% capacity, and since each table contains approximately one sixteenth of the values, the memory usage peak would be only one sixteenth of the size we saw for the single <em>flat_hash_map</em>.</p>
+<p>The rest of this article describes my implementation of this concept that I have done inside the Abseil library (I have submitted a pull request in the hope it will be merged into the main Abseil codebase). The current name for it is <em>parallel_flat_hash_map</em> or <em>parallel_flat_hash_set</em>. It does provide the same external API as Abseil's other hash tables, and internally it uses a std::array of N <em>flat_hash_maps</em>.</p>
+<p>I was delighted to find out that not only the <em>parallel_flat_hash_map</em> has significant memory usage benefits compared to the <em>flat_hash_map</em>, but it also has significant advantages for concurrent programming as I will show later.</p>
+<blockquote>
+<p>I will use the names <em>parallel_hash_map</em> and <em>parallel_flat_hash_map</em> interchangably. They refer to the same data structure. The name used in my Abseil fork is <em>absl::parallel_flat_hash_map</em>, as it may be desirable to also provide a <em>absl::parallel_node_hash_map</em>.</p>
+</blockquote>
+<h3 id="the-parallel-hashmap-memory-usage">The Parallel Hashmap: memory usage</h3>
+<p>So, without further ado, let's see the same graphs graphs as above, with the addition of the <em>parallel_flat_hash_map</em>. Let us first look at memory usage (the second graph provides a "zoomed-in" view of the location where resizing occurs):</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/stl_flat_par_mem.PNG?raw=true" alt="stl_flat_par comparison" /></p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/stl_flat_par_mem_zoomed.PNG?raw=true" alt="stl_flat_par_zoomed comparison" /></p>
+<p>We see that the <em>parallel_hash_map</em> behaves as expected. The memory usage matches exactly the memory usage of its base <em>flat_hash_map</em>, except that the peaks of memory usage which occur when the table resizes are drastically reduced, to the point that they are not objectionable anymore. In the "zoomed-in" view, we can see the sixteen dots corresponding to each of the individual submaps resizing. The fact that those resizes are occuring at roughly the same x location in the graph shows that we have a good hash function distribution, distributing the values evenly between the sixteen individual submaps.</p>
+<h3 id="the-parallel-hashmap-speed">The Parallel Hashmap: speed</h3>
+<p>But what about the speed? After all, for each value inserted into the parallel hashmap, we have to do some extra work (steps 1 and 2 below):</p>
+<ol>
+<li>compute the hash for the value to insert</li>
+<li>compute the index of the target submap from the hash)</li>
+<li>insert the value into the submap</li>
+</ol>
+<p>The first step (compute the hash) is the most problematic one, as it can potentially be costly. As we mentioned above, the second step (computing the index from the hash) is very simple and its cost in minimal (3 processor instruction as shown below in <em>Matt Godbolt</em>'s compiler explorer):</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/idx_computation_cost.PNG?raw=true" alt="index computation cost" /></p>
+<p>As for the hash value computation, fortunately we can eliminate this cost by providing the computed hash to the submap functions, so that it is computed only once. This is exactly what I have done in my implementation of the <em>parallel_hash_map</em> within the Abseil library, adding a few extra APIs to the Abseil internal raw_hash_map.h header, which allow the <em>parallel_hash_map</em> to pass the precomputed hash value to the underlying submaps.</p>
+<p>So we have all but eliminated the cost of the first step, and seen that the cost of the second step is very minimal. At this point we expect that the <em>parallel_hash_map</em> performance will be close to the one of its underlying <em>flat_hash_map</em>, and this is confirmed by the chart below:</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/stl_flat_par_speed.PNG?raw=true" alt="stl_flat_par comparison" /></p>
+<p>Indeed, because of the scale is somewhat compressed due to the longer times of the std::unordered_map, we can barely distinguish between the blue curve of the <em>flat_hash_map</em> and the red curve of the <em>parallel_hash_map</em>. So let's look at a graph without the std::unordered_map:</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/flat_par_speed.PNG?raw=true" alt="flat_par comparison" /></p>
+<p>This last graph shows that the <em>parallel_hash_map</em> is slightly slower especially for smaller table sizes. For a reason not obvious to me (maybe better memory locality), the speeds of the <em>parallel_hash_map</em> and <em>flat_hash_map</em> are essentially undistinguishable for larger map sizes (&gt; 80 million values).</p>
+<h3 id="are-we-done-yet">Are we done yet?</h3>
+<p>This is already looking pretty good. For large hash_maps, the <em>parallel_flat_hash_map</em> is a very appealing solution, as it provides essentially the excellent performance of the <em>flat_hash_map</em>, while virtually eliminating the peaks of memory usage which occur when the hash table resizes.</p>
+<p>But there is another aspect of the inherent parallelism of the <em>parallel_hash_map</em> which is interesting to explore. As we know, typical hashmaps cannot be modified from multiple threads without explicit synchronization. And bracketing write accesses to a shared hash_map with synchronization primitives, such as mutexes, can reduce the concurrency of our program, and even cause deadlocks.</p>
+<p>Because the <em>parallel_hash_map</em> is made of sixteen separate submaps, it posesses some intrinsic parallelism. Indeed, suppose you can make sure that different threads will use different submaps, you would be able to insert into the same <em>parallel_hash_map</em> at the same time from the different threads without any locking.</p>
+<h3 id="using-the-intrinsic-parallelism-of-the-parallel_hash_map-to-insert-values-from-multiple-threads-lock-free">Using the intrinsic parallelism of the <em>parallel_hash_map</em> to insert values from multiple threads, lock free.</h3>
+<p>So, if you can iterate over the values you want to insert into the hash table, the idea is that each thread will iterate over all values, and then for each value:</p>
+<ol>
+<li>compute the hash for that value</li>
+<li>compute the submap index for that hash</li>
+<li>if the submap index is one assigned to this thread, then insert the value, otherwise do nothing and continue to the next value</li>
+</ol>
+<p>Here is the code for the single-threaded insert:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode c++"><code class="sourceCode cpp"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">template</span> &lt;<span class="kw">class</span> HT&gt;</a>
+<a class="sourceLine" id="cb1-2" title="2"><span class="dt">void</span> _fill_random_inner(<span class="dt">int64_t</span> cnt, HT &amp;hash, RSU &amp;rsu)</a>
+<a class="sourceLine" id="cb1-3" title="3">{</a>
+<a class="sourceLine" id="cb1-4" title="4">    <span class="cf">for</span> (<span class="dt">int64_t</span> i=<span class="dv">0</span>; i&lt;cnt; ++i)</a>
+<a class="sourceLine" id="cb1-5" title="5">    {</a>
+<a class="sourceLine" id="cb1-6" title="6">        hash.insert(<span class="kw">typename</span> HT::<span class="dt">value_type</span>(rsu.next(), <span class="dv">0</span>));</a>
+<a class="sourceLine" id="cb1-7" title="7">        ++num_keys[<span class="dv">0</span>];</a>
+<a class="sourceLine" id="cb1-8" title="8">    }</a>
+<a class="sourceLine" id="cb1-9" title="9">}</a></code></pre></div>
+<p>and here is the code for the multi-threaded insert:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode c++"><code class="sourceCode cpp"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">template</span> &lt;<span class="kw">class</span> HT&gt;</a>
+<a class="sourceLine" id="cb2-2" title="2"><span class="dt">void</span> _fill_random_inner_mt(<span class="dt">int64_t</span> cnt, HT &amp;hash, RSU &amp;rsu)</a>
+<a class="sourceLine" id="cb2-3" title="3">{</a>
+<a class="sourceLine" id="cb2-4" title="4">    <span class="kw">constexpr</span> <span class="dt">int64_t</span> num_threads = <span class="dv">8</span>;   <span class="co">// has to be a power of two</span></a>
+<a class="sourceLine" id="cb2-5" title="5">    <span class="bu">std::</span>unique_ptr&lt;<span class="bu">std::</span>thread&gt; threads[num_threads];</a>
+<a class="sourceLine" id="cb2-6" title="6"></a>
+<a class="sourceLine" id="cb2-7" title="7">    <span class="kw">auto</span> thread_fn = [&amp;hash, cnt, num_threads](<span class="dt">int64_t</span> thread_idx, RSU rsu) {</a>
+<a class="sourceLine" id="cb2-8" title="8">        <span class="kw">typename</span> HT::hasher hasher;                         <span class="co">// get hasher object from the hash table</span></a>
+<a class="sourceLine" id="cb2-9" title="9">        <span class="dt">size_t</span> modulo = hash.subcnt() / num_threads;        <span class="co">// subcnt() returns the number of submaps</span></a>
+<a class="sourceLine" id="cb2-10" title="10"></a>
+<a class="sourceLine" id="cb2-11" title="11">        <span class="cf">for</span> (<span class="dt">int64_t</span> i=<span class="dv">0</span>; i&lt;cnt; ++i)                       <span class="co">// iterate over all values</span></a>
+<a class="sourceLine" id="cb2-12" title="12">        {</a>
+<a class="sourceLine" id="cb2-13" title="13">            <span class="dt">unsigned</span> <span class="dt">int</span> key = rsu.next();                  <span class="co">// get next key to insert</span></a>
+<a class="sourceLine" id="cb2-14" title="14">            <span class="dt">size_t</span> hashval = hash.hash(key);                <span class="co">// compute its hash</span></a>
+<a class="sourceLine" id="cb2-15" title="15">            <span class="dt">size_t</span> idx  = hash.subidx(hashval);             <span class="co">// compute the submap index for this hash</span></a>
+<a class="sourceLine" id="cb2-16" title="16">            <span class="cf">if</span> (idx / modulo == thread_idx)                 <span class="co">// if the submap is suitable for this thread</span></a>
+<a class="sourceLine" id="cb2-17" title="17">            {</a>
+<a class="sourceLine" id="cb2-18" title="18">                hash.insert(<span class="kw">typename</span> HT::<span class="dt">value_type</span>(key, <span class="dv">0</span>)); <span class="co">// insert the value</span></a>
+<a class="sourceLine" id="cb2-19" title="19">                ++(num_keys[thread_idx]);                     <span class="co">// increment count of inserted values</span></a>
+<a class="sourceLine" id="cb2-20" title="20">            }</a>
+<a class="sourceLine" id="cb2-21" title="21">        }</a>
+<a class="sourceLine" id="cb2-22" title="22">    };</a>
+<a class="sourceLine" id="cb2-23" title="23"></a>
+<a class="sourceLine" id="cb2-24" title="24">    <span class="co">// create and start 8 threads - each will insert in their own submaps</span></a>
+<a class="sourceLine" id="cb2-25" title="25">    <span class="co">// thread 0 will insert the keys whose hash direct them to submap0 or submap1</span></a>
+<a class="sourceLine" id="cb2-26" title="26">    <span class="co">// thread 1 will insert the keys whose hash direct them to submap2 or submap3</span></a>
+<a class="sourceLine" id="cb2-27" title="27">    <span class="co">// --------------------------------------------------------------------------</span></a>
+<a class="sourceLine" id="cb2-28" title="28">    <span class="cf">for</span> (<span class="dt">int64_t</span> i=<span class="dv">0</span>; i&lt;num_threads; ++i)</a>
+<a class="sourceLine" id="cb2-29" title="29">        threads[i].reset(<span class="kw">new</span> <span class="bu">std::</span>thread(thread_fn, i, rsu));</a>
+<a class="sourceLine" id="cb2-30" title="30"></a>
+<a class="sourceLine" id="cb2-31" title="31">    <span class="co">// rsu passed by value to threads... we need to increment the reference object</span></a>
+<a class="sourceLine" id="cb2-32" title="32">    <span class="cf">for</span> (<span class="dt">int64_t</span> i=<span class="dv">0</span>; i&lt;cnt; ++i)</a>
+<a class="sourceLine" id="cb2-33" title="33">        rsu.next();</a>
+<a class="sourceLine" id="cb2-34" title="34">    </a>
+<a class="sourceLine" id="cb2-35" title="35">    <span class="co">// wait for the threads to finish their work and exit</span></a>
+<a class="sourceLine" id="cb2-36" title="36">    <span class="cf">for</span> (<span class="dt">int64_t</span> i=<span class="dv">0</span>; i&lt;num_threads; ++i)</a>
+<a class="sourceLine" id="cb2-37" title="37">        threads[i]-&gt;join();</a>
+<a class="sourceLine" id="cb2-38" title="38">}</a></code></pre></div>
+<p>Using multiple threads, we are able to populate the <em>parallel_flat_hash_map</em> (inserting 100 million values) three times faster than the standard <em>flat_hash_map</em> (which we could not have populated from multiple threads without explicit locks, which would have prevented performance improvements).</p>
+<p>And the graphical visualization of the results:</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/mt_stl_flat_par_both_run2.PNG?raw=true" alt="mt_stl_flat_par comparison" /></p>
+<p>We notice in this last graph that the memory usage peaks, while still smaller than those of the <em>flat_hash_map</em>, are larger that those we saw when populating the <em>parallel_hash_map</em> using a single thread. The obvious reason is that, when using a single thread, only one of the submaps would resize at a time, ensuring that the peak would only be 1/16th of the one for the <em>flat_hash_map</em> (provided of course that the hash function distributes the values somewhat evenly between the submaps).</p>
+<p>When running in multi-threaded mode (in this case eight threads), potentially as many as eight submaps can resize simultaneaously, so for a <em>parallel_hash_map</em> with sixteen submaps the memory peak size can be half as large as the one for the <em>flat_hash_map</em>.</p>
+<p>Still, this is a pretty good result, we are now inserting values into our <em>parallel_hash_map</em> three times faster than we were able to do using the <em>flat_hash_map</em>, while using a lower memory ceiling.</p>
+<p>This is significant, as the speed of insertion into a hash map is important in many algorithms, for example removing duplicates in a collection of values.</p>
+<h3 id="using-the-intrinsic-parallelism-of-the-parallel_hash_map-with-internal-mutexes">Using the intrinsic parallelism of the <em>parallel_hash_map</em> with internal mutexes</h3>
+<p>It may not be practical to add logic into your program to ensure you use different internal submaps from each thread. Still, locking the whole <em>parallel_hash_map</em> for each access would forego taking advantage of its intrinsic parallelism.</p>
+<p>For that reason, the <em>parallel_hash_map</em> can provide internal locking using the <code>absl::Mutex</code> (the default template parameter is <code>absl::NullMutex</code>, which does no locking and has no size cost). When selecting <code>absl::Mutex</code>, one mutex is created for each internal submap at a cost of 8 bytes per submap, and the <em>parallel_hash_map</em> internally protects each submap access with its associated mutex.</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">map</th>
+<th style="text-align: center;">Number of submaps</th>
+<th style="text-align: right;">sizeof(map)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">std::unordered_map (vs2017)</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: right;">64</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">absl::flat_hash_map</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: right;">48</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">absl::parallel_flat_hash_map, N=4, absl::NullMutex</td>
+<td style="text-align: center;">16</td>
+<td style="text-align: right;">768</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">absl::parallel_flat_hash_map, N=4, absl::Mutex</td>
+<td style="text-align: center;">16</td>
+<td style="text-align: right;">896</td>
+</tr>
+</tbody>
+</table>
+<p>It is about time we provide the complete parallel_flat_hash_map class declaration (the declaration for parallel_flat_hash_set is similar):</p>
+<pre><code>template &lt;class K, class V,
+          class Hash      = absl::priv::hash_default_hash&lt;K&gt;,
+          class Eq        = absl::priv::hash_default_eq&lt;K&gt;,
+          class Allocator = std::allocator&lt;std::pair&lt;const K, V&gt;&gt;,
+          size_t N        = 4,                 // 2**N submaps
+          class Mutex     = absl::NullMutex&gt;   // use absl::Mutex to enable internal locks
+class parallel_flat_hash_map;
+</code></pre>
+<p>Let's see what result we get for the insertion of random values from multiple threads, however this time we create a <em>parallel_hash_map</em> with internal locking (by providing absl::Mutex as the last template argument), and modify the code so that each thread inserts values in any submap (no pre-selection).</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/no_preselection.PNG?raw=true" alt="no_preselection" /></p>
+<p>If we were to do a intensive insertion test into a hash map from multiple threads, where we lock the whole hash table for each insertion, we would be likely to get even worse results than for a single threaded insert, because of heavy lock contention.</p>
+<p>In this case, our expectation is that the finer grained locking of the <em>parallel_hash_map</em> (separate locks for each internal submap) will provide a speed benefit when compared to the single threaded insertion, and this is indeed what the benchmarks show:</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/flat_par_mutex_4.PNG?raw=true" alt="flat_par_mutex_4" /></p>
+<p>Interestingly, we notice that the memory peaks (when resizing occur) are again very small, in the order of 1/16th of those for the <em>flat_hash_map</em>. This is likely because, as soon as one of the submaps resizes (which takes much longer than a regular insertion), the other threads very soon have to wait on the resizing submap's mutex for an insertion, before they reach their own resizing threashold.</p>
+<p>Since threads statistically will insert on a different submap for each value, it would be a surprising coincidence indeed if two submaps reached their resizing threshold without the resizing of the first submap blocking all the other threads first.</p>
+<p>If we increase the number of submaps, we should see more parallelism (less lock contention across threads, as the odds of two separate threads inserting in the same subhash is lower), but with diminishing returns as every submap resize will quickly block the other threads until the resize is completed.</p>
+<p>This is indeed what we see:</p>
+<p><img src="https://github.com/greg7mdp/parallel-hashmap/blob/master/img/lock_various_sizes.PNG?raw=true" alt="lock_various_sizes" /></p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">map</th>
+<th style="text-align: center;">Number of submaps</th>
+<th style="text-align: right;">sizeof(map)</th>
+<th style="text-align: right;">time 100M insertions</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">absl::flat_hash_map</td>
+<td style="text-align: center;">-</td>
+<td style="text-align: right;">48</td>
+<td style="text-align: right;">14.77s</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">absl::parallel_flat_hash_map, N=4, absl::Mutex</td>
+<td style="text-align: center;">16</td>
+<td style="text-align: right;">896</td>
+<td style="text-align: right;">8.36s</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">absl::parallel_flat_hash_map, N=5, absl::Mutex</td>
+<td style="text-align: center;">32</td>
+<td style="text-align: right;">1792</td>
+<td style="text-align: right;">7.14s</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">absl::parallel_flat_hash_map, N=6, absl::Mutex</td>
+<td style="text-align: center;">64</td>
+<td style="text-align: right;">3584</td>
+<td style="text-align: right;">6.61s</td>
+</tr>
+</tbody>
+</table>
+<p>There is still some overhead from the mutex lock/unlock, and the occasional lock contention, which prevents us from reaching the performance of the previous multithreaded lock-free insertion (5.12s for inserting 100M elements).</p>
+<h3 id="in-conclusion">In Conclusion</h3>
+<p>We have seen that the novel parallel hashmap approach, used within a single thread, provides significant space advantages, with a very minimal time penalty. When used in a multi-thread context, the parallel hashmap still provides a significant space benefit, in addition to a consequential time benefit by reducing (or even eliminating) lock contention when accessing the parallel hashmap.</p>
+<h3 id="future-work">Future work</h3>
+<ol>
+<li><p>It would be beneficial to provide additional APIs for the <em>parallel_flat_hash_map</em> and <em>parallel_flat_hash_set</em> taking a precomputed hash value. This would enable the lock-free usage of the <em>parallel_flat_hash_map</em>, described above for multi-threaded environments, without requiring a double hash computation.</p></li>
+<li><p>We may consider providing <em>parallel_node_hash_map</em> and <em>parallel_node_hash_set</em> in Abseil, for the cases when pointer stability is required for keys and/or values. This would be a simple addition.</p></li>
+</ol>
+<h3 id="thanks">Thanks</h3>
+<p>I would like to thank Google's <em>Matt Kulukundis</em> for his eye-opening presentation of the <em>flat_hash_map</em> design at CPPCON 2017 - my frustration with not being able to use it helped trigger my insight into the <em>parallel_hash_map</em>. Also many thanks to the Abseil container developers - I believe the main contributors are <em>Alkis Evlogimenos</em> and <em>Roman Perepelitsa</em> - who created an excellent codebase into which the graft of this new hashmap took easily, and finally to Google for open-sourcing Abseil. Thanks also to my son <em>Andre</em> for reviewing this paper, and for his patience when I was rambling about the <em>parallel_hash_map</em> and its benefits.</p>
+<h3 id="links">Links</h3>
+<p><a href="https://github.com/greg7mdp/parallel-hashmap">Github repository for the benchmark code used in this paper</a></p>
+<p><a href="https://abseil.io/blog/20180927-swisstables">Swiss Tables doc</a></p>
+<p><a href="https://github.com/greg7mdp/abseil-cpp">My fork of Google Abseil repository, with the parallel_flat_hash_map implementation</a></p>
+<p><a href="https://github.com/abseil/abseil-cpp">Google Abseil repository</a></p>
+<p><a href="https://www.youtube.com/watch?v=ncHmEUmJZf4">Matt Kulukindis: Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step</a></p>
+          </div>
+        </div>
+
+    </div>
+    <script src="https://code.jquery.com/jquery.js"></script>
+  </body>
+</html>

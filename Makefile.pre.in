@@ -305,6 +305,8 @@ ASMJIT_DIR=ThirdParty/asmjit/src
 ASMJIT_SRCDIR=$(srcdir)/$(ASMJIT_DIR)
 PY_CORE_CXXFLAGS += -I$(ASMJIT_SRCDIR)
 
+PY_CORE_CXXFLAGS += -I$(srcdir)/ThirdParty/parallel-hashmap
+
 GTEST_DIR=ThirdParty/googletest-1.8.1/googletest
 GTEST_SRCDIR=$(srcdir)/$(GTEST_DIR)
 RUNTIME_TESTS_DIR=RuntimeTests

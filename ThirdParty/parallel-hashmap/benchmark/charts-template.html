@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Hash Table Benchmarks</title>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+    <link href="./js/examples.css" rel="stylesheet" type="text/css">
+    <script language="javascript" type="text/javascript" src="./js/jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.mousewheel.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.canvaswrapper.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.colorhelpers.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.saturated.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.browser.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.drawSeries.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.errorbars.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.uiConstants.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.logaxis.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.symbol.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.flatdata.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.navigate.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.fillbetween.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.stack.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.touchNavigate.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.hover.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.touch.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.time.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.axislabels.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.selection.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.composeImages.js"></script>
+    <script language="javascript" type="text/javascript" src="./js/jquery.flot.legend.js"></script>
+
+    <script type="text/javascript">
+
+    series_settings = {
+        lines:  { show: true, lineWidth: 2 },
+        points: { show: true, radius: 2 }
+    };
+
+    grid_settings = { tickColor: '#ddd' };
+
+    divider = 10
+
+    xaxis_settings = {
+        tickSize:      200000000 / divider,         <!-- 200000000 -->
+        tickFormatter: function(num, obj) { return parseInt(num/1000000) + 'M'; }
+    };
+
+    yaxis_runtime_settings = {
+        labelWidth:    60,
+        tickFormatter: function(num, obj) { return num + ' sec.'; }
+    };
+
+    yaxis_memory_settings = {
+        labelWidth:    60,
+        tickSize:      10*1024*1024*1024 / divider,    <!-- 1024 -->
+        tickFormatter: function(num, obj) { return parseInt(num/1024/1024) + 'MB'; }
+    };
+
+    legend_settings = {
+        position: 'nw',
+        show: true,
+        backgroundOpacity: 0
+    };
+
+    runtime_settings = {
+        series: series_settings,
+        grid:   grid_settings,
+        xaxis:  xaxis_settings,
+        yaxis:  yaxis_runtime_settings,
+        legend: legend_settings,
+        zoom: { interactive: true },
+        pan:  { interactive: true }
+    };
+
+    memory_settings = {
+        series: series_settings,
+        grid:   grid_settings,
+        xaxis:  xaxis_settings,
+        yaxis:  yaxis_memory_settings,
+        legend: legend_settings,
+        zoom: { interactive: true },
+        pan:  { interactive: true }
+    };
+
+    __CHART_DATA_GOES_HERE__
+
+    $(function () {
+        __PLOT_SPEC_GOES_HERE__
+    });
+    
+    </script>
+</head>
+
+<body>
+    <style>
+       body, * { font-family: sans-serif; }
+       div.table-title {
+           width: 700px;
+           text-indent: 75px;
+           text-decoration-line: underline;
+           text-decoration-style: solid;
+           font-style: normal;
+           font-size: 0.9em; 
+           color: #222;
+           margin-top:  25px; 
+           margin-left: 25px; 
+       }
+       div.chart {
+           width:  800px;
+           height: 300px;
+           font-style: normal;
+           font-size: 0.75em;
+           margin-left: 25px; 
+       }
+       div.xaxis-title {
+           width: 700px;
+           text-align: center;
+           text-decoration-line: underline;
+           text-decoration-style: solid;
+           font-style: italic;
+           font-size: 0.85em;
+           color: #666;
+           margin-top:  10px; 
+           margin-bottom: 50px; 
+           margin-left: 25px; 
+       }
+
+   </style>
+
+__PLOT_DIV_SPEC_GOES_HERE__
+
+</body>
+</html>

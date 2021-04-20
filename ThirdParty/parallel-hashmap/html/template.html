@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>The Parallel Hashmap (Gregory Popovitch)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <link href="http://fonts.googleapis.com/css?family=Inconsolata" rel="stylesheet">
+    
+    <link href="css/bootstrap-responsive.min.css" rel="stylesheet">
+    <link href="css/colors.css" rel="stylesheet">
+    <link rel="alternate" type="application/atom+xml" title="The Parallel Hashmap" href="rss/atom.xml" />
+
+    $if(highlighting-css)$
+      <style type="text/css">
+    $highlighting-css$
+      </style>
+    $endif$
+    $for(css)$
+    <link rel="stylesheet" href="$css$" $if(html5)$$else$type="text/css" $endif$/>
+    $endfor$
+    $if(math)$
+    $if(html5)$
+    $else$
+      $math$
+    $endif$
+    $endif$
+    $for(header-includes)$
+      $header-includes$
+    $endfor$
+  </head>
+
+  <body>
+
+    <div>
+
+        <div class="row">
+
+          <div class="span9 body">
+<!--<h1>article</h1>--!>
+$body$
+          </div>
+        </div>
+
+    </div>
+    <script src="https://code.jquery.com/jquery.js"></script>
+  </body>
+</html>

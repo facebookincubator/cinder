@@ -1,0 +1,15 @@
+\newcommand{\andalso}{\quad\quad}
+\newcommand{\infabbrev}[2]{\infax{#1 \quad\eqdef\quad #2}}
+\newcommand{\infrule}[2]{\displaystyle \dfrac{#1}{#2}}
+\newcommand{\ar}{\rightarrow}
+\newcommand{\Int}{\mathtt{Int}}
+\newcommand{\Bool}{\mathtt{Bool}}
+\newcommand{\becomes}{\Downarrow}
+\newcommand{\trule}[1]{(\textbf{#1})}
+\newcommand{\FV}[1]{\mathtt{fv}(#1)}
+\newcommand{\FTV}[1]{\mathtt{ftv}(#1)}
+\newcommand{\BV}[1]{\mathtt{bv}(#1)}
+\newcommand{\compiles}[1]{\text{C}\llbracket{#1}\rrbracket}
+\newcommand{\exec}[1]{\text{E}\llbracket{#1}\rrbracket}
+\renewcommand{\t}[1]{\mathtt{#1}}
+\newcommand{\ite}[3]{\text{if }#1\text{ then }#2\text{ else }#3}

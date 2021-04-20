@@ -1,0 +1,118 @@
+language: cpp
+matrix:
+  include:
+
+    - os: osx
+      compiler: gcc
+      env: COMPILER='g++' CXX_FLAGS='-std=c++11'
+
+    - os: osx
+      compiler: clang
+      env: COMPILER='clang++' CXX_FLAGS='-std=c++11'
+
+#   - os: linux
+#     compiler: gcc
+#     env: COMPILER='g++' CXX_FLAGS='-std=c++11'
+
+#   - os: linux
+#     compiler: clang
+#     env: COMPILER='clang++' CXX_FLAGS='-std=c++11'
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: 
+            - ubuntu-toolchain-r-test
+          packages: 
+            - g++-5
+      env: COMPILER='g++-5' CXX_FLAGS='-std=c++11'
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: 
+            - ubuntu-toolchain-r-test
+          packages: 
+            - g++-6
+      env: COMPILER='g++-6' CXX_FLAGS='-std=c++11'
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: 
+            - ubuntu-toolchain-r-test
+          packages: 
+            - g++-7
+      env: COMPILER='g++-7' CXX_FLAGS='-std=c++11'
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: 
+            - ubuntu-toolchain-r-test
+          packages: 
+            - g++-8
+      env: COMPILER='g++-8' CXX_FLAGS='-std=c++14'
+
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: 
+            - ubuntu-toolchain-r-test
+          packages: 
+            - g++-8
+      env: COMPILER='g++-8' CXX_FLAGS='-std=c++17'
+
+#   - os: linux
+#     compiler: clang
+#     addons:
+#       apt:
+#         sources: 
+#           - llvm-toolchain-trusty-3.9
+#         packages:
+#           - clang-3.9
+#     env: COMPILER='clang++-3.9' CXX_FLAGS='-std=c++11'
+
+#   - os: linux
+#     compiler: clang
+#     addons:
+#       apt:
+#         sources: 
+#           - llvm-toolchain-trusty-4.0
+#         packages:
+#           - clang-4.0
+#     env: COMPILER='clang++-4.0' CXX_FLAGS='-std=c++11'
+
+    - os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources: 
+            - llvm-toolchain-trusty-5.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-5.0
+            - g++-7
+      env: COMPILER='clang++-5.0' CXX_FLAGS='-std=c++14'
+
+    - os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources: 
+            - llvm-toolchain-trusty-5.0
+            - ubuntu-toolchain-r-test
+          packages:
+            - clang-5.0
+            - g++-7
+      env: COMPILER='clang++-5.0' CXX_FLAGS='-std=c++17'
+
+dist: trusty
+
+script: 
+  mkdir build && cd build && cmake -DPHMAP_BUILD_TESTS=ON -DPHMAP_BUILD_EXAMPLES=ON -DCMAKE_CXX_COMPILER=${COMPILER} -DCXXFLAGS="${CXX_FLAGS}" .. && cmake --build . && make test
