@@ -340,8 +340,6 @@ TEST_F(BackendTest, MoveSequenceOptTest) {
   PostRegAllocRewrite post_rewrite(lirfunc.get(), &env);
   post_rewrite.run();
 
-  lirfunc->print();
-
   /*
   BB %0
   [RBP - 16]:Object = Move RAX:Object
@@ -364,4 +362,37 @@ TEST_F(BackendTest, MoveSequenceOptTest) {
   ASSERT_EQ((*(iter++))->opcode(), Instruction::kCall);
 }
 
+TEST_F(BackendTest, MoveSequenceOpt2Test) {
+  // OptimizeMoveSequence should not set reg operands that are also output
+  auto lirfunc = std::make_unique<Function>();
+  auto bb = lirfunc->allocateBasicBlock();
+
+  bb->allocateInstr(
+      Instruction::kMove, nullptr, OutStk(-16), PhyReg(PhyLocation::RAX));
+
+  bb->allocateInstr(
+      Instruction::kAdd,
+      nullptr,
+      OutPhyReg(PhyLocation::RAX),
+      PhyReg(PhyLocation::RSI),
+      lir::Stk(-16));
+
+  Environ env;
+  PostRegAllocRewrite post_rewrite(lirfunc.get(), &env);
+  post_rewrite.run();
+
+  /*
+  BB %0
+  [RBP - 16]:Object = Move RAX:Object
+        RAX:Object = Add RSI:Object, [RBP - 16]:Object
+  */
+  ASSERT_EQ(bb->getNumInstrs(), 2);
+  auto& instrs = bb->instructions();
+
+  auto iter = instrs.begin();
+
+  ASSERT_EQ((*(iter++))->opcode(), Instruction::kMove);
+  ASSERT_EQ((*iter)->opcode(), Instruction::kAdd);
+  ASSERT_EQ((*iter)->getInput(1)->type(), OperandBase::kStack);
+}
 } // namespace jit::codegen

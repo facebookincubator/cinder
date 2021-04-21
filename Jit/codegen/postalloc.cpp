@@ -1018,6 +1018,13 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveSequence(
     auto& instr = *instr_iter;
     // TODO: do not optimize for yield for now. They need to be special cased.
     if (!instr->isAnyYield()) {
+      auto out_reg = instr->output()->type() == OperandBase::kReg
+          ? instr->output()->getPhyRegister()
+          : PhyLocation::REG_INVALID;
+      // for moves only we can generate A = Move A, which will get optimized out
+      if (instr->isMove()) {
+        out_reg = PhyLocation::REG_INVALID;
+      }
       instr->foreachInputOperand([&](OperandBase* operand) {
         if (!operand->isStack()) {
           return;
@@ -1025,7 +1032,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveSequence(
 
         PhyLocation stack_slot = operand->getStackSlot();
         auto reg = registerMemoryMoves.getRegisterFromMemory(stack_slot);
-        if (reg == PhyLocation::REG_INVALID) {
+        if (reg == PhyLocation::REG_INVALID || reg == out_reg) {
           return;
         }
 
