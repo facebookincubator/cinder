@@ -532,7 +532,7 @@ BEGIN_INSTR_PROPERTY_FIELD
   FIELD_DEFAULT(FlagEffects, flag_effects, FlagEffects::kNone)
   FIELD_DEFAULT(OperandSizeType, opnd_size_type, kDefault)
   FIELD_DEFAULT(bool, output_phy_use, 1)
-  FIELD_DEFAULT(std::vector<int>, input_phy_uses, {})
+  FIELD_DEFAULT(std::vector<int>, input_phy_uses, std::vector<int>{})
 END_INSTR_PROPERTY_FIELD
 // clang-format on
 
