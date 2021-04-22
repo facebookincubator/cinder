@@ -2478,7 +2478,7 @@ static inline int import_async_lazy_value() {
 static PyObject *
 async_cached_property_get(PyObject *self, PyObject *obj, PyObject *cls)
 {
-    PyObject *res, *dict;
+    PyObject *res;
     PyAsyncCachedPropertyDescrObject *cp = (PyAsyncCachedPropertyDescrObject *)self;
 
     if (obj == NULL) {
@@ -2518,18 +2518,6 @@ async_cached_property_get(PyObject *self, PyObject *obj, PyObject *cls)
         *addr = res;
         Py_INCREF(res);
     } else {
-        dict = PyObject_GenericGetDict(obj, NULL);
-        if (dict == NULL) {
-            return NULL;
-        }
-
-        res = PyDict_GetItem(dict, cp->name_or_descr);
-        Py_DECREF(dict);
-        if (res != NULL) {
-            Py_INCREF(res); /* we got a borrowed ref */
-            return res;
-        }
-
         if (import_async_lazy_value() < 0) {
             return NULL;
         }
@@ -2539,7 +2527,7 @@ async_cached_property_get(PyObject *self, PyObject *obj, PyObject *cls)
             return NULL;
         }
 
-        if (_PyObjectDict_SetItem(Py_TYPE(obj), _PyObject_GetDictPtr(obj), cp->name_or_descr, res)) {
+        if (PyObject_SetAttr(obj, cp->name_or_descr, res) < 0) {
             Py_DECREF(res);
             return NULL;
         }
@@ -2600,6 +2588,7 @@ static PyGetSetDef async_cached_property_getsetlist[] = {
 
 static PyMemberDef async_cached_property_members[] = {
     {"func", T_OBJECT, offsetof(PyAsyncCachedPropertyDescrObject, func), READONLY},
+    {"fget", T_OBJECT, offsetof(PyAsyncCachedPropertyDescrObject, func), READONLY},
     {0}
 };
 
