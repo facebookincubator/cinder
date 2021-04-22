@@ -2779,6 +2779,7 @@ TYPE_TYPE.klass = TYPE_TYPE
 TYPE_TYPE.instance = TYPE_TYPE
 TYPE_TYPE.members = {}
 TYPE_TYPE.is_exact = False
+TYPE_TYPE.is_final = False
 TYPE_TYPE._mro = None
 TYPE_TYPE._mro_type_descrs = None
 

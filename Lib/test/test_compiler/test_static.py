@@ -9751,6 +9751,13 @@ class StaticCompilationTests(StaticTestBase):
                     self.assertEqual(f(0), 1)
                     self.assertIs(f(0), True)
 
+    def test_type_type_final(self):
+        codestr = """
+        class A(type):
+            pass
+        """
+        self.compile(codestr)
+
 
 class StaticRuntimeTests(StaticTestBase):
     def test_bad_slots_qualname_conflict(self):
