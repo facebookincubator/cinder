@@ -3189,7 +3189,7 @@ class ConfigDictTest(BaseTest):
         t.ready.clear()
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2.0)
+            sock.settimeout(4.0)
             sock.connect(('localhost', port))
 
             slen = struct.pack('>L', len(text))
@@ -3202,9 +3202,9 @@ class ConfigDictTest(BaseTest):
                 left -= sent
             sock.close()
         finally:
-            t.ready.wait(2.0)
+            t.ready.wait(4.0)
             logging.config.stopListening()
-            support.join_thread(t, 2.0)
+            support.join_thread(t, 4.0)
 
     def test_listen_config_10_ok(self):
         with support.captured_stdout() as output:
