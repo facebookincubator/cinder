@@ -361,10 +361,11 @@ class SymbolTable:
             "type": TYPE_TYPE,
             "None": NONE_TYPE.instance,
             "int": INT_EXACT_TYPE,
+            "complex": COMPLEX_EXACT_TYPE,
             "str": STR_EXACT_TYPE,
             "bytes": BYTES_TYPE,
             "bool": BOOL_TYPE,
-            "float": FLOAT_TYPE,
+            "float": FLOAT_EXACT_TYPE,
             "len": LenFunction(FUNCTION_TYPE, boxed=True),
             "min": ExtremumFunction(FUNCTION_TYPE, is_min=True),
             "max": ExtremumFunction(FUNCTION_TYPE, is_min=False),
@@ -3680,7 +3681,10 @@ INT_TYPE = NumClass(TypeName("builtins", "int"), pytype=int)
 INT_EXACT_TYPE = NumClass(TypeName("builtins", "int"), pytype=int, is_exact=True)
 FLOAT_TYPE = NumClass(TypeName("builtins", "float"), pytype=float)
 FLOAT_EXACT_TYPE = NumClass(TypeName("builtins", "float"), pytype=float, is_exact=True)
-COMPLEX_TYPE = NumClass(TypeName("builtins", "complex"))
+COMPLEX_TYPE = NumClass(TypeName("builtins", "complex"), pytype=complex)
+COMPLEX_EXACT_TYPE = NumClass(
+    TypeName("builtins", "complex"), pytype=complex, is_exact=True
+)
 BYTES_TYPE = Class(TypeName("builtins", "bytes"), [OBJECT_TYPE], pytype=bytes)
 BOOL_TYPE = Class(TypeName("builtins", "bool"), [OBJECT_TYPE], pytype=bool)
 ELLIPSIS_TYPE = Class(TypeName("builtins", "ellipsis"), [OBJECT_TYPE], pytype=type(...))
@@ -3719,8 +3723,8 @@ TYPE_TYPE.bases = [OBJECT_TYPE]
 CONSTANT_TYPES: Mapping[Type[object], Value] = {
     str: STR_EXACT_TYPE.instance,
     int: INT_EXACT_TYPE.instance,
-    float: FLOAT_TYPE.instance,
-    complex: COMPLEX_TYPE.instance,
+    float: FLOAT_EXACT_TYPE.instance,
+    complex: COMPLEX_EXACT_TYPE.instance,
     bytes: BYTES_TYPE.instance,
     bool: BOOL_TYPE.instance,
     type(None): NONE_TYPE.instance,
@@ -3831,6 +3835,10 @@ class UnionType(GenericClass):
         if len(type_args) == 1 and not type_args[0].is_generic_parameter:
             return type_args[0]
         type_name = UnionTypeName(self.type_name.module, self.type_name.name, type_args)
+        if any(isinstance(a, CType) for a in type_args):
+            raise TypedSyntaxError(
+                f"invalid union type {type_name.friendly_name}; unions cannot include primitive types"
+            )
         ThisUnionType = type(self)
         if type_name.opt_type is not None:
             ThisUnionType = OptionalType
@@ -4867,6 +4875,8 @@ EXACT_TYPES: Mapping[Class, Class] = {
     LIST_TYPE: LIST_EXACT_TYPE,
     TUPLE_TYPE: TUPLE_EXACT_TYPE,
     INT_TYPE: INT_EXACT_TYPE,
+    FLOAT_TYPE: FLOAT_EXACT_TYPE,
+    COMPLEX_TYPE: COMPLEX_EXACT_TYPE,
     DICT_TYPE: DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE: CHECKED_DICT_EXACT_TYPE,
     SET_TYPE: SET_EXACT_TYPE,

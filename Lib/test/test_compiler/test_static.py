@@ -19,7 +19,7 @@ from compiler.static import (
     prim_name_to_type,
     BOOL_TYPE,
     BYTES_TYPE,
-    COMPLEX_TYPE,
+    COMPLEX_EXACT_TYPE,
     Class,
     DICT_TYPE,
     DYNAMIC,
@@ -1237,13 +1237,13 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_int_compare_mixed(self):
         codestr = """
-        from __static__ import ssize_t
+        from __static__ import box, ssize_t
         x = 1
 
         def testfunc():
             i: ssize_t = 0
             j = 0
-            while i < 100 and x:
+            while box(i < 100) and x:
                 i = i + 1
                 j = j + 1
             return j
@@ -1283,6 +1283,21 @@ class StaticCompilationTests(StaticTestBase):
             f = mod["testfunc"]
             self.assertInBytecode(f, "JUMP_IF_ZERO_OR_POP")
             self.assertIs(f(), False)
+
+    def test_disallow_prim_nonprim_union(self):
+        codestr = """
+            from __static__ import int32
+
+            def f(y: int):
+                x: int32 = 2
+                z = x or y
+                return z
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            r"invalid union type Union\[int32, int\]; unions cannot include primitive types",
+        ):
+            self.compile(codestr)
 
     def test_int_binop(self):
         tests = [
@@ -1929,10 +1944,10 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_type_binder(self) -> None:
         self.assertEqual(self.bind_expr("42"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("42.0"), FLOAT_TYPE.instance)
+        self.assertEqual(self.bind_expr("42.0"), FLOAT_EXACT_TYPE.instance)
         self.assertEqual(self.bind_expr("'abc'"), STR_EXACT_TYPE.instance)
         self.assertEqual(self.bind_expr("b'abc'"), BYTES_TYPE.instance)
-        self.assertEqual(self.bind_expr("3j"), COMPLEX_TYPE.instance)
+        self.assertEqual(self.bind_expr("3j"), COMPLEX_EXACT_TYPE.instance)
         self.assertEqual(self.bind_expr("None"), NONE_TYPE.instance)
         self.assertEqual(self.bind_expr("True"), BOOL_TYPE.instance)
         self.assertEqual(self.bind_expr("False"), BOOL_TYPE.instance)
@@ -3464,34 +3479,30 @@ class StaticCompilationTests(StaticTestBase):
     def test_union_call_error(self):
         self.type_error(
             """
-            from __static__ import int64
-
-            def f(x: int | int64):
+            def f(x: int | None):
                 return x()
             """,
-            re.escape("Union[int, int64]: cannot call int64"),
+            re.escape("Optional[int]: 'NoneType' object is not callable"),
         )
 
     def test_union_subscr(self):
         self.assertReturns(
             """
-            from __static__ import Array, int64, double
+            from __static__ import CheckedDict
 
-            def f(x: Array[int64] | Array[double]):
+            def f(x: CheckedDict[int, int] | CheckedDict[int, str]):
                 return x[0]
             """,
-            "Union[int64, double]",
+            "Union[int, str]",
         )
 
     def test_union_unaryop(self):
         self.assertReturns(
             """
-            from __static__ import int64
-
-            def f(x: int | int64):
+            def f(x: int | complex):
                 return -x
             """,
-            "Union[int, int64]",
+            "Union[int, complex]",
         )
 
     def test_union_isinstance_reverse_narrow(self):
