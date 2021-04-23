@@ -1298,18 +1298,27 @@ void LinearScanAllocator::rewriteLIREmitCopies(
         if (to == CopyGraph::kTempLoc) {
           auto instr =
               block->allocateInstrBefore(instr_iter, Instruction::kPush);
-          instr->allocatePhyRegOrStackInput(from)->setDataType(orig_opnd_size);
+          instr->allocatePhyRegOrStackInput(from)->setDataType(
+              OperandBase::k64bit);
         } else if (from == CopyGraph::kTempLoc) {
           auto instr =
               block->allocateInstrBefore(instr_iter, Instruction::kPop);
           instr->output()->setPhyRegOrStackSlot(to);
-          instr->output()->setDataType(orig_opnd_size);
-        } else {
+          instr->output()->setDataType(OperandBase::k64bit);
+        } else if (to.is_register() || from.is_register()) {
           auto instr =
               block->allocateInstrBefore(instr_iter, Instruction::kMove);
           instr->allocatePhyRegOrStackInput(from)->setDataType(orig_opnd_size);
           instr->output()->setPhyRegOrStackSlot(to);
           instr->output()->setDataType(orig_opnd_size);
+        } else {
+          auto push =
+              block->allocateInstrBefore(instr_iter, Instruction::kPush);
+          push->allocatePhyRegOrStackInput(from)->setDataType(
+              OperandBase::k64bit);
+          auto pop = block->allocateInstrBefore(instr_iter, Instruction::kPop);
+          pop->output()->setPhyRegOrStackSlot(to);
+          pop->output()->setDataType(OperandBase::k64bit);
         }
         break;
       }

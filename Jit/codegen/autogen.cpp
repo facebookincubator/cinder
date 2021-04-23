@@ -815,7 +815,6 @@ BEGIN_RULES(Instruction::kMove)
   GEN("Rm", ASM(mov, OP(0), MEM(1)));
   GEN("Mr", ASM(mov, MEM(0), OP(1)));
   GEN("Mi", ASM(mov, MEM(0), OP(1)));
-  GEN("Mm", ASM(push, MEM(1)), ASM(pop, MEM(0)));
   GEN("Xx", ASM(movsd, OP(0), OP(1)));
   GEN("Xm", ASM(movsd, OP(0), MEM(1)));
   GEN("Mx", ASM(movsd, MEM(0), OP(1)));
