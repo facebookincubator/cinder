@@ -56,7 +56,7 @@ from ast import (
     cmpop,
     expr,
 )
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from enum import IntEnum
 from functools import partial
 from types import BuiltinFunctionType, CodeType, MethodDescriptorType
@@ -69,6 +69,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NoReturn,
     Optional,
     Sequence,
     Set,
@@ -248,6 +249,29 @@ CMPOP_SIGILS: Mapping[Type[cmpop], str] = {
 }
 
 
+def syntax_error(msg: str, filename: str, node: AST) -> TypedSyntaxError:
+    lineno, offset, source_line = error_location(filename, node)
+    return TypedSyntaxError(msg, (filename, lineno, offset, source_line))
+
+
+def error_location(filename: str, node: AST) -> Tuple[int, int, Optional[str]]:
+    source_line = linecache.getline(filename, node.lineno)
+    return (node.lineno, node.col_offset, source_line or None)
+
+
+@contextmanager
+def error_context(filename: str, node: AST) -> Generator[None, None, None]:
+    """Add error location context to any TypedSyntaxError raised in with block."""
+    try:
+        yield
+    except TypedSyntaxError as exc:
+        if exc.filename is None:
+            exc.filename = filename
+        if (exc.lineno, exc.offset) == (None, None):
+            exc.lineno, exc.offset, exc.text = error_location(filename, node)
+        raise
+
+
 class TypeRef:
     """Stores unresolved typed references, capturing the referring module
     as well as the annotation"""
@@ -376,14 +400,16 @@ class SymbolTable:
 
         self.builtins = self.modules["builtins"] = ModuleTable(
             "builtins",
+            "<builtins>",
             self,
             builtins_children,
         )
         self.typing = self.modules["typing"] = ModuleTable(
-            "typing", self, typing_children
+            "typing", "<typing>", self, typing_children
         )
         self.statics = self.modules["__static__"] = ModuleTable(
             "__static__",
+            "<__static__>",
             self,
             {
                 "Array": ARRAY_EXACT_TYPE,
@@ -425,6 +451,7 @@ class SymbolTable:
         if SPAM_OBJ is not None:
             self.modules["xxclassloader"] = ModuleTable(
                 "xxclassloader",
+                "<xxclassloader>",
                 self,
                 {
                     "spamobj": SPAM_OBJ,
@@ -493,10 +520,12 @@ class ModuleTable:
     def __init__(
         self,
         name: str,
+        filename: str,
         symtable: SymbolTable,
         members: Optional[Dict[str, Value]] = None,
     ) -> None:
         self.name = name
+        self.filename = filename
         self.children: Dict[str, Value] = members or {}
         self.symtable = symtable
         self.types: Dict[Union[AST, Delegator], Value] = {}
@@ -521,23 +550,24 @@ class ModuleTable:
     def finish_bind(self) -> None:
         self.first_pass_done = True
         for node, value in self.decls:
-            if value is not None:
-                value.finish_bind(self)
-            elif isinstance(node, ast.AnnAssign):
-                typ = self.resolve_annotation(node.annotation, is_declaration=True)
-                if isinstance(typ, FinalClass):
-                    target = node.target
-                    value = node.value
-                    if not value:
-                        raise TypedSyntaxError(
-                            "Must assign a value when declaring a Final"
-                        )
-                    elif (
-                        not isinstance(typ, CType)
-                        and isinstance(target, ast.Name)
-                        and isinstance(value, ast.Constant)
-                    ):
-                        self.named_finals[target.id] = value
+            with error_context(self.filename, node):
+                if value is not None:
+                    value.finish_bind(self)
+                elif isinstance(node, ast.AnnAssign):
+                    typ = self.resolve_annotation(node.annotation, is_declaration=True)
+                    if isinstance(typ, FinalClass):
+                        target = node.target
+                        value = node.value
+                        if not value:
+                            raise TypedSyntaxError(
+                                "Must assign a value when declaring a Final"
+                            )
+                        elif (
+                            not isinstance(typ, CType)
+                            and isinstance(target, ast.Name)
+                            and isinstance(value, ast.Constant)
+                        ):
+                            self.named_finals[target.id] = value
 
         # We don't need these anymore...
         self.decls.clear()
@@ -590,18 +620,19 @@ class ModuleTable:
             "so that all imports and types are available."
         )
 
-        klass = self._resolve_annotation(node)
+        with error_context(self.filename, node):
+            klass = self._resolve_annotation(node)
 
-        if isinstance(klass, FinalClass) and not is_declaration:
-            raise TypedSyntaxError(
-                "Final annotation is only valid in initial declaration "
-                "of attribute or module-level constant"
-            )
+            if isinstance(klass, FinalClass) and not is_declaration:
+                raise TypedSyntaxError(
+                    "Final annotation is only valid in initial declaration "
+                    "of attribute or module-level constant",
+                )
 
-        # Even if we know that e.g. `builtins.str` is the exact `str` type and
-        # not a subclass, and it's useful to track that knowledge, when we
-        # annotate `x: str` that annotation should not exclude subclasses.
-        return inexact_type(klass) if klass else None
+            # Even if we know that e.g. `builtins.str` is the exact `str` type and
+            # not a subclass, and it's useful to track that knowledge, when we
+            # annotate `x: str` that annotation should not exclude subclasses.
+            return inexact_type(klass) if klass else None
 
     def _resolve_annotation(self, node: ast.AST) -> Optional[Class]:
         # First try to resolve non-annotation-specific forms. For resolving the
@@ -1411,8 +1442,7 @@ class GenericClass(Class):
         ]
         bases: List[Class] = [base for base in generic_bases if base is not None]
         InstanceType = type(self.instance)
-        # pyre-fixme[35]: Target cannot be annotated.
-        instance: Object[Class] = InstanceType.__new__(InstanceType)
+        instance = InstanceType.__new__(InstanceType)
         instance.__dict__.update(self.instance.__dict__)
         concrete = type(self)(
             type_name,
@@ -4956,11 +4986,20 @@ class GenericVisitor(ASTVisitor):
         self.module_name = module_name
         self.filename = filename
 
-    def syntax_error(self, msg: str, node: AST) -> TypedSyntaxError:
-        source_line = linecache.getline(self.filename, node.lineno)
-        return TypedSyntaxError(
-            msg, (self.filename, node.lineno, node.col_offset, source_line or None)
+    def visit(self, node: Union[AST, Sequence[AST]], *args: object) -> Optional[object]:
+        # if we have a sequence of nodes, don't catch TypedSyntaxError here;
+        # walk_list will call us back with each individual node in turn and we
+        # can catch errors and add node info then.
+        ctx = (
+            error_context(self.filename, node)
+            if isinstance(node, AST)
+            else nullcontext()
         )
+        with ctx:
+            return super().visit(node, *args)
+
+    def syntax_error(self, msg: str, node: AST) -> TypedSyntaxError:
+        return syntax_error(msg, self.filename, node)
 
 
 class InitVisitor(ASTVisitor):
@@ -5004,7 +5043,7 @@ class DeclarationVisitor(GenericVisitor):
     def __init__(self, mod_name: str, filename: str, symbols: SymbolTable) -> None:
         super().__init__(mod_name, filename)
         self.symbols = symbols
-        self.module = symbols[mod_name] = ModuleTable(mod_name, symbols)
+        self.module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
 
     def finish_bind(self) -> None:
         self.module.finish_bind()
@@ -5019,30 +5058,31 @@ class DeclarationVisitor(GenericVisitor):
         klass = Class(TypeName(self.module_name, node.name), bases)
         self.module.decls.append((node, klass))
         for item in node.body:
-            if isinstance(item, (AsyncFunctionDef, FunctionDef)):
-                function = self._make_function(item)
-                if not function:
-                    continue
-                klass.define_function(item.name, function, self)
-                if (
-                    item.name != "__init__"
-                    or not item.args.args
-                    or not isinstance(item, FunctionDef)
-                ):
-                    continue
+            with error_context(self.filename, item):
+                if isinstance(item, (AsyncFunctionDef, FunctionDef)):
+                    function = self._make_function(item)
+                    if not function:
+                        continue
+                    klass.define_function(item.name, function, self)
+                    if (
+                        item.name != "__init__"
+                        or not item.args.args
+                        or not isinstance(item, FunctionDef)
+                    ):
+                        continue
 
-                InitVisitor(self.module, klass, item).visit(item.body)
-            elif isinstance(item, AnnAssign):
-                # class C:
-                #    x: foo
-                target = item.target
-                if isinstance(target, ast.Name):
-                    klass.define_slot(
-                        target.id,
-                        TypeRef(self.module, item.annotation),
-                        # Note down whether the slot has been assigned a value.
-                        assignment=item if item.value else None,
-                    )
+                    InitVisitor(self.module, klass, item).visit(item.body)
+                elif isinstance(item, AnnAssign):
+                    # class C:
+                    #    x: foo
+                    target = item.target
+                    if isinstance(target, ast.Name):
+                        klass.define_slot(
+                            target.id,
+                            TypeRef(self.module, item.annotation),
+                            # Note down whether the slot has been assigned a value.
+                            assignment=item if item.value else None,
+                        )
 
         for base in bases:
             if base is NAMED_TUPLE_TYPE:
@@ -5060,8 +5100,9 @@ class DeclarationVisitor(GenericVisitor):
         for d in node.decorator_list:
             if klass is DYNAMIC_TYPE:
                 break
-            decorator = self.module.resolve_type(d) or DYNAMIC_TYPE
-            klass = decorator.bind_decorate_class(klass)
+            with error_context(self.filename, d):
+                decorator = self.module.resolve_type(d) or DYNAMIC_TYPE
+                klass = decorator.bind_decorate_class(klass)
 
         self.module.children[node.name] = klass
 
@@ -5131,12 +5172,6 @@ class DeclarationVisitor(GenericVisitor):
 
     def visitTry(self, node: Try) -> None:
         pass
-
-    def syntax_error(self, msg: str, node: AST) -> TypedSyntaxError:
-        source_line = linecache.getline(self.filename, node.lineno)
-        return TypedSyntaxError(
-            msg, (self.filename, node.lineno, node.col_offset, source_line or None)
-        )
 
 
 class TypedSyntaxError(SyntaxError):
@@ -5422,7 +5457,11 @@ class TypeBinder(GenericVisitor):
         self, node: Union[AST, Sequence[AST]], *args: object
     ) -> Optional[NarrowingEffect]:
         """This override is only here to give Pyre the return type information."""
-        return super().visit(node, *args)
+        ret = super().visit(node, *args)
+        if ret is not None:
+            assert isinstance(ret, NarrowingEffect)
+            return ret
+        return None
 
     def get_final_literal(self, node: AST) -> Optional[ast.Constant]:
         return self.cur_mod.get_final_literal(node, self.symbols.scopes[self.scope])
@@ -6350,9 +6389,11 @@ class TypeBinder(GenericVisitor):
             for alias in node.names:
                 name = alias.name
                 if name == "*":
-                    raise TypedSyntaxError("from __static__ import * is disallowed")
+                    raise self.syntax_error(
+                        "from __static__ import * is disallowed", node
+                    )
                 elif name not in self.symtable.statics.children:
-                    raise TypedSyntaxError(f"unsupported static import {name}")
+                    raise self.syntax_error(f"unsupported static import {name}", node)
 
     def visit_until_terminates(self, nodes: List[ast.stmt]) -> TerminalKind:
         for stmt in nodes:
@@ -6474,12 +6515,6 @@ class TypeBinder(GenericVisitor):
             self.visit(optional_vars)
             self.assign_value(optional_vars, DYNAMIC)
 
-    def syntax_error(self, msg: str, node: AST) -> TypedSyntaxError:
-        source_line = linecache.getline(self.filename, node.lineno)
-        return TypedSyntaxError(
-            msg, (self.filename, node.lineno, node.col_offset, source_line or None)
-        )
-
 
 class PyFlowGraph38Static(PyFlowGraphCinder):
     opcode: Opcode = opcode38static.opcode
@@ -6563,13 +6598,6 @@ class Static38CodeGenerator(CinderCodeGenerator):
         if not isinstance(tree, ast.ClassDef):
             self._processArgTypes(tree, gen)
         return gen
-
-    def syntax_error(self, msg: str, node: AST) -> TypedSyntaxError:
-        source_line = linecache.getline(self.graph.filename, node.lineno)
-        return TypedSyntaxError(
-            msg,
-            (self.graph.filename, node.lineno, node.col_offset, source_line or None),
-        )
 
     def _processArgTypes(self, node: AST, gen: Static38CodeGenerator) -> None:
         arg_checks = []
@@ -6773,13 +6801,19 @@ class Static38CodeGenerator(CinderCodeGenerator):
     def emit_type_check(self, dest: Class, src: Class, node: AST) -> None:
         if src is DYNAMIC_TYPE and dest is not OBJECT_TYPE and dest is not DYNAMIC_TYPE:
             if isinstance(dest, CType):
-                raise self.syntax_error(
-                    f"Cannot assign a {src.instance.name} to {dest.instance.name}", node
+                # TODO raise this in type binding instead
+                raise syntax_error(
+                    f"Cannot assign a {src.instance.name} to {dest.instance.name}",
+                    self.graph.filename,
+                    node,
                 )
             self.emit("CAST", dest.type_descr)
         elif not dest.can_assign_from(src):
-            raise self.syntax_error(
-                f"Cannot assign a {src.instance.name} to {dest.instance.name}", node
+            # TODO raise this in type binding instead
+            raise syntax_error(
+                f"Cannot assign a {src.instance.name} to {dest.instance.name}",
+                self.graph.filename,
+                node,
             )
 
     def visitAssignTarget(
