@@ -1455,12 +1455,15 @@ void HIRBuilder::emitAnyCall(
   BytecodeInstruction bc_instr = *bc_it;
   int idx = bc_instr.index();
   bool is_awaited = code_->co_flags & CO_COROUTINE &&
-      bc_instrs.size() - idx > 1 &&
+      // We only need to be followed by GET_AWAITABLE to know we are awaited,
+      // but we also need to ensure the following LOAD_CONST and YIELD_FROM are
+      // inside this BytecodeInstructionBlock. This may not be the case if the
+      // 'await' is shared as in 'await (x if y else z)'.
+      bc_it.remainingInstrs() >= 3 &&
       bc_instrs.at(idx + 1).opcode() == GET_AWAITABLE;
   JIT_CHECK(
       !is_awaited ||
-          (bc_instrs.size() - idx > 4 &&
-           bc_instrs.at(idx + 2).opcode() == LOAD_CONST &&
+          (bc_instrs.at(idx + 2).opcode() == LOAD_CONST &&
            bc_instrs.at(idx + 3).opcode() == YIELD_FROM),
       "GET_AWAITABLE should always be followed by LOAD_CONST and "
       "YIELD_FROM");

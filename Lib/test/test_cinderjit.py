@@ -892,6 +892,25 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
     def test_fstring_no_fmt_spec_in_nested_loops_and_if(self):
         self.assertEqual(self._fstring(True, [1], [1]), "1")
 
+    @unittest.failUnlessJITCompiled
+    async def _sharedAwait(self, x, y, z):
+        return await (x() if y else z())
+
+    def test_shared_await(self):
+        async def zero():
+            return 0
+
+        async def one():
+            return 1
+
+        with self.assertRaises(StopIteration) as exc:
+            self._sharedAwait(zero, True, one).send(None)
+        self.assertEqual(exc.exception.value, 0)
+
+        with self.assertRaises(StopIteration) as exc:
+            self._sharedAwait(zero, False, one).send(None)
+        self.assertEqual(exc.exception.value, 1)
+
 
 def jitted_func():
     return 1

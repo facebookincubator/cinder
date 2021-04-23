@@ -172,6 +172,10 @@ class BytecodeInstructionBlock {
       return !(*this == other);
     }
 
+    Py_ssize_t remainingInstrs() const {
+      return end_idx_ - idx_ - 1;
+    }
+
    private:
     void consumeExtendedArgs() {
       int accum = 0;
