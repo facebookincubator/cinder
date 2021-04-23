@@ -959,8 +959,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string convert;
         std::string tmp;
         std::string tmp_ty;
-        uint64_t func;
-        if (ty <= TCUInt64) {
+        uint64_t func = 0;
+        if (ty <= TCBool) {
+          uint64_t true_addr = reinterpret_cast<uint64_t>(Py_True);
+          bbb.AppendCode("Equal {} {} {:#x}", out, instr->value(), true_addr);
+        } else if (ty <= TCUInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxU64);
         } else if (ty <= TCUInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxU32);
@@ -984,20 +987,22 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           Py_UNREACHABLE();
         }
 
-        if (convert == "") {
-          tmp = out;
-          tmp_ty = ty.toString();
-        } else {
-          tmp = GetSafeTempName();
-          tmp_ty = convert == "Convert" ? "CInt32" : "CUInt32";
-        }
+        if (func) {
+          if (convert == "") {
+            tmp = out;
+            tmp_ty = ty.toString();
+          } else {
+            tmp = GetSafeTempName();
+            tmp_ty = convert == "Convert" ? "CInt32" : "CUInt32";
+          }
 
-        bbb.AppendCode(
-            "Call {}:{}, {:#x}, {}", tmp, tmp_ty, func, instr->value());
-
-        if (convert != "") {
           bbb.AppendCode(
-              "{} {}:{}, {}:{}", convert, out, ty.toString(), tmp, tmp_ty);
+              "Call {}:{}, {:#x}, {}", tmp, tmp_ty, func, instr->value());
+
+          if (convert != "") {
+            bbb.AppendCode(
+                "{} {}:{}, {}:{}", convert, out, ty.toString(), tmp, tmp_ty);
+          }
         }
 
         break;

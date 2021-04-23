@@ -411,7 +411,10 @@ void NativeGenerator::generatePrologue(
     as_->test(x86::edx, x86::edx);
     as_->je(box_done);
 
-    if (ret_type <= TCInt8) {
+    if (ret_type <= TCBool) {
+      as_->movzx(x86::edi, x86::al);
+      box_func = reinterpret_cast<uint64_t>(JITRT_BoxBool);
+    } else if (ret_type <= TCInt8) {
       as_->movsx(x86::edi, x86::al);
       box_func = reinterpret_cast<uint64_t>(JITRT_BoxI32);
     } else if (ret_type <= TCUInt8) {

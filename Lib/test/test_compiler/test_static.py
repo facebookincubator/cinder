@@ -70,6 +70,7 @@ from compiler.static import (
     SEQ_REPEAT_PRIMITIVE_NUM,
     SEQ_REPEAT_REVERSED,
     SEQ_SUBSCR_UNCHECKED,
+    TYPED_BOOL,
     TYPED_INT8,
     TYPED_INT16,
     TYPED_INT32,
@@ -128,6 +129,7 @@ RICHARDS_PATH = path.join(
 
 
 PRIM_NAME_TO_TYPE = {
+    "cbool": TYPED_BOOL,
     "int8": TYPED_INT8,
     "int16": TYPED_INT16,
     "int32": TYPED_INT32,
@@ -8715,6 +8717,8 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_primitive_args_sizes(self):
         cases = [
+            ("cbool", True, False),
+            ("cbool", False, False),
             ("int8", (1 << 7), True),
             ("int8", (-1 << 7) - 1, True),
             ("int8", -1 << 7, False),
@@ -8848,6 +8852,8 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_primitive_args_and_return(self):
         cases = [
+            ("cbool", 1),
+            ("cbool", 0),
             ("int8", -1 << 7),
             ("int8", (1 << 7) - 1),
             ("int16", -1 << 15),
@@ -8866,8 +8872,16 @@ class StaticCompilationTests(StaticTestBase):
             ("uint64", 0),
         ]
         for typ, val in cases:
-            op = "+" if val <= 0 else "-"
-            expected = val + (1 if op == "+" else -1)
+            if typ == "cbool":
+                op = "or"
+                expected = True
+                other = "cbool(True)"
+                boxed = "bool"
+            else:
+                op = "+" if val <= 0 else "-"
+                expected = val + (1 if op == "+" else -1)
+                other = "1"
+                boxed = "int"
             with self.subTest(typ=typ, val=val, op=op, expected=expected):
                 codestr = f"""
                     from __static__ import {typ}, box
@@ -8875,14 +8889,16 @@ class StaticCompilationTests(StaticTestBase):
                     def f(x: {typ}, y: {typ}) -> {typ}:
                         return x {op} y
 
-                    def g() -> int:
-                        return box(f({val}, 1))
+                    def g() -> {boxed}:
+                        return box(f({val}, {other}))
                 """
                 with self.in_strict_module(codestr) as mod:
                     self.assertEqual(mod.g(), expected)
 
     def test_primitive_return(self):
         cases = [
+            ("cbool", True),
+            ("cbool", False),
             ("int8", -1 << 7),
             ("int8", (1 << 7) - 1),
             ("int16", -1 << 15),
@@ -8902,8 +8918,16 @@ class StaticCompilationTests(StaticTestBase):
         ]
         tf = [True, False]
         for (type, val), box, strict, error, unjitable in itertools.product(
-            cases, tf, tf, tf, tf
+            cases, [False], [True], [False], [True]
         ):
+            if type == "cbool":
+                op = "or"
+                other = "False"
+                boxed = "bool"
+            else:
+                op = "*"
+                other = "1"
+                boxed = "int"
             unjitable_code = "from sys import *" if unjitable else ""
             codestr = f"""
                 from __static__ import {type}, box
@@ -8917,14 +8941,14 @@ class StaticCompilationTests(StaticTestBase):
             if box:
                 codestr += f"""
 
-                def g() -> int:
-                    return box(f({error}) * {type}(1))
+                def g() -> {boxed}:
+                    return box(f({error}) {op} {type}({other}))
                 """
             else:
                 codestr += f"""
 
                 def g() -> {type}:
-                    return f({error}) * {type}(1)
+                    return f({error}) {op} {type}({other})
                 """
             ctx = self.in_strict_module if strict else self.in_module
             oparg = PRIM_NAME_TO_TYPE[type]
@@ -9755,7 +9779,7 @@ class StaticCompilationTests(StaticTestBase):
             codestr = f"""
                 from __static__ import box, int64, int32
 
-                def f(x: int) -> int:
+                def f(x: int) -> bool:
                     xp = int64(x)
                     y = {compare}
                     return box(y)
@@ -13200,7 +13224,7 @@ class StaticRuntimeTests(StaticTestBase):
             f1(l)
             self.assertEqual(l, ["hi"])
 
-    def test_boolean(self):
+    def test_cbool(self):
         for b in ("True", "False"):
             codestr = f"""
             from __static__ import cbool
@@ -13222,7 +13246,7 @@ class StaticRuntimeTests(StaticTestBase):
                     self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
                     self.assertEqual(f(), 1 if b == "True" else 2)
 
-    def test_boolean_field(self):
+    def test_cbool_field(self):
         codestr = """
             from __static__ import cbool
 
@@ -13237,14 +13261,14 @@ class StaticRuntimeTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f, C = mod["f"], mod["C"]
-            self.assertInBytecode(f, "LOAD_FIELD", ("test_boolean_field", "C", "x"))
+            self.assertInBytecode(f, "LOAD_FIELD", ("test_cbool_field", "C", "x"))
             self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
             self.assertIs(C(True).x, True)
             self.assertIs(C(False).x, False)
             self.assertIs(f(C(True)), True)
             self.assertIs(f(C(False)), False)
 
-    def test_boolean_cast(self):
+    def test_cbool_cast(self):
         codestr = """
         from __static__ import cbool
 
@@ -13257,6 +13281,30 @@ class StaticRuntimeTests(StaticTestBase):
         """
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("bool", "cbool")):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
+
+    def test_primitive_compare_returns_cbool(self):
+        codestr = """
+            from __static__ import cbool, int64
+
+            def f(x: int64, y: int64) -> cbool:
+                return x == y
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertIs(f(1, 1), True)
+            self.assertIs(f(1, 2), False)
+
+    def test_no_cbool_math(self):
+        codestr = """
+            from __static__ import cbool
+
+            def f(x: cbool, y: cbool) -> cbool:
+                return x + y
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "cbool is not a valid operand type for add"
+        ):
+            self.compile(codestr)
 
     def test_chkdict_del(self):
         codestr = """

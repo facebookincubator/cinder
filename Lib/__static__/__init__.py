@@ -54,9 +54,9 @@ except ImportError:
     TYPED_UINT32 = 0
     TYPED_UINT64 = 0
     TYPED_DOUBLE = 0
+    TYPED_SINGLE = 0
     TYPED_BOOL = 0
     TYPED_CHAR = 0
-    TYPED_SINGLE = 0
     RAND_MAX = (1 << 31) - 1
 
     def rand():

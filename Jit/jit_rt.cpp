@@ -1577,7 +1577,7 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
     // to run the interpreter loop.
     for (Py_ssize_t i = 0; i < Py_SIZE(arg_info); i++) {
       if (arg_info->tai_args[i].tai_primitive_type != -1) {
-        // primitive type, convert to int...
+        // primitive type, box...
         int arg = arg_info->tai_args[i].tai_argnum;
         uint64_t arg_val;
         if (arg >= 6) {
@@ -1587,6 +1587,9 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
 
         PyObject* new_val;
         switch (arg_info->tai_args[i].tai_primitive_type) {
+          case TYPED_BOOL:
+            new_val = arg_val ? Py_True : Py_False;
+            break;
           case TYPED_INT8:
             new_val = PyLong_FromLong((int8_t)arg_val);
             break;
@@ -1662,7 +1665,9 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
     // to implement overflow checking just here in the "unjitable" code path,
     // when overflow won't be checked if the code is JITted.
     void* ival;
-    if (ret_type & TYPED_INT_SIGNED) {
+    if (ret_type == TYPED_BOOL) {
+      ival = (void*)(res == Py_True);
+    } else if (ret_type & TYPED_INT_SIGNED) {
       ival = (void*)JITRT_UnboxI64(res);
     } else {
       ival = (void*)JITRT_UnboxU64(res);

@@ -2120,6 +2120,8 @@ void HIRBuilder::emitPrimitiveLoadConst(
   Type type = TBottom;
   if (size == TCDouble) {
     type = Type::fromCDouble(PyFloat_AsDouble(num));
+  } else if (size <= TCBool) {
+    type = Type::fromCBool(num == Py_True);
   } else {
     type = (size <= TCUnsigned)
         ? Type::fromCUInt(PyLong_AsUnsignedLong(num), size)

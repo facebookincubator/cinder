@@ -82,6 +82,7 @@ from typing import (
 
 from __static__ import chkdict  # pyre-ignore[21]: unknown module
 from _static import (  # pyre-fixme[21]: Could not find module `_static`.
+    TYPED_BOOL,
     TYPED_INT_8BIT,
     TYPED_INT_16BIT,
     TYPED_INT_32BIT,
@@ -2879,7 +2880,8 @@ class BoxFunction(Object[Class]):
         arg_type = visitor.get_type(arg)
 
         if isinstance(arg_type, CIntInstance):
-            visitor.set_type(node, INT_EXACT_TYPE.instance)
+            typ = BOOL_TYPE if arg_type.constant == TYPED_BOOL else INT_EXACT_TYPE
+            visitor.set_type(node, typ.instance)
         elif isinstance(arg_type, CDoubleInstance):
             visitor.set_type(node, FLOAT_EXACT_TYPE.instance)
         else:
@@ -4364,13 +4366,14 @@ class CInstance(Value, Generic[TClass]):
 
 
 class CIntInstance(CInstance["CIntType"]):
-    def __init__(self, klass: CIntType, size: int, signed: bool) -> None:
+    def __init__(self, klass: CIntType, constant: int, size: int, signed: bool) -> None:
         super().__init__(klass)
+        self.constant = constant
         self.size = size
         self.signed = signed
 
     def as_oparg(self) -> int:
-        return (self.size << 1) | int(self.signed)
+        return self.constant
 
     _int_binary_opcode_signed: Mapping[Type[ast.AST], int] = {
         ast.Lt: PRIM_OP_LT_INT,
@@ -4421,9 +4424,13 @@ class CIntInstance(CInstance["CIntType"]):
         )
 
     def validate_mixed_math(self, other: Value) -> Optional[Value]:
+        if self.constant == TYPED_BOOL:
+            return None
         if other is self:
             return self
         elif isinstance(other, CIntInstance):
+            if other.constant == TYPED_BOOL:
+                return None
             if self.signed == other.signed:
                 # signs match, we can just treat this as a comparison of the larger type
                 if self.size > other.size:
@@ -4544,7 +4551,10 @@ class CIntInstance(CInstance["CIntType"]):
     def emit_constant(
         self, node: ast.Constant, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.emit("PRIMITIVE_LOAD_CONST", (node.value, self.as_oparg()))
+        val = node.value
+        if self.constant == TYPED_BOOL:
+            val = bool(val)
+        code_gen.emit("PRIMITIVE_LOAD_CONST", (val, self.as_oparg()))
 
     def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
         if isinstance(node.ctx, ast.Load):
@@ -4571,6 +4581,10 @@ class CIntInstance(CInstance["CIntType"]):
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> bool:
+        if self.constant == TYPED_BOOL:
+            raise TypedSyntaxError(
+                f"cbool is not a valid operand type for {self._op_name[type(node.op)]}"
+            )
         rinst = visitor.get_type(node.right)
         if rinst != self:
             if rinst.klass == LIST_EXACT_TYPE:
@@ -4650,19 +4664,19 @@ class CIntInstance(CInstance["CIntType"]):
 class CIntType(CType):
     instance: CIntInstance
 
-    def __init__(
-        self, size: int, signed: bool, name_override: Optional[str] = None
-    ) -> None:
+    def __init__(self, constant: int, name_override: Optional[str] = None) -> None:
+        self.constant = constant
+        # See TYPED_SIZE macro
+        self.size: int = (constant >> 1) & 3
+        self.signed: bool = bool(constant & 1)
         if name_override is None:
-            name = ("" if signed else "u") + "int" + str(8 << size)
+            name = ("" if self.signed else "u") + "int" + str(8 << self.size)
         else:
             name = name_override
-        self.size = size
-        self.signed = signed
         super().__init__(
             TypeName("__static__", name),
             [],
-            CIntInstance(self, size, signed),
+            CIntInstance(self, self.constant, self.size, self.signed),
         )
 
     def can_assign_from(self, src: Class) -> bool:
@@ -4777,21 +4791,21 @@ class CDoubleType(CType):
         )
 
 
-CBOOL_TYPE = CIntType(TYPED_INT_8BIT, False, name_override="cbool")
+CBOOL_TYPE = CIntType(TYPED_BOOL, name_override="cbool")
 
-INT8_TYPE = CIntType(TYPED_INT_8BIT, True)
-INT16_TYPE = CIntType(TYPED_INT_16BIT, True)
-INT32_TYPE = CIntType(TYPED_INT_32BIT, True)
-INT64_TYPE = CIntType(TYPED_INT_64BIT, True)
+INT8_TYPE = CIntType(TYPED_INT8)
+INT16_TYPE = CIntType(TYPED_INT16)
+INT32_TYPE = CIntType(TYPED_INT32)
+INT64_TYPE = CIntType(TYPED_INT64)
 
-UINT8_TYPE = CIntType(TYPED_INT_8BIT, False)
-UINT16_TYPE = CIntType(TYPED_INT_16BIT, False)
-UINT32_TYPE = CIntType(TYPED_INT_32BIT, False)
-UINT64_TYPE = CIntType(TYPED_INT_64BIT, False)
+UINT8_TYPE = CIntType(TYPED_UINT8)
+UINT16_TYPE = CIntType(TYPED_UINT16)
+UINT32_TYPE = CIntType(TYPED_UINT32)
+UINT64_TYPE = CIntType(TYPED_UINT64)
 
 INT64_VALUE = INT64_TYPE.instance
 
-CHAR_TYPE = CIntType(TYPED_INT_8BIT, True, name_override="char")
+CHAR_TYPE = CIntType(TYPED_INT8, name_override="char")
 DOUBLE_TYPE = CDoubleType()
 ARRAY_TYPE = ArrayClass(
     GenericTypeName("__static__", "Array", (GenericParameter("T", 0),))
