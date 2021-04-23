@@ -302,11 +302,15 @@ class StaticTestBase(CompilerTest):
         self.assertFalse(cinderjit.is_jit_compiled(func))
 
     def setUp(self):
-        # ensure clean vtable slate for all tests
-        cinder.clear_vtables()
+        # ensure clean classloader/vtable slate for all tests
+        cinder.clear_classloader_caches()
         # ensure our async tests don't change the event loop policy
         policy = maybe_get_event_loop_policy()
         self.addCleanup(lambda: asyncio.set_event_loop_policy(policy))
+
+    def subTest(self, **kwargs):
+        cinder.clear_classloader_caches()
+        return super().subTest(**kwargs)
 
     def make_async_func_hot(self, func):
         async def make_hot():
@@ -13479,14 +13483,14 @@ class StaticRuntimeTests(StaticTestBase):
     def test_donotcompile_fn(self):
         codestr = """
         from __static__ import _donotcompile
-        
+
         def a() -> int:
             return 1
-        
+
         @_donotcompile
         def fn() -> None:
             a() + 2
-            
+
         def fn2() -> None:
             a() + 2
         """
@@ -13506,18 +13510,18 @@ class StaticRuntimeTests(StaticTestBase):
     def test_donotcompile_method(self):
         codestr = """
         from __static__ import _donotcompile
-        
+
         def a() -> int:
             return 1
-        
+
         class C:
             @_donotcompile
             def fn() -> None:
                 a() + 2
-                
+
             def fn2() -> None:
                 a() + 2
-        
+
         c = C()
         """
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
@@ -13532,10 +13536,10 @@ class StaticRuntimeTests(StaticTestBase):
     def test_donotcompile_class(self):
         codestr = """
         from __static__ import _donotcompile
-        
+
         def a() -> int:
             return 1
-        
+
         @_donotcompile
         class C:
             def fn() -> None:
@@ -13560,10 +13564,10 @@ class StaticRuntimeTests(StaticTestBase):
     def test_donotcompile_lambda(self):
         codestr = """
         from __static__ import _donotcompile
-        
+
         def a() -> int:
             return 1
-        
+
         class C:
             @_donotcompile
             def fn() -> None:
@@ -13573,7 +13577,7 @@ class StaticRuntimeTests(StaticTestBase):
             def fn2() -> None:
                 z = lambda: a() + 2
                 z()
-        
+
         c = C()
         """
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:

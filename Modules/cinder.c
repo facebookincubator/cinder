@@ -264,11 +264,13 @@ static PyObject * strict_module_patch_enabled(PyObject *self, PyObject *mod)
 
 
 PyAPI_FUNC(int) _PyClassLoader_ClearVtables(void);
+PyAPI_FUNC(int) _PyClassLoader_ClearCache(void);
 
 static PyObject *
-clear_vtables(PyObject *self, PyObject *obj)
+clear_classloader_caches(PyObject *self, PyObject *obj)
 {
     _PyClassLoader_ClearVtables();
+    _PyClassLoader_ClearCache();
     Py_RETURN_NONE;
 }
 
@@ -325,10 +327,12 @@ static struct PyMethodDef cinder_module_methods[] = {
      strict_module_patch_enabled,
      METH_O,
      strict_module_patch_enabled_doc},
-    {"clear_vtables",
-     clear_vtables,
+    {"clear_classloader_caches",
+     clear_classloader_caches,
      METH_NOARGS,
-     "Clears vtables on all accessible types. Will hurt perf; for test isolation."},
+     "Clears classloader caches and vtables on all accessible types. "
+     "Will hurt perf; for test isolation where modules and types with "
+     "identical names are dynamically created and destroyed."},
     {"_get_qualname",
      get_qualname_of_code,
      METH_O,
