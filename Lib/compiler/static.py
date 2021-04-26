@@ -6210,7 +6210,6 @@ class TypeBinder(GenericVisitor):
     def visitIndex(
         self, node: Index, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        # pyre-fixme[16]: `Index` has no attribute `value`.
         self.visit(node.value, type_ctx)
         self.set_type(node, self.get_type(node.value))
         return NO_EFFECT

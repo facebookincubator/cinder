@@ -181,7 +181,6 @@ def _format_subscript(node: ast.Subscript, level: int) -> str:
 
 
 def _format_index(node: ast.Index, level: int) -> str:
-    # pyre-fixme[16]: `Index` has no attribute `value`.
     return to_expr(node.value, PR_TUPLE)
 
 
@@ -376,7 +375,6 @@ def _format_slice(node: ast.Slice, level: int):
 
 
 def _format_extslice(node: ast.ExtSlice, level: int):
-    # pyre-fixme[16]: `ExtSlice` has no attribute `dims`.
     return ", ".join(to_expr(d) for d in node.dims)
 
 

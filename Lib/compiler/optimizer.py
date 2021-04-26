@@ -130,7 +130,6 @@ class AstOptimizer(ASTRewriter):
             isinstance(node.ctx, ast.Load)
             and is_const(value)
             and isinstance(slice, ast.Index)
-            # pyre-fixme[16]: `Index` has no attribute `value`.
             and is_const(slice.value)
         ):
             try:

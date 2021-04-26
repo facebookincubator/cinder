@@ -16,8 +16,7 @@ from .consts import (
 from .misc import mangle
 from .visitor import ASTVisitor
 
-VERSION = sys.version_info[0]
-if VERSION >= 3:
+if sys.version_info[0] >= 3:
     long = int
 
 MANGLE_LEN = 256
