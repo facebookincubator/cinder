@@ -435,7 +435,6 @@ PYTHON_OBJS=	\
 JIT_OBJS=       \
 		Jit/bitvector.o \
 		Jit/bytecode.o \
-		Jit/code_allocator.o \
 		Jit/code_gen.o \
 		Jit/compiler.o \
 		Jit/deopt.o \
@@ -1199,7 +1198,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/bitvector.h \
 		$(srcdir)/Jit/bytecode.h \
 		$(srcdir)/Jit/capsule.h \
-		$(srcdir)/Jit/code_allocator.h \
 		$(srcdir)/Jit/code_gen.h \
 		$(srcdir)/Jit/compiler.h \
 		$(srcdir)/Jit/dataflow.h \
@@ -2282,7 +2280,6 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/bitvector_test.o \
 	${RUNTIME_TESTS_DIR}/block_canonicalizer_test.o \
 	${RUNTIME_TESTS_DIR}/bytecode_test.o \
-	${RUNTIME_TESTS_DIR}/code_allocator_test.o \
 	${RUNTIME_TESTS_DIR}/code_gen_test.o \
 	${RUNTIME_TESTS_DIR}/copy_graph_test.o \
 	${RUNTIME_TESTS_DIR}/dataflow_test.o \

@@ -3,7 +3,6 @@
 
 #include "Python.h"
 
-#include "Jit/code_allocator.h"
 #include "Jit/code_gen.h"
 #include "Jit/compiler.h"
 #include "Jit/pyjit_result.h"

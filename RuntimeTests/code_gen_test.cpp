@@ -3,7 +3,6 @@
 #include "fixtures.h"
 #include "testutil.h"
 
-#include "Jit/code_allocator.h"
 #include "Jit/code_gen.h"
 #include "Jit/ref.h"
 #include "Python.h"
@@ -12,8 +11,6 @@ class CodeGenTest : public RuntimeTest {
  public:
   void SetUp() override {
     RuntimeTest::SetUp();
-    code_allocator_ = CodeAllocator_New(4096);
-    ASSERT_NE(code_allocator_, nullptr);
     code_gen_ = CodeGen_New();
     ASSERT_NE(code_gen_, nullptr);
   }
@@ -34,11 +31,9 @@ class CodeGenTest : public RuntimeTest {
 
   void TearDown() override {
     CodeGen_Free(code_gen_);
-    CodeAllocator_Free(code_allocator_);
     RuntimeTest::TearDown();
   }
 
-  CodeAllocator* code_allocator_;
   CodeGen* code_gen_;
 };
 

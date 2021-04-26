@@ -3,8 +3,6 @@
 
 #include "Python.h"
 
-#include "Jit/code_allocator.h"
-
 /*
  * This defines the public interface of the JIT backend.
  *
