@@ -109,14 +109,13 @@ struct StrictObjectHasher {
 // fmt specialization for BaseStrictObject
 template <>
 struct fmt::formatter<std::shared_ptr<strictmod::objects::BaseStrictObject>>
-    : formatter<string_view> {
-  // parse is inherited from formatter<string_view>.
+    : formatter<std::string> {
   template <typename FormatContext>
   auto format(
       std::shared_ptr<strictmod::objects::BaseStrictObject> c,
       FormatContext& ctx) {
-    string_view name = c->getDisplayName();
-    return formatter<string_view>::format(name, ctx);
+    std::string name = c->getDisplayName();
+    return formatter<std::string>::format(name, ctx);
   }
 };
 #endif // !__STRICTM_BASE_OBJ_H__

@@ -54,6 +54,10 @@ class StrictSequence : public StrictIterable {
       std::shared_ptr<StrictSequence> self,
       const CallerContext& caller);
 
+  static std::shared_ptr<BaseStrictObject> sequence__iter__(
+      std::shared_ptr<StrictSequence> self,
+      const CallerContext& caller);
+
   static std::shared_ptr<BaseStrictObject> sequence__eq__(
       std::shared_ptr<StrictSequence> self,
       const CallerContext& caller,
@@ -74,7 +78,7 @@ class StrictSequence : public StrictIterable {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> lhs);
 
-  // TODO: __iter__, __reversed__
+  // TODO: __reversed__
  protected:
   std::vector<std::shared_ptr<BaseStrictObject>> data_;
 };
@@ -86,6 +90,14 @@ class StrictSequenceType : public StrictIterableType {
   virtual std::shared_ptr<BaseStrictObject> getElement(
       std::shared_ptr<BaseStrictObject> obj,
       std::shared_ptr<BaseStrictObject> index,
+      const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictIteratorBase> getElementsIter(
+      std::shared_ptr<BaseStrictObject> obj,
+      const CallerContext& caller) override;
+
+  virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
+      std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
 
   virtual void addMethods() override;
@@ -113,7 +125,16 @@ class StrictList final : public StrictSequence {
   static std::shared_ptr<BaseStrictObject> listCopy(
       std::shared_ptr<StrictList> self,
       const CallerContext& caller);
-  // TODO: __init__, extend
+
+  static std::shared_ptr<BaseStrictObject> list__init__(
+      std::shared_ptr<StrictList> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> iterable = nullptr);
+
+  static std::shared_ptr<BaseStrictObject> listExtend(
+      std::shared_ptr<StrictList> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> iterable);
 };
 
 class StrictListType final : public StrictSequenceType {
@@ -166,7 +187,13 @@ class StrictTuple final : public StrictSequence {
       std::shared_ptr<StrictTuple> self,
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> item);
-  // TODO: tuple.__new__
+
+  static std::shared_ptr<BaseStrictObject> tuple__new__(
+      std::shared_ptr<StrictTuple> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> instType,
+      std::shared_ptr<BaseStrictObject> elements = nullptr);
+
  private:
   mutable PyObject* pyObj_;
   mutable std::string displayName_;
@@ -249,7 +276,11 @@ class StrictSetLike : public StrictIterable {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> rhs);
 
-  // TODO __iter__, issubset, issuperset, __le__, __lt__,
+  static std::shared_ptr<BaseStrictObject> set__iter__(
+      std::shared_ptr<StrictSetLike> self,
+      const CallerContext& caller);
+
+  // TODO issubset, issuperset, __le__, __lt__,
   // __ge__, __gt__
  protected:
   SetDataT data_;
@@ -260,6 +291,14 @@ class StrictSetLikeType : public StrictObjectType {
   using StrictObjectType::StrictObjectType;
 
   virtual void addMethods() override;
+
+  virtual std::shared_ptr<StrictIteratorBase> getElementsIter(
+      std::shared_ptr<BaseStrictObject> obj,
+      const CallerContext& caller) override;
+
+  virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
+      std::shared_ptr<BaseStrictObject> obj,
+      const CallerContext& caller) override;
 };
 
 // Set

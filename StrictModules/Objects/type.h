@@ -11,7 +11,7 @@
 #include "Python-ast.h"
 
 namespace strictmod::objects {
-
+class StrictIteratorBase;
 class StrictType : public StrictInstance {
  public:
   StrictType(
@@ -113,6 +113,14 @@ class StrictType : public StrictInstance {
       cmpop_ty op,
       const CallerContext& caller) = 0;
 
+  virtual std::shared_ptr<StrictIteratorBase> getElementsIter(
+      std::shared_ptr<BaseStrictObject> obj,
+      const CallerContext& caller) = 0;
+
+  virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
+      std::shared_ptr<BaseStrictObject> obj,
+      const CallerContext& caller) = 0;
+
   virtual std::shared_ptr<BaseStrictObject> getElement(
       std::shared_ptr<BaseStrictObject> obj,
       std::shared_ptr<BaseStrictObject> index,
@@ -147,6 +155,18 @@ class StrictType : public StrictInstance {
 
   template <typename T>
   void addStaticMethod(const std::string& name, T func);
+
+  template <typename T>
+  void addMethodDefault(
+      const std::string& name,
+      T func,
+      std::shared_ptr<BaseStrictObject> defaultValue);
+
+  template <typename T>
+  void addStaticMethodDefault(
+      const std::string& name,
+      T func,
+      std::shared_ptr<BaseStrictObject> defaultValue);
 
  private:
   std::string name_;

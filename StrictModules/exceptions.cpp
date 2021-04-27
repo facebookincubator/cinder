@@ -56,6 +56,27 @@ void StrictModuleNotImplementedException::raise() {
   throw *this;
 }
 
+// StrictModuleTooManyIterationsException
+StrictModuleTooManyIterationsException::StrictModuleTooManyIterationsException(
+    int lineno,
+    int col,
+    std::string filename,
+    std::string scopeName)
+    : StrictModuleException(
+          lineno,
+          col,
+          std::move(filename),
+          std::move(scopeName),
+          "too many iterations") {}
+
+std::string StrictModuleTooManyIterationsException::testStringHelper() const {
+  return "StrictModuleTooManyIterationsException";
+}
+
+void StrictModuleTooManyIterationsException::raise() {
+  throw *this;
+}
+
 // StrictModuleUnhandledException
 StrictModuleUnhandledException::StrictModuleUnhandledException(
     int lineno,
@@ -152,6 +173,15 @@ UnknownValueBoolExceptionHelper::UnknownValueBoolExceptionHelper(
 void UnknownValueBoolException::raise() {
   throw *this;
 }
+
+// UnknownValueNotIterableException
+UnknownValueNotIterableExceptionHelper::UnknownValueNotIterableExceptionHelper(
+    std::string name)
+    : unknownName(std::move(name)) {}
+
+void UnknownValueNotIterableException::raise() {
+  throw *this;
+}
 // ImmutableException
 ImmutableExceptionHelper::ImmutableExceptionHelper(
     std::string attr,
@@ -177,4 +207,12 @@ void ModifyImportValueException::raise() {
   throw *this;
 }
 
+// CoroutineFunctionNotSupportedExceptionHelper
+CoroutineFunctionNotSupportedExceptionHelper::
+    CoroutineFunctionNotSupportedExceptionHelper(std::string funcName)
+    : funcName(std::move(funcName)) {}
+
+void CoroutineFunctionNotSupportedException::raise() {
+  throw *this;
+}
 } // namespace strictmod

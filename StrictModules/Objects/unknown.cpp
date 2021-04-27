@@ -142,6 +142,29 @@ std::shared_ptr<BaseStrictObject> UnknownObjectType::binCmpOp(
       std::move(rDisplayName));
 }
 
+std::shared_ptr<StrictIteratorBase> UnknownObjectType::getElementsIter(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  caller.error<UnknownValueNotIterableException>(obj->getDisplayName());
+  std::vector<std::shared_ptr<BaseStrictObject>> unknownVec;
+  unknownVec.emplace_back(
+      makeUnknown(caller, "{}[...]", obj->getDisplayName()));
+
+  auto unknownTuple = std::make_shared<StrictTuple>(
+      TupleType(), caller.caller, std::move(unknownVec));
+  return std::make_shared<StrictSequenceIterator>(
+      SequenceIteratorType(), caller.caller, std::move(unknownTuple));
+}
+
+std::vector<std::shared_ptr<BaseStrictObject>>
+UnknownObjectType::getElementsVec(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  caller.error<UnknownValueNotIterableException>(obj->getDisplayName());
+  auto unknown = makeUnknown(caller, "{}[...]", obj->getDisplayName());
+  return {unknown};
+}
+
 std::shared_ptr<BaseStrictObject> UnknownObjectType::getElement(
     std::shared_ptr<BaseStrictObject> obj,
     std::shared_ptr<BaseStrictObject> index,

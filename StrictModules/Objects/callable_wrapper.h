@@ -23,7 +23,15 @@ class CallableWrapper {
 
  public:
   CallableWrapper(WrappedFType<T, Args...> func, std::string name)
-      : func_(func), name_(name) {}
+      : func_(func), name_(name), default_() {}
+
+  // currently only one default case come up, but we can easily support
+  // multiple defaults
+  CallableWrapper(
+      WrappedFType<T, Args...> func,
+      std::string name,
+      std::shared_ptr<BaseStrictObject> defaultValue)
+      : func_(func), name_(name), default_(std::move(defaultValue)) {}
 
   std::shared_ptr<BaseStrictObject> operator()(
       std::shared_ptr<BaseStrictObject> obj,
@@ -34,6 +42,15 @@ class CallableWrapper {
       throw std::runtime_error("named arguments in builtin call not supported");
     }
     const int n = sizeof...(Args);
+    if constexpr (n > 0) {
+      // cannot set n less than 0 since the value is computed for all code paths
+      // at compile time, and the template arg must be >= 0
+      if (n == args.size() + 1) {
+        return callStaticWithDefault(
+            std::move(obj), args, caller, std::make_index_sequence<n - 1>());
+      }
+    }
+
     if (n != args.size()) {
       caller.raiseTypeError(
           "{}() takes {} positional arguments but {} were given",
@@ -48,6 +65,7 @@ class CallableWrapper {
  private:
   WrappedFType<T, Args...> func_;
   std::string name_;
+  std::shared_ptr<BaseStrictObject> default_;
 
   template <size_t... Is>
   std::shared_ptr<BaseStrictObject> callStatic(
@@ -57,6 +75,19 @@ class CallableWrapper {
       std::index_sequence<Is...>) {
     return func_(
         std::static_pointer_cast<T>(std::move(obj)), caller, args[Is]...);
+  }
+
+  template <size_t... Is>
+  std::shared_ptr<BaseStrictObject> callStaticWithDefault(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const CallerContext& caller,
+      std::index_sequence<Is...>) {
+    return func_(
+        std::static_pointer_cast<T>(std::move(obj)),
+        caller,
+        args[Is]...,
+        default_);
   }
 };
 

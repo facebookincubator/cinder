@@ -66,6 +66,14 @@ class StrictObjectType : public StrictType {
       cmpop_ty op,
       const CallerContext& caller) override;
 
+  virtual std::shared_ptr<StrictIteratorBase> getElementsIter(
+      std::shared_ptr<BaseStrictObject> obj,
+      const CallerContext& caller) override;
+
+  virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
+      std::shared_ptr<BaseStrictObject> obj,
+      const CallerContext& caller) override;
+
   virtual std::shared_ptr<BaseStrictObject> getElement(
       std::shared_ptr<BaseStrictObject> obj,
       std::shared_ptr<BaseStrictObject> index,

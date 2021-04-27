@@ -227,6 +227,46 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::binCmpOp(
       rType->getDisplayName());
 }
 
+std::shared_ptr<StrictIteratorBase> StrictObjectType::getElementsIter(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  auto iterFunc = iLoadAttrOnType(obj, kDunderIter, nullptr, caller);
+  if (iterFunc == nullptr) {
+    caller.raiseExceptionStr(
+        TypeErrorType(),
+        "{} object is not iterable",
+        obj->getType()->getName());
+  }
+  auto iterResult =
+      iCall(std::move(iterFunc), kEmptyArgs, kEmptyArgNames, caller);
+  auto nextFunc = iLoadAttrOnType(iterResult, kDunderNext, nullptr, caller);
+  if (nextFunc == nullptr) {
+    caller.raiseExceptionStr(
+        TypeErrorType(),
+        "iter({}) returned non-iterator type of {}",
+        obj,
+        iterResult->getType()->getName());
+  }
+  return std::make_shared<StrictGenericObjectIterator>(
+      GenericObjectIteratorType(), caller.caller, std::move(nextFunc));
+}
+
+std::vector<std::shared_ptr<BaseStrictObject>> StrictObjectType::getElementsVec(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  std::shared_ptr<StrictIteratorBase> it =
+      getElementsIter(std::move(obj), caller);
+  std::vector<std::shared_ptr<BaseStrictObject>> vec;
+  while (true) {
+    auto nextValue = it->next(caller);
+    if (it->isEnd()) {
+      break;
+    }
+    vec.push_back(std::move(nextValue));
+  }
+  return vec;
+}
+
 std::shared_ptr<BaseStrictObject> StrictObjectType::getElement(
     std::shared_ptr<BaseStrictObject> obj,
     std::shared_ptr<BaseStrictObject> index,

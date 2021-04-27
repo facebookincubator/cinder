@@ -92,6 +92,21 @@ class StrictModuleNotImplementedException : public StrictModuleException {
   virtual std::string testStringHelper() const override;
 };
 
+/** iteration exceeds limit. */
+class StrictModuleTooManyIterationsException : public StrictModuleException {
+ public:
+  StrictModuleTooManyIterationsException(
+      int lineno,
+      int col,
+      std::string filename,
+      std::string scopeName);
+
+  [[noreturn]] virtual void raise() override;
+
+ private:
+  virtual std::string testStringHelper() const override;
+};
+
 /** Use this for user space exceptions, i.e. exceptions
  *  that the analyzed Python program may raise
  */
@@ -326,6 +341,28 @@ class UnknownValueBoolException
   [[noreturn]] virtual void raise() override;
 };
 
+// UnknownValueNotIterableException
+struct UnknownValueNotIterableExceptionHelper {
+  UnknownValueNotIterableExceptionHelper(std::string name);
+
+  std::string unknownName;
+
+  static constexpr const char* excName = "UnknownValueNotIterableException";
+  static constexpr const char* fmt =
+      "Attempt to iterate over non-iterable object: '%s";
+  static constexpr const char* wiki = "unknown_value_attribute";
+};
+
+class UnknownValueNotIterableException
+    : public StructuredStrictModuleException<
+          UnknownValueNotIterableExceptionHelper,
+          UnknownValueNotIterableException,
+          &UnknownValueNotIterableExceptionHelper::unknownName> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ImmutableException
 struct ImmutableExceptionHelper {
   ImmutableExceptionHelper(
@@ -378,6 +415,28 @@ class ModifyImportValueException
           &ModifyImportValueExceptionHelper::objName,
           &ModifyImportValueExceptionHelper::ownerName,
           &ModifyImportValueExceptionHelper::callerName> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
+// CoroutineFunctionNotSupportedException
+class CoroutineFunctionNotSupportedExceptionHelper {
+ public:
+  CoroutineFunctionNotSupportedExceptionHelper(std::string funcName);
+  std::string funcName;
+  static constexpr const char* excName =
+      "CoroutineFunctionNotSupportedException";
+  static constexpr const char* fmt =
+      "coroutines function %s with yield expressions are not supported.";
+  static constexpr const char* wiki = "";
+};
+
+class CoroutineFunctionNotSupportedException
+    : public StructuredStrictModuleException<
+          CoroutineFunctionNotSupportedExceptionHelper,
+          CoroutineFunctionNotSupportedException,
+          &CoroutineFunctionNotSupportedExceptionHelper::funcName> {
  public:
   using StructuredStrictModuleException::StructuredStrictModuleException;
   [[noreturn]] virtual void raise() override;

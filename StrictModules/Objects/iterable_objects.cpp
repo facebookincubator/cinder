@@ -38,6 +38,7 @@ StrictSequence::StrictSequence(
     std::vector<std::shared_ptr<BaseStrictObject>> data)
     : StrictIterable(std::move(type), std::move(creator)),
       data_(std::move(data)) {}
+
 // wrapped methods
 std::shared_ptr<BaseStrictObject> StrictSequence::sequence__contains__(
     std::shared_ptr<StrictSequence> self,
@@ -52,6 +53,13 @@ std::shared_ptr<BaseStrictObject> StrictSequence::sequence__len__(
     std::shared_ptr<StrictSequence> self,
     const CallerContext& caller) {
   return caller.makeInt(self->data_.size());
+}
+
+std::shared_ptr<BaseStrictObject> StrictSequence::sequence__iter__(
+    std::shared_ptr<StrictSequence> self,
+    const CallerContext& caller) {
+  return std::make_shared<StrictSequenceIterator>(
+      SequenceIteratorType(), caller.caller, std::move(self));
 }
 
 std::shared_ptr<BaseStrictObject> StrictSequence::sequence__eq__(
@@ -159,6 +167,22 @@ std::shared_ptr<BaseStrictObject> StrictSequenceType::getElement(
       index->getTypeRef().getName());
 }
 
+std::shared_ptr<StrictIteratorBase> StrictSequenceType::getElementsIter(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  auto seq = assertStaticCast<StrictSequence>(obj);
+  return std::make_shared<StrictSequenceIterator>(
+      SequenceIteratorType(), caller.caller, std::move(seq));
+}
+
+std::vector<std::shared_ptr<BaseStrictObject>>
+StrictSequenceType::getElementsVec(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext&) {
+  auto seq = assertStaticCast<StrictSequence>(obj);
+  return seq->getData();
+}
+
 void StrictSequenceType::addMethods() {
   StrictIterableType::addMethods();
   addMethod(kDunderContains, StrictSequence::sequence__contains__);
@@ -167,6 +191,7 @@ void StrictSequenceType::addMethods() {
   addMethod("__add__", StrictSequence::sequence__add__);
   addMethod("__mul__", StrictSequence::sequence__mul__);
   addMethod("__rmul__", StrictSequence::sequence__rmul__);
+  addMethod("__iter__", StrictSequence::sequence__iter__);
 }
 
 // -------------------------List-------------------------
@@ -215,7 +240,30 @@ std::shared_ptr<BaseStrictObject> StrictList::listCopy(
     const CallerContext& caller) {
   return std::make_shared<StrictList>(ListType(), caller.caller, self->data_);
 }
-// TODO: __init__, extend
+
+std::shared_ptr<BaseStrictObject> StrictList::list__init__(
+    std::shared_ptr<StrictList> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> iterable) {
+  if (iterable != nullptr) {
+    self->data_ = iGetElementsVec(std::move(iterable), caller);
+  }
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictList::listExtend(
+    std::shared_ptr<StrictList> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> iterable) {
+  if (iterable != nullptr) {
+    auto newVec = iGetElementsVec(std::move(iterable), caller);
+    self->data_.insert(
+        self->data_.end(),
+        std::make_move_iterator(newVec.begin()),
+        std::make_move_iterator(newVec.end()));
+  }
+  return NoneObject();
+}
 
 void StrictListType::setElement(
     std::shared_ptr<BaseStrictObject> obj,
@@ -255,6 +303,8 @@ void StrictListType::addMethods() {
   StrictSequenceType::addMethods();
   addMethod("append", StrictList::listAppend);
   addMethod("copy", StrictList::listCopy);
+  addMethodDefault("__init__", StrictList::list__init__, nullptr);
+  addMethod("extend", StrictList::listExtend);
 }
 
 // -------------------------Tuple-------------------------
@@ -364,7 +414,25 @@ std::shared_ptr<BaseStrictObject> StrictTuple::tupleIndex(
   }
   caller.raiseExceptionStr(ValueErrorType(), "tuple.index(x): x not in tuple");
 }
-// TODO: tuple.__new__
+
+std::shared_ptr<BaseStrictObject> StrictTuple::tuple__new__(
+    std::shared_ptr<StrictTuple>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> instType,
+    std::shared_ptr<BaseStrictObject> elements) {
+  std::shared_ptr<StrictTupleType> tType =
+      std::dynamic_pointer_cast<StrictTupleType>(instType);
+  if (tType == nullptr) {
+    caller.raiseExceptionStr(
+        TypeErrorType(), "X is not a tuple type object ({})", instType);
+  }
+  if (elements == nullptr) {
+    // empty tuple
+    return std::make_shared<StrictTuple>(tType, caller.caller, kEmptyArgs);
+  }
+  return std::make_shared<StrictTuple>(
+      tType, caller.caller, iGetElementsVec(std::move(elements), caller));
+}
 
 std::unique_ptr<BaseStrictObject> StrictTupleType::constructInstance(
     std::shared_ptr<StrictModuleObject> caller) {
@@ -380,6 +448,7 @@ PyObject* StrictTupleType::getPyObject() const {
 void StrictTupleType::addMethods() {
   StrictSequenceType::addMethods();
   addMethod("index", StrictTuple::tupleIndex);
+  addStaticMethodDefault("__new__", StrictTuple::tuple__new__, nullptr);
 }
 
 // -------------------------Set Like-------------------------
@@ -487,15 +556,41 @@ std::shared_ptr<BaseStrictObject> StrictSetLike::set__xor__(
   }
   return NotImplemented();
 }
-// TODO __iter__, issubset, issuperset, __le__, __lt__,
+
+std::shared_ptr<BaseStrictObject> StrictSetLike::set__iter__(
+    std::shared_ptr<StrictSetLike> self,
+    const CallerContext& caller) {
+  return std::make_shared<StrictSetIterator>(
+      SetIteratorType(), caller.caller, std::move(self));
+}
+// TODO issubset, issuperset, __le__, __lt__,
 // __ge__, __gt__
 
 void StrictSetLikeType::addMethods() {
-  addMethod("__contains__", StrictSetLike::set__contains__);
+  addMethod(kDunderContains, StrictSetLike::set__contains__);
   addMethod("__len__", StrictSetLike::set__len__);
   addMethod("__and__", StrictSetLike::set__and__);
   addMethod("__or__", StrictSetLike::set__or__);
   addMethod("__xor__", StrictSetLike::set__xor__);
+  addMethod(kDunderIter, StrictSetLike::set__iter__);
+}
+
+std::shared_ptr<StrictIteratorBase> StrictSetLikeType::getElementsIter(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  auto set = assertStaticCast<StrictSetLike>(obj);
+  return std::make_shared<StrictSetIterator>(
+      SetIteratorType(), caller.caller, std::move(set));
+}
+
+std::vector<std::shared_ptr<BaseStrictObject>>
+StrictSetLikeType::getElementsVec(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext&) {
+  auto seq = assertStaticCast<StrictSetLike>(obj);
+  auto& data = seq->getData();
+  return std::vector<std::shared_ptr<BaseStrictObject>>(
+      data.begin(), data.end());
 }
 
 // -------------------------Set-------------------------

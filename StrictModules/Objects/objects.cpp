@@ -43,7 +43,6 @@ bool bootstrapBuiltins() {
     kModuleType->setCreator(kBuiltinsModule);
     kModuleType->setModuleName(kBuiltinsModule->getModuleName());
 
-
     kTypeType->addMethods();
     kObjectType->addMethods();
     kModuleType->addMethods();
@@ -155,6 +154,35 @@ std::shared_ptr<StrictType> FrozensetType() {
   return t;
 }
 
+std::shared_ptr<StrictType> SequenceIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictSequenceIteratorType>(
+      "sequence_iter", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+std::shared_ptr<StrictType> SetIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictSetIteratorType>(
+      "set_iter", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+std::shared_ptr<StrictType> CallableIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictCallableIteratorType>(
+      "call_iterator", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> GenericObjectIteratorType() {
+  static std::shared_ptr<StrictType> t =
+      makeType<StrictGenericObjectIteratorType>(
+          "obj_iterator", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> GeneratorFuncIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictGeneratorFunctionType>(
+      "generator_function", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> NotImplementedType() {
   static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
       "NotImplementedType", kBuiltinsModule, objectTypeVec(), TypeType());
@@ -193,7 +221,13 @@ std::shared_ptr<StrictType> ValueErrorType() {
 
 std::shared_ptr<StrictType> NameErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
-      "NameError",
+      "NameError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> StopIterationType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+      "StopIteration",
       kBuiltinsModule,
       TObjectPtrVec{ExceptionType()},
       TypeType());
@@ -242,6 +276,7 @@ bool initializeBuiltinsModuleDict() {
         {"TypeError", TypeErrorType()},
         {"AttributeError", AttributeErrorType()},
         {"ValueError", ValueErrorType()},
+        {"StopIteration", StopIterationType()},
         {"None", NoneObject()},
         {"NotImplemented", NotImplemented()},
         {"True", StrictTrue()},

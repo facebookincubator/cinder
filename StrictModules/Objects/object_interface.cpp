@@ -100,6 +100,18 @@ std::shared_ptr<BaseStrictObject> iBinCmpOp(
       std::move(obj), std::move(right), op, caller);
 }
 
+std::shared_ptr<StrictIteratorBase> iGetElementsIter(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  return obj->getTypeRef().getElementsIter(std::move(obj), caller);
+}
+
+std::vector<std::shared_ptr<BaseStrictObject>> iGetElementsVec(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  return obj->getTypeRef().getElementsVec(std::move(obj), caller);
+}
+
 std::shared_ptr<BaseStrictObject> iGetElement(
     std::shared_ptr<BaseStrictObject> obj,
     std::shared_ptr<BaseStrictObject> index,

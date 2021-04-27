@@ -7,6 +7,7 @@
 #include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/iterable_objects.h"
+#include "StrictModules/Objects/iterator_objects.h"
 #include "StrictModules/Objects/module.h"
 #include "StrictModules/Objects/module_type.h"
 #include "StrictModules/Objects/numerics.h"
@@ -32,6 +33,11 @@ std::shared_ptr<StrictType> ListType();
 std::shared_ptr<StrictType> TupleType();
 std::shared_ptr<StrictType> SetType();
 std::shared_ptr<StrictType> FrozensetType();
+std::shared_ptr<StrictType> SequenceIteratorType();
+std::shared_ptr<StrictType> SetIteratorType();
+std::shared_ptr<StrictType> CallableIteratorType();
+std::shared_ptr<StrictType> GenericObjectIteratorType();
+std::shared_ptr<StrictType> GeneratorFuncIteratorType();
 std::shared_ptr<StrictType> NoneType();
 std::shared_ptr<StrictType> NotImplementedType();
 
@@ -44,6 +50,7 @@ std::shared_ptr<StrictType> TypeErrorType();
 std::shared_ptr<StrictType> AttributeErrorType();
 std::shared_ptr<StrictType> ValueErrorType();
 std::shared_ptr<StrictType> NameErrorType();
+std::shared_ptr<StrictType> StopIterationType();
 
 //--------------------Builtin Constant Declarations-----------------------
 std::shared_ptr<BaseStrictObject> NoneObject();
@@ -69,6 +76,8 @@ static const std::string kDunderDelItem = "__delitem__";
 static const std::string kDunderCall = "__call__";
 static const std::string kDunderBool = "__bool__";
 static const std::string kDunderLen = "__len__";
+static const std::string kDunderIter = "__iter__";
+static const std::string kDunderNext = "__next__";
 
 /* indices corresponds to enum values in Python-ast.h
  * Do not change the order of names.
@@ -140,5 +149,7 @@ static const std::string kRCmpOpNames[] = {"",
                                            "",
                                            "",
                                            ""};
+
+static const int kIterationLimit = 10000;
 } // namespace strictmod::objects
 #endif // __STRICTM_OBJECTS_H__

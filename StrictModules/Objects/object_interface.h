@@ -12,6 +12,7 @@
 namespace strictmod::objects {
 class BaseStrictObject;
 class StrictType;
+class StrictIteratorBase;
 
 std::shared_ptr<BaseStrictObject> iGetDescr(
     std::shared_ptr<BaseStrictObject> obj,
@@ -76,9 +77,13 @@ std::shared_ptr<BaseStrictObject> iBinCmpOp(
     cmpop_ty op,
     const CallerContext& caller);
 
-// std::vector<std::shared_ptr<BaseStrictObject>> getElements(
-//     std::shared_ptr<BaseStrictObject> obj,
-//     const CallerContext& caller); TODO
+std::shared_ptr<StrictIteratorBase> iGetElementsIter(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller);
+
+std::vector<std::shared_ptr<BaseStrictObject>> iGetElementsVec(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller);
 
 std::shared_ptr<BaseStrictObject> iGetElement(
     std::shared_ptr<BaseStrictObject> obj,

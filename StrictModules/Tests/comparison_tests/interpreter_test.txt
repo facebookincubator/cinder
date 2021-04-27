@@ -72,8 +72,19 @@ ListAppend
 x = []
 x.append([])
 x.append(23)
+x.extend([3, 4])
 ---
 x
+---
+---
+ListInit
+---
+x = []
+y = []
+x.__init__([1, 2, 3])
+y.__init__([1, 2, 3].__iter__())
+---
+x y
 ---
 ---
 TupleLiteral
@@ -81,8 +92,10 @@ TupleLiteral
 x = ()
 y = (1, 2, 3)
 z = (1,)
+w = tuple.__new__(tuple, (2, 3, 4))
+v = tuple.__new__(tuple)
 ---
-x y z
+x y z w v
 ---
 ---
 TupleIndex
@@ -4954,7 +4967,7 @@ del d[1]
 d
 ---
 ---
-test_list_extend @disabled
+test_list_extend
 ---
 l = [1, 2]
 l.extend([2, 3])
@@ -5844,7 +5857,7 @@ x = l ^ r
 l r a o x
 ---
 ---
-test_iterator_0 @disabled
+test_iterator_0
 ---
 l = [1, 2, 3]
 i = l.__iter__()
@@ -5855,7 +5868,7 @@ c = i.__next__()
 a b c
 ---
 ---
-test_iterator_1 @disabled
+test_iterator_1
 ---
 l = (1, 2, 3)
 i = l.__iter__()
@@ -5866,15 +5879,16 @@ c = i.__next__()
 a b c
 ---
 ---
-test_iterator_2 @disabled
+test_iterator_2
 ---
 l = {1, 2, 3}
 i = l.__iter__()
 a = i.__next__()
 b = i.__next__()
 c = i.__next__()
+d = {a, b, c}
 ---
-a b c
+d
 ---
 ---
 test_iterator_3 @disabled
