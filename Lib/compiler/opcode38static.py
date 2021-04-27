@@ -1,3 +1,4 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from .opcode38cinder import opcode as opcode38cinder
 from .opcodebase import Opcode
 

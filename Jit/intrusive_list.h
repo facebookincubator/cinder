@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef JIT_ILIST_H
 #define JIT_ILIST_H
 

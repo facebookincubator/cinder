@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 """Simple, brute-force N-Queens solver."""
 __author__ = "collinwinter@google.com (Collin Winter)"
 

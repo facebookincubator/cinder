@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef DICT_WATCH_H
 #define DICT_WATCH_H
 

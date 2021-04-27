@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/generator.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/lir/block_builder.h"

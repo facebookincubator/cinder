@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/object_type.h"
 
 #include "StrictModules/Objects/object_interface.h"

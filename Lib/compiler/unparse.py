@@ -1,3 +1,4 @@
+# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 # pyre-unsafe
 import ast
 from typing import Any, Callable, Dict, List, Optional, Type

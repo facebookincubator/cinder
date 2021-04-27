@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __STRICTM_UNKNOWN_H__
 #define __STRICTM_UNKNOWN_H__
 

@@ -1,3 +1,4 @@
+# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 # operation flags
 OP_ASSIGN = "OP_ASSIGN"
 OP_DELETE = "OP_DELETE"

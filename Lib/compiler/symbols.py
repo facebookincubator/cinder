@@ -1,3 +1,4 @@
+# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 # pyre-unsafe
 """Module symbol-table generator"""
 from __future__ import print_function

@@ -1,3 +1,4 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 # This file provides a test runner for running the Python regression test suite
 # under JIT backends. Currently, when we run the test suite under the JIT, we
 # compile each function as it is created. While this provides a large surface

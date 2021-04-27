@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 class Position {
   constructor(lineNum, colNum) {
     this.lineNum = lineNum;

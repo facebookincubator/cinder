@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
 # Until this and prod_collect.py are integrated better, the steps to get an
 # annotated disassembly dump are roughly:

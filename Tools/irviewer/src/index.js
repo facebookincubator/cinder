@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import * as d3 from "d3";
 import $ from "jquery";
 import dagreD3 from "dagre-d3";

@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __JIT_AUTOGEN_H__
 #define __JIT_AUTOGEN_H__
 

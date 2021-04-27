@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef STRICTM_SCOPE_IMPL_H
 #define STRICTM_SCOPE_IMPL_H
 #include <stdexcept>

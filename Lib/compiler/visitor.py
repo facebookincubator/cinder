@@ -1,3 +1,4 @@
+# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 # pyre-unsafe
 import ast
 from ast import AST, copy_location

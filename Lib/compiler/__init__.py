@@ -1,3 +1,4 @@
+# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 """Package for compiling Python source code
 
 There are several functions defined at the top level that are imported

@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef Py_JIT_RESULT_H
 #define Py_JIT_RESULT_H
 

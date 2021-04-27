@@ -1,3 +1,4 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 """
 based on a Java version:
  Based on original version written in BCPL by Dr Martin Richards

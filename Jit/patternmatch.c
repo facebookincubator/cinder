@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Jit/patternmatch.h"
 
 void parse_instr(_Py_CODEUNIT* instr, int* opcode, int* oparg) {

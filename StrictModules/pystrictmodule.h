@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef Py_STRICTM_H
 #define Py_STRICTM_H
 

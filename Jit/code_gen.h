@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef JIT_CODE_GEN_H
 #define JIT_CODE_GEN_H
 

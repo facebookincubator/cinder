@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __STRICTMOD_CONSTANTS_H__
 #define __STRICTMOD_CONSTANTS_H__
 

@@ -1,4 +1,5 @@
 #!/bin/bash -e
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
 # Collect a perf sample, perf pid maps, and disassembly logs (if present) into
 # a gzipped tarball on stdout.

@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/environ.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/x86_64.h"

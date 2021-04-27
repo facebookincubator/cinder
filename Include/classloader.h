@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #ifndef Py_CLASSLOADER_H
 #define Py_CLASSLOADER_H
 #ifdef __cplusplus

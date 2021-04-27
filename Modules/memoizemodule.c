@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
 #include "pycore_tupleobject.h"
 #include "structmember.h"

@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 /* facebook t39538061 */
 /* This file contains the implementation of a shadow byte code system.  The
  * idea here is that at runtime a new array of bytes gets produced for the code

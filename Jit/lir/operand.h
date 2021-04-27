@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __LIR_OPND_H__
 #define __LIR_OPND_H__
 

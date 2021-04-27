@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __STRICTM_SYMBOL_TABLE_H__
 #define __STRICTM_SYMBOL_TABLE_H__
 

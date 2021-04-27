@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import { Position, tokenize, Token } from "hir/tokenizer.js";
 
 function expectToken(tokens, idx, data, lineNum, colNum) {

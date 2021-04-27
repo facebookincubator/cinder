@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #ifndef Py_UNIONOBJECT_H
 #define Py_UNIONOBJECT_H
 #ifdef __cplusplus

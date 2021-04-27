@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 // Python.h includes pyconfig.h, which always defines _POSIX_C_SOURCE.  A
 // number of libc headers define it if it hasn't yet been defined, so including
 // Python.h first ensures we get the desired version with no warnings about

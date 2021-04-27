@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef Py_JIT_GDB_SUPPORT_H
 #define Py_JIT_GDB_SUPPORT_H
 

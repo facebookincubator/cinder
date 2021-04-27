@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __STRICTM_CALLER_CONTEXT_IMPL_CPP__
 #define __STRICTM_CALLER_CONTEXT_IMPL_CPP__
 

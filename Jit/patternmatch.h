@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef PATTERN_MATCH_H_
 #define PATTERN_MATCH_H_
 

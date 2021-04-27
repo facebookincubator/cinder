@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef _JIT_CODEGEN_COPY_GRAPH_H_
 #define _JIT_CODEGEN_COPY_GRAPH_H_
 

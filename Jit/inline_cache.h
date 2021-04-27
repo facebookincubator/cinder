@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef JIT_INLINE_CACHE_H
 #define JIT_INLINE_CACHE_H
 

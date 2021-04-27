@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __STRICTM_OBJECTS_H__
 #define __STRICTM_OBJECTS_H__
 #include "StrictModules/Objects/base_object.h"

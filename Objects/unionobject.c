@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 // types.Union -- used to represent e.g. Union[int, str], int | str
 #include "Python.h"
 #include "pycore_unionobject.h"

@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __CODEGEN_ENVIRON_H__
 #define __CODEGEN_ENVIRON_H__
 

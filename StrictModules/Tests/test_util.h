@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef STRICTM_TEST_UTIL_H
 #define STRICTM_TEST_UTIL_H
 

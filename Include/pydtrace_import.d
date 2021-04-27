@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 /* Python DTrace provider for calls in Python/import.c */
 
 provider python {

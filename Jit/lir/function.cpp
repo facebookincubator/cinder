@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/function.h"
 #include "Jit/lir/blocksorter.h"
 #include "Jit/lir/printer.h"

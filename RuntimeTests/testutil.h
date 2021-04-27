@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef RUNTIME_TEST_UTIL_H
 #define RUNTIME_TEST_UTIL_H
 

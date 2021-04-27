@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #ifndef Py_ARRAYMODULE_H
 #define Py_ARRAYMODULE_H
 #ifdef __cplusplus

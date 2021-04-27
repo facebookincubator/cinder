@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/analyzer.h"
 
 #include "StrictModules/Compiler/abstract_module_loader.h"

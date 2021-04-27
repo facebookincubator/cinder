@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 /* facebook begin t39538061 */
 #include "Objects/dict-common.h"
 #include "Python.h"

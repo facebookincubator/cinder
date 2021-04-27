@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import { parse, ParseError } from "hir/parser.js";
 import { Position } from "hir/tokenizer.js";
 import { Block, CFG, Edge, Instr, Register } from "graph.js";

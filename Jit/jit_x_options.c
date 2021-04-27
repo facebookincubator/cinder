@@ -1,3 +1,4 @@
+/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Jit/jit_x_options.h"
 
 int PyJIT_GetXOption(const char* option, PyObject** value) {

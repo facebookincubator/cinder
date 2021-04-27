@@ -1,3 +1,4 @@
+/* Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
 #include "structmember.h"
 #include "weakrefobject.h"

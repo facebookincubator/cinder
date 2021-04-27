@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __LIR_BBBUILDER_H__
 #define __LIR_BBBUILDER_H__
 

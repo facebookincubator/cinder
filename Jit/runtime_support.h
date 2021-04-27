@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef JIT_RUNTIME_SUPPORT_H
 #define JIT_RUNTIME_SUPPORT_H
 

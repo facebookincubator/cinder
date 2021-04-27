@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __STRICTM_NUMERIC_OBJ_H__
 #define __STRICTM_NUMERIC_OBJ_H__
 
