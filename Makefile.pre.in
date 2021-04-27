@@ -44,7 +44,6 @@ abs_builddir=	@abs_builddir@
 
 CC=		@CC@
 CXX=		@CXX@
-MAINCC=		@MAINCC@
 LINKCC=		@LINKCC@
 AR=		@AR@
 RANLIB= ranlib
@@ -148,15 +147,6 @@ PY_CORE_CXXFLAGS=$(PY_CXXFLAGS) $(PY_CXXFLAGS_NODIST) $(PY_CPPFLAGS) $(CFLAGSFOR
 PY_CORE_LDFLAGS=$(PY_LDFLAGS) $(PY_LDFLAGS_NODIST)
 # Strict or non-strict aliasing flags used to compile dtoa.c, see above
 CFLAGS_ALIASING=@CFLAGS_ALIASING@
-
-# Is CXX being used to compile main? If so, we shouldn't pass C flags to a C++
-# compiler.
-WITH_CXX_MAIN=@WITH_CXX_MAIN@
-ifeq ($(WITH_CXX_MAIN), 1)
-MAINCC_FLAGS=$(PY_CORE_CXXFLAGS)
-else
-MAINCC_FLAGS=$(PY_CORE_CFLAGS)
-endif
 
 # Machine-dependent subdirectories
 MACHDEP=	@MACHDEP@
@@ -957,7 +947,7 @@ Modules/getpath.o: $(srcdir)/Modules/getpath.c Makefile
 		-o $@ $(srcdir)/Modules/getpath.c
 
 Programs/python.o: $(srcdir)/Programs/python.c
-	$(V)$(MAINCC) -c $(MAINCC_FLAGS) -o $@ $(srcdir)/Programs/python.c
+	$(V)$(CXX) -c $(PY_CORE_CXXFLAGS) -o $@ $(srcdir)/Programs/python.c
 
 Programs/_testembed.o: $(srcdir)/Programs/_testembed.c
 	$(V)$(CC) -c $(PY_CORE_CFLAGS) -o $@ $(srcdir)/Programs/_testembed.c

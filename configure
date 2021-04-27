@@ -725,8 +725,6 @@ MULTIARCH_CPPFLAGS
 PLATFORM_TRIPLET
 MULTIARCH
 ac_ct_CXX
-WITH_CXX_MAIN
-MAINCC
 SED
 GREP
 CPP
@@ -821,7 +819,6 @@ enable_universalsdk
 with_universal_archs
 with_framework_name
 enable_framework
-with_cxx_main
 with_suffix
 enable_shared
 enable_profiling
@@ -1511,9 +1508,6 @@ Optional Packages:
   --with-framework-name=FRAMEWORK
                           specify an alternate name of the framework built
                           with --enable-framework
-  --with-cxx-main=<compiler>
-                          compile main() and link python executable with C++
-                          compiler
   --with-suffix=.exe      set executable suffix
   --with-pydebug          build with Py_DEBUG defined
   --with-trace-refs       enable tracing references for debugging purpose
@@ -4626,44 +4620,6 @@ $as_echo "$ac_cv_path_SED" >&6; }
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-cxx-main=<compiler>" >&5
-$as_echo_n "checking for --with-cxx-main=<compiler>... " >&6; }
-
-# Check whether --with-cxx_main was given.
-if test "${with_cxx_main+set}" = set; then :
-  withval=$with_cxx_main;
-
-	case $withval in
-	no)	with_cxx_main=no
-		MAINCC='$(CC)';;
-	yes)	with_cxx_main=yes
-		MAINCC='$(CXX)';;
-	*)	with_cxx_main=yes
-		MAINCC=$withval
-		if test -z "$CXX"
-		then
-			CXX=$withval
-		fi;;
-	esac
-else
-
-	with_cxx_main=no
-	MAINCC='$(CC)'
-
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_cxx_main" >&5
-$as_echo "$with_cxx_main" >&6; }
-
-
-if test "$with_cxx_main" = yes; then
-    WITH_CXX_MAIN=1
-else
-    WITH_CXX_MAIN=0
-fi
-
-
-
 preset_cxx="$CXX"
 if test -z "$CXX"
 then
@@ -5793,31 +5749,13 @@ LDLIBRARYDIR=''
 RUNSHARED=''
 LDVERSION="$VERSION"
 
-# LINKCC is the command that links the python executable -- default is $(CC).
-# If CXX is set, and if it is needed to link a main function that was
-# compiled with CXX, LINKCC is CXX instead. Always using CXX is undesirable:
-# python might then depend on the C++ runtime
-# This is altered for AIX in order to build the export list before
-# linking.
+# LINKCC is the command that links the python executable.
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking LINKCC" >&5
 $as_echo_n "checking LINKCC... " >&6; }
 if test -z "$LINKCC"
 then
-	LINKCC='$(PURIFY) $(MAINCC)'
-	case $ac_sys_system in
-	AIX*)
-	   exp_extra="\"\""
-	   if test $ac_sys_release -ge 5 -o \
-		   $ac_sys_release -eq 4 -a `uname -r` -ge 2 ; then
-	       exp_extra="."
-	   fi
-	   LINKCC="\$(srcdir)/Modules/makexp_aix Modules/python.exp $exp_extra \$(LIBRARY); $LINKCC";;
-	QNX*)
-	   # qcc must be used because the other compilers do not
-	   # support -N.
-	   LINKCC=qcc;;
-	esac
+	LINKCC='$(PURIFY) $(CXX)'
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LINKCC" >&5
 $as_echo "$LINKCC" >&6; }
@@ -17485,6 +17423,30 @@ $as_echo "#define PY_SSL_DEFAULT_CIPHERS 1" >>confdefs.h
 fi
 
 
+# Cinder alterations to compiler flags
+BASECFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECFLAGS}"
+BASECPPFLAGS="-I\"$srcdir\" ${BASECPPFLAGS}"
+BASECXXFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECXXFLAGS}"
+
+GCC_CFLAGS="-Wno-cast-function-type -Wno-type-limits"
+CLANG_CFLAGS="-Wno-deprecated -Wno-macro-redefined -Wno-unknown-warning-option -Wno-unreachable-code"
+case "$CC" in
+    *clang*)
+      BASECFLAGS="$BASECFLAGS $CLANG_CFLAGS"
+      ;;
+    *) # Probably gcc
+      BASECFLAGS="$BASECFLAGS $GCC_CFLAGS"
+      ;;
+esac
+
+case "$CXX" in
+    *clang*)
+      BASECXXFLAGS="$BASECXXFLAGS $CLANG_CFLAGS"
+      ;;
+    *) # Probably g++
+      BASECXXFLAGS="$BASECXXFLAGS $GCC_CFLAGS"
+      ;;
+esac
 
 # generate output files
 ac_config_files="$ac_config_files Makefile.pre Misc/python.pc Misc/python-embed.pc Misc/python-config.sh"

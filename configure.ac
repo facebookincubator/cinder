@@ -657,38 +657,6 @@ AC_PROG_GREP
 AC_PROG_SED
 
 AC_SUBST(CXX)
-AC_SUBST(MAINCC)
-AC_MSG_CHECKING(for --with-cxx-main=<compiler>)
-AC_ARG_WITH(cxx_main,
-            AS_HELP_STRING([--with-cxx-main=<compiler>],
-                           [compile main() and link python executable with C++ compiler]),
-[
-
-	case $withval in
-	no)	with_cxx_main=no
-		MAINCC='$(CC)';;
-	yes)	with_cxx_main=yes
-		MAINCC='$(CXX)';;
-	*)	with_cxx_main=yes
-		MAINCC=$withval
-		if test -z "$CXX"
-		then
-			CXX=$withval
-		fi;;
-	esac], [
-	with_cxx_main=no
-	MAINCC='$(CC)'
-])
-AC_MSG_RESULT($with_cxx_main)
-
-
-if test "$with_cxx_main" = yes; then
-    WITH_CXX_MAIN=1
-else
-    WITH_CXX_MAIN=0
-fi
-AC_SUBST(WITH_CXX_MAIN)
-
 
 preset_cxx="$CXX"
 if test -z "$CXX"
@@ -1029,30 +997,12 @@ LDLIBRARYDIR=''
 RUNSHARED=''
 LDVERSION="$VERSION"
 
-# LINKCC is the command that links the python executable -- default is $(CC).
-# If CXX is set, and if it is needed to link a main function that was
-# compiled with CXX, LINKCC is CXX instead. Always using CXX is undesirable:
-# python might then depend on the C++ runtime
-# This is altered for AIX in order to build the export list before
-# linking.
+# LINKCC is the command that links the python executable.
 AC_SUBST(LINKCC)
 AC_MSG_CHECKING(LINKCC)
 if test -z "$LINKCC"
 then
-	LINKCC='$(PURIFY) $(MAINCC)'
-	case $ac_sys_system in
-	AIX*)
-	   exp_extra="\"\""
-	   if test $ac_sys_release -ge 5 -o \
-		   $ac_sys_release -eq 4 -a `uname -r` -ge 2 ; then
-	       exp_extra="."
-	   fi
-	   LINKCC="\$(srcdir)/Modules/makexp_aix Modules/python.exp $exp_extra \$(LIBRARY); $LINKCC";;
-	QNX*)
-	   # qcc must be used because the other compilers do not
-	   # support -N.
-	   LINKCC=qcc;;
-	esac
+	LINKCC='$(PURIFY) $(CXX)'
 fi
 AC_MSG_RESULT($LINKCC)
 
@@ -5735,6 +5685,30 @@ AC_MSG_RESULT(python)
 AC_DEFINE(PY_SSL_DEFAULT_CIPHERS, 1)
 ])
 
+# Cinder alterations to compiler flags
+BASECFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECFLAGS}"
+BASECPPFLAGS="-I\"$srcdir\" ${BASECPPFLAGS}"
+BASECXXFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECXXFLAGS}"
+
+GCC_CFLAGS="-Wno-cast-function-type -Wno-type-limits"
+CLANG_CFLAGS="-Wno-deprecated -Wno-macro-redefined -Wno-unknown-warning-option -Wno-unreachable-code"
+case "$CC" in
+    *clang*)
+      BASECFLAGS="$BASECFLAGS $CLANG_CFLAGS"
+      ;;
+    *) # Probably gcc
+      BASECFLAGS="$BASECFLAGS $GCC_CFLAGS"
+      ;;
+esac
+
+case "$CXX" in
+    *clang*)
+      BASECXXFLAGS="$BASECXXFLAGS $CLANG_CFLAGS"
+      ;;
+    *) # Probably g++
+      BASECXXFLAGS="$BASECXXFLAGS $GCC_CFLAGS"
+      ;;
+esac
 
 # generate output files
 AC_CONFIG_FILES(Makefile.pre Misc/python.pc Misc/python-embed.pc Misc/python-config.sh)
