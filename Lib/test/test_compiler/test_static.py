@@ -13528,6 +13528,41 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(t, "INPLACE_ADD")
             self.assertEqual(t(), 3)
 
+    def test_qualname(self):
+        codestr = """
+        def f():
+            pass
+
+
+        class C:
+            def x(self):
+                pass
+
+            @staticmethod
+            def sm():
+                pass
+
+            @classmethod
+            def cm():
+                pass
+
+            def f(self):
+                class G:
+                    def y(self):
+                        pass
+                return G.y
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            f = mod["f"]
+            C = mod["C"]
+            self.assertEqual(cinder._get_qualname(f.__code__), "f")
+
+            self.assertEqual(cinder._get_qualname(C.x.__code__), "C.x")
+            self.assertEqual(cinder._get_qualname(C.sm.__code__), "C.sm")
+            self.assertEqual(cinder._get_qualname(C.cm.__code__), "C.cm")
+
+            self.assertEqual(cinder._get_qualname(C().f().__code__), "C.f.<locals>.G.y")
+
     def test_refine_optional_name(self):
         codestr = """
         from typing import Optional

@@ -223,6 +223,7 @@ class CodeGenerator(ASTVisitor):
         self.strip_docstrings = optimization_lvl == 2
         self.__with_count = 0
         self.did_setup_annotations = False
+        self._qual_name = None
 
     def _setupGraphDelegation(self):
         self.emit = self.graph.emit
@@ -232,6 +233,9 @@ class CodeGenerator(ASTVisitor):
     def getCode(self):
         """Return a code object"""
         return self.graph.getCode()
+
+    def set_qual_name(self, qualname):
+        pass
 
     @contextmanager
     def noEmit(self):
@@ -876,6 +880,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("BUILD_TUPLE", len(frees))
             flags |= 0x08
 
+        gen.set_qual_name(prefix + gen.name)
         self.emit("LOAD_CONST", gen)
         self.emit("LOAD_CONST", prefix + gen.name)  # py3 qualname
         self.emit("MAKE_FUNCTION", flags)
@@ -2814,6 +2819,17 @@ class Python38CodeGenerator(Python37CodeGenerator):
 
 class CinderCodeGenerator(Python38CodeGenerator):
     flow_graph = pyassem.PyFlowGraphCinder
+
+    def set_qual_name(self, qualname):
+        self._qual_name = qualname
+
+    def getCode(self):
+        code = super().getCode()
+        # pyre-fixme [21]: cinder
+        from cinder import _set_qualname
+
+        _set_qualname(code, self._qual_name)
+        return code
 
     def _nameOp(self, prefix, name) -> None:
         if (

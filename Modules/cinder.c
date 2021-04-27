@@ -289,6 +289,30 @@ get_qualname_of_code(PyObject *Py_UNUSED(module), PyObject *arg)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+set_qualname_of_code(PyObject *Py_UNUSED(module), PyObject **args, Py_ssize_t nargs)
+{
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_TypeError, "Expected 2 arguments");
+        return NULL;
+    }
+    PyObject *arg = args[0];
+    if (!PyCode_Check(arg)) {
+        PyErr_SetString(PyExc_TypeError, "Expected code object as 1st argument");
+        return NULL;
+    }
+    PyObject *qualname = args[1];
+    if (qualname != Py_None) {
+        if (!PyUnicode_Check(qualname)) {
+            PyErr_SetString(PyExc_TypeError, "Expected str as 2nd argument");
+            return NULL;
+        }
+        Py_XSETREF(((PyCodeObject *)arg)->co_qualname, qualname);
+        Py_INCREF(qualname);
+    }
+    Py_RETURN_NONE;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
@@ -337,6 +361,10 @@ static struct PyMethodDef cinder_module_methods[] = {
      get_qualname_of_code,
      METH_O,
      "Returns qualified name stored in code object or None if codeobject was created manually"},
+    {"_set_qualname",
+     (PyCFunction)set_qualname_of_code,
+     METH_FASTCALL,
+     "Sets the value of qualified name in code object"},
     {NULL, NULL} /* sentinel */
 };
 
