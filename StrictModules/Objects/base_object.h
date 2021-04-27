@@ -4,6 +4,7 @@
 #include "StrictModules/py_headers.h"
 
 #include "StrictModules/caller_context.h"
+#include "Jit/ref.h"
 
 #include <list>
 #include <memory>
@@ -42,7 +43,7 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
    *
    * Returns new reference to the PyObject
    */
-  virtual PyObject* getPyObject() const {
+  virtual Ref<> getPyObject() const {
     return nullptr;
   };
 

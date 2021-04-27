@@ -30,10 +30,8 @@ StrictInt::StrictInt(
     )
     : StrictNumeric(std::move(type), std::move(creator)),
       value_(PyLong_AsLong(pyValue)),
-      pyValue_(pyValue),
-      displayName_() {
-  Py_INCREF(pyValue_);
-}
+      pyValue_(Ref<>(pyValue)),
+      displayName_() {}
 
 bool StrictInt::isHashable() const {
   return true;
@@ -59,12 +57,11 @@ double StrictInt::getImaginary() const {
   return 0;
 }
 
-PyObject* StrictInt::getPyObject() const {
+Ref<> StrictInt::getPyObject() const {
   if (pyValue_ == nullptr) {
-    pyValue_ = PyLong_FromLong(value_);
+    pyValue_ = Ref<>::steal(PyLong_FromLong(value_));
   }
-  Py_INCREF(pyValue_);
-  return pyValue_;
+  return Ref<>(pyValue_.get());
 }
 
 std::string StrictInt::getDisplayName() const {
@@ -102,9 +99,8 @@ std::unique_ptr<BaseStrictObject> StrictIntType::constructInstance(
       0);
 }
 
-PyObject* StrictIntType::getPyObject() const {
-  Py_INCREF(&PyLong_Type);
-  return reinterpret_cast<PyObject*>(&PyLong_Type);
+Ref<> StrictIntType::getPyObject() const {
+  return Ref<>(reinterpret_cast<PyObject*>(&PyLong_Type));
 }
 
 std::shared_ptr<BaseStrictObject> StrictIntType::getTruthValue(
@@ -123,12 +119,11 @@ void StrictIntType::addMethods() {
 }
 
 // StrictBool
-PyObject* StrictBool::getPyObject() const {
+Ref<> StrictBool::getPyObject() const {
   if (pyValue_ == nullptr) {
-    pyValue_ = PyBool_FromLong(value_);
+    pyValue_ = Ref<>::steal(PyBool_FromLong(value_));
   }
-  Py_INCREF(pyValue_);
-  return pyValue_;
+  return Ref<>(pyValue_.get());
 }
 
 std::string StrictBool::getDisplayName() const {
@@ -139,9 +134,8 @@ std::string StrictBool::getDisplayName() const {
 }
 
 // StrictBoolType
-PyObject* StrictBoolType::getPyObject() const {
-  Py_INCREF(&PyBool_Type);
-  return reinterpret_cast<PyObject*>(&PyBool_Type);
+Ref<> StrictBoolType::getPyObject() const {
+  return Ref<>(reinterpret_cast<PyObject*>(&PyBool_Type));
 }
 
 std::unique_ptr<BaseStrictObject> StrictBoolType::constructInstance(

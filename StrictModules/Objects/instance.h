@@ -16,7 +16,7 @@ class StrictInstance : public BaseStrictObject {
       std::weak_ptr<StrictModuleObject> creator,
       std::shared_ptr<DictType> dict = nullptr);
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
   virtual std::unique_ptr<BaseStrictObject> copy() const override;
 

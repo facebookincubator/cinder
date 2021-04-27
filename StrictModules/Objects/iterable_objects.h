@@ -114,7 +114,7 @@ class StrictList final : public StrictSequence {
       std::vector<std::shared_ptr<BaseStrictObject>> data) override;
 
   virtual std::string getDisplayName() const override;
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> listAppend(
@@ -150,7 +150,7 @@ class StrictListType final : public StrictSequenceType {
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
       std::shared_ptr<StrictModuleObject> caller) override;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   virtual void addMethods() override;
 };
@@ -168,8 +168,6 @@ class StrictTuple final : public StrictSequence {
       std::shared_ptr<StrictModuleObject> creator,
       std::vector<std::shared_ptr<BaseStrictObject>> data);
 
-  virtual ~StrictTuple();
-
   virtual std::shared_ptr<StrictSequence> makeSequence(
       std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
@@ -180,7 +178,7 @@ class StrictTuple final : public StrictSequence {
   virtual bool eq(const BaseStrictObject& other) const override;
 
   virtual std::string getDisplayName() const override;
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> tupleIndex(
@@ -195,7 +193,7 @@ class StrictTuple final : public StrictSequence {
       std::shared_ptr<BaseStrictObject> elements = nullptr);
 
  private:
-  mutable PyObject* pyObj_;
+  mutable Ref<> pyObj_;
   mutable std::string displayName_;
 };
 
@@ -206,7 +204,7 @@ class StrictTupleType final : public StrictSequenceType {
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
       std::shared_ptr<StrictModuleObject> caller) override;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   virtual void addMethods() override;
 };
@@ -307,7 +305,7 @@ class StrictSet final : public StrictSetLike {
   using StrictSetLike::StrictSetLike;
 
   virtual std::string getDisplayName() const override;
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   virtual std::shared_ptr<StrictSetLike> makeSetLike(
       std::shared_ptr<StrictType> type,
@@ -346,10 +344,8 @@ class StrictFrozenSet final : public StrictSetLike {
       std::shared_ptr<StrictModuleObject> creator,
       SetDataT data = {});
 
-  virtual ~StrictFrozenSet();
-
   virtual std::string getDisplayName() const override;
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   virtual std::shared_ptr<StrictSetLike> makeSetLike(
       std::shared_ptr<StrictType> type,
@@ -360,7 +356,7 @@ class StrictFrozenSet final : public StrictSetLike {
   // TODO __new__,
 
  private:
-  mutable PyObject* pyObj_;
+  mutable Ref<> pyObj_;
   mutable std::string displayName_;
 };
 

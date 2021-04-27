@@ -207,20 +207,22 @@ std::string StrictList::getDisplayName() const {
   return fmt::format("[{}]", fmt::join(data_, ","));
 }
 
-PyObject* StrictList::getPyObject() const {
-  PyObject* pyObj = PyList_New(data_.size());
+Ref<> StrictList::getPyObject() const {
+  Ref<> pyObj = Ref<>::steal(PyList_New(data_.size()));
+
   if (pyObj == nullptr) {
     // allocation failed
     return nullptr;
   }
   for (size_t i = 0; i < data_.size(); ++i) {
-    PyObject* elem = data_[i]->getPyObject();
+    Ref<> elem = data_[i]->getPyObject();
     if (elem == nullptr) {
-      Py_DECREF(pyObj);
       return nullptr;
     }
     // elem reference is stolen into the list
-    PyList_SET_ITEM(pyObj, i, elem);
+    // Thus, it's no longer managed by the Ref elem
+    PyList_SET_ITEM(pyObj.get(), i, elem.get());
+    elem.release();
   }
   return pyObj;
 }
@@ -294,9 +296,8 @@ std::unique_ptr<BaseStrictObject> StrictListType::constructInstance(
   return std::make_unique<StrictList>(ListType(), caller, kEmptyArgs);
 }
 
-PyObject* StrictListType::getPyObject() const {
-  Py_INCREF(&PyList_Type);
-  return reinterpret_cast<PyObject*>(&PyList_Type);
+Ref<> StrictListType::getPyObject() const {
+  return Ref<>(reinterpret_cast<PyObject*>(&PyList_Type));
 }
 
 void StrictListType::addMethods() {
@@ -323,10 +324,6 @@ StrictTuple::StrictTuple(
     : StrictSequence(std::move(type), std::move(creator), std::move(data)),
       pyObj_(nullptr),
       displayName_() {}
-
-StrictTuple::~StrictTuple() {
-  Py_XDECREF(pyObj_);
-}
 
 std::shared_ptr<StrictSequence> StrictTuple::makeSequence(
     std::shared_ptr<StrictType> type,
@@ -379,26 +376,25 @@ std::string StrictTuple::getDisplayName() const {
   return displayName_;
 }
 
-PyObject* StrictTuple::getPyObject() const {
+Ref<> StrictTuple::getPyObject() const {
   // We can cache the PyObject since tuple is immutable
   if (pyObj_ == nullptr) {
-    pyObj_ = PyTuple_New(data_.size());
+    pyObj_ = Ref<>::steal(PyTuple_New(data_.size()));
     if (pyObj_ == nullptr) {
       // allocation failed
       return nullptr;
     }
     for (size_t i = 0; i < data_.size(); ++i) {
-      PyObject* elem = data_[i]->getPyObject();
+      Ref<> elem = data_[i]->getPyObject();
       if (elem == nullptr) {
-        Py_DECREF(pyObj_);
         return nullptr;
       }
       // elem reference is stolen into the tuple
-      PyTuple_SET_ITEM(pyObj_, i, elem);
+      PyTuple_SET_ITEM(pyObj_.get(), i, elem);
+      elem.release();
     }
   }
-  Py_INCREF(pyObj_);
-  return pyObj_;
+  return Ref<>(pyObj_.get());
 }
 
 // wrapped methods
@@ -440,9 +436,8 @@ std::unique_ptr<BaseStrictObject> StrictTupleType::constructInstance(
       TupleType(), std::move(caller), kEmptyArgs);
 }
 
-PyObject* StrictTupleType::getPyObject() const {
-  Py_INCREF(&PyTuple_Type);
-  return reinterpret_cast<PyObject*>(&PyTuple_Type);
+Ref<> StrictTupleType::getPyObject() const {
+  return Ref<>(reinterpret_cast<PyObject*>(&PyTuple_Type));
 }
 
 void StrictTupleType::addMethods() {
@@ -601,27 +596,23 @@ std::string StrictSet::getDisplayName() const {
   return fmt::format("{{{}}}", fmt::join(data_, ","));
 }
 
-PyObject* StrictSet::getPyObject() const {
+Ref<> StrictSet::getPyObject() const {
   // this give empty set
-  PyObject* pyObj = PySet_New(nullptr);
+  Ref<> pyObj = Ref<>::steal(PySet_New(nullptr));
   if (pyObj == nullptr) {
     // allocation failed
     return nullptr;
   }
   for (auto& v : data_) {
-    PyObject* elem = v->getPyObject();
+    Ref<> elem = v->getPyObject();
     if (elem == nullptr) {
-      Py_DECREF(pyObj);
       return nullptr;
     }
     // set keeps its own reference to elem
     if (PySet_Add(pyObj, elem) < 0) {
       PyErr_Clear();
-      Py_DECREF(elem);
-      Py_DECREF(pyObj);
       return nullptr;
     }
-    Py_DECREF(elem);
   }
   return pyObj;
 }
@@ -674,10 +665,6 @@ StrictFrozenSet::StrictFrozenSet(
       pyObj_(nullptr),
       displayName_() {}
 
-StrictFrozenSet::~StrictFrozenSet() {
-  Py_XDECREF(pyObj_);
-}
-
 std::string StrictFrozenSet::getDisplayName() const {
   if (displayName_.empty()) {
     if (data_.empty()) {
@@ -688,30 +675,25 @@ std::string StrictFrozenSet::getDisplayName() const {
   return displayName_;
 }
 
-PyObject* StrictFrozenSet::getPyObject() const {
+Ref<> StrictFrozenSet::getPyObject() const {
   if (pyObj_ == nullptr) {
-    pyObj_ = PyFrozenSet_New(nullptr);
+    pyObj_ = Ref<>::steal(PyFrozenSet_New(nullptr));
     if (pyObj_ == nullptr) {
       return nullptr;
     }
     for (auto& v : data_) {
-      PyObject* elem = v->getPyObject();
+      Ref<> elem = v->getPyObject();
       if (elem == nullptr) {
-        Py_DECREF(pyObj_);
         return nullptr;
       }
       // set keeps its own reference to elem
       if (PySet_Add(pyObj_, elem) < 0) {
         PyErr_Clear();
-        Py_DECREF(elem);
-        Py_DECREF(pyObj_);
         return nullptr;
       }
-      Py_DECREF(elem);
     }
   }
-  Py_INCREF(pyObj_);
-  return pyObj_;
+  return Ref<>(pyObj_.get());
 }
 
 std::shared_ptr<StrictSetLike> StrictFrozenSet::makeSetLike(

@@ -1,16 +1,16 @@
 #include "StrictModules/Objects/constants.h"
 namespace strictmod::objects {
 // NoneObject_
-PyObject* NoneObject_::getPyObject() const {
-  Py_RETURN_NONE;
+Ref<> NoneObject_::getPyObject() const {
+  return Ref(Py_None);
 }
 std::string NoneObject_::getDisplayName() const {
   return "None";
 }
 
 // NotImplementedObject
-PyObject* NotImplementedObject::getPyObject() const {
-  Py_RETURN_NOTIMPLEMENTED;
+Ref<> NotImplementedObject::getPyObject() const {
+  return Ref(Py_NotImplemented);
 }
 std::string NotImplementedObject::getDisplayName() const {
   return "NotImplemented()";

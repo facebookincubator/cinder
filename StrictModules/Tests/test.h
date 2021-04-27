@@ -214,8 +214,7 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
       auto strictPyValue = value->getPyObject();
       ASSERT_NE(strictPyValue, nullptr);
       EXPECT_TRUE(
-          PyObject_RichCompareBool(pyValue, strictPyValue, Py_EQ)) << value->getDisplayName();
-      Py_DECREF(strictPyValue);
+          PyObject_RichCompareBool(pyValue, strictPyValue.get(), Py_EQ)) << value->getDisplayName();
     }
     Py_DECREF(global);
 

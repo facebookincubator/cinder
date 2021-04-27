@@ -1258,6 +1258,9 @@ JIT_HEADERS= \
 		$(JIT_PUBLIC_HEADERS)
 
 STRICTM_PRIVATE_HEADERS= \
+		$(srcdir)/Jit/ref.h \
+		$(srcdir)/Jit/util.h \
+		$(srcdir)/Jit/log.h \
 		$(srcdir)/StrictModules/Compiler/module_info.h \
 		$(srcdir)/StrictModules/Compiler/analyzed_module.h \
 		$(srcdir)/StrictModules/Compiler/abstract_module_loader.h\

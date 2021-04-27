@@ -30,10 +30,8 @@ StrictString::StrictString(
     std::weak_ptr<StrictModuleObject> creator,
     PyObject* pyValue)
     : StrictInstance(std::move(type), std::move(creator)),
-      pyStr_(pyValue),
-      value_(PyUnicode_AsUTF8(pyValue)) {
-  Py_INCREF(pyStr_);
-}
+      pyStr_(Ref<>(pyValue)),
+      value_(PyUnicode_AsUTF8(pyValue)) {}
 
 bool StrictString::isHashable() const {
   return true;
@@ -51,12 +49,11 @@ bool StrictString::eq(const BaseStrictObject& other) const {
   return value_ == otherStr.value_;
 }
 
-PyObject* StrictString::getPyObject() const {
+Ref<> StrictString::getPyObject() const {
   if (pyStr_ == nullptr) {
-    pyStr_ = PyUnicode_FromString(value_.c_str());
+    pyStr_ = Ref<>::steal(PyUnicode_FromString(value_.c_str()));
   }
-  Py_INCREF(pyStr_);
-  return pyStr_;
+  return Ref<>(pyStr_.get());
 }
 
 std::string StrictString::getDisplayName() const {
@@ -78,9 +75,8 @@ std::unique_ptr<BaseStrictObject> StrictStringType::constructInstance(
       "");
 }
 
-PyObject* StrictStringType::getPyObject() const {
-  Py_INCREF(&PyUnicode_Type);
-  return reinterpret_cast<PyObject*>(&PyUnicode_Type);
+Ref<> StrictStringType::getPyObject() const {
+  return Ref<>(reinterpret_cast<PyObject*>(&PyUnicode_Type));
 }
 
 void StrictStringType::addMethods() {

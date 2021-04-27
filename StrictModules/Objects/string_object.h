@@ -22,15 +22,11 @@ class StrictString : public StrictInstance {
       std::weak_ptr<StrictModuleObject> creator,
       PyObject* pyValue);
 
-  virtual ~StrictString() {
-    Py_XDECREF(pyStr_);
-  }
-
   virtual bool isHashable() const override;
   virtual size_t hash() const override;
   virtual bool eq(const BaseStrictObject& other) const override;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
   // wrapped methods
@@ -39,7 +35,7 @@ class StrictString : public StrictInstance {
       const CallerContext& caller);
 
  private:
-  mutable PyObject* pyStr_;
+  mutable Ref<> pyStr_;
   std::string value_;
 };
 
@@ -50,7 +46,7 @@ class StrictStringType : public StrictObjectType {
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
       std::shared_ptr<StrictModuleObject> caller) override;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   virtual void addMethods() override;
 };

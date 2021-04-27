@@ -19,7 +19,7 @@ StrictInstance::StrictInstance(
     : BaseStrictObject(std::move(type), std::move(creator)),
       dict_(dict == nullptr ? std::make_shared<DictType>() : std::move(dict)) {}
 
-PyObject* StrictInstance::getPyObject() const {
+Ref<> StrictInstance::getPyObject() const {
   return nullptr;
 }
 

@@ -31,10 +31,6 @@ class StrictInt : public StrictNumeric {
       PyObject* pyValue // constructor will incref on the object
   );
 
-  virtual ~StrictInt() {
-    Py_XDECREF(pyValue_);
-  }
-
   virtual double getReal() const override;
   virtual double getImaginary() const override;
 
@@ -42,7 +38,7 @@ class StrictInt : public StrictNumeric {
   virtual size_t hash() const override;
   virtual bool eq(const BaseStrictObject& other) const override;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
   // wrapped methods
@@ -61,7 +57,7 @@ class StrictInt : public StrictNumeric {
 
  protected:
   long value_;
-  mutable PyObject* pyValue_;
+  mutable Ref<> pyValue_;
   mutable std::string displayName_;
 };
 
@@ -72,7 +68,7 @@ class StrictIntType : public StrictObjectType {
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
       std::shared_ptr<StrictModuleObject> caller) override;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
 
   virtual std::shared_ptr<BaseStrictObject> getTruthValue(
       std::shared_ptr<BaseStrictObject> obj,
@@ -85,7 +81,7 @@ class StrictBool : public StrictInt {
  public:
   using StrictInt::StrictInt;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
   bool getValue() const {
@@ -100,7 +96,7 @@ class StrictBoolType : public StrictIntType {
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
       std::shared_ptr<StrictModuleObject> caller) override;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
   virtual bool isBaseType() const override;
 
   virtual std::shared_ptr<BaseStrictObject> getTruthValue(

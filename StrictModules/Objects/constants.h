@@ -7,14 +7,14 @@ namespace strictmod::objects {
 class NoneObject_ : public StrictInstance {
   using StrictInstance::StrictInstance;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 };
 
 class NotImplementedObject : public StrictInstance {
   using StrictInstance::StrictInstance;
 
-  virtual PyObject* getPyObject() const override;
+  virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 };
 
