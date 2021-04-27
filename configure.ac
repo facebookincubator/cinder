@@ -5410,6 +5410,7 @@ SRCDIRS="Parser Objects Python Modules Programs \
     StrictModules \
     StrictModules/Compiler \
     StrictModules/Objects \
+    StrictModules/Tests \
     ThirdParty/googletest-1.8.1/googletest \
     ThirdParty/i386-dis \
     ThirdParty/dynasm \

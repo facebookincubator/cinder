@@ -215,7 +215,8 @@ func_memoize_wrapper(memoize_func_wrapper_object *self,
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
     PyObject **cache_key; // cache_key=(func, *args, **kwargs)
     Py_ssize_t cache_keysize;
-    PyObject *tmp;
+    PyObject *tmp = NULL;
+
     if (kwnames == NULL && nargsf & PY_VECTORCALL_ARGUMENTS_OFFSET) {
         cache_key = args - 1;
         tmp = cache_key[0]; // save old value at offset - 1
@@ -229,7 +230,7 @@ func_memoize_wrapper(memoize_func_wrapper_object *self,
     }
 
     PyObject *result = func_memoize_wrapper_impl(self, args, nargsf, kwnames, cache_key, cache_keysize);
-    if (cache_key == args - 1) {
+    if (tmp != NULL) {
         cache_key[0] = tmp; // restore old key value
     }
     return result;

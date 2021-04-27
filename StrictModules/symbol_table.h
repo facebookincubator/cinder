@@ -2,6 +2,7 @@
 #define __STRICTM_SYMBOL_TABLE_H__
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 #include "StrictModules/py_headers.h"

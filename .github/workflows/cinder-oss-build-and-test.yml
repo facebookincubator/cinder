@@ -1,0 +1,15 @@
+name: Cinder OSS Build and Test
+on: [push]
+
+jobs:
+  cinder-oss-build-and-test-job:
+    runs-on: ubuntu-latest
+    container:
+      # Image built from .github/workflows/python-build-env/Dockerfile
+      image: ghcr.io/facebookincubator/cinder/python-build-env:latest
+      options: --cpus 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run Build and Test
+        run: ./oss-build-and-test.sh
