@@ -2301,27 +2301,6 @@ cached_property_get(PyObject *self, PyObject *obj, PyObject *cls)
     return res;
 }
 
-static int
-cached_property_set(PyObject *self, PyObject *obj, PyObject *value)
-{
-    PyCachedPropertyDescrObject *cp = (PyCachedPropertyDescrObject *)self;
-    PyObject **dictptr;
-
-    if (Py_TYPE(cp->name_or_descr) == &PyMemberDescr_Type) {
-        return Py_TYPE(cp->name_or_descr)->tp_descr_set(cp->name_or_descr, obj, value);
-    }
-
-    dictptr = _PyObject_GetDictPtr(obj);
-
-    if (dictptr == NULL) {
-        PyErr_SetString(PyExc_AttributeError,
-                        "This object has no __dict__");
-        return -1;
-    }
-
-    return _PyObjectDict_SetItem(Py_TYPE(obj), dictptr, cp->name_or_descr, value);
-}
-
 static void
 cached_property_dealloc(PyCachedPropertyDescrObject *cp)
 {
@@ -2391,7 +2370,6 @@ PyTypeObject PyCachedProperty_Type = {
     .tp_doc = cached_property_doc,
     .tp_traverse = (traverseproc)cached_property_traverse,
     .tp_descr_get = cached_property_get,
-    .tp_descr_set = cached_property_set,
     .tp_members = cached_property_members,
     .tp_getset = cached_property_getsetlist,
     .tp_new = PyType_GenericNew,

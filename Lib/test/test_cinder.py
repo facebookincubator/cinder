@@ -579,7 +579,7 @@ class CinderTest(unittest.TestCase):
 
         a = D()
         with self.assertRaises(TypeError):
-            a.abc = 42
+            print(a.abc)
 
     def test_cached_property_slot_name(self):
         class C:
@@ -1341,7 +1341,7 @@ class CodeObjectQualnameTest(unittest.TestCase):
         self.assertIsNone(cinder._get_qualname(co))
 
         co = c.replace(co_flags=c.co_flags)
-        self.assertEquals(cinder._get_qualname(co), "f")
+        self.assertEqual(cinder._get_qualname(co), "f")
 
 if __name__ == "__main__":
     unittest.main()
