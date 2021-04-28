@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __STRICTM_ITERATOR_OBJ___
 #define __STRICTM_ITERATOR_OBJ___
 

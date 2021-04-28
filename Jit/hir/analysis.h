@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef HIR_ANALYSIS_H
 #define HIR_ANALYSIS_H
 

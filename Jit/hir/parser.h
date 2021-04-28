@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __HIR_PARSER_H__
 #define __HIR_PARSER_H__
 

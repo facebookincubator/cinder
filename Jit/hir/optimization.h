@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef HIR_OPTIMIZATION_H
 #define HIR_OPTIMIZATION_H
 

@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/jit_gdb_support.h"
 
 #include <fcntl.h>

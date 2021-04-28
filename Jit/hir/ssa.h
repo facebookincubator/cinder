@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #ifndef __HIR_SSA_H__
 #define __HIR_SSA_H__
 
