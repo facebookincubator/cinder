@@ -1096,6 +1096,17 @@ invoke_get_debug_method(PyEventLoopDispatchTable *table, PyObject *loop)
 }
 
 static PyObject*
+invoke_get_debug_vectorcall(PyEventLoopDispatchTable *table, PyObject *loop)
+{
+    PyObject *args[] = {loop};
+    return _PyObject_Vectorcall(
+        table->get_debug_method_object,
+        args,
+        1,
+        NULL);
+}
+
+static PyObject*
 invoke_get_debug(PyEventLoopDispatchTable *Py_UNUSED(table), PyObject *loop)
 {
     return _PyObject_CallMethodId(loop, &PyId_get_debug, NULL);
@@ -1260,6 +1271,33 @@ invoke_call_soon_method(
 }
 
 static PyObject*
+invoke_call_soon_vectorcall(
+    PyEventLoopDispatchTable *table,
+    PyObject *loop,
+    PyObject *func,
+    PyObject *arg,
+    PyObject *ctx
+)
+{
+    PyObject *args[4] = { loop, func, NULL, NULL };
+    Py_ssize_t nargs = 2;
+    if (arg != NULL) {
+        args[nargs] = arg;
+        nargs++;
+    }
+    PyObject *kwnames = NULL;
+    if (ctx != NULL) {
+        args[nargs] = ctx;
+        kwnames = context_kwname;
+    }
+    return _PyObject_Vectorcall(
+        table->call_soon_method_object,
+        args,
+        nargs,
+        kwnames);
+}
+
+static PyObject*
 invoke_call_soon(
     PyEventLoopDispatchTable *Py_UNUSED(table),
     PyObject *loop,
@@ -1396,23 +1434,40 @@ get_dispatch_table(PyTypeObject *type)
             return NULL;
         }
         table->version_tag = type->tp_version_tag;
-        PyObject *call_soon = lookup_attr(type, &PyId_call_soon, &PyMethodDescr_Type);
-        if (call_soon != NULL &&
-            ((PyMethodDescrObject*)call_soon)->d_method->ml_flags == (METH_VARARGS | METH_KEYWORDS))
-        {
-            table->call_soon_method_object = call_soon;
-            Py_INCREF(call_soon);
-            table->invoke_call_soon = invoke_call_soon_method;
-            table->call_soon_method = (PyCFunctionWithKeywords)((PyMethodDescrObject*)call_soon)->d_method->ml_meth;
+
+        PyObject *call_soon = _PyType_LookupId(type, &PyId_call_soon);
+        if (call_soon != NULL) {
+            if (Py_TYPE(call_soon) == &PyMethodDescr_Type &&
+                ((PyMethodDescrObject*)call_soon)->d_method->ml_flags == (METH_VARARGS | METH_KEYWORDS))
+            {
+                table->call_soon_method_object = call_soon;
+                Py_INCREF(call_soon);
+                table->invoke_call_soon = invoke_call_soon_method;
+                table->call_soon_method = (PyCFunctionWithKeywords)((PyMethodDescrObject*)call_soon)->d_method->ml_meth;
+            }
+            else if (PyType_HasFeature(Py_TYPE(call_soon), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
+                table->call_soon_method_object = call_soon;
+                Py_INCREF(call_soon);
+                table->invoke_call_soon = invoke_call_soon_vectorcall;
+                table->call_soon_method = NULL;
+            }
         }
-        PyObject *get_debug = lookup_attr(type, &PyId_get_debug, &PyMethodDescr_Type);
-        if (get_debug != NULL &&
-            ((PyMethodDescrObject*)get_debug)->d_method->ml_flags == METH_NOARGS)
-        {
-            table->get_debug_method_object = get_debug;
-            Py_INCREF(get_debug);
-            table->invoke_get_debug = invoke_get_debug_method;
-            table->get_debug_method = ((PyMethodDescrObject*)get_debug)->d_method->ml_meth;
+        PyObject *get_debug = _PyType_LookupId(type, &PyId_get_debug);
+        if (get_debug != NULL) {
+            if (Py_TYPE(get_debug) == &PyMethodDescr_Type &&
+                ((PyMethodDescrObject*)get_debug)->d_method->ml_flags == METH_NOARGS)
+            {
+                table->get_debug_method_object = get_debug;
+                Py_INCREF(get_debug);
+                table->invoke_get_debug = invoke_get_debug_method;
+                table->get_debug_method = ((PyMethodDescrObject*)get_debug)->d_method->ml_meth;
+            }
+            else if (PyType_HasFeature(Py_TYPE(get_debug), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
+                table->get_debug_method_object = get_debug;
+                Py_INCREF(get_debug);
+                table->invoke_get_debug = invoke_get_debug_vectorcall;
+                table->get_debug_method = NULL;
+            }
         }
         if (PyDict_SetItem(event_loop_dispatch_tables, (PyObject*)type, (PyObject*)table) < 0) {
             Py_DECREF(table);

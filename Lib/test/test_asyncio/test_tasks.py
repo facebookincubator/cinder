@@ -2274,7 +2274,7 @@ class BaseTaskTests:
 
         self.assertFalse(m_log.error.called)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValueError), mock.patch.object(self.loop.__class__, "call_soon", call_soon):
             gen = coro()
             try:
                 self.new_task(self.loop, gen)
