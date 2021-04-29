@@ -1636,13 +1636,8 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
     }
   }
 
-  PyObject* res = _PyFunctionCode_FastCall(
-      (PyCodeObject*)func->func_code,
-      dest_args,
-      total_args,
-      func->func_globals,
-      func->func_name,
-      func->func_qualname);
+  PyObject* res =
+      _PyObject_Vectorcall((PyObject*)func, dest_args, total_args, NULL);
 
   for (int i = 0; i < allocated_count; i++) {
     Py_DECREF(allocated_args[i]);
