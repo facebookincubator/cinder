@@ -4,7 +4,7 @@
   "source_directories": [
     "Lib/compiler",
     "Tools/scripts/perf",
-    "Tools/scripts/workflow"
+    "Tools/scripts/facebook/workflow"
   ],
   "unstable_client": "Tools/scripts/pyre/pyre_client",
   "stable_client": "Tools/scripts/pyre/stable/pyre_client",
