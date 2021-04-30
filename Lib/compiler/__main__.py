@@ -39,6 +39,9 @@ argparser.add_argument(
 )
 argparser.add_argument("--dis", action="store_true", help="disassemble compiled code")
 argparser.add_argument("--output", help="path to the output .pyc file")
+argparser.add_argument(
+    "--modname", help="module name to compile as (default __main__)", default="__main__"
+)
 argparser.add_argument("input", help="source .py file")
 group = argparser.add_mutually_exclusive_group()
 group.add_argument(
@@ -73,7 +76,7 @@ else:
         "exec",
         optimize=args.opt,
         compiler=compiler,
-        modname="__main__",
+        modname=args.modname,
     )
 
 if args.dis:
