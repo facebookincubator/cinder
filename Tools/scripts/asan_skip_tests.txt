@@ -1,3 +1,5 @@
 test_threading
 test_concurrent_futures
 test_multiprocessing_fork
+test_wait3
+test_logging
