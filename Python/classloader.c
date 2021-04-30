@@ -865,7 +865,15 @@ classloader_get_member(PyObject *path,
                        Py_ssize_t items,
                        PyObject **container)
 {
-    PyObject *cur = PyImport_GetModuleDict();
+    PyObject *cur = PyThreadState_GET()->interp->modules;
+
+    if (cur == NULL) {
+        PyErr_Format(
+            PyExc_RuntimeError,
+            "classloader_get_member() when import system is pre-init or post-teardown"
+        );
+        return NULL;
+    }
     Py_INCREF(cur);
 
     if (container) {
