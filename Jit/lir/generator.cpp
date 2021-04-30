@@ -326,25 +326,53 @@ bool LIRGenerator::TranslateSpecializedCall(
   // things like tuple(), list(), etc, hardcoding or inlining calls to tp_new
   // and tp_init as appropriate. For now, we simply support any callable with a
   // vectorcall.
-  if (Py_TYPE(callee) == &PyCFunction_Type &&
-      PyCFunction_GET_FUNCTION(callee) == (PyCFunction)&builtin_next) {
-    if (instr.numArgs() == 1) {
-      std::string call = fmt::format(
-          "Call {}, {}, {}, 0",
-          instr.dst()->name(),
-          reinterpret_cast<uint64_t>(_PyBuiltin_Next),
-          instr.arg(0));
-      bbb.AppendCode(call);
-      return true;
-    } else if (instr.numArgs() == 2) {
-      std::string call = fmt::format(
-          "Call {}, {}, {}, {}",
-          instr.dst()->name(),
-          reinterpret_cast<uint64_t>(_PyBuiltin_Next),
-          instr.arg(0),
-          instr.arg(1));
-      bbb.AppendCode(call);
-      return true;
+  if (Py_TYPE(callee) == &PyCFunction_Type) {
+    if (PyCFunction_GET_FUNCTION(callee) == (PyCFunction)&builtin_next) {
+      if (instr.numArgs() == 1) {
+        std::string call = fmt::format(
+            "Call {}, {}, {}, 0",
+            instr.dst()->name(),
+            reinterpret_cast<uint64_t>(_PyBuiltin_Next),
+            instr.arg(0));
+        bbb.AppendCode(call);
+        return true;
+      } else if (instr.numArgs() == 2) {
+        std::string call = fmt::format(
+            "Call {}, {}, {}, {}",
+            instr.dst()->name(),
+            reinterpret_cast<uint64_t>(_PyBuiltin_Next),
+            instr.arg(0),
+            instr.arg(1));
+        bbb.AppendCode(call);
+        return true;
+      }
+    }
+    switch (
+        PyCFunction_GET_FLAGS(callee) &
+        (METH_VARARGS | METH_FASTCALL | METH_NOARGS | METH_O | METH_KEYWORDS)) {
+      case METH_NOARGS:
+        if (instr.numArgs() == 0) {
+          std::string call = fmt::format(
+              "Call {}, {}, {}, 0",
+              instr.dst()->name(),
+              reinterpret_cast<uint64_t>(PyCFunction_GET_FUNCTION(callee)),
+              reinterpret_cast<uint64_t>(PyCFunction_GET_SELF(callee)));
+          bbb.AppendCode(call);
+          return true;
+        }
+        break;
+      case METH_O:
+        if (instr.numArgs() == 1) {
+          std::string call = fmt::format(
+              "Call {}, {}, {}, {}",
+              instr.dst()->name(),
+              reinterpret_cast<uint64_t>(PyCFunction_GET_FUNCTION(callee)),
+              reinterpret_cast<uint64_t>(PyCFunction_GET_SELF(callee)),
+              instr.arg(0));
+          bbb.AppendCode(call);
+          return true;
+        }
+        break;
     }
   }
 
