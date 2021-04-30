@@ -1,3 +1,4 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/function.h"
 
 #include "StrictModules/Objects/callable_wrapper.h"
