@@ -155,6 +155,18 @@ std::shared_ptr<StrictType> FrozensetType() {
   return t;
 }
 
+std::shared_ptr<StrictType> DictObjectType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictDictType>(
+      "dict", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> DictViewType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictDictViewType>(
+      "dict_view", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> SequenceIteratorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictSequenceIteratorType>(
       "sequence_iter", kBuiltinsModule, objectTypeVec(), TypeType());
@@ -232,6 +244,12 @@ std::shared_ptr<StrictType> StopIterationType() {
       kBuiltinsModule,
       TObjectPtrVec{ExceptionType()},
       TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> KeyErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+      "KeyError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
   return t;
 }
 //--------------------Builtin Constant Declarations-----------------------

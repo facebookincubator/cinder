@@ -91,9 +91,9 @@ void Analyzer::visitAssign(const stmt_ty stmt) {
   auto assignStmt = stmt->v.Assign;
   std::shared_ptr<BaseStrictObject> value = visitExpr(assignStmt.value);
   if (value) {
-    for (int _i = 0; _i < asdl_seq_LEN(assignStmt.targets); ++_i) {
+    for (int i = 0; i < asdl_seq_LEN(assignStmt.targets); ++i) {
       expr_ty target =
-          reinterpret_cast<expr_ty>(asdl_seq_GET(assignStmt.targets, _i));
+          reinterpret_cast<expr_ty>(asdl_seq_GET(assignStmt.targets, i));
       assignToTarget(target, value);
     }
   }
@@ -169,12 +169,12 @@ AnalysisResult Analyzer::visitCall(const expr_ty expr) {
   args.reserve(argsLen + kwargsLen);
   argNames.reserve(kwargsLen);
 
-  for (int _i = 0; _i < argsLen; ++_i) {
-    expr_ty argExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(argsSeq, _i));
+  for (int i = 0; i < argsLen; ++i) {
+    expr_ty argExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(argsSeq, i));
     args.push_back(visitExpr(argExpr));
   }
-  for (int _i = 0; _i < kwargsLen; ++_i) {
-    keyword_ty kw = reinterpret_cast<keyword_ty>(asdl_seq_GET(kwargsSeq, _i));
+  for (int i = 0; i < kwargsLen; ++i) {
+    keyword_ty kw = reinterpret_cast<keyword_ty>(asdl_seq_GET(kwargsSeq, i));
     args.push_back(visitExpr(kw->value));
     argNames.emplace_back(PyUnicode_AsUTF8(kw->arg));
   }
@@ -186,8 +186,8 @@ std::vector<std::shared_ptr<BaseStrictObject>> Analyzer::visitListLikeHelper(
   int eltsLen = asdl_seq_LEN(elts);
   std::vector<std::shared_ptr<BaseStrictObject>> data;
   data.reserve(eltsLen);
-  for (int _i = 0; _i < eltsLen; ++_i) {
-    expr_ty argExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(elts, _i));
+  for (int i = 0; i < eltsLen; ++i) {
+    expr_ty argExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(elts, i));
     if (argExpr->kind == Starred_kind) {
       // TODO
     } else {
@@ -221,9 +221,49 @@ AnalysisResult Analyzer::visitTuple(const expr_ty expr) {
   return obj;
 }
 
+objects::DictDataT Analyzer::visitDictUnpackHelper(expr_ty valueExpr) {
+  AnalysisResult unpacked = visitExpr(valueExpr);
+  auto keys = objects::iGetElementsVec(unpacked, context_);
+
+  objects::DictDataT map(keys.size());
+  for (auto& k : keys) {
+    auto value = objects::iGetElement(unpacked, k, context_);
+    map[k] = std::move(value);
+
+  }
+  return map;
+}
+
+AnalysisResult Analyzer::visitDict(const expr_ty expr) {
+  auto dict = expr->v.Dict;
+  int keysLen = asdl_seq_LEN(dict.keys);
+  assert(keysLen == asdl_seq_LEN(dict.values));
+
+  objects::DictDataT map(keysLen);
+
+  for (int i = 0; i < keysLen; ++i) {
+    expr_ty keyExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(dict.keys, i));
+    expr_ty valueExpr =
+        reinterpret_cast<expr_ty>(asdl_seq_GET(dict.values, i));
+    if (keyExpr == nullptr) {
+      // handle unpacking
+      objects::DictDataT unpackedMap = visitDictUnpackHelper(valueExpr);
+      map.insert(
+          std::move_iterator(unpackedMap.begin()),
+          std::move_iterator(unpackedMap.end()));
+    } else {
+      AnalysisResult kResult = visitExpr(keyExpr);
+      AnalysisResult vResult = visitExpr(valueExpr);
+      map[kResult] = vResult;
+    }
+  }
+  return std::make_shared<objects::StrictDict>(
+      objects::DictObjectType(), context_.caller, std::move(map));
+}
+
 void Analyzer::visitStmtSeq(const asdl_seq* seq) {
-  for (int _i = 0; _i < asdl_seq_LEN(seq); _i++) {
-    stmt_ty elt = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, _i));
+  for (int i = 0; i < asdl_seq_LEN(seq); i++) {
+    stmt_ty elt = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, i));
     visitStmt(elt);
   }
 }

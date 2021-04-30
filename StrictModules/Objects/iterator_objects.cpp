@@ -30,11 +30,12 @@ StrictSequenceIterator::StrictSequenceIterator(
     : StrictIteratorBase(std::move(type), std::move(creator)),
       obj_(std::move(obj)),
       it_(obj_->getData().begin()),
+      end_(obj_->getData().end()),
       done_(false) {}
 
 std::shared_ptr<BaseStrictObject> StrictSequenceIterator::next(
     const CallerContext&) {
-  if (it_ == obj_->getData().end()) {
+  if (it_ == end_) {
     done_ = true;
     return nullptr;
   }

@@ -51,7 +51,8 @@ class CallerContext {
 
   template <typename T, typename... Args>
   void error(Args&&... args) const {
-    errorSink->error<T>(lineno, col, filename, scopeName, std::forward<Args>(args)...);
+    errorSink->error<T>(
+        lineno, col, filename, scopeName, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
@@ -75,6 +76,9 @@ class CallerContext {
 
   // convenience methods
   std::shared_ptr<BaseStrictObject> makeInt(long i) const;
+  std::shared_ptr<BaseStrictObject> makePair(
+      std::shared_ptr<BaseStrictObject> first,
+      std::shared_ptr<BaseStrictObject> second) const;
 };
 } // namespace strictmod
 #endif // !__STRICTM_CALLER_CONTEXT_H__

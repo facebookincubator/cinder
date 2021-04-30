@@ -500,6 +500,7 @@ STRICTM_OBJS=       \
 		StrictModules/Objects/unknown.o \
 		StrictModules/Objects/iterable_objects.o \
 		StrictModules/Objects/iterator_objects.o \
+		StrictModules/Objects/dict_object.o \
 		StrictModules/Objects/objects.o \
 		StrictModules/Objects/object_interface.o \
 		StrictModules/symbol_table.o \
@@ -1280,6 +1281,7 @@ STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/StrictModules/Objects/type_type.h \
 		$(srcdir)/StrictModules/Objects/iterable_objects.h \
 		$(srcdir)/StrictModules/Objects/iterator_objects.h \
+		$(srcdir)/StrictModules/Objects/dict_object.h \
 		$(srcdir)/StrictModules/Objects/unknown.h \
 		$(srcdir)/StrictModules/Objects/objects.h \
 		$(srcdir)/StrictModules/Objects/object_interface.h \

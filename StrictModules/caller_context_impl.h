@@ -58,6 +58,16 @@ inline std::shared_ptr<BaseStrictObject> CallerContext::makeInt(long i) const {
   return std::make_shared<objects::StrictInt>(objects::IntType(), caller, i);
 }
 
+inline std::shared_ptr<BaseStrictObject> CallerContext::makePair(
+    std::shared_ptr<BaseStrictObject> first,
+    std::shared_ptr<BaseStrictObject> second) const {
+  std::vector<std::shared_ptr<BaseStrictObject>> vec(2);
+  vec.push_back(std::move(first));
+  vec.push_back(std::move(second));
+  return std::make_shared<objects::StrictTuple>(
+      objects::TupleType(), caller, std::move(vec));
+}
+
 } // namespace strictmod
 
 #endif // __STRICTM_CALLER_CONTEXT_IMPL_CPP__

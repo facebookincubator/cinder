@@ -4,6 +4,7 @@
 #include "StrictModules/Objects/base_object.h"
 #include "StrictModules/Objects/callable.h"
 #include "StrictModules/Objects/constants.h"
+#include "StrictModules/Objects/dict_object.h"
 #include "StrictModules/Objects/exception_object.h"
 #include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/instance.h"
@@ -34,6 +35,8 @@ std::shared_ptr<StrictType> ListType();
 std::shared_ptr<StrictType> TupleType();
 std::shared_ptr<StrictType> SetType();
 std::shared_ptr<StrictType> FrozensetType();
+std::shared_ptr<StrictType> DictObjectType();
+std::shared_ptr<StrictType> DictViewType();
 std::shared_ptr<StrictType> SequenceIteratorType();
 std::shared_ptr<StrictType> SetIteratorType();
 std::shared_ptr<StrictType> CallableIteratorType();
@@ -52,6 +55,7 @@ std::shared_ptr<StrictType> AttributeErrorType();
 std::shared_ptr<StrictType> ValueErrorType();
 std::shared_ptr<StrictType> NameErrorType();
 std::shared_ptr<StrictType> StopIterationType();
+std::shared_ptr<StrictType> KeyErrorType();
 
 //--------------------Builtin Constant Declarations-----------------------
 std::shared_ptr<BaseStrictObject> NoneObject();

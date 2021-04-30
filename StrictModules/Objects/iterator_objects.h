@@ -46,6 +46,8 @@ class StrictSequenceIterator final : public StrictIteratorBase {
   std::shared_ptr<StrictSequence> obj_; // object getting iterated on
   std::vector<std::shared_ptr<BaseStrictObject>>::const_iterator
       it_; // iterator state
+  std::vector<std::shared_ptr<BaseStrictObject>>::const_iterator
+      end_; // iterator state
   bool done_;
 };
 

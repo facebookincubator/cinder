@@ -73,6 +73,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   AnalysisResult visitSet(const expr_ty expr);
   AnalysisResult visitList(const expr_ty expr);
   AnalysisResult visitTuple(const expr_ty expr);
+  AnalysisResult visitDict(const expr_ty expr);
   // defaults
   AnalysisResult defaultVisitExpr();
   void defaultVisitStmt();
@@ -104,6 +105,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
 
   std::vector<std::shared_ptr<BaseStrictObject>> visitListLikeHelper(
       asdl_seq* elts);
+
+  objects::DictDataT visitDictUnpackHelper(expr_ty keyExpr);
 
   void assignToTarget(
       const expr_ty target,

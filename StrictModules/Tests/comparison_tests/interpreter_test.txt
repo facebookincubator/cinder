@@ -106,6 +106,16 @@ x = t.index(1)
 x
 ---
 ---
+DictLiteral
+---
+t = {1: 2}
+t1 = {1: 2, 3: 4}
+t2 = {**t}
+t3 = {6: 7, **t, **t1}
+---
+t t1 t2 t3
+---
+---
 IntCompare
 ---
 x = (1).__eq__(1)
@@ -2429,7 +2439,7 @@ b = x['abc']
 a b
 ---
 ---
-test_dict_get @disabled
+test_dict_get
 ---
 x = {'abc': 42}
 y = x.get('abc')
@@ -2438,7 +2448,7 @@ z = x.get('dne')
 y z
 ---
 ---
-test_dict_get_default @disabled
+test_dict_get_default
 ---
 x = {'abc': 42}
 y = x.get('foo', 'bar')
@@ -2464,7 +2474,7 @@ y = x[42]
 y ret
 ---
 ---
-test_dict_pop @disabled
+test_dict_pop
 ---
 x = {'abc': 42, 'foo': 'bar'}
 y = x.pop('abc')
@@ -2472,7 +2482,7 @@ y = x.pop('abc')
 y
 ---
 ---
-test_dict_pop_default @disabled
+test_dict_pop_default
 ---
 x = {'abc': 42, 'foo': 'bar'}
 y = x.pop('quox', 'baz')
@@ -2480,13 +2490,13 @@ y = x.pop('quox', 'baz')
 y
 ---
 ---
-test_dict_pop_not_present @disabled
+test_dict_pop_not_present
 ---
 x = {'abc': 42, 'foo': 'bar'}
 y = x.pop('baz')
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(KeyError)
 ---
 test_dict_update @disabled
 ---
@@ -2552,7 +2562,7 @@ x.update([(1, )])
 ---
 StrictModuleUnhandledException
 ---
-test_dict_getitem @disabled
+test_dict_getitem
 ---
 d = {1:2}
 y = d.__getitem__(1)
@@ -2560,15 +2570,15 @@ y = d.__getitem__(1)
 y
 ---
 ---
-test_dict_getitem_error @disabled
+test_dict_getitem_error
 ---
 d = {1:2}
 y = d.__getitem__(2)
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(KeyError)
 ---
-test_dict_contains @disabled
+test_dict_contains
 ---
 d = {2:3}
 x = d.__contains__(2)
@@ -6027,7 +6037,7 @@ i.__next__()
 ---
 StrictModuleUnhandledException
 ---
-test_iterator_stop_4 @disabled
+test_iterator_stop_4
 ---
 l = {1:3, 2:4, 3:5}.keys()
 i = l.__iter__()
@@ -6037,9 +6047,9 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iterator_stop_5 @disabled
+test_iterator_stop_5
 ---
 l = {3:1, 4:2, 5:3}.values()
 i = l.__iter__()
@@ -6049,9 +6059,9 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iterator_stop_6 @disabled
+test_iterator_stop_6
 ---
 l = {1:3, 2:4, 3:5}.items()
 i = l.__iter__()
@@ -6061,7 +6071,7 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
 test_iterator_stop_7 @disabled
 ---

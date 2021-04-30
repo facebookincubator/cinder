@@ -74,8 +74,9 @@ class ASTVisitor {
       case UnaryOp_kind:
       case Lambda_kind:
       case IfExp_kind:
-      case Dict_kind:
         break;
+      case Dict_kind:
+        return static_cast<TAnalyzer*>(this)->visitDict(expr);
       case Set_kind:
         return static_cast<TAnalyzer*>(this)->visitSet(expr);
       case ListComp_kind:
