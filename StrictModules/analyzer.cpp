@@ -8,7 +8,6 @@
 
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
-
 #include "asdl.h"
 
 namespace strictmod {
@@ -37,16 +36,18 @@ Analyzer::Analyzer(
     BaseErrorSink* errors,
     std::string filename,
     std::string scopeName,
-    std::shared_ptr<StrictModuleObject> caller)
+    std::shared_ptr<StrictModuleObject> caller,
+    bool futureAnnotations)
     : Analyzer(
           root,
           loader,
-          table,
+          std::move(table),
           std::make_shared<DictType>(),
           errors,
           std::move(filename),
           std::move(scopeName),
-          caller) {}
+          caller,
+          futureAnnotations) {}
 
 Analyzer::Analyzer(
     mod_ty root,
@@ -56,7 +57,8 @@ Analyzer::Analyzer(
     BaseErrorSink* errors,
     std::string filename,
     std::string scopeName,
-    std::shared_ptr<StrictModuleObject> caller)
+    std::shared_ptr<StrictModuleObject> caller,
+    bool futureAnnotations)
     : root_(root),
       loader_(loader),
       context_(
@@ -69,7 +71,30 @@ Analyzer::Analyzer(
       stack_(
           table,
           scopeFactory,
-          scopeFactory(table.entryFromAst(root_), std::move(toplevelNS))) {}
+          scopeFactory(table.entryFromAst(root_), std::move(toplevelNS))),
+      futureAnnotations_(futureAnnotations) {}
+
+Analyzer::Analyzer(
+    compiler::ModuleLoader* loader,
+    BaseErrorSink* errors,
+    std::string filename,
+    std::string scopeName,
+    std::weak_ptr<StrictModuleObject> caller,
+    int lineno,
+    int col,
+    const EnvT& closure,
+    bool futureAnnotations)
+    : root_(nullptr),
+      loader_(loader),
+      context_(
+          std::move(caller),
+          std::move(filename),
+          std::move(scopeName),
+          lineno,
+          col,
+          errors),
+      stack_(EnvT(closure)),
+      futureAnnotations_(futureAnnotations) {}
 
 void Analyzer::visitImport(const stmt_ty stmt) {
   auto importNames = stmt->v.Import.names;
@@ -102,6 +127,204 @@ void Analyzer::visitAssign(const stmt_ty stmt) {
 void Analyzer::visitExprStmt(const stmt_ty stmt) {
   expr_ty expr = stmt->v.Expr.value;
   visitExpr(expr);
+}
+
+void Analyzer::visitFunctionDef(const stmt_ty stmt) {
+  auto f = stmt->v.FunctionDef;
+  return visitFunctionDefHelper(
+      f.name,
+      f.args,
+      f.body,
+      f.decorator_list,
+      f.returns,
+      f.type_comment,
+      stmt,
+      false);
+}
+void Analyzer::visitAsyncFunctionDef(const stmt_ty stmt) {
+  auto f = stmt->v.AsyncFunctionDef;
+  return visitFunctionDefHelper(
+      f.name,
+      f.args,
+      f.body,
+      f.decorator_list,
+      f.returns,
+      f.type_comment,
+      stmt,
+      true);
+}
+
+void Analyzer::visitArgHelper(arg_ty arg, objects::DictDataT& annotations) {
+  if (arg->annotation == nullptr) {
+    return;
+  }
+  AnalysisResult key = std::make_shared<objects::StrictString>(
+      objects::StrType(), context_.caller, arg->arg);
+  if (futureAnnotations_) {
+    PyObject* annotationStr = _PyAST_ExprAsUnicode(arg->annotation);
+    annotations[std::move(key)] = std::make_shared<objects::StrictString>(
+        objects::StrType(), context_.caller, annotationStr);
+    Py_DECREF(annotationStr);
+  } else {
+    annotations[std::move(key)] = visitExpr(arg->annotation);
+  }
+}
+
+void Analyzer::visitArgHelper(
+    std::vector<std::string>& args,
+    arg_ty arg,
+    objects::DictDataT& annotations) {
+  args.emplace_back(PyUnicode_AsUTF8(arg->arg));
+  if (arg->annotation != nullptr) {
+    visitArgHelper(arg, annotations);
+  }
+}
+
+void Analyzer::visitFunctionDefHelper(
+    identifier name,
+    arguments_ty args,
+    asdl_seq* body,
+    asdl_seq* decoratorList,
+    expr_ty returns,
+    string, // type_comment
+    stmt_ty node,
+    bool isAsync) {
+  // symbol table for function body
+  SymtableEntry symbols = stack_.getSymtable().entryFromAst(node);
+  // function name and qualname
+  std::string funcName = PyUnicode_AsUTF8(name);
+  std::string qualName = stack_.getQualifiedScopeName();
+  if (qualName.empty()) {
+    qualName = funcName;
+  } else {
+    qualName.append(".");
+    qualName.append(funcName);
+  }
+  // function body
+  int bodySize = asdl_seq_LEN(body);
+  std::vector<stmt_ty> bodyVec;
+  bodyVec.reserve(bodySize);
+  for (int _i = 0; _i < bodySize; ++_i) {
+    bodyVec.push_back(reinterpret_cast<stmt_ty>(asdl_seq_GET(body, _i)));
+  }
+  // arguments
+  std::vector<std::string> posonlyArgs;
+  std::vector<std::string> posArgs;
+  std::vector<std::string> kwonlyArgs;
+  std::optional<std::string> varArg;
+  std::optional<std::string> kwVarArg;
+  objects::DictDataT annotations;
+
+  int posonlySize = asdl_seq_LEN(args->posonlyargs);
+  posonlyArgs.reserve(posonlySize);
+  for (int _i = 0; _i < posonlySize; ++_i) {
+    arg_ty a = reinterpret_cast<arg_ty>(asdl_seq_GET(args->posonlyargs, _i));
+    visitArgHelper(posonlyArgs, a, annotations);
+  }
+
+  int posSize = asdl_seq_LEN(args->args);
+  posArgs.reserve(posSize);
+  for (int _i = 0; _i < posSize; ++_i) {
+    arg_ty a = reinterpret_cast<arg_ty>(asdl_seq_GET(args->args, _i));
+    visitArgHelper(posArgs, a, annotations);
+  }
+
+  if (args->vararg != nullptr) {
+    varArg.emplace(PyUnicode_AsUTF8(args->vararg->arg));
+    visitArgHelper(args->vararg, annotations);
+  }
+
+  int kwSize = asdl_seq_LEN(args->kwonlyargs);
+  kwonlyArgs.reserve(kwSize);
+  for (int _i = 0; _i < kwSize; ++_i) {
+    arg_ty a = reinterpret_cast<arg_ty>(asdl_seq_GET(args->kwonlyargs, _i));
+    visitArgHelper(kwonlyArgs, a, annotations);
+  }
+
+  if (args->kwarg != nullptr) {
+    kwVarArg.emplace(PyUnicode_AsUTF8(args->kwarg->arg));
+    visitArgHelper(args->kwarg, annotations);
+  }
+  // argument defaults
+  std::vector<std::shared_ptr<BaseStrictObject>> posDefaults;
+  std::vector<std::shared_ptr<BaseStrictObject>> kwDefaults;
+
+  int kwDefaultSize = asdl_seq_LEN(args->kw_defaults);
+  kwDefaults.reserve(kwDefaultSize);
+  for (int _i = 0; _i < kwDefaultSize; ++_i) {
+    expr_ty d = reinterpret_cast<expr_ty>(asdl_seq_GET(args->kw_defaults, _i));
+    if (d == nullptr) {
+      kwDefaults.push_back(nullptr);
+    } else {
+      kwDefaults.push_back(visitExpr(d));
+    }
+  }
+
+  int posDefaultSize = asdl_seq_LEN(args->defaults);
+  posDefaults.reserve(posDefaultSize);
+  for (int _i = 0; _i < posDefaultSize; ++_i) {
+    expr_ty d = reinterpret_cast<expr_ty>(asdl_seq_GET(args->defaults, _i));
+    posDefaults.push_back(visitExpr(d));
+  }
+
+  // annotations object
+  if (returns != nullptr) {
+    annotations[context_.makeStr("return")] = visitExpr(returns);
+  }
+
+  std::shared_ptr<objects::StrictDict> annotationsObj =
+      std::make_shared<objects::StrictDict>(
+          objects::DictObjectType(), context_.caller, std::move(annotations));
+
+  std::shared_ptr<BaseStrictObject> func(new objects::StrictFunction(
+      objects::FunctionType(),
+      context_.caller,
+      funcName,
+      std::move(qualName),
+      node->lineno,
+      node->col_offset,
+      std::move(bodyVec),
+      stack_,
+      std::move(symbols),
+      std::move(posonlyArgs),
+      std::move(posArgs),
+      std::move(kwonlyArgs),
+      std::move(varArg),
+      std::move(kwVarArg),
+      std::move(posDefaults),
+      std::move(kwDefaults),
+      loader_,
+      context_.filename,
+      std::move(annotationsObj),
+      futureAnnotations_,
+      isAsync));
+
+  // decorators
+  int decoratorSize = asdl_seq_LEN(decoratorList);
+  // decorators should be applied in reverse order
+  for (int _i = decoratorSize - 1; _i >= 0; --_i) {
+    expr_ty dec = reinterpret_cast<expr_ty>(asdl_seq_GET(decoratorList, _i));
+    AnalysisResult decObj = visitExpr(dec);
+    // call decorators, fix lineno
+    {
+      auto contextManager = updateContextHelper(dec->lineno, dec->col_offset);
+      std::shared_ptr<BaseStrictObject> obj =
+          objects::iCall(decObj, {func}, objects::kEmptyArgNames, context_);
+      func.swap(obj);
+    }
+  }
+
+  // put function in scope
+  stack_[std::move(funcName)] = std::move(func);
+}
+
+void Analyzer::visitReturn(const stmt_ty stmt) {
+  expr_ty returnV = stmt->v.Return.value;
+  if (returnV == nullptr) {
+    throw(objects::FunctionReturnException(objects::NoneObject()));
+  }
+  AnalysisResult returnVal = visitExpr(stmt->v.Return.value);
+  throw(objects::FunctionReturnException(std::move(returnVal)));
 }
 
 AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
@@ -229,7 +452,6 @@ objects::DictDataT Analyzer::visitDictUnpackHelper(expr_ty valueExpr) {
   for (auto& k : keys) {
     auto value = objects::iGetElement(unpacked, k, context_);
     map[k] = std::move(value);
-
   }
   return map;
 }
@@ -265,6 +487,12 @@ void Analyzer::visitStmtSeq(const asdl_seq* seq) {
   for (int i = 0; i < asdl_seq_LEN(seq); i++) {
     stmt_ty elt = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, i));
     visitStmt(elt);
+  }
+}
+
+void Analyzer::visitStmtSeq(std::vector<stmt_ty> seq) {
+  for (const stmt_ty s : seq) {
+    visitStmt(s);
   }
 }
 
@@ -316,6 +544,16 @@ void Analyzer::analyze() {
   } catch (const StrictModuleUserException<BaseStrictObject>& exc) {
     processUnhandledUserException(exc);
   }
+}
+
+void Analyzer::analyzeFunction(
+    std::vector<stmt_ty> body,
+    SymtableEntry entry,
+    std::unique_ptr<objects::DictType> callArgs) {
+  auto scope = Analyzer::scopeFactory(std::move(entry), std::move(callArgs));
+  // enter function body scope
+  auto scopeManager = stack_.enterScope(std::move(scope));
+  visitStmtSeq(std::move(body));
 }
 
 void Analyzer::processUnhandledUserException(

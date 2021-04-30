@@ -29,6 +29,7 @@ class AnalyzedModule {
   std::shared_ptr<StrictModuleObject> getModuleValue();
 
   void setModuleValue(std::shared_ptr<StrictModuleObject> module);
+  void cleanModuleContent();
 
  private:
   std::shared_ptr<StrictModuleObject> module_;

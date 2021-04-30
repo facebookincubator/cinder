@@ -124,6 +124,27 @@ y = (1).__eq__(2)
 x y
 ---
 ---
+FunctionSimple
+---
+def f():
+    return 1
+
+def g():
+    return
+
+def h(x, /, y, z=1, *args, w, v=4, **kwargs):
+    return z
+
+x = f()
+g()
+y = h(1, 2, 3, w=4)
+z = h(1, y=2, w=4)
+w = h(1, w = 4, y = 2, z = 3)
+v = h(1, 2, 3, 4, 5, w=6, a=7, b=8)
+---
+x y z w v
+---
+---
 test_float @disabled
 ---
 x = 1.0

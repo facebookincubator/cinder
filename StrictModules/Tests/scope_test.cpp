@@ -69,6 +69,8 @@ class B:
     EXPECT_EQ(classBXSymbol.is_global(), false);
     EXPECT_EQ(classBXSymbol.is_local(), true);
     EXPECT_EQ(classBXSymbol.is_nonlocal(), false);
+    EXPECT_EQ(scopeB->isClassScope(), true);
+    EXPECT_EQ(scopeB->isFunctionScope(), false);
     EXPECT_EQ(*scopes.at(x), 1);
     scopes[x] = 2; // x = 2
     EXPECT_EQ(*scopes.at(x), 2);
@@ -89,6 +91,8 @@ class B:
       EXPECT_EQ(funcFYSymbol.is_global(), false);
       EXPECT_EQ(funcFYSymbol.is_local(), true);
       EXPECT_EQ(funcFYSymbol.is_nonlocal(), false);
+      EXPECT_EQ(scopeF->isClassScope(), false);
+      EXPECT_EQ(scopeF->isFunctionScope(), true);
 
       scopes[x] = 3; // x = 3
       EXPECT_EQ(*scopes.at(x), 3);

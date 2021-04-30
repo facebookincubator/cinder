@@ -21,6 +21,11 @@ class StrictModuleObject : public StrictInstance {
     return name_;
   }
 
+  /* clear all content in __dict__. Use this during shutdown */
+  void cleanContent() {
+    dict_->clear();
+  }
+
   static std::shared_ptr<StrictModuleObject> makeStrictModule(
       std::shared_ptr<StrictType> type,
       std::string name,

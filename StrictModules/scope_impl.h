@@ -127,5 +127,13 @@ ScopeStack<TVar, TScopeData>::enterScopeByAstBody(
   return ScopeManager<TVar, TScopeData>(
       *this, std::shared_ptr(std::move(scope)), className);
 }
+
+template <typename TVar, typename TScopeData>
+ScopeManager<TVar, TScopeData> ScopeStack<TVar, TScopeData>::enterScope(
+    std::unique_ptr<Scope<TVar, TScopeData>> scope,
+    std::optional<std::string> currentClass) {
+  return ScopeManager<TVar, TScopeData>(
+      *this, std::shared_ptr(std::move(scope)), std::move(currentClass));
+}
 } // namespace strictmod
 #endif // STRICTM_SCOPE_IMPL_H

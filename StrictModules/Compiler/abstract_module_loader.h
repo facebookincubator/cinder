@@ -45,6 +45,14 @@ class ModuleLoader {
   }
 
   ~ModuleLoader() {
+    // free all scopes owned by analyzed modules
+    for (auto& am : modules_) {
+      // since passModule could be used in tests, the values
+      // of modules could be nullptr
+      if (am.second) {
+        am.second->cleanModuleContent();
+      }
+    }
     PyArena_Free(arena_);
   }
 

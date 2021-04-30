@@ -58,6 +58,12 @@ inline std::shared_ptr<BaseStrictObject> CallerContext::makeInt(long i) const {
   return std::make_shared<objects::StrictInt>(objects::IntType(), caller, i);
 }
 
+inline std::shared_ptr<BaseStrictObject> CallerContext::makeStr(
+    std::string s) const {
+  return std::make_shared<objects::StrictString>(
+      objects::StrType(), caller, std::move(s));
+}
+
 inline std::shared_ptr<BaseStrictObject> CallerContext::makePair(
     std::shared_ptr<BaseStrictObject> first,
     std::shared_ptr<BaseStrictObject> second) const {

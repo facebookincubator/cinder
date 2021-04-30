@@ -21,7 +21,7 @@ void StrictModuleException::raise() {
   throw *this;
 }
 
-std::unique_ptr<StrictModuleException> StrictModuleException::clone() {
+std::unique_ptr<StrictModuleException> StrictModuleException::clone() const {
   return std::make_unique<StrictModuleException>(
       lineno_, col_, filename_, scopeName_, msg_, cause_);
 }
@@ -101,7 +101,8 @@ StrictModuleUnhandledException::StrictModuleUnhandledException(
   throw *this;
 }
 
-std::unique_ptr<StrictModuleException> StrictModuleUnhandledException::clone() {
+std::unique_ptr<StrictModuleException> StrictModuleUnhandledException::clone()
+    const {
   return std::make_unique<StrictModuleUnhandledException>(
       lineno_,
       col_,
@@ -216,4 +217,13 @@ CoroutineFunctionNotSupportedExceptionHelper::
 void CoroutineFunctionNotSupportedException::raise() {
   throw *this;
 }
+
+// UnsafeCallException
+UnsafeCallExceptionHelper::UnsafeCallExceptionHelper(std::string name)
+    : callableName(std::move(name)) {}
+
+void UnsafeCallException::raise() {
+  throw *this;
+}
+
 } // namespace strictmod

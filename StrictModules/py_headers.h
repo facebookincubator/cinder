@@ -2,6 +2,8 @@
 #ifndef __STRICTM_HEADER_H__
 #define __STRICTM_HEADER_H__
 #include "Python.h"
+
+#include "ast.h"
 #include "symtable.h"
 
 // remove conflicting macros from python-ast.h
@@ -13,6 +15,9 @@
 #endif
 #ifdef arg
 #undef arg
+#endif
+#ifdef FunctionType
+#undef FunctionType
 #endif
 
 #endif // __STRICTM_HEADER_H__

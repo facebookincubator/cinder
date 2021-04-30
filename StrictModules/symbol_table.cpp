@@ -48,8 +48,4 @@ const Symbol& SymtableEntry::getSymbol(const std::string& name) const {
   return symbolCache_.at(name);
 }
 
-bool SymtableEntry::isClassScope() const {
-  return entry_->ste_type == ClassBlock;
-}
-
 } // namespace strictmod

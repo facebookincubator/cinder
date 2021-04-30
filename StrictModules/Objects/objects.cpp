@@ -75,6 +75,12 @@ TObjectPtrVec objectTypeVec() {
   return v;
 }
 
+std::shared_ptr<StrictType> FunctionType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictFuncType>(
+      "function", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> BuiltinFunctionOrMethodType() {
   static std::shared_ptr<StrictType> t =
       makeType<StrictBuiltinFunctionOrMethodType>(
@@ -120,10 +126,6 @@ std::shared_ptr<StrictType> BoolType() {
       "bool", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
-
-// std::shared_ptr<StrictType> StrType =
-//     makeType<StrictStringType>("str", BuiltinsModule, objectTypeVec,
-//     TypeType);
 
 std::shared_ptr<StrictType> ListType() {
   static std::shared_ptr<StrictType> t = makeType<StrictListType>(

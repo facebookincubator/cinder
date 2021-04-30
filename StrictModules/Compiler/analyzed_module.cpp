@@ -27,4 +27,9 @@ void AnalyzedModule::setModuleValue(
   module_ = std::move(module);
 }
 
+void AnalyzedModule::cleanModuleContent() {
+  if (module_) {
+    module_->cleanContent();
+  }
+}
 } // namespace strictmod::compiler

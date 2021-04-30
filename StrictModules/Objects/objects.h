@@ -6,6 +6,7 @@
 #include "StrictModules/Objects/constants.h"
 #include "StrictModules/Objects/dict_object.h"
 #include "StrictModules/Objects/exception_object.h"
+#include "StrictModules/Objects/function.h"
 #include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/iterable_objects.h"
@@ -45,6 +46,7 @@ std::shared_ptr<StrictType> GeneratorFuncIteratorType();
 std::shared_ptr<StrictType> NoneType();
 std::shared_ptr<StrictType> NotImplementedType();
 
+std::shared_ptr<StrictType> FunctionType();
 std::shared_ptr<StrictType> BuiltinFunctionOrMethodType();
 std::shared_ptr<StrictType> MethodDescrType();
 std::shared_ptr<StrictType> MethodType();

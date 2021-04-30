@@ -34,6 +34,9 @@ class Symtable {
   Symtable(std::unique_ptr<PySymtable, PySymtableDeleter> symtable)
       : symtable_(std::move(symtable)) {}
 
+  Symtable(Symtable&& rhs) : symtable_(std::move(rhs.symtable_)){};
+  Symtable(const Symtable& rhs) : symtable_(rhs.symtable_){};
+
   SymtableEntry entryFromAst(void* key) const;
 
  private:
@@ -64,10 +67,24 @@ class Symbol {
 class SymtableEntry {
  public:
   SymtableEntry(PySTEntryObject* entry) : entry_(entry), symbolCache_() {}
+  SymtableEntry(const SymtableEntry& rhs)
+      : entry_(rhs.entry_), symbolCache_() {}
+  SymtableEntry(SymtableEntry&& rhs) : entry_(rhs.entry_), symbolCache_() {}
 
   /* expects mangled name */
   const Symbol& getSymbol(const std::string& name) const;
-  bool isClassScope(void) const;
+
+  bool isClassScope(void) const {
+    return entry_->ste_type == ClassBlock;
+  }
+
+  bool isFunctionScope(void) const {
+    return entry_->ste_type == FunctionBlock;
+  }
+
+  std::string getTableName() const {
+    return PyUnicode_AsUTF8(entry_->ste_name);
+  }
 
  private:
   PySTEntryObject* entry_;

@@ -49,6 +49,22 @@ class CallerContext {
     assert(errorSink != nullptr);
   }
 
+  CallerContext(
+      std::weak_ptr<StrictModuleObject> caller,
+      std::string filename,
+      std::string scopeName,
+      int lineno,
+      int col,
+      BaseErrorSink* error)
+      : caller(std::move(caller)),
+        filename(std::move(filename)),
+        scopeName(std::move(scopeName)),
+        lineno(lineno),
+        col(col),
+        errorSink(error) {
+    assert(errorSink != nullptr);
+  }
+
   template <typename T, typename... Args>
   void error(Args&&... args) const {
     errorSink->error<T>(
@@ -76,6 +92,7 @@ class CallerContext {
 
   // convenience methods
   std::shared_ptr<BaseStrictObject> makeInt(long i) const;
+  std::shared_ptr<BaseStrictObject> makeStr(std::string s) const;
   std::shared_ptr<BaseStrictObject> makePair(
       std::shared_ptr<BaseStrictObject> first,
       std::shared_ptr<BaseStrictObject> second) const;

@@ -52,7 +52,7 @@ class StrictModuleException : public std::exception {
   [[noreturn]] virtual void raise();
 
   /* deepcopy the exception object. */
-  virtual std::unique_ptr<StrictModuleException> clone();
+  virtual std::unique_ptr<StrictModuleException> clone() const;
 
   /* what to output as a std::exception */
   virtual const char* what() const noexcept override;
@@ -125,7 +125,7 @@ class StrictModuleUserException : public StrictModuleException {
   const std::shared_ptr<const T> getWrapped() const;
 
   [[noreturn]] virtual void raise() override;
-  virtual std::unique_ptr<StrictModuleException> clone() override;
+  virtual std::unique_ptr<StrictModuleException> clone() const override;
   virtual const char* what() const noexcept override;
 
  private:
@@ -146,7 +146,7 @@ class StrictModuleUnhandledException : public StrictModuleException {
       std::shared_ptr<const StrictModuleException> cause = nullptr);
 
   [[noreturn]] virtual void raise() override;
-  virtual std::unique_ptr<StrictModuleException> clone() override;
+  virtual std::unique_ptr<StrictModuleException> clone() const override;
   virtual const char* what() const noexcept override;
 
  private:
@@ -184,7 +184,7 @@ class StructuredStrictModuleException : public T, public StrictModuleException {
       std::shared_ptr<const StrictModuleException> cause,
       Args... args);
 
-  virtual std::unique_ptr<StrictModuleException> clone() override;
+  virtual std::unique_ptr<StrictModuleException> clone() const override;
   virtual const char* what() const noexcept override;
 
  private:
@@ -443,6 +443,27 @@ class CoroutineFunctionNotSupportedException
   [[noreturn]] virtual void raise() override;
 };
 
+// UnsafeCallException
+struct UnsafeCallExceptionHelper {
+  UnsafeCallExceptionHelper(std::string name);
+
+  std::string callableName;
+
+  static constexpr const char* excName = "UnsafeCallException";
+  static constexpr const char* fmt =
+      "Call '%s()' may have side effects and is prohibited at module level.";
+  static constexpr const char* wiki = "unsafe_call";
+};
+
+class UnsafeCallException : public StructuredStrictModuleException<
+                                UnsafeCallExceptionHelper,
+                                UnsafeCallException,
+                                &UnsafeCallExceptionHelper::callableName> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ------------------Out of line implementations---------------
 
 // StrictModuleException
@@ -504,7 +525,8 @@ template <typename T>
 }
 
 template <typename T>
-std::unique_ptr<StrictModuleException> StrictModuleUserException<T>::clone() {
+std::unique_ptr<StrictModuleException> StrictModuleUserException<T>::clone()
+    const {
   return std::make_unique<StrictModuleUserException<T>>(
       lineno_, col_, filename_, scopeName_, wrapped_);
 }
@@ -557,14 +579,14 @@ StructuredStrictModuleException<T, E, mp...>::StructuredStrictModuleException(
 
 template <typename T, typename E, std::string T::*... mp>
 std::unique_ptr<StrictModuleException>
-StructuredStrictModuleException<T, E, mp...>::clone() {
+StructuredStrictModuleException<T, E, mp...>::clone() const {
   return std::make_unique<E>(
       lineno_,
       col_,
       filename_,
       scopeName_,
       cause_,
-      (static_cast<T*>(this)->*mp)...);
+      (static_cast<const T*>(this)->*mp)...);
 }
 
 template <typename T, typename E, std::string T::*... mp>

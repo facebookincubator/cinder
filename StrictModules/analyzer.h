@@ -8,7 +8,7 @@
 #include "StrictModules/py_headers.h"
 
 #include "StrictModules/Objects/base_object.h"
-#include "StrictModules/Objects/objects.h"
+#include "StrictModules/Objects/dict_object.h"
 #include "StrictModules/ast_visitor.h"
 #include "StrictModules/caller_context.h"
 #include "StrictModules/error_sink.h"
@@ -20,6 +20,7 @@ class ModuleLoader;
 } // namespace compiler
 
 typedef std::shared_ptr<objects::BaseStrictObject> AnalysisResult;
+typedef ScopeStack<std::shared_ptr<BaseStrictObject>, std::nullptr_t> EnvT;
 
 class AnalysisContextManager {
  public:
@@ -46,7 +47,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       BaseErrorSink* errors,
       std::string filename,
       std::string scopeName,
-      std::shared_ptr<StrictModuleObject> caller);
+      std::shared_ptr<StrictModuleObject> caller,
+      bool futureAnnotations = false);
 
   Analyzer(
       mod_ty root,
@@ -56,15 +58,36 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       BaseErrorSink* errors,
       std::string filename,
       std::string scopeName,
-      std::shared_ptr<StrictModuleObject> caller);
+      std::shared_ptr<StrictModuleObject> caller,
+      bool futureAnnotations = false);
+
+  // function analyzer, root will be nullptr
+  Analyzer(
+      compiler::ModuleLoader* loader,
+      BaseErrorSink* errors,
+      std::string filename,
+      std::string scopeName,
+      std::weak_ptr<StrictModuleObject> caller,
+      int lineno,
+      int col,
+      const EnvT& closure,
+      bool futureAnnotations = false);
 
   void analyze();
+  void analyzeFunction(
+      std::vector<stmt_ty> body,
+      SymtableEntry entry,
+      std::unique_ptr<objects::DictType> callArgs);
   // module level
   void visitStmtSeq(const asdl_seq* seq);
+  void visitStmtSeq(std::vector<stmt_ty> seq);
   // statements
   void visitImport(const stmt_ty stmt);
   void visitAssign(const stmt_ty stmt);
   void visitExprStmt(const stmt_ty stmt);
+  void visitFunctionDef(const stmt_ty stmt);
+  void visitAsyncFunctionDef(const stmt_ty stmt);
+  void visitReturn(const stmt_ty stmt);
   // expressions
   AnalysisResult visitConstant(const expr_ty expr);
   AnalysisResult visitName(const expr_ty expr);
@@ -101,12 +124,30 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   /* caller context */
   CallerContext context_;
   /* scope stack managing the current analysis */
-  ScopeStack<std::shared_ptr<BaseStrictObject>, std::nullptr_t> stack_;
+  EnvT stack_;
+  /* whether annotations are treated as strings */
+  bool futureAnnotations_; // use in visit annotations
 
   std::vector<std::shared_ptr<BaseStrictObject>> visitListLikeHelper(
       asdl_seq* elts);
 
   objects::DictDataT visitDictUnpackHelper(expr_ty keyExpr);
+
+  void visitFunctionDefHelper(
+      identifier name,
+      arguments_ty args,
+      asdl_seq* body,
+      asdl_seq* decoratorList,
+      expr_ty returns,
+      string typeComment,
+      stmt_ty node,
+      bool isAsync);
+
+  void visitArgHelper(arg_ty arg, objects::DictDataT& annotations);
+  void visitArgHelper(
+      std::vector<std::string>& args,
+      arg_ty arg,
+      objects::DictDataT& annotations);
 
   void assignToTarget(
       const expr_ty target,

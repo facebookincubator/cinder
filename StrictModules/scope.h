@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 #include "StrictModules/symbol_table.h"
@@ -39,6 +40,14 @@ class Scope {
     return scope_.isClassScope();
   }
 
+  bool isFunctionScope() const {
+    return scope_.isFunctionScope();
+  }
+
+  std::string getScopeName() const {
+    return scope_.getTableName();
+  }
+
  private:
   SymtableEntry scope_;
   std::shared_ptr<std::unordered_map<std::string, TVar>> vars_;
@@ -61,7 +70,7 @@ class ScopeStack {
  public:
   ScopeStack(ScopeVector scopes, Symtable symbols, ScopeFactory factory)
       : scopes_(std::move(scopes)),
-        symbols_(symbols),
+        symbols_(std::move(symbols)),
         scopeFactory_(factory),
         currentClass_() {}
 
@@ -69,7 +78,10 @@ class ScopeStack {
       Symtable symbols,
       ScopeFactory factory,
       std::shared_ptr<Scope<TVar, TScopeData>> topScope)
-      : scopes_(), symbols_(symbols), scopeFactory_(factory), currentClass_() {
+      : scopes_(),
+        symbols_(std::move(symbols)),
+        scopeFactory_(factory),
+        currentClass_() {
     scopes_.push_back(topScope);
   }
 
@@ -77,7 +89,16 @@ class ScopeStack {
       Symtable symbols,
       ScopeFactory factory,
       std::unique_ptr<Scope<TVar, TScopeData>> topScope)
-      : ScopeStack(symbols, factory, std::shared_ptr(std::move(topScope))) {}
+      : ScopeStack(
+            std::move(symbols),
+            factory,
+            std::shared_ptr(std::move(topScope))) {}
+
+  explicit ScopeStack(const ScopeStack<TVar, TScopeData>& rhs)
+      : scopes_(rhs.scopes_),
+        symbols_(rhs.symbols_),
+        scopeFactory_(rhs.scopeFactory_),
+        currentClass_(rhs.currentClass_) {}
 
   /* use this for setting */
   TVar& operator[](const std::string& key);
@@ -92,6 +113,10 @@ class ScopeStack {
   ScopeManager<TVar, TScopeData> enterScopeByAst(mod_ty key);
   ScopeManager<TVar, TScopeData> enterScopeByAst(expr_ty key);
 
+  ScopeManager<TVar, TScopeData> enterScope(
+      std::unique_ptr<Scope<TVar, TScopeData>> scope,
+      std::optional<std::string> currentClass = std::nullopt);
+
   std::optional<std::string> getCurrentClass(void) {
     return currentClass_;
   }
@@ -103,6 +128,25 @@ class ScopeStack {
       return name;
     }
     return mangle(currentClass_.value(), std::move(name));
+  }
+
+  /*
+   * Get the qualified name of the current scope, excluding
+   * the first scope which is always 'top'
+   */
+  std::string getQualifiedScopeName() const {
+    std::ostringstream ss;
+    for (auto it = std::next(scopes_.begin()); it != scopes_.end(); ++it) {
+      ss << (*it)->getScopeName();
+      if (std::next(it) != scopes_.end()) {
+        ss << ".";
+      }
+    }
+    return ss.str();
+  }
+
+  const Symtable& getSymtable() const {
+    return symbols_;
   }
 
  private:

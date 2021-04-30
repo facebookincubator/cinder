@@ -33,9 +33,13 @@ class ASTVisitor {
       case Import_kind:
         return static_cast<TAnalyzer*>(this)->visitImport(stmt);
       case FunctionDef_kind:
+        return static_cast<TAnalyzer*>(this)->visitFunctionDef(stmt);
       case AsyncFunctionDef_kind:
+        return static_cast<TAnalyzer*>(this)->visitAsyncFunctionDef(stmt);
       case ClassDef_kind:
+        break;
       case Return_kind:
+        return static_cast<TAnalyzer*>(this)->visitReturn(stmt);
       case Delete_kind:
         break;
       case Assign_kind:
