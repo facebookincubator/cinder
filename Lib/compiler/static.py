@@ -2302,7 +2302,6 @@ class Function(Callable[Class]):
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> Optional[NarrowingEffect]:
         args = visitor.get_node_data(node, ArgMapping)
-
         arg_replacements = {}
         spills = {}
 
@@ -4459,9 +4458,10 @@ class CIntInstance(CInstance["CIntType"]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> bool:
-        if visitor.get_type(right) != self:
+        rtype = visitor.get_type(right)
+        if rtype != self and not isinstance(rtype, CIntInstance):
             try:
-                visitor.visit(right, type_ctx or INT64_VALUE)
+                visitor.visit(right, self)
             except TypedSyntaxError:
                 # Report a better error message than the generic can't be used
                 raise visitor.syntax_error(
@@ -4490,7 +4490,7 @@ class CIntInstance(CInstance["CIntType"]):
     ) -> bool:
         if not isinstance(visitor.get_type(left), CIntInstance):
             try:
-                visitor.visit(left, type_ctx or INT64_VALUE)
+                visitor.visit(left, self)
             except TypedSyntaxError:
                 # Report a better error message than the generic can't be used
                 raise visitor.syntax_error(

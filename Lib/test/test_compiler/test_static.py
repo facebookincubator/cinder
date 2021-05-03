@@ -9021,6 +9021,28 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
+    def test_int_compare_to_cbool(self):
+        codestr = """
+            from __static__ import int64, cbool
+            def foo(i: int64) -> cbool:
+                return i  == 0
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            foo = mod["foo"]
+            self.assertEqual(foo(0), True)
+            self.assertEqual(foo(1), False)
+
+    def test_int_compare_to_cbool_reversed(self):
+        codestr = """
+            from __static__ import int64, cbool
+            def foo(i: int64) -> cbool:
+                return 0 == i
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            foo = mod["foo"]
+            self.assertEqual(foo(0), True)
+            self.assertEqual(foo(1), False)
+
     def test_final_multiple_typeargs(self):
         codestr = """
         from typing import Final
