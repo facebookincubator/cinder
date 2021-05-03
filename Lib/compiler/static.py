@@ -2243,7 +2243,7 @@ class InlinedCall:
         self,
         expr: ast.expr,
         replacements: Dict[ast.expr, ast.expr],
-        spills: Dict[str, ast.expr],
+        spills: Dict[str, Tuple[ast.expr, ast.Name]],
     ) -> None:
         self.expr = expr
         self.replacements = replacements
@@ -2332,7 +2332,11 @@ class Function(Callable[Class]):
             tmp_name = f"{_TMP_VAR_PREFIX}{visitor.inline_depth}{name}"
             cur_scope = visitor.symbols.scopes[visitor.scope]
             cur_scope.add_def(tmp_name)
-            spills[tmp_name] = arg.argument
+
+            store = ast.Name(tmp_name, ast.Store())
+            visitor.set_type(store, visitor.get_type(arg.argument))
+            spills[tmp_name] = arg.argument, store
+
             replacement = ast.Name(tmp_name, ast.Load())
             visitor.assign_value(replacement, visitor.get_type(arg.argument))
 
@@ -2360,9 +2364,10 @@ class Function(Callable[Class]):
         if inlined_call is None:
             return self.emit_call_self(node, code_gen)
 
-        for name, arg in inlined_call.spills.items():
+        for name, (arg, store) in inlined_call.spills.items():
             code_gen.visit(arg)
-            code_gen.emit("STORE_FAST", name)
+
+            code_gen.get_type(store).emit_name(store, code_gen)
 
         code_gen.visit(inlined_call.expr)
 
