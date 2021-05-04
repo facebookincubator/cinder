@@ -2194,12 +2194,15 @@ class Callable(Object[TClass]):
         for emitter in arg_mapping.emitters:
             emitter.emit(node, code_gen)
         self_expr = arg_mapping.self_arg
-        if self_expr is not None and not code_gen.get_type(self_expr).klass.is_exact:
-            code_gen.emit_invoke_method(self.type_descr, len(self.args) - 1)
-        else:
+        if (
+            self_expr is None
+            or code_gen.get_type(self_expr).klass.is_exact
+            or code_gen.get_type(self_expr).klass.is_final
+        ):
             code_gen.emit("EXTENDED_ARG", 0)
             code_gen.emit("INVOKE_FUNCTION", (self.type_descr, len(self.args)))
-        return
+        else:
+            code_gen.emit_invoke_method(self.type_descr, len(self.args) - 1)
 
 
 class ContainerTypeRef(TypeRef):

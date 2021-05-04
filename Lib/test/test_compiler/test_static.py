@@ -9577,7 +9577,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         c = self.compile(codestr, StaticCodeGenerator, modname="foo")
         f = self.find_code(c, "f")
-        self.assertInBytecode(f, "INVOKE_METHOD")
+        self.assertInBytecode(f, "INVOKE_FUNCTION")
 
     def test_final_decorator_class_inheritance(self):
         codestr = """
