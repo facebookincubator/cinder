@@ -729,7 +729,7 @@ class Value:
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
-        visitor.visit(node.value)
+
         raise visitor.syntax_error(f"cannot load attribute from {self.name}", node)
 
     def bind_call(
@@ -951,7 +951,6 @@ class Object(Value, Generic[TClass]):
                 member.bind_descr_get(node, self, self.klass, visitor, type_ctx)
                 return
 
-        visitor.visit(node.value)
         if node.attr == "__class__":
             visitor.set_type(node, self.klass)
         else:
