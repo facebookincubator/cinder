@@ -418,6 +418,46 @@ resolve_slot_overload_return_type(PyTypeObject *tp,
     return NULL;
 }
 
+
+static int
+type_init_subclass_vtables(PyTypeObject *target_type)
+{
+    /* TODO: This can probably be a lot more efficient.  If a type
+     * hasn't been fully loaded yet we can probably propagate the
+     * parent dict down, and either initialize the slot to the parent
+     * slot (if not overridden) or initialize the slot to the child slot.
+     * We then only need to populate the child dict w/ its members when
+     * a member is accessed from the child type.  When we init the child
+     * we can check if it's dict sharing with its parent. */
+    PyObject *ref;
+    PyObject *subclasses = target_type->tp_subclasses;
+    if (subclasses != NULL) {
+        Py_ssize_t i = 0;
+        while (PyDict_Next(subclasses, &i, NULL, &ref)) {
+            assert(PyWeakref_CheckRef(ref));
+            ref = PyWeakref_GET_OBJECT(ref);
+            if (ref == Py_None) {
+                continue;
+            }
+
+            PyTypeObject *subtype = (PyTypeObject *) ref;
+            if (subtype->tp_cache != NULL) {
+                /* already inited */
+                continue;
+            }
+
+            _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(subtype);
+            if (vtable == NULL) {
+                return -1;
+            }
+            if (type_init_subclass_vtables((PyTypeObject *) ref)) {
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
 static void
 _PyClassLoader_UpdateDerivedSlot(PyTypeObject *type,
                                  PyObject *name,
@@ -567,7 +607,10 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     Py_DECREF(cur_type);
 
     /* propagate slot update to derived classes that don't override
-     * the function */
+     * the function (but first, ensure they have initialized vtables) */
+    if (type_init_subclass_vtables(type) != 0) {
+        return -1;
+    }
     _PyClassLoader_UpdateDerivedSlot(type,
                                      name,
                                      index,
@@ -804,45 +847,6 @@ _PyClassLoader_ClearVtables()
      */
     Py_CLEAR(classloader_cache);
     return clear_vtables_recurse(&PyBaseObject_Type);
-}
-
-static int
-type_init_subclass_vtables(PyTypeObject *target_type)
-{
-    /* TODO: This can probably be a lot more efficient.  If a type
-     * hasn't been fully loaded yet we can probably propagate the
-     * parent dict down, and either initialize the slot to the parent
-     * slot (if not overridden) or initialize the slot to the child slot.
-     * We then only need to populate the child dict w/ its members when
-     * a member is accessed from the child type.  When we init the child
-     * we can check if it's dict sharing with its parent. */
-    PyObject *ref;
-    PyObject *subclasses = target_type->tp_subclasses;
-    if (subclasses != NULL) {
-        Py_ssize_t i = 0;
-        while (PyDict_Next(subclasses, &i, NULL, &ref)) {
-            assert(PyWeakref_CheckRef(ref));
-            ref = PyWeakref_GET_OBJECT(ref);
-            if (ref == Py_None) {
-                continue;
-            }
-
-            PyTypeObject *subtype = (PyTypeObject *)ref;
-            if (subtype->tp_cache != NULL) {
-                /* already inited */
-                continue;
-            }
-
-            _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(subtype);
-            if (vtable == NULL) {
-                return -1;
-            }
-            if (type_init_subclass_vtables((PyTypeObject *)ref)) {
-                return -1;
-            }
-        }
-    }
-    return 0;
 }
 
 PyObject *_PyClassLoader_GetGenericInst(PyObject *type,

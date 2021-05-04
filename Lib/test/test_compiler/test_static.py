@@ -8179,6 +8179,30 @@ class StaticCompilationTests(StaticTestBase):
             with patch("test_patch_function.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
+    def test_patch_parentclass_slot(self):
+        codestr = """
+        class A:
+            def f(self) -> int:
+                return 3
+        
+        class B(A):
+            pass
+        
+        def a_f_invoker() -> int:
+            return A().f()
+
+        def b_f_invoker() -> int:
+            return B().f()
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            A = mod["A"]
+            a_f_invoker = mod["a_f_invoker"]
+            b_f_invoker = mod["b_f_invoker"]
+            setattr(A, "f", lambda _: 7)
+
+            self.assertEqual(a_f_invoker(), 7)
+            self.assertEqual(b_f_invoker(), 7)
+
     def test_self_patching_function(self):
         codestr = """
             def x(d, d2=1): pass
