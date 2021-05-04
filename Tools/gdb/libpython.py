@@ -48,7 +48,18 @@ from __future__ import print_function
 import gdb
 import os
 import locale
+import logging
 import sys
+
+log = logging.getLogger(__name__)
+
+# x86-64 registers that can be used for storing of local variables and function arguments
+PYFRAME_REGISTERS = (
+        'rax', 'rbx', 'rcx', 'rdx',
+        'rsi', 'rdi',
+        'rbp', 'rsp',
+        'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15',
+)
 
 if sys.version_info[0] >= 3:
     unichr = chr
@@ -1949,3 +1960,162 @@ class PyLocals(gdb.Command):
                       pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
 
 PyLocals()
+
+
+def realize(obj):
+    if callable(obj):
+        obj = obj()
+    return obj
+
+
+class PyFrameObjectNotFoundError(gdb.GdbError):
+    pass
+
+
+def find_pyframeobject_in_registers(frame=gdb.selected_frame, registers=PYFRAME_REGISTERS):
+    gdb_type = PyObjectPtr.get_gdb_type()
+    frame = realize(frame)
+    log.debug('frame=%r', frame)
+
+    for register in registers:
+        log.debug('register=%r', register)
+        try:
+            value = frame.read_register(register).cast(gdb_type)
+            if value['ob_type']['tp_name'].string() == 'frame':
+                return register, value
+        except (gdb.MemoryError, UnicodeDecodeError) as exc:
+            # if either cast or pointer dereference fails, then it's not a valid PyFrameObjectPtr*
+            log.debug('Caught exc=%r, must not be PyFrameObjectPtr*', exc)
+            continue
+
+    raise PyFrameObjectNotFoundError("No PyFrameObject found in any registers.")
+
+
+class LocatePyFrameObject(gdb.Command):
+    """
+    Locate the CPU register that contains the value of PyFrameObject* in the selected stack frame.
+
+    Useful when all of your call time arguments have been optimized out, resulting in:
+    ```
+    (gdb) thread apply all py-bt-full
+
+    Thread 3 (Thread 0x7f201ffb0700 (LWP 280154)):
+    #3 <built-in method sleep of module object at remote 0x7f2020a91400>
+    #6 (frame information optimized out)
+    #15 (frame information optimized out)
+    #23 (frame information optimized out)
+    #31 (frame information optimized out)
+
+    Thread 2 (Thread 0x7f20207b1700 (LWP 280153)):
+    #3 <built-in method sleep of module object at remote 0x7f2020a91400>
+    #6 (frame information optimized out)
+    #15 (frame information optimized out)
+    #23 (frame information optimized out)
+    #31 (frame information optimized out)
+
+    Thread 1 (Thread 0x7f202daf2740 (LWP 280147)):
+    #0 (frame information optimized out)
+    ```
+    """
+
+    def __init__(self):
+        super().__init__(
+            'py-locate-frame',
+            gdb.COMMAND_DATA,
+            gdb.COMPLETE_NONE
+        )
+
+    def invoke(self, args, from_tty):
+        register, pyfo = find_pyframeobject_in_registers()
+        if register:
+            print(register)
+            return register
+
+LocatePyFrameObject()
+
+
+class WalkPyFrameObjectStack(gdb.Command):
+    """
+    Walks backtrace frames, looking in registers to see if one contains a
+    pyframe object. Once one is found, it walks backwards, printing each
+    python frame.
+
+    Hack to work around that we optimize cinder prod builds by optimizing
+    out/removing the method argument register map (part of -O3).
+
+    Pretty similar to:
+    ```
+    gdb.execute(f'p ((PyFrameObject *) ${register})')
+    gdb.execute(f'p ((PyFrameObject *) ((PyFrameObject *) ${register}))')
+    ```
+    """
+    gdb_command_name = 'py-walk-frame'
+
+    def __init__(self):
+        super().__init__(
+            self.gdb_command_name,
+            gdb.COMMAND_DATA,
+            gdb.COMPLETE_NONE
+        )
+
+    def invoke(self, args, from_tty):
+        orig_frame = gdb.selected_frame()
+        try:
+            return self.walk()
+        finally:
+            orig_frame.select()
+
+    def walk(self):
+        pyfo_type = PyFrameObjectPtr.get_gdb_type()
+
+        gdb.execute('f 0', to_string=True)
+
+        frame = gdb.selected_frame()
+        pyfo = None
+        while not pyfo:
+            try:
+                register, root_pyfo = find_pyframeobject_in_registers(frame=frame)
+            except PyFrameObjectNotFoundError:
+                frame = frame.older()
+                if not frame:
+                    raise
+                frame.select()
+                continue
+            gdb.execute('f')
+            pyfo = root_pyfo.cast(pyfo_type)
+
+        cont = True
+        while cont:
+            # TODO output like:
+            """
+            (gdb) py-bt
+            Traceback (most recent call first):
+              <built-in method sleep of module object at remote 0x7faf118e7db0>
+              File "test.py", line 10, in inner
+                time.sleep(60)
+              File "test.py", line 11, in run_test
+                return inner()
+              File "test.py", line 5, in test
+                return run_test()
+              File "test.py", line 16, in <module>
+                test()
+
+            (gdb) py-bt-full
+            #3 <built-in method sleep of module object at remote 0x7faf118e7db0>
+            #6 Frame 0x7faf118e6c10, for file test.py, line 10, in inner ()
+                time.sleep(60)
+            #12 Frame 0x7faf11875200, for file test.py, line 11, in run_test (inner=<function at remote 0x7faf117d43a0>)
+                return inner()
+            #18 Frame 0x7faf118789f0, for file test.py, line 5, in test ()
+                return run_test()
+            #24 Frame 0x7faf11882440, for file test.py, line 16, in <module> ()
+                test()
+            """
+            print(pyfo.format_string())
+            try:
+                pyfo = pyfo['f_back'].cast(pyfo_type)
+            except gdb.MemoryError:
+                cont = False
+
+WalkPyFrameObjectStack()
+
