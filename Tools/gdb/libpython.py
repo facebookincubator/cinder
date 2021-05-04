@@ -2086,32 +2086,12 @@ class WalkPyFrameObjectStack(gdb.Command):
 
         cont = True
         while cont:
-            # TODO output like:
-            """
-            (gdb) py-bt
-            Traceback (most recent call first):
-              <built-in method sleep of module object at remote 0x7faf118e7db0>
-              File "test.py", line 10, in inner
-                time.sleep(60)
-              File "test.py", line 11, in run_test
-                return inner()
-              File "test.py", line 5, in test
-                return run_test()
-              File "test.py", line 16, in <module>
-                test()
+            line = pyfo.format_string()
+            # Print out all but the root (last) frame object
+            # It looks like "0x0" when formatted, which isn't very helpful.
+            if line not in ['0x0']:
+                print(line)
 
-            (gdb) py-bt-full
-            #3 <built-in method sleep of module object at remote 0x7faf118e7db0>
-            #6 Frame 0x7faf118e6c10, for file test.py, line 10, in inner ()
-                time.sleep(60)
-            #12 Frame 0x7faf11875200, for file test.py, line 11, in run_test (inner=<function at remote 0x7faf117d43a0>)
-                return inner()
-            #18 Frame 0x7faf118789f0, for file test.py, line 5, in test ()
-                return run_test()
-            #24 Frame 0x7faf11882440, for file test.py, line 16, in <module> ()
-                test()
-            """
-            print(pyfo.format_string())
             try:
                 pyfo = pyfo['f_back'].cast(pyfo_type)
             except gdb.MemoryError:
