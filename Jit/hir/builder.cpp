@@ -3240,7 +3240,22 @@ bool HIRBuilder::emitInvokeMethod(
     return false;
   }
 
-  tc.emitVariadic<InvokeMethod>(temps_, nargs, slot, is_awaited);
+  InvokeMethod* invoke =
+      tc.emitVariadic<InvokeMethod>(temps_, nargs, slot, is_awaited);
+  PyObject* container;
+  auto func =
+      Ref<PyObject>::steal(_PyClassLoader_ResolveFunction(target, &container));
+  if (func != nullptr) {
+    Type ret_type = TObject;
+    get_static_func_ret_type(func, &ret_type);
+    // Since we are not doing a direct invoke, we will get a boxed int back; if
+    // the function is supposed to return a primitive, we need to unbox it
+    // because later code in the function will expect the primitive.
+    if (ret_type <= TInternal) {
+      tc.emit<IntUnbox>(invoke->GetOutput(), invoke->GetOutput(), ret_type);
+    }
+    Py_DECREF(container);
+  }
   return true;
 }
 

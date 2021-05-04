@@ -59,27 +59,67 @@ PyTypeObject _PyType_VTableType = {
 static PyObject *
 rettype_check(PyObject *self, PyObject *ret, PyObject *state)
 {
+    if (ret == NULL) {
+        return NULL;
+    }
+
     PyObject *expected = PyTuple_GET_ITEM(state, 2);
     int optional = PyTuple_GET_ITEM(state, 3) == Py_True;
 
-    if (ret != NULL && !((optional && ret == Py_None) ||
+    int type_code = _PyClassLoader_GetTypeCode((PyTypeObject *)expected);
+    int overflow = 0;
+    if (type_code != TYPED_OBJECT) {
+        size_t int_val;
+        switch (type_code) {
+            case TYPED_BOOL:
+                if (PyBool_Check(ret)) {
+                    return ret;
+                }
+                break;
+            case TYPED_INT8:
+            case TYPED_INT16:
+            case TYPED_INT32:
+            case TYPED_INT64:
+            case TYPED_UINT8:
+            case TYPED_UINT16:
+            case TYPED_UINT32:
+            case TYPED_UINT64:
+                if (PyLong_Check(ret)) {
+                    if (_PyClassLoader_OverflowCheck(ret, type_code, &int_val)) {
+                        return ret;
+                    }
+                    overflow = 1;
+                }
+                break;
+            default:
+                PyErr_SetString(PyExc_RuntimeError, "unsupported primitive return type");
+                return NULL;
+        }
+    }
+
+    if (overflow || !((optional && ret == Py_None) ||
                          _PyObject_RealIsInstance(ret, expected))) {
         PyObject *name = PyTuple_GET_ITEM(state, 1);
         /* The override returned an incompatible value, report error */
         const char *msg;
-        if (optional) {
+        PyObject *exc_type = PyExc_TypeError;
+        if (overflow) {
+            exc_type = PyExc_OverflowError;
+            msg = "unexpected return type from %s.%U, expected %s, got out-of-range %s (%R)";
+        } else if (optional) {
             msg = "unexpected return type from %s.%U, expected  Optional[%s], "
                   "got %s";
         } else {
             msg = "unexpected return type from %s.%U, expected %s, got %s";
         }
 
-        PyErr_Format(PyExc_TypeError,
+        PyErr_Format(exc_type,
                      msg,
                      Py_TYPE(self)->tp_name,
                      name,
                      ((PyTypeObject *)expected)->tp_name,
-                     Py_TYPE(ret)->tp_name);
+                     Py_TYPE(ret)->tp_name,
+                     ret);
 
         Py_DECREF(ret);
         return NULL;
@@ -372,7 +412,7 @@ resolve_slot_local_return_type(PyObject *func,
         Py_INCREF(cur_type);
         *optional = PyTuple_GET_ITEM(state, 3) == Py_True;
     } else if (PyFunction_Check(func) && _PyClassLoader_IsStaticFunction(func)) {
-        cur_type = (PyObject*)_PyClassLoader_ResolveReferenceType(
+        cur_type = (PyObject *)resolve_reference_type(
             _PyClassLoader_GetReturnTypeDescr((PyFunctionObject *)func), optional);
     } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
         // builtin methods for now assumed to return object

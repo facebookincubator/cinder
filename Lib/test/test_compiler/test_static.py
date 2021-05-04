@@ -8309,6 +8309,62 @@ class StaticCompilationTests(StaticTestBase):
             ) as p:
                 self.assertEqual(g(), 100)
 
+    def test_patch_primitive_ret_type(self):
+        for type_name, value, patched in [
+            ("cbool", True, False),
+            ("cbool", False, True),
+            ("int8", 0, 1),
+            ("int16", 0, 1),
+            ("int32", 0, 1),
+            ("int64", 0, 1),
+            ("uint8", 0, 1),
+            ("uint16", 0, 1),
+            ("uint32", 0, 1),
+            ("uint64", 0, 1),
+        ]:
+            with self.subTest(type_name=type, value=value, patched=patched):
+                codestr = f"""
+                    from __static__ import {type_name}, box
+                    class C:
+                        def f(self) -> {type_name}:
+                            return {value!r}
+
+                    def g():
+                        return box(C().f())
+                """
+                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                    g = mod["g"]
+                    for i in range(100):
+                        self.assertEqual(g(), value)
+                    with patch(
+                        "test_patch_primitive_ret_type.C.f", return_value=patched
+                    ) as p:
+                        self.assertEqual(g(), patched)
+
+    def test_patch_primitive_ret_type_overflow(self):
+        codestr = f"""
+            from __static__ import int8, box
+            class C:
+                def f(self) -> int8:
+                    return 1
+
+            def g():
+                return box(C().f())
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            g = mod["g"]
+            for i in range(100):
+                self.assertEqual(g(), 1)
+            with patch(
+                "test_patch_primitive_ret_type_overflow.C.f", return_value=256
+            ) as p:
+                with self.assertRaisesRegex(
+                    OverflowError,
+                    "unexpected return type from C.f, expected "
+                    "int8, got out-of-range int \\(256\\)",
+                ):
+                    g()
+
     def test_invoke_frozen_type(self):
         codestr = """
             from cinder import freeze_type
