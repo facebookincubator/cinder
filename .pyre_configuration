@@ -3,7 +3,7 @@
   "version": "d64e0571ffc7d9b9f3f57b55973947c7cf13ae4c",
   "source_directories": [
     "Lib/compiler",
-    "Tools/scripts/perf",
+    "Tools/scripts/facebook/perf",
     "Tools/scripts/facebook/workflow"
   ],
   "unstable_client": "Tools/scripts/pyre/pyre_client",
