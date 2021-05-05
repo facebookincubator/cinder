@@ -831,6 +831,7 @@ with_hash_algorithm
 with_address_sanitizer
 with_memory_sanitizer
 with_undefined_behavior_sanitizer
+with_thread_sanitizer
 with_libs
 with_system_expat
 with_system_ffi
@@ -1521,6 +1522,7 @@ Optional Packages:
   --with-memory-sanitizer enable MemorySanitizer (msan)
   --with-undefined-behavior-sanitizer
                           enable UndefinedBehaviorSanitizer (ubsan)
+  --with-thread-sanitizer enable ThreadSanitizer (tsan)
   --with-libs='lib1 ...'  link against additional libs
   --with-system-expat     build pyexpat module using an installed expat
                           library
@@ -10071,14 +10073,6 @@ BASECFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECFLAGS"
 BASECXXFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECXXFLAGS"
 LDFLAGS="-fsanitize=address $LDFLAGS"
 
-if ! -z ${COMPUTE_ASAN_RUNTIME+x} ;
-then
-    ASAN_RUNTIME_DIR=$(dirname $(realpath $($CC --print-file-name=libasan.so)))
-    BASECFLAGS="-Wl,rpath=$ASAN_RUNTIME_DIR $BASECFLAGS"
-    BASECXXFLAGS="-Wl,rpath=$ASAN_RUNTIME_DIR $BASECXXFLAGS"
-    LDFLAGS="-Wl,-rpath=$ASAN_RUNTIME_DIR $LDFLAGS"
-fi
-
 ASAN_TEST_ENV="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,detect_leaks=0 \
  LSAN_OPTIONS=suppressions=$(realpath $srcdir)/lsan_suppressions.txt,print_suppressions=0"
 
@@ -10120,6 +10114,23 @@ if test "${with_undefined_behavior_sanitizer+set}" = set; then :
 $as_echo "$withval" >&6; }
 BASECFLAGS="-fsanitize=undefined $BASECFLAGS"
 LDFLAGS="-fsanitize=undefined $LDFLAGS"
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-thread-sanitizer" >&5
+$as_echo_n "checking for --with-thread-sanitizer... " >&6; }
+
+# Check whether --with-thread_sanitizer was given.
+if test "${with_thread_sanitizer+set}" = set; then :
+  withval=$with_thread_sanitizer;
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $withval" >&5
+$as_echo "$withval" >&6; }
+BASECFLAGS="-fsanitize=thread $BASECFLAGS"
+LDFLAGS="-fsanitize=thread $LDFLAGS"
 
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5

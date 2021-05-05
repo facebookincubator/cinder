@@ -6,6 +6,7 @@
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
 #include "Jit/pyjit.h"
+#include "Jit/threaded_compile.h"
 #include "Jit/util.h"
 
 #include <unordered_set>
@@ -43,86 +44,6 @@ class LoadMethodCachePool {
   std::unique_ptr<JITRT_LoadMethodCache[]> entries_;
   std::size_t num_entries_;
   std::size_t num_allocated_;
-};
-
-// Runtime data for a PyCodeObject object, containing caches and any other data
-// associated with a JIT-compiled function.
-class CodeRuntime {
- public:
-  explicit CodeRuntime(
-      PyCodeObject* py_code,
-      PyObject* globals,
-      jit::hir::FrameMode frame_mode,
-      std::size_t num_lm_caches,
-      std::size_t num_la_caches,
-      std::size_t num_sa_caches,
-      std::size_t num_lat_caches)
-      : py_code_(py_code),
-        frame_mode_(frame_mode),
-        load_method_cache_pool_(num_lm_caches),
-        load_attr_cache_pool_(num_la_caches),
-        store_attr_cache_pool_(num_sa_caches),
-        load_type_attr_caches_(
-            std::make_unique<LoadTypeAttrCache[]>(num_lat_caches)),
-        globals_(globals),
-        builtins_(PyEval_GetBuiltins()) {
-    // TODO(T88040922): Until we work out something smarter, force code and
-    // globals objects for compiled functions to live as long as the JIT is
-    // initialized.
-    addReference(py_code_);
-    addReference(globals_);
-  }
-
-  ~CodeRuntime() {}
-
-  jit::hir::FrameMode frameMode() const {
-    return frame_mode_;
-  }
-
-  // Release any references this CodeRuntime holds to Python objects.
-  void releaseReferences();
-
-  PyCodeObject* GetCode() {
-    return py_code_;
-  }
-  PyObject* GetGlobals() {
-    return globals_;
-  }
-  PyObject* GetBuiltins() {
-    return builtins_;
-  }
-
-  JITRT_LoadMethodCache* AllocateLoadMethodCache() {
-    return load_method_cache_pool_.AllocateEntry();
-  }
-
-  LoadAttrCache* AllocateLoadAttrCache() {
-    return load_attr_cache_pool_.allocate();
-  }
-
-  StoreAttrCache* allocateStoreAttrCache() {
-    return store_attr_cache_pool_.allocate();
-  }
-
-  LoadTypeAttrCache* getLoadTypeAttrCache(int id) {
-    return &load_type_attr_caches_[id];
-  }
-
-  // Ensure that this CodeRuntime owns a reference to the given object, keeping
-  // it alive for use by the compiled code.
-  void addReference(PyObject* obj);
-
- private:
-  BorrowedRef<PyCodeObject> py_code_;
-  jit::hir::FrameMode frame_mode_;
-  LoadMethodCachePool load_method_cache_pool_;
-  InlineCachePool<LoadAttrCache> load_attr_cache_pool_;
-  InlineCachePool<StoreAttrCache> store_attr_cache_pool_;
-  std::unique_ptr<LoadTypeAttrCache[]> load_type_attr_caches_;
-  BorrowedRef<PyDictObject> globals_;
-  BorrowedRef<PyDictObject> builtins_;
-
-  std::unordered_set<Ref<PyObject>> references_;
 };
 
 class GenYieldPoint;
@@ -212,12 +133,103 @@ class GenYieldPoint {
   const ptrdiff_t yieldFromOffs_;
 };
 
+// Runtime data for a PyCodeObject object, containing caches and any other data
+// associated with a JIT-compiled function.
+class CodeRuntime {
+ public:
+  explicit CodeRuntime(
+      PyCodeObject* py_code,
+      PyObject* globals,
+      jit::hir::FrameMode frame_mode,
+      std::size_t num_lm_caches,
+      std::size_t num_la_caches,
+      std::size_t num_sa_caches,
+      std::size_t num_lat_caches)
+      : py_code_(py_code),
+        frame_mode_(frame_mode),
+        load_method_cache_pool_(num_lm_caches),
+        load_attr_cache_pool_(num_la_caches),
+        store_attr_cache_pool_(num_sa_caches),
+        load_type_attr_caches_(
+            std::make_unique<LoadTypeAttrCache[]>(num_lat_caches)),
+        globals_(globals),
+        builtins_(PyEval_GetBuiltins()) {
+    // TODO(T88040922): Until we work out something smarter, force code and
+    // globals objects for compiled functions to live as long as the JIT is
+    // initialized.
+    addReference(py_code_);
+    addReference(globals_);
+  }
+
+  ~CodeRuntime() {}
+
+  jit::hir::FrameMode frameMode() const {
+    return frame_mode_;
+  }
+
+  // Release any references this CodeRuntime holds to Python objects.
+  void releaseReferences();
+
+  PyCodeObject* GetCode() {
+    return py_code_;
+  }
+  PyObject* GetGlobals() {
+    return globals_;
+  }
+  PyObject* GetBuiltins() {
+    return builtins_;
+  }
+
+  JITRT_LoadMethodCache* AllocateLoadMethodCache() {
+    return load_method_cache_pool_.AllocateEntry();
+  }
+
+  LoadAttrCache* AllocateLoadAttrCache() {
+    return load_attr_cache_pool_.allocate();
+  }
+
+  StoreAttrCache* allocateStoreAttrCache() {
+    return store_attr_cache_pool_.allocate();
+  }
+
+  LoadTypeAttrCache* getLoadTypeAttrCache(int id) {
+    return &load_type_attr_caches_[id];
+  }
+
+  // Ensure that this CodeRuntime owns a reference to the given object, keeping
+  // it alive for use by the compiled code.
+  void addReference(PyObject* obj);
+
+  // Store meta-data about generator yield point.
+  GenYieldPoint* addGenYieldPoint(GenYieldPoint&& gen_yield_point) {
+    gen_yield_points_.emplace_back(std::move(gen_yield_point));
+    return &gen_yield_points_.back();
+  }
+
+ private:
+  BorrowedRef<PyCodeObject> py_code_;
+  jit::hir::FrameMode frame_mode_;
+  LoadMethodCachePool load_method_cache_pool_;
+  InlineCachePool<LoadAttrCache> load_attr_cache_pool_;
+  InlineCachePool<StoreAttrCache> store_attr_cache_pool_;
+  std::unique_ptr<LoadTypeAttrCache[]> load_type_attr_caches_;
+  BorrowedRef<PyDictObject> globals_;
+  BorrowedRef<PyDictObject> builtins_;
+
+  std::unordered_set<Ref<PyObject>> references_;
+
+  // Metadata about yield points. Deque so we can have raw pointers to content.
+  std::deque<GenYieldPoint> gen_yield_points_;
+};
+
 // this class collects all the data needed for JIT at runtime
 // it maps a PyCodeObject to the runtime info the PyCodeObject needs.
 class Runtime {
  public:
   template <typename... Args>
-  CodeRuntime* AllocateRuntime(Args&&... args) {
+  CodeRuntime* allocateCodeRuntime(Args&&... args) {
+    // Serialize as we modify the globally shared runtimes data.
+    ThreadedCompileSerialize guard;
     runtimes_.emplace_back(
         std::make_unique<CodeRuntime>(std::forward<Args>(args)...));
     return runtimes_.back().get();
@@ -250,12 +262,6 @@ class Runtime {
   std::size_t addDeoptMetadata(DeoptMetadata&& deopt_meta);
   DeoptMetadata& getDeoptMetadata(std::size_t id);
 
-  // Store meta-data about generator yield point.
-  GenYieldPoint* addGenYieldPoint(GenYieldPoint&& gen_yield_point) {
-    gen_yield_points_.emplace_back(std::move(gen_yield_point));
-    return &gen_yield_points_.back();
-  }
-
   using GuardFailureCallback = std::function<void(const DeoptMetadata&)>;
 
   // Add a function to be called when deoptimization occurs due to guard
@@ -282,9 +288,6 @@ class Runtime {
 
   std::vector<DeoptMetadata> deopt_metadata_;
   GuardFailureCallback guard_failure_callback_;
-
-  // Metadata about yield points. Deque so we can have raw pointers to content.
-  std::deque<GenYieldPoint> gen_yield_points_;
 
   // References to Python objects held by this Runtime
   std::unordered_set<Ref<PyObject>> references_;

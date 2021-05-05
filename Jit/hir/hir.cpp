@@ -9,6 +9,7 @@
 #include "Jit/hir/printer.h"
 #include "Jit/log.h"
 #include "Jit/ref.h"
+#include "Jit/threaded_compile.h"
 
 namespace jit {
 namespace hir {
@@ -817,6 +818,14 @@ const Environment::RegisterMap& Environment::GetRegisters() const {
 
 Function::Function() {
   cfg.func = this;
+}
+
+Function::~Function() {
+  // Serialize as we alter ref-counts on potentially global objects.
+  ThreadedCompileSerialize guard;
+  code.reset();
+  globals.reset();
+  builtins.reset();
 }
 
 Register* Environment::addRegister(std::unique_ptr<Register> reg) {

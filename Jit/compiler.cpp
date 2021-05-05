@@ -12,6 +12,9 @@
 #include "Python.h"
 
 namespace jit {
+
+ThreadedCompileContext g_threaded_compile_context;
+
 void CompiledFunction::Disassemble() const {
   JIT_CHECK(false, "Disassemble() cannot be called in a release build.");
 }

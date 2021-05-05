@@ -1714,11 +1714,15 @@ class EagerCoroutineDispatch(StaticTestBase):
             global x
             x = _testcapi.TestAwaitedCall()
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, StaticCodeGenerator, modname="test_invoke_function")
         await_x = self.find_code(c, "await_x")
-        self.assertInBytecode(await_x, "INVOKE_FUNCTION", (("foo.py", "x"), 0))
+        self.assertInBytecode(
+            await_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
+        )
         call_x = self.find_code(c, "call_x")
-        self.assertInBytecode(call_x, "INVOKE_FUNCTION", (("foo.py", "x"), 0))
+        self.assertInBytecode(
+            call_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
+        )
         with self.in_module(codestr) as mod:
             mod["fixup"]()
             self.assertIsInstance(mod["x"], _testcapi.TestAwaitedCall)
@@ -1752,11 +1756,15 @@ class EagerCoroutineDispatch(StaticTestBase):
         async def call_x() -> None:
             X().x()
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, StaticCodeGenerator, modname="test_invoke_method")
         await_x = self.find_code(c, "await_x")
-        self.assertInBytecode(await_x, "INVOKE_METHOD", (("foo.py", "X", "x"), 0))
+        self.assertInBytecode(
+            await_x, "INVOKE_METHOD", (("test_invoke_method", "X", "x"), 0)
+        )
         call_x = self.find_code(c, "call_x")
-        self.assertInBytecode(call_x, "INVOKE_METHOD", (("foo.py", "X", "x"), 0))
+        self.assertInBytecode(
+            call_x, "INVOKE_METHOD", (("test_invoke_method", "X", "x"), 0)
+        )
         with self.in_module(codestr) as mod:
             awaited_capturer = mod["X"].x = _testcapi.TestAwaitedCall()
             self.assertIsNone(awaited_capturer.last_awaited())

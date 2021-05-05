@@ -566,7 +566,13 @@ PyImport_Cleanup(void)
             if (mod == Py_None)
                 continue;
             assert(PyModule_Check(mod));
-            dict = PyModule_GetDict(mod);
+            if (PyStrictModule_Check(mod)) {
+                /* StrictModules sometimes don't have a dictionary so skip the
+                assertion in PyModule_GetDict() */
+                dict = ((PyModuleObject *)mod)->md_dict;
+            } else {
+                dict = PyModule_GetDict(mod);
+            }
             if (dict == interp->builtins || dict == interp->sysdict)
                 continue;
             Py_INCREF(mod);

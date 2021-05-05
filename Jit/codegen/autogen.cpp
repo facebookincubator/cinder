@@ -296,7 +296,7 @@ void emitStoreGenYieldPoint(
   }
 
   auto yield_from_offset = is_yield_from ? calc_spill_offset(2) : 0;
-  auto* gen_yield_point = env->rt->addGenYieldPoint(
+  GenYieldPoint* gen_yield_point = env->code_rt->addGenYieldPoint(
       GenYieldPoint{std::move(pyobj_offs), is_yield_from, yield_from_offset});
 
   env->unresolved_gen_entry_labels.emplace(gen_yield_point, resume_label);

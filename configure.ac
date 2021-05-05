@@ -2899,14 +2899,6 @@ BASECFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECFLAGS"
 BASECXXFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECXXFLAGS"
 LDFLAGS="-fsanitize=address $LDFLAGS"
 
-if ! -z ${COMPUTE_ASAN_RUNTIME+x} ;
-then
-    ASAN_RUNTIME_DIR=$(dirname $(realpath $($CC --print-file-name=libasan.so)))
-    BASECFLAGS="-Wl,rpath=$ASAN_RUNTIME_DIR $BASECFLAGS"
-    BASECXXFLAGS="-Wl,rpath=$ASAN_RUNTIME_DIR $BASECXXFLAGS"
-    LDFLAGS="-Wl,-rpath=$ASAN_RUNTIME_DIR $LDFLAGS"
-fi
-
 ASAN_TEST_ENV="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,detect_leaks=0 \
  LSAN_OPTIONS=suppressions=$(realpath $srcdir)/lsan_suppressions.txt,print_suppressions=0"
 
@@ -2936,6 +2928,17 @@ AC_ARG_WITH(undefined_behavior_sanitizer,
 AC_MSG_RESULT($withval)
 BASECFLAGS="-fsanitize=undefined $BASECFLAGS"
 LDFLAGS="-fsanitize=undefined $LDFLAGS"
+],
+[AC_MSG_RESULT(no)])
+
+AC_MSG_CHECKING(for --with-thread-sanitizer)
+AC_ARG_WITH(thread_sanitizer,
+            AS_HELP_STRING([--with-thread-sanitizer],
+                           [enable ThreadSanitizer (tsan)]),
+[
+AC_MSG_RESULT($withval)
+BASECFLAGS="-fsanitize=thread $BASECFLAGS"
+LDFLAGS="-fsanitize=thread $LDFLAGS"
 ],
 [AC_MSG_RESULT(no)])
 

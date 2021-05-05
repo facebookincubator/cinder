@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <iterator>
 
+#include "Jit/threaded_compile.h"
+
 namespace jit {
 
 template <typename Fmt, typename... Args>
@@ -43,6 +45,7 @@ void protected_fprintf(std::FILE* file, const char* fmt, Args&&... args) {
 
 #define JIT_LOG(...)                                                       \
   do {                                                                     \
+    ::jit::ThreadedCompileSerialize guard;                                 \
     fmt::fprintf(::jit::g_log_file, "JIT: %s:%d -- ", __FILE__, __LINE__); \
     ::jit::protected_fprintf(::jit::g_log_file, __VA_ARGS__);              \
     fmt::fprintf(::jit::g_log_file, "\n");                                 \

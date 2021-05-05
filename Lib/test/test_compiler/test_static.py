@@ -112,8 +112,11 @@ from cinder import StrictModule
 
 from .common import CompilerTest
 
+IS_MULTITHREADED_COMPILE_TEST = False
 try:
     import cinderjit
+
+    IS_MULTITHREADED_COMPILE_TEST = cinderjit.is_test_multithreaded_compile_enabled()
 except ImportError:
     cinderjit = None
 
@@ -227,11 +230,18 @@ class StaticTestBase(CompilerTest):
         with self.assertRaisesRegex(TypedSyntaxError, pattern):
             self.compile(code)
 
+    _temp_mod_num = 0
+
+    def _temp_mod_name(self):
+        StaticTestBase._temp_mod_num += 1
+        return sys._getframe().f_back.f_back.f_back.f_code.co_name + str(
+            StaticTestBase._temp_mod_num
+        )
+
     @contextmanager
     def in_module(self, code, name=None, code_gen=StaticCodeGenerator, optimize=0):
         if name is None:
-            # get our callers name to avoid duplicating names
-            name = sys._getframe().f_back.f_back.f_code.co_name
+            name = self._temp_mod_name()
 
         try:
             compiled = self.compile(code, code_gen, name, optimize)
@@ -239,14 +249,16 @@ class StaticTestBase(CompilerTest):
             d = m.__dict__
             sys.modules[name] = m
             exec(compiled, d)
+            d["__name__"] = name
 
             yield d
         finally:
-            # don't throw a new exception if we failed to compile
-            if name in sys.modules:
-                del sys.modules[name]
-                d.clear()
-                gc.collect()
+            if not IS_MULTITHREADED_COMPILE_TEST:
+                # don't throw a new exception if we failed to compile
+                if name in sys.modules:
+                    del sys.modules[name]
+                    d.clear()
+                    gc.collect()
 
     @contextmanager
     def in_strict_module(
@@ -258,8 +270,7 @@ class StaticTestBase(CompilerTest):
         enable_patching=False,
     ):
         if name is None:
-            # get our callers name to avoid duplicating names
-            name = sys._getframe().f_back.f_back.f_code.co_name
+            name = self._temp_mod_name()
 
         try:
             compiled = self.compile(code, code_gen, name, optimize)
@@ -270,11 +281,20 @@ class StaticTestBase(CompilerTest):
 
             yield m
         finally:
-            # don't throw a new exception if we failed to compile
-            if name in sys.modules:
-                del sys.modules[name]
-                d.clear()
-                gc.collect()
+            if not IS_MULTITHREADED_COMPILE_TEST:
+                # don't throw a new exception if we failed to compile
+                if name in sys.modules:
+                    del sys.modules[name]
+                    d.clear()
+                    gc.collect()
+
+    def run_code(self, code, generator=None, modname=None, peephole_enabled=True):
+        if modname is None:
+            modname = self._temp_mod_name()
+        d = super().run_code(code, generator, modname, peephole_enabled)
+        if IS_MULTITHREADED_COMPILE_TEST:
+            sys.modules[modname] = d
+        return d
 
     @property
     def base_size(self):
@@ -331,7 +351,8 @@ class StaticCompilationTests(StaticTestBase):
 
     @classmethod
     def tearDownClass(cls):
-        del xxclassloader.XXGeneric
+        if not IS_MULTITHREADED_COMPILE_TEST:
+            del xxclassloader.XXGeneric
 
     def test_static_import_unknown(self) -> None:
         codestr = """
@@ -2737,9 +2758,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(x.f(), 1)
             x = C(False)
             self.assertEqual(x.f(), 0)
-            self.assertInBytecode(
-                C.f, "LOAD_FIELD", ("test_conditional_init", "C", "value")
-            )
+            self.assertInBytecode(C.f, "LOAD_FIELD", (mod["__name__"], "C", "value"))
 
     def test_error_incompat_assign_local(self):
         codestr = """
@@ -6531,9 +6550,9 @@ class StaticCompilationTests(StaticTestBase):
                     # don't call super init
                     pass
 
-            sys.modules["test_load_uninit_module"] = UninitModule()
+            sys.modules[mod["__name__"]] = UninitModule()
             with self.assertRaisesRegex(
-                TypeError, r"unknown type \('test_load_uninit_module', 'C'\)"
+                TypeError, r"unknown type \('" + mod["__name__"] + r"', 'C'\)"
             ):
                 C()
 
@@ -6552,7 +6571,7 @@ class StaticCompilationTests(StaticTestBase):
                     if name == "C":
                         return C
 
-            sys.modules["test_module_subclass"] = CustomModule("test_module_subclass")
+            sys.modules[mod["__name__"]] = CustomModule(mod["__name__"])
             c = C()
             self.assertEqual(c.x, None)
 
@@ -6575,7 +6594,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 y,
                 "INVOKE_FUNCTION",
-                (("test_invoke_and_raise_noframe_strictmod", "x"), 0),
+                ((mod.__name__, "x"), 0),
             )
 
     def test_override_okay(self):
@@ -6680,7 +6699,6 @@ class StaticCompilationTests(StaticTestBase):
                 # attributes should take precedence
                 a.__dict__["f"] = lambda: 42
                 self.assertEqual(f(a), 42)
-
 
     def test_invoke_type_modified(self):
         codestr = """
@@ -7185,9 +7203,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             testfunc = mod["testfunc"]
-            self.assertInBytecode(
-                testfunc, "LOAD_FIELD", ("test_unknown_isinstance_narrows", "C", "x")
-            )
+            self.assertInBytecode(testfunc, "LOAD_FIELD", (mod["__name__"], "C", "x"))
 
     def test_unknown_isinstance_narrows_class_attr(self):
         codestr = """
@@ -7207,7 +7223,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 C.f,
                 "LOAD_FIELD",
-                ("test_unknown_isinstance_narrows_class_attr", "C", "x"),
+                (mod["__name__"], "C", "x"),
             )
 
     def test_unknown_isinstance_narrows_class_attr_dynamic(self):
@@ -7244,7 +7260,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             testfunc = mod["testfunc"]
             self.assertNotInBytecode(
-                testfunc, "LOAD_FIELD", ("test_unknown_isinstance_narrows", "C", "x")
+                testfunc, "LOAD_FIELD", (mod["__name__"], "C", "x")
             )
 
     def test_narrow_while_break(self):
@@ -7315,9 +7331,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             C = mod["C"]
             x = C("abc")
-            self.assertInBytecode(
-                C.__eq__, "CHECK_ARGS", (0, ("test_unknown_param_ann", "C"))
-            )
+            self.assertInBytecode(C.__eq__, "CHECK_ARGS", (0, (mod["__name__"], "C")))
             self.assertNotEqual(x, x)
 
     def test_class_init_kw(self):
@@ -7419,7 +7433,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             f = mod["f"]
             self.assertInBytecode(
-                f, "INVOKE_FUNCTION", (("test_static_function_invoke", "C", "f"), 0)
+                f, "INVOKE_FUNCTION", ((mod["__name__"], "C", "f"), 0)
             )
             self.assertEqual(f(), 42)
 
@@ -7438,7 +7452,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 f,
                 "INVOKE_FUNCTION",
-                (("test_static_function_invoke_on_instance", "C", "f"), 0),
+                ((mod["__name__"], "C", "f"), 0),
             )
             self.assertEqual(f(), 42)
 
@@ -8176,7 +8190,7 @@ class StaticCompilationTests(StaticTestBase):
             g = mod["g"]
             for i in range(100):
                 g()
-            with patch("test_patch_function.f", autospec=True, return_value=100) as p:
+            with patch(f"{mod['__name__']}.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
     def test_patch_parentclass_slot(self):
@@ -8245,7 +8259,7 @@ class StaticCompilationTests(StaticTestBase):
             for i in range(100):
                 g()
             with patch(
-                "test_patch_function_unwatchable_dict.f",
+                f"{mod['__name__']}.f",
                 autospec=True,
                 return_value=100,
             ) as p:
@@ -8267,7 +8281,7 @@ class StaticCompilationTests(StaticTestBase):
             del mod["f"]
             with self.assertRaisesRegex(
                 TypeError,
-                re.escape("unknown function ('test_patch_function_deleted_func', 'f')"),
+                re.escape(f"unknown function ('{mod['__name__']}', 'f')"),
             ):
                 g()
 
@@ -8285,9 +8299,7 @@ class StaticCompilationTests(StaticTestBase):
             g = mod["g"]
             for i in range(100):
                 self.assertEqual(g(), 42)
-            with patch(
-                "test_patch_static_function.C.f", autospec=True, return_value=100
-            ) as p:
+            with patch(f"{mod['__name__']}.C.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
     def test_patch_static_function_non_autospec(self):
@@ -8304,9 +8316,7 @@ class StaticCompilationTests(StaticTestBase):
             g = mod["g"]
             for i in range(100):
                 g()
-            with patch(
-                "test_patch_static_function_non_autospec.C.f", return_value=100
-            ) as p:
+            with patch(f"{mod['__name__']}.C.f", return_value=100) as p:
                 self.assertEqual(g(), 100)
 
     def test_patch_primitive_ret_type(self):
@@ -8395,9 +8405,7 @@ class StaticCompilationTests(StaticTestBase):
             g = mod.g
             for i in range(100):
                 self.assertEqual(g(), 42)
-            self.assertInBytecode(
-                g, "INVOKE_FUNCTION", (("test_invoke_strict_module", "f"), 0)
-            )
+            self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 0))
 
     def test_invoke_with_cell(self):
         codestr = """
@@ -8411,9 +8419,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             g = mod.g
             self.assertEqual(g(), [3, 4, 5])
-            self.assertInBytecode(
-                g, "INVOKE_FUNCTION", (("test_invoke_with_cell", "f"), 1)
-            )
+            self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 1))
 
     def test_invoke_with_cell_arg(self):
         codestr = """
@@ -8426,9 +8432,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             g = mod.g
             self.assertEqual(g(), [3, 4, 5])
-            self.assertInBytecode(
-                g, "INVOKE_FUNCTION", (("test_invoke_with_cell_arg", "f"), 2)
-            )
+            self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 2))
 
     def test_invoke_all_reg_args(self):
         codestr = """
@@ -8443,7 +8447,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 f,
                 "INVOKE_FUNCTION",
-                (("test_invoke_all_reg_args", "target"), 6),
+                ((mod.__name__, "target"), 6),
             )
             self.assertEqual(f(), 112)
 
@@ -8460,7 +8464,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 f,
                 "INVOKE_FUNCTION",
-                (("test_invoke_all_extra_args", "target"), 7),
+                ((mod.__name__, "target"), 7),
             )
             self.assertEqual(f(), 119)
 
@@ -8486,9 +8490,7 @@ class StaticCompilationTests(StaticTestBase):
             g = mod.g
             self.assertEqual(g(), 42)
             self.assertEqual(g(), 42)
-            self.assertInBytecode(
-                g, "INVOKE_FUNCTION", (("test_invoke_strict_module_deep", "f11"), 0)
-            )
+            self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f11"), 0))
 
     def test_invoke_strict_module_deep_unjitable(self):
         codestr = """
@@ -8524,7 +8526,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 g,
                 "INVOKE_FUNCTION",
-                (("test_invoke_strict_module_deep_unjitable", "f11"), 0),
+                ((mod.__name__, "f11"), 0),
             )
 
     def test_invoke_strict_module_deep_unjitable_many_args(self):
@@ -8556,7 +8558,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 g,
                 "INVOKE_FUNCTION",
-                (("test_invoke_strict_module_deep_unjitable_many_args", "f11"), 0),
+                ((mod.__name__, "f11"), 0),
             )
             self.assert_not_jitted(f1)
 
@@ -8572,7 +8574,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 fib,
                 "INVOKE_FUNCTION",
-                (("test_invoke_strict_module_recursive", "fib"), 1),
+                ((mod.__name__, "fib"), 1),
             )
             self.assertEqual(fib(4), 3)
 
@@ -8594,12 +8596,12 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 fib,
                 "INVOKE_FUNCTION",
-                (("test_invoke_strict_module_mutual_recursive", "fib1"), 1),
+                ((mod.__name__, "fib1"), 1),
             )
             self.assertInBytecode(
                 fib1,
                 "INVOKE_FUNCTION",
-                (("test_invoke_strict_module_mutual_recursive", "fib"), 1),
+                ((mod.__name__, "fib"), 1),
             )
             self.assertEqual(fib(0), 0)
             self.assert_jitted(fib1)
@@ -8621,7 +8623,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 g,
                 "INVOKE_FUNCTION",
-                (("test_invoke_strict_module_pre_invoked", "f"), 0),
+                ((mod.__name__, "f"), 0),
             )
 
     def test_invoke_strict_module_patching(self):
@@ -8636,9 +8638,7 @@ class StaticCompilationTests(StaticTestBase):
             g = mod.g
             for i in range(100):
                 self.assertEqual(g(), 42)
-            self.assertInBytecode(
-                g, "INVOKE_FUNCTION", (("test_invoke_strict_module_patching", "f"), 0)
-            )
+            self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 0))
             mod.patch("f", lambda: 100)
             self.assertEqual(g(), 100)
 
@@ -8652,9 +8652,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_strict_module(codestr, enable_patching=True) as mod:
             g = mod.g
-            self.assertInBytecode(
-                g, "INVOKE_FUNCTION", (("test_invoke_patch_non_vectorcall", "f"), 0)
-            )
+            self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 0))
             self.assertEqual(g(), 42)
             mod.patch("f", Mock(return_value=100))
             self.assertEqual(g(), 100)
@@ -8818,9 +8816,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x(1,2,3,4,5,6,7,8)
         """
         with self.in_strict_module(codestr) as mod:
-            self.assertInBytecode(
-                mod.y, "INVOKE_FUNCTION", (("test_primitive_args_many_args", "x"), 8)
-            )
+            self.assertInBytecode(mod.y, "INVOKE_FUNCTION", ((mod.__name__, "x"), 8))
             self.assertEqual(mod.y(), (1, 2, 3, 4, 5, 6, 7, 8))
             self.assertEqual(mod.x(1, 2, 3, 4, 5, 6, 7, 8), (1, 2, 3, 4, 5, 6, 7, 8))
 
@@ -9101,7 +9097,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(
                 mod.fib,
                 "INVOKE_FUNCTION",
-                (("test_primitive_return_recursive", "fib"), 1),
+                ((mod.__name__, "fib"), 1),
             )
             self.assertEqual(mod.fib(2), 1)
             self.assert_jitted(mod.fib)
@@ -9763,7 +9759,7 @@ class StaticCompilationTests(StaticTestBase):
                         self.assertInBytecode(g, "LOAD_CONST", 3)
                     else:
                         self.assertInBytecode(
-                            g, "INVOKE_FUNCTION", (("test_inline_func", "f"), 2)
+                            g, "INVOKE_FUNCTION", ((mod["__name__"], "f"), 2)
                         )
                     self.assertEqual(g(), 3)
 
@@ -9872,9 +9868,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr, optimize=2) as mod:
             g = mod["g"]
-            self.assertInBytecode(
-                g, "INVOKE_FUNCTION", ((("test_inline_recursive", "f"), 2))
-            )
+            self.assertInBytecode(g, "INVOKE_FUNCTION", (((mod["__name__"], "f"), 2)))
 
     def test_inline_func_default(self):
         codestr = """
@@ -9994,7 +9988,7 @@ class StaticRuntimeTests(StaticTestBase):
         codestr = """
             class C:
                 __slots__ = ('a', )
-                __slot_types__ = {'a': ('test_typed_slots_object', 'C')}
+                __slot_types__ = {'a': (__name__, 'C')}
 
             inst = C()
         """
@@ -10075,7 +10069,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertNotInBytecode(mod.C.make, "CAST")
             # We can statically invoke make
             self.assertInBytecode(
-                mod.f, "INVOKE_FUNCTION", (("test_dynamic_return", "C", "make"), 0)
+                mod.f, "INVOKE_FUNCTION", ((mod.__name__, "C", "make"), 0)
             )
             # But we can't statically invoke a method on the returned instance
             self.assertNotInBytecode(mod.f, "INVOKE_METHOD")
@@ -10251,7 +10245,7 @@ class StaticRuntimeTests(StaticTestBase):
         codestr = """
             class C:
                 __slots__ = ('a', 'b')
-                __slot_types__ = {'a': ('test_typed_slots_object', 'C')}
+                __slot_types__ = {'a': (__name__, 'C')}
 
             inst = C()
         """
@@ -10267,7 +10261,7 @@ class StaticRuntimeTests(StaticTestBase):
         codestr = """
             class C:
                 __slots__ = ('a', )
-                __slot_types__ = {'a': ('test_typed_slots_optional_object', 'C', '?')}
+                __slot_types__ = {'a': (__name__, 'C', '?')}
 
             inst = C()
         """
@@ -10281,7 +10275,7 @@ class StaticRuntimeTests(StaticTestBase):
         codestr = """
             class C:
                 __slots__ = ('__a', )
-                __slot_types__ = {'__a': ('test_typed_slots_private', 'C', '?')}
+                __slot_types__ = {'__a': (__name__, 'C', '?')}
                 def __init__(self):
                     self.__a = None
 
@@ -10300,7 +10294,7 @@ class StaticRuntimeTests(StaticTestBase):
         codestr = """
             class C:
                 __slots__ = ('a', )
-                __slot_types__ = {'a': ('test_typed_slots_optional_object', 'D', '?')}
+                __slot_types__ = {'a': (__name__, 'D', '?')}
 
                 def __init__(self):
                     self.a = None
@@ -10461,9 +10455,7 @@ class StaticRuntimeTests(StaticTestBase):
                 return await f()
         """
         with self.in_strict_module(codestr) as mod:
-            self.assertInBytecode(
-                mod.g, "INVOKE_FUNCTION", (("test_awaited_invoke_function", "f"), 0)
-            )
+            self.assertInBytecode(mod.g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 0))
             self.assertEqual(asyncio.run(mod.g()), 1)
 
     def test_awaited_invoke_function_unjitable(self):
@@ -10479,7 +10471,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(
                 mod.g,
                 "INVOKE_FUNCTION",
-                (("test_awaited_invoke_function_unjitable", "f"), 0),
+                ((mod.__name__, "f"), 0),
             )
             self.assertEqual(asyncio.run(mod.g()), 1)
 
@@ -10495,7 +10487,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(
                 mod.g,
                 "INVOKE_FUNCTION",
-                (("test_awaited_invoke_function_with_args", "f"), 2),
+                ((mod.__name__, "f"), 2),
             )
             self.assertEqual(asyncio.run(mod.g()), 3)
 
@@ -10516,7 +10508,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(
                 g,
                 "INVOKE_FUNCTION",
-                (("test_awaited_invoke_function_indirect_with_args", "f"), 2),
+                ((mod["__name__"], "f"), 2),
             )
             self.assertEqual(asyncio.run(g()), 3)
 
@@ -10541,7 +10533,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(
                 mod.f,
                 "INVOKE_FUNCTION",
-                (("test_awaited_invoke_function_future", "g"), 0),
+                ((mod.__name__, "g"), 0),
             )
             asyncio.run(mod.f())
 
@@ -10560,7 +10552,7 @@ class StaticRuntimeTests(StaticTestBase):
         """
         with self.in_strict_module(codestr) as mod:
             self.assertInBytecode(
-                mod.C.g, "INVOKE_METHOD", (("test_awaited_invoke_method", "C", "f"), 0)
+                mod.C.g, "INVOKE_METHOD", ((mod.__name__, "C", "f"), 0)
             )
             self.assertEqual(asyncio.run(mod.C().g()), 1)
 
@@ -10577,7 +10569,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(
                 mod.C.g,
                 "INVOKE_METHOD",
-                (("test_awaited_invoke_method_with_args", "C", "f"), 2),
+                ((mod.__name__, "C", "f"), 2),
             )
             self.assertEqual(asyncio.run(mod.C().g()), 3)
 
@@ -10609,7 +10601,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(
                 mod.f,
                 "INVOKE_METHOD",
-                (("test_awaited_invoke_method_future", "C", "g"), 0),
+                ((mod.__name__, "C", "g"), 0),
             )
             asyncio.run(mod.f())
 
@@ -13428,7 +13420,7 @@ class StaticRuntimeTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f, C = mod["f"], mod["C"]
-            self.assertInBytecode(f, "LOAD_FIELD", ("test_cbool_field", "C", "x"))
+            self.assertInBytecode(f, "LOAD_FIELD", (mod["__name__"], "C", "x"))
             self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
             self.assertIs(C(True).x, True)
             self.assertIs(C(False).x, False)

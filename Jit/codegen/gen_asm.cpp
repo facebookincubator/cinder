@@ -179,7 +179,7 @@ void* NativeGenerator::GetEntryPoint() {
 
   env_.rt = runtime();
   PyCodeObject* code_obj = func->code;
-  env_.code_rt = env_.rt->AllocateRuntime(
+  env_.code_rt = env_.rt->allocateCodeRuntime(
       code_obj,
       GetFunction()->globals,
       func->frameMode,
@@ -369,8 +369,8 @@ int hasPrimitiveFirstArg(PyCodeObject* code) {
   PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
   if (PyTuple_GET_SIZE(checks) &&
       PyLong_AsLong(PyTuple_GET_ITEM(checks, 0)) == 0 &&
-      _PyClassLoader_ResolvePrimitiveType(PyTuple_GET_ITEM(checks, 1)) !=
-          TYPED_OBJECT) {
+      THREADED_COMPILE_SERIALIZED_CALL(_PyClassLoader_ResolvePrimitiveType(
+          PyTuple_GET_ITEM(checks, 1))) != TYPED_OBJECT) {
     // first arg is a primitive type, don't want to link the normal frame,
     // we can just signal this by passing 0 for nargsf.  It serves no other
     // purpose in linking the frame
@@ -470,7 +470,7 @@ void NativeGenerator::generatePrologue(
     // provided correctly.  But if we have primitives we need to
     // unbox them from their boxed ints.  We usually get to
     // avoid this by doing direct invokes from JITed code.
-
+    ThreadedCompileSerialize guard;
     if (_PyClassLoader_HasPrimitiveArgs(code)) {
       typed_arg_checks = _PyClassLoader_GetTypedArgsInfo(code, true);
       JIT_CHECK(typed_arg_checks != nullptr, "OOM on typed arg checks");
@@ -627,8 +627,8 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
     PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);
     bool last_arg = i == PyTuple_GET_SIZE(checks) - 2;
     int optional;
-    PyTypeObject* type =
-        _PyClassLoader_ResolveReferenceType(type_descr, &optional);
+    PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
+        _PyClassLoader_ResolveReferenceType(type_descr, &optional));
 
     JIT_CHECK(
         type != (PyTypeObject*)&PyObject_Type,

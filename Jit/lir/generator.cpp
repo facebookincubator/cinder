@@ -7,6 +7,7 @@
 #include "Jit/log.h"
 #include "Jit/pyjit.h"
 #include "Jit/runtime_support.h"
+#include "Jit/threaded_compile.h"
 
 #include "Jit/codegen/x86_64.h"
 
@@ -1482,6 +1483,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadGlobalCached: {
+        ThreadedCompileSerialize guard;
         auto instr = static_cast<const LoadGlobalCached*>(&i);
         PyObject* globals = env_->code_rt->GetGlobals();
         PyObject* name = PyTuple_GET_ITEM(
@@ -1649,6 +1651,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kInvokeStaticFunction: {
+        ThreadedCompileSerialize guard;
+
         auto instr = static_cast<const InvokeStaticFunction*>(&i);
         auto nargs = instr->NumOperands();
         PyFunctionObject* func = instr->func();

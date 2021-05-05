@@ -3297,6 +3297,7 @@ bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code);
 class Function {
  public:
   Function();
+  ~Function();
 
   Ref<PyCodeObject> code;
   Ref<PyDictObject> globals;

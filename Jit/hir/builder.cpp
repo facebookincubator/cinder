@@ -15,6 +15,7 @@
 #include "Jit/hir/optimization.h"
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
+#include "Jit/threaded_compile.h"
 
 #include "Python.h"
 #include "ceval.h"
@@ -344,7 +345,8 @@ Type resolve_type_descr(PyObject* descr) {
   int optional;
   int prim_type;
 
-  if (_PyClassLoader_ResolveType(descr, &ref_type, &optional, &prim_type)) {
+  if (THREADED_COMPILE_SERIALIZED_CALL(_PyClassLoader_ResolveType(
+          descr, &ref_type, &optional, &prim_type))) {
     JIT_CHECK(false, "bad type descr %s", descr);
   }
 
@@ -376,7 +378,8 @@ void HIRBuilder::addLoadArgs(TranslationContext& tc, int num_args) {
         long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, cur_check * 2));
         if (local == i) {
           PyObject* type_descr = PyTuple_GET_ITEM(checks, cur_check * 2 + 1);
-          int prim_type = _PyClassLoader_ResolvePrimitiveType(type_descr);
+          int prim_type = THREADED_COMPILE_SERIALIZED_CALL(
+              _PyClassLoader_ResolvePrimitiveType(type_descr));
           JIT_CHECK(prim_type != -1, "unknown type");
           if (prim_type != TYPED_OBJECT) {
             type = prim_type_to_type(prim_type);
@@ -1804,6 +1807,8 @@ bool HIRBuilder::emitInvokeFunction(
   PyObject* target = PyTuple_GET_ITEM(descr, 0);
   long nargs = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1));
 
+  ThreadedCompileSerialize guard;
+
   PyObject* container;
   PyObject* func = _PyClassLoader_ResolveFunction(target, &container);
   JIT_CHECK(func != NULL, "unknown function");
@@ -1815,7 +1820,13 @@ bool HIRBuilder::emitInvokeFunction(
   bool is_container_immutable = true;
   if (_PyClassLoader_IsImmutable(container)) {
     if (is_static_func && PyFunction_Check(func)) {
-      _PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func));
+      if (_PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func)) ==
+          PYJIT_RESULT_RETRY) {
+        JIT_LOG(
+            "Warning: recursive compile of '%s' failed as it is already being "
+            "compiled",
+            funcFullname(reinterpret_cast<PyFunctionObject*>(func)));
+      }
 
       // Direct invoke is safe whether we succeeded in JIT-compiling or not,
       // it'll just have an extra indirection if not JIT compiled.
@@ -2427,8 +2438,8 @@ void HIRBuilder::emitRefineType(
       "REFINE_TYPE index out of bounds");
   PyObject* type_descr = PyTuple_GET_ITEM(code_->co_consts, oparg);
   int optional;
-  auto pytype = Ref<PyTypeObject>::steal(
-      _PyClassLoader_ResolveReferenceType(type_descr, &optional));
+  auto pytype = THREADED_COMPILE_SERIALIZED_CALL(Ref<PyTypeObject>::steal(
+      _PyClassLoader_ResolveReferenceType(type_descr, &optional)));
   Type type = Type::fromType(pytype);
   if (optional) {
     type |= TNoneType;
@@ -2584,8 +2595,8 @@ void HIRBuilder::emitLoadGlobal(
     if (!_PyDict_CanWatch(builtins_) || !_PyDict_CanWatch(globals_)) {
       return false;
     }
-    PyObject* value =
-        loadGlobal(globals_, builtins_, code_->co_names, name_idx);
+    PyObject* value = THREADED_COMPILE_SERIALIZED_CALL(
+        loadGlobal(globals_, builtins_, code_->co_names, name_idx));
     if (value == nullptr) {
       return false;
     }
@@ -3231,13 +3242,19 @@ bool HIRBuilder::emitInvokeMethod(
   PyObject* target = PyTuple_GET_ITEM(descr, 0);
   long nargs = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1)) + 1;
 
-  Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
-  JIT_CHECK(slot != -1, "function lookup failed"); // TODO: do better than this?
+  Py_ssize_t slot;
+  {
+    ThreadedCompileSerialize guard;
+    slot = _PyClassLoader_ResolveMethod(target);
+    JIT_CHECK(
+        slot != -1, "function lookup failed"); // TODO: do better than this?
 
-  PyMethodDescrObject* method = _PyClassLoader_ResolveMethodDef(target);
-  if (method != NULL && tryEmitDirectMethodCall(method->d_method, tc, nargs)) {
-    Py_XDECREF(method);
-    return false;
+    PyMethodDescrObject* method = _PyClassLoader_ResolveMethodDef(target);
+    if (method != NULL &&
+        tryEmitDirectMethodCall(method->d_method, tc, nargs)) {
+      Py_XDECREF(method);
+      return false;
+    }
   }
 
   InvokeMethod* invoke =
@@ -3306,7 +3323,8 @@ void HIRBuilder::emitLoadField(
     const jit::BytecodeInstruction& bc_instr) {
   PyObject* field = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
   int field_type;
-  Py_ssize_t offset = _PyClassLoader_ResolveFieldOffset(field, &field_type);
+  Py_ssize_t offset = THREADED_COMPILE_SERIALIZED_CALL(
+      _PyClassLoader_ResolveFieldOffset(field, &field_type));
   JIT_CHECK(offset != -1, "failed to resolve field");
 
   Type type = prim_type_to_type(field_type);
@@ -3324,7 +3342,8 @@ void HIRBuilder::emitStoreField(
     const jit::BytecodeInstruction& bc_instr) {
   PyObject* field = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
   int field_type;
-  Py_ssize_t offset = _PyClassLoader_ResolveFieldOffset(field, &field_type);
+  Py_ssize_t offset = THREADED_COMPILE_SERIALIZED_CALL(
+      _PyClassLoader_ResolveFieldOffset(field, &field_type));
   JIT_CHECK(offset != -1, "failed to resolve field");
 
   Type type = prim_type_to_type(field_type);
@@ -3347,8 +3366,9 @@ void HIRBuilder::emitCast(
     const jit::BytecodeInstruction& bc_instr) {
   PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
   int optional;
-  auto type = Ref<PyTypeObject>::steal(
-      _PyClassLoader_ResolveReferenceType(descr, &optional));
+  Ref<PyTypeObject> type =
+      THREADED_COMPILE_SERIALIZED_CALL(Ref<PyTypeObject>::steal(
+          _PyClassLoader_ResolveReferenceType(descr, &optional)));
   JIT_CHECK(type != NULL, "failed to resolve type");
 
   Register* value = tc.frame.stack.pop();

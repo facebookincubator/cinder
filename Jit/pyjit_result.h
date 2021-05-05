@@ -22,6 +22,11 @@ typedef enum {
   /* Someone tried to compile a function but the JIT is not initialized. */
   PYJIT_NOT_INITIALIZED,
 
+  /* During threaded compile we may end compiling the same code twice in
+     different contexts. If you get this response, you should retry later
+     or give up as best fits the case. */
+  PYJIT_RESULT_RETRY,
+
   PYJIT_RESULT_UNKNOWN_ERROR
 } _PyJIT_Result;
 

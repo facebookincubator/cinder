@@ -539,41 +539,58 @@ static _PyJIT_Result finalizeCompiledFunc(
 _PyJIT_Result _PyJITContext_CompileFunction(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
+  static std::unordered_set<CompilationKey> active_code_compiles;
+
   if (ctx->jit_compiler == nullptr) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
 
-  std::string fullname = jit::funcFullname(func);
+  std::unique_ptr<jit::CompiledFunction> compiled;
+  std::string fullname;
   BorrowedRef<PyCodeObject> code = func->func_code;
   CompilationKey key{code, func->func_globals};
-  auto it = ctx->compiled_codes.find(key);
-  if (it != ctx->compiled_codes.end()) {
-    JIT_DLOG("Found compiled code for '%s'", fullname);
-    return finalizeCompiledFunc(ctx, func, *it->second);
+  {
+    jit::ThreadedCompileSerialize guard;
+
+    fullname = jit::funcFullname(func);
+    auto it = ctx->compiled_codes.find(key);
+    if (it != ctx->compiled_codes.end()) {
+      JIT_DLOG("Found compiled code for '%s'", fullname);
+      return finalizeCompiledFunc(ctx, func, *it->second);
+    }
+    if (active_code_compiles.find(key) != active_code_compiles.end()) {
+      return PYJIT_RESULT_RETRY;
+    }
+
+    /*
+     * This is the funnel for compiling Python functions.
+     *
+     * The basic flow is:
+     *
+     *   1. Check if the code object's flags disqualify it from being compiled.
+     *   2. If not, pattern match on bytecode in the code object contained by
+     *      func to see if we have a specialized routine capable of compiling
+     *      it.
+     *   3. If not, invoke the general purpose compiler.
+     */
+    int required_flags = CO_OPTIMIZED | CO_NEWLOCALS;
+    int prohibited_flags = CO_SUPPRESS_JIT;
+    // Don't care flags: CO_NOFREE, CO_FUTURE_* (the only still-relevant future
+    // is "annotations" which doesn't impact bytecode execution.)
+    if (code == nullptr ||
+        ((code->co_flags & required_flags) != required_flags) ||
+        (code->co_flags & prohibited_flags) != 0) {
+      return PYJIT_RESULT_CANNOT_SPECIALIZE;
+    }
+
+    active_code_compiles.insert(key);
   }
 
-  /*
-   * This is the funnel for compiling Python functions.
-   *
-   * The basic flow is:
-   *
-   *   1. Check if the code object's flags disqualify it from being compiled.
-   *   2. If not, pattern match on bytecode in the code object contained by
-   *      func to see if we have a specialized routine capable of compiling it.
-   *   3. If not, invoke the general purpose compiler.
-   */
-  int required_flags = CO_OPTIMIZED | CO_NEWLOCALS;
-  int prohibited_flags = CO_SUPPRESS_JIT;
-  // Don't care flags: CO_NOFREE, CO_FUTURE_* (the only still-relevant future
-  // is "annotations" which doesn't impact bytecode execution.)
-  if (code == nullptr ||
-      ((code->co_flags & required_flags) != required_flags) ||
-      (code->co_flags & prohibited_flags) != 0) {
-    return PYJIT_RESULT_CANNOT_SPECIALIZE;
-  }
+  compiled = ctx->jit_compiler->Compile(func);
 
-  std::unique_ptr<jit::CompiledFunction> compiled =
-      ctx->jit_compiler->Compile(func);
+  jit::ThreadedCompileSerialize guard;
+
+  active_code_compiles.erase(key);
   if (compiled == nullptr) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -589,7 +606,8 @@ _PyJIT_Result _PyJITContext_CompileFunction(
 static jit::CompiledFunction* lookupFunction(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  auto func_ref = Ref<>::steal(PyWeakref_NewRef(func, nullptr));
+  auto func_ref = THREADED_COMPILE_SERIALIZED_CALL(
+      Ref<>::steal(PyWeakref_NewRef(func, nullptr)));
   if (func_ref == nullptr) {
     return nullptr;
   }

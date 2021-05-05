@@ -29,6 +29,8 @@ void CodeRuntime::releaseReferences() {
 
 void CodeRuntime::addReference(PyObject* obj) {
   JIT_CHECK(obj != nullptr, "Can't own a reference to nullptr");
+  // Serialize as we modify the ref-count to obj which may be widely accesible.
+  ThreadedCompileSerialize guard;
   references_.emplace(obj);
 }
 
@@ -102,11 +104,15 @@ void Runtime::forgetLoadGlobalCache(GlobalCache cache) {
 }
 
 std::size_t Runtime::addDeoptMetadata(DeoptMetadata&& deopt_meta) {
+  // Serialize as the deopt data is shared across compile threads.
+  ThreadedCompileSerialize guard;
   deopt_metadata_.emplace_back(std::move(deopt_meta));
   return deopt_metadata_.size() - 1;
 }
 
 DeoptMetadata& Runtime::getDeoptMetadata(std::size_t id) {
+  // Serialize as the deopt data is shared across compile threads.
+  ThreadedCompileSerialize guard;
   return deopt_metadata_[id];
 }
 
