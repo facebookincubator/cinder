@@ -37,19 +37,38 @@ CPython), please reach out; we'd love to chat!
 How do I build it?
 ------------------
 
-It should build just like CPython; ``configure`` and ``make -j``.
+Cinder should build just like CPython; ``configure`` and ``make -j``. However
+as most development and usage of Cinder occurs in the highly specific context of
+Instagram we do not exercise it much in other environments. As such, the most
+reliable way to build and run Cinder is to re-use the Docker-based setup from
+our GitHub CI workflow. A rough guide is as follows:
 
-Cinder is only built or tested on Linux x64; anything else (including OS X)
-probably won't work. We validate in Github CI that it builds and tests pass
-on Fedora 32 (see ``oss-build-and-test.sh`` and
-``.github/workflows/cinder-oss-build-and-test.yml``), so Fedora 32 is
-probably your best bet.
+#. Install and setup Docker.
+#. Clone the Cinder repo:
+    ``git clone https://github.com/facebookincubator/cinder``
+#. Run a shell in the Docker environment used by the CI:
+    ``docker run -v "$PWD/cinder:/vol" -w /vol -ti ghcr.io/facebookincubator/cinder/python-build-env:latest bash``
+
+   The above command does the following:
+        * Downloads (if not already cached) a pre-built Docker image used by the
+          CI from
+          https://ghcr.io/facebookincubator/cinder/python-build-env.
+        * Makes the Cinder checkout above (`$PWD/cinder`) available to the
+          Docker environment at the mount point `/vol`.
+        * Interactively (`-ti`) runs `bash` in the `/vol` directory.
+#. Build Cinder from the shell started the Docker environment:
+    ``./configure && make``
+
+Please be aware that Cinder is only built or tested on Linux x64; anything else
+(including macOS) probably won't work. The Docker image above is Fedora
+Linux-based and built from a Docker spec file in the Cinder repo:
+``.github/workflows/python-build-env/Dockerfile``.
 
 There are some new test targets that might be interesting. ``make
 testcinder`` is pretty much the same as ``make test`` except that it skips a
 few tests that are problematic in our dev environment. ``make
 testcinder_jit`` runs the test suite with the JIT fully enabled, so all
-functions are JITted. ``make testruntime`` runs a suite of C++ gtest unit
+functions are JIT'ed. ``make testruntime`` runs a suite of C++ gtest unit
 tests for the JIT. And ``make test_strict_module`` runs a test suite for
 strict modules (see below).
 
