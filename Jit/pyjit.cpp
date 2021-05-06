@@ -532,7 +532,7 @@ long flag_long(const char* xoption, const char* envname, long _default) {
   if (envval != nullptr && envval[0] != '\0') {
     try {
       return std::stol(envval);
-    } catch (std::exception) {
+    } catch (std::exception const&) {
       JIT_LOG("Invalid value for %s: %s", envname, envval);
     }
   }
