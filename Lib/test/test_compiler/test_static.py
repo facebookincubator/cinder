@@ -8198,10 +8198,10 @@ class StaticCompilationTests(StaticTestBase):
         class A:
             def f(self) -> int:
                 return 3
-        
+
         class B(A):
             pass
-        
+
         def a_f_invoker() -> int:
             return A().f()
 
@@ -8346,9 +8346,7 @@ class StaticCompilationTests(StaticTestBase):
                     g = mod["g"]
                     for i in range(100):
                         self.assertEqual(g(), value)
-                    with patch(
-                        "test_patch_primitive_ret_type.C.f", return_value=patched
-                    ) as p:
+                    with patch(f"{mod['__name__']}.C.f", return_value=patched) as p:
                         self.assertEqual(g(), patched)
 
     def test_patch_primitive_ret_type_overflow(self):
@@ -8365,9 +8363,7 @@ class StaticCompilationTests(StaticTestBase):
             g = mod["g"]
             for i in range(100):
                 self.assertEqual(g(), 1)
-            with patch(
-                "test_patch_primitive_ret_type_overflow.C.f", return_value=256
-            ) as p:
+            with patch(f"{mod['__name__']}.C.f", return_value=256) as p:
                 with self.assertRaisesRegex(
                     OverflowError,
                     "unexpected return type from C.f, expected "
