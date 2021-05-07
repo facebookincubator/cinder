@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <thread>
