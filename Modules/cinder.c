@@ -396,6 +396,9 @@ PyInit_cinder(void)
     if (PyType_Ready(&PyCachedProperty_Type) < 0) {
         return NULL;
     }
+    if (PyType_Ready(&PyCachedPropertyWithDescr_Type) < 0) {
+        return NULL;
+    }
     if (PyType_Ready(&PyStrictModule_Type) < 0) {
         return NULL;
     }

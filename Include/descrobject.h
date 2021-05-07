@@ -107,6 +107,7 @@ PyAPI_DATA(PyTypeObject) PyGetSetDescr_Type;
 PyAPI_DATA(PyTypeObject) PyMemberDescr_Type;
 PyAPI_DATA(PyType_Spec) _PyCachedClassProperty_TypeSpec;     /* fb t46346203 */
 PyAPI_DATA(PyTypeObject) PyCachedProperty_Type;     /* fb T46346203 */
+PyAPI_DATA(PyTypeObject) PyCachedPropertyWithDescr_Type;     /* fb T46346203 */
 PyAPI_DATA(PyTypeObject) PyAsyncCachedProperty_Type;     /* fb T82701047 */
 PyAPI_DATA(PyTypeObject) PyAsyncCachedClassProperty_Type;     /* fb T82701047 */
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;

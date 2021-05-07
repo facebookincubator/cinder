@@ -539,6 +539,41 @@ class CinderTest(unittest.TestCase):
         self.assertEqual(a.f, 42)
         self.assertEqual(a.calls, 1)
 
+    def test_cached_property_slot_set_del(self):
+        class C:
+            __slots__ = ("f", "calls")
+
+            def __init__(self):
+                self.calls = 0
+
+        def f(self):
+            self.calls += 1
+            return 42
+
+        C.f = cached_property(f, C.f)
+        a = C()
+        a.f = 100
+        self.assertEqual(a.f, 100)
+        self.assertEqual(a.calls, 0)
+        del a.f
+        with self.assertRaises(AttributeError):
+            del a.f
+        self.assertEqual(a.f, 42)
+        self.assertEqual(a.calls, 1)
+
+    def test_cached_property_slot_subtype(self):
+        class C:
+            __slots__ = ("f",)
+
+        def f(self):
+            return 42
+
+        class my_cached_prop(cached_property):
+            pass
+
+        with self.assertRaises(TypeError):
+            C.f = my_cached_prop(f, C.f)
+
     def test_cached_property_slot_raises(self):
         class C:
             __slots__ = ("f",)

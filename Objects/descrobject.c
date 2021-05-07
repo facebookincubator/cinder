@@ -2179,6 +2179,10 @@ cached_property_traverse(PyCachedPropertyDescrObject *prop, visitproc visit, voi
     return 0;
 }
 
+
+PyTypeObject PyCachedProperty_Type;
+PyTypeObject PyCachedPropertyWithDescr_Type;
+
 static int
 cached_property_init(PyObject *self, PyObject *args, PyObject *kwds)
 {
@@ -2206,7 +2210,22 @@ cached_property_init(PyObject *self, PyObject *args, PyObject *kwds)
            descr->d_member->flags) {
            PyErr_SetString(PyExc_TypeError, "cached_property: incompatible descriptor");
            return -1;
-       }
+        }
+
+        /* change our type to enable setting the cached property, we don't allow
+         * subtypes because we can't change their type, and the descriptor would
+         * need to account for doing the lookup, and we'd need to dynamically
+         * create a subtype of them too, not to mention dealing with extra ref
+         * counting on the types */
+        if (Py_TYPE(self) != &PyCachedProperty_Type &&
+            Py_TYPE(self) != &PyCachedPropertyWithDescr_Type) {
+            PyErr_SetString(
+                PyExc_TypeError,
+                "cached_property: descr cannot be used with subtypes of cached_property");
+            return -1;
+        }
+
+        Py_TYPE(self) = &PyCachedPropertyWithDescr_Type;
     } else if (PyFunction_Check(func)) {
         name_or_descr = ((PyFunctionObject *)func)->func_name;
     } else {
@@ -2301,6 +2320,27 @@ cached_property_get(PyObject *self, PyObject *obj, PyObject *cls)
     return res;
 }
 
+static int
+cached_property_set(PyObject *self, PyObject *obj, PyObject *value)
+{
+    PyCachedPropertyDescrObject *cp = (PyCachedPropertyDescrObject *)self;
+    PyObject **dictptr;
+
+    if (Py_TYPE(cp->name_or_descr) == &PyMemberDescr_Type) {
+        return Py_TYPE(cp->name_or_descr)->tp_descr_set(cp->name_or_descr, obj, value);
+    }
+
+    dictptr = _PyObject_GetDictPtr(obj);
+
+    if (dictptr == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                        "This object has no __dict__");
+        return -1;
+    }
+
+    return _PyObjectDict_SetItem(Py_TYPE(obj), dictptr, cp->name_or_descr, value);
+}
+
 static void
 cached_property_dealloc(PyCachedPropertyDescrObject *cp)
 {
@@ -2370,6 +2410,26 @@ PyTypeObject PyCachedProperty_Type = {
     .tp_doc = cached_property_doc,
     .tp_traverse = (traverseproc)cached_property_traverse,
     .tp_descr_get = cached_property_get,
+    .tp_members = cached_property_members,
+    .tp_getset = cached_property_getsetlist,
+    .tp_new = PyType_GenericNew,
+    .tp_init = cached_property_init,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_free = PyObject_GC_Del,
+};
+
+PyTypeObject PyCachedPropertyWithDescr_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    .tp_name = "cached_property_with_descr",
+    .tp_base = &PyCachedProperty_Type,
+    .tp_basicsize = sizeof(PyCachedPropertyDescrObject),
+    .tp_dealloc =  (destructor)cached_property_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_BASETYPE,
+    .tp_doc = cached_property_doc,
+    .tp_traverse = (traverseproc)cached_property_traverse,
+    .tp_descr_get = cached_property_get,
+    .tp_descr_set = cached_property_set,
     .tp_members = cached_property_members,
     .tp_getset = cached_property_getsetlist,
     .tp_new = PyType_GenericNew,
