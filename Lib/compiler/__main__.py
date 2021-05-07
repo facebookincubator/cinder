@@ -5,9 +5,16 @@ import importlib.util
 import marshal
 import os
 import re
+import sys
 from dis import dis
 
 from . import pycodegen, static
+
+try:
+    # pyre-ignore[21]: Could not find a module corresponding to import `cinder`.
+    from cinder import StrictModule
+except ImportError:
+    StrictModule = None
 
 # https://www.python.org/dev/peps/pep-0263/
 coding_re = re.compile(rb"^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)")
@@ -57,6 +64,7 @@ group.add_argument(
     default=-1,
     help="set optimization level to compile with",
 )
+argparser.add_argument("--strict", action="store_true", help="run in strict module")
 args = argparser.parse_args()
 
 with open_with_coding(args.input) as f:
@@ -93,4 +101,11 @@ if args.c:
         f.write(hdr)
         marshal.dump(codeobj, f)
 else:
-    exec(codeobj)
+    if args.strict and StrictModule is not None:
+        d = {}
+        mod = StrictModule(d, False)
+        d["__name__"] = "__main__"
+        sys.modules["__main__"] = mod
+        exec(codeobj, d, d)
+    else:
+        exec(codeobj)
