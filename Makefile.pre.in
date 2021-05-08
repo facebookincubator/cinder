@@ -125,7 +125,7 @@ ifeq ($(OS_NAME), Darwin)
 else
 	LRT_FLAG=-lrt
 endif
-PY_LDFLAGS=	$(CONFIGURE_LDFLAGS) $(LDFLAGS) $(LRT_FLAG)
+PY_LDFLAGS=	$(CONFIGURE_LDFLAGS) $(LDFLAGS)
 
 NO_AS_NEEDED=	@NO_AS_NEEDED@
 SGI_ABI=	@SGI_ABI@
@@ -750,7 +750,7 @@ clinic: check-clean-src $(srcdir)/Modules/_blake2/blake2s_impl.c
 
 # Build the interpreter
 $(BUILDPYTHON):	Programs/python.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
-	$(V)$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
+	$(V)$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST) $(LRT_FLAG)
 
 platform: $(BUILDPYTHON) pybuilddir.txt
 	$(RUNSHARED) $(PYTHON_FOR_BUILD) -c 'import sys ; from sysconfig import get_platform ; print("%s-%d.%d" % (get_platform(), *sys.version_info[:2]))' >platform
@@ -880,7 +880,7 @@ Makefile Modules/config.c: Makefile.pre \
 
 
 Programs/_testembed: Programs/_testembed.o $(LIBRARY) $(LDLIBRARY) $(PY3LIBRARY)
-	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS)
+	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG)
 
 ############################################################################
 # Importlib
