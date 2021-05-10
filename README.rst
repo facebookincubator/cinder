@@ -76,6 +76,30 @@ strict modules (see below).
 What's here?
 ------------
 
+Immortal Instances
+~~~~~~~~~~~~~~~~~~
+
+Instagram uses a multi-process webserver architecture; the parent process
+starts, performs initialization work (e.g. loading code), and forks tens of
+worker processes to handle client requests. Worker processes are restarted
+periodically for a number of reasons (e.g. memory leaks, code deployments) and
+have a relatively short lifetime. In this model, the OS must copy the entire
+page containing an object that was allocated in the parent process when the
+object's reference count is modified. In practice, the objects allocated
+in the parent process outlive workers; all the work related to reference
+counting them is unnecessary.
+
+Instagram has a very large Python codebase and the overhead due to
+copy-on-write from reference counting long-lived objects turned out to be
+significant. We developed a solution called "immortal instances" to provide a
+way to opt-out objects from reference counting. See `Include/object.h` for
+details. This feature is controlled by defining `Py_IMMORTAL_INSTANCES` and is
+enabled by default in Cinder. This was a large win for us in production (~5%),
+but it makes straight-line code slower. Reference counting operations occur
+frequently and must check whether or not an object participates in reference
+counting when this feature is enabled.
+
+
 Shadowcode
 ~~~~~~~~~~
 
