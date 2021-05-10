@@ -1552,7 +1552,7 @@ testcinder: @DEF_MAKE_RULE@ platform
 
 testcinder_jit: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(JIT_TEST_RUNNER)
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-test-multithreaded-compile -X jit-batch-compile-workers=10 Lib/test/test_multithreaded_compile.py
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-test-multithreaded-compile -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/test_multithreaded_compile.py
 
 testcinder_jit_tinyframe: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-tiny-frame $(JIT_TEST_RUNNER)
