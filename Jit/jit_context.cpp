@@ -168,21 +168,13 @@ _PyJITContext* _PyJITContext_New(std::unique_ptr<jit::Compiler> compiler) {
   auto ctx_raw = new _PyJITContext();
   auto ctx =
       Ref<_PyJITContext>::steal(PyObject_INIT(ctx_raw, &_PyJITContext_Type));
-
-  ctx->code_gen = CodeGen_New();
-  if (ctx->code_gen == nullptr) {
-    return nullptr;
-  }
-
+  ctx->slot_gen = std::make_unique<jit::SlotGen>();
   ctx->jit_compiler = std::move(compiler);
-
   ctx->deopt_info = PyDict_New();
   if (ctx->deopt_info == nullptr) {
     return nullptr;
   }
-
   ctx->weakreflist = nullptr;
-
   return ctx.release();
 }
 
@@ -222,11 +214,6 @@ void _PyJITContext_Free(_PyJITContext* ctx) {
       remaining);
 
   Py_CLEAR(ctx->deopt_info);
-
-  if (ctx->code_gen != NULL) {
-    CodeGen_Free(ctx->code_gen);
-    ctx->code_gen = NULL;
-  }
 
   delete ctx;
 }
@@ -335,7 +322,7 @@ static _PyJIT_Result specialize_tp_reprfunc(
   if (lookup_type_function(type, id, &fn) < 0) {
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
-  reprfunc specialized = CodeGen_GenReprFuncSlot(ctx->code_gen, type, fn);
+  reprfunc specialized = ctx->slot_gen->genReprFuncSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -365,7 +352,7 @@ static _PyJIT_Result specialize_generic_tp_call(
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
-  ternaryfunc specialized = CodeGen_GenCallSlot(ctx->code_gen, type, fn);
+  ternaryfunc specialized = ctx->slot_gen->genCallSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -393,7 +380,7 @@ static _PyJIT_Result specialize_tp_descr_get(
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
-  descrgetfunc specialized = CodeGen_GenGetDescrSlot(ctx->code_gen, type, fn);
+  descrgetfunc specialized = ctx->slot_gen->genGetDescrSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -428,7 +415,7 @@ _PyJIT_Result specialize_tp_getattr(
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
-  getattrofunc specialized = CodeGen_GenGetAttrSlot(ctx->code_gen, type, fn);
+  getattrofunc specialized = ctx->slot_gen->genGetAttrSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }

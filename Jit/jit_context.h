@@ -4,10 +4,10 @@
 
 #include "Python.h"
 
-#include "Jit/code_gen.h"
 #include "Jit/compiler.h"
 #include "Jit/pyjit_result.h"
 #include "Jit/pyjit_typeslots.h"
+#include "Jit/slot_gen.h"
 #include "Jit/util.h"
 
 #include <functional>
@@ -44,12 +44,9 @@ struct std::hash<CompilationKey> {
 struct _PyJITContext {
   PyObject_HEAD;
 
-  /*
-   * Code generator used by targeted, one off code generators
-   */
-  CodeGen* code_gen;
+  std::unique_ptr<jit::SlotGen> slot_gen;
 
-  /* General purpose jit compiler; may be null */
+  /* General purpose jit compiler */
   std::unique_ptr<jit::Compiler> jit_compiler;
 
   /*

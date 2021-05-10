@@ -425,7 +425,6 @@ PYTHON_OBJS=	\
 JIT_OBJS=       \
 		Jit/bitvector.o \
 		Jit/bytecode.o \
-		Jit/code_gen.o \
 		Jit/compiler.o \
 		Jit/deopt.o \
 		Jit/dict_watch.o \
@@ -454,6 +453,7 @@ JIT_OBJS=       \
 		Jit/pyjit.o \
 		Jit/runtime.o \
 		Jit/runtime_support.o \
+		Jit/slot_gen.o \
 		Jit/util.o \
 		Jit/codegen/annotations.o \
 		Jit/codegen/autogen.o \
@@ -1192,7 +1192,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/bitvector.h \
 		$(srcdir)/Jit/bytecode.h \
 		$(srcdir)/Jit/capsule.h \
-		$(srcdir)/Jit/code_gen.h \
 		$(srcdir)/Jit/compiler.h \
 		$(srcdir)/Jit/dataflow.h \
 		$(srcdir)/Jit/deopt.h \
@@ -1223,6 +1222,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/ref.h \
 		$(srcdir)/Jit/runtime.h \
 		$(srcdir)/Jit/runtime_support.h \
+		$(srcdir)/Jit/slot_gen.h \
 		$(srcdir)/Jit/stack.h \
 		$(srcdir)/Jit/util.h \
 		$(srcdir)/Jit/watcher.h \
@@ -2282,7 +2282,6 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/bitvector_test.o \
 	${RUNTIME_TESTS_DIR}/block_canonicalizer_test.o \
 	${RUNTIME_TESTS_DIR}/bytecode_test.o \
-	${RUNTIME_TESTS_DIR}/code_gen_test.o \
 	${RUNTIME_TESTS_DIR}/copy_graph_test.o \
 	${RUNTIME_TESTS_DIR}/dataflow_test.o \
 	${RUNTIME_TESTS_DIR}/deopt_test.o \
@@ -2302,6 +2301,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/ref_test.o \
 	${RUNTIME_TESTS_DIR}/regalloc_test.o \
 	${RUNTIME_TESTS_DIR}/sanity_test.o \
+	${RUNTIME_TESTS_DIR}/slot_gen_test.o \
 	${RUNTIME_TESTS_DIR}/switchboard_test.o \
 	${RUNTIME_TESTS_DIR}/util_test.o \
 	${RUNTIME_TESTS_DIR}/testutil.o \

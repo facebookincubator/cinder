@@ -4,16 +4,16 @@
 #include "fixtures.h"
 #include "testutil.h"
 
-#include "Jit/code_gen.h"
 #include "Jit/ref.h"
+#include "Jit/slot_gen.h"
 #include "Python.h"
 
-class CodeGenTest : public RuntimeTest {
+class SlotGenTest : public RuntimeTest {
  public:
   void SetUp() override {
     RuntimeTest::SetUp();
-    code_gen_ = CodeGen_New();
-    ASSERT_NE(code_gen_, nullptr);
+    slot_gen_ = std::make_unique<jit::SlotGen>();
+    ASSERT_NE(slot_gen_, nullptr);
   }
 
   Ref<> makeRawInstance(PyObject* type, PyObject* args, PyObject* kwargs) {
@@ -31,14 +31,13 @@ class CodeGenTest : public RuntimeTest {
   }
 
   void TearDown() override {
-    CodeGen_Free(code_gen_);
     RuntimeTest::TearDown();
   }
 
-  CodeGen* code_gen_;
+  std::unique_ptr<jit::SlotGen> slot_gen_;
 };
 
-TEST_F(CodeGenTest, SimpleReprFuncGeneration) {
+TEST_F(SlotGenTest, SimpleReprFuncGeneration) {
   const char* src = R"(
 class Foo:
     def __str__(self):
@@ -53,7 +52,7 @@ class Foo:
   PyObject* strfunc = _PyType_Lookup(foo, dunder_str);
   ASSERT_NE(strfunc, nullptr) << "Failed looking up __str__";
 
-  reprfunc tp_str = CodeGen_GenReprFuncSlot(code_gen_, foo, strfunc);
+  reprfunc tp_str = slot_gen_->genReprFuncSlot(foo, strfunc);
   ASSERT_NE(tp_str, nullptr);
 
   auto args = Ref<>::steal(PyTuple_New(0));
@@ -70,7 +69,7 @@ class Foo:
   ASSERT_EQ(cmp_res, 0);
 }
 
-TEST_F(CodeGenTest, SimpleCallFuncGeneration) {
+TEST_F(SlotGenTest, SimpleCallFuncGeneration) {
   const char* src = R"(
 class Foo:
     def __call__(self, *args, **kwargs):
@@ -85,7 +84,7 @@ class Foo:
   PyObject* callfunc = _PyType_Lookup(foo, dunder_call);
   ASSERT_NE(callfunc, nullptr) << "Failed looking up __call__";
 
-  ternaryfunc tp_call = CodeGen_GenCallSlot(code_gen_, foo, callfunc);
+  ternaryfunc tp_call = slot_gen_->genCallSlot(foo, callfunc);
   ASSERT_NE(tp_call, nullptr);
 
   auto args = Ref<>::steal(PyTuple_New(0));
@@ -102,7 +101,7 @@ class Foo:
   ASSERT_EQ(cmp_res, 0);
 }
 
-TEST_F(CodeGenTest, SimpleGetAttrReturnsValue) {
+TEST_F(SlotGenTest, SimpleGetAttrReturnsValue) {
   const char* src = R"(
 class Foo:
   def __getattr__(self, name):
@@ -117,8 +116,7 @@ class Foo:
   PyObject* dunder_getattr = _PyType_Lookup(foo, getattr);
   ASSERT_NE(dunder_getattr, nullptr) << "Failed looking up __getattr__";
 
-  getattrofunc getattro =
-      CodeGen_GenGetAttrSlot(code_gen_, foo, dunder_getattr);
+  getattrofunc getattro = slot_gen_->genGetAttrSlot(foo, dunder_getattr);
   ASSERT_NE(getattro, nullptr);
 
   auto args = Ref<>::steal(PyTuple_New(0));
@@ -133,7 +131,7 @@ class Foo:
   ASSERT_EQ(Py_TYPE(result.get()), &PyLong_Type);
 }
 
-TEST_F(CodeGenTest, SimpleGetAttrClassValue) {
+TEST_F(SlotGenTest, SimpleGetAttrClassValue) {
   const char* src = R"(
 class Foo:
   abc = 'abc'
@@ -152,8 +150,7 @@ class Foo:
   auto abc = Ref<>::steal(PyUnicode_FromString("abc"));
   ASSERT_NE(abc.get(), nullptr) << "Failed creating abc string";
 
-  getattrofunc getattro =
-      CodeGen_GenGetAttrSlot(code_gen_, foo, dunder_getattr);
+  getattrofunc getattro = slot_gen_->genGetAttrSlot(foo, dunder_getattr);
   ASSERT_NE(getattro, nullptr);
 
   auto args = Ref<>::steal(PyTuple_New(0));
@@ -166,7 +163,7 @@ class Foo:
   ASSERT_EQ(Py_TYPE(result.get()), &PyUnicode_Type);
 }
 
-TEST_F(CodeGenTest, SimpleDescrGet) {
+TEST_F(SlotGenTest, SimpleDescrGet) {
   const char* src = R"(
 class Foo:
   abc = 'abc'
@@ -189,7 +186,7 @@ class Foo:
   auto abc = Ref<>::steal(PyUnicode_FromString("abc"));
   ASSERT_NE(abc.get(), nullptr) << "Failed creating abc string";
 
-  descrgetfunc getfunc = CodeGen_GenGetDescrSlot(code_gen_, foo, dunder_get);
+  descrgetfunc getfunc = slot_gen_->genGetDescrSlot(foo, dunder_get);
   ASSERT_NE(getfunc, nullptr);
 
   auto one = Ref<>::steal(PyLong_FromLong(1));

@@ -5,7 +5,7 @@
 // redefinitions.
 #include "Python.h"
 
-#include "Jit/code_gen.h"
+#include "Jit/slot_gen.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -32,22 +32,10 @@ namespace x86 = asmjit::x86;
 
 int g_gdb_stubs_support;
 
-struct CodeGen {
-  JitRuntime* jit_runtime;
-};
+namespace jit {
 
-CodeGen* CodeGen_New() {
-  CodeGen* codegen = static_cast<CodeGen*>(malloc(sizeof(CodeGen)));
-  if (codegen == NULL) {
-    return NULL;
-  }
-  codegen->jit_runtime = new JitRuntime();
-  if (codegen->jit_runtime == NULL) {
-    free(codegen);
-    return NULL;
-  }
-
-  return codegen;
+SlotGen::SlotGen() {
+  jit_runtime_ = std::make_unique<JitRuntime>();
 }
 
 class SimpleErrorHandler : public ErrorHandler {
@@ -66,11 +54,11 @@ class SimpleErrorHandler : public ErrorHandler {
 };
 
 void* GenFunc(
-    JitRuntime* jit,
+    JitRuntime& jit,
     const char* name,
     const std::function<void(x86::Builder&)>& f) {
   asmjit::CodeHolder code;
-  code.init(jit->codeInfo());
+  code.init(jit.codeInfo());
   SimpleErrorHandler eh;
   code.setErrorHandler(&eh);
   x86::Builder as(&code);
@@ -80,7 +68,7 @@ void* GenFunc(
   as.finalize();
 
   void* func;
-  Error err = jit->add(&func, &code);
+  Error err = jit.add(&func, &code);
   if (err) {
     return nullptr;
   }
@@ -162,12 +150,11 @@ static void gen_fused_call_slot(x86::Builder& as, PyObject* callfunc) {
   as.jmp(x86::rax);
 }
 
-ternaryfunc CodeGen_GenCallSlot(
-    CodeGen* codegen,
+ternaryfunc SlotGen::genCallSlot(
     PyTypeObject* /* type */,
     PyObject* call_func) {
   return (ternaryfunc)GenFunc(
-      codegen->jit_runtime, "__call__", [&](x86::Builder& as) -> void {
+      *jit_runtime_, "__call__", [&](x86::Builder& as) -> void {
         gen_fused_call_slot(as, call_func);
       });
 }
@@ -194,19 +181,13 @@ static void gen_fused_reprfunc(x86::Builder& as, PyObject* repr_func) {
   as.ret();
 }
 
-reprfunc CodeGen_GenReprFuncSlot(
-    CodeGen* codegen,
+reprfunc SlotGen::genReprFuncSlot(
     PyTypeObject* /* type */,
     PyObject* repr_func) {
   return (reprfunc)GenFunc(
-      codegen->jit_runtime, "__repr__", [&](x86::Builder& as) -> void {
+      *jit_runtime_, "__repr__", [&](x86::Builder& as) -> void {
         gen_fused_reprfunc(as, repr_func);
       });
-}
-
-void CodeGen_Free(CodeGen* codegen) {
-  delete codegen->jit_runtime;
-  free(codegen);
 }
 
 PyObject* getattr_fallback(PyObject* self, PyObject* func, PyObject* name) {
@@ -250,12 +231,11 @@ static void gen_fused_getattro_slot(x86::Builder& as, PyObject* callfunc) {
   emit_epilogue(as);
 }
 
-getattrofunc CodeGen_GenGetAttrSlot(
-    CodeGen* codegen,
+getattrofunc SlotGen::genGetAttrSlot(
     PyTypeObject* /* type */,
     PyObject* call_func) {
   return (getattrofunc)GenFunc(
-      codegen->jit_runtime, "__getattr__", [&](x86::Builder& as) -> void {
+      *jit_runtime_, "__getattr__", [&](x86::Builder& as) -> void {
         gen_fused_getattro_slot(as, call_func);
       });
 }
@@ -302,15 +282,14 @@ static void gen_fused_get_slot(x86::Builder& as, PyObject* callfunc) {
   emit_epilogue(as);
 }
 
-descrgetfunc CodeGen_GenGetDescrSlot(
-    CodeGen* codegen,
-    PyTypeObject* type,
-    PyObject* get_func) {
+descrgetfunc SlotGen::genGetDescrSlot(PyTypeObject* type, PyObject* get_func) {
   char name[181];
   snprintf(name, 181, "%s::__get__", type->tp_name);
 
   return (descrgetfunc)GenFunc(
-      codegen->jit_runtime, name, [&](x86::Builder& as) -> void {
+      *jit_runtime_, name, [&](x86::Builder& as) -> void {
         gen_fused_get_slot(as, get_func);
       });
 }
+
+} // namespace jit
