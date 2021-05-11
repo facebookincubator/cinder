@@ -35,6 +35,7 @@ PassRegistry::PassRegistry() {
   addPass(DynamicComparisonElimination::Factory);
   addPass(PhiElimination::Factory);
   addPass(RedundantConversionElimination::Factory);
+  addPass(LoadConstTupleItemOptimization::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
@@ -408,6 +409,42 @@ void RedundantConversionElimination::Run(Function& func) {
   }
 
   CopyPropagation{}.Run(func);
+}
+
+void LoadConstTupleItemOptimization::Run(Function& func) {
+  for (auto& block : func.cfg.blocks) {
+    for (auto it = block.begin(); it != block.end();) {
+      auto& instr = *it;
+      ++it;
+
+      if (!instr.IsLoadTupleItem()) {
+        continue;
+      }
+
+      auto load_tuple_item = static_cast<const LoadTupleItem*>(&instr);
+      Register* tuple = load_tuple_item->tuple();
+      Instr* def_instr = tuple->instr();
+
+      if (!def_instr->IsLoadConst()) {
+        continue;
+      }
+
+      auto load_const = static_cast<const LoadConst*>(def_instr);
+
+      if (!load_const->type().hasValueSpec(TTuple)) {
+        continue;
+      }
+      auto const_tuple = load_const->type().objectSpec();
+
+      auto new_load_const = LoadConst::create(
+          load_tuple_item->GetOutput(),
+          Type::fromObject(
+              PyTuple_GET_ITEM(const_tuple, load_tuple_item->idx())));
+
+      instr.ReplaceWith(*new_load_const);
+      delete load_tuple_item;
+    }
+  }
 }
 
 PyObject* loadGlobal(

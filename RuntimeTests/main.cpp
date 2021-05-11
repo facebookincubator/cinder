@@ -70,6 +70,8 @@ int main(int argc, char* argv[]) {
   register_test("RuntimeTests/hir_tests/hir_builder_test.txt");
   register_test("RuntimeTests/hir_tests/hir_builder_static_test.txt", true);
   register_test("RuntimeTests/hir_tests/load_attr_specialization_test.txt");
+  register_test(
+      "RuntimeTests/hir_tests/load_const_tuple_item_optimization_test.txt");
   register_test("RuntimeTests/hir_tests/null_check_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
   register_test(

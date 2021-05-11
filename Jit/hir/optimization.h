@@ -176,6 +176,18 @@ class RedundantConversionElimination : public Pass {
   }
 };
 
+// Convert LoadTupleItem to LoadConst if the tuple is a constant
+class LoadConstTupleItemOptimization : public Pass {
+ public:
+  LoadConstTupleItemOptimization() : Pass("LoadConstTupleItemOptimization") {}
+
+  void Run(Function& irfunc) override;
+
+  static std::unique_ptr<LoadConstTupleItemOptimization> Factory() {
+    return std::make_unique<LoadConstTupleItemOptimization>();
+  }
+};
+
 class PassRegistry {
  public:
   PassRegistry();
