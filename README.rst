@@ -274,11 +274,9 @@ automatically detect static modules and load them as static with cross-module
 compilation; we currently do this via our strict/static import loader which
 is not part of Cinder. Currently the best way to experiment with static
 python in Cinder is to use ``./python -m compiler --static some_module.py``,
-which will compile the module as static Python and execute it. (Add the
-``--dis`` flag to also disassemble it after compilation.) Since this does not
-use a ``StrictModule`` nor freeze types by default, the resulting code won't
-JIT as optimally as what we get in prod, particularly for function and method
-calls.
+which will compile the module as static Python and execute it.
+
+See ``CinderDoc/static_python.rst`` for more detailed documentation.
 
 
 .. _MyPyC: https://github.com/mypyc/mypyc
