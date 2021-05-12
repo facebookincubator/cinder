@@ -2215,53 +2215,46 @@ main_loop:
         case TARGET(YIELD_FROM): {
             PyObject *v = POP();
             PyObject *receiver = TOP();
-            PyObject *stopIterationResult = NULL;
-            if (PyGen_CheckExact(receiver) || PyCoro_CheckExact(receiver)) {
-                if (_Py_LIKELY(!tstate->c_tracefunc)) {
-                    retval =
-                        _PyGen_Send_NoStopIteration(tstate,
-                                                    (PyGenObject *)receiver,
-                                                    v,
-                                                    &stopIterationResult);
-                } else {
-                    retval = _PyGen_Send((PyGenObject *)receiver, v);
-                }
+            PySendResult gen_status;
+            if (_Py_LIKELY(tstate->c_tracefunc == NULL)) {
+                gen_status = PyIter_Send(tstate, receiver, v, &retval);
             } else {
                 _Py_IDENTIFIER(send);
-                if (v == Py_None) {
-                    if (PyType_HasFeature(Py_TYPE(receiver),
-                                          Py_TPFLAGS_USE_GENNEXT)) {
-                        int is_return;
-                        retval = ((PyGenTypeObject *)Py_TYPE(receiver))
-                                     ->tp_gennext.g_gennext(
-                                         receiver, Py_None, &is_return);
-                        if (retval && is_return) {
-                            stopIterationResult = retval;
-                            retval = NULL;
-                        }
-                    } else {
-                        retval = Py_TYPE(receiver)->tp_iternext(receiver);
+                if (v == Py_None && PyIter_Check(receiver)) {
+                    retval = Py_TYPE(receiver)->tp_iternext(receiver);
+                }
+                else {
+                    retval = _PyObject_CallMethodIdObjArgs(receiver, &PyId_send, v, NULL);
+                }
+                if (retval == NULL) {
+                    if (tstate->c_tracefunc != NULL
+                            && _PyErr_ExceptionMatches(tstate, PyExc_StopIteration))
+                        call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
+                    if (_PyGen_FetchStopIterationValue(&retval) == 0) {
+                        gen_status = PYGEN_RETURN;
+                    }
+                    else {
+                        gen_status = PYGEN_ERROR;
                     }
                 }
-                else
-                    retval = _PyObject_CallMethodIdObjArgs(receiver, &PyId_send, v, NULL);
+                else {
+                    gen_status = PYGEN_NEXT;
+                }
             }
             Py_DECREF(v);
-            if (retval == NULL) {
-                PyObject *val;
-                if (UNLIKELY(tstate->c_tracefunc != NULL &&
-                                 PyErr_ExceptionMatches(PyExc_StopIteration)))
-                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
-                if (stopIterationResult) {
-                    // steal the reference
-                    val = stopIterationResult;
-                } else if (_PyGen_FetchStopIterationValue(&val) < 0) {
-                    goto error;
-                }
+            if (gen_status == PYGEN_ERROR) {
+                assert (retval == NULL);
+                goto error;
+            }
+            if (gen_status == PYGEN_RETURN) {
+                assert (retval != NULL);
+
                 Py_DECREF(receiver);
-                SET_TOP(val);
+                SET_TOP(retval);
+                retval = NULL;
                 DISPATCH();
             }
+            assert (gen_status == PYGEN_NEXT);
             /* receiver remains on stack, retval is value to be yielded */
             f->f_stacktop = stack_pointer;
             /* and repeat... */
