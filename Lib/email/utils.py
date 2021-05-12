@@ -115,11 +115,13 @@ def getaddresses(fieldvalues):
 
 
 def _format_timetuple_and_zone(timetuple, zone):
+    DAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
+    MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
     return '%s, %02d %s %04d %02d:%02d:%02d %s' % (
-        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][timetuple[6]],
+        DAYS[timetuple[6]],
         timetuple[2],
-        ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][timetuple[1] - 1],
+        MONTHS[timetuple[1] - 1],
         timetuple[0], timetuple[3], timetuple[4], timetuple[5],
         zone)
 
