@@ -1120,14 +1120,13 @@ int _PyClassLoader_GetTypeCode(PyTypeObject *type) {
 }
 
 
-/* Resolve a tuple type descr to a `prim_type` integer (`TYPED_*`); return -1 if
- * if the type cannot be resolved. */
+/* Resolve a tuple type descr to a `prim_type` integer (`TYPED_*`); return -1
+ * and set an error if the type cannot be resolved. */
 int
 _PyClassLoader_ResolvePrimitiveType(PyObject *descr) {
     int optional;
     PyTypeObject *type = resolve_reference_type(descr, &optional);
     if (type == NULL) {
-        PyErr_Clear();
         return -1;
     }
     int res = _PyClassLoader_GetTypeCode(type);

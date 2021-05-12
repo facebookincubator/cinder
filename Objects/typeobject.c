@@ -2510,6 +2510,7 @@ parse_slot_type(PyObject *name, Py_ssize_t *size)
     // types and verify they are valid at this point, we just assume any
     // non-primitive is an object type.
     if (primitive == -1) {
+        PyErr_Clear();
         primitive = TYPED_OBJECT;
     }
     *size = _PyClassLoader_PrimitiveTypeToSize(primitive);
