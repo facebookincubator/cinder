@@ -51,6 +51,7 @@ class AutoTranslator {
       case jit::lir::OperandBase::kDouble:
         JIT_CHECK(false, "incorrect register type.");
     }
+    Py_UNREACHABLE();
   }
 
   static asmjit::x86::Xmm getXmm(const jit::lir::OperandBase* op) {
