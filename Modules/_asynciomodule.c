@@ -4475,7 +4475,6 @@ task_step_impl(TaskObj *task, PyObject *exc)
     int clear_exc = 0;
     PyObject *result = NULL;
     PyObject *coro;
-    PyObject *o;
 
     if (task->task_state != STATE_PENDING) {
         PyErr_Format(asyncio_InvalidStateError,
@@ -4525,7 +4524,6 @@ task_step_impl(TaskObj *task, PyObject *exc)
         return NULL;
     }
 
-    o = NULL;
     PySendResult gen_status;
     if (exc == NULL) {
         gen_status = PyIter_Send(PyThreadState_GET(), coro, Py_None, &result);
