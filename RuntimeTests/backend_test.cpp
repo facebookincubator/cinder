@@ -212,6 +212,52 @@ TEST_F(BackendTest, FPArithmetic) {
   ASSERT_DOUBLE_EQ(test(Instruction::kFdiv), a / b);
 }
 
+TEST_F(BackendTest, FPCompare) {
+  double a = 3.12;
+  double b = 1.1616;
+
+  auto test = [&](Instruction::Opcode opcode) -> double {
+    auto lirfunc = std::make_unique<Function>();
+    auto bb = lirfunc->allocateBasicBlock();
+
+    auto pa = bb->allocateInstr(
+        Instruction::kMove,
+        nullptr,
+        OutVReg(),
+        Imm(reinterpret_cast<uint64_t>(&a)));
+    auto fa = bb->allocateInstr(
+        Instruction::kMove, nullptr, OutVReg(OperandBase::kDouble), Ind(pa));
+
+    auto pb = bb->allocateInstr(
+        Instruction::kMove,
+        nullptr,
+        OutVReg(),
+        Imm(reinterpret_cast<uint64_t>(&b)));
+    auto fb = bb->allocateInstr(
+        Instruction::kMove, nullptr, OutVReg(OperandBase::kDouble), Ind(pb));
+
+    auto compare =
+        bb->allocateInstr(opcode, nullptr, OutVReg(), VReg(fa), VReg(fb));
+    bb->allocateInstr(Instruction::kReturn, nullptr, VReg(compare));
+
+    // need this because the register allocator assumes the basic blocks
+    // end with Return should have one and only one successor.
+    auto epilogue = lirfunc->allocateBasicBlock();
+    bb->addSuccessor(epilogue);
+
+    auto func = (bool (*)())SimpleCompile(lirfunc.get());
+
+    return func();
+  };
+
+  ASSERT_DOUBLE_EQ(test(Instruction::kEqual), a == b);
+  ASSERT_DOUBLE_EQ(test(Instruction::kNotEqual), a != b);
+  ASSERT_DOUBLE_EQ(test(Instruction::kGreaterThanUnsigned), a > b);
+  ASSERT_DOUBLE_EQ(test(Instruction::kLessThanUnsigned), a < b);
+  ASSERT_DOUBLE_EQ(test(Instruction::kGreaterThanEqualUnsigned), a >= b);
+  ASSERT_DOUBLE_EQ(test(Instruction::kLessThanEqualUnsigned), a <= b);
+}
+
 namespace {
 double rt_func(
     int a,

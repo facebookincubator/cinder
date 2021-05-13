@@ -51,8 +51,17 @@ class AutoTranslator {
       case jit::lir::OperandBase::kDouble:
         JIT_CHECK(false, "incorrect register type.");
     }
+  }
 
-    JIT_CHECK(false, "unknown op size");
+  static asmjit::x86::Xmm getXmm(const jit::lir::OperandBase* op) {
+    auto data_type = op->dataType();
+    switch (data_type) {
+      case jit::lir::OperandBase::kDouble:
+        return asmjit::x86::xmm(
+            op->getPhyRegister() - PhyLocation::XMM_REG_BASE);
+      default:
+        JIT_CHECK(false, "incorrect register type.");
+    }
   }
 
   static asmjit::x86::Gp getGp(const jit::lir::OperandBase* op) {

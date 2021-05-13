@@ -138,7 +138,7 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
   auto func = findByPattern(instr_map.get(), pattern);
   JIT_CHECK(
       func != nullptr,
-      "No pattern match found for opcode %s: %s",
+      "No pattern found for opcode %s: %s",
       InstrProperty::getProperties(instr).name,
       pattern);
   func(env, instr);
@@ -217,12 +217,14 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
 
 void TranslateCompare(Environ* env, const Instruction* instr) {
   auto as = env->as;
+  const OperandBase* inp0 = instr->getInput(0);
   const OperandBase* inp1 = instr->getInput(1);
   if (inp1->type() == OperandBase::kImm) {
-    as->cmp(AutoTranslator::getGp(instr->getInput(0)), inp1->getConstant());
+    as->cmp(AutoTranslator::getGp(inp0), inp1->getConstant());
+  } else if (!inp1->isFp()) {
+    as->cmp(AutoTranslator::getGp(inp0), AutoTranslator::getGp(inp1));
   } else {
-    as->cmp(
-        AutoTranslator::getGp(instr->getInput(0)), AutoTranslator::getGp(inp1));
+    as->comisd(AutoTranslator::getXmm(inp0), AutoTranslator::getXmm(inp1));
   }
   auto output = AutoTranslator::getGp(instr->output());
   switch (instr->opcode()) {
@@ -937,6 +939,7 @@ END_RULES
 BEGIN_RULES(Instruction::kCmp)
   GEN("rr", ASM(cmp, OP(0), OP(1)))
   GEN("ri", ASM(cmp, OP(0), OP(1)))
+  GEN("xx", ASM(comisd, OP(0), OP(1)))
 END_RULES
 
 BEGIN_RULES(Instruction::kTest)
@@ -987,55 +990,27 @@ BEGIN_RULES(Instruction::kBranchLE)
   GEN("b", ASM(jle, LBL(0)))
 END_RULES
 
-BEGIN_RULES(Instruction::kEqual)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
+#define DEF_COMPARE_OP_RULES(name, fpcomp) \
+BEGIN_RULES(Instruction::name) \
+  GEN("Rrr", CALL(TranslateCompare)) \
+  GEN("Rri", CALL(TranslateCompare)) \
+  if (fpcomp) { \
+    GEN("Rxx", CALL(TranslateCompare)) \
+  } \
 END_RULES
 
-BEGIN_RULES(Instruction::kNotEqual)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
+DEF_COMPARE_OP_RULES(kEqual, true)
+DEF_COMPARE_OP_RULES(kNotEqual, true)
+DEF_COMPARE_OP_RULES(kGreaterThanUnsigned, true)
+DEF_COMPARE_OP_RULES(kGreaterThanEqualUnsigned, true)
+DEF_COMPARE_OP_RULES(kLessThanUnsigned, true)
+DEF_COMPARE_OP_RULES(kLessThanEqualUnsigned, true)
+DEF_COMPARE_OP_RULES(kGreaterThanSigned, false)
+DEF_COMPARE_OP_RULES(kGreaterThanEqualSigned, false)
+DEF_COMPARE_OP_RULES(kLessThanSigned, false)
+DEF_COMPARE_OP_RULES(kLessThanEqualSigned, false)
 
-BEGIN_RULES(Instruction::kGreaterThanSigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
-
-BEGIN_RULES(Instruction::kGreaterThanEqualSigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
-
-BEGIN_RULES(Instruction::kLessThanSigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
-
-BEGIN_RULES(Instruction::kLessThanEqualSigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
-
-BEGIN_RULES(Instruction::kGreaterThanUnsigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
-
-BEGIN_RULES(Instruction::kGreaterThanEqualUnsigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
-
-BEGIN_RULES(Instruction::kLessThanUnsigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
-
-BEGIN_RULES(Instruction::kLessThanEqualUnsigned)
-  GEN("Rrr", CALL(TranslateCompare))
-  GEN("Rri", CALL(TranslateCompare))
-END_RULES
+#undef DEF_COMPARE_OP_RULES
 
 BEGIN_RULES(Instruction::kInc)
   GEN("r", ASM(inc, OP(0)))
