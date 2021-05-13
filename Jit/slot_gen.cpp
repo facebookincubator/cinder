@@ -79,7 +79,8 @@ void* GenFunc(
         name, __FILE__, __LINE__, (void*)func, code_size, 0);
   }
 
-  jit::perf::registerFunction(func, code_size, name);
+  jit::perf::registerFunction(
+      func, code_size, name, jit::perf::kFuncSymbolPrefix);
 
   return func;
 }

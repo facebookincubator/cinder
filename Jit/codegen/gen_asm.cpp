@@ -1015,7 +1015,11 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // For perf, we want only the size of the code, so we get that directly from
   // the .text section.
   perf::registerFunction(
-      entry_, codeholder.textSection()->realSize(), GetFunction()->fullname);
+      entry_,
+      codeholder.textSection()->realSize(),
+      GetFunction()->fullname,
+      GetFunction()->frameMode == FrameMode::kNone ? perf::kNoFrameSymbolPrefix
+                                                   : perf::kFuncSymbolPrefix);
 }
 
 void NativeGenerator::CollectOptimizableLoadMethods() {

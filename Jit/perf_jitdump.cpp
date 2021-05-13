@@ -31,6 +31,10 @@
 namespace jit {
 namespace perf {
 
+extern const std::string kDefaultSymbolPrefix{"__CINDER_INFRA_JIT"};
+extern const std::string kFuncSymbolPrefix{"__CINDER_JIT"};
+extern const std::string kNoFrameSymbolPrefix{"__CINDER_NO_FRAME_JIT"};
+
 namespace {
 
 struct FileInfo {
@@ -156,21 +160,6 @@ uint64_t getTimestamp() {
 #endif
 }
 
-const char* kDefaultPrefix = "__CINDER_JIT:";
-
-// Get the prefix to prepend to all function names.
-const std::string& getSymbolPrefix() {
-  static auto const prefix = []() -> std::string {
-    auto env = Py_GETENV("JIT_SYMBOL_PREFIX");
-    if (env == nullptr) {
-      return kDefaultPrefix;
-    }
-    return env;
-  }();
-
-  return prefix;
-}
-
 FileInfo openFileInfo(std::string filename_format) {
   auto filename = fmt::format(filename_format, getpid());
   auto file = std::fopen(filename.c_str(), "w+");
@@ -187,7 +176,9 @@ FileInfo openPidMap() {
     return {};
   }
 
-  return openFileInfo("/tmp/perf-{}.map");
+  FileInfo perf_map = openFileInfo("/tmp/perf-{}.map");
+  JIT_DLOG("Opened JIT perf-map file: %s", perf_map.filename);
+  return perf_map;
 }
 
 // If enabled, open the jitdump file, and write out its header.
@@ -325,16 +316,20 @@ void copyJitdumpFile() {
 
 } // namespace
 
-void registerFunction(void* code, std::size_t size, const std::string& name) {
+void registerFunction(
+    void* code,
+    std::size_t size,
+    const std::string& name,
+    const std::string& prefix) {
   initFiles();
 
   if (auto file = g_pid_map.file) {
     fmt::print(
         file,
-        "{:x} {:x} {}{}\n",
+        "{:x} {:x} {}:{}\n",
         reinterpret_cast<uintptr_t>(code),
         size,
-        getSymbolPrefix(),
+        prefix,
         name);
     std::fflush(file);
   }
@@ -344,7 +339,7 @@ void registerFunction(void* code, std::size_t size, const std::string& name) {
     ExclusiveFileLock write_lock(file);
 
     static uint64_t code_index = 0;
-    auto const prefixed_name = getSymbolPrefix() + name;
+    auto const prefixed_name = prefix + ":" + name;
 
     CodeLoadRecord record;
     record.type = JIT_CODE_LOAD;
