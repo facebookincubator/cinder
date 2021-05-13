@@ -1843,7 +1843,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod["f"]
             self.assertEqual(f(42), 42)
-            self.assertInBytecode(f, "INT_UNBOX")
+            self.assertInBytecode(f, "PRIMITIVE_UNBOX")
             with self.assertRaisesRegex(
                 TypeError, "(expected int, got str)|(an integer is required)"
             ):
@@ -1860,7 +1860,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod["f"]
             self.assertEqual(f(42), 42)
-            self.assertInBytecode(f, "INT_UNBOX")
+            self.assertInBytecode(f, "PRIMITIVE_UNBOX")
             self.assertEqual(f(True), 1)
             self.assertEqual(f(False), 0)
 
@@ -11714,7 +11714,7 @@ class StaticRuntimeTests(StaticTestBase):
         m = self.find_code(c, "m")
         self.assertInBytecode(m, "LOAD_CONST", 111)
         self.assertNotInBytecode(m, "PRIMITIVE_LOAD_CONST")
-        self.assertInBytecode(m, "INT_UNBOX")
+        self.assertInBytecode(m, "PRIMITIVE_UNBOX")
         self.assertInBytecode(m, "SEQUENCE_GET", SEQ_ARRAY_INT8)
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             m = mod["m"]

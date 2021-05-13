@@ -1176,7 +1176,7 @@ fun jittestmodule:test {
       Locals<2> v0 v1
     }
     v11 = LoadConst<LongExact[111]>
-    v12 = IntUnbox<CInt64> v11
+    v12 = PrimitiveUnbox<CInt64> v11
     v13 = IsNegativeAndErrOccurred v12 {
       NextInstrOffset 32
       Locals<2> v0 v1
@@ -1238,7 +1238,7 @@ fun jittestmodule:test {
       Stack<1> v10
     }
     v11 = LoadConst<LongExact[1]>
-    v12 = IntUnbox<CInt64> v11
+    v12 = PrimitiveUnbox<CInt64> v11
     v13 = IsNegativeAndErrOccurred v12 {
       NextInstrOffset 28
       Locals<1> v0

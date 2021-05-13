@@ -139,7 +139,7 @@ extern "C" {
 #define PRIMITIVE_BOX           174
 #define POP_JUMP_IF_ZERO        175
 #define POP_JUMP_IF_NONZERO     176
-#define INT_UNBOX               177
+#define PRIMITIVE_UNBOX               177
 #define PRIMITIVE_BINARY_OP           178
 #define PRIMITIVE_UNARY_OP            179
 #define INT_COMPARE_OP          180

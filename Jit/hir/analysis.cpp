@@ -73,7 +73,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kIntBinaryOp:
     case Opcode::kIntCompare:
     case Opcode::kIntConvert:
-    case Opcode::kIntUnbox:
+    case Opcode::kPrimitiveUnbox:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeMethod:
     case Opcode::kInvokeStaticFunction:

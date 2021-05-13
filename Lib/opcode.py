@@ -243,7 +243,7 @@ def_op("PRIMITIVE_BOX", 174)
 jabs_op("POP_JUMP_IF_ZERO", 175)
 jabs_op("POP_JUMP_IF_NONZERO", 176)
 
-def_op("INT_UNBOX", 177)
+def_op("PRIMITIVE_UNBOX", 177)
 
 def_op("PRIMITIVE_BINARY_OP", 178)
 def_op("PRIMITIVE_UNARY_OP", 179)

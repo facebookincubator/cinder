@@ -464,8 +464,8 @@ Type outputType(const Instr& instr) {
       return pb.value()->type() <= TCDouble ? TOptFloatExact : TOptLongExact;
     }
 
-    case Opcode::kIntUnbox: {
-      auto& unbox = static_cast<const IntUnbox&>(instr);
+    case Opcode::kPrimitiveUnbox: {
+      auto& unbox = static_cast<const PrimitiveUnbox&>(instr);
       return unbox.type();
     }
 

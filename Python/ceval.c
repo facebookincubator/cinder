@@ -4599,7 +4599,7 @@ main_loop:
             FAST_DISPATCH();
         }
 
-        case TARGET(INT_UNBOX): {
+        case TARGET(PRIMITIVE_UNBOX): {
             /* This is a nop in the interpreter loop, we always box values.
              * The oparg for this opcode indicates the type of the unboxed value
              * that goes onto the stack. (Used by the JIT). */

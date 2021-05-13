@@ -143,7 +143,7 @@ bool Instr::isReplayable() const {
     case Opcode::kIntBinaryOp:
     case Opcode::kIntCompare:
     case Opcode::kPrimitiveBox:
-    case Opcode::kIntUnbox:
+    case Opcode::kPrimitiveUnbox:
     case Opcode::kPrimitiveUnaryOp:
     case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kIsNegativeAndErrOccurred:

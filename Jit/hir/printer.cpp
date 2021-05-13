@@ -423,8 +423,8 @@ static std::string format_immediates(const Instr& instr) {
       const auto& box = static_cast<const PrimitiveBox&>(instr);
       return fmt::format("{}", box.is_signed());
     }
-    case Opcode::kIntUnbox: {
-      const auto& unbox = static_cast<const IntUnbox&>(instr);
+    case Opcode::kPrimitiveUnbox: {
+      const auto& unbox = static_cast<const PrimitiveUnbox&>(instr);
       return fmt::format("{}", unbox.type());
     }
     case Opcode::kLoadGlobalCached: {

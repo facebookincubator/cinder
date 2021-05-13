@@ -4071,7 +4071,7 @@ class ArrayInstance(Object["ArrayClass"]):
         if index_is_python_int:
             # If the index is not a primitive, unbox its value to an int64, our implementation of
             # SEQUENCE_{GET/SET} expects the index to be a primitive int.
-            code_gen.emit("INT_UNBOX", INT64_TYPE.instance.as_oparg())
+            code_gen.emit("PRIMITIVE_UNBOX", INT64_TYPE.instance.as_oparg())
 
         if isinstance(node.ctx, ast.Store) and not aug_flag:
             code_gen.emit("SEQUENCE_SET", self._seq_type())
@@ -4639,7 +4639,7 @@ class CIntInstance(CInstance["CIntType"]):
             code_gen.emit("PRIMITIVE_LOAD_CONST", (typ.literal_value, self.as_oparg()))
             return
         code_gen.visit(node)
-        code_gen.emit("INT_UNBOX", self.as_oparg())
+        code_gen.emit("PRIMITIVE_UNBOX", self.as_oparg())
 
     def bind_unaryop(
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]

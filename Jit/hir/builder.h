@@ -276,7 +276,7 @@ class HIRBuilder {
   void emitPrimitiveBox(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitIntUnbox(
+  void emitPrimitiveUnbox(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
   void emitImportFrom(

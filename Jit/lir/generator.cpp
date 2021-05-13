@@ -982,8 +982,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
 
-      case Opcode::kIntUnbox: {
-        auto instr = static_cast<const IntUnbox*>(&i);
+      case Opcode::kPrimitiveUnbox: {
+        auto instr = static_cast<const PrimitiveUnbox*>(&i);
         Type ty = instr->type();
         std::string out = instr->GetOutput()->name();
         std::string convert;

@@ -262,7 +262,7 @@ struct FrameState {
   V(IntCompare)                 \
   V(IntConvert)                 \
   V(PrimitiveUnaryOp)           \
-  V(IntUnbox)                   \
+  V(PrimitiveUnbox)             \
   V(InvokeIterNext)             \
   V(InvokeMethod)               \
   V(IsInstance)                 \
@@ -1949,9 +1949,9 @@ class INSTR_CLASS(PrimitiveBox, HasOutput, Operands<1>) {
   int type_;
 };
 
-class INSTR_CLASS(IntUnbox, HasOutput, Operands<1>) {
+class INSTR_CLASS(PrimitiveUnbox, HasOutput, Operands<1>) {
  public:
-  IntUnbox(Register* dst, Register* value, Type type)
+  PrimitiveUnbox(Register* dst, Register* value, Type type)
       : InstrT(dst, value), type_(type) {}
 
   Register* value() const {

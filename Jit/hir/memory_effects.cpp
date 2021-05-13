@@ -40,7 +40,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kPrimitiveBox:
     case Opcode::kIntCompare:
     case Opcode::kIntConvert:
-    case Opcode::kIntUnbox:
+    case Opcode::kPrimitiveUnbox:
     case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kLoadEvalBreaker:

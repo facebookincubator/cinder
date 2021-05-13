@@ -20,7 +20,7 @@ opcode.def_op("INT_LOAD_CONST_OLD", 173)
 opcode.def_op("PRIMITIVE_BOX", 174)
 opcode.jabs_op("POP_JUMP_IF_ZERO", 175)
 opcode.jabs_op("POP_JUMP_IF_NONZERO", 176)
-opcode.def_op("INT_UNBOX", 177)
+opcode.def_op("PRIMITIVE_UNBOX", 177)
 opcode.def_op("PRIMITIVE_BINARY_OP", 178)
 opcode.def_op("PRIMITIVE_UNARY_OP", 179)
 opcode.def_op("INT_COMPARE_OP", 180)
@@ -59,7 +59,7 @@ opcode.stack_effects.update(  # noqa: C408
     PRIMITIVE_LOAD_CONST=1,
     INT_LOAD_CONST_OLD=1,
     PRIMITIVE_UNARY_OP=lambda oparg, jmp: 0,
-    INT_UNBOX=0,
+    PRIMITIVE_UNBOX=0,
     INVOKE_FUNCTION=lambda oparg, jmp=0: (-oparg[1]) + 1,
     INVOKE_METHOD=lambda oparg, jmp: -oparg[1],
     JUMP_IF_NONZERO_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,

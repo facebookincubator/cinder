@@ -130,7 +130,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     PRIMITIVE_LOAD_CONST,
     INT_LOAD_CONST_OLD,
     PRIMITIVE_UNARY_OP,
-    INT_UNBOX,
+    PRIMITIVE_UNBOX,
     INVOKE_FUNCTION,
     INVOKE_METHOD,
     JUMP_ABSOLUTE,
@@ -497,7 +497,7 @@ static bool should_snapshot(
     case ROT_TWO:
     case STORE_FAST:
     case PRIMITIVE_BOX:
-    case INT_UNBOX:
+    case PRIMITIVE_UNBOX:
     case PRIMITIVE_UNARY_OP:
     case CHECK_ARGS:
     case STORE_LOCAL: {
@@ -878,8 +878,8 @@ void HIRBuilder::translate(
           emitPrimitiveBox(tc, bc_instr);
           break;
         }
-        case INT_UNBOX: {
-          emitIntUnbox(tc, bc_instr);
+        case PRIMITIVE_UNBOX: {
+          emitPrimitiveUnbox(tc, bc_instr);
           break;
         }
         case PRIMITIVE_BINARY_OP: {
@@ -1921,7 +1921,7 @@ bool HIRBuilder::emitInvokeFunction(
   // the function is supposed to return a primitive int, we need to unbox it
   // because later code in the function will expect the primitive.
   if (ret_type <= TInternal) {
-    tc.emit<IntUnbox>(out, out, ret_type);
+    tc.emit<PrimitiveUnbox>(out, out, ret_type);
   }
 
   tc.frame.stack.push(out);
@@ -2163,12 +2163,12 @@ void HIRBuilder::emitPrimitiveBox(
   tc.frame.stack.push(tmp);
 }
 
-void HIRBuilder::emitIntUnbox(
+void HIRBuilder::emitPrimitiveUnbox(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.Allocate();
   Register* src = tc.frame.stack.pop();
-  tc.emit<IntUnbox>(tmp, src, prim_type_to_type(bc_instr.oparg()));
+  tc.emit<PrimitiveUnbox>(tmp, src, prim_type_to_type(bc_instr.oparg()));
   auto did_unbox_work = temps_.Allocate();
   tc.emit<IsNegativeAndErrOccurred>(did_unbox_work, tmp, tc.frame);
   tc.frame.stack.push(tmp);
@@ -2538,7 +2538,7 @@ void HIRBuilder::emitSequenceRepeat(
 
   if (!primitive_num) {
     auto unboxed_num = temps_.Allocate();
-    tc.emit<IntUnbox>(unboxed_num, num, TCInt64);
+    tc.emit<PrimitiveUnbox>(unboxed_num, num, TCInt64);
     num = unboxed_num;
   }
 
@@ -3269,7 +3269,8 @@ bool HIRBuilder::emitInvokeMethod(
     // the function is supposed to return a primitive, we need to unbox it
     // because later code in the function will expect the primitive.
     if (ret_type <= TInternal) {
-      tc.emit<IntUnbox>(invoke->GetOutput(), invoke->GetOutput(), ret_type);
+      tc.emit<PrimitiveUnbox>(
+          invoke->GetOutput(), invoke->GetOutput(), ret_type);
     }
     Py_DECREF(container);
   }
