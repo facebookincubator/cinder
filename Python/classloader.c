@@ -328,6 +328,22 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
     return 0;
 }
 
+PyTypeObject *
+_PyClassLoader_ResolveExpectedReturnType(PyFunctionObject *func, int *optional) {
+    /* We don't do any typing on co-routines, and if we did, the annotated return
+     * type isn't what we want to enforce - we would want to enforce returning a
+     * coroutine, or some awaitable shape.  So if we have a co-routine allow
+     * any value to be returned */
+    if (((PyCodeObject *)func->func_code)->co_flags & CO_COROUTINE) {
+        Py_INCREF(&PyBaseObject_Type);
+        *optional = 1;
+        return &PyBaseObject_Type;
+    }
+
+    return resolve_reference_type(
+            _PyClassLoader_GetReturnTypeDescr((PyFunctionObject *)func), optional);
+}
+
 PyObject *
 _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func)
 {
@@ -412,8 +428,7 @@ resolve_slot_local_return_type(PyObject *func,
         Py_INCREF(cur_type);
         *optional = PyTuple_GET_ITEM(state, 3) == Py_True;
     } else if (PyFunction_Check(func) && _PyClassLoader_IsStaticFunction(func)) {
-        cur_type = (PyObject *)resolve_reference_type(
-            _PyClassLoader_GetReturnTypeDescr((PyFunctionObject *)func), optional);
+        cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType((PyFunctionObject *)func, optional);
     } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
         // builtin methods for now assumed to return object
         cur_type = (PyObject *)&PyBaseObject_Type;
@@ -687,8 +702,8 @@ type_vtable_setslot(PyTypeObject *tp,
     int optional = 0;
     PyObject *ret_type;
     if (_PyClassLoader_IsStaticFunction(value)) {
-        ret_type = (PyObject*)_PyClassLoader_ResolveReferenceType(
-            _PyClassLoader_GetReturnTypeDescr((PyFunctionObject *)value), &optional);
+        ret_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
+            (PyFunctionObject *)value, &optional);
     } else {
         ret_type =
             resolve_slot_overload_return_type(tp, name, slot, &optional);

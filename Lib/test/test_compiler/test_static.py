@@ -8194,6 +8194,30 @@ class StaticCompilationTests(StaticTestBase):
             with patch(f"{mod['__name__']}.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
+    def test_patch_async_function(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            C = mod["C"]
+            c = C()
+            for i in range(100):
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 42)
+
+            with patch(f"{mod['__name__']}.C.f", autospec=True, return_value=100) as p:
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 100)
+
     def test_patch_parentclass_slot(self):
         codestr = """
         class A:
