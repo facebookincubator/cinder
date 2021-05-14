@@ -448,6 +448,7 @@ class SymbolTable:
                     TypeName("builtins", "int"), pytype=int, literal_value=RAND_MAX
                 ).instance,
                 "rand": reflect_builtin_function(rand),
+                "set_type_static": reflect_builtin_function(rand),
             },
         )
 
@@ -6751,6 +6752,10 @@ class Static38CodeGenerator(CinderCodeGenerator):
             yield f"{_TMP_VAR_PREFIX}.{self._tmpvar_loopidx_count}"
         finally:
             self._tmpvar_loopidx_count -= 1
+
+    def store_type_name_and_flags(self, node: ClassDef) -> None:
+        self.emit("INVOKE_FUNCTION", (("_static", "set_type_static"), 1))
+        self.storeName(node.name)
 
     def walkClassBody(self, node: ClassDef, gen: CodeGenerator) -> None:
         super().walkClassBody(node, gen)

@@ -19,13 +19,21 @@ from weakref import WeakValueDictionary
 
 try:
     import _static
-
-    chkdict = _static.chkdict
-    set_type_code = _static.set_type_code
 except ImportError:
+
+    def is_type_static(_t):
+        return False
+
+    def set_type_static(_t):
+        return None
     _static = None
     chkdict = dict
 
+else:
+    chkdict = _static.chkdict
+    set_type_code = _static.set_type_code
+    is_type_static = _static.is_type_static
+    set_type_static = _static.set_type_static
 
 try:
     from _static import (

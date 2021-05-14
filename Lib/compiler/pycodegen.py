@@ -556,6 +556,9 @@ class CodeGenerator(ASTVisitor):
         for _ in range(len(node.decorator_list)):
             self.emit("CALL_FUNCTION", 1)
 
+        self.store_type_name_and_flags(node)
+
+    def store_type_name_and_flags(self, node: ClassDef) -> None:
         self.storeName(node.name)
 
     def walkClassBody(self, node: ClassDef, gen: "CodeGenerator"):

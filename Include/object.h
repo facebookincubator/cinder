@@ -333,6 +333,9 @@ given type object has a specified feature.
 #define Py_TPFLAGS_HAVE_STACKLESS_EXTENSION 0
 #endif
 
+/* Classes defined in a static module */
+#define Py_TPFLAGS_IS_STATICALLY_DEFINED (1UL << 16)
+
 /* Objects behave like an unbound method */
 #define Py_TPFLAGS_METHOD_DESCRIPTOR (1UL << 17)
 
