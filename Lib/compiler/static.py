@@ -4779,7 +4779,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     def emit_constant(
         self, node: ast.Constant, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.emit("PRIMITIVE_LOAD_CONST", (node.value, self.as_oparg()))
+        code_gen.emit("PRIMITIVE_LOAD_CONST", (float(node.value), self.as_oparg()))
 
     def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)

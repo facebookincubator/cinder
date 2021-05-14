@@ -13850,6 +13850,7 @@ class StaticRuntimeTests(StaticTestBase):
             (1.732, 2.0, "-", -0.268),
             (1.732, 2.0, "/", 0.866),
             (1.732, 2.0, "*", 3.464),
+            (1.732, 2, "+", 3.732),
         ]
 
         if cinderjit is not None:
