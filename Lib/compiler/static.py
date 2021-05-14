@@ -448,7 +448,6 @@ class SymbolTable:
                     TypeName("builtins", "int"), pytype=int, literal_value=RAND_MAX
                 ).instance,
                 "rand": reflect_builtin_function(rand),
-                "set_type_static": reflect_builtin_function(rand),
             },
         )
 
