@@ -388,13 +388,12 @@ _PyGen_IsSuspended(PyGenObject *gen)
     }
 }
 
-static PySendResult
-_PyGen_DoSend(PyThreadState *tstate,
-              PyGenObject *gen,
-              PyObject *arg,
-              PyObject **pResult)
+PyObject *
+_PyGen_Send_NoStopIteration(PyThreadState *tstate,
+                            PyGenObject *gen,
+                            PyObject *arg,
+                            PyObject **pStopIterationValue)
 {
-    *pResult = NULL;
     PyFrameObject *f = gen->gi_frame;
     PyObject *result;
 
@@ -406,7 +405,7 @@ _PyGen_DoSend(PyThreadState *tstate,
             msg = "async generator already executing";
         }
         PyErr_SetString(PyExc_ValueError, msg);
-        return PYGEN_ERROR;
+        return NULL;
     }
     if (UNLIKELY(gen_is_completed(gen))) {
         if (PyCoro_CheckExact(gen)) {
@@ -420,11 +419,9 @@ _PyGen_DoSend(PyThreadState *tstate,
             /* `gen` is an exhausted generator:
                only set exception if called from send(). */
             Py_INCREF(Py_None);
-            *pResult = Py_None;
-            return PYGEN_RETURN;
-
+            *pStopIterationValue = Py_None;
         }
-        return PYGEN_ERROR;
+        return NULL;
     }
 
     if (UNLIKELY(gen_is_just_started(gen))) {
@@ -435,7 +432,7 @@ _PyGen_DoSend(PyThreadState *tstate,
                 msg = NON_INIT_CORO_MSG;
             }
             PyErr_SetString(PyExc_TypeError, msg);
-            return PYGEN_ERROR;
+            return NULL;
         }
     } else {
         arg = arg ? arg : Py_None;
@@ -477,12 +474,12 @@ _PyGen_DoSend(PyThreadState *tstate,
         Py_CLEAR(f->f_back);
     }
 
-    PySendResult gen_status = result ? PYGEN_NEXT : PYGEN_ERROR;
     /* If the generator just returned (as opposed to yielding), signal
      * that the generator is exhausted. */
     if (result && gen_is_completed(gen)) {
         // steal ref
-        gen_status = PYGEN_RETURN;
+        *pStopIterationValue = result;
+        result = NULL;
     } else if (UNLIKELY(!result &&
                             PyErr_ExceptionMatches(PyExc_StopIteration))) {
         const char *msg = "generator raised StopIteration";
@@ -490,7 +487,6 @@ _PyGen_DoSend(PyThreadState *tstate,
             msg = "coroutine raised StopIteration";
         }
         _PyErr_FormatFromCause(PyExc_RuntimeError, "%s", msg);
-        gen_status = PYGEN_ERROR;
     }
 
     if (!result || gen_is_completed(gen)) {
@@ -506,8 +502,7 @@ _PyGen_DoSend(PyThreadState *tstate,
         }
     }
 
-    *pResult = result;
-    return gen_status;
+    return result;
 }
 
 PyDoc_STRVAR(send_doc,
@@ -1003,13 +998,6 @@ static PyMethodDef gen_methods[] = {
     {NULL, NULL}        /* Sentinel */
 };
 
-static PyAsyncMethods PyGen_Type_as_async = {
-    0,                               /* am_await */
-    0,                               /* am_aiter */
-    0,                               /* am_anext */
-    (sendfunc)_PyGen_DoSend          /* am_send */
-};
-
 PyTypeObject PyGen_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "generator",                                /* tp_name */
@@ -1020,7 +1008,7 @@ PyTypeObject PyGen_Type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-    &PyGen_Type_as_async,                       /* tp_as_async */
+    0,                                          /* tp_as_async */
     (reprfunc)gen_repr,                         /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
@@ -1031,7 +1019,7 @@ PyTypeObject PyGen_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_SEND,    /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)gen_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */
@@ -1305,8 +1293,7 @@ static PyMethodDef coro_methods[] = {
 static PyAsyncMethods coro_as_async = {
     (unaryfunc)coro_await,                      /* am_await */
     0,                                          /* am_aiter */
-    0,                                          /* am_anext */
-    (sendfunc)_PyGen_DoSend                     /* am_send */
+    0                                           /* am_anext */
 };
 
 PyTypeObject PyCoro_Type = {
@@ -1330,7 +1317,7 @@ PyTypeObject PyCoro_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_SEND,    /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)gen_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */

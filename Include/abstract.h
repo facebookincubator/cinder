@@ -379,8 +379,6 @@ PyAPI_FUNC(int) PyIter_Check(PyObject *);
    NULL with an exception means an error occurred. */
 PyAPI_FUNC(PyObject *) PyIter_Next(PyObject *);
 
-PyAPI_FUNC(PySendResult) PyIter_Send(void *tstate, PyObject *, PyObject *, PyObject **);
-
 
 /* === Number Protocol ================================================== */
 
