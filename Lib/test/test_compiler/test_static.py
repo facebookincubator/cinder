@@ -6553,7 +6553,10 @@ class StaticCompilationTests(StaticTestBase):
 
             sys.modules[mod["__name__"]] = UninitModule()
             with self.assertRaisesRegex(
-                TypeError, r"unknown type \('" + mod["__name__"] + r"', 'C'\)"
+                TypeError,
+                r"bad name provided for class loader: \('"
+                + mod["__name__"]
+                + r"', 'C'\), not a class",
             ):
                 C()
 

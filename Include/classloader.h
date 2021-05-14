@@ -25,10 +25,9 @@ typedef struct {
 
 Py_ssize_t _PyClassLoader_ResolveMethod(PyObject *path);
 Py_ssize_t _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);
-PyTypeObject *_PyClassLoader_ResolveReferenceType(PyObject *descr, int *optional);
 int _PyClassLoader_ResolvePrimitiveType(PyObject *descr);
 int _PyClassLoader_GetTypeCode(PyTypeObject *type);
-int _PyClassLoader_ResolveType(PyObject *descr, PyTypeObject **ref_type, int *optional, int *prim_type);
+PyTypeObject * _PyClassLoader_ResolveType(PyObject *descr, int *optional);
 
 int _PyClassLoader_PrimitiveTypeToStructMemberType(int type);
 Py_ssize_t _PyClassLoader_PrimitiveTypeToSize(int primitive_type);

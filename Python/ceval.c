@@ -2991,7 +2991,7 @@ main_loop:
             PyObject *map_type = PyTuple_GET_ITEM(map_info, 0);
             Py_ssize_t map_size = PyLong_AsLong(PyTuple_GET_ITEM(map_info, 1));
             PyTypeObject *type =
-                _PyClassLoader_ResolveReferenceType(map_type, &optional);
+                _PyClassLoader_ResolveType(map_type, &optional);
             assert(!optional);
 
             if (shadow.shadow != NULL) {
@@ -4353,7 +4353,7 @@ main_loop:
             PyObject *val = TOP();
             int optional;
             PyTypeObject *type =
-                _PyClassLoader_ResolveReferenceType(GETITEM(consts, oparg), &optional);
+                _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
             if (type == NULL) {
                 goto error;
             }
@@ -4440,17 +4440,19 @@ main_loop:
                 }
 
                 int optional;
-                PyTypeObject *type;
-                int primitive;
-                if (_PyClassLoader_ResolveType(type_descr, &type, &optional, &primitive)) {
+                PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional);
+                if (type == NULL) {
                     goto error;
                 }
+                int primitive = _PyClassLoader_GetTypeCode(type);
                 if (primitive == TYPED_BOOL) {
                     optional = 0;
+                    Py_DECREF(type);
                     type = &PyBool_Type;
                     Py_INCREF(type);
                 } else if (primitive <= TYPED_INT64) {
                     optional = 0;
+                    Py_DECREF(type);
                     type = &PyLong_Type;
                     Py_INCREF(type);
                 } else {

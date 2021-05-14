@@ -341,19 +341,18 @@ Type prim_type_to_type(int prim_type) {
 }
 
 Type resolve_type_descr(PyObject* descr) {
-  PyTypeObject* ref_type;
   int optional;
-  int prim_type;
+  Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
+      Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
 
-  if (THREADED_COMPILE_SERIALIZED_CALL(_PyClassLoader_ResolveType(
-          descr, &ref_type, &optional, &prim_type))) {
-    JIT_CHECK(false, "bad type descr %s", descr);
-  }
+  JIT_CHECK(type != NULL, "bad type descr %s", descr);
 
-  if (ref_type == NULL) {
-    return prim_type_to_type(prim_type);
+  int prim_type = _PyClassLoader_GetTypeCode(type);
+
+  if (prim_type == TYPED_OBJECT) {
+    return Type::fromType(type) | (optional ? TNoneType : TBottom);
   } else {
-    return Type::fromType(ref_type) | (optional ? TNoneType : TBottom);
+    return prim_type_to_type(prim_type);
   }
 }
 
@@ -2439,7 +2438,7 @@ void HIRBuilder::emitRefineType(
   PyObject* type_descr = PyTuple_GET_ITEM(code_->co_consts, oparg);
   int optional;
   auto pytype = THREADED_COMPILE_SERIALIZED_CALL(Ref<PyTypeObject>::steal(
-      _PyClassLoader_ResolveReferenceType(type_descr, &optional)));
+      _PyClassLoader_ResolveType(type_descr, &optional)));
   Type type = Type::fromType(pytype);
   if (optional) {
     type |= TNoneType;
@@ -3367,9 +3366,8 @@ void HIRBuilder::emitCast(
     const jit::BytecodeInstruction& bc_instr) {
   PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
   int optional;
-  Ref<PyTypeObject> type =
-      THREADED_COMPILE_SERIALIZED_CALL(Ref<PyTypeObject>::steal(
-          _PyClassLoader_ResolveReferenceType(descr, &optional)));
+  Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
+      Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
   JIT_CHECK(type != NULL, "failed to resolve type");
 
   Register* value = tc.frame.stack.pop();

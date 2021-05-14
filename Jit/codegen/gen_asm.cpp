@@ -628,7 +628,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
     bool last_arg = i == PyTuple_GET_SIZE(checks) - 2;
     int optional;
     PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
-        _PyClassLoader_ResolveReferenceType(type_descr, &optional));
+        _PyClassLoader_ResolveType(type_descr, &optional));
 
     JIT_CHECK(
         type != (PyTypeObject*)&PyObject_Type,

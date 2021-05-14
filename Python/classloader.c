@@ -11,9 +11,6 @@
 static PyObject *classloader_cache;
 static PyObject *genericinst_cache;
 
-static PyTypeObject *
-resolve_reference_type(PyObject *descr, int *optional);
-
 static void
 vtabledealloc(_PyType_VTable *op)
 {
@@ -340,7 +337,7 @@ _PyClassLoader_ResolveExpectedReturnType(PyFunctionObject *func, int *optional) 
         return &PyBaseObject_Type;
     }
 
-    return resolve_reference_type(
+    return _PyClassLoader_ResolveType(
             _PyClassLoader_GetReturnTypeDescr((PyFunctionObject *)func), optional);
 }
 
@@ -961,11 +958,7 @@ classloader_get_member(PyObject *path,
             PyObject *tmp_tuple = PyTuple_New(PyTuple_GET_SIZE(name));
             for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(name); i++) {
                 int optional;
-                /* We're ecalling resolve_reference_type here directly
-                 * which can give us primitive types too.  Eventually our
-                 * reference/primitive types will be more unified and
-                 * this will probably be renamed. */
-                PyObject *param = (PyObject *)resolve_reference_type(
+                PyObject *param = (PyObject *)_PyClassLoader_ResolveType(
                     PyTuple_GET_ITEM(name, i), &optional);
                 if (param == NULL) {
                     Py_DECREF(tmp_tuple);
@@ -977,7 +970,7 @@ classloader_get_member(PyObject *path,
                         Py_DECREF(tmp_tuple);
                         return NULL;
                     }
-                    /* taking ref from _PyClassLoader_ResolveReferenceType */
+                    /* taking ref from _PyClassLoader_ResolveType */
                     PyTuple_SET_ITEM(union_args, 0, param);
                     PyTuple_SET_ITEM(union_args, 1, Py_None);
                     Py_INCREF(Py_None);
@@ -1059,14 +1052,39 @@ error:
     return NULL;
 }
 
-/* Resolve a type-descr tuple for a reference type to a `PyTypeObject*` and
- * `optional` int out-param. For primitive types in `__static__` module, will
- * give wrong results (e.g. `("__static__", "int64")` will resolve to the user
- * subclass of `int` in the stub `__static__.py` module.) To avoid this, prefer
- * `_PyClassLoader_ResolveType` or `_PyClassLoader_ResolveReferenceType`. */
-static PyTypeObject *
-resolve_reference_type(PyObject *descr, int *optional)
+int _PyClassLoader_GetTypeCode(PyTypeObject *type) {
+    if (!(type->tp_flags & Py_TPFLAG_CPYTHON_ALLOCATED)) {
+        return TYPED_OBJECT;
+    }
+
+    return PyHeapType_CINDER_EXTRA(type)->type_code;
+}
+
+/* Resolve a tuple type descr to a `prim_type` integer (`TYPED_*`); return -1
+ * and set an error if the type cannot be resolved. */
+int
+_PyClassLoader_ResolvePrimitiveType(PyObject *descr) {
+    int optional;
+    PyTypeObject *type = _PyClassLoader_ResolveType(descr, &optional);
+    if (type == NULL) {
+        return -1;
+    }
+    int res = _PyClassLoader_GetTypeCode(type);
+    Py_DECREF(type);
+    return res;
+}
+
+/* Resolve a tuple type descr in the form ("module", "submodule", "Type") to a
+ * PyTypeObject*` and `optional` integer out param.
+ */
+PyTypeObject *
+_PyClassLoader_ResolveType(PyObject *descr, int *optional)
 {
+    if (!PyTuple_Check(descr) || PyTuple_GET_SIZE(descr) < 2) {
+        PyErr_Format(PyExc_TypeError, "unknown type %R", descr);
+        return NULL;
+    }
+
     Py_ssize_t items = PyTuple_GET_SIZE(descr);
     PyObject *last = PyTuple_GET_ITEM(descr, items - 1);
 
@@ -1106,79 +1124,6 @@ resolve_reference_type(PyObject *descr, int *optional)
     }
 
     return (PyTypeObject *)res;
-}
-
-/* Resolve a type-descr tuple for a reference type to a `PyTypeObject*` and
- * `optional` int out-param. Returns NULL and sets TypeError for unknown types
- * and non-reference (i.e. primitive) types. This is a convenience wrapper
- * around `_PyClassLoader_ResolveType` to avoid the need to pass the `prim_type`
- * out param for uses that don't care about primitive types. */
-PyTypeObject *
-_PyClassLoader_ResolveReferenceType(PyObject *descr, int *optional) {
-    int prim_type;
-    PyTypeObject *type;
-    if (_PyClassLoader_ResolveType(descr, &type, optional, &prim_type)) {
-        return NULL;
-    } else if (type == NULL) {
-        PyErr_Format(PyExc_TypeError, "unexpected primitive type %R", descr);
-        return NULL;
-    }
-    return type;
-}
-
-int _PyClassLoader_GetTypeCode(PyTypeObject *type) {
-    if (!(type->tp_flags & Py_TPFLAG_CPYTHON_ALLOCATED)) {
-        return TYPED_OBJECT;
-    }
-
-    return PyHeapType_CINDER_EXTRA(type)->type_code;
-}
-
-
-/* Resolve a tuple type descr to a `prim_type` integer (`TYPED_*`); return -1
- * and set an error if the type cannot be resolved. */
-int
-_PyClassLoader_ResolvePrimitiveType(PyObject *descr) {
-    int optional;
-    PyTypeObject *type = resolve_reference_type(descr, &optional);
-    if (type == NULL) {
-        return -1;
-    }
-    int res = _PyClassLoader_GetTypeCode(type);
-    Py_DECREF(type);
-    return res;
-}
-
-/* Resolve a tuple type descr in the form ("module", "submodule", "Type") to the
- * `ref_type` `PyTypeObject*` and `optional` and `prim_type` integer out params.
- * For reference types this will fill `ref_type` with a `PyTypeObject*` and fill
- * `prim_type` with `TYPED_OBJECT`. For primitive types -- e.g. ("__static__",
- * "int64") -- it will fill `ref_type` with NULL and fill `prim_type` with e.g.
- * `TYPED_INT64`. Returns 0 on success and 1 on error (with a Python error set.)
- */
-int
-_PyClassLoader_ResolveType(PyObject *descr, PyTypeObject **ref_type, int *optional, int *prim_type)
-{
-    if (!PyTuple_Check(descr) || PyTuple_GET_SIZE(descr) < 2) {
-        goto error;
-    }
-
-    PyTypeObject *type = resolve_reference_type(descr, optional);
-    if (type == NULL) {
-        goto error;
-    }
-
-    *prim_type = _PyClassLoader_GetTypeCode(type);
-    if (*prim_type != TYPED_OBJECT) {
-        Py_DECREF(type);
-        type = NULL;
-    }
-    *ref_type = type;
-
-    return 0;
-error:
-    PyErr_Format(PyExc_TypeError, "unknown type %R", descr);
-    return 1;
 }
 
 static int
@@ -1640,7 +1585,7 @@ typed_descriptor_set(PyObject *self, PyObject *obj, PyObject *value)
     _PyTypedDescriptor *td = (_PyTypedDescriptor *)self;
     if (PyTuple_CheckExact(td->td_type)) {
         PyTypeObject *type =
-            _PyClassLoader_ResolveReferenceType(td->td_type, &td->td_optional);
+            _PyClassLoader_ResolveType(td->td_type, &td->td_optional);
         if (type == NULL) {
             assert(PyErr_Occurred());
             if (value == Py_None && td->td_optional) {
@@ -2197,24 +2142,26 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
         _PyTypedArgInfo* cur_check = &arg_checks->tai_args[checki];
 
         PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);
-        PyTypeObject* ref_type;
         int optional;
-        int prim_type;
-
-        if (_PyClassLoader_ResolveType(type_descr, &ref_type, &optional, &prim_type)) {
+        PyTypeObject* ref_type = _PyClassLoader_ResolveType(type_descr, &optional);
+        if (ref_type == NULL) {
             return NULL;
         }
+        int prim_type = _PyClassLoader_GetTypeCode(ref_type);
 
         if (prim_type == TYPED_BOOL) {
             cur_check->tai_type = &PyBool_Type;
             cur_check->tai_optional = 0;
             Py_INCREF(&PyBool_Type);
+            Py_DECREF(ref_type);
         } else if (prim_type != TYPED_OBJECT) {
             assert(prim_type <= TYPED_INT64);
             cur_check->tai_type = &PyLong_Type;
             cur_check->tai_optional = 0;
             Py_INCREF(&PyLong_Type);
+            Py_DECREF(ref_type);
         } else if (only_primitives) {
+            Py_DECREF(ref_type);
             continue;
         } else {
             cur_check->tai_type = ref_type;
