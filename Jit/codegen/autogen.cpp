@@ -321,9 +321,9 @@ void emitLoadResumedYieldInputs(
 
   const lir::Operand* target = instr->output();
   if (target->type() != OperandBase::kNone) {
-    int target_loc = target->getPhyRegOrStackSlot();
-    if (target_loc > 0) {
-      if (target_loc == sent_in_source_loc) {
+    PhyLocation target_loc = target->getPhyRegOrStackSlot();
+    if (target_loc.is_register()) {
+      if (target_loc != sent_in_source_loc) {
         as->mov(x86::gpq(target_loc), x86::gpq(sent_in_source_loc));
       }
     } else {
