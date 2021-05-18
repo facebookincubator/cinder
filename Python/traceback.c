@@ -245,9 +245,6 @@ int
 PyTraceBack_Here(PyFrameObject *frame)
 {
     PyObject *exc, *val, *tb, *newtb;
-
-    frame = JIT_MaterializeToFrame(PyThreadState_GET(), frame);
-
     PyErr_Fetch(&exc, &val, &tb);
     newtb = _PyTraceBack_FromFrame(tb, frame);
     if (newtb == NULL) {
@@ -821,7 +818,7 @@ dump_traceback(int fd, PyThreadState *tstate, int write_header)
         if (!PyFrame_Check(frame))
             break;
         dump_frame(fd, frame);
-        frame = JIT_MaterializePrevFrame(frame);
+        frame = frame->f_back;
         depth++;
     }
 }

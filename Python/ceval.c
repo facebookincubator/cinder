@@ -6343,15 +6343,11 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
          * and return that as the value. */
         if (is_coro) {
             gen = _PyCoro_NewTstate(tstate, f, name, qualname);
-
-            JIT_MaterializeTopFrame(tstate);
-
             PyFrameObject* parent_f = tstate->frame;
             const char *UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
             if (!strcmp(UTF8_name, "<genexpr>") ||
                 !strcmp(UTF8_name, "<listcomp>") ||
                 !strcmp(UTF8_name, "<dictcomp>")) {
-                JIT_MaterializePrevFrame(parent_f);
                 ((PyCoroObject *)gen)->creator = parent_f->f_back;
             } else {
                 ((PyCoroObject *)gen)->creator = parent_f;
@@ -6831,10 +6827,6 @@ _PyEval_GetAsyncGenFinalizer(void)
 static PyFrameObject *
 _PyEval_GetFrame(PyThreadState *tstate)
 {
-    if (tstate->frame != NULL) {
-        JIT_MaterializeTopFrame(tstate);
-    }
-
     return _PyRuntime.gilstate.getframe(tstate);
 }
 
@@ -6893,11 +6885,6 @@ PyEval_GetGlobals(void)
     if (current_frame == NULL) {
         return NULL;
     }
-    if (JIT_IsTinyFrame(current_frame)) {
-        TinyFrame *f = (TinyFrame *)current_frame;
-        assert(f->globals != NULL);
-        return f->globals;
-    }
     assert(current_frame->f_globals != NULL);
     return current_frame->f_globals;
 }
@@ -6910,10 +6897,7 @@ PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
     int result = cf->cf_flags != 0;
 
     if (current_frame != NULL) {
-        PyCodeObject *code = JIT_IsTinyFrame(current_frame)
-                                 ? ((TinyFrame *)current_frame)->code
-                                 : current_frame->f_code;
-
+        PyCodeObject *code = current_frame->f_code;
         const int codeflags = code->co_flags;
         const int compilerflags = codeflags & PyCF_MASK;
         if (compilerflags) {
@@ -7287,14 +7271,11 @@ PyEntry_NArgCoro(PyFunctionObject *func, PyObject **stack, Py_ssize_t nargsf)
         return NULL;
     }
 
-    JIT_MaterializeTopFrame(tstate);
-
     PyFrameObject *parent_f = tstate->frame;
     const char *UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
     if (UTF8_name[0] == '<' &&
         (!strcmp(UTF8_name, "<genexpr>") || !strcmp(UTF8_name, "<listcomp>") ||
         !strcmp(UTF8_name, "<dictcomp>"))) {
-        JIT_MaterializePrevFrame(parent_f);
         ((PyCoroObject*)gen)->creator = parent_f->f_back;
     } else {
         ((PyCoroObject*)gen)->creator = parent_f;

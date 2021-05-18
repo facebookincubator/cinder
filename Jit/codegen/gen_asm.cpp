@@ -49,7 +49,6 @@ void EmitEpilogueUnlinkFrame(
     x86::Builder* as,
     x86::Gp tstate_r,
     void (*unlink_frame_func)(PyThreadState*),
-    void (*unlink_tiny_frame_func)(PyThreadState*),
     FrameMode frameMode) {
   if (tstate_r != x86::rdi) {
     as->mov(x86::rdi, tstate_r);
@@ -57,11 +56,7 @@ void EmitEpilogueUnlinkFrame(
   auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
   if (frameMode != FrameMode::kNone) {
     as->mov(saved_rax_ptr, x86::rax);
-    if (frameMode == FrameMode::kTiny) {
-      as->call(reinterpret_cast<uint64_t>(unlink_tiny_frame_func));
-    } else {
-      as->call(reinterpret_cast<uint64_t>(unlink_frame_func));
-    }
+    as->call(reinterpret_cast<uint64_t>(unlink_frame_func));
     as->mov(x86::rax, saved_rax_ptr);
   }
 }
@@ -349,10 +344,6 @@ void NativeGenerator::generateLinkFrame() {
   switch (GetFunction()->frameMode) {
     case FrameMode::kNone:
       as_->call(reinterpret_cast<uint64_t>(PyThreadState_Get));
-      break;
-    case FrameMode::kTiny:
-      load_args();
-      as_->call(reinterpret_cast<uint64_t>(JITRT_AllocateAndLinkTinyFrame));
       break;
     case FrameMode::kNormal:
       load_args();
@@ -706,8 +697,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
     as_->bind(env_.exit_for_yield_label);
     RestoreOriginalGeneratorRBP(as_->as<x86::Emitter>());
   }
-  EmitEpilogueUnlinkFrame(
-      as_, x86::rdi, JITRT_UnlinkFrame, JITRT_UnlinkTinyFrame, frameMode);
+  EmitEpilogueUnlinkFrame(as_, x86::rdi, JITRT_UnlinkFrame, frameMode);
 
   // If we return a primitive, set edx to 1 to indicate no error (in case of
   // error, deopt will set it to 0 and jump to hard_exit_label, skipping this.)
@@ -1126,14 +1116,9 @@ static PyFrameObject* prepareForDeopt(
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
   PyFrameObject* frame;
   if (deopt_meta.code_rt->frameMode() == jit::hir::FrameMode::kNone) {
-    // TODO(mpage) - Use JIT_MaterializeTopFrame once no-frame mode is fully
-    // supported. Until no-frame mode is fully supported, it is not safe to
-    // materialize a frame for a function compiled with no-frame mode unless we
-    // are about to deopt. In the non-deopt case the JIT-compiled function
-    // won't know that it should unlink the frame when it returns.
     frame = allocateFrameForDeopt(tstate, deopt_meta.code_rt);
   } else {
-    frame = JIT_MaterializeTopFrame(tstate);
+    frame = tstate->frame;
   }
   reifyFrame(frame, deopt_meta, regs);
   if (!PyErr_Occurred()) {

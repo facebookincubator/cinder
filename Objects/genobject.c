@@ -966,9 +966,6 @@ gen_getframe(PyGenObject *gen, void *Py_UNUSED(ignored))
     if (frame == NULL) {
         Py_RETURN_NONE;
     }
-
-    frame = JIT_MaterializeToFrame(PyThreadState_GET(), frame);
-    gen->gi_frame = frame;
     Py_INCREF(frame);
     return (PyObject *)frame;
 }
@@ -1090,7 +1087,6 @@ gen_new_with_qualname(PyGenObject *gen,
 
     gen->gi_frame = f;
     if (f) {
-        assert(!PyTinyFrame_Check(f));
         f->f_gen = (PyObject *) gen;
     }
     Py_INCREF(code);
@@ -1443,7 +1439,7 @@ compute_cr_origin(int origin_depth)
     /* First count how many frames we have */
     int frame_count = 0;
     for (; frame && frame_count < origin_depth; ++frame_count) {
-        frame = JIT_MaterializePrevFrame(frame);
+        frame = frame->f_back;
     }
 
     /* Now collect them */
@@ -1540,14 +1536,11 @@ _PyCoro_ForFrame(PyThreadState *tstate,
         return NULL;
     }
 
-    JIT_MaterializeTopFrame(tstate);
-
     PyFrameObject *parent_f = tstate->frame;
     const char *UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
     if (UTF8_name[0] == '<' &&
         (!strcmp(UTF8_name, "<genexpr>") || !strcmp(UTF8_name, "<listcomp>") ||
          !strcmp(UTF8_name, "<dictcomp>"))) {
-        JIT_MaterializePrevFrame(parent_f);
         ((PyCoroObject *)gen)->creator = parent_f->f_back;
     } else {
         ((PyCoroObject *)gen)->creator = parent_f;

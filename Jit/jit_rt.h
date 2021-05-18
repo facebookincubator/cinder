@@ -49,18 +49,6 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
     PyObject* globals);
 
 /*
- * Allocate a new Tiny frame and link it into the current thread's
- * call stack.
- *
- * This function behaves the same as JITRT_AllocateAndLinkFrame except for that
- * a tiny frame is allocated and linked instead of a PyObjectFrame object, which
- * is much faster.
- */
-PyThreadState* JITRT_AllocateAndLinkTinyFrame(
-    PyCodeObject* code,
-    PyObject* globals);
-
-/*
  * Helper function to unlink a frame.
  *
  * Designed to be used in tandem with JITRT_AllocateAndLinkFrame. This checks
@@ -69,23 +57,10 @@ PyThreadState* JITRT_AllocateAndLinkTinyFrame(
 void JITRT_UnlinkFrame(PyThreadState* tstate);
 
 /*
- * Helper function to unlink a tiny frame.
- *
- * Designed to be used in tiny-frame mode. This function calls
- * JITRT_UnlinkFrame, if the frame object is not a tiny frame.
- */
-void JITRT_UnlinkTinyFrame(PyThreadState* tstate);
-
-/*
  * Same as JITRT_UnlinkFrame but also clears tstate->frame->f_back as needed
  * during InitialYield.
  */
 void JITRT_InitialYieldUnlinkFrame(PyThreadState* tstate);
-
-/*
- * Currently a dummy function whcih asserts. For use during InitialYield.
- */
-void JITRT_InitialYieldUnlinkTinyFrame(PyThreadState* tstate);
 
 /*
  * Handles a call that includes kw arguments or excess tuple arguments

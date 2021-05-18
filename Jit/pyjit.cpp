@@ -30,7 +30,7 @@
 using namespace jit;
 
 enum InitState { JIT_NOT_INITIALIZED, JIT_INITIALIZED, JIT_FINALIZED };
-enum FrameMode { PY_FRAME = 0, TINY_FRAME, NO_FRAME };
+enum FrameMode { PY_FRAME = 0, NO_FRAME };
 
 struct JitConfig {
   InitState init_state{JIT_NOT_INITIALIZED};
@@ -354,9 +354,7 @@ static PyObject* get_compiled_spill_stack_size(
 
 static PyObject* jit_frame_mode(PyObject* /* self */, PyObject*) {
   int i = PY_FRAME;
-  if (_PyJIT_TinyFrame()) {
-    i = TINY_FRAME;
-  } else if (_PyJIT_NoFrame()) {
+  if (_PyJIT_NoFrame()) {
     i = NO_FRAME;
   }
 
@@ -412,7 +410,7 @@ static PyMethodDef jit_methods[] = {
     {"jit_frame_mode",
      jit_frame_mode,
      METH_NOARGS,
-     "Get JIT frame mode (0 = normal frames, 1 = tiny frames, 2 = no frames"},
+     "Get JIT frame mode (0 = normal frames, 1 = no frames"},
     {"get_jit_list", get_jit_list, METH_NOARGS, "Get the JIT-list"},
     {"print_hir",
      print_hir,
@@ -690,13 +688,7 @@ int _PyJIT_Initialize() {
   jit_config.init_state = JIT_INITIALIZED;
   jit_config.is_enabled = 1;
   g_jit_list = jit_list.release();
-  if (_is_flag_set("jit-tiny-frame", "PYTHONJITTINYFRAME")) {
-    jit_config.frame_mode = TINY_FRAME;
-  }
   if (_is_flag_set("jit-no-frame", "PYTHONJITNOFRAME")) {
-    JIT_CHECK(
-        jit_config.frame_mode == PY_FRAME,
-        "-X jit-tiny-frame and -X jit-no-frame are mutually exclusive.");
     jit_config.frame_mode = NO_FRAME;
   }
   jit_config.are_type_slots_enabled = !PyJIT_IsXOptionSet("jit-no-type-slots");
@@ -823,10 +815,6 @@ int _PyJIT_Finalize() {
   Py_CLEAR(jit_ctx);
 
   return 0;
-}
-
-int _PyJIT_TinyFrame() {
-  return jit_config.frame_mode == TINY_FRAME;
 }
 
 int _PyJIT_NoFrame() {

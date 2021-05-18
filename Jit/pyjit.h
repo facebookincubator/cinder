@@ -132,13 +132,6 @@ PyAPI_FUNC(int) _PyJIT_Finalize(void);
 PyAPI_FUNC(int) _PyJIT_OnJitList(PyFunctionObject* func);
 
 /*
- * Returns whether JITed code should be run on lightweight frames (tiny frames).
- *
- * Returns 1 if true and 0 otherwise.
- */
-PyAPI_FUNC(int) _PyJIT_TinyFrame(void);
-
-/*
  * Returns whether JITed code should be run a PyFrameObject.
  *
  * Returns 0 if all JITed functions should create a PyFrameObject in their

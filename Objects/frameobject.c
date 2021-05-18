@@ -365,7 +365,7 @@ frame_getf_back(PyFrameObject *f, void *closure)
         Py_RETURN_NONE;
     }
 
-    PyObject *res = (PyObject *)JIT_MaterializePrevFrame(f);
+    PyObject *res = (PyObject *)f->f_back;
     Py_XINCREF(res);
     return res;
 }
@@ -438,10 +438,6 @@ frame_dealloc(PyFrameObject *f)
 
     Py_TRASHCAN_SAFE_BEGIN(f)
 
-    if (JIT_IsTinyFrame(f->f_back)) {
-        // eagerly clear tiny frames
-        Py_CLEAR(f->f_back);
-    }
     /* Kill all local variables */
     valuestack = f->f_valuestack;
     for (p = f->f_localsplus; p < valuestack; p++)

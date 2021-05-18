@@ -12,7 +12,7 @@ import warnings
 from array import array
 from collections import UserDict
 from compiler import consts, walk
-from compiler.consts38 import CO_NO_FRAME, CO_TINY_FRAME, CO_STATICALLY_COMPILED
+from compiler.consts38 import CO_NO_FRAME, CO_STATICALLY_COMPILED
 from compiler.optimizer import AstOptimizer
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
 from compiler.static import (
@@ -515,20 +515,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 1)
 
     @skipIf(cinderjit is None, "not jitting")
-    def test_tiny_frame(self):
-        codestr = """
-        from __static__.compiler_flags import tinyframe
-        import sys
-
-        def f():
-            return 123
-        """
-        with self.in_module(codestr) as mod:
-            f = mod["f"]
-            self.assertTrue(f.__code__.co_flags & CO_TINY_FRAME)
-            self.assertEqual(f(), 123)
-            self.assert_jitted(f)
-
     def test_deep_attr_chain(self):
         """this shouldn't explode exponentially"""
         codestr = """
@@ -585,23 +571,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod["f"]
             self.assertTrue(f.__code__.co_flags & CO_NO_FRAME)
-            self.assertEqual(f(), list(range(10)))
-            self.assert_jitted(f)
-
-    @skipIf(cinderjit is None, "not jitting")
-    def test_tiny_frame_generator(self):
-        codestr = """
-        from __static__.compiler_flags import tinyframe
-
-        def g():
-            for i in range(10):
-                yield i
-        def f():
-            return list(g())
-        """
-        with self.in_module(codestr) as mod:
-            f = mod["f"]
-            self.assertTrue(f.__code__.co_flags & CO_TINY_FRAME)
             self.assertEqual(f(), list(range(10)))
             self.assert_jitted(f)
 

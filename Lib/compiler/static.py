@@ -534,7 +534,6 @@ class ModuleTable:
         self.types: Dict[Union[AST, Delegator], Value] = {}
         self.node_data: Dict[Tuple[Union[AST, Delegator], object], object] = {}
         self.nonchecked_dicts = False
-        self.tinyframe = False
         self.noframe = False
         self.decls: List[Tuple[AST, Optional[Value]]] = []
         # TODO: final constants should be typed to literals, and
@@ -5527,8 +5526,6 @@ class TypeBinder(GenericVisitor):
                     for name in stmt.names:
                         if name.name == "nonchecked_dicts":
                             self.cur_mod.nonchecked_dicts = True
-                        elif name.name == "tinyframe":
-                            self.cur_mod.tinyframe = True
                         elif name.name == "noframe":
                             self.cur_mod.noframe = True
 
@@ -6615,8 +6612,6 @@ class Static38CodeGenerator(CinderCodeGenerator):
         graph.setFlag(self.consts.CO_STATICALLY_COMPILED)
         if self.cur_mod.noframe:
             graph.setFlag(self.consts.CO_NO_FRAME)
-        elif self.cur_mod.tinyframe:
-            graph.setFlag(self.consts.CO_TINY_FRAME)
         gen = StaticCodeGenerator(
             self,
             tree,

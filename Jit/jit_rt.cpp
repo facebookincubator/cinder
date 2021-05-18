@@ -421,19 +421,6 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
   return tstate;
 }
 
-PyThreadState* JITRT_AllocateAndLinkTinyFrame(
-    PyCodeObject* code,
-    PyObject* globals) {
-  PyThreadState* tstate = PyThreadState_GET();
-  JIT_DCHECK(tstate != NULL, "thread state cannot be null");
-
-  TinyFrame* frame = JIT_TinyFrameAllocate(tstate, code, globals);
-
-  tstate->frame = (PyFrameObject*)frame;
-
-  return tstate;
-}
-
 void JITRT_UnlinkFrame(PyThreadState* tstate) {
   PyFrameObject* f = tstate->frame;
   f->f_executing = 0;
@@ -443,22 +430,11 @@ void JITRT_UnlinkFrame(PyThreadState* tstate) {
     if (!_PyObject_GC_IS_TRACKED(f)) {
       _PyObject_GC_TRACK(f);
     }
-    tstate->frame = JIT_MaterializePrevFrame(f);
+    tstate->frame = f->f_back;
   } else {
     tstate->frame = f->f_back;
     Py_DECREF(f);
   }
-}
-
-void JITRT_UnlinkTinyFrame(PyThreadState* tstate) {
-  PyFrameObject* frame = tstate->frame;
-  if (!JIT_IsTinyFrame(frame)) {
-    JITRT_UnlinkFrame(tstate);
-    return;
-  }
-  TinyFrame* f = (TinyFrame*)frame;
-  tstate->frame = f->t.f_back;
-  Py_DECREF(f);
 }
 
 void JITRT_InitialYieldUnlinkFrame(PyThreadState* tstate) {
@@ -471,10 +447,6 @@ void JITRT_InitialYieldUnlinkFrame(PyThreadState* tstate) {
   Py_DECREF(f);
   JIT_DCHECK(!_PyObject_GC_IS_TRACKED(f), "Frame should not yet be GC tracked");
   _PyObject_GC_TRACK(f);
-}
-
-void JITRT_InitialYieldUnlinkTinyFrame(PyThreadState*) {
-  JIT_CHECK(false, "Tiny frame not supported with JIT generators");
 }
 
 PyObject*
@@ -1165,13 +1137,8 @@ PyObject* JITRT_ImportName(
   PyObject* globals = NULL;
   PyObject* builtins;
 
-  if (JIT_IsTinyFrame(f)) {
-    globals = ((TinyFrame*)f)->globals;
-    builtins = PyEval_GetBuiltins();
-  } else {
-    globals = f->f_globals;
-    builtins = f->f_builtins;
-  }
+  globals = f->f_globals;
+  builtins = f->f_builtins;
 
   import_func = _PyDict_GetItemId(builtins, &PyId___import__);
   if (import_func == NULL) {
@@ -1322,14 +1289,10 @@ static inline PyObject* make_gen_object(
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(
           _PyCoro_NewTstate(tstate, f, code->co_name, code->co_qualname));
-
-      JIT_MaterializeTopFrame(tstate);
-
-      auto parent_f = JIT_MaterializePrevFrame(tstate->frame);
+      auto parent_f = tstate->frame;
       auto UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
       if (!strcmp(UTF8_name, "<genexpr>") || !strcmp(UTF8_name, "<listcomp>") ||
           !strcmp(UTF8_name, "<dictcomp>")) {
-        JIT_MaterializePrevFrame(parent_f);
         reinterpret_cast<PyCoroObject*>(gen)->creator = parent_f->f_back;
       } else {
         reinterpret_cast<PyCoroObject*>(gen)->creator = parent_f;

@@ -1554,9 +1554,6 @@ testcinder_jit: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(JIT_TEST_RUNNER)
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-test-multithreaded-compile -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/test_multithreaded_compile.py
 
-testcinder_jit_tinyframe: @DEF_MAKE_RULE@ platform
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-tiny-frame $(JIT_TEST_RUNNER)
-
 testcinder_refleak: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDER_REFLEAK_OPTS)
 
@@ -2383,7 +2380,7 @@ ${ASMJIT}/src/asmjit/x86/%.o: ${ASMJIT}/src/asmjit/x86/%.cpp
 .PHONY: frameworkinstallmaclib frameworkinstallapps frameworkinstallunixtools
 .PHONY: frameworkaltinstallunixtools recheck clean clobber distclean
 .PHONY: smelly funny patchcheck touch altmaninstall commoninstall
-.PHONY: gdbhooks testcinder testcinder_jit testcinder_jit_tinyframe testruntime cinderlab
+.PHONY: gdbhooks testcinder testcinder_jit testruntime cinderlab
 
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
 # Local Variables:

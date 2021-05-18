@@ -1360,7 +1360,7 @@ _PyErr_WriteUnraisableMsg(const char *err_msg_str, PyObject *obj)
     }
 
     if (exc_tb == NULL) {
-        struct _frame *frame = JIT_MaterializeToFrame(tstate, tstate->frame);
+        struct _frame *frame = _PyRuntime.gilstate.getframe(tstate);
         if (frame != NULL) {
             exc_tb = _PyTraceBack_FromFrame(NULL, frame);
             if (exc_tb == NULL) {

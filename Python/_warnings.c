@@ -805,7 +805,7 @@ static PyFrameObject *
 next_external_frame(PyFrameObject *frame)
 {
     do {
-        frame = JIT_MaterializePrevFrame(frame);
+        frame = frame->f_back;
     } while (frame != NULL && is_internal_frame(frame));
 
     return frame;
@@ -822,13 +822,13 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
     PyObject *globals;
 
     /* Setup globals, filename and lineno. */
-    PyFrameObject *f = JIT_MaterializeTopFrame(PyThreadState_GET());
+    PyFrameObject *f = PyThreadState_GET()->frame;
 
     // Stack level comparisons to Python code is off by one as there is no
     // warnings-related stack level to avoid.
     if (stack_level <= 0 || is_internal_frame(f)) {
         while (--stack_level > 0 && f != NULL) {
-            f = JIT_MaterializePrevFrame(f);
+            f = f->f_back;
         }
     }
     else {

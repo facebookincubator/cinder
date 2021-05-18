@@ -1774,7 +1774,7 @@ sys__getframe_impl(PyObject *module, int depth)
     }
 
     while (depth > 0 && f != NULL) {
-        f = JIT_MaterializePrevFrame(f);
+        f = f->f_back;
         --depth;
     }
     if (f == NULL) {

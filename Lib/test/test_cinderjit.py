@@ -913,47 +913,6 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
         self.assertEqual(exc.exception.value, 1)
 
 
-def jitted_func():
-    return 1
-
-
-class SomeValue:
-    def __init__(self):
-        self._finalizer = weakref.finalize(self, self._cleanup)
-
-    @classmethod
-    def _cleanup(cls):
-        # trigger frame materialization, it should deallocate tinyframe that was used to call t.jitted()
-        a = sys._getframe()
-        # invoke jitted func, that should reuse frame deallocated on previous line and reset its refcount to 1
-        jitted_func()
-
-
-class SomeClass:
-    def nonjitted(self):
-        # suppress JIT
-        try:
-            pass
-        except:
-            pass
-        val = SomeValue()
-
-    def jitted(self):
-        self.nonjitted()
-
-
-class TinyFrames(unittest.TestCase):
-    def test_dealloc_reused_frame(self):
-        # suppress JIT
-        try:
-            pass
-        except:
-            pass
-
-        c = SomeClass()
-        c.jitted()
-
-
 class UnwindStateTests(unittest.TestCase):
     def _raise(self):
         # Separate from _copied_locals because we don't support RAISE_VARARGS

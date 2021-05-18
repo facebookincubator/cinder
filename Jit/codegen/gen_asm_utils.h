@@ -17,7 +17,6 @@ void EmitEpilogueUnlinkFrame(
     asmjit::x86::Builder* as,
     asmjit::x86::Gp tstate_r,
     void (*unlink_frame_func)(PyThreadState*),
-    void (*unlink_tiny_frame_func)(PyThreadState*),
     jit::hir::FrameMode frameMode);
 
 } // namespace codegen

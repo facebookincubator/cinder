@@ -1101,7 +1101,6 @@ _PyThread_CurrentFrames(void)
             struct _frame *frame = t->frame;
             if (frame == NULL)
                 continue;
-            frame =  JIT_MaterializeTopFrame(t);
             id = PyLong_FromUnsignedLong(t->thread_id);
             if (id == NULL)
                 goto Fail;

@@ -3286,7 +3286,6 @@ class Environment {
 
 enum class FrameMode {
   kNone,
-  kTiny,
   kNormal,
 };
 

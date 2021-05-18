@@ -397,7 +397,6 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
       as,
       x86::rdi,
       JITRT_InitialYieldUnlinkFrame,
-      JITRT_InitialYieldUnlinkTinyFrame,
       env->frame_mode);
 
   // Jump to bottom half of epilogue

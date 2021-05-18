@@ -523,13 +523,7 @@ static bool should_snapshot(
 
 static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
   /* check for code specific flags */
-  if (code->co_flags & CO_TINY_FRAME) {
-    if (code->co_flags & kCoFlagsAnyGenerator) {
-      return FrameMode::kNormal;
-    } else {
-      return FrameMode::kTiny;
-    }
-  } else if (code->co_flags & CO_NO_FRAME) {
+  if (code->co_flags & CO_NO_FRAME) {
     return FrameMode::kNone;
   } else if (code->co_flags & CO_NORMAL_FRAME) {
     return FrameMode::kNormal;
@@ -537,12 +531,6 @@ static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
 
   if (_PyJIT_NoFrame()) {
     return FrameMode::kNone;
-  } else if (_PyJIT_TinyFrame()) {
-    if (code->co_flags & kCoFlagsAnyGenerator) {
-      return FrameMode::kNormal;
-    } else {
-      return FrameMode::kTiny;
-    }
   }
   return FrameMode::kNormal;
 }
