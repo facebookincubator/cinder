@@ -53,6 +53,7 @@ int64_t __strobe_PyCodeObject_co_flags = offsetof(PyCodeObject, co_flags);
 int64_t __strobe_PyCodeObject_filename = offsetof(PyCodeObject, co_filename);
 int64_t __strobe_PyCodeObject_name = offsetof(PyCodeObject, co_name);
 int64_t __strobe_PyCodeObject_varnames = offsetof(PyCodeObject, co_varnames);
+int64_t __strobe_PyCodeObject_qualname = offsetof(PyCodeObject, co_qualname);
 int64_t __strobe_PyTupleObject_item = offsetof(PyTupleObject, ob_item);
 int64_t __strobe_PyCoroObject_creator = offsetof(PyCoroObject, creator);
 int64_t __strobe_String_data = sizeof(PyASCIIObject);
