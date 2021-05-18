@@ -5,8 +5,6 @@
 #include "pythread.h"
 #include "osdefs.h"
 
-#include "Jit/frame.h"
-
 #include "clinic/_tracemalloc.c.h"
 /*[clinic input]
 module _tracemalloc

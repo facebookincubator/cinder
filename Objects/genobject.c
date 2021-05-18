@@ -6,7 +6,6 @@
 #include "frameobject.h"
 #include "structmember.h"
 #include "opcode.h"
-#include "Jit/frame.h"
 #include "Jit/pyjit.h"
 
 #define UNLIKELY(x) __builtin_expect((x), 0)
@@ -293,10 +292,10 @@ gen_send_ex_with_finish_yf(PyGenObject *gen,
     gen->gi_exc_state.previous_item = tstate->exc_info;
     tstate->exc_info = &gen->gi_exc_state;
     if (gen->gi_jit_data) {
-        result = _PyJIT_GenSend(gen, arg, exc, f, tstate, finish_yield_from);
-        /* We might get a frame in no-frame mode if a deopt occurs. */
-        assert(!f || f == gen->gi_frame);
-        f = gen->gi_frame;
+      result = _PyJIT_GenSend(gen, arg, exc, f, tstate, finish_yield_from);
+      /* We might get a frame in no-frame mode if a deopt occurs. */
+      assert(!f || f == gen->gi_frame);
+      f = gen->gi_frame;
     } else {
         result = PyEval_EvalFrameEx(f, exc);
     }
@@ -964,6 +963,12 @@ gen_getframe(PyGenObject *gen, void *Py_UNUSED(ignored))
 {
     PyFrameObject *frame = gen->gi_frame;
     if (frame == NULL) {
+        if (gen->gi_jit_data) {
+            frame = _PyJIT_GenMaterializeFrame(gen);
+            if (frame != NULL) {
+                return (PyObject *)frame;
+            }
+        }
         Py_RETURN_NONE;
     }
     Py_INCREF(frame);
@@ -1114,9 +1119,8 @@ gen_new_with_qualname(PyGenObject *gen,
 PyObject *
 _PyGen_NewNoFrame(PyCodeObject *code)
 {
-    return gen_new_with_qualname(
-        // TODO(jbower) use qualname when this is available
-        gen_alloc(&PyGen_Type, FREE_LIST_GEN), NULL, code, code->co_name, NULL);
+  return gen_new_with_qualname(gen_alloc(&PyGen_Type, FREE_LIST_GEN), NULL,
+                               code, code->co_name, code->co_qualname);
 }
 
 PyObject *
@@ -1499,8 +1503,7 @@ coro_new(
 PyObject *
 _PyCoro_NewNoFrame(PyThreadState *tstate, PyCodeObject *code)
 {
-    // TODO(jbower): Add qualname when it becomes available
-    return coro_new(tstate, NULL, code, code->co_name, NULL);
+  return coro_new(tstate, NULL, code, code->co_name, code->co_qualname);
 }
 
 
@@ -1848,12 +1851,8 @@ static PyObject* async_gen_init(PyAsyncGenObject* o) {
 PyAPI_FUNC(PyObject *) _PyAsyncGen_NewNoFrame(PyCodeObject *code) {
     PyAsyncGenObject *o;
     o = (PyAsyncGenObject *)gen_new_with_qualname(
-        gen_alloc(&PyAsyncGen_Type, FREE_LIST_ASYNC_GEN),
-        NULL,
-        code,
-        code->co_name,
-        // TODO(jbower) use qualname when this is available
-        NULL);
+        gen_alloc(&PyAsyncGen_Type, FREE_LIST_ASYNC_GEN), NULL, code,
+        code->co_name, code->co_qualname);
     return async_gen_init(o);
 }
 

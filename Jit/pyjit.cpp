@@ -2,6 +2,7 @@
 #include "Jit/pyjit.h"
 
 #include "Python.h"
+#include "internal/pycore_shadow_frame.h"
 
 #include "Include/internal/pycore_pystate.h"
 
@@ -15,6 +16,8 @@
 #include <thread>
 #include <unordered_set>
 
+#include "Jit/codegen/gen_asm.h"
+#include "Jit/frame.h"
 #include "Jit/hir/builder.h"
 #include "Jit/jit_context.h"
 #include "Jit/jit_gdb_support.h"
@@ -30,7 +33,7 @@
 using namespace jit;
 
 enum InitState { JIT_NOT_INITIALIZED, JIT_INITIALIZED, JIT_FINALIZED };
-enum FrameMode { PY_FRAME = 0, NO_FRAME };
+enum FrameMode { PY_FRAME = 0, NO_FRAME, SHADOW_FRAME };
 
 struct JitConfig {
   InitState init_state{JIT_NOT_INITIALIZED};
@@ -353,12 +356,7 @@ static PyObject* get_compiled_spill_stack_size(
 }
 
 static PyObject* jit_frame_mode(PyObject* /* self */, PyObject*) {
-  int i = PY_FRAME;
-  if (_PyJIT_NoFrame()) {
-    i = NO_FRAME;
-  }
-
-  return PyLong_FromLong(i);
+  return PyLong_FromLong(jit_config.frame_mode);
 }
 
 static PyObject* get_supported_opcodes(PyObject* /* self */, PyObject*) {
@@ -410,7 +408,7 @@ static PyMethodDef jit_methods[] = {
     {"jit_frame_mode",
      jit_frame_mode,
      METH_NOARGS,
-     "Get JIT frame mode (0 = normal frames, 1 = no frames"},
+     "Get JIT frame mode (0 = normal frames, 1 = no frames, 2 = shadow frames"},
     {"get_jit_list", get_jit_list, METH_NOARGS, "Get the JIT-list"},
     {"print_hir",
      print_hir,
@@ -691,6 +689,11 @@ int _PyJIT_Initialize() {
   if (_is_flag_set("jit-no-frame", "PYTHONJITNOFRAME")) {
     jit_config.frame_mode = NO_FRAME;
   }
+  if (_is_flag_set("jit-shadow-frame", "PYTHONJITSHADOWFRAME")) {
+    jit_config.frame_mode = SHADOW_FRAME;
+    _PyThreadState_GetFrame =
+        reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
+  }
   jit_config.are_type_slots_enabled = !PyJIT_IsXOptionSet("jit-no-type-slots");
   jit_config.batch_compile_workers =
       flag_long("jit-batch-compile-workers", "PYTHONJITBATCHCOMPILEWORKERS", 0);
@@ -821,6 +824,10 @@ int _PyJIT_NoFrame() {
   return jit_config.frame_mode == NO_FRAME;
 }
 
+int _PyJIT_ShadowFrame() {
+  return jit_config.frame_mode == SHADOW_FRAME;
+}
+
 PyObject* _PyJIT_GenSend(
     PyGenObject* gen,
     PyObject* arg,
@@ -878,6 +885,35 @@ PyObject* _PyJIT_GenSend(
   return result;
 }
 
+PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
+  if (gen->gi_frame) {
+    PyFrameObject* frame = gen->gi_frame;
+    Py_INCREF(frame);
+    return frame;
+  }
+  PyThreadState* tstate = PyThreadState_Get();
+  if (gen->gi_running) {
+    PyFrameObject* frame = jit::materializePyFrameForGen(tstate, gen);
+    Py_INCREF(frame);
+    return frame;
+  }
+  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  if (gen_footer->state == _PyJitGenState_Completed) {
+    return nullptr;
+  }
+  jit::Runtime* rt = jit::codegen::NativeGenerator::runtime();
+  jit::CodeRuntime* code_rt = rt->getCodeRuntime(gen_footer->code_rt_id);
+  PyFrameObject* frame =
+      PyFrame_New(tstate, code_rt->GetCode(), code_rt->GetGlobals(), nullptr);
+  JIT_CHECK(frame != nullptr, "failed allocating frame");
+  // PyFrame_New links the frame into the thread stack.
+  Py_CLEAR(frame->f_back);
+  frame->f_gen = reinterpret_cast<PyObject*>(gen);
+  Py_INCREF(frame);
+  gen->gi_frame = frame;
+  return frame;
+}
+
 int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
@@ -906,4 +942,20 @@ PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
     Py_XINCREF(yf);
   }
   return yf;
+}
+
+PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
+  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+  if (shadow_frame == nullptr) {
+    JIT_CHECK(
+        tstate->frame == nullptr,
+        "py frame w/out corresponding shadow frame\n");
+    return nullptr;
+  }
+  if (shadow_frame->has_pyframe) {
+    return tstate->frame->f_globals;
+  }
+  jit::Runtime* rt = jit::codegen::NativeGenerator::runtime();
+  jit::CodeRuntime* code_rt = rt->getCodeRuntime(shadow_frame->code_rt_id);
+  return code_rt->GetGlobals();
 }

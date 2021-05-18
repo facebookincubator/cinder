@@ -26,7 +26,6 @@ Data members:
 #include "pythread.h"
 #include "pydtrace.h"
 
-#include "Jit/frame.h"
 #include "Jit/pyjit.h"
 
 #include "osdefs.h"

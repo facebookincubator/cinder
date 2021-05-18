@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <list>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -31,8 +32,8 @@ namespace codegen {
 // Generate the final stage trampoline that is responsible for finishing
 // execution in the interpreter and then returning the result to the caller.
 void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode);
-
 void* generateJitTrampoline(asmjit::JitRuntime& rt);
+void* generatePyFrameUnlinkTrampoline(asmjit::JitRuntime& rt);
 
 class NativeGenerator {
  public:
@@ -41,7 +42,8 @@ class NativeGenerator {
         rt_(rt),
         deopt_trampoline_(generateDeoptTrampoline(*rt, false)),
         deopt_trampoline_generators_(generateDeoptTrampoline(*rt, true)),
-        jit_trampoline_(generateJitTrampoline(*rt)) {}
+        jit_trampoline_(generateJitTrampoline(*rt)),
+        frame_header_size_(calcFrameHeaderSize(func)) {}
 
   NativeGenerator(
       const hir::Function* func,
@@ -53,7 +55,8 @@ class NativeGenerator {
         rt_(rt),
         deopt_trampoline_(deopt_trampoline),
         deopt_trampoline_generators_(deopt_trampoline_generators),
-        jit_trampoline_(jit_trampoline) {}
+        jit_trampoline_(jit_trampoline),
+        frame_header_size_(calcFrameHeaderSize(func)) {}
 
   ~NativeGenerator() {
     if (as_ != nullptr) {
@@ -92,12 +95,19 @@ class NativeGenerator {
 
   int compiled_size_{-1};
   int spill_stack_size_{-1};
+  int frame_header_size_;
 
   static Runtime s_jit_asm_code_rt_;
 
+  int calcFrameHeaderSize(const hir::Function* func);
   void generateCode(asmjit::CodeHolder& code);
   void generateFunctionEntry();
-  int setupFrameAndSaveCallerRegisters();
+  void linkShadowFrame(
+      asmjit::x86::Gp tstate_reg,
+      std::optional<asmjit::x86::Gp> gen_reg = std::nullopt);
+  int setupFrameAndSaveCallerRegisters(
+      asmjit::x86::Gp tstate_reg,
+      std::optional<asmjit::x86::Gp> gen_reg = std::nullopt);
   void generatePrologue(
       asmjit::Label correct_arg_count,
       asmjit::Label native_entry_point);
@@ -110,6 +120,7 @@ class NativeGenerator {
       asmjit::Label native_entry_point,
       asmjit::Label static_jmp_location);
   void generateTypedArgumentInfo();
+  void loadTState(asmjit::x86::Gp dst_reg);
 
   void CollectOptimizableLoadMethods();
 
@@ -146,10 +157,21 @@ class NativeGeneratorFactory {
         jit_trampoline_);
   }
 
+  static void* pyFrameUnlinkTrampoline() {
+    if (rt == nullptr) {
+      rt = new asmjit::JitRuntime;
+    }
+    if (py_frame_unlink_trampoline_ == nullptr) {
+      py_frame_unlink_trampoline_ = generatePyFrameUnlinkTrampoline(*rt);
+    }
+    return py_frame_unlink_trampoline_;
+  }
+
   DISALLOW_COPY_AND_ASSIGN(NativeGeneratorFactory);
 
  private:
   static asmjit::JitRuntime* rt;
+  static void* py_frame_unlink_trampoline_;
   void* deopt_trampoline_;
   void* deopt_trampoline_generators_;
   void* jit_trampoline_;

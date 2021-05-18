@@ -1475,6 +1475,44 @@ class GeneratorsTest(unittest.TestCase):
             g.__next__()
 
 
+class GeneratorFrameTest(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    def gen1(self):
+        a = 1
+        yield a
+        a = 2
+        yield a
+
+    def test_access_before_send(self):
+        g = self.gen1()
+        f = g.gi_frame
+        self.assertEqual(next(g), 1)
+        self.assertEqual(g.gi_frame, f)
+        self.assertEqual(next(g), 2)
+        self.assertEqual(g.gi_frame, f)
+
+    def test_access_after_send(self):
+        g = self.gen1()
+        self.assertEqual(next(g), 1)
+        f = g.gi_frame
+        self.assertEqual(next(g), 2)
+        self.assertEqual(g.gi_frame, f)
+
+    @unittest.failUnlessJITCompiled
+    def gen2(self):
+        me = yield
+        f = me.gi_frame
+        yield f
+        yield 10
+
+    def test_access_while_running(self):
+        g = self.gen2()
+        next(g)
+        f = g.send(g)
+        self.assertEqual(f, g.gi_frame)
+        next(g)
+
+
 class CoroutinesTest(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     async def _f1(self):
@@ -2481,6 +2519,113 @@ class CinderJitModuleTests(unittest.TestCase):
     def test_jit_force_normal_frame_raises_on_invalid_arg(self):
         with self.assertRaises(TypeError):
             cinderjit.jit_force_normal_frame(None)
+
+
+class GetFrameTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    def f1(self, leaf):
+        return self.f2(leaf)
+
+    @unittest.failUnlessJITCompiled
+    def f2(self, leaf):
+        return self.f3(leaf)
+
+    @unittest.failUnlessJITCompiled
+    def f3(self, leaf):
+        return leaf()
+
+    def assert_frames(self, frame, names):
+        for name in names:
+            self.assertEqual(frame.f_code.co_name, name)
+            frame = frame.f_back
+
+    @unittest.failUnlessJITCompiled
+    def simple_getframe(self):
+        return sys._getframe()
+
+    def test_simple_getframe(self):
+        stack = ["simple_getframe", "f3", "f2", "f1", "test_simple_getframe"]
+        frame = self.f1(self.simple_getframe)
+        self.assert_frames(frame, stack)
+
+    @unittest.failUnlessJITCompiled
+    def consecutive_getframe(self):
+        f1 = sys._getframe()
+        f2 = sys._getframe()
+        return f1, f2
+
+    def test_consecutive_getframe(self):
+        stack = ["consecutive_getframe", "f3", "f2", "f1", "test_consecutive_getframe"]
+        frame1, frame2 = self.f1(self.consecutive_getframe)
+        self.assert_frames(frame1, stack)
+        # Make sure the second call to sys._getframe doesn't rematerialize
+        # frames
+        for _ in range(4):
+            self.assertTrue(frame1 is frame2)
+            frame1 = frame1.f_back
+            frame2 = frame2.f_back
+
+    @unittest.failUnlessJITCompiled
+    def getframe_in_except(self):
+        try:
+            raise Exception("testing 123")
+        except:
+            return sys._getframe()
+
+    def test_getframe_after_deopt(self):
+        stack = ["getframe_in_except", "f3", "f2", "f1", "test_getframe_after_deopt"]
+        frame = self.f1(self.getframe_in_except)
+        self.assert_frames(frame, stack)
+
+    class FrameGetter:
+        def __init__(self, box):
+            self.box = box
+
+        def __del__(self):
+            self.box[0] = sys._getframe()
+
+    def do_raise(self, x):
+        # Clear reference held by frame in the traceback that gets created with
+        # the exception
+        del x
+        raise Exception("testing 123")
+
+    @unittest.failUnlessJITCompiled
+    def getframe_in_dtor_during_deopt(self):
+        ref = ["notaframe"]
+        try:
+            self.do_raise(self.FrameGetter(ref))
+        except:
+            return ref[0]
+
+    def test_getframe_in_dtor_during_deopt(self):
+        # Test that we can correctly walk the stack in the middle of deopting
+        frame = self.f1(self.getframe_in_dtor_during_deopt)
+        stack = [
+            "__del__",
+            "getframe_in_dtor_during_deopt",
+            "f3",
+            "f2",
+            "f1",
+            "test_getframe_in_dtor_during_deopt",
+        ]
+        self.assert_frames(frame, stack)
+
+    @unittest.failUnlessJITCompiled
+    def getframe_in_dtor_after_deopt(self):
+        ref = ["notaframe"]
+        frame_getter = self.FrameGetter(ref)
+        try:
+            raise Exception("testing 123")
+        except:
+            return ref
+
+    def test_getframe_in_dtor_after_deopt(self):
+        # Test that we can correctly walk the stack in the interpreter after
+        # deopting but before returning to the caller
+        frame = self.f1(self.getframe_in_dtor_after_deopt)[0]
+        stack = ["__del__", "f3", "f2", "f1", "test_getframe_in_dtor_after_deopt"]
+        self.assert_frames(frame, stack)
 
 
 if __name__ == "__main__":

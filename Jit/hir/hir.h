@@ -3287,6 +3287,7 @@ class Environment {
 enum class FrameMode {
   kNone,
   kNormal,
+  kShadow,
 };
 
 // Does the given code object need access to its containing PyFunctionObject at

@@ -8,8 +8,6 @@
 #include "pycore_pystate.h"
 #include "pycore_pylifecycle.h"
 
-#include "Jit/frame.h"
-
 /* --------------------------------------------------------------------------
 CAUTION
 
@@ -607,6 +605,8 @@ new_threadstate(PyInterpreterState *interp, int init)
 
     tstate->context = NULL;
     tstate->context_ver = 1;
+
+    tstate->shadow_frame = NULL;
 
     if (init) {
         _PyThreadState_Init(runtime, tstate);

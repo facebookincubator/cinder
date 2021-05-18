@@ -3,8 +3,6 @@
 #include "frameobject.h"
 #include "clinic/_warnings.c.h"
 
-#include "Jit/frame.h"
-
 #define MODULE_NAME "_warnings"
 
 PyDoc_STRVAR(warnings__doc__,
@@ -822,7 +820,7 @@ setup_context(Py_ssize_t stack_level, PyObject **filename, int *lineno,
     PyObject *globals;
 
     /* Setup globals, filename and lineno. */
-    PyFrameObject *f = PyThreadState_GET()->frame;
+    PyFrameObject *f = PyEval_GetFrame();
 
     // Stack level comparisons to Python code is off by one as there is no
     // warnings-related stack level to avoid.

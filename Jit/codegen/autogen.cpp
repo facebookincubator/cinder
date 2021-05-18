@@ -368,6 +368,10 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   auto gi_jit_data_offset = GET_STRUCT_MEMBER_OFFSET(PyGenObject, gi_jit_data);
   as->mov(x86::rdi, x86::ptr(gen_reg, gi_jit_data_offset));
 
+  as->mov(
+      x86::dword_ptr(x86::rdi, offsetof(GenDataFooter, code_rt_id)),
+      env->code_rt->id());
+
   // Arbitrary scratch register for use in emitStoreGenYieldPoint().
   auto scratch_r = x86::r9;
   asmjit::Label resume_label = as->newLabel();
@@ -394,10 +398,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   as->mov(x86::rdi, x86::ptr(x86::rbp, tstate_loc));
 
   EmitEpilogueUnlinkFrame(
-      as,
-      x86::rdi,
-      JITRT_InitialYieldUnlinkFrame,
-      env->frame_mode);
+      as, x86::rdi, JITRT_InitialYieldUnlinkFrame, env->frame_mode, true);
 
   // Jump to bottom half of epilogue
   as->jmp(env->hard_exit_label);

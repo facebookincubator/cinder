@@ -89,6 +89,9 @@ typedef struct _GenDataFooter {
 
   // Associated generator object
   PyGenObject* gen;
+
+  // JIT metadata for associated code object
+  uint32_t code_rt_id;
 } GenDataFooter;
 
 // The state field needs to be at a fixed offset so it can be quickly accessed
@@ -138,6 +141,7 @@ class GenYieldPoint {
 class CodeRuntime {
  public:
   explicit CodeRuntime(
+      uint32_t id,
       PyCodeObject* py_code,
       PyObject* globals,
       jit::hir::FrameMode frame_mode,
@@ -145,7 +149,8 @@ class CodeRuntime {
       std::size_t num_la_caches,
       std::size_t num_sa_caches,
       std::size_t num_lat_caches)
-      : py_code_(py_code),
+      : id_(id),
+        py_code_(py_code),
         frame_mode_(frame_mode),
         load_method_cache_pool_(num_lm_caches),
         load_attr_cache_pool_(num_la_caches),
@@ -167,10 +172,18 @@ class CodeRuntime {
     return frame_mode_;
   }
 
+  bool isGen() const {
+    return GetCode()->co_flags & kCoFlagsAnyGenerator;
+  }
+
+  uint32_t id() const {
+    return id_;
+  }
+
   // Release any references this CodeRuntime holds to Python objects.
   void releaseReferences();
 
-  PyCodeObject* GetCode() {
+  PyCodeObject* GetCode() const {
     return py_code_;
   }
   PyObject* GetGlobals() {
@@ -207,6 +220,7 @@ class CodeRuntime {
   }
 
  private:
+  uint32_t id_;
   BorrowedRef<PyCodeObject> py_code_;
   jit::hir::FrameMode frame_mode_;
   LoadMethodCachePool load_method_cache_pool_;
@@ -230,9 +244,15 @@ class Runtime {
   CodeRuntime* allocateCodeRuntime(Args&&... args) {
     // Serialize as we modify the globally shared runtimes data.
     ThreadedCompileSerialize guard;
+    uint32_t id = runtimes_.size();
     runtimes_.emplace_back(
-        std::make_unique<CodeRuntime>(std::forward<Args>(args)...));
+        std::make_unique<CodeRuntime>(id, std::forward<Args>(args)...));
     return runtimes_.back().get();
+  }
+
+  CodeRuntime* getCodeRuntime(uint32_t id) const {
+    JIT_CHECK(id < runtimes_.size(), "invalid id %u!", id);
+    return runtimes_[id].get();
   }
 
   // Create or look up a cache for the global with the given name, in the

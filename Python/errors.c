@@ -7,8 +7,6 @@
 #include "pycore_pystate.h"
 #include "pycore_traceback.h"
 
-#include "Jit/frame.h"
-
 #ifndef __STDC__
 #ifndef MS_WINDOWS
 extern char *strerror(int);

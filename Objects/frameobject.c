@@ -8,7 +8,6 @@
 #include "frameobject.h"
 #include "opcode.h"
 #include "structmember.h"
-#include "Jit/frame.h"
 
 #define OFF(x) offsetof(PyFrameObject, x)
 

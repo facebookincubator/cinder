@@ -136,6 +136,7 @@ struct _ts {
     /* Unique thread state id. */
     uint64_t id;
 
+    struct _PyShadowFrame *shadow_frame;
     /* XXX signal handlers should also be here */
 
 };

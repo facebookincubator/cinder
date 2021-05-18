@@ -15,6 +15,7 @@
 #include "classloader.h"
 #include "frameobject.h"
 #include "internal/pycore_pystate.h"
+#include "internal/pycore_shadow_frame.h"
 
 #include "Jit/lir/generator.h"
 
@@ -31,6 +32,7 @@
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
 #include "Jit/pyjit.h"
+#include "Jit/util.h"
 
 using namespace asmjit;
 using namespace jit::hir;
@@ -38,6 +40,34 @@ using namespace jit::util;
 
 namespace jit {
 namespace codegen {
+
+namespace {
+
+namespace shadow_frame {
+static constexpr int kFrameSize = sizeof(_PyShadowFrame);
+// Shadow stack frames appear at the beginning of native frames for jitted
+// functions
+static constexpr x86::Mem kFramePtr = x86::ptr(x86::rbp, -kFrameSize);
+#define FIELD_OFF(field)              \
+  -kFrameSize + int {                 \
+    (offsetof(_PyShadowFrame, field)) \
+  }
+static constexpr x86::Mem kPrevPtr = x86::ptr(x86::rbp, FIELD_OFF(prev));
+static constexpr x86::Mem kCodeRtIdPtr =
+    x86::qword_ptr(x86::rbp, FIELD_OFF(code_rt_id));
+static constexpr x86::Mem kHasPyframePtr =
+    x86::dword_ptr(x86::rbp, FIELD_OFF(has_pyframe));
+#undef FIELD_OFF
+
+static constexpr x86::Mem kGenPtr =
+    x86::qword_ptr(x86::rbp, -kFrameSize - kPointerSize);
+
+static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
+  return x86::ptr(tstate_reg, offsetof(PyThreadState, shadow_frame));
+}
+} // namespace shadow_frame
+
+} // namespace
 
 void RestoreOriginalGeneratorRBP(x86::Emitter* as) {
   size_t original_rbp_offset =
@@ -49,15 +79,46 @@ void EmitEpilogueUnlinkFrame(
     x86::Builder* as,
     x86::Gp tstate_r,
     void (*unlink_frame_func)(PyThreadState*),
-    FrameMode frameMode) {
+    FrameMode frameMode,
+    bool is_generator) {
   if (tstate_r != x86::rdi) {
     as->mov(x86::rdi, tstate_r);
   }
+  using namespace shadow_frame;
+  auto unlinkShadowFrame = [&] {
+    auto shadow_stack_top_ptr = getStackTopPtr(x86::rdi);
+    as->mov(x86::rsi, kPrevPtr);
+    as->mov(shadow_stack_top_ptr, x86::rsi);
+  };
   auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
-  if (frameMode != FrameMode::kNone) {
-    as->mov(saved_rax_ptr, x86::rax);
-    as->call(reinterpret_cast<uint64_t>(unlink_frame_func));
-    as->mov(x86::rax, saved_rax_ptr);
+  switch (frameMode) {
+    case FrameMode::kNone:
+      break;
+    case FrameMode::kNormal:
+      unlinkShadowFrame();
+      as->mov(saved_rax_ptr, x86::rax);
+      as->call(reinterpret_cast<uint64_t>(unlink_frame_func));
+      as->mov(x86::rax, saved_rax_ptr);
+      break;
+    case FrameMode::kShadow:
+      unlinkShadowFrame();
+      // Need to check if a Python frame was materialized for the generator.  If
+      // so, unlink it too.
+      if (is_generator) {
+        auto done = as->newLabel();
+        as->mov(saved_rax_ptr, x86::rax);
+        // Load gen
+        as->mov(x86::rax, kGenPtr);
+        as->test(x86::rax, x86::rax);
+        as->jz(done);
+        // Check for gen->gi_frame
+        as->cmp(x86::qword_ptr(x86::rax, offsetof(PyGenObject, gi_frame)), 0);
+        as->jz(done);
+        as->call(reinterpret_cast<uint64_t>(unlink_frame_func));
+        as->bind(done);
+        as->mov(x86::rax, saved_rax_ptr);
+      }
+      break;
   }
 }
 
@@ -68,6 +129,7 @@ void EmitEpilogueUnlinkFrame(
 static const auto deopt_scratch_reg = x86::r15;
 
 JitRuntime* NativeGeneratorFactory::rt = nullptr;
+void* NativeGeneratorFactory::py_frame_unlink_trampoline_ = nullptr;
 // these functions call int returning functions and convert their output from
 // int (32 bits) to uint64_t (64 bits). This is solely because the code
 // generator cannot support an operand size other than 64 bits at this moment. A
@@ -203,7 +265,7 @@ void* NativeGenerator::GetEntryPoint() {
   PostGenerationRewrite post_gen(lir_func.get(), &env_);
   post_gen.run();
 
-  LinearScanAllocator lsalloc(lir_func.get());
+  LinearScanAllocator lsalloc(lir_func.get(), frame_header_size_);
   lsalloc.run();
 
   env_.spill_size = lsalloc.getSpillSize();
@@ -279,7 +341,70 @@ void NativeGenerator::generateFunctionEntry() {
   as_->mov(x86::rbp, x86::rsp);
 }
 
-int NativeGenerator::setupFrameAndSaveCallerRegisters() {
+void NativeGenerator::loadTState(x86::Gp dst_reg) {
+  uint64_t tstate =
+      reinterpret_cast<uint64_t>(&_PyRuntime.gilstate.tstate_current);
+  if (fitsInt32(tstate)) {
+    as_->mov(dst_reg, x86::ptr(tstate));
+  } else {
+    as_->mov(dst_reg, tstate);
+    as_->mov(dst_reg, x86::ptr(dst_reg));
+  }
+}
+
+void NativeGenerator::linkShadowFrame(
+    x86::Gp tstate_reg,
+    std::optional<x86::Gp> gen_reg) {
+  const jit::hir::Function* func = GetFunction();
+  jit::hir::FrameMode frame_mode = func->frameMode;
+  bool is_gen = func->code->co_flags & kCoFlagsAnyGenerator;
+  auto scratch_reg = x86::rax;
+  using namespace shadow_frame;
+  auto shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
+  switch (frame_mode) {
+    case jit::hir::FrameMode::kNone:
+      break;
+    case jit::hir::FrameMode::kNormal:
+    case jit::hir::FrameMode::kShadow:
+      as_->push(scratch_reg);
+      // Save old top of shadow stack
+      as_->mov(scratch_reg, shadow_stack_top_ptr);
+      as_->mov(kPrevPtr, scratch_reg);
+      // Set code_rt_id and has_pyframe.
+      if (frame_mode == jit::hir::FrameMode::kNormal) {
+        // Don't bother setting code_rt_id. Its value is unspecified when
+        // has_pyframe is 1.
+        as_->mov(kHasPyframePtr, 1);
+      } else {
+        //  We're (ab)using sign extension to initialize both code_rt_id and
+        //  has_pyframe in a single instruction. Sign extension will ensure has
+        //  has_pyframe gets set to 0.
+        uint32_t id = env_.code_rt->id();
+        JIT_DCHECK(
+            static_cast<int32_t>(id) >= 0,
+            "too many runtimes! code_rt->id() is %lu",
+            id);
+        as_->mov(kCodeRtIdPtr, id);
+      }
+      // Set generator, if applicable.
+      if (is_gen) {
+        if (gen_reg.has_value()) {
+          as_->mov(kGenPtr, gen_reg.value());
+        } else {
+          as_->mov(kGenPtr, 0);
+        }
+      }
+      // Set our shadow frame as top of shadow stack
+      as_->lea(scratch_reg, kFramePtr);
+      as_->mov(shadow_stack_top_ptr, scratch_reg);
+      as_->pop(scratch_reg);
+      break;
+  }
+}
+
+int NativeGenerator::setupFrameAndSaveCallerRegisters(
+    x86::Gp tstate_reg,
+    std::optional<x86::Gp> gen_reg) {
   // During execution, the stack looks like this: (items marked with *
   // represent 0 or more words, items marked with ? represent 0 or 1 words,
   // items marked with ^ share the space from the item above):
@@ -288,18 +413,19 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters() {
   // | * memory arguments    |
   // |   return address      |
   // |   saved rbp           | <-- rbp
+  // |   shadow frame?       |
+  // |   generator?          |
   // | * spilled values      |
   // | ? alignment padding   |
   // | * callee-saved regs   |
   // | ? call arg buffer     |
   // | ^ LOAD_METHOD scratch | <-- rsp
   // +-----------------------+
-
   auto saved_regs = env_.changed_regs & CALLEE_SAVE_REGS;
   int saved_regs_size = saved_regs.count() * 8;
   // Make sure we have at least one word for scratch in the epilogue.
   spill_stack_size_ = env_.spill_size;
-  int spill_stack = std::max(spill_stack_size_, 8);
+  int spill_stack = std::max(spill_stack_size_, 8) + frame_header_size_;
 
   int load_method_scratch = env_.optimizable_load_call_methods_.empty() ? 0 : 8;
   int arg_buffer_size = std::max(load_method_scratch, env_.max_arg_buffer_size);
@@ -311,6 +437,8 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters() {
   // Allocate stack space and save the size of the function's stack.
   as_->sub(x86::rsp, spill_stack);
   env_.fixed_frame_size = spill_stack + saved_regs_size;
+
+  linkShadowFrame(tstate_reg, gen_reg);
 
   // Push used callee-saved registers.
   while (!saved_regs.Empty()) {
@@ -343,14 +471,15 @@ void NativeGenerator::generateLinkFrame() {
   };
   switch (GetFunction()->frameMode) {
     case FrameMode::kNone:
-      as_->call(reinterpret_cast<uint64_t>(PyThreadState_Get));
+    case FrameMode::kShadow:
+      loadTState(x86::r11);
       break;
     case FrameMode::kNormal:
       load_args();
       as_->call(reinterpret_cast<uint64_t>(JITRT_AllocateAndLinkFrame));
+      as_->mov(x86::r11, x86::rax); // tstate
       break;
   }
-  as_->mov(x86::r11, x86::rax); // tstate
 }
 
 int hasPrimitiveFirstArg(PyCodeObject* code) {
@@ -565,7 +694,7 @@ void NativeGenerator::generatePrologue(
   // Finally allocate the saved space required for the actual function
   auto native_entry_cursor = as_->cursor();
   as_->bind(native_entry_point);
-  setupFrameAndSaveCallerRegisters();
+  setupFrameAndSaveCallerRegisters(x86::r11);
 
   env_.addAnnotation("Link frame", frame_cursor);
   env_.addAnnotation("Native entry", native_entry_cursor);
@@ -687,7 +816,8 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   FrameMode frameMode = GetFunction()->frameMode;
   as_->bind(env_.exit_label);
 
-  if (GetFunction()->code->co_flags & kCoFlagsAnyGenerator) {
+  bool is_gen = GetFunction()->code->co_flags & kCoFlagsAnyGenerator;
+  if (is_gen) {
     // Set generator state to "completed". We access the state via RBP which
     // points to the of spill data and bottom of GenDataFooter.
     auto state_offs = GET_STRUCT_MEMBER_OFFSET(GenDataFooter, state);
@@ -697,7 +827,8 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
     as_->bind(env_.exit_for_yield_label);
     RestoreOriginalGeneratorRBP(as_->as<x86::Emitter>());
   }
-  EmitEpilogueUnlinkFrame(as_, x86::rdi, JITRT_UnlinkFrame, frameMode);
+
+  EmitEpilogueUnlinkFrame(as_, x86::rdi, JITRT_UnlinkFrame, frameMode, is_gen);
 
   // If we return a primitive, set edx to 1 to indicate no error (in case of
   // error, deopt will set it to 0 and jump to hard_exit_label, skipping this.)
@@ -792,7 +923,7 @@ void NativeGenerator::generateResumeEntry() {
   as_->bind(env_.gen_resume_entry_label);
 
   generateFunctionEntry();
-  setupFrameAndSaveCallerRegisters();
+  setupFrameAndSaveCallerRegisters(x86::rdx, x86::rdi);
 
   // Setup RBP to use storage in generator rather than stack.
 
@@ -870,14 +1001,7 @@ void NativeGenerator::generateStaticEntryPoint(
       as_->pop(x86::rax);
     }
   } else {
-    uint64_t tstate =
-        reinterpret_cast<uint64_t>(&_PyRuntime.gilstate.tstate_current);
-    if (fitsInt32(tstate)) {
-      as_->mov(x86::r11, x86::ptr(tstate));
-    } else {
-      as_->mov(x86::r11, tstate);
-      as_->mov(x86::r11, x86::ptr(x86::r11));
-    }
+    loadTState(x86::r11);
   }
 
   if (total_args > NUM_REG_ARGS) {
@@ -1111,14 +1235,16 @@ static PyFrameObject* prepareForDeopt(
     const uint64_t* regs,
     Runtime* runtime,
     std::size_t deopt_idx,
-    int* err_occurred) {
+    int* err_occurred,
+    void** frame_base) {
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
-  PyFrameObject* frame;
+  PyFrameObject* frame = nullptr;
   if (deopt_meta.code_rt->frameMode() == jit::hir::FrameMode::kNone) {
     frame = allocateFrameForDeopt(tstate, deopt_meta.code_rt);
   } else {
-    frame = tstate->frame;
+    Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate, frame_base);
+    frame = f.release();
   }
   reifyFrame(frame, deopt_meta, regs);
   if (!PyErr_Occurred()) {
@@ -1173,18 +1299,31 @@ static PyFrameObject* prepareForDeopt(
     for (; sp >= frame->f_valuestack; sp--) {
       Py_XDECREF(*sp);
     }
+
+    // Unlink frames
+    if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone) {
+      unlinkShadowFrame(tstate, frame_base, *deopt_meta.code_rt);
+    }
     JITRT_UnlinkFrame(tstate);
     return nullptr;
   }
 
   *err_occurred = (deopt_meta.reason != DeoptReason::kGuardFailure);
 
+  // We need to maintain the invariant that there is at most one shadow frame
+  // on the shadow stack for each frame on the Python stack. The interpreter
+  // will insert a new entry on the shadow stack when execution resumes there,
+  // so we remove our entry.
+  if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone) {
+    unlinkShadowFrame(tstate, frame_base, *deopt_meta.code_rt);
+  }
+
   return frame;
 }
 
 static PyObject* resumeInInterpreter(PyFrameObject* frame, int err_occurred) {
   if (frame->f_gen) {
-    (reinterpret_cast<PyGenObject*>(frame->f_gen))->gi_jit_data = NULL;
+    (reinterpret_cast<PyGenObject*>(frame->f_gen))->gi_jit_data = nullptr;
   }
   PyObject* result = PyEval_EvalFrameEx(frame, err_occurred);
   // The interpreter loop handles unlinking the frame from the execution stack
@@ -1254,6 +1393,7 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   // returns, so we reuse the space on the stack to store whether or not we're
   // deopting into a except/finally block.
   a.lea(x86::rcx, deopt_meta_addr);
+  a.mov(x86::r8, x86::rbp);
   a.call(reinterpret_cast<uint64_t>(prepareForDeopt));
 
   // If we return a primitive and prepareForDeopt returned null, we need that
@@ -1377,6 +1517,43 @@ void* generateJitTrampoline(asmjit::JitRuntime& rt) {
   return result;
 }
 
+// This trampoline is used as the return address for JIT-compiled functions in
+// shadow-frame mode that have a materialized frame. We return into it, it
+// unlinks the Python frame and finally jumps to the original return address.
+void* generatePyFrameUnlinkTrampoline(asmjit::JitRuntime& rt) {
+  CodeHolder code;
+  code.init(rt.codeInfo());
+  x86::Builder a(&code);
+  Annotations annot;
+
+  // Save return value and keep stack aligned
+  a.push(x86::rax);
+  a.push(x86::rdx);
+  // Unlink the frame. The return value is the original return address.
+  a.call(reinterpret_cast<uint64_t>(JITRT_UnlinkMaterializedShadowFrame));
+  a.mov(x86::rdi, x86::rax);
+  a.pop(x86::rdx);
+  a.pop(x86::rax);
+  a.jmp(x86::rdi);
+
+  auto name = "PyFrameUnlinkTrampoline";
+  ASM_CHECK(a.finalize(), name);
+  void* result{nullptr};
+  ASM_CHECK(rt.add(&result, &code), name);
+
+  JIT_LOGIF(
+      g_disas_funcs,
+      "Disassembly for %s\n%s",
+      name,
+      annot.disassemble(result, code));
+
+  auto code_size = code.textSection()->realSize();
+  register_raw_debug_symbol(name, __FILE__, __LINE__, result, code_size, 0);
+  perf::registerFunction(result, code_size, name);
+
+  return result;
+}
+
 void NativeGenerator::generateAssemblyBody() {
   auto as = env_.as;
   auto& blocks = lir_func_->basicblocks();
@@ -1398,6 +1575,17 @@ void NativeGenerator::generateAssemblyBody() {
 
 bool NativeGenerator::isPredefinedUsed(const char* name) {
   return env_.predefined_.count(name);
+}
+
+int NativeGenerator::calcFrameHeaderSize(const hir::Function* func) {
+  if (func == nullptr || func->frameMode == jit::hir::FrameMode::kNone) {
+    return 0;
+  }
+  int size = sizeof(_PyShadowFrame);
+  if (func->code->co_flags & kCoFlagsAnyGenerator) {
+    size += sizeof(void*);
+  }
+  return size;
 }
 
 } // namespace codegen

@@ -12,8 +12,6 @@
 #include <fcntl.h>
 #endif
 
-#include "Jit/frame.h"
-
 #define OFF(x) offsetof(PyTracebackObject, x)
 
 #define PUTS(fd, str) _Py_write_noraise(fd, str, (int)strlen(str))

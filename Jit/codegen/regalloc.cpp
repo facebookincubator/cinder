@@ -1,4 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include "internal/pycore_shadow_frame.h"
+
 #include "Jit/codegen/regalloc.h"
 #include "Jit/codegen/copy_graph.h"
 #include "Jit/codegen/x86_64.h"
@@ -193,7 +195,7 @@ void LinearScanAllocator::initialize() {
   regalloc_blocks_.clear();
   vreg_last_use_.clear();
 
-  max_stack_slot_ = 0;
+  max_stack_slot_ = initial_max_stack_slot_;
   free_stack_slots_.clear();
 
   allocated_.clear();

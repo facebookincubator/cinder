@@ -17,6 +17,7 @@
 #include "pycore_pyerrors.h"
 #include "pycore_pylifecycle.h"
 #include "pycore_pystate.h"
+#include "pycore_shadow_frame.h"
 #include "pycore_shadowcode.h"
 #include "pycore_tupleobject.h"
 
@@ -30,7 +31,6 @@
 #include "structmember.h"
 #include "moduleobject.h"
 #include "Jit/pyjit.h"
-#include "Jit/frame.h"
 #include <ctype.h>
 
 #define LIKELY(x) __builtin_expect((x), 1)
@@ -956,6 +956,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     struct _ceval_runtime_state * const ceval = &runtime->ceval;
     _Py_atomic_int * const eval_breaker = &ceval->eval_breaker;
     PyCodeObject *co;
+    _PyShadowFrame shadow_frame;
 
     /* when tracing we set things up so that
 
@@ -1253,6 +1254,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     tstate->frame = f;
     co = f->f_code;
     co->co_cache.curcalls++;
+    _PyShadowFrame_PushInterp(tstate, &shadow_frame);
 
     if (tstate->use_tracing) {
         if (tstate->c_tracefunc != NULL) {
@@ -5820,6 +5822,7 @@ exit_eval_frame:
     f->f_executing = 0;
     tstate->frame = f->f_back;
     co->co_cache.curcalls--;
+    _PyShadowFrame_Pop(tstate, &shadow_frame);
 
     return _Py_CheckFunctionResult(tstate, NULL, retval, "PyEval_EvalFrameEx");
 }

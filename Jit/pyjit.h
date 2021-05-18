@@ -141,6 +141,12 @@ PyAPI_FUNC(int) _PyJIT_OnJitList(PyFunctionObject* func);
  */
 PyAPI_FUNC(int) _PyJIT_NoFrame(void);
 
+/*
+ * Returns a boolean indicating whether or not jitted functions should use a
+ * shadow frame object by default instead of a full PyFrameObject.
+ */
+PyAPI_FUNC(int) _PyJIT_ShadowFrame(void);
+
 /* Dict-watching callbacks, invoked by dictobject.c when appropriate. */
 
 /*
@@ -201,6 +207,11 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenSend(
     int finish_yield_from);
 
 /*
+ * Materialize the frame for gen. Returns a new reference.
+ */
+PyAPI_FUNC(PyFrameObject*) _PyJIT_GenMaterializeFrame(PyGenObject* gen);
+
+/*
  * Visit owned references in a JIT-backed generator object.
  */
 PyAPI_FUNC(int)
@@ -251,6 +262,12 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenYieldFromValue(PyGenObject* gen);
  * Returns 1 if the function is JITed, 0 if not.
  */
 PyAPI_FUNC(int) _PyJIT_IsCompiled(PyObject* func);
+
+/*
+ * Returns a borrowed reference to the globals for the top-most Python function
+ * associated with tstate.
+ */
+PyAPI_FUNC(PyObject*) _PyJIT_GetGlobals(PyThreadState* tstate);
 
 #ifdef __cplusplus
 }

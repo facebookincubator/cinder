@@ -198,7 +198,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
 static bool can_translate(PyCodeObject* code) {
   static const std::unordered_set<std::string> kBannedNames{
       "eval", "exec", "locals"};
-
   PyObject* names = code->co_names;
   std::unordered_set<Py_ssize_t> banned_name_ids;
   auto name_at = [&](Py_ssize_t i) {
@@ -531,6 +530,9 @@ static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
 
   if (_PyJIT_NoFrame()) {
     return FrameMode::kNone;
+  }
+  if (_PyJIT_ShadowFrame()) {
+    return FrameMode::kShadow;
   }
   return FrameMode::kNormal;
 }

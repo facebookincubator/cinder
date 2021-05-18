@@ -425,16 +425,25 @@ void JITRT_UnlinkFrame(PyThreadState* tstate) {
   PyFrameObject* f = tstate->frame;
   f->f_executing = 0;
 
+  tstate->frame = f->f_back;
   if (Py_REFCNT(f) > 1) {
     Py_DECREF(f);
     if (!_PyObject_GC_IS_TRACKED(f)) {
       _PyObject_GC_TRACK(f);
     }
-    tstate->frame = f->f_back;
   } else {
-    tstate->frame = f->f_back;
     Py_DECREF(f);
   }
+}
+
+void* JITRT_UnlinkMaterializedShadowFrame() {
+  PyThreadState* tstate = PyThreadState_Get();
+  PyFrameObject* frame = tstate->frame;
+  JIT_CHECK(frame->f_valuestack == frame->f_stacktop, "stack should be empty");
+  void* retaddr = *(frame->f_stacktop);
+  *(frame->f_stacktop) = nullptr;
+  JITRT_UnlinkFrame(tstate);
+  return retaddr;
 }
 
 void JITRT_InitialYieldUnlinkFrame(PyThreadState* tstate) {
@@ -1133,12 +1142,8 @@ PyObject* JITRT_ImportName(
   _Py_IDENTIFIER(__import__);
   PyObject *import_func, *res;
   PyObject* stack[5];
-  PyFrameObject* f = tstate->frame;
-  PyObject* globals = NULL;
-  PyObject* builtins;
-
-  globals = f->f_globals;
-  builtins = f->f_builtins;
+  PyObject* globals = PyEval_GetGlobals();
+  PyObject* builtins = tstate->interp->builtins;
 
   import_func = _PyDict_GetItemId(builtins, &PyId___import__);
   if (import_func == NULL) {
@@ -1275,7 +1280,8 @@ static inline PyObject* make_gen_object(
     size_t spill_words,
     PyCodeObject* code) {
   PyGenObject* gen;
-  if (_PyJIT_NoFrame() || code->co_flags & CO_NO_FRAME) {
+  if (_PyJIT_ShadowFrame() || _PyJIT_NoFrame() ||
+      code->co_flags & CO_NO_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(_PyCoro_NewNoFrame(tstate, code));
     } else if (mode == MakeGenObjectMode::kAsyncGenerator) {
