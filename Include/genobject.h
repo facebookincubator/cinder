@@ -67,10 +67,7 @@ PyAPI_FUNC(int) PyGen_NeedsFinalizing(PyGenObject *);
 PyAPI_FUNC(int) _PyGen_SetStopIterationValue(PyObject *);
 PyAPI_FUNC(int) _PyGen_FetchStopIterationValue(PyObject **);
 PyAPI_FUNC(PyObject *) _PyGen_Send(PyGenObject *, PyObject *);
-PyAPI_FUNC(PyObject *) _PyGen_Send_NoStopIteration(PyThreadState *tstate,
-                                                   PyGenObject *,
-                                                   PyObject *,
-                                                   PyObject **);
+
 int _PyGen_close_yf(PyObject *yf);
 
 int _PyGen_restore_error(PyObject *et, PyObject *ev, PyObject *tb);
