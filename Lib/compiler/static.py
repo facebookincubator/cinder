@@ -631,6 +631,17 @@ class ModuleTable:
                     "of attribute or module-level constant",
                 )
 
+            # TODO until we support runtime checking of unions, we must for
+            # safety resolve union annotations to dynamic (except for
+            # optionals, which we can check at runtime)
+            if (
+                isinstance(klass, UnionType)
+                and klass is not UNION_TYPE
+                and klass is not OPTIONAL_TYPE
+                and klass.opt_type is None
+            ):
+                return None
+
             # Even if we know that e.g. `builtins.str` is the exact `str` type and
             # not a subclass, and it's useful to track that knowledge, when we
             # annotate `x: str` that annotation should not exclude subclasses.
@@ -6662,6 +6673,9 @@ class Static38CodeGenerator(CinderCodeGenerator):
                     )
                 )
                 arg_checks.append(t.klass.type_descr)
+
+        # we should never emit arg checks for object
+        assert not any(td == ("builtins", "object") for td in arg_checks[1::2])
 
         gen.emit("CHECK_ARGS", tuple(arg_checks))
 

@@ -3271,8 +3271,8 @@ class StaticCompilationTests(StaticTestBase):
             class B:
                 pass
 
-            def f(x: Union[int, str]) -> Union[int, str, B]:
-                return x
+            def f(x: int, y: str) -> Union[int, str, B]:
+                return x or y
             """,
             "Union[int, str]",
         )
@@ -3282,8 +3282,8 @@ class StaticCompilationTests(StaticTestBase):
             """
             from typing import Union
 
-            def f(x: Union[int, str]) -> Union[int, str]:
-                return x
+            def f(x: int, y: str) -> Union[int, str]:
+                return x or y
             """,
             "Union[int, str]",
         )
@@ -3300,18 +3300,17 @@ class StaticCompilationTests(StaticTestBase):
         )
 
     def test_union_cannot_assign_from_broader_union(self):
-        self.type_error(
+        # TODO this should be a type error, but can't be safely
+        # until we have runtime checking for unions
+        self.assertReturns(
             """
             from typing import Union
             class B: pass
 
-            def f(x: Union[int, str, B]) -> Union[int, str]:
-                return x
+            def f(x: int, y: str, z: B) -> Union[int, str]:
+                return x or y or z
             """,
-            type_mismatch(
-                "Union[int, str, <module>.B]",
-                "Union[int, str]",
-            ),
+            "Union[int, str, foo.B]",
         )
 
     def test_union_simplify_to_single_type(self):
@@ -3319,8 +3318,8 @@ class StaticCompilationTests(StaticTestBase):
             """
             from typing import Union
 
-            def f(x: Union[int]) -> int:
-                return x
+            def f(x: int, y: int) -> int:
+                return x or y
             """,
             "int",
         )
@@ -3332,21 +3331,10 @@ class StaticCompilationTests(StaticTestBase):
             class B: pass
             class C(B): pass
 
-            def f(x: Union[B, C]) -> B:
-                return x
+            def f(x: B, y: C) -> B:
+                return x or y
             """,
             "foo.B",
-        )
-
-    def test_union_simplify_identical(self):
-        self.assertReturns(
-            """
-            from typing import Union
-
-            def f(x: Union[int, int]) -> int:
-                return x
-            """,
-            "int",
         )
 
     def test_union_flatten_nested(self):
@@ -3355,8 +3343,8 @@ class StaticCompilationTests(StaticTestBase):
             from typing import Union
             class B: pass
 
-            def f(x: Union[int, Union[str, B]]):
-                return x
+            def f(x: int, y: str, z: B):
+                return x or (y or z)
             """,
             "Union[int, str, foo.B]",
         )
@@ -3366,10 +3354,11 @@ class StaticCompilationTests(StaticTestBase):
             """
             from typing import Union
 
-            def f(x: Union[Union[int, int], Union[Union[None, None], Union[int, int]]]) -> int:
-                if x is None:
+            def f(x: int, y: None) -> int:
+                z = (x or x) or (y or y) or (x or x)
+                if z is None:
                     return 1
-                return x
+                return z
             """,
             "int",
         )
@@ -3379,8 +3368,8 @@ class StaticCompilationTests(StaticTestBase):
             """
             from somewhere import unknown
 
-            def f(x: Union[int, unknown]):
-                return x
+            def f(x: int, y: unknown):
+                return x or y
             """,
             "dynamic",
         )
@@ -3434,7 +3423,8 @@ class StaticCompilationTests(StaticTestBase):
     def test_union_or_syntax_annotation(self):
         self.type_error(
             """
-            def f(x: int|str) -> int:
+            def f(y: int, z: str) -> int:
+                x: int|str = y or z
                 return x
             """,
             type_mismatch("Union[int, str]", "int"),
@@ -3472,8 +3462,9 @@ class StaticCompilationTests(StaticTestBase):
             class B:
                 attr: str
 
-            def f(x: A | B):
-                return x.attr
+            def f(x: A, y: B):
+                z = x or y
+                return z.attr
             """,
             "Union[int, str]",
         )
@@ -3510,8 +3501,8 @@ class StaticCompilationTests(StaticTestBase):
             """
             from __static__ import CheckedDict
 
-            def f(x: CheckedDict[int, int] | CheckedDict[int, str]):
-                return x[0]
+            def f(x: CheckedDict[int, int], y: CheckedDict[int, str]):
+                return (x or y)[0]
             """,
             "Union[int, str]",
         )
@@ -3519,8 +3510,8 @@ class StaticCompilationTests(StaticTestBase):
     def test_union_unaryop(self):
         self.assertReturns(
             """
-            def f(x: int | complex):
-                return -x
+            def f(x: int, y: complex):
+                return -(x or y)
             """,
             "Union[int, complex]",
         )
@@ -3528,10 +3519,11 @@ class StaticCompilationTests(StaticTestBase):
     def test_union_isinstance_reverse_narrow(self):
         self.assertReturns(
             """
-            def f(x: int | str):
-                if isinstance(x, str):
+            def f(x: int, y: str):
+                z = x or y
+                if isinstance(z, str):
                     return 1
-                return x
+                return z
             """,
             "int",
         )
@@ -3542,10 +3534,11 @@ class StaticCompilationTests(StaticTestBase):
             class A: pass
             class B(A): pass
 
-            def f(x: int | B):
-                if isinstance(x, A):
+            def f(x: int, y: B):
+                o = x or y
+                if isinstance(o, A):
                     return 1
-                return x
+                return o
             """,
             "int",
         )
@@ -3557,10 +3550,11 @@ class StaticCompilationTests(StaticTestBase):
             class B: pass
             class C: pass
 
-            def f(x: A | B | C):
-                if isinstance(x, A | B):
+            def f(x: A, y: B, z: C):
+                o = x or y or z
+                if isinstance(o, A | B):
                     return 1
-                return x
+                return o
             """,
             "foo.C",
         )
@@ -3568,10 +3562,11 @@ class StaticCompilationTests(StaticTestBase):
     def test_union_not_isinstance_narrow(self):
         self.assertReturns(
             """
-            def f(x: int | str):
-                if not isinstance(x, int):
+            def f(x: int, y: str):
+                o = x or y
+                if not isinstance(o, int):
                     return 1
-                return x
+                return o
             """,
             "int",
         )
@@ -3583,13 +3578,29 @@ class StaticCompilationTests(StaticTestBase):
             class B: pass
             class C: pass
 
-            def f(x: A | B | C):
-                if isinstance(x, (A, B)):
+            def f(x: A, y: B, z: C):
+                o = x or y or z
+                if isinstance(o, (A, B)):
                     return 1
-                return x
+                return o
             """,
             "foo.C",
         )
+
+    def test_union_no_arg_check(self):
+        codestr = """
+           def f(x: int | str) -> int:
+               return x
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            # no arg check for the union, it's just dynamic
+            self.assertInBytecode(f, "CHECK_ARGS", ())
+            # so we do have to check the return value
+            self.assertInBytecode(f, "CAST", ("builtins", "int"))
+            # runtime type error comes from return, not argument
+            with self.assertRaisesRegex(TypeError, "expected 'int', got 'list'"):
+                f([])
 
     def test_error_return_int(self):
         with self.assertRaisesRegex(
