@@ -29,6 +29,7 @@ extern int g_dump_final_hir;
 extern int g_dump_lir;
 extern int g_dump_lir_no_origin;
 extern int g_disas_funcs;
+extern int g_dump_stats;
 extern FILE* g_log_file;
 
 // fmt doesn't support compile-time checking of printf-style format strings, so

@@ -687,6 +687,11 @@ class DeoptBase : public Instr {
         return false;
       }
     }
+    if (guilty_reg_ != nullptr) {
+      if (!func(guilty_reg_)) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -698,10 +703,35 @@ class DeoptBase : public Instr {
     nonce_ = nonce;
   }
 
+  // Get or set the human-readable description of why this instruction might
+  // deopt.
+  const std::string& descr() const {
+    return descr_;
+  }
+
+  void setDescr(std::string r) {
+    descr_ = std::move(r);
+  }
+
+  // Get or set the optional value that is the likely cause for this
+  // instruction deopting.
+  Register* guiltyReg() const {
+    return guilty_reg_;
+  }
+
+  void setGuiltyReg(Register* reg) {
+    guilty_reg_ = reg;
+  }
+
  private:
   std::vector<RegState> live_regs_;
   std::unique_ptr<FrameState> frame_state_{nullptr};
+  // If set and this instruction deopts at runtime, the value that most likely
+  // caused the deopt.
+  Register* guilty_reg_{nullptr};
   int nonce_{-1};
+  // A human-readable description of why this instruction might deopt.
+  std::string descr_;
 };
 
 // This pile of template metaprogramming provides a convenient way to define

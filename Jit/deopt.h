@@ -55,18 +55,23 @@ struct LiveValue {
   }
 };
 
+#define DEOPT_REASONS(X)   \
+  X(GuardFailure)          \
+  X(Raise)                 \
+  X(RaiseStatic)           \
+  X(Reraise)               \
+  X(UnhandledException)    \
+  X(UnhandledUnboundLocal) \
+  X(UnhandledNullField)    \
+  X(UnhandledNone)
+
 enum class DeoptReason {
-  kGuardFailure,
-  kRaise,
-  kRaiseStatic,
-  kReraise,
-  kUnhandledException,
-  // Special case of an unhandled exception. We need to raise an
-  // `UnboundLocalError` before unwinding.
-  kUnhandledUnboundLocal,
-  kUnhandledNullField,
-  kUnhandledNone,
+#define REASON(name) k##name,
+  DEOPT_REASONS(REASON)
+#undef REASON
 };
+
+const char* deoptReasonName(DeoptReason reason);
 
 enum class DeoptAction {
   kResumeInInterpreter,
@@ -98,6 +103,10 @@ struct DeoptMetadata {
   // Index into live_values for each entry in the operand stack.
   std::vector<int> stack;
 
+  // If not -1, index into live_values for the value most directly responsible
+  // for this deopt. Used for tracking deopt reasons.
+  int guilty_value{-1};
+
   jit::hir::BlockStack block_stack;
 
   // The offset of the next bytecode instruction to execute.
@@ -110,6 +119,9 @@ struct DeoptMetadata {
   // Runtime metadata associated with the JIT-compiled function from which this
   // was generated.
   CodeRuntime* code_rt{nullptr};
+
+  // A human-readable description of why this deopt happened.
+  const char* descr{nullptr};
 
   const LiveValue& getStackValue(int i) const {
     return live_values[stack[i]];
@@ -124,6 +136,14 @@ struct DeoptMetadata {
     return &live_values[v];
   }
 
+  // Returns nullptr if there is no guilty value.
+  const LiveValue* getGuiltyValue() const {
+    if (guilty_value == -1) {
+      return nullptr;
+    }
+    return &live_values[guilty_value];
+  }
+
   // Construct a `DeoptMetadata` instance from the information in `instr`.
   //
   // `optimizable_lms` contains the set of `LoadMethod` instructions for which
@@ -136,6 +156,10 @@ struct DeoptMetadata {
 
 // Update `frame` so that execution can resume in the interpreter.
 //
+// `deopt_idx` is the index of `meta` in the Runtime's list of
+// DeoptMetadatas. It may be size_t(-1) to indicate that `meta` is transient
+// and not in Runtime's list.
+//
 // The `regs` argument contains the values of all general purpose registers,
 // in the same order as they appear in `jit::codegen::PhyLocation`.
 //
@@ -146,6 +170,7 @@ struct DeoptMetadata {
 // initialized.
 void reifyFrame(
     PyFrameObject* frame,
+    std::size_t deopt_idx,
     const DeoptMetadata& meta,
     const uint64_t* regs);
 

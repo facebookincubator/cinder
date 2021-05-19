@@ -1246,7 +1246,7 @@ static PyFrameObject* prepareForDeopt(
     Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate, frame_base);
     frame = f.release();
   }
-  reifyFrame(frame, deopt_meta, regs);
+  reifyFrame(frame, deopt_idx, deopt_meta, regs);
   if (!PyErr_Occurred()) {
     auto reason = deopt_meta.reason;
     switch (reason) {

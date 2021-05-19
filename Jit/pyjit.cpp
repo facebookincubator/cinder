@@ -55,6 +55,20 @@ static std::vector<Ref<PyFunctionObject>> test_multithreaded_funcs;
 static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
     jit_time_functions;
 
+// Frequently-used strings that we intern at JIT startup and hold references to.
+#define INTERNED_STRINGS(X) \
+  X(func_fullname)          \
+  X(filename)               \
+  X(lineno)                 \
+  X(count)                  \
+  X(reason)                 \
+  X(guilty_type)            \
+  X(description)
+
+#define DECLARE_STR(s) static PyObject* s_str_##s{nullptr};
+INTERNED_STRINGS(DECLARE_STR)
+#undef DECLARE_STR
+
 static double total_compliation_time = 0.0;
 
 struct CompilationTimer {
@@ -323,6 +337,117 @@ static PyObject* get_function_compilation_time(
   return res;
 }
 
+static Ref<> make_deopt_stats() {
+  Runtime* runtime = codegen::NativeGenerator::runtime();
+  auto stats = Ref<>::steal(PyList_New(0));
+  if (stats == nullptr) {
+    return nullptr;
+  }
+  for (auto& pair : runtime->deoptStats()) {
+    const DeoptMetadata& meta = runtime->getDeoptMetadata(pair.first);
+    const DeoptStat& stat = pair.second;
+    CodeRuntime& code_rt = *meta.code_rt;
+    BorrowedRef<PyCodeObject> code = code_rt.GetCode();
+
+    auto event = Ref<>::steal(PyDict_New());
+    if (event == nullptr) {
+      return nullptr;
+    }
+
+    auto func_fullname = code->co_qualname;
+    int lineno_raw = code->co_lnotab != nullptr
+        ? PyCode_Addr2Line(code, meta.next_instr_offset)
+        : -1;
+    auto lineno = Ref<>::steal(PyLong_FromLong(lineno_raw));
+    if (lineno == nullptr) {
+      return nullptr;
+    }
+    auto reason =
+        Ref<>::steal(PyUnicode_FromString(deoptReasonName(meta.reason)));
+    if (reason == nullptr) {
+      return nullptr;
+    }
+    auto description = Ref<>::steal(PyUnicode_FromString(meta.descr));
+    if (description == nullptr) {
+      return nullptr;
+    }
+    if (PyDict_SetItem(event, s_str_func_fullname, func_fullname) < 0 ||
+        PyDict_SetItem(event, s_str_filename, code->co_filename) < 0 ||
+        PyDict_SetItem(event, s_str_lineno, lineno) < 0 ||
+        PyDict_SetItem(event, s_str_reason, reason) < 0 ||
+        PyDict_SetItem(event, s_str_description, description) < 0) {
+      return nullptr;
+    }
+
+    Ref<> event_copy;
+    // Helper to copy the event dict and stick in a new count value, reusing
+    // the original for the first "copy".
+    auto append_copy = [&](size_t count_raw, const char* type) {
+      if (event_copy == nullptr) {
+        event_copy = std::move(event);
+      } else {
+        event_copy = Ref<>::steal(PyDict_Copy(event_copy));
+        if (event_copy == nullptr) {
+          return false;
+        }
+      }
+      auto count = Ref<>::steal(PyLong_FromSize_t(count_raw));
+      if (count == nullptr ||
+          PyDict_SetItem(event_copy, s_str_count, count) < 0) {
+        return false;
+      }
+      auto type_str = Ref<>::steal(PyUnicode_InternFromString(type));
+      if (type_str == nullptr ||
+          PyDict_SetItem(event_copy, s_str_guilty_type, type_str) < 0) {
+        return false;
+      }
+      return PyList_Append(stats, event_copy) == 0;
+    };
+
+    // For deopts with type profiles, add a copy of the dict with counts for
+    // each type, including "other".
+    if (!stat.types.empty()) {
+      for (size_t i = 0; i < stat.types.size && stat.types.types[i] != nullptr;
+           ++i) {
+        if (!append_copy(stat.types.counts[i], stat.types.types[i]->tp_name)) {
+          return nullptr;
+        }
+      }
+      if (stat.types.other > 0 && !append_copy(stat.types.other, "other")) {
+        return nullptr;
+      }
+    } else if (!append_copy(stat.count, "<none>")) {
+      return nullptr;
+    }
+  }
+
+  runtime->clearDeoptStats();
+
+  return stats;
+}
+
+static PyObject* get_and_clear_runtime_stats(PyObject* /* self */, PyObject*) {
+  auto stats = Ref<>::steal(PyDict_New());
+  if (stats == nullptr) {
+    return nullptr;
+  }
+
+  Ref<> deopt_stats = make_deopt_stats();
+  if (deopt_stats == nullptr) {
+    return nullptr;
+  }
+  if (PyDict_SetItemString(stats, "deopt", deopt_stats) < 0) {
+    return nullptr;
+  }
+
+  return stats.release();
+}
+
+static PyObject* clear_runtime_stats(PyObject* /* self */, PyObject*) {
+  codegen::NativeGenerator::runtime()->clearDeoptStats();
+  Py_RETURN_NONE;
+}
+
 static PyObject* get_compiled_size(PyObject* /* self */, PyObject* func) {
   if (jit_ctx == NULL) {
     return PyLong_FromLong(0);
@@ -431,6 +556,14 @@ static PyMethodDef jit_methods[] = {
      METH_O,
      "Return the time used for JIT compiling a given function in "
      "milliseconds."},
+    {"get_and_clear_runtime_stats",
+     get_and_clear_runtime_stats,
+     METH_NOARGS,
+     "Returns information about the runtime behavior of JIT-compiled code."},
+    {"clear_runtime_stats",
+     clear_runtime_stats,
+     METH_NOARGS,
+     "Clears runtime stats about JIT-compiled code without returning a value."},
     {"get_compiled_size",
      get_compiled_size,
      METH_O,
@@ -618,6 +751,10 @@ int _PyJIT_Initialize() {
     g_gdb_support = 1;
     g_gdb_write_elf_objects = 1;
   }
+  if (_is_flag_set("jit-dump-stats", "PYTHONJITDUMPSTATS")) {
+    JIT_DLOG("Dumping JIT runtime stats at shutdown.");
+    g_dump_stats = 1;
+  }
 
   if (_is_flag_set(
           "jit-enable-jit-list-wildcards", "PYTHONJITENABLEJITLISTWILDCARDS")) {
@@ -682,6 +819,14 @@ int _PyJIT_Initialize() {
   if (st == -1) {
     return -1;
   }
+
+#define INTERN_STR(s)                         \
+  s_str_##s = PyUnicode_InternFromString(#s); \
+  if (s_str_##s == nullptr) {                 \
+    return -1;                                \
+  }
+  INTERNED_STRINGS(INTERN_STR)
+#undef INTERN_STR
 
   jit_config.init_state = JIT_INITIALIZED;
   jit_config.is_enabled = 1;
@@ -800,10 +945,28 @@ void _PyJIT_UnregisterFunction(PyFunctionObject* func) {
   }
 }
 
+static void dump_jit_stats() {
+  auto stats = get_and_clear_runtime_stats(nullptr, nullptr);
+  if (stats == nullptr) {
+    return;
+  }
+  auto stats_str = PyObject_Str(stats);
+  if (stats_str == nullptr) {
+    return;
+  }
+
+  JIT_LOG("JIT runtime stats:\n%s", PyUnicode_AsUTF8(stats_str));
+}
+
 int _PyJIT_Finalize() {
+  if (g_dump_stats) {
+    dump_jit_stats();
+  }
+
   // Always release references from Runtime objects: C++ clients may have
   // invoked the JIT directly without initializing a full _PyJITContext.
   jit::codegen::NativeGenerator::runtime()->releaseReferences();
+  jit::codegen::NativeGenerator::runtime()->clearDeoptStats();
 
   if (jit_config.init_state != JIT_INITIALIZED) {
     return 0;
@@ -816,6 +979,10 @@ int _PyJIT_Finalize() {
 
   JIT_CHECK(jit_ctx != NULL, "jit_ctx not initialized");
   Py_CLEAR(jit_ctx);
+
+#define CLEAR_STR(s) Py_CLEAR(s_str_##s);
+  INTERNED_STRINGS(CLEAR_STR)
+#undef CLEAR_STR
 
   return 0;
 }

@@ -603,6 +603,12 @@ void HIRPrinter::Print(std::ostream& os, const Instr& instr) {
   if (db != nullptr && db->live_regs().size() > 0) {
     os << " {" << std::endl;
     Indent();
+    if (!db->descr().empty()) {
+      Indented(os) << fmt::format("Descr '{}'\n", db->descr());
+    }
+    if (Register* guilty_reg = db->guiltyReg()) {
+      Indented(os) << fmt::format("GuiltyReg {}\n", *guilty_reg);
+    }
     if (db->live_regs().size() > 0) {
       Indented(os) << "LiveValues";
       print_reg_states(os, db->live_regs());

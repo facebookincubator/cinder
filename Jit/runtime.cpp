@@ -116,6 +116,22 @@ DeoptMetadata& Runtime::getDeoptMetadata(std::size_t id) {
   return deopt_metadata_[id];
 }
 
+void Runtime::recordDeopt(std::size_t idx, PyObject* guilty_value) {
+  DeoptStat& stat = deopt_stats_[idx];
+  stat.count++;
+  if (guilty_value != nullptr) {
+    stat.types.recordType(Py_TYPE(guilty_value));
+  }
+}
+
+const DeoptStats& Runtime::deoptStats() const {
+  return deopt_stats_;
+}
+
+void Runtime::clearDeoptStats() {
+  deopt_stats_.clear();
+}
+
 void Runtime::setGuardFailureCallback(Runtime::GuardFailureCallback cb) {
   guard_failure_callback_ = cb;
 }

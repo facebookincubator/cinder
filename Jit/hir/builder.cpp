@@ -2590,7 +2590,9 @@ void HIRBuilder::emitLoadGlobal(
       return false;
     }
     tc.emit<LoadGlobalCached>(result, name_idx);
-    tc.emit<GuardIs>(value, result, result);
+    auto guard_is = tc.emit<GuardIs>(value, result, result);
+    BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
+    guard_is->setDescr(fmt::format("LOAD_GLOBAL: {}", PyUnicode_AsUTF8(name)));
     return true;
   };
 
@@ -2948,14 +2950,18 @@ void HIRBuilder::emitUnpackSequence(
     CFG& cfg,
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
+  auto& stack = tc.frame.stack;
+  Register* seq = stack.top();
+
   TranslationContext deopt_path{cfg.AllocateBlock(), tc.frame};
   deopt_path.frame.next_instr_offset = bc_instr.offset();
   deopt_path.snapshot();
-  deopt_path.emit<Deopt>();
+  Deopt* deopt = deopt_path.emit<Deopt>();
+  deopt->setGuiltyReg(seq);
+  deopt->setDescr("UNPACK_SEQUENCE");
 
-  auto& stack = tc.frame.stack;
   BasicBlock* fast_path = cfg.AllocateBlock();
-  Register* seq = stack.pop();
+  stack.pop();
   tc.emit<CondBranchCheckType>(seq, TTupleExact, fast_path, deopt_path.block);
   tc.block = fast_path;
 

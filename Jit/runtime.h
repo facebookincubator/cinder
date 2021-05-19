@@ -7,8 +7,10 @@
 #include "Jit/jit_rt.h"
 #include "Jit/pyjit.h"
 #include "Jit/threaded_compile.h"
+#include "Jit/type_profiler.h"
 #include "Jit/util.h"
 
+#include <unordered_map>
 #include <unordered_set>
 
 namespace jit {
@@ -236,6 +238,16 @@ class CodeRuntime {
   std::deque<GenYieldPoint> gen_yield_points_;
 };
 
+// Information about the runtime behavior of a single deopt point: how often
+// it's been hit, and the frequency of guilty types, if applicable.
+struct DeoptStat {
+  std::size_t count;
+  TypeProfiler<4> types;
+};
+
+// Map from DeoptMetadata index to stats about that deopt point.
+using DeoptStats = std::unordered_map<std::size_t, DeoptStat>;
+
 // this class collects all the data needed for JIT at runtime
 // it maps a PyCodeObject to the runtime info the PyCodeObject needs.
 class Runtime {
@@ -282,6 +294,14 @@ class Runtime {
   std::size_t addDeoptMetadata(DeoptMetadata&& deopt_meta);
   DeoptMetadata& getDeoptMetadata(std::size_t id);
 
+  // Record that a deopt of the given index happened at runtime, with an
+  // optional guilty value.
+  void recordDeopt(std::size_t idx, PyObject* guilty_value);
+
+  // Get and/or clear runtime deopt stats.
+  const DeoptStats& deoptStats() const;
+  void clearDeoptStats();
+
   using GuardFailureCallback = std::function<void(const DeoptMetadata&)>;
 
   // Add a function to be called when deoptimization occurs due to guard
@@ -307,6 +327,7 @@ class Runtime {
   std::vector<GlobalCacheValue> orphaned_global_caches_;
 
   std::vector<DeoptMetadata> deopt_metadata_;
+  DeoptStats deopt_stats_;
   GuardFailureCallback guard_failure_callback_;
 
   // References to Python objects held by this Runtime

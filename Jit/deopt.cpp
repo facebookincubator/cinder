@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/deopt.h"
 
+#include "Jit/codegen/gen_asm.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/jit_rt.h"
 #include "Jit/runtime.h"
@@ -9,6 +10,11 @@
 using jit::codegen::PhyLocation;
 
 namespace jit {
+
+namespace {
+// Set of interned strings for deopt descriptions.
+std::unordered_set<std::string> s_descrs;
+} // namespace
 
 hir::RefKind deoptRefKind(hir::Type type, hir::RefKind lifetime_kind) {
   if (type <= jit::hir::TCBool) {
@@ -37,6 +43,17 @@ hir::RefKind deoptRefKind(hir::Type type, hir::RefKind lifetime_kind) {
   JIT_CHECK(
       type <= jit::hir::TOptObject, "Unexpected type %s in deopt value", type);
   return lifetime_kind;
+}
+
+const char* deoptReasonName(DeoptReason reason) {
+  switch (reason) {
+#define REASON(name)         \
+  case DeoptReason::k##name: \
+    return #name;
+    DEOPT_REASONS(REASON)
+#undef REASON
+  }
+  JIT_CHECK(false, "Invalid DeoptReason %d", static_cast<int>(reason));
 }
 
 namespace {
@@ -176,6 +193,15 @@ static void reifyStack(
   }
 }
 
+static void profileDeopt(
+    std::size_t deopt_idx,
+    const DeoptMetadata& meta,
+    const MemoryView& mem) {
+  const LiveValue* live_val = meta.getGuiltyValue();
+  PyObject* val = live_val == nullptr ? nullptr : mem.read(*live_val, true);
+  codegen::NativeGenerator::runtime()->recordDeopt(deopt_idx, val);
+}
+
 static void reifyBlockStack(
     PyFrameObject* frame,
     const jit::hir::BlockStack& block_stack) {
@@ -214,6 +240,7 @@ static void releaseRefs(
 
 void reifyFrame(
     PyFrameObject* frame,
+    std::size_t deopt_idx,
     const DeoptMetadata& meta,
     const uint64_t* regs) {
   frame->f_locals = NULL;
@@ -232,6 +259,9 @@ void reifyFrame(
   MemoryView mem{regs};
   reifyLocalsplus(frame, meta, mem);
   reifyStack(frame, meta, mem);
+  if (deopt_idx != -1ull) {
+    profileDeopt(deopt_idx, meta, mem);
+  }
   // Clear our references now that we've transferred them to the frame
   releaseRefs(meta.live_values, mem);
   reifyBlockStack(frame, meta.block_stack);
@@ -365,6 +395,11 @@ DeoptMetadata DeoptMetadata::fromInstr(
     }
     meta.stack.emplace_back(get_reg_idx(reg));
   }
+
+  if (hir::Register* guilty_reg = instr.guiltyReg()) {
+    meta.guilty_value = get_reg_idx(guilty_reg);
+  }
+
   meta.block_stack = fs->block_stack;
   meta.next_instr_offset = fs->next_instr_offset;
   meta.nonce = instr.nonce();
@@ -381,6 +416,15 @@ DeoptMetadata DeoptMetadata::fromInstr(
   } else if (instr.IsCheckNone()) {
     const auto& check = static_cast<const jit::hir::CheckNone&>(instr);
     meta.eh_name_index = check.name_idx();
+  }
+
+  std::string descr = instr.descr();
+  if (descr.empty()) {
+    descr = hir::kOpcodeNames[static_cast<size_t>(instr.opcode())];
+  }
+  {
+    ThreadedCompileSerialize guard;
+    meta.descr = s_descrs.emplace(descr).first->c_str();
   }
   return meta;
 }
