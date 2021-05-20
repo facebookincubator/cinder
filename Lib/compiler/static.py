@@ -163,7 +163,7 @@ from . import symbols, opcode38static
 from .consts import SC_LOCAL, SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT
 from .opcodebase import Opcode
 from .optimizer import AstOptimizer
-from .pyassem import Block, PyFlowGraph, PyFlowGraphCinder
+from .pyassem import Block, PyFlowGraph, PyFlowGraphCinder, IndexedSet
 from .pycodegen import (
     AugAttribute,
     AugName,
@@ -7153,7 +7153,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
         self.get_type(test).emit_jumpif(test, next, is_if_true, self)
 
     def _calculate_idx(
-        self, arg_name: str, non_cellvar_pos: int, cellvars: List[str]
+        self, arg_name: str, non_cellvar_pos: int, cellvars: IndexedSet
     ) -> int:
         try:
             offset = cellvars.index(arg_name)

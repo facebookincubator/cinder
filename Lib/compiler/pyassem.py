@@ -353,6 +353,11 @@ DONE = "DONE"
 
 
 class IndexedSet:
+    """Container that behaves like a `set` that assigns stable dense indexes
+    to each element. Put another way: This behaves like a `list` where you
+    check `x in <list>` before doing any insertion to avoid duplicates. But
+    contrary to the list this does not require an O(n) member check."""
+
     __delitem__ = None
 
     def __init__(self, iterable=()):
@@ -372,6 +377,7 @@ class IndexedSet:
         return item in self.keys
 
     def __iter__(self):
+        # This relies on `dict` maintaining insertion order.
         return iter(self.keys.keys())
 
     def __len__(self):
@@ -393,6 +399,10 @@ class IndexedSet:
         if idx is not None:
             return idx
         raise ValueError()
+
+    def update(self, iterable):
+        for item in iterable:
+            self.get_index(item)
 
 
 class PyFlowGraph(FlowGraph):
@@ -431,17 +441,21 @@ class PyFlowGraph(FlowGraph):
         if optimized:
             self.setFlag(CO_OPTIMIZED | CO_NEWLOCALS)
         self.consts = {}
-        self.names = []
+        self.names = IndexedSet()
         # Free variables found by the symbol table scan, including
         # variables used only in nested scopes, are included here.
-        self.freevars = list(self.scope.get_free_vars())
-        self.cellvars = list(self.scope.get_cell_vars())
+        self.freevars = IndexedSet(self.scope.get_free_vars())
+        self.cellvars = IndexedSet(self.scope.get_cell_vars())
         # The closure list is used to track the order of cell
         # variables and free variables in the resulting code object.
         # The offsets used by LOAD_CLOSURE/LOAD_DEREF refer to both
         # kinds of variables.
         self.closure = self.cellvars + self.freevars
-        self.varnames = list(args) + list(kwonlyargs) + list(starargs)
+        varnames = IndexedSet()
+        varnames.update(args)
+        varnames.update(kwonlyargs)
+        varnames.update(starargs)
+        self.varnames = varnames
         self.stage = ACTIVE
         self.firstline = firstline
         self.first_inst_lineno = 0
@@ -626,23 +640,6 @@ class PyFlowGraph(FlowGraph):
     def sort_cellvars(self):
         self.closure = self.cellvars + self.freevars
 
-    def _lookupName(self, name, list):
-        """Return index of name in list, appending if necessary
-
-        This routine uses a list instead of a dictionary, because a
-        dictionary can't store two different keys if the keys have the
-        same value but different types, e.g. 2 and 2L.  The compiler
-        must treat these two separately, so it does an explicit type
-        comparison before comparing the values.
-        """
-        t = type(name)
-        for i in range(len(list)):
-            if t is type(list[i]) and list[i] == name:  # noqa: E721
-                return i
-        end = len(list)
-        list.append(name)
-        return end
-
     def _convert_LOAD_CONST(self, arg: object) -> int:
         getCode = getattr(arg, "getCode", None)
         if getCode is not None:
@@ -668,16 +665,14 @@ class PyFlowGraph(FlowGraph):
         return type(value), value
 
     def _convert_LOAD_FAST(self, arg: object) -> int:
-        return self._lookupName(arg, self.varnames)
+        return self.varnames.get_index(arg)
 
     def _convert_LOAD_LOCAL(self, arg: object) -> int:
         assert isinstance(arg, tuple), "invalid oparg {arg!r}"
-        return self._convert_LOAD_CONST(
-            (self._lookupName(arg[0], self.varnames), arg[1])
-        )
+        return self._convert_LOAD_CONST((self.varnames.get_index(arg[0]), arg[1]))
 
     def _convert_NAME(self, arg: object) -> int:
-        return self._lookupName(arg, self.names)
+        return self.names.get_index(arg)
 
     def _convert_LOAD_SUPER(self, arg: object) -> int:
         assert isinstance(arg, tuple), "invalid oparg {arg!r}"
@@ -687,8 +682,8 @@ class PyFlowGraph(FlowGraph):
         # Sometimes, both cellvars and freevars may contain the same var
         # (e.g., for class' __class__). In this case, prefer freevars.
         if arg in self.freevars:
-            return self._lookupName(arg, self.freevars) + len(self.cellvars)
-        return self._lookupName(arg, self.closure)
+            return self.freevars.get_index(arg) + len(self.cellvars)
+        return self.closure.get_index(arg)
 
     # similarly for other opcodes...
     _converters = {
@@ -707,7 +702,7 @@ class PyFlowGraph(FlowGraph):
         "LOAD_LOCAL": _convert_LOAD_LOCAL,
         "STORE_LOCAL": _convert_LOAD_LOCAL,
         "LOAD_NAME": _convert_NAME,
-        "LOAD_CLOSURE": lambda self, arg: self._lookupName(arg, self.closure),
+        "LOAD_CLOSURE": lambda self, arg: self.closure.get_index(arg),
         "COMPARE_OP": lambda self, arg: self.opcode.CMP_OP.index(arg),
         "LOAD_GLOBAL": _convert_NAME,
         "STORE_GLOBAL": _convert_NAME,
