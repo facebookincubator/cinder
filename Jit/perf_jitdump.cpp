@@ -31,9 +31,10 @@
 namespace jit {
 namespace perf {
 
-extern const std::string kDefaultSymbolPrefix{"__CINDER_INFRA_JIT"};
-extern const std::string kFuncSymbolPrefix{"__CINDER_JIT"};
-extern const std::string kNoFrameSymbolPrefix{"__CINDER_NO_FRAME_JIT"};
+const std::string kDefaultSymbolPrefix{"__CINDER_INFRA_JIT"};
+const std::string kFuncSymbolPrefix{"__CINDER_JIT"};
+const std::string kNoFrameSymbolPrefix{"__CINDER_NO_FRAME_JIT"};
+const std::string kShadowFrameSymbolPrefix{"__CINDER_SHDW_FRAME_JIT"};
 
 namespace {
 

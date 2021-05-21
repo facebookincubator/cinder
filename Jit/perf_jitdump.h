@@ -11,6 +11,7 @@ namespace perf {
 extern const std::string kDefaultSymbolPrefix;
 extern const std::string kFuncSymbolPrefix;
 extern const std::string kNoFrameSymbolPrefix;
+extern const std::string kShadowFrameSymbolPrefix;
 
 // Write out perf metadata for the given compiled function, depending on what's
 // enabled in the environment:

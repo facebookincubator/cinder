@@ -1126,14 +1126,21 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
         (void*)(codeholder.labelOffset(trampoline) + codeholder.baseAddress());
   }
 
+  const hir::Function* func = GetFunction();
+  std::string prefix = [&] {
+    switch (func->frameMode) {
+      case FrameMode::kNone:
+        return perf::kNoFrameSymbolPrefix;
+      case FrameMode::kNormal:
+        return perf::kFuncSymbolPrefix;
+      case FrameMode::kShadow:
+        return perf::kShadowFrameSymbolPrefix;
+    }
+  }();
   // For perf, we want only the size of the code, so we get that directly from
   // the .text section.
   perf::registerFunction(
-      entry_,
-      codeholder.textSection()->realSize(),
-      GetFunction()->fullname,
-      GetFunction()->frameMode == FrameMode::kNone ? perf::kNoFrameSymbolPrefix
-                                                   : perf::kFuncSymbolPrefix);
+      entry_, codeholder.textSection()->realSize(), func->fullname, prefix);
 }
 
 void NativeGenerator::CollectOptimizableLoadMethods() {
