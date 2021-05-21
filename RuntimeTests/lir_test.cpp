@@ -70,6 +70,44 @@ class LIRGeneratorTest : public RuntimeTest {
   }
 };
 
+TEST_F(LIRGeneratorTest, StaticLoadInteger) {
+  const char* pycode = R"(
+from __static__ import int64
+
+def f() -> None:
+  d: int64 = 12
+)";
+
+  Ref<PyObject> pyfunc(compileStaticAndGet(pycode, "f"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto lir_str = getLIRString(pyfunc.get());
+#ifdef Py_DEBUG
+  auto bb = "BB %3 - preds: %0 - succs: %13 %14";
+#else
+  auto bb = "BB %3 - preds: %0 - succs: %10 %11";
+#endif
+
+  auto lir_expected = fmt::format(
+      R"(Function:
+BB %0 - succs: %3
+       %1:Object = Bind R10:Object
+       %2:Object = Bind R11:Object
+
+{0}
+
+# v3:Nullptr = LoadConst<Nullptr>
+       %4:Object = Move 0(0x0):Object
+
+# v4:CInt64[12] = LoadConst<CInt64[12]>
+        %5:64bit = Move 12(0xc):Object
+
+)",
+      bb);
+  // Note - we only check whether the LIR has the stuff we care about
+  ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);
+}
+
 TEST_F(LIRGeneratorTest, StaticLoadDouble) {
   const char* pycode = R"(
 from __static__ import double
