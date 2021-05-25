@@ -4,6 +4,7 @@ from .opcodebase import Opcode
 opcode: Opcode = opcode37.copy()
 opcode.remove_op("BREAK_LOOP")
 opcode.remove_op("CONTINUE_LOOP")
+opcode.remove_op("SETUP_EXCEPT")
 opcode.remove_op("SETUP_LOOP")
 opcode.def_op("ROT_FOUR", 6)
 opcode.def_op("END_ASYNC_FOR", 54)

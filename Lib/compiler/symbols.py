@@ -261,10 +261,6 @@ class GenExprScope(FunctionScope):
         self.__super_init(name, module, klass, lineno=lineno)
         self.add_param(".0")
 
-    def get_names(self):
-        keys = Scope.get_names(self)
-        return keys
-
 
 class LambdaScope(FunctionScope):
     __super_init = Scope.__init__
