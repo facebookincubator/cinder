@@ -171,6 +171,7 @@ static PyObject* test_multithreaded_compile(PyObject*, PyObject*) {
   g_compile_workers_attempted = 0;
   g_compile_workers_retries = 0;
   JIT_LOG("(Re)compiling %d functions", jit_reg_functions.size());
+  _PyJITContext_ClearCache(jit_ctx);
   std::chrono::time_point time_start = std::chrono::steady_clock::now();
   multithread_compile_all();
   std::chrono::time_point time_end = std::chrono::steady_clock::now();
@@ -188,13 +189,6 @@ static PyObject* test_multithreaded_compile(PyObject*, PyObject*) {
   jit_reg_functions = jit_reg_funcs_copy;
   test_multithreaded_funcs.clear();
   Py_RETURN_NONE;
-}
-
-static PyObject* is_test_multithreaded_compile_enabled(PyObject*, PyObject*) {
-  if (jit_config.test_multithreaded_compile) {
-    Py_RETURN_TRUE;
-  }
-  Py_RETURN_FALSE;
 }
 
 static PyObject*
@@ -585,10 +579,6 @@ static PyMethodDef jit_methods[] = {
      test_multithreaded_compile,
      METH_NOARGS,
      "Force multi-threaded recompile of still existing JIT functions for test"},
-    {"is_test_multithreaded_compile_enabled",
-     is_test_multithreaded_compile_enabled,
-     METH_NOARGS,
-     "Return True if test_multithreaded_compile mode is enabled"},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {

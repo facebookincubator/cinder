@@ -12,6 +12,7 @@
 
 #include <functional>
 #include <memory>
+#include <vector>
 
 // Lookup key for _PyJITContext::compiled_codes: a code object and a globals
 // dict it was JIT-compiled with.
@@ -64,6 +65,13 @@ struct _PyJITContext {
   std::unordered_map<CompilationKey, std::unique_ptr<jit::CompiledFunction>>
       compiled_codes;
 
+  /*
+   * Code which is being kept alive in case it was in use when
+   * _PyJITContext_ClearCache was called. Only intended to be used during
+   * test_multithreaded_compile.
+   */
+  std::vector<std::unique_ptr<jit::CompiledFunction>> orphaned_compiled_codes;
+
   PyObject* weakreflist;
 };
 
@@ -83,6 +91,13 @@ int _PyJITContext_Init(void);
  * necessary.
  */
 _PyJITContext* _PyJITContext_New(std::unique_ptr<jit::Compiler> compiler);
+
+/*
+ * Clear cache of compiled code such that subsequent compilations are always
+ * full rather than just re-binding pre-compiled code. Only intended to be used
+ * during test_multithreaded_compile.
+ */
+void _PyJITContext_ClearCache(BorrowedRef<_PyJITContext> ctx);
 
 /*
  * Generate specialized functions for type object slots. Calls the other
