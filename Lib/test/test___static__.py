@@ -112,7 +112,7 @@ class StaticTests(unittest.TestCase):
 
     def test_vector_size(self):
         x = Vector[int8]()
-        with self.assertRaisesRegex(OverflowError, "overflow"):
+        with self.assertRaisesRegex(OverflowError, "overflow|.*greater than maximum"):
             x.append(300)
 
     def test_vector_no_bare_instantiation(self):
