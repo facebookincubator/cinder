@@ -113,7 +113,7 @@ void Printer::print(std::ostream& out, const OperandBase& operand) {
       out << "BB%" << operand.getBasicBlock()->id();
       break;
     case OperandBase::kNone:
-      JIT_CHECK(false, "Should not print an operand of type kNone.");
+      out << "<!!!None!!!>";
       break;
   }
 

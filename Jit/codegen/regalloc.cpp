@@ -19,6 +19,10 @@
 
 using namespace jit::lir;
 
+static constexpr bool g_debug_regalloc = false;
+
+#define TRACE(...) JIT_LOGIF(g_debug_regalloc, __VA_ARGS__)
+
 namespace jit {
 namespace codegen {
 
@@ -205,21 +209,11 @@ void LinearScanAllocator::initialize() {
 
 void LinearScanAllocator::run() {
   initialize();
-  insertNops();
   sortBasicBlocks();
   calculateLiveIntervals();
   linearScan();
   rewriteLIR();
   resolveEdges();
-}
-
-void LinearScanAllocator::insertNops() {
-  auto& blocks = func_->basicblocks();
-  for (auto& bb : blocks) {
-    if (bb->isEmpty()) {
-      bb->allocateInstr(Instruction::kNop, nullptr);
-    }
-  }
 }
 
 // This function can be further optimized to reorder basic blocks so that
@@ -246,15 +240,34 @@ void LinearScanAllocator::calculateLiveIntervals() {
   for (auto& bb : basic_blocks) {
     total_instrs += bb->getNumInstrs();
   }
+  int total_ids = total_instrs * 2 + basic_blocks.size();
 
   UnorderedSet<const BasicBlock*> visited_blocks;
   for (auto iter = basic_blocks.rbegin(); iter != basic_blocks.rend(); ++iter) {
     BasicBlock* bb = *iter;
 
-    auto bb_end_id = total_instrs;
-    auto bb_instrs = bb->getNumInstrs();
-    total_instrs -= bb_instrs;
-    auto bb_start_id = total_instrs;
+    // bb_start_id and bb_end_id do not point to any instructions.
+    // each instrution is associated to two ids, where the first id
+    // if for using its inputs, and the second id is for defining
+    // its output.
+
+    // Basic block M
+    // x   <- bb_start_id
+    // x + 1  instructions1
+    // x + 2
+    // x + 3  instructions2
+    // x + 4
+    // ...
+    // x + 2N - 1  instructionsN
+    // x + 2N
+    // basic block M + 1
+    // x + 2N + 1   <- bb_end_id of bb M, bb_start_id of block M + 1
+    constexpr int kIdsPerInstr = 2;
+    auto bb_end_id = total_ids;
+    auto bb_instrs = bb->getNumInstrs() * kIdsPerInstr;
+    total_ids -= bb_instrs;
+    total_ids--;
+    auto bb_start_id = total_ids;
 
     auto lir_bb_iter =
         regalloc_blocks_
@@ -287,10 +300,10 @@ void LinearScanAllocator::calculateLiveIntervals() {
       getIntervalByVReg(live_opnd).addRange({bb_start_id, bb_end_id});
     }
 
-    int instr_id = bb_start_id + bb_instrs - 1;
+    int instr_id = bb_end_id - kIdsPerInstr;
     auto& instrs = bb->instructions();
     for (auto instr_iter = instrs.rbegin(); instr_iter != instrs.rend();
-         ++instr_iter, --instr_id) {
+         ++instr_iter, instr_id -= kIdsPerInstr) {
       auto instr = instr_iter->get();
       auto instr_opcode = instr->opcode();
       if (instr_opcode == Instruction::kPhi) {
@@ -305,11 +318,11 @@ void LinearScanAllocator::calculateLiveIntervals() {
         auto inserted = seen_outputs.insert(output_opnd).second;
         JIT_DCHECK(inserted, "LIR is not in SSA form");
 #endif
-        getIntervalByVReg(output_opnd).setFrom(instr_id);
+        getIntervalByVReg(output_opnd).setFrom(instr_id + 1);
         live.erase(output_opnd);
 
         if (instr->getOutputPhyRegUse()) {
-          vreg_phy_uses_[output_opnd].emplace(instr_id);
+          vreg_phy_uses_[output_opnd].emplace(instr_id + 1);
         }
       }
 
@@ -317,7 +330,11 @@ void LinearScanAllocator::calculateLiveIntervals() {
         auto def = operand->getDefine();
 
         auto pair = vreg_interval_.emplace(def, def);
-        pair.first->second.addRange({bb_start_id, instr_id + 1});
+
+        int range_end = operand->instr()->inputsLiveAcross()
+            ? instr_id + kIdsPerInstr
+            : instr_id + 1;
+        pair.first->second.addRange({bb_start_id, range_end});
 
         // if the def is not live before, record the last use
         if (!live.count(def) && operand->isLinked()) {
@@ -443,7 +460,7 @@ void LinearScanAllocator::calculateLiveIntervals() {
         continue;
       }
 
-      loop_ends[succ].push_back(bb_start_id + bb_instrs);
+      loop_ends[succ].push_back(bb_start_id + bb_instrs + 1);
     }
 
     visited_blocks.insert(bb);
@@ -896,6 +913,10 @@ void LinearScanAllocator::rewriteLIR() {
 
   int instr_id = -1;
   for (auto& bb : func_->basicblocks()) {
+    ++instr_id;
+    TRACE(
+        "%d - new basic block 0x%x", instr_id, reinterpret_cast<uintptr_t>(bb));
+
     // Remove mappings that end at the last basic block.
     // Inter-basic block resolution will be done later separately.
     for (auto map_iter = mapping.begin(); map_iter != mapping.end();) {
@@ -903,16 +924,33 @@ void LinearScanAllocator::rewriteLIR() {
       auto interval = map_iter->second;
       JIT_DCHECK(vreg == interval->vreg, "mapping is not consistent.");
 
-      if (interval->endLocation() <= instr_id + 1) {
+      if (interval->endLocation() <= instr_id) {
+        TRACE(
+            "Removing interval: 0x%x %s",
+            reinterpret_cast<uintptr_t>(vreg),
+            *interval);
         map_iter = mapping.erase(map_iter);
       } else {
         ++map_iter;
       }
     }
 
+    // handle the basic block id before instructions start
+    while (allocated_iter != allocated_.end() &&
+           (*allocated_iter)->startLocation() <= instr_id) {
+      auto& interval = *allocated_iter;
+      rewriteLIRUpdateMapping(mapping, interval.get(), nullptr);
+      ++allocated_iter;
+    }
+
     auto& instrs = bb->instructions();
+    bool process_input = false;
     for (auto instr_iter = instrs.begin(); instr_iter != instrs.end();) {
       ++instr_id;
+      process_input = !process_input;
+
+      auto instr = instr_iter->get();
+      TRACE("%d - %s - %s", instr_id, process_input ? "in" : "out", *instr);
 
       auto copies = std::make_unique<CopyGraphWithOperand>();
       // check for new allocated intervals and update register mappings
@@ -925,20 +963,26 @@ void LinearScanAllocator::rewriteLIR() {
 
       rewriteLIREmitCopies(bb, instr_iter, std::move(copies));
 
-      auto instr = instr_iter->get();
-      rewriteInstrOutput(instr, mapping, &last_use_vregs);
+      if (process_input) {
+        // phi node inputs have to be handled by its predecessor
+        if (!instr->isPhi()) {
+          rewriteInstrInputs(instr, mapping, &last_use_vregs);
 
-      auto instr_opcode = instr->opcode();
-      if (instr_opcode == Instruction::kNop) {
-        instr_iter = instrs.erase(instr_iter);
-        continue;
-      }
+          if (instr->output()->isInd()) {
+            rewriteInstrOutput(instr, mapping, &last_use_vregs);
+          }
+        }
+      } else {
+        rewriteInstrOutput(instr, mapping, &last_use_vregs);
 
-      // phi node inputs have to be handled by its predecessor
-      if (instr_opcode != Instruction::kPhi) {
-        rewriteInstrInputs(instr, mapping, &last_use_vregs);
+        if (instr->isNop()) {
+          instr_iter = instrs.erase(instr_iter);
+          continue;
+        }
+
+        TRACE("After rewrite: %s", *instr);
+        ++instr_iter;
       }
-      ++instr_iter;
     }
 
     // handle successors' phi nodes
@@ -985,6 +1029,7 @@ void LinearScanAllocator::rewriteInstrOutput(
     instr->setOpcode(Instruction::kNop);
   } else {
     PhyLocation loc = map_get(mapping, output)->allocated_loc;
+
     if (instr->opcode() == Instruction::kBind) {
       PhyLocation in_reg = instr->getInput(0)->getPhyRegister();
       JIT_CHECK(
@@ -993,6 +1038,7 @@ void LinearScanAllocator::rewriteInstrOutput(
           loc,
           in_reg);
     }
+
     output->setPhyRegOrStackSlot(loc);
   }
 }
@@ -1075,20 +1121,31 @@ void LinearScanAllocator::rewriteInstrOneIndirectOperand(
 }
 
 void LinearScanAllocator::rewriteLIRUpdateMapping(
-    UnorderedMap<const jit::lir::Operand*, const LiveInterval*>& mapping,
+    UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping,
     LiveInterval* interval,
     CopyGraphWithOperand* copies) {
   auto vreg = interval->vreg;
   auto pair = mapping.emplace(vreg, interval);
   if (pair.second) {
+    TRACE(
+        "Adding interval 0x%llx %s",
+        reinterpret_cast<uintptr_t>(vreg),
+        *interval);
     return;
   }
-  auto& mapping_iter = pair.first;
 
-  auto from = mapping_iter->second->allocated_loc;
-  auto to = interval->allocated_loc;
-  if (from != to) {
-    copies->addEdge(from, to, interval->vreg->dataType());
+  auto& mapping_iter = pair.first;
+  if (copies != nullptr) {
+    auto from = mapping_iter->second->allocated_loc;
+    auto to = interval->allocated_loc;
+    TRACE(
+        "Updating interval 0x%llx %s",
+        reinterpret_cast<uintptr_t>(vreg),
+        *interval);
+    if (from != to) {
+      TRACE("Copying from %d to %d", from, to);
+      copies->addEdge(from, to, interval->vreg->dataType());
+    }
   }
   mapping_iter->second = interval;
 }

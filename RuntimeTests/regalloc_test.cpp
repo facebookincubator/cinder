@@ -8,6 +8,7 @@
 #include <fmt/ostream.h>
 
 #include "Jit/codegen/regalloc.h"
+#include "Jit/lir/operand.h"
 #include "Jit/lir/parser.h"
 #include "Jit/lir/printer.h"
 
@@ -138,7 +139,6 @@ BB %14
 
   std::vector<int> vregs;
   vregs.reserve(id_interval.size());
-
   for (auto& ii : id_interval) {
     vregs.push_back(ii.first);
   }
@@ -150,11 +150,11 @@ BB %14
     ss_ranges << vreg << ": " << id_interval.at(vreg) << "\n";
   }
 
-  std::string live_expected = R"(1: [0, 5), [6, 7)
-3: [2, 4)
-6: [4, 6)
-9: [6, 8)
-12: [8, 10)
+  std::string live_expected = R"(1: [2, 12), [15, 17)
+3: [7, 9)
+6: [12, 15)
+9: [17, 20)
+12: [20, 24)
 )";
 
   ASSERT_EQ(ss_ranges.str(), live_expected);
@@ -170,10 +170,10 @@ BB %14
     ss_uses << "\n";
   }
 
-  std::string uses_expected = R"(0 2 4 6
-2 3
-4
-6
+  std::string uses_expected = R"(2 6 11 16
+7 8
+12
+17
 
 )";
   ASSERT_EQ(ss_uses.str(), uses_expected);
@@ -191,8 +191,8 @@ BB %14
 
   std::string allocated_expected = R"(1->0
 3->1
-6->1
-9->1
+6->0
+9->0
 12->0
 )";
 
@@ -296,4 +296,28 @@ BB %28
   }
 }
 
+TEST_F(LinearScanAllocatorTest, InoutRegTest) {
+  // OptimizeMoveSequence should not set reg operands that are also output
+  auto lirfunc = std::make_unique<Function>();
+  auto bb = lirfunc->allocateBasicBlock();
+
+  auto a =
+      bb->allocateInstr(Instruction::kMove, nullptr, lir::OutVReg(), Imm(0));
+  auto b =
+      bb->allocateInstr(Instruction::kMove, nullptr, lir::OutVReg(), Imm(0));
+
+  auto add = bb->allocateInstr(
+      Instruction::kAdd, nullptr, lir::OutVReg(), lir::VReg(a), lir::VReg(b));
+
+  bb->allocateInstr(Instruction::kReturn, nullptr, lir::VReg(add));
+
+  auto epilogue = lirfunc->allocateBasicBlock();
+  bb->addSuccessor(epilogue);
+
+  runAllocator(lirfunc.get());
+
+  ASSERT_TRUE(
+      add->output()->getPhyRegister() == add->getInput(0)->getPhyRegister() ||
+      add->output()->getPhyRegister() == add->getInput(1)->getPhyRegister());
+}
 } // namespace jit::codegen

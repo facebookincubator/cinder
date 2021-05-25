@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/postalloc.h"
 #include <optional>
+#include "Jit/lir/operand.h"
 
 using namespace jit::lir;
 
@@ -100,16 +101,17 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteCallInstrs(
 
   env->max_arg_buffer_size = std::max<int>(env->max_arg_buffer_size, rsp_sub);
 
-  if (output->type() == OperandBase::kNone ||
-      output->getPhyRegOrStackSlot() == PhyLocation::RAX) {
+  if (output->isNone()) {
     return kChanged;
   }
 
-  block->allocateInstrBefore(
-      next_iter,
-      Instruction::kMove,
-      OutPhyRegStack(output->getPhyRegOrStackSlot(), output->dataType()),
-      PhyReg(PhyLocation::RAX));
+  if (!output->isReg() || output->getPhyRegister() != PhyLocation::RAX) {
+    block->allocateInstrBefore(
+        next_iter,
+        Instruction::kMove,
+        OutPhyRegStack(output->getPhyRegOrStackSlot(), output->dataType()),
+        PhyReg(PhyLocation::RAX));
+  }
   output->setNone();
 
   return kChanged;
@@ -665,8 +667,6 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
     return kUnchanged;
   }
 
-  bool is_commutative = !instr->isSub();
-
   auto out_reg = instr->output()->getPhyRegister();
   auto in0_reg = instr->getInput(0)->getPhyRegister();
 
@@ -679,17 +679,21 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
 
   auto in1 = instr->getInput(1);
 
-  if (is_commutative) {
-    auto in1_reg = in1->type() == OperandBase::kReg ? in1->getPhyRegister()
-                                                    : PhyLocation::REG_INVALID;
-    if (out_reg == in1_reg) {
-      instr->output()->setNone();
+  auto in1_reg = in1->type() == OperandBase::kReg ? in1->getPhyRegister()
+                                                  : PhyLocation::REG_INVALID;
+  if (out_reg == in1_reg) {
+    instr->output()->setNone();
 
-      auto opnd0 = instr->removeInputOperand(0);
-      instr->appendInputOperand(std::move(opnd0));
+    auto opnd0 = instr->removeInputOperand(0);
+    instr->appendInputOperand(std::move(opnd0));
 
-      return kChanged;
+    if (instr->isSub()) {
+      ++instr_iter;
+      auto block = instr->basicblock();
+      block->allocateInstrBefore(
+          instr_iter, Instruction::kNegate, PhyReg(out_reg));
     }
+    return kChanged;
   }
 
   return kUnchanged;

@@ -53,9 +53,9 @@ constexpr LIRLocation INVALID_LOCATION = -1;
 constexpr LIRLocation MAX_LOCATION = std::numeric_limits<LIRLocation>::max();
 
 struct LiveRange {
-  LiveRange(LIRLocation s, LIRLocation e)
-      : start(s),
-        end(e){JIT_CHECK(s < e, "Invalid live range.")}
+  LiveRange(LIRLocation s, LIRLocation e) : start(s), end(e) {
+    JIT_CHECK(s < e, "Invalid live range.");
+  }
 
         LIRLocation start;
   LIRLocation end;
@@ -197,10 +197,6 @@ class LinearScanAllocator {
 
   void printAllIntervalsByVReg(const lir::Operand* vreg) const;
 
-  // insert a NOP instruction to empty basic blocks, so that
-  // the basic blocks have an instruction id.
-  void insertNops();
-
   void sortBasicBlocks();
   void initialize();
   void calculateLiveIntervals();
@@ -293,8 +289,8 @@ class LinearScanAllocator {
       CopyGraphWithType<const lir::OperandBase::DataType>;
 
   // update virtual register to physical register mapping.
-  // if the mapping is changed for a virtual register, insert a MOV
-  // instruction.
+  // if the mapping is changed for a virtual register and copies is not nullptr,
+  // insert a copy to copies for CopyGraph to generate a MOV instruction.
   void rewriteLIRUpdateMapping(
       UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping,
       LiveInterval* interval,

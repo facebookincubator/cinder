@@ -25,81 +25,82 @@ enum class FlagEffects {
   kInvalidate,
 };
 
-#define FOREACH_INSTR_TYPE(X)                                               \
-  /* Bind is not used to generate any machine code. Its sole      */        \
-  /* purpose is to associate a physical register with a predefined */       \
-  /* value to virtual register for register allocator. */                   \
-  /* name, <flag effects>, <opnd_size_type>, <out use reg>, <in use reg> */ \
-  X(Bind)                                                                   \
-  X(Nop)                                                                    \
-  X(Call, FlagEffects::kInvalidate, kAlways64)                              \
-  X(VectorCall, FlagEffects::kInvalidate, kAlways64, 1, {1})                \
-  X(Guard, FlagEffects::kInvalidate, kDefault, 1, {0, 0, 1})                \
-  X(Sext)                                                                   \
-  X(Zext)                                                                   \
-  X(Negate, FlagEffects::kSet, kOut)                                        \
-  X(Invert, FlagEffects::kNone, kOut)                                       \
-  X(Add, FlagEffects::kSet, kOut, 1, {1})                                   \
-  X(Sub, FlagEffects::kSet, kOut, 1, {1})                                   \
-  X(And, FlagEffects::kSet, kOut, 1, {1})                                   \
-  X(Xor, FlagEffects::kSet, kOut, 1, {1})                                   \
-  X(Div, FlagEffects::kSet, kDefault, 1, {1})                               \
-  X(DivUn, FlagEffects::kSet, kDefault, 1, {1})                             \
-  X(Mul, FlagEffects::kSet, kOut, 1, {1})                                   \
-  X(Or, FlagEffects::kSet, kOut, 1, {1})                                    \
-  X(Fadd, FlagEffects::kNone, kAlways64, 1, {1, 1})                         \
-  X(Fsub, FlagEffects::kNone, kAlways64, 1, {1, 1})                         \
-  X(Fmul, FlagEffects::kNone, kAlways64, 1, {1, 1})                         \
-  X(Fdiv, FlagEffects::kNone, kAlways64, 1, {1, 1})                         \
-  X(LShift, FlagEffects::kSet)                                              \
-  X(RShift, FlagEffects::kSet)                                              \
-  X(RShiftUn, FlagEffects::kSet)                                            \
-  X(Test, FlagEffects::kSet, kOut, 0, {1, 1})                               \
-  X(Equal, FlagEffects::kSet, kDefault, 1, {1, 1})                          \
-  X(NotEqual, FlagEffects::kSet, kDefault, 1, {1, 1})                       \
-  X(GreaterThanSigned, FlagEffects::kSet, kDefault, 1, {1, 1})              \
-  X(LessThanSigned, FlagEffects::kSet, kDefault, 1, {1, 1})                 \
-  X(GreaterThanEqualSigned, FlagEffects::kSet, kDefault, 1, {1, 1})         \
-  X(LessThanEqualSigned, FlagEffects::kSet, kDefault, 1, {1, 1})            \
-  X(GreaterThanUnsigned, FlagEffects::kSet, kDefault, 1, {1, 1})            \
-  X(LessThanUnsigned, FlagEffects::kSet, kDefault, 1, {1, 1})               \
-  X(GreaterThanEqualUnsigned, FlagEffects::kSet, kDefault, 1, {1, 1})       \
-  X(LessThanEqualUnsigned, FlagEffects::kSet, kDefault, 1, {1, 1})          \
-  X(Cmp, FlagEffects::kSet, kOut, 1, {1, 1})                                \
-  X(Lea, FlagEffects::kNone, kAlways64, 1, {1, 1})                          \
-  X(Exchange, FlagEffects::kNone, kAlways64, 1, {1, 1})                     \
-  X(Move, FlagEffects::kNone, kOut)                                         \
-  X(Push)                                                                   \
-  X(Pop, FlagEffects::kNone, kDefault, 0)                                   \
-  X(Cdq)                                                                    \
-  X(Cwd)                                                                    \
-  X(Cqo)                                                                    \
-  X(Branch)                                                                 \
-  X(BranchNZ)                                                               \
-  X(BranchZ)                                                                \
-  X(BranchA)                                                                \
-  X(BranchB)                                                                \
-  X(BranchAE)                                                               \
-  X(BranchBE)                                                               \
-  X(BranchG)                                                                \
-  X(BranchL)                                                                \
-  X(BranchGE)                                                               \
-  X(BranchLE)                                                               \
-  X(BitTest, FlagEffects::kSet, kDefault, 1, {1})                           \
-  X(Inc, FlagEffects::kSet)                                                 \
-  X(Dec, FlagEffects::kSet)                                                 \
-  X(CondBranch, FlagEffects::kInvalidate, kDefault, 0, {1})                 \
-  X(Phi)                                                                    \
-  X(Return, FlagEffects::kInvalidate)                                       \
-  X(MovZX)                                                                  \
-  X(MovSX)                                                                  \
-  X(MovSXD)                                                                 \
-  X(Jz)                                                                     \
-  X(Jnz)                                                                    \
-  X(YieldInitial, FlagEffects::kInvalidate, kDefault, 0)                    \
-  X(YieldFrom, FlagEffects::kInvalidate, kDefault, 0)                       \
-  X(YieldFromSkipInitialSend, FlagEffects::kInvalidate, kDefault, 0)        \
-  X(YieldValue, FlagEffects::kInvalidate, kDefault, 0)
+#define FOREACH_INSTR_TYPE(X)                                                \
+  /* name, <inputs live across> <flag effects>, <opnd_size_type>, <out use   \
+   * reg>, <in use reg> */                                                   \
+  /* Bind is not used to generate any machine code. Its sole      */         \
+  /* purpose is to associate a physical register with a predefined */        \
+  /* value to virtual register for register allocator. */                    \
+  X(Bind)                                                                    \
+  X(Nop)                                                                     \
+  X(Call, false, FlagEffects::kInvalidate, kAlways64)                        \
+  X(VectorCall, true, FlagEffects::kInvalidate, kAlways64, 1, {1})           \
+  X(Guard, true, FlagEffects::kInvalidate, kDefault, 1, {0, 0, 1})           \
+  X(Sext)                                                                    \
+  X(Zext)                                                                    \
+  X(Negate, false, FlagEffects::kSet, kOut)                                  \
+  X(Invert, false, FlagEffects::kNone, kOut)                                 \
+  X(Add, false, FlagEffects::kSet, kOut, 1, {1})                             \
+  X(Sub, false, FlagEffects::kSet, kOut, 1, {1})                             \
+  X(And, false, FlagEffects::kSet, kOut, 1, {1})                             \
+  X(Xor, false, FlagEffects::kSet, kOut, 1, {1})                             \
+  X(Div, false, FlagEffects::kSet, kDefault, 1, {1})                         \
+  X(DivUn, false, FlagEffects::kSet, kDefault, 1, {1})                       \
+  X(Mul, false, FlagEffects::kSet, kOut, 1, {1})                             \
+  X(Or, false, FlagEffects::kSet, kOut, 1, {1})                              \
+  X(Fadd, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
+  X(Fsub, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
+  X(Fmul, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
+  X(Fdiv, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
+  X(LShift, false, FlagEffects::kSet)                                        \
+  X(RShift, false, FlagEffects::kSet)                                        \
+  X(RShiftUn, false, FlagEffects::kSet)                                      \
+  X(Test, false, FlagEffects::kSet, kOut, 0, {1, 1})                         \
+  X(Equal, false, FlagEffects::kSet, kDefault, 1, {1, 1})                    \
+  X(NotEqual, false, FlagEffects::kSet, kDefault, 1, {1, 1})                 \
+  X(GreaterThanSigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})        \
+  X(LessThanSigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})           \
+  X(GreaterThanEqualSigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})   \
+  X(LessThanEqualSigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})      \
+  X(GreaterThanUnsigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})      \
+  X(LessThanUnsigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})         \
+  X(GreaterThanEqualUnsigned, false, FlagEffects::kSet, kDefault, 1, {1, 1}) \
+  X(LessThanEqualUnsigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})    \
+  X(Cmp, false, FlagEffects::kSet, kOut, 1, {1, 1})                          \
+  X(Lea, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                    \
+  X(Exchange, false, FlagEffects::kNone, kAlways64, 1, {1, 1})               \
+  X(Move, false, FlagEffects::kNone, kOut)                                   \
+  X(Push)                                                                    \
+  X(Pop, false, FlagEffects::kNone, kDefault, 0)                             \
+  X(Cdq)                                                                     \
+  X(Cwd)                                                                     \
+  X(Cqo)                                                                     \
+  X(Branch)                                                                  \
+  X(BranchNZ)                                                                \
+  X(BranchZ)                                                                 \
+  X(BranchA)                                                                 \
+  X(BranchB)                                                                 \
+  X(BranchAE)                                                                \
+  X(BranchBE)                                                                \
+  X(BranchG)                                                                 \
+  X(BranchL)                                                                 \
+  X(BranchGE)                                                                \
+  X(BranchLE)                                                                \
+  X(BitTest, false, FlagEffects::kSet, kDefault, 1, {1})                     \
+  X(Inc, false, FlagEffects::kSet)                                           \
+  X(Dec, false, FlagEffects::kSet)                                           \
+  X(CondBranch, false, FlagEffects::kInvalidate, kDefault, 0, {1})           \
+  X(Phi)                                                                     \
+  X(Return, false, FlagEffects::kInvalidate)                                 \
+  X(MovZX)                                                                   \
+  X(MovSX)                                                                   \
+  X(MovSXD)                                                                  \
+  X(Jz)                                                                      \
+  X(Jnz)                                                                     \
+  X(YieldInitial, true, FlagEffects::kInvalidate, kDefault, 0)               \
+  X(YieldFrom, true, FlagEffects::kInvalidate, kDefault, 0)                  \
+  X(YieldFromSkipInitialSend, true, FlagEffects::kInvalidate, kDefault, 0)   \
+  X(YieldValue, true, FlagEffects::kInvalidate, kDefault, 0)
 
 // Instruction class defines instructions in LIR.
 // Every instruction can have no more than one output, but arbitrary
@@ -344,6 +345,13 @@ class Instruction {
 
   bool getOutputPhyRegUse() const;
   bool getInputPhyRegUse(size_t i) const;
+  // Should input registers live across the instruction until it
+  // finish execution? Some instructions need this such as Guard
+  // instruction, whose its inputs may be needed to reify the frame
+  // upon deopt. Other instructions do not need it, such as Add, etc.,
+  // so the input registers can be used for other purposes  e.g., allocated for
+  // the output even before they finish execution.
+  bool inputsLiveAcross() const;
 
   bool isCompare() const {
     switch (opcode_) {
@@ -530,9 +538,10 @@ class InstrProperty {
 // This table contains definitions of all the instruction property field.
 BEGIN_INSTR_PROPERTY_FIELD
   FIELD_NO_DEFAULT(std::string, name)
+  FIELD_DEFAULT(bool, inputs_live_across, false)
   FIELD_DEFAULT(FlagEffects, flag_effects, FlagEffects::kNone)
   FIELD_DEFAULT(OperandSizeType, opnd_size_type, kDefault)
-  FIELD_DEFAULT(bool, output_phy_use, 1)
+  FIELD_DEFAULT(bool, output_phy_use, true)
   FIELD_DEFAULT(std::vector<int>, input_phy_uses, std::vector<int>{})
 END_INSTR_PROPERTY_FIELD
 // clang-format on

@@ -805,24 +805,24 @@ BEGIN_RULES(Instruction::kLea)
 END_RULES
 
 BEGIN_RULES(Instruction::kCall)
-  GEN("Ri", ASM(call, OP(1)));
-  GEN("Rr", ASM(call, OP(1)));
-  GEN("i", ASM(call, OP(0)));
-  GEN("r", ASM(call, OP(0)));
-  GEN("m", ASM(call, STK(0)));
+  GEN("Ri", ASM(call, OP(1)))
+  GEN("Rr", ASM(call, OP(1)))
+  GEN("i", ASM(call, OP(0)))
+  GEN("r", ASM(call, OP(0)))
+  GEN("m", ASM(call, STK(0)))
 END_RULES
 
 BEGIN_RULES(Instruction::kMove)
-  GEN("Rr", ASM(mov, OP(0), OP(1)));
-  GEN("Ri", ASM(mov, OP(0), OP(1)));
-  GEN("Rm", ASM(mov, OP(0), MEM(1)));
-  GEN("Mr", ASM(mov, MEM(0), OP(1)));
-  GEN("Mi", ASM(mov, MEM(0), OP(1)));
-  GEN("Xx", ASM(movsd, OP(0), OP(1)));
-  GEN("Xm", ASM(movsd, OP(0), MEM(1)));
-  GEN("Mx", ASM(movsd, MEM(0), OP(1)));
-  GEN("Xr", ASM(movq, OP(0), OP(1)));
-  GEN("Rx", ASM(movq, OP(0), OP(1)));
+  GEN("Rr", ASM(mov, OP(0), OP(1)))
+  GEN("Ri", ASM(mov, OP(0), OP(1)))
+  GEN("Rm", ASM(mov, OP(0), MEM(1)))
+  GEN("Mr", ASM(mov, MEM(0), OP(1)))
+  GEN("Mi", ASM(mov, MEM(0), OP(1)))
+  GEN("Xx", ASM(movsd, OP(0), OP(1)))
+  GEN("Xm", ASM(movsd, OP(0), MEM(1)))
+  GEN("Mx", ASM(movsd, MEM(0), OP(1)))
+  GEN("Xr", ASM(movq, OP(0), OP(1)))
+  GEN("Rx", ASM(movq, OP(0), OP(1)))
 END_RULES
 
 BEGIN_RULES(Instruction::kGuard)
@@ -830,6 +830,7 @@ BEGIN_RULES(Instruction::kGuard)
 END_RULES
 
 BEGIN_RULES(Instruction::kNegate)
+  GEN("r", ASM(neg, OP(0)))
   GEN("Ri", ASM(mov, OP(0), ImmOperandNegate<OP(1)>))
   GEN("Rr", ASM(mov, OP(0), OP(1)), ASM(neg, OP(0)))
   GEN("Rm", ASM(mov, OP(0), STK(1)), ASM(neg, OP(0)))
@@ -1027,19 +1028,19 @@ BEGIN_RULES(Instruction::kBitTest)
 END_RULES
 
 BEGIN_RULES(Instruction::kYieldInitial)
-  GEN(ANY, CALL(translateYieldInitial));
+  GEN(ANY, CALL(translateYieldInitial))
 END_RULES
 
 BEGIN_RULES(Instruction::kYieldFrom)
-  GEN(ANY, CALL(translateYieldFrom));
+  GEN(ANY, CALL(translateYieldFrom))
 END_RULES
 
 BEGIN_RULES(Instruction::kYieldFromSkipInitialSend)
-  GEN(ANY, CALL(translateYieldFrom));
+  GEN(ANY, CALL(translateYieldFrom))
 END_RULES
 
 BEGIN_RULES(Instruction::kYieldValue)
-  GEN(ANY, CALL(translateYieldValue));
+  GEN(ANY, CALL(translateYieldValue))
 END_RULES
 
 END_RULE_TABLE

@@ -64,6 +64,10 @@ bool Instruction::getInputPhyRegUse(size_t i) const {
   return uses.at(i);
 }
 
+bool Instruction::inputsLiveAcross() const {
+  return InstrProperty::getProperties(opcode_).inputs_live_across;
+}
+
 void Instruction::print() const {
   std::cerr << *this << std::endl;
 }
