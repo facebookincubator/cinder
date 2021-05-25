@@ -344,7 +344,7 @@ Type resolve_type_descr(PyObject* descr) {
   Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
       Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
 
-  JIT_CHECK(type != NULL, "bad type descr %s", descr);
+  JIT_CHECK(type != NULL, "bad type descr %s", repr(descr));
 
   int prim_type = _PyClassLoader_GetTypeCode(type);
 
@@ -378,7 +378,7 @@ void HIRBuilder::addLoadArgs(TranslationContext& tc, int num_args) {
           PyObject* type_descr = PyTuple_GET_ITEM(checks, cur_check * 2 + 1);
           int prim_type = THREADED_COMPILE_SERIALIZED_CALL(
               _PyClassLoader_ResolvePrimitiveType(type_descr));
-          JIT_CHECK(prim_type != -1, "unknown type");
+          JIT_CHECK(prim_type != -1, "unknown type %s", repr(type_descr));
           if (prim_type != TYPED_OBJECT) {
             type = prim_type_to_type(prim_type);
           }
@@ -1800,7 +1800,7 @@ bool HIRBuilder::emitInvokeFunction(
 
   PyObject* container;
   PyObject* func = _PyClassLoader_ResolveFunction(target, &container);
-  JIT_CHECK(func != NULL, "unknown function");
+  JIT_CHECK(func != NULL, "unknown function %s", repr(target));
 
   Type ret_type = TObject;
   bool is_static_func = get_static_func_ret_type(func, &ret_type);
@@ -1842,7 +1842,7 @@ bool HIRBuilder::emitInvokeFunction(
     tc.emit<LoadFunction>(func, funcreg);
   } else {
     PyObject** funcptr = _PyClassLoader_GetIndirectPtr(target, func, container);
-    JIT_CHECK(funcptr != NULL, "function lookup failed");
+    JIT_CHECK(funcptr != NULL, "function lookup failed %s", repr(target));
 
     tc.emit<LoadFunctionIndirect>(funcptr, target, funcreg, tc.frame);
     // We can't invoke statically for indirect calls, we don't
@@ -3240,7 +3240,10 @@ bool HIRBuilder::emitInvokeMethod(
   ThreadedCompileSerialize guard;
 
   Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
-  JIT_CHECK(slot != -1, "function lookup failed"); // TODO: do better than this?
+  JIT_CHECK(
+      slot != -1,
+      "function lookup failed %s",
+      repr(target)); // TODO: do better than this?
 
   PyMethodDescrObject* method = _PyClassLoader_ResolveMethodDef(target);
   if (method != NULL && tryEmitDirectMethodCall(method->d_method, tc, nargs)) {
@@ -3317,7 +3320,7 @@ void HIRBuilder::emitLoadField(
   int field_type;
   Py_ssize_t offset = THREADED_COMPILE_SERIALIZED_CALL(
       _PyClassLoader_ResolveFieldOffset(field, &field_type));
-  JIT_CHECK(offset != -1, "failed to resolve field");
+  JIT_CHECK(offset != -1, "failed to resolve field %s", repr(field));
 
   Type type = prim_type_to_type(field_type);
   Register* receiver = tc.frame.stack.pop();
@@ -3336,7 +3339,7 @@ void HIRBuilder::emitStoreField(
   int field_type;
   Py_ssize_t offset = THREADED_COMPILE_SERIALIZED_CALL(
       _PyClassLoader_ResolveFieldOffset(field, &field_type));
-  JIT_CHECK(offset != -1, "failed to resolve field");
+  JIT_CHECK(offset != -1, "failed to resolve field %s", repr(field));
 
   Type type = prim_type_to_type(field_type);
   Register* receiver = tc.frame.stack.pop();
@@ -3360,7 +3363,7 @@ void HIRBuilder::emitCast(
   int optional;
   Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
       Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
-  JIT_CHECK(type != NULL, "failed to resolve type");
+  JIT_CHECK(type != NULL, "failed to resolve type %s", repr(descr));
 
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.Allocate();

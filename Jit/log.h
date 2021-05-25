@@ -2,6 +2,7 @@
 #ifndef JIT_LOG_H
 #define JIT_LOG_H
 
+#include "Jit/ref.h"
 #include "Python.h"
 
 #include <fmt/format.h>
@@ -31,6 +32,12 @@ extern int g_dump_lir_no_origin;
 extern int g_disas_funcs;
 extern int g_dump_stats;
 extern FILE* g_log_file;
+
+// Use PyObject_Repr() to get a string representation of a PyObject. Use with
+// caution - this can end up executing arbitrary Python code. Always succeeds
+// but may return a description of an error in string e.g.
+// "<failed to get UTF8 from Python string>"
+std::string repr(BorrowedRef<> obj);
 
 // fmt doesn't support compile-time checking of printf-style format strings, so
 // this wrapper is used to contain any exceptions rather than aborting during a

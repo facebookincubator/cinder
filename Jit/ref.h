@@ -2,10 +2,10 @@
 #ifndef JIT_REF_H
 #define JIT_REF_H
 
+#include <functional>
 #include <type_traits>
-#include "Python.h"
 
-#include "Jit/util.h"
+#include "Python.h"
 
 template <typename T>
 class RefBase {
@@ -200,7 +200,8 @@ class Ref : public RefBase<T> {
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Ref);
+  Ref(const Ref&) = delete;
+  Ref& operator=(const Ref&) = delete;
 
   enum class StealTag {};
   Ref(T* obj, StealTag) {
