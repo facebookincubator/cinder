@@ -3237,19 +3237,15 @@ bool HIRBuilder::emitInvokeMethod(
   PyObject* target = PyTuple_GET_ITEM(descr, 0);
   long nargs = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1)) + 1;
 
-  Py_ssize_t slot;
-  {
-    ThreadedCompileSerialize guard;
-    slot = _PyClassLoader_ResolveMethod(target);
-    JIT_CHECK(
-        slot != -1, "function lookup failed"); // TODO: do better than this?
+  ThreadedCompileSerialize guard;
 
-    PyMethodDescrObject* method = _PyClassLoader_ResolveMethodDef(target);
-    if (method != NULL &&
-        tryEmitDirectMethodCall(method->d_method, tc, nargs)) {
-      Py_XDECREF(method);
-      return false;
-    }
+  Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
+  JIT_CHECK(slot != -1, "function lookup failed"); // TODO: do better than this?
+
+  PyMethodDescrObject* method = _PyClassLoader_ResolveMethodDef(target);
+  if (method != NULL && tryEmitDirectMethodCall(method->d_method, tc, nargs)) {
+    Py_XDECREF(method);
+    return false;
   }
 
   InvokeMethod* invoke =

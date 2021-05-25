@@ -2,6 +2,7 @@
 #include "Jit/perf_jitdump.h"
 
 #include "Jit/log.h"
+#include "Jit/threaded_compile.h"
 #include "Jit/util.h"
 
 #include <fmt/format.h>
@@ -322,6 +323,8 @@ void registerFunction(
     std::size_t size,
     const std::string& name,
     const std::string& prefix) {
+  ThreadedCompileSerialize guard;
+
   initFiles();
 
   if (auto file = g_pid_map.file) {
