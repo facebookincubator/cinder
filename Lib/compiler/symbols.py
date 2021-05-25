@@ -474,7 +474,7 @@ class SymbolVisitor(ASTVisitor):
         scope.parent = parent
         if parent.nested or isinstance(parent, FunctionScope):
             scope.nested = 1
-        doc = ast.get_docstring(node)
+        doc = ast.get_docstring(node, False)
         if doc is not None:
             scope.add_def("__doc__")
         scope.add_def("__module__")
