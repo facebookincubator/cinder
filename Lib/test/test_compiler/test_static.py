@@ -404,6 +404,32 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaises(TypedSyntaxError):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
+    def test_unannotated_assign_does_not_declare_type(self) -> None:
+        codestr = """
+            def f(flag):
+                x = None
+                if flag:
+                    x = "foo"
+                reveal_type(x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            r"'x' has declared type 'dynamic' and local type 'Optional\[str\]'",
+        ):
+            self.compile(codestr)
+
+    def test_unannotated_assign_no_later_declare(self) -> None:
+        codestr = """
+            def f(flag):
+                x = None
+                if flag:
+                    x: str = "foo"
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"Cannot redefine local variable x"
+        ):
+            self.compile(codestr)
+
     def test_mixed_chain_assign(self) -> None:
         codestr = """
             class C: pass
@@ -6271,26 +6297,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
-    def test_array_subclass_assign(self):
-        codestr = """
-            from __static__ import int64, Array
-
-            class MyArray(Array):
-                pass
-
-            def y(inexact: Array[int64]):
-                exact = Array[int64]([1])
-                exact = inexact
-        """
-        with self.assertRaisesRegex(
-            TypedSyntaxError,
-            type_mismatch(
-                "Array[int64]",
-                "Exact[Array[int64]]",
-            ),
-        ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
-
     def test_array_types(self):
         codestr = """
             from __static__ import (
@@ -6378,7 +6384,7 @@ class StaticCompilationTests(StaticTestBase):
             class D(B): pass
 
             def f():
-                b = B()
+                b: B = B()
                 b = D()
                 b = B()
         """
@@ -6390,7 +6396,7 @@ class StaticCompilationTests(StaticTestBase):
             class D(B): pass
 
             def f():
-                d = D()
+                d: D = D()
                 d = B()
         """
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("foo.B", "foo.D")):
@@ -6408,7 +6414,7 @@ class StaticCompilationTests(StaticTestBase):
     def test_assign_chained_failure_wrong_target_type(self):
         codestr = """
             def test() -> str:
-                x = 1
+                x: int = 1
                 y = x = "hello"
                 return y
         """
@@ -6432,7 +6438,7 @@ class StaticCompilationTests(StaticTestBase):
             from __static__ import int64, char, Array
 
             def test2() -> Array[char]:
-                x = Array[int64]([54])
+                x: Array[int64] = Array[int64]([54])
                 x = y = Array[char]([48])
                 return y
         """
@@ -6440,7 +6446,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[Array[char]]",
-                "Exact[Array[int64]]",
+                "Array[int64]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -6450,7 +6456,7 @@ class StaticCompilationTests(StaticTestBase):
             from __static__ import int64, char, Array
 
             def test2() -> Array[char]:
-                x = Array[int64]([54])
+                x: Array[int64] = Array[int64]([54])
                 y = x = Array[char]([48])
                 return y
         """
@@ -6458,7 +6464,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[Array[char]]",
-                "Exact[Array[int64]]",
+                "Array[int64]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -6469,11 +6475,11 @@ class StaticCompilationTests(StaticTestBase):
 
             def test2():
                 y = x = 4
-                x = "hello"
-                return y
+                reveal_type(x)
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[str]", "int")
+            TypedSyntaxError,
+            r"'x' has declared type 'dynamic' and local type 'Exact\[int\]'",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6483,11 +6489,11 @@ class StaticCompilationTests(StaticTestBase):
 
             def test2():
                 y = x = 4
-                y = "hello"
-                return x
+                reveal_type(y)
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[str]", "int")
+            TypedSyntaxError,
+            r"'y' has declared type 'dynamic' and local type 'Exact\[int\]'",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 

@@ -5245,35 +5245,16 @@ class LocalsBranch:
         for key, value in entry_locals.items():
             if key in local_types:
                 if value != local_types[key]:
-                    widest = self._widest_type(value, local_types[key])
-                    local_types[key] = widest or self.scope.decl_types[key].type
+                    local_types[key] = self._join(value, local_types[key])
                 continue
 
-        for key in local_types.keys():
-            # If a value isn't definitely assigned we can safely turn it
-            # back into the declared type
-            if key not in entry_locals and key in self.scope.decl_types:
-                local_types[key] = self.scope.decl_types[key].type
-
-    def _widest_type(self, *types: Value) -> Optional[Value]:
-        # TODO: this should be a join, rather than just reverting to decl_type
-        # if neither type is greater than the other
+    def _join(self, *types: Value) -> Value:
         if len(types) == 1:
             return types[0]
 
-        widest_type = None
-        for src in types:
-            if src == DYNAMIC:
-                return DYNAMIC
-
-            if widest_type is None or src.klass.can_assign_from(widest_type.klass):
-                widest_type = src
-            elif widest_type is not None and not widest_type.klass.can_assign_from(
-                src.klass
-            ):
-                return None
-
-        return widest_type
+        return UNION_TYPE.make_generic_type(
+            tuple(inexact(t).klass for t in types), self.scope.generic_types
+        ).instance
 
 
 class TypeDeclaration:
@@ -5283,31 +5264,42 @@ class TypeDeclaration:
 
 
 class BindingScope:
-    def __init__(self, node: AST) -> None:
+    def __init__(self, node: AST, generic_types: GenericTypesDict) -> None:
         self.node = node
         self.local_types: Dict[str, Value] = {}
         self.decl_types: Dict[str, TypeDeclaration] = {}
+        self.generic_types = generic_types
 
     def branch(self) -> LocalsBranch:
         return LocalsBranch(self)
 
-    def declare(self, name: str, typ: Value, is_final: bool = False) -> TypeDeclaration:
-        decl = TypeDeclaration(typ, is_final)
+    def declare(
+        self, name: str, typ: Value, is_final: bool = False, is_inferred: bool = False
+    ) -> TypeDeclaration:
+        # For an unannotated assignment (is_inferred=True), we declare dynamic
+        # type; this disallows later re-declaration, but allows any type to be
+        # assigned later, so `x = None; if flag: x = "foo"` works.
+        decl = TypeDeclaration(DYNAMIC if is_inferred else typ, is_final)
         self.decl_types[name] = decl
         self.local_types[name] = typ
         return decl
 
 
 class ModuleBindingScope(BindingScope):
-    def __init__(self, node: ast.Module, module: ModuleTable) -> None:
-        super().__init__(node)
+    def __init__(
+        self, node: ast.Module, module: ModuleTable, generic_types: GenericTypesDict
+    ) -> None:
+        super().__init__(node, generic_types)
         self.module = module
         for name, typ in self.module.children.items():
             self.declare(name, typ)
 
-    def declare(self, name: str, typ: Value, is_final: bool = False) -> TypeDeclaration:
+    def declare(
+        self, name: str, typ: Value, is_final: bool = False, is_inferred: bool = False
+    ) -> TypeDeclaration:
         self.module.children[name] = typ
-        return super().declare(name, typ, is_final)
+        # at module scope we will go ahead and set a declared type even without an annotation
+        return super().declare(name, typ, is_final=is_final, is_inferred=False)
 
 
 class NarrowingEffect:
@@ -5509,7 +5501,11 @@ class TypeBinder(GenericVisitor):
         return self.cur_mod.get_final_literal(node, self.symbols.scopes[self.scope])
 
     def declare_local(
-        self, target: ast.Name, typ: Value, is_final: bool = False
+        self,
+        target: ast.Name,
+        typ: Value,
+        is_final: bool = False,
+        is_inferred: bool = False,
     ) -> None:
         if target.id in self.decl_types:
             raise self.syntax_error(
@@ -5517,7 +5513,9 @@ class TypeBinder(GenericVisitor):
             )
         if isinstance(typ, CInstance):
             self.check_primitive_scope(target)
-        self.binding_scope.declare(target.id, typ, is_final)
+        self.binding_scope.declare(
+            target.id, typ, is_final=is_final, is_inferred=is_inferred
+        )
 
     def check_static_import_flags(self, node: Module) -> None:
         saw_doc_str = False
@@ -5541,7 +5539,11 @@ class TypeBinder(GenericVisitor):
                             self.cur_mod.noframe = True
 
     def visitModule(self, node: Module) -> None:
-        self.scopes.append(ModuleBindingScope(node, self.cur_mod))
+        self.scopes.append(
+            ModuleBindingScope(
+                node, self.cur_mod, generic_types=self.symtable.generic_types
+            )
+        )
 
         self.check_static_import_flags(node)
 
@@ -5555,7 +5557,7 @@ class TypeBinder(GenericVisitor):
         self.set_type(arg, arg_type.instance)
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
-        scope = BindingScope(node)
+        scope = BindingScope(node, generic_types=self.symtable.generic_types)
         for decorator in node.decorator_list:
             self.visit(decorator)
         cur_scope = self.scope
@@ -5664,7 +5666,9 @@ class TypeBinder(GenericVisitor):
         for base in node.bases:
             self.visit(base)
 
-        self.scopes.append(BindingScope(node))
+        self.scopes.append(
+            BindingScope(node, generic_types=self.symtable.generic_types)
+        )
 
         for stmt in node.body:
             self.visit(stmt)
@@ -6104,10 +6108,8 @@ class TypeBinder(GenericVisitor):
                             "Cannot assign to a Final variable", target
                         )
 
-                # For an inferred exact type, we want to declare the inexact
-                # type; the exact type is useful local inference information,
-                # but we should still allow assignment of a subclass later.
-                self.declare_local(target, inexact(value))
+                self.declare_local(target, value, is_inferred=True)
+
             else:
                 if decl_type.is_final:
                     raise self.syntax_error("Cannot assign to a Final variable", target)
@@ -6143,7 +6145,7 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         self.visit(node.generators[0].iter)
 
-        scope = BindingScope(node)
+        scope = BindingScope(node, generic_types=self.symtable.generic_types)
         self.scopes.append(scope)
 
         iter_type = self.get_type(node.generators[0].iter).get_iter_type(
@@ -6177,7 +6179,7 @@ class TypeBinder(GenericVisitor):
     ) -> None:
         self.visit(generators[0].iter)
 
-        scope = BindingScope(node)
+        scope = BindingScope(node, generic_types=self.symtable.generic_types)
         self.scopes.append(scope)
 
         iter_type = self.get_type(generators[0].iter).get_iter_type(
