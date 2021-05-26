@@ -1136,6 +1136,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       case FrameMode::kShadow:
         return perf::kShadowFrameSymbolPrefix;
     }
+    JIT_CHECK(false, "Invalid frame mode");
   }();
   // For perf, we want only the size of the code, so we get that directly from
   // the .text section.
