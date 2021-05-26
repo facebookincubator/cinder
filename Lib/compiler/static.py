@@ -5297,9 +5297,14 @@ class ModuleBindingScope(BindingScope):
     def declare(
         self, name: str, typ: Value, is_final: bool = False, is_inferred: bool = False
     ) -> TypeDeclaration:
+        # at module scope we will go ahead and set a declared type even without
+        # an annotation, but we don't want to infer the exact type; should be
+        # able to reassign to a subtype
+        if is_inferred:
+            typ = inexact(typ)
+            is_inferred = False
         self.module.children[name] = typ
-        # at module scope we will go ahead and set a declared type even without an annotation
-        return super().declare(name, typ, is_final=is_final, is_inferred=False)
+        return super().declare(name, typ, is_final=is_final, is_inferred=is_inferred)
 
 
 class NarrowingEffect:
@@ -5474,7 +5479,9 @@ class TypeBinder(GenericVisitor):
         return self.binding_scope.node
 
     def maybe_set_local_type(self, name: str, local_type: Value) -> Value:
-        decl_type = self.decl_types[name].type
+        decl = self.get_target_decl(name)
+        assert decl is not None
+        decl_type = decl.type
         if local_type is DYNAMIC or not decl_type.klass.can_be_narrowed:
             local_type = decl_type
         self.local_types[name] = local_type
@@ -5791,7 +5798,7 @@ class TypeBinder(GenericVisitor):
             cur_type = None
             if isinstance(target, ast.Name):
                 # This is a name, it could be unassigned still
-                decl_type = self.decl_types.get(target.id)
+                decl_type = self.get_target_decl(target.id)
                 if decl_type is not None:
                     cur_type = decl_type.type
             elif isinstance(target, (ast.Tuple, ast.List)):
@@ -6088,6 +6095,14 @@ class TypeBinder(GenericVisitor):
         self.set_type(node, SET_EXACT_TYPE.instance)
         return NO_EFFECT
 
+    def get_target_decl(self, name: str) -> Optional[TypeDeclaration]:
+        decl_type = self.decl_types.get(name)
+        if decl_type is None:
+            scope_type = self.get_var_scope(name)
+            if scope_type in (SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT):
+                decl_type = self.scopes[0].decl_types.get(name)
+        return decl_type
+
     def assign_value(
         self,
         target: expr,
@@ -6096,20 +6111,9 @@ class TypeBinder(GenericVisitor):
         assignment: Optional[AST] = None,
     ) -> None:
         if isinstance(target, Name):
-            decl_type = self.decl_types.get(target.id)
+            decl_type = self.get_target_decl(target.id)
             if decl_type is None:
-                # This var is not declared in the current scope, but it might be a
-                # global or nonlocal. In that case, we need to check whether it's a Final.
-                scope_type = self.get_var_scope(target.id)
-                if scope_type == SC_GLOBAL_EXPLICIT or scope_type == SC_GLOBAL_IMPLICIT:
-                    declared_type = self.scopes[0].decl_types.get(target.id, None)
-                    if declared_type is not None and declared_type.is_final:
-                        raise self.syntax_error(
-                            "Cannot assign to a Final variable", target
-                        )
-
                 self.declare_local(target, value, is_inferred=True)
-
             else:
                 if decl_type.is_final:
                     raise self.syntax_error("Cannot assign to a Final variable", target)

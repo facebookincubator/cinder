@@ -1705,11 +1705,6 @@ class EagerCoroutineDispatch(StaticTestBase):
 
         async def call_x() -> None:
             c = x()
-
-        def fixup():
-            import _testcapi
-            global x
-            x = _testcapi.TestAwaitedCall()
         """
         c = self.compile(codestr, StaticCodeGenerator, modname="test_invoke_function")
         await_x = self.find_code(c, "await_x")
@@ -1721,7 +1716,7 @@ class EagerCoroutineDispatch(StaticTestBase):
             call_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
         )
         with self.in_module(codestr) as mod:
-            mod["fixup"]()
+            mod["x"] = _testcapi.TestAwaitedCall()
             self.assertIsInstance(mod["x"], _testcapi.TestAwaitedCall)
             self.assertIsNone(mod["x"].last_awaited())
             coro = mod["await_x"]()

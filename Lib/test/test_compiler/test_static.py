@@ -7707,6 +7707,38 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
+    def test_assign_module_global(self):
+        codestr = """
+            x: int = 1
+
+            def f():
+                global x
+                x = "foo"
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, type_mismatch("Exact[str]", "int")
+        ):
+            self.compile(codestr)
+
+    def test_inferred_module_global_assign_subclass(self):
+        codestr = """
+            class MyList(list):
+                pass
+
+            x = []
+
+            def f(new_x: list) -> list:
+                global x
+                x = new_x
+                return x
+        """
+        with self.in_module(codestr) as mod:
+            f, MyList = mod["f"], mod["MyList"]
+            x = []
+            self.assertIs(f(x), x)
+            y = MyList()
+            self.assertIs(f(y), y)
+
     def test_named_tuple(self):
         codestr = """
             from typing import NamedTuple
