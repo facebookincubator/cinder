@@ -9217,7 +9217,8 @@ class StaticCompilationTests(StaticTestBase):
         x: Final[int, str] = hello()
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "Final types can only have a single type arg"
+            TypedSyntaxError,
+            r"incorrect number of generic arguments for Final\[T\], expected 1, got 2",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9251,7 +9252,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
         from typing import Final
 
-        x: Final = 0xdeadbeef
+        x: Final[int] = 0xdeadbeef
         """
         self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9280,7 +9281,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
         from typing import Final
 
-        x: Final
+        x: Final[int]
         """
         with self.assertRaisesRegex(
             TypedSyntaxError, "Must assign a value when declaring a Final"
@@ -9289,9 +9290,9 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_final_reassign(self):
         codestr = """
-        from typing import Final
+        from typing import Any, Final
 
-        x: Final = 0xdeadbeef
+        x: Final[Any] = 0xdeadbeef
         x = "something"
         """
         with self.assertRaisesRegex(
@@ -9303,7 +9304,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
             from typing import Final
 
-            a: Final = 1337
+            a: Final[int] = 1337
 
             def fn():
                 def fn2():
@@ -9319,7 +9320,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
             from typing import Final
 
-            a: Final = 1337
+            a: Final[int] = 1337
 
             def fn():
                 a = 2
@@ -9336,7 +9337,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
             from typing import Final
 
-            a: Final = 1337
+            a: Final[int] = 1337
 
             def fn():
                 def fn2():
@@ -9352,7 +9353,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
             from typing import Final
 
-            a: Final = 1337
+            a: Final[int] = 1337
 
             def fn():
                 a = 3
@@ -9368,7 +9369,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
         from typing import Final
 
-        x: Final = 0xdeadbeef
+        x: Final[int] = 0xdeadbeef
         y = 3
         x, y = 4, 5
         """
@@ -9381,7 +9382,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
         from typing import Final
 
-        x: Final = 0xdeadbeef
+        x: Final[int] = 0xdeadbeef
 
         for x in [1, 3, 5]:
             pass
@@ -9396,7 +9397,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         def f():
-            e: Final = 3
+            e: Final[int] = 3
             try:
                 x = 1 + "2"
             except Exception as e:
@@ -9411,7 +9412,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
         from typing import Final
 
-        x: Final = 0xdeadbeef
+        x: Final[int] = 0xdeadbeef
 
         for x, y in [(1, 2)]:
             pass
@@ -9425,7 +9426,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
         from typing import Final
 
-        x: Final = 0xdeadbeef
+        x: Final[int] = 0xdeadbeef
 
         with open("lol") as x:
             pass
@@ -9477,7 +9478,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         class C:
-            x: Final = 3
+            x: Final[int] = 3
             x = 4
         """
         with self.assertRaisesRegex(
@@ -9490,7 +9491,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         class C:
-            x: Final = 3
+            x: Final[int] = 3
 
         C.x = 4
         """
@@ -9506,7 +9507,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         class C:
-            x: Final = 3
+            x: Final[int] = 3
 
         C().x = 4
         """
@@ -9521,7 +9522,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         class C:
-            x: Final = 3
+            x: Final[int] = 3
 
             def something(self) -> None:
                 self.x = 4
@@ -9536,7 +9537,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         class C:
-            x: Final = 3
+            x: Final[int] = 3
 
         class D(C):
             x = 4
@@ -9552,7 +9553,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         class C:
-            x: Final = 3
+            x: Final[int] = 3
 
         class D(C):
             x: Final[int] = 4
@@ -9568,7 +9569,7 @@ class StaticCompilationTests(StaticTestBase):
         from typing import Final
 
         class C:
-            x: Final = 3
+            x: Final[int] = 3
 
         class D(C):
             def __init__(self):

@@ -1373,32 +1373,26 @@ class GenericClass(Class):
         visitor.visit(node.slice)
         val = slice.value
 
+        expected_argnum = len(self.gen_name.args)
         if isinstance(val, ast.Tuple):
             multiple: List[Class] = []
             for elt in val.elts:
-                klass = visitor.cur_mod.resolve_annotation(elt)
-                if klass is None:
-                    visitor.set_type(node, DYNAMIC)
-                    return
+                klass = visitor.cur_mod.resolve_annotation(elt) or DYNAMIC_TYPE
                 multiple.append(klass)
 
             index = tuple(multiple)
-            if (not self.is_variadic) and len(val.elts) != len(self.gen_name.args):
-                raise visitor.syntax_error(
-                    "incorrect number of generic arguments", node
-                )
+            actual_argnum = len(val.elts)
         else:
-            if (not self.is_variadic) and len(self.gen_name.args) != 1:
-                raise visitor.syntax_error(
-                    "incorrect number of generic arguments", node
-                )
-
-            single = visitor.cur_mod.resolve_annotation(val)
-            if single is None:
-                visitor.set_type(node, DYNAMIC)
-                return
-
+            actual_argnum = 1
+            single = visitor.cur_mod.resolve_annotation(val) or DYNAMIC_TYPE
             index = (single,)
+
+        if (not self.is_variadic) and actual_argnum != expected_argnum:
+            raise visitor.syntax_error(
+                f"incorrect number of generic arguments for {self.instance.name}, "
+                f"expected {expected_argnum}, got {actual_argnum}",
+                node,
+            )
 
         klass = self.make_generic_type(index, visitor.symtable.generic_types)
         visitor.set_type(node, klass)
@@ -3755,25 +3749,8 @@ NAMED_TUPLE_TYPE = Class(TypeName("typing", "NamedTuple"))
 
 
 class FinalClass(GenericClass):
-
-    is_variadic = True
-
-    def make_generic_type(
-        self,
-        index: Tuple[Class, ...],
-        generic_types: GenericTypesDict,
-    ) -> Class:
-        if len(index) > 1:
-            raise TypedSyntaxError(
-                f"Final types can only have a single type arg. Given: {str(index)}"
-            )
-        return super(FinalClass, self).make_generic_type(index, generic_types)
-
     def inner_type(self) -> Class:
-        if self.type_args:
-            return self.type_args[0]
-        else:
-            return DYNAMIC_TYPE
+        return self.type_args[0]
 
 
 class UnionTypeName(GenericTypeName):
@@ -4198,7 +4175,7 @@ class VectorClass(ArrayClass):
 BUILTIN_GENERICS: Dict[Class, Dict[GenericTypeIndex, Class]] = {}
 UNION_TYPE = UnionType()
 OPTIONAL_TYPE = OptionalType()
-FINAL_TYPE = FinalClass(GenericTypeName("typing", "Final", ()))
+FINAL_TYPE = FinalClass(GenericTypeName("typing", "Final", (GenericParameter("T", 0),)))
 CHECKED_DICT_TYPE_NAME = GenericTypeName(
     "__static__", "chkdict", (GenericParameter("K", 0), GenericParameter("V", 1))
 )
