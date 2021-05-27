@@ -113,8 +113,11 @@ from cinder import StrictModule
 
 from .common import CompilerTest
 
+IS_MULTITHREADED_COMPILE_TEST = False
 try:
     import cinderjit
+
+    IS_MULTITHREADED_COMPILE_TEST = cinderjit.is_test_multithreaded_compile_enabled()
 except ImportError:
     cinderjit = None
 
@@ -195,10 +198,6 @@ def init_xxclassloader():
     xxclassloader.XXGeneric = d["XXGeneric"]
 
 
-MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_IN_MODULE = []
-MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_IN_STRICT_MODULE = []
-MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_RUN = []
-
 class StaticTestBase(CompilerTest):
     def compile(
         self,
@@ -246,9 +245,6 @@ class StaticTestBase(CompilerTest):
             name = self._temp_mod_name()
 
         try:
-            MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_IN_MODULE.append(
-                (code, code_gen, name, optimize)
-            )
             compiled = self.compile(code, code_gen, name, optimize)
             m = type(sys)(name)
             d = m.__dict__
@@ -258,10 +254,12 @@ class StaticTestBase(CompilerTest):
 
             yield d
         finally:
-            # don't throw a new exception if we failed to compile
-            if name in sys.modules:
-                del sys.modules[name]
-                d.clear()
+            if not IS_MULTITHREADED_COMPILE_TEST:
+                # don't throw a new exception if we failed to compile
+                if name in sys.modules:
+                    del sys.modules[name]
+                    d.clear()
+                    gc.collect()
 
     @contextmanager
     def in_strict_module(
@@ -276,9 +274,6 @@ class StaticTestBase(CompilerTest):
             name = self._temp_mod_name()
 
         try:
-            MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_IN_STRICT_MODULE.append(
-                (code, code_gen, name, optimize, enable_patching)
-            )
             compiled = self.compile(code, code_gen, name, optimize)
             d = {"__name__": name}
             m = StrictModule(d, enable_patching)
@@ -287,57 +282,20 @@ class StaticTestBase(CompilerTest):
 
             yield m
         finally:
-            # don't throw a new exception if we failed to compile
-            if name in sys.modules:
-                del sys.modules[name]
-                d.clear()
+            if not IS_MULTITHREADED_COMPILE_TEST:
+                # don't throw a new exception if we failed to compile
+                if name in sys.modules:
+                    del sys.modules[name]
+                    d.clear()
+                    gc.collect()
 
     def run_code(self, code, generator=None, modname=None, peephole_enabled=True):
         if modname is None:
             modname = self._temp_mod_name()
-        MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_RUN.append(
-            (code, generator, modname, peephole_enabled)
-        )
         d = super().run_code(code, generator, modname, peephole_enabled)
-        return d
-
-    def recompile_for_multi_threaded_test(self):
-        init_xxclassloader()
-
-        for (
-            code,
-            code_gen,
-            name,
-            optimize,
-        ) in MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_IN_MODULE:
-            compiled = self.compile(code, code_gen, name, optimize)
-            m = type(sys)(name)
-            d = m.__dict__
-            sys.modules[name] = m
-            exec(compiled, d)
-            d["__name__"] = name
-
-        for (
-            code,
-            code_gen,
-            name,
-            optimize,
-            enable_patching,
-        ) in MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_IN_STRICT_MODULE:
-            compiled = self.compile(code, code_gen, name, optimize)
-            d = {"__name__": name}
-            m = StrictModule(d, enable_patching)
-            sys.modules[name] = m
-            exec(compiled, d)
-
-        for (
-            code,
-            generator,
-            modname,
-            peephole_enabled,
-        ) in MULTI_THREADED_COMPILE_TEST_CODE_SAMPLES_RUN:
-            d = super().run_code(code, generator, modname, peephole_enabled)
+        if IS_MULTITHREADED_COMPILE_TEST:
             sys.modules[modname] = d
+        return d
 
     @property
     def base_size(self):
@@ -394,7 +352,8 @@ class StaticCompilationTests(StaticTestBase):
 
     @classmethod
     def tearDownClass(cls):
-        del xxclassloader.XXGeneric
+        if not IS_MULTITHREADED_COMPILE_TEST:
+            del xxclassloader.XXGeneric
 
     def test_static_import_unknown(self) -> None:
         codestr = """

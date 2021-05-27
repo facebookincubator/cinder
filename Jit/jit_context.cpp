@@ -178,13 +178,6 @@ _PyJITContext* _PyJITContext_New(std::unique_ptr<jit::Compiler> compiler) {
   return ctx.release();
 }
 
-void _PyJITContext_ClearCache(BorrowedRef<_PyJITContext> ctx) {
-  for (auto& entry : ctx->compiled_codes) {
-    ctx->orphaned_compiled_codes.emplace_back(std::move(entry.second));
-  }
-  ctx->compiled_codes.clear();
-}
-
 void _PyJITContext_Free(_PyJITContext* ctx) {
   JIT_DLOG("Finalizing _PyJITContext");
 

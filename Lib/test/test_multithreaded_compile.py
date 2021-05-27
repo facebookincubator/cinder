@@ -33,7 +33,4 @@ if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromModule(test_compiler.test_static)
     unittest.TextTestRunner().run(suite)
 
-    print("Recompiling Static Python tests Python code")
-    test_compiler.test_static.StaticTestBase().recompile_for_multi_threaded_test()
-
     cinderjit.test_multithreaded_compile()
