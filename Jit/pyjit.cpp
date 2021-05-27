@@ -48,10 +48,27 @@ struct JitConfig {
 };
 JitConfig jit_config;
 
+namespace {
+// Extra information needed to compile a PyCodeObject.
+struct CodeData {
+  CodeData(PyObject* m, PyObject* g) : module{m}, globals{g} {}
+
+  Ref<> module;
+  Ref<PyDictObject> globals;
+};
+} // namespace
+
 static _PyJITContext* jit_ctx;
 static JITList* g_jit_list{nullptr};
-static std::unordered_set<PyFunctionObject*> jit_reg_functions;
-static std::vector<Ref<PyFunctionObject>> test_multithreaded_funcs;
+
+// Function and code objects registered for compilation. Every entry that is a
+// code object has corresponding entry in jit_code_data.
+static std::unordered_set<BorrowedRef<>> jit_reg_units;
+static std::unordered_map<BorrowedRef<PyCodeObject>, CodeData> jit_code_data;
+
+// Strong references to every function and code object that were ever
+// registered, to keep them alive for batch testing.
+static std::vector<Ref<>> test_multithreaded_units;
 static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
     jit_time_functions;
 
@@ -72,7 +89,7 @@ INTERNED_STRINGS(DECLARE_STR)
 static double total_compliation_time = 0.0;
 
 struct CompilationTimer {
-  explicit CompilationTimer(PyFunctionObject* f)
+  explicit CompilationTimer(BorrowedRef<PyFunctionObject> f)
       : start(std::chrono::steady_clock::now()), func(f) {}
 
   ~CompilationTimer() {
@@ -82,42 +99,48 @@ struct CompilationTimer {
 
     double time = time_span.count();
     total_compliation_time += time;
+    jit::ThreadedCompileSerialize guard;
     jit_time_functions.emplace(func, time_span);
   }
 
   std::chrono::steady_clock::time_point start;
-  PyFunctionObject* func{nullptr};
+  BorrowedRef<PyFunctionObject> func{nullptr};
 };
 
 static std::atomic<int> g_compile_workers_attempted;
 static int g_compile_workers_retries;
 
+// Compile the given compilation unit, returning the result code.
+static _PyJIT_Result compileUnit(BorrowedRef<> unit) {
+  if (PyFunction_Check(unit)) {
+    BorrowedRef<PyFunctionObject> func(unit);
+    CompilationTimer t{func};
+    return _PyJITContext_CompileFunction(jit_ctx, func);
+  }
+  JIT_CHECK(PyCode_Check(unit), "Expected function or code object");
+  BorrowedRef<PyCodeObject> code(unit);
+  const CodeData& data = map_get(jit_code_data, code);
+  return _PyJITContext_CompileCode(jit_ctx, data.module, code, data.globals);
+}
+
 static void compile_worker_thread() {
   JIT_DLOG("Started compile worker in thread %d", std::this_thread::get_id());
-  PyFunctionObject* func;
-  while ((func = g_threaded_compile_context.nextFunction()) != nullptr) {
-    CompilationTimer t{func};
-    // The list of conditions here should be matched in _PyJIT_CompileFunction
-    {
-      ThreadedCompileSerialize guard;
-      if ((!jit_config.test_multithreaded_compile &&
-           _PyJIT_IsCompiled(reinterpret_cast<PyObject*>(func))) ||
-          !_PyJIT_OnJitList(func)) {
-        continue;
-      }
-    }
+  BorrowedRef<> unit;
+  while ((unit = g_threaded_compile_context.nextUnit()) != nullptr) {
     g_compile_workers_attempted++;
-    if (_PyJITContext_CompileFunction(jit_ctx, func) == PYJIT_RESULT_RETRY) {
+    if (compileUnit(unit) == PYJIT_RESULT_RETRY) {
       ThreadedCompileSerialize guard;
       g_compile_workers_retries++;
-      g_threaded_compile_context.retryFunction(func);
-      JIT_LOG("Retrying compile of function: %s", funcFullname(func));
+      g_threaded_compile_context.retryUnit(unit);
+      JIT_LOG(
+          "Retrying compile of function: %s",
+          funcFullname(reinterpret_cast<PyFunctionObject*>(unit.get())));
     }
   }
   JIT_DLOG("Finished compile worker in thread %d", std::this_thread::get_id());
 }
 
-static void multithread_compile_all() {
+static void multithread_compile_all(std::vector<BorrowedRef<>>&& work_units) {
   JIT_CHECK(jit_ctx, "JIT not initialized");
 
   // Disable checks for using GIL protected data across threads.
@@ -132,16 +155,13 @@ static void multithread_compile_all() {
   int old_gil_check_enabled = _PyGILState_check_enabled;
   _PyGILState_check_enabled = 0;
 
-  g_threaded_compile_context.startCompile(
-      {jit_reg_functions.begin(), jit_reg_functions.end()});
-  jit_reg_functions.clear();
+  g_threaded_compile_context.startCompile(std::move(work_units));
   std::vector<std::thread> worker_threads;
   JIT_CHECK(jit_config.batch_compile_workers, "Zero workers for compile");
   {
     // Hold a lock while we create threads because IG production has magic to
     // wrap pthread_create() and run Python code before threads are created.
     ThreadedCompileSerialize guard;
-
     for (size_t i = 0; i < jit_config.batch_compile_workers; i++) {
       worker_threads.emplace_back(compile_worker_thread);
     }
@@ -149,10 +169,10 @@ static void multithread_compile_all() {
   for (std::thread& worker_thread : worker_threads) {
     worker_thread.join();
   }
-  std::vector<PyFunctionObject*> retry_list{
+  std::vector<BorrowedRef<>> retry_list{
       g_threaded_compile_context.endCompile()};
-  for (PyFunctionObject* func : retry_list) {
-    _PyJIT_CompileFunction(func);
+  for (auto unit : retry_list) {
+    compileUnit(unit);
   }
   _PyGILState_check_enabled = old_gil_check_enabled;
 }
@@ -163,16 +183,12 @@ static PyObject* test_multithreaded_compile(PyObject*, PyObject*) {
         PyExc_NotImplementedError, "test_multithreaded_compile not enabled");
     return NULL;
   }
-  std::unordered_set<PyFunctionObject*> jit_reg_funcs_copy(jit_reg_functions);
-  jit_reg_functions.clear();
-  for (PyFunctionObject* func : test_multithreaded_funcs) {
-    jit_reg_functions.insert(func);
-  }
   g_compile_workers_attempted = 0;
   g_compile_workers_retries = 0;
-  JIT_LOG("(Re)compiling %d functions", jit_reg_functions.size());
+  JIT_LOG("(Re)compiling %d units", jit_reg_units.size());
   std::chrono::time_point time_start = std::chrono::steady_clock::now();
-  multithread_compile_all();
+  multithread_compile_all(
+      {test_multithreaded_units.begin(), test_multithreaded_units.end()});
   std::chrono::time_point time_end = std::chrono::steady_clock::now();
   JIT_LOG(
       "Took %d ms, compiles attempted: %d, compiles retried: %d",
@@ -181,12 +197,7 @@ static PyObject* test_multithreaded_compile(PyObject*, PyObject*) {
           .count(),
       g_compile_workers_attempted,
       g_compile_workers_retries);
-  std::unordered_set<PyFunctionObject*> func_copy(jit_reg_functions);
-  for (PyFunctionObject* func : func_copy) {
-    jit_reg_functions.erase(func);
-  }
-  jit_reg_functions = jit_reg_funcs_copy;
-  test_multithreaded_funcs.clear();
+  test_multithreaded_units.clear();
   Py_RETURN_NONE;
 }
 
@@ -210,15 +221,18 @@ disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
   }
 
   if (nargs == 0 || args[0] == Py_True) {
-    // Compile all pending functions before shutting down.
+    // Compile all of the pending functions/codes before shutting down
     if (jit_config.batch_compile_workers > 0) {
-      multithread_compile_all();
+      multithread_compile_all({jit_reg_units.begin(), jit_reg_units.end()});
+      jit_reg_units.clear();
     } else {
-      std::unordered_set<PyFunctionObject*> func_copy(jit_reg_functions);
-      for (PyFunctionObject* func : func_copy) {
-        _PyJIT_CompileFunction(func);
+      std::unordered_set<BorrowedRef<>> units;
+      units.swap(jit_reg_units);
+      for (auto unit : units) {
+        compileUnit(unit);
       }
     }
+    jit_code_data.clear();
   }
 
   _PyJIT_Disable();
@@ -231,8 +245,7 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
     return NULL;
   }
 
-  if (jit_reg_functions.find((PyFunctionObject*)func) !=
-      jit_reg_functions.end()) {
+  if (jit_reg_units.count(func)) {
     _PyJIT_CompileFunction((PyFunctionObject*)func);
     Py_RETURN_TRUE;
   }
@@ -602,15 +615,21 @@ static PyModuleDef jit_module = {
     .m_clear = nullptr,
     .m_free = nullptr};
 
-int _PyJIT_OnJitList(PyFunctionObject* func) {
-  BorrowedRef<PyCodeObject> code(func->func_code);
+static int onJitListImpl(
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<> module,
+    BorrowedRef<> qualname) {
   bool is_static = code->co_flags & CO_STATICALLY_COMPILED;
   if (g_jit_list == nullptr ||
       (is_static && jit_config.compile_all_static_functions)) {
     // There's no jit list or the function is static.
     return 1;
   }
-  return g_jit_list->lookup(func);
+  return g_jit_list->lookup(module, qualname);
+}
+
+int _PyJIT_OnJitList(PyFunctionObject* func) {
+  return onJitListImpl(func->func_code, func->func_module, func->func_qualname);
 }
 
 // Is env var set to a value other than "0" or ""?
@@ -901,47 +920,103 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
     return PYJIT_NOT_INITIALIZED;
   }
 
-  // The list of conditions here should be matched in compile_worker_thread()
-  if (_PyJIT_IsCompiled(reinterpret_cast<PyObject*>(func))) {
-    return PYJIT_RESULT_OK;
-  }
   if (!_PyJIT_OnJitList(func)) {
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
   CompilationTimer timer(func);
-  const int kMaxCompileDepth = 10;
-  static std::vector<PyObject*> active_compiles;
-  // Don't attempt the compilation if there are already too many active
-  // compilations or this function's code is one of them.
-  if (active_compiles.size() == kMaxCompileDepth ||
-      std::find(
-          active_compiles.begin(), active_compiles.end(), func->func_code) !=
-          active_compiles.end()) {
-    return PYJIT_RESULT_UNKNOWN_ERROR;
+  jit_reg_units.erase(reinterpret_cast<PyObject*>(func));
+  return _PyJITContext_CompileFunction(jit_ctx, func);
+}
+
+// Recursively search the given co_consts tuple for any code objects that are
+// on the current jit-list, using the given module name to form a
+// fully-qualified function name.
+static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
+    BorrowedRef<> module,
+    BorrowedRef<> root_consts) {
+  std::queue<PyObject*> consts_tuples;
+  std::unordered_set<PyCodeObject*> visited;
+  std::vector<BorrowedRef<PyCodeObject>> result;
+
+  consts_tuples.push(root_consts);
+  while (!consts_tuples.empty()) {
+    PyObject* consts = consts_tuples.front();
+    consts_tuples.pop();
+
+    for (size_t i = 0, size = PyTuple_GET_SIZE(consts); i < size; ++i) {
+      BorrowedRef<PyCodeObject> code = PyTuple_GET_ITEM(consts, i);
+      if (!PyCode_Check(code) || !visited.insert(code).second ||
+          code->co_qualname == nullptr ||
+          !onJitListImpl(code, module, code->co_qualname)) {
+        continue;
+      }
+
+      result.emplace_back(code);
+      consts_tuples.emplace(code->co_consts);
+    }
   }
 
-  jit_reg_functions.erase(func);
-  active_compiles.push_back(func->func_code);
-  _PyJIT_Result result = _PyJITContext_CompileFunction(jit_ctx, func);
-  active_compiles.pop_back();
   return result;
 }
 
 int _PyJIT_RegisterFunction(PyFunctionObject* func) {
-  if (_PyJIT_IsEnabled() && _PyJIT_OnJitList(func)) {
-    if (jit_config.test_multithreaded_compile) {
-      test_multithreaded_funcs.emplace_back(func);
-    }
-    jit_reg_functions.insert(func);
+  // Attempt to attach already-compiled code even if the JIT is disabled, as
+  // long as it hasn't been finalized.
+  if (jit_ctx != nullptr &&
+      _PyJITContext_AttachCompiledCode(jit_ctx, func) == PYJIT_RESULT_OK) {
     return 1;
   }
-  return 0;
+
+  if (!_PyJIT_IsEnabled()) {
+    return 0;
+  }
+
+  JIT_CHECK(
+      !g_threaded_compile_context.compileRunning(),
+      "Not intended for using during threaded compilation");
+  int result = 0;
+  auto register_unit = [](BorrowedRef<> unit) {
+    if (jit_config.test_multithreaded_compile) {
+      test_multithreaded_units.emplace_back(unit);
+    }
+    jit_reg_units.emplace(unit);
+  };
+
+  if (_PyJIT_OnJitList(func)) {
+    register_unit(reinterpret_cast<PyObject*>(func));
+    result = 1;
+  }
+
+  // If we have an active jit-list, scan this function's code object for any
+  // nested functions that might be on the jit-list, and register them as
+  // well.
+  if (g_jit_list != nullptr) {
+    PyObject* module = func->func_module;
+    PyObject* globals = func->func_globals;
+    for (auto code : findNestedCodes(
+             module,
+             reinterpret_cast<PyCodeObject*>(func->func_code)->co_consts)) {
+      register_unit(reinterpret_cast<PyObject*>(code.get()));
+      jit_code_data.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(code),
+          std::forward_as_tuple(module, globals));
+    }
+  }
+  return result;
 }
 
 void _PyJIT_UnregisterFunction(PyFunctionObject* func) {
   if (_PyJIT_IsEnabled()) {
-    jit_reg_functions.erase(func);
+    jit_reg_units.erase(reinterpret_cast<PyObject*>(func));
+  }
+}
+
+void _PyJIT_UnregisterCode(PyCodeObject* code) {
+  if (_PyJIT_IsEnabled()) {
+    jit_reg_units.erase(reinterpret_cast<PyObject*>(code));
+    jit_code_data.erase(code);
   }
 }
 

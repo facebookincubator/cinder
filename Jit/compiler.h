@@ -105,7 +105,17 @@ class Compiler {
  public:
   Compiler() = default;
 
-  std::unique_ptr<CompiledFunction> Compile(PyObject* func);
+  // Compile the given code object, with the given globals dict. The fullname
+  // string is only used for internal debugging and logging and does not affect
+  // the generated code.
+  std::unique_ptr<CompiledFunction> Compile(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> globals,
+      const std::string& fullname);
+
+  // Convenience wrapper to extract the code, globals, and fullname from a
+  // PyFunctionObject.
+  std::unique_ptr<CompiledFunction> Compile(BorrowedRef<PyFunctionObject> func);
 
   static void runPasses(jit::hir::Function& irfunc);
 

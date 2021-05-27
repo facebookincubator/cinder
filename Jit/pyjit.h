@@ -102,15 +102,17 @@ PyAPI_FUNC(_PyJIT_Result) _PyJIT_CompileFunction(PyFunctionObject* func);
  * that the function is being de-allocated via _PyJIT_UnregisterFunction
  * before the function goes away.
  *
- * Returns 1 if the function is registered with JIT, and 0 otherwise
+ * Returns 1 if the function is registered with JIT or is already compiled,
+ * and 0 otherwise.
  */
 PyAPI_FUNC(int) _PyJIT_RegisterFunction(PyFunctionObject* func);
 
 /*
- * Informs the JIT that a function is being de-allocated and that
- * the JIT should forget about it.
+ * Informs the JIT that a function or code object is being de-allocated and
+ * that the JIT should forget about it.
  */
 PyAPI_FUNC(void) _PyJIT_UnregisterFunction(PyFunctionObject* func);
+PyAPI_FUNC(void) _PyJIT_UnregisterCode(PyCodeObject* code);
 
 /*
  * Clean up any resources allocated by the JIT.

@@ -726,6 +726,7 @@ class UtimeTests(unittest.TestCase):
 
         # Call os.utime() to set the timestamp to the current system clock
         set_time(self.fname)
+        st = os.stat(self.fname)
 
         if not self.support_subsecond(self.fname):
             delta = 1.0
@@ -736,7 +737,6 @@ class UtimeTests(unittest.TestCase):
             # x86 Gentoo Refleaks 3.x once failed with dt=20.2 ms. So use
             # also 50 ms on other platforms.
             delta = 0.050
-        st = os.stat(self.fname)
         msg = ("st_time=%r, current=%r, dt=%r"
                % (st.st_mtime, current, st.st_mtime - current))
         self.assertAlmostEqual(st.st_mtime, current,

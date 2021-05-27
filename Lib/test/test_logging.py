@@ -742,7 +742,7 @@ class HandlerTest(BaseTest):
                 waited_pid, status = os.waitpid(pid, os.WNOHANG)
                 if waited_pid == pid:
                     break  # child process exited.
-                if time.monotonic() - start_time > 7:
+                if time.monotonic() - start_time > 10:
                     break  # so long? implies child deadlock.
                 time.sleep(0.05)
             test_logger.debug('Done waiting.')

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
-import sys
-import re
 import argparse
-import subprocess
-import tempfile
-import os
 import logging
+import os
+import re
+import shlex
+import subprocess
+import sys
+import tempfile
 
 JITLIST_FILENAME = "jitlist.txt"
 
@@ -24,12 +25,18 @@ def run_with_jitlist(command, jitlist):
     environ = dict(os.environ)
     environ.update({"PYTHONJITLISTFILE": JITLIST_FILENAME})
 
+    logging.debug(
+        f"Running '{shlex.join(command)}' with jitlist of size {len(jitlist)}"
+    )
     proc = subprocess.run(
         command,
         env=environ,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding=sys.stdout.encoding,
+    )
+    logging.debug(
+        f"Finished with exit status {proc.returncode}\n\nstdout:\n{proc.stdout}\n\nstderr:\n{proc.stderr}"
     )
     return proc.returncode == 0
 
@@ -118,14 +125,18 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="When given a command that fails with the jit enabled (including -X jit as appropriate), bisects to find a minimal jit-list that preserves the failure"
     )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose logging"
+    )
     parser.add_argument("command", nargs=argparse.REMAINDER)
 
     return parser.parse_args()
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
     args = parse_args()
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level)
     run_bisect(args.command)
 
 

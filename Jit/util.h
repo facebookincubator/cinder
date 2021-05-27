@@ -76,6 +76,7 @@ inline std::size_t combineHash(std::size_t seed, std::size_t hash) {
   return seed ^ (hash + 0x9e3779b9 + (seed << 6) + (seed >> 2));
 }
 
+std::string codeFullname(PyObject* module, PyCodeObject* code);
 std::string funcFullname(PyFunctionObject* func);
 
 inline int popcount(unsigned i) {

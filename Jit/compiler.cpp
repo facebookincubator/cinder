@@ -76,23 +76,18 @@ void Compiler::runPasses(jit::hir::Function& irfunc) {
       g_dump_final_hir, "Optimized HIR for %s:\n%s", irfunc.fullname, irfunc);
 }
 
-std::unique_ptr<CompiledFunction> Compiler::Compile(PyObject* func) {
-  if (!PyFunction_Check(func)) {
-    auto repr = Ref<>::steal(PyObject_Repr(func));
-    if (repr == nullptr) {
-      JIT_LOG(
-          "Refusing to compile object of type '%.200s'",
-          Py_TYPE(func)->tp_name);
-    } else {
-      JIT_LOG("Refusing to compile non-function %s", PyUnicode_AsUTF8(repr));
-    }
-    return nullptr;
-  }
+std::unique_ptr<CompiledFunction> Compiler::Compile(
+    BorrowedRef<PyFunctionObject> func) {
+  JIT_CHECK(PyFunction_Check(func), "Expected PyFunctionObject");
+  return Compile(func->func_code, func->func_globals, funcFullname(func));
+}
 
-  std::string fullname =
-      funcFullname(reinterpret_cast<PyFunctionObject*>(func));
+std::unique_ptr<CompiledFunction> Compiler::Compile(
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals,
+    const std::string& fullname) {
+  JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
 
-  PyObject* globals = PyFunction_GetGlobals(func);
   if (!PyDict_CheckExact(globals)) {
     JIT_DLOG(
         "Refusing to compile %s: globals is a %.200s, not a dict",
@@ -110,9 +105,10 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(PyObject* func) {
     return nullptr;
   }
 
-  JIT_DLOG("Compiling %s @ %p", fullname, func);
+  JIT_DLOG("Compiling %s @ %p", fullname, code);
   jit::hir::HIRBuilder hir_builder;
-  std::unique_ptr<jit::hir::Function> irfunc(hir_builder.BuildHIR(func));
+  std::unique_ptr<jit::hir::Function> irfunc(
+      hir_builder.BuildHIR(code, globals, fullname));
   if (irfunc == nullptr) {
     JIT_DLOG("Lowering to HIR failed %s", fullname);
     return nullptr;

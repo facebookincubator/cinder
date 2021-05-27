@@ -7555,7 +7555,7 @@ PyEntry_LazyInit(PyFunctionObject *func,
 
     if (!_PyJIT_IsEnabled() ||
         _PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
-      PyEntry_initnow(func);
+        PyEntry_initnow(func);
     }
     assert(func->vectorcall != (vectorcallfunc)PyEntry_LazyInit);
     return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
@@ -7564,6 +7564,9 @@ PyEntry_LazyInit(PyFunctionObject *func,
 void
 PyEntry_init(PyFunctionObject *func)
 {
+    if (_PyJIT_IsCompiled((PyObject*)func)) {
+        return;
+    }
     func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
     if (!_PyJIT_RegisterFunction(func)) {
         PyEntry_initnow(func);

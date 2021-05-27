@@ -5,7 +5,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
 #include "Jit/log.h"
+#include "Jit/ref.h"
 
 static constexpr size_t INITIAL_SIZE = 104;
 
@@ -107,19 +109,22 @@ void setUseStablePointers(bool enable) {
   s_use_stable_pointers = enable;
 }
 
+static std::string fullnameImpl(PyObject* module, PyObject* qualname) {
+  auto safe_str = [](BorrowedRef<> str) {
+    if (str == nullptr || !PyUnicode_Check(str)) {
+      return "<invalid>";
+    }
+    return PyUnicode_AsUTF8(str);
+  };
+  return fmt::format("{}:{}", safe_str(module), safe_str(qualname));
+}
+
+std::string codeFullname(PyObject* module, PyCodeObject* code) {
+  return fullnameImpl(module, code->co_qualname);
+}
+
 std::string funcFullname(PyFunctionObject* func) {
-  std::string fullname;
-  PyObject* mn = func->func_module;
-  const char* module_name = "<invalid>";
-  if (mn != nullptr && PyUnicode_Check(mn)) {
-    module_name = PyUnicode_AsUTF8(mn);
-  }
-  PyObject* qn = func->func_qualname;
-  const char* qualname = "<invalid>";
-  if (qn != nullptr && PyUnicode_Check(qn)) {
-    qualname = PyUnicode_AsUTF8(qn);
-  }
-  return fmt::format("{}:{}", module_name, qualname);
+  return fullnameImpl(func->func_module, func->func_qualname);
 }
 
 } // namespace jit

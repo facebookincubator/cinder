@@ -9,6 +9,7 @@
 #include "pycore_shadowcode.h"
 #include "pycore_tupleobject.h"
 #include "clinic/codeobject.c.h"
+#include "Jit/pyjit.h"
 
 /* Holder for co_extra information */
 typedef struct {
@@ -500,6 +501,7 @@ code_new(PyTypeObject *type, PyObject *args, PyObject *kw)
 static void
 code_dealloc(PyCodeObject *co)
 {
+    _PyJIT_UnregisterCode(co);
     if (co->co_extra != NULL) {
         PyInterpreterState *interp = _PyInterpreterState_GET_UNSAFE();
         _PyCodeObjectExtra *co_extra = co->co_extra;

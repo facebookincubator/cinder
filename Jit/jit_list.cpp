@@ -106,13 +106,13 @@ bool JITList::addEntry(BorrowedRef<> module_name, BorrowedRef<> qualname) {
 }
 
 int JITList::lookup(BorrowedRef<PyFunctionObject> func) {
-  if (func->func_module == nullptr) {
-    return 0;
-  }
   return lookup(func->func_module, func->func_qualname);
 }
 
 int JITList::lookup(BorrowedRef<> module, BorrowedRef<> qualname) {
+  if (module == nullptr) {
+    return 0;
+  }
   // Check for an exact module:qualname match
   BorrowedRef<> name_set = PyDict_GetItemWithError(qualnames_, module);
   if (name_set == nullptr) {

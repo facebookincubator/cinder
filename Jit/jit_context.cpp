@@ -508,12 +508,20 @@ static _PyJIT_Result finalizeCompiledFunc(
     BorrowedRef<_PyJITContext> ctx,
     BorrowedRef<PyFunctionObject> func,
     const jit::CompiledFunction& compiled) {
+  jit::ThreadedCompileSerialize guard;
   /* Subscribe to changes in the function to deopt it when needed. */
   auto func_ref = Ref<>::steal(PyWeakref_NewRef(func, nullptr));
   auto deopt_info = Ref<>::steal(DeoptInfo_New());
   auto ctx_ref = Ref<>::steal(PyWeakref_NewRef(ctx, nullptr));
-  if (func_ref == nullptr || deopt_info == nullptr || ctx_ref == nullptr ||
-      DeoptInfo_AddFuncSubscr(
+  if (func_ref == nullptr || deopt_info == nullptr || ctx_ref == nullptr) {
+    return PYJIT_RESULT_UNKNOWN_ERROR;
+  }
+  if (PyDict_GetItem(ctx->deopt_info, func_ref) != nullptr) {
+    // Someone else compiled the function between when our caller checked and
+    // called us.
+    return PYJIT_RESULT_OK;
+  }
+  if (DeoptInfo_AddFuncSubscr(
           deopt_info, func, deopt_func_on_func_change, ctx_ref) < 0 ||
       PyDict_SetItem(ctx->deopt_info, func_ref, deopt_info) < 0) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
@@ -523,63 +531,73 @@ static _PyJIT_Result finalizeCompiledFunc(
   return PYJIT_RESULT_OK;
 }
 
-_PyJIT_Result _PyJITContext_CompileFunction(
+namespace {
+struct CompilationResult {
+  jit::CompiledFunction* compiled;
+  _PyJIT_Result result;
+};
+
+jit::CompiledFunction* lookupCompiledCode(
     _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func) {
-  static std::unordered_set<CompilationKey> active_code_compiles;
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals) {
+  jit::ThreadedCompileSerialize guard;
+  auto it = ctx->compiled_codes.find(CompilationKey{code, globals});
+  return it == ctx->compiled_codes.end() ? nullptr : it->second.get();
+}
 
-  if (ctx->jit_compiler == nullptr) {
-    return PYJIT_RESULT_UNKNOWN_ERROR;
+// Compile the given code object.
+//
+// Returns the CompiledFunction* and PYJIT_RESULT_OK if successful, or nullptr
+// and a failure reason if not.
+CompilationResult compileCode(
+    BorrowedRef<_PyJITContext> ctx,
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals,
+    const std::string& fullname) {
+  int required_flags = CO_OPTIMIZED | CO_NEWLOCALS;
+  int prohibited_flags = CO_SUPPRESS_JIT;
+  // Don't care flags: CO_NOFREE, CO_FUTURE_* (the only still-relevant future
+  // is "annotations" which doesn't impact bytecode execution.)
+  if (code == nullptr ||
+      ((code->co_flags & required_flags) != required_flags) ||
+      (code->co_flags & prohibited_flags) != 0) {
+    return {nullptr, PYJIT_RESULT_CANNOT_SPECIALIZE};
   }
 
-  std::unique_ptr<jit::CompiledFunction> compiled;
-  std::string fullname;
-  BorrowedRef<PyCodeObject> code = func->func_code;
-  CompilationKey key{code, func->func_globals};
+  // We maintain a set of compilations that are active in all threads, as well
+  // as a per-thread recursion limit (since the JIT can invoke itself to try
+  // and statically bind calls).
+  static std::unordered_set<CompilationKey> active_compiles;
+  static thread_local int compile_depth = 0;
+  const int kMaxCompileDepth = 10;
+  if (compile_depth == kMaxCompileDepth) {
+    return {nullptr, PYJIT_RESULT_RETRY};
+  }
+
+  CompilationKey key{code, globals};
   {
+    // Attempt to atomically transition the code from "not compiled" to "in
+    // progress".
     jit::ThreadedCompileSerialize guard;
-
-    fullname = jit::funcFullname(func);
-    auto it = ctx->compiled_codes.find(key);
-    if (it != ctx->compiled_codes.end()) {
-      JIT_DLOG("Found compiled code for '%s'", fullname);
-      return finalizeCompiledFunc(ctx, func, *it->second);
+    if (jit::CompiledFunction* compiled =
+            lookupCompiledCode(ctx, code, globals)) {
+      return {compiled, PYJIT_RESULT_OK};
     }
-    if (active_code_compiles.find(key) != active_code_compiles.end()) {
-      return PYJIT_RESULT_RETRY;
+    if (!active_compiles.insert(key).second) {
+      return {nullptr, PYJIT_RESULT_RETRY};
     }
-
-    /*
-     * This is the funnel for compiling Python functions.
-     *
-     * The basic flow is:
-     *
-     *   1. Check if the code object's flags disqualify it from being compiled.
-     *   2. If not, pattern match on bytecode in the code object contained by
-     *      func to see if we have a specialized routine capable of compiling
-     *      it.
-     *   3. If not, invoke the general purpose compiler.
-     */
-    int required_flags = CO_OPTIMIZED | CO_NEWLOCALS;
-    int prohibited_flags = CO_SUPPRESS_JIT;
-    // Don't care flags: CO_NOFREE, CO_FUTURE_* (the only still-relevant future
-    // is "annotations" which doesn't impact bytecode execution.)
-    if (code == nullptr ||
-        ((code->co_flags & required_flags) != required_flags) ||
-        (code->co_flags & prohibited_flags) != 0) {
-      return PYJIT_RESULT_CANNOT_SPECIALIZE;
-    }
-
-    active_code_compiles.insert(key);
   }
 
-  compiled = ctx->jit_compiler->Compile(func);
+  compile_depth++;
+  std::unique_ptr<jit::CompiledFunction> compiled =
+      ctx->jit_compiler->Compile(code, globals, fullname);
+  compile_depth--;
 
   jit::ThreadedCompileSerialize guard;
-
-  active_code_compiles.erase(key);
+  active_compiles.erase(key);
   if (compiled == nullptr) {
-    return PYJIT_RESULT_UNKNOWN_ERROR;
+    return {nullptr, PYJIT_RESULT_UNKNOWN_ERROR};
   }
 
   register_pycode_debug_symbol(code, fullname.c_str(), compiled.get());
@@ -587,33 +605,68 @@ _PyJIT_Result _PyJITContext_CompileFunction(
   // Store the compiled code.
   auto pair = ctx->compiled_codes.emplace(key, std::move(compiled));
   JIT_CHECK(pair.second == true, "CompilationKey already present");
-  return finalizeCompiledFunc(ctx, func, *pair.first->second);
+  return {pair.first->second.get(), PYJIT_RESULT_OK};
 }
+} // namespace
 
-static jit::CompiledFunction* lookupFunction(
+_PyJIT_Result _PyJITContext_CompileFunction(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  auto func_ref = THREADED_COMPILE_SERIALIZED_CALL(
-      Ref<>::steal(PyWeakref_NewRef(func, nullptr)));
+  if (_PyJITContext_DidCompile(ctx, func) == 1) {
+    return PYJIT_RESULT_OK;
+  }
+  BorrowedRef<PyCodeObject> code = func->func_code;
+  std::string fullname =
+      THREADED_COMPILE_SERIALIZED_CALL(jit::funcFullname(func));
+  CompilationResult result =
+      compileCode(ctx, code, func->func_globals, fullname);
+  if (result.compiled == nullptr) {
+    return result.result;
+  }
+
+  return finalizeCompiledFunc(ctx, func, *result.compiled);
+}
+
+_PyJIT_Result _PyJITContext_CompileCode(
+    _PyJITContext* ctx,
+    BorrowedRef<> module,
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals) {
+  std::string fullname =
+      THREADED_COMPILE_SERIALIZED_CALL(jit::codeFullname(module, code));
+  return compileCode(ctx, code, globals, fullname).result;
+}
+
+_PyJIT_Result _PyJITContext_AttachCompiledCode(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  if (_PyJITContext_DidCompile(ctx, func) == 1) {
+    return PYJIT_RESULT_OK;
+  }
+  if (jit::CompiledFunction* compiled =
+          lookupCompiledCode(ctx, func->func_code, func->func_globals)) {
+    return finalizeCompiledFunc(ctx, func, *compiled);
+  }
+  return PYJIT_RESULT_CANNOT_SPECIALIZE;
+}
+
+int _PyJITContext_DidCompile(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::ThreadedCompileSerialize guard;
+  auto func_ref = Ref<>::steal(PyWeakref_NewRef(func, nullptr));
   if (func_ref == nullptr) {
-    return nullptr;
+    return -1;
   }
 
-  if (PyDict_GetItem(ctx->deopt_info, func_ref) == nullptr) {
-    return nullptr;
-  }
-
-  CompilationKey key{func->func_code, func->func_globals};
-  auto it = ctx->compiled_codes.find(key);
-  return it == ctx->compiled_codes.end() ? nullptr : it->second.get();
+  return PyDict_GetItem(ctx->deopt_info, func_ref) != nullptr;
 }
 
-int _PyJITContext_DidCompile(_PyJITContext* ctx, PyObject* func) {
-  return lookupFunction(ctx, func) != nullptr;
-}
-
-int _PyJITContext_GetCodeSize(_PyJITContext* ctx, PyObject* func) {
-  jit::CompiledFunction* jitfunc = lookupFunction(ctx, func);
+int _PyJITContext_GetCodeSize(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::CompiledFunction* jitfunc =
+      lookupCompiledCode(ctx, func->func_code, func->func_globals);
   if (jitfunc == nullptr) {
     return -1;
   }
@@ -622,8 +675,11 @@ int _PyJITContext_GetCodeSize(_PyJITContext* ctx, PyObject* func) {
   return size;
 }
 
-int _PyJITContext_GetStackSize(_PyJITContext* ctx, PyObject* func) {
-  jit::CompiledFunction* jitfunc = lookupFunction(ctx, func);
+int _PyJITContext_GetStackSize(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::CompiledFunction* jitfunc =
+      lookupCompiledCode(ctx, func->func_code, func->func_globals);
   if (jitfunc == nullptr) {
     return -1;
   }
@@ -631,8 +687,11 @@ int _PyJITContext_GetStackSize(_PyJITContext* ctx, PyObject* func) {
   return jitfunc->GetStackSize();
 }
 
-int _PyJITContext_GetSpillStackSize(_PyJITContext* ctx, PyObject* func) {
-  jit::CompiledFunction* jitfunc = lookupFunction(ctx, func);
+int _PyJITContext_GetSpillStackSize(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::CompiledFunction* jitfunc =
+      lookupCompiledCode(ctx, func->func_code, func->func_globals);
   if (jitfunc == nullptr) {
     return -1;
   }
@@ -664,8 +723,11 @@ PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx) {
   return funcs.release();
 }
 
-int _PyJITContext_PrintHIR(_PyJITContext* ctx, PyObject* func) {
-  jit::CompiledFunction* jit_func = lookupFunction(ctx, func);
+int _PyJITContext_PrintHIR(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::CompiledFunction* jit_func =
+      lookupCompiledCode(ctx, func->func_code, func->func_globals);
   if (jit_func == nullptr) {
     return -1;
   }
@@ -674,8 +736,11 @@ int _PyJITContext_PrintHIR(_PyJITContext* ctx, PyObject* func) {
   return 0;
 }
 
-int _PyJITContext_Disassemble(_PyJITContext* ctx, PyObject* func) {
-  jit::CompiledFunction* jit_func = lookupFunction(ctx, func);
+int _PyJITContext_Disassemble(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::CompiledFunction* jit_func =
+      lookupCompiledCode(ctx, func->func_code, func->func_globals);
   if (jit_func == nullptr) {
     return -1;
   }

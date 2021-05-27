@@ -101,18 +101,48 @@ _PyJIT_Result _PyJITContext_SpecializeType(
  *
  * On success, positional only calls to func will use the JIT compiled version.
  *
- * Returns PYJIT_RESULT_OK on success.
+ * Returns PYJIT_RESULT_OK on success, or if the function was already compiled.
  */
 _PyJIT_Result _PyJITContext_CompileFunction(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func);
 
 /*
- * Return whether or not this context compiled the supplied function.jit_
+ * JIT compile code and store the result in ctx.
+ *
+ * This does not patch the entry point of any functions; it is primarily useful
+ * to pre-compile the code object for a nested function so it's available for
+ * use after disabling the JIT.
+ *
+ * Returns 1 on success, 0 on failure.
+ */
+_PyJIT_Result _PyJITContext_CompileCode(
+    _PyJITContext* ctx,
+    BorrowedRef<> module,
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals);
+
+/*
+ * Attach already-compiled code to the given function, if it exists.
+ *
+ * Intended for (but not limited to) use with nested functions after the JIT is
+ * disabled.
+ *
+ * Returns PYJIT_RESULT_OK on success or if the given function already had
+ * compiled code attached.
+ */
+_PyJIT_Result _PyJITContext_AttachCompiledCode(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
+
+/*
+ * Return whether or not this context compiled the supplied function.
  *
  * Return 1 if so, 0 if not, and -1 if an error occurred.
  */
-int _PyJITContext_DidCompile(_PyJITContext* ctx, PyObject* func);
+int _PyJITContext_DidCompile(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
 
 /*
  * Returns the code size in bytes for a specified JIT-compiled function.
@@ -122,7 +152,9 @@ int _PyJITContext_DidCompile(_PyJITContext* ctx, PyObject* func);
  * Returns -1 if an error occurred.
  */
 
-int _PyJITContext_GetCodeSize(_PyJITContext* ctx, PyObject* func);
+int _PyJITContext_GetCodeSize(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
 
 /*
  * Returns the stack size in bytes for a specified JIT-compiled function.
@@ -130,7 +162,9 @@ int _PyJITContext_GetCodeSize(_PyJITContext* ctx, PyObject* func);
  * Returns -1 if an error occurred.
  */
 
-int _PyJITContext_GetStackSize(_PyJITContext* ctx, PyObject* func);
+int _PyJITContext_GetStackSize(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
 
 /*
  * Returns the stack size used for spills in bytes for a specified JIT-compiled
@@ -138,7 +172,9 @@ int _PyJITContext_GetStackSize(_PyJITContext* ctx, PyObject* func);
  *
  * Returns -1 if an error occurred.
  */
-int _PyJITContext_GetSpillStackSize(_PyJITContext* ctx, PyObject* func);
+int _PyJITContext_GetSpillStackSize(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
 
 /*
  * Return a list of functions that are currently JIT-compiled.
@@ -154,7 +190,9 @@ PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx);
  *
  * Returns -1 if an error occurred or 0 otherwise.
  */
-int _PyJITContext_PrintHIR(_PyJITContext* ctx, PyObject* func);
+int _PyJITContext_PrintHIR(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
 
 /*
  * Print the disassembled code for func to stdout if it was JIT-compiled.
@@ -162,6 +200,8 @@ int _PyJITContext_PrintHIR(_PyJITContext* ctx, PyObject* func);
  *
  * Returns -1 if an error occurred or 0 otherwise.
  */
-int _PyJITContext_Disassemble(_PyJITContext* ctx, PyObject* func);
+int _PyJITContext_Disassemble(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
 
 #endif /* Py_JIT_H */

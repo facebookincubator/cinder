@@ -89,10 +89,10 @@ class BorrowedRef : public RefBase<T> {
   using RefBase<T>::ptr_;
 };
 
-template <>
-struct std::hash<BorrowedRef<PyObject>> {
-  size_t operator()(const BorrowedRef<PyObject>& ref) const {
-    std::hash<PyObject*> hasher;
+template <typename T>
+struct std::hash<BorrowedRef<T>> {
+  size_t operator()(const BorrowedRef<T>& ref) const {
+    std::hash<T*> hasher;
     return hasher(ref.get());
   }
 };
@@ -211,10 +211,10 @@ class Ref : public RefBase<T> {
   using RefBase<T>::ptr_;
 };
 
-template <>
-struct std::hash<Ref<PyObject>> {
-  size_t operator()(const Ref<PyObject>& ref) const {
-    std::hash<PyObject*> hasher;
+template <typename T>
+struct std::hash<Ref<T>> {
+  size_t operator()(const Ref<T>& ref) const {
+    std::hash<T*> hasher;
     return hasher(ref.get());
   }
 };
