@@ -198,7 +198,7 @@ PyObject *is_type_static(PyObject *mod, PyObject *type) {
   Py_RETURN_FALSE;
 }
 
-PyObject *set_type_static(PyObject *mod, PyObject *type) {
+PyObject *_set_type_static_impl(PyObject *type, int final) {
   PyTypeObject *pytype;
   if (!PyType_Check(type)) {
     PyErr_Format(PyExc_TypeError, "Expected a type object, not %.100s",
@@ -207,8 +207,19 @@ PyObject *set_type_static(PyObject *mod, PyObject *type) {
   }
   pytype = (PyTypeObject *)type;
   pytype->tp_flags |= Py_TPFLAGS_IS_STATICALLY_DEFINED;
+  if (final) {
+    pytype->tp_flags &= ~Py_TPFLAGS_BASETYPE;
+  }
   Py_INCREF(type);
   return type;
+}
+
+PyObject *set_type_static(PyObject *mod, PyObject *type) {
+    return _set_type_static_impl(type, 0);
+}
+
+PyObject *set_type_static_final(PyObject *mod, PyObject *type) {
+    return _set_type_static_impl(type, 1);
 }
 
 #define VECTOR_APPEND(size, sig_type, append)                                           \
@@ -289,6 +300,7 @@ static PyMethodDef static_methods[] = {
     {"rand", (PyCFunction)&static_rand_def, METH_TYPED, ""},
     {"is_type_static", (PyCFunction)(void(*)(void))is_type_static, METH_O, ""},
     {"set_type_static", (PyCFunction)(void(*)(void))set_type_static, METH_O, ""},
+    {"set_type_static_final", (PyCFunction)(void(*)(void))set_type_static_final, METH_O, ""},
     {}
 };
 

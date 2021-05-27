@@ -6777,15 +6777,24 @@ class Static38CodeGenerator(CinderCodeGenerator):
         finally:
             self._tmpvar_loopidx_count -= 1
 
+    def _resolve_class(self, node: ClassDef) -> Optional[Class]:
+        cur_mod = self.symtable.modules[self.modname]
+        klass = cur_mod.resolve_name(node.name)
+        if not isinstance(klass, Class) or klass is DYNAMIC_TYPE:
+            return
+        return klass
+
     def store_type_name_and_flags(self, node: ClassDef) -> None:
-        self.emit("INVOKE_FUNCTION", (("_static", "set_type_static"), 1))
+        klass = self._resolve_class(node)
+        if klass:
+            method = "set_type_static_final" if klass.is_final else "set_type_static"
+            self.emit("INVOKE_FUNCTION", (("_static", method), 1))
         self.storeName(node.name)
 
     def walkClassBody(self, node: ClassDef, gen: CodeGenerator) -> None:
         super().walkClassBody(node, gen)
-        cur_mod = self.symtable.modules[self.modname]
-        klass = cur_mod.resolve_name(node.name)
-        if not isinstance(klass, Class) or klass is DYNAMIC_TYPE:
+        klass = self._resolve_class(node)
+        if not klass:
             return
 
         class_mems = [
