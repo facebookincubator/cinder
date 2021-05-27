@@ -1369,16 +1369,45 @@ JITRT_YieldFromRes JITRT_YieldFrom(
     return {v, 1};
   }
   PyObject* retval;
-  auto gen_status = PyIter_Send(tstate, gen, v, &retval);
-  Py_DECREF(v);
+  PyObject* stopIterationResult = NULL;
+  auto receiver = reinterpret_cast<PyGenObject*>(gen);
+  if (PyGen_CheckExact(receiver) || PyCoro_CheckExact(receiver)) {
+    if (_Py_LIKELY(!tstate->c_tracefunc)) {
+      retval = _PyGen_Send_NoStopIteration(
+          tstate, receiver, v, &stopIterationResult);
+    } else {
+      retval = _PyGen_Send(receiver, v);
+    }
 
-  if (gen_status == PYGEN_RETURN) {
-    return {retval, 1};
+  } else {
+    _Py_IDENTIFIER(send);
+    if (v == Py_None) {
+      if (PyType_HasFeature(Py_TYPE(receiver), Py_TPFLAGS_USE_GENNEXT)) {
+        int is_return;
+        retval = ((PyGenTypeObject*)Py_TYPE(receiver))
+                     ->tp_gennext.g_gennext(gen, Py_None, &is_return);
+        if (retval && is_return) {
+          stopIterationResult = retval;
+          retval = NULL;
+        }
+      } else {
+        retval = Py_TYPE(receiver)->tp_iternext(gen);
+      }
+    } else {
+      retval = _PyObject_CallMethodIdObjArgs(gen, &PyId_send, v, NULL);
+    }
   }
-  if (gen_status == PYGEN_ERROR) {
-    return {NULL, 1};
+  Py_DECREF(v);
+  if (retval == NULL) {
+    PyObject* val;
+    if (stopIterationResult) {
+      // steal the reference
+      val = stopIterationResult;
+    } else if (_PyGen_FetchStopIterationValue(&val) < 0) {
+      return {NULL, 1};
+    }
+    return {val, 1};
   }
-  JIT_DCHECK(gen_status == PYGEN_NEXT, "Unexpected gen_status:", gen_status);
   return {retval, 0};
 }
 

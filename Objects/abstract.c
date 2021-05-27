@@ -2633,32 +2633,6 @@ PyIter_Next(PyObject *iter)
     return result;
 }
 
-PySendResult
-PyIter_Send(void *tstate, PyObject *iter, PyObject *arg, PyObject **result)
-{
-    _Py_IDENTIFIER(send);
-    assert(arg != NULL);
-    assert(result != NULL);
-    if (PyType_HasFeature(Py_TYPE(iter), Py_TPFLAGS_HAVE_AM_SEND)) {
-        assert (Py_TYPE(iter)->tp_as_async != NULL);
-        assert (((PyAsyncMethodsWithSend*)Py_TYPE(iter)->tp_as_async)->ams_send != NULL);
-        PySendResult res = ((PyAsyncMethodsWithSend*)Py_TYPE(iter)->tp_as_async)->ams_send(tstate, iter, arg, result);
-        return res;
-    }
-    if (arg == Py_None && PyIter_Check(iter)) {
-        *result = Py_TYPE(iter)->tp_iternext(iter);
-    }
-    else {
-        *result = _PyObject_CallMethodIdObjArgs(iter, &PyId_send, arg, NULL);
-    }
-    if (*result != NULL) {
-        return PYGEN_NEXT;
-    }
-    if (_PyGen_FetchStopIterationValue(result) == 0) {
-        return PYGEN_RETURN;
-    }
-    return PYGEN_ERROR;
-}
 
 /*
  * Flatten a sequence of bytes() objects into a C array of
