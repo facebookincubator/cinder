@@ -384,6 +384,7 @@ class SymbolTable:
         }
         strict_builtins = StrictBuiltins(builtins_children)
         typing_children = {
+            "ClassVar": CLASSVAR_TYPE,
             # TODO: Need typed members for dict
             "Dict": DICT_TYPE,
             "List": LIST_TYPE,
@@ -615,6 +616,7 @@ class ModuleTable:
     def resolve_annotation(
         self,
         node: ast.AST,
+        *,
         is_declaration: bool = False,
     ) -> Optional[Class]:
         assert self.first_pass_done, (
@@ -625,11 +627,16 @@ class ModuleTable:
         with error_context(self.filename, node):
             klass = self._resolve_annotation(node)
 
-            if isinstance(klass, FinalClass) and not is_declaration:
-                raise TypedSyntaxError(
-                    "Final annotation is only valid in initial declaration "
-                    "of attribute or module-level constant",
-                )
+            if not is_declaration:
+                if isinstance(klass, FinalClass):
+                    raise TypedSyntaxError(
+                        "Final annotation is only valid in initial declaration "
+                        "of attribute or module-level constant",
+                    )
+                if isinstance(klass, ClassVar):
+                    raise TypedSyntaxError(
+                        "ClassVar is allowed only in class attribute annotations."
+                    )
 
             # TODO until we support runtime checking of unions, we must for
             # safety resolve union annotations to dynamic (except for
@@ -971,7 +978,11 @@ class Object(Value, Generic[TClass]):
     ) -> None:
         for base in self.klass.mro:
             member = base.members.get(node.attr)
-            if member is not None and isinstance(member, Slot):
+            if (
+                member is not None
+                and isinstance(member, Slot)
+                and not member.is_classvar
+            ):
                 type_descr = member.container_type.type_descr
                 type_descr += (member.slot_name,)
                 if isinstance(node.ctx, ast.Store):
@@ -2849,7 +2860,7 @@ class Slot(Object[TClassInv]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> None:
-        if inst is None:
+        if inst is None and not self.is_classvar:
             visitor.set_type(node, self)
             return
 
@@ -2857,14 +2868,22 @@ class Slot(Object[TClassInv]):
 
     @property
     def decl_type(self) -> Class:
-        type = self._type_ref.resolved(is_declaration=True)
-        if isinstance(type, FinalClass):
-            return type.inner_type()
-        return type
+        typ = self._resolved_type
+        if isinstance(typ, (FinalClass, ClassVar)):
+            return typ.inner_type()
+        return typ
 
     @property
     def is_final(self) -> bool:
-        return isinstance(self._type_ref.resolved(is_declaration=True), FinalClass)
+        return isinstance(self._resolved_type, FinalClass)
+
+    @property
+    def is_classvar(self) -> bool:
+        return isinstance(self._resolved_type, ClassVar)
+
+    @property
+    def _resolved_type(self) -> Class:
+        return self._type_ref.resolved(is_declaration=True)
 
     @property
     def type_descr(self) -> TypeDescr:
@@ -3753,6 +3772,11 @@ class FinalClass(GenericClass):
         return self.type_args[0]
 
 
+class ClassVar(GenericClass):
+    def inner_type(self) -> Class:
+        return self.type_args[0]
+
+
 class UnionTypeName(GenericTypeName):
     @property
     def opt_type(self) -> Optional[Class]:
@@ -4176,6 +4200,9 @@ BUILTIN_GENERICS: Dict[Class, Dict[GenericTypeIndex, Class]] = {}
 UNION_TYPE = UnionType()
 OPTIONAL_TYPE = OptionalType()
 FINAL_TYPE = FinalClass(GenericTypeName("typing", "Final", (GenericParameter("T", 0),)))
+CLASSVAR_TYPE = ClassVar(
+    GenericTypeName("typing", "ClassVar", (GenericParameter("T", 0),))
+)
 CHECKED_DICT_TYPE_NAME = GenericTypeName(
     "__static__", "chkdict", (GenericParameter("K", 0), GenericParameter("V", 1))
 )
@@ -5737,6 +5764,12 @@ class TypeBinder(GenericVisitor):
             or DYNAMIC_TYPE
         )
         is_final = False
+        if isinstance(comp_type, ClassVar):
+            if not isinstance(self.scope, ClassDef):
+                raise TypedSyntaxError(
+                    "ClassVar is allowed only in class attribute annotations."
+                )
+            comp_type = comp_type.inner_type()
         if isinstance(comp_type, FinalClass):
             is_final = True
             comp_type = comp_type.inner_type()
@@ -6756,7 +6789,9 @@ class Static38CodeGenerator(CinderCodeGenerator):
             return
 
         class_mems = [
-            name for name, value in klass.members.items() if isinstance(value, Slot)
+            name
+            for name, value in klass.members.items()
+            if isinstance(value, Slot) and not value.is_classvar
         ]
         if klass.allow_weakrefs:
             class_mems.append("__weakref__")
@@ -6769,6 +6804,9 @@ class Static38CodeGenerator(CinderCodeGenerator):
         count = 0
         for name, value in klass.members.items():
             if not isinstance(value, Slot):
+                continue
+
+            if value.is_classvar:
                 continue
 
             if value.decl_type is DYNAMIC_TYPE:

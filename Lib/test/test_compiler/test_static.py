@@ -2806,14 +2806,67 @@ class StaticCompilationTests(StaticTestBase):
                 StaticCodeGenerator,
             )
 
-    def test_annotated_class_var(self):
+    def test_instance_var_annotated_on_class(self):
         codestr = """
             class C:
                 x: int
+
+                def __init__(self, x):
+                    self.x = x
+
+            def f(c: C) -> int:
+                return c.x
         """
-        code = self.compile(
-            codestr, StaticCodeGenerator, modname="test_annotated_class_var"
-        )
+        with self.in_module(codestr) as mod:
+            f, C = mod["f"], mod["C"]
+            self.assertEqual(f(C(3)), 3)
+            self.assertInBytecode(f, "LOAD_FIELD", ((mod["__name__"], "C", "x")))
+
+    def test_annotated_classvar(self):
+        codestr = """
+            from typing import ClassVar
+
+            class C:
+                x: ClassVar[int] = 3
+
+            def f() -> int:
+                return C.x
+
+            def g(c: C) -> int:
+                return c.x
+        """
+        with self.in_module(codestr) as mod:
+            f, g, C = mod["f"], mod["g"], mod["C"]
+            self.assertEqual(f(), 3)
+            self.assertEqual(g(C()), 3)
+            self.assertNotInBytecode(f, "CAST")
+            self.assertNotInBytecode(g, "CAST")
+
+    def test_bad_classvar_arg(self):
+        codestr = """
+            from typing import ClassVar
+
+            def f(x: ClassVar[int]):
+                pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            r"ClassVar is allowed only in class attribute annotations.",
+        ):
+            self.compile(codestr)
+
+    def test_bad_classvar_local(self):
+        codestr = """
+            from typing import ClassVar
+
+            def f():
+                x: ClassVar[int] = 3
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            r"ClassVar is allowed only in class attribute annotations.",
+        ):
+            self.compile(codestr)
 
     def test_annotated_instance_var(self):
         codestr = """
