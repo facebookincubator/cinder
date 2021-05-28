@@ -83,6 +83,7 @@ from compiler.static import (
     FAST_LEN_STR,
     DICT_EXACT_TYPE,
     TYPED_DOUBLE,
+    InlinedCall,
 )
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
@@ -2068,7 +2069,7 @@ class StaticCompilationTests(StaticTestBase):
         )
 
     def test_if_exp(self) -> None:
-        mod, syms = self.bind_module(
+        mod, syms, _ = self.bind_module(
             """
             class C: pass
             class D: pass
@@ -2080,7 +2081,7 @@ class StaticCompilationTests(StaticTestBase):
         types = syms.modules["foo"].types
         self.assertEqual(types[node], DYNAMIC)
 
-        mod, syms = self.bind_module(
+        mod, syms, _ = self.bind_module(
             """
             class C: pass
 
@@ -2109,14 +2110,14 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(x, "COMPARE_OP", "==")
 
     def test_bind_instance(self) -> None:
-        mod, syms = self.bind_module("class C: pass\na: C = C()")
+        mod, syms, _ = self.bind_module("class C: pass\na: C = C()")
         assign = mod.body[1]
         types = syms.modules["foo"].types
         self.assertEqual(types[assign.target].name, "foo.C")
         self.assertEqual(repr(types[assign.target]), "<foo.C>")
 
     def test_bind_func_def(self) -> None:
-        mod, syms = self.bind_module(
+        mod, syms, _ = self.bind_module(
             """
             def f(x: object = None, y: object = None):
                 pass
@@ -2130,7 +2131,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(actual, typename)
 
     def bind_final_return(self, code: str) -> Value:
-        mod, syms = self.bind_module(code)
+        mod, syms, _ = self.bind_module(code)
         types = syms.modules["foo"].types
         node = mod.body[-1].body[-1].value
         return types[node]
@@ -2138,20 +2139,20 @@ class StaticCompilationTests(StaticTestBase):
     def bind_stmt(
         self, code: str, optimize: bool = False, getter=lambda stmt: stmt
     ) -> ast.stmt:
-        mod, syms = self.bind_module(code, optimize)
+        mod, syms, _ = self.bind_module(code, optimize)
         assert len(mod.body) == 1
         types = syms.modules["foo"].types
         return types[getter(mod.body[0])]
 
     def bind_expr(self, code: str, optimize: bool = False) -> Value:
-        mod, syms = self.bind_module(code, optimize)
+        mod, syms, _ = self.bind_module(code, optimize)
         assert len(mod.body) == 1
         types = syms.modules["foo"].types
         return types[mod.body[0].value]
 
     def bind_module(
-        self, code: str, optimize: bool = False
-    ) -> Tuple[ast.Module, SymbolTable]:
+        self, code: str, optimize: int = 0
+    ) -> Tuple[ast.Module, SymbolTable, TypeBinder]:
         tree = ast.parse(dedent(code))
         if optimize:
             tree = AstOptimizer().visit(tree)
@@ -2164,7 +2165,7 @@ class StaticCompilationTests(StaticTestBase):
         s = SymbolVisitor()
         walk(tree, s)
 
-        type_binder = TypeBinder(s, "foo.py", symtable, "foo")
+        type_binder = TypeBinder(s, "foo.py", symtable, "foo", optimize=optimize)
         type_binder.visit(tree)
 
         # Make sure we can compile the code, just verifying all nodes are
@@ -2173,7 +2174,7 @@ class StaticCompilationTests(StaticTestBase):
         code_gen = StaticCodeGenerator(None, tree, s, graph, symtable, "foo", optimize)
         code_gen.visit(tree)
 
-        return tree, symtable
+        return tree, symtable, type_binder
 
     def test_cross_module(self) -> None:
         acode = """
@@ -10089,6 +10090,28 @@ class StaticCompilationTests(StaticTestBase):
             pass
         """
         self.compile(codestr)
+
+    def test_inlined_nodes_have_line_info(self):
+        codestr = """
+        from __static__ import int64, cbool, inline            
+
+        @inline
+        def x(i: int64) -> cbool:
+            return i == 1            
+
+        def foo(i: int64) -> cbool:
+            return x(i)
+        """
+        mod, syms, tb = self.bind_module(codestr, optimize=2)
+        node_data = tb.cur_mod.node_data
+        call_node = mod.body[2].body[0].value
+        inlined_call = node_data[call_node, Optional[InlinedCall]]
+        self.assertGreater(len(inlined_call.replacements), 0)
+        for replacement in inlined_call.replacements.values():
+            self.assertTrue(hasattr(replacement, "lineno"))
+            self.assertTrue(hasattr(replacement, "col_offset"))
+            self.assertTrue(hasattr(replacement, "end_lineno"))
+            self.assertTrue(hasattr(replacement, "end_col_offset"))
 
 
 class StaticRuntimeTests(StaticTestBase):

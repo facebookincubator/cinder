@@ -56,6 +56,7 @@ from ast import (
     YieldFrom,
     cmpop,
     expr,
+    copy_location,
 )
 from contextlib import contextmanager, nullcontext
 from enum import IntEnum
@@ -2332,7 +2333,10 @@ class Function(Callable[Class]):
             name = self.node.args.args[idx].arg
 
             if isinstance(arg, DefaultArg):
-                arg_replacements[name] = ast.Constant(arg.value)
+                arg_replacements[name] = constant = ast.Constant(arg.value)
+                # for default args, we copy lineno from the call node, because the
+                # arg isn't represented in the AST
+                copy_location(constant, node)
                 continue
             elif not isinstance(arg, (PositionArg, KeywordArg)):
                 # We don't support complicated calls to inline functions
@@ -2352,10 +2356,12 @@ class Function(Callable[Class]):
             cur_scope.add_def(tmp_name)
 
             store = ast.Name(tmp_name, ast.Store())
+            copy_location(store, arg.argument)
             visitor.set_type(store, visitor.get_type(arg.argument))
             spills[tmp_name] = arg.argument, store
 
             replacement = ast.Name(tmp_name, ast.Load())
+            copy_location(replacement, arg.argument)
             visitor.assign_value(replacement, visitor.get_type(arg.argument))
 
             arg_replacements[name] = replacement
@@ -2367,7 +2373,7 @@ class Function(Callable[Class]):
         if ret_value is not None:
             new_node = InlineRewriter(arg_replacements).visit(ret_value)
         else:
-            new_node = ast.Constant(None)
+            new_node = copy_location(ast.Constant(None), return_stmt)
         new_node = AstOptimizer().visit(new_node)
 
         inlined_call = InlinedCall(new_node, arg_replacements, spills)
