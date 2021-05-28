@@ -2842,6 +2842,21 @@ class StaticCompilationTests(StaticTestBase):
             self.assertNotInBytecode(f, "CAST")
             self.assertNotInBytecode(g, "CAST")
 
+    def test_classvar_no_assign_from_instance(self):
+        codestr = """
+            from typing import ClassVar
+
+            class C:
+                x: ClassVar[int] = 3
+
+            def f(c: C):
+                c.x = 4
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"Cannot assign to classvar 'x' on '<module>.C' instance"
+        ):
+            self.compile(codestr)
+
     def test_bad_classvar_arg(self):
         codestr = """
             from typing import ClassVar

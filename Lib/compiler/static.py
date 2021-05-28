@@ -2864,6 +2864,10 @@ class Slot(Object[TClassInv]):
         if inst is None and not self.is_classvar:
             visitor.set_type(node, self)
             return
+        if inst and self.is_classvar and isinstance(node.ctx, ast.Store):
+            raise TypedSyntaxError(
+                f"Cannot assign to classvar '{self.slot_name}' on '{inst.name}' instance"
+            )
 
         visitor.set_type(node, self.decl_type.instance)
 
