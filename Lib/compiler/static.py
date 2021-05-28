@@ -2327,6 +2327,7 @@ class Function(Callable[Class]):
             return None
 
         visitor.inline_depth += 1
+        visitor.inline_calls += 1
         for idx, arg in enumerate(args.emitters):
             name = self.node.args.args[idx].arg
 
@@ -2346,7 +2347,7 @@ class Function(Callable[Class]):
                 continue
 
             # store to a temporary...
-            tmp_name = f"{_TMP_VAR_PREFIX}{visitor.inline_depth}{name}"
+            tmp_name = f"{_TMP_VAR_PREFIX}{visitor.inline_calls}{name}"
             cur_scope = visitor.symbols.scopes[visitor.scope]
             cur_scope.add_def(tmp_name)
 
@@ -5465,6 +5466,7 @@ class TypeBinder(GenericVisitor):
         self.optimize = optimize
         self.terminals: Dict[AST, TerminalKind] = {}
         self.inline_depth = 0
+        self.inline_calls = 0
 
     @property
     def local_types(self) -> Dict[str, Value]:
