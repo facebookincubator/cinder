@@ -4,6 +4,8 @@
 #include "Jit/lir/lir.h"
 #include "Jit/util.h"
 
+#include <dlfcn.h>
+
 // XXX: this file needs to be revisited when we optimize HIR-to-LIR translation
 // in codegen.cpp/h. Currently, this file is almost an identical copy from
 // bbbuilder.cpp with some interfaces changes so that it works with the new
@@ -272,6 +274,21 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       instr_str == "Invoke") {
     bool is_invoke = (instr_str == "Invoke");
     bool is_vector_call = (instr_str == "Vectorcall");
+
+    if (g_dump_c_helper) {
+      size_t dest_idx = is_invoke ? 1 : 2;
+      if (dest_idx < tokens.size() && IsConstant(tokens[dest_idx])) {
+        std::string helper_id = GetId(tokens[dest_idx]);
+        uint64_t helper_addr = stoull(helper_id);
+        Dl_info helper_info;
+        if (dladdr(reinterpret_cast<void*>(helper_addr), &helper_info) != 0 &&
+            helper_info.dli_sname != NULL) {
+          JIT_LOG("Call to function %s.", helper_info.dli_sname);
+        } else {
+          JIT_LOG("Call to function at %s.", tokens[dest_idx]);
+        }
+      }
+    }
 
     auto instr = createInstr(
         is_vector_call ? Instruction::kVectorCall : Instruction::kCall);

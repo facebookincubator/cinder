@@ -751,6 +751,10 @@ int _PyJIT_Initialize() {
     g_dump_lir = 1;
     g_dump_lir_no_origin = 1;
   }
+  if (_is_flag_set("jit-dump-c-helper", "PYTHONJITDUMPCHELPER")) {
+    JIT_DLOG("Enable JIT dump-c-helper mode.");
+    g_dump_c_helper = 1;
+  }
   if (_is_flag_set("jit-disas-funcs", "PYTHONJITDISASFUNCS")) {
     JIT_DLOG("Enabling JIT disas-funcs mode.");
     g_disas_funcs = 1;
