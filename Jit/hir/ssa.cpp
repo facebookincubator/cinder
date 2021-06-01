@@ -207,7 +207,8 @@ void checkRegisters(CheckEnv& env) {
 //
 // - The CFG is well-formed (see checkCFG() for details).
 // - Every block has exactly one terminator instruction, as its final
-//   instruction.
+//   instruction. This implies that blocks cannot be empty, which is also
+//   verified.
 // - Phi instructions do not appear after any non-Phi instructions in their
 //   block.
 // - Phi instructions only reference direct predecessors.
@@ -223,6 +224,12 @@ bool checkFunc(const Function& func, std::ostream& err) {
   for (auto& block : func.cfg.blocks) {
     env.block = &block;
     env.defined = env.assign.GetIn(&block);
+
+    if (block.empty()) {
+      fmt::print(err, "ERROR: bb {} has no instructions\n", block.id);
+      env.ok = false;
+      continue;
+    }
 
     bool phi_section = true;
     bool allow_prologue_loads = env.block == func.cfg.entry_block;

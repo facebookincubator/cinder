@@ -10,8 +10,8 @@
 #include "structmember.h"
 // clang-format on
 
-#include "Jit/dict_watch.h"
 #include "Jit/codegen/gen_asm.h"
+#include "Jit/dict_watch.h"
 
 #include "Objects/dict-common.h"
 #include "switchboard.h"

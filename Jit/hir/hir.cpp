@@ -329,7 +329,7 @@ bool BasicBlock::IsTrampoline() {
       // the Phi. This is correct but conservative: it's often safe to
       // eliminate trampolines that jump to Phis, but that requires more
       // involved analysis in the caller.
-      return succ != this && (succ->IsEmpty() || !succ->front().IsPhi());
+      return succ != this && (succ->empty() || !succ->front().IsPhi());
     }
     if (instr.IsSnapshot()) {
       continue;
@@ -522,7 +522,7 @@ void CFG::RemoveTrampolineBlocks() {
 void CFG::simplifyRedundantCondBranches() {
   std::vector<BasicBlock*> to_simplify;
   for (auto& block : blocks) {
-    if (block.IsEmpty()) {
+    if (block.empty()) {
       continue;
     }
     auto term = block.GetTerminator();

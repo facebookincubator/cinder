@@ -237,6 +237,20 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
 }
 
+TEST(CheckFuncTest, EmptyBlock) {
+  const char* hir_source = R"(
+fun test {
+  bb 0 {
+    Branch<1>
+  }
+  bb 1 {
+  }
+}
+)";
+  const char* expected_err = "ERROR: bb 1 has no instructions\n";
+  EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
+}
+
 TEST(CheckFuncTest, BadCFG) {
   Function func;
   auto b0 = func.cfg.entry_block = func.cfg.AllocateBlock();

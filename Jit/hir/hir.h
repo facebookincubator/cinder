@@ -3138,6 +3138,9 @@ class BasicBlock {
 
   // BasicBlock holds a list of instructions, delegating most operations
   // directly to its IntrusiveList.
+  auto empty() const {
+    return instrs_.IsEmpty();
+  }
   auto& front() {
     return instrs_.Front();
   }
@@ -3185,10 +3188,6 @@ class BasicBlock {
   Instr* GetTerminator();
   const Instr* GetTerminator() const {
     return const_cast<BasicBlock*>(this)->GetTerminator();
-  }
-
-  bool IsEmpty() const {
-    return instrs_.IsEmpty();
   }
 
   // A trampoline block consists of a single direct jump to another block
