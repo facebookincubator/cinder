@@ -314,6 +314,13 @@ set_qualname_of_code(PyObject *Py_UNUSED(module), PyObject **args, Py_ssize_t na
     Py_RETURN_NONE;
 }
 
+PyAPI_FUNC(PyObject*) _PyJIT_GetAndClearCodeInterpCost(void);
+
+static PyObject*
+get_and_clear_code_interp_cost(PyObject *self, PyObject *obj) {
+    return _PyJIT_GetAndClearCodeInterpCost();
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
@@ -366,6 +373,11 @@ static struct PyMethodDef cinder_module_methods[] = {
      (PyCFunction)set_qualname_of_code,
      METH_FASTCALL,
      "Sets the value of qualified name in code object"},
+    {"get_and_clear_code_interp_cost",
+     get_and_clear_code_interp_cost,
+     METH_NOARGS,
+     "Get and clear accumulated interpreter cost for code objects."},
+
     {NULL, NULL} /* sentinel */
 };
 

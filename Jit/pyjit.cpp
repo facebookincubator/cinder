@@ -2,6 +2,7 @@
 #include "Jit/pyjit.h"
 
 #include "Python.h"
+//#include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 
 #include "Include/internal/pycore_pystate.h"
@@ -87,6 +88,10 @@ INTERNED_STRINGS(DECLARE_STR)
 #undef DECLARE_STR
 
 static double total_compliation_time = 0.0;
+
+// This is read directly from ceval.c to minimize overhead.
+int g_capture_interp_cost = 0;
+static std::unordered_map<std::string, long> g_code_interp_cost;
 
 struct CompilationTimer {
   explicit CompilationTimer(BorrowedRef<PyFunctionObject> f)
@@ -529,6 +534,24 @@ static PyObject* jit_force_normal_frame(PyObject*, PyObject* func_obj) {
   return func_obj;
 }
 
+extern "C" {
+PyObject* _PyJIT_GetAndClearCodeInterpCost(void) {
+  if (!g_capture_interp_cost) {
+    Py_RETURN_NONE;
+  }
+  PyObject* dict = PyDict_New();
+  if (dict == NULL) {
+    return NULL;
+  }
+  for (const auto& entry : g_code_interp_cost) {
+    PyDict_SetItemString(
+        dict, entry.first.c_str(), PyLong_FromLong(entry.second));
+  }
+  g_code_interp_cost.clear();
+  return dict;
+}
+}
+
 static PyMethodDef jit_methods[] = {
     {"disable",
      (PyCFunction)(void*)disable_jit,
@@ -809,6 +832,17 @@ int _PyJIT_Initialize() {
     }
   }
 
+  if (_is_flag_set("jit-capture-interp-cost", "PYTHONJITCAPTUREINTERPCOST")) {
+    if (use_jit) {
+      use_jit = 0;
+      JIT_LOG("Keeping JIT disabled to capture interpreter cost.");
+    }
+    g_capture_interp_cost = 1;
+    // Hack to help mitigate the cost of tracing during normal production. See
+    // ceval.c where the cost counting happens for more details.
+    _PyRuntime.ceval.tracing_possible++;
+  }
+
   if (use_jit) {
     JIT_DLOG("Enabling JIT.");
   } else {
@@ -874,6 +908,44 @@ int _PyJIT_Initialize() {
   total_compliation_time = 0.0;
 
   return 0;
+}
+
+static std::string key_for_py_code_object(PyCodeObject* code) {
+  Py_ssize_t name_len;
+  PyObject* py_name = code->co_qualname ? code->co_qualname : code->co_name;
+  const char* name = PyUnicode_AsUTF8AndSize(py_name, &name_len);
+  Py_ssize_t fn_len;
+  const char* fn = PyUnicode_AsUTF8AndSize(code->co_filename, &fn_len);
+  return fmt::format(
+      "{}@{}:{}",
+      std::string{name, static_cast<std::string::size_type>(name_len)},
+      std::string{fn, static_cast<std::string::size_type>(fn_len)},
+      code->co_firstlineno);
+}
+
+static std::unordered_map<PyCodeObject*, std::string> g_code_key_cache_;
+
+void _PyJIT_InvalidateCodeKey(PyCodeObject* code) {
+  if (!g_capture_interp_cost) {
+    return;
+  }
+  g_code_key_cache_.erase(code);
+}
+
+void _PyJIT_BumpCodeInterpCost(PyCodeObject* code, long cost) {
+  std::string key;
+  auto key_cache_entry = g_code_key_cache_.find(code);
+  if (key_cache_entry == g_code_key_cache_.end()) {
+    key = key_for_py_code_object(reinterpret_cast<PyCodeObject*>(code));
+    g_code_key_cache_[code] = key;
+  } else {
+    key = key_cache_entry->second;
+  }
+  auto entry = g_code_interp_cost.find(key);
+  if (entry == g_code_interp_cost.end()) {
+    entry = g_code_interp_cost.emplace(key, 0).first;
+  }
+  entry->second += cost;
 }
 
 int _PyJIT_IsEnabled() {

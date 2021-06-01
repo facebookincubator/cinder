@@ -11,6 +11,8 @@
 #include "clinic/codeobject.c.h"
 #include "Jit/pyjit.h"
 
+#include "Jit/pyjit.h"
+
 /* Holder for co_extra information */
 typedef struct {
     Py_ssize_t ce_size;
@@ -517,6 +519,7 @@ code_dealloc(PyCodeObject *co)
         PyMem_Free(co_extra);
     }
     _PyShadow_ClearCache((PyObject *)co); /* facebook t39538061 */
+    _PyJIT_InvalidateCodeKey(co);
 
     Py_XDECREF(co->co_code);
     Py_XDECREF(co->co_consts);

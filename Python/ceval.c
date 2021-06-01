@@ -79,6 +79,9 @@ int32_t __strobe_PyVersion_micro = PY_MICRO_VERSION;
 extern int _PyObject_GetMethod(PyObject *, PyObject *, PyObject **);
 extern PyObject * _PySuper_Lookup(PyTypeObject *type, PyObject *obj, PyObject *name, PyObject *super_instance, int  *meth_found);
 
+// Exposed directly from pyjit.cpp to minimize overhead.
+extern int g_capture_interp_cost;
+
 
 /* Begin FB (T37304853) */
 #ifdef WITH_DTRACE
@@ -958,6 +961,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     _Py_atomic_int * const eval_breaker = &ceval->eval_breaker;
     PyCodeObject *co;
     _PyShadowFrame shadow_frame;
+    long code_cost = 0;
 
     /* when tracing we set things up so that
 
@@ -1462,26 +1466,31 @@ main_loop:
 
         /* line-by-line tracing support */
 
-        if (_Py_TracingPossible(ceval) &&
-            tstate->c_tracefunc != NULL && !tstate->tracing) {
-            int err;
-            /* see maybe_call_line_trace
-               for expository comments */
-            f->f_stacktop = stack_pointer;
+        if (_Py_TracingPossible(ceval)) {
+            /* Guarding the interpreter cost counting in _Py_TracingPossible is
+               a hack to hint to the compiler/PGO this isn't on the hot/default
+               path for production. */
+            code_cost++;
+            if (tstate->c_tracefunc != NULL && !tstate->tracing) {
+                int err;
+                /* see maybe_call_line_trace
+                for expository comments */
+                f->f_stacktop = stack_pointer;
 
-            err = maybe_call_line_trace(tstate->c_tracefunc,
-                                        tstate->c_traceobj,
-                                        tstate, f,
-                                        &instr_lb, &instr_ub, &instr_prev);
-            /* Reload possibly changed frame fields */
-            JUMPTO(f->f_lasti);
-            if (f->f_stacktop != NULL) {
-                stack_pointer = f->f_stacktop;
-                f->f_stacktop = NULL;
+                err = maybe_call_line_trace(tstate->c_tracefunc,
+                                            tstate->c_traceobj,
+                                            tstate, f,
+                                            &instr_lb, &instr_ub, &instr_prev);
+                /* Reload possibly changed frame fields */
+                JUMPTO(f->f_lasti);
+                if (f->f_stacktop != NULL) {
+                    stack_pointer = f->f_stacktop;
+                    f->f_stacktop = NULL;
+                }
+                if (err)
+                    /* trace function raised an exception */
+                    goto error;
             }
-            if (err)
-                /* trace function raised an exception */
-                goto error;
         }
 
         /* Begin FB (T37304853) */
@@ -5824,6 +5833,10 @@ exit_eval_frame:
     tstate->frame = f->f_back;
     co->co_cache.curcalls--;
     _PyShadowFrame_Pop(tstate, &shadow_frame);
+
+    if (g_capture_interp_cost) {
+        _PyJIT_BumpCodeInterpCost(f->f_code, code_cost);
+    }
 
     return _Py_CheckFunctionResult(tstate, NULL, retval, "PyEval_EvalFrameEx");
 }

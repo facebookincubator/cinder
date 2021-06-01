@@ -35,6 +35,19 @@ extern "C" {
 PyAPI_FUNC(int) _PyJIT_Initialize(void);
 
 /*
+ * Notify interpreter cost calculator that a PyCodeObject is released as the
+ * same pointer may be used for another code object but need a new string
+ * identity key.
+ */
+PyAPI_FUNC(void) _PyJIT_InvalidateCodeKey(PyCodeObject* code);
+
+/*
+ * Used by the interpreter to attribute runtime "cost" to code objects. This
+ * only has an effect if interpreter cost counting is enabled.
+ */
+PyAPI_FUNC(void) _PyJIT_BumpCodeInterpCost(PyCodeObject* code, long cost);
+
+/*
  * Enable the global JIT.
  *
  * _PyJIT_Initialize must be called before calling this.
