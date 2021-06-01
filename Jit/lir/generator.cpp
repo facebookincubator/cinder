@@ -681,13 +681,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Load {}, {}, {}", i.GetOutput(), i.GetOperand(0), kSizeOffset);
         break;
       }
-      case Opcode::kLoadFunction: {
-        // format will pass this down as a constant
-        auto instr = static_cast<const LoadFunction*>(&i);
-        bbb.AppendCode(
-            "Move {}, {:#x}", instr->dst()->name(), (size_t)instr->func());
-        break;
-      }
       case Opcode::kLoadFunctionIndirect: {
         // format will pass this down as a constant
         auto instr = static_cast<const LoadFunctionIndirect*>(&i);

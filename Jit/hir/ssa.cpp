@@ -451,9 +451,6 @@ Type outputType(const Instr& instr) {
       return TCInt32;
     }
 
-    case Opcode::kLoadFunction: {
-      return TObject;
-    }
     case Opcode::kLoadFunctionIndirect: {
       return TOptObject;
     }

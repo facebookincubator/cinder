@@ -396,10 +396,6 @@ static std::string format_immediates(const Instr& instr) {
       const auto& load = static_cast<const LoadConst&>(instr);
       return fmt::format("{}", load.type());
     }
-    case Opcode::kLoadFunction: {
-      const auto& load = static_cast<const LoadFunction&>(instr);
-      return fmt::format("{}", (size_t)load.func());
-    }
     case Opcode::kLoadFunctionIndirect: {
       const auto& load = static_cast<const LoadFunctionIndirect&>(instr);
       PyObject* func = *load.funcptr();

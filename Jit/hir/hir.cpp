@@ -136,7 +136,6 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadTypeAttrCacheItem:
     case Opcode::kCast:
     case Opcode::kCheckNone:
-    case Opcode::kLoadFunction:
     case Opcode::kLoadFunctionIndirect:
     case Opcode::kLoadVarObjectSize:
     case Opcode::kIntConvert:

@@ -182,7 +182,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
       return commonEffects(inst, AEmpty);
     }
 
-    case Opcode::kLoadFunction:
     case Opcode::kLoadFunctionIndirect:
 
     case Opcode::kLoadGlobalCached:

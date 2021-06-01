@@ -282,7 +282,6 @@ struct FrameState {
   V(LoadCurrentFunc)            \
   V(LoadEvalBreaker)            \
   V(LoadField)                  \
-  V(LoadFunction)               \
   V(LoadFunctionIndirect)       \
   V(LoadGlobalCached)           \
   V(LoadGlobal)                 \
@@ -2312,18 +2311,6 @@ class INSTR_CLASS(LoadConst, HasOutput, Operands<0>) {
 
  private:
   Type type_;
-};
-
-class INSTR_CLASS(LoadFunction, HasOutput, Operands<0>) {
- public:
-  LoadFunction(PyObject* func, Register* dst) : InstrT(dst), func_(func) {}
-
-  PyObject* func() const {
-    return func_;
-  }
-
- private:
-  PyObject* func_;
 };
 
 class INSTR_CLASS(LoadFunctionIndirect, HasOutput, Operands<0>, DeoptBase) {

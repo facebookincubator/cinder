@@ -1839,7 +1839,7 @@ bool HIRBuilder::emitInvokeFunction(
       return false;
     }
 
-    tc.emit<LoadFunction>(func, funcreg);
+    tc.emit<LoadConst>(funcreg, Type::fromObject(func));
   } else {
     PyObject** funcptr = _PyClassLoader_GetIndirectPtr(target, func, container);
     JIT_CHECK(funcptr != NULL, "function lookup failed %s", repr(target));
