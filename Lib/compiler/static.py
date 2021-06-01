@@ -784,7 +784,11 @@ class Value:
         return DYNAMIC_TYPE
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         raise visitor.syntax_error(f"cannot index {self.name}", node)
 
@@ -951,7 +955,7 @@ class Object(Value, Generic[TClass]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, DYNAMIC, type_ctx)
         for arg in node.args:
             visitor.visit(arg)
 
@@ -970,9 +974,9 @@ class Object(Value, Generic[TClass]):
                 return
 
         if node.attr == "__class__":
-            visitor.set_type(node, self.klass)
+            visitor.set_type(node, self.klass, type_ctx)
         else:
-            visitor.set_type(node, DYNAMIC)
+            visitor.set_type(node, DYNAMIC, type_ctx)
 
     def emit_attr(
         self, node: Union[ast.Attribute, AugAttribute], code_gen: Static38CodeGenerator
@@ -1004,13 +1008,17 @@ class Object(Value, Generic[TClass]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> None:
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, DYNAMIC, type_ctx)
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         visitor.check_can_assign_from(DYNAMIC_TYPE, type.klass, node)
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, DYNAMIC, type_ctx)
 
     def bind_compare(
         self,
@@ -1021,8 +1029,8 @@ class Object(Value, Generic[TClass]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> bool:
-        visitor.set_type(op, DYNAMIC)
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(op, DYNAMIC, None)
+        visitor.set_type(node, DYNAMIC, type_ctx)
         return False
 
     def bind_reverse_compare(
@@ -1034,8 +1042,8 @@ class Object(Value, Generic[TClass]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> bool:
-        visitor.set_type(op, DYNAMIC)
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(op, DYNAMIC, None)
+        visitor.set_type(node, DYNAMIC, type_ctx)
         return False
 
     def bind_binop(
@@ -1047,21 +1055,20 @@ class Object(Value, Generic[TClass]):
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> bool:
         # we'll set the type in case we're the only one called
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, DYNAMIC, type_ctx)
         return False
 
     def bind_unaryop(
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
         if isinstance(node.op, ast.Not):
-            visitor.set_type(node, BOOL_TYPE.instance)
+            visitor.set_type(node, BOOL_TYPE.instance, type_ctx)
         else:
-            visitor.set_type(node, DYNAMIC)
+            visitor.set_type(node, DYNAMIC, type_ctx)
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         node_type = CONSTANT_TYPES[type(node.value)]
-        visitor.set_type(node, node_type)
-        visitor.check_can_assign_from(self.klass, node_type.klass, node)
+        visitor.set_type(node, node_type, self)
 
     def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
         """returns the type that is produced when iterating over this value"""
@@ -1181,7 +1188,7 @@ class Class(Object["Class"]):
             union = UNION_TYPE.make_generic_type(
                 (self, rtype), visitor.symtable.generic_types
             )
-            visitor.set_type(node, union)
+            visitor.set_type(node, union, type_ctx)
             return True
 
         return super().bind_binop(node, visitor, type_ctx)
@@ -1197,7 +1204,7 @@ class Class(Object["Class"]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
-        visitor.set_type(node, self.instance)
+        visitor.set_type(node, self.instance, type_ctx)
         for arg in node.args:
             visitor.visit(arg)
         for arg in node.keywords:
@@ -1376,7 +1383,11 @@ class GenericClass(Class):
         return super().bind_call(node, visitor, type_ctx)
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         slice = node.slice
         if not isinstance(slice, ast.Index):
@@ -1407,7 +1418,7 @@ class GenericClass(Class):
             )
 
         klass = self.make_generic_type(index, visitor.symtable.generic_types)
-        visitor.set_type(node, klass)
+        visitor.set_type(node, klass, type_ctx)
 
     @property
     def type_args(self) -> Sequence[Class]:
@@ -1553,7 +1564,7 @@ class CType(Class):
         so we can write something like (explicit conversions):
         x = int32(int8(5))
         """
-        visitor.set_type(node, self.instance)
+        visitor.set_type(node, self.instance, type_ctx)
         for arg in node.args:
             visitor.visit(arg, self.instance)
         return NO_EFFECT
@@ -1586,7 +1597,7 @@ class DynamicInstance(Object[DynamicClass]):
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         n = node.value
         inst = CONSTANT_TYPES.get(type(n), DYNAMIC_TYPE.instance)
-        visitor.set_type(node, inst)
+        visitor.set_type(node, inst, self)
 
     def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
         if maybe_emit_sequence_repeat(node, code_gen):
@@ -1627,7 +1638,11 @@ class NoneInstance(Object[NoneType]):
         raise visitor.syntax_error("'NoneType' object is not callable", node)
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         raise visitor.syntax_error("'NoneType' object is not subscriptable", node)
 
@@ -1639,7 +1654,7 @@ class NoneInstance(Object[NoneType]):
                 f"bad operand type for unary {UNARY_SYMBOLS[type(node.op)]}: 'NoneType'",
                 node,
             )
-        visitor.set_type(node, BOOL_TYPE.instance)
+        visitor.set_type(node, BOOL_TYPE.instance, type_ctx)
 
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -2121,18 +2136,15 @@ class Callable(Object[TClass]):
         if self.has_vararg or self.has_kwarg:
             return super().bind_call(node, visitor, type_ctx)
 
-        if type_ctx is not None:
-            visitor.check_can_assign_from(
-                type_ctx.klass,
-                self.return_type.resolved(),
-                node,
-                "is an invalid return type, expected",
-            )
-
         arg_mapping = ArgMapping(self, node, self_expr)
         arg_mapping.bind_args(visitor)
 
-        visitor.set_type(node, self.return_type.resolved().instance)
+        visitor.set_type(
+            node,
+            self.return_type.resolved().instance,
+            type_ctx,
+            "is an invalid return type, expected",
+        )
         visitor.set_node_data(node, ArgMapping, arg_mapping)
         return NO_EFFECT
 
@@ -2357,7 +2369,7 @@ class Function(Callable[Class]):
 
             store = ast.Name(tmp_name, ast.Store())
             copy_location(store, arg.argument)
-            visitor.set_type(store, visitor.get_type(arg.argument))
+            visitor.set_type(store, visitor.get_type(arg.argument), None)
             spills[tmp_name] = arg.argument, store
 
             replacement = ast.Name(tmp_name, ast.Load())
@@ -2404,9 +2416,11 @@ class Function(Callable[Class]):
         type_ctx: Optional[Class],
     ) -> None:
         if inst is None:
-            visitor.set_type(node, self)
+            visitor.set_type(node, self, type_ctx)
         else:
-            visitor.set_type(node, MethodType(ctx.type_name, self.node, node, self))
+            visitor.set_type(
+                node, MethodType(ctx.type_name, self.node, node, self), type_ctx
+            )
 
     def register_arg(
         self,
@@ -2553,7 +2567,7 @@ class StaticMethod(Object[Class]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> None:
-        visitor.set_type(node, self.function)
+        visitor.set_type(node, self.function, type_ctx)
 
 
 class TypingFinalDecorator(Class):
@@ -2689,7 +2703,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
         elif node.keywords:
             return super().bind_call(node, visitor, type_ctx)
 
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, DYNAMIC, type_ctx)
         for arg in node.args:
             visitor.visit(arg)
 
@@ -2704,9 +2718,9 @@ class BuiltinMethodDescriptor(Callable[Class]):
         type_ctx: Optional[Class],
     ) -> None:
         if inst is None:
-            visitor.set_type(node, self)
+            visitor.set_type(node, self, type_ctx)
         else:
-            visitor.set_type(node, BuiltinMethod(self, node))
+            visitor.set_type(node, BuiltinMethod(self, node), type_ctx)
 
     def make_generic(
         self, new_type: Class, name: GenericTypeName, generic_types: GenericTypesDict
@@ -2755,7 +2769,7 @@ class BuiltinMethod(Callable[Class]):
         if node.keywords:
             return Object.bind_call(self, node, visitor, type_ctx)
 
-        visitor.set_type(node, self.return_type.resolved().instance)
+        visitor.set_type(node, self.return_type.resolved().instance, type_ctx)
         visitor.visit(self.target.value)
         for arg in node.args:
             visitor.visit(arg)
@@ -2793,7 +2807,11 @@ class StrictBuiltins(Object[Class]):
         self.builtins = builtins
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         slice = node.slice
         type = DYNAMIC
@@ -2810,7 +2828,7 @@ class StrictBuiltins(Object[Class]):
                     if builtin is not None:
                         type = builtin
 
-        visitor.set_type(node, type)
+        visitor.set_type(node, type, type_ctx)
 
 
 def get_default_value(default: expr) -> object:
@@ -2868,14 +2886,14 @@ class Slot(Object[TClassInv]):
         type_ctx: Optional[Class],
     ) -> None:
         if inst is None and not self.is_classvar:
-            visitor.set_type(node, self)
+            visitor.set_type(node, self, type_ctx)
             return
         if inst and self.is_classvar and isinstance(node.ctx, ast.Store):
             raise TypedSyntaxError(
                 f"Cannot assign to classvar '{self.slot_name}' on '{inst.name}' instance"
             )
 
-        visitor.set_type(node, self.decl_type.instance)
+        visitor.set_type(node, self.decl_type.instance, type_ctx)
 
     @property
     def decl_type(self) -> Class:
@@ -2922,9 +2940,9 @@ class BoxFunction(Object[Class]):
 
         if isinstance(arg_type, CIntInstance):
             typ = BOOL_TYPE if arg_type.constant == TYPED_BOOL else INT_EXACT_TYPE
-            visitor.set_type(node, typ.instance)
+            visitor.set_type(node, typ.instance, type_ctx)
         elif isinstance(arg_type, CDoubleInstance):
-            visitor.set_type(node, FLOAT_EXACT_TYPE.instance)
+            visitor.set_type(node, FLOAT_EXACT_TYPE.instance, type_ctx)
         else:
             raise visitor.syntax_error(
                 f"can't box non-primitive: {arg_type.name}", node
@@ -2945,7 +2963,7 @@ class UnboxFunction(Object[Class]):
         for arg in node.args:
             visitor.visit(arg, DYNAMIC)
         self.check_args_for_primitives(node, visitor)
-        visitor.set_type(node, type_ctx or INT64_VALUE)
+        visitor.set_type(node, type_ctx or INT64_VALUE, type_ctx)
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -2978,7 +2996,8 @@ class LenFunction(Object[Class]):
             )
         self.check_args_for_primitives(node, visitor)
         output_type = INT_EXACT_TYPE.instance if self.boxed else INT64_TYPE.instance
-        visitor.set_type(node, output_type)
+
+        visitor.set_type(node, output_type, type_ctx)
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -3002,7 +3021,7 @@ class SortedFunction(Object[Class]):
         for kw in node.keywords:
             visitor.visit(kw.value)
         self.check_args_for_primitives(node, visitor)
-        visitor.set_type(node, LIST_EXACT_TYPE.instance)
+        visitor.set_type(node, LIST_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -3076,7 +3095,7 @@ class IsInstanceFunction(Object[Class]):
         for arg in node.args:
             visitor.visit(arg)
         self.check_args_for_primitives(node, visitor)
-        visitor.set_type(node, BOOL_TYPE.instance)
+        visitor.set_type(node, BOOL_TYPE.instance, type_ctx)
         if len(node.args) == 2:
             arg0 = node.args[0]
             if not isinstance(arg0, ast.Name):
@@ -3123,7 +3142,7 @@ class IsSubclassFunction(Object[Class]):
             )
         for arg in node.args:
             visitor.visit(arg)
-        visitor.set_type(node, BOOL_TYPE.instance)
+        visitor.set_type(node, BOOL_TYPE.instance, type_ctx)
         self.check_args_for_primitives(node, visitor)
         return NO_EFFECT
 
@@ -3195,10 +3214,10 @@ class NumInstance(Object[NumClass]):
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
         if isinstance(node.op, (ast.USub, ast.Invert, ast.UAdd)):
-            visitor.set_type(node, self)
+            visitor.set_type(node, self, type_ctx)
         else:
             assert isinstance(node.op, ast.Not)
-            visitor.set_type(node, BOOL_TYPE.instance)
+            visitor.set_type(node, BOOL_TYPE.instance, type_ctx)
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         self._bind_constant(node.value, node, visitor)
@@ -3207,8 +3226,7 @@ class NumInstance(Object[NumClass]):
         self, value: object, node: ast.expr, visitor: TypeBinder
     ) -> None:
         value_inst = CONSTANT_TYPES.get(type(value), self)
-        visitor.set_type(node, value_inst)
-        visitor.check_can_assign_from(self.klass, value_inst.klass, node)
+        visitor.set_type(node, value_inst, self)
 
 
 class NumExactInstance(NumInstance):
@@ -3227,9 +3245,9 @@ class NumExactInstance(NumInstance):
             ltype.klass
         ) and INT_EXACT_TYPE.can_assign_from(rtype.klass):
             if isinstance(node.op, ast.Div):
-                visitor.set_type(node, FLOAT_EXACT_TYPE.instance)
+                visitor.set_type(node, FLOAT_EXACT_TYPE.instance, type_ctx)
             else:
-                visitor.set_type(node, INT_EXACT_TYPE.instance)
+                visitor.set_type(node, INT_EXACT_TYPE.instance, type_ctx)
             return True
         return False
 
@@ -3424,7 +3442,7 @@ class TupleExactInstance(TupleInstance):
         if isinstance(node.op, ast.Mult) and (
             INT_TYPE.can_assign_from(rtype) or rtype in SIGNED_CINT_TYPES
         ):
-            visitor.set_type(node, TUPLE_EXACT_TYPE.instance)
+            visitor.set_type(node, TUPLE_EXACT_TYPE.instance, type_ctx)
             return True
         return super().bind_binop(node, visitor, type_ctx)
 
@@ -3435,7 +3453,7 @@ class TupleExactInstance(TupleInstance):
         if isinstance(node.op, ast.Mult) and (
             INT_TYPE.can_assign_from(ltype) or ltype in SIGNED_CINT_TYPES
         ):
-            visitor.set_type(node, TUPLE_EXACT_TYPE.instance)
+            visitor.set_type(node, TUPLE_EXACT_TYPE.instance, type_ctx)
             return True
         return super().bind_reverse_binop(node, visitor, type_ctx)
 
@@ -3527,9 +3545,9 @@ class ListAppendMethod(BuiltinMethodDescriptor):
         type_ctx: Optional[Class],
     ) -> None:
         if inst is None:
-            visitor.set_type(node, self)
+            visitor.set_type(node, self, type_ctx)
         else:
-            visitor.set_type(node, ListAppendBuiltinMethod(self, node))
+            visitor.set_type(node, ListAppendBuiltinMethod(self, node), type_ctx)
 
 
 class ListAppendBuiltinMethod(BuiltinMethod):
@@ -3579,11 +3597,15 @@ class ListInstance(Object[ListClass]):
         )
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         if type.klass not in SIGNED_CINT_TYPES:
             super().bind_subscr(node, type, visitor)
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, DYNAMIC, type_ctx)
 
     def emit_subscr(
         self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
@@ -3619,7 +3641,7 @@ class ListExactInstance(ListInstance):
         if isinstance(node.op, ast.Mult) and (
             INT_TYPE.can_assign_from(rtype) or rtype in SIGNED_CINT_TYPES
         ):
-            visitor.set_type(node, LIST_EXACT_TYPE.instance)
+            visitor.set_type(node, LIST_EXACT_TYPE.instance, type_ctx)
             return True
         return super().bind_binop(node, visitor, type_ctx)
 
@@ -3630,7 +3652,7 @@ class ListExactInstance(ListInstance):
         if isinstance(node.op, ast.Mult) and (
             INT_TYPE.can_assign_from(ltype) or ltype in SIGNED_CINT_TYPES
         ):
-            visitor.set_type(node, LIST_EXACT_TYPE.instance)
+            visitor.set_type(node, LIST_EXACT_TYPE.instance, type_ctx)
             return True
         return super().bind_reverse_binop(node, visitor, type_ctx)
 
@@ -3909,6 +3931,7 @@ class UnionInstance(Object[UnionType]):
         callback: typingCallable[[Class], object],
         description: str,
         visitor: TypeBinder,
+        type_ctx: Optional[Class],
     ) -> List[object]:
         if self.klass.is_generic_type_definition:
             raise visitor.syntax_error(f"cannot {description} unbound Union", node)
@@ -3924,7 +3947,7 @@ class UnionInstance(Object[UnionType]):
         union = UNION_TYPE.make_generic_type(
             tuple(result_types), visitor.symtable.generic_types
         )
-        visitor.set_type(node, union.instance)
+        visitor.set_type(node, union.instance, type_ctx)
         return ret_types
 
     def bind_attr(
@@ -3933,12 +3956,7 @@ class UnionInstance(Object[UnionType]):
         def cb(el: Class) -> None:
             return el.instance.bind_attr(node, visitor, type_ctx)
 
-        self._generic_bind(
-            node,
-            cb,
-            "access attribute from",
-            visitor,
-        )
+        self._generic_bind(node, cb, "access attribute from", visitor, type_ctx)
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -3946,16 +3964,20 @@ class UnionInstance(Object[UnionType]):
         def cb(el: Class) -> NarrowingEffect:
             return el.instance.bind_call(node, visitor, type_ctx)
 
-        self._generic_bind(node, cb, "call", visitor)
+        self._generic_bind(node, cb, "call", visitor, type_ctx)
         return NO_EFFECT
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         def cb(el: Class) -> None:
             return el.instance.bind_subscr(node, type, visitor)
 
-        self._generic_bind(node, cb, "subscript", visitor)
+        self._generic_bind(node, cb, "subscript", visitor, type_ctx)
 
     def bind_unaryop(
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -3968,6 +3990,7 @@ class UnionInstance(Object[UnionType]):
             cb,
             "unary op",
             visitor,
+            type_ctx,
         )
 
     def bind_compare(
@@ -3982,7 +4005,7 @@ class UnionInstance(Object[UnionType]):
         def cb(el: Class) -> bool:
             return el.instance.bind_compare(node, left, op, right, visitor, type_ctx)
 
-        rets = self._generic_bind(node, cb, "compare", visitor)
+        rets = self._generic_bind(node, cb, "compare", visitor, type_ctx)
         return all(rets)
 
     def bind_reverse_compare(
@@ -3999,7 +4022,7 @@ class UnionInstance(Object[UnionType]):
                 node, left, op, right, visitor, type_ctx
             )
 
-        rets = self._generic_bind(node, cb, "compare", visitor)
+        rets = self._generic_bind(node, cb, "compare", visitor, type_ctx)
         return all(rets)
 
 
@@ -4065,13 +4088,17 @@ class ArrayInstance(Object["ArrayClass"]):
             raise SyntaxError(f"Invalid Array size: {size}")
 
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         if type == SLICE_TYPE.instance:
             # Slicing preserves type
-            return visitor.set_type(node, self)
+            return visitor.set_type(node, self, type_ctx)
 
-        visitor.set_type(node, self.klass.index.instance)
+        visitor.set_type(node, self.klass.index.instance, type_ctx)
 
     def emit_subscr(
         self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
@@ -4247,10 +4274,14 @@ class CheckedDict(GenericClass):
 
 class CheckedDictInstance(Object[CheckedDict]):
     def bind_subscr(
-        self, node: ast.Subscript, type: Value, visitor: TypeBinder
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
     ) -> None:
         visitor.visit(node.slice, self.klass.gen_name.args[0].instance)
-        visitor.set_type(node, self.klass.gen_name.args[1].instance)
+        visitor.set_type(node, self.klass.gen_name.args[1].instance, type_ctx)
 
     def emit_subscr(
         self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
@@ -4314,7 +4345,7 @@ class CastFunction(Object[Class]):
         if cast_type is None:
             raise visitor.syntax_error("cast to unknown type", node)
 
-        visitor.set_type(node, cast_type.instance)
+        visitor.set_type(node, cast_type.instance, type_ctx)
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -4366,7 +4397,7 @@ class CInstance(Value, Generic[TClass]):
             raise visitor.syntax_error(
                 self.binop_error(visitor.get_type(node.left), self, node.op), node
             )
-        visitor.set_type(node, self)
+        visitor.set_type(node, self, type_ctx)
         return True
 
     def get_op_id(self, op: AST) -> int:
@@ -4507,8 +4538,8 @@ class CIntInstance(CInstance["CIntType"]):
                 f"can't compare {self.name} to {visitor.get_type(right).name}", node
             )
 
-        visitor.set_type(op, compare_type)
-        visitor.set_type(node, CBOOL_TYPE.instance)
+        visitor.set_type(op, compare_type, None)
+        visitor.set_type(node, CBOOL_TYPE.instance, type_ctx)
         return True
 
     def bind_reverse_compare(
@@ -4535,8 +4566,8 @@ class CIntInstance(CInstance["CIntType"]):
                     f"can't compare {visitor.get_type(left).name} to {self.name}", node
                 )
 
-            visitor.set_type(op, compare_type)
-            visitor.set_type(node, CBOOL_TYPE.instance)
+            visitor.set_type(op, compare_type, None)
+            visitor.set_type(node, CBOOL_TYPE.instance, type_ctx)
             return True
 
         return False
@@ -4559,6 +4590,18 @@ class CIntInstance(CInstance["CIntType"]):
                 node,
             )
 
+        if not self.is_valid_int(val):
+            # We set a type here so that when call handles the syntax error and tries to
+            # improve the error message to "positional argument type mismatch" it can
+            # successfully get the type
+            visitor.set_type(node, INT_TYPE.instance, None)
+            low, high = self.get_int_range()
+            raise visitor.syntax_error(
+                f"constant {val} is outside of the range {low} to {high} for {self.name}",
+                node,
+            )
+
+    def get_int_range(self) -> Tuple[int, int]:
         bits = 8 << self.size
         if self.signed:
             low = -(1 << (bits - 1))
@@ -4566,20 +4609,16 @@ class CIntInstance(CInstance["CIntType"]):
         else:
             low = 0
             high = (1 << bits) - 1
+        return low, high
 
-        if not low <= val <= high:
-            # We set a type here so that when call handles the syntax error and tries to
-            # improve the error message to "positional argument type mismatch" it can
-            # successfully get the type
-            visitor.set_type(node, INT_TYPE.instance)
-            raise visitor.syntax_error(
-                f"constant {val} is outside of the range {low} to {high} for {self.name}",
-                node,
-            )
+    def is_valid_int(self, val: int) -> bool:
+        low, high = self.get_int_range()
+
+        return low <= val <= high
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         self.validate_int(node.value, node, visitor)
-        visitor.set_type(node, self)
+        visitor.set_type(node, self, self)
 
     def emit_constant(
         self, node: ast.Constant, code_gen: Static38CodeGenerator
@@ -4621,10 +4660,10 @@ class CIntInstance(CInstance["CIntType"]):
         rinst = visitor.get_type(node.right)
         if rinst != self:
             if rinst.klass == LIST_EXACT_TYPE:
-                visitor.set_type(node, LIST_EXACT_TYPE.instance)
+                visitor.set_type(node, LIST_EXACT_TYPE.instance, type_ctx)
                 return True
             if rinst.klass == TUPLE_EXACT_TYPE:
-                visitor.set_type(node, TUPLE_EXACT_TYPE.instance)
+                visitor.set_type(node, TUPLE_EXACT_TYPE.instance, type_ctx)
                 return True
 
             try:
@@ -4644,7 +4683,7 @@ class CIntInstance(CInstance["CIntType"]):
                     node,
                 )
 
-        visitor.set_type(node, type_ctx)
+        visitor.set_type(node, type_ctx, None)
         return True
 
     def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
@@ -4670,10 +4709,10 @@ class CIntInstance(CInstance["CIntType"]):
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
         if isinstance(node.op, (ast.USub, ast.Invert, ast.UAdd)):
-            visitor.set_type(node, self)
+            visitor.set_type(node, self, type_ctx)
         else:
             assert isinstance(node.op, ast.Not)
-            visitor.set_type(node, BOOL_TYPE.instance)
+            visitor.set_type(node, BOOL_TYPE.instance, type_ctx)
 
     def emit_unaryop(self, node: ast.UnaryOp, code_gen: Static38CodeGenerator) -> None:
         code_gen.update_lineno(node)
@@ -4733,7 +4772,9 @@ class CIntType(CType):
                 f"{self.name} requires a single argument ({len(node.args)} given)", node
             )
 
-        visitor.set_type(node, self.instance)
+        # This can be used as a cast operator on primitive ints int64(uint64),
+        # so we don't pass the type context.
+        visitor.set_type(node, self.instance, None)
         arg = node.args[0]
         try:
             visitor.visit(arg, self.instance)
@@ -4742,12 +4783,21 @@ class CIntType(CType):
             arg_type = visitor.get_type(arg)
             if (
                 arg_type is not INT_TYPE.instance
+                and not self.is_valid_literal_int(arg_type)
                 and arg_type is not DYNAMIC
                 and arg_type is not OBJECT
             ):
                 raise
 
         return NO_EFFECT
+
+    def is_valid_literal_int(self, arg_type: Value) -> bool:
+        if isinstance(arg_type, NumExactInstance):
+            literal = arg_type.klass.literal_value
+            if literal is not None:
+                return self.instance.is_valid_int(literal)
+
+        return False
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         if len(node.args) != 1:
@@ -4795,11 +4845,11 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         if rtype != self or type(node.op) not in self._double_binary_opcode_signed:
             raise visitor.syntax_error(self.binop_error(self, rtype, node.op), node)
 
-        visitor.set_type(node, self)
+        visitor.set_type(node, self, type_ctx)
         return True
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
-        visitor.set_type(node, self)
+        visitor.set_type(node, self, self)
 
     def emit_constant(
         self, node: ast.Constant, code_gen: Static38CodeGenerator
@@ -5577,7 +5627,7 @@ class TypeBinder(GenericVisitor):
 
     def set_param(self, arg: ast.arg, arg_type: Class, scope: BindingScope) -> None:
         scope.declare(arg.arg, arg_type.instance)
-        self.set_type(arg, arg_type.instance)
+        self.set_type(arg, arg_type.instance, None)
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         scope = BindingScope(node, generic_types=self.symtable.generic_types)
@@ -5661,10 +5711,10 @@ class TypeBinder(GenericVisitor):
             # We store the return type on the node for the function as we otherwise
             # don't need to store type information for it
             expected = self.cur_mod.resolve_annotation(returns) or DYNAMIC_TYPE
-            self.set_type(node, expected.instance)
+            self.set_type(node, expected.instance, None)
             self.visit(returns)
         else:
-            self.set_type(node, DYNAMIC)
+            self.set_type(node, DYNAMIC, None)
 
         self.scopes.append(scope)
 
@@ -5698,8 +5748,16 @@ class TypeBinder(GenericVisitor):
 
         self.scopes.pop()
 
-    def set_type(self, node: AST, type: Value) -> None:
+    def set_type(
+        self,
+        node: AST,
+        type: Value,
+        type_ctx: Optional[Value],
+        reason: str = "cannot be assigned to",
+    ) -> None:
         self.cur_mod.types[node] = type
+        if type_ctx is not None:
+            self.check_can_assign_from(type_ctx.klass, type.klass, node, reason)
 
     def get_type(self, node: AST) -> Value:
         assert node in self.cur_mod.types, f"node not found: {node}, {node.lineno}"
@@ -5788,7 +5846,7 @@ class TypeBinder(GenericVisitor):
 
         if isinstance(target, Name):
             self.declare_local(target, comp_type.instance, is_final)
-            self.set_type(target, comp_type.instance)
+            self.set_type(target, comp_type.instance, comp_type.instance)
 
         self.visit(target)
 
@@ -5800,16 +5858,15 @@ class TypeBinder(GenericVisitor):
                 # even though we assigned it above (but we never narrow primtives)
                 new_type = self.get_type(value)
                 local_type = self.maybe_set_local_type(target.id, new_type)
-                self.set_type(target, local_type)
+                self.set_type(target, local_type, comp_type.instance)
 
-            self.check_can_assign_from(comp_type, self.get_type(value).klass, node)
             self._check_final_attribute_reassigned(target, node)
 
     def visitAugAssign(self, node: AugAssign) -> None:
         self.visit(node.target)
         target_type = inexact(self.get_type(node.target))
         self.visit(node.value, target_type)
-        self.set_type(node, target_type)
+        self.set_type(node, target_type, None)
 
     def visitAssign(self, node: Assign) -> None:
         # Sometimes, we need to propagate types from the target to the value to allow primitives to be handled
@@ -5843,7 +5900,7 @@ class TypeBinder(GenericVisitor):
         for target in reversed(node.targets):
             self.assign_value(target, value_type, src=node.value, assignment=node)
 
-        self.set_type(node, value_type)
+        self.set_type(node, value_type, None)
 
     def check_can_assign_from(
         self, dest: Class, src: Class, node: AST, reason: str = "cannot be assigned to"
@@ -5887,7 +5944,7 @@ class TypeBinder(GenericVisitor):
                 self.visit(value)
                 final_type = self.widen(final_type, self.get_type(value))
 
-        self.set_type(node, final_type or DYNAMIC)
+        self.set_type(node, final_type or DYNAMIC, type_ctx)
         return effect
 
     def visitBinOp(
@@ -5940,7 +5997,7 @@ class TypeBinder(GenericVisitor):
         self, node: Lambda, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.body)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 
     def visitIfExp(
@@ -5958,13 +6015,13 @@ class TypeBinder(GenericVisitor):
         body_t = self.get_type(node.body)
         else_t = self.get_type(node.orelse)
         if body_t.klass.can_assign_from(else_t.klass):
-            self.set_type(node, body_t)
+            self.set_type(node, body_t, type_ctx)
         elif else_t.klass.can_assign_from(body_t.klass):
-            self.set_type(node, else_t)
+            self.set_type(node, else_t, type_ctx)
         elif DYNAMIC_TYPE.can_assign_from(
             body_t.klass
         ) and DYNAMIC_TYPE.can_assign_from(else_t.klass):
-            self.set_type(node, DYNAMIC)
+            self.set_type(node, DYNAMIC, type_ctx)
         else:
             raise self.syntax_error(
                 f"if expression has incompatible types: {body_t.name} and {else_t.name}",
@@ -5984,7 +6041,7 @@ class TypeBinder(GenericVisitor):
         step = node.step
         if step:
             self.visit(step, type_ctx)
-        self.set_type(node, SLICE_TYPE.instance)
+        self.set_type(node, SLICE_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def widen(self, existing: Optional[Value], new: Value) -> Value:
@@ -6045,7 +6102,7 @@ class TypeBinder(GenericVisitor):
             else:
                 typ = DICT_TYPE.instance
             assert typ is not None
-            self.set_type(node, typ)
+            self.set_type(node, typ, type_ctx)
             return typ
 
         # Calculate the type that is inferred by the keys and values
@@ -6061,60 +6118,51 @@ class TypeBinder(GenericVisitor):
             (key_type.klass, value_type.klass), self.symtable.generic_types
         )
 
-        if type_ctx is not None:
-            type_class = type_ctx.klass
-            if type_class.generic_type_def in (
-                CHECKED_DICT_EXACT_TYPE,
-                CHECKED_DICT_TYPE,
-            ):
-                assert isinstance(type_class, GenericClass)
-                self.set_type(node, type_ctx)
-                # We can use the type context to have a type which is wider than the
-                # inferred types.  But we need to make sure that the keys/values are compatible
-                # with the wider type, and if not, we'll report that the inferred type isn't
-                # compatible.
-                if not type_class.type_args[0].can_assign_from(
-                    key_type.klass
-                ) or not type_class.type_args[1].can_assign_from(value_type.klass):
-                    self.check_can_assign_from(type_class, gen_type, node)
-                return type_ctx
-            else:
-                # Otherwise we allow something that would assign to dynamic, but not something
-                # that would assign to an unrelated type (e.g. int)
-                self.set_type(node, gen_type.instance)
-                self.check_can_assign_from(type_class, gen_type, node)
-        else:
-            self.set_type(node, gen_type.instance)
-
-        return gen_type.instance
+        assert type_ctx is not None
+        type_class = type_ctx.klass
+        assert type_class.generic_type_def in (
+            CHECKED_DICT_EXACT_TYPE,
+            CHECKED_DICT_TYPE,
+        )
+        assert isinstance(type_class, GenericClass)
+        self.set_type(node, type_ctx, None)
+        # We can use the type context to have a type which is wider than the
+        # inferred types.  But we need to make sure that the keys/values are compatible
+        # with the wider type, and if not, we'll report that the inferred type isn't
+        # compatible.
+        if not type_class.type_args[0].can_assign_from(
+            key_type.klass
+        ) or not type_class.type_args[1].can_assign_from(value_type.klass):
+            self.check_can_assign_from(type_class, gen_type, node)
+        return type_ctx
 
     def visitSet(
         self, node: ast.Set, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         for elt in node.elts:
             self.visit(elt)
-        self.set_type(node, SET_EXACT_TYPE.instance)
+        self.set_type(node, SET_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def visitGeneratorExp(
         self, node: GeneratorExp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit_comprehension(node, node.generators, node.elt)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 
     def visitListComp(
         self, node: ListComp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit_comprehension(node, node.generators, node.elt)
-        self.set_type(node, LIST_EXACT_TYPE.instance)
+        self.set_type(node, LIST_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def visitSetComp(
         self, node: SetComp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit_comprehension(node, node.generators, node.elt)
-        self.set_type(node, SET_EXACT_TYPE.instance)
+        self.set_type(node, SET_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def get_target_decl(self, name: str) -> Optional[TypeDeclaration]:
@@ -6142,7 +6190,9 @@ class TypeBinder(GenericVisitor):
                 self.check_can_assign_from(decl_type.type.klass, value.klass, target)
 
             local_type = self.maybe_set_local_type(target.id, value)
-            self.set_type(target, local_type)
+            self.set_type(
+                target, local_type, decl_type.type if decl_type is not None else None
+            )
         elif isinstance(target, (ast.Tuple, ast.List)):
             if isinstance(src, (ast.Tuple, ast.List)) and len(target.elts) == len(
                 src.elts
@@ -6232,7 +6282,7 @@ class TypeBinder(GenericVisitor):
         self, node: Await, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.value)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 
     def visitYield(
@@ -6241,21 +6291,21 @@ class TypeBinder(GenericVisitor):
         value = node.value
         if value is not None:
             self.visit(value)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 
     def visitYieldFrom(
         self, node: YieldFrom, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.value)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 
     def visitIndex(
         self, node: Index, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.value, type_ctx)
-        self.set_type(node, self.get_type(node.value))
+        self.set_type(node, self.get_type(node.value), type_ctx)
         return NO_EFFECT
 
     def visitCompare(
@@ -6266,8 +6316,8 @@ class TypeBinder(GenericVisitor):
             right = node.comparators[0]
             other = None
 
-            self.set_type(node, BOOL_TYPE.instance)
-            self.set_type(node.ops[0], BOOL_TYPE.instance)
+            self.set_type(node, BOOL_TYPE.instance, None)
+            self.set_type(node.ops[0], BOOL_TYPE.instance, type_ctx)
 
             self.visit(left)
             self.visit(right)
@@ -6328,7 +6378,7 @@ class TypeBinder(GenericVisitor):
         self, node: FormattedValue, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.value)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 
     def visitJoinedStr(
@@ -6337,7 +6387,7 @@ class TypeBinder(GenericVisitor):
         for value in node.values:
             self.visit(value)
 
-        self.set_type(node, STR_EXACT_TYPE.instance)
+        self.set_type(node, STR_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def visitConstant(
@@ -6362,14 +6412,14 @@ class TypeBinder(GenericVisitor):
         self.visit(node.value)
         self.visit(node.slice)
         val_type = self.get_type(node.value)
-        val_type.bind_subscr(node, self.get_type(node.slice), self)
+        val_type.bind_subscr(node, self.get_type(node.slice), self, type_ctx)
         return NO_EFFECT
 
     def visitStarred(
         self, node: Starred, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.value)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 
     def visitName(
@@ -6379,11 +6429,9 @@ class TypeBinder(GenericVisitor):
         scope = cur_scope.check_name(node.id)
         if scope == SC_LOCAL and not isinstance(self.scope, Module):
             var_type = self.local_types.get(node.id, DYNAMIC)
-            self.set_type(node, var_type)
-            if type_ctx is not None:
-                self.check_can_assign_from(type_ctx.klass, var_type.klass, node)
+            self.set_type(node, var_type, type_ctx)
         else:
-            self.set_type(node, self.cur_mod.resolve_name(node.id) or DYNAMIC)
+            self.set_type(node, self.cur_mod.resolve_name(node.id) or DYNAMIC, type_ctx)
 
         type = self.get_type(node)
         if (
@@ -6400,7 +6448,7 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         for elt in node.elts:
             self.visit(elt, DYNAMIC)
-        self.set_type(node, LIST_EXACT_TYPE.instance)
+        self.set_type(node, LIST_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def visitTuple(
@@ -6408,7 +6456,7 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         for elt in node.elts:
             self.visit(elt, DYNAMIC)
-        self.set_type(node, TUPLE_EXACT_TYPE.instance)
+        self.set_type(node, TUPLE_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
     def set_terminal_kind(self, node: AST, level: TerminalKind) -> None:

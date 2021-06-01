@@ -109,6 +109,7 @@ from __static__ import (
     make_generic_type,
     StaticGeneric,
     is_type_static,
+    RAND_MAX,
 )
 from cinder import StrictModule
 
@@ -764,6 +765,66 @@ class StaticCompilationTests(StaticTestBase):
                     C = mod["C" + type]
                     f = mod["testfunc"]
                     self.assertTrue(f(C()))
+
+    def test_field_verifies_type(self):
+        codestr = """
+        from __static__ import int64
+
+        class C:
+            def __init__(self):
+                self.x: int64 = 1
+
+        def f():
+            return [C().x]
+
+        """
+        self.type_error(codestr, "type mismatch: int64 cannot be assigned to dynamic")
+
+    def test_vector_verifies_type(self):
+        codestr = """
+        from __static__ import int64, Vector
+
+        def f():
+            x = Vector[int64]()
+            x.append(1)
+            return [x[0]]
+
+        """
+        self.type_error(codestr, "type mismatch: int64 cannot be assigned to dynamic")
+
+    def test_clen_verifies_type(self):
+        codestr = """
+        from __static__ import int64, clen
+
+        def f():
+            return [clen([1])]
+
+        """
+        self.type_error(codestr, "type mismatch: int64 cannot be assigned to dynamic")
+
+    def test_or_verifies_type(self):
+        codestr = """
+        from __static__ import cbool
+
+        def f():
+            x: cbool = False
+            y: cbool = True
+            return [x or y]
+
+        """
+        self.type_error(codestr, "type mismatch: cbool cannot be assigned to dynamic")
+
+    def test_ifexp_verifies_type(self):
+        codestr = """
+        from __static__ import int64, clen, cbool
+
+        def f(c):
+            x: int64 = 1
+            y: int64 = 2
+            return [x if c else y]
+
+        """
+        self.type_error(codestr, "type mismatch: int64 cannot be assigned to dynamic")
 
     def test_mixed_binop_sign(self):
         """mixed signed/unsigned ops should be promoted to signed"""
@@ -6021,7 +6082,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_dynamic_chained_assign_param(self):
         codestr = """
-            from __static__ import int16
+            from __static__ import int16, box
             def testfunc(y):
                 x: int16
                 x = y = 42
@@ -11857,6 +11918,19 @@ class StaticRuntimeTests(StaticTestBase):
             f = mod["f"]
             self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST")
             self.assertIsInstance(f(), int)
+
+    def test_rand_max_inlined2(self):
+        codestr = """
+            from __static__ import rand, RAND_MAX, box, int8, int64
+
+            def f() -> int:
+                x: int64 = rand() // int8(RAND_MAX)
+                return box(x)
+        """
+        self.type_error(
+            codestr,
+            re.escape("type mismatch: Literal[2147483647] cannot be assigned to int8"),
+        )
 
     def test_array_get_primitive_idx(self):
         codestr = """
