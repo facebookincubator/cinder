@@ -445,6 +445,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& loaditem = static_cast<const LoadTupleItem&>(instr);
       return fmt::format("{}", loaditem.idx());
     }
+    case Opcode::kMakeCheckedDict: {
+      const auto& makedict = static_cast<const MakeCheckedDict&>(instr);
+      return fmt::format("{} {}", makedict.type(), makedict.GetCapacity());
+    }
     case Opcode::kMakeDict: {
       const auto& makedict = static_cast<const MakeDict&>(instr);
       return fmt::format("{}", makedict.GetCapacity());

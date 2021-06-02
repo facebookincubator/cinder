@@ -23,13 +23,13 @@ fun jittestmodule:test {
       Stack<3> v9 v10 v14
     }
     v16:OptObject = LoadConst<UnicodeExact["aaa"]>
-    v17:NoneType = SetDictItem v15 v16 v9 {
+    v17:CInt32 = SetDictItem v15 v16 v9 {
       NextInstrOffset 8
       Locals<3> v9 v10 v11
       Stack<2> v9 v10
     }
     v18:OptObject = LoadConst<UnicodeExact["bbb"]>
-    v19:NoneType = SetDictItem v15 v18 v10 {
+    v19:CInt32 = SetDictItem v15 v18 v10 {
       NextInstrOffset 8
       Locals<3> v9 v10 v11
       Stack<2> v9 v10

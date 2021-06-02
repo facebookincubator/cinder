@@ -102,6 +102,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kLoadTypeAttrCacheItem:
     case Opcode::kLoadVarObjectSize:
     case Opcode::kMakeCell:
+    case Opcode::kMakeCheckedDict:
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
     case Opcode::kMakeListTuple:

@@ -290,6 +290,7 @@ struct FrameState {
   V(LoadTupleItem)              \
   V(LoadTypeAttrCacheItem)      \
   V(LoadVarObjectSize)          \
+  V(MakeCheckedDict)            \
   V(MakeCell)                   \
   V(MakeDict)                   \
   V(MakeFunction)               \
@@ -2618,6 +2619,30 @@ class INSTR_CLASS(MakeDict, HasOutput, Operands<0>, DeoptBase) {
 
  private:
   size_t capacity_;
+};
+
+// Allocate an empty checked dict with the given capacity, or the default
+// capacity if 0 is given.
+class INSTR_CLASS(MakeCheckedDict, HasOutput, Operands<0>, DeoptBase) {
+ public:
+  MakeCheckedDict(
+      Register* dst,
+      size_t capacity,
+      Type dict_type,
+      const FrameState& frame)
+      : InstrT(dst, frame), capacity_(capacity), type_(dict_type) {}
+
+  size_t GetCapacity() const {
+    return capacity_;
+  }
+
+  Type type() const {
+    return type_;
+  }
+
+ private:
+  size_t capacity_;
+  Type type_;
 };
 
 // merge two maps by (ultimately) calling _PyDict_MergeEx

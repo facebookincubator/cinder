@@ -181,6 +181,9 @@ class HIRBuilder {
   void emitMakeListTupleUnpack(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitBuildCheckedMap(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitBuildMap(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

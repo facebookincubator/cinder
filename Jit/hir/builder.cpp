@@ -72,6 +72,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BUILD_CONST_KEY_MAP,
     BUILD_LIST,
     BUILD_LIST_UNPACK,
+    BUILD_CHECKED_MAP,
     BUILD_MAP,
     BUILD_MAP_UNPACK,
     BUILD_MAP_UNPACK_WITH_CALL,
@@ -773,6 +774,10 @@ void HIRBuilder::translate(
         case BUILD_TUPLE_UNPACK_WITH_CALL:
           emitMakeListTupleUnpack(tc, bc_instr);
           break;
+        case BUILD_CHECKED_MAP: {
+          emitBuildCheckedMap(tc, bc_instr);
+          break;
+        }
         case BUILD_MAP: {
           emitBuildMap(tc, bc_instr);
           break;
@@ -2677,6 +2682,35 @@ void HIRBuilder::emitMakeListTupleUnpack(
 
   tc.frame.stack.discard(oparg);
   tc.frame.stack.push(retval);
+}
+
+void HIRBuilder::emitBuildCheckedMap(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
+  PyObject* dict_type = PyTuple_GET_ITEM(descr, 0);
+  Py_ssize_t dict_size = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1));
+
+  int optional = 0;
+  PyTypeObject* type = _PyClassLoader_ResolveType(dict_type, &optional);
+
+  JIT_CHECK(type != nullptr, "expected type to resolve");
+  JIT_CHECK(!optional, "expected non-optional checked dict type");
+
+  Register* dict = temps_.AllocateStack();
+  tc.emit<MakeCheckedDict>(
+      dict, dict_size, Type::fromTypeExact(type), tc.frame);
+  // Fill dict
+  auto& stack = tc.frame.stack;
+  for (auto i = stack.size() - dict_size * 2, end = stack.size(); i < end;
+       i += 2) {
+    auto key = stack.at(i);
+    auto value = stack.at(i + 1);
+    auto result = temps_.AllocateStack();
+    tc.emit<SetDictItem>(result, dict, key, value, tc.frame);
+  }
+  stack.discard(dict_size * 2);
+  stack.push(dict);
 }
 
 void HIRBuilder::emitBuildMap(

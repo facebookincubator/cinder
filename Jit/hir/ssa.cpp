@@ -379,6 +379,10 @@ Type outputType(const Instr& instr) {
       return TCell;
     case Opcode::kMakeDict:
       return TDict;
+    case Opcode::kMakeCheckedDict: {
+      auto& makechkdict = static_cast<const MakeCheckedDict&>(instr);
+      return makechkdict.type();
+    }
     case Opcode::kMakeFunction:
       return TFunc;
     case Opcode::kMakeSet:
@@ -394,11 +398,13 @@ Type outputType(const Instr& instr) {
     case Opcode::kListExtend:
     case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:
-    case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
     case Opcode::kStoreAttr:
     case Opcode::kStoreSubscr:
       return TNoneType;
+
+    case Opcode::kSetDictItem:
+      return TCInt32;
 
     case Opcode::kIsErrStopAsyncIteration:
       return TCInt32;

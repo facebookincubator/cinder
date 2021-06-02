@@ -128,6 +128,7 @@ _PyDict_IncVersionForSet(PyDictObject *dp, PyObject *key, PyObject *value);
 
 PyAPI_FUNC(PyObject *) _PyDict_GetItemMissing(PyObject *mp, PyObject *key);
 
+PyObject *_PyCheckedDict_New(PyTypeObject *type);
 PyObject *_PyCheckedDict_NewPresized(PyTypeObject *type, Py_ssize_t minused);
 
 int _PyDict_SetItem(PyObject *op, PyObject *key, PyObject *value);

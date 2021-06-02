@@ -85,12 +85,6 @@ _Invoke_PySlice_New(PyObject* start, PyObject* stop, PyObject* step) {
   return reinterpret_cast<uint64_t>(PySlice_New(start, stop, step));
 }
 
-extern "C" uint64_t
-__Invoke_PyDict_SetItem(PyObject* dict, PyObject* key, PyObject* value) {
-  int res = PyDict_SetItem(dict, key, value);
-  return res == -1 ? 0 : reinterpret_cast<uint64_t>(Py_None);
-}
-
 extern "C" uint64_t __Invoke_PySet_Add(PyObject* set, PyObject* key) {
   int res = PySet_Add(set, key);
   return res == 0 ? reinterpret_cast<uint64_t>(Py_None) : 0;
@@ -1892,6 +1886,25 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->num());
         break;
       }
+      case Opcode::kMakeCheckedDict: {
+        auto instr = static_cast<const MakeCheckedDict*>(&i);
+        auto capacity = instr->GetCapacity();
+        if (capacity == 0) {
+          bbb.AppendCode(
+              "Call {}, {:#x}, {:#x}",
+              instr->GetOutput(),
+              reinterpret_cast<uint64_t>(_PyCheckedDict_New),
+              reinterpret_cast<uint64_t>(instr->type().typeSpec()));
+        } else {
+          bbb.AppendCode(
+              "Call {}, {:#x}, {:#x}, {}",
+              instr->GetOutput(),
+              reinterpret_cast<uint64_t>(_PyCheckedDict_NewPresized),
+              reinterpret_cast<uint64_t>(instr->type().typeSpec()),
+              capacity);
+        }
+        break;
+      }
       case Opcode::kMakeDict: {
         auto instr = static_cast<const MakeDict*>(&i);
         auto capacity = instr->GetCapacity();
@@ -1943,7 +1956,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}, {}",
             instr->GetOutput(),
-            reinterpret_cast<uint64_t>(__Invoke_PyDict_SetItem),
+            reinterpret_cast<uint64_t>(_PyDict_SetItem),
             instr->GetDict(),
             instr->GetKey(),
             instr->GetValue());
