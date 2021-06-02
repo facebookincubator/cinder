@@ -4310,7 +4310,11 @@ class CheckedDictInstance(Object[CheckedDict]):
             code_gen.defaultVisit(node, aug_flag)
 
     def get_fast_len_type(self) -> int:
-        return FAST_LEN_DICT | ((not self.klass.is_exact) << 4)
+        # CheckedDict is always an exact type because we don't allow
+        # subclassing it.  So we just return FAST_LEN_DICT here which works
+        # because then we won't do type checks, and it has the same layout
+        # as a dictionary
+        return FAST_LEN_DICT
 
     def emit_len(
         self, node: ast.Call, code_gen: Static38CodeGenerator, boxed: bool
