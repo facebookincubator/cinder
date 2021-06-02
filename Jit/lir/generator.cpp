@@ -68,31 +68,8 @@ namespace lir {
 // make it support different operand sizes so that this function can be removed.
 
 extern "C" uint64_t
-__Invoke_PyObject_SetItem(PyObject* container, PyObject* sub, PyObject* value) {
-  int res = PyObject_SetItem(container, sub, value);
-  return res == -1 ? 0 : reinterpret_cast<uint64_t>(Py_None);
-}
-
-extern "C" PyObject* __Invoke_PyObject_DelItem(
-    PyObject* container,
-    PyObject* sub) {
-  int res = PyObject_DelItem(container, sub);
-  return res == -1 ? nullptr : Py_None;
-}
-
-extern "C" uint64_t
 _Invoke_PySlice_New(PyObject* start, PyObject* stop, PyObject* step) {
   return reinterpret_cast<uint64_t>(PySlice_New(start, stop, step));
-}
-
-extern "C" uint64_t __Invoke_PySet_Add(PyObject* set, PyObject* key) {
-  int res = PySet_Add(set, key);
-  return res == 0 ? reinterpret_cast<uint64_t>(Py_None) : 0;
-}
-
-extern "C" uint64_t __Invoke_PyList_Append(PyObject* list, PyObject* item) {
-  int res = PyList_Append(list, item);
-  return res == 0 ? reinterpret_cast<uint64_t>(Py_None) : 0;
 }
 
 extern "C" PyObject* __Invoke_PyList_Extend(
@@ -140,12 +117,6 @@ extern "C" uint64_t __Invoke_PyDict_MergeEx(
     return 0;
   }
   return reinterpret_cast<uint64_t>(Py_None);
-}
-
-extern "C" uint64_t __Invoke__PySet_Update(PyObject* set, PyObject* iterable) {
-  int result = _PySet_Update(set, iterable);
-
-  return result < 0 ? 0 : reinterpret_cast<uint64_t>(Py_None);
 }
 
 BasicBlock* LIRGenerator::GenerateEntryBlock() {
@@ -1946,7 +1917,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}",
             instr->GetOutput(),
-            reinterpret_cast<uint64_t>(__Invoke__PySet_Update),
+            reinterpret_cast<uint64_t>(_PySet_Update),
             instr->GetOperand(0),
             instr->GetOperand(1));
         break;
@@ -1967,7 +1938,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}",
             instr->GetOutput(),
-            reinterpret_cast<uint64_t>(__Invoke_PySet_Add),
+            reinterpret_cast<uint64_t>(PySet_Add),
             instr->GetSet(),
             instr->GetKey());
         break;
@@ -1977,7 +1948,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}, {}",
             instr->dst(),
-            reinterpret_cast<uint64_t>(__Invoke_PyObject_SetItem),
+            reinterpret_cast<uint64_t>(PyObject_SetItem),
             instr->container(),
             instr->index(),
             instr->value());
@@ -2114,7 +2085,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}",
             instr->dst(),
-            reinterpret_cast<uint64_t>(__Invoke_PyList_Append),
+            reinterpret_cast<uint64_t>(PyList_Append),
             instr->list(),
             instr->item());
         break;
@@ -2324,12 +2295,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto tmp = GetSafeTempName();
         const auto& instr = static_cast<const DeleteSubscr&>(i);
         bbb.AppendCode(
-            "Call {}, {:#x}, {}, {}",
+            "Call {}:CInt32, {:#x}, {}, {}",
             tmp,
-            reinterpret_cast<uint64_t>(__Invoke_PyObject_DelItem),
+            reinterpret_cast<uint64_t>(PyObject_DelItem),
             instr.container(),
             instr.sub());
-        bbb.AppendCode(MakeGuard("NotNull", instr, tmp));
+        bbb.AppendCode(MakeGuard("NotNegative", instr, tmp));
         break;
       }
       case Opcode::kUnpackExToTuple: {

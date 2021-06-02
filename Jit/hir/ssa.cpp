@@ -394,16 +394,16 @@ Type outputType(const Instr& instr) {
     // for an error, which is converted into Py_None or nullptr,
     // respectively. At some point we should get rid of this extra layer and
     // deal with the int return value directly.
-    case Opcode::kListAppend:
     case Opcode::kListExtend:
     case Opcode::kMergeDictUnpack:
-    case Opcode::kMergeSetUnpack:
-    case Opcode::kSetSetItem:
     case Opcode::kStoreAttr:
-    case Opcode::kStoreSubscr:
       return TNoneType;
 
+    case Opcode::kListAppend:
+    case Opcode::kMergeSetUnpack:
+    case Opcode::kSetSetItem:
     case Opcode::kSetDictItem:
+    case Opcode::kStoreSubscr:
       return TCInt32;
 
     case Opcode::kIsErrStopAsyncIteration:
