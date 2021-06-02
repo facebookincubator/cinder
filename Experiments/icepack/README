@@ -1,0 +1,21 @@
+This was an experiment to add support for memory mapped byte code files.
+The idea is that rather than having a single .pyc file you could compile
+multiple pyc files into one large memory mapped files.  The code would
+then be mapped in and loaded on-demand.  
+
+The byte code would also be created as a memory mapped support, and
+the runtime was updated to support executing from objects implementing
+the buffer protocol in addition to normal bytes objects.  At the time
+there wasn't much interest up-stream for supporting the buffer
+protocol for code objects: https://bugs.python.org/issue36839 but that
+is required for the rest of this code to work.
+
+An additional optimization could be to use Python's legacy strings
+so that Unicode objects can also have their memory live inside
+of the memory mapped file.  That was prototyped but never made it
+into the final version.
+
+The initial intention of this was to reduce memory by sharing the
+byte code between all worker processes.  Ultimately we ended up in
+a world where we use immortal objects, which include most of the 
+code, to do this instead.
