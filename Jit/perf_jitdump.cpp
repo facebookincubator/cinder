@@ -2,6 +2,7 @@
 #include "Jit/perf_jitdump.h"
 
 #include "Jit/log.h"
+#include "Jit/pyjit.h"
 #include "Jit/threaded_compile.h"
 #include "Jit/util.h"
 
@@ -287,9 +288,26 @@ void copyFileInfo(FileInfo& info) {
   info = {};
 
   unlink(child_filename.c_str());
-  if (auto new_pid_map = copyFile(parent_filename, child_filename)) {
-    info.filename = child_filename;
-    info.file = new_pid_map;
+
+  if (_PyJIT_IsEnabled()) {
+    // The JIT is still enabled: copy the file to allow for more compilation in
+    // this process.
+    if (auto new_pid_map = copyFile(parent_filename, child_filename)) {
+      info.filename = child_filename;
+      info.file = new_pid_map;
+    }
+  } else {
+    // The JIT has been disabled: hard link the file to save disk space. Don't
+    // open it in this process, to avoid messing with the parent's file.
+    if (::link(parent_filename.c_str(), child_filename.c_str()) != 0) {
+      JIT_LOG(
+          "Failed to link %s to %s: %s",
+          child_filename,
+          parent_filename,
+          string_error(errno));
+    }
+    info.file = nullptr;
+    info.filename = "";
   }
 }
 

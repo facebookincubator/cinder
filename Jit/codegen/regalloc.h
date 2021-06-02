@@ -57,7 +57,7 @@ struct LiveRange {
     JIT_CHECK(s < e, "Invalid live range.");
   }
 
-        LIRLocation start;
+  LIRLocation start;
   LIRLocation end;
 
   bool isInRange(const LIRLocation& loc) const {
