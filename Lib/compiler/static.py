@@ -4782,10 +4782,15 @@ class CIntType(CType):
             visitor.visit(arg)
             arg_type = visitor.get_type(arg)
             if (
-                arg_type is not INT_TYPE.instance
-                and not self.is_valid_literal_int(arg_type)
-                and arg_type is not DYNAMIC
-                and arg_type is not OBJECT
+                (arg_type is not DYNAMIC and arg_type is not OBJECT)
+                and not (arg_type.klass is BOOL_TYPE and self is CBOOL_TYPE)
+                and not (
+                    (
+                        arg_type is INT_TYPE.instance
+                        or self.is_valid_literal_int(arg_type)
+                    )
+                    and self is not CBOOL_TYPE
+                )
             ):
                 raise
 
@@ -4812,7 +4817,12 @@ class CIntType(CType):
             if arg_type != self.instance:
                 self.instance.emit_convert(arg_type, code_gen)
         else:
-            self.instance.emit_unbox(arg, code_gen)
+            if self is CBOOL_TYPE and arg_type.klass is not BOOL_TYPE:
+                code_gen.visit(arg)
+                code_gen.emit("CAST", BOOL_TYPE.type_descr)
+                code_gen.emit("PRIMITIVE_UNBOX", self.instance.as_oparg())
+            else:
+                self.instance.emit_unbox(arg, code_gen)
 
 
 class CDoubleInstance(CInstance["CDoubleType"]):
