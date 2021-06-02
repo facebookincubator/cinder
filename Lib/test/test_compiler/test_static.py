@@ -4149,7 +4149,10 @@ class StaticCompilationTests(StaticTestBase):
                 pass
             x("a", 2)
         """
-        with self.assertRaisesRegex(TypedSyntaxError, "argument type mismatch"):
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            r"Exact\[str\] received for positional arg 'a', expected int",
+        ):
             self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_positional_args_unordered(self):
@@ -4282,7 +4285,9 @@ class StaticCompilationTests(StaticTestBase):
                 return
             x(a="hi", b="lol")
         """
-        with self.assertRaisesRegex(TypedSyntaxError, "keyword argument type mismatch"):
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"Exact\[str\] received for keyword arg 'a', expected int"
+        ):
             self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_kwonly_self_loaded_once(self):
@@ -4319,7 +4324,9 @@ class StaticCompilationTests(StaticTestBase):
                 return
             x(a="hi", b="lol")
         """
-        with self.assertRaisesRegex(TypedSyntaxError, "keyword argument type mismatch"):
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"Exact\[str\] received for keyword arg 'a', expected int"
+        ):
             self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_mixed_args(self):
@@ -4358,7 +4365,9 @@ class StaticCompilationTests(StaticTestBase):
                 return
             x(12, c="hi", b="lol")
         """
-        with self.assertRaisesRegex(TypedSyntaxError, "keyword argument type mismatch"):
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"Exact\[str\] received for keyword arg 'c', expected int"
+        ):
             self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_mixed_args_positional_failure(self):
@@ -4368,7 +4377,8 @@ class StaticCompilationTests(StaticTestBase):
             x("hi", b="lol")
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "positional argument type mismatch"
+            TypedSyntaxError,
+            r"Exact\[str\] received for positional arg 'a', expected int",
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -4390,7 +4400,8 @@ class StaticCompilationTests(StaticTestBase):
             C().x("a", 2)
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "positional argument type mismatch"
+            TypedSyntaxError,
+            r"Exact\[str\] received for positional arg 'a', expected int",
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -4455,7 +4466,9 @@ class StaticCompilationTests(StaticTestBase):
                     return
             C().x(12, c=b'lol', b="lol")
         """
-        with self.assertRaisesRegex(TypedSyntaxError, "keyword argument type mismatch"):
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"bytes received for keyword arg 'c', expected int"
+        ):
             self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_mixed_args_positional_failure_method(self):
@@ -4466,7 +4479,8 @@ class StaticCompilationTests(StaticTestBase):
             C().x("hi", b="lol")
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "positional argument type mismatch"
+            TypedSyntaxError,
+            r"Exact\[str\] received for positional arg 'a', expected int",
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -6363,7 +6377,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: int positional argument type mismatch int8",
+            r"int received for positional arg 'v', expected int8",
         ):
             self.compile(codestr)
 
@@ -6380,7 +6394,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: int16 positional argument type mismatch int8",
+            r"int16 received for positional arg 'v', expected int8",
         ):
             self.compile(codestr)
 
@@ -7270,7 +7284,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: None positional argument type mismatch foo.C",
+            r"None received for positional arg 'self', expected foo.C",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7896,7 +7910,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[int\\] positional argument type mismatch str",
+            r"Exact\[int\] received for positional arg 1, expected str",
         ):
             code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7933,7 +7947,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[int\\] positional argument type mismatch Optional\\[str\\]",
+            r"Exact\[int\] received for positional arg 1, expected Optional\[str\]",
         ):
             code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7963,7 +7977,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[int\\] positional argument type mismatch Optional\\[str\\]",
+            r"Exact\[int\] received for positional arg 2, expected Optional\[str\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7976,7 +7990,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: Exact\\[int\\] positional argument type mismatch Optional\\[str\\]",
+            r"Exact\[int\] received for positional arg 2, expected Optional\[str\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -8323,7 +8337,8 @@ class StaticCompilationTests(StaticTestBase):
 
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "positional argument type mismatch"
+            TypedSyntaxError,
+            r"Exact\[dict\] received for positional arg 'x', expected int",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9127,7 +9142,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: int8 positional argument type mismatch dynamic",
+            r"int8 received for positional arg 'foo', expected dynamic",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo.py")
 
@@ -9144,7 +9159,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "type mismatch: int8 positional argument type mismatch int",
+            r"int8 received for positional arg 'foo', expected int",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo.py")
 
@@ -10172,6 +10187,38 @@ class StaticCompilationTests(StaticTestBase):
             g = mod["g"]
             self.assertInBytecode(g, "PRIMITIVE_BOX")
             self.assertEqual(g(3), 3)
+
+    def test_inline_arg_type_mismatch(self):
+        codestr = """
+            from __static__ import inline
+
+            @inline
+            def f(x: int) -> bool:
+                return x == 1
+
+            def g(arg: str) -> bool:
+                return f(arg)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"str received for positional arg 'x', expected int"
+        ):
+            self.compile(codestr)
+
+    def test_inline_return_type_mismatch(self):
+        codestr = """
+            from __static__ import inline
+
+            @inline
+            def f() -> int:
+                return 1
+
+            def g() -> str:
+                return f()
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"int is an invalid return type, expected str"
+        ):
+            self.compile(codestr)
 
     def test_augassign_primitive_int(self):
         codestr = """

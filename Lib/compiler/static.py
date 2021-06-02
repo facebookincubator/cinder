@@ -1947,11 +1947,16 @@ class ArgMapping:
         except TypedSyntaxError as e:
             # We may report a better error message below...
             exc = e
+        desc = (
+            f"{arg_style} arg '{param.name}'"
+            if param.name
+            else f"{arg_style} arg {param.index}"
+        )
         visitor.check_can_assign_from(
             resolved_type,
             visitor.get_type(arg).klass,
             arg,
-            f"{arg_style} argument type mismatch",
+            f"received for {desc}, expected",
         )
         if exc is not None:
             raise exc
