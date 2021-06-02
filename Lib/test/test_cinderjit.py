@@ -913,16 +913,29 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
         self.assertEqual(exc.exception.value, 1)
 
 
+class DelObserver:
+    def __init__(self, id, cb):
+        self.id = id
+        self.cb = cb
+
+    def __del__(self):
+        self.cb(self.id)
+
+
 class UnwindStateTests(unittest.TestCase):
-    def _raise(self):
-        # Separate from _copied_locals because we don't support RAISE_VARARGS
-        # yet.
-        raise RuntimeError()
+    DELETED = []
+
+    def setUp(self):
+        self.DELETED.clear()
+        self.addCleanup(lambda: self.DELETED.clear())
+
+    def get_del_observer(self, id):
+        return DelObserver(id, lambda i: self.DELETED.append(i))
 
     @unittest.failUnlessJITCompiled
     def _copied_locals(self, a):
         b = c = a
-        self._raise()
+        raise RuntimeError()
 
     def test_copied_locals_in_frame(self):
         try:
@@ -932,6 +945,38 @@ class UnwindStateTests(unittest.TestCase):
             self.assertEqual(
                 f_locals, {"self": self, "a": "hello", "b": "hello", "c": "hello"}
             )
+
+    @unittest.failUnlessJITCompiled
+    def _raise_with_del_observer_on_stack(self):
+        for x in (1 for i in [self.get_del_observer(1)]):
+            raise RuntimeError()
+
+    def test_decref_stack_objects(self):
+        """Items on stack should be decrefed on unwind."""
+        try:
+            self._raise_with_del_observer_on_stack()
+        except RuntimeError:
+            deleted = list(self.DELETED)
+        else:
+            self.fail("should have raised RuntimeError")
+        self.assertEqual(deleted, [1])
+
+    @unittest.failUnlessJITCompiled
+    def _raise_with_del_observer_on_stack_and_cell_arg(self):
+        for x in (self for i in [self.get_del_observer(1)]):
+            raise RuntimeError()
+
+    def test_decref_stack_objs_with_cell_args(self):
+        # Regression test for a JIT bug in which the unused locals slot for a
+        # local-which-is-a-cell would end up getting populated on unwind with
+        # some unrelated stack object, preventing it from being decrefed.
+        try:
+            self._raise_with_del_observer_on_stack_and_cell_arg()
+        except RuntimeError:
+            deleted = list(self.DELETED)
+        else:
+            self.fail("should have raised RuntimeError")
+        self.assertEqual(deleted, [1])
 
 
 class ImportTests(unittest.TestCase):
@@ -1384,37 +1429,6 @@ class GeneratorsTest(unittest.TestCase):
 
         # Suppress warning
         c.close()
-
-    def test_gen_close(self):
-        """Finalize generators immediately on unwind.
-
-        Necessary to ensure that generator cleanups occur when they should.
-        """
-        stack = []
-        try:
-            self._gen_close_jitme(stack)
-        except RuntimeError:
-            left_on_stack = list(stack)
-        else:
-            self.fail("RuntimeError should have been raised")
-        self.assertEqual(stack, [])
-        self.assertEqual(left_on_stack, [])
-
-    @unittest.failUnlessJITCompiled
-    def _gen_close_jitme(self, stack):
-        for x in self._gen_close_gen(stack):
-            if x == 1:
-                # _gen_close_gen needs to be finalized immediately when we
-                # unwind from here; our caller should never run within its context
-                raise RuntimeError("boom")
-
-    def _gen_close_gen(self, stack):
-        for x in [0, 1, 2]:
-            stack.append(x)
-            try:
-                yield x
-            finally:
-                assert stack.pop() == x
 
     def test_gen_freelist(self):
         """Exercise making a JITted generator with gen_data memory off the freelist."""

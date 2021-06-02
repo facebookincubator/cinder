@@ -13,9 +13,9 @@ TEST(BlockCanonicalizerTest, BreaksCycles) {
   TempAllocator temps(&env);
   OperandStack stack;
 
-  auto t0 = temps.Allocate();
-  auto t1 = temps.Allocate();
-  auto t2 = temps.Allocate();
+  auto t0 = temps.AllocateStack();
+  auto t1 = temps.AllocateStack();
+  auto t2 = temps.AllocateStack();
 
   stack.push(t1);
   stack.push(t2);
@@ -45,9 +45,9 @@ TEST(BlockCanonicalizerTest, HandlesMultipleOccurrencesOfSingleReg) {
   TempAllocator temps(&env);
   OperandStack stack;
 
-  auto t0 = temps.Allocate();
-  auto t1 = temps.Allocate();
-  auto t2 = temps.Allocate();
+  auto t0 = temps.AllocateStack();
+  auto t1 = temps.AllocateStack();
+  auto t2 = temps.AllocateStack();
 
   stack.push(t1);
   stack.push(t2);
@@ -83,8 +83,8 @@ TEST(BlockCanonicalizerTest, HandlesMixOfLocalsAndTemporaries) {
   TempAllocator temps(&env);
   OperandStack stack;
 
-  auto t0 = temps.Allocate();
-  auto t1 = temps.Allocate();
+  auto t0 = temps.AllocateStack();
+  auto t1 = temps.AllocateStack();
 
   auto x = env.AllocateRegister();
   auto y = env.AllocateRegister();

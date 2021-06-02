@@ -106,12 +106,12 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 5, 6, 8) {
-    v1 = Assign v3
+    v2 = Assign v3
     Branch<1>
   }
 
   bb 1 (preds 3) {
-    Return v1
+    Return v2
   }
 }
 ---
@@ -979,12 +979,12 @@ fun jittestmodule:test {
     v8 = CheckExc v8 {
       NextInstrOffset 16
     }
-    v0 = Assign v8
+    v1 = Assign v8
     Branch<1>
   }
 
   bb 1 (preds 3) {
-    v9 = Cast<str> v0 {
+    v9 = Cast<str> v1 {
       NextInstrOffset 18
     }
     Return v9

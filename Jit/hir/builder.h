@@ -35,22 +35,16 @@ class TempAllocator {
  public:
   explicit TempAllocator(Environment* env) : env_(env) {}
 
-  // Allocate the next available temporary
-  Register* Allocate();
+  // Allocate a temp register that may be used for the stack. It should not be a
+  // register that will be treated specially in the FrameState (e.g. tracked as
+  // containing a local or cell.)
+  Register* AllocateStack();
 
-  // Get the i-th temporary or allocate one
-  Register* GetOrAllocate(std::size_t idx);
+  // Get the i-th stack temporary or allocate one
+  Register* GetOrAllocateStack(std::size_t idx);
 
-  // Return the maximum number of temporaries that were allocated
-  int MaxAllocated() const;
-
-  // Allocate the next register to be used for the output of IsTruthy.
-  //
-  // This is a little gross, but it lets us avoid the case where we store a
-  // CInt32 in a register that ends up being the canonical home for a value left
-  // on the stack at the end of a basic block. We can delete this once we
-  // start lowering directly into SSA.
-  Register* allocateNextTruthy();
+  // Allocate a temp register that will not be used for a stack value.
+  Register* AllocateNonStack();
 
  private:
   Environment* env_;

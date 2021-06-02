@@ -2565,6 +2565,97 @@ fun jittestmodule:test {
   }
 }
 ---
+CellvarWithStackLoadAndBlockCanonicalization
+---
+def test(a):
+  def g():
+    return a
+  for x in g():
+    pass
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "a">
+    v3 = MakeCell v0 {
+      NextInstrOffset 0
+      Locals<3> v0 v1 v2
+      Cells<1> v3
+    }
+    v5 = MakeListTuple<tuple, 1> {
+      NextInstrOffset 4
+      Locals<3> v4 v1 v2
+      Cells<1> v3
+      Stack<1> v3
+    }
+    InitListTuple<tuple, 1> v5 v3
+    v6 = Assign v5
+    v7 = LoadConst<Code["g"]>
+    v8 = LoadConst<UnicodeExact["test.<locals>.g"]>
+    v9 = MakeFunction v8 v7 {
+      NextInstrOffset 10
+      Locals<3> v4 v1 v2
+      Cells<1> v3
+      Stack<1> v6
+    }
+    SetFunctionAttr<func_closure> v6 v9
+    InitFunction v9
+    v1 = Assign v9
+    v1 = CheckVar<1; "g"> v1 {
+      NextInstrOffset 14
+      Locals<3> v4 v1 v2
+      Cells<1> v3
+    }
+    v10 = VectorCall<0> v1 {
+      NextInstrOffset 16
+      Locals<3> v4 v1 v2
+      Cells<1> v3
+    }
+    v11 = GetIter v10 {
+      NextInstrOffset 18
+      Locals<3> v4 v1 v2
+      Cells<1> v3
+    }
+    v5 = Assign v11
+    Branch<4>
+  }
+
+  bb 4 (preds 0, 2) {
+    v14 = LoadEvalBreaker
+    CondBranch<5, 1> v14
+  }
+
+  bb 5 (preds 4) {
+    v15 = RunPeriodicTasks {
+      NextInstrOffset 18
+      Locals<3> v4 v1 v2
+      Cells<1> v3
+      Stack<1> v5
+    }
+    Branch<1>
+  }
+
+  bb 1 (preds 4, 5) {
+    v12 = InvokeIterNext v5 {
+      NextInstrOffset 20
+      Locals<3> v4 v1 v2
+      Cells<1> v3
+      Stack<1> v5
+    }
+    v6 = Assign v12
+    CondBranchIterNotDone<2, 3> v6
+  }
+
+  bb 2 (preds 1) {
+    v2 = Assign v6
+    Branch<4>
+  }
+
+  bb 3 (preds 1) {
+    v13 = LoadConst<NoneType>
+    Return v13
+  }
+}
+---
 LoopWithBreak1
 ---
 def test():
