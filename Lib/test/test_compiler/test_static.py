@@ -7995,6 +7995,24 @@ class StaticCompilationTests(StaticTestBase):
             B = mod["B"]
             self.assertEqual(type(test()), chkdict[B, int])
 
+    def test_compile_dict_get_typed(self):
+        codestr = """
+            from __static__ import CheckedDict
+            def testfunc():
+                x = CheckedDict[int, str]({42: 'abc', })
+                y: str | None = x.get(42)
+        """
+        self.compile(codestr)
+
+    def test_compile_dict_setdefault_typed(self):
+        codestr = """
+            from __static__ import CheckedDict
+            def testfunc():
+                x = CheckedDict[int, str]({42: 'abc', })
+                y: str | None = x.setdefault(100, 'foo')
+        """
+        self.compile(codestr)
+
     def test_compile_dict_setitem(self):
         codestr = """
             from __static__ import CheckedDict
@@ -10196,11 +10214,11 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_inlined_nodes_have_line_info(self):
         codestr = """
-        from __static__ import int64, cbool, inline            
+        from __static__ import int64, cbool, inline
 
         @inline
         def x(i: int64) -> cbool:
-            return i == 1            
+            return i == 1
 
         def foo(i: int64) -> cbool:
             return x(i)

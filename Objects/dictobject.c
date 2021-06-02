@@ -5530,9 +5530,9 @@ const _Py_SigElement *const chkdict_sig[] = {
     &_Py_Sig_T0, &_Py_Sig_T1_Opt, NULL};
 
 _PyTypedMethodDef chkdict_get_def = {
-    dict_get_impl, chkdict_sig, _Py_SIG_TYPE_PARAM_OPT(0)};
+    dict_get_impl, chkdict_sig, _Py_SIG_TYPE_PARAM_OPT(1)};
 _PyTypedMethodDef chkdict_setdefault_def = {
-    dict_setdefault_impl, chkdict_sig, _Py_SIG_TYPE_PARAM_OPT(0)};
+    dict_setdefault_impl, chkdict_sig, _Py_SIG_TYPE_PARAM_OPT(1)};
 
 const _Py_SigElement *const getitem_sig[] = {&_Py_Sig_T0, NULL};
 _PyTypedMethodDef chkdict_getitem_def = {
