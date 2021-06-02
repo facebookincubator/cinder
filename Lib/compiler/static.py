@@ -6125,18 +6125,6 @@ class TypeBinder(GenericVisitor):
             return typ
 
         # Calculate the type that is inferred by the keys and values
-        if key_type is None:
-            key_type = OBJECT_TYPE.instance
-
-        if value_type is None:
-            value_type = OBJECT_TYPE.instance
-
-        checked_dict_typ = CHECKED_DICT_EXACT_TYPE if is_exact else CHECKED_DICT_TYPE
-
-        gen_type = checked_dict_typ.make_generic_type(
-            (key_type.klass, value_type.klass), self.symtable.generic_types
-        )
-
         assert type_ctx is not None
         type_class = type_ctx.klass
         assert type_class.generic_type_def in (
@@ -6144,6 +6132,18 @@ class TypeBinder(GenericVisitor):
             CHECKED_DICT_TYPE,
         )
         assert isinstance(type_class, GenericClass)
+        if key_type is None:
+            key_type = type_class.type_args[0].instance
+
+        if value_type is None:
+            value_type = type_class.type_args[1].instance
+
+        checked_dict_typ = CHECKED_DICT_EXACT_TYPE if is_exact else CHECKED_DICT_TYPE
+
+        gen_type = checked_dict_typ.make_generic_type(
+            (key_type.klass, value_type.klass), self.symtable.generic_types
+        )
+
         self.set_type(node, type_ctx, None)
         # We can use the type context to have a type which is wider than the
         # inferred types.  But we need to make sure that the keys/values are compatible

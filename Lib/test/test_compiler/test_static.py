@@ -8009,6 +8009,17 @@ class StaticCompilationTests(StaticTestBase):
             B = mod["B"]
             self.assertEqual(type(test()), chkdict[B, int])
 
+    def test_chkdict_literal(self):
+        codestr = """
+            from __static__ import CheckedDict
+            def testfunc():
+                x: CheckedDict[int,str]  = {}
+                return x
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            self.assertEqual(type(f()), chkdict[int, str])
+
     def test_compile_dict_get_typed(self):
         codestr = """
             from __static__ import CheckedDict
