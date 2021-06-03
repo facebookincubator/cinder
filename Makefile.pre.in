@@ -284,7 +284,7 @@ TCLTK_LIBS=	@TCLTK_LIBS@
 # The task to run while instrumented when building the profile-opt target.
 # We exclude unittests with -x that take a ridiculious amount of time to
 # run in the instrumented training build or do not provide much value.
-PROFILE_TASK=-X shadowbytecode -m test.regrtest --pgo
+PROFILE_TASK=-m test.regrtest --pgo
 
 # report files for gcov / lcov coverage report
 COVERAGE_INFO=	$(abs_builddir)/coverage.info
