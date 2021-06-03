@@ -1024,9 +1024,16 @@ void LinearScanAllocator::rewriteInstrOutput(
     // if we cannot find an allocated interval for an output, it means that
     // the output is not used in the program, and therefore the instruction
     // can be removed.
+    // Avoid removing call instructions that may have side effects.
     // TODO: Fix HIR generator to avoid generating unused output/variables.
     // Need a separate pass in HIR to handle the dead code more gracefully.
-    instr->setOpcode(Instruction::kNop);
+    if (instr->opcode() == Instruction::kCall ||
+        instr->opcode() == Instruction::kVectorCall) {
+      output->setNone();
+    } else {
+      instr->setOpcode(Instruction::kNop);
+    }
+
   } else {
     PhyLocation loc = map_get(mapping, output)->allocated_loc;
 

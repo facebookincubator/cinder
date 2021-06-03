@@ -320,4 +320,26 @@ TEST_F(LinearScanAllocatorTest, InoutRegTest) {
       add->output()->getPhyRegister() == add->getInput(0)->getPhyRegister() ||
       add->output()->getPhyRegister() == add->getInput(1)->getPhyRegister());
 }
+
+TEST_F(LinearScanAllocatorTest, CallWithSideEffectTest) {
+  // RewriteLIR should not remove function calls
+  // since they may have side effects
+  auto lirfunc = std::make_unique<Function>();
+  auto bb = lirfunc->allocateBasicBlock();
+
+  auto a = bb->allocateInstr(Instruction::kCall, nullptr, lir::OutVReg());
+
+  auto b =
+      bb->allocateInstr(Instruction::kMove, nullptr, lir::OutVReg(), Imm(0));
+
+  bb->allocateInstr(Instruction::kReturn, nullptr, lir::VReg(b));
+
+  auto epilogue = lirfunc->allocateBasicBlock();
+  bb->addSuccessor(epilogue);
+  ASSERT_TRUE(a->opcode() == Instruction::kCall);
+  ASSERT_TRUE(a->output()->type() == lir::Operand::kVreg);
+  runAllocator(lirfunc.get());
+  ASSERT_TRUE(a->opcode() == Instruction::kCall);
+  ASSERT_TRUE(a->output()->type() == lir::Operand::kNone);
+}
 } // namespace jit::codegen
