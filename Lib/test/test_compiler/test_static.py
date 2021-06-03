@@ -2839,6 +2839,19 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(x(mod["D"]()), 4)
             self.assertEqual(x(mod["E"]()), 2)
 
+    def test_conversion_narrow_primitive(self):
+        codestr = f"""
+            from __static__ import int64, Vector, uint8, unbox
+
+            def f(i: int64):
+                v = Vector[uint8]([0])
+                v[0] = uint8(i if i != -1 else unbox(255))
+                return v
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(list(f(42)), [42])
+
     def test_conditional_init(self):
         codestr = f"""
             from __static__ import box, int64

@@ -4797,6 +4797,7 @@ class CIntType(CType):
                     (
                         arg_type is INT_TYPE.instance
                         or self.is_valid_literal_int(arg_type)
+                        or isinstance(arg_type, CIntInstance)
                     )
                     and self is not CBOOL_TYPE
                 )
