@@ -305,6 +305,12 @@ void copyFileInfo(FileInfo& info) {
           child_filename,
           parent_filename,
           string_error(errno));
+    } else {
+      // Poke the file's atime to keep tmpwatch at bay.
+      std::FILE* file = std::fopen(parent_filename.c_str(), "r");
+      if (file != nullptr) {
+        std::fclose(file);
+      }
     }
     info.file = nullptr;
     info.filename = "";
