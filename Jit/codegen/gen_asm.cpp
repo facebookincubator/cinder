@@ -1331,7 +1331,12 @@ static PyFrameObject* prepareForDeopt(
 
 static PyObject* resumeInInterpreter(PyFrameObject* frame, int err_occurred) {
   if (frame->f_gen) {
-    (reinterpret_cast<PyGenObject*>(frame->f_gen))->gi_jit_data = nullptr;
+    auto gen = reinterpret_cast<PyGenObject*>(frame->f_gen);
+    // It's safe to call JITRT_GenJitDataFree directly here, rather than
+    // through _PyJIT_GenDealloc. Ownership of all references have been
+    // transferred to the frame.
+    JITRT_GenJitDataFree(gen);
+    gen->gi_jit_data = nullptr;
   }
   PyObject* result = PyEval_EvalFrameEx(frame, err_occurred);
   // The interpreter loop handles unlinking the frame from the execution stack

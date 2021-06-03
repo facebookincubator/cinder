@@ -1196,7 +1196,9 @@ PyObject* _PyJIT_GenSend(
   PyObject* result =
       gen_footer->resumeEntry((PyObject*)gen, arg, tstate, finish_yield_from);
 
-  if (!result) {
+  if (!result && (gen->gi_jit_data != nullptr)) {
+    // Generator jit data (gen_footer) will be freed if the generator
+    // deopts
     gen_footer->state = _PyJitGenState_Completed;
   }
 
