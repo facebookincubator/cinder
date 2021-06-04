@@ -598,7 +598,7 @@ void PostRegAllocRewrite::doRewriteCondBranch(
     // flags. Need to add an inplace version for all the inplace write
     // instructions (e.g., InpAdd for Add) so that this check gets more explicit
     // and rigorous.
-    if (i->output()->type() != OperandBase::kNone &&
+    if (i->output()->type() == OperandBase::kReg &&
         i->output()->getPhyRegister() == instr->getInput(0)->getPhyRegister()) {
       def_instr = i;
       break;
