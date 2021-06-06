@@ -1254,6 +1254,14 @@ coro_get_cr_await(PyCoroObject *coro, void *Py_UNUSED(ignored))
     return yf;
 }
 
+static PyObject *
+coro_is_creator(PyCoroObject *coro, PyObject *frame) {
+  if ((PyFrameObject*)frame == coro->creator) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
 static PyGetSetDef coro_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
      PyDoc_STR("name of the coroutine")},
@@ -1283,10 +1291,16 @@ return next iterated value or raise StopIteration.");
 PyDoc_STRVAR(coro_close_doc,
 "close() -> raise GeneratorExit inside coroutine.");
 
+PyDoc_STRVAR(coro_is_creator_doc,
+"is_creator(frame) -> check if frame is creator,\n\
+return whether or not the given frame created this coroutine.\n\
+may give false positives.");
+
 static PyMethodDef coro_methods[] = {
     {"send",(PyCFunction)_PyGen_Send, METH_O, coro_send_doc},
     {"throw",(PyCFunction)gen_throw_fastcall, METH_FASTCALL, coro_throw_doc},
     {"close",(PyCFunction)gen_close, METH_NOARGS, coro_close_doc},
+    {"is_creator",(PyCFunction)coro_is_creator, METH_O, coro_is_creator_doc},
     {NULL, NULL}        /* Sentinel */
 };
 

@@ -1158,6 +1158,15 @@ class CoroutineTest(unittest.TestCase):
         _, result = run_async(g())
         self.assertIsNone(result.__context__)
 
+    @unittest.skipUnderCinderJITNotFullFrame("Requires full frame support")
+    def test_creator(self):
+        async def coro():
+            return "hello"
+        frame = sys._getframe()
+        c = coro()
+        self.assertTrue(c.is_creator(frame))
+        self.assertEqual(run_async(c), ([], "hello"))
+
     def test_with_1(self):
         class Manager:
             def __init__(self, name):

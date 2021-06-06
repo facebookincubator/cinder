@@ -1295,7 +1295,7 @@ static inline PyObject* make_gen_object(
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(
           _PyCoro_NewTstate(tstate, f, code->co_name, code->co_qualname));
-      auto parent_f = tstate->frame;
+      auto parent_f = tstate->frame->f_back;
       auto UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
       if (!strcmp(UTF8_name, "<genexpr>") || !strcmp(UTF8_name, "<listcomp>") ||
           !strcmp(UTF8_name, "<dictcomp>")) {
