@@ -1730,6 +1730,20 @@ class StaticCompilationTests(StaticTestBase):
             f = self.run_code(codestr, StaticCodeGenerator)["f"]
             self.assertEqual(f(val), val + 1)
 
+    def test_double_unbox(self):
+        codestr = f"""
+        from __static__ import double, box, unbox
+        def fn(x, y):
+            a: double = unbox(x)
+            b: double = unbox(y)
+            return box(a + b)
+        """
+
+        f = self.run_code(codestr, StaticCodeGenerator)["fn"]
+        x = 3.14
+        y = 1.732
+        self.assertEqual(f(x, y), x + y)
+
     def test_int_loop_inplace(self):
         codestr = """
         from __static__ import ssize_t, box
@@ -1886,7 +1900,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod["f"]
             with self.assertRaisesRegex(
-                TypeError, "(expected int, got str)|(an integer is required)"
+                TypeError,
+                "(expected int, bool or float, got str)|(an integer is required)",
             ):
                 f()
 
@@ -1903,7 +1918,8 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(42), 42)
             self.assertInBytecode(f, "PRIMITIVE_UNBOX")
             with self.assertRaisesRegex(
-                TypeError, "(expected int, got str)|(an integer is required)"
+                TypeError,
+                "(expected int, bool or float, got str)|(an integer is required)",
             ):
                 self.assertEqual(f("abc"), 42)
 

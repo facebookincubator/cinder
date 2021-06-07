@@ -4886,6 +4886,17 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         else:
             raise RuntimeError("unsupported box type: " + type.name)
 
+    def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
+        final_val = code_gen.get_final_literal(node)
+        if final_val is not None:
+            return self.emit_constant(final_val, code_gen)
+        typ = code_gen.get_type(node).klass
+        if isinstance(typ, NumClass) and typ.literal_value is not None:
+            code_gen.emit("PRIMITIVE_LOAD_CONST", (typ.literal_value, self.as_oparg()))
+            return
+        code_gen.visit(node)
+        code_gen.emit("PRIMITIVE_UNBOX", self.as_oparg())
+
 
 class CDoubleType(CType):
     def __init__(self) -> None:

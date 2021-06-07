@@ -2159,9 +2159,15 @@ void HIRBuilder::emitPrimitiveUnbox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  tc.emit<PrimitiveUnbox>(tmp, src, prim_type_to_type(bc_instr.oparg()));
-  auto did_unbox_work = temps_.AllocateStack();
-  tc.emit<IsNegativeAndErrOccurred>(did_unbox_work, tmp, tc.frame);
+  auto typ = prim_type_to_type(bc_instr.oparg());
+  if (typ <= TCDouble) {
+    tc.emit<LoadField>(
+        tmp, src, GET_STRUCT_MEMBER_OFFSET(PyFloatObject, ob_fval), typ);
+  } else {
+    tc.emit<PrimitiveUnbox>(tmp, src, typ);
+    auto did_unbox_work = temps_.AllocateStack();
+    tc.emit<IsNegativeAndErrOccurred>(did_unbox_work, tmp, tc.frame);
+  }
   tc.frame.stack.push(tmp);
 }
 
