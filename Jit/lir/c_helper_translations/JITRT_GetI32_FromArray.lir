@@ -1,0 +1,7 @@
+BB %0 - succs: %5
+       %1:Object = Bind RDI:Object
+        %2:64bit = Bind RSI:Object
+        %3:64bit = Move [%1:Object + %2:64bit * 8]:Object
+                   Return %3:64bit
+
+BB %5 - preds: %0

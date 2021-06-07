@@ -442,4 +442,38 @@ TEST_F(BackendTest, MoveSequenceOpt2Test) {
   ASSERT_EQ((*iter)->opcode(), Instruction::kAdd);
   ASSERT_EQ((*iter)->getInput(1)->type(), OperandBase::kStack);
 }
+
+TEST_F(BackendTest, GetI32FromArrayTest) {
+  auto lirfunc = std::make_unique<Function>();
+  auto bb = lirfunc->allocateBasicBlock();
+
+  auto start = bb->allocateInstr(
+      Instruction::kBind, nullptr, OutVReg(), PhyReg(PhyLocation::RDI));
+  auto index = bb->allocateInstr(
+      Instruction::kBind,
+      nullptr,
+      OutVReg(OperandBase::k64bit),
+      PhyReg(PhyLocation::RSI));
+
+  auto address = Ind(start, index, 3, 0);
+
+  auto ret = bb->allocateInstr(
+      Instruction::kMove, nullptr, OutVReg(OperandBase::k64bit), address);
+  bb->allocateInstr(Instruction::kReturn, nullptr, VReg(ret));
+
+  // need this because the register allocator assumes the basic blocks
+  // end with Return should have one and only one successor.
+  auto epilogue = lirfunc->allocateBasicBlock();
+  bb->addSuccessor(epilogue);
+
+  auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(lirfunc.get());
+
+  long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
+  ASSERT_EQ(func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0));
+  ASSERT_EQ(func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1));
+  ASSERT_EQ(func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2));
+  ASSERT_EQ(func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3));
+  ASSERT_EQ(func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4));
+  ASSERT_EQ(func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5));
+}
 } // namespace jit::codegen
