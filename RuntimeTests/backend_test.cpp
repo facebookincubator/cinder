@@ -476,4 +476,100 @@ TEST_F(BackendTest, GetI32FromArrayTest) {
   ASSERT_EQ(func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4));
   ASSERT_EQ(func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5));
 }
+
+TEST_F(BackendTest, CastTest) {
+  // constants used to print out error
+  static const char* errmsg = "expected '%s', got '%s'";
+
+  auto lirfunc = std::make_unique<Function>();
+  auto bb1 = lirfunc->allocateBasicBlock();
+  auto bb2 = lirfunc->allocateBasicBlock();
+  auto bb3 = lirfunc->allocateBasicBlock();
+  auto bb4 = lirfunc->allocateBasicBlock();
+  auto epilogue = lirfunc->allocateBasicBlock();
+
+  // BB 1 : Py_TYPE(ob) == (tp)
+  auto a = bb1->allocateInstr(
+      Instruction::kBind, nullptr, OutVReg(), PhyReg(PhyLocation::RDI));
+
+  auto b = bb1->allocateInstr(
+      Instruction::kBind, nullptr, OutVReg(), PhyReg(PhyLocation::RSI));
+
+  auto a_tp = bb1->allocateInstr(
+      Instruction::kMove,
+      nullptr,
+      OutVReg(),
+      Ind(a, GET_STRUCT_MEMBER_OFFSET(PyObject, ob_type)));
+  auto eq1 = bb1->allocateInstr(
+      Instruction::kEqual, nullptr, OutVReg(), VReg(a_tp), VReg(b));
+  bb1->allocateInstr(Instruction::kCondBranch, nullptr, VReg(eq1));
+  bb1->addSuccessor(bb3); // true
+  bb1->addSuccessor(bb2); // false
+
+  // BB2 : PyType_IsSubtype(Py_TYPE(ob), (tp))
+  auto subtype = bb2->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(),
+      Imm(reinterpret_cast<uint64_t>(PyType_IsSubtype)),
+      VReg(a_tp),
+      VReg(b));
+  bb2->allocateInstr(Instruction::kCondBranch, nullptr, VReg(subtype));
+  bb2->addSuccessor(bb3); // true
+  bb2->addSuccessor(bb4); // false
+
+  // BB3 : return object
+  bb3->allocateInstr(Instruction::kReturn, nullptr, VReg(a));
+  bb3->addSuccessor(epilogue);
+
+  // BB4 : return null
+  auto a_name = bb4->allocateInstr(
+      Instruction::kMove,
+      nullptr,
+      OutVReg(),
+      Ind(a_tp, GET_STRUCT_MEMBER_OFFSET(PyTypeObject, tp_name)));
+  auto b_name = bb4->allocateInstr(
+      Instruction::kMove,
+      nullptr,
+      OutVReg(),
+      Ind(b, GET_STRUCT_MEMBER_OFFSET(PyTypeObject, tp_name)));
+  bb4->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      Imm(reinterpret_cast<uint64_t>(PyErr_Format)),
+      Imm(reinterpret_cast<uint64_t>(PyExc_TypeError)),
+      Imm(reinterpret_cast<uint64_t>(errmsg)),
+      VReg(b_name),
+      VReg(a_name));
+  auto nll = bb4->allocateInstr(Instruction::kMove, nullptr, OutVReg(), Imm(0));
+  bb4->allocateInstr(Instruction::kReturn, nullptr, VReg(nll));
+  bb4->addSuccessor(epilogue);
+
+  auto func =
+      (PyObject * (*)(PyObject*, PyTypeObject*)) SimpleCompile(lirfunc.get());
+
+  auto test_noerror = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
+    auto ret_test = func(a_in, b_in);
+    ASSERT_TRUE(PyErr_Occurred() == NULL);
+    auto ret_jitrt = JITRT_Cast(a_in, b_in);
+    ASSERT_TRUE(PyErr_Occurred() == NULL);
+    ASSERT_EQ(ret_test, ret_jitrt);
+  };
+
+  auto test_error = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
+    auto ret_test = func(a_in, b_in);
+    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
+    PyErr_Clear();
+
+    auto ret_jitrt = JITRT_Cast(a_in, b_in);
+    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
+    PyErr_Clear();
+
+    ASSERT_EQ(ret_test, ret_jitrt);
+  };
+
+  test_noerror(Py_False, &PyBool_Type);
+  test_noerror(Py_False, &PyLong_Type);
+  test_error(Py_False, &PyUnicode_Type);
+}
 } // namespace jit::codegen
