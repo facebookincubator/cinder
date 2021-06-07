@@ -476,7 +476,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_mixed_binop(self):
         with self.assertRaisesRegex(
-            TypedSyntaxError, "cannot add int64 and Exact\\[int\\]"
+            TypedSyntaxError, "cannot add int64 and Literal\\[1\\]"
         ):
             self.bind_module(
                 """
@@ -490,7 +490,7 @@ class StaticCompilationTests(StaticTestBase):
             )
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, "cannot add Exact\\[int\\] and int64"
+            TypedSyntaxError, "cannot add Literal\\[1\\] and int64"
         ):
             self.bind_module(
                 """
@@ -2095,7 +2095,7 @@ class StaticCompilationTests(StaticTestBase):
         code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
     def test_type_binder(self) -> None:
-        self.assertEqual(self.bind_expr("42"), INT_EXACT_TYPE.instance)
+        self.assertEqual(repr(self.bind_expr("42")), "<Literal[42]>")
         self.assertEqual(self.bind_expr("42.0"), FLOAT_EXACT_TYPE.instance)
         self.assertEqual(self.bind_expr("'abc'"), STR_EXACT_TYPE.instance)
         self.assertEqual(self.bind_expr("b'abc'"), BYTES_TYPE.instance)
@@ -2123,7 +2123,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(self.bind_expr("1 << 2"), INT_EXACT_TYPE.instance)
         self.assertEqual(self.bind_expr("100 >> 2"), INT_EXACT_TYPE.instance)
 
-        self.assertEqual(self.bind_stmt("x = 1"), INT_EXACT_TYPE.instance)
+        self.assertEqual(repr(self.bind_stmt("x = 1")), "<Literal[1]>")
         # self.assertEqual(self.bind_stmt("x: foo = 1").target.comp_type, DYNAMIC)
         self.assertEqual(self.bind_stmt("x += 1"), DYNAMIC)
         self.assertEqual(self.bind_expr("a or b"), DYNAMIC)
@@ -2154,8 +2154,8 @@ class StaticCompilationTests(StaticTestBase):
             return stmt.body[0].value
 
         self.assertEqual(
-            self.bind_stmt("def f(): return 42", getter=body_get),
-            INT_EXACT_TYPE.instance,
+            repr(self.bind_stmt("def f(): return 42", getter=body_get)),
+            "<Literal[42]>",
         )
         self.assertEqual(self.bind_stmt("def f(): yield 42", getter=body_get), DYNAMIC)
         self.assertEqual(
@@ -2167,9 +2167,7 @@ class StaticCompilationTests(StaticTestBase):
 
         self.assertEqual(self.bind_expr("object"), OBJECT_TYPE)
 
-        self.assertEqual(
-            self.bind_expr("1 + 2", optimize=True), INT_EXACT_TYPE.instance
-        )
+        self.assertEqual(repr(self.bind_expr("1 + 2", optimize=True)), "<Literal[3]>")
 
     def test_if_exp(self) -> None:
         mod, syms, _ = self.bind_module(
@@ -4866,7 +4864,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[int]", "Optional[T]")
+            TypedSyntaxError, type_mismatch("Literal[42]", "Optional[T]")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -5625,7 +5623,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"'>' not supported between 'Optional\[int\]' and 'Exact\[int\]'",
+            r"'>' not supported between 'Optional\[int\]' and 'Literal\[1\]'",
         ):
             self.compile(codestr)
 
@@ -5638,7 +5636,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"'>' not supported between 'Exact\[int\]' and 'Optional\[int\]'",
+            r"'>' not supported between 'Literal\[1\]' and 'Optional\[int\]'",
         ):
             self.compile(codestr)
 
@@ -6158,7 +6156,7 @@ class StaticCompilationTests(StaticTestBase):
                 return box(x)
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[int]", "int16")
+            TypedSyntaxError, type_mismatch("Literal[42]", "int16")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6678,7 +6676,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"'x' has declared type 'dynamic' and local type 'Exact\[int\]'",
+            r"'x' has declared type 'dynamic' and local type 'Literal\[4\]'",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6692,7 +6690,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"'y' has declared type 'dynamic' and local type 'Exact\[int\]'",
+            r"'y' has declared type 'dynamic' and local type 'Literal\[4\]'",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7923,7 +7921,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[int\] received for positional arg 1, expected str",
+            r"Literal\[42\] received for positional arg 1, expected str",
         ):
             code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7960,7 +7958,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[int\] received for positional arg 1, expected Optional\[str\]",
+            r"Literal\[42\] received for positional arg 1, expected Optional\[str\]",
         ):
             code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7990,7 +7988,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[int\] received for positional arg 2, expected Optional\[str\]",
+            r"Literal\[43\] received for positional arg 2, expected Optional\[str\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -8003,7 +8001,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[int\] received for positional arg 2, expected Optional\[str\]",
+            r"Literal\[42\] received for positional arg 2, expected Optional\[str\]",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -8115,7 +8113,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[int]", "str"),
+            type_mismatch("Literal[42]", "str"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -8129,7 +8127,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[int]", "str"),
+            type_mismatch("Literal[42]", "str"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -8345,7 +8343,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[chkdict[object, Exact[int]]]",
+                "Exact[chkdict[object, Literal[42]]]",
                 "chkdict[foo.B, int]",
             ),
         ):
@@ -9433,6 +9431,17 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
+    def test_int_unbox_with_conversion(self):
+        codestr = """
+            from __static__ import int64
+
+            def f(x) -> int64:
+                return int64(int(x))
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            f = mod["f"]
+            self.assertEqual(f(42.0), 42)
+
     def test_int_compare_to_cbool(self):
         codestr = """
             from __static__ import int64, cbool
@@ -9784,7 +9793,7 @@ class StaticCompilationTests(StaticTestBase):
         # Note - this will raise even without the Final, we don't allow assignments to slots
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[int]", "types.MemberDescriptorType"),
+            type_mismatch("Literal[4]", "types.MemberDescriptorType"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 

@@ -1067,7 +1067,12 @@ class Object(Value, Generic[TClass]):
             visitor.set_type(node, DYNAMIC, type_ctx)
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
-        node_type = CONSTANT_TYPES[type(node.value)]
+        if type(node.value) is int:
+            node_type = NumClass(
+                TypeName("builtins", "int"), pytype=int, literal_value=node.value
+            ).instance
+        else:
+            node_type = CONSTANT_TYPES[type(node.value)]
         visitor.set_type(node, node_type, self)
 
     def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
@@ -1107,6 +1112,7 @@ class Class(Object["Class"]):
         self.donotcompile = False
         if pytype:
             self.members.update(make_type_dict(self, pytype))
+        self.pytype = pytype
         # store attempted slot redefinitions during type declaration, for resolution in finish_bind
         self._slot_redefs: Dict[str, List[TypeRef]] = {}
 
@@ -1593,11 +1599,6 @@ class DynamicClass(Class):
 class DynamicInstance(Object[DynamicClass]):
     def __init__(self, klass: DynamicClass) -> None:
         super().__init__(klass)
-
-    def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
-        n = node.value
-        inst = CONSTANT_TYPES.get(type(n), DYNAMIC_TYPE.instance)
-        visitor.set_type(node, inst, self)
 
     def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
         if maybe_emit_sequence_repeat(node, code_gen):
@@ -4796,7 +4797,7 @@ class CIntType(CType):
                 and not (
                     (
                         arg_type is INT_TYPE.instance
-                        or self.is_valid_literal_int(arg_type)
+                        or self.is_valid_exact_int(arg_type)
                         or isinstance(arg_type, CIntInstance)
                     )
                     and self is not CBOOL_TYPE
@@ -4806,11 +4807,12 @@ class CIntType(CType):
 
         return NO_EFFECT
 
-    def is_valid_literal_int(self, arg_type: Value) -> bool:
+    def is_valid_exact_int(self, arg_type: Value) -> bool:
         if isinstance(arg_type, NumExactInstance):
             literal = arg_type.klass.literal_value
             if literal is not None:
                 return self.instance.is_valid_int(literal)
+            return True
 
         return False
 
@@ -5019,6 +5021,12 @@ def exact(maybe_inexact: Value) -> Value:
 def inexact(maybe_exact: Value) -> Value:
     if isinstance(maybe_exact, UnionInstance):
         return inexact_type(maybe_exact.klass).instance
+    elif (
+        isinstance(maybe_exact, NumInstance)
+        and maybe_exact.klass.is_exact
+        and maybe_exact.klass.pytype is int
+    ):
+        return INT_TYPE.instance
     inexact = INEXACT_INSTANCES.get(maybe_exact)
     return inexact or maybe_exact
 
