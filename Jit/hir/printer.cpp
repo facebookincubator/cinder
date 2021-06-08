@@ -413,7 +413,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kIntCompare: {
       const auto& cmp = static_cast<const IntCompare&>(instr);
-      return GetIntCompareOpName(cmp.op());
+      return GetPrimitiveCompareOpName(cmp.op());
     }
     case Opcode::kPrimitiveBox: {
       const auto& box = static_cast<const PrimitiveBox&>(instr);

@@ -1924,7 +1924,7 @@ class INSTR_CLASS(IntConvert, HasOutput, Operands<1>) {
 };
 
 // Perform the comparison indicated by op
-enum class IntCompareOp {
+enum class PrimitiveCompareOp {
   kLessThan = 0,
   kLessThanEqual,
   kEqual,
@@ -1935,18 +1935,22 @@ enum class IntCompareOp {
   kGreaterThanEqualUnsigned,
   kLessThanUnsigned,
   kLessThanEqualUnsigned,
-  kNumIntCompareOps
+  kNumPrimitiveCompareOps
 };
 
-const char* GetIntCompareOpName(IntCompareOp op);
-IntCompareOp ParseIntCompareOpName(const char* name);
+const char* GetPrimitiveCompareOpName(PrimitiveCompareOp op);
+PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name);
 
 class INSTR_CLASS(IntCompare, HasOutput, Operands<2>) {
  public:
-  IntCompare(IntCompareOp op, Register* dst, Register* left, Register* right)
+  IntCompare(
+      PrimitiveCompareOp op,
+      Register* dst,
+      Register* left,
+      Register* right)
       : InstrT(dst, left, right), op_(op) {}
 
-  IntCompareOp op() const {
+  PrimitiveCompareOp op() const {
     return op_;
   }
 
@@ -1959,7 +1963,7 @@ class INSTR_CLASS(IntCompare, HasOutput, Operands<2>) {
   }
 
  private:
-  IntCompareOp op_;
+  PrimitiveCompareOp op_;
 };
 
 class INSTR_CLASS(PrimitiveBox, HasOutput, Operands<1>) {

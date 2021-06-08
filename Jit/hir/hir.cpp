@@ -648,7 +648,7 @@ const char* GetCompareOpName(CompareOp op) {
   return gCompareOpNames[static_cast<int>(op)];
 }
 
-static const char* gIntCompareOpNames[] = {
+static const char* gPrimitiveCompareOpNames[] = {
     "LessThan",
     "LessThanEqual",
     "Equal",
@@ -661,17 +661,18 @@ static const char* gIntCompareOpNames[] = {
     "LessThanEqualUnsigned",
 };
 
-const char* GetIntCompareOpName(IntCompareOp op) {
-  return gIntCompareOpNames[static_cast<int>(op)];
+const char* GetPrimitiveCompareOpName(PrimitiveCompareOp op) {
+  return gPrimitiveCompareOpNames[static_cast<int>(op)];
 }
 
-IntCompareOp ParseIntCompareOpName(const char* name) {
-  for (size_t i = 0; i < sizeof(gIntCompareOpNames) / sizeof(char*); i++) {
-    if (strcmp(name, gIntCompareOpNames[i]) == 0) {
-      return (IntCompareOp)i;
+PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name) {
+  for (size_t i = 0; i < sizeof(gPrimitiveCompareOpNames) / sizeof(char*);
+       i++) {
+    if (strcmp(name, gPrimitiveCompareOpNames[i]) == 0) {
+      return (PrimitiveCompareOp)i;
     }
   }
-  return (IntCompareOp)-1;
+  return (PrimitiveCompareOp)-1;
 }
 
 // NB: This needs to be in the order that the values appear in the BinaryOpKind

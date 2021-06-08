@@ -272,9 +272,9 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     instruction = newInstr<BinaryOp>(op, dst, left, right);
-  } else if (strcmp(opcode, "IntCompareOp") == 0) {
+  } else if (strcmp(opcode, "PrimitiveCompareOp") == 0) {
     expect("<");
-    IntCompareOp op = ParseIntCompareOpName(GetNextToken());
+    PrimitiveCompareOp op = ParsePrimitiveCompareOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();

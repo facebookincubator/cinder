@@ -844,34 +844,34 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const IntCompare*>(&i);
         std::string op;
         switch (instr->op()) {
-          case IntCompareOp::kEqual:
+          case PrimitiveCompareOp::kEqual:
             op = "Equal";
             break;
-          case IntCompareOp::kNotEqual:
+          case PrimitiveCompareOp::kNotEqual:
             op = "NotEqual";
             break;
-          case IntCompareOp::kGreaterThanUnsigned:
+          case PrimitiveCompareOp::kGreaterThanUnsigned:
             op = "GreaterThanUnsigned";
             break;
-          case IntCompareOp::kGreaterThan:
+          case PrimitiveCompareOp::kGreaterThan:
             op = "GreaterThanSigned";
             break;
-          case IntCompareOp::kLessThanUnsigned:
+          case PrimitiveCompareOp::kLessThanUnsigned:
             op = "LessThanUnsigned";
             break;
-          case IntCompareOp::kLessThan:
+          case PrimitiveCompareOp::kLessThan:
             op = "LessThanSigned";
             break;
-          case IntCompareOp::kGreaterThanEqualUnsigned:
+          case PrimitiveCompareOp::kGreaterThanEqualUnsigned:
             op = "GreaterThanEqualUnsigned";
             break;
-          case IntCompareOp::kGreaterThanEqual:
+          case PrimitiveCompareOp::kGreaterThanEqual:
             op = "GreaterThanEqualSigned";
             break;
-          case IntCompareOp::kLessThanEqualUnsigned:
+          case PrimitiveCompareOp::kLessThanEqualUnsigned:
             op = "LessThanEqualUnsigned";
             break;
-          case IntCompareOp::kLessThanEqual:
+          case PrimitiveCompareOp::kLessThanEqual:
             op = "LessThanEqualSigned";
             break;
           default:

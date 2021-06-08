@@ -4680,7 +4680,7 @@ main_loop:
         FAST_DISPATCH();                                                      \
     }
 
-        case TARGET(INT_COMPARE_OP): {
+        case TARGET(PRIMITIVE_COMPARE_OP): {
             PyObject *l, *r, *res;
             Py_ssize_t sleft, sright;
             size_t left, right;
@@ -4695,6 +4695,7 @@ main_loop:
                 INT_CMP_OPCODE_UNSIGNED(PRIM_OP_GT_UN_INT, >)
                 INT_CMP_OPCODE_UNSIGNED(PRIM_OP_LE_UN_INT, <=)
                 INT_CMP_OPCODE_UNSIGNED(PRIM_OP_GE_UN_INT, >=)
+
             }
             PyErr_SetString(PyExc_RuntimeError, "unknown op");
             goto error;

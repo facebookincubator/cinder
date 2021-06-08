@@ -23,7 +23,7 @@ opcode.jabs_op("POP_JUMP_IF_NONZERO", 176)
 opcode.def_op("PRIMITIVE_UNBOX", 177)
 opcode.def_op("PRIMITIVE_BINARY_OP", 178)
 opcode.def_op("PRIMITIVE_UNARY_OP", 179)
-opcode.def_op("INT_COMPARE_OP", 180)
+opcode.def_op("PRIMITIVE_COMPARE_OP", 180)
 opcode.def_op("LOAD_ITERABLE_ARG", 181)
 opcode.def_op("LOAD_MAPPING_ARG", 182)
 opcode.def_op("INVOKE_FUNCTION", 183)
@@ -54,7 +54,7 @@ opcode.stack_effects.update(  # noqa: C408
     FAST_LEN=0,
     PRIMITIVE_BINARY_OP=lambda oparg, jmp: -1,
     PRIMITIVE_BOX=0,
-    INT_COMPARE_OP=lambda oparg, jmp: -1,
+    PRIMITIVE_COMPARE_OP=lambda oparg, jmp: -1,
     INT_DUP_TOP_TWO=2,
     PRIMITIVE_LOAD_CONST=1,
     INT_LOAD_CONST_OLD=1,

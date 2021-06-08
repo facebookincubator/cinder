@@ -142,7 +142,7 @@ extern "C" {
 #define PRIMITIVE_UNBOX               177
 #define PRIMITIVE_BINARY_OP           178
 #define PRIMITIVE_UNARY_OP            179
-#define INT_COMPARE_OP          180
+#define PRIMITIVE_COMPARE_OP          180
 #define LOAD_ITERABLE_ARG       181
 #define LOAD_MAPPING_ARG        182
 #define INVOKE_FUNCTION         183

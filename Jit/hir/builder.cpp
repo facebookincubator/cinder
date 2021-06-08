@@ -124,7 +124,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     INPLACE_XOR,
     PRIMITIVE_BINARY_OP,
     PRIMITIVE_BOX,
-    INT_COMPARE_OP,
+    PRIMITIVE_COMPARE_OP,
     PRIMITIVE_LOAD_CONST,
     INT_LOAD_CONST_OLD,
     PRIMITIVE_UNARY_OP,
@@ -877,8 +877,8 @@ void HIRBuilder::translate(
           emitPrimitiveBinaryOp(tc, bc_instr);
           break;
         }
-        case INT_COMPARE_OP: {
-          emitIntCompare(tc, bc_instr);
+        case PRIMITIVE_COMPARE_OP: {
+          emitPrimitiveCompare(tc, bc_instr);
           break;
         }
         case PRIMITIVE_UNARY_OP: {
@@ -2306,44 +2306,44 @@ void HIRBuilder::emitPrimitiveBinaryOp(
   stack.push(result);
 }
 
-void HIRBuilder::emitIntCompare(
+void HIRBuilder::emitPrimitiveCompare(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   auto& stack = tc.frame.stack;
   Register* right = stack.pop();
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
-  IntCompareOp op;
+  PrimitiveCompareOp op;
   switch (bc_instr.oparg()) {
     case PRIM_OP_EQ_INT:
-      op = IntCompareOp::kEqual;
+      op = PrimitiveCompareOp::kEqual;
       break;
     case PRIM_OP_NE_INT:
-      op = IntCompareOp::kNotEqual;
+      op = PrimitiveCompareOp::kNotEqual;
       break;
     case PRIM_OP_LT_INT:
-      op = IntCompareOp::kLessThan;
+      op = PrimitiveCompareOp::kLessThan;
       break;
     case PRIM_OP_LE_INT:
-      op = IntCompareOp::kLessThanEqual;
+      op = PrimitiveCompareOp::kLessThanEqual;
       break;
     case PRIM_OP_GT_INT:
-      op = IntCompareOp::kGreaterThan;
+      op = PrimitiveCompareOp::kGreaterThan;
       break;
     case PRIM_OP_GE_INT:
-      op = IntCompareOp::kGreaterThanEqual;
+      op = PrimitiveCompareOp::kGreaterThanEqual;
       break;
     case PRIM_OP_LT_UN_INT:
-      op = IntCompareOp::kLessThanUnsigned;
+      op = PrimitiveCompareOp::kLessThanUnsigned;
       break;
     case PRIM_OP_LE_UN_INT:
-      op = IntCompareOp::kLessThanEqualUnsigned;
+      op = PrimitiveCompareOp::kLessThanEqualUnsigned;
       break;
     case PRIM_OP_GT_UN_INT:
-      op = IntCompareOp::kGreaterThanUnsigned;
+      op = PrimitiveCompareOp::kGreaterThanUnsigned;
       break;
     case PRIM_OP_GE_UN_INT:
-      op = IntCompareOp::kGreaterThanEqualUnsigned;
+      op = PrimitiveCompareOp::kGreaterThanEqualUnsigned;
       break;
     default:
       JIT_CHECK(false, "unsupported comparison");
@@ -3007,7 +3007,8 @@ void HIRBuilder::emitUnpackSequence(
   Register* is_equal = temps_.AllocateStack();
   tc.emit<LoadVarObjectSize>(seq_size, seq);
   tc.emit<LoadConst>(target_size, Type::fromCInt(bc_instr.oparg(), TCInt64));
-  tc.emit<IntCompare>(IntCompareOp::kEqual, is_equal, seq_size, target_size);
+  tc.emit<IntCompare>(
+      PrimitiveCompareOp::kEqual, is_equal, seq_size, target_size);
   fast_path = cfg.AllocateBlock();
   tc.emit<CondBranch>(is_equal, fast_path, deopt_path.block);
   tc.block = fast_path;

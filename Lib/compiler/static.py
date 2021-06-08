@@ -3378,7 +3378,7 @@ def common_sequence_emit_forloop(
         code_gen.emit("DUP_TOP")  # used for FAST_LEN
         code_gen.emit("FAST_LEN", oparg)
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
-        code_gen.emit("INT_COMPARE_OP", PRIM_OP_GT_INT)
+        code_gen.emit("PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
         code_gen.emit("POP_JUMP_IF_ZERO", anchor)
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
         if oparg == FAST_LEN_LIST:
@@ -4583,7 +4583,7 @@ class CIntInstance(CInstance["CIntType"]):
         return False
 
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
-        code_gen.emit("INT_COMPARE_OP", self.get_op_id(op))
+        code_gen.emit("PRIMITIVE_COMPARE_OP", self.get_op_id(op))
 
     def emit_augname(
         self, node: AugName, code_gen: Static38CodeGenerator, mode: str

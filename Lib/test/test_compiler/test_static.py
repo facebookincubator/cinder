@@ -873,7 +873,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         code = self.compile(codestr, StaticCodeGenerator)
         f = self.find_code(code)
-        self.assertInBytecode(f, "INT_COMPARE_OP", PRIM_OP_LT_INT)
+        self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         with self.in_module(codestr) as mod:
             f = mod["testfunc"]
             self.assertEqual(f(), False)
@@ -893,7 +893,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         code = self.compile(codestr, StaticCodeGenerator)
         f = self.find_code(code)
-        self.assertInBytecode(f, "INT_COMPARE_OP", PRIM_OP_LT_INT)
+        self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         with self.in_module(codestr) as mod:
             f = mod["testfunc"]
             self.assertEqual(f(), False)
@@ -1778,7 +1778,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
         self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
-        self.assertInBytecode(f, "INT_COMPARE_OP", PRIM_OP_LT_INT)
+        self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
 
     def test_int_assert(self):
@@ -1830,7 +1830,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
         self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
-        self.assertInBytecode(f, "INT_COMPARE_OP", PRIM_OP_GT_INT)
+        self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
 
     def test_int_loop_chained(self):
@@ -1851,7 +1851,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
         self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
-        self.assertInBytecode(f, "INT_COMPARE_OP", PRIM_OP_LT_INT)
+        self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
 
     def test_compare_subclass(self):
@@ -2223,7 +2223,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         code = self.compile(codestr, StaticCodeGenerator, modname="foo")
         x = self.find_code(code, "f")
-        self.assertInBytecode(x, "INT_COMPARE_OP", 0)
+        self.assertInBytecode(x, "PRIMITIVE_COMPARE_OP", 0)
         self.assertInBytecode(x, "COMPARE_OP", "==")
 
     def test_bind_instance(self) -> None:

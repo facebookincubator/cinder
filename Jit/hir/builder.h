@@ -267,7 +267,7 @@ class HIRBuilder {
   void emitPrimitiveBinaryOp(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitIntCompare(
+  void emitPrimitiveCompare(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
   void emitPrimitiveBox(

@@ -82,8 +82,8 @@ Instr* DynamicComparisonElimination::ReplaceCompare(
   // For other comparisons we can use ComapreBool.
   if (compare->op() == CompareOp::kIs || compare->op() == CompareOp::kIsNot) {
     return IntCompare::create(
-        (compare->op() == CompareOp::kIs) ? IntCompareOp::kEqual
-                                          : IntCompareOp::kNotEqual,
+        (compare->op() == CompareOp::kIs) ? PrimitiveCompareOp::kEqual
+                                          : PrimitiveCompareOp::kNotEqual,
         truthy->GetOutput(),
         compare->GetOperand(0),
         compare->GetOperand(1));
@@ -175,8 +175,8 @@ Instr* DynamicComparisonElimination::ReplaceVectorCall(
     auto load_type =
         LoadField::create(obj_type, obj_op, offsetof(PyObject, ob_type), TType);
 
-    auto compare_type =
-        IntCompare::create(IntCompareOp::kEqual, fast_eq, obj_type, type_op);
+    auto compare_type = IntCompare::create(
+        PrimitiveCompareOp::kEqual, fast_eq, obj_type, type_op);
 
     load_type->copyBytecodeOffset(*vectorcall);
     load_type->InsertBefore(*truthy);
