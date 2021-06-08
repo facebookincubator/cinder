@@ -294,6 +294,20 @@ static_rand(PyObject *self)
 
 _Py_TYPED_SIGNATURE(static_rand, _Py_SIG_INT32, NULL);
 
+
+static int64_t posix_clock_gettime_ns(PyObject* mod)
+{
+    struct timespec result;
+    int64_t ret;
+
+    clock_gettime(CLOCK_MONOTONIC, &result);
+    ret = result.tv_sec * 1e9 + result.tv_nsec;
+    return ret;
+}
+
+_Py_TYPED_SIGNATURE(posix_clock_gettime_ns, _Py_SIG_INT64, NULL);
+
+
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
@@ -301,6 +315,8 @@ static PyMethodDef static_methods[] = {
     {"is_type_static", (PyCFunction)(void(*)(void))is_type_static, METH_O, ""},
     {"set_type_static", (PyCFunction)(void(*)(void))set_type_static, METH_O, ""},
     {"set_type_static_final", (PyCFunction)(void(*)(void))set_type_static_final, METH_O, ""},
+    {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, METH_TYPED,
+     "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
     {}
 };
 

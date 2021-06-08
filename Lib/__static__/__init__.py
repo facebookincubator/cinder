@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import array
 import random
+import time
 from types import FunctionType, Union as typesUnion
 from typing import (
     _GenericAlias,
@@ -51,6 +52,7 @@ try:
         TYPED_CHAR,
         RAND_MAX,
         rand,
+        posix_clock_gettime_ns,
     )
 except ImportError:
     TYPED_INT8 = 0
@@ -69,6 +71,9 @@ except ImportError:
 
     def rand():
         return random.randint(0, RAND_MAX)
+
+    def posix_clock_gettime_ns():
+        return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
 
 try:
     import cinder

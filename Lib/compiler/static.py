@@ -157,6 +157,7 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     FAST_LEN_STR,
     TYPED_DOUBLE,
     RAND_MAX,
+    posix_clock_gettime_ns,
     rand,
 )
 
@@ -449,6 +450,9 @@ class SymbolTable:
                 "RAND_MAX": NumClass(
                     TypeName("builtins", "int"), pytype=int, literal_value=RAND_MAX
                 ).instance,
+                "posix_clock_gettime_ns": reflect_builtin_function(
+                    posix_clock_gettime_ns
+                ),
                 "rand": reflect_builtin_function(rand),
             },
         )
