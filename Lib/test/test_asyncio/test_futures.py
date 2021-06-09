@@ -480,6 +480,7 @@ class BaseFutureTests:
         self.assertEqual(f1.result(), 42)
         self.assertTrue(f2.cancelled())
 
+    @unittest.skipUnderCinderJIT("Line number off by 1 (T86183012)")
     def test_future_source_traceback(self):
         self.loop.set_debug(True)
 

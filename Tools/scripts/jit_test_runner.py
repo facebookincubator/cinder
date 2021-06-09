@@ -640,7 +640,6 @@ TESTS_TO_SKIP = {
     # TODO(T62830617): These contain individual tests that rely on features
     # that are unsupported by the JIT. Manually disable the failing tests when
     # the JIT is enabled.
-    "test_asyncio",
     "test_builtin",
     "test_compile",
     "test_decimal",

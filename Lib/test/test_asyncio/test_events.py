@@ -2195,6 +2195,7 @@ class HandleTests(test_utils.TestCase):
                      % (cb_regex, re.escape(filename), lineno))
             self.assertRegex(repr(h), regex)
 
+    @unittest.skipUnderCinderJIT("Invalid stack traces (T86183012)")
     def test_handle_repr_debug(self):
         self.loop.get_debug.return_value = True
 
@@ -2221,6 +2222,7 @@ class HandleTests(test_utils.TestCase):
             '<Handle cancelled noop(1, 2) at %s:%s created at %s:%s>'
             % (filename, lineno, create_filename, create_lineno))
 
+    @unittest.skipUnderCinderJIT("Invalid stack traces (T86183012)")
     def test_handle_source_traceback(self):
         loop = asyncio.get_event_loop_policy().new_event_loop()
         loop.set_debug(True)
@@ -2338,6 +2340,7 @@ class TimerTests(unittest.TestCase):
         self.assertEqual(repr(h),
                         '<TimerHandle cancelled when=123>')
 
+    @unittest.skipUnderCinderJIT("Invalid stack traces (T86183012)")
     def test_timer_repr_debug(self):
         self.loop.get_debug.return_value = True
 
