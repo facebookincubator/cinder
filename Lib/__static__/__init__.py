@@ -26,7 +26,11 @@ except ImportError:
         return False
 
     def set_type_static(_t):
-        return None
+        return _t
+
+    def set_type_static_final(_t):
+        return _t
+
     _static = None
     chkdict = dict
 
@@ -35,6 +39,7 @@ else:
     set_type_code = _static.set_type_code
     is_type_static = _static.is_type_static
     set_type_static = _static.set_type_static
+    set_type_static_final = _static.set_type_static_final
 
 try:
     from _static import (
@@ -352,7 +357,7 @@ class StaticGeneric:
             res.__parameters__ = elem_type
             return res
 
-        return make_generic_type(cls, elem_type)
+        return set_type_static_final(make_generic_type(cls, elem_type))
 
     def __init_subclass__(cls) -> None:
         type_vars = _collect_type_vars(cls.__orig_bases__)
@@ -374,6 +379,8 @@ class StaticGeneric:
 
 
 class Array(array.array, StaticGeneric[ArrayElement]):
+    __slots__ = ()
+
     def __new__(cls, initializer: int | Iterable[ArrayElement]):
         if hasattr(cls, "__parameters__"):
             raise TypeError("Cannot create plain Array")
@@ -401,6 +408,7 @@ class Array(array.array, StaticGeneric[ArrayElement]):
 
 class Vector(array.array, StaticGeneric[ArrayElement]):
     """Vector is a resizable array of primitive elements"""
+    __slots__ = ()
 
     def __new__(cls, initializer: int | Iterable[ArrayElement] | None = None):
         if hasattr(cls, "__parameters__"):

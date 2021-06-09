@@ -1332,8 +1332,7 @@ subtype_dealloc(PyObject *self)
 
     if (!PyType_IS_GC(type)) {
         /* A non GC dynamic type allows certain simplifications:
-           there's no need to call clear_slots(), or DECREF the dict,
-           or clear weakrefs. */
+           no need to DECREF the dict or clear weakrefs. */
 
         /* Maybe call finalizer; exit early if resurrected */
         if (type->tp_finalize) {
@@ -1349,6 +1348,8 @@ subtype_dealloc(PyObject *self)
         /* Find the nearest base with a different tp_dealloc */
         base = type;
         while ((basedealloc = base->tp_dealloc) == subtype_dealloc) {
+            if (Py_SIZE(base))
+                clear_slots(base, self);
             base = base->tp_base;
             assert(base);
         }
@@ -3020,6 +3021,7 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
                 slotsize = sizeof(PyObject *);
                 name = PyTuple_GET_ITEM(name, 0);
             } else {
+                /* TODO: it'd be nice to unify with the calls above */
                 slottype =
                     parse_slot_type(PyTuple_GET_ITEM(name, 1), &slotsize);
                 assert(slottype != -1);
@@ -3038,7 +3040,24 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
                     }
                     Py_DECREF(descr);
 
-                    needs_gc = 1;
+                    if (!needs_gc) {
+                        int optional;
+                        PyTypeObject *resolved_type =
+                            _PyClassLoader_ResolveType(PyTuple_GET_ITEM(name, 1), &optional);
+
+                        if (resolved_type == NULL) {
+                            /* this can fail if the type isn't loaded yet, in which case
+                             * we need to be pessimistic about whether or not this type
+                             * needs gc */
+                            PyErr_Clear();
+                        }
+
+                        if (resolved_type == NULL ||
+                            resolved_type->tp_flags & (Py_TPFLAGS_HAVE_GC|Py_TPFLAGS_BASETYPE)) {
+                            needs_gc = 1;
+                        }
+                        Py_XDECREF(resolved_type);
+                    }
                 }
 
                 name = PyTuple_GET_ITEM(name, 0);
