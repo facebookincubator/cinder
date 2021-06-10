@@ -1037,13 +1037,6 @@ static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
 }
 
 int _PyJIT_RegisterFunction(PyFunctionObject* func) {
-  // Attempt to attach already-compiled code even if the JIT is disabled, as
-  // long as it hasn't been finalized.
-  if (jit_ctx != nullptr &&
-      _PyJITContext_AttachCompiledCode(jit_ctx, func) == PYJIT_RESULT_OK) {
-    return 1;
-  }
-
   if (!_PyJIT_IsEnabled()) {
     return 0;
   }

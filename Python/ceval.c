@@ -7587,9 +7587,6 @@ PyEntry_LazyInit(PyFunctionObject *func,
 void
 PyEntry_init(PyFunctionObject *func)
 {
-    if (_PyJIT_IsCompiled((PyObject*)func)) {
-        return;
-    }
     func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
     if (!_PyJIT_RegisterFunction(func)) {
         PyEntry_initnow(func);
