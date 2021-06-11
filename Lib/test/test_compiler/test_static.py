@@ -9574,6 +9574,19 @@ class StaticCompilationTests(StaticTestBase):
                 modname="foo",
             )
 
+    def test_frozenset_constant(self):
+        codestr = """
+        from __static__ import inline
+        
+        @inline
+        def i(s: str) -> bool:
+            return i in {"a", "b"}
+        
+        def t() -> bool:
+            return i("p")
+        """
+        self.compile(codestr, StaticCodeGenerator, modname="foo")
+
     def test_final(self):
         codestr = """
         from typing import Final

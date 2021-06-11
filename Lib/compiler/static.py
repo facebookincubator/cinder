@@ -3805,6 +3805,7 @@ CONSTANT_TYPES: Mapping[Type[object], Value] = {
     type(None): NONE_TYPE.instance,
     tuple: TUPLE_EXACT_TYPE.instance,
     type(...): ELLIPSIS_TYPE.instance,
+    frozenset: SET_TYPE.instance,
 }
 
 NAMED_TUPLE_TYPE = Class(TypeName("typing", "NamedTuple"))
