@@ -2960,7 +2960,6 @@ class BoxFunction(Object[Class]):
         arg = node.args[0]
         visitor.visit(arg)
         arg_type = visitor.get_type(arg)
-
         if isinstance(arg_type, CIntInstance):
             typ = BOOL_TYPE if arg_type.constant == TYPED_BOOL else INT_EXACT_TYPE
             visitor.set_type(node, typ.instance, type_ctx)
@@ -4946,6 +4945,46 @@ class CDoubleType(CType):
             [OBJECT_TYPE],
             CDoubleInstance(self),
         )
+
+    def can_assign_from(self, src: Class) -> bool:
+        if isinstance(src, CDoubleType):
+            return True
+
+        return super().can_assign_from(src)
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        if len(node.args) != 1:
+            raise visitor.syntax_error(
+                f"{self.name} requires a single argument ({len(node.args)} given)", node
+            )
+
+        visitor.set_type(node, self.instance, None)
+        arg = node.args[0]
+        try:
+            visitor.visit(arg, self.instance)
+        except TypedSyntaxError:
+            visitor.visit(arg)
+            arg_type = visitor.get_type(arg)
+            if arg_type not in (FLOAT_TYPE.instance, FLOAT_EXACT_TYPE.instance):
+                raise
+
+        return NO_EFFECT
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) != 1:
+            raise code_gen.syntax_error(
+                f"{self.name} requires a single argument ({len(node.args)} given)", node
+            )
+
+        arg = node.args[0]
+        arg_type = code_gen.get_type(arg)
+        if isinstance(arg_type, CDoubleInstance):
+            code_gen.visit(arg)
+        else:
+            # must be a `float`.
+            self.instance.emit_unbox(arg, code_gen)
 
 
 CBOOL_TYPE = CIntType(TYPED_BOOL, name_override="cbool")

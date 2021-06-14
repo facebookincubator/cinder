@@ -1745,6 +1745,18 @@ class StaticCompilationTests(StaticTestBase):
         y = 1.732
         self.assertEqual(f(x, y), x + y)
 
+    def test_double_unbox_using_double(self):
+        codestr = f"""
+            from __static__ import double, box
+
+            def f():
+                x = 1.2
+                y = double(x)
+                return box(y + 1.0)
+        """
+        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        self.assertEqual(f(), 2.2)
+
     def test_int_loop_inplace(self):
         codestr = """
         from __static__ import ssize_t, box

@@ -659,7 +659,8 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
   auto instr = instr_iter->get();
 
   if (!instr->isAdd() && !instr->isSub() && !instr->isXor() &&
-      !instr->isAnd() && !instr->isOr() && !instr->isMul()) {
+      !instr->isAnd() && !instr->isOr() && !instr->isMul() &&
+      !instr->isFadd() && !instr->isFsub() && !instr->isFmul()) {
     return kUnchanged;
   }
 
@@ -691,7 +692,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
     auto opnd0 = instr->removeInputOperand(0);
     instr->appendInputOperand(std::move(opnd0));
 
-    if (instr->isSub()) {
+    if (instr->isSub() || instr->isFsub()) {
       ++instr_iter;
       auto block = instr->basicblock();
       block->allocateInstrBefore(
