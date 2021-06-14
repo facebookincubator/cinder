@@ -48,7 +48,7 @@ struct JitConfig {
   int allow_jit_list_wildcards{0};
   int compile_all_static_functions{0};
   size_t batch_compile_workers{0};
-  int test_multithreaded_compile{0};
+  int multithreaded_compile_test{0};
 };
 JitConfig jit_config;
 
@@ -140,7 +140,7 @@ static void compile_worker_thread() {
       ThreadedCompileSerialize guard;
       g_compile_workers_retries++;
       g_threaded_compile_context.retryUnit(unit);
-      JIT_LOG(
+      JIT_DLOG(
           "Retrying compile of function: %s",
           funcFullname(reinterpret_cast<PyFunctionObject*>(unit.get())));
     }
@@ -185,15 +185,16 @@ static void multithread_compile_all(std::vector<BorrowedRef<>>&& work_units) {
   _PyGILState_check_enabled = old_gil_check_enabled;
 }
 
-static PyObject* test_multithreaded_compile(PyObject*, PyObject*) {
-  if (!jit_config.test_multithreaded_compile) {
+static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
+  if (!jit_config.multithreaded_compile_test) {
     PyErr_SetString(
-        PyExc_NotImplementedError, "test_multithreaded_compile not enabled");
+        PyExc_NotImplementedError, "multithreaded_compile_test not enabled");
     return NULL;
   }
   g_compile_workers_attempted = 0;
   g_compile_workers_retries = 0;
-  JIT_LOG("(Re)compiling %d units", jit_reg_units.size());
+  JIT_LOG("(Re)compiling %d units", test_multithreaded_units.size());
+  _PyJITContext_ClearCache(jit_ctx);
   std::chrono::time_point time_start = std::chrono::steady_clock::now();
   multithread_compile_all(
       {test_multithreaded_units.begin(), test_multithreaded_units.end()});
@@ -209,8 +210,8 @@ static PyObject* test_multithreaded_compile(PyObject*, PyObject*) {
   Py_RETURN_NONE;
 }
 
-static PyObject* is_test_multithreaded_compile_enabled(PyObject*, PyObject*) {
-  if (jit_config.test_multithreaded_compile) {
+static PyObject* is_multithreaded_compile_test_enabled(PyObject*, PyObject*) {
+  if (jit_config.multithreaded_compile_test) {
     Py_RETURN_TRUE;
   }
   Py_RETURN_FALSE;
@@ -620,14 +621,14 @@ static PyMethodDef jit_methods[] = {
      jit_force_normal_frame,
      METH_O,
      "Decorator forcing a function to always use normal frame mode when JIT."},
-    {"test_multithreaded_compile",
-     test_multithreaded_compile,
+    {"multithreaded_compile_test",
+     multithreaded_compile_test,
      METH_NOARGS,
      "Force multi-threaded recompile of still existing JIT functions for test"},
-    {"is_test_multithreaded_compile_enabled",
-     is_test_multithreaded_compile_enabled,
+    {"is_multithreaded_compile_test_enabled",
+     is_multithreaded_compile_test_enabled,
      METH_NOARGS,
-     "Return True if test_multithreaded_compile mode is enabled"},
+     "Return True if multithreaded_compile_test mode is enabled"},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {
@@ -904,9 +905,9 @@ int _PyJIT_Initialize() {
   jit_config.batch_compile_workers =
       flag_long("jit-batch-compile-workers", "PYTHONJITBATCHCOMPILEWORKERS", 0);
   if (_is_flag_set(
-          "jit-test-multithreaded-compile",
-          "PYTHONJITTESTMULTITHREADEDCOMPILE")) {
-    jit_config.test_multithreaded_compile = 1;
+          "jit-multithreaded-compile-test",
+          "PYTHONJITMULTITHREADEDCOMPILETEST")) {
+    jit_config.multithreaded_compile_test = 1;
   }
 
   total_compliation_time = 0.0;
@@ -1050,7 +1051,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
       "Not intended for using during threaded compilation");
   int result = 0;
   auto register_unit = [](BorrowedRef<> unit) {
-    if (jit_config.test_multithreaded_compile) {
+    if (jit_config.multithreaded_compile_test) {
       test_multithreaded_units.emplace_back(unit);
     }
     jit_reg_units.emplace(unit);

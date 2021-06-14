@@ -654,8 +654,8 @@ TESTS_TO_SKIP = {
     "test_sys_settrace",
     "test_trace",
     "test_bdb",
-    # test_multithreaded_compile requires special -X options
-    "test_multithreaded_compile",
+    # multithreaded_compile_test requires special -X options
+    "multithreaded_compile_test",
     # Some tests don't work in our environment, JIT or not.
     *read_skip_tests(),
 }

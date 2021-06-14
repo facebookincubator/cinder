@@ -1813,7 +1813,7 @@ bool HIRBuilder::emitInvokeFunction(
     if (is_static_func && PyFunction_Check(func)) {
       if (_PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func)) ==
           PYJIT_RESULT_RETRY) {
-        JIT_LOG(
+        JIT_DLOG(
             "Warning: recursive compile of '%s' failed as it is already being "
             "compiled",
             funcFullname(reinterpret_cast<PyFunctionObject*>(func)));
@@ -2698,7 +2698,8 @@ void HIRBuilder::emitBuildCheckedMap(
   Py_ssize_t dict_size = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1));
 
   int optional = 0;
-  PyTypeObject* type = _PyClassLoader_ResolveType(dict_type, &optional);
+  PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
+      _PyClassLoader_ResolveType(dict_type, &optional));
 
   JIT_CHECK(type != nullptr, "expected type to resolve");
   JIT_CHECK(!optional, "expected non-optional checked dict type");
