@@ -57,7 +57,7 @@ group.add_argument(
 group.add_argument(
     "--builtin", action="store_true", help="compile using built-in C compiler"
 )
-group.add_argument(
+argparser.add_argument(
     "--opt",
     action="store",
     type=int,
