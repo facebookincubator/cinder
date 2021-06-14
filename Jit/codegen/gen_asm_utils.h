@@ -16,7 +16,6 @@ void RestoreOriginalGeneratorRBP(asmjit::x86::Emitter* as);
 void EmitEpilogueUnlinkFrame(
     asmjit::x86::Builder* as,
     asmjit::x86::Gp tstate_r,
-    void (*unlink_frame_func)(PyThreadState*),
     jit::hir::FrameMode frameMode,
     bool is_generator);
 

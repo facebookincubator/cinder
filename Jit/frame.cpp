@@ -85,7 +85,7 @@ bool isGenWithPyFrame(_PyShadowFrame* shadow_frame) {
     return false;
   }
   PyGenObject* gen = jit_frame.generator();
-  return (gen != nullptr) && (gen->gi_frame != nullptr);
+  return gen->gi_frame != nullptr;
 }
 
 BorrowedRef<PyFrameObject> materializePyFrame(
@@ -107,7 +107,7 @@ BorrowedRef<PyFrameObject> materializePyFrame(
       if (jit_frame.shadowFrame()->has_pyframe) {
         return prev == nullptr ? tstate->frame : prev->f_back;
       }
-      if (is_gen && jit_frame.generator() != nullptr) {
+      if (is_gen) {
         PyFrameObject* gen_frame = jit_frame.generator()->gi_frame;
         if (gen_frame != nullptr) {
           return gen_frame;
@@ -133,7 +133,7 @@ BorrowedRef<PyFrameObject> materializePyFrame(
   }
   // Transfer ownership of new reference to frame to either the unlink
   // trampoline or the generator epilogue.
-  if (!is_gen || !jit_frame.generator()) {
+  if (!is_gen) {
     // Generator epilogue handles detecting and unlinking the frame if the
     // generator is present on the stack below the shadow frame.
     //
@@ -145,11 +145,6 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     // handled by either the epilogue or the interpreter loop (in the event
     // that the generator deopts). In the future we may refactor things so that
     // `_PyJIT_GenSend` handles both linking and unlinking.
-    //
-    // In certain rare cases (e.g. `coro_new` may call `compute_cr_origin`,
-    // which walks the stack) the generator may be null. If so, the generator
-    // epilogue won't be able to unlink the frame, therefore we return into the
-    // pyframe unlink trampoline as if we're a normal function.
     jit_frame.insertPyFrameUnlinkTrampoline(frame);
   }
 
@@ -158,10 +153,8 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     PyGenObject* gen = jit_frame.generator();
     // f_gen is borrowed
     frame->f_gen = reinterpret_cast<PyObject*>(gen);
-    if (gen) {
-      gen->gi_frame = frame;
-      Py_INCREF(frame);
-    }
+    gen->gi_frame = frame;
+    Py_INCREF(frame);
   }
 
   return frame;

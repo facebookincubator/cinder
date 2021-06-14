@@ -77,6 +77,10 @@ class NativeGenerator {
     return env_.code_rt;
   }
 
+  bool isGen() const {
+    return func_->code->co_flags & kCoFlagsAnyGenerator;
+  }
+
   static Runtime* runtime() {
     return &s_jit_asm_code_rt_;
   }
@@ -105,13 +109,15 @@ class NativeGenerator {
   void linkShadowFrame(
       asmjit::x86::Gp tstate_reg,
       std::optional<asmjit::x86::Gp> gen_reg = std::nullopt);
+  enum class EntryKind { kInitial, kResume };
   int setupFrameAndSaveCallerRegisters(
       asmjit::x86::Gp tstate_reg,
+      EntryKind entry_kind,
       std::optional<asmjit::x86::Gp> gen_reg = std::nullopt);
   void generatePrologue(
       asmjit::Label correct_arg_count,
       asmjit::Label native_entry_point);
-  void generateLinkFrame();
+  void generateLinkFrame(asmjit::x86::Gp tstate_reg);
   void generateEpilogue(asmjit::BaseNode* epilogue_cursor);
   void generateDeoptExits();
   void generateResumeEntry();

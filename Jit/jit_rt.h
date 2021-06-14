@@ -5,6 +5,10 @@
 #include "Python.h"
 #include "classloader.h"
 
+namespace jit {
+class CodeRuntime;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -62,12 +66,6 @@ void JITRT_UnlinkFrame(PyThreadState* tstate);
  * Returns the original return address.
  */
 void* JITRT_UnlinkMaterializedShadowFrame();
-
-/*
- * Same as JITRT_UnlinkFrame but also clears tstate->frame->f_back as needed
- * during InitialYield.
- */
-void JITRT_InitialYieldUnlinkFrame(PyThreadState* tstate);
 
 /*
  * Handles a call that includes kw arguments or excess tuple arguments
@@ -408,19 +406,19 @@ PyObject* JITRT_MakeGenObject(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    PyCodeObject* code);
+    jit::CodeRuntime* code_rt);
 
 PyObject* JITRT_MakeGenObjectAsyncGen(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    PyCodeObject* code);
+    jit::CodeRuntime* code_rt);
 
 PyObject* JITRT_MakeGenObjectCoro(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    PyCodeObject* code);
+    jit::CodeRuntime* code_rt);
 
 // Mostly the same implementation as YIELD_FROM in ceval.c with slight tweaks to
 // make it stand alone. The argument 'v' is stolen.

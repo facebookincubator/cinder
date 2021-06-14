@@ -78,7 +78,6 @@ void RestoreOriginalGeneratorRBP(x86::Emitter* as) {
 void EmitEpilogueUnlinkFrame(
     x86::Builder* as,
     x86::Gp tstate_r,
-    void (*unlink_frame_func)(PyThreadState*),
     FrameMode frameMode,
     bool is_generator) {
   if (tstate_r != x86::rdi) {
@@ -90,6 +89,7 @@ void EmitEpilogueUnlinkFrame(
     as->mov(x86::rsi, kPrevPtr);
     as->mov(shadow_stack_top_ptr, x86::rsi);
   };
+  auto unlink_py_frame = reinterpret_cast<uint64_t>(JITRT_UnlinkFrame);
   auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
   switch (frameMode) {
     case FrameMode::kNone:
@@ -97,7 +97,7 @@ void EmitEpilogueUnlinkFrame(
     case FrameMode::kNormal:
       unlinkShadowFrame();
       as->mov(saved_rax_ptr, x86::rax);
-      as->call(reinterpret_cast<uint64_t>(unlink_frame_func));
+      as->call(unlink_py_frame);
       as->mov(x86::rax, saved_rax_ptr);
       break;
     case FrameMode::kShadow:
@@ -109,12 +109,10 @@ void EmitEpilogueUnlinkFrame(
         as->mov(saved_rax_ptr, x86::rax);
         // Load gen
         as->mov(x86::rax, kGenPtr);
-        as->test(x86::rax, x86::rax);
-        as->jz(done);
         // Check for gen->gi_frame
         as->cmp(x86::qword_ptr(x86::rax, offsetof(PyGenObject, gi_frame)), 0);
         as->jz(done);
-        as->call(reinterpret_cast<uint64_t>(unlink_frame_func));
+        as->call(unlink_py_frame);
         as->bind(done);
         as->mov(x86::rax, saved_rax_ptr);
       }
@@ -357,7 +355,6 @@ void NativeGenerator::linkShadowFrame(
     std::optional<x86::Gp> gen_reg) {
   const jit::hir::Function* func = GetFunction();
   jit::hir::FrameMode frame_mode = func->frameMode;
-  bool is_gen = func->code->co_flags & kCoFlagsAnyGenerator;
   auto scratch_reg = x86::rax;
   using namespace shadow_frame;
   auto shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
@@ -387,12 +384,9 @@ void NativeGenerator::linkShadowFrame(
         as_->mov(kCodeRtIdPtr, id);
       }
       // Set generator, if applicable.
-      if (is_gen) {
-        if (gen_reg.has_value()) {
-          as_->mov(kGenPtr, gen_reg.value());
-        } else {
-          as_->mov(kGenPtr, 0);
-        }
+      if (isGen()) {
+        JIT_CHECK(gen_reg.has_value(), "missing generator register");
+        as_->mov(kGenPtr, gen_reg.value());
       }
       // Set our shadow frame as top of shadow stack
       as_->lea(scratch_reg, kFramePtr);
@@ -404,6 +398,7 @@ void NativeGenerator::linkShadowFrame(
 
 int NativeGenerator::setupFrameAndSaveCallerRegisters(
     x86::Gp tstate_reg,
+    EntryKind entry_kind,
     std::optional<x86::Gp> gen_reg) {
   // During execution, the stack looks like this: (items marked with *
   // represent 0 or more words, items marked with ? represent 0 or 1 words,
@@ -438,7 +433,18 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(
   as_->sub(x86::rsp, spill_stack);
   env_.fixed_frame_size = spill_stack + saved_regs_size;
 
-  linkShadowFrame(tstate_reg, gen_reg);
+  switch (entry_kind) {
+    case EntryKind::kInitial:
+      // The initial yield for a generator just creates the generator object
+      // and shouldn't link any frames.
+      if (!isGen()) {
+        linkShadowFrame(tstate_reg, gen_reg);
+      }
+      break;
+    case EntryKind::kResume:
+      linkShadowFrame(tstate_reg, gen_reg);
+      break;
+  }
 
   // Push used callee-saved registers.
   while (!saved_regs.Empty()) {
@@ -463,7 +469,7 @@ x86::Gp get_arg_location(int arg) {
   JIT_CHECK(false, "should only be used with first six args");
 }
 
-void NativeGenerator::generateLinkFrame() {
+void NativeGenerator::generateLinkFrame(asmjit::x86::Gp tstate_reg) {
   auto load_args = [&] {
     as_->mov(x86::rdi, reinterpret_cast<intptr_t>(GetFunction()->code.get()));
     as_->mov(
@@ -472,12 +478,12 @@ void NativeGenerator::generateLinkFrame() {
   switch (GetFunction()->frameMode) {
     case FrameMode::kNone:
     case FrameMode::kShadow:
-      loadTState(x86::r11);
+      loadTState(tstate_reg);
       break;
     case FrameMode::kNormal:
       load_args();
       as_->call(reinterpret_cast<uint64_t>(JITRT_AllocateAndLinkFrame));
-      as_->mov(x86::r11, x86::rax); // tstate
+      as_->mov(tstate_reg, x86::rax);
       break;
   }
 }
@@ -667,14 +673,19 @@ void NativeGenerator::generatePrologue(
   // Args are now validated, setup frame
   auto frame_cursor = as_->cursor();
   as_->bind(setup_frame);
-  // Allocate a Python frame.
 
   // Save and restore incoming args across the call.
   as_->push(x86::rdi); // func
   as_->push(x86::rsi); // args
-
-  generateLinkFrame();
-
+  // Allocate a Python frame.
+  if (isGen()) {
+    // Generators do not have a frame linked when the generator is allocated
+    // during the initial yield. Instead, frames are linked when the generator
+    // is resumed.
+    loadTState(x86::r11);
+  } else {
+    generateLinkFrame(x86::r11);
+  }
   as_->pop(x86::r10); // args (moved to r10 so we can replace rsi)
   as_->pop(x86::rax); // func
 
@@ -694,7 +705,8 @@ void NativeGenerator::generatePrologue(
   // Finally allocate the saved space required for the actual function
   auto native_entry_cursor = as_->cursor();
   as_->bind(native_entry_point);
-  setupFrameAndSaveCallerRegisters(x86::r11);
+
+  setupFrameAndSaveCallerRegisters(x86::r11, EntryKind::kInitial);
 
   env_.addAnnotation("Link frame", frame_cursor);
   env_.addAnnotation("Native entry", native_entry_cursor);
@@ -828,7 +840,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
     RestoreOriginalGeneratorRBP(as_->as<x86::Emitter>());
   }
 
-  EmitEpilogueUnlinkFrame(as_, x86::rdi, JITRT_UnlinkFrame, frameMode, is_gen);
+  EmitEpilogueUnlinkFrame(as_, x86::rdi, frameMode, is_gen);
 
   // If we return a primitive, set edx to 1 to indicate no error (in case of
   // error, deopt will set it to 0 and jump to hard_exit_label, skipping this.)
@@ -923,7 +935,7 @@ void NativeGenerator::generateResumeEntry() {
   as_->bind(env_.gen_resume_entry_label);
 
   generateFunctionEntry();
-  setupFrameAndSaveCallerRegisters(x86::rdx, x86::rdi);
+  setupFrameAndSaveCallerRegisters(x86::rdx, EntryKind::kResume, x86::rdi);
 
   // Setup RBP to use storage in generator rather than stack.
 
@@ -982,7 +994,8 @@ void NativeGenerator::generateStaticEntryPoint(
   // Save incoming args across link call...
   int total_args = GetFunction()->numArgs();
 
-  if (GetFunction()->frameMode != FrameMode::kNone) {
+  const jit::hir::Function* func = GetFunction();
+  if ((func->frameMode != FrameMode::kNone) && !isGen()) {
     int pushed_args = std::min(total_args, NUM_REG_ARGS);
     // save native args across frame linkage call
     if (pushed_args % 2 != 0) {
@@ -992,7 +1005,7 @@ void NativeGenerator::generateStaticEntryPoint(
       as_->push(get_arg_location(i));
     }
 
-    generateLinkFrame();
+    generateLinkFrame(x86::r11);
     // restore native args across frame linkage
     for (int i = pushed_args - 1; i >= 0; i--) {
       as_->pop(get_arg_location(i));

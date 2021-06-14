@@ -385,13 +385,8 @@ PyObject* JITRT_ReportStaticArgTypecheckErrors(
   return _PyFunction_Vectorcall(func, args, nargs | flags, new_kwnames);
 }
 
-PyThreadState* JITRT_AllocateAndLinkFrame(
-    PyCodeObject* code,
-    PyObject* globals) {
-  PyThreadState* tstate = PyThreadState_GET();
-  JIT_DCHECK(tstate != NULL, "thread state cannot be null");
-
-  /* Allocate the frame object */
+static PyFrameObject*
+allocateFrame(PyThreadState* tstate, PyCodeObject* code, PyObject* globals) {
   if (code->co_zombieframe != NULL) {
     __builtin_prefetch(code->co_zombieframe);
   }
@@ -413,6 +408,19 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
     return NULL;
   }
 
+  return frame;
+}
+
+PyThreadState* JITRT_AllocateAndLinkFrame(
+    PyCodeObject* code,
+    PyObject* globals) {
+  PyThreadState* tstate = PyThreadState_GET();
+  JIT_DCHECK(tstate != NULL, "thread state cannot be null");
+
+  PyFrameObject* frame = allocateFrame(tstate, code, globals);
+  if (frame == nullptr) {
+    return nullptr;
+  }
   /* Set the currently-executing flag on the frame */
   frame->f_executing = 1;
 
@@ -444,18 +452,6 @@ void* JITRT_UnlinkMaterializedShadowFrame() {
   *(frame->f_stacktop) = nullptr;
   JITRT_UnlinkFrame(tstate);
   return retaddr;
-}
-
-void JITRT_InitialYieldUnlinkFrame(PyThreadState* tstate) {
-  PyFrameObject* f = tstate->frame;
-  tstate->frame = f->f_back;
-  Py_CLEAR(f->f_back);
-  f->f_executing = 0;
-
-  JIT_DCHECK(Py_REFCNT(f) > 1, "Generator object should reference frame");
-  Py_DECREF(f);
-  JIT_DCHECK(!_PyObject_GC_IS_TRACKED(f), "Frame should not yet be GC tracked");
-  _PyObject_GC_TRACK(f);
 }
 
 PyObject*
@@ -1278,8 +1274,9 @@ static inline PyObject* make_gen_object(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    PyCodeObject* code) {
-  PyGenObject* gen;
+    jit::CodeRuntime* code_rt) {
+  PyGenObject* gen = nullptr;
+  PyCodeObject* code = code_rt->GetCode();
   if (_PyJIT_ShadowFrame() || _PyJIT_NoFrame() ||
       code->co_flags & CO_NO_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
@@ -1290,12 +1287,16 @@ static inline PyObject* make_gen_object(
       gen = reinterpret_cast<PyGenObject*>(_PyGen_NewNoFrame(code));
     }
   } else {
-    PyFrameObject* f = tstate->frame;
-    Py_INCREF(f);
+    PyFrameObject* f = allocateFrame(tstate, code, code_rt->GetGlobals());
+    // This clearing of f_back only when returning a generator matches
+    // CPython's generator handling in _PyEval_EvalCodeWithName; it also avoids
+    // keeping the parent frame alive longer than necessary if the caller
+    // finishes before the genereator is resumed.
+    Py_CLEAR(f->f_back);
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(
           _PyCoro_NewTstate(tstate, f, code->co_name, code->co_qualname));
-      auto parent_f = tstate->frame->f_back;
+      PyFrameObject* parent_f = tstate->frame;
       auto UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
       if (!strcmp(UTF8_name, "<genexpr>") || !strcmp(UTF8_name, "<listcomp>") ||
           !strcmp(UTF8_name, "<dictcomp>")) {
@@ -1311,8 +1312,8 @@ static inline PyObject* make_gen_object(
           PyGen_NewWithQualName(f, code->co_name, code->co_qualname));
     }
   }
-  if (gen == NULL) {
-    return NULL;
+  if (gen == nullptr) {
+    return nullptr;
   }
 
   spill_words = std::max(spill_words, jit::kMinGenSpillWords);
@@ -1324,6 +1325,7 @@ static inline PyObject* make_gen_object(
   footer->yieldPoint = nullptr;
   footer->state = _PyJitGenState_JustStarted;
   footer->gen = gen;
+  footer->code_rt_id = code_rt->id();
 
   gen->gi_jit_data = reinterpret_cast<_PyJIT_GenData*>(footer);
 
@@ -1334,27 +1336,27 @@ PyObject* JITRT_MakeGenObject(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    PyCodeObject* code) {
+    jit::CodeRuntime* code_rt) {
   return make_gen_object<MakeGenObjectMode::kGenerator>(
-      resume_entry, tstate, spill_words, code);
+      resume_entry, tstate, spill_words, code_rt);
 }
 
 PyObject* JITRT_MakeGenObjectAsyncGen(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    PyCodeObject* code) {
+    jit::CodeRuntime* code_rt) {
   return make_gen_object<MakeGenObjectMode::kAsyncGenerator>(
-      resume_entry, tstate, spill_words, code);
+      resume_entry, tstate, spill_words, code_rt);
 }
 
 PyObject* JITRT_MakeGenObjectCoro(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    PyCodeObject* code) {
+    jit::CodeRuntime* code_rt) {
   return make_gen_object<MakeGenObjectMode::kCoroutine>(
-      resume_entry, tstate, spill_words, code);
+      resume_entry, tstate, spill_words, code_rt);
 }
 
 JITRT_YieldFromRes JITRT_YieldFrom(

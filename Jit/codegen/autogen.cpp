@@ -347,7 +347,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   as->lea(x86::rdi, x86::ptr(env->gen_resume_entry_label));
   JIT_CHECK(env->spill_size % kPointerSize == 0, "Bad spill alignment");
   as->mov(x86::rdx, (env->spill_size / kPointerSize) + 1);
-  as->mov(x86::rcx, reinterpret_cast<uint64_t>(env->code_rt->GetCode()));
+  as->mov(x86::rcx, reinterpret_cast<uint64_t>(env->code_rt));
   if (env->code_rt->GetCode()->co_flags & CO_COROUTINE) {
     as->call(reinterpret_cast<uint64_t>(JITRT_MakeGenObjectCoro));
   } else if (env->code_rt->GetCode()->co_flags & CO_ASYNC_GENERATOR) {
@@ -368,10 +368,6 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   auto gi_jit_data_offset = GET_STRUCT_MEMBER_OFFSET(PyGenObject, gi_jit_data);
   as->mov(x86::rdi, x86::ptr(gen_reg, gi_jit_data_offset));
 
-  as->mov(
-      x86::dword_ptr(x86::rdi, offsetof(GenDataFooter, code_rt_id)),
-      env->code_rt->id());
-
   // Arbitrary scratch register for use in emitStoreGenYieldPoint().
   auto scratch_r = x86::r9;
   asmjit::Label resume_label = as->newLabel();
@@ -387,18 +383,6 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   as->cld();
 
   as->bind(initial_yield_exit);
-
-  // Perform some epilogue work here and then jump to hard-exit portion of
-  // epilogue to complete exit. Specifically we make unlinking include a clear
-  // of tstate->frame->f_back. This clearing of f_back only when returning a
-  // generator matches CPython's generator handling in _PyEval_EvalCodeWithName.
-
-  // Load tstate into RDI for calls in emitEpilogueUnlinkFrame(). Tstate may
-  // have been trashed by the call to JITRT_MakeGenObject so load it from spill.
-  as->mov(x86::rdi, x86::ptr(x86::rbp, tstate_loc));
-
-  EmitEpilogueUnlinkFrame(
-      as, x86::rdi, JITRT_InitialYieldUnlinkFrame, env->frame_mode, true);
 
   // Jump to bottom half of epilogue
   as->jmp(env->hard_exit_label);
