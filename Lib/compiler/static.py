@@ -231,7 +231,6 @@ NONE_TYPE: Class
 TYPE_TYPE: Class
 ARG_TYPE: Class
 SLICE_TYPE: Class
-
 CHAR_TYPE: CIntType
 DOUBLE_TYPE: CDoubleType
 
@@ -5722,6 +5721,66 @@ class TypeBinder(GenericVisitor):
         scope.declare(arg.arg, arg_type.instance)
         self.set_type(arg, arg_type.instance, None)
 
+    def _visitParameters(self, args: ast.arguments, scope: BindingScope) -> None:
+        for arg in args.posonlyargs:
+            ann = arg.annotation
+            if ann:
+                self.visit(ann)
+                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+            elif arg.arg in scope.decl_types:
+                # Already handled self
+                continue
+            else:
+                arg_type = DYNAMIC_TYPE
+            self.set_param(arg, arg_type, scope)
+
+        for arg in args.args:
+            ann = arg.annotation
+            if ann:
+                self.visit(ann)
+                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+            elif arg.arg in scope.decl_types:
+                # Already handled self
+                continue
+            else:
+                arg_type = DYNAMIC_TYPE
+
+            self.set_param(arg, arg_type, scope)
+
+        if args.defaults:
+            for default in args.defaults:
+                self.visit(default)
+
+        if args.kw_defaults:
+            for default in args.kw_defaults:
+                if default is not None:
+                    self.visit(default)
+
+        vararg = args.vararg
+        if vararg:
+            ann = vararg.annotation
+            if ann:
+                self.visit(ann)
+
+            self.set_param(vararg, TUPLE_EXACT_TYPE, scope)
+
+        for arg in args.kwonlyargs:
+            ann = arg.annotation
+            if ann:
+                self.visit(ann)
+                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+            else:
+                arg_type = DYNAMIC_TYPE
+
+            self.set_param(arg, arg_type, scope)
+
+        kwarg = args.kwarg
+        if kwarg:
+            ann = kwarg.annotation
+            if ann:
+                self.visit(ann)
+            self.set_param(kwarg, DICT_EXACT_TYPE, scope)
+
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         scope = BindingScope(node, generic_types=self.symtable.generic_types)
         for decorator in node.decorator_list:
@@ -5740,64 +5799,7 @@ class TypeBinder(GenericVisitor):
             else:
                 self.set_param(node.args.args[0], DYNAMIC_TYPE, scope)
 
-        for arg in node.args.posonlyargs:
-            ann = arg.annotation
-            if ann:
-                self.visit(ann)
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
-            elif arg.arg in scope.decl_types:
-                # Already handled self
-                continue
-            else:
-                arg_type = DYNAMIC_TYPE
-            self.set_param(arg, arg_type, scope)
-
-        for arg in node.args.args:
-            ann = arg.annotation
-            if ann:
-                self.visit(ann)
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
-            elif arg.arg in scope.decl_types:
-                # Already handled self
-                continue
-            else:
-                arg_type = DYNAMIC_TYPE
-
-            self.set_param(arg, arg_type, scope)
-
-        if node.args.defaults:
-            for default in node.args.defaults:
-                self.visit(default)
-
-        if node.args.kw_defaults:
-            for default in node.args.kw_defaults:
-                if default is not None:
-                    self.visit(default)
-
-        vararg = node.args.vararg
-        if vararg:
-            ann = vararg.annotation
-            if ann:
-                self.visit(ann)
-
-            self.set_param(vararg, TUPLE_EXACT_TYPE, scope)
-
-        for arg in node.args.kwonlyargs:
-            ann = arg.annotation
-            if ann:
-                self.visit(ann)
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
-            else:
-                arg_type = DYNAMIC_TYPE
-
-            self.set_param(arg, arg_type, scope)
-
-        kwarg = node.args.kwarg
-        if kwarg:
-            ann = kwarg.annotation
-            if ann:
-                self.visit(ann)
-            self.set_param(kwarg, DICT_EXACT_TYPE, scope)
+        self._visitParameters(node.args, scope)
 
         returns = None if node.args in self.cur_mod.dynamic_returns else node.returns
         if returns:
@@ -6097,7 +6099,13 @@ class TypeBinder(GenericVisitor):
     def visitLambda(
         self, node: Lambda, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
+        scope = BindingScope(node, generic_types=self.symtable.generic_types)
+        self._visitParameters(node.args, scope)
+
+        self.scopes.append(scope)
         self.visit(node.body)
+        self.scopes.pop()
+
         self.set_type(node, DYNAMIC, type_ctx)
         return NO_EFFECT
 

@@ -4235,6 +4235,38 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             self.assertEqual(mod["a"], "hunter2")
 
+    def test_verify_lambda(self):
+        codestr = """
+            x = lambda x: x
+            a = x("hi")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod["a"], "hi")
+
+    def test_verify_lambda_keyword_only(self):
+        codestr = """
+            x = lambda *, x: x
+            a = x(x="hi")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod["a"], "hi")
+
+    def test_verify_lambda_vararg(self):
+        codestr = """
+            x = lambda *x: x[1]
+            a = x(1, "hi")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod["a"], "hi")
+
+    def test_verify_lambda_kwarg(self):
+        codestr = """
+            x = lambda **kwargs: kwargs["key"]
+            a = x(key="hi")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod["a"], "hi")
+
     def test_verify_arg_dynamic_type(self):
         codestr = """
             def x(v:str):
