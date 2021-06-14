@@ -18,6 +18,17 @@ extern "C" {
 #endif
 
 /*
+ * Offset of the top shadow frame. Set to -1 by default; set to the correct
+ * offset when shadow frame mode is enabled.
+ */
+PyAPI_DATA(int64_t) __strobe_PyThreadState_shadow_frame;
+
+/*
+ * Offset of the code object within a jit::CodeRuntime
+ */
+PyAPI_DATA(int64_t) __strobe_CodeRuntime_py_code;
+
+/*
  * This defines the global public API for the JIT that is consumed by the
  * runtime.
  *

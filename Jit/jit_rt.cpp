@@ -1325,7 +1325,7 @@ static inline PyObject* make_gen_object(
   footer->yieldPoint = nullptr;
   footer->state = _PyJitGenState_JustStarted;
   footer->gen = gen;
-  footer->code_rt_id = code_rt->id();
+  footer->code_rt = code_rt;
 
   gen->gi_jit_data = reinterpret_cast<_PyJIT_GenData*>(footer);
 

@@ -36,6 +36,7 @@ PyAPI_DATA(int64_t) __strobe_TCurrentState_offset;
 PyAPI_DATA(int32_t) __strobe_PyVersion_major;
 PyAPI_DATA(int32_t) __strobe_PyVersion_minor;
 PyAPI_DATA(int32_t) __strobe_PyVersion_micro;
+PyAPI_DATA(int64_t) __strobe_PyGenObject_code;
 /* facebook end T57511654 */
 
 PyAPI_FUNC(void) _Py_FinishPendingCalls(_PyRuntimeState *runtime);

@@ -33,6 +33,9 @@
 
 using namespace jit;
 
+int64_t __strobe_PyThreadState_shadow_frame = -1;
+int64_t __strobe_CodeRuntime_py_code = CodeRuntime::kPyCodeOffset;
+
 enum InitState { JIT_NOT_INITIALIZED, JIT_INITIALIZED, JIT_FINALIZED };
 enum FrameMode { PY_FRAME = 0, NO_FRAME, SHADOW_FRAME };
 
@@ -895,6 +898,7 @@ int _PyJIT_Initialize() {
     jit_config.frame_mode = SHADOW_FRAME;
     _PyThreadState_GetFrame =
         reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
+    __strobe_PyThreadState_shadow_frame = offsetof(PyThreadState, shadow_frame);
   }
   jit_config.are_type_slots_enabled = !PyJIT_IsXOptionSet("jit-no-type-slots");
   jit_config.batch_compile_workers =
@@ -1214,8 +1218,7 @@ PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
   if (gen_footer->state == _PyJitGenState_Completed) {
     return nullptr;
   }
-  jit::Runtime* rt = jit::codegen::NativeGenerator::runtime();
-  jit::CodeRuntime* code_rt = rt->getCodeRuntime(gen_footer->code_rt_id);
+  jit::CodeRuntime* code_rt = gen_footer->code_rt;
   PyFrameObject* frame =
       PyFrame_New(tstate, code_rt->GetCode(), code_rt->GetGlobals(), nullptr);
   JIT_CHECK(frame != nullptr, "failed allocating frame");
@@ -1265,10 +1268,9 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
         "py frame w/out corresponding shadow frame\n");
     return nullptr;
   }
-  if (shadow_frame->has_pyframe) {
+  if (_PyShadowFrame_HasPyFrame(shadow_frame)) {
     return tstate->frame->f_globals;
   }
-  jit::Runtime* rt = jit::codegen::NativeGenerator::runtime();
-  jit::CodeRuntime* code_rt = rt->getCodeRuntime(shadow_frame->code_rt_id);
+  jit::CodeRuntime* code_rt = getCodeRuntime(shadow_frame);
   return code_rt->GetGlobals();
 }

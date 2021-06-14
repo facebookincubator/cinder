@@ -63,6 +63,7 @@ int64_t __strobe_TCurrentState_offset = offsetof(_PyRuntimeState, gilstate.tstat
 int32_t __strobe_PyVersion_major = PY_MAJOR_VERSION;
 int32_t __strobe_PyVersion_minor = PY_MINOR_VERSION;
 int32_t __strobe_PyVersion_micro = PY_MICRO_VERSION;
+int64_t __strobe_PyGenObject_code = offsetof(PyGenObject, gi_code);
 /* facebook end T57511654 */
 
 #ifdef Py_DEBUG
@@ -1259,7 +1260,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     tstate->frame = f;
     co = f->f_code;
     co->co_cache.curcalls++;
-    _PyShadowFrame_PushInterp(tstate, &shadow_frame);
+    _PyShadowFrame_PushInterp(tstate, &shadow_frame, f);
 
     if (tstate->use_tracing) {
         if (tstate->c_tracefunc != NULL) {
@@ -6901,12 +6902,7 @@ PyObject *
 PyEval_GetGlobals(void)
 {
     PyThreadState *tstate = _PyThreadState_GET();
-    PyFrameObject *current_frame = _PyEval_GetFrame(tstate);
-    if (current_frame == NULL) {
-        return NULL;
-    }
-    assert(current_frame->f_globals != NULL);
-    return current_frame->f_globals;
+    return _PyJIT_GetGlobals(tstate);
 }
 
 int
