@@ -68,6 +68,7 @@ enum class FlagEffects {
   X(LessThanEqualUnsigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})    \
   X(Cmp, false, FlagEffects::kSet, kOut, 1, {1, 1})                          \
   X(Lea, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                    \
+  X(LoadArg, false, FlagEffects::kNone, kAlways64)                           \
   X(Exchange, false, FlagEffects::kNone, kAlways64, 1, {1, 1})               \
   X(Move, false, FlagEffects::kNone, kOut)                                   \
   X(Push)                                                                    \

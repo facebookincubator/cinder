@@ -118,12 +118,10 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
     CreateInstrOutput(instr, tokens[1]);
   } else if (instr_str == "LoadArg") {
     JIT_CHECK(tokens.size() == 3, "expected 3 args");
-    auto instr = createInstr(Instruction::kBind);
+    auto instr = createInstr(Instruction::kLoadArg);
 
-    auto loc = env_->arg_locations[stoull(tokens[2])];
-
+    CreateInstrImmediateInput(instr, tokens[2]);
     CreateInstrOutput(instr, tokens[1]);
-    instr->allocatePhyRegOrStackInput(loc);
   } else if (instr_str == "Store") {
     auto instr = createInstr(Instruction::kMove);
 

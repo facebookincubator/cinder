@@ -169,4 +169,21 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteCondBranch(
   return kChanged;
 }
 
+Rewrite::RewriteResult PostGenerationRewrite::rewriteLoadArg(
+    instr_iter_t instr_iter,
+    Environ* env) {
+  auto instr = instr_iter->get();
+  if (!instr->isLoadArg()) {
+    return kUnchanged;
+  }
+  instr->setOpcode(Instruction::kBind);
+  JIT_CHECK(instr->getNumInputs() == 1, "expected one input");
+  OperandBase* input = instr->getInput(0);
+  JIT_CHECK(input->isImm(), "expected constant arg index as input");
+  auto arg_idx = input->getConstant();
+  auto loc = env->arg_locations[arg_idx];
+  static_cast<Operand*>(input)->setPhyRegOrStackSlot(loc);
+  return kChanged;
+}
+
 } // namespace jit::codegen

@@ -13,6 +13,7 @@ class PostGenerationRewrite : public Rewrite {
     registerOneRewriteFunction(rewriteBinaryOpConstantPosition);
     registerOneRewriteFunction(rewriteBinaryOpLargeConstant);
     registerOneRewriteFunction(rewriteCondBranch);
+    registerOneRewriteFunction(rewriteLoadArg);
   }
 
  private:
@@ -27,5 +28,8 @@ class PostGenerationRewrite : public Rewrite {
   // Rewrite CondBranch instruction so that in some cases, we don't have
   // to allocate a register for it.
   static RewriteResult rewriteCondBranch(instr_iter_t instr_iter);
+
+  // Rewrite LoadArg to Bind and allocate a physical register for its input.
+  static RewriteResult rewriteLoadArg(instr_iter_t instr_iter, Environ* env);
 };
 } // namespace jit::codegen
