@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/postalloc.h"
 #include <optional>
+#include "Jit/codegen/x86_64.h"
 #include "Jit/lir/operand.h"
 
 using namespace jit::lir;
@@ -105,12 +106,15 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteCallInstrs(
     return kChanged;
   }
 
-  if (!output->isReg() || output->getPhyRegister() != PhyLocation::RAX) {
+  const PhyLocation kReturnRegister =
+      output->isFp() ? PhyLocation::XMM0 : PhyLocation::RAX;
+
+  if (!output->isReg() || output->getPhyRegister() != kReturnRegister) {
     block->allocateInstrBefore(
         next_iter,
         Instruction::kMove,
         OutPhyRegStack(output->getPhyRegOrStackSlot(), output->dataType()),
-        PhyReg(PhyLocation::RAX));
+        PhyReg(kReturnRegister, output->dataType()));
   }
   output->setNone();
 

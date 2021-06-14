@@ -196,6 +196,7 @@ class LinearScanAllocator {
   }
 
   void printAllIntervalsByVReg(const lir::Operand* vreg) const;
+  void printAllVregIntervals() const;
 
   void sortBasicBlocks();
   void initialize();

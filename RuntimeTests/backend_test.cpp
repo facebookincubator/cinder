@@ -363,6 +363,71 @@ TEST_F(BackendTest, ManyArguments) {
   ASSERT_DOUBLE_EQ(result, expected);
 }
 
+namespace {
+static double add(double a, double b) {
+  return a + b;
+}
+} // namespace
+
+TEST_F(BackendTest, FPMultipleCalls) {
+  auto lirfunc = std::make_unique<Function>();
+  auto bb = lirfunc->allocateBasicBlock();
+
+  double a = 1.1;
+  double b = 2.2;
+  double c = 3.3;
+  double d = 4.4;
+
+  auto loadFP = [&](double* n) {
+    auto m1 = bb->allocateInstr(
+        Instruction::kMove,
+        nullptr,
+        OutVReg(),
+        Imm(reinterpret_cast<uint64_t>(n)));
+    auto m2 = bb->allocateInstr(
+        Instruction::kMove, nullptr, OutVReg(OperandBase::kDouble), Ind(m1));
+    return m2;
+  };
+
+  auto la = loadFP(&a);
+  auto lb = loadFP(&b);
+  auto sum1 = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(OperandBase::kDouble),
+      Imm(reinterpret_cast<uint64_t>(add)),
+      VReg(la),
+      VReg(lb));
+
+  auto lc = loadFP(&c);
+  auto ld = loadFP(&d);
+  auto sum2 = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(OperandBase::kDouble),
+      Imm(reinterpret_cast<uint64_t>(add)),
+      VReg(lc),
+      VReg(ld));
+
+  auto sum = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(OperandBase::kDouble),
+      Imm(reinterpret_cast<uint64_t>(add)),
+      VReg(sum1),
+      VReg(sum2));
+
+  bb->allocateInstr(Instruction::kReturn, nullptr, VReg(sum));
+
+  auto epilogue = lirfunc->allocateBasicBlock();
+  bb->addSuccessor(epilogue);
+
+  auto func = (double (*)())SimpleCompile(lirfunc.get());
+  double result = func();
+
+  ASSERT_DOUBLE_EQ(result, a + b + c + d);
+}
+
 TEST_F(BackendTest, MoveSequenceOptTest) {
   auto lirfunc = std::make_unique<Function>();
   auto bb = lirfunc->allocateBasicBlock();

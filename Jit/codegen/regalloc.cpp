@@ -507,7 +507,13 @@ void LinearScanAllocator::reserveRegisters(
     while (!phy_regs.Empty()) {
       PhyLocation phy_reg = phy_regs.GetFirst();
       phy_regs.RemoveFirst();
-      vregs.emplace(phy_reg, nullptr).first->second.setPhyRegister(phy_reg);
+
+      auto& inserted_operand = vregs.emplace(phy_reg, nullptr).first->second;
+      inserted_operand.setPhyRegister(phy_reg);
+
+      if (phy_reg.is_fp_register()) {
+        inserted_operand.setDataType(lir::OperandBase::kDouble);
+      }
     }
     return vregs;
   }();
@@ -704,7 +710,7 @@ bool LinearScanAllocator::tryAllocateFreeReg(
     auto start =
         std::next(freeUntilPos.begin(), is_fp ? PhyLocation::XMM_REG_BASE : 0);
     auto end =
-        std::prev(freeUntilPos.end(), is_fp ? 0 : PhyLocation::XMM_REG_BASE);
+        std::prev(freeUntilPos.end(), is_fp ? 0 : PhyLocation::NUM_XMM_REGS);
 
     auto max_iter = std::max_element(start, end);
     if (*max_iter == START_LOCATION) {
@@ -1506,6 +1512,17 @@ void LinearScanAllocator::printAllIntervalsByVReg(
     if (a->vreg == vreg) {
       std::cerr << *(a.get()) << std::endl;
     }
+  }
+}
+
+void LinearScanAllocator::printAllVregIntervals() const {
+  std::unordered_set<const Operand*> vregs;
+  for (auto& a : allocated_) {
+    vregs.emplace(a->vreg);
+  }
+
+  for (auto vreg : vregs) {
+    printAllIntervalsByVReg(vreg);
   }
 }
 
