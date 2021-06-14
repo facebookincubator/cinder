@@ -6552,7 +6552,7 @@ class StaticCompilationTests(StaticTestBase):
                 x8: Array[uint64] = Array[uint64]([1, 3, 5])
                 x9: Array[char] = Array[char]([ord('a')])
                 x10: Array[double] = Array[double]([1.1, 3.3, 5.5])
-                x11: Array[float] = Array[float]([1.1, 3.3, 5.5])
+                # TODO(T92687901): Support Array[single] for array("f", ...).
                 arrays = [
                     x1,
                     x2,
@@ -6564,7 +6564,6 @@ class StaticCompilationTests(StaticTestBase):
                     x8,
                     x9,
                     x10,
-                    x11,
                 ]
                 first_elements = []
                 for ar in arrays:
@@ -10111,6 +10110,45 @@ class StaticCompilationTests(StaticTestBase):
         """
         # No TypedSyntaxError "cannot inherit from Final class 'dynamic'"
         self.compile(codestr)
+
+    def test_int_subclass_of_float(self):
+        """PEP 484 specifies that ints should be treated as subclasses of floats,
+        even though they differ in the runtime."""
+        codestr = """
+            def takes_float(f: float) -> float:
+                return f
+
+            a: int = 1
+            x: float = takes_float(a)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod["x"], 1)
+
+    def test_float_int_union_error_message(self):
+        codestr = """
+            class MyFloat(float):
+                pass
+
+            def f(x: int) -> int:
+                y = 1.0
+                if x:
+                    y = MyFloat("1.5")
+                z = x or y
+                return z
+        """
+        self.type_error(codestr, "type mismatch: float cannot be assigned to int")
+
+    def test_exact_float_type(self):
+        codestr = """
+        def foo():
+            f = float("1.0")
+            reveal_type(f)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            r"reveal_type\(f\): 'Exact\[float\]'",
+        ):
+            self.compile(codestr)
 
     def test_slotification_decorated(self):
         codestr = """

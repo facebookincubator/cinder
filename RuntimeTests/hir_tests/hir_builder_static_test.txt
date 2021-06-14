@@ -1078,7 +1078,7 @@ fun jittestmodule:test {
       Locals<1> v0
       Stack<3> v2 v3 v9
     }
-    v15 = Cast<float> v14 {
+    v15 = Cast<object> v14 {
       NextInstrOffset 26
       Locals<1> v0
       Stack<4> v2 v3 v9 v11
@@ -1114,7 +1114,7 @@ fun jittestmodule:test {
       Locals<1> v0
       Stack<4> v2 v3 v9 v15
     }
-    v21 = Cast<float> v20 {
+    v21 = Cast<object> v20 {
       NextInstrOffset 34
       Locals<1> v0
       Stack<5> v2 v3 v9 v15 v17

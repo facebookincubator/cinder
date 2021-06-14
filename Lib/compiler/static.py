@@ -643,6 +643,23 @@ class ModuleTable:
                         "ClassVar is allowed only in class attribute annotations."
                     )
 
+            # Even if we know that e.g. `builtins.str` is the exact `str` type and
+            # not a subclass, and it's useful to track that knowledge, when we
+            # annotate `x: str` that annotation should not exclude subclasses.
+            if klass:
+                klass = inexact_type(klass)
+                # PEP-484 specifies that ints should be treated as a subclass of floats,
+                # even though they differ in the runtime. We need to maintain the distinction
+                # between the two internally, so we should view user-specified `float` annotations
+                # as `float | int`. This widening of the type prevents us from applying
+                # optimizations # to user-specified floats, but does not affect ints. Since we
+                # don't optimize Python floats anyway, we accept this to maintain PEP-484 compatibility.
+
+                if klass is FLOAT_TYPE:
+                    klass = UNION_TYPE.make_generic_type(
+                        (FLOAT_TYPE, INT_TYPE), self.symtable.generic_types
+                    )
+
             # TODO until we support runtime checking of unions, we must for
             # safety resolve union annotations to dynamic (except for
             # optionals, which we can check at runtime)
@@ -654,10 +671,7 @@ class ModuleTable:
             ):
                 return None
 
-            # Even if we know that e.g. `builtins.str` is the exact `str` type and
-            # not a subclass, and it's useful to track that knowledge, when we
-            # annotate `x: str` that annotation should not exclude subclasses.
-            return inexact_type(klass) if klass else None
+            return klass
 
     def _resolve_annotation(self, node: ast.AST) -> Optional[Class]:
         # First try to resolve non-annotation-specific forms. For resolving the
@@ -3835,6 +3849,16 @@ class UnionTypeName(GenericTypeName):
         return opt_type
 
     @property
+    def float_type(self) -> Optional[Class]:
+        """Collapse `float | int` and `int | float` to `float`. Otherwise, return None."""
+        if len(self.args) == 2:
+            if self.args[0] is FLOAT_TYPE and self.args[1] is INT_TYPE:
+                return self.args[0]
+            if self.args[1] is FLOAT_TYPE and self.args[0] is INT_TYPE:
+                return self.args[1]
+        return None
+
+    @property
     def type_descr(self) -> TypeDescr:
         opt_type = self.opt_type
         if opt_type is not None:
@@ -3848,6 +3872,9 @@ class UnionTypeName(GenericTypeName):
         opt_type = self.opt_type
         if opt_type is not None:
             return f"Optional[{opt_type.instance.name}]"
+        float_type = self.float_type
+        if float_type is not None:
+            return float_type.instance.name
         return super().friendly_name
 
 
