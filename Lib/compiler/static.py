@@ -4895,8 +4895,18 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> bool:
         rtype = visitor.get_type(node.right)
-        if rtype != self or type(node.op) not in self._double_binary_opcode_signed:
+        if type(node.op) not in self._double_binary_opcode_signed:
             raise visitor.syntax_error(self.binop_error(self, rtype, node.op), node)
+
+        if rtype != self:
+            try:
+                visitor.visit(node.right, type_ctx or DOUBLE_TYPE.instance)
+            except TypedSyntaxError:
+                # Report a better error message than the generic can't be used
+                raise visitor.syntax_error(
+                    self.binop_error(self, visitor.get_type(node.right), node.op),
+                    node,
+                )
 
         visitor.set_type(node, self, type_ctx)
         return True

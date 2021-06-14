@@ -14429,6 +14429,17 @@ class StaticRuntimeTests(StaticTestBase):
                     f = mod["testfunc"]
                     self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
+    def test_double_binop_with_literal(self):
+        codestr = f"""
+            from __static__ import double, unbox
+
+            def f():
+                y: double = 1.2
+                y + 1.0
+        """
+        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f()
+
     def test_primitive_stack_spill(self):
         # Create enough locals that some must get spilled to stack, to test
         # shuffling stack-spilled values across basic block transitions, and
