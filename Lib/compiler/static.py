@@ -3126,7 +3126,7 @@ class IsInstanceFunction(Object[Class]):
 
             if klass_type is not None:
                 return IsInstanceEffect(
-                    arg0.id,
+                    arg0,
                     visitor.get_type(arg0),
                     inexact(klass_type.instance),
                     visitor,
@@ -5434,8 +5434,13 @@ class NarrowingEffect:
     def not_(self) -> NarrowingEffect:
         return NegationEffect(self)
 
-    def apply(self, local_types: Dict[str, Value]) -> None:
-        """applies the given effect in the target scope"""
+    def apply(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
+        """applies the given effect in the target scope. if `local_name_nodes` is passed, populates
+        it with the underlying name nodes"""
         pass
 
     def undo(self, local_types: Dict[str, Value]) -> None:
@@ -5460,9 +5465,13 @@ class AndEffect(NarrowingEffect):
 
         return AndEffect(*self.effects, other)
 
-    def apply(self, local_types: Dict[str, Value]) -> None:
+    def apply(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
         for effect in self.effects:
-            effect.apply(local_types)
+            effect.apply(local_types, local_name_nodes)
 
     def undo(self, local_types: Dict[str, Value]) -> None:
         """restores the type to its original value"""
@@ -5508,7 +5517,11 @@ class NegationEffect(NarrowingEffect):
     def not_(self) -> NarrowingEffect:
         return self.negated
 
-    def apply(self, local_types: Dict[str, Value]) -> None:
+    def apply(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
         self.negated.reverse(local_types)
 
     def undo(self, local_types: Dict[str, Value]) -> None:
@@ -5519,8 +5532,11 @@ class NegationEffect(NarrowingEffect):
 
 
 class IsInstanceEffect(NarrowingEffect):
-    def __init__(self, var: str, prev: Value, inst: Value, visitor: TypeBinder) -> None:
-        self.var = var
+    def __init__(
+        self, name: ast.Name, prev: Value, inst: Value, visitor: TypeBinder
+    ) -> None:
+        self.var: str = name.id
+        self.name = name
         self.prev = prev
         self.inst = inst
         reverse = prev
@@ -5533,8 +5549,14 @@ class IsInstanceEffect(NarrowingEffect):
             ).instance
         self.rev: Value = reverse
 
-    def apply(self, local_types: Dict[str, Value]) -> None:
+    def apply(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
         local_types[self.var] = self.inst
+        if local_name_nodes is not None:
+            local_name_nodes[self.var] = self.name
 
     def undo(self, local_types: Dict[str, Value]) -> None:
         local_types[self.var] = self.prev
@@ -5954,6 +5976,14 @@ class TypeBinder(GenericVisitor):
                 f"type mismatch: {src.instance.name} {reason} {dest.instance.name} ",
                 node,
             )
+
+    def visitAssert(self, node: ast.Assert) -> None:
+        effect = self.visit(node.test) or NO_EFFECT
+        effect.apply(self.local_types)
+        self.set_node_data(node, NarrowingEffect, effect)
+        message = node.msg
+        if message:
+            self.visit(message)
 
     def visitBoolOp(
         self, node: BoolOp, type_ctx: Optional[Class] = None
@@ -6378,9 +6408,7 @@ class TypeBinder(GenericVisitor):
                     isinstance(var_type, UnionInstance)
                     and not var_type.klass.is_generic_type_definition
                 ):
-                    effect = IsInstanceEffect(
-                        other.id, var_type, NONE_TYPE.instance, self
-                    )
+                    effect = IsInstanceEffect(other, var_type, NONE_TYPE.instance, self)
                     if isinstance(node.ops[0], IsNot):
                         effect = effect.not_()
                     return effect
@@ -6482,7 +6510,7 @@ class TypeBinder(GenericVisitor):
             isinstance(type, UnionInstance)
             and not type.klass.is_generic_type_definition
         ):
-            effect = IsInstanceEffect(node.id, type, NONE_TYPE.instance, self)
+            effect = IsInstanceEffect(node, type, NONE_TYPE.instance, self)
             return effect.not_()
 
         return NO_EFFECT
@@ -6947,6 +6975,25 @@ class Static38CodeGenerator(CinderCodeGenerator):
         self.emit("LOAD_CONST", tuple(self.cur_mod.named_finals.keys()))
         self.emit("STORE_NAME", "__final_constants__")
         super().emit_module_return(node)
+
+    def visitAssert(self, node: ast.Assert) -> None:
+        super().visitAssert(node)
+        # Only add casts when the assert is optimized out.
+        if not self.optimization_lvl:
+            return
+        # Since we're narrowing types in asserts, we need to ensure we cast
+        # all narrowed locals when asserts are optimized away.
+        effect = self.get_node_data(node, NarrowingEffect)
+        # As all of our effects store the final type, we can apply the effects on
+        # an empty dictionary to get an overapproximation of what we need to cast.
+        effect_types: Dict[str, Value] = {}
+        effect_name_nodes: Dict[str, ast.Name] = {}
+        effect.apply(effect_types, effect_name_nodes)
+        for key, value in effect_types.items():
+            if value.klass is not DYNAMIC:
+                value.emit_name(effect_name_nodes[key], self)
+                self.emit("CAST", value.klass.type_descr)
+                self.emit("POP_TOP")
 
     def visitAugAttribute(self, node: AugAttribute, mode: str) -> None:
         if mode == "load":

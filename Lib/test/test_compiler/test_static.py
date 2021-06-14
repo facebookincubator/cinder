@@ -4874,7 +4874,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f("abc"), "foo")
             self.assertEqual(f("bar"), None)
 
-
     def test_attr_generic_optional(self):
         codestr = """
             from typing import Optional
@@ -9577,11 +9576,11 @@ class StaticCompilationTests(StaticTestBase):
     def test_frozenset_constant(self):
         codestr = """
         from __static__ import inline
-        
+
         @inline
         def i(s: str) -> bool:
             return i in {"a", "b"}
-        
+
         def t() -> bool:
             return i("p")
         """
@@ -14418,6 +14417,40 @@ class StaticRuntimeTests(StaticTestBase):
                 pass
 
             self.assertFalse(is_type_static(B))
+
+    def test_assert_narrowing_type_error(self):
+        codestr = """
+        def foo(x: int | str) -> str:
+            assert isinstance(x, int)
+            return x
+        """
+        self.type_error(codestr, "type mismatch: int cannot be assigned to str")
+
+    def test_assert_narrowing_debug(self):
+        codestr = """
+        def foo(x: int | str) -> int:
+            assert isinstance(x, int)
+            return x + 1
+        """
+        with self.in_module(codestr) as mod:
+            foo = mod["foo"]
+            self.assertEqual(foo(1), 2)
+            with self.assertRaises(AssertionError):
+                foo("a")
+
+    def test_assert_narrowing_optimized(self):
+        # We ensure that the code without the assert would work in the runtime.
+        codestr = """
+        def foo(x: int | str) -> int:
+            assert isinstance(x, int)
+            return x
+        """
+
+        with self.in_module(codestr, optimize=1) as mod:
+            foo = mod["foo"]
+            self.assertEqual(foo(1), 1)
+            with self.assertRaises(TypeError):
+                foo("a")
 
 
 if __name__ == "__main__":
