@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "Jit/containers.h"
+#include "Jit/lir/operand.h"
 
 namespace jit {
 namespace lir {
@@ -29,6 +30,8 @@ class Parser {
   }
 
  private:
+  OperandBase::DataType getOperandDataType(const std::string& name) const;
+
   Instruction::Opcode getInstrOpcode(const std::string& name) const;
 
   enum TokenType {
@@ -47,7 +50,8 @@ class Parser {
     kParLeft,
     kParRight,
     kBasicBlockRef,
-    kError
+    kError,
+    kDataType
   };
 
   struct Token {

@@ -35,7 +35,8 @@ Parser::Token Parser::getNextToken(const char* str) {
       {",", kComma},
       {"\\(", kParLeft},
       {"\\)", kParRight},
-      {";.*\n", kComment}};
+      {"#.*\n", kComment},
+      {":[A-Za-z0-9]+", kDataType}};
 
   std::cmatch m;
   for (auto& pattern : patterns) {
@@ -44,7 +45,7 @@ Parser::Token Parser::getNextToken(const char* str) {
     }
 
     if (m.size() > 1) {
-      return {pattern.type, m.length(), atoll(m.str(1).c_str())};
+      return {pattern.type, m.length(), strtoll(m.str(1).c_str(), NULL, 0)};
     }
     return {pattern.type, m.length()};
   }
@@ -73,14 +74,17 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
     FUNCTION,
     BASIC_BLOCK,
     INSTR_OUTPUT,
+    INSTR_OUTPUT_TYPE,
     INSTR_EQUAL,
     INSTR_NAME,
     INSTR_INPUT_START,
     INSTR_INPUT,
+    INSTR_INPUT_TYPE,
     INSTR_INPUT_COMMA,
     PHI_INPUT_FIRST,
     PHI_INPUT_COMMA,
     PHI_INPUT_SECOND,
+    PHI_INPUT_SECOND_TYPE,
     PHI_INPUT_PAR,
   } state = FUNCTION;
 
@@ -151,6 +155,17 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
           } else {
             expect(false, cur);
           }
+          state = INSTR_OUTPUT_TYPE;
+          break;
+        }
+        case INSTR_OUTPUT_TYPE: {
+          if (type == kEqual) {
+            state = INSTR_EQUAL;
+            continue;
+          }
+          expect(type == kDataType, cur, "Expect output data type.");
+          instr_->output()->setDataType(
+              getOperandDataType(std::string(cur, token.length)));
           state = INSTR_EQUAL;
           break;
         }
@@ -178,8 +193,28 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
             state = PHI_INPUT_FIRST;
           } else {
             parseInput(token, cur);
-            state = INSTR_INPUT_COMMA;
+            state = INSTR_INPUT_TYPE;
           }
+          break;
+        }
+        case INSTR_INPUT_TYPE: {
+          if (type == kComma || type == kNewLine) {
+            state = INSTR_INPUT_COMMA;
+            continue;
+          }
+          expect(type == kDataType, cur, "Expect input data type.");
+          expect(
+              instr_->getNumInputs() > 0,
+              cur,
+              "Expect data type to follow an input.");
+          OperandBase* input_base =
+              instr_->getInput(instr_->getNumInputs() - 1);
+          if (!input_base->isLinked()) {
+            Operand* input = static_cast<Operand*>(input_base);
+            auto data_type = getOperandDataType(std::string(cur, token.length));
+            input->setDataType(data_type);
+          }
+          state = INSTR_INPUT_COMMA;
           break;
         }
         case INSTR_INPUT_COMMA: {
@@ -208,6 +243,26 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
         case PHI_INPUT_SECOND: {
           // second argument of phi input pairs - a variable
           parseInput(token, cur);
+          state = PHI_INPUT_SECOND_TYPE;
+          break;
+        }
+        case PHI_INPUT_SECOND_TYPE: {
+          if (type == kParRight) {
+            state = PHI_INPUT_PAR;
+            continue;
+          }
+          expect(type == kDataType, cur, "Expect phi input second data type.");
+          expect(
+              instr_->getNumInputs() > 0,
+              cur,
+              "Expect data type to follow an input.");
+          OperandBase* input_base =
+              instr_->getInput(instr_->getNumInputs() - 1);
+          if (!input_base->isLinked()) {
+            Operand* input = static_cast<Operand*>(input_base);
+            auto data_type = getOperandDataType(std::string(cur, token.length));
+            input->setDataType(data_type);
+          }
           state = PHI_INPUT_PAR;
           break;
         }
@@ -235,6 +290,18 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
   return func;
 }
 
+OperandBase::DataType Parser::getOperandDataType(
+    const std::string& name) const {
+  static const std::unordered_map<std::string, OperandBase::DataType>
+      type_name_to_data_type = {
+#define TYPE_NAME_TO_DATA_TYPE(v, ...) {":" #v, OperandBase::k##v},
+          FOREACH_OPERAND_DATA_TYPE(TYPE_NAME_TO_DATA_TYPE)
+#undef TYPE_NAME_TO_DATA_TYPE
+      };
+
+  return map_get_strict(type_name_to_data_type, name);
+}
+
 Instruction::Opcode Parser::getInstrOpcode(const std::string& name) const {
   static const std::unordered_map<std::string, Instruction::Opcode>
       instr_name_to_opcode = {
@@ -243,7 +310,7 @@ Instruction::Opcode Parser::getInstrOpcode(const std::string& name) const {
 #undef INSTR_NAME_TO_OPCODE
       };
 
-  return map_get(instr_name_to_opcode, name);
+  return map_get_strict(instr_name_to_opcode, name);
 }
 
 void Parser::parseInput(const Token& token, const char* code) {
@@ -293,14 +360,14 @@ void Parser::fixOperands() {
     auto operand = pair.first;
     int block_index = pair.second;
 
-    operand->setBasicBlock(map_get(block_index_map_, block_index));
+    operand->setBasicBlock(map_get_strict(block_index_map_, block_index));
   }
 
   for (auto& pair : instr_refs_) {
     auto operand = pair.first;
     int instr_index = pair.second;
 
-    auto instr = map_get(output_index_map_, instr_index);
+    auto instr = map_get_strict(output_index_map_, instr_index);
     instr->output()->addUse(operand);
   }
 }

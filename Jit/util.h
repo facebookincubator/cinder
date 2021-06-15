@@ -91,6 +91,14 @@ inline int popcount(unsigned long long i) {
   return __builtin_popcountll(i);
 }
 
+// Look up an item in the given map. Always abort if key doesn't exist.
+template <typename M, typename K>
+auto& map_get_strict(M& map, const K& key) {
+  auto it = map.find(key);
+  JIT_CHECK(it != map.end(), "Key not found in map");
+  return it->second;
+}
+
 // Look up an item in the given map, aborting if the key doesn't exist. Similar
 // to map.at(key) but with a less opaque failure mode.
 template <typename M, typename K>

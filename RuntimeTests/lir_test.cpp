@@ -322,6 +322,36 @@ BB %20 - preds: %12 %16
   ASSERT_EQ(lir_str, lir_expected);
 }
 
+TEST_F(LIRGeneratorTest, ParserDataTypeTest) {
+  auto lir_str = fmt::format(R"(Function:
+BB %0 - succs: %7 %10
+         %1:8bit = Bind RDI:8bit
+        %2:32bit = Bind RSI:32bit
+        %3:16bit = Bind R9:16bit
+        %4:64bit = Bind R10:64bit
+       %5:Object = Move 0(0x0):Object
+                   Return %5:Object
+
+BB %7 - preds: %0 - succs: %10
+       %8:Object = Move [0x5]:Object
+                   Return %8:Object
+
+BB %10 - preds: %0 %7
+
+)");
+
+  Parser parser;
+  auto parsed_func = parser.parse(lir_str);
+  std::stringstream ss;
+  parsed_func->sortBasicBlocks();
+  ss << *parsed_func;
+  // Assume that the parser assigns basic block and register numbers
+  // based on the parsing order of the instructions.
+  // If the parser behavior is modified and assigns numbers differently,
+  // then the assert may fail.
+  ASSERT_EQ(lir_str, ss.str());
+}
+
 // TODO(tiansi): The parser does not recognize the new instructions.
 // I'm planning to fix and improve LIR printing/parsing with a
 // separate diff. Disabled this test for now.
