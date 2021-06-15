@@ -1,3 +1,4 @@
+Function:
 BB %0 - succs: %1 %2
        %5:Object = Bind RDI:Object
        %6:Object = Bind RSI:Object

@@ -1,3 +1,4 @@
+Function:
 BB %0 - succs: %5
        %1:Object = Bind RDI:Object
         %2:64bit = Bind RSI:Object
