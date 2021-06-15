@@ -4946,12 +4946,6 @@ class CDoubleType(CType):
             CDoubleInstance(self),
         )
 
-    def can_assign_from(self, src: Class) -> bool:
-        if isinstance(src, CDoubleType):
-            return True
-
-        return super().can_assign_from(src)
-
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -4973,10 +4967,7 @@ class CDoubleType(CType):
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if len(node.args) != 1:
-            raise code_gen.syntax_error(
-                f"{self.name} requires a single argument ({len(node.args)} given)", node
-            )
+        assert len(node.args) == 1
 
         arg = node.args[0]
         arg_type = code_gen.get_type(arg)
