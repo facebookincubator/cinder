@@ -103,23 +103,23 @@ TEST_F(LinearScanAllocatorTest, IntervalIntersectWithInterval) {
 TEST_F(LinearScanAllocatorTest, RegAllocationNoSpill) {
   const char* lir_source = R"(
 Function:
-BB %0
+BB %0 - succs: %2
       %1 = Move 0(0x0)
            Branch BB%2
 
-BB %2
+BB %2 - succs: %5 %8
       %3 = Add %1, 8(0x8)
            CondBranch %3, BB%5, BB%8
 
-BB %5
+BB %5 - succs: %11
       %6 = Add %1, 8(0x8)
            Branch BB%11
 
-BB %8
+BB %8 - succs: %11
       %9 = Add %1, 16(0x10)
            Branch BB%11
 
-BB %11
+BB %11 - succs: %14
      %12 = Phi (BB%5, %6), (BB%8, %9)
            Return %12
 
@@ -201,15 +201,15 @@ BB %14
 
 TEST_F(LinearScanAllocatorTest, RegAllocation) {
   const char* lir_source = R"(Function:
-BB %0
+BB %0 - succs: %5 %8
   %1 = Move 0(0x0)
   %2 = Add %1, 0(0x0)
   %3 = Add %1, 8(0x8)
   CondBranch %2, BB%5, BB%8
-BB %5
+BB %5 - succs: %25
   %6 = Call 1024(0x400), %2, %3
   Branch BB%25
-BB %8
+BB %8 - succs: %25
   %9 = Add %2, %3
   %10 = Add %9, 1
   %11 = Add %10, 1
@@ -226,7 +226,7 @@ BB %8
   %22 = Add %21, %15
   %23 = Call 1024(0x400), %19, %18, %22
   Branch BB%25
-BB %25
+BB %25 - succs: %28
   %26 = Phi (BB%8, %23), (BB%5, %6)
   Return %26
 BB %28

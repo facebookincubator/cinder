@@ -30,6 +30,8 @@ class Parser {
   }
 
  private:
+  void setSuccessorBlocks(std::string bbdef, BasicBlock* bb);
+
   OperandBase::DataType getOperandDataType(const std::string& name) const;
 
   Instruction::Opcode getInstrOpcode(const std::string& name) const;
@@ -78,6 +80,10 @@ class Parser {
   // basic block and instruction references to be fixed
   UnorderedMap<Operand*, int> basic_block_refs_;
   UnorderedMap<LinkedOperand*, int> instr_refs_;
+
+  // succesors that need to be linked
+  // Note - the order of pairs matters for conditional branching
+  std::vector<std::pair<BasicBlock*, int>> basic_block_succs_;
 };
 
 } // namespace lir

@@ -123,6 +123,8 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
           auto pair = block_index_map_.emplace(id, block_);
           expect(pair.second, cur, "Duplicated basic block id.");
 
+          setSuccessorBlocks(std::string(cur, token.length), block_);
+
           state = INSTR_OUTPUT;
           break;
         }
@@ -290,6 +292,19 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
   return func;
 }
 
+void Parser::setSuccessorBlocks(std::string bbdef, BasicBlock* bb) {
+  std::regex succ_re = std::regex("- succs: %(\\d+)(?: %(\\d+))?");
+  std::cmatch succ_m;
+  if (std::regex_search(bbdef.c_str(), succ_m, succ_re) && succ_m.size() > 1) {
+    int64_t succ1 = atoll(succ_m.str(1).c_str());
+    basic_block_succs_.emplace_back(bb, succ1);
+    if (succ_m.size() > 2 && succ_m.str(2).size() > 0) {
+      int64_t succ2 = atoll(succ_m.str(2).c_str());
+      basic_block_succs_.emplace_back(bb, succ2);
+    }
+  }
+}
+
 OperandBase::DataType Parser::getOperandDataType(
     const std::string& name) const {
   static const std::unordered_map<std::string, OperandBase::DataType>
@@ -373,35 +388,13 @@ void Parser::fixOperands() {
 }
 
 void Parser::connectBasicBlocks() {
-  auto& basicblocks = func_->basicblocks();
-  for (auto& block : basicblocks) {
-    auto instr = block->getLastInstr();
-
-    // the last basic block may have no instructions
-    if (instr == nullptr) {
-      continue;
-    }
-
-    auto opcode = instr->opcode();
-    if (opcode == Instruction::kBranch) {
-      auto succ = instr->getInput(0)->getBasicBlock();
-      block->addSuccessor(succ);
-    } else if (opcode == Instruction::kCondBranch) {
-      auto succ = instr->getInput(1)->getBasicBlock();
-      block->addSuccessor(succ);
-      succ = instr->getInput(2)->getBasicBlock();
-      block->addSuccessor(succ);
-    } else if (opcode == Instruction::kReturn) {
-      auto& last_block = *(func_->basicblocks().rbegin());
-      block->addSuccessor(last_block);
-    }
+  // Note - Order of successors matters.
+  // It depends on the order in which we add pairs to basic_block_succs_
+  for (auto& succ_pair : basic_block_succs_) {
+    BasicBlock* source_block = succ_pair.first;
+    int dest_block_id = succ_pair.second;
+    source_block->addSuccessor(map_get(block_index_map_, dest_block_id));
   }
-
-  // the first basic block has no branch instructions in the end,
-  // so it always falls through.
-  auto& block = basicblocks[0];
-  auto& second_block = basicblocks[1];
-  block->addSuccessor(second_block);
 }
 
 } // namespace lir
