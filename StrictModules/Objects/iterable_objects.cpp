@@ -398,7 +398,10 @@ std::shared_ptr<BaseStrictObject> StrictList::list__setitem__(
 
 std::unique_ptr<BaseStrictObject> StrictListType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
-  return std::make_unique<StrictList>(ListType(), caller, kEmptyArgs);
+  return std::make_unique<StrictList>(
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      caller,
+      kEmptyArgs);
 }
 
 Ref<> StrictListType::getPyObject() const {
@@ -602,7 +605,9 @@ std::shared_ptr<BaseStrictObject> StrictTuple::tuple__getitem__(
 std::unique_ptr<BaseStrictObject> StrictTupleType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictTuple>(
-      TupleType(), std::move(caller), kEmptyArgs);
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      std::move(caller),
+      kEmptyArgs);
 }
 
 Ref<> StrictTupleType::getPyObject() const {
@@ -861,7 +866,8 @@ std::shared_ptr<BaseStrictObject> StrictSet::setAdd(
 
 std::unique_ptr<BaseStrictObject> StrictSetType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
-  return std::make_unique<StrictSet>(SetType(), caller);
+  return std::make_unique<StrictSet>(
+      std::static_pointer_cast<StrictType>(shared_from_this()), caller);
 }
 
 std::shared_ptr<StrictType> StrictSetType::recreate(
@@ -956,7 +962,8 @@ std::shared_ptr<StrictSetLike> StrictFrozenSet::makeSetLike(
 
 std::unique_ptr<BaseStrictObject> StrictFrozenSetType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
-  return std::make_unique<StrictFrozenSet>(FrozensetType(), caller);
+  return std::make_unique<StrictFrozenSet>(
+      std::static_pointer_cast<StrictType>(shared_from_this()), caller);
 }
 
 std::shared_ptr<StrictType> StrictFrozenSetType::recreate(

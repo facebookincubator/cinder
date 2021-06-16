@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/callable.h"
 
+#include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/caller_context_impl.h"
@@ -200,15 +201,39 @@ StrictClassMethod::StrictClassMethod(
     : StrictInstance(ClassMethodType(), std::move(creator)),
       func_(std::move(func)) {}
 
+std::shared_ptr<BaseStrictObject> StrictClassMethod::classmethod__init__(
+    std::shared_ptr<StrictClassMethod> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> func) {
+  checkExternalModification(self, caller);
+  self->func_ = std::move(func);
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictClassMethod::classmethod__get__(
+    std::shared_ptr<StrictClassMethod> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject>,
+    std::shared_ptr<BaseStrictObject> ctx) {
+  return std::make_shared<StrictMethod>(
+      caller.caller, self->getFunc(), std::move(ctx));
+}
+
 std::shared_ptr<BaseStrictObject> StrictClassMethodType::getDescr(
     std::shared_ptr<BaseStrictObject> obj,
-    std::shared_ptr<BaseStrictObject>,
+    std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<StrictType> type,
     const CallerContext& caller) {
+
   std::shared_ptr<StrictClassMethod> method =
       assertStaticCast<StrictClassMethod>(obj);
-  return std::make_shared<StrictMethod>(
-      caller.caller, method->getFunc(), std::move(type));
+  return StrictClassMethod::classmethod__get__(
+      std::move(method), caller, std::move(inst), std::move(type));
+}
+
+std::unique_ptr<BaseStrictObject> StrictClassMethodType::constructInstance(
+    std::weak_ptr<StrictModuleObject> caller) {
+  return std::make_unique<StrictClassMethod>(caller, nullptr);
 }
 
 std::shared_ptr<StrictType> StrictClassMethodType::recreate(
@@ -231,5 +256,78 @@ std::vector<std::type_index> StrictClassMethodType::getBaseTypeinfos() const {
   std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
   baseVec.emplace_back(typeid(StrictClassMethodType));
   return baseVec;
+}
+
+void StrictClassMethodType::addMethods() {
+  addMethod("__init__", StrictClassMethod::classmethod__init__);
+  addMethod("__get__", StrictClassMethod::classmethod__get__);
+}
+
+// static (user) Method
+
+StrictStaticMethod::StrictStaticMethod(
+    std::weak_ptr<StrictModuleObject> creator,
+    std::shared_ptr<BaseStrictObject> func)
+    : StrictInstance(StaticMethodType(), std::move(creator)),
+      func_(std::move(func)) {}
+
+std::shared_ptr<BaseStrictObject> StrictStaticMethod::staticmethod__init__(
+    std::shared_ptr<StrictStaticMethod> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> func) {
+  checkExternalModification(self, caller);
+  self->func_ = std::move(func);
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictStaticMethod::staticmethod__get__(
+    std::shared_ptr<StrictStaticMethod> self,
+    const CallerContext&,
+    std::shared_ptr<BaseStrictObject>,
+    std::shared_ptr<BaseStrictObject>) {
+  return self->getFunc();
+}
+
+std::shared_ptr<BaseStrictObject> StrictStaticMethodType::getDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType> type,
+    const CallerContext& caller) {
+  std::shared_ptr<StrictStaticMethod> method =
+      assertStaticCast<StrictStaticMethod>(obj);
+  return StrictStaticMethod::staticmethod__get__(
+      std::move(method), caller, std::move(inst), std::move(type));
+}
+
+std::unique_ptr<BaseStrictObject> StrictStaticMethodType::constructInstance(
+    std::weak_ptr<StrictModuleObject> caller) {
+  return std::make_unique<StrictStaticMethod>(caller, nullptr);
+}
+
+std::shared_ptr<StrictType> StrictStaticMethodType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictStaticMethodType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictStaticMethodType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictStaticMethodType));
+  return baseVec;
+}
+
+void StrictStaticMethodType::addMethods() {
+  addMethod("__init__", StrictStaticMethod::staticmethod__init__);
+  addMethod("__get__", StrictStaticMethod::staticmethod__get__);
 }
 } // namespace strictmod::objects

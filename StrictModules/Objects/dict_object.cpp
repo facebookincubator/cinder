@@ -322,6 +322,7 @@ std::vector<std::shared_ptr<BaseStrictObject>> StrictDictType::getElementsVec(
 }
 
 void StrictDictType::addMethods() {
+  StrictIterableType::addMethods();
   addMethod(kDunderLen, StrictDict::dict__len__);
   addMethod(kDunderGetItem, StrictDict::dict__getitem__);
   addMethod(kDunderSetItem, StrictDict::dict__setitem__);
@@ -347,7 +348,9 @@ void StrictDictType::addMethods() {
 
 std::unique_ptr<BaseStrictObject> StrictDictType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
-  return std::make_unique<StrictDict>(DictObjectType(), std::move(caller));
+  return std::make_unique<StrictDict>(
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      std::move(caller));
 }
 
 std::shared_ptr<StrictType> StrictDictType::recreate(

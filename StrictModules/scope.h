@@ -15,21 +15,40 @@ std::string mangle(const std::string& className, const std::string& name);
 template <typename TVar, typename TScopeData>
 class Scope {
  public:
-  Scope(SymtableEntry scope, TScopeData data, bool invisible = false)
+  Scope(
+      SymtableEntry scope,
+      TScopeData data,
+      bool invisible = false,
+      bool hasAlternativeDict = false)
       : scope_(scope),
         vars_(std::make_shared<std::unordered_map<std::string, TVar>>()),
         data_(data),
-        invisible_(invisible) {}
+        invisible_(invisible),
+        hasAlternativeDict_(hasAlternativeDict) {}
 
   Scope(
       SymtableEntry scope,
       std::shared_ptr<std::unordered_map<std::string, TVar>> vars,
       TScopeData data,
-      bool invisible = false)
-      : scope_(scope), vars_(vars), data_(data), invisible_(invisible) {}
+      bool invisible = false,
+      bool hasAlternativeDict = false)
+      : scope_(scope),
+        vars_(vars),
+        data_(data),
+        invisible_(invisible),
+        hasAlternativeDict_(hasAlternativeDict) {}
 
-  TVar& operator[](const std::string& key);
-  TVar& at(const std::string& key);
+  /* Interface for using scope as namespace
+   *  set(key, value): set key to value, add new member if key is absent
+   *  at: return by value, raise exception if key is absent
+   *  erase: remove key, return true if anything is removed
+   *  contains: returns whether key exists
+   *
+   *  If hasAlternativeDict_ is true, `TScopeData data` should
+   *  implement the same interface which will be used instead
+   */
+  void set(const std::string& key, TVar value);
+  TVar at(const std::string& key);
   bool erase(const std::string& key);
   bool contains(const std::string& key) const;
 
@@ -66,6 +85,7 @@ class Scope {
   std::shared_ptr<std::unordered_map<std::string, TVar>> vars_;
   TScopeData data_;
   bool invisible_;
+  bool hasAlternativeDict_; // look into ScopeData instead of vars_ for dict
 };
 
 template <typename TVar, typename TScopeData>
@@ -119,9 +139,9 @@ class ScopeStack {
   ScopeStack getFunctionScope();
 
   /* use this for setting */
-  TVar& operator[](const std::string& key);
-  /* use this for reading, return nullptr if key doesn't exist */
-  const TVar* at(const std::string& key) const;
+  void set(const std::string& key, TVar value);
+  /* use this for reading, return nullopt if key doesn't exist */
+  std::optional<TVar> at(const std::string& key) const;
   bool erase(const std::string& key);
 
   bool isGlobal(const std::string& key) const;

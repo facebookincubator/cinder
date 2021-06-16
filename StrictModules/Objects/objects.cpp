@@ -119,8 +119,20 @@ std::shared_ptr<StrictType> MethodType() {
 }
 
 std::shared_ptr<StrictType> ClassMethodType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictMethodType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictClassMethodType>(
       "classmethod", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> StaticMethodType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictStaticMethodType>(
+      "staticmethod", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> PropertyType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictPropertyType>(
+      "property", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 
@@ -360,6 +372,9 @@ bool initializeBuiltinsModuleDict() {
         {"frozenset", SetType()},
         {"dict", DictObjectType()},
         {"super", SuperType()},
+        {"classmethod", ClassMethodType()},
+        {"staticmethod", StaticMethodType()},
+        {"property", PropertyType()},
         {"Exception", ExceptionType()},
         {"TypeError", TypeErrorType()},
         {"AttributeError", AttributeErrorType()},

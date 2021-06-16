@@ -23,14 +23,6 @@ class AnalysisScopeData;
 typedef std::shared_ptr<objects::BaseStrictObject> AnalysisResult;
 typedef ScopeStack<std::shared_ptr<BaseStrictObject>, AnalysisScopeData> EnvT;
 
-class AnalysisScopeData {
- public:
-  AnalysisScopeData(AnalysisResult callFirstArg = nullptr)
-      : callFirstArg(std::move(callFirstArg)) {}
-
-  AnalysisResult callFirstArg;
-};
-
 class AnalysisContextManager {
  public:
   AnalysisContextManager(CallerContext& ctx, int newLine, int newCol);
@@ -154,9 +146,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
 
   static std::unique_ptr<ScopeT> scopeFactory(
       SymtableEntry entry,
-      std::shared_ptr<DictType> map) {
-    return std::make_unique<ScopeT>(entry, std::move(map), AnalysisScopeData());
-  }
+      std::shared_ptr<DictType> map);
 
  private:
   /* C ast is allocated by the CPython parser into a PyArena.
@@ -281,6 +271,31 @@ class TryFinallyManager {
   asdl_seq* finalbody_;
 };
 
+// Scope Data for strict module analysis
+class AnalysisScopeData {
+ public:
+  AnalysisScopeData(
+      CallerContext* caller = nullptr,
+      AnalysisResult callFirstArg = nullptr,
+      AnalysisResult alternateDict = nullptr)
+      : caller_(caller),
+        callFirstArg_(std::move(callFirstArg)),
+        prepareDict_(std::move(alternateDict)) {}
+
+  const AnalysisResult& getCallFirstArg() const;
+  void set(const std::string& key, AnalysisResult value);
+  AnalysisResult at(const std::string& key);
+  bool erase(const std::string& key);
+  bool contains(const std::string& key) const;
+  bool hasAlternativeDict() const {
+    return prepareDict_ != nullptr;
+  }
+
+ private:
+  CallerContext* caller_;
+  AnalysisResult callFirstArg_;
+  AnalysisResult prepareDict_; // dict provided by __prepare__
+};
 } // namespace strictmod
 
 #endif //__STRICTM_ANALYZER_H__

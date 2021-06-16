@@ -25,8 +25,11 @@ class CallableWrapper {
       "instance type of wrapper function must be strict object");
 
  public:
-  CallableWrapper(WrappedFType<T, Args...> func, std::string name)
-      : func_(func), name_(name), default_() {}
+  CallableWrapper(
+      WrappedFType<T, Args...> func,
+      std::string name,
+      bool hasDefault = false)
+      : func_(func), name_(name), default_(), hasDefault_(hasDefault) {}
 
   // currently only one default case come up, but we can easily support
   // multiple defaults
@@ -34,7 +37,10 @@ class CallableWrapper {
       WrappedFType<T, Args...> func,
       std::string name,
       std::shared_ptr<BaseStrictObject> defaultValue)
-      : func_(func), name_(name), default_(std::move(defaultValue)) {}
+      : func_(func),
+        name_(name),
+        default_(std::move(defaultValue)),
+        hasDefault_(true) {}
 
   std::shared_ptr<BaseStrictObject> operator()(
       std::shared_ptr<BaseStrictObject> obj,
@@ -42,13 +48,14 @@ class CallableWrapper {
       const std::vector<std::string>& namedArgs,
       const CallerContext& caller) {
     if (!namedArgs.empty()) {
-      throw std::runtime_error("named arguments in builtin call not supported");
+      caller.raiseTypeError(
+          "named arguments in builtin call '{}' not supported", name_);
     }
     const int n = sizeof...(Args);
     if constexpr (n > 0) {
       // cannot set n less than 0 since the value is computed for all code paths
       // at compile time, and the template arg must be >= 0
-      if (n == args.size() + 1) {
+      if (n == args.size() + 1 && hasDefault_) {
         return callStaticWithDefault(
             std::move(obj), args, caller, std::make_index_sequence<n - 1>());
       }
@@ -69,6 +76,7 @@ class CallableWrapper {
   WrappedFType<T, Args...> func_;
   std::string name_;
   std::shared_ptr<BaseStrictObject> default_;
+  bool hasDefault_;
 
   template <size_t... Is>
   std::shared_ptr<BaseStrictObject> callStatic(
@@ -213,8 +221,8 @@ class PythonWrappedCallableByName {
       const std::vector<std::string>& namedArgs,
       const CallerContext& caller) {
     if (!namedArgs.empty()) {
-      throw std::runtime_error(
-          "named arguments in wrapped python call not supported");
+      caller.raiseTypeError(
+          "named arguments in builtin call '{}' not supported", name_);
     }
 
     if (n != args.size()) {

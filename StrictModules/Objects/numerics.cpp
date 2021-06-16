@@ -1197,7 +1197,10 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__ge__(
 
 std::unique_ptr<BaseStrictObject> StrictFloatType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
-  return std::make_unique<StrictFloat>(FloatType(), std::move(caller), 0);
+  return std::make_unique<StrictFloat>(
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      std::move(caller),
+      0);
 }
 
 std::shared_ptr<StrictType> StrictFloatType::recreate(

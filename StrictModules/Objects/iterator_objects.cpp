@@ -506,6 +506,7 @@ std::vector<std::type_index> StrictGenericObjectIteratorType::getBaseTypeinfos()
 
 // StrictGeneratorFunctionType
 void StrictGeneratorFunctionType::addMethods() {
+  StrictIteratorBaseType::addMethods();
   addMethod(
       kDunderIter, StrictGeneratorFunction::generatorFuncIterator__iter__);
   addMethod(

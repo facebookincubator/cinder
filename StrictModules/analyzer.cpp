@@ -196,7 +196,7 @@ void Analyzer::visitImport(const stmt_ty stmt) {
       mod =
           makeUnknown(context_, "<imported module {} as {}>", modName, asName);
     }
-    stack_[std::move(asName)] = std::move(mod);
+    stack_.set(std::move(asName), std::move(mod));
   }
 }
 
@@ -246,11 +246,11 @@ void Analyzer::visitImportFrom(const stmt_ty stmt) {
     std::string nameToStore = importedNameHelper(alias);
     std::string displayName = std::string(importFrom.level, '.') + fromName;
     if (modValue != nullptr) {
-      stack_[std::move(nameToStore)] = std::move(modValue);
+      stack_.set(std::move(nameToStore), std::move(modValue));
     } else if (alias->asname == nullptr) {
       AnalysisResult unknown = makeUnknown(
           context_, "<{} imported from {}>", aliasName, displayName);
-      stack_[std::move(nameToStore)] = std::move(unknown);
+      stack_.set(std::move(nameToStore), std::move(unknown));
     } else {
       AnalysisResult unknown = makeUnknown(
           context_,
@@ -258,7 +258,7 @@ void Analyzer::visitImportFrom(const stmt_ty stmt) {
           aliasName,
           displayName,
           nameToStore);
-      stack_[std::move(nameToStore)] = std::move(unknown);
+      stack_.set(std::move(nameToStore), std::move(unknown));
     }
   }
 }
@@ -295,7 +295,7 @@ void Analyzer::visitFunctionDef(const stmt_ty stmt) {
       stmt,
       false);
   // put function in scope
-  stack_[std::move(funcName)] = std::move(func);
+  stack_.set(std::move(funcName), std::move(func));
 }
 void Analyzer::visitAsyncFunctionDef(const stmt_ty stmt) {
   auto f = stmt->v.AsyncFunctionDef;
@@ -311,7 +311,7 @@ void Analyzer::visitAsyncFunctionDef(const stmt_ty stmt) {
       stmt->col_offset,
       stmt,
       true);
-  stack_[std::move(funcName)] = std::move(func);
+  stack_.set(std::move(funcName), std::move(func));
 }
 
 AnalysisResult Analyzer::visitAnnotationHelper(expr_ty annotation) {
@@ -335,8 +335,13 @@ void Analyzer::addToDunderAnnotationsHelper(
 
   auto key = std::make_shared<StrictString>(
       StrType(), context_.caller, target->v.Name.id);
+  auto dunderAnnotationsDict = stack_.at(kDunderAnnotations);
+  assert(dunderAnnotationsDict != std::nullopt);
   iSetElement(
-      stack_[kDunderAnnotations], std::move(key), std::move(value), context_);
+      std::move(dunderAnnotationsDict.value()),
+      std::move(key),
+      std::move(value),
+      context_);
 }
 
 void Analyzer::visitArgHelper(arg_ty arg, DictDataT& annotations) {
@@ -504,27 +509,6 @@ void Analyzer::visitReturn(const stmt_ty stmt) {
   throw(FunctionReturnException(std::move(returnVal)));
 }
 
-static std::shared_ptr<DictType> prepareToDictHelper(
-    AnalysisResult obj,
-    const CallerContext& caller) {
-  auto dictObj = std::dynamic_pointer_cast<StrictDict>(obj);
-  if (dictObj == nullptr) {
-    caller.raiseTypeError(
-        "__prepare__ must return a dict, not {} object",
-        obj->getTypeRef().getName());
-  }
-  std::shared_ptr<DictType> resultPtr = std::make_shared<DictType>();
-  DictType result = *resultPtr;
-  result.reserve(dictObj->getData().size());
-  for (auto& item : dictObj->getData()) {
-    auto strObjKey = std::dynamic_pointer_cast<StrictString>(item.first);
-    if (strObjKey != nullptr) {
-      result[strObjKey->getValue()] = item.second;
-    }
-  }
-  return resultPtr;
-}
-
 static AnalysisResult strDictToObjHelper(
     std::shared_ptr<DictType> dict,
     const CallerContext& caller) {
@@ -629,6 +613,7 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
 
   // Step 2, run __prepare__ if exists, creating namespace ns
   std::shared_ptr<DictType> ns = std::make_shared<DictType>();
+  AnalysisResult nsObj;
   std::string className = PyUnicode_AsUTF8(classDef.name);
   auto classNameObj = context_.makeStr(className);
   auto baseTupleObj =
@@ -638,9 +623,8 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
   } else {
     auto prepareFunc = iLoadAttr(metaclass, "__prepare__", nullptr, context_);
     if (prepareFunc != nullptr) {
-      auto nsObj = iCall(
+      nsObj = iCall(
           prepareFunc, {classNameObj, baseTupleObj}, kEmptyArgNames, context_);
-      ns = prepareToDictHelper(nsObj, context_);
     }
   }
 
@@ -660,15 +644,28 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
     auto hiddenDunderClassManager =
         stack_.enterScope(std::move(hiddenDunderClassScope));
     auto classContextManager = stack_.enterScopeByAst(stmt, ns);
+    classContextManager.getScope()->setScopeData(
+        AnalysisScopeData(&context_, nullptr, nsObj));
     visitStmtSeq(classDef.body);
   }
 
   // Step 5, extract the resulting ns scope, add __orig_bases__
   // if mro entries is used in step 1
   if (origBases != nullptr) {
-    (*ns)["__orig_bases__"] = std::move(origBases);
+    if (nsObj == nullptr) {
+      (*ns)["__orig_bases__"] = std::move(origBases);
+    } else {
+      iSetElement(
+          nsObj,
+          context_.makeStr("__orig_bases__"),
+          std::move(origBases),
+          context_);
+    }
   }
-  auto classDict = strDictToObjHelper(ns, context_);
+  AnalysisResult classDict = nsObj;
+  if (classDict == nullptr) {
+    classDict = strDictToObjHelper(std::move(ns), context_);
+  }
 
   // Step 6, call metaclass with class name, bases, ns, and kwargs
   std::vector<AnalysisResult> classCallArg{
@@ -696,7 +693,7 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
   }
   // Step 8, populate __class__ in hidden scope defined in step 3
   (*hiddenDunderClassScopeDict)[kDunderClass] = classObj;
-  stack_[std::move(className)] = std::move(classObj);
+  stack_.set(className, std::move(classObj));
 }
 
 void Analyzer::visitPass(const stmt_ty) {}
@@ -917,7 +914,7 @@ bool Analyzer::visitExceptionHandlerHelper(
         std::string excName;
         if (handlerV.name != nullptr) {
           excName = PyUnicode_AsUTF8(handlerV.name);
-          stack_[excName] = exc;
+          stack_.set(excName, std::move(exc));
           visitStmtSeq(handlerV.body);
           stack_.erase(excName);
         } else {
@@ -1000,7 +997,7 @@ AnalysisResult Analyzer::visitName(const expr_ty expr) {
     context_.raiseExceptionStr(
         NameErrorType(), "name {} is not defined", nameStr);
   }
-  return *value;
+  return value.value();
 }
 
 AnalysisResult Analyzer::visitAttribute(const expr_ty expr) {
@@ -1079,20 +1076,20 @@ AnalysisResult Analyzer::visitCall(const expr_ty expr) {
 
 AnalysisResult Analyzer::callMagicalSuperHelper(AnalysisResult func) {
   // rule out cases where user explicitly define __class__ on module level
-  const AnalysisResult* dunderClass = stack_.at(kDunderClass);
-  if (dunderClass == nullptr || stack_.isGlobal(kDunderClass)) {
+  auto dunderClass = stack_.at(kDunderClass);
+  if (dunderClass == std::nullopt || stack_.isGlobal(kDunderClass)) {
     context_.raiseExceptionStr(
         RuntimeErrorType(), "super(): __class__ not found");
   }
 
-  AnalysisResult firstArg =
-      stack_.getCurrentScope().getScopeData().callFirstArg;
+  const AnalysisResult& firstArg =
+      stack_.getCurrentScope().getScopeData().getCallFirstArg();
   if (firstArg == nullptr) {
     context_.raiseExceptionStr(RuntimeErrorType(), "super(): no arguments");
   }
   return iCall(
       std::move(func),
-      {*dunderClass, std::move(firstArg)},
+      {dunderClass.value(), firstArg},
       kEmptyArgNames,
       context_);
 }
@@ -1500,9 +1497,6 @@ static AnalysisResult formatHelper(
 
 AnalysisResult Analyzer::visitFormattedValue(const expr_ty expr) {
   auto fv = expr->v.FormattedValue;
-  //   expr_ty value;
-  // int conversion;
-  // expr_ty format_spec;
   AnalysisResult value = visitExpr(fv.value);
   switch (fv.conversion) {
     case -1:
@@ -1537,7 +1531,6 @@ AnalysisResult Analyzer::visitFormattedValue(const expr_ty expr) {
 
 AnalysisResult Analyzer::visitJoinedStr(const expr_ty expr) {
   auto joinedStr = expr->v.JoinedStr;
-  // asdl_seq *values;
   int size = asdl_seq_LEN(joinedStr.values);
   std::string result;
   bool isUnknown = false;
@@ -1626,7 +1619,7 @@ void Analyzer::assignToName(const expr_ty target, AnalysisResult value) {
   if (value == nullptr) {
     stack_.erase(name);
   } else {
-    stack_[name] = value;
+    stack_.set(name, std::move(value));
   }
 }
 
@@ -1733,7 +1726,7 @@ void Analyzer::analyzeFunction(
     std::unique_ptr<DictType> callArgs,
     AnalysisResult firstArg) {
   auto scope = Analyzer::scopeFactory(std::move(entry), std::move(callArgs));
-  scope->setScopeData(AnalysisScopeData(std::move(firstArg)));
+  scope->setScopeData(AnalysisScopeData(nullptr, std::move(firstArg)));
   // enter function body scope
   auto scopeManager = stack_.enterScope(std::move(scope));
   visitStmtSeq(std::move(body));
@@ -1765,6 +1758,13 @@ void Analyzer::processUnhandledUserException(
       std::move(args),
       exc.getCause());
 }
+
+std::unique_ptr<Analyzer::ScopeT> Analyzer::scopeFactory(
+    SymtableEntry entry,
+    std::shared_ptr<DictType> map) {
+  return std::make_unique<ScopeT>(entry, std::move(map), AnalysisScopeData());
+}
+
 // TryFinallyManager
 TryFinallyManager::TryFinallyManager(Analyzer& analyzer, asdl_seq* finalbody)
     : analyzer_(analyzer), finalbody_(finalbody) {}
@@ -1773,4 +1773,63 @@ TryFinallyManager::~TryFinallyManager() {
   analyzer_.visitStmtSeq(finalbody_);
 }
 
+const AnalysisResult& AnalysisScopeData::getCallFirstArg() const {
+  return callFirstArg_;
+}
+void AnalysisScopeData::set(const std::string& key, AnalysisResult value) {
+  assert(prepareDict_ != nullptr);
+  assert(caller_ != nullptr);
+  iSetElement(prepareDict_, caller_->makeStr(key), value, *caller_);
+}
+AnalysisResult AnalysisScopeData::at(const std::string& key) {
+  assert(prepareDict_ != nullptr);
+  assert(caller_ != nullptr);
+  return iGetElement(prepareDict_, caller_->makeStr(key), *caller_);
+}
+
+bool AnalysisScopeData::erase(const std::string& key) {
+  assert(prepareDict_ != nullptr);
+  assert(caller_ != nullptr);
+  iDelElement(prepareDict_, caller_->makeStr(key), *caller_);
+  return true;
+}
+bool AnalysisScopeData::contains(const std::string& key) const {
+  assert(prepareDict_ != nullptr);
+  assert(caller_ != nullptr);
+  return iContainsElement(prepareDict_, caller_->makeStr(key), *caller_);
+}
+
+template <>
+void Scope<AnalysisResult, AnalysisScopeData>::set(
+    const std::string& key,
+    AnalysisResult value) {
+  if (data_.hasAlternativeDict()) {
+    data_.set(key, std::move(value));
+  } else {
+    (*vars_)[key] = std::move(value);
+  }
+}
+
+template <>
+AnalysisResult Scope<AnalysisResult, AnalysisScopeData>::at(
+    const std::string& key) {
+  return data_.hasAlternativeDict() ? data_.at(key) : vars_->at(key);
+}
+
+template <>
+bool Scope<AnalysisResult, AnalysisScopeData>::erase(const std::string& key) {
+  if (data_.hasAlternativeDict()) {
+    return data_.erase(key);
+  }
+  return vars_->erase(key) > 0;
+}
+
+template <>
+bool Scope<AnalysisResult, AnalysisScopeData>::contains(
+    const std::string& key) const {
+  if (data_.hasAlternativeDict()) {
+    return data_.contains(key);
+  }
+  return vars_->find(key) != vars_->end();
+}
 } // namespace strictmod

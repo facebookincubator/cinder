@@ -163,6 +163,14 @@ void iSetElement(
       std::move(obj), std::move(index), std::move(value), caller);
 }
 
+bool iContainsElement(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> index,
+    const CallerContext& caller) {
+  auto result = iBinCmpOp(std::move(index), std::move(obj), In, caller);
+  return iGetTruthValue(std::move(result), caller) == StrictTrue();
+}
+
 void iDelElement(
     std::shared_ptr<BaseStrictObject> obj,
     std::shared_ptr<BaseStrictObject> index,

@@ -108,6 +108,11 @@ void iDelElement(
     std::shared_ptr<BaseStrictObject> index,
     const CallerContext& caller);
 
+bool iContainsElement(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> index,
+    const CallerContext& caller);
+
 std::shared_ptr<BaseStrictObject> iCall(
     std::shared_ptr<BaseStrictObject> obj,
     const std::vector<std::shared_ptr<BaseStrictObject>>& args,

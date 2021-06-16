@@ -15,6 +15,7 @@
 #include "StrictModules/Objects/module_type.h"
 #include "StrictModules/Objects/numerics.h"
 #include "StrictModules/Objects/object_type.h"
+#include "StrictModules/Objects/property.h"
 #include "StrictModules/Objects/string_object.h"
 #include "StrictModules/Objects/super.h"
 #include "StrictModules/Objects/type.h"
@@ -56,6 +57,8 @@ std::shared_ptr<StrictType> BuiltinFunctionOrMethodType();
 std::shared_ptr<StrictType> MethodDescrType();
 std::shared_ptr<StrictType> MethodType();
 std::shared_ptr<StrictType> ClassMethodType();
+std::shared_ptr<StrictType> StaticMethodType();
+std::shared_ptr<StrictType> PropertyType();
 
 std::shared_ptr<StrictType> ExceptionType();
 std::shared_ptr<StrictType> TypeErrorType();

@@ -504,6 +504,7 @@ STRICTM_OBJS=       \
 		StrictModules/Objects/function.o \
 		StrictModules/Objects/signature.o \
 		StrictModules/Objects/super.o \
+		StrictModules/Objects/property.o \
 		StrictModules/Objects/objects.o \
 		StrictModules/Objects/object_interface.o \
 		StrictModules/symbol_table.o \
@@ -1289,6 +1290,7 @@ STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/StrictModules/Objects/signature.h \
 		$(srcdir)/StrictModules/Objects/unknown.h \
 		$(srcdir)/StrictModules/Objects/super.h \
+		$(srcdir)/StrictModules/Objects/property.h \
 		$(srcdir)/StrictModules/Objects/object_interface.h \
 		$(srcdir)/StrictModules/Objects/objects.h \
 		$(srcdir)/StrictModules/symbol_table.h \

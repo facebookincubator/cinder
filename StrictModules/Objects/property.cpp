@@ -1,0 +1,227 @@
+// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include "StrictModules/Objects/property.h"
+#include "StrictModules/Objects/callable_wrapper.h"
+#include "StrictModules/Objects/object_interface.h"
+#include "StrictModules/Objects/objects.h"
+
+#include "StrictModules/caller_context.h"
+#include "StrictModules/caller_context_impl.h"
+
+#include <fmt/format.h>
+namespace strictmod::objects {
+
+StrictProperty::StrictProperty(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::shared_ptr<BaseStrictObject> fget,
+    std::shared_ptr<BaseStrictObject> fset,
+    std::shared_ptr<BaseStrictObject> fdel)
+    : StrictInstance(std::move(type), std::move(creator)),
+      fget_(std::move(fget)),
+      fset_(std::move(fset)),
+      fdel_(std::move(fdel)) {}
+
+std::string StrictProperty::getDisplayName() const {
+  return "<property object>";
+}
+
+// wrapped functions
+std::shared_ptr<BaseStrictObject> StrictProperty::property__init__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  checkExternalModification(obj, caller);
+  // implement arg parsing here because the wrapper cannot handle
+  // defaults + keyword args
+  bool seenGet, seenSet, seenDel, seenDuplicated = false;
+  std::shared_ptr<BaseStrictObject> fget;
+  std::shared_ptr<BaseStrictObject> fset;
+  std::shared_ptr<BaseStrictObject> fdel;
+  // named argument
+  std::size_t namedOffset = args.size() - namedArgs.size();
+  for (std::size_t i = 0; i < namedArgs.size(); ++i) {
+    if (namedArgs[i] == "fget") {
+      fget = args[i + namedOffset];
+      seenGet = true;
+    } else if (namedArgs[i] == "fset") {
+      fset = args[i + namedOffset];
+      seenSet = true;
+    } else if (namedArgs[i] == "fdel") {
+      fdel = args[i + namedOffset];
+      seenDel = true;
+    } else if (namedArgs[i] != "doc") {
+      caller.raiseTypeError(
+          "{} is not a valid keyword arg for property", namedArgs[i]);
+    }
+  }
+  // positional argument
+  if (namedOffset > 0) {
+    seenDuplicated |= seenGet;
+    fget = args[0];
+  }
+  if (namedOffset > 1) {
+    seenDuplicated |= seenSet;
+    fset = args[1];
+  }
+  if (namedOffset > 2) {
+    seenDuplicated |= seenDel;
+    fdel = args[2];
+  }
+  if (namedOffset > 4) {
+    caller.raiseTypeError(
+        "too many positional arguments for property, max 4 but got {}",
+        namedOffset);
+  }
+  if (seenDuplicated) {
+    caller.raiseTypeError("duplicated argument for property");
+  }
+
+  auto self = assertStaticCast<StrictProperty>(obj);
+  if (fget != nullptr && fget != NoneObject()) {
+    self->fget_ = std::move(fget);
+  }
+  if (fset != nullptr && fset != NoneObject()) {
+    self->fset_ = std::move(fset);
+  }
+  if (fdel != nullptr && fdel != NoneObject()) {
+    self->fdel_ = std::move(fdel);
+  }
+
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictProperty::propertyGetter(
+    std::shared_ptr<StrictProperty> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  return std::make_shared<StrictProperty>(
+      self->getType(), caller.caller, std::move(arg), self->fset_, self->fdel_);
+}
+
+std::shared_ptr<BaseStrictObject> StrictProperty::propertySetter(
+    std::shared_ptr<StrictProperty> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  return std::make_shared<StrictProperty>(
+      self->getType(), caller.caller, self->fget_, std::move(arg), self->fdel_);
+}
+
+std::shared_ptr<BaseStrictObject> StrictProperty::propertyDeleter(
+    std::shared_ptr<StrictProperty> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  return std::make_shared<StrictProperty>(
+      self->getType(), caller.caller, self->fget_, self->fset_, std::move(arg));
+}
+
+std::shared_ptr<BaseStrictObject> StrictProperty::property__get__(
+    std::shared_ptr<StrictProperty> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject>) {
+  if (inst == nullptr) {
+    return self;
+  }
+  if (self->fget_ == nullptr) {
+    caller.raiseExceptionStr(AttributeErrorType(), "unreadable property");
+  }
+  return iCall(self->fget_, {std::move(inst)}, kEmptyArgNames, caller);
+}
+
+std::shared_ptr<BaseStrictObject> StrictProperty::property__set__(
+    std::shared_ptr<StrictProperty> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value) {
+  if (self->fset_ == nullptr) {
+    caller.raiseExceptionStr(AttributeErrorType(), "unwritable property");
+  }
+  iCall(
+      self->fset_, {std::move(inst), std::move(value)}, kEmptyArgNames, caller);
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictProperty::property__delete__(
+    std::shared_ptr<StrictProperty> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst) {
+  if (self->fdel_ == nullptr) {
+    caller.raiseExceptionStr(AttributeErrorType(), "unwritable property");
+  }
+  iCall(self->fdel_, {std::move(inst)}, kEmptyArgNames, caller);
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictPropertyType::getDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType> type,
+    const CallerContext& caller) {
+  auto self = assertStaticCast<StrictProperty>(obj);
+  return StrictProperty::property__get__(
+      std::move(self), caller, std::move(inst), std::move(type));
+}
+
+std::shared_ptr<BaseStrictObject> StrictPropertyType::setDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  auto self = assertStaticCast<StrictProperty>(obj);
+  return StrictProperty::property__set__(
+      std::move(self), caller, std::move(inst), std::move(value));
+}
+
+std::shared_ptr<BaseStrictObject> StrictPropertyType::delDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> inst,
+    const CallerContext& caller) {
+  auto self = assertStaticCast<StrictProperty>(obj);
+  return StrictProperty::property__delete__(
+      std::move(self), caller, std::move(inst));
+}
+
+std::unique_ptr<BaseStrictObject> StrictPropertyType::constructInstance(
+    std::weak_ptr<StrictModuleObject> caller) {
+  return std::make_unique<StrictProperty>(
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      caller,
+      nullptr,
+      nullptr,
+      nullptr);
+}
+
+std::vector<std::type_index> StrictPropertyType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictPropertyType));
+  return baseVec;
+}
+
+std::shared_ptr<StrictType> StrictPropertyType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictPropertyType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+void StrictPropertyType::addMethods() {
+  addMethodDescr("__init__", StrictProperty::property__init__);
+  addMethod("getter", StrictProperty::propertyGetter);
+  addMethod("setter", StrictProperty::propertySetter);
+  addMethod("deleter", StrictProperty::propertyDeleter);
+  addMethod("__get__", StrictProperty::property__get__);
+  addMethod("__set__", StrictProperty::property__set__);
+  addMethod("__delete__", StrictProperty::property__delete__);
+}
+
+} // namespace strictmod::objects

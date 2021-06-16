@@ -388,9 +388,8 @@ y = D.extra
 x y
 ---
 ---
-test_metaclass_prepare @disabled
+test_metaclass_prepare
 ---
-
 class MC(type):
     @classmethod
     def __prepare__(self, name, bases):
@@ -405,9 +404,8 @@ x = C().abc
 x
 ---
 ---
-test_metaclass_prepare_dict_subclass @disabled
+test_metaclass_prepare_dict_subclass
 ---
-
 class mydict(dict):
     def __setitem__(self, index, value):
         super().__setitem__(index.upper(), value)
@@ -737,7 +735,7 @@ y = q.y
 x y
 ---
 ---
-test_classmethod @disabled
+test_classmethod
 ---
 class C:
     @classmethod
@@ -753,29 +751,26 @@ b = y == 42
 a b
 ---
 ---
-test_classmethod_no_args @disabled
+test_classmethod_no_args
 ---
-
 classmethod()
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_classmethod_too_many_args @disabled
+test_classmethod_too_many_args
 ---
-
 classmethod(1, 2)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_classmethod_kw_args @disabled
+test_classmethod_kw_args
 ---
-
 classmethod(x=2)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
 test_staticmethod @disabled
 ---
@@ -2651,7 +2646,7 @@ x = d.__contains__(y)
 ---
 UnknownValueAttributeException
 ---
-test_dict_subclass_getitem @disabled
+test_dict_subclass_getitem
 ---
 class mydict(dict):
     def __getitem__(self, index):
@@ -2665,7 +2660,7 @@ x = d['foo']
 x
 ---
 ---
-test_dict_subclass_setitem @disabled
+test_dict_subclass_setitem
 ---
 class mydict(dict):
     def __setitem__(self, index, value):

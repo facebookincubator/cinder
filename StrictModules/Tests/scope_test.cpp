@@ -54,9 +54,8 @@ class B:
   EXPECT_EQ(topXSymbol.is_nonlocal(), false);
   EXPECT_EQ(scopes.getCurrentClass(), std::nullopt);
   EXPECT_EQ(scopes.mangleName(x), "x");
-  scopes[x] = 1;
-  EXPECT_EQ(scopes[x], 1);
-  EXPECT_EQ(*scopes.at(x), 1);
+  scopes.set(x, 1);
+  EXPECT_EQ(scopes.at(x).value(), 1);
 
   // class B scope
   asdl_seq* seq = ast->v.Module.body;
@@ -71,9 +70,9 @@ class B:
     EXPECT_EQ(classBXSymbol.is_nonlocal(), false);
     EXPECT_EQ(scopeB->isClassScope(), true);
     EXPECT_EQ(scopeB->isFunctionScope(), false);
-    EXPECT_EQ(*scopes.at(x), 1);
-    scopes[x] = 2; // x = 2
-    EXPECT_EQ(*scopes.at(x), 2);
+    EXPECT_EQ(scopes.at(x).value(), 1);
+    scopes.set(x, 2); // x = 2
+    EXPECT_EQ(scopes.at(x).value(), 2);
     EXPECT_EQ(topScope->at(x), 1);
 
     // function f scope
@@ -94,33 +93,33 @@ class B:
       EXPECT_EQ(scopeF->isClassScope(), false);
       EXPECT_EQ(scopeF->isFunctionScope(), true);
 
-      scopes[x] = 3; // x = 3
-      EXPECT_EQ(*scopes.at(x), 3);
+      scopes.set(x, 3); // x = 3
+      EXPECT_EQ(scopes.at(x).value(), 3);
       EXPECT_EQ(topScope->at(x), 3);
       EXPECT_EQ(scopeB->at(x), 2);
 
-      scopes[y] = 4; // y = 4
-      EXPECT_EQ(*scopes.at(y), 4);
+      scopes.set(y, 4); // y = 4
+      EXPECT_EQ(scopes.at(y).value(), 4);
       EXPECT_EQ(topScope->contains(y), false);
       EXPECT_EQ(scopeB->contains(y), false);
 
       scopes.erase(y); // del y
-      EXPECT_EQ(scopes.at(y), nullptr);
+      EXPECT_EQ(scopes.at(y), std::nullopt);
       EXPECT_EQ(topScope->contains(y), false);
       EXPECT_EQ(scopeB->contains(y), false);
 
-      scopes[y] = 5; // y = 4
-      EXPECT_EQ(*scopes.at(y), 5);
+      scopes.set(y, 5); // y = 5
+      EXPECT_EQ(scopes.at(y).value(), 5);
       EXPECT_EQ(topScope->contains(y), false);
       EXPECT_EQ(scopeB->contains(y), false);
     } // exit function f scope
-    EXPECT_EQ(*scopes.at(x), 2);
-    EXPECT_EQ(scopes.at(y), nullptr);
+    EXPECT_EQ(scopes.at(x).value(), 2);
+    EXPECT_EQ(scopes.at(y), std::nullopt);
     EXPECT_EQ(scopes.getCurrentClass().value(), "B");
 
   } // exit class B scope
-  EXPECT_EQ(*scopes.at(x), 3);
-  EXPECT_EQ(scopes.at(y), nullptr);
+  EXPECT_EQ(scopes.at(x).value(), 3);
+  EXPECT_EQ(scopes.at(y), std::nullopt);
   EXPECT_EQ(scopes.getCurrentClass(), std::nullopt);
 
   if (arena != nullptr) {

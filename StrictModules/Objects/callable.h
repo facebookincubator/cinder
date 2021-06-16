@@ -131,6 +131,7 @@ class StrictMethod : public StrictInstance {
 };
 
 class StrictMethodType : public StrictObjectType {
+ public:
   using StrictObjectType::StrictObjectType;
 
   virtual std::shared_ptr<BaseStrictObject> loadAttr(
@@ -167,11 +168,24 @@ class StrictClassMethod : public StrictInstance {
     return func_;
   }
 
+  // wrapped method
+  static std::shared_ptr<BaseStrictObject> classmethod__init__(
+      std::shared_ptr<StrictClassMethod> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> func);
+
+  static std::shared_ptr<BaseStrictObject> classmethod__get__(
+      std::shared_ptr<StrictClassMethod> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<BaseStrictObject> ctx);
+
  private:
   std::shared_ptr<BaseStrictObject> func_;
 };
 
 class StrictClassMethodType : public StrictObjectType {
+ public:
   using StrictObjectType::StrictObjectType;
 
   virtual std::shared_ptr<BaseStrictObject> getDescr(
@@ -179,6 +193,9 @@ class StrictClassMethodType : public StrictObjectType {
       std::shared_ptr<BaseStrictObject> inst,
       std::shared_ptr<StrictType> type,
       const CallerContext& caller) override;
+
+  virtual std::unique_ptr<BaseStrictObject> constructInstance(
+      std::weak_ptr<StrictModuleObject> caller) override;
 
   virtual std::shared_ptr<StrictType> recreate(
       std::string name,
@@ -189,6 +206,61 @@ class StrictClassMethodType : public StrictObjectType {
       bool isImmutable) override;
 
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+
+  virtual void addMethods() override;
+};
+
+// -----------------static (user) Method-------------------
+class StrictStaticMethod : public StrictInstance {
+ public:
+  StrictStaticMethod(
+      std::weak_ptr<StrictModuleObject> creator,
+      std::shared_ptr<BaseStrictObject> func);
+
+  std::shared_ptr<BaseStrictObject> getFunc() const {
+    return func_;
+  }
+
+  // wrapped method
+  static std::shared_ptr<BaseStrictObject> staticmethod__init__(
+      std::shared_ptr<StrictStaticMethod> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> func);
+
+  static std::shared_ptr<BaseStrictObject> staticmethod__get__(
+      std::shared_ptr<StrictStaticMethod> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<BaseStrictObject> ctx);
+
+ private:
+  std::shared_ptr<BaseStrictObject> func_;
+};
+
+class StrictStaticMethodType : public StrictObjectType {
+ public:
+  using StrictObjectType::StrictObjectType;
+
+  virtual std::shared_ptr<BaseStrictObject> getDescr(
+      std::shared_ptr<BaseStrictObject> obj,
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller) override;
+
+  virtual std::unique_ptr<BaseStrictObject> constructInstance(
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+
+  virtual void addMethods() override;
 };
 
 // Helpers to add method to types

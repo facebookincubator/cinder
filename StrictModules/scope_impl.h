@@ -5,12 +5,12 @@
 //------------------------Scope----------------------------
 namespace strictmod {
 template <typename TVar, typename TScopeData>
-TVar& Scope<TVar, TScopeData>::operator[](const std::string& key) {
-  return (*vars_)[key];
+void Scope<TVar, TScopeData>::set(const std::string& key, TVar value) {
+  (*vars_)[key] = std::forward<TVar>(value);
 }
 
 template <typename TVar, typename TScopeData>
-TVar& Scope<TVar, TScopeData>::at(const std::string& key) {
+TVar Scope<TVar, TScopeData>::at(const std::string& key) {
   return vars_->at(key);
 }
 
@@ -26,38 +26,41 @@ bool Scope<TVar, TScopeData>::contains(const std::string& key) const {
 
 //------------------------ScopeStack----------------------------
 template <typename TVar, typename TScopeData>
-TVar& ScopeStack<TVar, TScopeData>::operator[](const std::string& key) {
+void ScopeStack<TVar, TScopeData>::set(const std::string& key, TVar value) {
   const std::string mangledKey = mangleName(key);
   const Symbol& symbol = scopes_.back()->getSTEntry().getSymbol(mangledKey);
   if (symbol.is_global()) {
-    return (*scopes_.front())[key];
+    scopes_.front()->set(key, std::move(value));
+    return;
   } else if (symbol.is_nonlocal()) {
     for (auto it = std::next(scopes_.rbegin()); it != scopes_.rend(); ++it) {
       auto scope = *it;
       if (!scope->isClassScope() && scope->contains(key)) {
-        return (*scope)[key];
+        scope->set(key, std::move(value));
+        return;
       }
     }
   }
-  return (*scopes_.back())[key];
+  scopes_.back()->set(key, std::move(value));
 }
 
 template <typename TVar, typename TScopeData>
-const TVar* ScopeStack<TVar, TScopeData>::at(const std::string& key) const {
+std::optional<TVar> ScopeStack<TVar, TScopeData>::at(
+    const std::string& key) const {
   // reading in python scope is different from writing.
   // search from innermost to outmost scope, skipping over non-leaf class scope
   auto currentScope = scopes_.back();
   if (currentScope->contains(key)) {
-    return &currentScope->at(key);
+    return currentScope->at(key);
   }
 
   for (auto it = std::next(scopes_.rbegin()); it != scopes_.rend(); ++it) {
     auto scope = *it;
     if (!scope->isClassScope() && scope->contains(key)) {
-      return &scope->at(key);
+      return scope->at(key);
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 template <typename TVar, typename TScopeData>
@@ -185,7 +188,7 @@ bool ScopeStack<TVar, TScopeData>::localContains(const std::string& key) const {
 }
 template <typename TVar, typename TScopeData>
 void ScopeStack<TVar, TScopeData>::localSet(std::string key, TVar value) {
-  (*(scopes_.back()))[key] = std::move(value);
+  scopes_.back()->set(key, std::move(value));
 }
 } // namespace strictmod
 #endif // STRICTM_SCOPE_IMPL_H
