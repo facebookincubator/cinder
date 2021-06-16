@@ -39,6 +39,11 @@ class StrictString : public StrictInstance {
       std::shared_ptr<StrictString> self,
       const CallerContext& caller);
 
+  static std::shared_ptr<BaseStrictObject> str__eq__(
+      std::shared_ptr<StrictString> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> other);
+
  private:
   mutable Ref<> pyStr_;
   std::string value_;

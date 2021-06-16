@@ -36,7 +36,7 @@ std::shared_ptr<BaseStrictObject> StrictInstance::getAttr(
     const std::string& name) {
   auto it = dict_->find(name);
   if (it != dict_->end()) {
-    return std::shared_ptr(it->second);
+    return it->second;
   }
   return std::shared_ptr<BaseStrictObject>();
 }

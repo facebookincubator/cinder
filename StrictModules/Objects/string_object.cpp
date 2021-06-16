@@ -43,11 +43,12 @@ size_t StrictString::hash() const {
 }
 
 bool StrictString::eq(const BaseStrictObject& other) const {
-  if (type_.get() != &other.getTypeRef()) {
+  try {
+    const StrictString& otherStr = dynamic_cast<const StrictString&>(other);
+    return value_ == otherStr.value_;
+  } catch (const std::bad_cast&) {
     return false;
   }
-  const StrictString& otherStr = static_cast<const StrictString&>(other);
-  return value_ == otherStr.value_;
 }
 
 Ref<> StrictString::getPyObject() const {
@@ -65,6 +66,17 @@ std::shared_ptr<BaseStrictObject> StrictString::str__len__(
     std::shared_ptr<StrictString> self,
     const CallerContext& caller) {
   return caller.makeInt(self->value_.size());
+}
+
+std::shared_ptr<BaseStrictObject> StrictString::str__eq__(
+    std::shared_ptr<StrictString> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> other) {
+  auto otherStr = std::dynamic_pointer_cast<StrictString>(other);
+  if (!otherStr) {
+    return StrictFalse();
+  }
+  return caller.makeBool(self->value_ == otherStr->value_);
 }
 
 // StrictStringType
@@ -104,5 +116,6 @@ Ref<> StrictStringType::getPyObject() const {
 
 void StrictStringType::addMethods() {
   addMethod(kDunderLen, StrictString::str__len__);
+  addMethod("__eq__", StrictString::str__eq__);
 }
 } // namespace strictmod::objects

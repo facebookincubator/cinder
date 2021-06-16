@@ -237,3 +237,29 @@ std::unique_ptr<StrictMTestSuite> ReadStrictMTestSuite(
 
   return suite;
 }
+
+std::unordered_set<std::string> ReadStrictMIgnoreList(
+    const std::string& ignorePath) {
+  std::ifstream file;
+  file.open(ignorePath);
+  if (file.fail()) {
+    err(ignorePath) << "Failed opening test ignore file: " << strerror(errno)
+                    << std::endl;
+    return {};
+  }
+  FileGuard g(file);
+  Reader reader(ignorePath, file);
+  std::unordered_set<std::string> ignores;
+  while (!reader.IsExhausted()) {
+    std::string ignoreName;
+
+    Result result = reader.ReadLine(ignoreName);
+    if (result.is_error) {
+      err(ignoreName) << "Failed reading ignore name: " << result.error
+                      << std::endl;
+      return ignores;
+    }
+    ignores.insert(ignoreName);
+  }
+  return ignores;
+}

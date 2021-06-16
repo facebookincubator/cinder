@@ -151,5 +151,24 @@ ScopeManager<TVar, TScopeData> ScopeStack<TVar, TScopeData>::enterScope(
   return ScopeManager<TVar, TScopeData>(
       *this, std::shared_ptr(std::move(scope)), std::move(currentClass));
 }
+
+template <typename TVar, typename TScopeData>
+inline bool ScopeStack<TVar, TScopeData>::isClassScope() const {
+  return scopes_.back()->isClassScope();
+}
+
+template <typename TVar, typename TScopeData>
+inline bool ScopeStack<TVar, TScopeData>::isGlobalScope() const {
+  return scopes_.size() == 1;
+}
+
+template <typename TVar, typename TScopeData>
+bool ScopeStack<TVar, TScopeData>::localContains(const std::string& key) const {
+  return scopes_.back()->contains(key);
+}
+template <typename TVar, typename TScopeData>
+void ScopeStack<TVar, TScopeData>::localSet(std::string key, TVar value) {
+  (*(scopes_.back()))[key] = std::move(value);
+}
 } // namespace strictmod
 #endif // STRICTM_SCOPE_IMPL_H

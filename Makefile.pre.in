@@ -2348,11 +2348,16 @@ strict_module_tests: ${GTEST_DIR}/libgtest.a platform $(STRICTM_TESTS_OBJS) $(ST
 		$(PY_DYNLISTFLAG) \
 		-o strict_module_tests -ggdb -rdynamic $(PY_LDFLAGS) $(PYEMBED_LIBS) $(LRT_FLAG)
 
+STRICTM_ASAN_SKIP_TESTS=
+ifneq ($(strip $(ASAN_TEST_ENV)),)
+	STRICTM_ASAN_SKIP_TESTS = $(srcdir)/Tools/scripts/facebook/strictm_asan_skip_tests.txt
+endif
+
 test_strict_module: strict_module_tests
 	cd $(srcdir) && \
 		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` \
 		ThirdParty/gtest-parallel/gtest-parallel \
-		$(abs_builddir)/strict_module_tests
+		$(abs_builddir)/strict_module_tests -- $(STRICTM_ASAN_SKIP_TESTS)
 
 # asmjit
 

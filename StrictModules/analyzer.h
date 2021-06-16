@@ -90,6 +90,18 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   void visitReturn(const stmt_ty stmt);
   void visitClassDef(const stmt_ty stmt);
   void visitPass(const stmt_ty stmt);
+  void visitDelete(const stmt_ty stmt);
+  void visitAugAssign(const stmt_ty stmt);
+  void visitAnnAssign(const stmt_ty stmt);
+  void visitFor(const stmt_ty stmt);
+  void visitWhile(const stmt_ty stmt);
+  void visitIf(const stmt_ty stmt);
+  void visitWith(const stmt_ty stmt);
+  void visitRaise(const stmt_ty stmt);
+  void visitTry(const stmt_ty stmt);
+  void visitAssert(const stmt_ty stmt);
+  void visitBreak(const stmt_ty stmt);
+  void visitContinue(const stmt_ty stmt);
   // expressions
   AnalysisResult visitConstant(const expr_ty expr);
   AnalysisResult visitName(const expr_ty expr);
@@ -102,6 +114,10 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   AnalysisResult visitBinOp(const expr_ty expr);
   AnalysisResult visitUnaryOp(const expr_ty expr);
   AnalysisResult visitCompare(const expr_ty expr);
+  AnalysisResult visitBoolOp(const expr_ty expr);
+  AnalysisResult visitNamedExpr(const expr_ty expr);
+  AnalysisResult visitSubscript(const expr_ty expr);
+  AnalysisResult visitStarred(const expr_ty expr);
   // defaults
   AnalysisResult defaultVisitExpr();
   void defaultVisitStmt();
@@ -132,6 +148,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   EnvT stack_;
   /* whether annotations are treated as strings */
   bool futureAnnotations_; // use in visit annotations
+  /* global context for currently pending exceptions */
+  AnalysisResult currentExceptionContext_;
 
   std::vector<std::shared_ptr<BaseStrictObject>> visitListLikeHelper(
       asdl_seq* elts);
@@ -148,17 +166,36 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       stmt_ty node,
       bool isAsync);
 
+  AnalysisResult visitAnnotationHelper(expr_ty annotation);
+
+  void addToDunderAnnotationsHelper(expr_ty target, AnalysisResult value);
   void visitArgHelper(arg_ty arg, objects::DictDataT& annotations);
   void visitArgHelper(
       std::vector<std::string>& args,
       arg_ty arg,
       objects::DictDataT& annotations);
 
+  bool visitExceptionHandlerHelper(asdl_seq* handlers, AnalysisResult exc);
+
+  AnalysisResult visitSliceHelper(slice_ty slice);
+
   void assignToTarget(
       const expr_ty target,
       std::shared_ptr<BaseStrictObject> value);
   void assignToName(
       const expr_ty name,
+      std::shared_ptr<BaseStrictObject> value);
+  void assignToListLike(
+      asdl_seq* elts,
+      std::shared_ptr<BaseStrictObject> value);
+  void assignToAttribute(
+      const expr_ty attr,
+      std::shared_ptr<BaseStrictObject> value);
+  void assignToSubscript(
+      const expr_ty subscr,
+      std::shared_ptr<BaseStrictObject> value);
+  void assignToStarred(
+      const expr_ty starred,
       std::shared_ptr<BaseStrictObject> value);
 
   AnalysisContextManager updateContextHelper(int lineno, int col) {
@@ -176,6 +213,16 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
 
   void processUnhandledUserException(
       const StrictModuleUserException<BaseStrictObject>& exc);
+};
+
+class TryFinallyManager {
+ public:
+  TryFinallyManager(Analyzer& analyzer, asdl_seq* finalbody);
+  ~TryFinallyManager();
+
+ private:
+  Analyzer& analyzer_;
+  asdl_seq* finalbody_;
 };
 
 } // namespace strictmod

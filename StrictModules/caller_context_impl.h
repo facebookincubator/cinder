@@ -22,6 +22,13 @@ CallerContext::exception(std::shared_ptr<StrictType> excType, Args...) const {
       lineno, col, filename, scopeName, std::move(excObj));
 }
 
+[[noreturn]] inline void CallerContext::raiseExceptionFromObj(
+    std::shared_ptr<BaseStrictObject> excObj) const {
+  std::make_unique<StrictModuleUserException<BaseStrictObject>>(
+      lineno, col, filename, scopeName, std::move(excObj))
+      ->raise();
+}
+
 template <typename... Args>
 [[noreturn]] void CallerContext::raiseException(
     std::shared_ptr<StrictType> excType,
@@ -77,7 +84,8 @@ inline std::shared_ptr<BaseStrictObject> CallerContext::makeStr(
 inline std::shared_ptr<BaseStrictObject> CallerContext::makePair(
     std::shared_ptr<BaseStrictObject> first,
     std::shared_ptr<BaseStrictObject> second) const {
-  std::vector<std::shared_ptr<BaseStrictObject>> vec(2);
+  std::vector<std::shared_ptr<BaseStrictObject>> vec;
+  vec.reserve(2);
   vec.push_back(std::move(first));
   vec.push_back(std::move(second));
   return std::make_shared<objects::StrictTuple>(

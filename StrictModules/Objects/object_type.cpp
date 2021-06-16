@@ -56,6 +56,9 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::loadAttr(
   }
   // obj dict case
   auto value = assertStaticCast<StrictInstance>(obj)->getAttr(key);
+  if (value) {
+    return value;
+  }
   // non data descr case
   if (descr) {
     return iGetDescr(descr, obj, objType, caller);

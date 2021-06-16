@@ -160,21 +160,21 @@ y = x.is_integer()
 x y
 ---
 ---
-test_int_divide @disabled
+test_int_divide
 ---
 x = 1 / 2
 ---
 x
 ---
 ---
-test_int_float @disabled
+test_int_float
 ---
 x = 1 + 1.0
 ---
 x
 ---
 ---
-test_float_int @disabled
+test_float_int
 ---
 x = 1.0 + 1.0
 ---
@@ -202,7 +202,7 @@ x = 1 + 1j
 x
 ---
 ---
-test_int_new @disabled
+test_int_new
 ---
 a = int(42)
 b = int('42')
@@ -211,20 +211,19 @@ c = int()
 a b c
 ---
 ---
-test_int_new_unsupported @disabled
+test_int_new_unsupported
 ---
-a = int(3j)
+a = int([])
 ---
 ---
-StrictModuleNotSupportedException
+1 4 UnsupportedException int list
 ---
-test_int_new_bad_cls @disabled
+test_int_new_bad_cls
 ---
 int.__new__(object)
-a = int(3j)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
 test_int_new_bad_str @disabled
 ---
@@ -804,9 +803,8 @@ y = x + 1
 y
 ---
 ---
-test_int_bool_add @disabled
+test_int_bool_add
 ---
-
 x = True + 3
 y = 3 + False
 z = 4 - True
@@ -814,13 +812,12 @@ z = 4 - True
 x y z
 ---
 ---
-test_object_int_add_unsupported @disabled
+test_object_int_add_unsupported
 ---
-
 x = object() + 3
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
 test_int_subtype
 ---
@@ -962,19 +959,19 @@ x = ~42j
 ---
 StrictModuleTypeError
 ---
-test_zero_div_int @disabled
+test_zero_div_int
 ---
 x = 1/0
 ---
 ---
-StrictModuleZeroDivisionError
+1 4 StrictModuleUnhandledException(ZeroDivisionError)
 ---
-test_zero_div_float @disabled
+test_zero_div_float
 ---
 x = 1.0/0.0
 ---
 ---
-StrictModuleZeroDivisionError
+1 4 StrictModuleUnhandledException(ZeroDivisionError)
 ---
 test_zero_div_complex @disabled
 ---
@@ -1004,7 +1001,7 @@ x = divmod(-1.1, -1.1)
 x
 ---
 ---
-test_method @disabled
+test_method
 ---
 class C:
     def f(self):
@@ -1016,7 +1013,7 @@ x = C().f()
 x
 ---
 ---
-test_method_from_class @disabled
+test_method_from_class
 ---
 class C:
     def f(self):
@@ -1453,7 +1450,7 @@ y = c.y
 a x y
 ---
 ---
-test_tuple_constructor @disabled
+test_tuple_constructor
 ---
 t1 = tuple()
 t2 = tuple([1, 2])
@@ -1462,12 +1459,12 @@ x = t2[0]
 t1 t2 x
 ---
 ---
-test_tuple_constructor_non_iter @disabled
+test_tuple_constructor_non_iter
 ---
 t1 = tuple(1)
 ---
 ---
-StrictModuleTypeError
+1 5 StrictModuleUnhandledException(TypeError)
 ---
 test_dict_constructor
 ---
@@ -2028,7 +2025,7 @@ x = "abc".unknown_method(1)
 ---
 StrictModuleUnhandledException(AttributeError)
 ---
-test_star_args @disabled
+test_star_args
 ---
 def f(a, b):
     return a
@@ -2104,7 +2101,7 @@ b14 = bool(None)
 b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14
 ---
 ---
-test_conditional @disabled
+test_conditional
 ---
 b1 = 1 and 0
 b2 = None and 1
@@ -2126,12 +2123,12 @@ b8 = not [1]
 class D:
     def __len__(self):
         return 1 + 1
-b9 = bool(D())
+b9 = D() and True
 ---
 b1 b2 b3 b4 b5 b6 b7 b8 b9 cx
 ---
 ---
-test_for_loop @disabled
+test_for_loop
 ---
 l = [1, 2, 3, 4]
 for i in l:
@@ -2140,7 +2137,7 @@ for i in l:
 i
 ---
 ---
-test_for_loop_body @disabled
+test_for_loop_body
 ---
 l = [1, 2, 3, 4]
 x = 0
@@ -2150,7 +2147,7 @@ for i in l:
 x
 ---
 ---
-test_if @disabled
+test_if
 ---
 t = True
 x = 0
@@ -2162,7 +2159,7 @@ else:
 x
 ---
 ---
-test_if_none @disabled
+test_if_none
 ---
 x = None
 if x:
@@ -2173,7 +2170,7 @@ else:
 y
 ---
 ---
-test_for_loop_if @disabled
+test_for_loop_if
 ---
 l = [[True, 1], [False, 2], [True, 3], [False, 4]]
 x = 0
@@ -2189,7 +2186,7 @@ for s in l:
 x y
 ---
 ---
-test_for_loop_class_def @disabled
+test_for_loop_class_def
 ---
 l = [1, 3, 4]
 for s in l:
@@ -2981,7 +2978,6 @@ StrictModuleTypeError
 ---
 test_type_mro @disabled
 ---
-
 x = int.__mro__[0]
 ---
 x
@@ -3270,15 +3266,16 @@ b = callable(unknown)
 b
 ---
 ---
-test_dunder_call @disabled
+test_dunder_call
 ---
 class B:
     def __call__(self):
         return 1
-b = B() != 1
-a = b() == 1
+b = B()
+a = b()
+x = a == 1
 ---
-a b
+x
 ---
 ---
 test_list_add
@@ -3300,7 +3297,7 @@ l3 = [] * 3
 l2 l3
 ---
 ---
-test_list_eq @disabled
+test_list_eq
 ---
 l1 = [1, 2, 3]
 l2 = [1, 2]
@@ -3311,7 +3308,7 @@ b2 = l1 == l2
 b1 b2
 ---
 ---
-test_list_eq_subclass @disabled
+test_list_eq_subclass
 ---
 class MyList(list):
     pass
@@ -3327,23 +3324,35 @@ b6 = [1] == l1
 b1 b2 b3 b4 b5 b6
 ---
 ---
-test_list_add_subclass @disabled
+test_list_add_subclass
 ---
 class MyList(list):
     pass
-MyList() + [1]
+x = MyList() + [1]
+---
+x
 ---
 ---
-StrictModuleNotSupportedException
----
-test_list_radd_subclass @disabled
+test_list_radd_subclass
 ---
 class MyList(list):
     pass
-[1] + MyList()
+x = [1] + MyList()
+---
+x
 ---
 ---
-StrictModuleNotSupportedException
+test_list_set_item
+---
+l = [1, 2, 3, 4, 5]
+l[0] = 0
+x = l[0] == 0
+l[-2] = -1
+y = l[3] == -1
+l[:] = []
+---
+x y l
+---
 ---
 test_tuple_add
 ---
@@ -3355,25 +3364,25 @@ l4 = l1 + l2
 l3 l4
 ---
 ---
-test_tuple_add_subclass @disabled
+test_tuple_add_subclass
 ---
 class MyTuple(tuple):
     pass
-MyTuple() + (1, 2)
+x = MyTuple() + (1, 2)
+---
+x
 ---
 ---
-StrictModuleNotSupportedException
----
-test_tuple_radd_subclass @disabled
+test_tuple_radd_subclass
 ---
 class MyTuple(tuple):
     pass
-(1, 2) + MyTuple()
+x = (1, 2) + MyTuple()
+---
+x
 ---
 ---
-StrictModuleNotSupportedException
----
-test_tuple_eq @disabled
+test_tuple_eq
 ---
 b1 = () == ()
 b2 = () == (1,)
@@ -3383,7 +3392,7 @@ b4 = (1,2,3) == (1,2,3)
 b1 b2 b3 b4
 ---
 ---
-test_tuple_eq_subclass @disabled
+test_tuple_eq_subclass
 ---
 class MyTuple(tuple):
     pass
@@ -3396,35 +3405,35 @@ b4 = (1, ) == l1
 b1 b2 b3 b4
 ---
 ---
-test_tuple_index @disabled
+test_tuple_index
 ---
 x = (1, 2)[0]
 ---
 x
 ---
 ---
-test_tuple_slice @disabled
+test_tuple_slice
 ---
 x = (1, 2, 3, 4)[0:2]
 ---
 x
 ---
 ---
-test_tuple_bad_slice @disabled
+test_tuple_bad_slice
 ---
 x = (1, 2, 3, 4)['abc']
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_tuple_bad_index @disabled
+test_tuple_bad_index
 ---
 x = (1, 2)[-5]
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_int_multiple_compare @disabled
+test_int_multiple_compare
 ---
 x = 10
 b = 1 < x < 100 > 5
@@ -3434,7 +3443,7 @@ d = 1 < x == 10 > 100
 b c d
 ---
 ---
-test_star_assignment @disabled
+test_star_assignment
 ---
 x = [1, 2, 3, 4]
 a, *b, c, d = x
@@ -3447,7 +3456,7 @@ m, n, *o, p, q = x
 a b c d e f g h i j k l m n o p q
 ---
 ---
-test_call_functions @disabled
+test_call_functions
 ---
 def f(a, b, c):
     return a + b + c
@@ -3543,7 +3552,6 @@ s1 s2 s3 s4 l1 l2 l3 l4
 ---
 test_set_init_too_many_args @disabled
 ---
-
 s1 = set(1, 2)
 ---
 ---
@@ -3551,7 +3559,6 @@ StrictModuleUnhandledException
 ---
 test_set_init_not_iterable @disabled
 ---
-
 s1 = set(1)
 ---
 ---
@@ -3578,7 +3585,6 @@ l1 l2 l3 l4 l5 b1 b2 b3
 ---
 test_frozenset_init @disabled
 ---
-
 s1 = frozenset()
 s2 = frozenset([1, 2])
 s3 = frozenset(s2)
@@ -3593,7 +3599,6 @@ s1 s2 s3 l1 l2 l3 l4
 ---
 test_frozenset_init_too_many_args @disabled
 ---
-
 s1 = frozenset(1, 2)
 ---
 ---
@@ -3601,7 +3606,6 @@ StrictModuleUnhandledException
 ---
 test_frozenset_init_not_iterable @disabled
 ---
-
 s1 = frozenset(1)
 ---
 ---
@@ -3659,11 +3663,13 @@ x = lock.foo
 ---
 UnknownValueAttributeException
 ---
-test_private_name_in_class_with_underscore @disabled
+test_private_name_in_class_with_underscore
 ---
 class __C__:
     __x = 1
-x = __C__._C____x
+    def f():
+        return __C__.__x;
+x = __C__.f()
 ---
 x
 ---
@@ -4189,7 +4195,7 @@ a = C.f != 42
 a
 ---
 ---
-test_star_in_list @disabled
+test_star_in_list
 ---
 l1 = [2, 3]
 l2 = [1, *l1, 5]
@@ -4223,7 +4229,7 @@ l6 = [i+j for i, j in i]
 l1 l2 l3 l4 l5 l6
 ---
 ---
-test_loop_continue @disabled
+test_loop_continue
 ---
 a, b = 0, 0
 for i in [1, 2, 3]:
@@ -4235,7 +4241,7 @@ for i in [1, 2, 3]:
 a b
 ---
 ---
-test_loop_break @disabled
+test_loop_break
 ---
 a, b = 0, 0
 for i in [1, 2, 3]:
@@ -4247,7 +4253,7 @@ for i in [1, 2, 3]:
 a b
 ---
 ---
-test_contains_iterable @disabled
+test_contains_iterable
 ---
 l1 = [1, '2' ,'3']
 l2 = (1, '2', '3')
@@ -4277,7 +4283,7 @@ b13 = 1025 in [1025, 1026]
 b14 = 1 not in C(2)
 b15 = 2 not in C(2)
 ---
-b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15
+b3
 ---
 ---
 test_contains_unsupported @disabled
@@ -4356,7 +4362,7 @@ x9 = E() <= C()
 x1 x2 x3 x4 x5 x6 x7 x8 x9
 ---
 ---
-test_while_loop @disabled
+test_while_loop
 ---
 x = 1
 while x < 100:
@@ -4368,7 +4374,7 @@ while y > 100:
 x y
 ---
 ---
-test_while_loop_else @disabled
+test_while_loop_else
 ---
 x = 1
 while x < 100:
@@ -4379,7 +4385,7 @@ else:
 x y
 ---
 ---
-test_while_loop_continue @disabled
+test_while_loop_continue
 ---
 x = y = 1
 
@@ -4392,7 +4398,7 @@ while x < 100:
 x y
 ---
 ---
-test_while_loop_break @disabled
+test_while_loop_break
 ---
 x = 1
 while x < 100:
@@ -4412,7 +4418,7 @@ else:
 x y
 ---
 ---
-test_rich_comparison_not_implemented @disabled
+test_rich_comparison_not_implemented
 ---
 class A:
     def __le__(self, other):
@@ -4423,7 +4429,7 @@ class B:
 A() <= B()
 ---
 ---
-StrictModuleUnhandledException
+7 0 StrictModuleUnhandledException(TypeError)
 ---
 test_fstring_empty @disabled
 ---
@@ -4511,7 +4517,7 @@ x = type("abc")
 x
 ---
 ---
-test_type_none @disabled
+test_type_none
 ---
 x = type(None)
 ---
@@ -4528,7 +4534,7 @@ x = f()
 ---
 StrictModuleUnsafeCallException
 ---
-test_with_enter @disabled
+test_with_enter
 ---
 class A:
     def __enter__(self):
@@ -4541,7 +4547,7 @@ with A() as a:
 a
 ---
 ---
-test_with_exit @disabled
+test_with_exit
 ---
 class A:
     x = 1
@@ -4556,7 +4562,7 @@ x = a.x
 x
 ---
 ---
-test_with_exit_exception @disabled
+test_with_exit_exception
 ---
 class A:
     def __enter__(self):
@@ -4573,7 +4579,7 @@ except Exception:
 x
 ---
 ---
-test_with_exit_suppress_exception @disabled
+test_with_exit_suppress_exception
 ---
 class A:
     def __enter__(self):
@@ -4590,7 +4596,7 @@ except Exception:
 x
 ---
 ---
-test_with_multiple_context_managers @disabled
+test_with_multiple_context_managers
 ---
 l = []
 class A:
@@ -4609,7 +4615,7 @@ with A(), B():
 l
 ---
 ---
-test_with_return_from_context_manager @disabled
+test_with_return_from_context_manager
 ---
 l = []
 class A:
@@ -4655,7 +4661,7 @@ enumerate(42)
 ---
 StrictModuleTypeError
 ---
-test_key_error @disabled
+test_key_error
 ---
 x = 'abc'
 d = {}
@@ -4992,7 +4998,7 @@ a3 = f()
 d1 a1 d1 d2 d3 a1 a2 a3
 ---
 ---
-test_dict_del @disabled
+test_dict_del
 ---
 d = {1: 2, 3: 4}
 del d[1]
@@ -5090,7 +5096,7 @@ C = f()
 ---
 ---
 ---
-test_variable_local_annotations @disabled
+test_variable_local_annotations
 ---
 def f():
     x : unknown() = 1
@@ -5935,37 +5941,40 @@ c = i.__next__()
 a b c
 ---
 ---
-test_iterator_4 @disabled
+test_iterator_4
 ---
 l = {1:3, 2:4, 3:5}.keys()
 i = l.__iter__()
 a = i.__next__()
 b = i.__next__()
 c = i.__next__()
+s = {a, b, c}
 ---
-a b c
+s
 ---
 ---
-test_iterator_5 @disabled
+test_iterator_5
 ---
 l = {3:1, 4:2, 5:3}.values()
 i = l.__iter__()
 a = i.__next__()
 b = i.__next__()
 c = i.__next__()
+s = {a, b, c}
 ---
-a b c
+s
 ---
 ---
-test_iterator_6 @disabled
+test_iterator_6
 ---
 l = {1:3, 2:4, 3:5}.items()
 i = l.__iter__()
 a = i.__next__()
 b = i.__next__()
 c = i.__next__()
+s = {a, b, c}
 ---
-a b c
+s
 ---
 ---
 test_iterator_7 @disabled

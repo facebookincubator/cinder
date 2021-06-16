@@ -36,6 +36,7 @@ std::shared_ptr<StrictType> StrType();
 std::shared_ptr<StrictType> ListType();
 std::shared_ptr<StrictType> TupleType();
 std::shared_ptr<StrictType> SetType();
+std::shared_ptr<StrictType> SliceType();
 std::shared_ptr<StrictType> FrozensetType();
 std::shared_ptr<StrictType> DictObjectType();
 std::shared_ptr<StrictType> DictViewType();
@@ -60,6 +61,8 @@ std::shared_ptr<StrictType> ValueErrorType();
 std::shared_ptr<StrictType> NameErrorType();
 std::shared_ptr<StrictType> StopIterationType();
 std::shared_ptr<StrictType> KeyErrorType();
+std::shared_ptr<StrictType> RuntimeErrorType();
+std::shared_ptr<StrictType> DivisionByZeroType();
 
 //--------------------Builtin Constant Declarations-----------------------
 std::shared_ptr<BaseStrictObject> NoneObject();

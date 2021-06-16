@@ -123,6 +123,7 @@ class StrictModuleUserException : public StrictModuleException {
       std::shared_ptr<T> wrapped);
 
   const std::shared_ptr<const T> getWrapped() const;
+  const std::shared_ptr<T> getWrapped();
 
   [[noreturn]] virtual void raise() override;
   virtual std::unique_ptr<StrictModuleException> clone() const override;
@@ -508,6 +509,26 @@ class UnsafeBaseClassException
   [[noreturn]] virtual void raise() override;
 };
 
+// FailedToUnpackException
+struct FailedToUnpackExceptionHelper {
+  FailedToUnpackExceptionHelper(std::string size);
+
+  std::string packSize;
+
+  static constexpr const char* excName = "FailedToUnpackException";
+  static constexpr const char* fmt = "failed to unpack rhs into %s variables";
+  static constexpr const char* wiki = "";
+};
+
+class FailedToUnpackException : public StructuredStrictModuleException<
+                                    FailedToUnpackExceptionHelper,
+                                    FailedToUnpackException,
+                                    &FailedToUnpackExceptionHelper::packSize> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ------------------Out of line implementations---------------
 
 // StrictModuleException
@@ -537,6 +558,9 @@ inline const std::string& StrictModuleException::getScopeName() const {
 }
 
 inline std::string StrictModuleException::testString() const {
+  if (cause_ != nullptr) {
+    return fmt::format("{} {} {} {}", lineno_, col_, testStringHelper(), cause_->testString());
+  }
   return fmt::format("{} {} {}", lineno_, col_, testStringHelper());
 }
 
@@ -564,6 +588,11 @@ const std::shared_ptr<const T> StrictModuleUserException<T>::getWrapped()
 }
 
 template <typename T>
+const std::shared_ptr<T> StrictModuleUserException<T>::getWrapped() {
+  return wrapped_;
+}
+
+template <typename T>
 [[noreturn]] void StrictModuleUserException<T>::raise() {
   throw *this;
 }
@@ -583,7 +612,7 @@ const char* StrictModuleUserException<T>::what() const noexcept {
 
 template <typename T>
 std::string StrictModuleUserException<T>::testStringHelper() const {
-  return "StrictModuleUserException";
+  return "StrictModuleUserException " + wrapped_->getDisplayName();
 }
 
 // StrictModuleStructuredException
@@ -654,7 +683,8 @@ std::string StructuredStrictModuleException<T, E, mp...>::testStringHelper()
   constexpr int size = sizeof...(mp);
   std::array<std::string, size> strings = {
       (static_cast<const T*>(this)->*mp)...};
-  return fmt::format("{}", fmt::join(strings, " "));
+  return fmt::format(
+      "{} {}", static_cast<const T*>(this)->excName, fmt::join(strings, " "));
 }
 } // namespace strictmod
 

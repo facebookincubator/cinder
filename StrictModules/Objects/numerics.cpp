@@ -27,6 +27,15 @@ bool StrictNumeric::isHashable() const {
 size_t StrictNumeric::hash() const {
   return size_t(getReal());
 }
+
+static void checkDivisionByZero(
+    const std::shared_ptr<StrictNumeric>& num,
+    const CallerContext& caller) {
+  if (num->getReal() == 0) {
+    caller.raiseExceptionStr(DivisionByZeroType(), "division by zero");
+  }
+}
+
 // StrictInt
 StrictInt::StrictInt(
     std::shared_ptr<StrictType> type,
@@ -230,6 +239,7 @@ std::shared_ptr<BaseStrictObject> __divmod__Helper(
     std::shared_ptr<StrictNumeric> self,
     const CallerContext& caller,
     std::shared_ptr<StrictNumeric> num) {
+  checkDivisionByZero(num, caller);
   Ref<> selfObj = self->getPyObject();
   Ref<> numObj = num->getPyObject();
   Ref<> result = Ref<>::steal(PyNumber_Divmod(selfObj, numObj));
@@ -290,6 +300,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__floordiv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
+  checkDivisionByZero(rhsInt, caller);
   if (rhsInt) {
     return caller.makeInt(self->value_ / rhsInt->value_);
   }
@@ -367,6 +378,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__truediv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
+  checkDivisionByZero(rhsInt, caller);
   if (rhsInt) {
     return caller.makeFloat(double(self->value_) / rhsInt->value_);
   }
@@ -411,6 +423,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rfloordiv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
+  checkDivisionByZero(lhsInt, caller);
   if (lhsInt) {
     return caller.makeInt(lhsInt->value_ / self->value_);
   }
@@ -488,6 +501,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rtruediv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
+  checkDivisionByZero(lhsInt, caller);
   if (lhsInt) {
     return caller.makeFloat(double(lhsInt->value_) / self->value_);
   }
@@ -956,6 +970,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__floordiv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
+  checkDivisionByZero(num, caller);
   if (num && num->getImaginary() == 0) {
     return caller.makeInt(self->value_ / num->getReal());
   }
@@ -1006,6 +1021,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__truediv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
+  checkDivisionByZero(num, caller);
   if (num && num->getImaginary() == 0) {
     return caller.makeFloat(self->value_ / num->getReal());
   }
@@ -1028,6 +1044,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rfloordiv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
+  checkDivisionByZero(num, caller);
   if (num && num->getImaginary() == 0) {
     return caller.makeInt(num->getReal() / self->value_);
   }
@@ -1078,6 +1095,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rtruediv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
+  checkDivisionByZero(num, caller);
   if (num && num->getImaginary() == 0) {
     return caller.makeFloat(num->getReal() / self->value_);
   }

@@ -8,6 +8,7 @@
 #include "StrictModules/caller_context_impl.h"
 
 #include <fmt/format.h>
+#include <algorithm>
 namespace strictmod::objects {
 
 // -------------------------Iterable-------------------------
@@ -85,45 +86,32 @@ std::shared_ptr<BaseStrictObject> StrictSequence::sequence__iter__(
       SequenceIteratorType(), caller.caller, std::move(self));
 }
 
-std::shared_ptr<BaseStrictObject> StrictSequence::sequence__eq__(
+static std::shared_ptr<BaseStrictObject> sequenceEqHelper(
     std::shared_ptr<StrictSequence> self,
     const CallerContext& caller,
-    std::shared_ptr<BaseStrictObject> rhs) {
-  // Type are in practice singletons, so we just compare the address
-  if (self->getType() != rhs->getType()) {
+    std::shared_ptr<StrictSequence> rhs) {
+  auto& selfData = self->getData();
+  auto& rhsData = rhs->getData();
+  if (selfData.size() != rhsData.size()) {
     return StrictFalse();
   }
-  std::shared_ptr<StrictSequence> rhsSeq =
-      std::dynamic_pointer_cast<StrictSequence>(rhs);
-  if (rhsSeq == nullptr) {
-    return StrictFalse();
-  }
-  if (self->data_.size() != rhsSeq->data_.size()) {
-    return StrictFalse();
-  }
-  for (size_t i = 0; i < self->data_.size(); ++i) {
-    if (!iStrictObjectEq(self->data_[i], rhsSeq->data_[i], caller)) {
+  for (size_t i = 0; i < selfData.size(); ++i) {
+    if (!iStrictObjectEq(selfData[i], rhsData[i], caller)) {
       return StrictFalse();
     }
   }
   return StrictTrue();
 }
 
-std::shared_ptr<BaseStrictObject> StrictSequence::sequence__add__(
+static std::shared_ptr<BaseStrictObject> sequenceAddHelper(
     std::shared_ptr<StrictSequence> self,
+    std::shared_ptr<StrictType> type,
     const CallerContext& caller,
-    std::shared_ptr<BaseStrictObject> rhs) {
-  if (self->getType() != rhs->getType()) {
-    return NotImplemented();
-  }
-  std::shared_ptr<StrictSequence> rhsSeq =
-      std::dynamic_pointer_cast<StrictSequence>(rhs);
-  if (rhsSeq == nullptr) {
-    return NotImplemented();
-  }
-  std::vector<std::shared_ptr<BaseStrictObject>> newData(self->data_);
-  newData.insert(newData.end(), rhsSeq->data_.begin(), rhsSeq->data_.end());
-  return self->makeSequence(self->getType(), caller.caller, std::move(newData));
+    std::shared_ptr<StrictSequence> rhs) {
+  std::vector<std::shared_ptr<BaseStrictObject>> newData(self->getData());
+  auto& rhsData = rhs->getData();
+  newData.insert(newData.end(), rhsData.begin(), rhsData.end());
+  return self->makeSequence(std::move(type), caller.caller, std::move(newData));
 }
 
 static std::shared_ptr<BaseStrictObject> sequenceMulHelper(
@@ -159,20 +147,16 @@ std::shared_ptr<BaseStrictObject> StrictSequence::sequence__rmul__(
   return sequenceMulHelper(std::move(self), caller, std::move(lhs));
 }
 
-// TODO: __iter__, __reversed__
-
 static inline int normalizeIndex(int index, int size) {
   return index < 0 ? index + size : index;
 }
 
-// TODO also provide __getitem__, and call it here
-std::shared_ptr<BaseStrictObject> StrictSequenceType::getElement(
-    std::shared_ptr<BaseStrictObject> obj,
-    std::shared_ptr<BaseStrictObject> index,
-    const CallerContext& caller) {
-  auto seq = assertStaticCast<StrictSequence>(obj);
-  auto& data = seq->getData();
-  // TODO handle slice
+static std::shared_ptr<BaseStrictObject> sequenceGetItemHelper(
+    std::shared_ptr<StrictSequence> self,
+    std::shared_ptr<StrictType> type,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> index) {
+  auto& data = self->getData();
   std::shared_ptr<StrictInt> intIndex =
       std::dynamic_pointer_cast<StrictInt>(index);
   if (intIndex != nullptr) {
@@ -181,15 +165,41 @@ std::shared_ptr<BaseStrictObject> StrictSequenceType::getElement(
       return data[idx];
     } else {
       caller.raiseTypeError(
-          "{} index out of range: {}", seq->getTypeRef().getName(), idx);
+          "{} index out of range: {}", self->getTypeRef().getName(), idx);
     }
+  }
+  std::shared_ptr<StrictSlice> sliceIndex =
+      std::dynamic_pointer_cast<StrictSlice>(index);
+  if (sliceIndex != nullptr) {
+    int dataSize = int(data.size());
+    std::vector<std::shared_ptr<BaseStrictObject>> result;
+    result.reserve(dataSize);
+    int start, stop, step;
+    std::tie(start, stop, step) =
+        sliceIndex->normalizeToSequenceIndex(caller, dataSize);
+
+    if (step > 0) {
+      for (int i = std::max(0, start); i < std::min(stop, dataSize);
+           i += step) {
+        result.push_back(data[i]);
+      }
+    } else {
+      for (int i = std::min(dataSize - 1, start); i > std::max(-1, stop);
+           i += step) {
+        result.push_back(data[i]);
+      }
+    }
+    // sliced result is always the base type
+    return self->makeSequence(
+        std::move(type), caller.caller, std::move(result));
   }
   caller.raiseTypeError(
       "{} indices must be integers or slices, not {}",
-      seq->getTypeRef().getName(),
+      self->getTypeRef().getName(),
       index->getTypeRef().getName());
 }
 
+// TODO: __reversed__
 std::shared_ptr<StrictIteratorBase> StrictSequenceType::getElementsIter(
     std::shared_ptr<BaseStrictObject> obj,
     const CallerContext& caller) {
@@ -232,11 +242,9 @@ void StrictSequenceType::addMethods() {
   StrictIterableType::addMethods();
   addMethod(kDunderContains, StrictSequence::sequence__contains__);
   addMethod(kDunderLen, StrictSequence::sequence__len__);
-  addMethod("__eq__", StrictSequence::sequence__eq__);
-  addMethod("__add__", StrictSequence::sequence__add__);
   addMethod("__mul__", StrictSequence::sequence__mul__);
   addMethod("__rmul__", StrictSequence::sequence__rmul__);
-  addMethod("__iter__", StrictSequence::sequence__iter__);
+  addMethod(kDunderIter, StrictSequence::sequence__iter__);
 }
 
 // -------------------------List-------------------------
@@ -312,25 +320,77 @@ std::shared_ptr<BaseStrictObject> StrictList::listExtend(
   return NoneObject();
 }
 
-void StrictListType::setElement(
-    std::shared_ptr<BaseStrictObject> obj,
+std::shared_ptr<BaseStrictObject> StrictList::list__add__(
+    std::shared_ptr<StrictList> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  auto rhsList = std::dynamic_pointer_cast<StrictList>(rhs);
+  if (!rhsList) {
+    caller.raiseTypeError(
+        "can only concatenate list (not {}) to list",
+        rhs->getTypeRef().getDisplayName());
+  }
+  // even list subclass add result in a list
+  return sequenceAddHelper(
+      std::move(self), ListType(), caller, std::move(rhsList));
+}
+
+std::shared_ptr<BaseStrictObject> StrictList::list__eq__(
+    std::shared_ptr<StrictList> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  auto rhsList = std::dynamic_pointer_cast<StrictList>(rhs);
+  if (!rhsList) {
+    return StrictFalse();
+  }
+  return sequenceEqHelper(std::move(self), caller, std::move(rhsList));
+}
+
+std::shared_ptr<BaseStrictObject> StrictList::list__getitem__(
+    std::shared_ptr<StrictList> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> index) {
+  return sequenceGetItemHelper(
+      std::move(self), ListType(), caller, std::move(index));
+}
+
+std::shared_ptr<BaseStrictObject> StrictList::list__setitem__(
+    std::shared_ptr<StrictList> self,
+    const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> index,
-    std::shared_ptr<BaseStrictObject> value,
-    const CallerContext& caller) {
-  checkExternalModification(obj, caller);
-  auto list = assertStaticCast<StrictList>(obj);
-  // TODO handle slice
+    std::shared_ptr<BaseStrictObject> value) {
+  checkExternalModification(self, caller);
+  auto& data = self->getData();
+
   std::shared_ptr<StrictInt> intIndex =
       std::dynamic_pointer_cast<StrictInt>(index);
   if (intIndex != nullptr) {
-    auto& data = list->getData();
     int idx = normalizeIndex(intIndex->getValue(), data.size());
     if (idx >= 0 && (size_t)idx < data.size()) {
-      list->setData(idx, std::move(value));
+      self->setData(idx, std::move(value));
     } else {
       caller.raiseTypeError("list assignment index out of range: {}", idx);
     }
+    return NoneObject();
   }
+
+  std::shared_ptr<StrictSlice> sliceIndex =
+      std::dynamic_pointer_cast<StrictSlice>(index);
+  if (sliceIndex != nullptr) {
+    const auto& start = sliceIndex->getStart();
+    const auto& stop = sliceIndex->getStop();
+    const auto& step = sliceIndex->getStep();
+    if (start == NoneObject() && stop == NoneObject() && step == NoneObject()) {
+      // special case, replace entire list
+      self->data_ = iGetElementsVec(std::move(value), caller);
+    } else {
+      caller.error<UnsupportedException>(
+          fmt::format("__setitem__([{},{},{}])", start, stop, step),
+          self->getTypeRef().getName());
+    }
+    return NoneObject();
+  }
+
   caller.raiseTypeError(
       "list indices must be integers or slices, not {}",
       index->getTypeRef().getName());
@@ -373,6 +433,10 @@ void StrictListType::addMethods() {
   addMethod("copy", StrictList::listCopy);
   addMethodDefault("__init__", StrictList::list__init__, nullptr);
   addMethod("extend", StrictList::listExtend);
+  addMethod("__add__", StrictList::list__add__);
+  addMethod("__eq__", StrictList::list__eq__);
+  addMethod(kDunderGetItem, StrictList::list__getitem__);
+  addMethod(kDunderSetItem, StrictList::list__setitem__);
 }
 
 // -------------------------Tuple-------------------------
@@ -497,6 +561,39 @@ std::shared_ptr<BaseStrictObject> StrictTuple::tuple__new__(
       tType, caller.caller, iGetElementsVec(std::move(elements), caller));
 }
 
+std::shared_ptr<BaseStrictObject> StrictTuple::tuple__add__(
+    std::shared_ptr<StrictTuple> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  auto rhsTuple = std::dynamic_pointer_cast<StrictTuple>(rhs);
+  if (!rhsTuple) {
+    caller.raiseTypeError(
+        "can only concatenate tuple (not {}) to tuple",
+        rhs->getTypeRef().getDisplayName());
+  }
+  return sequenceAddHelper(
+      std::move(self), TupleType(), caller, std::move(rhsTuple));
+}
+
+std::shared_ptr<BaseStrictObject> StrictTuple::tuple__eq__(
+    std::shared_ptr<StrictTuple> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  auto rhsTuple = std::dynamic_pointer_cast<StrictTuple>(rhs);
+  if (!rhsTuple) {
+    return StrictFalse();
+  }
+  return sequenceEqHelper(std::move(self), caller, std::move(rhsTuple));
+}
+
+std::shared_ptr<BaseStrictObject> StrictTuple::tuple__getitem__(
+    std::shared_ptr<StrictTuple> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> index) {
+  return sequenceGetItemHelper(
+      std::move(self), TupleType(), caller, std::move(index));
+}
+
 std::unique_ptr<BaseStrictObject> StrictTupleType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictTuple>(
@@ -533,6 +630,9 @@ void StrictTupleType::addMethods() {
   StrictSequenceType::addMethods();
   addMethod("index", StrictTuple::tupleIndex);
   addStaticMethodDefault("__new__", StrictTuple::tuple__new__, nullptr);
+  addMethod("__add__", StrictTuple::tuple__add__);
+  addMethod("__eq__", StrictTuple::tuple__eq__);
+  addMethod(kDunderGetItem, StrictTuple::tuple__getitem__);
 }
 
 // -------------------------Set Like-------------------------
@@ -871,4 +971,73 @@ void StrictFrozenSetType::addMethods() {
   StrictSetLikeType::addMethods();
 }
 
+// Slice
+
+StrictSlice::StrictSlice(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::shared_ptr<BaseStrictObject> start,
+    std::shared_ptr<BaseStrictObject> stop,
+    std::shared_ptr<BaseStrictObject> step)
+    : StrictInstance(std::move(type), std::move(creator)),
+      start_(std::move(start)),
+      stop_(std::move(stop)),
+      step_(std::move(step)) {}
+
+std::string StrictSlice::getDisplayName() const {
+  return fmt::format("slice({}, {}, {})", start_, stop_, step_);
+}
+
+static std::shared_ptr<StrictInt> getSliceIndex(
+    const std::shared_ptr<BaseStrictObject>& idx,
+    const CallerContext& caller) {
+  auto idxInt = std::dynamic_pointer_cast<StrictInt>(idx);
+  if (!idxInt) {
+    caller.raiseTypeError(
+        "slice indices must be int or None, not {}",
+        idx->getTypeRef().getName());
+  }
+  return idxInt;
+}
+
+std::tuple<int, int, int> StrictSlice::normalizeToSequenceIndex(
+    const CallerContext& caller,
+    int sequenceSize) {
+  int start, stop, step;
+  // step
+  if (step_ == NoneObject()) {
+    step = 1;
+  } else {
+    auto stepInt = getSliceIndex(step_, caller);
+    step = stepInt->getValue();
+  }
+  if (step == 0) {
+    caller.raiseTypeError("slice step cannot be 0");
+  }
+
+  // start
+  if (start_ == NoneObject()) {
+    // start is sign dependent on step
+    start = step > 0 ? 0 : sequenceSize - 1;
+  } else {
+    auto startInt = getSliceIndex(start_, caller);
+    start = startInt->getValue();
+  }
+  if (start < 0) {
+    start += sequenceSize;
+  }
+
+  // stop
+  if (stop_ == NoneObject()) {
+    // stop is sign dependent on step
+    stop = step > 0 ? sequenceSize : -sequenceSize - 1;
+  } else {
+    auto stopInt = getSliceIndex(stop_, caller);
+    stop = stopInt->getValue();
+  }
+  if (stop < 0) {
+    stop += sequenceSize;
+  }
+  return std::make_tuple(start, stop, step);
+}
 } // namespace strictmod::objects

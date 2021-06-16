@@ -4,6 +4,7 @@
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
 
+#include <tuple>
 #include <unordered_set>
 
 namespace strictmod::objects {
@@ -69,16 +70,6 @@ class StrictSequence : public StrictIterable {
       std::shared_ptr<StrictSequence> self,
       const CallerContext& caller);
 
-  static std::shared_ptr<BaseStrictObject> sequence__eq__(
-      std::shared_ptr<StrictSequence> self,
-      const CallerContext& caller,
-      std::shared_ptr<BaseStrictObject> rhs);
-
-  static std::shared_ptr<BaseStrictObject> sequence__add__(
-      std::shared_ptr<StrictSequence> self,
-      const CallerContext& caller,
-      std::shared_ptr<BaseStrictObject> rhs);
-
   static std::shared_ptr<BaseStrictObject> sequence__mul__(
       std::shared_ptr<StrictSequence> self,
       const CallerContext& caller,
@@ -97,11 +88,6 @@ class StrictSequence : public StrictIterable {
 class StrictSequenceType : public StrictIterableType {
  public:
   using StrictIterableType::StrictIterableType;
-
-  virtual std::shared_ptr<BaseStrictObject> getElement(
-      std::shared_ptr<BaseStrictObject> obj,
-      std::shared_ptr<BaseStrictObject> index,
-      const CallerContext& caller) override;
 
   virtual std::shared_ptr<StrictIteratorBase> getElementsIter(
       std::shared_ptr<BaseStrictObject> obj,
@@ -156,17 +142,32 @@ class StrictList final : public StrictSequence {
       std::shared_ptr<StrictList> self,
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> iterable);
+
+  static std::shared_ptr<BaseStrictObject> list__add__(
+      std::shared_ptr<StrictList> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> list__eq__(
+      std::shared_ptr<StrictList> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> list__getitem__(
+      std::shared_ptr<StrictList> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> index);
+
+  static std::shared_ptr<BaseStrictObject> list__setitem__(
+      std::shared_ptr<StrictList> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> index,
+      std::shared_ptr<BaseStrictObject> value);
 };
 
 class StrictListType final : public StrictSequenceType {
  public:
   using StrictSequenceType::StrictSequenceType;
-
-  virtual void setElement(
-      std::shared_ptr<BaseStrictObject> obj,
-      std::shared_ptr<BaseStrictObject> index,
-      std::shared_ptr<BaseStrictObject> value,
-      const CallerContext& caller) override;
 
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
       std::weak_ptr<StrictModuleObject> caller) override;
@@ -222,6 +223,21 @@ class StrictTuple final : public StrictSequence {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> instType,
       std::shared_ptr<BaseStrictObject> elements = nullptr);
+
+  static std::shared_ptr<BaseStrictObject> tuple__add__(
+      std::shared_ptr<StrictTuple> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> tuple__eq__(
+      std::shared_ptr<StrictTuple> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> tuple__getitem__(
+      std::shared_ptr<StrictTuple> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> index);
 
  private:
   mutable Ref<> pyObj_;
@@ -439,5 +455,37 @@ class StrictFrozenSetType final : public StrictSetLikeType {
 
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
+
+class StrictSlice : public StrictInstance {
+ public:
+  StrictSlice(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::shared_ptr<BaseStrictObject> start,
+      std::shared_ptr<BaseStrictObject> stop,
+      std::shared_ptr<BaseStrictObject> step);
+
+  virtual std::string getDisplayName() const override;
+
+  const std::shared_ptr<BaseStrictObject>& getStart() {
+    return start_;
+  }
+  const std::shared_ptr<BaseStrictObject>& getStop() {
+    return stop_;
+  }
+  const std::shared_ptr<BaseStrictObject>& getStep() {
+    return step_;
+  }
+
+  std::tuple<int, int, int> normalizeToSequenceIndex(
+      const CallerContext& caller,
+      int sequenceSize);
+
+ private:
+  std::shared_ptr<BaseStrictObject> start_;
+  std::shared_ptr<BaseStrictObject> stop_;
+  std::shared_ptr<BaseStrictObject> step_;
+};
+
 } // namespace strictmod::objects
 #endif //__STRICTM_ITERABLE_OBJ___

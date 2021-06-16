@@ -164,6 +164,11 @@ class ScopeStack {
     return symbols_;
   }
 
+  bool isClassScope() const;
+  bool isGlobalScope() const;
+  bool localContains(const std::string& key) const;
+  void localSet(std::string key, TVar value);
+
  private:
   ScopeVector scopes_;
   Symtable symbols_;

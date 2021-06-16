@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <typeinfo>
 
+#include <iostream>
+
 namespace strictmod::objects {
 
 StrictType::StrictType(

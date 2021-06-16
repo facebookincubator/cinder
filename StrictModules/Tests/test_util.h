@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 struct StrictMTestCase {
@@ -51,5 +52,8 @@ struct StrictMTestSuite {
 // ---
 //
 std::unique_ptr<StrictMTestSuite> ReadStrictMTestSuite(const std::string& path);
+
+std::unordered_set<std::string> ReadStrictMIgnoreList(
+    const std::string& ignorePath);
 
 #endif // STRICTM_TEST_UTIL_H

@@ -41,20 +41,31 @@ class ASTVisitor {
       case Return_kind:
         return static_cast<TAnalyzer*>(this)->visitReturn(stmt);
       case Delete_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitDelete(stmt);
       case Assign_kind:
         return static_cast<TAnalyzer*>(this)->visitAssign(stmt);
       case AugAssign_kind:
+        return static_cast<TAnalyzer*>(this)->visitAugAssign(stmt);
       case AnnAssign_kind:
+        return static_cast<TAnalyzer*>(this)->visitAnnAssign(stmt);
       case For_kind:
+        return static_cast<TAnalyzer*>(this)->visitFor(stmt);
       case AsyncFor_kind:
+        break;
       case While_kind:
+        return static_cast<TAnalyzer*>(this)->visitWhile(stmt);
       case If_kind:
+        return static_cast<TAnalyzer*>(this)->visitIf(stmt);
       case With_kind:
+        return static_cast<TAnalyzer*>(this)->visitWith(stmt);
       case AsyncWith_kind:
+        break;
       case Raise_kind:
+        return static_cast<TAnalyzer*>(this)->visitRaise(stmt);
       case Try_kind:
+        return static_cast<TAnalyzer*>(this)->visitTry(stmt);
       case Assert_kind:
+        return static_cast<TAnalyzer*>(this)->visitAssert(stmt);
       case ImportFrom_kind:
       case Global_kind:
       case Nonlocal_kind:
@@ -64,8 +75,9 @@ class ASTVisitor {
       case Pass_kind:
         return static_cast<TAnalyzer*>(this)->visitPass(stmt);
       case Break_kind:
+        return static_cast<TAnalyzer*>(this)->visitBreak(stmt);
       case Continue_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitContinue(stmt);
     }
     return static_cast<TAnalyzer*>(this)->defaultVisitStmt();
   }
@@ -74,8 +86,9 @@ class ASTVisitor {
     auto context = static_cast<TAnalyzer*>(this)->updateContext(expr);
     switch (expr->kind) {
       case BoolOp_kind:
+        return static_cast<TAnalyzer*>(this)->visitBoolOp(expr);
       case NamedExpr_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitNamedExpr(expr);
       case BinOp_kind:
         return static_cast<TAnalyzer*>(this)->visitBinOp(expr);
       case UnaryOp_kind:
@@ -107,8 +120,9 @@ class ASTVisitor {
       case Attribute_kind:
         return static_cast<TAnalyzer*>(this)->visitAttribute(expr);
       case Subscript_kind:
+        return static_cast<TAnalyzer*>(this)->visitSubscript(expr);
       case Starred_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitStarred(expr);
       case Name_kind:
         return static_cast<TAnalyzer*>(this)->visitName(expr);
       case List_kind:

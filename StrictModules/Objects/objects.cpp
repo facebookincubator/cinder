@@ -131,7 +131,7 @@ std::shared_ptr<StrictType> UnknownType() {
 }
 
 std::shared_ptr<StrictType> NoneType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<NoneType_>(
       "NoneType", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
@@ -169,6 +169,12 @@ std::shared_ptr<StrictType> TupleType() {
 std::shared_ptr<StrictType> SetType() {
   static std::shared_ptr<StrictType> t = makeType<StrictSetType>(
       "set", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> SliceType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+      "slice", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 
@@ -281,6 +287,25 @@ std::shared_ptr<StrictType> KeyErrorType() {
       "KeyError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
   return t;
 }
+
+std::shared_ptr<StrictType> RuntimeErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+      "RuntimeError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> DivisionByZeroType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+      "ZeroDivisionError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 //--------------------Builtin Constant Declarations-----------------------
 
 std::shared_ptr<BaseStrictObject> NoneObject() {
@@ -321,12 +346,17 @@ bool initializeBuiltinsModuleDict() {
         {"list", ListType()},
         {"tuple", TupleType()},
         {"set", SetType()},
+        {"frozenset", SetType()},
         {"dict", DictObjectType()},
         {"Exception", ExceptionType()},
         {"TypeError", TypeErrorType()},
         {"AttributeError", AttributeErrorType()},
         {"ValueError", ValueErrorType()},
+        {"NameError", NameErrorType()},
         {"StopIteration", StopIterationType()},
+        {"KeyError", KeyErrorType()},
+        {"RuntimeError", RuntimeErrorType()},
+        {"ZeroDivisionError", DivisionByZeroType()},
         {"None", NoneObject()},
         {"NotImplemented", NotImplemented()},
         {"True", StrictTrue()},

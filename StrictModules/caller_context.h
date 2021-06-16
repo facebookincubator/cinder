@@ -76,6 +76,9 @@ class CallerContext {
       std::shared_ptr<StrictType> excType,
       Args... args) const;
 
+  [[noreturn]] void raiseExceptionFromObj(
+      std::shared_ptr<BaseStrictObject> excObj) const;
+
   template <typename... Args>
   [[noreturn]] void raiseException(
       std::shared_ptr<StrictType> excType,

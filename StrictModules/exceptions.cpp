@@ -243,4 +243,12 @@ UnsafeBaseClassExceptionHelper::UnsafeBaseClassExceptionHelper(std::string name)
 void UnsafeBaseClassException::raise() {
   throw *this;
 }
+
+// FailedToUnpackException
+FailedToUnpackExceptionHelper::FailedToUnpackExceptionHelper(std::string size)
+    : packSize(std::move(size)) {}
+
+void FailedToUnpackException::raise() {
+  throw *this;
+}
 } // namespace strictmod
