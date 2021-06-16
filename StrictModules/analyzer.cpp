@@ -1061,13 +1061,16 @@ AnalysisResult Analyzer::visitCall(const expr_ty expr) {
       auto doubleStarDict =
           std::dynamic_pointer_cast<StrictDict>(doubleStarArg);
       if (doubleStarDict) {
-        for (auto& item : doubleStarDict->getData()) {
-          auto keyStr = std::dynamic_pointer_cast<StrictString>(item.first);
-          if (keyStr) {
-            args.push_back(item.second);
-            argNames.push_back(keyStr->getValue());
-          }
-        }
+        doubleStarDict->getData().const_iter(
+            [&args, &argNames](AnalysisResult k, AnalysisResult v) {
+              auto keyStr =
+                  std::dynamic_pointer_cast<StrictString>(std::move(k));
+              if (keyStr) {
+                args.push_back(std::move(v));
+                argNames.push_back(keyStr->getValue());
+              }
+              return true;
+            });
       }
     }
   }

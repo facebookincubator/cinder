@@ -12,22 +12,138 @@ typedef std::unordered_map<
     StrictObjectEqual>
     DictDataT;
 
+class DictDataInterface {
+ public:
+  virtual ~DictDataInterface() {}
+  // set
+  virtual bool set(
+      std::shared_ptr<BaseStrictObject> key,
+      std::shared_ptr<BaseStrictObject> value) = 0;
+  // get, return std::nullopt if key does not exist
+  virtual std::optional<std::shared_ptr<BaseStrictObject>> get(
+      const std::shared_ptr<BaseStrictObject>& key) = 0;
+  virtual bool contains(const std::shared_ptr<BaseStrictObject>& key) const = 0;
+  virtual std::size_t size() const = 0;
+  virtual bool erase(const std::shared_ptr<BaseStrictObject>& key) = 0;
+  virtual void clear() = 0;
+  virtual void insert(const DictDataInterface& other) = 0;
+  virtual std::unique_ptr<DictDataInterface> copy() = 0;
+
+  /* iterate on items in the dict, and call func on each item
+   * If func returns false, iteration is stopped
+   */
+  virtual void iter(std::function<bool(
+                        std::shared_ptr<BaseStrictObject>,
+                        std::shared_ptr<BaseStrictObject>)> func) = 0;
+  virtual void const_iter(
+      std::function<bool(
+          std::shared_ptr<BaseStrictObject>,
+          std::shared_ptr<BaseStrictObject>)> func) const = 0;
+};
+
+/* dict interface backed directly by a hashmap mapping
+ * hasable strict values to strict values (DictDataT)
+ */
+class DirectMapDictData : public DictDataInterface {
+ public:
+  DirectMapDictData(DictDataT data) : data_(std::move(data)) {}
+  virtual bool set(
+      std::shared_ptr<BaseStrictObject> key,
+      std::shared_ptr<BaseStrictObject> value) override;
+  virtual std::optional<std::shared_ptr<BaseStrictObject>> get(
+      const std::shared_ptr<BaseStrictObject>& key) override;
+  virtual bool contains(
+      const std::shared_ptr<BaseStrictObject>& key) const override;
+  virtual std::size_t size() const override;
+  virtual bool erase(const std::shared_ptr<BaseStrictObject>& key) override;
+  virtual void clear() override;
+  virtual void insert(const DictDataInterface& other) override;
+  virtual std::unique_ptr<DictDataInterface> copy() override;
+
+  /* iterate on items in the dict, and call func on each item
+   * If func returns false, iteration is stopped
+   */
+  virtual void iter(std::function<bool(
+                        std::shared_ptr<BaseStrictObject>,
+                        std::shared_ptr<BaseStrictObject>)> func) override;
+  virtual void const_iter(
+      std::function<bool(
+          std::shared_ptr<BaseStrictObject>,
+          std::shared_ptr<BaseStrictObject>)> func) const override;
+
+ private:
+  DictDataT data_;
+};
+
+/* dict interface backed by a member dict of a strict object
+ * Namely, this is an interface to __dict__ of a strict object
+ */
+class InstanceDictDictData : public DictDataInterface {
+ public:
+  InstanceDictDictData(
+      std::shared_ptr<DictType> data,
+      std::weak_ptr<StrictModuleObject> creator)
+      : data_(std::move(data)), creator_(std::move(creator)) {}
+
+  virtual bool set(
+      std::shared_ptr<BaseStrictObject> key,
+      std::shared_ptr<BaseStrictObject> value) override;
+  virtual std::optional<std::shared_ptr<BaseStrictObject>> get(
+      const std::shared_ptr<BaseStrictObject>& key) override;
+  virtual bool contains(
+      const std::shared_ptr<BaseStrictObject>& key) const override;
+  virtual std::size_t size() const override;
+  virtual bool erase(const std::shared_ptr<BaseStrictObject>& key) override;
+  virtual void clear() override;
+  virtual void insert(const DictDataInterface& other) override;
+  virtual std::unique_ptr<DictDataInterface> copy() override;
+
+  /* iterate on items in the dict, and call func on each item
+   * If func returns false, iteration is stopped
+   */
+  virtual void iter(std::function<bool(
+                        std::shared_ptr<BaseStrictObject>,
+                        std::shared_ptr<BaseStrictObject>)> func) override;
+  virtual void const_iter(
+      std::function<bool(
+          std::shared_ptr<BaseStrictObject>,
+          std::shared_ptr<BaseStrictObject>)> func) const override;
+
+ private:
+  std::shared_ptr<DictType> data_;
+  std::weak_ptr<StrictModuleObject> creator_;
+};
+
 class StrictDict : public StrictIterable {
  public:
   StrictDict(
       std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
-      DictDataT data = DictDataT(),
+      DictDataT data,
       std::string displayName = "");
 
   StrictDict(
       std::shared_ptr<StrictType> type,
       std::shared_ptr<StrictModuleObject> creator,
-      DictDataT data = DictDataT(),
+      DictDataT data,
       std::string displayName = "");
 
-  const DictDataT& getData() const {
-    return data_;
+  StrictDict(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::unique_ptr<DictDataInterface> data =
+          std::make_unique<DirectMapDictData>(DictDataT()),
+      std::string displayName = "");
+
+  StrictDict(
+      std::shared_ptr<StrictType> type,
+      std::shared_ptr<StrictModuleObject> creator,
+      std::unique_ptr<DictDataInterface> data =
+          std::make_unique<DirectMapDictData>(DictDataT()),
+      std::string displayName = "");
+
+  const DictDataInterface& getData() const {
+    return *data_;
   }
 
   virtual std::string getDisplayName() const override;
@@ -108,7 +224,7 @@ class StrictDict : public StrictIterable {
   // TODO __init__, update (require kwargs support)
 
  private:
-  DictDataT data_;
+  std::unique_ptr<DictDataInterface> data_;
   std::string displayName_;
 
   static void dictUpdateHelper(

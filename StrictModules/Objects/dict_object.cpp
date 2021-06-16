@@ -20,7 +20,7 @@ StrictDict::StrictDict(
     DictDataT data,
     std::string displayName)
     : StrictIterable(std::move(type), std::move(creator)),
-      data_(std::move(data)),
+      data_(std::make_unique<DirectMapDictData>(std::move(data))),
       displayName_(displayName) {}
 
 StrictDict::StrictDict(
@@ -29,16 +29,37 @@ StrictDict::StrictDict(
     DictDataT data,
     std::string displayName)
     : StrictIterable(std::move(type), std::move(creator)),
+      data_(std::make_unique<DirectMapDictData>(std::move(data))),
+      displayName_(displayName) {}
+
+StrictDict::StrictDict(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::unique_ptr<DictDataInterface> data,
+    std::string displayName)
+    : StrictIterable(std::move(type), std::move(creator)),
+      data_(std::move(data)),
+      displayName_(displayName) {}
+
+StrictDict::StrictDict(
+    std::shared_ptr<StrictType> type,
+    std::shared_ptr<StrictModuleObject> creator,
+    std::unique_ptr<DictDataInterface> data,
+    std::string displayName)
+    : StrictIterable(std::move(type), std::move(creator)),
       data_(std::move(data)),
       displayName_(displayName) {}
 
 std::string StrictDict::getDisplayName() const {
   if (displayName_.empty()) {
     std::vector<std::string> items;
-    items.reserve(data_.size());
-    for (auto& item : data_) {
-      items.push_back(fmt::format("{}: {}", item.first, item.second));
-    }
+    items.reserve(data_->size());
+    data_->const_iter([&items](
+                          std::shared_ptr<BaseStrictObject> key,
+                          std::shared_ptr<BaseStrictObject> value) {
+      items.push_back(fmt::format("{}: {}", std::move(key), std::move(value)));
+      return true;
+    });
     return fmt::format("{{{}}}", fmt::join(std::move(items), ", "));
   } else {
     // overwritten displayName
@@ -51,21 +72,31 @@ Ref<> StrictDict::getPyObject() const {
   if (pyObj == nullptr) {
     return nullptr;
   }
-  for (auto& it : data_) {
-    Ref<> key = it.first->getPyObject();
+  bool success = true;
+  data_->const_iter([&pyObj, &success](
+                        std::shared_ptr<BaseStrictObject> k,
+                        std::shared_ptr<BaseStrictObject> v) {
+    Ref<> key = k->getPyObject();
     if (key == nullptr) {
-      return nullptr;
+      success = false;
+      return false;
     }
-    Ref<> value = it.second->getPyObject();
+    Ref<> value = v->getPyObject();
     if (value == nullptr) {
-      return nullptr;
+      success = false;
+      return false;
     }
     if (PyDict_SetItem(pyObj.get(), key.get(), value.get()) < 0) {
       PyErr_Clear();
-      return nullptr;
+      success = false;
+      return false;
     }
+    return true;
+  });
+  if (success) {
+    return pyObj;
   }
-  return pyObj;
+  return nullptr;
 }
 
 // wrapped method
@@ -80,7 +111,7 @@ void StrictDict::dictUpdateHelper(
     std::shared_ptr<StrictDict> posDict =
         std::dynamic_pointer_cast<StrictDict>(posArg);
     if (posDict) {
-      self->data_.insert(posDict->data_.begin(), posDict->data_.end());
+      self->data_->insert(posDict->getData());
     } else {
       for (auto& elem : iGetElementsVec(posArg, caller)) {
         std::vector<std::shared_ptr<BaseStrictObject>> kvTuple =
@@ -90,7 +121,7 @@ void StrictDict::dictUpdateHelper(
               "dict update argument has size {} but should be size 2",
               kvTuple.size());
         }
-        self->data_[kvTuple[0]] = kvTuple[1];
+        self->data_->set(kvTuple[0], kvTuple[1]);
       }
     }
   }
@@ -98,7 +129,7 @@ void StrictDict::dictUpdateHelper(
   int offset = noPosArg ? 0 : 1;
   for (size_t i = 0; i < namedArgs.size(); ++i) {
     auto key = caller.makeStr(namedArgs[i]);
-    self->data_[std::move(key)] = args[i + offset];
+    self->data_->set(std::move(key), args[i + offset]);
   }
 }
 
@@ -115,7 +146,7 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__init__(
         posArgNum);
   }
   std::shared_ptr<StrictDict> self = assertStaticCast<StrictDict>(obj);
-  self->data_.clear();
+  self->data_->clear();
   dictUpdateHelper(std::move(self), args, namedArgs, posArgNum == 0, caller);
   return NoneObject();
 }
@@ -140,15 +171,15 @@ std::shared_ptr<BaseStrictObject> StrictDict::dictUpdate(
 std::shared_ptr<BaseStrictObject> StrictDict::dict__len__(
     std::shared_ptr<StrictDict> self,
     const CallerContext& caller) {
-  return caller.makeInt(self->data_.size());
+  return caller.makeInt(self->data_->size());
 }
 
 std::shared_ptr<BaseStrictObject> StrictDict::dict__getitem__(
     std::shared_ptr<StrictDict> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> key) {
-  auto got = self->data_.find(key);
-  if (got == self->data_.end()) {
+  auto got = self->data_->get(key);
+  if (got == std::nullopt) {
     if (key->getType() == UnknownType()) {
       caller.error<UnknownValueAttributeException>(
           key->getDisplayName(), "__hash__");
@@ -164,7 +195,7 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__getitem__(
       caller.raiseExceptionStr(KeyErrorType(), "{}", key);
     }
   }
-  return got->second;
+  return got.value();
 }
 
 std::shared_ptr<BaseStrictObject> StrictDict::dict__setitem__(
@@ -172,14 +203,23 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__setitem__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> key,
     std::shared_ptr<BaseStrictObject> value) {
-  if (key->getType() == UnknownType()) {
+  auto keyType = key->getType();
+  if (keyType == UnknownType()) {
     caller.error<UnknownValueAttributeException>(
         key->getDisplayName(), "__hash__");
     return NoneObject();
   }
   checkExternalModification(self, caller);
-  // TODO: explicitly prohibit unhashable keys and raise typeError
-  self->data_[key] = value;
+
+  if (!key->isHashable()) {
+    caller.raiseTypeError("key of type {} is unhashable", keyType->getName());
+  }
+  bool success = self->data_->set(std::move(key), std::move(value));
+  if (!success) {
+    caller.error<UnsupportedException>(
+        fmt::format("{}.__setitem__", self->getTypeRef().getName()),
+        keyType->getName());
+  }
   return NoneObject();
 }
 
@@ -187,14 +227,23 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__delitem__(
     std::shared_ptr<StrictDict> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> key) {
-  if (key->getType() == UnknownType()) {
+  auto keyType = key->getType();
+  if (keyType == UnknownType()) {
     caller.error<UnknownValueAttributeException>(
         key->getDisplayName(), "__hash__");
     return NoneObject();
   }
   checkExternalModification(self, caller);
-  // TODO: explicitly prohibit unhashable keys and raise typeError
-  self->data_.erase(key);
+
+  if (!key->isHashable()) {
+    caller.raiseTypeError("key of type {} is unhashable", keyType->getName());
+  }
+  bool success = self->data_->erase(key);
+  if (!success) {
+    caller.error<UnsupportedException>(
+        fmt::format("{}.__delitem__", self->getTypeRef().getName()),
+        keyType->getName());
+  }
   return NoneObject();
 }
 
@@ -207,10 +256,10 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__contains__(
         key->getDisplayName(), "__hash__");
     return StrictFalse();
   }
-  if (self->data_.find(std::move(key)) == self->data_.end()) {
-    return StrictFalse();
+  if (self->data_->contains(std::move(key))) {
+    return StrictTrue();
   }
-  return StrictTrue();
+  return StrictFalse();
 }
 
 std::shared_ptr<BaseStrictObject> StrictDict::dictGet(
@@ -226,11 +275,11 @@ std::shared_ptr<BaseStrictObject> StrictDict::dictGet(
         key->getDisplayName(), "__hash__");
     return defaultValue;
   }
-  auto got = self->data_.find(std::move(key));
-  if (got == self->data_.end()) {
+  auto got = self->data_->get(std::move(key));
+  if (got == std::nullopt) {
     return defaultValue;
   }
-  return got->second;
+  return got.value();
 }
 
 std::shared_ptr<BaseStrictObject> StrictDict::dictSetDefault(
@@ -243,19 +292,19 @@ std::shared_ptr<BaseStrictObject> StrictDict::dictSetDefault(
         key->getDisplayName(), "__hash__");
     return value;
   }
-  auto got = self->data_.find(key);
-  if (got == self->data_.end()) {
-    self->data_[key] = value;
+  auto got = self->data_->get(key);
+  if (got == std::nullopt) {
+    self->data_->set(std::move(key), value);
     return value;
   }
-  return got->second;
+  return got.value();
 }
 
 std::shared_ptr<BaseStrictObject> StrictDict::dictCopy(
     std::shared_ptr<StrictDict> self,
     const CallerContext& caller) {
   return std::make_shared<StrictDict>(
-      self->type_, caller.caller, self->data_, self->displayName_);
+      self->type_, caller.caller, self->data_->copy(), self->displayName_);
 }
 
 std::shared_ptr<BaseStrictObject> StrictDict::dictPop(
@@ -264,16 +313,16 @@ std::shared_ptr<BaseStrictObject> StrictDict::dictPop(
     std::shared_ptr<BaseStrictObject> key,
     std::shared_ptr<BaseStrictObject> defaultValue) {
   checkExternalModification(self, caller);
-  auto got = self->data_.find(key);
-  if (got == self->data_.end()) {
+  auto got = self->data_->get(key);
+  if (got == std::nullopt) {
     if (!defaultValue) {
       caller.raiseException(KeyErrorType());
     } else {
       return defaultValue;
     }
   }
-  auto result = std::shared_ptr(got->second);
-  self->data_.erase(got);
+  auto result = std::shared_ptr(got.value());
+  self->data_->erase(key);
   return result;
 }
 
@@ -312,12 +361,16 @@ std::vector<std::shared_ptr<BaseStrictObject>> StrictDictType::getElementsVec(
     std::shared_ptr<BaseStrictObject> obj,
     const CallerContext&) {
   auto dict = assertStaticCast<StrictDict>(std::move(obj));
-  const DictDataT& data = dict->getData();
+  const DictDataInterface& data = dict->getData();
   std::vector<std::shared_ptr<BaseStrictObject>> vec;
   vec.reserve(data.size());
-  for (auto& e : data) {
-    vec.push_back(e.first);
-  }
+  data.const_iter([&vec](
+                      std::shared_ptr<BaseStrictObject> k,
+                      std::shared_ptr<BaseStrictObject>) {
+    vec.push_back(std::move(k));
+    return true;
+  });
+
   return vec;
 }
 
@@ -413,26 +466,35 @@ std::shared_ptr<BaseStrictObject> StrictDictView::dictview__len__(
 std::vector<std::shared_ptr<BaseStrictObject>> dictViewGetElementsHelper(
     const std::shared_ptr<StrictDictView>& self,
     const CallerContext& caller) {
-  const DictDataT& data = self->getViewed()->getData();
+  const DictDataInterface& data = self->getViewed()->getData();
   std::vector<std::shared_ptr<BaseStrictObject>> result;
   result.reserve(data.size());
   switch (self->getViewKind()) {
     case StrictDictView::kKey: {
-      for (auto& e : data) {
-        result.push_back(e.first);
-      }
+      data.const_iter([&result](
+                          std::shared_ptr<BaseStrictObject> k,
+                          std::shared_ptr<BaseStrictObject>) {
+        result.push_back(std::move(k));
+        return true;
+      });
       break;
     }
     case StrictDictView::kValue: {
-      for (auto& e : data) {
-        result.push_back(e.second);
-      }
+      data.const_iter([&result](
+                          std::shared_ptr<BaseStrictObject>,
+                          std::shared_ptr<BaseStrictObject> v) {
+        result.push_back(std::move(v));
+        return true;
+      });
       break;
     }
     case StrictDictView::kItem: {
-      for (auto& e : data) {
-        result.push_back(caller.makePair(e.first, e.second));
-      }
+      data.const_iter([&result, &caller](
+                          std::shared_ptr<BaseStrictObject> k,
+                          std::shared_ptr<BaseStrictObject> v) {
+        result.push_back(caller.makePair(std::move(k), std::move(v)));
+        return true;
+      });
       break;
     }
   }
@@ -499,6 +561,189 @@ std::vector<std::type_index> StrictDictViewType::getBaseTypeinfos() const {
   std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
   baseVec.emplace_back(typeid(StrictDictViewType));
   return baseVec;
+}
+
+// DirectMapDictData
+bool DirectMapDictData::set(
+    std::shared_ptr<BaseStrictObject> key,
+    std::shared_ptr<BaseStrictObject> value) {
+  if (key->isHashable()) {
+    data_[std::move(key)] = std::move(value);
+    return true;
+  }
+  return false;
+}
+std::optional<std::shared_ptr<BaseStrictObject>> DirectMapDictData::get(
+    const std::shared_ptr<BaseStrictObject>& key) {
+  auto item = data_.find(key);
+  if (item == data_.end()) {
+    return std::nullopt;
+  }
+  return item->second;
+}
+
+bool DirectMapDictData::contains(
+    const std::shared_ptr<BaseStrictObject>& key) const {
+  return data_.find(key) != data_.end();
+}
+
+std::size_t DirectMapDictData::size() const {
+  return data_.size();
+}
+
+bool DirectMapDictData::erase(const std::shared_ptr<BaseStrictObject>& key) {
+  if (key->isHashable()) {
+    data_.erase(key);
+    return true;
+  }
+  return false;
+}
+
+void DirectMapDictData::clear() {
+  data_.clear();
+}
+
+void DirectMapDictData::insert(const DictDataInterface& other) {
+  other.const_iter([& data = data_](
+                       std::shared_ptr<BaseStrictObject> k,
+                       std::shared_ptr<BaseStrictObject> v) {
+    data[std::move(k)] = std::move(v);
+    return true;
+  });
+}
+
+std::unique_ptr<DictDataInterface> DirectMapDictData::copy() {
+  return std::make_unique<DirectMapDictData>(data_);
+}
+
+/* iterate on items in the dict, and call func on each item
+ * If func returns false, iteration is stopped
+ */
+void DirectMapDictData::iter(std::function<bool(
+                                 std::shared_ptr<BaseStrictObject>,
+                                 std::shared_ptr<BaseStrictObject>)> func) {
+  for (auto& item : data_) {
+    bool ok = func(item.first, item.second);
+    if (!ok) {
+      break;
+    }
+  }
+}
+void DirectMapDictData::const_iter(
+    std::function<bool(
+        std::shared_ptr<BaseStrictObject>,
+        std::shared_ptr<BaseStrictObject>)> func) const {
+  for (auto& item : data_) {
+    bool ok = func(item.first, item.second);
+    if (!ok) {
+      break;
+    }
+  }
+}
+
+// InstanceDictDictData
+static std::optional<std::string> keyToStr(
+    const std::shared_ptr<BaseStrictObject>& key) {
+  auto strKey = std::dynamic_pointer_cast<StrictString>(key);
+  if (strKey) {
+    return strKey->getValue();
+  }
+  return std::nullopt;
+}
+
+bool InstanceDictDictData::set(
+    std::shared_ptr<BaseStrictObject> key,
+    std::shared_ptr<BaseStrictObject> value) {
+  auto keyStr = keyToStr(key);
+  if (keyStr) {
+    (*data_)[keyStr.value()] = std::move(value);
+    return true;
+  }
+  return false;
+}
+std::optional<std::shared_ptr<BaseStrictObject>> InstanceDictDictData::get(
+    const std::shared_ptr<BaseStrictObject>& key) {
+  auto keyStr = keyToStr(key);
+  if (keyStr) {
+    auto item = data_->find(keyStr.value());
+    if (item != data_->end()) {
+      return item->second;
+    }
+  }
+  return std::nullopt;
+}
+
+bool InstanceDictDictData::contains(
+    const std::shared_ptr<BaseStrictObject>& key) const {
+  auto keyStr = keyToStr(key);
+  if (keyStr) {
+    return data_->find(keyStr.value()) != data_->end();
+  }
+  return false;
+}
+
+std::size_t InstanceDictDictData::size() const {
+  return data_->size();
+}
+
+bool InstanceDictDictData::erase(const std::shared_ptr<BaseStrictObject>& key) {
+  auto keyStr = keyToStr(key);
+  if (keyStr) {
+    data_->erase(keyStr.value());
+    return true;
+  }
+  return false;
+}
+
+void InstanceDictDictData::clear() {
+  data_->clear();
+}
+
+void InstanceDictDictData::insert(const DictDataInterface& other) {
+  other.const_iter([& data = data_](
+                       std::shared_ptr<BaseStrictObject> k,
+                       std::shared_ptr<BaseStrictObject> v) {
+    auto keyStr = keyToStr(k);
+    if (keyStr) {
+      (*data)[keyStr.value()] = std::move(v);
+      return true;
+    }
+    return false;
+  });
+}
+
+std::unique_ptr<DictDataInterface> InstanceDictDictData::copy() {
+  return std::make_unique<InstanceDictDictData>(data_, creator_);
+}
+
+/* iterate on items in the dict, and call func on each item
+ * If func returns false, iteration is stopped
+ */
+void InstanceDictDictData::iter(std::function<bool(
+                                    std::shared_ptr<BaseStrictObject>,
+                                    std::shared_ptr<BaseStrictObject>)> func) {
+  for (auto& item : *data_) {
+    auto keyObj =
+        std::make_shared<StrictString>(StrType(), creator_, item.first);
+    bool ok = func(std::move(keyObj), item.second);
+    if (!ok) {
+      break;
+    }
+  }
+}
+
+void InstanceDictDictData::const_iter(
+    std::function<bool(
+        std::shared_ptr<BaseStrictObject>,
+        std::shared_ptr<BaseStrictObject>)> func) const {
+  for (auto& item : *data_) {
+    auto keyObj =
+        std::make_shared<StrictString>(StrType(), creator_, item.first);
+    bool ok = func(std::move(keyObj), item.second);
+    if (!ok) {
+      break;
+    }
+  }
 }
 
 } // namespace strictmod::objects

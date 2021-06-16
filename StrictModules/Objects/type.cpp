@@ -326,16 +326,20 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
         "type.__new__() third arg must be dict, not {} object",
         membersObj->getTypeRef().getName());
   }
-  const DictDataT& membersData = membersDict->getData();
+  const DictDataInterface& membersData = membersDict->getData();
   std::shared_ptr<DictType> membersPtr = std::make_shared<DictType>();
   DictType& members = *membersPtr;
   members.reserve(membersData.size());
-  for (auto& memberItem : membersData) {
-    auto keyStr = std::dynamic_pointer_cast<StrictString>(memberItem.first);
+  membersData.const_iter([&members](
+                             std::shared_ptr<BaseStrictObject> k,
+                             std::shared_ptr<BaseStrictObject> v) {
+    auto keyStr = std::dynamic_pointer_cast<StrictString>(std::move(k));
     if (keyStr != nullptr) {
-      members[keyStr->getValue()] = memberItem.second;
+      members[keyStr->getValue()] = std::move(v);
     }
-  }
+    return true;
+  });
+
   auto initSubclassItem = members.find("__init_subclass__");
   if (initSubclassItem != members.end()) {
     // __init_sublcass__ is automatically treated as a class method
