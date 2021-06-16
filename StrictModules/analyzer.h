@@ -88,6 +88,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   void visitFunctionDef(const stmt_ty stmt);
   void visitAsyncFunctionDef(const stmt_ty stmt);
   void visitReturn(const stmt_ty stmt);
+  void visitClassDef(const stmt_ty stmt);
+  void visitPass(const stmt_ty stmt);
   // expressions
   AnalysisResult visitConstant(const expr_ty expr);
   AnalysisResult visitName(const expr_ty expr);
@@ -99,6 +101,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   AnalysisResult visitDict(const expr_ty expr);
   AnalysisResult visitBinOp(const expr_ty expr);
   AnalysisResult visitUnaryOp(const expr_ty expr);
+  AnalysisResult visitCompare(const expr_ty expr);
   // defaults
   AnalysisResult defaultVisitExpr();
   void defaultVisitStmt();

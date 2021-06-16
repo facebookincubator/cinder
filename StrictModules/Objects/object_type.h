@@ -101,9 +101,49 @@ class StrictObjectType : public StrictType {
       std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
 
+  virtual void addMethods() override;
+
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
-      std::shared_ptr<StrictModuleObject> caller) override;
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
+
+// wrapped methods for object
+std::shared_ptr<BaseStrictObject> object__init__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller);
+
+std::shared_ptr<BaseStrictObject> object__new__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller);
+
+std::shared_ptr<BaseStrictObject> object__eq__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> other);
+
+std::shared_ptr<BaseStrictObject> object__ne__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> other);
+
+std::shared_ptr<BaseStrictObject> object__othercmp__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> other);
 } // namespace strictmod::objects
 
 #endif //__STRICTM_OBJECT_TYPE_H__

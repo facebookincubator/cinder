@@ -93,7 +93,7 @@ std::shared_ptr<BaseStrictObject> iDoBinOp(
   bool triedRight = false;
   auto lType = left->getType();
   auto rType = right->getType();
-  if (lType != rType && lType->is_subtype(rType)) {
+  if (lType != rType && rType->isSubType(lType)) {
     // do reverse op first
     auto result = iReverseBinOp(right, left, op, caller);
     if (result) {

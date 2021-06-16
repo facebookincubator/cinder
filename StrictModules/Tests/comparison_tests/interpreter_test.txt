@@ -145,6 +145,13 @@ v = h(1, 2, 3, 4, 5, w=6, a=7, b=8)
 x y z w v
 ---
 ---
+ClassSimple
+---
+class C:
+    pass
+---
+---
+---
 test_float @disabled
 ---
 x = 1.0
@@ -233,7 +240,7 @@ x = 1j + 1.0
 x
 ---
 ---
-test_mro @disabled
+test_mro
 ---
 class C:
     pass
@@ -242,7 +249,7 @@ x = C.mro() == [C, object]
 x
 ---
 ---
-test_mro_explicit_obj @disabled
+test_mro_explicit_obj
 ---
 class C(object):
     pass
@@ -251,7 +258,7 @@ x = C.mro() == [C, object]
 x
 ---
 ---
-test_mro_inheritance @disabled
+test_mro_inheritance
 ---
 class C:
     pass
@@ -263,7 +270,7 @@ x = D.mro() == [D, C, object]
 x
 ---
 ---
-test_mro_multiple_inheritance @disabled
+test_mro_multiple_inheritance
 ---
 class C:
     pass
@@ -278,7 +285,7 @@ x = E.mro() == [E, C, D, object]
 x
 ---
 ---
-test_mro_conflict @disabled
+test_mro_conflict
 ---
 
 class A:
@@ -301,9 +308,9 @@ class E(C, D):
     pass
 ---
 ---
-StrictModuleTypeError
+18 0 StrictModuleUnhandledException(TypeError)
 ---
-test_metaclass_attr_resolution @disabled
+test_metaclass_attr_resolution
 ---
 class MC(type):
     x = 42
@@ -320,7 +327,6 @@ x_inst x_cls
 ---
 test_metaclass_attr_property @disabled
 ---
-
 class MC(type):
     @property
     def x(self):
@@ -395,9 +401,8 @@ x = C().ABC
 x
 ---
 ---
-test_metaclass_override_call @disabled
+test_metaclass_override_call
 ---
-
 class MC(type):
     def __call__(self, *args):
         return args
@@ -557,7 +562,7 @@ t7 = C.__dict__['f'].__get__(D, D())()
 t0 t1 t2 t3 t4 t5 t6 t7
 ---
 ---
-test_subclass_type @disabled
+test_subclass_type
 ---
 class C(type):
     pass
@@ -566,7 +571,7 @@ x = C('foo', (), {})
 ---
 ---
 ---
-test_subclass_object @disabled
+test_subclass_object
 ---
 class C(object):
     pass
@@ -575,7 +580,7 @@ x = C()
 ---
 ---
 ---
-test_subclass_int @disabled
+test_subclass_int
 ---
 class C(int):
     pass
@@ -787,7 +792,7 @@ staticmethod(x=2)
 ---
 StrictModuleTypeError
 ---
-test_int_object_subtype @disabled
+test_int_object_subtype
 ---
 class C(int, object):
     pass
@@ -817,7 +822,7 @@ x = object() + 3
 ---
 StrictModuleTypeError
 ---
-test_int_subtype @disabled
+test_int_subtype
 ---
 class C(int):
     pass
@@ -828,7 +833,7 @@ y = 4 % C(4)
 x y
 ---
 ---
-test_int_subtype_pow @disabled
+test_int_subtype_pow
 ---
 class C(int):
     pass
@@ -839,7 +844,7 @@ y = (4).__pow__(C(4), None)
 x y
 ---
 ---
-test_int_subtype_pow_bad_mod @disabled
+test_int_subtype_pow_bad_mod
 ---
 class C(int):
     pass
@@ -847,9 +852,9 @@ class C(int):
 x = C(1).__pow__(2, 'abc')
 ---
 ---
-StrictModuleUnhandledException
+4 4 StrictModuleUnhandledException(TypeError)
 ---
-test_int_subtype_unary @disabled
+test_int_subtype_unary
 ---
 class C(int):
     pass
@@ -859,7 +864,7 @@ x = ~C(4)
 x
 ---
 ---
-test_int_subtype_overrides @disabled
+test_int_subtype_overrides
 ---
 class C(int):
     def __add__(self, other):
@@ -867,7 +872,9 @@ class C(int):
 
     def __radd__(self, other):
         return "goodbye"
-    pass
+
+    def f(self):
+        return "f"
 
 x = C(42) + 42
 y = 42 + C(42)
@@ -876,21 +883,21 @@ z = C(42) + C(42)
 x y z
 ---
 ---
-test_int_duner_methods @disabled
+test_int_duner_methods
 ---
 x = int.__rxor__(4, 4)
 ---
 x
 ---
 ---
-test_int_unary_duner_methods @disabled
+test_int_unary_duner_methods
 ---
 x = int.__neg__(4)
 ---
 x
 ---
 ---
-test_float_object_subtype_add @disabled
+test_float_object_subtype_add
 ---
 class C(float):
     pass
@@ -901,7 +908,7 @@ x = C(1) + 2.0
 x
 ---
 ---
-test_float_object_subtype_reverse_add @disabled
+test_float_object_subtype_reverse_add
 ---
 class C(float):
     pass
@@ -934,12 +941,12 @@ x = 1j + C(2)
 ---
 StrictModuleNotSupportedException
 ---
-test_float_invert @disabled
+test_float_invert
 ---
 x = ~42.0
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
 test_complex_abs @disabled
 ---
@@ -976,7 +983,7 @@ x = 0j/0j
 ---
 StrictModuleZeroDivisionError
 ---
-test_numeric_bin_ops @disabled
+test_numeric_bin_ops
 ---
 x = -1.1 != -1.1
 ---
@@ -1462,7 +1469,7 @@ t1 = tuple(1)
 ---
 StrictModuleTypeError
 ---
-test_dict_constructor @disabled
+test_dict_constructor
 ---
 d1 = dict()
 d2 = dict([(1, 2)])
@@ -1473,12 +1480,12 @@ d5 = dict({1:2}, a=1)
 d1 d2 d3 d4 d5
 ---
 ---
-test_dict_bad_arg @disabled
+test_dict_bad_arg
 ---
 d1 = dict((1, 2))
 ---
 ---
-StrictModuleTypeError
+1 5 StrictModuleUnhandledException(TypeError)
 ---
 test_dataclass_asdict @disabled
 ---
@@ -2738,7 +2745,7 @@ y = x.__class__
 y
 ---
 ---
-test_dunder_class_defined @disabled
+test_dunder_class_defined
 ---
 class C:
     __class__ = 42
@@ -4282,7 +4289,7 @@ class C:
 ---
 StrictModuleTypeError
 ---
-test_rich_comparison_eq_ne @disabled
+test_rich_comparison_eq_ne
 ---
 class A:
     def __eq__(self, other):
@@ -4319,7 +4326,7 @@ x12 = e != e
 x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12
 ---
 ---
-test_rich_comparison @disabled
+test_rich_comparison
 ---
 class A:
     def __le__(self, other):
@@ -4497,7 +4504,7 @@ s = f'{42:3}'
 s
 ---
 ---
-test_type_str @disabled
+test_type_str
 ---
 x = type("abc")
 ---
@@ -4618,7 +4625,7 @@ b = f()
 l b
 ---
 ---
-test_list_ctor @disabled
+test_list_ctor
 ---
 l = [1, 2]
 l1 = list(l)
@@ -4626,12 +4633,12 @@ l1 = list(l)
 l l1
 ---
 ---
-test_list_ctor_non_iterable @disabled
+test_list_ctor_non_iterable
 ---
 l = list(42)
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
 test_enumerate @disabled
 ---
@@ -4660,7 +4667,7 @@ except KeyError:
 x
 ---
 ---
-test_object_init @disabled
+test_object_init
 ---
 
 x = object()
@@ -4669,23 +4676,23 @@ y = x.__init__()
 y
 ---
 ---
-test_object_init_arg @disabled
+test_object_init_arg
 ---
 
 x = object()
 y = x.__init__(1)
 ---
 ---
-StrictModuleUnhandledException
+3 4 StrictModuleUnhandledException(TypeError)
 ---
-test_object_init_kwarg @disabled
+test_object_init_kwarg
 ---
 
 x = object()
 y = x.__init__(x=1)
 ---
 ---
-StrictModuleUnhandledException
+3 4 StrictModuleUnhandledException(TypeError)
 ---
 test_object_hash_exist @disabled
 ---
@@ -5163,7 +5170,7 @@ class C:
 ---
 UnknownValueAttributeException
 ---
-test_new_return_different_typed_instance @disabled
+test_new_return_different_typed_instance
 ---
 class C:
     def __new__(cls, name, *args, **kwargs):

@@ -52,6 +52,16 @@ class StrictMethodDescrType : public StrictObjectType {
       const std::vector<std::shared_ptr<BaseStrictObject>>& args,
       const std::vector<std::string>& argNames,
       const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 // --------------------Builtin functions--------------------
@@ -88,6 +98,16 @@ class StrictBuiltinFunctionOrMethodType : public StrictObjectType {
       const std::vector<std::shared_ptr<BaseStrictObject>>& args,
       const std::vector<std::string>& names,
       const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 // --------------instance (user) Method-------------------
@@ -124,8 +144,54 @@ class StrictMethodType : public StrictObjectType {
       const std::vector<std::shared_ptr<BaseStrictObject>>& args,
       const std::vector<std::string>& names,
       const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
+// -----------------class (user) Method-------------------
+class StrictClassMethod : public StrictInstance {
+ public:
+  StrictClassMethod(
+      std::weak_ptr<StrictModuleObject> creator,
+      std::shared_ptr<BaseStrictObject> func);
+
+  std::shared_ptr<BaseStrictObject> getFunc() const {
+    return func_;
+  }
+
+ private:
+  std::shared_ptr<BaseStrictObject> func_;
+};
+
+class StrictClassMethodType : public StrictObjectType {
+  using StrictObjectType::StrictObjectType;
+
+  virtual std::shared_ptr<BaseStrictObject> getDescr(
+      std::shared_ptr<BaseStrictObject> obj,
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+};
+
+// Helpers to add method to types
 template <typename T, typename... Args>
 class CallableWrapper;
 

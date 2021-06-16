@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/type_type.h"
 
+#include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
 namespace strictmod::objects {
@@ -51,5 +52,33 @@ void StrictTypeType::storeAttr(
   }
   checkExternalModification(obj, caller);
   typ->setAttr(key, std::move(value));
+}
+
+std::shared_ptr<StrictType> StrictTypeType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictTypeType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+void StrictTypeType::addMethods() {
+  addMethodDescr("__call__", StrictType::type__call__);
+  addBuiltinFunctionOrMethod("__new__", StrictType::type__new__);
+  addMethod("mro", StrictType::typeMro);
+}
+
+std::vector<std::type_index> StrictTypeType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictTypeType));
+  return baseVec;
 }
 } // namespace strictmod::objects

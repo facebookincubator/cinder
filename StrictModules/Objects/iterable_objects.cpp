@@ -25,6 +25,28 @@ static inline bool strictIterableContainsHelper(
   return false;
 }
 
+std::shared_ptr<StrictType> StrictIterableType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictIterableType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictIterableType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictIterableType));
+  return baseVec;
+}
+
 // -------------------------Sequence (random access)-------------------------
 StrictSequence::StrictSequence(
     std::shared_ptr<StrictType> type,
@@ -184,6 +206,28 @@ StrictSequenceType::getElementsVec(
   return seq->getData();
 }
 
+std::shared_ptr<StrictType> StrictSequenceType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictSequenceType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictSequenceType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictIterableType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictSequenceType));
+  return baseVec;
+}
+
 void StrictSequenceType::addMethods() {
   StrictIterableType::addMethods();
   addMethod(kDunderContains, StrictSequence::sequence__contains__);
@@ -293,12 +337,34 @@ void StrictListType::setElement(
 }
 
 std::unique_ptr<BaseStrictObject> StrictListType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictList>(ListType(), caller, kEmptyArgs);
 }
 
 Ref<> StrictListType::getPyObject() const {
   return Ref<>(reinterpret_cast<PyObject*>(&PyList_Type));
+}
+
+std::shared_ptr<StrictType> StrictListType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictListType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictListType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictSequenceType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictListType));
+  return baseVec;
 }
 
 void StrictListType::addMethods() {
@@ -432,13 +498,35 @@ std::shared_ptr<BaseStrictObject> StrictTuple::tuple__new__(
 }
 
 std::unique_ptr<BaseStrictObject> StrictTupleType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictTuple>(
       TupleType(), std::move(caller), kEmptyArgs);
 }
 
 Ref<> StrictTupleType::getPyObject() const {
   return Ref<>(reinterpret_cast<PyObject*>(&PyTuple_Type));
+}
+
+std::shared_ptr<StrictType> StrictTupleType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictTupleType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictTupleType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictSequenceType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictTupleType));
+  return baseVec;
 }
 
 void StrictTupleType::addMethods() {
@@ -571,6 +659,28 @@ void StrictSetLikeType::addMethods() {
   addMethod(kDunderIter, StrictSetLike::set__iter__);
 }
 
+std::shared_ptr<StrictType> StrictSetLikeType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictSetLikeType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictSetLikeType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictSetLikeType));
+  return baseVec;
+}
+
 std::shared_ptr<StrictIteratorBase> StrictSetLikeType::getElementsIter(
     std::shared_ptr<BaseStrictObject> obj,
     const CallerContext& caller) {
@@ -640,8 +750,30 @@ std::shared_ptr<BaseStrictObject> StrictSet::setAdd(
 // TODO  __init__, update,
 
 std::unique_ptr<BaseStrictObject> StrictSetType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictSet>(SetType(), caller);
+}
+
+std::shared_ptr<StrictType> StrictSetType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictSetType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictSetType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictSetLikeType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictSetType));
+  return baseVec;
 }
 
 void StrictSetType::addMethods() {
@@ -709,8 +841,30 @@ std::shared_ptr<StrictSetLike> StrictFrozenSet::makeSetLike(
 // TODO __new__,
 
 std::unique_ptr<BaseStrictObject> StrictFrozenSetType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictFrozenSet>(FrozensetType(), caller);
+}
+
+std::shared_ptr<StrictType> StrictFrozenSetType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictFrozenSetType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictFrozenSetType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictSetLikeType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictFrozenSetType));
+  return baseVec;
 }
 
 void StrictFrozenSetType::addMethods() {

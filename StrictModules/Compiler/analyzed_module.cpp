@@ -29,7 +29,7 @@ void AnalyzedModule::setModuleValue(
 
 void AnalyzedModule::cleanModuleContent() {
   if (module_) {
-    module_->cleanContent();
+    module_->cleanModule();
   }
 }
 } // namespace strictmod::compiler

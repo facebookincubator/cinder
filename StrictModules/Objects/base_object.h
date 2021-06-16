@@ -4,8 +4,8 @@
 
 #include "StrictModules/py_headers.h"
 
-#include "StrictModules/caller_context.h"
 #include "Jit/ref.h"
+#include "StrictModules/caller_context.h"
 
 #include <list>
 #include <memory>
@@ -32,6 +32,10 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
       : type_(type), creator_(creator) {}
 
   virtual ~BaseStrictObject() {}
+
+  /* clear all content in __dict__ that's owned by owner. Use this during
+   * shutdown */
+  virtual void cleanContent(const StrictModuleObject*) {}
 
   virtual std::unique_ptr<BaseStrictObject> copy() const = 0;
   virtual std::string getDisplayName() const = 0;

@@ -30,8 +30,18 @@ std::unique_ptr<BaseStrictObject> UnknownObject::copy() const {
 
 // UnknownObjectType
 std::unique_ptr<BaseStrictObject> UnknownObjectType::constructInstance(
-    std::shared_ptr<StrictModuleObject>) {
+    std::weak_ptr<StrictModuleObject>) {
   throw std::runtime_error("should not call constructInstance on unknown");
+}
+
+std::shared_ptr<StrictType> UnknownObjectType::recreate(
+    std::string,
+    std::weak_ptr<StrictModuleObject>,
+    std::vector<std::shared_ptr<BaseStrictObject>>,
+    std::shared_ptr<DictType>,
+    std::shared_ptr<StrictType>,
+    bool) {
+  throw std::runtime_error("should not call recreate on unknown");
 }
 
 std::shared_ptr<BaseStrictObject> UnknownObjectType::getDescr(
@@ -210,5 +220,9 @@ std::shared_ptr<BaseStrictObject> UnknownObjectType::getTruthValue(
   std::string displayName = obj->getDisplayName();
   caller.error<UnknownValueBoolException>(displayName);
   return makeUnknown(caller, "bool({})", std::move(displayName));
+}
+
+std::vector<std::type_index> UnknownObjectType::getBaseTypeinfos() const {
+  throw std::runtime_error("should not call getBaseTypeinfos on unknown");
 }
 } // namespace strictmod::objects

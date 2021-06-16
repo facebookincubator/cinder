@@ -44,6 +44,10 @@ class Scope {
     return scope_.isFunctionScope();
   }
 
+  bool isInvisible() const {
+    return invisible_;
+  }
+
   std::string getScopeName() const {
     return scope_.getTableName();
   }
@@ -60,9 +64,9 @@ class ScopeManager;
 
 template <typename TVar, typename TScopeData>
 class ScopeStack {
-  typedef std::function<std::unique_ptr<Scope<TVar, TScopeData>>(
-      SymtableEntry,
-      std::shared_ptr<std::unordered_map<std::string, TVar>>)>
+  typedef std::shared_ptr<std::unordered_map<std::string, TVar>> TMapPtr;
+  typedef std::function<
+      std::unique_ptr<Scope<TVar, TScopeData>>(SymtableEntry, TMapPtr)>
       ScopeFactory;
 
   typedef std::vector<std::shared_ptr<Scope<TVar, TScopeData>>> ScopeVector;
@@ -100,6 +104,11 @@ class ScopeStack {
         scopeFactory_(rhs.scopeFactory_),
         currentClass_(rhs.currentClass_) {}
 
+  /** From this, get scope stack for function defined in the
+   * current scope
+   */
+  ScopeStack getFunctionScope();
+
   /* use this for setting */
   TVar& operator[](const std::string& key);
   /* use this for reading, return nullptr if key doesn't exist */
@@ -109,9 +118,15 @@ class ScopeStack {
   void push(std::shared_ptr<Scope<TVar, TScopeData>> scope);
   void pop();
 
-  ScopeManager<TVar, TScopeData> enterScopeByAst(stmt_ty key);
-  ScopeManager<TVar, TScopeData> enterScopeByAst(mod_ty key);
-  ScopeManager<TVar, TScopeData> enterScopeByAst(expr_ty key);
+  ScopeManager<TVar, TScopeData> enterScopeByAst(
+      stmt_ty key,
+      TMapPtr vars = nullptr);
+  ScopeManager<TVar, TScopeData> enterScopeByAst(
+      mod_ty key,
+      TMapPtr vars = nullptr);
+  ScopeManager<TVar, TScopeData> enterScopeByAst(
+      expr_ty key,
+      TMapPtr vars = nullptr);
 
   ScopeManager<TVar, TScopeData> enterScope(
       std::unique_ptr<Scope<TVar, TScopeData>> scope,
@@ -157,6 +172,7 @@ class ScopeStack {
 
   ScopeManager<TVar, TScopeData> enterScopeByAstBody(
       void* key,
+      TMapPtr vars,
       std::optional<std::string> className = std::nullopt);
 };
 

@@ -18,7 +18,7 @@ StrictFunction::StrictFunction(
     int lineno,
     int col,
     std::vector<stmt_ty> body,
-    const EnvT& closure,
+    EnvT closure,
     SymtableEntry symbols,
     std::vector<std::string> posonlyArgs,
     std::vector<std::string> posArgs,
@@ -38,7 +38,7 @@ StrictFunction::StrictFunction(
       lineno_(lineno),
       col_(col),
       body_(std::move(body)),
-      closure_(EnvT(closure)),
+      closure_(std::move(closure)),
       symbols_(std::move(symbols)),
       posonlyArgs_(std::move(posonlyArgs)),
       posArgs_(std::move(posArgs)),
@@ -126,6 +126,28 @@ std::shared_ptr<BaseStrictObject> StrictFuncType::call(
         caller, "{}({})", func->getFuncName(), formatArgs(args, argNames));
   }
   return NoneObject();
+}
+
+std::shared_ptr<StrictType> StrictFuncType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictFuncType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictFuncType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictFuncType));
+  return baseVec;
 }
 
 } // namespace strictmod::objects

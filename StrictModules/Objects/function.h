@@ -35,7 +35,7 @@ class StrictFunction : public StrictInstance {
       int lineno,
       int col,
       std::vector<stmt_ty> body,
-      const EnvT& closure,
+      EnvT closure,
       SymtableEntry symbols,
       std::vector<std::string> posonlyArgs,
       std::vector<std::string> posArgs,
@@ -124,6 +124,16 @@ class StrictFuncType : public StrictObjectType {
       const std::vector<std::shared_ptr<BaseStrictObject>>& args,
       const std::vector<std::string>& argNames,
       const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 } // namespace strictmod::objects

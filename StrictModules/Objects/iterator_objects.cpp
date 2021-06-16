@@ -292,11 +292,57 @@ StrictIteratorBaseType::getElementsVec(
   return vec;
 }
 
+std::shared_ptr<StrictType> StrictIteratorBaseType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictIteratorBaseType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictIteratorBaseType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictIteratorBaseType));
+  return baseVec;
+}
+
 // StrictSequenceIteratorType
 void StrictSequenceIteratorType::addMethods() {
   StrictIteratorBaseType::addMethods();
   addMethod(kDunderIter, StrictSequenceIterator::sequenceIterator__iter__);
   addMethod(kDunderNext, StrictSequenceIterator::sequenceIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictSequenceIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictSequenceIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictSequenceIteratorType::getBaseTypeinfos()
+    const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictSequenceIteratorType));
+  return baseVec;
 }
 
 // StrictSetIteratorType
@@ -306,11 +352,58 @@ void StrictSetIteratorType::addMethods() {
   addMethod(kDunderNext, StrictSetIterator::setIterator__next__);
 }
 
+std::shared_ptr<StrictType> StrictSetIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictSetIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictSetIteratorType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictSetIteratorType));
+  return baseVec;
+}
+
 // StrictCallableIteratorType
 void StrictCallableIteratorType::addMethods() {
   StrictIteratorBaseType::addMethods();
   addMethod(kDunderIter, StrictCallableIterator::callableIterator__iter__);
   addMethod(kDunderNext, StrictCallableIterator::callableIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictCallableIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictCallableIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictCallableIteratorType::getBaseTypeinfos()
+    const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictCallableIteratorType));
+  return baseVec;
 }
 
 // StrictGenericObjectIteratorType
@@ -320,11 +413,59 @@ void StrictGenericObjectIteratorType::addMethods() {
   addMethod(kDunderNext, StrictGenericObjectIterator::objectIterator__next__);
 }
 
+std::shared_ptr<StrictType> StrictGenericObjectIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictGenericObjectIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictGenericObjectIteratorType::getBaseTypeinfos()
+    const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictGenericObjectIteratorType));
+  return baseVec;
+}
+
 // StrictGeneratorFunctionType
 void StrictGeneratorFunctionType::addMethods() {
   addMethod(
       kDunderIter, StrictGeneratorFunction::generatorFuncIterator__iter__);
   addMethod(
       kDunderNext, StrictGeneratorFunction::generatorFuncIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictGeneratorFunctionType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictGeneratorFunctionType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictGeneratorFunctionType::getBaseTypeinfos()
+    const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictGeneratorFunctionType));
+  return baseVec;
 }
 } // namespace strictmod::objects

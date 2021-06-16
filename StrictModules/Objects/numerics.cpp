@@ -106,7 +106,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__new__(
     std::shared_ptr<BaseStrictObject> instType,
     std::shared_ptr<BaseStrictObject> value) {
   auto type = std::dynamic_pointer_cast<StrictType>(std::move(instType));
-  if (!type->is_subtype(IntType())) {
+  if (!type->isSubType(IntType())) {
     caller.raiseTypeError("{} is not a subtype of int", type->getName());
   }
   if (value == nullptr) {
@@ -591,11 +591,33 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__ge__(
 
 // StrictIntType
 std::unique_ptr<BaseStrictObject> StrictIntType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictInt>(
       std::static_pointer_cast<StrictType>(shared_from_this()),
       std::move(caller),
       0);
+}
+
+std::shared_ptr<StrictType> StrictIntType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictIntType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictIntType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictIntType));
+  return baseVec;
 }
 
 Ref<> StrictIntType::getPyObject() const {
@@ -680,11 +702,33 @@ Ref<> StrictBoolType::getPyObject() const {
 }
 
 std::unique_ptr<BaseStrictObject> StrictBoolType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictBool>(
       std::static_pointer_cast<StrictType>(shared_from_this()),
       std::move(caller),
       0);
+}
+
+std::shared_ptr<StrictType> StrictBoolType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictBoolType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictBoolType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictIntType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictBoolType));
+  return baseVec;
 }
 
 bool StrictBoolType::isBaseType() const {
@@ -816,7 +860,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__new__(
     std::shared_ptr<BaseStrictObject> instType,
     std::shared_ptr<BaseStrictObject> value) {
   auto type = std::dynamic_pointer_cast<StrictType>(std::move(instType));
-  if (!type->is_subtype(FloatType())) {
+  if (!type->isSubType(FloatType())) {
     caller.raiseTypeError("{} is not a subtype of float", type->getName());
   }
   if (value == nullptr) {
@@ -1119,8 +1163,30 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__ge__(
 }
 
 std::unique_ptr<BaseStrictObject> StrictFloatType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictFloat>(FloatType(), std::move(caller), 0);
+}
+
+std::shared_ptr<StrictType> StrictFloatType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictFloatType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictFloatType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictFloatType));
+  return baseVec;
 }
 
 Ref<> StrictFloatType::getPyObject() const {

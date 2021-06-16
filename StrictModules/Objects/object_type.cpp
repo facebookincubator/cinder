@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/object_type.h"
 
+#include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/caller_context_impl.h"
@@ -8,7 +9,7 @@
 namespace strictmod::objects {
 
 std::unique_ptr<BaseStrictObject> StrictObjectType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictInstance>(
       std::static_pointer_cast<StrictType>(shared_from_this()), caller);
 }
@@ -187,7 +188,7 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::binCmpOp(
   bool checkedReflected = false;
   auto rType = right->getType();
   auto lType = obj->getType();
-  if (rType->is_subtype(lType) && rType != lType) {
+  if (rType->isSubType(lType) && rType != lType) {
     // right has a subtype of obj, use the reflected method on right
     checkedReflected = true;
     auto rRightFunc = iLoadAttrOnType(right, rfuncname, nullptr, caller);
@@ -360,5 +361,101 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::getTruthValue(
   }
   // by default, bool(obj) should return True
   return StrictTrue();
+}
+
+std::shared_ptr<StrictType> StrictObjectType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictObjectType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictObjectType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec;
+  baseVec.emplace_back(typeid(StrictObjectType));
+  return baseVec;
+}
+
+void StrictObjectType::addMethods() {
+  addMethodDescr("__init__", object__init__);
+  addBuiltinFunctionOrMethod("__new__", object__new__);
+  addMethod("__eq__", object__eq__);
+  addMethod("__ne__", object__ne__);
+  addMethod("__ge__", object__othercmp__);
+  addMethod("__gt__", object__othercmp__);
+  addMethod("__le__", object__othercmp__);
+  addMethod("__lt__", object__othercmp__);
+}
+
+std::shared_ptr<BaseStrictObject> object__init__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  if (obj->getType() == ObjectType() && !(args.empty() && namedArgs.empty())) {
+    caller.raiseTypeError("object.__init__() takes not arguments");
+  }
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> object__new__(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>&,
+    const CallerContext& caller) {
+  if (args.empty()) {
+    caller.raiseTypeError("object.__new__(): not enough arguments");
+  }
+  auto arg1 = args[0];
+  auto instType = std::dynamic_pointer_cast<StrictType>(arg1);
+  if (instType == nullptr) {
+    caller.raiseTypeError("{} is not a type object", arg1);
+  }
+  return instType->constructInstance(caller.caller);
+}
+
+std::shared_ptr<BaseStrictObject> object__eq__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext&,
+    std::shared_ptr<BaseStrictObject> other) {
+  if (obj == other) {
+    return StrictTrue();
+  }
+  return NotImplemented();
+}
+
+std::shared_ptr<BaseStrictObject> object__ne__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> other) {
+  auto eqFunc = iLoadAttrOnType(std::move(obj), "__eq__", nullptr, caller);
+  if (eqFunc != nullptr) {
+    auto eqRes = iCall(eqFunc, {std::move(other)}, kEmptyArgNames, caller);
+    if (eqRes == NotImplemented()) {
+      return eqRes;
+    }
+    auto resTruth = iGetTruthValue(std::move(eqRes), caller);
+    if (resTruth->getType() == UnknownType()) {
+      return resTruth;
+    }
+    return caller.makeBool(resTruth != StrictTrue());
+  }
+  return NotImplemented();
+}
+
+std::shared_ptr<BaseStrictObject> object__othercmp__(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext&,
+    std::shared_ptr<BaseStrictObject>) {
+  return NotImplemented();
 }
 } // namespace strictmod::objects

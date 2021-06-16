@@ -51,6 +51,7 @@ std::shared_ptr<StrictType> FunctionType();
 std::shared_ptr<StrictType> BuiltinFunctionOrMethodType();
 std::shared_ptr<StrictType> MethodDescrType();
 std::shared_ptr<StrictType> MethodType();
+std::shared_ptr<StrictType> ClassMethodType();
 
 std::shared_ptr<StrictType> ExceptionType();
 std::shared_ptr<StrictType> TypeErrorType();

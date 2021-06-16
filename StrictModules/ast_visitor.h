@@ -37,7 +37,7 @@ class ASTVisitor {
       case AsyncFunctionDef_kind:
         return static_cast<TAnalyzer*>(this)->visitAsyncFunctionDef(stmt);
       case ClassDef_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitClassDef(stmt);
       case Return_kind:
         return static_cast<TAnalyzer*>(this)->visitReturn(stmt);
       case Delete_kind:
@@ -62,6 +62,7 @@ class ASTVisitor {
       case Expr_kind:
         return static_cast<TAnalyzer*>(this)->visitExprStmt(stmt);
       case Pass_kind:
+        return static_cast<TAnalyzer*>(this)->visitPass(stmt);
       case Break_kind:
       case Continue_kind:
         break;
@@ -93,8 +94,9 @@ class ASTVisitor {
       case Await_kind:
       case Yield_kind:
       case YieldFrom_kind:
-      case Compare_kind:
         break;
+      case Compare_kind:
+        return static_cast<TAnalyzer*>(this)->visitCompare(expr);
       case Call_kind:
         return static_cast<TAnalyzer*>(this)->visitCall(expr);
       case FormattedValue_kind:

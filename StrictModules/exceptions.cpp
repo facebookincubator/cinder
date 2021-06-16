@@ -235,4 +235,12 @@ UnsupportedExceptionHelper::UnsupportedExceptionHelper(
 void UnsupportedException::raise() {
   throw *this;
 }
+
+// UnsafeBaseClassException
+UnsafeBaseClassExceptionHelper::UnsafeBaseClassExceptionHelper(std::string name)
+    : unknownName(std::move(name)) {}
+
+void UnsafeBaseClassException::raise() {
+  throw *this;
+}
 } // namespace strictmod

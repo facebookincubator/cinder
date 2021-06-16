@@ -166,36 +166,101 @@ class StrictIteratorBaseType : public StrictObjectType {
   virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
       std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 class StrictSequenceIteratorType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 class StrictSetIteratorType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 class StrictCallableIteratorType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 class StrictGenericObjectIteratorType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 class StrictGeneratorFunctionType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 } // namespace strictmod::objects

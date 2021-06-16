@@ -340,6 +340,33 @@ void StrictDictType::addMethods() {
   addMethodDescr("update", StrictDict::dictUpdate);
 }
 
+std::unique_ptr<BaseStrictObject> StrictDictType::constructInstance(
+    std::weak_ptr<StrictModuleObject> caller) {
+  return std::make_unique<StrictDict>(DictObjectType(), std::move(caller));
+}
+
+std::shared_ptr<StrictType> StrictDictType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictDictType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictDictType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictDictType));
+  return baseVec;
+}
+
 // StrictDictView
 std::string kViewNames[] = {"dict_keys", "dict_values", "dict_items"};
 
@@ -442,6 +469,28 @@ StrictDictViewType::getElementsVec(
   std::shared_ptr<StrictDictView> self =
       assertStaticCast<StrictDictView>(std::move(obj));
   return dictViewGetElementsHelper(self, caller);
+}
+
+std::shared_ptr<StrictType> StrictDictViewType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictDictViewType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictDictViewType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictDictViewType));
+  return baseVec;
 }
 
 } // namespace strictmod::objects

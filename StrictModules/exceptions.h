@@ -487,6 +487,27 @@ class UnsupportedException : public StructuredStrictModuleException<
   [[noreturn]] virtual void raise() override;
 };
 
+// UnsafeBaseClassException
+struct UnsafeBaseClassExceptionHelper {
+  UnsafeBaseClassExceptionHelper(std::string name);
+
+  std::string unknownName;
+
+  static constexpr const char* excName = "UnsafeBaseClassException";
+  static constexpr const char* fmt = "'%s' is not a valid base class";
+  static constexpr const char* wiki = "";
+};
+
+class UnsafeBaseClassException
+    : public StructuredStrictModuleException<
+          UnsafeBaseClassExceptionHelper,
+          UnsafeBaseClassException,
+          &UnsafeBaseClassExceptionHelper::unknownName> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ------------------Out of line implementations---------------
 
 // StrictModuleException

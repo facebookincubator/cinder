@@ -3,6 +3,7 @@
 #define __STRICTM_TYPE_H__
 
 #include <memory>
+#include <typeindex>
 #include <vector>
 #include "StrictModules/Objects/module.h"
 #include "StrictModules/caller_context.h"
@@ -21,6 +22,14 @@ class StrictType : public StrictInstance {
       std::vector<std::shared_ptr<BaseStrictObject>> bases,
       std::shared_ptr<StrictType> metatype,
       bool immutable = true);
+
+  StrictType(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool immutable);
 
   std::vector<std::shared_ptr<BaseStrictObject>> getBaseClasses() const {
     return baseClasses_;
@@ -44,11 +53,13 @@ class StrictType : public StrictInstance {
     return immutable_;
   }
 
-  bool is_subtype(std::shared_ptr<StrictType> base) const;
-  std::vector<std::shared_ptr<const BaseStrictObject>> mro() const;
+  bool isSubType(std::shared_ptr<StrictType> base) const;
+  const std::vector<std::shared_ptr<const BaseStrictObject>>& mro() const;
   std::shared_ptr<BaseStrictObject> typeLookup(
       const std::string& name,
       const CallerContext& caller);
+
+  bool hasSubLayout(std::shared_ptr<StrictType> other) const;
 
   virtual std::string getDisplayName() const override;
 
@@ -56,6 +67,17 @@ class StrictType : public StrictInstance {
   virtual bool isDataDescr() const;
 
   virtual void addMethods();
+
+  virtual void cleanContent(const StrictModuleObject* owner) override;
+
+  // recreate the same instance with updated field
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) = 0;
 
   virtual std::shared_ptr<BaseStrictObject> getDescr(
       std::shared_ptr<BaseStrictObject> obj,
@@ -149,7 +171,26 @@ class StrictType : public StrictInstance {
       const CallerContext& caller) = 0;
 
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
-      std::shared_ptr<StrictModuleObject> caller) = 0;
+      std::weak_ptr<StrictModuleObject> caller) = 0;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const = 0;
+
+  // wrapped methods
+  static std::shared_ptr<BaseStrictObject> type__call__(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> type__new__(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> typeMro(
+      std::shared_ptr<StrictType> self,
+      const CallerContext& caller);
 
   template <typename T>
   void addMethod(const std::string& name, T func);
@@ -189,5 +230,23 @@ class StrictType : public StrictInstance {
   mutable std::optional<std::vector<std::shared_ptr<const BaseStrictObject>>>
       mro_;
 };
+
+template <typename T>
+std::shared_ptr<StrictType> createType(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool immutable) {
+  return std::make_shared<T>(
+      std::move(name),
+      std::move(creator),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      immutable);
+}
+
 } // namespace strictmod::objects
 #endif // !__STRICTM_TYPE_H__

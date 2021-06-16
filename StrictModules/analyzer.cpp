@@ -284,7 +284,7 @@ void Analyzer::visitFunctionDefHelper(
       node->lineno,
       node->col_offset,
       std::move(bodyVec),
-      stack_,
+      stack_.getFunctionScope(),
       std::move(symbols),
       std::move(posonlyArgs),
       std::move(posArgs),
@@ -327,6 +327,204 @@ void Analyzer::visitReturn(const stmt_ty stmt) {
   throw(objects::FunctionReturnException(std::move(returnVal)));
 }
 
+static std::shared_ptr<objects::DictType> prepareToDictHelper(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  auto dictObj = std::dynamic_pointer_cast<objects::StrictDict>(obj);
+  if (dictObj == nullptr) {
+    caller.raiseTypeError(
+        "__prepare__ must return a dict, not {} object",
+        obj->getTypeRef().getName());
+  }
+  std::shared_ptr<objects::DictType> resultPtr =
+      std::make_shared<objects::DictType>();
+  objects::DictType result = *resultPtr;
+  result.reserve(dictObj->getData().size());
+  for (auto& item : dictObj->getData()) {
+    auto strObjKey =
+        std::dynamic_pointer_cast<objects::StrictString>(item.first);
+    if (strObjKey != nullptr) {
+      result[strObjKey->getValue()] = item.second;
+    }
+  }
+  return resultPtr;
+}
+
+static std::shared_ptr<BaseStrictObject> strDictToObjHelper(
+    std::shared_ptr<objects::DictType> dict,
+    const CallerContext& caller) {
+  objects::DictDataT dictObj;
+  dictObj.reserve(dict->size());
+  for (auto& item : *dict) {
+    dictObj[caller.makeStr(item.first)] = item.second;
+  }
+  return std::make_shared<objects::StrictDict>(
+      objects::DictObjectType(), caller.caller, std::move(dictObj));
+}
+
+void Analyzer::visitClassDef(const stmt_ty stmt) {
+  auto classDef = stmt->v.ClassDef;
+  // Step 1, identify metaclass
+  std::shared_ptr<objects::StrictType> metaclass;
+  std::vector<std::shared_ptr<BaseStrictObject>> bases =
+      visitListLikeHelper(classDef.bases);
+  // register metaclass if found in keyword args
+  // find if any base class has metaclass
+  int kwSize = asdl_seq_LEN(classDef.keywords);
+  std::vector<std::string> kwargKeys;
+  std::vector<std::shared_ptr<BaseStrictObject>> kwargValues;
+  kwargKeys.reserve(kwSize);
+  kwargValues.reserve(kwSize);
+  for (int i = 0; i < kwSize; ++i) {
+    keyword_ty kw =
+        reinterpret_cast<keyword_ty>(asdl_seq_GET(classDef.keywords, i));
+    AnalysisResult kwVal = visitExpr(kw->value);
+    if (PyUnicode_CompareWithASCIIString(kw->arg, "metaclass") == 0) {
+      // TODO: do we need to worry about metaclass that not subclass of type?
+      auto kwValTyp =
+          objects::assertStaticCast<objects::StrictType>(std::move(kwVal));
+      metaclass = std::move(kwValTyp);
+    } else {
+      kwargKeys.push_back(PyUnicode_AsUTF8(kw->arg));
+      kwargValues.push_back(std::move(kwVal));
+    }
+  }
+
+  bool replacedBases = false;
+  std::shared_ptr<BaseStrictObject> origBases;
+
+  if (metaclass == nullptr && !bases.empty()) {
+    // check if __mro_entries__ is defined for any bases
+    std::vector<std::shared_ptr<BaseStrictObject>> newBases;
+    newBases.reserve(bases.size());
+    auto baseTuple = std::make_shared<objects::StrictTuple>(
+        objects::TupleType(), context_.caller, bases);
+
+    for (auto& base : bases) {
+      auto baseType = base->getType();
+      if (baseType == objects::UnknownType() ||
+          std::dynamic_pointer_cast<objects::StrictType>(base) != nullptr) {
+        newBases.push_back(base);
+        continue;
+      }
+      auto mroEntriesFunc = baseType->typeLookup("__mro_entries__", context_);
+      if (mroEntriesFunc != nullptr) {
+        auto newBaseEntries = objects::iCall(
+            mroEntriesFunc,
+            {base, baseTuple},
+            objects::kEmptyArgNames,
+            context_);
+        if (newBaseEntries != nullptr) {
+          auto newBaseVec =
+              objects::iGetElementsVec(std::move(newBaseEntries), context_);
+          newBases.insert(
+              newBases.end(),
+              std::move_iterator(newBaseVec.begin()),
+              std::move_iterator(newBaseVec.end()));
+          replacedBases = true;
+        }
+      }
+    }
+
+    if (replacedBases) {
+      origBases = baseTuple;
+    }
+    std::swap(bases, newBases);
+
+    // look for most common metaclass for all bases, skipping over
+    // unknowns. Identify metaclass conflict
+    for (auto& base : bases) {
+      auto baseTyp = std::dynamic_pointer_cast<objects::StrictType>(base);
+      if (baseTyp == nullptr) {
+        continue;
+      }
+      auto baseTypMeta = baseTyp->getType();
+      if (metaclass == nullptr) {
+        metaclass = std::move(baseTypMeta);
+      } else if (metaclass->isSubType(baseTypMeta)) {
+        continue;
+      } else if (baseTypMeta->isSubType(metaclass)) {
+        metaclass = std::move(baseTypMeta);
+        continue;
+      } else {
+        context_.raiseTypeError("metaclass conflict");
+      }
+    }
+  }
+  if (metaclass == nullptr) {
+    metaclass = objects::TypeType();
+  }
+
+  // Step 2, run __prepare__ if exists, creating namespace ns
+  std::shared_ptr<DictType> ns = std::make_shared<DictType>();
+  std::string className = PyUnicode_AsUTF8(classDef.name);
+  auto classNameObj = context_.makeStr(className);
+  auto baseTupleObj = std::make_shared<objects::StrictTuple>(
+      objects::TupleType(), context_.caller, bases);
+  if (metaclass->getType() == objects::UnknownType()) {
+    context_.error<UnknownValueCallException>(metaclass->getDisplayName());
+  } else {
+    auto prepareFunc =
+        objects::iLoadAttr(metaclass, "__prepare__", nullptr, context_);
+    if (prepareFunc != nullptr) {
+      auto nsObj = objects::iCall(
+          prepareFunc,
+          {classNameObj, baseTupleObj},
+          objects::kEmptyArgNames,
+          context_);
+      ns = prepareToDictHelper(nsObj, context_); // TODO
+    }
+  }
+
+  // Step 3, create a hidden scope containing __class__
+  // TODO
+
+  // Step 4, visit statements in class body with __class__ scope
+  // Then ns scope
+  {
+    auto classContextManager = stack_.enterScopeByAst(stmt, ns);
+    visitStmtSeq(classDef.body);
+  }
+  // Step 5, extract the resulting ns scope, add __orig_bases__
+  // if mro entries is used in step 1
+  if (origBases != nullptr) {
+    (*ns)["__orig_bases__"] = std::move(origBases);
+  }
+  auto classDict = strDictToObjHelper(ns, context_);
+
+  // Step 6, call metaclass with class name, bases, ns, and kwargs
+  std::vector<std::shared_ptr<BaseStrictObject>> classCallArg{
+      std::move(classNameObj), std::move(baseTupleObj), classDict};
+  classCallArg.insert(
+      classCallArg.end(),
+      std::move_iterator(kwargValues.begin()),
+      std::move_iterator(kwargValues.end()));
+
+  auto classObj = objects::iCall(
+      metaclass, std::move(classCallArg), std::move(kwargKeys), context_);
+  // Step 7, apply decorators
+  int decoratorSize = asdl_seq_LEN(classDef.decorator_list);
+  // decorators should be applied in reverse order
+  for (int i = decoratorSize - 1; i >= 0; --i) {
+    expr_ty dec =
+        reinterpret_cast<expr_ty>(asdl_seq_GET(classDef.decorator_list, i));
+    AnalysisResult decObj = visitExpr(dec);
+    // call decorators, fix lineno
+    {
+      auto contextManager = updateContextHelper(dec->lineno, dec->col_offset);
+      std::shared_ptr<BaseStrictObject> tempClass =
+          objects::iCall(decObj, {classObj}, objects::kEmptyArgNames, context_);
+      std::swap(classObj, tempClass);
+    }
+  }
+  // Step 8, populate __class__ in hidden scope defined in step 3
+  // TODO
+  stack_[std::move(className)] = std::move(classObj);
+}
+
+void Analyzer::visitPass(const stmt_ty) {}
+
+// Expressions
 AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
   auto constant = expr->v.Constant;
   if (PyLong_CheckExact(constant.value)) {
@@ -509,6 +707,33 @@ AnalysisResult Analyzer::visitUnaryOp(const expr_ty expr) {
     return context_.makeBool(result == objects::StrictFalse());
   }
   return objects::iUnaryOp(std::move(value), op, context_);
+}
+
+AnalysisResult Analyzer::visitCompare(const expr_ty expr) {
+  auto compare = expr->v.Compare;
+  AnalysisResult leftObj = visitExpr(compare.left);
+  int cmpSize = asdl_seq_LEN(compare.ops);
+  AnalysisResult compareValue;
+  for (int i = 0; i < cmpSize; ++i) {
+    cmpop_ty op = static_cast<cmpop_ty>(asdl_seq_GET(compare.ops, i));
+    expr_ty rightExpr =
+        reinterpret_cast<expr_ty>(asdl_seq_GET(compare.comparators, i));
+    AnalysisResult rightObj = visitExpr(rightExpr);
+    compareValue = objects::iBinCmpOp(leftObj, rightObj, op, context_);
+    AnalysisResult compareBool =
+        objects::iGetTruthValue(compareValue, context_);
+    if (compareBool == objects::StrictFalse()) {
+      // short circuit
+      return compareValue;
+    }
+    if (compareBool->getType() == objects::UnknownType()) {
+      // unknown result
+      return compareValue;
+    }
+    leftObj = std::move(rightObj);
+  }
+  assert(compareValue != nullptr);
+  return compareValue;
 }
 
 void Analyzer::visitStmtSeq(const asdl_seq* seq) {

@@ -132,6 +132,19 @@ class StrictDictType : public StrictIterableType {
   virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
       std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
+
+  virtual std::unique_ptr<BaseStrictObject> constructInstance(
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 class StrictDictView : public StrictInstance {
@@ -186,6 +199,16 @@ class StrictDictViewType : public StrictObjectType {
   virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
       std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 } // namespace strictmod::objects
 #endif //#ifndef __STRICTM_DICT_OBJ_H__

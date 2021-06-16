@@ -69,11 +69,33 @@ std::shared_ptr<BaseStrictObject> StrictString::str__len__(
 
 // StrictStringType
 std::unique_ptr<BaseStrictObject> StrictStringType::constructInstance(
-    std::shared_ptr<StrictModuleObject> caller) {
+    std::weak_ptr<StrictModuleObject> caller) {
   return std::make_unique<StrictString>(
       std::static_pointer_cast<StrictType>(shared_from_this()),
       std::move(caller),
       "");
+}
+
+std::shared_ptr<StrictType> StrictStringType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictStringType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictStringType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictStringType));
+  return baseVec;
 }
 
 Ref<> StrictStringType::getPyObject() const {

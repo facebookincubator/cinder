@@ -45,7 +45,7 @@ std::shared_ptr<BaseStrictObject> StrictMethodDescrType::call(
   }
   auto declType = descr->getDeclaredType();
   auto& firstArgType = args[0]->getTypeRef();
-  if (declType != nullptr && !firstArgType.is_subtype(declType)) {
+  if (declType != nullptr && !firstArgType.isSubType(declType)) {
     caller.raiseTypeError(
         "descriptor {} requires a '{}' object but received '{}'",
         descr->getFuncName(),
@@ -54,6 +54,28 @@ std::shared_ptr<BaseStrictObject> StrictMethodDescrType::call(
   }
   return descr->getFunc()(
       args[0], std::vector(args.begin() + 1, args.end()), argNames, caller);
+}
+
+std::shared_ptr<StrictType> StrictMethodDescrType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictMethodDescrType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictMethodDescrType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictMethodDescrType));
+  return baseVec;
 }
 
 // builtin functions
@@ -82,6 +104,29 @@ std::shared_ptr<BaseStrictObject> StrictBuiltinFunctionOrMethodType::call(
   std::shared_ptr<StrictBuiltinFunctionOrMethod> m =
       std::static_pointer_cast<StrictBuiltinFunctionOrMethod>(obj);
   return m->getFunc()(m->getInst(), args, names, caller);
+}
+
+std::shared_ptr<StrictType> StrictBuiltinFunctionOrMethodType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictBuiltinFunctionOrMethodType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index>
+StrictBuiltinFunctionOrMethodType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictBuiltinFunctionOrMethodType));
+  return baseVec;
 }
 
 // user methods
@@ -123,5 +168,68 @@ std::shared_ptr<BaseStrictObject> StrictMethodType::call(
   instArgs.insert(instArgs.end(), args.begin(), args.end());
 
   return iCall(method->getFunc(), instArgs, names, caller);
+}
+
+std::shared_ptr<StrictType> StrictMethodType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictMethodType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictMethodType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictMethodType));
+  return baseVec;
+}
+
+// class (user) Method
+
+StrictClassMethod::StrictClassMethod(
+    std::weak_ptr<StrictModuleObject> creator,
+    std::shared_ptr<BaseStrictObject> func)
+    : StrictInstance(ClassMethodType(), std::move(creator)),
+      func_(std::move(func)) {}
+
+std::shared_ptr<BaseStrictObject> StrictClassMethodType::getDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject>,
+    std::shared_ptr<StrictType> type,
+    const CallerContext& caller) {
+  std::shared_ptr<StrictClassMethod> method =
+      assertStaticCast<StrictClassMethod>(obj);
+  return std::make_shared<StrictMethod>(
+      caller.caller, method->getFunc(), std::move(type));
+}
+
+std::shared_ptr<StrictType> StrictClassMethodType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictClassMethodType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictClassMethodType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictClassMethodType));
+  return baseVec;
 }
 } // namespace strictmod::objects

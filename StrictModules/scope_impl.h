@@ -89,8 +89,21 @@ inline void ScopeStack<TVar, TScopeData>::pop() {
 }
 
 template <typename TVar, typename TScopeData>
+ScopeStack<TVar, TScopeData> ScopeStack<TVar, TScopeData>::getFunctionScope() {
+  ScopeVector newScope;
+  newScope.reserve(scopes_.size());
+  for (auto& scope : scopes_) {
+    if (scope->isInvisible() || !scope->isClassScope()) {
+      newScope.push_back(scope);
+    }
+  }
+  return ScopeStack<TVar, TScopeData>(
+      std::move(newScope), symbols_, scopeFactory_);
+}
+
+template <typename TVar, typename TScopeData>
 inline ScopeManager<TVar, TScopeData>
-ScopeStack<TVar, TScopeData>::enterScopeByAst(stmt_ty key) {
+ScopeStack<TVar, TScopeData>::enterScopeByAst(stmt_ty key, TMapPtr vars) {
   std::optional<std::string> className = std::nullopt;
   switch (key->kind) {
     case ClassDef_kind: {
@@ -101,31 +114,34 @@ ScopeStack<TVar, TScopeData>::enterScopeByAst(stmt_ty key) {
     default:
       break;
   }
-  return enterScopeByAstBody(key, std::move(className));
+  return enterScopeByAstBody(key, std::move(vars), std::move(className));
 }
 
 template <typename TVar, typename TScopeData>
 inline ScopeManager<TVar, TScopeData>
-ScopeStack<TVar, TScopeData>::enterScopeByAst(mod_ty key) {
-  return enterScopeByAstBody(key);
+ScopeStack<TVar, TScopeData>::enterScopeByAst(mod_ty key, TMapPtr vars) {
+  return enterScopeByAstBody(key, std::move(vars));
 }
 
 template <typename TVar, typename TScopeData>
 inline ScopeManager<TVar, TScopeData>
-ScopeStack<TVar, TScopeData>::enterScopeByAst(expr_ty key) {
-  return enterScopeByAstBody(key);
+ScopeStack<TVar, TScopeData>::enterScopeByAst(expr_ty key, TMapPtr vars) {
+  return enterScopeByAstBody(key, std::move(vars));
 }
 
 template <typename TVar, typename TScopeData>
 ScopeManager<TVar, TScopeData>
 ScopeStack<TVar, TScopeData>::enterScopeByAstBody(
     void* key,
+    TMapPtr vars,
     std::optional<std::string> className) {
   SymtableEntry entry = symbols_.entryFromAst(key);
-  auto scope = scopeFactory_(
-      entry, std::make_shared<std::unordered_map<std::string, TVar>>());
+  if (vars == nullptr) {
+    vars = std::make_shared<std::unordered_map<std::string, TVar>>();
+  }
+  auto scope = scopeFactory_(entry, std::move(vars));
   return ScopeManager<TVar, TScopeData>(
-      *this, std::shared_ptr(std::move(scope)), className);
+      *this, std::shared_ptr(std::move(scope)), std::move(className));
 }
 
 template <typename TVar, typename TScopeData>

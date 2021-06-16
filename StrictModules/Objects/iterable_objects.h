@@ -17,6 +17,16 @@ class StrictIterableType : public StrictObjectType {
  public:
   using StrictObjectType::StrictObjectType;
   // TODO: getElements
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 // Sequence (random access)
@@ -101,7 +111,17 @@ class StrictSequenceType : public StrictIterableType {
       std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
 
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 // List
@@ -149,11 +169,21 @@ class StrictListType final : public StrictSequenceType {
       const CallerContext& caller) override;
 
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
-      std::shared_ptr<StrictModuleObject> caller) override;
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
 
   virtual Ref<> getPyObject() const override;
 
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 // Tuple
@@ -203,11 +233,21 @@ class StrictTupleType final : public StrictSequenceType {
   using StrictSequenceType::StrictSequenceType;
 
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
-      std::shared_ptr<StrictModuleObject> caller) override;
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
 
   virtual Ref<> getPyObject() const override;
 
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 typedef std::unordered_set<
@@ -298,6 +338,16 @@ class StrictSetLikeType : public StrictObjectType {
   virtual std::vector<std::shared_ptr<BaseStrictObject>> getElementsVec(
       std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 // Set
@@ -327,9 +377,19 @@ class StrictSetType final : public StrictSetLikeType {
  public:
   using StrictSetLikeType::StrictSetLikeType;
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
-      std::shared_ptr<StrictModuleObject> caller) override;
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
 
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
 // FrozenSet
@@ -365,9 +425,19 @@ class StrictFrozenSetType final : public StrictSetLikeType {
  public:
   using StrictSetLikeType::StrictSetLikeType;
   virtual std::unique_ptr<BaseStrictObject> constructInstance(
-      std::shared_ptr<StrictModuleObject> caller) override;
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
 
   virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 } // namespace strictmod::objects
 #endif //__STRICTM_ITERABLE_OBJ___

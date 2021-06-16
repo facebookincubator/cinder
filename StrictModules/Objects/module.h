@@ -22,7 +22,19 @@ class StrictModuleObject : public StrictInstance {
   }
 
   /* clear all content in __dict__. Use this during shutdown */
-  void cleanContent() {
+  void cleanModule() {
+    if (!dict_) {
+      return;
+    }
+    for (auto it : *dict_) {
+      auto owner = it.second->getCreator();
+      if (!owner.expired() && owner.lock().get() == this) {
+        auto inst = std::dynamic_pointer_cast<StrictInstance>(it.second);
+        if (inst) {
+          inst->cleanContent(this);
+        }
+      }
+    }
     dict_->clear();
   }
 
