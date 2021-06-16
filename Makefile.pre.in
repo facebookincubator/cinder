@@ -2251,17 +2251,6 @@ funny:
 patchcheck: @DEF_MAKE_RULE@
 	$(RUNSHARED) ./$(BUILDPYTHON) $(srcdir)/Tools/scripts/patchcheck.py
 
-# Launch a sandcastle job that will ultimately run a cinderlab experiment
-# between a runtime built using HEAD~1 as the A-side and HEAD as the B-side.
-cinderlab:
-	ig-cinder launch-ab-test
-
-# Like the `cinderlab` target but use the instagram_server workload instead
-# of the `instagram_cinder` workload. This only runs a single trial and will
-# complete more quickly.
-instalab:
-	ig-cinder launch-ab-test --workload instagram_server
-
 # Dependencies
 
 Python/thread.o: @THREADHEADERS@ $(srcdir)/Python/condvar.h
@@ -2386,7 +2375,7 @@ ${ASMJIT}/src/asmjit/x86/%.o: ${ASMJIT}/src/asmjit/x86/%.cpp
 .PHONY: frameworkinstallmaclib frameworkinstallapps frameworkinstallunixtools
 .PHONY: frameworkaltinstallunixtools recheck clean clobber distclean
 .PHONY: smelly funny patchcheck touch altmaninstall commoninstall
-.PHONY: gdbhooks testcinder testcinder_jit testruntime cinderlab
+.PHONY: gdbhooks testcinder testcinder_jit testruntime
 
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
 # Local Variables:
