@@ -53,6 +53,7 @@ class AnalyzerTest : public PythonTest {
         strictmod::Symtable(std::move(result.value().symbols)),
         errors.get(),
         name,
+        "",
         "<module>",
         nullptr);
     bool success;
@@ -81,6 +82,7 @@ class AnalyzerTest : public PythonTest {
         strictmod::Symtable(std::move(result.value().symbols)),
         errors.get(),
         filename,
+        "",
         "<module>",
         nullptr);
     bool success;

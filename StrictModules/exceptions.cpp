@@ -251,4 +251,13 @@ FailedToUnpackExceptionHelper::FailedToUnpackExceptionHelper(std::string size)
 void FailedToUnpackException::raise() {
   throw *this;
 }
+
+// StarImportDisallowedException
+StarImportDisallowedExceptionHelper::StarImportDisallowedExceptionHelper(
+    std::string mod)
+    : fromMod(std::move(mod)) {}
+
+void StarImportDisallowedException::raise() {
+  throw *this;
+}
 } // namespace strictmod

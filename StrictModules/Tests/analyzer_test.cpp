@@ -11,5 +11,5 @@ TEST_F(AnalyzerTest, SanityCheck) {
 
 TEST_F(AnalyzerTest, SimpleImport) {
   const char* s = "import foo\n";
-  EXPECT_EQ(analyzeSource(s), false);
+  EXPECT_EQ(analyzeSource(s), true);
 }

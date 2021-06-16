@@ -59,6 +59,9 @@ ModuleKind getModuleKindFromStmts(const asdl_seq* seq) {
       }
       case ImportFrom_kind: {
         auto importFromStmt = stmt->v.ImportFrom;
+        if (importFromStmt.module == nullptr) {
+          return ModuleKind::kNonStrict;
+        }
         const char* modName = PyUnicode_AsUTF8(importFromStmt.module);
         const char* futureFlag = "__future__";
         // skip future imports
@@ -104,6 +107,19 @@ AnalyzedModule* ModuleLoader::loadModule(const std::string& modName) {
     end = modName.find(delimiter, end);
   }
   return loadSingleModule(modName);
+}
+
+std::shared_ptr<StrictModuleObject> ModuleLoader::loadModuleValue(
+    const char* modName) {
+  return loadModuleValue(std::string(modName));
+}
+std::shared_ptr<StrictModuleObject> ModuleLoader::loadModuleValue(
+    const std::string& modName) {
+  AnalyzedModule* mod = loadModule(modName);
+  if (mod) {
+    return mod->getModuleValue();
+  }
+  return nullptr;
 }
 
 AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
@@ -205,8 +221,10 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
       globalScope,
       errorSinkBorrowed,
       modInfo->getFilename(),
+      name,
       "<module>",
-      mod);
+      mod,
+      modInfo->getFutureAnnotations());
   analyzer.analyze();
 
   return analyzedModule;

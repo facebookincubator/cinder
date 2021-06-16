@@ -11,8 +11,6 @@
 #include <stdexcept>
 #include <typeinfo>
 
-#include <iostream>
-
 namespace strictmod::objects {
 
 StrictType::StrictType(
@@ -296,8 +294,7 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
     return nameOrVal->getType();
   }
 
-  std::shared_ptr<StrictString> name =
-      assertStaticCast<StrictString>(nameOrVal);
+  auto name = std::dynamic_pointer_cast<StrictString>(nameOrVal);
   if (name == nullptr) {
     caller.raiseTypeError(
         "type.__new__() first arg must be str, not {} object",
@@ -354,6 +351,7 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
   // decide which metaclass to use
   std::shared_ptr<StrictType> bestMeta =
       calcMetaclass(metaType, baseClassVec, caller);
+  assert(bestMeta != nullptr);
   // decide which strict type instance to create
   std::shared_ptr<StrictType> bestConstructor = bestBase(baseClassVec, caller);
   // layout conflict

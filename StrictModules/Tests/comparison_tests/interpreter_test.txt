@@ -2229,7 +2229,7 @@ finally:
 x y
 ---
 ---
-test_attribute_error_try_catch_all @disabled
+test_attribute_error_try_catch_all
 ---
 try:
     x = 1
@@ -2262,7 +2262,7 @@ finally:
 x y
 ---
 ---
-test_attribute_raised_on_access @disabled
+test_attribute_raised_on_access
 ---
 x = 1
 try:
@@ -2453,7 +2453,7 @@ e = d + 3j
 e
 ---
 ---
-test_dict_copy @disabled
+test_dict_copy
 ---
 x = {'abc': 42}
 y = x.copy()
@@ -2481,7 +2481,7 @@ y = x.get('foo', 'bar')
 y
 ---
 ---
-test_dict_setdefault @disabled
+test_dict_setdefault
 ---
 x = {}
 ret = x.setdefault(42, 'abc')
@@ -2490,7 +2490,7 @@ y = x[42]
 y ret
 ---
 ---
-test_dict_setdefault_exists @disabled
+test_dict_setdefault_exists
 ---
 x = {42:'def'}
 ret = x.setdefault(42, 'abc')
@@ -4953,7 +4953,7 @@ a = s == "<C object>"
 a
 ---
 ---
-test_object_module @disabled
+test_object_module
 ---
 class C:
     pass
@@ -5039,7 +5039,7 @@ b2 = s.startswith("bar")
 b1 b2
 ---
 ---
-test_orig_bases @disabled
+test_orig_bases
 ---
 class C:
     def __init__(self, x):
@@ -5077,12 +5077,14 @@ f()
 ---
 ---
 ---
-test_future_annotations @disabled
+test_future_annotations
 ---
 from __future__ import annotations
 def f() -> unknown[int]:
-    pass
+    return 1
+x = f()
 ---
+x
 ---
 ---
 test_future_annotations_function @disabled
@@ -6755,5 +6757,2836 @@ is_types_union = isinstance(t, TypesUnion)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
+---
+---
+test_import_usage
+---
+import a
+y = a.b
+---
+---
+2 4 UnknownValueAttributeException <imported module a> b
+---
+test_import_assign_usage
+---
+import a
+b = a
+c = b
+d = c.x
+---
+---
+4 4 UnknownValueAttributeException <imported module a> x
+---
+test_from_import_assign_usage
+---
+from m import a
+b = a
+c = b
+d = c.x
+---
+---
+4 4 UnknownValueAttributeException <a imported from m> x
+---
+test_from_import_alias_assign_usage
+---
+from m import foo as a
+b = a
+c = b
+d = c.x
+---
+---
+4 4 UnknownValueAttributeException <foo imported from m as a> x
+---
+test_relative_import_usage
+---
+from .. import foo as a
+b = a.x
+---
+---
+2 4 UnknownValueAttributeException <foo imported from .. as a> x
+---
+test_import_aug_assign_usage
+---
+import m as a
+a += 1
+---
+---
+2 0 UnknownValueBinaryOpException <imported module m as a> + 1
+---
+test_import_ann_assign_usage
+---
+import m as a
+b: int = a
+c = b.x
+---
+---
+3 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_ann_no_assign_usage
+---
+import m as a
+b: a.C
+---
+---
+2 3 UnknownValueAttributeException <imported module m as a> C
+---
+test_import_assign_raise
+---
+import m as a
+b = a
+raise a.err
+---
+---
+3 6 UnknownValueAttributeException <imported module m as a> err
+3 0 StrictModuleUnhandledException(<imported module m as a>.err)
+---
+test_import_raise_ok
+---
+import m
+try:
+    a = 1
+except Exception as m:
+    k = m.msg
+---
+---
+---
+test_import_try_usage
+---
+import m as a
+try:
+    b = a.x
+except:
+    pass
+---
+---
+3 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_except_usage
+---
+import m as a
+try:
+    b = 1
+    raise Exception()
+except Exception as e:
+    b = a.x
+---
+---
+6 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_else_usage
+---
+import m as a
+try:
+    b = 1
+except Exception as e:
+    b = 2
+else:
+    b = a.x
+---
+---
+7 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_finally_usage
+---
+import m as a
+try:
+    b = 1
+finally:
+    b = a.x
+---
+---
+5 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_list_usage
+---
+import m as a
+l = [1, 2, a.x]
+---
+---
+2 11 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_list_assign_usage_ok
+---
+import m as a
+l = [1, a]
+b = l.append
+---
+---
+---
+test_import_list_matched_assign_usage
+---
+import m as a
+[x, y] = [1, a]
+b = x.__bool__ # ok
+c = y.v # not ok
+---
+---
+4 4 UnknownValueAttributeException <imported module m as a> v
+---
+test_import_list_unpack_assign_usage
+---
+import m as a
+[x, y] = a, 'foo'
+b = x.v
+---
+---
+3 4 UnknownValueAttributeException <imported module m as a> v
+---
+test_import_list_unpack_bad_rhs
+---
+import m as a
+[x, y] = a
+---
+---
+2 0 UnknownValueNotIterableException <imported module m as a>
+2 0 FailedToUnpackException 2
+---
+test_import_list_index_usage
+---
+import m as a
+l = [a, 1]
+b = l[0].x
+---
+---
+3 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_list_assign_ok
+---
+import m as a
+l = [1, 2]
+l[0] = a
+b = l.append # ok
+---
+---
+---
+test_import_list_assign_index_usage
+---
+import m as a
+l = [1, 2]
+l[0] = a
+b = l[0].x
+---
+---
+4 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_list_multilevel_index_usage
+---
+import m as a
+l = [1, [3, 4, a]]
+b = l[0].__bool__ # ok
+c = l[1][2].x
+---
+---
+4 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_list_assign_usage
+---
+import m as a
+l = [1, a]
+l2 = [1, 2, 3]
+l2[1] = [l]
+d = l2[1][0][1]
+c = d.x
+---
+---
+6 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_list_conditional_assign_usage
+---
+import m as a
+l1 = [1, 2]
+if 1 < 0:
+    l1[0] = a
+else:
+    l1[0] = 2
+b = l1[0].__bool__
+---
+---
+---
+test_import_attr_assign_usage
+---
+import m as a
+def b(): pass
+b.x = a
+c = b.x.y
+---
+---
+4 4 UnknownValueAttributeException <imported module m as a> y
+---
+test_import_attr_multi_assign_usage
+---
+import m as a
+def b(): pass
+def c(): pass
+b.x = a
+c.y = b
+d = c.y.x.z
+---
+---
+6 4 UnknownValueAttributeException <imported module m as a> z
+---
+test_import_unary_op_usage
+---
+import m as a
+-a
+---
+---
+2 0 UnknownValueUnaryOpException - <imported module m as a>
+---
+test_import_binary_op_usage
+---
+import m as a
+a + 1
+---
+---
+2 0 UnknownValueBinaryOpException <imported module m as a> + 1
+---
+test_import_bool_op_usage_1
+---
+import m as a
+False or a
+---
+---
+2 0 UnknownValueBoolException <imported module m as a>
+---
+test_import_bool_op_usage_2
+---
+import m as a
+True and a
+---
+---
+2 0 UnknownValueBoolException <imported module m as a>
+---
+test_import_compare_usage
+---
+import m as a
+1 < a < 2
+---
+---
+2 0 UnknownValueBinaryOpException 1 < <imported module m as a>
+2 0 UnknownValueBoolException 1 < <imported module m as a>
+---
+test_import_if_exp_assign_usage @disabled
+---
+import m as a
+b = 2 if 1 in [2] else a
+b.x
+---
+---
+UnknownValueAttributeException
+UnknownValueAttributeException
+---
+test_import_if_exp_assign_usage_ok @disabled
+---
+import m as a
+b = 2 if True else a
+b.__bool__
+---
+---
+---
+test_import_delete_usage
+---
+import m as a
+del a.x
+---
+---
+2 0 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_pass_ok
+---
+import m as a
+pass
+---
+---
+---
+test_import_if_condition_usage
+---
+import m as a
+if a:
+    pass
+---
+---
+2 0 UnknownValueBoolException <imported module m as a>
+---
+test_import_if_clause_usage
+---
+import m as a
+if 1 + 1 == 2:
+    b = a.x
+else:
+    pass
+---
+---
+3 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_if_orelse_clause_usage
+---
+import m as a
+if 1 in [2]:
+    pass
+else:
+    b = a.x
+---
+---
+5 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_for_usage
+---
+import m as a
+for i in a:
+    b = i
+---
+---
+2 0 UnknownValueNotIterableException <imported module m as a>
+---
+test_namedtuple_def @disabled
+---
+from collections import namedtuple
+namedtuple("P", "x y")
+---
+---
+---
+test_import_for_statement_usage
+---
+import m as a
+for i in [1, 2]:
+    a.x
+---
+---
+3 4 UnknownValueAttributeException <imported module m as a> x
+3 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_while_usage
+---
+import m as a
+while a:
+    pass
+---
+---
+2 0 UnknownValueBoolException <imported module m as a>
+---
+test_namedtuple_constructor @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x y")
+P(1, 2)
+---
+---
+---
+test_import_while_statement_usage
+---
+import m as a
+x = 1
+while x < 2:
+    b = a.x
+    x = x + 1
+---
+---
+4 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_with_context_usage
+---
+import m as a
+with a:
+    b = 1
+---
+---
+2 0 UnknownValueCallException <imported module m as a>.__enter__
+2 0 UnknownValueCallException <imported module m as a>.__exit__
+2 0 UnknownValueBoolException <imported module m as a>.__exit__(None,None,None,)
+---
+test_import_with_body_usage
+---
+import m as a
+class E:
+    def __enter__(self):
+        return self
+    def __exit__(self, a, b, c):
+        return
+
+with E():
+    a.x
+---
+---
+9 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_with_alias_usage
+---
+import m as a
+class E:
+    def __enter__(self):
+        return a
+    def __exit__(self, a, b, c):
+        return
+
+with E() as c:
+    b = c.x
+---
+---
+9 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_comprehension_usage @disabled
+---
+import m as a
+b = [a.x for i in [1, 2]]
+---
+---
+UnknownValueAttributeException
+---
+test_import_comprehension_member_usage @disabled
+---
+import m as a
+b = [i for i in [1, 2, a.x]]
+---
+---
+UnknownValueAttributeException
+---
+test_import_comprehension_transitive_usage @disabled
+---
+import m as a
+b = [i.__bool__ for i in [1, 2, a]]
+---
+---
+UnknownValueAttributeException
+---
+test_import_comprehension_shadow_ok @disabled
+---
+import m as a
+b = [a.__bool__ for a in [1, 2, 3]]
+---
+---
+---
+test_import_comprehension_shadow_usage @disabled
+---
+import m as a
+b = [a.__bool__ for a in [1, 2, a]]
+---
+---
+UnknownValueAttributeException
+---
+test_import_comprehension_nested_usage @disabled
+---
+import m as a
+l = [1, 2, a]
+l1 = [l]
+l2 = [1, 2, 3]
+b = [a.__bool__ for l2 in l1 for a in l2]
+---
+---
+UnknownValueAttributeException
+---
+test_import_dict_key_usage
+---
+import m as a
+d = {1: 2, a.x: 3}
+---
+---
+2 11 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_dict_value_usage
+---
+import m as a
+d = {1: 2, 3: a.x}
+---
+---
+2 14 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_dict_index_usage
+---
+import m as a
+d = {1: 2, 3: a}
+d[3].x
+---
+---
+3 0 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_dict_comprehension_key_usage @disabled
+---
+import m as a
+l = [(a, 2)]
+d = {k.x: v for k, v in l}
+---
+---
+UnknownValueAttributeException
+---
+test_import_dict_comprehension_key_usage_ok @disabled
+---
+import m as a
+l = [(2, a)]
+d = {k.__bool__: v for k, v in l}
+---
+---
+---
+test_import_dict_comprehension_value_usage @disabled
+---
+import m as a
+l = [(2, a)]
+d = {k: v.x for k, v in l}
+---
+---
+UnknownValueAttributeException
+---
+test_import_dict_comprehension_value_usage_ok @disabled
+---
+import m as a
+l = [(a, 2)]
+d = {k: v.__bool__ for k, v in l}
+---
+---
+---
+test_import_dict_comprehension_bad_value @disabled
+---
+import m as a
+l = [a, 2]
+d = {k: v.x for k, v in l}
+---
+---
+StrictModuleTypeError
+---
+test_import_function_body_ok
+---
+import m as a
+def f(x):
+    return x + a.x
+---
+---
+---
+test_import_function_body_call_usage
+---
+import m as a
+def f(x):
+    return x + a.x
+f(1)
+---
+---
+4 0 UnsafeCallException f 3 15 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_function_call_result_usage
+---
+import m as a
+def f(x):
+    return a
+f(1).x
+---
+---
+4 0 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_function_call_control_flow_result_usage
+---
+import m as a
+def f(x):
+    if 1 > x:
+        return a
+    else:
+        return 42
+f(0).x
+---
+---
+7 0 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_function_call_keyword_usage
+---
+import m as a
+def f(x, y):
+    if 1 == x:
+        return y.x
+    else:
+        return 42
+f(1, y=a)
+---
+---
+7 0 UnsafeCallException f 4 15 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_function_call_keyword_ok
+---
+import m as a
+def f(x, y):
+    if True:
+        return x.__bool__
+    else:
+        return 42
+f(1, y=a)
+---
+---
+---
+test_import_kw_function_call_keyword_usage
+---
+import m as a
+def f(x, y=1, *, z, w):
+    if z == w:
+        return y.x
+    else:
+        return 42
+f(1, a, z=1, w=1)
+---
+---
+7 0 UnsafeCallException f 4 15 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_vararg_function_call_keyword_usage
+---
+import m as a
+def f(x, y=1, *args):
+    if True:
+        return args[1].x
+    else:
+        return 42
+f(1, 2, 3, a)
+---
+---
+7 0 UnsafeCallException f 4 15 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_vararg_function_call_keyword_usage_tuple_index
+---
+import m as a
+def f(x, y=1, *args):
+    if True:
+        return args[0].__bool__
+    else:
+        return 42
+f(1, 2, 3, a)
+---
+---
+---
+test_import_vararg_function_call_keyword_ok
+---
+import m as a
+def f(x, y=1, *args):
+    if False:
+        return y.x
+    else:
+        return args[0]
+f(1, 2, 3, a)
+---
+---
+---
+test_import_function_call_lexical_scope
+---
+import a
+def g():
+    return x
+x = a
+def f():
+    x = 42
+    return g().y
+f()
+---
+---
+8 0 UnsafeCallException f 7 11 UnknownValueAttributeException <imported module a> y
+---
+test_import_function_call_lexical_scope_ok
+---
+import a
+def g():
+    return x
+x = 42
+def f():
+    x = a
+    return g().__bool__
+f()
+---
+---
+---
+test_import_class_body_usage
+---
+import m as a
+class C:
+    b = a.x
+---
+---
+3 8 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_class_ctor_usage
+---
+import m as a
+class C:
+    def __init__(self, v):
+        b = v.x
+C(a)
+---
+---
+5 0 UnsafeCallException __init__ 4 12 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_class_ctor_ok
+---
+import m as a
+class C:
+    def __init__(self, v):
+        b = v.__bool__
+C(1)
+---
+---
+---
+test_import_class_attr_usage
+---
+import m as a
+class C:
+    def __init__(self, v):
+        self.v = v
+c = C(a)
+b = c.v # ok
+d = c.v.x # not ok
+---
+---
+7 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_class_method_attr_usage
+---
+import m as a
+class C:
+    def __init__(self, v):
+        self.v = v
+
+    def some_method(self):
+        return self.v.x + 1
+c = C(a)
+b = c.v # ok
+f = c.some_method # ok
+d = c.some_method() # not ok
+---
+---
+11 4 UnsafeCallException some_method 7 15 UnknownValueAttributeException <imported module m as a> x
+---
+test_import_class_baseclass_method_usage @disabled
+---
+from n import B
+class C(B):
+    pass
+
+c = C()
+c.f(1) # baseclass lookup
+---
+---
+UnknownValueAttributeException
+asd
+---
+test_import_lambda_usage @disabled
+---
+from m import a
+(lambda n: n.x)(a)
+---
+---
+UnsafeCallException
+---
+test_import_lambda_assign_usage @disabled
+---
+from m import a
+f = lambda n: n.x
+f(a)
+---
+---
+UnsafeCallException
+---
+test_class_scope_hidden
+---
+from m import a
+class C:
+    b = a
+    def f(self):
+        c = b.x # should not be error
+---
+---
+---
+test_function_scope_visible
+---
+from m import a
+def f():
+    b = a
+    class C:
+        c = b.x
+f()
+---
+---
+6 0 UnsafeCallException f 5 12 UnknownValueAttributeException <a imported from m> x
+---
+test_nested_class_scope_usage
+---
+from m import a
+x = a
+class A:
+    x = 1
+    class B:
+        y = x.z
+---
+---
+6 12 UnknownValueAttributeException <a imported from m> z
+---
+test_nested_class_scope_ok
+---
+from m import a
+x = 1
+class A:
+    x = a
+    class B:
+        y = x.__bool__
+---
+---
+---
+test_property @disabled
+---
+class C:
+    @property
+    def f(self):
+        return 42
+a = C()
+b = a.f
+---
+---
+---
+test_property_unsafe @disabled
+---
+from m import a
+class C:
+    @property
+    def f(self):
+        return a.foo
+c = C()
+b = c.f
+---
+---
+UnsafeCallException
+---
+test_dataclass_def @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+---
+---
+---
+test_property_getter_unsafe @disabled
+---
+from m import a
+class C:
+    @property
+    def f(self):
+        return 42
+
+    @f.getter
+    def f(self):
+        return a.foo
+c = C()
+b = c.f
+---
+---
+UnsafeCallException
+---
+test_dataclass_instantiation @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+c = C(1)
+---
+---
+---
+test_property_setter @disabled
+---
+class C:
+    @property
+    def f(self):
+        return 42
+
+    @f.setter
+    def f(self, value):
+        pass
+
+a = C()
+a.f = 42
+---
+---
+---
+test_property_setter_unsafe @disabled
+---
+from m import a
+class C:
+    @property
+    def f(self):
+        return 42
+
+    @f.setter
+    def f(self, value):
+        return a.foo
+
+c = C()
+c.f = 42
+---
+---
+UnsafeCallException
+---
+test_property_deleter @disabled
+---
+class C:
+    @property
+    def f(self):
+        return 42
+
+    @f.deleter
+    def f(self):
+        pass
+
+a = C()
+del a.f
+---
+---
+---
+test_property_deleter_unsafe @disabled
+---
+from m import a
+class C:
+    @property
+    def f(self):
+        return 42
+
+    @f.deleter
+    def f(self):
+        return a.foo
+
+c = C()
+del c.f
+---
+---
+UnsafeCallException
+---
+test_classmethod_usage @disabled
+---
+from m import a
+class C:
+    class_var = a
+    @classmethod
+    def f(cls, y):
+        b = cls.class_var.x
+C.f(1)
+---
+---
+UnsafeCallException
+---
+test_classmethod_instance_usage @disabled
+---
+from m import a
+class C:
+    class_var = a
+    @classmethod
+    def f(cls, y):
+        b = cls.class_var.x
+c = C()
+c.f(1)
+---
+---
+UnsafeCallException
+---
+test_classmethod_ok @disabled
+---
+from m import a
+class C:
+    class_var = a
+    @classmethod
+    def f(cls, y):
+        b = cls.class_var
+C.f(1)
+---
+---
+---
+test_staticmethod_instance_usage @disabled
+---
+from m import a
+class C:
+    x = 1
+    @staticmethod
+    def f(y, *args):
+        b = y.x
+C.f(a)
+---
+---
+UnsafeCallException
+---
+test_staticmethod_instance_ok @disabled
+---
+from m import a
+class C:
+    x = 1
+    @staticmethod
+    def f(y, *args):
+        b = y.x
+C.f(C)
+---
+---
+---
+test_decorator_noop_usage @disabled
+---
+import m as a
+def dec(func):
+    return func
+
+@dec
+def f(x):
+    b = x.y
+
+f(a)
+---
+---
+UnsafeCallException
+---
+test_decorator_wrap_usage @disabled
+---
+import m as a
+def dec(func):
+    def wrapper(x):
+        y = x.y
+        return func(y)
+
+    return wrapper
+
+@dec
+def f(x):
+    pass
+
+f(a)
+---
+---
+UnsafeCallException
+---
+test_decorator_side_effect_usage @disabled
+---
+import m as a
+def dec(func):
+    y = a.y
+    def wrapper(x):
+        return func(x)
+
+    return wrapper
+
+@dec
+def f(x):
+    pass
+
+f(1)
+---
+---
+UnsafeCallException
+---
+test_decorator_side_effect_call_usage @disabled
+---
+import m as a
+def dec(func):
+    y = a
+    def wrapper(x):
+        return func(y)
+
+    return wrapper
+
+@dec
+def f(x):
+    b = x.y
+f(1)
+---
+---
+UnsafeCallException
+---
+test_decorator_ok @disabled
+---
+import m as a
+def dec(func):
+
+    def wrapper(x):
+        b = a.y
+        return func(x)
+
+    return wrapper
+
+@dec
+def f(x):
+    pass
+---
+---
+---
+test_decorator_unknown @disabled
+---
+import m as a
+
+@dec
+def f(x):
+    pass
+---
+---
+UnknownValueCallException
+---
+test_separate_decorator_usage @disabled
+---
+from m import a
+
+class C:
+    x = 1
+    def f(y, z=None):
+        b = z.__bool__
+    g = classmethod(f)
+    h = staticmethod(f)
+
+c1 = C.h(a) # should be ok
+c2 = C.g(a) # should be error
+---
+---
+UnsafeCallException
+---
+test_non_local_usage @disabled
+---
+from m import a
+def f():
+    b = 1
+    def g():
+        nonlocal b
+        b = a
+    c1 = b.x #ok
+    g()
+    return b
+res = f() # ok
+res.x # error
+---
+---
+StrictModuleUnhandledException
+---
+test_global_usage @disabled
+---
+from m import a
+b = 1
+def g():
+    global b
+    b = a
+c1 = b.__bool__ #ok
+g()
+c2 = b.x # error
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_replace @disabled
+---
+from dataclasses import dataclass, replace
+from outside import unknown
+@dataclass
+class C:
+    a: int
+
+c = C(1)
+c1 = replace(c, a = unknown)
+c1.a.attr
+---
+---
+UnknownValueAttributeException
+---
+test_int_ops @disabled
+---
+A = 1
+B = 2
+C = A + B
+D = A.to_bytes(2, "little")
+E = C.to_bytes(2, "little")
+---
+---
+---
+test_mixed_int_ops @disabled
+---
+from m import a
+A = 1
+C = A + a
+---
+---
+UnknownValueBinaryOpException
+---
+test_mixed_int_ops_right @disabled
+---
+from m import a
+A = 1
+C = a + A
+---
+---
+UnknownValueBinaryOpException
+---
+test_byte_ops @disabled
+---
+A = b'abc'
+B = b'foo'
+C = A + B
+D = C.upper()
+---
+---
+---
+test_mixed_byte_ops_right @disabled
+---
+from m import a
+A = b'abc'
+C = A + a
+---
+---
+UnknownValueBinaryOpException
+---
+test_mixed_byte_ops @disabled
+---
+from m import a
+A = b'abc'
+C = a + A
+---
+---
+UnknownValueBinaryOpException
+---
+test_typing_unknown @disabled
+---
+from typing import unknown
+X = unknown('TFoo')
+---
+---
+UnknownValueCallException
+---
+test_typing_async_iterable @disabled
+---
+from typing import AsyncIterable
+def f(x: AsyncIterable[str]) -> None:
+    pass
+---
+---
+---
+test_typing_awaitable @disabled
+---
+from typing import Awaitable
+def f(x: Awaitable[int]) -> None:
+    pass
+---
+---
+---
+test_typing_callable @disabled
+---
+from typing import Callable
+def f(x: Callable[[int], int]) -> None:
+    pass
+---
+---
+---
+test_typing_classvar @disabled
+---
+from typing import ClassVar
+class C:
+    x: ClassVar[int] = 2
+---
+---
+---
+test_typing_collection @disabled
+---
+from typing import Collection
+def f(x: Collection[int]) -> None:
+    pass
+---
+---
+---
+test_typing_context_manager @disabled
+---
+from typing import ContextManager
+def f(x: ContextManager[int]) -> None:
+    pass
+---
+---
+---
+test_typing_default_dict @disabled
+---
+from typing import DefaultDict
+def f(x: DefaultDict[int, int]) -> None:
+    pass
+---
+---
+---
+test_typing_dict @disabled
+---
+from typing import Dict
+def f(x: Dict[str, int]) -> None:
+    pass
+---
+---
+---
+test_typing_frozenset @disabled
+---
+from typing import FrozenSet
+def f(x: FrozenSet[int]) -> None:
+    pass
+---
+---
+---
+test_typing_generator @disabled
+---
+from typing import Generator
+def f(x: Generator[int, int, int]) -> None:
+    pass
+---
+---
+---
+test_typing_generic @disabled
+---
+from typing import TypeVar, Generic
+class C(Generic[TypeVar("T")]):
+    pass
+
+a = C[int]()
+---
+---
+---
+test_typing_generic_unknown @disabled
+---
+from unknown import x
+from typing import TypeVar, Generic
+class C(Generic[TypeVar("T")], x):
+    pass
+
+class D(C[int]): pass
+---
+---
+UnsafeCallException
+---
+test_typing_typevar @disabled
+---
+from typing import TypeVar
+from m import a
+T = TypeVar('T')
+T.a = a
+T.a.foo()
+---
+---
+UnknownValueAttributeException
+---
+test_typing_iterable @disabled
+---
+from typing import Iterable
+def f(x: Iterable[str]) -> None:
+    pass
+---
+---
+---
+test_typing_list @disabled
+---
+from typing import List
+def f(x: List[int]) -> None:
+    pass
+---
+---
+---
+test_typing_mapping @disabled
+---
+from typing import Mapping
+def f(x: Mapping[str, str]) -> None:
+    pass
+---
+---
+---
+test_typing_iterable @disabled
+---
+from typing import Iterable
+def f(x: Iterable[str]) -> None:
+    pass
+---
+---
+---
+test_typing_mutable_mapping @disabled
+---
+from typing import MutableMapping
+def f(x: MutableMapping[str, str]) -> None:
+    pass
+---
+---
+---
+test_typing_mutable_sequence @disabled
+---
+from typing import MutableSequence
+def f(x: MutableSequence[str]) -> None:
+    pass
+---
+---
+---
+test_typing_optional @disabled
+---
+from typing import Optional
+def f(x: Optional[int]) -> None:
+    pass
+---
+---
+---
+test_typing_mutablesequence @disabled
+---
+from typing import MutableSequence
+def f(x: MutableSequence[int]) -> None:
+    pass
+---
+---
+---
+test_typing_sequence @disabled
+---
+from typing import Sequence
+def f(x: Sequence[int]) -> None:
+    pass
+---
+---
+---
+test_typing_set @disabled
+---
+from typing import Set
+def f(x: Set[int]) -> None:
+    pass
+---
+---
+---
+test_typing_tuple @disabled
+---
+from typing import Tuple
+def f(x: Tuple[str, ...]) -> None:
+    pass
+---
+---
+---
+test_typing_type @disabled
+---
+from typing import Type, TypeVar
+class User: pass
+U = TypeVar('U', bound=User)
+def f(x: Type[U]) -> None:
+    pass
+---
+---
+---
+test_typing_var @disabled
+---
+from typing import TypeVar
+X = TypeVar('TFoo')
+Y = X.__name__
+---
+---
+---
+test_typing_union @disabled
+---
+from typing import Union
+def f(x: Union[int, str]) -> None:
+    pass
+---
+---
+---
+test_slicing_ok @disabled
+---
+import m as a
+x = [a, 1, 2]
+y = x[1:]
+b = [a.__bool__ for a in y]
+---
+---
+---
+test_slicing_fail @disabled
+---
+import m as a
+x = [a, 1, 2]
+y = x[:1]
+b = [a.x for a in y]
+---
+---
+UnknownValueAttributeException
+---
+test_import_tuple_matched_assign_usage
+---
+import m as a
+[x, y] = (1, a)
+b = x.__bool__ # ok
+c = y.v # not ok
+---
+---
+4 4 UnknownValueAttributeException <imported module m as a> v
+---
+test_import_star
+---
+from m import *
+---
+---
+1 0 StarImportDisallowedException m
+---
+test_import_tuple_index_usage
+---
+import m as a
+l = (a, 1)
+b = l[0].x
+---
+---
+3 4 UnknownValueAttributeException <imported module m as a> x
+---
+test_private_members
+---
+class C:
+    def __x(self):
+        return 42
+
+    def g(self):
+        return self.__x()
+---
+---
+---
+test_dotted_alias_from_import
+---
+from a.b import c
+---
+---
+---
+test_dotted_alias_import
+---
+import a.b
+---
+---
+---
+test_dotted_from_imports
+---
+from xml.dom import SyntaxErr
+---
+---
+---
+test_dotted_imports
+---
+import xml.dom
+---
+---
+---
+test_decorator_with_generator @disabled
+---
+def mydec(gen):
+    def myfunc(x):
+        for i in gen:
+            pass
+        return x
+    return myfunc
+
+@mydec(x for x in (1, 2, 3))
+def f():
+    return 42
+---
+---
+---
+test_class_decorator_with_generator @disabled
+---
+def mydec(gen):
+    def myfunc(x):
+        for i in gen:
+            pass
+        return x
+    return myfunc
+
+@mydec(x for x in (1, 2, 3))
+class C:
+    x = 42
+---
+---
+---
+test_class_decorator_add_attr @disabled
+---
+def mydec(klass):
+    klass.foo = 42
+    return klass
+
+@mydec
+class C:
+    x = 42
+
+abc = C.foo.to_bytes(2, "little")
+---
+---
+---
+test_class_decorator_add_imported_attr @disabled
+---
+from x import a
+def mydec(klass):
+    klass.foo = a
+    return klass
+
+@mydec
+class C:
+    x = 42
+
+abc = C.foo.to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_dict @disabled
+---
+from x import a
+x = {}
+x[2] = 3
+x[3] = a
+x[2].to_bytes(2, "little")
+---
+---
+---
+test_dict_bad @disabled
+---
+from x import a
+x = {}
+x[2] = 3
+x[3] = a
+x[3].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_dict_str_keys @disabled
+---
+from x import a
+x = {}
+x['abc'] = 3
+x['def'] = a
+x['abc'].to_bytes(2, "little")
+---
+---
+---
+test_dict_str_keys_bad @disabled
+---
+from x import a
+x = {}
+x['abc'] = 3
+x['def'] = a
+x['def'].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_dict_tuple_keys @disabled
+---
+from x import a
+x = {}
+x[('abc', 42)] = 3
+x[('abc', 100)] = a
+x[('abc', 42)].to_bytes(2, "little")
+---
+---
+---
+test_dict_tuple_keys_bad @disabled
+---
+from x import a
+x = {}
+x[('abc', 42)] = 3
+x[('abc', 100)] = a
+x[('abc', 100)].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_dict_float_keys @disabled
+---
+from x import a
+x = {}
+x[1.0] = 3
+x[2.0] = a
+x[1.0].to_bytes(2, "little")
+---
+---
+---
+test_dict_float_keys_bad @disabled
+---
+from x import a
+x = {}
+x[1.0] = 3
+x[2.0] = a
+x[2.0].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_dict_complex_keys @disabled
+---
+from x import a
+x = {}
+x[1j] = 3
+x[2j] = a
+x[1j].to_bytes(2, "little")
+---
+---
+---
+test_dict_complex_keys_bad @disabled
+---
+from x import a
+x = {}
+x[1j] = 3
+x[2j] = a
+x[2j].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_dict_int_float_keys @disabled
+---
+from x import a
+x = {}
+x[1] = 3
+x[2] = a
+x[1.0].to_bytes(2, "little")
+---
+---
+---
+test_dict_int_float_keys_bad @disabled
+---
+from x import a
+x = {}
+x[1] = 3
+x[2] = a
+x[2.0].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_dict_mixed_keys @disabled
+---
+from x import a
+x = {}
+x[False] = 3
+x[True] = a
+x[False].to_bytes(2, "little")
+---
+---
+---
+test_dict_mixed_keys_bad @disabled
+---
+from x import a
+x = {}
+x[False] = 3
+x[True] = a
+x[True].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_for_loop_body @disabled
+---
+from outside import unknown
+l = [unknown, 2, 3]
+x = 1
+for i in l:
+    x = i
+x = x + 1
+---
+---
+---
+test_dict_splat_not_mapping @disabled
+---
+y = {**2}
+---
+---
+StrictModuleTypeError
+---
+test_dict_splat @disabled
+---
+x = {2:3}
+y = {**x}
+y[2].__bool__
+---
+---
+---
+test_dict_splat_bad @disabled
+---
+from a import b
+x = {2:b}
+y = {**x}
+y[2].x # bad
+---
+---
+UnknownValueAttributeException
+---
+test_dict_splat_bad_2 @disabled
+---
+x = {2:3}
+y = {**x}
+y[42].abc
+---
+---
+StrictModuleUnhandledException
+---
+test_gen_exp_bad @disabled
+---
+
+---
+---
+---
+test_chr_ok @disabled
+---
+x = chr(42)
+---
+---
+---
+test_chr_unknown_inp @disabled
+---
+from a import b
+x = chr(b)
+---
+---
+StrictModuleUnhandledException
+---
+test_chr_out_of_range_inp @disabled
+---
+x = chr(100000000)
+---
+---
+StrictModuleUnhandledException
+---
+test_chr_wrong_arg_cnt @disabled
+---
+x = chr(1, 2)
+---
+---
+StrictModuleTypeError
+---
+test_chr_wrong_arg_cnt_zero @disabled
+---
+x = chr()
+---
+---
+StrictModuleTypeError
+---
+test_chr_wrong_kwarg_cnt @disabled
+---
+x = chr(x=2)
+---
+---
+StrictModuleTypeError
+---
+test_chr_wrong_kwarg_cnt_with_param @disabled
+---
+x = chr(1, x=2)
+---
+---
+StrictModuleTypeError
+---
+test_chr_mixed_warning_error @disabled
+---
+from a import b
+x = chr(b, x=2)
+---
+---
+StrictModuleTypeError
+---
+test_ord_ok @disabled
+---
+x = ord('a')
+---
+---
+---
+test_ord_unknown_inp @disabled
+---
+from a import b
+x = ord(b)
+---
+---
+StrictModuleUnhandledException
+---
+test_ord_invalid_input @disabled
+---
+x = ord("asdf")
+---
+---
+StrictModuleUnhandledException
+---
+test_range_ok @disabled
+---
+x = range(1)
+y = range(1,2)
+z = range(3,2,1)
+---
+---
+---
+test_range_bad_arg @disabled
+---
+from x import a
+x = range(a)
+---
+---
+StrictModuleTypeError
+---
+test_range_weird_call @disabled
+---
+x = range.__new__()
+---
+---
+---
+test_range_weird_call_2 @disabled
+---
+x = range.__new__(42)
+---
+---
+---
+test_list_mul_slice_ok @disabled
+---
+foo = [0]*42
+bar = [x[:] for x in [foo]*42]
+---
+---
+---
+test_list_mul_slice_bad @disabled
+---
+from x import a
+foo = [a]*51
+bar = [x[:] for x in [foo]*51]
+bar[0][1].foo
+---
+---
+UnknownValueAttributeException
+---
+test_unknown_list_index @disabled
+---
+from x import a, b
+l = [1, a]
+x = l[b]
+x.foo
+---
+---
+UnknownValueAttributeException
+---
+test_assign_builtin_inst @disabled
+---
+from x import a
+y = 2
+y.foo = a
+---
+---
+StrictModuleTypeError
+---
+test_assign_builtin_type @disabled
+---
+from x import a
+object.foo = a
+---
+---
+StrictModuleTypeError
+---
+test_namedtuple_def @disabled
+---
+from collections import namedtuple
+namedtuple("P", "x y")
+---
+---
+---
+test_namedtuple_constructor @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x y")
+P(1, 2)
+---
+---
+---
+test_namedtuple_constructor_kwargs @disabled
+---
+from collections import namedtuple
+X = namedtuple("P", "x y")
+P = X.__new__(x = 2)
+---
+---
+StrictModuleUnhandledException
+---
+test_namedtuple_bad_new @disabled
+---
+from collections import namedtuple
+X = namedtuple("P", "x y")
+X.__new__(object)
+---
+---
+StrictModuleUnhandledException
+---
+test_namedtuple_index @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x y")
+x = P(1, 2)
+x[0]
+---
+---
+---
+test_namedtuple_attr @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", "x y")
+p = P(1, 2)
+p.x
+p.y
+---
+---
+---
+test_namedtuple_sublcass_attr @disabled
+---
+from collections import namedtuple
+B = namedtuple("P", "x y")
+class P(B):
+    pass
+p = P(1, 2)
+p.x
+p.y
+---
+---
+---
+test_namedtuple_import_index @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x y")
+p = P(1, unknown)
+p[1].attr
+---
+---
+UnknownValueAttributeException
+---
+test_namedtuple_import_attr @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x y")
+p = P(1, unknown)
+p.y.attr
+---
+---
+UnknownValueAttributeException
+---
+test_namedtuple_rename @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x def", rename=True)
+p = P(1, unknown)
+p.x # ok
+p._1.attr
+---
+---
+UnknownValueAttributeException
+---
+test_namedtuple_rename_duplicate @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x x", rename=True)
+p = P(1, unknown)
+p.x # ok
+p._1.attr
+---
+---
+UnknownValueAttributeException
+---
+test_namedtuple_unknown_field_name @disabled
+---
+from collections import namedtuple
+P = namedtuple("P", 1)
+p = P(1)
+---
+---
+StrictModuleUnhandledException
+---
+test_namedtuple_asdict @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x y")
+p = P(1, unknown)
+d = p._asdict()
+d["y"].attr
+---
+---
+UnknownValueAttributeException
+---
+test_namedtuple_getnewargs @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x y")
+p = P(1, unknown)
+d = p.__getnewargs__()
+d[1].attr
+---
+---
+UnknownValueAttributeException
+---
+test_namedtuple_make @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x y")
+p = P._make([1, unknown])
+p.y.attr
+---
+---
+UnknownValueAttributeException
+---
+test_namedtuple_make_inst_call @disabled
+---
+from collections import namedtuple
+from outside import unknown
+P = namedtuple("P", "x y")
+p1 = P(1, 2)
+p = p1._make([1, unknown])
+p.y.attr
+---
+---
+UnknownValueAttributeException
+---
+test_annotations @disabled
+---
+class C:
+    a: int
+    b: T
+C.__annotations__
+---
+---
+---
+test_annotations_import @disabled
+---
+from outside import unknown
+class C:
+    a: int
+    b: unknown
+C.__annotations__["b"].attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_def @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+---
+---
+---
+test_dataclass_instantiation @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int
+c = C(1)
+---
+---
+---
+test_dataclass_field_access @disabled
+---
+from dataclasses import dataclass
+from outside import unknown
+@dataclass
+class C:
+    a: int
+c = C(unknown)
+c.a.attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_subclass @disabled
+---
+from dataclasses import dataclass
+from outside import unknown
+@dataclass
+class C:
+    a: int
+@dataclass
+class D(C):
+    b: int
+d = D(1, unknown)
+d.a # ok
+d.b.attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_field_assign @disabled
+---
+from dataclasses import dataclass
+from outside import unknown
+@dataclass
+class C:
+    a: C
+c = C(C(1))
+c.a.a # ok
+c.a = unknown
+c.a.attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_non_default @disabled
+---
+from dataclasses import dataclass
+@dataclass
+class C:
+    a: int = 1
+    b: int
+---
+---
+StrictModuleTypeError
+---
+test_dataclass_field @disabled
+---
+from dataclasses import field
+from outside import unknown
+f = field(init=unknown)
+f.init.attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_field_no_init @disabled
+---
+from dataclasses import field, dataclass
+from outside import unknown
+@dataclass
+class C:
+    a: int = field(init=False)
+    def __post_init__(self):
+        self.a = unknown
+
+c = C()
+c.a.attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_init_var @disabled
+---
+from dataclasses import InitVar, dataclass, field
+from outside import unknown
+@dataclass
+class C:
+    a: int
+    b: InitVar[int]
+    c: init = field(init=False)
+    def __post_init__(self, b):
+        self.c = b
+
+c = C(1, unknown)
+c.c.attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_replace @disabled
+---
+from dataclasses import dataclass, replace
+from outside import unknown
+@dataclass
+class C:
+    a: int
+
+c = C(1)
+c1 = replace(c, a = unknown)
+c1.a.attr
+---
+---
+UnknownValueAttributeException
+---
+test_dataclass_replace_initvar @disabled
+---
+from dataclasses import dataclass, replace, InitVar, field
+from outside import unknown
+@dataclass
+class C:
+    a: int
+    b: InitVar[int]
+    c: int = field(init=False)
+    def __post_init__(self, b):
+        self.c = b
+
+c = C(1, 2)
+c1 = replace(c, a = 1, b= unknown)
+c1.c.attr
+---
+---
+UnknownValueAttributeException
+---
+test_len_unknown @disabled
+---
+from outside import unknown
+len(unknown)
+---
+---
+UnknownValueAttributeException
+---
+test_bool_ok @disabled
+---
+bool(1)
+---
+---
+---
+test_bool_unknown @disabled
+---
+from outside import unknown
+bool(unknown)
+---
+---
+UnknownValueBoolException
+---
+test_for_loop_does_replace @disabled
+---
+from outside import unknown
+l = [unknown, 2, 3]
+for i in l:
+    pass
+y = i.__bool__ # should be ok since i is guaranteed to be replaced
+---
+---
+---
+test_for_loop_does_replace_unsafe @disabled
+---
+from outside import unknown
+l = [1, 2, unknown]
+for i in l:
+    pass
+y = i.attr
+---
+---
+UnknownValueAttributeException
+---
+test_for_loop_body @disabled
+---
+from outside import unknown
+l = [unknown, 2, 3]
+x = 1
+for i in l:
+    x = i
+x = x + 1
+---
+---
+---
+test_for_loop_body_unsafe @disabled
+---
+from outside import unknown
+l = [1, 2, 3, unknown]
+x = 1
+for i in l:
+    x = i
+x.attr
+---
+---
+UnknownValueAttributeException
+---
+test_for_loop_class_def_empty @disabled
+---
+l = []
+for s in l:
+    class C:
+        def f():
+            return 1
+c = C()
+---
+---
+UnknownValueCallException
+---
+test_exception_branch @disabled
+---
+from outside import unknown
+try:
+    if 1 in [2]:
+        x = 1
+        raise Exception
+    else:
+        x = unknown
+except Exception as e:
+    pass
+x.attr
+---
+---
+UnknownValueAttributeException
+---
+test_exception_branch_except @disabled
+---
+from outside import unknown
+try:
+    if 1 in [2]:
+        x = 1
+    else:
+        raise Exception
+except Exception as e:
+    x = unknown
+x.attr
+---
+---
+UnknownValueAttributeException
+---
+test_exception_loop @disabled
+---
+from outside import unknown
+x = 2
+try:
+    while x == 2:
+        x = 1
+        raise Exception
+except Exception as e:
+    x = unknown
+else:
+    x = 2
+x.attr
+---
+---
+UnknownValueAttributeException
+---
+test_exception_nested @disabled
+---
+from outside import unknown
+try:
+    try:
+        x = 1
+        raise Exception
+    except AttributeError:
+        x = 2 # shouldn't run
+except Exception:
+    x = unknown
+x.attr
+---
+---
+UnknownValueAttributeException
+---
+test_exception_with_cause @disabled
+---
+from outside import unknown
+try:
+    raise AttributeError from unknown.attr
+except Exception:
+    pass
+---
+---
+UnknownValueAttributeException
+---
+test_getattr_unknown @disabled
+---
+from outside import unknown
+a = getattr(unknown, "a", 1)
+---
+---
+UnknownValueAttributeException
+---
+test_starred_assignment @disabled
+---
+from outside import unknown
+a, *b, c = 1, unknown, 2, 3
+a.__bool__
+c.__bool__
+b[1].__bool__
+b[0].attr
+---
+---
+UnknownValueAttributeException
+---
+test_starred_assignment_empty_star @disabled
+---
+from outside import unknown
+a, *b, c = 1, unknown
+a.__bool__
+c.attr
+---
+---
+UnknownValueAttributeException
+---
+test_starred_assignment_unknown_rest @disabled
+---
+from outside import unknown
+a, *b, c = 1, 2, 3, unknown
+a.__bool__
+b[0].__bool__
+b[1].__bool__
+c.attr
+---
+---
+UnknownValueAttributeException
+---
+test_unknown_bool_while @disabled
+---
+while x:
+    pass
+---
+---
+UnknownValueBoolException
+---
+test_unknown_bool_if @disabled
+---
+if x:
+    pass
+---
+---
+UnknownValueBoolException
+---
+test_unknown_bool_not @disabled
+---
+y = not x
+---
+---
+UnknownValueBoolException
+---
+test_unknown_bool_cmp @disabled
+---
+class C:
+    def __gt__(self, other):
+        return x
+
+C() > C()
+---
+---
+UnknownValueBoolException
+---
+test_bool_unknown_return @disabled
+---
+class C:
+    def __bool__(self):
+        return x
+
+C() or 42
+---
+---
+StrictModuleTypeError
+---
+test_unknown_bool_bool_op @disabled
+---
+x or 42
+---
+---
+UnknownValueBoolException
+---
+test_unknown_bool_ifexp @disabled
+---
+y = 42 if x else 23
+---
+---
+UnknownValueBoolException
+---
+test_unknown_bool_comp @disabled
+---
+z = [x for x in [1,2,3] if y]
+---
+---
+UnknownValueBoolException
+---
+test_scoping_generators_first_iter @disabled
+---
+
+x = [x for x in (lambda: [1,2,3])()]
+---
+---
+---
+test_metaclass_violation_init @disabled
+---
+import unknown
+
+class mc(type):
+    def __init__(self, name, bases, dict):
+        unknown.path.append('foo')
+
+class x(metaclass=mc):
+    pass
+---
+---
+UnsafeCallException
+---
+test_metaclass_violation_new @disabled
+---
+import unknown
+
+class mc(type):
+    def __new__(cls, name, bases, dict):
+        unknown.path.append('foo')
+
+class x(metaclass=mc):
+    pass
+---
+---
+UnsafeCallException
+---
+test_metaclass_okay @disabled
+---
+import sys
+
+class mc(type):
+    def __init__(self, name, bases, dict):
+        self.foo = 42
+
+class x(metaclass=mc):
+    pass
+
+y = x.foo.to_bytes(2, "little")
+---
+---
+---
+test_metaclass_unknown @disabled
+---
+from a import B
+
+class X(metaclass=B):
+    pass
+---
+---
+UnknownValueCallException
+---
+test_metaclass_conflict @disabled
+---
+
+class MX(type): pass
+class MY(type): pass
+
+class X(metaclass=MX): pass
+class Y(metaclass=MY): pass
+
+class Z(X, Y): pass
+---
+---
+MetaclassConflictException
+---
+test_object_new_not_enough_args @disabled
+---
+
+x = object.__new__()
+---
+---
+StrictModuleTypeError
+---
+test_object_new_too_many_args @disabled
+---
+
+x = object.__new__(object, 42)
+---
+---
+---
+test_object_new_okay @disabled
+---
+
+x = object.__new__(object)
+---
+---
+---
+test_object_new_non_type @disabled
+---
+
+x = object.__new__(42)
+---
+---
+StrictModuleTypeError
+---
+test_object_creates_instance @disabled
+---
+from a import b
+
+class C:
+    x = b
+
+object.__new__(C).x.blah
+---
+---
+UnknownValueAttributeException
+---
+test_type_no_args @disabled
+---
+type()
+---
+---
+StrictModuleTypeError
+---
+test_type_too_many_args @disabled
+---
+type(1, 2, 3, 4)
+---
+---
+StrictModuleTypeError
+---
+test_type_bad_name @disabled
+---
+type(42, (), {})
+---
+---
+StrictModuleTypeError
+---
+test_type_bad_bases @disabled
+---
+type('foo', 'abc', {})
+---
+---
+StrictModuleTypeError
+---
+test_type_bad_dict @disabled
+---
+type('foo', (), 42.0)
+---
+---
+StrictModuleTypeError
+---
+test_type_bad_base @disabled
+---
+type('foo', (42, ), {})
+---
+---
+StrictModuleTypeError
+---
+test_classmethod_subclass @disabled
+---
+class x(classmethod): pass
+---
+---
+---
+test_slice_list_assignment_okay @disabled
+---
+from a import b
+x = [b]
+x[:] = [1,2,3]
+x[0].to_bytes(2, "little")
+---
+---
+---
+test_slice_list_assignment_bad @disabled
+---
+from a import b
+x = [1,2,3]
+x[:] = [b]
+x[0].to_bytes(2, "little")
+---
+---
+UnknownValueAttributeException
+---
+test_cell_meth_with_instance @disabled
+---
+x = bytes.upper(b'abc')
+---
+---
+---
+test_bad_base_type_range @disabled
+---
+class C(range):
+    pass
+---
+---
+StrictModuleTypeError
+---
+test_bad_base_type_bool @disabled
+---
+class C(bool):
+    pass
+---
+---
+StrictModuleTypeError
+---
+test_inconsistent_hierarchy @disabled
+---
+class C(object, int):
+    pass
+---
+---
+StrictModuleTypeError
+---
+test_base_conflict_layout @disabled
+---
+class C(int, bytes):
+    pass
+---
+---
+StrictModuleTypeError
+---
+test_classproperty @disabled
+---
+class classproperty:
+    def __init__(self, getter):
+        self._getter = getter
+
+    def __get__(self, instance, owner):
+        return self._getter(owner)
+
+
+@classproperty
+def f(self):
+    pass
+---
 ---
 ---

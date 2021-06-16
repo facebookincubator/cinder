@@ -29,6 +29,7 @@ StrictFunction::StrictFunction(
     std::vector<std::shared_ptr<BaseStrictObject>> kwDefaults,
     compiler::ModuleLoader* loader,
     std::string fileName,
+    std::string modName,
     std::shared_ptr<BaseStrictObject> annotations,
     bool useFutureAnnotations,
     bool isCoroutine)
@@ -49,6 +50,7 @@ StrictFunction::StrictFunction(
       kwDefaults_(std::move(kwDefaults)),
       loader_(loader),
       fileName_(std::move(fileName)),
+      modName_(std::move(modName)),
       annotations_(std::move(annotations)),
       useFutureAnnotations_(useFutureAnnotations),
       isCoroutine_(isCoroutine),
@@ -69,6 +71,7 @@ Analyzer StrictFunction::getFuncAnalyzer(
       loader_,
       errorSink,
       fileName_,
+      modName_,
       qualName_, // scope name
       caller.caller,
       lineno_,

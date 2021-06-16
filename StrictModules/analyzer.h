@@ -46,6 +46,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       Symtable table,
       BaseErrorSink* errors,
       std::string filename,
+      std::string modName,
       std::string scopeName,
       std::shared_ptr<StrictModuleObject> caller,
       bool futureAnnotations = false);
@@ -57,6 +58,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       std::shared_ptr<DictType> toplevelNS,
       BaseErrorSink* errors,
       std::string filename,
+      std::string modName,
       std::string scopeName,
       std::shared_ptr<StrictModuleObject> caller,
       bool futureAnnotations = false);
@@ -66,6 +68,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       compiler::ModuleLoader* loader,
       BaseErrorSink* errors,
       std::string filename,
+      std::string modName,
       std::string scopeName,
       std::weak_ptr<StrictModuleObject> caller,
       int lineno,
@@ -83,6 +86,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   void visitStmtSeq(std::vector<stmt_ty> seq);
   // statements
   void visitImport(const stmt_ty stmt);
+  void visitImportFrom(const stmt_ty stmt);
   void visitAssign(const stmt_ty stmt);
   void visitExprStmt(const stmt_ty stmt);
   void visitFunctionDef(const stmt_ty stmt);
@@ -150,6 +154,14 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   bool futureAnnotations_; // use in visit annotations
   /* global context for currently pending exceptions */
   AnalysisResult currentExceptionContext_;
+  /* name of the current module
+   * For function bodies, this is where the function is defined
+   */
+  std::string modName_;
+
+  std::shared_ptr<BaseStrictObject> handleFromListHelper(
+      std::shared_ptr<BaseStrictObject> fromMod,
+      const std::string& name);
 
   std::vector<std::shared_ptr<BaseStrictObject>> visitListLikeHelper(
       asdl_seq* elts);

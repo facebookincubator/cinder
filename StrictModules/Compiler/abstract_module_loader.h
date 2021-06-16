@@ -74,6 +74,10 @@ class ModuleLoader {
   AnalyzedModule* loadModule(const char* modName);
   AnalyzedModule* loadModule(const std::string& modName);
 
+  std::shared_ptr<StrictModuleObject> loadModuleValue(const char* modName);
+  std::shared_ptr<StrictModuleObject> loadModuleValue(
+      const std::string& modName);
+
   AnalyzedModule* loadModuleFromSource(
       const std::string& source,
       const std::string& name,

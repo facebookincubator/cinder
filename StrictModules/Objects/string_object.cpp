@@ -5,8 +5,6 @@
 
 #include "StrictModules/Objects/callable_wrapper.h"
 
-#include <iostream>
-
 namespace strictmod::objects {
 // StrictType
 StrictString::StrictString(

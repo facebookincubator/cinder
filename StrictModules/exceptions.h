@@ -529,6 +529,27 @@ class FailedToUnpackException : public StructuredStrictModuleException<
   [[noreturn]] virtual void raise() override;
 };
 
+// StarImportDisallowedException
+struct StarImportDisallowedExceptionHelper {
+  StarImportDisallowedExceptionHelper(std::string mod);
+
+  std::string fromMod;
+
+  static constexpr const char* excName = "StarImportDisallowedException";
+  static constexpr const char* fmt = "cannot import * from {}";
+  static constexpr const char* wiki = "";
+};
+
+class StarImportDisallowedException
+    : public StructuredStrictModuleException<
+          StarImportDisallowedExceptionHelper,
+          StarImportDisallowedException,
+          &StarImportDisallowedExceptionHelper::fromMod> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ------------------Out of line implementations---------------
 
 // StrictModuleException
@@ -559,7 +580,8 @@ inline const std::string& StrictModuleException::getScopeName() const {
 
 inline std::string StrictModuleException::testString() const {
   if (cause_ != nullptr) {
-    return fmt::format("{} {} {} {}", lineno_, col_, testStringHelper(), cause_->testString());
+    return fmt::format(
+        "{} {} {} {}", lineno_, col_, testStringHelper(), cause_->testString());
   }
   return fmt::format("{} {} {}", lineno_, col_, testStringHelper());
 }

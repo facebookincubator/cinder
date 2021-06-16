@@ -46,6 +46,7 @@ class StrictFunction : public StrictInstance {
       std::vector<std::shared_ptr<BaseStrictObject>> kwDefaults,
       compiler::ModuleLoader* loader,
       std::string fileName,
+      std::string modName,
       std::shared_ptr<BaseStrictObject> annotations,
       bool useFutureAnnotations = true,
       bool isCoroutine = false);
@@ -68,6 +69,10 @@ class StrictFunction : public StrictInstance {
 
   const std::string& getFuncName() const {
     return funcName_;
+  }
+
+  const std::string& getModName() const {
+    return modName_;
   }
 
   const FuncSignature& getSignature() const {
@@ -101,6 +106,7 @@ class StrictFunction : public StrictInstance {
 
   compiler::ModuleLoader* loader_;
   std::string fileName_;
+  std::string modName_;
 
   std::shared_ptr<BaseStrictObject> annotations_;
 

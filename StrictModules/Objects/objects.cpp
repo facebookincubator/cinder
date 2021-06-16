@@ -108,7 +108,7 @@ TObjectPtrVec objectTypeVec() {
 
 std::shared_ptr<StrictType> FunctionType() {
   static std::shared_ptr<StrictType> t = makeType<StrictFuncType>(
-      "function", kBuiltinsModule, objectTypeVec(), TypeType());
+      "function", kBuiltinsModule, objectTypeVec(), TypeType(), false);
   return t;
 }
 

@@ -43,6 +43,8 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
   virtual size_t hash() const;
   virtual bool eq(const BaseStrictObject& other) const;
 
+  virtual bool isUnknown() const {return false;}
+
   /** get equivalent python object of this object
    * return nullptr if conversion is not supported
    *

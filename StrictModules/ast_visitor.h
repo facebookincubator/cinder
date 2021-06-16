@@ -67,6 +67,7 @@ class ASTVisitor {
       case Assert_kind:
         return static_cast<TAnalyzer*>(this)->visitAssert(stmt);
       case ImportFrom_kind:
+      return static_cast<TAnalyzer*>(this)->visitImportFrom(stmt);
       case Global_kind:
       case Nonlocal_kind:
         break;

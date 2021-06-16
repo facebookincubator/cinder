@@ -14,6 +14,9 @@ class UnknownObject : public BaseStrictObject {
 
   virtual std::string getDisplayName() const override;
   virtual std::unique_ptr<BaseStrictObject> copy() const override;
+  virtual bool isUnknown() const override {
+    return true;
+  }
 
  private:
   std::string name_;

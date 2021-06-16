@@ -39,6 +39,7 @@ Analyzer::Analyzer(
     Symtable table,
     BaseErrorSink* errors,
     std::string filename,
+    std::string modName,
     std::string scopeName,
     std::shared_ptr<StrictModuleObject> caller,
     bool futureAnnotations)
@@ -49,6 +50,7 @@ Analyzer::Analyzer(
           std::make_shared<DictType>(),
           errors,
           std::move(filename),
+          std::move(modName),
           std::move(scopeName),
           caller,
           futureAnnotations) {}
@@ -60,6 +62,7 @@ Analyzer::Analyzer(
     std::shared_ptr<DictType> toplevelNS,
     BaseErrorSink* errors,
     std::string filename,
+    std::string modName,
     std::string scopeName,
     std::shared_ptr<StrictModuleObject> caller,
     bool futureAnnotations)
@@ -77,12 +80,14 @@ Analyzer::Analyzer(
           scopeFactory,
           scopeFactory(table.entryFromAst(root_), std::move(toplevelNS))),
       futureAnnotations_(futureAnnotations),
-      currentExceptionContext_() {}
+      currentExceptionContext_(),
+      modName_(std::move(modName)) {}
 
 Analyzer::Analyzer(
     compiler::ModuleLoader* loader,
     BaseErrorSink* errors,
     std::string filename,
+    std::string modName,
     std::string scopeName,
     std::weak_ptr<StrictModuleObject> caller,
     int lineno,
@@ -100,21 +105,164 @@ Analyzer::Analyzer(
           errors),
       stack_(EnvT(closure)),
       futureAnnotations_(futureAnnotations),
-      currentExceptionContext_() {}
+      currentExceptionContext_(),
+      modName_(std::move(modName)) {}
+
+/* if asname is not nullptr, return asname,
+ * otherwise return base name of the alias (substring before first '.')
+ */
+std::string importedNameHelper(alias_ty alias) {
+  if (alias->asname != nullptr) {
+    return PyUnicode_AsUTF8(alias->asname);
+  } else {
+    std::string name = PyUnicode_AsUTF8(alias->name);
+    std::size_t it = name.find('.');
+    return name.substr(0, it);
+  }
+}
+
+std::shared_ptr<BaseStrictObject> Analyzer::handleFromListHelper(
+    std::shared_ptr<BaseStrictObject> fromMod,
+    const std::string& name) {
+  auto value = iLoadAttr(fromMod, name, nullptr, context_);
+  if (value != nullptr) {
+    return value;
+  }
+  auto dunderPath = iLoadAttr(fromMod, "__path__", nullptr, context_);
+  if (dunderPath == nullptr) {
+    // not a package
+    return nullptr;
+  }
+  auto modName = iLoadAttr(fromMod, "__name__", nullptr, context_);
+  auto modNameStr = std::dynamic_pointer_cast<StrictString>(modName);
+  if (modNameStr == nullptr) {
+    return nullptr;
+  }
+  return loader_->loadModuleValue(modNameStr->getValue() + "." + name);
+}
 
 void Analyzer::visitImport(const stmt_ty stmt) {
+  /*
+   * If given a name like `foo.bar`, here we try to load the real
+   * `foo.bar` module first, but counter-intuitively we won't use it.
+   * If we don't have an asname (i.e. just `import foo.bar`), all we
+   * actually care about returning is the base module (`foo`). If we
+   * do have an asname, we will re-import starting from `foo` and
+   * allow attributes in parent modules to shadow submodules (e.g.
+   * import `foo` and see if it has a `bar` attribute before falling
+   * back to importing `foo.bar`). But we import the real submodule
+   * first here anyway and check if it exists, because if it doesn't
+   * that should be an import error regardless (i.e. you're not
+   * allowed to `import foo.bar as x` if `foo` has a `bar` attribute
+   * but there is no real module `foo.bar`). In normal Python doing
+   * this import of the real submodule first is also necessary because
+   * it populates the attribute on the parent module (importing
+   * "foo.bar" has the side effect of writing a `bar` attribute on
+   * `foo`). In strict packages we don't allow that side effect, so
+   * the only purpose of loading the full submodule here is to match
+   * the runtime in failing the import if it doesn't exist.
+   */
+  if (loader_ == nullptr) {
+    return;
+  }
   auto importNames = stmt->v.Import.names;
-  Py_ssize_t n = asdl_seq_LEN(importNames);
+  int n = asdl_seq_LEN(importNames);
   // TODO: actually handle imports
   // For now, just implement single import to demonstrate
   // using the module loader
-  if (n == 1 && loader_ != nullptr) {
-    alias_ty alias = reinterpret_cast<alias_ty>(asdl_seq_GET(importNames, 0));
-    auto aliasName = reinterpret_cast<PyObject*>(alias->name);
-    const char* aliasNameStr = PyUnicode_AsUTF8(aliasName);
-    loader_->loadModule(aliasNameStr);
-  } else if (n > 0) {
-    raiseUnimplemented();
+  for (int i = 0; i < n; ++i) {
+    alias_ty alias = reinterpret_cast<alias_ty>(asdl_seq_GET(importNames, i));
+    std::string modName(PyUnicode_AsUTF8(alias->name));
+    std::shared_ptr<StrictModuleObject> leafMod =
+        loader_->loadModuleValue(modName);
+    std::shared_ptr<BaseStrictObject> mod;
+    std::string asName = importedNameHelper(alias);
+    std::size_t split = modName.find('.');
+    std::string baseName = modName.substr(0, split);
+    if (leafMod != nullptr) {
+      mod = loader_->loadModuleValue(baseName);
+      if (alias->asname != nullptr) {
+        while (split != std::string::npos) {
+          if (mod == nullptr) {
+            break;
+          }
+          std::size_t nextSplit = modName.find('.', split + 1);
+          mod = handleFromListHelper(
+              std::move(mod), modName.substr(split + 1, nextSplit));
+          split = nextSplit;
+        }
+      }
+    }
+    if (mod == nullptr && alias->asname == nullptr) {
+      mod = makeUnknown(context_, "<imported module {}>", baseName);
+    } else if (mod == nullptr) {
+      mod =
+          makeUnknown(context_, "<imported module {} as {}>", modName, asName);
+    }
+    stack_[std::move(asName)] = std::move(mod);
+  }
+}
+
+void Analyzer::visitImportFrom(const stmt_ty stmt) {
+  auto importFrom = stmt->v.ImportFrom;
+  bool hasFromName = importFrom.module != nullptr;
+  std::string fromName = hasFromName ? PyUnicode_AsUTF8(importFrom.module) : "";
+  if (fromName == "__future__") {
+    return;
+  }
+  std::string importedName;
+  if (importFrom.level > 0) {
+    // relative import
+    int level = importFrom.level;
+    std::size_t endPos = std::string::npos;
+    for (int i = 0; i < level; ++i) {
+      endPos = modName_.rfind('.', endPos);
+    }
+    std::string relativeName = modName_.substr(0, endPos);
+    if (hasFromName) {
+      importedName.reserve(endPos + fromName.size() + 1);
+      importedName.append(relativeName);
+      importedName.append(".");
+      importedName.append(fromName);
+    } else {
+      importedName = relativeName;
+    }
+  } else if (hasFromName) {
+    importedName = fromName;
+  }
+  AnalysisResult mod = loader_->loadModuleValue(importedName);
+
+  int namesSize = asdl_seq_LEN(importFrom.names);
+  for (int i = 0; i < namesSize; ++i) {
+    alias_ty alias =
+        reinterpret_cast<alias_ty>(asdl_seq_GET(importFrom.names, i));
+    std::string aliasName = PyUnicode_AsUTF8(alias->name);
+    if (aliasName == "*") {
+      // star import is prohibited
+      context_.error<StarImportDisallowedException>(importedName);
+      continue;
+    }
+    AnalysisResult modValue;
+    if (mod != nullptr) {
+      modValue = handleFromListHelper(std::move(mod), aliasName);
+    }
+    std::string nameToStore = importedNameHelper(alias);
+    std::string displayName = std::string(importFrom.level, '.') + fromName;
+    if (modValue != nullptr) {
+      stack_[std::move(nameToStore)] = std::move(modValue);
+    } else if (alias->asname == nullptr) {
+      AnalysisResult unknown = makeUnknown(
+          context_, "<{} imported from {}>", aliasName, displayName);
+      stack_[std::move(nameToStore)] = std::move(unknown);
+    } else {
+      AnalysisResult unknown = makeUnknown(
+          context_,
+          "<{} imported from {} as {}>",
+          aliasName,
+          displayName,
+          nameToStore);
+      stack_[std::move(nameToStore)] = std::move(unknown);
+    }
   }
 }
 
@@ -162,10 +310,9 @@ void Analyzer::visitAsyncFunctionDef(const stmt_ty stmt) {
 
 AnalysisResult Analyzer::visitAnnotationHelper(expr_ty annotation) {
   if (futureAnnotations_) {
-    PyObject* annotationStr = _PyAST_ExprAsUnicode(annotation);
+    Ref<> annotationStr = Ref<>::steal(_PyAST_ExprAsUnicode(annotation));
     return std::make_shared<StrictString>(
-        StrType(), context_.caller, annotationStr);
-    Py_DECREF(annotationStr);
+        StrType(), context_.caller, annotationStr.get());
   } else {
     return visitExpr(annotation);
   }
@@ -294,7 +441,7 @@ void Analyzer::visitFunctionDefHelper(
 
   // annotations object
   if (returns != nullptr) {
-    annotations[context_.makeStr("return")] = visitExpr(returns);
+    annotations[context_.makeStr("return")] = visitAnnotationHelper(returns);
   }
 
   std::shared_ptr<StrictDict> annotationsObj = std::make_shared<StrictDict>(
@@ -319,6 +466,7 @@ void Analyzer::visitFunctionDefHelper(
       std::move(kwDefaults),
       loader_,
       context_.filename,
+      modName_,
       std::move(annotationsObj),
       futureAnnotations_,
       isAsync));
@@ -511,7 +659,6 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
       classCallArg.end(),
       std::move_iterator(kwargValues.begin()),
       std::move_iterator(kwargValues.end()));
-
   auto classObj =
       iCall(metaclass, std::move(classCallArg), std::move(kwargKeys), context_);
   // Step 7, apply decorators
@@ -827,7 +974,6 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
 
 AnalysisResult Analyzer::visitName(const expr_ty expr) {
   auto name = expr->v.Name;
-  assert(name.ctx != Store && name.ctx != Del && name.ctx != AugStore);
   const char* nameStr = PyUnicode_AsUTF8(name.id);
   auto value = stack_.at(nameStr);
   if (!value) {
@@ -958,8 +1104,7 @@ AnalysisResult Analyzer::visitDict(const expr_ty expr) {
 
   for (int i = 0; i < keysLen; ++i) {
     expr_ty keyExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(dict.keys, i));
-    expr_ty valueExpr =
-        reinterpret_cast<expr_ty>(asdl_seq_GET(dict.values, i));
+    expr_ty valueExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(dict.values, i));
     if (keyExpr == nullptr) {
       // handle unpacking
       DictDataT unpackedMap = visitDictUnpackHelper(valueExpr);
@@ -1283,7 +1428,7 @@ void Analyzer::processUnhandledUserException(
       exc.getCol(),
       exc.getFilename(),
       exc.getScopeName(),
-      wrappedObject->getTypeRef().getDisplayName(),
+      wrappedObject->getDisplayName(),
       std::vector<std::string>(),
       exc.getCause());
 }

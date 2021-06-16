@@ -7,9 +7,7 @@
 namespace strictmod::objects {
 std::string StrictExceptionObject::getDisplayName() const {
   if (displayName_.empty()) {
-    std::ostringstream os;
-    os << "<exception " << type_->getDisplayName() << ">";
-    displayName_ = os.str();
+    displayName_ = type_->getDisplayName();
   }
   return displayName_;
 }

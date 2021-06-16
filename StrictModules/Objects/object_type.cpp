@@ -225,6 +225,12 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::binCmpOp(
     return (obj == right) ^ (op == Eq) ? StrictFalse() : StrictTrue();
   }
 
+  if (obj->isUnknown() || right->isUnknown()) {
+    caller.error<UnknownValueBinaryOpException>(
+        obj->getDisplayName(), kCmpOpDisplays[op], right->getDisplayName());
+    return makeUnknown(caller, "{} {} {}", obj, kCmpOpDisplays[op], right);
+  }
+
   caller.raiseTypeError(
       "'{}' is not supported between objects of type '{}' and '{}'",
       kCmpOpDisplays[op],
@@ -285,11 +291,9 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::getElement(
       if (getItem) {
         return iCall(getItem, {obj, index}, kEmptyArgNames, caller);
       }
-    } else {
-      caller.raiseTypeError(
-          "'{}' object is not subscriptable",
-          obj->getTypeRef().getDisplayName());
     }
+    caller.raiseTypeError(
+        "'{}' object is not subscriptable", obj->getTypeRef().getDisplayName());
   }
   return iCall(getItem, {index}, kEmptyArgNames, caller);
 }

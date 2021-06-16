@@ -106,7 +106,7 @@ std::shared_ptr<BaseStrictObject> UnknownObjectType::binOp(
     const CallerContext& caller) {
   caller.error<UnknownValueBinaryOpException>(
       obj->getDisplayName(), kBinOpDisplays[op], right->getDisplayName());
-  return nullptr;
+  return makeUnknown(caller, "{} {} {}", obj, right, kBinOpDisplays[op]);
 }
 
 std::shared_ptr<BaseStrictObject> UnknownObjectType::reverseBinOp(
@@ -116,7 +116,7 @@ std::shared_ptr<BaseStrictObject> UnknownObjectType::reverseBinOp(
     const CallerContext& caller) {
   caller.error<UnknownValueBinaryOpException>(
       obj->getDisplayName(), kBinOpDisplays[op], left->getDisplayName());
-  return nullptr;
+  return makeUnknown(caller, "{} {} {}", left, obj, kBinOpDisplays[op]);
 }
 
 std::shared_ptr<BaseStrictObject> UnknownObjectType::unaryOp(
@@ -211,7 +211,7 @@ std::shared_ptr<BaseStrictObject> UnknownObjectType::call(
     const CallerContext& caller) {
   std::string displayName = obj->getDisplayName();
   caller.error<UnknownValueCallException>(displayName);
-  return makeUnknown(caller, "{}", formatArgs(args, argNames));
+  return makeUnknown(caller, "{}({})", displayName, formatArgs(args, argNames));
 }
 
 std::shared_ptr<BaseStrictObject> UnknownObjectType::getTruthValue(
