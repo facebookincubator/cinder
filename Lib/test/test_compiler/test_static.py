@@ -7666,13 +7666,13 @@ class StaticCompilationTests(StaticTestBase):
             self.assertFalse(has_none([]))
             self.assertTrue(has_none([None]))
             self.assertFalse(has_none([1, 2, 3]))
-            self.assertInBytecode(has_none, "CAST")
+            self.assertNotInBytecode(has_none, "CAST")
 
             has_no_none = mod["has_no_none"]
             self.assertTrue(has_no_none([]))
             self.assertFalse(has_no_none([None]))
             self.assertTrue(has_no_none([1, 2, 3]))
-            self.assertInBytecode(has_no_none, "CAST")
+            self.assertNotInBytecode(has_no_none, "CAST")
 
     def test_decorated_function_ignored_class(self):
         codestr = """

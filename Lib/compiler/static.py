@@ -1060,6 +1060,9 @@ class Object(Value, Generic[TClass]):
         type_ctx: Optional[Class],
     ) -> bool:
         visitor.set_type(op, DYNAMIC, None)
+        if isinstance(op, (ast.Is, ast.IsNot, ast.In, ast.NotIn)):
+            visitor.set_type(node, BOOL_TYPE.instance, type_ctx)
+            return True
         visitor.set_type(node, DYNAMIC, type_ctx)
         return False
 
