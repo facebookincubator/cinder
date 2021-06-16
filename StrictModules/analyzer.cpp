@@ -344,6 +344,9 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
         objects::FloatType(), context_.caller, constant.value);
     return value;
   }
+  if (constant.value == Py_None) {
+    return objects::NoneObject();
+  }
   return defaultVisitExpr();
 }
 

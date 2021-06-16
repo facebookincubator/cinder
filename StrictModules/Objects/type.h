@@ -169,6 +169,18 @@ class StrictType : public StrictInstance {
       T func,
       std::shared_ptr<BaseStrictObject> defaultValue);
 
+  template <typename T>
+  void addMethodKwargs(const std::string& name, T func);
+
+  template <typename T>
+  void addStaticMethodKwargs(const std::string& name, T func);
+
+  template <typename T>
+  void addMethodDescr(const std::string& name, T func);
+
+  template <typename T>
+  void addBuiltinFunctionOrMethod(const std::string& name, T func);
+
  private:
   std::string name_;
   std::string moduleName_;

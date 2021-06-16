@@ -168,6 +168,34 @@ void StrictType::addStaticMethodDefault(
       name);
   setAttr(name, method);
 }
+
+template <typename T>
+void StrictType::addMethodKwargs(const std::string& name, T func) {
+  auto method = std::make_shared<StrictMethodDescr>(
+      creator_, StarCallableWrapper(func, name), nullptr, name);
+  setAttr(name, method);
+}
+
+template <typename T>
+void StrictType::addStaticMethodKwargs(const std::string& name, T func) {
+  auto method = std::make_shared<StrictBuiltinFunctionOrMethod>(
+      creator_, StarCallableWrapper(func, name), nullptr, name);
+  setAttr(name, method);
+}
+
+template <typename T>
+void StrictType::addMethodDescr(const std::string& name, T func) {
+  auto method =
+      std::make_shared<StrictMethodDescr>(creator_, func, nullptr, name);
+  setAttr(name, method);
+}
+
+template <typename T>
+void StrictType::addBuiltinFunctionOrMethod(const std::string& name, T func) {
+  auto method = std::make_shared<StrictBuiltinFunctionOrMethod>(
+      creator_, func, nullptr, name);
+  setAttr(name, method);
+}
 } // namespace strictmod::objects
 
 #endif //__STRICTM_CALLABLE_H__

@@ -69,6 +69,74 @@ Ref<> StrictDict::getPyObject() const {
 }
 
 // wrapped method
+void StrictDict::dictUpdateHelper(
+    std::shared_ptr<StrictDict> self,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    bool noPosArg,
+    const CallerContext& caller) {
+  if (!noPosArg) {
+    std::shared_ptr<BaseStrictObject> posArg = args[0];
+    std::shared_ptr<StrictDict> posDict =
+        std::dynamic_pointer_cast<StrictDict>(posArg);
+    if (posDict) {
+      self->data_.insert(posDict->data_.begin(), posDict->data_.end());
+    } else {
+      for (auto& elem : iGetElementsVec(posArg, caller)) {
+        std::vector<std::shared_ptr<BaseStrictObject>> kvTuple =
+            iGetElementsVec(elem, caller);
+        if (kvTuple.size() != 2) {
+          caller.raiseTypeError(
+              "dict update argument has size {} but should be size 2",
+              kvTuple.size());
+        }
+        self->data_[kvTuple[0]] = kvTuple[1];
+      }
+    }
+  }
+  // process kwargs
+  int offset = noPosArg ? 0 : 1;
+  for (size_t i = 0; i < namedArgs.size(); ++i) {
+    auto key = caller.makeStr(namedArgs[i]);
+    self->data_[std::move(key)] = args[i + offset];
+  }
+}
+
+std::shared_ptr<BaseStrictObject> StrictDict::dict__init__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  int posArgNum = args.size() - namedArgs.size();
+  if (posArgNum < 0 || posArgNum > 1) {
+    caller.raiseTypeError(
+        "dict.__init__() takes {} positional arguments but {} were given",
+        1,
+        posArgNum);
+  }
+  std::shared_ptr<StrictDict> self = assertStaticCast<StrictDict>(obj);
+  self->data_.clear();
+  dictUpdateHelper(std::move(self), args, namedArgs, posArgNum == 0, caller);
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictDict::dictUpdate(
+    std::shared_ptr<BaseStrictObject> obj,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  int posArgNum = args.size() - namedArgs.size();
+  if (posArgNum < 0 || posArgNum > 1) {
+    caller.raiseTypeError(
+        "dict.update() takes {} positional arguments but {} were given",
+        1,
+        posArgNum);
+  }
+  std::shared_ptr<StrictDict> self = assertStaticCast<StrictDict>(obj);
+  dictUpdateHelper(std::move(self), args, namedArgs, posArgNum == 0, caller);
+  return NoneObject();
+}
+
 std::shared_ptr<BaseStrictObject> StrictDict::dict__len__(
     std::shared_ptr<StrictDict> self,
     const CallerContext& caller) {
@@ -267,6 +335,9 @@ void StrictDictType::addMethods() {
   addMethod("keys", StrictDict::dictKeys);
   addMethod("values", StrictDict::dictValues);
   addMethod("items", StrictDict::dictItems);
+
+  addMethodDescr("__init__", StrictDict::dict__init__);
+  addMethodDescr("update", StrictDict::dictUpdate);
 }
 
 // StrictDictView

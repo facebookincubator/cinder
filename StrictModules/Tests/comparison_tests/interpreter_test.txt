@@ -2519,69 +2519,64 @@ y = x.pop('baz')
 ---
 2 4 StrictModuleUnhandledException(KeyError)
 ---
-test_dict_update @disabled
+test_dict_update
 ---
 x = {}
 y = {'abc':42}
 x.update(y)
-y['abc'] = 100
-z = x['abc']
+y.update({'abc': 100})
 ---
-z
+x
 ---
 ---
-test_dict_update_kw @disabled
+test_dict_update_kw
 ---
 x = {}
 y = {'abc':42}
 x.update(y, foo=100)
-z1 = x['abc']
-z2 = x['foo']
 ---
-z1 z2
+x
 ---
 ---
-test_dict_update_kwonly @disabled
+test_dict_update_kwonly
 ---
 x = {}
 x.update(abc=42)
-z = x['abc']
 ---
-z
+x
 ---
 ---
-test_dict_update_iterable @disabled
+test_dict_update_iterable
 ---
 x = {}
 x.update([(1, 2), ])
-z = x[1]
 ---
-z
+x
 ---
 ---
-test_dict_update_non_iterable @disabled
+test_dict_update_non_iterable
 ---
 x = {}
 x.update(None)
 ---
 ---
-StrictModuleTypeError
+2 0 StrictModuleUnhandledException(TypeError)
 ---
-test_dict_update_non_iterable_entry @disabled
+test_dict_update_non_iterable_entry
 ---
 x = {}
 x.update([None])
 ---
 ---
-StrictModuleUnhandledException
+2 0 StrictModuleUnhandledException(TypeError)
 ---
-test_dict_update_bad_entry_len @disabled
+test_dict_update_bad_entry_len
 ---
 x = {}
 x.update([(1, )])
 ---
 ---
-StrictModuleUnhandledException
+2 0 StrictModuleUnhandledException(TypeError)
 ---
 test_dict_getitem
 ---

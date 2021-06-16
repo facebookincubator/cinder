@@ -34,6 +34,18 @@ class StrictDict : public StrictIterable {
   virtual Ref<> getPyObject() const override;
 
   // wrapped method
+  static std::shared_ptr<BaseStrictObject> dict__init__(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> dictUpdate(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller);
+
   static std::shared_ptr<BaseStrictObject> dict__len__(
       std::shared_ptr<StrictDict> self,
       const CallerContext& caller);
@@ -98,6 +110,13 @@ class StrictDict : public StrictIterable {
  private:
   DictDataT data_;
   std::string displayName_;
+
+  static void dictUpdateHelper(
+      std::shared_ptr<StrictDict> self,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      bool noPosArg,
+      const CallerContext& caller);
 };
 
 class StrictDictType : public StrictIterableType {
