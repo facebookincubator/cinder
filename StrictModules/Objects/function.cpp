@@ -84,6 +84,85 @@ std::string StrictFunction::getDisplayName() const {
   return qualName_;
 }
 
+// wrapped methods
+std::shared_ptr<BaseStrictObject> StrictFunction::function__annotations__getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext&) {
+  auto self = assertStaticCast<StrictFunction>(std::move(inst));
+  return self->annotations_;
+}
+
+void StrictFunction::function__annotations__setter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  checkExternalModification(inst, caller);
+  auto self = assertStaticCast<StrictFunction>(std::move(inst));
+  auto newDict = std::dynamic_pointer_cast<StrictDict>(value);
+  if (newDict == nullptr) {
+    caller.raiseTypeError(
+        "{}.__annotations__ must be assigned to dict, not {}",
+        self->funcName_,
+        value->getTypeRef().getName());
+  }
+  self->annotations_ = std::move(newDict);
+}
+
+std::shared_ptr<BaseStrictObject> StrictFunction::function__defaults__getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  auto self = assertStaticCast<StrictFunction>(std::move(inst));
+  if (self->posDefaults_.empty()) {
+    return NoneObject();
+  }
+  return std::make_shared<StrictTuple>(
+      TupleType(), caller.caller, self->posDefaults_);
+}
+
+void StrictFunction::function__defaults__setter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  checkExternalModification(inst, caller);
+  auto self = assertStaticCast<StrictFunction>(std::move(inst));
+  auto newDefaults = std::dynamic_pointer_cast<StrictTuple>(value);
+  if (newDefaults == nullptr) {
+    caller.raiseTypeError(
+        "{}.__defaults__ must be assigned to tuple, not {}",
+        self->funcName_,
+        value->getTypeRef().getName());
+  }
+
+  const auto& newDefaultVec = newDefaults->getData();
+  self->posDefaults_.clear();
+  self->posDefaults_.insert(
+      self->posDefaults_.end(), newDefaultVec.begin(), newDefaultVec.end());
+}
+
+std::shared_ptr<BaseStrictObject> StrictFunction::function__kwdefaults__getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  auto self = assertStaticCast<StrictFunction>(std::move(inst));
+  if (self->kwDefaultsObj_ == nullptr) {
+    if (self->kwDefaults_.empty()) {
+      self->kwDefaultsObj_ = NoneObject();
+    } else {
+      DictDataT kwDefaultsDict;
+      for (std::size_t i = 0; i < self->kwDefaults_.size(); ++i) {
+        kwDefaultsDict[caller.makeStr(self->kwonlyArgs_[i])] =
+            self->kwDefaults_[i];
+      }
+      self->kwDefaultsObj_ = std::make_shared<StrictDict>(
+          DictObjectType(), caller.caller, std::move(kwDefaultsDict));
+    }
+  }
+  return self->kwDefaultsObj_;
+}
+
+// Function Type
 std::shared_ptr<BaseStrictObject> StrictFuncType::getDescr(
     std::shared_ptr<BaseStrictObject> obj,
     std::shared_ptr<BaseStrictObject> inst,
@@ -166,6 +245,21 @@ std::vector<std::type_index> StrictFuncType::getBaseTypeinfos() const {
 
 void StrictFuncType::addMethods() {
   addGetSetDescriptor("__dict__", getDunderDictAllowed, setDunderDict, nullptr);
+  addGetSetDescriptor(
+      kDunderAnnotations,
+      StrictFunction::function__annotations__getter,
+      StrictFunction::function__annotations__setter,
+      nullptr);
+  addGetSetDescriptor(
+      "__defaults__",
+      StrictFunction::function__defaults__getter,
+      StrictFunction::function__defaults__setter,
+      nullptr);
+  addGetSetDescriptor(
+      "__kwdefaults__",
+      StrictFunction::function__kwdefaults__getter,
+      nullptr,
+      nullptr);
 }
 
 } // namespace strictmod::objects

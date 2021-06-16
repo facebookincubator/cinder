@@ -439,9 +439,8 @@ y = C('abc')
 x y
 ---
 ---
-test_init_subclass @disabled
+test_init_subclass
 ---
-
 class Base:
     def __init_subclass__(cls, extra=0):
         cls.extra = extra
@@ -459,9 +458,8 @@ class E(C, extra=1):
 x = C.extra
 y = D.extra
 z = E.extra
-n = getattr(Base, "extra", None)
 ---
-x y z n
+x y z
 ---
 ---
 test_cell_meth_with_instance @disabled
@@ -2870,9 +2868,9 @@ a = f.__dict__['a']
 a
 ---
 ---
-test_func_annotations @disabled
+test_func_annotations
 ---
-def f(a: 42, b: int, *args: str, x:bool=False, **kwargs: complex) -> None:
+def f(a: 42, b: int, *args: str, x:bool=False, **kwargs: list) -> None:
     pass
 ann = f.__annotations__
 a = ann['a']
@@ -2885,7 +2883,7 @@ ret = ann['return']
 a b args x kwargs ann
 ---
 ---
-test_func_no_defaults @disabled
+test_func_no_defaults
 ---
 def f(a, b) -> None:
     pass
@@ -2895,7 +2893,7 @@ kwdefaults = f.__kwdefaults__
 defaults kwdefaults
 ---
 ---
-test_func_defaults @disabled
+test_func_defaults
 ---
 def f(a = 1, b = 2) -> None:
     pass
@@ -2906,7 +2904,7 @@ b = defaults[1]
 a b defaults
 ---
 ---
-test_func_kwdefaults @disabled
+test_func_kwdefaults
 ---
 def f(*, a = 1) -> None:
     pass
@@ -4042,7 +4040,7 @@ str(C())
 ---
 StrictModuleTypeError
 ---
-test_str_compare @disabled
+test_str_compare
 ---
 b1 = "" > ""
 b2 = "a" == "a"
@@ -4054,7 +4052,7 @@ b6 = "abc" < "bbc" > "bac"
 b1 b2 b3 b4 b5 b6
 ---
 ---
-test_str_subclass_compare @disabled
+test_str_subclass_compare
 ---
 class C(str):
     pass
@@ -4474,7 +4472,7 @@ s = f'{x!a}'
 ---
 2 4 UnsupportedException 'joined str to ascii' foo
 ---
-test_fstring_str_conversion @disabled
+test_fstring_str_conversion
 ---
 x = 'foo'
 s = f'{x!s}'
@@ -4482,9 +4480,11 @@ s = f'{x!s}'
 s
 ---
 ---
-test_fstring_repr_conversion @disabled
+test_fstring_repr_conversion
 ---
 class C:
+    def __str__(self):
+        return 'C'
     def __repr__(self):
         return 'obj'
 s = f'{C()!r}'
@@ -4500,7 +4500,7 @@ s = f'{x:5}'
 s
 ---
 ---
-test_fstring_str_conversion_from_int @disabled
+test_fstring_str_conversion_from_int
 ---
 x = 42
 s = f'{x!s}'
@@ -4508,7 +4508,7 @@ s = f'{x!s}'
 s
 ---
 ---
-test_fstring_int @disabled
+test_fstring_int
 ---
 x = 42
 s = f'{x}'
@@ -4516,7 +4516,7 @@ s = f'{x}'
 s
 ---
 ---
-test_fstring_format_spec @disabled
+test_fstring_format_spec
 ---
 s = f'{42:3}'
 ---
@@ -4544,7 +4544,7 @@ x = type(None)
 x
 ---
 ---
-test_function_call_exception @disabled
+test_function_call_exception
 ---
 import unknown
 def f():
@@ -4552,7 +4552,7 @@ def f():
 x = f()
 ---
 ---
-StrictModuleUnsafeCallException
+4 4 UnsafeCallException f 3 4 UnknownValueAttributeException <imported module unknown> g
 ---
 test_with_enter
 ---
@@ -8942,16 +8942,17 @@ p.y.attr
 ---
 UnknownValueAttributeException
 ---
-test_annotations @disabled
+test_annotations
 ---
 class C:
     a: int
-    b: T
-C.__annotations__
+    b: bool
+t = C.__annotations__
+---
+t
 ---
 ---
----
-test_annotations_import @disabled
+test_annotations_import
 ---
 from outside import unknown
 class C:
@@ -8960,7 +8961,7 @@ class C:
 C.__annotations__["b"].attr
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
 test_dataclass_def @disabled
 ---

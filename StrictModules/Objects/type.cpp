@@ -213,7 +213,7 @@ std::shared_ptr<BaseStrictObject> StrictType::type__call__(
   newArgs.push_back(self);
   newArgs.insert(newArgs.end(), args.begin(), args.end());
   auto instance = iCall(std::move(newFunc), newArgs, namedArgs, caller);
-  auto initFunc = instance->getTypeRef().typeLookup("__init__", caller);
+  auto initFunc = instance->getTypeRef().typeLookup(kDunderInit, caller);
   if (initFunc != nullptr) {
     auto initMethod = iGetDescr(initFunc, instance, self, caller);
     iCall(initMethod, args, namedArgs, caller);
@@ -386,7 +386,21 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
   }
 
   // handle __init_subclass__ from superclass
-  // TODO
+  auto super = std::make_shared<StrictSuper>(
+      SuperType(), caller.caller, resultType, resultType, resultType, true);
+  auto superInitSubclass =
+      iLoadAttr(std::move(super), "__init_subclass__", nullptr, caller);
+
+  if (superInitSubclass != nullptr) {
+    std::vector<std::shared_ptr<BaseStrictObject>> argsToInitSubclass;
+    argsToInitSubclass.reserve(namedArgs.size());
+    argsToInitSubclass.insert(
+        argsToInitSubclass.end(),
+        std::move_iterator(args.begin() + posArgSize),
+        std::move_iterator(args.end()));
+    iCall(superInitSubclass, std::move(argsToInitSubclass), namedArgs, caller);
+  }
+
   return resultType;
 }
 

@@ -29,7 +29,7 @@ std::shared_ptr<BaseStrictObject> NoneType_::getTruthValue(
 
 void NoneType_::addMethods() {
   addPyWrappedMethodObj<>(
-      "__repr__",
+      kDunderRepr,
       reinterpret_cast<PyObject*>(&_PyNone_Type),
       StrictString::strFromPyObj);
 }

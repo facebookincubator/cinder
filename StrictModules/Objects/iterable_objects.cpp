@@ -434,7 +434,7 @@ void StrictListType::addMethods() {
   StrictSequenceType::addMethods();
   addMethod("append", StrictList::listAppend);
   addMethod("copy", StrictList::listCopy);
-  addMethodDefault("__init__", StrictList::list__init__, nullptr);
+  addMethodDefault(kDunderInit, StrictList::list__init__, nullptr);
   addMethod("extend", StrictList::listExtend);
   addMethod("__add__", StrictList::list__add__);
   addMethod("__eq__", StrictList::list__eq__);
@@ -442,7 +442,7 @@ void StrictListType::addMethods() {
   addMethod(kDunderSetItem, StrictList::list__setitem__);
 
   addPyWrappedMethodObj<>(
-      "__repr__",
+      kDunderRepr,
       reinterpret_cast<PyObject*>(&PyList_Type),
       StrictString::strFromPyObj);
 }
@@ -645,7 +645,7 @@ void StrictTupleType::addMethods() {
   addMethod(kDunderGetItem, StrictTuple::tuple__getitem__);
 
   addPyWrappedMethodObj<>(
-      "__repr__",
+      kDunderRepr,
       reinterpret_cast<PyObject*>(&PyTuple_Type),
       StrictString::strFromPyObj);
 }
@@ -896,7 +896,7 @@ void StrictSetType::addMethods() {
   StrictSetLikeType::addMethods();
   addMethod("add", StrictSet::setAdd);
   addPyWrappedMethodObj<>(
-      "__repr__",
+      kDunderRepr,
       reinterpret_cast<PyObject*>(&PySet_Type),
       StrictString::strFromPyObj);
 }
@@ -991,7 +991,7 @@ std::vector<std::type_index> StrictFrozenSetType::getBaseTypeinfos() const {
 void StrictFrozenSetType::addMethods() {
   StrictSetLikeType::addMethods();
   addPyWrappedMethodObj<>(
-      "__repr__",
+      kDunderRepr,
       reinterpret_cast<PyObject*>(&PyFrozenSet_Type),
       StrictString::strFromPyObj);
 }

@@ -444,7 +444,7 @@ void setDunderDict(
 }
 
 void StrictObjectType::addMethods() {
-  addMethodDescr("__init__", object__init__);
+  addMethodDescr(kDunderInit, object__init__);
   addBuiltinFunctionOrMethod("__new__", object__new__);
   addMethod("__eq__", object__eq__);
   addMethod("__ne__", object__ne__);
@@ -452,6 +452,10 @@ void StrictObjectType::addMethods() {
   addMethod("__gt__", object__othercmp__);
   addMethod("__le__", object__othercmp__);
   addMethod("__lt__", object__othercmp__);
+  addMethod("__format__", object__format__);
+  addMethod(kDunderRepr, object__repr__);
+  addMethod("__hash__", object__hash__);
+  addMethod("__hash__", object__init_subclass__);
   addGetSetDescriptor(kDunderClass, getDunderClass, nullptr, nullptr);
   addGetSetDescriptor(kDunderDict, getDunderDictDisallowed, nullptr, nullptr);
 }
@@ -517,5 +521,42 @@ std::shared_ptr<BaseStrictObject> object__othercmp__(
     const CallerContext&,
     std::shared_ptr<BaseStrictObject>) {
   return NotImplemented();
+}
+
+std::shared_ptr<BaseStrictObject> object__format__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> formatSpec) {
+  auto formatSpecStr = std::dynamic_pointer_cast<StrictString>(formatSpec);
+  if (formatSpecStr == nullptr) {
+    caller.raiseTypeError(
+        "format spec must be str, not {}", formatSpec->getTypeRef().getName());
+  }
+  if (formatSpecStr->getValue() != "") {
+    caller.raiseTypeError(
+        "unsupported format spec {} passed to {}.__format__",
+        formatSpecStr->getValue(),
+        obj->getTypeRef().getName());
+  }
+  return iCall(StrType(), {std::move(obj)}, kEmptyArgNames, caller);
+}
+
+std::shared_ptr<BaseStrictObject> object__repr__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  return caller.makeStr(
+      fmt::format("<{} object>", obj->getTypeRef().getName()));
+}
+
+std::shared_ptr<BaseStrictObject> object__hash__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller) {
+  return makeUnknown(caller, "{}.__hash__()", obj);
+}
+
+std::shared_ptr<BaseStrictObject> object__init_subclass__(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext&) {
+  return NoneObject();
 }
 } // namespace strictmod::objects

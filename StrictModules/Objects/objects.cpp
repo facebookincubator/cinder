@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/objects.h"
 
+#include "StrictModules/Objects/callable_wrapper.h"
+
 namespace strictmod::objects {
 
 //--------------------------Object Factory----------------------------
@@ -371,6 +373,14 @@ std::shared_ptr<BaseStrictObject> StrictFalse() {
   return o;
 }
 
+//--------------------Builtin Function Declarations-----------------------
+
+std::shared_ptr<BaseStrictObject> StrictRepr() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(reprImpl, "repr"), nullptr, "repr"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -404,6 +414,7 @@ bool initializeBuiltinsModuleDict() {
         {"NotImplemented", NotImplemented()},
         {"True", StrictTrue()},
         {"False", StrictFalse()},
+        {"repr", StrictRepr()},
     });
     kBuiltinsModule->getDict().insert(builtinsDict.begin(), builtinsDict.end());
   }

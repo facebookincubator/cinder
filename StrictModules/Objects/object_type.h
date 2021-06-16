@@ -145,6 +145,23 @@ std::shared_ptr<BaseStrictObject> object__othercmp__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> other);
 
+std::shared_ptr<BaseStrictObject> object__format__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> formatSpec);
+
+std::shared_ptr<BaseStrictObject> object__repr__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller);
+
+std::shared_ptr<BaseStrictObject> object__hash__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller);
+
+std::shared_ptr<BaseStrictObject> object__init_subclass__(
+    std::shared_ptr<BaseStrictObject> obj,
+    const CallerContext& caller);
+
 // operations on __dict__
 std::shared_ptr<BaseStrictObject> getDunderDictAllowed(
     std::shared_ptr<BaseStrictObject> inst,

@@ -259,7 +259,7 @@ std::vector<std::type_index> StrictClassMethodType::getBaseTypeinfos() const {
 }
 
 void StrictClassMethodType::addMethods() {
-  addMethod("__init__", StrictClassMethod::classmethod__init__);
+  addMethod(kDunderInit, StrictClassMethod::classmethod__init__);
   addMethod("__get__", StrictClassMethod::classmethod__get__);
 }
 
@@ -327,7 +327,7 @@ std::vector<std::type_index> StrictStaticMethodType::getBaseTypeinfos() const {
 }
 
 void StrictStaticMethodType::addMethods() {
-  addMethod("__init__", StrictStaticMethod::staticmethod__init__);
+  addMethod(kDunderInit, StrictStaticMethod::staticmethod__init__);
   addMethod("__get__", StrictStaticMethod::staticmethod__get__);
 }
 } // namespace strictmod::objects

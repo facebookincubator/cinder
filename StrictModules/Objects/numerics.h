@@ -289,6 +289,10 @@ class StrictBool : public StrictInt {
   static std::shared_ptr<BaseStrictObject> boolFromPyObj(
       Ref<> pyObj,
       const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> boolOrNotImplementedFromPyObj(
+      Ref<> pyObj,
+      const CallerContext& caller);
 };
 
 class StrictBoolType : public StrictIntType {

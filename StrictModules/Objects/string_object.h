@@ -43,7 +43,21 @@ class StrictString : public StrictInstance {
       const CallerContext& caller);
 
   // wrapped methods
+  static std::shared_ptr<BaseStrictObject> str__new__(
+      std::shared_ptr<StrictString>,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> instType,
+      std::shared_ptr<BaseStrictObject> object);
+
   static std::shared_ptr<BaseStrictObject> str__len__(
+      std::shared_ptr<StrictString> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> str__str__(
+      std::shared_ptr<StrictString> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> str__iter__(
       std::shared_ptr<StrictString> self,
       const CallerContext& caller);
 

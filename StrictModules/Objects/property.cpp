@@ -215,7 +215,7 @@ std::shared_ptr<StrictType> StrictPropertyType::recreate(
 }
 
 void StrictPropertyType::addMethods() {
-  addMethodDescr("__init__", StrictProperty::property__init__);
+  addMethodDescr(kDunderInit, StrictProperty::property__init__);
   addMethod("getter", StrictProperty::propertyGetter);
   addMethod("setter", StrictProperty::propertySetter);
   addMethod("deleter", StrictProperty::propertyDeleter);

@@ -87,6 +87,34 @@ class StrictFunction : public StrictInstance {
 
   virtual std::string getDisplayName() const override;
 
+  // wrapped methods
+  static std::shared_ptr<BaseStrictObject> function__annotations__getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller);
+
+  static void function__annotations__setter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<BaseStrictObject> value,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> function__defaults__getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller);
+
+  static void function__defaults__setter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<BaseStrictObject> value,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> function__kwdefaults__getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller);
+
+  // TODO code object
+
  private:
   std::string funcName_;
   std::string qualName_;
@@ -116,6 +144,8 @@ class StrictFunction : public StrictInstance {
                               // annotations
   bool isCoroutine_;
   FuncSignature signature_;
+
+  std::shared_ptr<BaseStrictObject> kwDefaultsObj_;
 };
 
 class StrictFuncType : public StrictObjectType {

@@ -2,6 +2,7 @@
 #ifndef __STRICTM_OBJECTS_H__
 #define __STRICTM_OBJECTS_H__
 #include "StrictModules/Objects/base_object.h"
+#include "StrictModules/Objects/builtins.h"
 #include "StrictModules/Objects/callable.h"
 #include "StrictModules/Objects/constants.h"
 #include "StrictModules/Objects/dict_object.h"
@@ -104,8 +105,11 @@ static const std::string kDunderLen = "__len__";
 static const std::string kDunderIter = "__iter__";
 static const std::string kDunderNext = "__next__";
 static const std::string kDunderStr = "__str__";
+static const std::string kDunderRepr = "__repr__";
 static const std::string kDunderClass = "__class__";
 static const std::string kDunderDict = "__dict__";
+static const std::string kDunderAnnotations = "__annotations__";
+static const std::string kDunderInit = "__init__";
 
 /* indices corresponds to enum values in Python-ast.h
  * Do not change the order of names.

@@ -187,7 +187,7 @@ std::shared_ptr<StrictType> StrictSuperType::recreate(
 }
 
 void StrictSuperType::addMethods() {
-  addMethodDefault("__init__", StrictSuper::super__init__, nullptr);
+  addMethodDefault(kDunderInit, StrictSuper::super__init__, nullptr);
 }
 
 bool StrictSuperType::isBaseType() const {

@@ -390,11 +390,11 @@ void StrictDictType::addMethods() {
   addMethod("values", StrictDict::dictValues);
   addMethod("items", StrictDict::dictItems);
 
-  addMethodDescr("__init__", StrictDict::dict__init__);
+  addMethodDescr(kDunderInit, StrictDict::dict__init__);
   addMethodDescr("update", StrictDict::dictUpdate);
 
   addPyWrappedMethodObj<>(
-      "__repr__",
+      kDunderRepr,
       reinterpret_cast<PyObject*>(&PyDict_Type),
       StrictString::strFromPyObj);
 }

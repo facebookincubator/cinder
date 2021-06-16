@@ -14,7 +14,6 @@ namespace strictmod {
 using namespace objects;
 
 // AnalysisContextManager
-static const std::string kDunderAnnotations = "__annotations__";
 class LoopContinueException {};
 class LoopBreakException {};
 
@@ -1506,11 +1505,13 @@ AnalysisResult Analyzer::visitFormattedValue(const expr_ty expr) {
       break;
     case 's': {
       // call str()
-      value = iCall(StrType(), {value}, kEmptyArgNames, context_);
+      value = iCall(StrType(), {std::move(value)}, kEmptyArgNames, context_);
       break;
     }
     case 'r':
-      break; // TODO call repr()
+      // call repr()
+      value = reprImpl(nullptr, context_, std::move(value));
+      break;
     case 'a':
       context_.error<UnsupportedException>(
           "'joined str to ascii'", value->getDisplayName());

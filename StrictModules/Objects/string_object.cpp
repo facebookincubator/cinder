@@ -88,6 +88,48 @@ std::shared_ptr<BaseStrictObject> StrictString::listFromPyStrList(
       ListType(), caller.caller, std::move(data));
 }
 
+std::shared_ptr<BaseStrictObject> StrictString::str__new__(
+    std::shared_ptr<StrictString>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> instType,
+    std::shared_ptr<BaseStrictObject> object) {
+  std::shared_ptr<StrictStringType> strType =
+      std::dynamic_pointer_cast<StrictStringType>(instType);
+  if (strType == nullptr) {
+    caller.raiseExceptionStr(
+        TypeErrorType(), "X is not a str type object ({})", instType);
+  }
+  if (object == nullptr) {
+    return std::make_shared<StrictString>(
+        std::move(strType), caller.caller, "");
+  }
+  std::string funcName = kDunderStr;
+  auto func = iLoadAttrOnType(object, kDunderStr, nullptr, caller);
+  if (func == nullptr) {
+    funcName = kDunderRepr;
+    func = iLoadAttrOnType(object, kDunderRepr, nullptr, caller);
+  }
+  if (func != nullptr) {
+    auto result = iCall(std::move(func), kEmptyArgs, kEmptyArgNames, caller);
+    auto resultStr = std::dynamic_pointer_cast<StrictString>(result);
+    if (resultStr == nullptr) {
+      caller.raiseTypeError(
+          "{}.{} must return string, not {}",
+          object->getTypeRef().getName(),
+          std::move(funcName),
+          result->getTypeRef().getName());
+    }
+    if (strType == StrType()) {
+      return resultStr;
+    }
+    return std::make_shared<StrictString>(
+        std::move(strType), caller.caller, resultStr->getValue());
+  } else {
+    caller.error<UnsupportedException>("str()", object->getDisplayName());
+    return makeUnknown(caller, "str({})", object);
+  }
+}
+
 std::shared_ptr<BaseStrictObject> StrictString::str__len__(
     std::shared_ptr<StrictString> self,
     const CallerContext& caller) {
@@ -130,6 +172,27 @@ std::shared_ptr<BaseStrictObject> StrictString::strJoin(
   return caller.makeStr(ss.str());
 }
 
+std::shared_ptr<BaseStrictObject> StrictString::str__str__(
+    std::shared_ptr<StrictString> self,
+    const CallerContext& caller) {
+  return caller.makeStr(self->getValue());
+}
+
+std::shared_ptr<BaseStrictObject> StrictString::str__iter__(
+    std::shared_ptr<StrictString> self,
+    const CallerContext& caller) {
+  const std::string& value = self->getValue();
+  std::vector<std::shared_ptr<BaseStrictObject>> chars;
+  chars.resize(value.size());
+  for (char c : value) {
+    chars.push_back(caller.makeStr(std::string{c}));
+  }
+  auto list = std::make_shared<StrictTuple>(
+      TupleType(), caller.caller, std::move(chars));
+  return std::make_shared<StrictSequenceIterator>(
+      SequenceIteratorType(), caller.caller, std::move(list));
+}
+
 // StrictStringType
 std::unique_ptr<BaseStrictObject> StrictStringType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
@@ -166,16 +229,31 @@ Ref<> StrictStringType::getPyObject() const {
 }
 
 void StrictStringType::addMethods() {
+  addStaticMethodDefault("__new__", StrictString::str__new__, nullptr);
   addMethod(kDunderLen, StrictString::str__len__);
+  addMethod(kDunderStr, StrictString::str__str__);
+  addMethod(kDunderIter, StrictString::str__iter__);
   addMethod("__eq__", StrictString::str__eq__);
   addMethod("join", StrictString::strJoin);
   PyObject* strType = reinterpret_cast<PyObject*>(&PyUnicode_Type);
   addPyWrappedMethodObj<1>("__format__", strType, StrictString::strFromPyObj);
-  addPyWrappedMethodObj<>("__repr__", strType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<>(kDunderRepr, strType, StrictString::strFromPyObj);
   addPyWrappedMethodObj<1>("__mod__", strType, StrictString::strFromPyObj);
   addPyWrappedMethodObj<>("isidentifier", strType, StrictBool::boolFromPyObj);
   addPyWrappedMethodObj<>("lower", strType, StrictString::strFromPyObj);
   addPyWrappedMethodObj<>("upper", strType, StrictString::strFromPyObj);
+
+  addPyWrappedMethodObj<1>(
+      "__ne__", strType, StrictBool::boolOrNotImplementedFromPyObj);
+  addPyWrappedMethodObj<1>(
+      "__ge__", strType, StrictBool::boolOrNotImplementedFromPyObj);
+  addPyWrappedMethodObj<1>(
+      "__gt__", strType, StrictBool::boolOrNotImplementedFromPyObj);
+  addPyWrappedMethodObj<1>(
+      "__le__", strType, StrictBool::boolOrNotImplementedFromPyObj);
+  addPyWrappedMethodObj<1>(
+      "__lt__", strType, StrictBool::boolOrNotImplementedFromPyObj);
+
   addPyWrappedMethodDefaultObj(
       "strip", strType, StrictString::strFromPyObj, 1, 1);
   addPyWrappedMethodDefaultObj(
