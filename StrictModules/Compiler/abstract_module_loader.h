@@ -96,6 +96,10 @@ class ModuleLoader {
 
   bool setImportPath(std::vector<std::string> importPath);
 
+  PyArena* getArena() {
+    return arena_;
+  }
+
  private:
   static const std::string kArenaNewErrorMsg;
   std::vector<std::string> importPath_;

@@ -120,6 +120,10 @@ std::shared_ptr<BaseStrictObject> StrictFuncType::call(
         func->getBody(), func->getSymtableEntry(), std::move(callArgs));
   } catch (FunctionReturnException& ret) {
     return ret.getVal();
+  } catch (const YieldReachedException&) {
+    // calling a coroutine function return a generator function object
+    return std::make_shared<StrictGeneratorFunction>(
+        GeneratorFuncIteratorType(), caller.caller, func);
   } catch (const StrictModuleException& exc) {
     // function call is unsafe
     caller.error<UnsafeCallException>(

@@ -68,6 +68,43 @@ StrictSequenceIterator::sequenceIterator__iter__(
   return self;
 }
 
+// GeneratorExp
+
+StrictGeneratorExp::StrictGeneratorExp(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::vector<std::shared_ptr<BaseStrictObject>> data)
+    : StrictIteratorBase(std::move(type), std::move(creator)),
+      data_(std::move(data)),
+      it_(data_.begin()) {}
+
+std::shared_ptr<BaseStrictObject> StrictGeneratorExp::next(
+    const CallerContext&) {
+  if (it_ == data_.end()) {
+    return nullptr;
+  }
+  return *(it_++);
+}
+
+bool StrictGeneratorExp::isEnd() const {
+  return it_ == data_.end();
+}
+
+std::shared_ptr<BaseStrictObject> StrictGeneratorExp::generatorExp__next__(
+    std::shared_ptr<StrictGeneratorExp> self,
+    const CallerContext& caller) {
+  if (self->isEnd()) {
+    caller.raiseException(StopIterationType());
+  }
+  return self->next(caller);
+}
+
+std::shared_ptr<BaseStrictObject> StrictGeneratorExp::generatorExp__iter__(
+    std::shared_ptr<StrictGeneratorExp> self,
+    const CallerContext&) {
+  return self;
+}
+
 // StrictSetIterator final
 StrictSetIterator::StrictSetIterator(
     std::shared_ptr<StrictType> type,
@@ -342,6 +379,36 @@ std::vector<std::type_index> StrictSequenceIteratorType::getBaseTypeinfos()
   std::vector<std::type_index> baseVec =
       StrictIteratorBaseType::getBaseTypeinfos();
   baseVec.emplace_back(typeid(StrictSequenceIteratorType));
+  return baseVec;
+}
+
+// StrictGeneratorExpType
+void StrictGeneratorExpType::addMethods() {
+  StrictIteratorBaseType::addMethods();
+  addMethod(kDunderIter, StrictGeneratorExp::generatorExp__iter__);
+  addMethod(kDunderNext, StrictGeneratorExp::generatorExp__next__);
+}
+
+std::shared_ptr<StrictType> StrictGeneratorExpType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictGeneratorExpType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictGeneratorExpType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictGeneratorExpType));
   return baseVec;
 }
 

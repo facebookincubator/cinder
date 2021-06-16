@@ -25,6 +25,8 @@ class FunctionReturnException {
   std::shared_ptr<BaseStrictObject> val_;
 };
 
+class YieldReachedException {};
+
 class StrictFunction : public StrictInstance {
  public:
   StrictFunction(

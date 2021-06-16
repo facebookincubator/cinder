@@ -41,6 +41,7 @@ std::shared_ptr<StrictType> FrozensetType();
 std::shared_ptr<StrictType> DictObjectType();
 std::shared_ptr<StrictType> DictViewType();
 std::shared_ptr<StrictType> SequenceIteratorType();
+std::shared_ptr<StrictType> GeneratorExpType();
 std::shared_ptr<StrictType> SetIteratorType();
 std::shared_ptr<StrictType> CallableIteratorType();
 std::shared_ptr<StrictType> GenericObjectIteratorType();

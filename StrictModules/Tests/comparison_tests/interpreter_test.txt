@@ -3674,7 +3674,7 @@ x = __C__.f()
 x
 ---
 ---
-test_comprehension @disabled
+test_comprehension
 ---
 l1 = [1, 2, 3]
 l2 = [6, 7, 8]
@@ -4431,21 +4431,22 @@ A() <= B()
 ---
 7 0 StrictModuleUnhandledException(TypeError)
 ---
-test_fstring_empty @disabled
+test_fstring_empty
 ---
 s = f'abc'
 ---
 s
 ---
 ---
-test_fstring_join_unknown @disabled
+test_fstring_join_unknown
 ---
-s = f'{x}'
+from m import a
+s = f'{a}'
 ---
 ---
-UnknownValueAttributeException
+2 4 UnknownValueAttributeException <a imported from m> __format__
 ---
-test_fstring_simple @disabled
+test_fstring_simple
 ---
 x = 'foo'
 s = f'{x}'
@@ -4708,7 +4709,7 @@ h()
 ---
 ---
 ---
-test_yield_unsupported @disabled
+test_yield_unsupported
 ---
 def coroutine_func():
     x = 1
@@ -4718,9 +4719,9 @@ x = coroutine_func()
 x.__next__()
 ---
 ---
-StrictModuleCoroutineFunctionNotSupportedException
+6 0 CoroutineFunctionNotSupportedException coroutine_func
 ---
-test_yield_from_unsupported @disabled
+test_yield_from_unsupported
 ---
 def coroutine_func():
     x = 1
@@ -4734,7 +4735,7 @@ x = coroutine_func_2()
 x.__next__()
 ---
 ---
-StrictModuleCoroutineFunctionNotSupportedException
+10 0 CoroutineFunctionNotSupportedException coroutine_func_2
 ---
 test_async_call @disabled
 ---
@@ -4746,9 +4747,8 @@ f(l)
 l
 ---
 ---
-test_method_attr @disabled
+test_method_attr
 ---
-
 class C:
     def f(self):
         pass
@@ -5127,7 +5127,7 @@ class Iterator:
         self.i = 0
     def __next__(self):
         if self.i == 0:
-            self.i += 1
+            self.i = self.i + 1
             return 42
         raise StopIteration()
 
@@ -5932,15 +5932,16 @@ d = {a, b, c}
 d
 ---
 ---
-test_iterator_3 @disabled
+test_iterator_3
 ---
 l = (i for i in [1, 2, 3])
 i = l.__iter__()
 a = i.__next__()
 b = i.__next__()
 c = i.__next__()
+d = {a, b, c}
 ---
-a b c
+d
 ---
 ---
 test_iterator_4
@@ -6059,7 +6060,7 @@ i.__next__()
 ---
 6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iterator_stop_3 @disabled
+test_iterator_stop_3
 ---
 l = (i for i in [1, 2, 3])
 i = l.__iter__()
@@ -6069,7 +6070,7 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
 test_iterator_stop_4
 ---
@@ -7063,7 +7064,7 @@ import m as a
 1 < a < 2
 ---
 ---
-2 0 UnknownValueBinaryOpException 1 < <imported module m as a>
+2 0 UnknownValueAttributeException <imported module m as a> __gt__
 2 0 UnknownValueBoolException 1 < <imported module m as a>
 ---
 test_import_if_exp_assign_usage @disabled
@@ -7191,7 +7192,9 @@ with a:
     b = 1
 ---
 ---
+2 0 UnknownValueAttributeException <imported module m as a> __enter__
 2 0 UnknownValueCallException <imported module m as a>.__enter__
+2 0 UnknownValueAttributeException <imported module m as a> __exit__
 2 0 UnknownValueCallException <imported module m as a>.__exit__
 2 0 UnknownValueBoolException <imported module m as a>.__exit__(None,None,None,)
 ---
@@ -7225,46 +7228,47 @@ with E() as c:
 ---
 9 8 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_comprehension_usage @disabled
+test_import_comprehension_usage
 ---
 import m as a
 b = [a.x for i in [1, 2]]
 ---
 ---
-UnknownValueAttributeException
+2 5 UnknownValueAttributeException <imported module m as a> x
+2 5 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_comprehension_member_usage @disabled
+test_import_comprehension_member_usage
 ---
 import m as a
 b = [i for i in [1, 2, a.x]]
 ---
 ---
-UnknownValueAttributeException
+2 23 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_comprehension_transitive_usage @disabled
+test_import_comprehension_transitive_usage
 ---
 import m as a
 b = [i.__bool__ for i in [1, 2, a]]
 ---
 ---
-UnknownValueAttributeException
+2 5 UnknownValueAttributeException <imported module m as a> __bool__
 ---
-test_import_comprehension_shadow_ok @disabled
+test_import_comprehension_shadow_ok
 ---
 import m as a
 b = [a.__bool__ for a in [1, 2, 3]]
 ---
 ---
 ---
-test_import_comprehension_shadow_usage @disabled
+test_import_comprehension_shadow_usage
 ---
 import m as a
 b = [a.__bool__ for a in [1, 2, a]]
 ---
 ---
-UnknownValueAttributeException
+2 5 UnknownValueAttributeException <imported module m as a> __bool__
 ---
-test_import_comprehension_nested_usage @disabled
+test_import_comprehension_nested_usage
 ---
 import m as a
 l = [1, 2, a]
@@ -7273,7 +7277,7 @@ l2 = [1, 2, 3]
 b = [a.__bool__ for l2 in l1 for a in l2]
 ---
 ---
-UnknownValueAttributeException
+5 5 UnknownValueAttributeException <imported module m as a> __bool__
 ---
 test_import_dict_key_usage
 ---

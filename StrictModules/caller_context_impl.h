@@ -12,10 +12,12 @@ namespace strictmod {
 
 template <typename... Args>
 std::unique_ptr<StrictModuleUserException<BaseStrictObject>>
-CallerContext::exception(std::shared_ptr<StrictType> excType, Args...) const {
+CallerContext::exception(std::shared_ptr<StrictType> excType, Args... args)
+    const {
   auto excDict = std::make_shared<objects::DictType>();
-  // TODO populate dict with `args`
-  (*excDict)["args"] = nullptr;
+  std::vector<std::shared_ptr<BaseStrictObject>> argsV{args...};
+  (*excDict)["args"] = std::make_shared<objects::StrictTuple>(
+      objects::TupleType(), caller, std::move(argsV));
   auto excObj = std::make_shared<objects::StrictExceptionObject>(
       std::move(excType), caller, std::move(excDict));
   return std::make_unique<StrictModuleUserException<BaseStrictObject>>(

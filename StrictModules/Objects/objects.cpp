@@ -207,6 +207,11 @@ std::shared_ptr<StrictType> SequenceIteratorType() {
       "sequence_iter", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
+std::shared_ptr<StrictType> GeneratorExpType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictGeneratorExpType>(
+      "generator", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
 std::shared_ptr<StrictType> SetIteratorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictSetIteratorType>(
       "set_iter", kBuiltinsModule, objectTypeVec(), TypeType());

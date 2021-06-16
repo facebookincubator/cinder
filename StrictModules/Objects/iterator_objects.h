@@ -51,6 +51,32 @@ class StrictSequenceIterator final : public StrictIteratorBase {
   bool done_;
 };
 
+class StrictGeneratorExp final : public StrictIteratorBase {
+ public:
+  StrictGeneratorExp(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::vector<std::shared_ptr<BaseStrictObject>> data);
+
+  virtual std::shared_ptr<BaseStrictObject> next(
+      const CallerContext& caller) override;
+
+  virtual bool isEnd() const override;
+
+  static std::shared_ptr<BaseStrictObject> generatorExp__next__(
+      std::shared_ptr<StrictGeneratorExp> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> generatorExp__iter__(
+      std::shared_ptr<StrictGeneratorExp> self,
+      const CallerContext& caller);
+
+ private:
+  std::vector<std::shared_ptr<BaseStrictObject>> data_;
+  std::vector<std::shared_ptr<BaseStrictObject>>::const_iterator
+      it_; // iterator state
+};
+
 class StrictSetIterator final : public StrictIteratorBase {
  public:
   StrictSetIterator(
@@ -179,6 +205,23 @@ class StrictIteratorBaseType : public StrictObjectType {
 };
 
 class StrictSequenceIteratorType : public StrictIteratorBaseType {
+ public:
+  using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+};
+
+class StrictGeneratorExpType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
 

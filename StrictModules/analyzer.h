@@ -122,6 +122,17 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   AnalysisResult visitNamedExpr(const expr_ty expr);
   AnalysisResult visitSubscript(const expr_ty expr);
   AnalysisResult visitStarred(const expr_ty expr);
+  AnalysisResult visitLambda(const expr_ty expr);
+  AnalysisResult visitIfExp(const expr_ty expr);
+  AnalysisResult visitListComp(const expr_ty expr);
+  AnalysisResult visitSetComp(const expr_ty expr);
+  AnalysisResult visitDictComp(const expr_ty expr);
+  AnalysisResult visitGeneratorExp(const expr_ty expr);
+  AnalysisResult visitAwait(const expr_ty expr);
+  AnalysisResult visitYield(const expr_ty expr);
+  AnalysisResult visitYieldFrom(const expr_ty expr);
+  AnalysisResult visitFormattedValue(const expr_ty expr);
+  AnalysisResult visitJoinedStr(const expr_ty expr);
   // defaults
   AnalysisResult defaultVisitExpr();
   void defaultVisitStmt();
@@ -168,14 +179,16 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
 
   objects::DictDataT visitDictUnpackHelper(expr_ty keyExpr);
 
-  void visitFunctionDefHelper(
-      identifier name,
+  AnalysisResult visitFunctionDefHelper(
+      std::string name,
       arguments_ty args,
       asdl_seq* body,
       asdl_seq* decoratorList,
       expr_ty returns,
       string typeComment,
-      stmt_ty node,
+      int lineno,
+      int col_offset,
+      void* node,
       bool isAsync);
 
   AnalysisResult visitAnnotationHelper(expr_ty annotation);
@@ -190,6 +203,25 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   bool visitExceptionHandlerHelper(asdl_seq* handlers, AnalysisResult exc);
 
   AnalysisResult visitSliceHelper(slice_ty slice);
+
+  template <typename CB, typename... Args>
+  void visitGeneratorHelper(
+      expr_ty node,
+      asdl_seq* generators,
+      CB callback,
+      Args... targets);
+
+  template <typename CB, typename... Args>
+  void visitGeneratorHelperInner(
+      AnalysisResult iter,
+      expr_ty iterTarget,
+      asdl_seq* ifs,
+      const std::vector<comprehension_ty>& comps,
+      std::size_t idx,
+      CB callback,
+      Args... targets);
+
+  bool checkGeneratorIfHelper(asdl_seq* ifs);
 
   void assignToTarget(
       const expr_ty target,
@@ -224,7 +256,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   }
 
   void processUnhandledUserException(
-      const StrictModuleUserException<BaseStrictObject>& exc);
+      StrictModuleUserException<BaseStrictObject>& exc);
 };
 
 class TryFinallyManager {

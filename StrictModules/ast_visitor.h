@@ -67,7 +67,7 @@ class ASTVisitor {
       case Assert_kind:
         return static_cast<TAnalyzer*>(this)->visitAssert(stmt);
       case ImportFrom_kind:
-      return static_cast<TAnalyzer*>(this)->visitImportFrom(stmt);
+        return static_cast<TAnalyzer*>(this)->visitImportFrom(stmt);
       case Global_kind:
       case Nonlocal_kind:
         break;
@@ -95,27 +95,35 @@ class ASTVisitor {
       case UnaryOp_kind:
         return static_cast<TAnalyzer*>(this)->visitUnaryOp(expr);
       case Lambda_kind:
+        return static_cast<TAnalyzer*>(this)->visitLambda(expr);
       case IfExp_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitIfExp(expr);
       case Dict_kind:
         return static_cast<TAnalyzer*>(this)->visitDict(expr);
       case Set_kind:
         return static_cast<TAnalyzer*>(this)->visitSet(expr);
       case ListComp_kind:
+        return static_cast<TAnalyzer*>(this)->visitListComp(expr);
       case SetComp_kind:
+        return static_cast<TAnalyzer*>(this)->visitSetComp(expr);
       case DictComp_kind:
+        return static_cast<TAnalyzer*>(this)->visitDictComp(expr);
       case GeneratorExp_kind:
+        return static_cast<TAnalyzer*>(this)->visitGeneratorExp(expr);
       case Await_kind:
+        return static_cast<TAnalyzer*>(this)->visitAwait(expr);
       case Yield_kind:
+        return static_cast<TAnalyzer*>(this)->visitYield(expr);
       case YieldFrom_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitYieldFrom(expr);
       case Compare_kind:
         return static_cast<TAnalyzer*>(this)->visitCompare(expr);
       case Call_kind:
         return static_cast<TAnalyzer*>(this)->visitCall(expr);
       case FormattedValue_kind:
+        return static_cast<TAnalyzer*>(this)->visitFormattedValue(expr);
       case JoinedStr_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitJoinedStr(expr);
       case Constant_kind:
         return static_cast<TAnalyzer*>(this)->visitConstant(expr);
       case Attribute_kind:

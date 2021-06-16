@@ -167,9 +167,6 @@ void Analyzer::visitImport(const stmt_ty stmt) {
   }
   auto importNames = stmt->v.Import.names;
   int n = asdl_seq_LEN(importNames);
-  // TODO: actually handle imports
-  // For now, just implement single import to demonstrate
-  // using the module loader
   for (int i = 0; i < n; ++i) {
     alias_ty alias = reinterpret_cast<alias_ty>(asdl_seq_GET(importNames, i));
     std::string modName(PyUnicode_AsUTF8(alias->name));
@@ -285,27 +282,36 @@ void Analyzer::visitExprStmt(const stmt_ty stmt) {
 
 void Analyzer::visitFunctionDef(const stmt_ty stmt) {
   auto f = stmt->v.FunctionDef;
-  return visitFunctionDefHelper(
-      f.name,
+  std::string funcName = PyUnicode_AsUTF8(f.name);
+  AnalysisResult func = visitFunctionDefHelper(
+      funcName,
       f.args,
       f.body,
       f.decorator_list,
       f.returns,
       f.type_comment,
+      stmt->lineno,
+      stmt->col_offset,
       stmt,
       false);
+  // put function in scope
+  stack_[std::move(funcName)] = std::move(func);
 }
 void Analyzer::visitAsyncFunctionDef(const stmt_ty stmt) {
   auto f = stmt->v.AsyncFunctionDef;
-  return visitFunctionDefHelper(
-      f.name,
+  std::string funcName = PyUnicode_AsUTF8(f.name);
+  AnalysisResult func = visitFunctionDefHelper(
+      funcName,
       f.args,
       f.body,
       f.decorator_list,
       f.returns,
       f.type_comment,
+      stmt->lineno,
+      stmt->col_offset,
       stmt,
       true);
+  stack_[std::move(funcName)] = std::move(func);
 }
 
 AnalysisResult Analyzer::visitAnnotationHelper(expr_ty annotation) {
@@ -352,19 +358,20 @@ void Analyzer::visitArgHelper(
   }
 }
 
-void Analyzer::visitFunctionDefHelper(
-    identifier name,
+AnalysisResult Analyzer::visitFunctionDefHelper(
+    std::string funcName,
     arguments_ty args,
     asdl_seq* body,
     asdl_seq* decoratorList,
     expr_ty returns,
     string, // type_comment
-    stmt_ty node,
+    int lineno,
+    int col_offset,
+    void* node,
     bool isAsync) {
   // symbol table for function body
   SymtableEntry symbols = stack_.getSymtable().entryFromAst(node);
   // function name and qualname
-  std::string funcName = PyUnicode_AsUTF8(name);
   std::string qualName = stack_.getQualifiedScopeName();
   if (qualName.empty()) {
     qualName = funcName;
@@ -452,8 +459,8 @@ void Analyzer::visitFunctionDefHelper(
       context_.caller,
       funcName,
       std::move(qualName),
-      node->lineno,
-      node->col_offset,
+      lineno,
+      col_offset,
       std::move(bodyVec),
       stack_.getFunctionScope(),
       std::move(symbols),
@@ -485,8 +492,7 @@ void Analyzer::visitFunctionDefHelper(
     }
   }
 
-  // put function in scope
-  stack_[std::move(funcName)] = std::move(func);
+  return func;
 }
 
 void Analyzer::visitReturn(const stmt_ty stmt) {
@@ -534,7 +540,7 @@ static AnalysisResult strDictToObjHelper(
 void Analyzer::visitClassDef(const stmt_ty stmt) {
   auto classDef = stmt->v.ClassDef;
   // Step 1, identify metaclass
-  std::shared_ptr<StrictType> metaclass;
+  std::shared_ptr<BaseStrictObject> metaclass;
   std::vector<AnalysisResult> bases = visitListLikeHelper(classDef.bases);
   // register metaclass if found in keyword args
   // find if any base class has metaclass
@@ -548,9 +554,7 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
         reinterpret_cast<keyword_ty>(asdl_seq_GET(classDef.keywords, i));
     AnalysisResult kwVal = visitExpr(kw->value);
     if (PyUnicode_CompareWithASCIIString(kw->arg, "metaclass") == 0) {
-      // TODO: do we need to worry about metaclass that not subclass of type?
-      auto kwValTyp = assertStaticCast<StrictType>(std::move(kwVal));
-      metaclass = std::move(kwValTyp);
+      metaclass = std::move(kwVal);
     } else {
       kwargKeys.push_back(PyUnicode_AsUTF8(kw->arg));
       kwargValues.push_back(std::move(kwVal));
@@ -597,22 +601,26 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
 
     // look for most common metaclass for all bases, skipping over
     // unknowns. Identify metaclass conflict
-    for (auto& base : bases) {
-      auto baseTyp = std::dynamic_pointer_cast<StrictType>(base);
-      if (baseTyp == nullptr) {
-        continue;
+    if (metaclass == nullptr || !metaclass->isUnknown()) {
+      auto metaclassType = std::dynamic_pointer_cast<StrictType>(metaclass);
+      for (auto& base : bases) {
+        auto baseTyp = std::dynamic_pointer_cast<StrictType>(base);
+        if (baseTyp == nullptr) {
+          continue;
+        }
+        auto baseTypMeta = baseTyp->getType();
+        if (metaclassType == nullptr) {
+          metaclassType = std::move(baseTypMeta);
+        } else if (metaclassType->isSubType(baseTypMeta)) {
+          continue;
+        } else if (baseTypMeta->isSubType(metaclassType)) {
+          metaclassType = std::move(baseTypMeta);
+          continue;
+        } else {
+          context_.raiseTypeError("metaclass conflict");
+        }
       }
-      auto baseTypMeta = baseTyp->getType();
-      if (metaclass == nullptr) {
-        metaclass = std::move(baseTypMeta);
-      } else if (metaclass->isSubType(baseTypMeta)) {
-        continue;
-      } else if (baseTypMeta->isSubType(metaclass)) {
-        metaclass = std::move(baseTypMeta);
-        continue;
-      } else {
-        context_.raiseTypeError("metaclass conflict");
-      }
+      metaclass = metaclassType;
     }
   }
   if (metaclass == nullptr) {
@@ -632,7 +640,7 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
     if (prepareFunc != nullptr) {
       auto nsObj = iCall(
           prepareFunc, {classNameObj, baseTupleObj}, kEmptyArgNames, context_);
-      ns = prepareToDictHelper(nsObj, context_); // TODO
+      ns = prepareToDictHelper(nsObj, context_);
     }
   }
 
@@ -990,7 +998,7 @@ AnalysisResult Analyzer::visitAttribute(const expr_ty expr) {
   AnalysisResult value = visitExpr(attribute.value);
   assert(value != nullptr);
   const char* attrName = PyUnicode_AsUTF8(attribute.attr);
-  assert(attribute.ctx != Del && attribute.ctx != Store);
+  assert(attribute.ctx != Del);
   auto result = iLoadAttr(value, attrName, nullptr, context_);
   if (!result) {
     context_.raiseExceptionStr(
@@ -1239,6 +1247,266 @@ AnalysisResult Analyzer::visitSliceHelper(slice_ty slice) {
   }
 }
 
+AnalysisResult Analyzer::visitLambda(const expr_ty expr) {
+  auto lambdaExp = expr->v.Lambda;
+  stmt_ty returnStmt = Return(
+      lambdaExp.body,
+      expr->lineno,
+      expr->col_offset,
+      expr->end_lineno,
+      expr->end_col_offset,
+      loader_->getArena());
+  asdl_seq* body = _Py_asdl_seq_new(1, loader_->getArena());
+  asdl_seq_SET(body, 0, returnStmt);
+  return visitFunctionDefHelper(
+      "<lambda>",
+      lambdaExp.args,
+      body,
+      nullptr,
+      nullptr,
+      nullptr,
+      expr->lineno,
+      expr->col_offset,
+      expr,
+      false);
+}
+
+AnalysisResult Analyzer::visitIfExp(const expr_ty expr) {
+  auto ifExp = expr->v.IfExp;
+  AnalysisResult test = iGetTruthValue(visitExpr(ifExp.test), context_);
+  if (test == StrictTrue()) {
+    return visitExpr(ifExp.body);
+  }
+  if (test == StrictFalse()) {
+    return visitExpr(ifExp.orelse);
+  }
+  AnalysisResult body = visitExpr(ifExp.body);
+  AnalysisResult orelse = visitExpr(ifExp.orelse);
+  return makeUnknown(context_, "({} if {} else {})", body, test, orelse);
+}
+
+AnalysisResult Analyzer::visitListComp(const expr_ty expr) {
+  auto comp = expr->v.ListComp;
+  std::vector<AnalysisResult> result;
+  visitGeneratorHelper(
+      expr,
+      comp.generators,
+      [&result](AnalysisResult v) { result.push_back(std::move(v)); },
+      comp.elt);
+  return std::make_shared<StrictList>(
+      ListType(), context_.caller, std::move(result));
+}
+
+AnalysisResult Analyzer::visitSetComp(const expr_ty expr) {
+  auto comp = expr->v.SetComp;
+  SetDataT result;
+  visitGeneratorHelper(
+      expr,
+      comp.generators,
+      [&result](AnalysisResult v) { result.insert(std::move(v)); },
+      comp.elt);
+  return std::make_shared<StrictSet>(
+      SetType(), context_.caller, std::move(result));
+}
+
+AnalysisResult Analyzer::visitDictComp(const expr_ty expr) {
+  auto comp = expr->v.DictComp;
+  DictDataT result;
+  visitGeneratorHelper(
+      expr,
+      comp.generators,
+      [&result](AnalysisResult k, AnalysisResult v) {
+        result[std::move(k)] = std::move(v);
+      },
+      comp.key,
+      comp.value);
+  return std::make_shared<StrictDict>(
+      DictObjectType(), context_.caller, std::move(result));
+}
+AnalysisResult Analyzer::visitGeneratorExp(const expr_ty expr) {
+  auto comp = expr->v.GeneratorExp;
+  std::vector<AnalysisResult> result;
+  visitGeneratorHelper(
+      expr,
+      comp.generators,
+      [&result](AnalysisResult v) { result.push_back(std::move(v)); },
+      comp.elt);
+  return std::make_shared<StrictGeneratorExp>(
+      GeneratorExpType(), context_.caller, std::move(result));
+}
+
+template <typename CB, typename... Args>
+void Analyzer::visitGeneratorHelper(
+    expr_ty node,
+    asdl_seq* generators,
+    CB callback,
+    Args... targets) {
+  int numComps = asdl_seq_LEN(generators);
+  assert(numComps > 0);
+  // the first comprehension does not have a separate inner scope
+  comprehension_ty comp =
+      reinterpret_cast<comprehension_ty>(asdl_seq_GET(generators, 0));
+  AnalysisResult compValue = visitExpr(comp->iter);
+  std::vector<comprehension_ty> comps;
+  comps.reserve(numComps - 1);
+  for (int i = 1; i < numComps; ++i) {
+    comps.push_back(
+        reinterpret_cast<comprehension_ty>(asdl_seq_GET(generators, i)));
+  }
+  {
+    auto manager = stack_.enterScopeByAst(node);
+    visitGeneratorHelperInner(
+        std::move(compValue),
+        comp->target,
+        comp->ifs,
+        comps,
+        0,
+        callback,
+        targets...);
+  }
+}
+
+template <typename CB, typename... Args>
+void Analyzer::visitGeneratorHelperInner(
+    AnalysisResult iter,
+    expr_ty iterTarget,
+    asdl_seq* ifs,
+    const std::vector<comprehension_ty>& comps,
+    std::size_t idx,
+    CB callback,
+    Args... targets) {
+  std::vector<AnalysisResult> elements =
+      iGetElementsVec(std::move(iter), context_);
+
+  if (idx == comps.size()) {
+    // base case, produce value for targets
+    for (AnalysisResult elem : elements) {
+      assignToTarget(iterTarget, std::move(elem));
+      if (!checkGeneratorIfHelper(ifs)) {
+        continue;
+      }
+      callback(visitExpr(targets)...);
+    }
+    return;
+  }
+
+  comprehension_ty nextComp = comps[idx];
+  for (AnalysisResult elem : elements) {
+    assignToTarget(iterTarget, std::move(elem));
+    if (!checkGeneratorIfHelper(ifs)) {
+      continue;
+    }
+    visitGeneratorHelperInner(
+        visitExpr(nextComp->iter),
+        nextComp->target,
+        nextComp->ifs,
+        comps,
+        idx + 1,
+        callback,
+        targets...);
+  }
+}
+
+bool Analyzer::checkGeneratorIfHelper(asdl_seq* ifs) {
+  int size = asdl_seq_LEN(ifs);
+  for (int i = 0; i < size; ++i) {
+    expr_ty cond = reinterpret_cast<expr_ty>(asdl_seq_GET(ifs, i));
+    AnalysisResult v = iGetTruthValue(visitExpr(cond), context_);
+    if (v != StrictTrue()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+AnalysisResult Analyzer::visitAwait(const expr_ty expr) {
+  auto await = expr->v.Await;
+  AnalysisResult awaitExpr = visitExpr(await.value);
+  context_.error<UnsupportedException>("await", awaitExpr->getDisplayName());
+  return makeUnknown(context_, "await {}", awaitExpr);
+}
+
+AnalysisResult Analyzer::visitYield(const expr_ty) {
+  throw YieldReachedException();
+}
+
+AnalysisResult Analyzer::visitYieldFrom(const expr_ty) {
+  throw YieldReachedException();
+}
+
+static AnalysisResult formatHelper(
+    AnalysisResult str,
+    AnalysisResult formatSpec,
+    const CallerContext& caller) {
+  auto formatFunc = iLoadAttrOnType(str, "__format__", nullptr, caller);
+  if (formatFunc == nullptr) {
+    return makeUnknown(caller, "{}.__format__{}", str, formatSpec);
+  }
+  AnalysisResult result = iCall(
+      std::move(formatFunc), {std::move(formatSpec)}, kEmptyArgNames, caller);
+  return result;
+}
+
+AnalysisResult Analyzer::visitFormattedValue(const expr_ty expr) {
+  auto fv = expr->v.FormattedValue;
+  //   expr_ty value;
+  // int conversion;
+  // expr_ty format_spec;
+  AnalysisResult value = visitExpr(fv.value);
+  switch (fv.conversion) {
+    case -1:
+      break;
+    case 's': {
+      // call str()
+      value = iCall(StrType(), {value}, kEmptyArgNames, context_);
+    }
+    case 'r':
+      break; // TODO call repr()
+    case 'a':
+      context_.error<UnsupportedException>(
+          "'joined str to ascii'", value->getDisplayName());
+  }
+  AnalysisResult formatSpec;
+  if (fv.format_spec == nullptr) {
+    formatSpec = context_.makeStr("");
+  } else {
+    formatSpec = visitExpr(fv.format_spec);
+  }
+  AnalysisResult result =
+      formatHelper(std::move(value), std::move(formatSpec), context_);
+  const BaseStrictObject& resultRef = *result;
+  if (!result->isUnknown() && typeid(resultRef) != typeid(StrictString)) {
+    context_.raiseTypeError(
+        "result of format should be string, not {}",
+        result->getTypeRef().getName());
+  }
+  return result;
+}
+
+AnalysisResult Analyzer::visitJoinedStr(const expr_ty expr) {
+  auto joinedStr = expr->v.JoinedStr;
+  // asdl_seq *values;
+  int size = asdl_seq_LEN(joinedStr.values);
+  std::string result;
+  bool isUnknown = false;
+  for (int i = 0; i < size; ++i) {
+    expr_ty sectionExpr =
+        reinterpret_cast<expr_ty>(asdl_seq_GET(joinedStr.values, i));
+    AnalysisResult section = visitExpr(sectionExpr);
+    auto sectionStr = std::dynamic_pointer_cast<StrictString>(section);
+    if (sectionStr) {
+      result += sectionStr->getValue();
+    } else {
+      isUnknown = true;
+      result += section->getDisplayName();
+    }
+  }
+  if (isUnknown) {
+    return makeUnknown(context_, std::move(result));
+  }
+  return context_.makeStr(std::move(result));
+}
+
 void Analyzer::visitStmtSeq(const asdl_seq* seq) {
   for (int i = 0; i < asdl_seq_LEN(seq); i++) {
     stmt_ty elt = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, i));
@@ -1402,7 +1670,7 @@ void Analyzer::assignToStarred(const expr_ty starred, AnalysisResult value) {
 void Analyzer::analyze() {
   try {
     visitMod(root_);
-  } catch (const StrictModuleUserException<BaseStrictObject>& exc) {
+  } catch (StrictModuleUserException<BaseStrictObject>& exc) {
     processUnhandledUserException(exc);
   }
 }
@@ -1418,18 +1686,29 @@ void Analyzer::analyzeFunction(
 }
 
 void Analyzer::processUnhandledUserException(
-    const StrictModuleUserException<BaseStrictObject>& exc) {
-  std::shared_ptr<const BaseStrictObject> wrappedObject =
-      std::static_pointer_cast<const BaseStrictObject>(exc.getWrapped());
+    StrictModuleUserException<BaseStrictObject>& exc) {
+  std::shared_ptr<BaseStrictObject> wrappedObject =
+      std::static_pointer_cast<BaseStrictObject>(exc.getWrapped());
 
-  // TODO: get args from the "args" field of the wrapped object
+  std::vector<std::string> args;
+  if (!wrappedObject->isUnknown()) {
+    auto wrappedInst = std::static_pointer_cast<StrictInstance>(wrappedObject);
+    AnalysisResult argsV = wrappedInst->getAttr("args");
+    auto argsSeq = std::dynamic_pointer_cast<StrictSequence>(argsV);
+    if (argsSeq) {
+      args.reserve(argsSeq->getData().size());
+      for (auto& elem : argsSeq->getData()) {
+        args.push_back(elem->getDisplayName());
+      }
+    }
+  }
   context_.errorSink->error<StrictModuleUnhandledException>(
       exc.getLineno(),
       exc.getCol(),
       exc.getFilename(),
       exc.getScopeName(),
       wrappedObject->getDisplayName(),
-      std::vector<std::string>(),
+      std::move(args),
       exc.getCause());
 }
 // TryFinallyManager

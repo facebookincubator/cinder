@@ -44,6 +44,11 @@ class StrictString : public StrictInstance {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> other);
 
+  static std::shared_ptr<BaseStrictObject> str__format__(
+      std::shared_ptr<StrictString> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> spec);
+
  private:
   mutable Ref<> pyStr_;
   std::string value_;

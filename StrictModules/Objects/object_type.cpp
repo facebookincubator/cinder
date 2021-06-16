@@ -226,8 +226,7 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::binCmpOp(
   }
 
   if (obj->isUnknown() || right->isUnknown()) {
-    caller.error<UnknownValueBinaryOpException>(
-        obj->getDisplayName(), kCmpOpDisplays[op], right->getDisplayName());
+    // error already raised when looking up rich compare functions
     return makeUnknown(caller, "{} {} {}", obj, kCmpOpDisplays[op], right);
   }
 

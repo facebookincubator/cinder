@@ -77,6 +77,13 @@ std::shared_ptr<BaseStrictObject> StrictString::str__eq__(
   return caller.makeBool(self->value_ == otherStr->value_);
 }
 
+std::shared_ptr<BaseStrictObject> StrictString::str__format__(
+    std::shared_ptr<StrictString> self,
+    const CallerContext&,
+    std::shared_ptr<BaseStrictObject>) {
+  return self;
+}
+
 // StrictStringType
 std::unique_ptr<BaseStrictObject> StrictStringType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
@@ -115,5 +122,6 @@ Ref<> StrictStringType::getPyObject() const {
 void StrictStringType::addMethods() {
   addMethod(kDunderLen, StrictString::str__len__);
   addMethod("__eq__", StrictString::str__eq__);
+  addMethod("__format__", StrictString::str__format__);
 }
 } // namespace strictmod::objects
