@@ -29,6 +29,7 @@ std::shared_ptr<StrictType> TypeType();
 std::shared_ptr<StrictType> ModuleType();
 std::shared_ptr<StrictType> UnknownType();
 std::shared_ptr<StrictType> IntType();
+std::shared_ptr<StrictType> FloatType();
 std::shared_ptr<StrictType> BoolType();
 std::shared_ptr<StrictType> StrType();
 
@@ -85,6 +86,7 @@ static const std::string kDunderBool = "__bool__";
 static const std::string kDunderLen = "__len__";
 static const std::string kDunderIter = "__iter__";
 static const std::string kDunderNext = "__next__";
+static const std::string kDunderStr = "__str__";
 
 /* indices corresponds to enum values in Python-ast.h
  * Do not change the order of names.

@@ -85,6 +85,37 @@ std::shared_ptr<BaseStrictObject> iReverseBinOp(
       std::move(obj), std::move(left), op, caller);
 }
 
+std::shared_ptr<BaseStrictObject> iDoBinOp(
+    std::shared_ptr<BaseStrictObject> left,
+    std::shared_ptr<BaseStrictObject> right,
+    operator_ty op,
+    const CallerContext& caller) {
+  bool triedRight = false;
+  auto lType = left->getType();
+  auto rType = right->getType();
+  if (lType != rType && lType->is_subtype(rType)) {
+    // do reverse op first
+    auto result = iReverseBinOp(right, left, op, caller);
+    if (result) {
+      return result;
+    }
+    triedRight = true;
+  }
+
+  auto result = iBinOp(left, right, op, caller);
+  if (result == nullptr and !triedRight) {
+    result = iReverseBinOp(right, left, op, caller);
+  }
+  if (result == nullptr) {
+    caller.raiseTypeError(
+        "unsupported operand types for {}: {} and {}",
+        kBinOpDisplays[op],
+        lType->getName(),
+        rType->getName());
+  }
+  return result;
+}
+
 std::shared_ptr<BaseStrictObject> iUnaryOp(
     std::shared_ptr<BaseStrictObject> obj,
     unaryop_ty op,

@@ -74,8 +74,11 @@ class ASTVisitor {
     switch (expr->kind) {
       case BoolOp_kind:
       case NamedExpr_kind:
+        break;
       case BinOp_kind:
+        return static_cast<TAnalyzer*>(this)->visitBinOp(expr);
       case UnaryOp_kind:
+        return static_cast<TAnalyzer*>(this)->visitUnaryOp(expr);
       case Lambda_kind:
       case IfExp_kind:
         break;

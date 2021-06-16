@@ -92,6 +92,8 @@ class CallerContext {
 
   // convenience methods
   std::shared_ptr<BaseStrictObject> makeInt(long i) const;
+  std::shared_ptr<BaseStrictObject> makeFloat(double f) const;
+  std::shared_ptr<BaseStrictObject> makeBool(bool b) const;
   std::shared_ptr<BaseStrictObject> makeStr(std::string s) const;
   std::shared_ptr<BaseStrictObject> makePair(
       std::shared_ptr<BaseStrictObject> first,

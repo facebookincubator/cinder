@@ -23,6 +23,10 @@ class StrictString : public StrictInstance {
       std::weak_ptr<StrictModuleObject> creator,
       PyObject* pyValue);
 
+  const std::string& getValue() const {
+    return value_;
+  }
+
   virtual bool isHashable() const override;
   virtual size_t hash() const override;
   virtual bool eq(const BaseStrictObject& other) const override;

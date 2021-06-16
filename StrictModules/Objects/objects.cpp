@@ -127,6 +127,12 @@ std::shared_ptr<StrictType> BoolType() {
   return t;
 }
 
+std::shared_ptr<StrictType> FloatType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictFloatType>(
+      "float", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> ListType() {
   static std::shared_ptr<StrictType> t = makeType<StrictListType>(
       "list", kBuiltinsModule, objectTypeVec(), TypeType());

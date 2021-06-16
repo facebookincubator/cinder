@@ -339,6 +339,11 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
         objects::StrType(), context_.caller, constant.value);
     return value;
   }
+  if (PyFloat_CheckExact(constant.value)) {
+    auto value = std::make_shared<objects::StrictFloat>(
+        objects::FloatType(), context_.caller, constant.value);
+    return value;
+  }
   return defaultVisitExpr();
 }
 
@@ -481,6 +486,26 @@ AnalysisResult Analyzer::visitDict(const expr_ty expr) {
   }
   return std::make_shared<objects::StrictDict>(
       objects::DictObjectType(), context_.caller, std::move(map));
+}
+
+AnalysisResult Analyzer::visitBinOp(const expr_ty expr) {
+  AnalysisResult left = visitExpr(expr->v.BinOp.left);
+  AnalysisResult right = visitExpr(expr->v.BinOp.right);
+  return objects::iDoBinOp(
+      std::move(left), std::move(right), expr->v.BinOp.op, context_);
+}
+
+AnalysisResult Analyzer::visitUnaryOp(const expr_ty expr) {
+  AnalysisResult value = visitExpr(expr->v.UnaryOp.operand);
+  unaryop_ty op = expr->v.UnaryOp.op;
+  if (op == Not) {
+    auto result = objects::iGetTruthValue(std::move(value), context_);
+    if (result->getType() == objects::UnknownType()) {
+      return result;
+    }
+    return context_.makeBool(result == objects::StrictFalse());
+  }
+  return objects::iUnaryOp(std::move(value), op, context_);
 }
 
 void Analyzer::visitStmtSeq(const asdl_seq* seq) {

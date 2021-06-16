@@ -58,6 +58,16 @@ inline std::shared_ptr<BaseStrictObject> CallerContext::makeInt(long i) const {
   return std::make_shared<objects::StrictInt>(objects::IntType(), caller, i);
 }
 
+inline std::shared_ptr<BaseStrictObject> CallerContext::makeFloat(
+    double i) const {
+  return std::make_shared<objects::StrictFloat>(
+      objects::FloatType(), caller, i);
+}
+
+inline std::shared_ptr<BaseStrictObject> CallerContext::makeBool(bool b) const {
+  return b ? objects::StrictTrue() : objects::StrictFalse();
+}
+
 inline std::shared_ptr<BaseStrictObject> CallerContext::makeStr(
     std::string s) const {
   return std::make_shared<objects::StrictString>(

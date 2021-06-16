@@ -67,6 +67,12 @@ std::shared_ptr<BaseStrictObject> iReverseBinOp(
     operator_ty op,
     const CallerContext& caller);
 
+std::shared_ptr<BaseStrictObject> iDoBinOp(
+    std::shared_ptr<BaseStrictObject> left,
+    std::shared_ptr<BaseStrictObject> right,
+    operator_ty op,
+    const CallerContext& caller);
+
 std::shared_ptr<BaseStrictObject> iUnaryOp(
     std::shared_ptr<BaseStrictObject> obj,
     unaryop_ty op,

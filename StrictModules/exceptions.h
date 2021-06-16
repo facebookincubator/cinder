@@ -464,6 +464,29 @@ class UnsafeCallException : public StructuredStrictModuleException<
   [[noreturn]] virtual void raise() override;
 };
 
+// UnsupportedException
+struct UnsupportedExceptionHelper {
+  UnsupportedExceptionHelper(std::string name, std::string typeName);
+
+  std::string opName;
+  std::string typeName;
+
+  static constexpr const char* excName = "UnsupportedException";
+  static constexpr const char* fmt =
+      "Operation '%s' on type '%s' is unsupported";
+  static constexpr const char* wiki = "";
+};
+
+class UnsupportedException : public StructuredStrictModuleException<
+                                 UnsupportedExceptionHelper,
+                                 UnsupportedException,
+                                 &UnsupportedExceptionHelper::opName,
+                                 &UnsupportedExceptionHelper::typeName> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ------------------Out of line implementations---------------
 
 // StrictModuleException

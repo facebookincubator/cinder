@@ -97,6 +97,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   AnalysisResult visitList(const expr_ty expr);
   AnalysisResult visitTuple(const expr_ty expr);
   AnalysisResult visitDict(const expr_ty expr);
+  AnalysisResult visitBinOp(const expr_ty expr);
+  AnalysisResult visitUnaryOp(const expr_ty expr);
   // defaults
   AnalysisResult defaultVisitExpr();
   void defaultVisitStmt();

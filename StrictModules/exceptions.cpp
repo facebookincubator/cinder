@@ -226,4 +226,13 @@ void UnsafeCallException::raise() {
   throw *this;
 }
 
+// UnsupportedException
+UnsupportedExceptionHelper::UnsupportedExceptionHelper(
+    std::string op,
+    std::string typeName)
+    : opName(std::move(op)), typeName(std::move(typeName)) {}
+
+void UnsupportedException::raise() {
+  throw *this;
+}
 } // namespace strictmod
