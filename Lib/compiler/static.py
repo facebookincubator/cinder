@@ -1693,7 +1693,7 @@ class NoneInstance(Object[NoneType]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> bool:
-        if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+        if isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot, ast.In, ast.NotIn)):
             return super().bind_compare(node, left, op, right, visitor, type_ctx)
         ltype = visitor.get_type(left)
         rtype = visitor.get_type(right)
