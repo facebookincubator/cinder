@@ -1845,7 +1845,7 @@ d = replace(c, c=4)
 ---
 StrictModuleTypeError
 ---
-test_isinstance @disabled
+test_isinstance
 ---
 class C:
     pass
@@ -1873,7 +1873,7 @@ t7 = isinstance([], list)
 t1 t2 t3 t4 t5 t6 t7
 ---
 ---
-test_isinstance_with_instance_check @disabled
+test_isinstance_with_instance_check
 ---
 class Meta(type):
     def __instancecheck__(cls, instance):
@@ -1899,7 +1899,7 @@ t4 = isinstance(e, D) # no, since D.__subclass__ does not have D itself
 t1 t2 t3 t4
 ---
 ---
-test_isinstance_with_metaclass @disabled
+test_isinstance_with_metaclass
 ---
 class Meta(type):
     pass
@@ -1920,7 +1920,7 @@ t4 = isinstance(e, E) # yes
 t1 t2 t3 t4
 ---
 ---
-test_isinstance_bad_type_arg @disabled
+test_isinstance_bad_type_arg
 ---
 class D:
     pass
@@ -1929,16 +1929,16 @@ d = D()
 t1 = isinstance(d, 1)
 ---
 ---
-StrictModuleTypeError
+5 5 StrictModuleUnhandledException(TypeError)
 ---
-test_isinstance_missing_arg @disabled
+test_isinstance_missing_arg
 ---
 t1 = isinstance(1)
 ---
 ---
-StrictModuleTypeError
+1 5 StrictModuleUnhandledException(TypeError)
 ---
-test_issubclass @disabled
+test_issubclass
 ---
 class C:
     pass
@@ -1963,7 +1963,7 @@ t7 = issubclass(list, list)
 t1 t2 t3 t4 t5 t6 t7
 ---
 ---
-test_subclasscheck_bases @disabled
+test_subclasscheck_bases
 ---
 class C:
     def __init__(self, *bases):
@@ -1975,33 +1975,31 @@ t2 = object.__subclasscheck__(C(object))
 t1 t2
 ---
 ---
-test_subclasscheck_bases_raises_attr_error @disabled
+test_subclasscheck_bases_raises_attr_error
 ---
 class C:
     @property
     def __bases__(self):
         raise AttributeError('no way')
 
-
 t1 = object.__subclasscheck__(C())
 ---
 ---
-StrictModuleUnhandledException
+6 5 StrictModuleUnhandledException(TypeError)
 ---
-test_subclasscheck_bad_raises_other_error @disabled
+test_subclasscheck_bad_raises_other_error
 ---
 class C:
     @property
     def __bases__(self):
-        raise ValueError('no way')
-
+        raise ValueError
 
 t1 = object.__subclasscheck__(C())
 ---
 ---
-StrictModuleUnhandledException
+4 8 StrictModuleUnhandledException(<ValueError instance>)
 ---
-test_subclasscheck_bad_bases @disabled
+test_subclasscheck_bad_bases
 ---
 class C:
     __bases__ = 42
@@ -2009,9 +2007,9 @@ class C:
 t1 = object.__subclasscheck__(C())
 ---
 ---
-StrictModuleUnhandledException
+4 5 StrictModuleUnhandledException(TypeError)
 ---
-test_subclasscheck_self_bad_bases @disabled
+test_subclasscheck_self_bad_bases
 ---
 class MC(type):
     __bases__ = 42
@@ -2021,21 +2019,21 @@ class C(metaclass=MC):
 t1 = C.__subclasscheck__(42)
 ---
 ---
-StrictModuleUnhandledException
+6 5 StrictModuleUnhandledException(TypeError)
 ---
-test_issubclass_bad_type @disabled
+test_issubclass_bad_type
 ---
 issubclass(42, object)
 ---
 ---
-StrictModuleUnhandledException
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_issubclass_bad_derived @disabled
+test_issubclass_bad_derived
 ---
 issubclass(object, 42)
 ---
 ---
-StrictModuleUnhandledException
+1 0 StrictModuleUnhandledException(TypeError)
 ---
 test_unknown_call_display_name @disabled
 ---
@@ -3226,7 +3224,7 @@ def f(self):
 f(B())
 ---
 ---
-9 0 UnsafeCallException f 8 11 StrictModuleUserException RuntimeError
+8 11 StrictModuleUnhandledException(RuntimeError)
 ---
 test_super_shadow_dunder_class
 ---

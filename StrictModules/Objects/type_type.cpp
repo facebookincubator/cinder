@@ -74,7 +74,10 @@ void StrictTypeType::addMethods() {
   addMethodDescr("__call__", StrictType::type__call__);
   addBuiltinFunctionOrMethod("__new__", StrictType::type__new__);
   addMethod("mro", StrictType::typeMro);
+  addMethod("__subclasscheck__", StrictType::type__subclasscheck__);
   addGetSetDescriptor(kDunderDict, getDunderDictAllowed, nullptr, nullptr);
+  addGetSetDescriptor(
+      "__bases__", StrictType::type__bases__Getter, nullptr, nullptr);
 }
 
 std::vector<std::type_index> StrictTypeType::getBaseTypeinfos() const {

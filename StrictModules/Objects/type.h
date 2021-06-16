@@ -192,6 +192,18 @@ class StrictType : public StrictInstance {
       std::shared_ptr<StrictType> self,
       const CallerContext& caller);
 
+  static std::shared_ptr<BaseStrictObject> type__subclasscheck__(
+      std::shared_ptr<StrictType> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> derived);
+
+  static std::shared_ptr<BaseStrictObject> type__bases__Getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller);
+
+  // helpers to add builtin methods to types
+
   template <typename T>
   void addMethod(const std::string& name, T func);
 
@@ -249,6 +261,7 @@ class StrictType : public StrictInstance {
   mutable std::optional<std::vector<std::shared_ptr<const BaseStrictObject>>>
       mro_;
   mutable std::optional<bool> isDataDescr_;
+  mutable std::shared_ptr<BaseStrictObject> basesObj_;
 };
 
 template <typename T>

@@ -34,7 +34,8 @@ std::shared_ptr<BaseStrictObject> StrictProperty::property__init__(
   checkExternalModification(obj, caller);
   // implement arg parsing here because the wrapper cannot handle
   // defaults + keyword args
-  bool seenGet, seenSet, seenDel, seenDuplicated = false;
+  bool seenGet = false, seenSet = false, seenDel = false,
+       seenDuplicated = false;
   std::shared_ptr<BaseStrictObject> fget;
   std::shared_ptr<BaseStrictObject> fset;
   std::shared_ptr<BaseStrictObject> fdel;

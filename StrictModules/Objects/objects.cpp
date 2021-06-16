@@ -381,6 +381,24 @@ std::shared_ptr<BaseStrictObject> StrictRepr() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictIsinstance() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(isinstanceImpl, "isinstance"),
+      nullptr,
+      "isinstance"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictIssubclass() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(issubclassImpl, "issubclass"),
+      nullptr,
+      "issubclass"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -415,6 +433,8 @@ bool initializeBuiltinsModuleDict() {
         {"True", StrictTrue()},
         {"False", StrictFalse()},
         {"repr", StrictRepr()},
+        {"issubclass", StrictIssubclass()},
+        {"isinstance", StrictIsinstance()},
     });
     kBuiltinsModule->getDict().insert(builtinsDict.begin(), builtinsDict.end());
   }

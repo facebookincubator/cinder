@@ -3,6 +3,7 @@
 
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
+#include "StrictModules/caller_context_impl.h"
 #include "StrictModules/exceptions.h"
 
 #include <functional>
@@ -25,7 +26,8 @@ StrictType::StrictType(
       baseClasses_(std::move(bases)),
       immutable_(immutable),
       mro_(),
-      isDataDescr_() {}
+      isDataDescr_(),
+      basesObj_() {}
 
 StrictType::StrictType(
     std::string name,
@@ -43,7 +45,8 @@ StrictType::StrictType(
       baseClasses_(std::move(bases)),
       immutable_(immutable),
       mro_(),
-      isDataDescr_() {}
+      isDataDescr_(),
+      basesObj_() {}
 
 bool StrictType::isSubType(std::shared_ptr<StrictType> base) const {
   if (base.get() == this) {
@@ -194,6 +197,7 @@ void StrictType::cleanContent(const StrictModuleObject* owner) {
   if (creator_.expired() || owner == creator_.lock().get()) {
     baseClasses_.clear();
     mro_.reset();
+    basesObj_.reset();
   }
 }
 
@@ -415,6 +419,91 @@ std::shared_ptr<BaseStrictObject> StrictType::typeMro(
   }
   return std::make_shared<StrictList>(
       ListType(), caller.caller, std::move(result));
+}
+
+std::shared_ptr<StrictTuple> getBasesHelper(
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> cls) {
+  try {
+    auto bases = iLoadAttr(std::move(cls), "__bases__", nullptr, caller);
+    auto basesTuple = std::dynamic_pointer_cast<StrictTuple>(bases);
+    if (basesTuple) {
+      return basesTuple;
+    }
+    return nullptr;
+  } catch (StrictModuleUserException<BaseStrictObject>& e) {
+    if (e.getWrapped()->getType() == AttributeErrorType()) {
+      // swallow the attribute error. This follows CPython implementation
+      return nullptr;
+    }
+    throw;
+  }
+}
+
+bool issubclassHelper(
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> derived,
+    std::shared_ptr<StrictTuple> derivedBases,
+    std::shared_ptr<StrictType> self) {
+  if (derived == std::static_pointer_cast<BaseStrictObject>(self)) {
+    return true;
+  }
+  if (!derivedBases) {
+    derivedBases = getBasesHelper(caller, derived);
+    if (!derivedBases) {
+      return false;
+    }
+  }
+
+  for (auto& base : derivedBases->getData()) {
+    if (issubclassHelper(caller, base, nullptr, self)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::shared_ptr<BaseStrictObject> StrictType::type__subclasscheck__(
+    std::shared_ptr<StrictType> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> derived) {
+  // shortcut if the type(inst) == cls_info
+  auto derivedType = std::dynamic_pointer_cast<StrictType>(derived);
+  if (derivedType) {
+    return caller.makeBool(derivedType->isSubType(self));
+  }
+
+  std::shared_ptr<StrictTuple> selfBases = getBasesHelper(caller, self);
+  if (!selfBases) {
+    caller.raiseTypeError(
+        "issubclass() arg 1 must be a class, not {} object",
+        self->getTypeRef().getName());
+  }
+
+  std::shared_ptr<StrictTuple> derivedBases = getBasesHelper(caller, derived);
+  if (!derivedBases) {
+    caller.raiseTypeError(
+        "issubclass() arg 2 must be a class, tuple of classes or union, not {} "
+        "object",
+        derived->getTypeRef().getName());
+  }
+
+  if (issubclassHelper(caller, derived, derivedBases, self)) {
+    return StrictTrue();
+  }
+  return StrictFalse();
+}
+
+std::shared_ptr<BaseStrictObject> StrictType::type__bases__Getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext&) {
+  auto cls = assertStaticCast<StrictType>(std::move(inst));
+  if (!cls->basesObj_) {
+    cls->basesObj_ = std::make_shared<StrictTuple>(
+        TupleType(), cls->creator_, cls->baseClasses_);
+  }
+  return cls->basesObj_;
 }
 
 } // namespace strictmod::objects
