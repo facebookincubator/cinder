@@ -18,7 +18,8 @@ StrictInstance::StrictInstance(
     std::weak_ptr<StrictModuleObject> creator,
     std::shared_ptr<DictType> dict)
     : BaseStrictObject(std::move(type), std::move(creator)),
-      dict_(dict == nullptr ? std::make_shared<DictType>() : std::move(dict)) {}
+      dict_(dict == nullptr ? std::make_shared<DictType>() : std::move(dict)),
+      dictObj_() {}
 
 Ref<> StrictInstance::getPyObject() const {
   return nullptr;

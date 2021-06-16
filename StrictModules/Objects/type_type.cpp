@@ -12,7 +12,7 @@ std::shared_ptr<BaseStrictObject> StrictTypeType::loadAttr(
     const CallerContext& caller) {
   auto objType = obj->getType();
   auto descr = objType->typeLookup(key, caller);
-  if (descr && descr->getTypeRef().isDataDescr()) {
+  if (descr && descr->getTypeRef().isDataDescr(caller)) {
     // data descr found on metatype
     return iGetDescr(
         std::move(descr), std::move(obj), std::move(objType), caller);
@@ -39,7 +39,7 @@ void StrictTypeType::storeAttr(
     const CallerContext& caller) {
   auto objType = obj->getType();
   auto descr = objType->typeLookup(key, caller);
-  if (descr && descr->getTypeRef().isDataDescr()) {
+  if (descr && descr->getTypeRef().isDataDescr(caller)) {
     // data descr found on metatype
     iSetDescr(std::move(descr), std::move(obj), std::move(value), caller);
   }
@@ -74,6 +74,7 @@ void StrictTypeType::addMethods() {
   addMethodDescr("__call__", StrictType::type__call__);
   addBuiltinFunctionOrMethod("__new__", StrictType::type__new__);
   addMethod("mro", StrictType::typeMro);
+  addGetSetDescriptor(kDunderDict, getDunderDictAllowed, nullptr, nullptr);
 }
 
 std::vector<std::type_index> StrictTypeType::getBaseTypeinfos() const {

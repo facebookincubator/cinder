@@ -59,6 +59,7 @@ std::shared_ptr<StrictType> MethodType();
 std::shared_ptr<StrictType> ClassMethodType();
 std::shared_ptr<StrictType> StaticMethodType();
 std::shared_ptr<StrictType> PropertyType();
+std::shared_ptr<StrictType> GetSetDescriptorType();
 
 std::shared_ptr<StrictType> ExceptionType();
 std::shared_ptr<StrictType> TypeErrorType();
@@ -104,6 +105,7 @@ static const std::string kDunderIter = "__iter__";
 static const std::string kDunderNext = "__next__";
 static const std::string kDunderStr = "__str__";
 static const std::string kDunderClass = "__class__";
+static const std::string kDunderDict = "__dict__";
 
 /* indices corresponds to enum values in Python-ast.h
  * Do not change the order of names.

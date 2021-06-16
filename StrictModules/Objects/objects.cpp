@@ -35,6 +35,13 @@ static std::shared_ptr<StrictType> kMethodDescrType(new StrictMethodDescrType(
     {kObjectType},
     kTypeType));
 
+static std::shared_ptr<StrictType> kGetSetDescriptorType(
+    new StrictGetSetDescriptorType(
+        "getset_descr",
+        nullptr,
+        {kObjectType},
+        kTypeType));
+
 static std::shared_ptr<StrictModuleObject> kBuiltinsModule =
     StrictModuleObject::makeStrictModule(kModuleType, "builtins");
 
@@ -64,11 +71,15 @@ bool bootstrapBuiltins() {
     kMethodDescrType->setCreator(kBuiltinsModule);
     kMethodDescrType->setModuleName(kBuiltinsModule->getModuleName());
 
+    kGetSetDescriptorType->setCreator(kBuiltinsModule);
+    kGetSetDescriptorType->setModuleName(kBuiltinsModule->getModuleName());
+
     kTypeType->addMethods();
     kObjectType->addMethods();
     kModuleType->addMethods();
     kBuiltinFunctionOrMethodType->addMethods();
     kMethodDescrType->addMethods();
+    kGetSetDescriptorType->addMethods();
   }
   return initialized;
 }
@@ -99,6 +110,11 @@ std::shared_ptr<StrictType> BuiltinFunctionOrMethodType() {
 std::shared_ptr<StrictType> MethodDescrType() {
   [[maybe_unused]] static bool init = bootstrapBuiltins();
   return kMethodDescrType;
+}
+
+std::shared_ptr<StrictType> GetSetDescriptorType() {
+  [[maybe_unused]] static bool init = bootstrapBuiltins();
+  return kGetSetDescriptorType;
 }
 
 TObjectPtrVec objectTypeVec() {

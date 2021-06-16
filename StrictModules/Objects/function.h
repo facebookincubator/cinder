@@ -142,6 +142,8 @@ class StrictFuncType : public StrictObjectType {
       bool isImmutable) override;
 
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+
+  virtual void addMethods() override;
 };
 
 } // namespace strictmod::objects

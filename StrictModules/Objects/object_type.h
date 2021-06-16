@@ -144,6 +144,22 @@ std::shared_ptr<BaseStrictObject> object__othercmp__(
     std::shared_ptr<BaseStrictObject> obj,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> other);
+
+// operations on __dict__
+std::shared_ptr<BaseStrictObject> getDunderDictAllowed(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType> type,
+    const CallerContext& caller);
+
+std::shared_ptr<BaseStrictObject> getDunderDictDisallowed(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType> type,
+    const CallerContext& caller);
+
+void setDunderDict(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller);
 } // namespace strictmod::objects
 
 #endif //__STRICTM_OBJECT_TYPE_H__

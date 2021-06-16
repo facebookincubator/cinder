@@ -164,4 +164,8 @@ std::vector<std::type_index> StrictFuncType::getBaseTypeinfos() const {
   return baseVec;
 }
 
+void StrictFuncType::addMethods() {
+  addGetSetDescriptor("__dict__", getDunderDictAllowed, setDunderDict, nullptr);
+}
+
 } // namespace strictmod::objects

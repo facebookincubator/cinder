@@ -224,4 +224,120 @@ void StrictPropertyType::addMethods() {
   addMethod("__delete__", StrictProperty::property__delete__);
 }
 
+bool StrictPropertyType::isDataDescr(const CallerContext&) {
+  // properties are data descriptors
+  return true;
+}
+
+// GetSetDescriptor
+
+StrictGetSetDescriptor::StrictGetSetDescriptor(
+    std::weak_ptr<StrictModuleObject> creator,
+    std::string name,
+    TDescrGetFunc fget,
+    TDescrSetFunc fset,
+    TDescrDelFunc fdel)
+    : StrictInstance(GetSetDescriptorType(), std::move(creator)),
+      name_(std::move(name)),
+      fget_(fget),
+      fset_(fset),
+      fdel_(fdel) {}
+
+// wrapped funcitons
+std::shared_ptr<BaseStrictObject> StrictGetSetDescriptor::getsetdescr__get__(
+    std::shared_ptr<StrictGetSetDescriptor> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> type) {
+  auto t = assertStaticCast<StrictType>(std::move(type));
+  return self->getFget()(std::move(inst), std::move(t), caller);
+}
+
+std::shared_ptr<BaseStrictObject> StrictGetSetDescriptor::getsetdescr__set__(
+    std::shared_ptr<StrictGetSetDescriptor> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value) {
+  if (self->getFset() != nullptr) {
+    self->getFset()(std::move(inst), std::move(value), caller);
+    return NoneObject();
+  }
+  caller.raiseExceptionStr(
+      AttributeErrorType(), "readonly attribute {}", self->getName());
+}
+
+std::shared_ptr<BaseStrictObject> StrictGetSetDescriptor::getsetdescr__delete__(
+    std::shared_ptr<StrictGetSetDescriptor> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst) {
+  if (self->getFdel() != nullptr) {
+    self->getFdel()(std::move(inst), caller);
+    return NoneObject();
+  }
+  caller.raiseExceptionStr(
+      AttributeErrorType(), "readonly attribute {}", self->getName());
+}
+
+std::shared_ptr<BaseStrictObject> StrictGetSetDescriptorType::getDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType> type,
+    const CallerContext& caller) {
+  auto descr = assertStaticCast<StrictGetSetDescriptor>(std::move(obj));
+  return StrictGetSetDescriptor::getsetdescr__get__(
+      std::move(descr), caller, std::move(inst), std::move(type));
+}
+
+std::shared_ptr<BaseStrictObject> StrictGetSetDescriptorType::setDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  auto descr = assertStaticCast<StrictGetSetDescriptor>(std::move(obj));
+  return StrictGetSetDescriptor::getsetdescr__set__(
+      std::move(descr), caller, std::move(inst), std::move(value));
+}
+
+std::shared_ptr<BaseStrictObject> StrictGetSetDescriptorType::delDescr(
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> inst,
+    const CallerContext& caller) {
+  auto descr = assertStaticCast<StrictGetSetDescriptor>(std::move(obj));
+  return StrictGetSetDescriptor::getsetdescr__delete__(
+      std::move(descr), caller, std::move(inst));
+}
+
+std::vector<std::type_index> StrictGetSetDescriptorType::getBaseTypeinfos()
+    const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictGetSetDescriptorType));
+  return baseVec;
+}
+
+std::shared_ptr<StrictType> StrictGetSetDescriptorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictGetSetDescriptorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+void StrictGetSetDescriptorType::addMethods() {
+  addMethod("__get__", StrictGetSetDescriptor::getsetdescr__get__);
+  addMethod("__set__", StrictGetSetDescriptor::getsetdescr__set__);
+  addMethod("__delete__", StrictGetSetDescriptor::getsetdescr__delete__);
+}
+
+bool StrictGetSetDescriptorType::isDataDescr(const CallerContext&) {
+  return true;
+}
+
 } // namespace strictmod::objects

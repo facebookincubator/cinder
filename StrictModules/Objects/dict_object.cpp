@@ -217,7 +217,7 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__setitem__(
   bool success = self->data_->set(std::move(key), std::move(value));
   if (!success) {
     caller.error<UnsupportedException>(
-        fmt::format("{}.__setitem__", self->getTypeRef().getName()),
+        fmt::format("{}.__setitem__", self->getDisplayName()),
         keyType->getName());
   }
   return NoneObject();
@@ -241,7 +241,7 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__delitem__(
   bool success = self->data_->erase(key);
   if (!success) {
     caller.error<UnsupportedException>(
-        fmt::format("{}.__delitem__", self->getTypeRef().getName()),
+        fmt::format("{}.__delitem__", self->getDisplayName()),
         keyType->getName());
   }
   return NoneObject();
@@ -744,6 +744,20 @@ void InstanceDictDictData::const_iter(
       break;
     }
   }
+}
+
+std::shared_ptr<BaseStrictObject> StrictInstance::getDunderDict() {
+  if (dictObj_ != nullptr) {
+    return dictObj_;
+  }
+  std::unique_ptr<DictDataInterface> dict =
+      std::make_unique<InstanceDictDictData>(dict_, creator_);
+  dictObj_ = std::make_shared<StrictDict>(
+      DictObjectType(),
+      creator_,
+      std::move(dict),
+      fmt::format("{}.__dict__", type_->getName()));
+  return dictObj_;
 }
 
 } // namespace strictmod::objects

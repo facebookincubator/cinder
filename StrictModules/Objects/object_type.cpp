@@ -51,7 +51,7 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::loadAttr(
   auto objType = obj->getType();
   auto descr = objType->typeLookup(key, caller);
   // data descr case
-  if (descr && descr->getTypeRef().isDataDescr()) {
+  if (descr && descr->getTypeRef().isDataDescr(caller)) {
     return iGetDescr(descr, obj, objType, caller);
   }
   // obj dict case
@@ -73,7 +73,7 @@ void StrictObjectType::storeAttr(
     const CallerContext& caller) {
   auto objType = obj->getType();
   auto descr = objType->typeLookup(key, caller);
-  if (descr && descr->getTypeRef().isDataDescr()) {
+  if (descr && descr->getTypeRef().isDataDescr(caller)) {
     iSetDescr(descr, obj, value, caller);
     return;
   }
@@ -93,7 +93,7 @@ void StrictObjectType::delAttr(
     const CallerContext& caller) {
   auto objType = obj->getType();
   auto descr = objType->typeLookup(key, caller);
-  if (descr && descr->getTypeRef().isDataDescr()) {
+  if (descr && descr->getTypeRef().isDataDescr(caller)) {
     iDelDescr(descr, obj, caller);
     return;
   }
@@ -391,6 +391,58 @@ std::vector<std::type_index> StrictObjectType::getBaseTypeinfos() const {
   return baseVec;
 }
 
+static std::shared_ptr<BaseStrictObject> getDunderClass(
+    std::shared_ptr<BaseStrictObject> value,
+    std::shared_ptr<StrictType>,
+    const CallerContext&) {
+  return value->getType();
+}
+
+std::shared_ptr<BaseStrictObject> getDunderDictAllowed(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext&) {
+  auto instance = assertStaticCast<StrictInstance>(std::move(inst));
+  return instance->getDunderDict();
+}
+
+std::shared_ptr<BaseStrictObject> getDunderDictDisallowed(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  caller.error<UnsupportedException>(
+      "getting __dict__", inst->getTypeRef().getName());
+  return makeUnknown(caller, "{}.__dict__", inst);
+}
+
+void setDunderDict(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  auto instance = assertStaticCast<StrictInstance>(std::move(inst));
+  auto dict = std::dynamic_pointer_cast<StrictDict>(value);
+  if (dict == nullptr) {
+    caller.raiseTypeError(
+        "__dict__ must be set to a dict, not {} object",
+        value->getTypeRef().getName());
+  }
+  checkExternalModification(instance, caller);
+  const auto& dictData = dict->getData();
+  auto newInstDictPtr = std::make_shared<DictType>();
+  DictType& newInstDict = *newInstDictPtr;
+  dictData.const_iter([&newInstDict, &caller](
+                          std::shared_ptr<BaseStrictObject> k,
+                          std::shared_ptr<BaseStrictObject> v) {
+    auto kStr = std::dynamic_pointer_cast<StrictString>(k);
+    if (kStr == nullptr) {
+      caller.raiseTypeError("__dict__ expect string keys, got {}", k);
+    }
+    newInstDict[kStr->getValue()] = std::move(v);
+    return true;
+  });
+  instance->setDict(std::move(newInstDictPtr));
+}
+
 void StrictObjectType::addMethods() {
   addMethodDescr("__init__", object__init__);
   addBuiltinFunctionOrMethod("__new__", object__new__);
@@ -400,6 +452,8 @@ void StrictObjectType::addMethods() {
   addMethod("__gt__", object__othercmp__);
   addMethod("__le__", object__othercmp__);
   addMethod("__lt__", object__othercmp__);
+  addGetSetDescriptor(kDunderClass, getDunderClass, nullptr, nullptr);
+  addGetSetDescriptor(kDunderDict, getDunderDictDisallowed, nullptr, nullptr);
 }
 
 std::shared_ptr<BaseStrictObject> object__init__(

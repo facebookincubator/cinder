@@ -64,7 +64,7 @@ class StrictType : public StrictInstance {
   virtual std::string getDisplayName() const override;
 
   virtual bool isBaseType() const;
-  virtual bool isDataDescr() const;
+  virtual bool isDataDescr(const CallerContext& caller);
 
   virtual void addMethods();
 
@@ -234,6 +234,13 @@ class StrictType : public StrictInstance {
       std::size_t numDefaultArgs,
       std::size_t numArgs);
 
+  template <typename G, typename S, typename D>
+  void addGetSetDescriptor(
+      const std::string& name,
+      G getter,
+      S setter = nullptr,
+      D deleter = nullptr);
+
  private:
   std::string name_;
   std::string moduleName_;
@@ -241,6 +248,7 @@ class StrictType : public StrictInstance {
   bool immutable_;
   mutable std::optional<std::vector<std::shared_ptr<const BaseStrictObject>>>
       mro_;
+  mutable std::optional<bool> isDataDescr_;
 };
 
 template <typename T>

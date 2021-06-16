@@ -563,7 +563,7 @@ x =  a.v
 x
 ---
 ---
-test_classmethod_get @disabled
+test_classmethod_get
 ---
 class C:
     val = 42
@@ -2755,7 +2755,7 @@ fd  = FallbackDict()
 ---
 ---
 ---
-test_dunder_class @disabled
+test_dunder_class
 ---
 x = 42
 y = x.__class__
@@ -2860,7 +2860,7 @@ a = "%r/%r" % (1, 2)
 x y z a
 ---
 ---
-test_func_dict @disabled
+test_func_dict
 ---
 def f(a):
     pass
@@ -2916,16 +2916,16 @@ a = kwdefaults["a"]
 a kwdefaults
 ---
 ---
-test_func_dict_non_string_key @disabled
+test_func_dict_non_string_key
 ---
 def f(a):
     pass
 f.__dict__[2] = 1
 ---
 ---
-StrictModuleTypeError
+3 0 UnsupportedException function.__dict__.__setitem__ int
 ---
-test_set_func_dict @disabled
+test_set_func_dict
 ---
 def f(a):
     pass
@@ -2935,7 +2935,7 @@ a = f.__dict__['a']
 a
 ---
 ---
-test_set_func_dict_no_string @disabled
+test_set_func_dict_no_string
 ---
 def f(a):
     pass
@@ -2943,9 +2943,9 @@ f.__dict__ = {'a': 1, 2: 2}
 a = f.__dict__['a']
 ---
 ---
-StrictModuleTypeError
+3 0 StrictModuleUnhandledException(TypeError)
 ---
-test_reset_func_dict @disabled
+test_reset_func_dict
 ---
 def f(a):
     pass
@@ -2957,7 +2957,7 @@ a2 = f.__dict__['a']
 a1 a2
 ---
 ---
-test_dunder_dict_identity @disabled
+test_dunder_dict_identity
 ---
 def f(a):
     pass
@@ -2969,7 +2969,7 @@ b = d1 is d2
 b
 ---
 ---
-test_type_dict @disabled
+test_type_dict
 ---
 class C:
     a: int = 2
@@ -2978,7 +2978,7 @@ a = C.__dict__['a']
 a
 ---
 ---
-test_set_type_dict @disabled
+test_set_type_dict
 ---
 class C:
     a: int = 2
@@ -2986,16 +2986,7 @@ C.__dict__ = {'a': 1}
 d = C.__dict__
 ---
 ---
-StrictModuleUnhandledException
----
-test_edit_type_dict @disabled
----
-class C:
-    a: int = 2
-C.__dict__["a"] = 3
----
----
-StrictModuleTypeError
+3 0 StrictModuleUnhandledException(AttributeError)
 ---
 test_type_mro @disabled
 ---

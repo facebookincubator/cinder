@@ -24,7 +24,8 @@ StrictType::StrictType(
       moduleName_(creator ? creator->getModuleName() : ""),
       baseClasses_(std::move(bases)),
       immutable_(immutable),
-      mro_() {}
+      mro_(),
+      isDataDescr_() {}
 
 StrictType::StrictType(
     std::string name,
@@ -41,7 +42,8 @@ StrictType::StrictType(
               : creator.lock()->getModuleName()),
       baseClasses_(std::move(bases)),
       immutable_(immutable),
-      mro_() {}
+      mro_(),
+      isDataDescr_() {}
 
 bool StrictType::isSubType(std::shared_ptr<StrictType> base) const {
   if (base.get() == this) {
@@ -176,8 +178,13 @@ bool StrictType::isBaseType() const {
   return true;
 }
 
-bool StrictType::isDataDescr() const {
-  return false;
+bool StrictType::isDataDescr(const CallerContext& caller) {
+  if (isDataDescr_.has_value()) {
+    return isDataDescr_.value();
+  }
+  auto setDescr = typeLookup(kDunderSet, caller);
+  isDataDescr_ = setDescr != nullptr;
+  return isDataDescr_.value();
 }
 
 void StrictType::addMethods() {}

@@ -28,6 +28,14 @@ class StrictInstance : public BaseStrictObject {
     return *dict_;
   }
 
+  // implemented in dict_object.cpp
+  std::shared_ptr<BaseStrictObject> getDunderDict();
+
+  void setDict(std::shared_ptr<DictType> dict) {
+    dict_ = dict;
+    dictObj_ = nullptr;
+  }
+
   /* clear all content in __dict__ that's owned by owner. Use this during
    * shutdown */
   virtual void cleanContent(const StrictModuleObject* owner) override {
@@ -45,6 +53,7 @@ class StrictInstance : public BaseStrictObject {
 
  protected:
   std::shared_ptr<DictType> dict_;
+  std::shared_ptr<BaseStrictObject> dictObj_; // __dict__, backed by dict_
 };
 } // namespace strictmod::objects
 #endif // !__STRICTM_INSTANCE_H__
