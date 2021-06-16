@@ -222,6 +222,18 @@ class StrictType : public StrictInstance {
   template <typename T>
   void addBuiltinFunctionOrMethod(const std::string& name, T func);
 
+  template <int n = 0, typename U>
+  void
+  addPyWrappedMethodObj(const std::string& name, PyObject* obj, U convertFunc);
+
+  template <typename U>
+  void addPyWrappedMethodDefaultObj(
+      const std::string& name,
+      PyObject* obj,
+      U convertFunc,
+      std::size_t numDefaultArgs,
+      std::size_t numArgs);
+
  private:
   std::string name_;
   std::string moduleName_;

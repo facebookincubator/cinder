@@ -693,6 +693,10 @@ void StrictIntType::addMethods() {
   addMethodDefault("__rpow__", StrictInt::int__rpow__, nullptr);
   addMethod("__divmod__", StrictInt::int__divmod__);
   addMethod("__rdivmod__", StrictInt::int__rdivmod__);
+
+  PyObject* intType = reinterpret_cast<PyObject*>(&PyLong_Type);
+  addPyWrappedMethodObj<>("__repr__", intType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<1>("__format__", intType, StrictString::strFromPyObj);
 }
 
 // StrictBool
@@ -708,6 +712,12 @@ std::string StrictBool::getDisplayName() const {
     displayName_ = value_ == 0 ? "false" : "true";
   }
   return displayName_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictBool::boolFromPyObj(
+    Ref<> pyObj,
+    const CallerContext& caller) {
+  return std::make_shared<StrictBool>(BoolType(), caller.caller, pyObj.get());
 }
 
 // StrictBoolType
@@ -759,6 +769,11 @@ std::shared_ptr<BaseStrictObject> StrictBoolType::getTruthValue(
 
 void StrictBoolType::addMethods() {
   StrictIntType::addMethods();
+
+  addPyWrappedMethodObj<>(
+      "__repr__",
+      reinterpret_cast<PyObject*>(&PyBool_Type),
+      StrictString::strFromPyObj);
 }
 
 // Float
@@ -1245,5 +1260,9 @@ void StrictFloatType::addMethods() {
   addMethodDefault("__rpow__", StrictFloat::float__rpow__, nullptr);
   addMethod("__divmod__", StrictFloat::float__divmod__);
   addMethod("__rdivmod__", StrictFloat::float__rdivmod__);
+
+  PyObject* floatType = reinterpret_cast<PyObject*>(&PyFloat_Type);
+  addPyWrappedMethodObj<>("__repr__", floatType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<1>("__format__", floatType, StrictString::strFromPyObj);
 }
 } // namespace strictmod::objects

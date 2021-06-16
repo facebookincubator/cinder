@@ -49,6 +49,23 @@ x = "".__lenx__()
 ---
 1 4 StrictModuleUnhandledException(AttributeError)
 ---
+StringStrip
+---
+x = "abc  ".strip()
+y = "abcccc".strip("c")
+---
+x y
+---
+---
+StringSplit
+---
+x = "abc  ".split()
+y = "abcccc".split("c")
+z = "abcccc".split(sep="c")
+---
+x y z
+---
+---
 ListLiteral
 ---
 x = []
@@ -2752,61 +2769,61 @@ x = C().__class__
 x
 ---
 ---
-test_str_lower @disabled
+test_str_lower
 ---
 x = 'ABC'.lower()
 ---
 x
 ---
 ---
-test_str_upper @disabled
+test_str_upper
 ---
 x = 'abc'.upper()
 ---
 x
 ---
 ---
-test_str_strip @disabled
+test_str_strip
 ---
 x = ' abc '.strip()
 ---
 x
 ---
 ---
-test_str_strip_arg @disabled
+test_str_strip_arg
 ---
 x = 'babcb'.strip('b')
 ---
 x
 ---
 ---
-test_str_strip_bad_arg @disabled
+test_str_strip_bad_arg
 ---
 x = 'babcb'.strip(42)
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_str_join @disabled
+test_str_join
 ---
 x = ','.join(['abc','def'])
 ---
 x
 ---
 ---
-test_str_join_non_str @disabled
+test_str_join_non_str
 ---
 x = ','.join(['abc', 1])
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_str_join_non_primary @disabled
+test_str_join_non_primary
 ---
 x = ','.join(['abc', object()])
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
 test_str_bad_index @disabled
 ---
@@ -2829,7 +2846,7 @@ x = "abc"[0.0:1]
 ---
 StrictModuleUnhandledException
 ---
-test_str_formatting @disabled
+test_str_formatting
 ---
 x = "%s" % ("foo", )
 y = "%s/%s" % ("foo", "bar")
@@ -4454,13 +4471,13 @@ s = f'{x}'
 s
 ---
 ---
-test_fstring_unsupported_conversion @disabled
+test_fstring_unsupported_conversion
 ---
 x = 'foo'
 s = f'{x!a}'
 ---
 ---
-StrictModuleNotSupportedException
+2 4 UnsupportedException 'joined str to ascii' foo
 ---
 test_fstring_str_conversion @disabled
 ---
@@ -4480,7 +4497,7 @@ s = f'{C()!r}'
 s
 ---
 ---
-test_fstring_str_format_spec @disabled
+test_fstring_str_format_spec
 ---
 x = 'foo'
 s = f'{x:5}'
@@ -4510,6 +4527,13 @@ s = f'{42:3}'
 ---
 s
 ---
+---
+test_int_format_err
+---
+(1).__format__("r")
+---
+---
+1 0 StrictModuleUnhandledException(ValueError)
 ---
 test_type_str
 ---

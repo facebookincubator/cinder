@@ -371,4 +371,25 @@ bool initializeBuiltinsModuleDict() {
   }
   return initialized;
 }
+
+std::shared_ptr<StrictType> getExceptionFromString(
+    const std::string& excName,
+    std::shared_ptr<StrictType> def) {
+  static std::unordered_map<std::string, std::shared_ptr<StrictType>> dict({
+      {"Exception", ExceptionType()},
+      {"TypeError", TypeErrorType()},
+      {"AttributeError", AttributeErrorType()},
+      {"ValueError", ValueErrorType()},
+      {"NameError", NameErrorType()},
+      {"StopIteration", StopIterationType()},
+      {"KeyError", KeyErrorType()},
+      {"RuntimeError", RuntimeErrorType()},
+      {"ZeroDivisionError", DivisionByZeroType()},
+  });
+  auto it = dict.find(excName);
+  if (it == dict.end()) {
+    return def;
+  }
+  return it->second;
+}
 } // namespace strictmod::objects

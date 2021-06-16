@@ -171,6 +171,267 @@ class StarCallableWrapper {
   }
 };
 
+using SToPFunc =
+    std::shared_ptr<BaseStrictObject> (*)(Ref<>, const CallerContext&);
+
+template <typename... Args>
+using PyCallable = PyObject* (*)(Args...);
+
+template <int n>
+class PythonWrappedCallableByName {
+ public:
+  PythonWrappedCallableByName(
+      PyObject* obj,
+      SToPFunc convertFunc,
+      std::string name)
+      : callable_(), convertFunc_(convertFunc), name_(std::move(name)) {
+    callable_ = PyObject_GetAttrString(obj, name_.c_str());
+    assert(callable_ != nullptr);
+  }
+
+  PythonWrappedCallableByName(const PythonWrappedCallableByName& other)
+      : callable_(other.callable_),
+        convertFunc_(other.convertFunc_),
+        name_(other.name_) {
+    Py_XINCREF(callable_);
+  }
+
+  PythonWrappedCallableByName(PythonWrappedCallableByName&& other)
+      : callable_(other.callable_),
+        convertFunc_(other.convertFunc_),
+        name_(std::move(other.name_)) {
+    other.callable_ = nullptr;
+  };
+
+  ~PythonWrappedCallableByName() {
+    Py_XDECREF(callable_);
+  }
+
+  std::shared_ptr<BaseStrictObject> operator()(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller) {
+    if (!namedArgs.empty()) {
+      throw std::runtime_error(
+          "named arguments in wrapped python call not supported");
+    }
+
+    if (n != args.size()) {
+      caller.raiseTypeError(
+          "{}() takes {} positional arguments but {} were given",
+          name_,
+          n,
+          args.size());
+    }
+
+    return callStatic(
+        std::move(obj), args, caller, std::make_index_sequence<n>());
+  }
+
+ private:
+  PyObject* callable_;
+  SToPFunc convertFunc_;
+  std::string name_;
+
+  template <size_t... Is>
+  std::shared_ptr<BaseStrictObject> callStatic(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const CallerContext& caller,
+      std::index_sequence<Is...>) {
+    Ref<> pyArgs[args.size()];
+
+    for (std::size_t i = 0; i < args.size(); ++i) {
+      Ref<> val = args[i]->getPyObject();
+      if (val.get() == nullptr) {
+        caller.error<UnsupportedException>(name_, args[i]->getDisplayName());
+        return makeUnknown(caller, "{}({})", name_, formatArgs(args, {}));
+      }
+      pyArgs[i] = std::move(val);
+    }
+
+    Ref<> self = obj->getPyObject();
+    if (self.get() == nullptr) {
+      caller.error<UnsupportedException>(name_, obj->getDisplayName());
+      return makeUnknown(caller, "{}({})", name_, formatArgs(args, {}));
+    }
+
+    PyObject* result = PyObject_CallFunctionObjArgs(
+        callable_, self.get(), (pyArgs[Is].get())..., nullptr);
+    if (result == nullptr) {
+      PyObject *type, *value, *traceback;
+      PyErr_Fetch(&type, &value, &traceback);
+      auto refType = Ref<>::steal(type);
+      auto refValue = Ref<>::steal(value);
+      auto refTb = Ref<>::steal(traceback);
+      std::string errName;
+      if (type) {
+        errName = PyExceptionClass_Name(type);
+      } else {
+        errName = "unknown error";
+      }
+      auto errType = getExceptionFromString(errName, TypeErrorType());
+      caller.raiseExceptionStr(
+          errType,
+          "calling {}({}) resulted in {}",
+          name_,
+          formatArgs(args, {}),
+          errName);
+    }
+    std::shared_ptr<BaseStrictObject> resultObj =
+        convertFunc_(Ref<>::steal(result), caller);
+    return resultObj;
+  }
+};
+
+class PythonWrappedCallableDefaultByName {
+ public:
+  PythonWrappedCallableDefaultByName(
+      PyObject* obj,
+      SToPFunc convertFunc,
+      std::string name,
+      std::size_t defaultSize,
+      std::size_t numArgs)
+      : callable_(),
+        convertFunc_(convertFunc),
+        name_(std::move(name)),
+        defaultSize_(defaultSize),
+        n_(numArgs) {
+    callable_ = PyObject_GetAttrString(obj, name_.c_str());
+    assert(callable_ != nullptr);
+  }
+
+  PythonWrappedCallableDefaultByName(
+      const PythonWrappedCallableDefaultByName& other)
+      : callable_(other.callable_),
+        convertFunc_(other.convertFunc_),
+        name_(other.name_),
+        defaultSize_(other.defaultSize_),
+        n_(other.n_) {
+    Py_XINCREF(callable_);
+  }
+
+  PythonWrappedCallableDefaultByName(PythonWrappedCallableDefaultByName&& other)
+      : callable_(other.callable_),
+        convertFunc_(other.convertFunc_),
+        name_(std::move(other.name_)),
+        defaultSize_(other.defaultSize_),
+        n_(other.n_) {
+    other.callable_ = nullptr;
+  };
+
+  ~PythonWrappedCallableDefaultByName() {
+    Py_XDECREF(callable_);
+  }
+
+  std::shared_ptr<BaseStrictObject> operator()(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller) {
+    if (args.size() + defaultSize_ < n_ || args.size() > n_) {
+      caller.raiseTypeError(
+          "{}() takes {} to {} positional arguments but {} were given",
+          name_,
+          n_ - defaultSize_,
+          n_,
+          args.size());
+    }
+    if (namedArgs.empty()) {
+      return callHelper(std::move(obj), args, caller);
+    } else {
+      return callHelperKw(std::move(obj), args, namedArgs, caller);
+    }
+  }
+
+ private:
+  PyObject* callable_;
+  SToPFunc convertFunc_;
+  std::string name_;
+  std::size_t defaultSize_;
+  std::size_t n_; // number of parameters counting defaults
+
+  std::shared_ptr<BaseStrictObject> callHelper(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const CallerContext& caller) {
+    Ref<> argTuple = makeArgTuple(std::move(obj), args, args.size(), caller);
+    if (argTuple == nullptr) {
+      return makeUnknown(caller, "{}({})", name_, formatArgs(args, {}));
+    }
+
+    PyObject* result = PyObject_CallObject(callable_, argTuple.get());
+    if (result == nullptr) {
+      PyErr_Clear();
+      caller.raiseTypeError(
+          "calling {}({}) resulted in TypeError", name_, formatArgs(args, {}));
+    }
+    std::shared_ptr<BaseStrictObject> resultObj =
+        convertFunc_(Ref<>::steal(result), caller);
+    return resultObj;
+  }
+
+  std::shared_ptr<BaseStrictObject> callHelperKw(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller) {
+    assert(args.size() >= namedArgs.size());
+    std::size_t posSize = args.size() - namedArgs.size();
+
+    // process arguments passed by caller
+    Ref<> argTuple = makeArgTuple(std::move(obj), args, posSize, caller);
+    if (argTuple == nullptr) {
+      return makeUnknown(caller, "{}({})", name_, formatArgs(args, {}));
+    }
+
+    // kwargs
+    Ref<> kwArgDict = Ref<>::steal(PyDict_New());
+    for (std::size_t i = 0; i < namedArgs.size(); ++i) {
+      Ref<> value = args[posSize + i]->getPyObject();
+      PyDict_SetItemString(kwArgDict.get(), namedArgs[i].c_str(), value.get());
+    }
+
+    PyObject* result =
+        PyObject_Call(callable_, argTuple.get(), kwArgDict.get());
+    if (result == nullptr) {
+      PyErr_Clear();
+      caller.raiseTypeError(
+          "calling {}({}) resulted in TypeError", name_, formatArgs(args, {}));
+    }
+    std::shared_ptr<BaseStrictObject> resultObj =
+        convertFunc_(Ref<>::steal(result), caller);
+    return resultObj;
+  }
+
+  Ref<> makeArgTuple(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      std::size_t size,
+      const CallerContext& caller) {
+    Ref<> argTuple = Ref<>::steal(PyTuple_New(size + 1));
+    // process arguments passed by caller
+    for (std::size_t i = 0; i < size; ++i) {
+      Ref<> val = args[i]->getPyObject();
+      if (val.get() == nullptr) {
+        caller.error<UnsupportedException>(name_, args[i]->getDisplayName());
+        return Ref<>(nullptr);
+      }
+      PyTuple_SET_ITEM(argTuple.get(), i + 1, val.release());
+    }
+
+    // first argument is self
+    Ref<> self = obj->getPyObject();
+    if (self.get() == nullptr) {
+      caller.error<UnsupportedException>(name_, obj->getDisplayName());
+      return Ref<>(nullptr);
+    }
+    PyTuple_SET_ITEM(argTuple.get(), 0, self.release());
+    return argTuple;
+  }
+};
+
 } // namespace strictmod::objects
 
 #endif // __STRICTM_CALLABLE_WRAPPER_H__

@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/constants.h"
 
+#include "StrictModules/Objects/callable_wrapper.h"
+#include "StrictModules/Objects/objects.h"
 #include "StrictModules/caller_context_impl.h"
 
 namespace strictmod::objects {
@@ -23,6 +25,13 @@ std::shared_ptr<BaseStrictObject> NoneType_::getTruthValue(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller) {
   return caller.makeBool(false);
+}
+
+void NoneType_::addMethods() {
+  addPyWrappedMethodObj<>(
+      "__repr__",
+      reinterpret_cast<PyObject*>(&_PyNone_Type),
+      StrictString::strFromPyObj);
 }
 
 // NotImplementedObject

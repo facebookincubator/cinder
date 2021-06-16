@@ -6,6 +6,7 @@
 
 namespace strictmod::objects {
 class NoneObject_ : public StrictInstance {
+ public:
   using StrictInstance::StrictInstance;
 
   virtual Ref<> getPyObject() const override;
@@ -13,6 +14,7 @@ class NoneObject_ : public StrictInstance {
 };
 
 class NoneType_ : public StrictObjectType {
+ public:
   using StrictObjectType::StrictObjectType;
 
   virtual Ref<> getPyObject() const override;
@@ -20,9 +22,11 @@ class NoneType_ : public StrictObjectType {
   virtual std::shared_ptr<BaseStrictObject> getTruthValue(
       std::shared_ptr<BaseStrictObject> obj,
       const CallerContext& caller) override;
+  virtual void addMethods() override;
 };
 
 class NotImplementedObject : public StrictInstance {
+ public:
   using StrictInstance::StrictInstance;
 
   virtual Ref<> getPyObject() const override;

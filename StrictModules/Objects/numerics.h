@@ -285,6 +285,10 @@ class StrictBool : public StrictInt {
   bool getValue() const {
     return value_ != 0;
   }
+
+  static std::shared_ptr<BaseStrictObject> boolFromPyObj(
+      Ref<> pyObj,
+      const CallerContext& caller);
 };
 
 class StrictBoolType : public StrictIntType {

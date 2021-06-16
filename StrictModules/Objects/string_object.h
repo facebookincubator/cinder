@@ -34,6 +34,14 @@ class StrictString : public StrictInstance {
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
+  static std::shared_ptr<BaseStrictObject> strFromPyObj(
+      Ref<> pyObj,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> listFromPyStrList(
+      Ref<> pyObj,
+      const CallerContext& caller);
+
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> str__len__(
       std::shared_ptr<StrictString> self,
@@ -44,10 +52,10 @@ class StrictString : public StrictInstance {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> other);
 
-  static std::shared_ptr<BaseStrictObject> str__format__(
+  static std::shared_ptr<BaseStrictObject> strJoin(
       std::shared_ptr<StrictString> self,
       const CallerContext& caller,
-      std::shared_ptr<BaseStrictObject> spec);
+      std::shared_ptr<BaseStrictObject> iterable);
 
  private:
   mutable Ref<> pyStr_;

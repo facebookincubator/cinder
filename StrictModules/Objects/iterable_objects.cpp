@@ -437,6 +437,11 @@ void StrictListType::addMethods() {
   addMethod("__eq__", StrictList::list__eq__);
   addMethod(kDunderGetItem, StrictList::list__getitem__);
   addMethod(kDunderSetItem, StrictList::list__setitem__);
+
+  addPyWrappedMethodObj<>(
+      "__repr__",
+      reinterpret_cast<PyObject*>(&PyList_Type),
+      StrictString::strFromPyObj);
 }
 
 // -------------------------Tuple-------------------------
@@ -633,6 +638,11 @@ void StrictTupleType::addMethods() {
   addMethod("__add__", StrictTuple::tuple__add__);
   addMethod("__eq__", StrictTuple::tuple__eq__);
   addMethod(kDunderGetItem, StrictTuple::tuple__getitem__);
+
+  addPyWrappedMethodObj<>(
+      "__repr__",
+      reinterpret_cast<PyObject*>(&PyTuple_Type),
+      StrictString::strFromPyObj);
 }
 
 // -------------------------Set Like-------------------------
@@ -879,6 +889,10 @@ std::vector<std::type_index> StrictSetType::getBaseTypeinfos() const {
 void StrictSetType::addMethods() {
   StrictSetLikeType::addMethods();
   addMethod("add", StrictSet::setAdd);
+  addPyWrappedMethodObj<>(
+      "__repr__",
+      reinterpret_cast<PyObject*>(&PySet_Type),
+      StrictString::strFromPyObj);
 }
 
 // -------------------------FrozenSet-------------------------
@@ -969,10 +983,13 @@ std::vector<std::type_index> StrictFrozenSetType::getBaseTypeinfos() const {
 
 void StrictFrozenSetType::addMethods() {
   StrictSetLikeType::addMethods();
+  addPyWrappedMethodObj<>(
+      "__repr__",
+      reinterpret_cast<PyObject*>(&PyFrozenSet_Type),
+      StrictString::strFromPyObj);
 }
 
 // Slice
-
 StrictSlice::StrictSlice(
     std::shared_ptr<StrictType> type,
     std::weak_ptr<StrictModuleObject> creator,

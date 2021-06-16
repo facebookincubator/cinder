@@ -14,7 +14,7 @@ StrictMethodDescr::StrictMethodDescr(
     std::shared_ptr<StrictType> declType,
     std::string name)
     : StrictInstance(MethodDescrType(), std::move(creator)),
-      func_(func),
+      func_(std::move(func)),
       declType_(std::move(declType)),
       funcName_(std::move(name)) {}
 
@@ -85,7 +85,7 @@ StrictBuiltinFunctionOrMethod::StrictBuiltinFunctionOrMethod(
     std::shared_ptr<BaseStrictObject> inst,
     std::string name)
     : StrictInstance(BuiltinFunctionOrMethodType(), std::move(creator)),
-      func_(func),
+      func_(std::move(func)),
       inst_(std::move(inst)),
       name_(name),
       displayName_("<builtin function '" + name + "'>") {}

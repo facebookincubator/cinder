@@ -77,6 +77,12 @@ static inline std::unique_ptr<DictType> getBuiltinsDict() {
   return std::make_unique<DictType>(BuiltinsModule()->getDict());
 }
 
+/** return `def` if `excName` cannot be resolved
+ */
+std::shared_ptr<StrictType> getExceptionFromString(
+    const std::string& excName,
+    std::shared_ptr<StrictType> def);
+
 //--------------------Constant names-------------------------
 static const std::string kDunderGet = "__get__";
 static const std::string kDunderSet = "__set__";

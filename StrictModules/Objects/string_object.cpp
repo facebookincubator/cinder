@@ -1,9 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/string_object.h"
 
+#include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
 
 #include "StrictModules/Objects/callable_wrapper.h"
+
+#include <sstream>
 
 namespace strictmod::objects {
 // StrictType
@@ -60,6 +63,31 @@ std::string StrictString::getDisplayName() const {
   return value_;
 }
 
+std::shared_ptr<BaseStrictObject> StrictString::strFromPyObj(
+    Ref<> pyObj,
+    const CallerContext& caller) {
+  return std::make_shared<StrictString>(StrType(), caller.caller, pyObj.get());
+}
+
+std::shared_ptr<BaseStrictObject> StrictString::listFromPyStrList(
+    Ref<> pyObj,
+    const CallerContext& caller) {
+  if (!PyList_CheckExact(pyObj.get())) {
+    caller.raiseTypeError("str.split did not return a list");
+  }
+  std::size_t size = PyList_GET_SIZE(pyObj.get());
+  std::vector<std::shared_ptr<BaseStrictObject>> data;
+  data.reserve(size);
+  for (std::size_t i = 0; i < size; ++i) {
+    PyObject* elem = PyList_GET_ITEM(pyObj.get(), i);
+    auto elemStr =
+        std::make_shared<StrictString>(StrType(), caller.caller, elem);
+    data.push_back(std::move(elemStr));
+  }
+  return std::make_shared<StrictList>(
+      ListType(), caller.caller, std::move(data));
+}
+
 std::shared_ptr<BaseStrictObject> StrictString::str__len__(
     std::shared_ptr<StrictString> self,
     const CallerContext& caller) {
@@ -77,11 +105,29 @@ std::shared_ptr<BaseStrictObject> StrictString::str__eq__(
   return caller.makeBool(self->value_ == otherStr->value_);
 }
 
-std::shared_ptr<BaseStrictObject> StrictString::str__format__(
+std::shared_ptr<BaseStrictObject> StrictString::strJoin(
     std::shared_ptr<StrictString> self,
-    const CallerContext&,
-    std::shared_ptr<BaseStrictObject>) {
-  return self;
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> iterable) {
+  std::vector<std::shared_ptr<BaseStrictObject>> elements =
+      iGetElementsVec(std::move(iterable), caller);
+  std::stringstream ss;
+  std::size_t size = elements.size();
+  const std::string& sep = self->getValue();
+  for (std::size_t i = 0; i < size; ++i) {
+    auto elemStr = std::dynamic_pointer_cast<StrictString>(elements[i]);
+    if (elemStr == nullptr) {
+      caller.raiseTypeError(
+          "expect str for element {} of join, got {}",
+          i,
+          elements[i]->getTypeRef().getName());
+    }
+    ss << elemStr->getValue();
+    if (i != size - 1) {
+      ss << sep;
+    }
+  }
+  return caller.makeStr(ss.str());
 }
 
 // StrictStringType
@@ -122,6 +168,21 @@ Ref<> StrictStringType::getPyObject() const {
 void StrictStringType::addMethods() {
   addMethod(kDunderLen, StrictString::str__len__);
   addMethod("__eq__", StrictString::str__eq__);
-  addMethod("__format__", StrictString::str__format__);
+  addMethod("join", StrictString::strJoin);
+  PyObject* strType = reinterpret_cast<PyObject*>(&PyUnicode_Type);
+  addPyWrappedMethodObj<1>("__format__", strType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<>("__repr__", strType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<1>("__mod__", strType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<>("isidentifier", strType, StrictBool::boolFromPyObj);
+  addPyWrappedMethodObj<>("lower", strType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<>("upper", strType, StrictString::strFromPyObj);
+  addPyWrappedMethodDefaultObj(
+      "strip", strType, StrictString::strFromPyObj, 1, 1);
+  addPyWrappedMethodDefaultObj(
+      "replace", strType, StrictString::strFromPyObj, 1, 3);
+  addPyWrappedMethodDefaultObj(
+      "startswith", strType, StrictString::strFromPyObj, 2, 3);
+  addPyWrappedMethodDefaultObj(
+      "split", strType, StrictString::listFromPyStrList, 2, 2);
 }
 } // namespace strictmod::objects

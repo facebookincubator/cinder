@@ -195,6 +195,14 @@ class StrictClassMethodType : public StrictObjectType {
 template <typename T, typename... Args>
 class CallableWrapper;
 
+template <typename T, typename... Args>
+class StarCallableWrapper;
+
+template <int n>
+class PythonWrappedCallableByName;
+
+class PythonWrappedCallableDefaultByName;
+
 template <typename T>
 void StrictType::addMethod(const std::string& name, T func) {
   auto method = std::make_shared<StrictMethodDescr>(
@@ -260,6 +268,35 @@ template <typename T>
 void StrictType::addBuiltinFunctionOrMethod(const std::string& name, T func) {
   auto method = std::make_shared<StrictBuiltinFunctionOrMethod>(
       creator_, func, nullptr, name);
+  setAttr(name, method);
+}
+
+template <int n, typename U>
+void StrictType::addPyWrappedMethodObj(
+    const std::string& name,
+    PyObject* obj,
+    U convertFunc) {
+  auto method = std::make_shared<StrictMethodDescr>(
+      creator_,
+      InstCallType(PythonWrappedCallableByName<n>(obj, convertFunc, name)),
+      nullptr,
+      name);
+  setAttr(name, method);
+}
+
+template <typename U>
+void StrictType::addPyWrappedMethodDefaultObj(
+    const std::string& name,
+    PyObject* obj,
+    U convertFunc,
+    std::size_t numDefaultArgs,
+    std::size_t numArgs) {
+  auto method = std::make_shared<StrictMethodDescr>(
+      creator_,
+      InstCallType(PythonWrappedCallableDefaultByName(
+          obj, convertFunc, name, numDefaultArgs, numArgs)),
+      nullptr,
+      name);
   setAttr(name, method);
 }
 } // namespace strictmod::objects

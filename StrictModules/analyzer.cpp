@@ -1459,6 +1459,7 @@ AnalysisResult Analyzer::visitFormattedValue(const expr_ty expr) {
     case 's': {
       // call str()
       value = iCall(StrType(), {value}, kEmptyArgNames, context_);
+      break;
     }
     case 'r':
       break; // TODO call repr()

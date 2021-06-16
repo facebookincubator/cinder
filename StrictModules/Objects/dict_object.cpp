@@ -338,6 +338,11 @@ void StrictDictType::addMethods() {
 
   addMethodDescr("__init__", StrictDict::dict__init__);
   addMethodDescr("update", StrictDict::dictUpdate);
+
+  addPyWrappedMethodObj<>(
+      "__repr__",
+      reinterpret_cast<PyObject*>(&PyDict_Type),
+      StrictString::strFromPyObj);
 }
 
 std::unique_ptr<BaseStrictObject> StrictDictType::constructInstance(
