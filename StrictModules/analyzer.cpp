@@ -645,14 +645,24 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
   }
 
   // Step 3, create a hidden scope containing __class__
-  // TODO
+  const ScopeT& currentScope = stack_.getCurrentScope();
+  std::shared_ptr<DictType> hiddenDunderClassScopeDict =
+      std::make_shared<DictType>();
+  std::unique_ptr<ScopeT> hiddenDunderClassScope = std::make_unique<ScopeT>(
+      currentScope.getSTEntry(),
+      hiddenDunderClassScopeDict,
+      currentScope.getScopeData(),
+      true);
 
   // Step 4, visit statements in class body with __class__ scope
   // Then ns scope
   {
+    auto hiddenDunderClassManager =
+        stack_.enterScope(std::move(hiddenDunderClassScope));
     auto classContextManager = stack_.enterScopeByAst(stmt, ns);
     visitStmtSeq(classDef.body);
   }
+
   // Step 5, extract the resulting ns scope, add __orig_bases__
   // if mro entries is used in step 1
   if (origBases != nullptr) {
@@ -685,7 +695,7 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
     }
   }
   // Step 8, populate __class__ in hidden scope defined in step 3
-  // TODO
+  (*hiddenDunderClassScopeDict)[kDunderClass] = classObj;
   stack_[std::move(className)] = std::move(classObj);
 }
 
@@ -1020,6 +1030,11 @@ AnalysisResult Analyzer::visitCall(const expr_ty expr) {
   int argsLen = asdl_seq_LEN(argsSeq);
   int kwargsLen = asdl_seq_LEN(kwargsSeq);
 
+  // Special handling of super() with no arguments
+  if (argsLen == 0 && kwargsLen == 0 && func == SuperType()) {
+    return callMagicalSuperHelper(std::move(func));
+  }
+
   std::vector<AnalysisResult> args;
   std::vector<std::string> argNames;
   args.reserve(argsLen + kwargsLen);
@@ -1040,10 +1055,46 @@ AnalysisResult Analyzer::visitCall(const expr_ty expr) {
   }
   for (int i = 0; i < kwargsLen; ++i) {
     keyword_ty kw = reinterpret_cast<keyword_ty>(asdl_seq_GET(kwargsSeq, i));
-    args.push_back(visitExpr(kw->value));
-    argNames.emplace_back(PyUnicode_AsUTF8(kw->arg));
+    if (kw->arg != nullptr) {
+      args.push_back(visitExpr(kw->value));
+      argNames.emplace_back(PyUnicode_AsUTF8(kw->arg));
+    } else {
+      // double star arg
+      auto doubleStarArg = visitExpr(kw->value);
+      auto doubleStarDict =
+          std::dynamic_pointer_cast<StrictDict>(doubleStarArg);
+      if (doubleStarDict) {
+        for (auto& item : doubleStarDict->getData()) {
+          auto keyStr = std::dynamic_pointer_cast<StrictString>(item.first);
+          if (keyStr) {
+            args.push_back(item.second);
+            argNames.push_back(keyStr->getValue());
+          }
+        }
+      }
+    }
   }
   return iCall(func, std::move(args), std::move(argNames), context_);
+}
+
+AnalysisResult Analyzer::callMagicalSuperHelper(AnalysisResult func) {
+  // rule out cases where user explicitly define __class__ on module level
+  const AnalysisResult* dunderClass = stack_.at(kDunderClass);
+  if (dunderClass == nullptr || stack_.isGlobal(kDunderClass)) {
+    context_.raiseExceptionStr(
+        RuntimeErrorType(), "super(): __class__ not found");
+  }
+
+  AnalysisResult firstArg =
+      stack_.getCurrentScope().getScopeData().callFirstArg;
+  if (firstArg == nullptr) {
+    context_.raiseExceptionStr(RuntimeErrorType(), "super(): no arguments");
+  }
+  return iCall(
+      std::move(func),
+      {*dunderClass, std::move(firstArg)},
+      kEmptyArgNames,
+      context_);
 }
 
 std::vector<AnalysisResult> Analyzer::visitListLikeHelper(asdl_seq* elts) {
@@ -1679,8 +1730,10 @@ void Analyzer::analyze() {
 void Analyzer::analyzeFunction(
     std::vector<stmt_ty> body,
     SymtableEntry entry,
-    std::unique_ptr<DictType> callArgs) {
+    std::unique_ptr<DictType> callArgs,
+    AnalysisResult firstArg) {
   auto scope = Analyzer::scopeFactory(std::move(entry), std::move(callArgs));
+  scope->setScopeData(AnalysisScopeData(std::move(firstArg)));
   // enter function body scope
   auto scopeManager = stack_.enterScope(std::move(scope));
   visitStmtSeq(std::move(body));

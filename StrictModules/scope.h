@@ -15,17 +15,18 @@ std::string mangle(const std::string& className, const std::string& name);
 template <typename TVar, typename TScopeData>
 class Scope {
  public:
-  Scope(SymtableEntry scope, TScopeData data)
+  Scope(SymtableEntry scope, TScopeData data, bool invisible = false)
       : scope_(scope),
         vars_(std::make_shared<std::unordered_map<std::string, TVar>>()),
         data_(data),
-        invisible_(false) {}
+        invisible_(invisible) {}
 
   Scope(
       SymtableEntry scope,
       std::shared_ptr<std::unordered_map<std::string, TVar>> vars,
-      TScopeData data)
-      : scope_(scope), vars_(vars), data_(data), invisible_(false) {}
+      TScopeData data,
+      bool invisible = false)
+      : scope_(scope), vars_(vars), data_(data), invisible_(invisible) {}
 
   TVar& operator[](const std::string& key);
   TVar& at(const std::string& key);
@@ -50,6 +51,14 @@ class Scope {
 
   std::string getScopeName() const {
     return scope_.getTableName();
+  }
+
+  const TScopeData& getScopeData() const {
+    return data_;
+  }
+
+  void setScopeData(TScopeData data) {
+    data_ = std::move(data);
   }
 
  private:
@@ -115,6 +124,9 @@ class ScopeStack {
   const TVar* at(const std::string& key) const;
   bool erase(const std::string& key);
 
+  bool isGlobal(const std::string& key) const;
+  bool isNonLocal(const std::string& key) const;
+
   void push(std::shared_ptr<Scope<TVar, TScopeData>> scope);
   void pop();
 
@@ -162,6 +174,10 @@ class ScopeStack {
 
   const Symtable& getSymtable() const {
     return symbols_;
+  }
+
+  const Scope<TVar, TScopeData>& getCurrentScope() const {
+    return *scopes_.back();
   }
 
   bool isClassScope() const;

@@ -78,6 +78,23 @@ bool ScopeStack<TVar, TScopeData>::erase(const std::string& key) {
 }
 
 template <typename TVar, typename TScopeData>
+bool ScopeStack<TVar, TScopeData>::isGlobal(const std::string& key) const {
+  if (scopes_.size() == 1) {
+    return true;
+  }
+  const std::string mangledKey = mangleName(key);
+  const Symbol& symbol = scopes_.back()->getSTEntry().getSymbol(mangledKey);
+  return symbol.is_global();
+}
+
+template <typename TVar, typename TScopeData>
+bool ScopeStack<TVar, TScopeData>::isNonLocal(const std::string& key) const {
+  const std::string mangledKey = mangleName(key);
+  const Symbol& symbol = scopes_.back()->getSTEntry().getSymbol(mangledKey);
+  return symbol.is_nonlocal();
+}
+
+template <typename TVar, typename TScopeData>
 inline void ScopeStack<TVar, TScopeData>::push(
     std::shared_ptr<Scope<TVar, TScopeData>> scope) {
   scopes_.push_back(scope);

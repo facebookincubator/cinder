@@ -114,10 +114,17 @@ std::shared_ptr<BaseStrictObject> StrictFuncType::call(
 
   FuncSignature funcSig = func->getSignature();
   std::unique_ptr<DictType> callArgs = funcSig.bind(args, argNames, caller);
+  std::shared_ptr<BaseStrictObject> firstArg;
+  if (args.size() > argNames.size()) {
+    firstArg = args[0];
+  }
 
   try {
     analyzer.analyzeFunction(
-        func->getBody(), func->getSymtableEntry(), std::move(callArgs));
+        func->getBody(),
+        func->getSymtableEntry(),
+        std::move(callArgs),
+        std::move(firstArg));
   } catch (FunctionReturnException& ret) {
     return ret.getVal();
   } catch (const YieldReachedException&) {

@@ -236,6 +236,12 @@ std::shared_ptr<StrictType> GeneratorFuncIteratorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> SuperType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictSuperType>(
+      "super", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> NotImplementedType() {
   static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
       "NotImplementedType", kBuiltinsModule, objectTypeVec(), TypeType());
@@ -353,6 +359,7 @@ bool initializeBuiltinsModuleDict() {
         {"set", SetType()},
         {"frozenset", SetType()},
         {"dict", DictObjectType()},
+        {"super", SuperType()},
         {"Exception", ExceptionType()},
         {"TypeError", TypeErrorType()},
         {"AttributeError", AttributeErrorType()},

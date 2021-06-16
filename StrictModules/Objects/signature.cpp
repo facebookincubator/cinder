@@ -44,22 +44,19 @@ std::unique_ptr<DictType> FuncSignature::bind(
         "{} got some positional only arguments passed as keyword arguments",
         funcName_);
   }
+
+  std::vector<std::shared_ptr<BaseStrictObject>> varArgValues;
   // populate positional args without defaults
   for (int i = 0; i < nonNamedArgsCount; ++i) {
     if (i >= posCount) {
       // unnamed argument but no more positional parameters
       // check vararg
       if (varArg_.has_value()) {
-        // put the rest of non-named args into varArg_
-        std::vector<std::shared_ptr<BaseStrictObject>> varArgValues;
+        // put the rest of non-named args into varArg
         varArgValues.reserve(nonNamedArgsCount - posCount);
         for (int j = i; j < nonNamedArgsCount; ++j) {
           varArgValues.push_back(args[j]);
         }
-        std::shared_ptr<BaseStrictObject> varArgObj =
-            std::make_shared<StrictTuple>(
-                TupleType(), caller.caller, std::move(varArgValues));
-        map[varArg_.value()] = std::move(varArgObj);
         break;
       } else {
         // error
@@ -77,6 +74,7 @@ std::unique_ptr<DictType> FuncSignature::bind(
       map[posArgs_[i - posonlyCount]] = std::move(args[i]);
     }
   }
+
   std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwMap;
   kwMap.reserve(names.size());
   for (size_t i = nonNamedArgsCount; i < args.size(); ++i) {
@@ -106,8 +104,15 @@ std::unique_ptr<DictType> FuncSignature::bind(
       kwMap.erase(got);
     }
   }
-  // process kwonlyArgs_. Note that kwonlyDefaults always
-  // have the same size as kwonlyArgs_
+  // add VarArg if it exists
+  if (varArg_.has_value()) {
+    std::shared_ptr<BaseStrictObject> varArgObj = std::make_shared<StrictTuple>(
+        TupleType(), caller.caller, std::move(varArgValues));
+    map[varArg_.value()] = std::move(varArgObj);
+  }
+
+  // process kwonlyArgs. Note that kwonlyDefaults always
+  // have the same size as kwonlyArgs
   for (size_t i = 0; i < kwonlyArgs_.size(); ++i) {
     const std::string& kwArgName = kwonlyArgs_[i];
     auto got = kwMap.find(kwArgName);

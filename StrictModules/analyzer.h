@@ -19,8 +19,17 @@ namespace compiler {
 class ModuleLoader;
 } // namespace compiler
 
+class AnalysisScopeData;
 typedef std::shared_ptr<objects::BaseStrictObject> AnalysisResult;
-typedef ScopeStack<std::shared_ptr<BaseStrictObject>, std::nullptr_t> EnvT;
+typedef ScopeStack<std::shared_ptr<BaseStrictObject>, AnalysisScopeData> EnvT;
+
+class AnalysisScopeData {
+ public:
+  AnalysisScopeData(AnalysisResult callFirstArg = nullptr)
+      : callFirstArg(std::move(callFirstArg)) {}
+
+  AnalysisResult callFirstArg;
+};
 
 class AnalysisContextManager {
  public:
@@ -35,7 +44,7 @@ class AnalysisContextManager {
 
 class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   using BaseStrictObject = objects::BaseStrictObject;
-  typedef Scope<std::shared_ptr<BaseStrictObject>, std::nullptr_t> ScopeT;
+  typedef Scope<std::shared_ptr<BaseStrictObject>, AnalysisScopeData> ScopeT;
   typedef std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>
       DictType;
 
@@ -80,7 +89,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   void analyzeFunction(
       std::vector<stmt_ty> body,
       SymtableEntry entry,
-      std::unique_ptr<objects::DictType> callArgs);
+      std::unique_ptr<objects::DictType> callArgs,
+      AnalysisResult firstArg);
   // module level
   void visitStmtSeq(const asdl_seq* seq);
   void visitStmtSeq(std::vector<stmt_ty> seq);
@@ -145,7 +155,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   static std::unique_ptr<ScopeT> scopeFactory(
       SymtableEntry entry,
       std::shared_ptr<DictType> map) {
-    return std::make_unique<ScopeT>(entry, std::move(map), nullptr);
+    return std::make_unique<ScopeT>(entry, std::move(map), AnalysisScopeData());
   }
 
  private:
@@ -222,6 +232,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       Args... targets);
 
   bool checkGeneratorIfHelper(asdl_seq* ifs);
+
+  AnalysisResult callMagicalSuperHelper(AnalysisResult func);
 
   void assignToTarget(
       const expr_ty target,

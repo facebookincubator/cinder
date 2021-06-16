@@ -150,7 +150,15 @@ def g():
     return
 
 def h(x, /, y, z=1, *args, w, v=4, **kwargs):
-    return z
+    return x + y + z + w + v
+
+def i(x, /, y, z=1, *args, w, v=4, **kwargs):
+    r = 0
+    for i in  args:
+        r += i
+    for i in kwargs.values():
+        r += i
+    return x + y + z + w + v + r
 
 x = f()
 g()
@@ -158,8 +166,9 @@ y = h(1, 2, 3, w=4)
 z = h(1, y=2, w=4)
 w = h(1, w = 4, y = 2, z = 3)
 v = h(1, 2, 3, 4, 5, w=6, a=7, b=8)
+u = i(1, 2, 3, 4, 5, w=6, a=7, b=8)
 ---
-x y z w v
+x y z w v u
 ---
 ---
 ClassSimple
@@ -3000,7 +3009,7 @@ x = int.__mro__[0]
 x
 ---
 ---
-test_super_basic @disabled
+test_super_basic
 ---
 class C:
     def f(self):
@@ -3013,7 +3022,7 @@ a = D().f()
 a
 ---
 ---
-test_super_outside_class @disabled
+test_super_outside_class
 ---
 class C:
     def f(self):
@@ -3027,7 +3036,7 @@ b = D().f()
 a b
 ---
 ---
-test_super_single_inheritance_search @disabled
+test_super_single_inheritance_search
 ---
 class C:
     def f(self):
@@ -3045,7 +3054,7 @@ c = super(D, D()).f() # C.f
 a b c
 ---
 ---
-test_super_not_subtype @disabled
+test_super_not_subtype
 ---
 class C:
     def f(self):
@@ -3057,9 +3066,9 @@ class D(C):
 super(D, C()).f()
 ---
 ---
-StrictModuleUnhandledException
+8 0 StrictModuleUnhandledException(TypeError)
 ---
-test_super_descr_get @disabled
+test_super_descr_get
 ---
 class C:
     def f(self):
@@ -3076,7 +3085,7 @@ a = E().mysuper.f() # invoke s.__get__(E()).f() -> super(D, E()).f() = 1
 a
 ---
 ---
-test_super_base_call @disabled
+test_super_base_call
 ---
 class C:
     def f(self):
@@ -3090,7 +3099,7 @@ a = D().f()
 a
 ---
 ---
-test_super_unknown_base @disabled
+test_super_unknown_base
 ---
 from outside import unknown
 class A:
@@ -3107,9 +3116,9 @@ c = C()
 super(A, c).f()
 ---
 ---
-StrictModuleTypeError
+13 0 StrictModuleUnhandledException(AttributeError)
 ---
-test_super_multiple_inheritance @disabled
+test_super_multiple_inheritance
 ---
 class A:
     def f(self):
@@ -3132,7 +3141,7 @@ c = super(B, D()).f()
 a b c
 ---
 ---
-test_super_multiple_inheritance_2 @disabled
+test_super_multiple_inheritance_2
 ---
 class A:
     def f(self):
@@ -3157,7 +3166,7 @@ d = super(B, B()).f()
 a b c d
 ---
 ---
-test_super_multiple_inheritance_3 @disabled
+test_super_multiple_inheritance_3
 ---
 class A:
     def f(self):
@@ -3179,7 +3188,7 @@ a = D().f()
 a
 ---
 ---
-test_dunder_class_cell @disabled
+test_dunder_class_cell
 ---
 class A:
     def f(self):
@@ -3198,7 +3207,7 @@ c = B().g() == B
 a b c
 ---
 ---
-test_magical_super_multiple_inheritance @disabled
+test_magical_super_multiple_inheritance
 ---
 class A:
     def f(self):
@@ -3220,7 +3229,7 @@ a = D().f()
 a
 ---
 ---
-test_magical_super_outside_method @disabled
+test_magical_super_outside_method
 ---
 class A:
     def f(self):
@@ -3233,9 +3242,9 @@ def f(self):
 f(B())
 ---
 ---
-StrictModuleUnhandledException
+9 0 UnsafeCallException f 8 11 StrictModuleUserException RuntimeError
 ---
-test_super_shadow_dunder_class @disabled
+test_super_shadow_dunder_class
 ---
 class B:
     def f(self): return 1

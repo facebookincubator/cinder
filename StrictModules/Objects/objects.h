@@ -16,6 +16,7 @@
 #include "StrictModules/Objects/numerics.h"
 #include "StrictModules/Objects/object_type.h"
 #include "StrictModules/Objects/string_object.h"
+#include "StrictModules/Objects/super.h"
 #include "StrictModules/Objects/type.h"
 #include "StrictModules/Objects/type_type.h"
 #include "StrictModules/Objects/unknown.h"
@@ -32,6 +33,7 @@ std::shared_ptr<StrictType> IntType();
 std::shared_ptr<StrictType> FloatType();
 std::shared_ptr<StrictType> BoolType();
 std::shared_ptr<StrictType> StrType();
+std::shared_ptr<StrictType> SuperType();
 
 std::shared_ptr<StrictType> ListType();
 std::shared_ptr<StrictType> TupleType();
@@ -98,6 +100,7 @@ static const std::string kDunderLen = "__len__";
 static const std::string kDunderIter = "__iter__";
 static const std::string kDunderNext = "__next__";
 static const std::string kDunderStr = "__str__";
+static const std::string kDunderClass = "__class__";
 
 /* indices corresponds to enum values in Python-ast.h
  * Do not change the order of names.
