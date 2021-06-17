@@ -432,11 +432,11 @@ Type outputType(const Instr& instr) {
     }
     case Opcode::kMakeListTuple: {
       auto is_tuple = static_cast<const MakeListTuple&>(instr).is_tuple();
-      return is_tuple ? TTuple : TList;
+      return is_tuple ? TTupleExact : TListExact;
     }
     case Opcode::kMakeTupleFromList:
     case Opcode::kUnpackExToTuple:
-      return TTuple;
+      return TTupleExact;
     case Opcode::kPhi: {
       auto ty = TBottom;
       for (std::size_t i = 0, n = instr.NumOperands(); i < n; ++i) {

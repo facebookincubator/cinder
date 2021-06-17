@@ -588,7 +588,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "a">
-    v7:Tuple = MakeListTuple<tuple, 3> {
+    v7:TupleExact = MakeListTuple<tuple, 3> {
       LiveValues<1> b:v3
       NextInstrOffset 8
       Locals<1> v3
@@ -699,7 +699,7 @@ fun jittestmodule:test {
     Decref v16
     Decref v17
     Decref v18
-    v19:Tuple = MakeListTuple<tuple, 1> {
+    v19:TupleExact = MakeListTuple<tuple, 1> {
       LiveValues<2> unc:v13 o:v14
       NextInstrOffset 12
       Locals<2> v13 v13
