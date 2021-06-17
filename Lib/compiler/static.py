@@ -392,6 +392,7 @@ class SymbolTable:
             "Final": FINAL_TYPE,
             "final": FINAL_METHOD_TYPE,
             "NamedTuple": NAMED_TUPLE_TYPE,
+            "Protocol": PROTOCOL_TYPE,
             "Optional": OPTIONAL_TYPE,
             "Union": UNION_TYPE,
             "Tuple": TUPLE_TYPE,
@@ -3824,6 +3825,7 @@ CONSTANT_TYPES: Mapping[Type[object], Value] = {
 }
 
 NAMED_TUPLE_TYPE = Class(TypeName("typing", "NamedTuple"))
+PROTOCOL_TYPE = Class(TypeName("typing", "Protocol"))
 
 
 class FinalClass(GenericClass):
@@ -5308,6 +5310,12 @@ class DeclarationVisitor(GenericVisitor):
             if base is NAMED_TUPLE_TYPE:
                 # In named tuples, the fields are actually elements
                 # of the tuple, so we can't do any advanced binding against it.
+                klass = DYNAMIC_TYPE
+                break
+
+            if base is PROTOCOL_TYPE:
+                # Protocols aren't guaranteed to exist in the actual MRO, so let's treat
+                # them as dynamic to force dynamic dispatch.
                 klass = DYNAMIC_TYPE
                 break
 
