@@ -485,6 +485,7 @@ void SpecializeBinarySubscrList::Run(Function& func) {
       auto load_array_item = LoadArrayItem::create(
           binary_op->GetOutput(), ob_item, adjusted_idx, left, TObject);
       binary_op->ExpandInto({unbox, check_bounds, load_field, load_array_item});
+      delete binary_op;
     }
   }
 
