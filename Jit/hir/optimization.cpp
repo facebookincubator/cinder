@@ -36,6 +36,7 @@ PassRegistry::PassRegistry() {
   addPass(PhiElimination::Factory);
   addPass(RedundantConversionElimination::Factory);
   addPass(LoadConstTupleItemOptimization::Factory);
+  addPass(SpecializeBinarySubscrList::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
@@ -445,6 +446,49 @@ void LoadConstTupleItemOptimization::Run(Function& func) {
       delete load_tuple_item;
     }
   }
+}
+
+void SpecializeBinarySubscrList::Run(Function& func) {
+  for (auto& block : func.cfg.blocks) {
+    for (auto it = block.begin(); it != block.end();) {
+      auto& instr = *it;
+      ++it;
+
+      if (!instr.IsBinaryOp()) {
+        continue;
+      }
+      BinaryOp* binary_op = static_cast<BinaryOp*>(&instr);
+      if (binary_op->op() != BinaryOpKind::kSubscript) {
+        continue;
+      }
+      Register* left = binary_op->left();
+      if (!(left->type() <= TListExact)) {
+        continue;
+      }
+      Register* right = binary_op->right();
+      if (!(right->type() <= TLongExact)) {
+        continue;
+      }
+      Register* right_index = func.env.AllocateRegister();
+      // TODO(T93509109): Replace TCInt64 with a more platform-specific
+      // representation of the type, which should be analagous to Py_ssize_t.
+      auto unbox = PrimitiveUnbox::create(right_index, right, TCInt64);
+      Register* adjusted_idx = func.env.AllocateRegister();
+      auto check_bounds = CheckSequenceBounds::create(
+          adjusted_idx, left, right_index, *get_frame_state(*binary_op));
+      Register* ob_item = func.env.AllocateRegister();
+      auto load_field = LoadField::create(
+          ob_item,
+          left,
+          GET_STRUCT_MEMBER_OFFSET(PyListObject, ob_item),
+          TCPtr);
+      auto load_array_item = LoadArrayItem::create(
+          binary_op->GetOutput(), ob_item, adjusted_idx, left, TObject);
+      binary_op->ExpandInto({unbox, check_bounds, load_field, load_array_item});
+    }
+  }
+
+  reflowTypes(func);
 }
 
 PyObject* loadGlobal(

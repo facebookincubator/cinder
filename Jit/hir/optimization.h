@@ -188,6 +188,18 @@ class LoadConstTupleItemOptimization : public Pass {
   }
 };
 
+// Convert BinaryOp to LoadArrayItem if the lhs is an exact list
+class SpecializeBinarySubscrList : public Pass {
+ public:
+  SpecializeBinarySubscrList() : Pass("SpecializeBinarySubscrList") {}
+
+  void Run(Function& irfunc) override;
+
+  static std::unique_ptr<SpecializeBinarySubscrList> Factory() {
+    return std::make_unique<SpecializeBinarySubscrList>();
+  }
+};
+
 class PassRegistry {
  public:
   PassRegistry();

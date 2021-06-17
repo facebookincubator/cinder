@@ -1,0 +1,53 @@
+BinaryOpSpecializationTest
+---
+SpecializeBinarySubscrList
+---
+BinaryOpSubscriptFromListIsSpecialized
+---
+def test():
+  ls = [1, 2, 3]
+  return ls[1]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v8:Nullptr = LoadConst<Nullptr>
+    v9:LongExact[1] = LoadConst<LongExact[1]>
+    v10:LongExact[2] = LoadConst<LongExact[2]>
+    v11:LongExact[3] = LoadConst<LongExact[3]>
+    v12:ListExact = MakeListTuple<list, 3> {
+      NextInstrOffset 8
+      Locals<1> v8
+      Stack<3> v9 v10 v11
+    }
+    InitListTuple<list, 3> v12 v9 v10 v11
+    v16:LongExact[1] = LoadConst<LongExact[1]>
+    v18:CInt64 = PrimitiveUnbox<CInt64> v16
+    v19:CInt64 = CheckSequenceBounds v12 v18 {
+      NextInstrOffset 16
+      Locals<1> v12
+    }
+    v20:CPtr = LoadField<24> v12
+    v17:Object = LoadArrayItem v20 v19 v12
+    Return v17
+  }
+}
+---
+BinaryOpSubscriptFromNonListEmitsBinaryOp
+---
+ls = object()
+
+def test():
+  return ls[1]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:OptObject = LoadGlobalCached<0; "ls">
+    v4:ObjectExact[object:0xdeadbeef] = GuardIs<0xdeadbeef> v3
+    v5:LongExact[1] = LoadConst<LongExact[1]>
+    v6:Object = BinaryOp<Subscript> v4 v5 {
+      NextInstrOffset 6
+    }
+    Return v6
+  }
+}
+---

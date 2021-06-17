@@ -544,6 +544,15 @@ class Instr {
     unlink();
   }
 
+  void ExpandInto(const std::vector<Instr*>& expansion) {
+    Instr* last = this;
+    for (Instr* instr : expansion) {
+      instr->InsertAfter(*last);
+      last = instr;
+    }
+    unlink();
+  }
+
   // Returns the `FrameState` that dominates this instruction, if one exists
   // and there are no non-replayable instructions between it and the
   // instruction.
