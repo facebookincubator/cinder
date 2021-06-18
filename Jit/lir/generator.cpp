@@ -1772,23 +1772,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto type = instr->type();
         uint64_t func = 0;
 
-        if (type.couldBe(TCInt8)) {
+        if (type <= TCInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_GetI8_FromArray);
-        } else if (type.couldBe(TCUInt8)) {
+        } else if (type <= TCUInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_GetU8_FromArray);
-        } else if (type.couldBe(TCInt16)) {
+        } else if (type <= TCInt16) {
           func = reinterpret_cast<uint64_t>(JITRT_GetI16_FromArray);
-        } else if (type.couldBe(TCUInt16)) {
+        } else if (type <= TCUInt16) {
           func = reinterpret_cast<uint64_t>(JITRT_GetU16_FromArray);
-        } else if (type.couldBe(TCInt32)) {
+        } else if (type <= TCInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray);
-        } else if (type.couldBe(TCUInt32)) {
+        } else if (type <= TCUInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_GetU32_FromArray);
-        } else if (type.couldBe(TCInt64)) {
+        } else if (type <= TCInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_GetI64_FromArray);
-        } else if (type.couldBe(TCUInt64)) {
+        } else if (type <= TCUInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_GetU64_FromArray);
-        } else if (type.couldBe(TObject)) {
+        } else if (type <= TObject) {
           func = reinterpret_cast<uint64_t>(JITRT_GetObj_FromArray);
         }
         JIT_CHECK(func != 0, "unknown array type %s", type.toString().c_str());
@@ -1806,23 +1806,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto type = instr->type();
         uint64_t func = 0;
 
-        if (type.couldBe(TCInt8)) {
+        if (type <= TCInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_SetI8_InArray);
-        } else if (type.couldBe(TCUInt8)) {
+        } else if (type <= TCUInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_SetU8_InArray);
-        } else if (type.couldBe(TCInt16)) {
+        } else if (type <= TCInt16) {
           func = reinterpret_cast<uint64_t>(JITRT_SetI16_InArray);
-        } else if (type.couldBe(TCUInt16)) {
+        } else if (type <= TCUInt16) {
           func = reinterpret_cast<uint64_t>(JITRT_SetU16_InArray);
-        } else if (type.couldBe(TCInt32)) {
+        } else if (type <= TCInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_SetI32_InArray);
-        } else if (type.couldBe(TCUInt32)) {
+        } else if (type <= TCUInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_SetU32_InArray);
-        } else if (type.couldBe(TCInt64)) {
+        } else if (type <= TCInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_SetI64_InArray);
-        } else if (type.couldBe(TCUInt64)) {
+        } else if (type <= TCUInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_SetU64_InArray);
-        } else if (type.couldBe(TObject)) {
+        } else if (type <= TObject) {
           func = reinterpret_cast<uint64_t>(JITRT_SetObj_InArray);
         }
         JIT_CHECK(func != 0, "unknown array type %s", type.toString().c_str());
