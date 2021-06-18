@@ -20,7 +20,7 @@ module array
 [clinic start generated code]*/
 /*[clinic end generated code: output=da39a3ee5e6b4b0d input=7d1b8d7f5958fd83]*/
 
-/* All possible arraydescr values are defined in the vector "descriptors"
+/* All possible _arraydescr values are defined in the vector "descriptors"
  * below.  That's defined later because the appropriate get and set
  * functions aren't visible yet.
  */
@@ -28,8 +28,8 @@ module array
 typedef struct {
     PyObject_HEAD
     Py_ssize_t index;
-    arrayobject *ao;
-    PyObject* (*getitem)(struct arrayobject *, Py_ssize_t);
+    _arrayobject *ao;
+    PyObject* (*getitem)(struct _arrayobject *, Py_ssize_t);
 } arrayiterobject;
 
 #define Arraytype PyArray_Type
@@ -80,13 +80,13 @@ enum machine_format_code {
 
 
 /*
- * Must come after arrayobject, arrayiterobject,
+ * Must come after _arrayobject, arrayiterobject,
  * and enum machine_code_type definitions.
  */
 #include "clinic/arraymodule.c.h"
 
 static int
-array_resize(arrayobject *self, Py_ssize_t newsize)
+array_resize(_arrayobject *self, Py_ssize_t newsize)
 {
     char *items;
     size_t _new_size;
@@ -149,9 +149,9 @@ array_resize(arrayobject *self, Py_ssize_t newsize)
 
 /****************************************************************************
 Get and Set functions for each type.
-A Get function takes an arrayobject* and an integer index, returning the
+A Get function takes an _arrayobject* and an integer index, returning the
 array value at that index wrapped in an appropriate PyObject*.
-A Set function takes an arrayobject, integer index, and PyObject*; sets
+A Set function takes an _arrayobject, integer index, and PyObject*; sets
 the array value at that index to the raw C data extracted from the PyObject*,
 and returns 0 if successful, else nonzero on failure (PyObject* not of an
 appropriate type or value).
@@ -160,7 +160,7 @@ in bounds; that's the responsibility of the caller.
 ****************************************************************************/
 
 static PyObject *
-b_getitem(arrayobject *ap, Py_ssize_t i)
+b_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     long x = ((char *)ap->ob_item)[i];
     if (x >= 128)
@@ -169,7 +169,7 @@ b_getitem(arrayobject *ap, Py_ssize_t i)
 }
 
 static int
-b_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+b_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     short x;
     /* PyArg_Parse's 'b' formatter is for an unsigned char, therefore
@@ -193,7 +193,7 @@ b_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-b_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t x)
+b_setitem_signed(_arrayobject *ap, Py_ssize_t i, int64_t x)
 {
     if (x < -128) {
         PyErr_SetString(PyExc_OverflowError,
@@ -211,14 +211,14 @@ b_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t x)
 }
 
 static PyObject *
-BB_getitem(arrayobject *ap, Py_ssize_t i)
+BB_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     long x = ((unsigned char *)ap->ob_item)[i];
     return PyLong_FromLong(x);
 }
 
 static int
-BB_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+BB_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     unsigned char x;
     /* 'B' == unsigned char, maps to PyArg_Parse's 'b' formatter */
@@ -230,7 +230,7 @@ BB_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-BB_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t v)
+BB_setitem_unsigned(_arrayobject *ap, Py_ssize_t i, uint64_t v)
 {
     if (v > 256) {
         PyErr_SetString(PyExc_OverflowError,
@@ -244,13 +244,13 @@ BB_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t v)
 }
 
 static PyObject *
-u_getitem(arrayobject *ap, Py_ssize_t i)
+u_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyUnicode_FromOrdinal(((Py_UNICODE *) ap->ob_item)[i]);
 }
 
 static int
-u_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+u_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     Py_UNICODE *p;
     Py_ssize_t len;
@@ -269,14 +269,14 @@ u_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 
 
 static PyObject *
-h_getitem(arrayobject *ap, Py_ssize_t i)
+h_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromLong((long) ((short *)ap->ob_item)[i]);
 }
 
 
 static int
-h_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+h_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     short x;
     /* 'h' == signed short, maps to PyArg_Parse's 'h' formatter */
@@ -288,7 +288,7 @@ h_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-h_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t v)
+h_setitem_signed(_arrayobject *ap, Py_ssize_t i, int64_t v)
 {
     if (v < SHRT_MIN) {
         PyErr_SetString(PyExc_OverflowError,
@@ -307,13 +307,13 @@ h_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t v)
 }
 
 static PyObject *
-HH_getitem(arrayobject *ap, Py_ssize_t i)
+HH_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromLong((long) ((unsigned short *)ap->ob_item)[i]);
 }
 
 static int
-HH_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+HH_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     int x;
     /* PyArg_Parse's 'h' formatter is for a signed short, therefore
@@ -336,7 +336,7 @@ HH_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-HH_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
+HH_setitem_unsigned(_arrayobject *ap, Py_ssize_t i, uint64_t x)
 {
     if (x > USHRT_MAX) {
         PyErr_SetString(PyExc_OverflowError,
@@ -349,13 +349,13 @@ HH_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
 }
 
 static PyObject *
-i_getitem(arrayobject *ap, Py_ssize_t i)
+i_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromLong((long) ((int *)ap->ob_item)[i]);
 }
 
 static int
-i_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+i_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     int x;
     /* 'i' == signed int, maps to PyArg_Parse's 'i' formatter */
@@ -367,7 +367,7 @@ i_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-i_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t x)
+i_setitem_signed(_arrayobject *ap, Py_ssize_t i, int64_t x)
 {
     if (x < INT_MIN) {
         PyErr_SetString(PyExc_OverflowError,
@@ -386,7 +386,7 @@ i_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t x)
 }
 
 static PyObject *
-II_getitem(arrayobject *ap, Py_ssize_t i)
+II_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromUnsignedLong(
         (unsigned long) ((unsigned int *)ap->ob_item)[i]);
@@ -404,7 +404,7 @@ get_int_unless_float(PyObject *v)
 }
 
 static int
-II_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+II_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     unsigned long x;
     int do_decref = 0; /* if nb_int was called */
@@ -441,7 +441,7 @@ II_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-II_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
+II_setitem_unsigned(_arrayobject *ap, Py_ssize_t i, uint64_t x)
 {
     if (x > UINT_MAX) {
         PyErr_SetString(PyExc_OverflowError,
@@ -455,13 +455,13 @@ II_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
 }
 
 static PyObject *
-l_getitem(arrayobject *ap, Py_ssize_t i)
+l_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromLong(((long *)ap->ob_item)[i]);
 }
 
 static int
-l_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+l_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     long x;
     if (!PyArg_Parse(v, "l;array item must be integer", &x))
@@ -472,7 +472,7 @@ l_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-l_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t x)
+l_setitem_signed(_arrayobject *ap, Py_ssize_t i, int64_t x)
 {
     if (i >= 0)
                  ((long *)ap->ob_item)[i] = x;
@@ -480,13 +480,13 @@ l_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t x)
 }
 
 static PyObject *
-LL_getitem(arrayobject *ap, Py_ssize_t i)
+LL_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromUnsignedLong(((unsigned long *)ap->ob_item)[i]);
 }
 
 static int
-LL_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+LL_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     unsigned long x;
     int do_decref = 0; /* if nb_int was called */
@@ -515,7 +515,7 @@ LL_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-LL_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
+LL_setitem_unsigned(_arrayobject *ap, Py_ssize_t i, uint64_t x)
 {
     if (i >= 0)
         ((unsigned long *)ap->ob_item)[i] = x;
@@ -524,13 +524,13 @@ LL_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
 }
 
 static PyObject *
-q_getitem(arrayobject *ap, Py_ssize_t i)
+q_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromLongLong(((long long *)ap->ob_item)[i]);
 }
 
 static int
-q_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t v)
+q_setitem_signed(_arrayobject *ap, Py_ssize_t i, int64_t v)
 {
     if (i >= 0)
         ((long long *)ap->ob_item)[i] = v;
@@ -538,7 +538,7 @@ q_setitem_signed(arrayobject *ap, Py_ssize_t i, int64_t v)
 }
 
 static int
-q_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+q_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     long long x;
     if (!PyArg_Parse(v, "L;array item must be integer", &x))
@@ -549,14 +549,14 @@ q_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static PyObject *
-QQ_getitem(arrayobject *ap, Py_ssize_t i)
+QQ_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyLong_FromUnsignedLongLong(
         ((unsigned long long *)ap->ob_item)[i]);
 }
 
 static int
-QQ_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+QQ_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     unsigned long long x;
     int do_decref = 0; /* if nb_int was called */
@@ -585,7 +585,7 @@ QQ_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static int
-QQ_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
+QQ_setitem_unsigned(_arrayobject *ap, Py_ssize_t i, uint64_t x)
 {
     if (i >= 0)
         ((unsigned long long *)ap->ob_item)[i] = x;
@@ -594,13 +594,13 @@ QQ_setitem_unsigned(arrayobject *ap, Py_ssize_t i, uint64_t x)
 }
 
 static PyObject *
-f_getitem(arrayobject *ap, Py_ssize_t i)
+f_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyFloat_FromDouble((double) ((float *)ap->ob_item)[i]);
 }
 
 static int
-f_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+f_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     float x;
     if (!PyArg_Parse(v, "f;array item must be float", &x))
@@ -611,13 +611,13 @@ f_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
 }
 
 static PyObject *
-d_getitem(arrayobject *ap, Py_ssize_t i)
+d_getitem(_arrayobject *ap, Py_ssize_t i)
 {
     return PyFloat_FromDouble(((double *)ap->ob_item)[i]);
 }
 
 static int
-d_setitem(arrayobject *ap, Py_ssize_t i, PyObject *v)
+d_setitem(_arrayobject *ap, Py_ssize_t i, PyObject *v)
 {
     double x;
     if (!PyArg_Parse(v, "d;array item must be float", &x))
@@ -650,11 +650,11 @@ DEFINE_COMPAREITEMS(LL, unsigned long)
 DEFINE_COMPAREITEMS(q, long long)
 DEFINE_COMPAREITEMS(QQ, unsigned long long)
 
-int error_setitem_signed(struct arrayobject *self, Py_ssize_t i, int64_t v) {
+int error_setitem_signed(struct _arrayobject *self, Py_ssize_t i, int64_t v) {
     return -1;
 }
 
-int error_setitem_unsigned(struct arrayobject *self, Py_ssize_t i, uint64_t v) {
+int error_setitem_unsigned(struct _arrayobject *self, Py_ssize_t i, uint64_t v) {
     return -1;
 }
 
@@ -664,7 +664,7 @@ int error_setitem_unsigned(struct arrayobject *self, Py_ssize_t i, uint64_t v) {
  * typecode.
  */
 
-static const struct arraydescr descriptors[] = {
+static const struct _arraydescr descriptors[] = {
     {'b', 1, b_getitem, b_setitem, b_compareitems, "b", 1, 1, b_setitem_signed, error_setitem_unsigned},
     {'B', 1, BB_getitem, BB_setitem, BB_compareitems, "B", 1, 0, error_setitem_signed, BB_setitem_unsigned},
     {'u', sizeof(Py_UNICODE), u_getitem, u_setitem, u_compareitems, "u", 0, 0, error_setitem_signed, error_setitem_unsigned},
@@ -685,14 +685,14 @@ static const struct arraydescr descriptors[] = {
 Implementations of array object methods.
 ****************************************************************************/
 /*[clinic input]
-class array.array "arrayobject *" "&Arraytype"
+class array.array "_arrayobject *" "&Arraytype"
 [clinic start generated code]*/
 /*[clinic end generated code: output=da39a3ee5e6b4b0d input=ad43d37e942a8854]*/
 
 static PyObject *
-newarrayobject(PyTypeObject *type, Py_ssize_t size, const struct arraydescr *descr)
+new_arrayobject(PyTypeObject *type, Py_ssize_t size, const struct _arraydescr *descr)
 {
-    arrayobject *op;
+    _arrayobject *op;
     size_t nbytes;
 
     if (size < 0) {
@@ -705,7 +705,7 @@ newarrayobject(PyTypeObject *type, Py_ssize_t size, const struct arraydescr *des
         return PyErr_NoMemory();
     }
     nbytes = size * descr->itemsize;
-    op = (arrayobject *) type->tp_alloc(type, 0);
+    op = (_arrayobject *) type->tp_alloc(type, 0);
     if (op == NULL) {
         return NULL;
     }
@@ -730,15 +730,15 @@ newarrayobject(PyTypeObject *type, Py_ssize_t size, const struct arraydescr *des
 static PyObject *
 getarrayitem(PyObject *op, Py_ssize_t i)
 {
-    arrayobject *ap;
+    _arrayobject *ap;
     assert(array_Check(op));
-    ap = (arrayobject *)op;
+    ap = (_arrayobject *)op;
     assert(i>=0 && i<Py_SIZE(ap));
     return (*ap->ob_descr->getitem)(ap, i);
 }
 
 static int
-ins1(arrayobject *self, Py_ssize_t where, PyObject *v)
+ins1(_arrayobject *self, Py_ssize_t where, PyObject *v)
 {
     char *items;
     Py_ssize_t n = Py_SIZE(self);
@@ -768,7 +768,7 @@ ins1(arrayobject *self, Py_ssize_t where, PyObject *v)
 }
 
 static int
-ins1_signed(arrayobject *self, Py_ssize_t where, int64_t v)
+ins1_signed(_arrayobject *self, Py_ssize_t where, int64_t v)
 {
     char *items;
     Py_ssize_t n = Py_SIZE(self);
@@ -792,7 +792,7 @@ ins1_signed(arrayobject *self, Py_ssize_t where, int64_t v)
 }
 
 static int
-ins1_unsigned(arrayobject *self, Py_ssize_t where, uint64_t v)
+ins1_unsigned(_arrayobject *self, Py_ssize_t where, uint64_t v)
 {
     char *items;
     Py_ssize_t n = Py_SIZE(self);
@@ -818,7 +818,7 @@ ins1_unsigned(arrayobject *self, Py_ssize_t where, uint64_t v)
 /* Methods */
 
 static void
-array_dealloc(arrayobject *op)
+array_dealloc(_arrayobject *op)
 {
     if (op->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) op);
@@ -830,7 +830,7 @@ array_dealloc(arrayobject *op)
 static PyObject *
 array_richcompare(PyObject *v, PyObject *w, int op)
 {
-    arrayobject *va, *wa;
+    _arrayobject *va, *wa;
     PyObject *vi = NULL;
     PyObject *wi = NULL;
     Py_ssize_t i, k;
@@ -839,8 +839,8 @@ array_richcompare(PyObject *v, PyObject *w, int op)
     if (!array_Check(v) || !array_Check(w))
         Py_RETURN_NOTIMPLEMENTED;
 
-    va = (arrayobject *)v;
-    wa = (arrayobject *)w;
+    va = (_arrayobject *)v;
+    wa = (_arrayobject *)w;
 
     if (Py_SIZE(va) != Py_SIZE(wa) && (op == Py_EQ || op == Py_NE)) {
         /* Shortcut: if the lengths differ, the arrays differ */
@@ -940,13 +940,13 @@ array_richcompare(PyObject *v, PyObject *w, int op)
 }
 
 static Py_ssize_t
-array_length(arrayobject *a)
+array_length(_arrayobject *a)
 {
     return Py_SIZE(a);
 }
 
 static PyObject *
-array_item(arrayobject *a, Py_ssize_t i)
+array_item(_arrayobject *a, Py_ssize_t i)
 {
     if (i < 0 || i >= Py_SIZE(a)) {
         PyErr_SetString(PyExc_IndexError, "array index out of range");
@@ -959,13 +959,13 @@ PyObject *
 _PyArray_GetItem(PyObject *a, Py_ssize_t i)
 {
     // Note: i is assumed to be non-negative here.
-    return array_item((arrayobject *)a, i);
+    return array_item((_arrayobject *)a, i);
 }
 
 static PyObject *
-array_slice(arrayobject *a, Py_ssize_t ilow, Py_ssize_t ihigh)
+array_slice(_arrayobject *a, Py_ssize_t ilow, Py_ssize_t ihigh)
 {
-    arrayobject *np;
+    _arrayobject *np;
     if (ilow < 0)
         ilow = 0;
     else if (ilow > Py_SIZE(a))
@@ -976,7 +976,7 @@ array_slice(arrayobject *a, Py_ssize_t ilow, Py_ssize_t ihigh)
         ihigh = ilow;
     else if (ihigh > Py_SIZE(a))
         ihigh = Py_SIZE(a);
-    np = (arrayobject *) newarrayobject(&Arraytype, ihigh - ilow, a->ob_descr);
+    np = (_arrayobject *) new_arrayobject(&Arraytype, ihigh - ilow, a->ob_descr);
     if (np == NULL)
         return NULL;
     if (ihigh > ilow) {
@@ -994,7 +994,7 @@ Return a copy of the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array___copy___impl(arrayobject *self)
+array_array___copy___impl(_arrayobject *self)
 /*[clinic end generated code: output=dec7c3f925d9619e input=ad1ee5b086965f09]*/
 {
     return array_slice(self, 0, Py_SIZE(self));
@@ -1010,24 +1010,24 @@ Return a copy of the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array___deepcopy__(arrayobject *self, PyObject *unused)
+array_array___deepcopy__(_arrayobject *self, PyObject *unused)
 /*[clinic end generated code: output=1ec748d8e14a9faa input=2405ecb4933748c4]*/
 {
     return array_array___copy___impl(self);
 }
 
 static PyObject *
-array_concat(arrayobject *a, PyObject *bb)
+array_concat(_arrayobject *a, PyObject *bb)
 {
     Py_ssize_t size;
-    arrayobject *np;
+    _arrayobject *np;
     if (!array_Check(bb)) {
         PyErr_Format(PyExc_TypeError,
              "can only append array (not \"%.200s\") to array",
                  Py_TYPE(bb)->tp_name);
         return NULL;
     }
-#define b ((arrayobject *)bb)
+#define b ((_arrayobject *)bb)
     if (a->ob_descr != b->ob_descr) {
         PyErr_BadArgument();
         return NULL;
@@ -1036,7 +1036,7 @@ array_concat(arrayobject *a, PyObject *bb)
         return PyErr_NoMemory();
     }
     size = Py_SIZE(a) + Py_SIZE(b);
-    np = (arrayobject *) newarrayobject(&Arraytype, size, a->ob_descr);
+    np = (_arrayobject *) new_arrayobject(&Arraytype, size, a->ob_descr);
     if (np == NULL) {
         return NULL;
     }
@@ -1052,10 +1052,10 @@ array_concat(arrayobject *a, PyObject *bb)
 }
 
 static PyObject *
-array_repeat(arrayobject *a, Py_ssize_t n)
+array_repeat(_arrayobject *a, Py_ssize_t n)
 {
     Py_ssize_t size;
-    arrayobject *np;
+    _arrayobject *np;
     Py_ssize_t oldbytes, newbytes;
     if (n < 0)
         n = 0;
@@ -1063,7 +1063,7 @@ array_repeat(arrayobject *a, Py_ssize_t n)
         return PyErr_NoMemory();
     }
     size = Py_SIZE(a) * n;
-    np = (arrayobject *) newarrayobject(&Arraytype, size, a->ob_descr);
+    np = (_arrayobject *) new_arrayobject(&Arraytype, size, a->ob_descr);
     if (np == NULL)
         return NULL;
     if (size == 0)
@@ -1086,7 +1086,7 @@ array_repeat(arrayobject *a, Py_ssize_t n)
 }
 
 static int
-array_del_slice(arrayobject *a, Py_ssize_t ilow, Py_ssize_t ihigh)
+array_del_slice(_arrayobject *a, Py_ssize_t ilow, Py_ssize_t ihigh)
 {
     char *item;
     Py_ssize_t d; /* Change in size */
@@ -1121,7 +1121,7 @@ array_del_slice(arrayobject *a, Py_ssize_t ilow, Py_ssize_t ihigh)
 }
 
 static int
-array_ass_item(arrayobject *a, Py_ssize_t i, PyObject *v)
+array_ass_item(_arrayobject *a, Py_ssize_t i, PyObject *v)
 {
     if (i < 0 || i >= Py_SIZE(a)) {
         PyErr_SetString(PyExc_IndexError,
@@ -1136,7 +1136,7 @@ array_ass_item(arrayobject *a, Py_ssize_t i, PyObject *v)
 int
 _PyArray_SetItem(PyObject *a, Py_ssize_t i, PyObject *v)
 {
-    arrayobject *arr = (arrayobject*)a;
+    _arrayobject *arr = (_arrayobject*)a;
     Py_ssize_t size = Py_SIZE(a);
     i = i < 0 ? i + size: i;
 
@@ -1153,11 +1153,11 @@ static int
 setarrayitem(PyObject *a, Py_ssize_t i, PyObject *v)
 {
     assert(array_Check(a));
-    return array_ass_item((arrayobject *)a, i, v);
+    return array_ass_item((_arrayobject *)a, i, v);
 }
 
 static int
-array_iter_extend(arrayobject *self, PyObject *bb)
+array_iter_extend(_arrayobject *self, PyObject *bb)
 {
     PyObject *it, *v;
 
@@ -1180,13 +1180,13 @@ array_iter_extend(arrayobject *self, PyObject *bb)
 }
 
 static int
-array_do_extend(arrayobject *self, PyObject *bb)
+array_do_extend(_arrayobject *self, PyObject *bb)
 {
     Py_ssize_t size, oldsize, bbsize;
 
     if (!array_Check(bb))
         return array_iter_extend(self, bb);
-#define b ((arrayobject *)bb)
+#define b ((_arrayobject *)bb)
     if (self->ob_descr != b->ob_descr) {
         PyErr_SetString(PyExc_TypeError,
                      "can only extend with array of same kind");
@@ -1213,7 +1213,7 @@ array_do_extend(arrayobject *self, PyObject *bb)
 }
 
 static PyObject *
-array_inplace_concat(arrayobject *self, PyObject *bb)
+array_inplace_concat(_arrayobject *self, PyObject *bb)
 {
     if (!array_Check(bb)) {
         PyErr_Format(PyExc_TypeError,
@@ -1228,7 +1228,7 @@ array_inplace_concat(arrayobject *self, PyObject *bb)
 }
 
 static PyObject *
-array_inplace_repeat(arrayobject *self, Py_ssize_t n)
+array_inplace_repeat(_arrayobject *self, Py_ssize_t n)
 {
     char *items, *p;
     Py_ssize_t size, i;
@@ -1258,7 +1258,7 @@ array_inplace_repeat(arrayobject *self, Py_ssize_t n)
 
 
 static PyObject *
-ins(arrayobject *self, Py_ssize_t where, PyObject *v)
+ins(_arrayobject *self, Py_ssize_t where, PyObject *v)
 {
     if (ins1(self, where, v) != 0)
         return NULL;
@@ -1268,13 +1268,13 @@ ins(arrayobject *self, Py_ssize_t where, PyObject *v)
 int
 _PyArray_AppendSigned(PyObject *self, int64_t v)
 {
-    return ins1_signed((arrayobject*)self, Py_SIZE(self), v);
+    return ins1_signed((_arrayobject*)self, Py_SIZE(self), v);
 }
 
 int
 _PyArray_AppendUnsigned(PyObject *self, uint64_t v)
 {
-    return ins1_unsigned((arrayobject*)self, Py_SIZE(self), v);
+    return ins1_unsigned((_arrayobject*)self, Py_SIZE(self), v);
 }
 
 /*[clinic input]
@@ -1287,7 +1287,7 @@ Return number of occurrences of v in the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_count(arrayobject *self, PyObject *v)
+array_array_count(_arrayobject *self, PyObject *v)
 /*[clinic end generated code: output=3dd3624bf7135a3a input=d9bce9d65e39d1f5]*/
 {
     Py_ssize_t count = 0;
@@ -1321,7 +1321,7 @@ Return index of first occurrence of v in the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_index(arrayobject *self, PyObject *v)
+array_array_index(_arrayobject *self, PyObject *v)
 /*[clinic end generated code: output=d48498d325602167 input=cf619898c6649d08]*/
 {
     Py_ssize_t i;
@@ -1346,7 +1346,7 @@ array_array_index(arrayobject *self, PyObject *v)
 }
 
 static int
-array_contains(arrayobject *self, PyObject *v)
+array_contains(_arrayobject *self, PyObject *v)
 {
     Py_ssize_t i;
     int cmp;
@@ -1371,7 +1371,7 @@ Remove the first occurrence of v in the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_remove(arrayobject *self, PyObject *v)
+array_array_remove(_arrayobject *self, PyObject *v)
 /*[clinic end generated code: output=bef06be9fdf9dceb input=0b1e5aed25590027]*/
 {
     Py_ssize_t i;
@@ -1409,7 +1409,7 @@ i defaults to -1.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_pop_impl(arrayobject *self, Py_ssize_t i)
+array_array_pop_impl(_arrayobject *self, Py_ssize_t i)
 /*[clinic end generated code: output=bc1f0c54fe5308e4 input=8e5feb4c1a11cd44]*/
 {
     PyObject *v;
@@ -1445,7 +1445,7 @@ Append items to the end of the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_extend(arrayobject *self, PyObject *bb)
+array_array_extend(_arrayobject *self, PyObject *bb)
 /*[clinic end generated code: output=bbddbc8e8bef871d input=43be86aba5c31e44]*/
 {
     if (array_do_extend(self, bb) == -1)
@@ -1464,7 +1464,7 @@ Insert a new item v into the array before position i.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_insert_impl(arrayobject *self, Py_ssize_t i, PyObject *v)
+array_array_insert_impl(_arrayobject *self, Py_ssize_t i, PyObject *v)
 /*[clinic end generated code: output=5a3648e278348564 input=5577d1b4383e9313]*/
 {
     return ins(self, i, v);
@@ -1480,7 +1480,7 @@ the buffer length in bytes.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_buffer_info_impl(arrayobject *self)
+array_array_buffer_info_impl(_arrayobject *self)
 /*[clinic end generated code: output=9b2a4ec3ae7e98e7 input=a58bae5c6e1ac6a6]*/
 {
     PyObject *retval = NULL, *v;
@@ -1516,7 +1516,7 @@ Append new value v to the end of the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_append(arrayobject *self, PyObject *v)
+array_array_append(_arrayobject *self, PyObject *v)
 /*[clinic end generated code: output=745a0669bf8db0e2 input=0b98d9d78e78f0fa]*/
 {
     return ins(self, Py_SIZE(self), v);
@@ -1532,7 +1532,7 @@ raised.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_byteswap_impl(arrayobject *self)
+array_array_byteswap_impl(_arrayobject *self)
 /*[clinic end generated code: output=5f8236cbdf0d90b5 input=6a85591b950a0186]*/
 {
     char *p;
@@ -1589,7 +1589,7 @@ Reverse the order of the items in the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_reverse_impl(arrayobject *self)
+array_array_reverse_impl(_arrayobject *self)
 /*[clinic end generated code: output=c04868b36f6f4089 input=cd904f01b27d966a]*/
 {
     Py_ssize_t itemsize = self->ob_descr->itemsize;
@@ -1626,7 +1626,7 @@ Read n objects from the file object f and append them to the end of the array.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_fromfile_impl(arrayobject *self, PyObject *f, Py_ssize_t n)
+array_array_fromfile_impl(_arrayobject *self, PyObject *f, Py_ssize_t n)
 /*[clinic end generated code: output=ec9f600e10f53510 input=e188afe8e58adf40]*/
 {
     PyObject *b, *res;
@@ -1683,7 +1683,7 @@ Write all items (as machine values) to the file object f.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_tofile(arrayobject *self, PyObject *f)
+array_array_tofile(_arrayobject *self, PyObject *f)
 /*[clinic end generated code: output=3a2cfa8128df0777 input=b0669a484aab0831]*/
 {
     Py_ssize_t nbytes = Py_SIZE(self) * self->ob_descr->itemsize;
@@ -1728,7 +1728,7 @@ Append items to array from list.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_fromlist(arrayobject *self, PyObject *list)
+array_array_fromlist(_arrayobject *self, PyObject *list)
 /*[clinic end generated code: output=26411c2d228a3e3f input=be2605a96c49680f]*/
 {
     Py_ssize_t n;
@@ -1768,7 +1768,7 @@ Convert array to an ordinary list with the same items.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_tolist_impl(arrayobject *self)
+array_array_tolist_impl(_arrayobject *self)
 /*[clinic end generated code: output=00b60cc9eab8ef89 input=a8d7784a94f86b53]*/
 {
     PyObject *list = PyList_New(Py_SIZE(self));
@@ -1790,7 +1790,7 @@ error:
 }
 
 static PyObject *
-frombytes(arrayobject *self, Py_buffer *buffer)
+frombytes(_arrayobject *self, Py_buffer *buffer)
 {
     int itemsize = self->ob_descr->itemsize;
     Py_ssize_t n;
@@ -1837,7 +1837,7 @@ This method is deprecated. Use frombytes instead.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_fromstring_impl(arrayobject *self, Py_buffer *buffer)
+array_array_fromstring_impl(_arrayobject *self, Py_buffer *buffer)
 /*[clinic end generated code: output=31c4baa779df84ce input=a3341a512e11d773]*/
 {
     if (PyErr_WarnEx(PyExc_DeprecationWarning,
@@ -1856,7 +1856,7 @@ Appends items from the string, interpreting it as an array of machine values, as
 [clinic start generated code]*/
 
 static PyObject *
-array_array_frombytes_impl(arrayobject *self, Py_buffer *buffer)
+array_array_frombytes_impl(_arrayobject *self, Py_buffer *buffer)
 /*[clinic end generated code: output=d9842c8f7510a516 input=2bbf2b53ebfcc988]*/
 {
     return frombytes(self, buffer);
@@ -1869,7 +1869,7 @@ Convert the array to an array of machine values and return the bytes representat
 [clinic start generated code]*/
 
 static PyObject *
-array_array_tobytes_impl(arrayobject *self)
+array_array_tobytes_impl(_arrayobject *self)
 /*[clinic end generated code: output=87318e4edcdc2bb6 input=90ee495f96de34f5]*/
 {
     if (Py_SIZE(self) <= PY_SSIZE_T_MAX / self->ob_descr->itemsize) {
@@ -1889,7 +1889,7 @@ This method is deprecated. Use tobytes instead.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_tostring_impl(arrayobject *self)
+array_array_tostring_impl(_arrayobject *self)
 /*[clinic end generated code: output=7d6bd92745a2c8f3 input=b6c0ddee7b30457e]*/
 {
     if (PyErr_WarnEx(PyExc_DeprecationWarning,
@@ -1912,7 +1912,7 @@ some other type.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_fromunicode_impl(arrayobject *self, const Py_UNICODE *ustr,
+array_array_fromunicode_impl(_arrayobject *self, const Py_UNICODE *ustr,
                              Py_ssize_clean_t ustr_length)
 /*[clinic end generated code: output=cf2f662908e2befc input=150f00566ffbca6e]*/
 {
@@ -1947,7 +1947,7 @@ unicode string from an array of some other type.
 [clinic start generated code]*/
 
 static PyObject *
-array_array_tounicode_impl(arrayobject *self)
+array_array_tounicode_impl(_arrayobject *self)
 /*[clinic end generated code: output=08e442378336e1ef input=127242eebe70b66d]*/
 {
     char typecode;
@@ -1967,7 +1967,7 @@ Size of the array in memory, in bytes.
 [clinic start generated code]*/
 
 static PyObject *
-array_array___sizeof___impl(arrayobject *self)
+array_array___sizeof___impl(_arrayobject *self)
 /*[clinic end generated code: output=d8e1c61ebbe3eaed input=805586565bf2b3c6]*/
 {
     Py_ssize_t res;
@@ -2174,7 +2174,7 @@ array__array_reconstructor_impl(PyObject *module, PyTypeObject *arraytype,
 {
     PyObject *converted_items;
     PyObject *result;
-    const struct arraydescr *descr;
+    const struct _arraydescr *descr;
 
     if (!PyType_Check(arraytype)) {
         PyErr_Format(PyExc_TypeError,
@@ -2312,7 +2312,7 @@ array__array_reconstructor_impl(PyObject *module, PyTypeObject *arraytype,
         Py_ssize_t itemcount = Py_SIZE(items) / mf_descr.size;
         const unsigned char *memstr =
             (unsigned char *)PyBytes_AS_STRING(items);
-        const struct arraydescr *descr;
+        const struct _arraydescr *descr;
 
         /* If possible, try to pack array's items using a data type
          * that fits better. This may result in an array with narrower
@@ -2374,7 +2374,7 @@ Return state information for pickling.
 [clinic start generated code]*/
 
 static PyObject *
-array_array___reduce_ex__(arrayobject *self, PyObject *value)
+array_array___reduce_ex__(_arrayobject *self, PyObject *value)
 /*[clinic end generated code: output=051e0a6175d0eddb input=c36c3f85de7df6cd]*/
 {
     PyObject *dict;
@@ -2455,14 +2455,14 @@ array_array___reduce_ex__(arrayobject *self, PyObject *value)
 }
 
 static PyObject *
-array_get_typecode(arrayobject *a, void *closure)
+array_get_typecode(_arrayobject *a, void *closure)
 {
     char typecode = a->ob_descr->typecode;
     return PyUnicode_FromOrdinal(typecode);
 }
 
 static PyObject *
-array_get_itemsize(arrayobject *a, void *closure)
+array_get_itemsize(_arrayobject *a, void *closure)
 {
     return PyLong_FromLong((long)a->ob_descr->itemsize);
 }
@@ -2504,7 +2504,7 @@ static PyMethodDef array_methods[] = {
 };
 
 static PyObject *
-array_repr(arrayobject *a)
+array_repr(_arrayobject *a)
 {
     char typecode;
     PyObject *s, *v = NULL;
@@ -2531,7 +2531,7 @@ array_repr(arrayobject *a)
 }
 
 static PyObject*
-array_subscr(arrayobject* self, PyObject* item)
+array_subscr(_arrayobject* self, PyObject* item)
 {
     if (PyIndex_Check(item)) {
         Py_ssize_t i = PyNumber_AsSsize_t(item, PyExc_IndexError);
@@ -2546,7 +2546,7 @@ array_subscr(arrayobject* self, PyObject* item)
         Py_ssize_t start, stop, step, slicelength, i;
         size_t cur;
         PyObject* result;
-        arrayobject* ar;
+        _arrayobject* ar;
         int itemsize = self->ob_descr->itemsize;
 
         if (PySlice_Unpack(item, &start, &stop, &step) < 0) {
@@ -2556,23 +2556,23 @@ array_subscr(arrayobject* self, PyObject* item)
                                             step);
 
         if (slicelength <= 0) {
-            return newarrayobject(&Arraytype, 0, self->ob_descr);
+            return new_arrayobject(&Arraytype, 0, self->ob_descr);
         }
         else if (step == 1) {
-            PyObject *result = newarrayobject(&Arraytype,
+            PyObject *result = new_arrayobject(&Arraytype,
                                     slicelength, self->ob_descr);
             if (result == NULL)
                 return NULL;
-            memcpy(((arrayobject *)result)->ob_item,
+            memcpy(((_arrayobject *)result)->ob_item,
                    self->ob_item + start * itemsize,
                    slicelength * itemsize);
             return result;
         }
         else {
-            result = newarrayobject(&Arraytype, slicelength, self->ob_descr);
+            result = new_arrayobject(&Arraytype, slicelength, self->ob_descr);
             if (!result) return NULL;
 
-            ar = (arrayobject*)result;
+            ar = (_arrayobject*)result;
 
             for (cur = start, i = 0; i < slicelength;
                  cur += step, i++) {
@@ -2592,10 +2592,10 @@ array_subscr(arrayobject* self, PyObject* item)
 }
 
 static int
-array_ass_subscr(arrayobject* self, PyObject* item, PyObject* value)
+array_ass_subscr(_arrayobject* self, PyObject* item, PyObject* value)
 {
     Py_ssize_t start, stop, step, slicelength, needed;
-    arrayobject* other;
+    _arrayobject* other;
     int itemsize;
 
     if (PyIndex_Check(item)) {
@@ -2637,7 +2637,7 @@ array_ass_subscr(arrayobject* self, PyObject* item, PyObject* value)
         needed = 0;
     }
     else if (array_Check(value)) {
-        other = (arrayobject *)value;
+        other = (_arrayobject *)value;
         needed = Py_SIZE(other);
         if (self == other) {
             /* Special case "self[i:j] = self" -- copy self first */
@@ -2758,7 +2758,7 @@ static const void *emptybuf = "";
 
 
 static int
-array_buffer_getbuf(arrayobject *self, Py_buffer *view, int flags)
+array_buffer_getbuf(_arrayobject *self, Py_buffer *view, int flags)
 {
     if (view == NULL) {
         PyErr_SetString(PyExc_BufferError,
@@ -2799,7 +2799,7 @@ array_buffer_getbuf(arrayobject *self, Py_buffer *view, int flags)
 }
 
 static void
-array_buffer_relbuf(arrayobject *self, Py_buffer *view)
+array_buffer_relbuf(_arrayobject *self, Py_buffer *view)
 {
     self->ob_exports--;
 }
@@ -2827,7 +2827,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     int c;
     PyObject *initial = NULL, *it = NULL;
-    const struct arraydescr *descr;
+    const struct _arraydescr *descr;
 
     if (type == &Arraytype && !_PyArg_NoKeywords("array.array", kwds))
         return NULL;
@@ -2847,7 +2847,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
             return NULL;
         }
         else if (array_Check(initial) &&
-                 ((arrayobject*)initial)->ob_descr->typecode == 'u') {
+                 ((_arrayobject*)initial)->ob_descr->typecode == 'u') {
             PyErr_Format(PyExc_TypeError, "cannot use a unicode array to "
                          "initialize an array with typecode '%c'", c);
             return NULL;
@@ -2860,7 +2860,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
           || PyTuple_Check(initial)
           || ((c=='u') && PyUnicode_Check(initial))
           || (array_Check(initial)
-              && c == ((arrayobject*)initial)->ob_descr->typecode))) {
+              && c == ((_arrayobject*)initial)->ob_descr->typecode))) {
         it = PyObject_GetIter(initial);
         if (it == NULL)
             return NULL;
@@ -2885,7 +2885,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
             else
                 len = 0;
 
-            a = newarrayobject(type, len, descr);
+            a = new_arrayobject(type, len, descr);
             if (a == NULL)
                 return NULL;
 
@@ -2909,7 +2909,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
             else if (initial != NULL && (PyByteArray_Check(initial) ||
                                PyBytes_Check(initial))) {
                 PyObject *v;
-                v = array_array_frombytes((arrayobject *)a,
+                v = array_array_frombytes((_arrayobject *)a,
                                           initial);
                 if (v == NULL) {
                     Py_DECREF(a);
@@ -2930,7 +2930,7 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
                 n = PyUnicode_GET_DATA_SIZE(initial);
                 if (n > 0) {
-                    arrayobject *self = (arrayobject *)a;
+                    _arrayobject *self = (_arrayobject *)a;
                     char *item = self->ob_item;
                     item = (char *)PyMem_Realloc(item, n);
                     if (item == NULL) {
@@ -2945,12 +2945,12 @@ array_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
                 }
             }
             else if (initial != NULL && array_Check(initial) && len > 0) {
-                arrayobject *self = (arrayobject *)a;
-                arrayobject *other = (arrayobject *)initial;
+                _arrayobject *self = (_arrayobject *)a;
+                _arrayobject *other = (_arrayobject *)initial;
                 memcpy(self->ob_item, other->ob_item, len * other->ob_descr->itemsize);
             }
             if (it != NULL) {
-                if (array_iter_extend((arrayobject *)a, it) == -1) {
+                if (array_iter_extend((_arrayobject *)a, it) == -1) {
                     Py_DECREF(it);
                     Py_DECREF(a);
                     return NULL;
@@ -3031,12 +3031,12 @@ typecode -- the typecode character used to create the array\n\
 itemsize -- the length in bytes of one array item\n\
 ");
 
-static PyObject *array_iter(arrayobject *ao);
+static PyObject *array_iter(_arrayobject *ao);
 
 PyTypeObject Arraytype = {
     PyVarObject_HEAD_INIT(NULL, 0)
     "array.array",
-    sizeof(arrayobject),
+    sizeof(_arrayobject),
     0,
     (destructor)array_dealloc,                  /* tp_dealloc */
     0,                                          /* tp_vectorcall_offset */
@@ -3058,7 +3058,7 @@ PyTypeObject Arraytype = {
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     array_richcompare,                          /* tp_richcompare */
-    offsetof(arrayobject, weakreflist),         /* tp_weaklistoffset */
+    offsetof(_arrayobject, weakreflist),        /* tp_weaklistoffset */
     (getiterfunc)array_iter,                    /* tp_iter */
     0,                                          /* tp_iternext */
     array_methods,                              /* tp_methods */
@@ -3084,7 +3084,7 @@ class array.arrayiterator "arrayiterobject *" "&PyArrayIter_Type"
 /*[clinic end generated code: output=da39a3ee5e6b4b0d input=5aefd2d74d8c8e30]*/
 
 static PyObject *
-array_iter(arrayobject *ao)
+array_iter(_arrayobject *ao)
 {
     arrayiterobject *it;
 
@@ -3108,7 +3108,7 @@ array_iter(arrayobject *ao)
 static PyObject *
 arrayiter_next(arrayiterobject *it)
 {
-    arrayobject *ao;
+    _arrayobject *ao;
 
     assert(it != NULL);
     assert(PyArrayIter_Check(it));
@@ -3249,7 +3249,7 @@ _PyArray_Init(void)
     char buffer[Py_ARRAY_LENGTH(descriptors)], *p;
     PyObject *typecodes, *m;
     Py_ssize_t size = 0;
-    const struct arraydescr *descr;
+    const struct _arraydescr *descr;
 
     if (PyType_Ready(&Arraytype) < 0)
         return NULL;

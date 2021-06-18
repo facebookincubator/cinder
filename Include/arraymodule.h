@@ -4,38 +4,38 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-struct arrayobject; /* Forward */
+struct _arrayobject; /* Forward */
 PyAPI_DATA(PyTypeObject) PyArray_Type;
 
 #define PyStaticArray_Check(op) PyObject_TypeCheck(op, &PyArray_Type)
 #define PyStaticArray_CheckExact(op) (Py_TYPE(op) == &PyArray_Type)
 
-struct arraydescr {
+struct _arraydescr {
     char typecode;
     int itemsize;
-    PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
-    int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
+    PyObject * (*getitem)(struct _arrayobject *, Py_ssize_t);
+    int (*setitem)(struct _arrayobject *, Py_ssize_t, PyObject *);
     int (*compareitems)(const void *, const void *, Py_ssize_t);
     const char *formats;
     int is_integer_type;
     int is_signed;
 
-    int (*setitem_signed)(struct arrayobject *, Py_ssize_t, int64_t);
-    int (*setitem_unsigned)(struct arrayobject *, Py_ssize_t, uint64_t);
+    int (*setitem_signed)(struct _arrayobject *, Py_ssize_t, int64_t);
+    int (*setitem_unsigned)(struct _arrayobject *, Py_ssize_t, uint64_t);
 };
 
-typedef struct arraydescr PyArrayDescriptor;
+typedef struct _arraydescr PyArrayDescriptor;
 
-typedef struct arrayobject {
+typedef struct _arrayobject {
     PyObject_VAR_HEAD
     char *ob_item;
     Py_ssize_t allocated;
-    const struct arraydescr *ob_descr;
+    const struct _arraydescr *ob_descr;
     PyObject *weakreflist; /* List of weak references */
     int ob_exports;  /* Number of exported buffers */
-} arrayobject;
+} _arrayobject;
 
-typedef arrayobject PyStaticArrayObject;
+typedef _arrayobject PyStaticArrayObject;
 
 PyObject *_PyArray_GetItem(PyObject *, Py_ssize_t);
 

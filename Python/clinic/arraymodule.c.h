@@ -12,10 +12,10 @@ PyDoc_STRVAR(array_array___copy____doc__,
     {"__copy__", (PyCFunction)array_array___copy__, METH_NOARGS, array_array___copy____doc__},
 
 static PyObject *
-array_array___copy___impl(arrayobject *self);
+array_array___copy___impl(_arrayobject *self);
 
 static PyObject *
-array_array___copy__(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array___copy__(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array___copy___impl(self);
 }
@@ -68,10 +68,10 @@ PyDoc_STRVAR(array_array_pop__doc__,
     {"pop", (PyCFunction)(void(*)(void))array_array_pop, METH_FASTCALL, array_array_pop__doc__},
 
 static PyObject *
-array_array_pop_impl(arrayobject *self, Py_ssize_t i);
+array_array_pop_impl(_arrayobject *self, Py_ssize_t i);
 
 static PyObject *
-array_array_pop(arrayobject *self, PyObject *const *args, Py_ssize_t nargs)
+array_array_pop(_arrayobject *self, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     Py_ssize_t i = -1;
@@ -125,10 +125,10 @@ PyDoc_STRVAR(array_array_insert__doc__,
     {"insert", (PyCFunction)(void(*)(void))array_array_insert, METH_FASTCALL, array_array_insert__doc__},
 
 static PyObject *
-array_array_insert_impl(arrayobject *self, Py_ssize_t i, PyObject *v);
+array_array_insert_impl(_arrayobject *self, Py_ssize_t i, PyObject *v);
 
 static PyObject *
-array_array_insert(arrayobject *self, PyObject *const *args, Py_ssize_t nargs)
+array_array_insert(_arrayobject *self, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     Py_ssize_t i;
@@ -174,10 +174,10 @@ PyDoc_STRVAR(array_array_buffer_info__doc__,
     {"buffer_info", (PyCFunction)array_array_buffer_info, METH_NOARGS, array_array_buffer_info__doc__},
 
 static PyObject *
-array_array_buffer_info_impl(arrayobject *self);
+array_array_buffer_info_impl(_arrayobject *self);
 
 static PyObject *
-array_array_buffer_info(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array_buffer_info(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array_buffer_info_impl(self);
 }
@@ -204,10 +204,10 @@ PyDoc_STRVAR(array_array_byteswap__doc__,
     {"byteswap", (PyCFunction)array_array_byteswap, METH_NOARGS, array_array_byteswap__doc__},
 
 static PyObject *
-array_array_byteswap_impl(arrayobject *self);
+array_array_byteswap_impl(_arrayobject *self);
 
 static PyObject *
-array_array_byteswap(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array_byteswap(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array_byteswap_impl(self);
 }
@@ -222,10 +222,10 @@ PyDoc_STRVAR(array_array_reverse__doc__,
     {"reverse", (PyCFunction)array_array_reverse, METH_NOARGS, array_array_reverse__doc__},
 
 static PyObject *
-array_array_reverse_impl(arrayobject *self);
+array_array_reverse_impl(_arrayobject *self);
 
 static PyObject *
-array_array_reverse(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array_reverse(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array_reverse_impl(self);
 }
@@ -240,10 +240,10 @@ PyDoc_STRVAR(array_array_fromfile__doc__,
     {"fromfile", (PyCFunction)(void(*)(void))array_array_fromfile, METH_FASTCALL, array_array_fromfile__doc__},
 
 static PyObject *
-array_array_fromfile_impl(arrayobject *self, PyObject *f, Py_ssize_t n);
+array_array_fromfile_impl(_arrayobject *self, PyObject *f, Py_ssize_t n);
 
 static PyObject *
-array_array_fromfile(arrayobject *self, PyObject *const *args, Py_ssize_t nargs)
+array_array_fromfile(_arrayobject *self, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     PyObject *f;
@@ -304,10 +304,10 @@ PyDoc_STRVAR(array_array_tolist__doc__,
     {"tolist", (PyCFunction)array_array_tolist, METH_NOARGS, array_array_tolist__doc__},
 
 static PyObject *
-array_array_tolist_impl(arrayobject *self);
+array_array_tolist_impl(_arrayobject *self);
 
 static PyObject *
-array_array_tolist(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array_tolist(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array_tolist_impl(self);
 }
@@ -324,10 +324,10 @@ PyDoc_STRVAR(array_array_fromstring__doc__,
     {"fromstring", (PyCFunction)array_array_fromstring, METH_O, array_array_fromstring__doc__},
 
 static PyObject *
-array_array_fromstring_impl(arrayobject *self, Py_buffer *buffer);
+array_array_fromstring_impl(_arrayobject *self, Py_buffer *buffer);
 
 static PyObject *
-array_array_fromstring(arrayobject *self, PyObject *arg)
+array_array_fromstring(_arrayobject *self, PyObject *arg)
 {
     PyObject *return_value = NULL;
     Py_buffer buffer = {NULL, NULL};
@@ -370,10 +370,10 @@ PyDoc_STRVAR(array_array_frombytes__doc__,
     {"frombytes", (PyCFunction)array_array_frombytes, METH_O, array_array_frombytes__doc__},
 
 static PyObject *
-array_array_frombytes_impl(arrayobject *self, Py_buffer *buffer);
+array_array_frombytes_impl(_arrayobject *self, Py_buffer *buffer);
 
 static PyObject *
-array_array_frombytes(arrayobject *self, PyObject *arg)
+array_array_frombytes(_arrayobject *self, PyObject *arg)
 {
     PyObject *return_value = NULL;
     Py_buffer buffer = {NULL, NULL};
@@ -406,10 +406,10 @@ PyDoc_STRVAR(array_array_tobytes__doc__,
     {"tobytes", (PyCFunction)array_array_tobytes, METH_NOARGS, array_array_tobytes__doc__},
 
 static PyObject *
-array_array_tobytes_impl(arrayobject *self);
+array_array_tobytes_impl(_arrayobject *self);
 
 static PyObject *
-array_array_tobytes(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array_tobytes(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array_tobytes_impl(self);
 }
@@ -426,10 +426,10 @@ PyDoc_STRVAR(array_array_tostring__doc__,
     {"tostring", (PyCFunction)array_array_tostring, METH_NOARGS, array_array_tostring__doc__},
 
 static PyObject *
-array_array_tostring_impl(arrayobject *self);
+array_array_tostring_impl(_arrayobject *self);
 
 static PyObject *
-array_array_tostring(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array_tostring(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array_tostring_impl(self);
 }
@@ -448,11 +448,11 @@ PyDoc_STRVAR(array_array_fromunicode__doc__,
     {"fromunicode", (PyCFunction)array_array_fromunicode, METH_O, array_array_fromunicode__doc__},
 
 static PyObject *
-array_array_fromunicode_impl(arrayobject *self, const Py_UNICODE *ustr,
+array_array_fromunicode_impl(_arrayobject *self, const Py_UNICODE *ustr,
                              Py_ssize_clean_t ustr_length);
 
 static PyObject *
-array_array_fromunicode(arrayobject *self, PyObject *arg)
+array_array_fromunicode(_arrayobject *self, PyObject *arg)
 {
     PyObject *return_value = NULL;
     const Py_UNICODE *ustr;
@@ -481,10 +481,10 @@ PyDoc_STRVAR(array_array_tounicode__doc__,
     {"tounicode", (PyCFunction)array_array_tounicode, METH_NOARGS, array_array_tounicode__doc__},
 
 static PyObject *
-array_array_tounicode_impl(arrayobject *self);
+array_array_tounicode_impl(_arrayobject *self);
 
 static PyObject *
-array_array_tounicode(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array_tounicode(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array_tounicode_impl(self);
 }
@@ -499,10 +499,10 @@ PyDoc_STRVAR(array_array___sizeof____doc__,
     {"__sizeof__", (PyCFunction)array_array___sizeof__, METH_NOARGS, array_array___sizeof____doc__},
 
 static PyObject *
-array_array___sizeof___impl(arrayobject *self);
+array_array___sizeof___impl(_arrayobject *self);
 
 static PyObject *
-array_array___sizeof__(arrayobject *self, PyObject *Py_UNUSED(ignored))
+array_array___sizeof__(_arrayobject *self, PyObject *Py_UNUSED(ignored))
 {
     return array_array___sizeof___impl(self);
 }
