@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include "Jit/ref.h"
 
 #include "StrictModules/py_headers.h"
 namespace strictmod {
@@ -55,6 +56,8 @@ class Symbol {
   bool is_global() const;
   bool is_nonlocal() const;
   bool is_local(void) const;
+  bool is_cell() const;
+  bool is_parameter() const;
 
  private:
   long flags_;
@@ -85,6 +88,11 @@ class SymtableEntry {
   std::string getTableName() const {
     return PyUnicode_AsUTF8(entry_->ste_name);
   }
+
+  int getFunctionCodeFlag() const;
+
+  // return a vector String PyObjects, these are borrowed refs
+  std::vector<PyObject*> getFunctionVarNames();
 
  private:
   PySTEntryObject* entry_;

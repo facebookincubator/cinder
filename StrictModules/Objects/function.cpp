@@ -62,7 +62,8 @@ StrictFunction::StrictFunction(
           varArg_,
           kwVarArg_,
           posDefaults_,
-          kwDefaults_) {}
+          kwDefaults_),
+      codeObj_() {}
 
 Analyzer StrictFunction::getFuncAnalyzer(
     const CallerContext& caller,
@@ -160,6 +161,53 @@ std::shared_ptr<BaseStrictObject> StrictFunction::function__kwdefaults__getter(
     }
   }
   return self->kwDefaultsObj_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictFunction::function__code__getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  auto self = assertStaticCast<StrictFunction>(std::move(inst));
+  if (self->codeObj_ == nullptr) {
+    self->makeCodeObjHelper(caller);
+  }
+  return self->codeObj_;
+}
+
+void StrictFunction::makeCodeObjHelper(const CallerContext&) {
+  int posOnlyArgCount = posonlyArgs_.size();
+  auto posOnlyArgCountInt =
+      std::make_shared<StrictInt>(IntType(), creator_, posOnlyArgCount);
+  int argCount = posArgs_.size() + posOnlyArgCount;
+  auto argCountInt = std::make_shared<StrictInt>(IntType(), creator_, argCount);
+
+  std::vector<PyObject*> varnames = symbols_.getFunctionVarNames();
+  std::vector<std::shared_ptr<BaseStrictObject>> varnamesVec;
+
+  for (PyObject* name : varnames) {
+    auto nameStr = std::make_shared<StrictString>(StrType(), creator_, name);
+    varnamesVec.push_back(std::move(nameStr));
+  }
+  auto varnamesTuple = std::make_shared<StrictTuple>(
+      TupleType(), creator_, std::move(varnamesVec));
+
+  int kwOnlyArgCount = kwonlyArgs_.size();
+  auto kwOnlyArgCountInt =
+      std::make_shared<StrictInt>(IntType(), creator_, kwOnlyArgCount);
+
+  auto funcNameStr =
+      std::make_shared<StrictString>(StrType(), creator_, funcName_);
+
+  int flags = symbols_.getFunctionCodeFlag();
+  auto flagsInt = std::make_shared<StrictInt>(IntType(), creator_, flags);
+  codeObj_ = std::make_shared<StrictCodeObject>(
+      creator_,
+      std::move(funcNameStr),
+      std::move(argCountInt),
+      std::move(posOnlyArgCountInt),
+      std::move(kwOnlyArgCountInt),
+      std::move(flagsInt),
+      std::move(varnamesTuple));
 }
 
 // Function Type
@@ -263,6 +311,8 @@ void StrictFuncType::addMethods() {
       StrictFunction::function__kwdefaults__getter,
       nullptr,
       nullptr);
+  addGetSetDescriptor(
+      "__code__", StrictFunction::function__code__getter, nullptr, nullptr);
 }
 
 } // namespace strictmod::objects

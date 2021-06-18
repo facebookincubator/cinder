@@ -4,6 +4,7 @@
 #include "StrictModules/Objects/base_object.h"
 #include "StrictModules/Objects/builtins.h"
 #include "StrictModules/Objects/callable.h"
+#include "StrictModules/Objects/codeobject.h"
 #include "StrictModules/Objects/constants.h"
 #include "StrictModules/Objects/dict_object.h"
 #include "StrictModules/Objects/exception_object.h"
@@ -54,6 +55,7 @@ std::shared_ptr<StrictType> NoneType();
 std::shared_ptr<StrictType> NotImplementedType();
 
 std::shared_ptr<StrictType> FunctionType();
+std::shared_ptr<StrictType> CodeObjectType();
 std::shared_ptr<StrictType> BuiltinFunctionOrMethodType();
 std::shared_ptr<StrictType> MethodDescrType();
 std::shared_ptr<StrictType> MethodType();

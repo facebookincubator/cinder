@@ -113,6 +113,11 @@ class StrictFunction : public StrictInstance {
       std::shared_ptr<StrictType> type,
       const CallerContext& caller);
 
+  static std::shared_ptr<BaseStrictObject> function__code__getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller);
+
   // TODO code object
 
  private:
@@ -146,6 +151,9 @@ class StrictFunction : public StrictInstance {
   FuncSignature signature_;
 
   std::shared_ptr<BaseStrictObject> kwDefaultsObj_;
+  std::shared_ptr<BaseStrictObject> codeObj_;
+
+  void makeCodeObjHelper(const CallerContext& caller);
 };
 
 class StrictFuncType : public StrictObjectType {

@@ -130,6 +130,12 @@ std::shared_ptr<StrictType> FunctionType() {
   return t;
 }
 
+std::shared_ptr<StrictType> CodeObjectType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictCodeObjectType>(
+      "code", kBuiltinsModule, objectTypeVec(), TypeType(), false);
+  return t;
+}
+
 std::shared_ptr<StrictType> MethodType() {
   static std::shared_ptr<StrictType> t = makeType<StrictMethodType>(
       "method", kBuiltinsModule, objectTypeVec(), TypeType());

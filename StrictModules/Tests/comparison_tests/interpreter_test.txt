@@ -5618,7 +5618,7 @@ x = "abc def".isidentifier()
 x
 ---
 ---
-test_func_code_0 @disabled
+test_func_code_0
 ---
 def f(b, a): d = 1; c = 2
 code = f.__code__
@@ -5631,7 +5631,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_1 @disabled
+test_func_code_1
 ---
 def f(*, x = 1): pass
 code = f.__code__
@@ -5644,7 +5644,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_2 @disabled
+test_func_code_2
 ---
 def f(*args): pass
 code = f.__code__
@@ -5657,7 +5657,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_3 @disabled
+test_func_code_3
 ---
 def f(**kwargs): pass
 code = f.__code__
@@ -5670,7 +5670,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_4 @disabled
+test_func_code_4
 ---
 def f(*args, **kwargs): pass
 code = f.__code__
@@ -5683,7 +5683,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_5 @disabled
+test_func_code_5
 ---
 def f(): yield 42
 code = f.__code__
@@ -5696,7 +5696,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_6 @disabled
+test_func_code_6
 ---
 def f(): lambda: (yield 42)
 code = f.__code__
@@ -5709,7 +5709,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_7 @disabled
+test_func_code_7
 ---
 def f(): lambda: (yield 42)
 code = f.__code__
@@ -5722,7 +5722,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_8 @disabled
+test_func_code_8
 ---
 async def f(): pass
 code = f.__code__
@@ -5735,7 +5735,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_9 @disabled
+test_func_code_9
 ---
 async def f(): await foo
 code = f.__code__
@@ -5748,7 +5748,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_10 @disabled
+test_func_code_10
 ---
 async def f(): yield 42
 code = f.__code__
@@ -5761,7 +5761,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_11 @disabled
+test_func_code_11
 ---
 def f():
     def f():        yield 42
@@ -5775,7 +5775,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_12 @disabled
+test_func_code_12
 ---
 def f():
     async def f():        yield 42
@@ -5789,7 +5789,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_13 @disabled
+test_func_code_13
 ---
 def f():
     class C:        pass
@@ -5803,7 +5803,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_14 @disabled
+test_func_code_14
 ---
 def f():
     x = 2
@@ -5818,7 +5818,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_15 @disabled
+test_func_code_15
 ---
 def f(x):
     def g():        return x
@@ -5832,7 +5832,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_func_code_16 @disabled
+test_func_code_16
 ---
 def f(x):
     x = 2
