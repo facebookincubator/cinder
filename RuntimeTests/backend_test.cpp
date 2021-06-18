@@ -10,10 +10,12 @@
 #include "Jit/codegen/postgen.h"
 #include "Jit/codegen/regalloc.h"
 #include "Jit/lir/lir.h"
+#include "Jit/lir/parser.h"
 #include "Jit/ref.h"
 #include "fixtures.h"
 #include "testutil.h"
 
+#include <fstream>
 #include "Python.h"
 
 using namespace jit;
@@ -636,5 +638,74 @@ TEST_F(BackendTest, CastTest) {
   test_noerror(Py_False, &PyBool_Type);
   test_noerror(Py_False, &PyLong_Type);
   test_error(Py_False, &PyUnicode_Type);
+}
+
+TEST_F(BackendTest, ParserGetI32FromArrayTest) {
+  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI32_FromArray.lir");
+  std::stringstream buffer;
+  buffer << t.rdbuf();
+  Parser parser;
+  auto parsed_func = parser.parse(buffer.str());
+
+  auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(parsed_func.get());
+
+  long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
+  ASSERT_EQ(func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0));
+  ASSERT_EQ(func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1));
+  ASSERT_EQ(func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2));
+  ASSERT_EQ(func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3));
+  ASSERT_EQ(func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4));
+  ASSERT_EQ(func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5));
+}
+
+TEST_F(BackendTest, ParserCastTest) {
+  std::ifstream t("Jit/lir/c_helper_translations/JITRT_Cast.lir");
+  std::stringstream buffer;
+  buffer << t.rdbuf();
+
+  Parser parser;
+  auto parsed_func = parser.parse(buffer.str());
+  auto func = (PyObject * (*)(PyObject*, PyTypeObject*))
+      SimpleCompile(parsed_func.get());
+
+  auto test_noerror = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
+    auto ret_test = func(a_in, b_in);
+    ASSERT_TRUE(PyErr_Occurred() == NULL);
+    auto ret_jitrt = JITRT_Cast(a_in, b_in);
+    ASSERT_TRUE(PyErr_Occurred() == NULL);
+    ASSERT_EQ(ret_test, ret_jitrt);
+  };
+
+  auto test_error = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
+    auto ret_test = func(a_in, b_in);
+    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
+    PyErr_Clear();
+
+    auto ret_jitrt = JITRT_Cast(a_in, b_in);
+    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
+    PyErr_Clear();
+
+    ASSERT_EQ(ret_test, ret_jitrt);
+  };
+
+  test_noerror(Py_False, &PyBool_Type);
+  test_noerror(Py_False, &PyLong_Type);
+  test_error(Py_False, &PyUnicode_Type);
+}
+
+TEST_F(BackendTest, ParserStringInputTest) {
+  auto lir_str = fmt::format(R"(Function:
+BB %0 - succs: %4
+        %1:Object = Move "hello"
+        Return %1:Object
+
+BB %4 - preds: %0
+
+)");
+  Parser parser;
+  auto parsed_func = parser.parse(lir_str);
+  auto func = (char* (*)())SimpleCompile(parsed_func.get());
+  std::string ret = func();
+  ASSERT_EQ(ret, "hello");
 }
 } // namespace jit::codegen

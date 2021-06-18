@@ -2,6 +2,7 @@
 #include "Jit/lir/parser.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/lir/operand.h"
+#include "Jit/lir/symbol_mapping.h"
 
 #include <algorithm>
 #include <cctype>
@@ -12,6 +13,11 @@
 
 namespace jit {
 namespace lir {
+
+std::vector<std::string>& GetStringLiterals() {
+  static std::vector<std::string> string_literals_;
+  return string_literals_;
+}
 
 Parser::Token Parser::getNextToken(const char* str) {
   struct PatternType {
@@ -31,14 +37,15 @@ Parser::Token Parser::getNextToken(const char* str) {
       {"\\[(0x[0-9a-fA-F]+)\\]", kAddress},
       {"(\\d+)(\\(0x[0-9a-fA-F]+\\))?", kImmediate},
       {"BB%(\\d+)", kBasicBlockRef},
-      {"[A-Za-z][A-Za-z0-9]+", kId},
+      {"[A-Za-z_][A-Za-z0-9_]+", kId},
       {"=", kEqual},
       {",", kComma},
       {"\\(", kParLeft},
       {"\\)", kParRight},
       {"#.*\n", kComment},
       {":[A-Za-z0-9]+", kDataType},
-      {"\\[[^\\]]*\\]", kIndirect}};
+      {"\\[[^\\]]*\\]", kIndirect},
+      {"\"[^\"]+\"", kStringLiteral}};
 
   std::cmatch m;
   for (auto& pattern : patterns) {
@@ -374,6 +381,20 @@ void Parser::parseInput(const Token& token, const char* code) {
     case kIndirect: {
       auto opnd = instr_->allocateMemoryIndirectInput(PhyLocation::REG_INVALID);
       parseIndirect(opnd, std::string_view(code, token.length), code);
+      break;
+    }
+    case kId: {
+      uint64_t imm_addr =
+          map_get_strict(kSymbolMapping, std::string(code, token.length));
+      instr_->allocateImmediateInput(
+          reinterpret_cast<uint64_t>(imm_addr), OperandBase::kObject);
+      break;
+    }
+    case kStringLiteral: {
+      std::vector<std::string>& v = GetStringLiterals();
+      v.emplace_back(code, 1, token.length - 2);
+      instr_->allocateImmediateInput(
+          reinterpret_cast<uint64_t>(v.back().c_str()), OperandBase::kObject);
       break;
     }
     default:

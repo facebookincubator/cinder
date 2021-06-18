@@ -14,6 +14,8 @@
 namespace jit {
 namespace lir {
 
+std::vector<std::string>& GetStringLiterals();
+
 class Parser {
  public:
   // Parse the code and generate a Function object.
@@ -54,7 +56,8 @@ class Parser {
     kBasicBlockRef,
     kError,
     kDataType,
-    kIndirect
+    kIndirect,
+    kStringLiteral
   };
 
   struct Token {

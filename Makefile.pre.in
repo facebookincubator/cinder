@@ -473,7 +473,8 @@ JIT_OBJS=       \
 		Jit/lir/instruction.o \
 		Jit/lir/operand.o \
 		Jit/lir/parser.o \
-		Jit/lir/printer.o
+		Jit/lir/printer.o \
+		Jit/lir/symbol_mapping.o
 
 I386_DASM_OBJS = \
 		ThirdParty/i386-dis/i386-dis.o \
@@ -1251,6 +1252,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/lir/operand.h \
 		$(srcdir)/Jit/lir/parser.h \
 		$(srcdir)/Jit/lir/printer.h \
+		$(srcdir)/Jit/lir/symbol_mapping.h \
 		$(srcdir)/Jit/lir/x86_64.h
 
 
