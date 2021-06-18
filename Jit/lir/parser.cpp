@@ -305,7 +305,7 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
   return func;
 }
 
-void Parser::setSuccessorBlocks(std::string bbdef, BasicBlock* bb) {
+void Parser::setSuccessorBlocks(const std::string& bbdef, BasicBlock* bb) {
   std::regex succ_re = std::regex("- succs: %(\\d+)(?: %(\\d+))?");
   std::cmatch succ_m;
   if (std::regex_search(bbdef.c_str(), succ_m, succ_re) && succ_m.size() > 1) {
