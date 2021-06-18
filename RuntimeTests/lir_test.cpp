@@ -330,13 +330,36 @@ BB %0 - succs: %7 %10
         %3:16bit = Bind R9:16bit
         %4:64bit = Bind R10:64bit
        %5:Object = Move 0(0x0):Object
-                   Return %5:Object
+                   CondBranch %5:Object, BB%7, BB%10
 
 BB %7 - preds: %0 - succs: %10
        %8:Object = Move [0x5]:Object
                    Return %8:Object
 
 BB %10 - preds: %0 %7
+
+)");
+
+  Parser parser;
+  auto parsed_func = parser.parse(lir_str);
+  std::stringstream ss;
+  parsed_func->sortBasicBlocks();
+  ss << *parsed_func;
+  // Assume that the parser assigns basic block and register numbers
+  // based on the parsing order of the instructions.
+  // If the parser behavior is modified and assigns numbers differently,
+  // then the assert may fail.
+  ASSERT_EQ(lir_str, ss.str());
+}
+
+TEST_F(LIRGeneratorTest, ParserMemIndTest) {
+  auto lir_str = fmt::format(R"(Function:
+BB %0
+        %1:64bit = Bind RDI:Object
+        %2:64bit = Move [RDI:Object + RSI:Object * 8 + 0x8]:Object
+        %3:64bit = Move [%2:64bit + 0x3]:Object
+        %4:64bit = Move [%2:64bit + %3:64bit * 16]:Object
+[%4:64bit - 0x16]:Object = Move [RAX:Object + %4:64bit]:Object
 
 )");
 

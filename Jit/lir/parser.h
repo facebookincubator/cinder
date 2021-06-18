@@ -53,7 +53,8 @@ class Parser {
     kParRight,
     kBasicBlockRef,
     kError,
-    kDataType
+    kDataType,
+    kIndirect
   };
 
   struct Token {
@@ -64,6 +65,7 @@ class Parser {
 
   Token getNextToken(const char* s);
   void parseInput(const Token& token, const char* code);
+  void parseIndirect(Operand* opnd, std::string_view token, const char* code);
   void fixOperands();
   void connectBasicBlocks();
 

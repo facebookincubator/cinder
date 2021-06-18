@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/parser.h"
 #include "Jit/codegen/x86_64.h"
+#include "Jit/lir/operand.h"
 
 #include <algorithm>
 #include <cctype>
@@ -36,7 +37,8 @@ Parser::Token Parser::getNextToken(const char* str) {
       {"\\(", kParLeft},
       {"\\)", kParRight},
       {"#.*\n", kComment},
-      {":[A-Za-z0-9]+", kDataType}};
+      {":[A-Za-z0-9]+", kDataType},
+      {"\\[[^\\]]*\\]", kIndirect}};
 
   std::cmatch m;
   for (auto& pattern : patterns) {
@@ -77,7 +79,6 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
     INSTR_OUTPUT_TYPE,
     INSTR_EQUAL,
     INSTR_NAME,
-    INSTR_INPUT_START,
     INSTR_INPUT,
     INSTR_INPUT_TYPE,
     INSTR_INPUT_COMMA,
@@ -96,8 +97,11 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
   while (cur != end) {
     auto token = getNextToken(cur);
     auto type = token.type;
-
     while (true) {
+      if (token.type == kComment) {
+        // skip comments for now
+        break;
+      }
       switch (state) {
         case FUNCTION: {
           // expect a function start
@@ -154,6 +158,8 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
             output->setMemoryAddress(reinterpret_cast<void*>(token.data));
           } else if (type == kImmediate) {
             output->setConstant(token.data);
+          } else if (type == kIndirect) {
+            parseIndirect(output, std::string_view(cur, token.length), cur);
           } else {
             expect(false, cur);
           }
@@ -182,15 +188,11 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
           state = INSTR_INPUT;
           break;
         }
-        case INSTR_INPUT_START: {
+        case INSTR_INPUT: {
           if (type == kNewLine) {
             state = INSTR_OUTPUT;
             break;
           }
-          state = INSTR_INPUT;
-          continue;
-        }
-        case INSTR_INPUT: {
           if (type == kParLeft) {
             state = PHI_INPUT_FIRST;
           } else {
@@ -365,9 +367,83 @@ void Parser::parseInput(const Token& token, const char* code) {
       basic_block_refs_.emplace(opnd, token.data);
       break;
     }
+    case kIndirect: {
+      auto opnd = instr_->allocateMemoryIndirectInput(PhyLocation::REG_INVALID);
+      parseIndirect(opnd, std::string_view(code, token.length), code);
+      break;
+    }
     default:
       expect(false, code, "Unable to parse instruction input.");
   }
+}
+
+void Parser::parseIndirect(
+    Operand* opnd,
+    std::string_view token,
+    const char* code) {
+  std::variant<Instruction*, PhyLocation> base =
+      jit::codegen::PhyLocation::REG_INVALID;
+  std::variant<Instruction*, PhyLocation> index = nullptr;
+  uint8_t multiplier = 0;
+  int32_t offset = 0;
+
+  std::cmatch m;
+
+  // keep track of length of parsed operand
+  // start at 1 to account for the right bracket
+  size_t expected_length = 1;
+
+  // parse base register
+  std::regex base_reg = std::regex("\\[%(\\d+):[0-9a-zA-Z]+");
+  std::regex base_phys = std::regex("\\[(R[0-9A-Z]+):Object");
+  if (std::regex_search(token.begin(), token.end(), m, base_reg)) {
+    auto base_id = std::stoll(m.str(1).c_str(), nullptr, 0);
+    base = map_get(output_index_map_, base_id);
+    expected_length += m.length();
+  } else if (std::regex_search(token.begin(), token.end(), m, base_phys)) {
+    base = jit::codegen::PhyLocation::parse(m.str(1));
+    expected_length += m.length();
+  } else {
+    expect(false, code, "Expected a base register.");
+  }
+
+  // parse index and multiplier
+  std::regex index_reg = std::regex("\\+ %(\\d+):[0-9a-zA-Z]+( \\* (\\d+))?");
+  std::regex index_phys = std::regex("\\+ (R[0-9A-Z]+):Object( \\* (\\d+))?");
+  bool index_re_success = false;
+  if (std::regex_search(token.begin(), token.end(), m, index_reg)) {
+    auto index_id = std::stoll(m.str(1).c_str(), nullptr, 0);
+    index = map_get(output_index_map_, index_id);
+    index_re_success = true;
+    // add 1 for space between base and index operands
+    expected_length += m.length() + 1;
+  } else if (std::regex_search(token.begin(), token.end(), m, index_phys)) {
+    index = jit::codegen::PhyLocation::parse(m.str(1));
+    index_re_success = true;
+    expected_length += m.length() + 1;
+  }
+  if (index_re_success && m.size() > 3 && m.str(3).size() > 0) {
+    int64_t exp_multiplier = std::stoll(m.str(3).c_str(), nullptr, 0);
+    expect(
+        exp_multiplier != 0 && (exp_multiplier & (exp_multiplier - 1)) == 0,
+        code,
+        "The multiplier should not be zero and must be integral power of 2.");
+    multiplier = __builtin_ctzll(exp_multiplier);
+  }
+
+  // parse offset
+  std::regex offset_re = std::regex("([\\+-]) (0x[0-9a-fA-F]+)");
+  if (std::regex_search(token.begin(), token.end(), m, offset_re)) {
+    // need to remove space between sign and hex for stoll conversion
+    offset = std::stoll((m.str(1) + m.str(2)).c_str(), nullptr, 0);
+    expected_length += m.length() + 1;
+  }
+  expect(
+      expected_length == token.length(),
+      code,
+      "Unable to parse memory indirect operand.");
+
+  opnd->setMemoryIndirect(base, index, multiplier, offset);
 }
 
 void Parser::fixOperands() {
