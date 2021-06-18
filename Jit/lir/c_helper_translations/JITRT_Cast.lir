@@ -1,5 +1,5 @@
 Function:
-BB %0 - succs: %1 %2
+BB %0 - succs: %2 %1
        %5:Object = Bind RDI:Object
        %6:Object = Bind RSI:Object
        %7:Object = Move [%5:Object + 0x8]:Object

@@ -21,10 +21,14 @@ void Printer::print(std::ostream& out, const Function& func) {
 void Printer::print(std::ostream& out, const BasicBlock& block) {
   out << "BB %" << block.id();
 
-  auto print_blocks = [&](const char* which, std::vector<BasicBlock*> blocks) {
-    std::sort(blocks.begin(), blocks.end(), [](auto& a, auto& b) {
-      return a->id() < b->id();
-    });
+  auto print_blocks = [&](const char* which,
+                          std::vector<BasicBlock*> blocks,
+                          bool is_sorted = true) {
+    if (is_sorted) {
+      std::sort(blocks.begin(), blocks.end(), [](auto& a, auto& b) {
+        return a->id() < b->id();
+      });
+    }
     if (!blocks.empty()) {
       out << which;
       for (auto& b : blocks) {
@@ -34,7 +38,7 @@ void Printer::print(std::ostream& out, const BasicBlock& block) {
   };
 
   print_blocks(" - preds:", block.predecessors());
-  print_blocks(" - succs:", block.successors());
+  print_blocks(" - succs:", block.successors(), false);
   out << std::endl;
 
   const hir::Instr* prev_instr = nullptr;
