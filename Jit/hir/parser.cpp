@@ -278,7 +278,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    NEW_INSTR(IntCompare, op, dst, left, right);
+    NEW_INSTR(PrimitiveCompare, op, dst, left, right);
   } else if (strcmp(opcode, "PrimitiveUnaryOp") == 0) {
     expect("<");
     PrimitiveUnaryOpKind op = ParsePrimitiveUnaryOpName(GetNextToken());

@@ -133,7 +133,7 @@ t3 = {6: 7, **t, **t1}
 t t1 t2 t3
 ---
 ---
-IntCompare
+PrimitiveCompare
 ---
 x = (1).__eq__(1)
 y = (1).__eq__(2)

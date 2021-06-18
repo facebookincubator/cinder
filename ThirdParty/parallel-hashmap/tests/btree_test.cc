@@ -2052,7 +2052,7 @@ namespace {
         EXPECT_EQ(it, other.begin());
     }
 
-    struct IntCompareToCmp {
+    struct PrimitiveCompareToCmp {
         phmap::weak_ordering operator()(int a, int b) const {
             if (a < b) return phmap::weak_ordering::less;
             if (a > b) return phmap::weak_ordering::greater;
@@ -2061,7 +2061,7 @@ namespace {
     };
 
     TEST(Btree, MergeIntoUniqueContainers) {
-        phmap::btree_set<int, IntCompareToCmp> src1 = {1, 2, 3};
+        phmap::btree_set<int, PrimitiveCompareToCmp> src1 = {1, 2, 3};
         phmap::btree_multiset<int> src2 = {3, 4, 4, 5};
         phmap::btree_set<int> dst;
 
@@ -2074,9 +2074,9 @@ namespace {
     }
 
     TEST(Btree, MergeIntoUniqueContainersWithCompareTo) {
-        phmap::btree_set<int, IntCompareToCmp> src1 = {1, 2, 3};
+        phmap::btree_set<int, PrimitiveCompareToCmp> src1 = {1, 2, 3};
         phmap::btree_multiset<int> src2 = {3, 4, 4, 5};
-        phmap::btree_set<int, IntCompareToCmp> dst;
+        phmap::btree_set<int, PrimitiveCompareToCmp> dst;
 
         dst.merge(src1);
         EXPECT_TRUE(src1.empty());
@@ -2087,7 +2087,7 @@ namespace {
     }
 
     TEST(Btree, MergeIntoMultiContainers) {
-        phmap::btree_set<int, IntCompareToCmp> src1 = {1, 2, 3};
+        phmap::btree_set<int, PrimitiveCompareToCmp> src1 = {1, 2, 3};
         phmap::btree_multiset<int> src2 = {3, 4, 4, 5};
         phmap::btree_multiset<int> dst;
 
@@ -2100,9 +2100,9 @@ namespace {
     }
 
     TEST(Btree, MergeIntoMultiContainersWithCompareTo) {
-        phmap::btree_set<int, IntCompareToCmp> src1 = {1, 2, 3};
+        phmap::btree_set<int, PrimitiveCompareToCmp> src1 = {1, 2, 3};
         phmap::btree_multiset<int> src2 = {3, 4, 4, 5};
-        phmap::btree_multiset<int, IntCompareToCmp> dst;
+        phmap::btree_multiset<int, PrimitiveCompareToCmp> dst;
 
         dst.merge(src1);
         EXPECT_TRUE(src1.empty());
@@ -2113,7 +2113,7 @@ namespace {
     }
 
     TEST(Btree, MergeIntoMultiMapsWithDifferentComparators) {
-        phmap::btree_map<int, int, IntCompareToCmp> src1 = {{1, 1}, {2, 2}, {3, 3}};
+        phmap::btree_map<int, int, PrimitiveCompareToCmp> src1 = {{1, 1}, {2, 2}, {3, 3}};
         phmap::btree_multimap<int, int, std::greater<int>> src2 = {
             {5, 5}, {4, 1}, {4, 4}, {3, 2}};
         phmap::btree_multimap<int, int> dst;

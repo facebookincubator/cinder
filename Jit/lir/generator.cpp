@@ -840,8 +840,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(codestr);
         break;
       }
-      case Opcode::kIntCompare: {
-        auto instr = static_cast<const IntCompare*>(&i);
+      case Opcode::kPrimitiveCompare: {
+        auto instr = static_cast<const PrimitiveCompare*>(&i);
         std::string op;
         switch (instr->op()) {
           case PrimitiveCompareOp::kEqual:

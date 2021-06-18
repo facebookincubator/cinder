@@ -38,7 +38,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kIntBinaryOp:
     case Opcode::kPrimitiveUnaryOp:
     case Opcode::kPrimitiveBox:
-    case Opcode::kIntCompare:
+    case Opcode::kPrimitiveCompare:
     case Opcode::kIntConvert:
     case Opcode::kPrimitiveUnbox:
     case Opcode::kIsNegativeAndErrOccurred:

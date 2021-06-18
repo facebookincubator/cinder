@@ -71,7 +71,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kInPlaceOp:
     case Opcode::kInitialYield:
     case Opcode::kIntBinaryOp:
-    case Opcode::kIntCompare:
+    case Opcode::kPrimitiveCompare:
     case Opcode::kIntConvert:
     case Opcode::kPrimitiveUnbox:
     case Opcode::kInvokeIterNext:

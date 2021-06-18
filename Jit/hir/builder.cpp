@@ -2349,7 +2349,7 @@ void HIRBuilder::emitPrimitiveCompare(
       JIT_CHECK(false, "unsupported comparison");
       break;
   }
-  tc.emit<IntCompare>(op, result, left, right);
+  tc.emit<PrimitiveCompare>(op, result, left, right);
   stack.push(result);
 }
 
@@ -3008,7 +3008,7 @@ void HIRBuilder::emitUnpackSequence(
   Register* is_equal = temps_.AllocateStack();
   tc.emit<LoadVarObjectSize>(seq_size, seq);
   tc.emit<LoadConst>(target_size, Type::fromCInt(bc_instr.oparg(), TCInt64));
-  tc.emit<IntCompare>(
+  tc.emit<PrimitiveCompare>(
       PrimitiveCompareOp::kEqual, is_equal, seq_size, target_size);
   fast_path = cfg.AllocateBlock();
   tc.emit<CondBranch>(is_equal, fast_path, deopt_path.block);

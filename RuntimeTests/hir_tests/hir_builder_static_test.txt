@@ -560,7 +560,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<LessThanUnsigned> v0 v1
+    v4 = PrimitiveCompare<LessThanUnsigned> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -591,7 +591,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<GreaterThanUnsigned> v0 v1
+    v4 = PrimitiveCompare<GreaterThanUnsigned> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -622,7 +622,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<GreaterThanEqualUnsigned> v0 v1
+    v4 = PrimitiveCompare<GreaterThanEqualUnsigned> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -653,7 +653,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<LessThanEqualUnsigned> v0 v1
+    v4 = PrimitiveCompare<LessThanEqualUnsigned> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -684,7 +684,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<Equal> v0 v1
+    v4 = PrimitiveCompare<Equal> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -715,7 +715,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<NotEqual> v0 v1
+    v4 = PrimitiveCompare<NotEqual> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -746,7 +746,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<LessThan> v0 v1
+    v4 = PrimitiveCompare<LessThan> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -777,7 +777,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<GreaterThan> v0 v1
+    v4 = PrimitiveCompare<GreaterThan> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -808,7 +808,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<GreaterThanEqual> v0 v1
+    v4 = PrimitiveCompare<GreaterThanEqual> v0 v1
     CondBranch<1, 2> v4
   }
 
@@ -839,7 +839,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
-    v4 = IntCompare<LessThanEqual> v0 v1
+    v4 = PrimitiveCompare<LessThanEqual> v0 v1
     CondBranch<1, 2> v4
   }
 

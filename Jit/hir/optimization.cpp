@@ -82,7 +82,7 @@ Instr* DynamicComparisonElimination::ReplaceCompare(
   //  CondBranch<x, y> $truthy
   // For other comparisons we can use ComapreBool.
   if (compare->op() == CompareOp::kIs || compare->op() == CompareOp::kIsNot) {
-    return IntCompare::create(
+    return PrimitiveCompare::create(
         (compare->op() == CompareOp::kIs) ? PrimitiveCompareOp::kEqual
                                           : PrimitiveCompareOp::kNotEqual,
         truthy->GetOutput(),
@@ -176,7 +176,7 @@ Instr* DynamicComparisonElimination::ReplaceVectorCall(
     auto load_type =
         LoadField::create(obj_type, obj_op, offsetof(PyObject, ob_type), TType);
 
-    auto compare_type = IntCompare::create(
+    auto compare_type = PrimitiveCompare::create(
         PrimitiveCompareOp::kEqual, fast_eq, obj_type, type_op);
 
     load_type->copyBytecodeOffset(*vectorcall);

@@ -354,7 +354,7 @@ Type outputType(const Instr& instr) {
           rtype);
       return TCDouble;
     }
-    case Opcode::kIntCompare:
+    case Opcode::kPrimitiveCompare:
       return TCBool;
     case Opcode::kPrimitiveUnaryOp:
       // TODO if we have a specialized input type we should really be

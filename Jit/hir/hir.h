@@ -259,7 +259,7 @@ struct FrameState {
   V(InitialYield)               \
   V(IntBinaryOp)                \
   V(PrimitiveBox)               \
-  V(IntCompare)                 \
+  V(PrimitiveCompare)           \
   V(IntConvert)                 \
   V(PrimitiveUnaryOp)           \
   V(PrimitiveUnbox)             \
@@ -1950,9 +1950,9 @@ enum class PrimitiveCompareOp {
 const char* GetPrimitiveCompareOpName(PrimitiveCompareOp op);
 PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name);
 
-class INSTR_CLASS(IntCompare, HasOutput, Operands<2>) {
+class INSTR_CLASS(PrimitiveCompare, HasOutput, Operands<2>) {
  public:
-  IntCompare(
+  PrimitiveCompare(
       PrimitiveCompareOp op,
       Register* dst,
       Register* left,

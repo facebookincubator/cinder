@@ -411,8 +411,8 @@ static std::string format_immediates(const Instr& instr) {
       const auto& bin_op = static_cast<const IntBinaryOp&>(instr);
       return GetBinaryOpName(bin_op.op());
     }
-    case Opcode::kIntCompare: {
-      const auto& cmp = static_cast<const IntCompare&>(instr);
+    case Opcode::kPrimitiveCompare: {
+      const auto& cmp = static_cast<const PrimitiveCompare&>(instr);
       return GetPrimitiveCompareOpName(cmp.op());
     }
     case Opcode::kPrimitiveBox: {

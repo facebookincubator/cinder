@@ -140,7 +140,7 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadVarObjectSize:
     case Opcode::kIntConvert:
     case Opcode::kIntBinaryOp:
-    case Opcode::kIntCompare:
+    case Opcode::kPrimitiveCompare:
     case Opcode::kPrimitiveBox:
     case Opcode::kPrimitiveUnbox:
     case Opcode::kPrimitiveUnaryOp:
