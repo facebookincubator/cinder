@@ -68,6 +68,24 @@ class LIRGeneratorTest : public RuntimeTest {
     ss << *lir_func << std::endl;
     return ss.str();
   }
+
+  std::string removeCommentsAndWhitespace(const std::string& input_s) {
+    std::istringstream iss(input_s);
+    std::string line;
+    std::string output_s;
+    while (std::getline(iss, line)) {
+      if (line.length() == 0) {
+        // skip blank lines
+        continue;
+      } else if (line.length() > 0 && line.at(0) == '#') {
+        // skip comments
+        continue;
+      } else {
+        output_s += line + '\n';
+      }
+    }
+    return output_s;
+  }
 };
 
 TEST_F(LIRGeneratorTest, StaticLoadInteger) {
@@ -378,7 +396,7 @@ BB %0
 // TODO(tiansi): The parser does not recognize the new instructions.
 // I'm planning to fix and improve LIR printing/parsing with a
 // separate diff. Disabled this test for now.
-TEST_F(LIRGeneratorTest, DISABLED_ParserTest) {
+TEST_F(LIRGeneratorTest, ParserTest) {
   const char* pycode = R"(
 def func(x):
     if x:
@@ -389,14 +407,14 @@ def func(x):
   Ref<PyObject> pyfunc(compileAndGet(pycode, "func"));
   ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
 
-  auto lir_str = getLIRString(pyfunc.get());
+  auto lir_str = removeCommentsAndWhitespace(getLIRString(pyfunc.get()));
 
   Parser parser;
   auto parsed_func = parser.parse(lir_str);
   std::stringstream ss;
   parsed_func->sortBasicBlocks();
-  ss << *parsed_func << std::endl;
-  ASSERT_EQ(lir_str, ss.str());
+  ss << *parsed_func;
+  ASSERT_EQ(lir_str, removeCommentsAndWhitespace(ss.str()));
 }
 
 template <typename... Args>

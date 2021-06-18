@@ -499,6 +499,13 @@ class Instruction {
     inputs_.push_back(std::move(operand));
     return opnd;
   }
+
+  // used in parser, expect unique id
+  void setId(int id) {
+    id_ = id;
+  }
+
+  friend class Parser;
 };
 
 // Instruction Guard specific

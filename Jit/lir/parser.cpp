@@ -124,6 +124,7 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
           int id = token.data;
 
           block_ = func_->allocateBasicBlock();
+          block_->setId(id);
           auto pair = block_index_map_.emplace(id, block_);
           expect(pair.second, cur, "Duplicated basic block id.");
 
@@ -141,6 +142,7 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
           }
 
           instr_ = block_->allocateInstr(Instruction::kNone, nullptr);
+          instr_->setId(-1);
           auto output = instr_->output();
           if (type == kId) {
             state = INSTR_NAME;
@@ -148,6 +150,7 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
           } else if (type == kVReg) {
             output->setVirtualRegister();
             auto pair = output_index_map_.emplace(token.data, instr_);
+            instr_->setId(token.data);
             expect(pair.second, cur, "Duplicated output virtual register.");
           } else if (type == kPhyReg) {
             output->setPhyRegister(jit::codegen::PhyLocation::parse(
@@ -290,6 +293,7 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
 
   fixOperands();
   connectBasicBlocks();
+  fixUnknownIds();
 
   return func;
 }
@@ -470,6 +474,31 @@ void Parser::connectBasicBlocks() {
     BasicBlock* source_block = succ_pair.first;
     int dest_block_id = succ_pair.second;
     source_block->addSuccessor(map_get(block_index_map_, dest_block_id));
+  }
+}
+
+void Parser::fixUnknownIds() {
+  // find largest ID
+  int largest_id = -1;
+  for (auto& bb : func_->basicblocks()) {
+    if (bb->id() > largest_id) {
+      largest_id = bb->id();
+    }
+    for (auto& instr : bb->instructions()) {
+      if (instr->id() > largest_id) {
+        largest_id = instr->id();
+      }
+    }
+  }
+  func_->setNextId(largest_id + 1);
+  // all basic blocks should have been assigned an ID
+  // assign ID's to instructions without ID's
+  for (auto& bb : func_->basicblocks()) {
+    for (auto& instr : bb->instructions()) {
+      if (instr->id() == -1) {
+        instr->setId(func_->allocateId());
+      }
+    }
   }
 }
 

@@ -68,6 +68,7 @@ class Parser {
   void parseIndirect(Operand* opnd, std::string_view token, const char* code);
   void fixOperands();
   void connectBasicBlocks();
+  void fixUnknownIds();
 
   // current function, basic block and instruction
   Function* func_{nullptr};

@@ -73,6 +73,13 @@ class Function {
 
   // The next id to assign to a BasicBlock or Instruction.
   int next_id_{0};
+
+  // used in parser
+  void setNextId(int id) {
+    next_id_ = id;
+  }
+
+  friend class Parser;
 };
 
 } // namespace lir

@@ -181,6 +181,13 @@ class BasicBlock {
   std::vector<BasicBlock*> successors_;
   std::vector<BasicBlock*> predecessors_;
 
+  // used in parser, expect unique id
+  void setId(int id) {
+    id_ = id;
+  }
+
+  friend class Parser;
+
   // TODO(tiansi): consider using IntrusiveList as in HIR
   InstrList instrs_;
 };
