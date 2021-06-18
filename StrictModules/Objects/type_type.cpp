@@ -75,6 +75,8 @@ void StrictTypeType::addMethods() {
   addBuiltinFunctionOrMethod("__new__", StrictType::type__new__);
   addMethod("mro", StrictType::typeMro);
   addMethod("__subclasscheck__", StrictType::type__subclasscheck__);
+  addMethod("__or__", StrictType::type__or__);
+  addMethod("__ror__", StrictType::type__ror__);
   addGetSetDescriptor(kDunderDict, getDunderDictAllowed, nullptr, nullptr);
   addGetSetDescriptor(
       "__bases__", StrictType::type__bases__Getter, nullptr, nullptr);

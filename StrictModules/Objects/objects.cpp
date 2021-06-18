@@ -278,6 +278,12 @@ std::shared_ptr<StrictType> SuperType() {
   return t;
 }
 
+std::shared_ptr<StrictType> UnionType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictUnionType>(
+      "union", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> NotImplementedType() {
   static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
       "NotImplementedType", kBuiltinsModule, objectTypeVec(), TypeType());
@@ -380,7 +386,6 @@ std::shared_ptr<BaseStrictObject> StrictFalse() {
 }
 
 //--------------------Builtin Function Declarations-----------------------
-
 std::shared_ptr<BaseStrictObject> StrictRepr() {
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
       kBuiltinsModule, CallableWrapper(reprImpl, "repr"), nullptr, "repr"));
@@ -402,6 +407,12 @@ std::shared_ptr<BaseStrictObject> StrictIssubclass() {
       CallableWrapper(issubclassImpl, "issubclass"),
       nullptr,
       "issubclass"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictLen() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(lenImpl, "len"), nullptr, "len"));
   return o;
 }
 
@@ -441,6 +452,7 @@ bool initializeBuiltinsModuleDict() {
         {"repr", StrictRepr()},
         {"issubclass", StrictIssubclass()},
         {"isinstance", StrictIsinstance()},
+        {"len", StrictLen()},
     });
     kBuiltinsModule->getDict().insert(builtinsDict.begin(), builtinsDict.end());
   }

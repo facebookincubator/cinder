@@ -494,6 +494,20 @@ std::shared_ptr<BaseStrictObject> StrictType::type__subclasscheck__(
   return StrictFalse();
 }
 
+std::shared_ptr<BaseStrictObject> StrictType::type__or__(
+    std::shared_ptr<StrictType> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  return unionOrHelper(caller, std::move(self), std::move(rhs));
+}
+
+std::shared_ptr<BaseStrictObject> StrictType::type__ror__(
+    std::shared_ptr<StrictType> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> lhs) {
+  return unionOrHelper(caller, std::move(lhs), std::move(self));
+}
+
 std::shared_ptr<BaseStrictObject> StrictType::type__bases__Getter(
     std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<StrictType>,

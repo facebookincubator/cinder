@@ -22,6 +22,7 @@
 #include "StrictModules/Objects/super.h"
 #include "StrictModules/Objects/type.h"
 #include "StrictModules/Objects/type_type.h"
+#include "StrictModules/Objects/union.h"
 #include "StrictModules/Objects/unknown.h"
 
 namespace strictmod::objects {
@@ -37,6 +38,7 @@ std::shared_ptr<StrictType> FloatType();
 std::shared_ptr<StrictType> BoolType();
 std::shared_ptr<StrictType> StrType();
 std::shared_ptr<StrictType> SuperType();
+std::shared_ptr<StrictType> UnionType();
 
 std::shared_ptr<StrictType> ListType();
 std::shared_ptr<StrictType> TupleType();

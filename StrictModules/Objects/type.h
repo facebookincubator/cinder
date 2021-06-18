@@ -197,6 +197,16 @@ class StrictType : public StrictInstance {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> derived);
 
+  static std::shared_ptr<BaseStrictObject> type__or__(
+      std::shared_ptr<StrictType> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> type__ror__(
+      std::shared_ptr<StrictType> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> lhs);
+
   static std::shared_ptr<BaseStrictObject> type__bases__Getter(
       std::shared_ptr<BaseStrictObject> inst,
       std::shared_ptr<StrictType> type,

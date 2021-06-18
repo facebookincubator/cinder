@@ -30,8 +30,6 @@ std::shared_ptr<BaseStrictObject> recursiveIsinstanceHelper(
         "isinstance() arg 2 must be a type or tuple of types or union, not {} "
         "object",
         clsInfo->getTypeRef().getName());
-    return makeUnknown(
-        caller, "isinstance({}, {})", std::move(obj), std::move(clsInfo));
   }
   // check mro using type(obj)
   if (obj->getTypeRef().isSubType(clsType)) {
@@ -130,5 +128,17 @@ std::shared_ptr<BaseStrictObject> issubclassImpl(
     return StrictTrue();
   }
   return StrictFalse();
+}
+
+std::shared_ptr<BaseStrictObject> lenImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  auto lenFunc = iLoadAttrOnType(arg, kDunderLen, nullptr, caller);
+  if (lenFunc) {
+    return iCall(std::move(lenFunc), kEmptyArgs, kEmptyArgNames, caller);
+  }
+  caller.raiseTypeError(
+      "object of type '{}' has no len()", arg->getTypeRef().getName());
 }
 } // namespace strictmod::objects

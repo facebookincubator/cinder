@@ -23,6 +23,11 @@ std::shared_ptr<BaseStrictObject> issubclassImpl(
     std::shared_ptr<BaseStrictObject> cls,
     std::shared_ptr<BaseStrictObject> clsInfo);
 
+std::shared_ptr<BaseStrictObject> lenImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg);
+
 } // namespace strictmod::objects
 
 #endif // __STRICTM_BUILTINS_OBJ___

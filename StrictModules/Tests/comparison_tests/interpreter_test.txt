@@ -6539,7 +6539,7 @@ z = str('abc')
 x y z
 ---
 ---
-test_union_builtin_syntax_0 @disabled
+test_union_builtin_syntax_0
 ---
 t = int | str
 is_int_instance = isinstance(1, t)
@@ -6552,7 +6552,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_1 @disabled
+test_union_builtin_syntax_1
 ---
 t = int | str | float
 is_int_instance = isinstance(1, t)
@@ -6565,7 +6565,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_2 @disabled
+test_union_builtin_syntax_2
 ---
 t = int | (str | float)
 is_int_instance = isinstance(1, t)
@@ -6578,7 +6578,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_3 @disabled
+test_union_builtin_syntax_3
 ---
 t = int | None
 is_int_instance = isinstance(1, t)
@@ -6591,7 +6591,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_4 @disabled
+test_union_builtin_syntax_4
 ---
 t = None | int
 is_int_instance = isinstance(1, t)
@@ -6604,7 +6604,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_5 @disabled
+test_union_builtin_syntax_5
 ---
 t = str | None
 is_int_instance = isinstance(1, t)
@@ -6617,7 +6617,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_6 @disabled
+test_union_builtin_syntax_6
 ---
 t = None | str
 is_int_instance = isinstance(1, t)
@@ -6630,7 +6630,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_7 @disabled
+test_union_builtin_syntax_7
 ---
 t = int | int
 is_int_instance = isinstance(1, t)
@@ -6643,7 +6643,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_syntax_8 @disabled
+test_union_builtin_syntax_8
 ---
 t = str | str
 is_int_instance = isinstance(1, t)
