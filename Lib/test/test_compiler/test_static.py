@@ -2333,6 +2333,26 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
+    def test_cross_module_inst_decl_visit_only(self) -> None:
+        acode = """
+            class C:
+                def f(self):
+                    return 42
+
+            x: C = C()
+        """
+        bcode = """
+            from a import x
+
+            def f():
+                return x.f()
+        """
+        symtable = SymbolTable()
+        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        x = self.find_code(bcomp, "f")
+        self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
+
     def test_cross_module_import_time_resolution(self) -> None:
         class TestSymbolTable(SymbolTable):
             def import_module(self, name):

@@ -563,6 +563,10 @@ class ModuleTable:
                     value.finish_bind(self)
                 elif isinstance(node, ast.AnnAssign):
                     typ = self.resolve_annotation(node.annotation, is_declaration=True)
+                    if typ is not None:
+                        target = node.target
+                        if isinstance(target, ast.Name):
+                            self.children[target.id] = typ.instance
                     if isinstance(typ, FinalClass):
                         target = node.target
                         value = node.value
@@ -5477,8 +5481,6 @@ class ModuleBindingScope(BindingScope):
     ) -> None:
         super().__init__(node, generic_types)
         self.module = module
-        for name, typ in self.module.children.items():
-            self.declare(name, typ)
 
     def declare(
         self, name: str, typ: Value, is_final: bool = False, is_inferred: bool = False
