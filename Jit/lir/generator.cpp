@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/generator.h"
 #include "Jit/hir/analysis.h"
+#include "Jit/jit_rt.h"
 #include "Jit/lir/block_builder.h"
 
 #include "Jit/deopt.h"
@@ -932,65 +933,63 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
       case Opcode::kIsNegativeAndErrOccurred: {
         auto instr = static_cast<const IsNegativeAndErrOccurred*>(&i);
+        std::string src_name = instr->reg()->name();
+        Type src_type = instr->reg()->type();
+        uint64_t func = 0;
+
+        // Because a failed unbox to unsigned smuggles the bit pattern for a
+        // signed -1 in the unsigned value, we can likewise just treat unsigned
+        // as signed for purposes of checking for -1 here.
+        if (src_type <= (TCInt64 | TCUInt64)) {
+          func = reinterpret_cast<uint64_t>(JITRT_IsNegativeAndErrOccurred_64);
+        } else {
+          func = reinterpret_cast<uint64_t>(JITRT_IsNegativeAndErrOccurred_32);
+          // We do have to widen to at least 32 bits due to calling convention
+          // always passing a minimum of 32 bits.
+          if (src_type <= (TCBool | TCInt8 | TCUInt8 | TCInt16 | TCUInt16)) {
+            std::string tmp_name = GetSafeTempName();
+            bbb.AppendCode(
+                "Convert {}:CInt32, {}:{}", tmp_name, src_name, src_type);
+            src_name = tmp_name;
+            src_type = TCInt32;
+          }
+        }
         bbb.AppendCode(
-            "Call {}, {:#x}, {}",
-            instr->dst(),
-            reinterpret_cast<uint64_t>(JITRT_IsNegativeAndErrOccured),
-            instr->reg());
+            "Call {}, {:#x}, {}:{}", instr->dst(), func, src_name, src_type);
         break;
       }
 
       case Opcode::kPrimitiveUnbox: {
         auto instr = static_cast<const PrimitiveUnbox*>(&i);
         Type ty = instr->type();
-        std::string out = instr->GetOutput()->name();
-        std::string convert;
-        std::string tmp;
-        std::string tmp_ty;
         uint64_t func = 0;
         if (ty <= TCBool) {
           uint64_t true_addr = reinterpret_cast<uint64_t>(Py_True);
-          bbb.AppendCode("Equal {} {} {:#x}", out, instr->value(), true_addr);
+          bbb.AppendCode(
+              "Equal {} {} {:#x}", instr->dst(), instr->value(), true_addr);
         } else if (ty <= TCUInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxU64);
         } else if (ty <= TCUInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxU32);
         } else if (ty <= TCUInt16) {
-          func = reinterpret_cast<uint64_t>(JITRT_UnboxU32);
-          convert = "ConvertUnsigned";
+          func = reinterpret_cast<uint64_t>(JITRT_UnboxU16);
         } else if (ty <= TCUInt8) {
-          func = reinterpret_cast<uint64_t>(JITRT_UnboxU32);
-          convert = "ConvertUnsigned";
+          func = reinterpret_cast<uint64_t>(JITRT_UnboxU8);
         } else if (ty <= TCInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxI64);
         } else if (ty <= TCInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxI32);
         } else if (ty <= TCInt16) {
-          func = reinterpret_cast<uint64_t>(JITRT_UnboxI32);
-          convert = "Convert";
+          func = reinterpret_cast<uint64_t>(JITRT_UnboxI16);
         } else if (ty <= TCInt8) {
-          func = reinterpret_cast<uint64_t>(JITRT_UnboxI32);
-          convert = "Convert";
+          func = reinterpret_cast<uint64_t>(JITRT_UnboxI8);
         } else {
           Py_UNREACHABLE();
         }
 
         if (func) {
-          if (convert == "") {
-            tmp = out;
-            tmp_ty = ty.toString();
-          } else {
-            tmp = GetSafeTempName();
-            tmp_ty = convert == "Convert" ? "CInt32" : "CUInt32";
-          }
-
           bbb.AppendCode(
-              "Call {}:{}, {:#x}, {}", tmp, tmp_ty, func, instr->value());
-
-          if (convert != "") {
-            bbb.AppendCode(
-                "{} {}:{}, {}:{}", convert, out, ty.toString(), tmp, tmp_ty);
-          }
+              "Call {}, {:#x}, {}", instr->dst(), func, instr->value());
         }
 
         break;

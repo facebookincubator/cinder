@@ -309,7 +309,8 @@ PyObject* JITRT_BoxI64(int64_t i);
 PyObject* JITRT_BoxU64(uint64_t i);
 PyObject* JITRT_BoxDouble(double_t d);
 
-uint64_t JITRT_IsNegativeAndErrOccured(int64_t i);
+uint64_t JITRT_IsNegativeAndErrOccurred_64(int64_t i);
+uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i);
 
 /* Array lookup helpers */
 uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx);
@@ -335,8 +336,12 @@ void JITRT_SetObj_InArray(char* arr, uint64_t val, int64_t idx);
 
 uint64_t JITRT_UnboxU64(PyObject* obj);
 uint32_t JITRT_UnboxU32(PyObject* obj);
+uint16_t JITRT_UnboxU16(PyObject* obj);
+uint8_t JITRT_UnboxU8(PyObject* obj);
 int64_t JITRT_UnboxI64(PyObject* obj);
 int32_t JITRT_UnboxI32(PyObject* obj);
+int16_t JITRT_UnboxI16(PyObject* obj);
+int8_t JITRT_UnboxI8(PyObject* obj);
 
 /*
  * Calls __builtins__.__import__(), with a fast-path if this hasn't been

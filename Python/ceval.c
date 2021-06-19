@@ -4622,12 +4622,18 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX): {
-            /* This is a nop in the interpreter loop, we always box values.
-             * The oparg for this opcode indicates the type of the unboxed value
-             * that goes onto the stack. (Used by the JIT). */
+            /* We always box values in the interpreter loop, so this just does
+             * overflow checking here. Oparg indicates the type of the unboxed
+             * value. */
             PyObject *top = TOP();
-            if (!PyLong_CheckExact(top) && !PyBool_Check(top) &&
-                !PyFloat_CheckExact(top)) {
+            if (PyLong_CheckExact(top)) {
+                size_t value;
+                if (!_PyClassLoader_OverflowCheck(top, oparg, &value)) {
+                    PyErr_SetString(PyExc_OverflowError, "int overflow");
+                    goto error;
+                }
+            }
+            else if (!PyBool_Check(top) && !PyFloat_CheckExact(top)) {
                 PyErr_Format(PyExc_TypeError, "expected int, bool or float, got %s",
                              Py_TYPE(top)->tp_name);
                 goto error;

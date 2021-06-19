@@ -1034,7 +1034,11 @@ PyObject* JITRT_BoxDouble(double_t d) {
   return PyFloat_FromDouble(d);
 }
 
-uint64_t JITRT_IsNegativeAndErrOccured(int64_t i) {
+uint64_t JITRT_IsNegativeAndErrOccurred_64(int64_t i) {
+  return (i == -1 && _PyErr_OCCURRED()) ? -1 : 0;
+}
+
+uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i) {
   return (i == -1 && _PyErr_OCCURRED()) ? -1 : 0;
 }
 
@@ -1114,12 +1118,36 @@ void JITRT_SetObj_InArray(char* arr, uint64_t val, int64_t idx) {
   ((PyObject**)arr)[idx] = (PyObject*)val;
 }
 
+template <typename T>
+static T checkedUnboxImpl(PyObject* obj) {
+  constexpr bool is_signed = std::is_signed_v<T>;
+  std::conditional_t<is_signed, int64_t, uint64_t> res;
+  if constexpr (is_signed) {
+    res = PyLong_AsSsize_t(obj);
+  } else {
+    res = PyLong_AsSize_t(obj);
+  }
+  if (T(res) == res || (!is_signed && res == T(-1) && _PyErr_OCCURRED())) {
+    return res;
+  }
+  PyErr_SetString(PyExc_OverflowError, "int overflow");
+  return -1;
+}
+
 uint64_t JITRT_UnboxU64(PyObject* obj) {
   return PyLong_AsSize_t(obj);
 }
 
 uint32_t JITRT_UnboxU32(PyObject* obj) {
-  return PyLong_AsUnsignedLong(obj);
+  return checkedUnboxImpl<uint32_t>(obj);
+}
+
+uint16_t JITRT_UnboxU16(PyObject* obj) {
+  return checkedUnboxImpl<uint16_t>(obj);
+}
+
+uint8_t JITRT_UnboxU8(PyObject* obj) {
+  return checkedUnboxImpl<uint8_t>(obj);
 }
 
 int64_t JITRT_UnboxI64(PyObject* obj) {
@@ -1127,7 +1155,15 @@ int64_t JITRT_UnboxI64(PyObject* obj) {
 }
 
 int32_t JITRT_UnboxI32(PyObject* obj) {
-  return PyLong_AsLong(obj);
+  return checkedUnboxImpl<int32_t>(obj);
+}
+
+int16_t JITRT_UnboxI16(PyObject* obj) {
+  return checkedUnboxImpl<int16_t>(obj);
+}
+
+int8_t JITRT_UnboxI8(PyObject* obj) {
+  return checkedUnboxImpl<int8_t>(obj);
 }
 
 PyObject* JITRT_ImportName(
