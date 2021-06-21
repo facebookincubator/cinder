@@ -70,18 +70,12 @@ int main(int argc, char* argv[]) {
   register_test("RuntimeTests/hir_tests/hir_builder_test.txt");
   register_test("RuntimeTests/hir_tests/hir_builder_static_test.txt", true);
   register_test("RuntimeTests/hir_tests/load_attr_specialization_test.txt");
-  register_test(
-      "RuntimeTests/hir_tests/load_const_tuple_item_optimization_test.txt");
-  register_test("RuntimeTests/hir_tests/null_check_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
-  register_test(
-      "RuntimeTests/hir_tests/redundant_conversion_elimination_test.txt", true);
   register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
   register_test(
       "RuntimeTests/hir_tests/refcount_insertion_static_test.txt", true);
   register_test("RuntimeTests/hir_tests/super_access_test.txt", true);
-  register_test(
-      "RuntimeTests/hir_tests/binary_op_list_specialization_test.txt");
+  register_test("RuntimeTests/hir_tests/simplify_test.txt");
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {

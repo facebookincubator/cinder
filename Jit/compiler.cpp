@@ -61,16 +61,13 @@ static void runPass(hir::Function& func) {
 }
 
 void Compiler::runPasses(jit::hir::Function& irfunc) {
-  // SSAify must come first; nothing but SSAify should ever see non-SSA HIR
+  // SSAify must come first; nothing but SSAify should ever see non-SSA HIR.
   runPass<jit::hir::SSAify>(irfunc);
-  runPass<jit::hir::RedundantConversionElimination>(irfunc);
+  runPass<jit::hir::Simplify>(irfunc);
   runPass<jit::hir::LoadAttrSpecialization>(irfunc);
-  runPass<jit::hir::NullCheckElimination>(irfunc);
   runPass<jit::hir::DynamicComparisonElimination>(irfunc);
   runPass<jit::hir::CallOptimization>(irfunc);
   runPass<jit::hir::PhiElimination>(irfunc);
-  runPass<jit::hir::LoadConstTupleItemOptimization>(irfunc);
-  runPass<jit::hir::SpecializeBinarySubscrList>(irfunc);
   runPass<jit::hir::RefcountInsertion>(irfunc);
 
   JIT_LOGIF(

@@ -17,8 +17,7 @@ fun jittestmodule:Test.__init__ {
     v5:Object = LoadArg<0; "self">
     v6:CInt32[0] = LoadConst<CInt32[0]>
     v8:Nullptr = LoadConst<Nullptr>
-    v9:CInt32 = IntConvert<CInt32> v6
-    StoreField<16> v5 v9 v8
+    StoreField<16> v5 v6 v8
     v10:NoneType = LoadConst<NoneType>
     Incref v10
     Return v10

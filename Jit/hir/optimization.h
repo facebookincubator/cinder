@@ -62,20 +62,24 @@ class RefcountInsertion : public Pass {
   DISALLOW_COPY_AND_ASSIGN(RefcountInsertion);
 };
 
-// Eliminate Check(Var|Exc|Field) instructions (null checks) when the input is
-// known to not be null.
-class NullCheckElimination : public Pass {
+// Perform a mixed bag of strength-reduction optimizations: remove redundant
+// null checks, conversions, loads from compile-time constant containers, etc.
+//
+// If your optimization requires no global analysis or state and operates on
+// one instruction at a time by inspecting its inputs (and anything reachable
+// from them), it may be a good fit for Simplify.
+class Simplify : public Pass {
  public:
-  NullCheckElimination() : Pass("NullCheckElimination") {}
+  Simplify() : Pass("Simplify") {}
 
-  void Run(Function& irfunc) override;
+  void Run(Function& func) override;
 
-  static std::unique_ptr<NullCheckElimination> Factory() {
-    return std::make_unique<NullCheckElimination>();
+  static std::unique_ptr<Simplify> Factory() {
+    return std::make_unique<Simplify>();
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(NullCheckElimination);
+  DISALLOW_COPY_AND_ASSIGN(Simplify);
 };
 
 class DynamicComparisonElimination : public Pass {
@@ -161,42 +165,6 @@ class PhiElimination : public Pass {
 
   static std::unique_ptr<PhiElimination> Factory() {
     return std::make_unique<PhiElimination>();
-  }
-};
-
-// Eliminate IntConvert operations whose input is already the desired type.
-class RedundantConversionElimination : public Pass {
- public:
-  RedundantConversionElimination() : Pass("RedundantConversionElimination") {}
-
-  void Run(Function& irfunc) override;
-
-  static std::unique_ptr<RedundantConversionElimination> Factory() {
-    return std::make_unique<RedundantConversionElimination>();
-  }
-};
-
-// Convert LoadTupleItem to LoadConst if the tuple is a constant
-class LoadConstTupleItemOptimization : public Pass {
- public:
-  LoadConstTupleItemOptimization() : Pass("LoadConstTupleItemOptimization") {}
-
-  void Run(Function& irfunc) override;
-
-  static std::unique_ptr<LoadConstTupleItemOptimization> Factory() {
-    return std::make_unique<LoadConstTupleItemOptimization>();
-  }
-};
-
-// Convert BinaryOp to LoadArrayItem if the lhs is an exact list
-class SpecializeBinarySubscrList : public Pass {
- public:
-  SpecializeBinarySubscrList() : Pass("SpecializeBinarySubscrList") {}
-
-  void Run(Function& irfunc) override;
-
-  static std::unique_ptr<SpecializeBinarySubscrList> Factory() {
-    return std::make_unique<SpecializeBinarySubscrList>();
   }
 };
 

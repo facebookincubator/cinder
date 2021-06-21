@@ -29,12 +29,12 @@ namespace hir {
  * the JIT.
  *
  * The main goals for the IR are:
- *
  * 1. Stay close to Python. The HIR is machine independent and tries to stay
- * close to Python in order to enable optimizations that are easier to perform
- * at a higher level of abstraction. For example, null checks for variable
- * accesses are represented explicitly so that they may be optimized away when
- * it can be statically determined that a variable is defined.
+ *    close to Python in order to enable optimizations that are easier to
+ *    perform at a higher level of abstraction. For example, null checks for
+ *    variable accesses are represented explicitly so that they may be
+ *    optimized away when it can be statically determined that a variable is
+ *    defined.
  * 2. Be as explicit as possible. The CPython bytecode has a large amount of
  *    implicit logic (e.g. refcounting, null checks). Making that logic
  *    explicit in the IR makes it possible to optimize away.
@@ -68,6 +68,11 @@ class Register {
   }
   void set_type(Type type) {
     type_ = type;
+  }
+
+  // Shorthand for checking the type of this Register.
+  bool isA(Type type) const {
+    return type_ <= type;
   }
 
   // The instruction that defined this value. Always set, but only meaningful
@@ -760,6 +765,8 @@ class InstrT;
 template <class T, Opcode opc>
 class InstrT<T, opc> : public Instr {
  public:
+  static constexpr bool has_output = false;
+
   template <typename... Args>
   InstrT(Args&&... args) : Instr(opc, std::forward<Args>(args)...) {}
 };
@@ -881,6 +888,8 @@ struct HasOutput;
 template <class T, Opcode opcode, typename... Tys>
 class InstrT<T, opcode, HasOutput, Tys...> : public InstrT<T, opcode, Tys...> {
  public:
+  static constexpr bool has_output = true;
+
   template <typename... Args>
   InstrT(Register* dst, Args&&... args)
       : InstrT<T, opcode, Tys...>(std::forward<Args>(args)...) {

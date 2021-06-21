@@ -27,16 +27,13 @@ PassRegistry::PassRegistry() {
   auto addPass = [&](const PassFactory& factory) {
     factories_.emplace(factory()->name(), factory);
   };
-  addPass(NullCheckElimination::Factory);
   addPass(RefcountInsertion::Factory);
   addPass(CopyPropagation::Factory);
   addPass(LoadAttrSpecialization::Factory);
   addPass(CallOptimization::Factory);
   addPass(DynamicComparisonElimination::Factory);
   addPass(PhiElimination::Factory);
-  addPass(RedundantConversionElimination::Factory);
-  addPass(LoadConstTupleItemOptimization::Factory);
-  addPass(SpecializeBinarySubscrList::Factory);
+  addPass(Simplify::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
@@ -46,32 +43,6 @@ std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
   } else {
     return nullptr;
   }
-}
-
-void NullCheckElimination::Run(Function& irfunc) {
-  for (auto& block : irfunc.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end();) {
-      auto& instr = *it;
-      ++it;
-      if (!instr.IsCheckVar() && !instr.IsCheckExc() && !instr.IsCheckField()) {
-        continue;
-      }
-
-      auto input = instr.GetOperand(0);
-      // TODO(bsimmers): CheckExc sometimes has a CInt32 source, where a
-      // negative value means an exception is set. We don't have the ability to
-      // express that in Type at the moment, so we only worry about non-null
-      // object inputs for now.
-      if (input->type() <= TObject) {
-        auto assign = Assign::create(instr.GetOutput(), input);
-        assign->copyBytecodeOffset(instr);
-        instr.ReplaceWith(*assign);
-        delete &instr;
-      }
-    }
-  }
-
-  CopyPropagation{}.Run(irfunc);
 }
 
 Instr* DynamicComparisonElimination::ReplaceCompare(
@@ -389,107 +360,6 @@ void PhiElimination::Run(Function& func) {
   }
 
   func.cfg.RemoveTrampolineBlocks();
-}
-
-void RedundantConversionElimination::Run(Function& func) {
-  for (auto& block : func.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end();) {
-      auto& instr = *it;
-      ++it;
-      if (instr.IsIntConvert()) {
-        auto convert = static_cast<const IntConvert*>(&instr);
-        Register* input = convert->src();
-        if (input->type() <= convert->type()) {
-          auto assign = Assign::create(instr.GetOutput(), input);
-          assign->copyBytecodeOffset(instr);
-          instr.ReplaceWith(*assign);
-          delete &instr;
-        }
-      }
-    }
-  }
-
-  CopyPropagation{}.Run(func);
-}
-
-void LoadConstTupleItemOptimization::Run(Function& func) {
-  for (auto& block : func.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end();) {
-      auto& instr = *it;
-      ++it;
-
-      if (!instr.IsLoadTupleItem()) {
-        continue;
-      }
-
-      auto load_tuple_item = static_cast<const LoadTupleItem*>(&instr);
-      Register* tuple = load_tuple_item->tuple();
-      Instr* def_instr = tuple->instr();
-
-      if (!def_instr->IsLoadConst()) {
-        continue;
-      }
-
-      auto load_const = static_cast<const LoadConst*>(def_instr);
-
-      if (!load_const->type().hasValueSpec(TTuple)) {
-        continue;
-      }
-      auto const_tuple = load_const->type().objectSpec();
-
-      auto new_load_const = LoadConst::create(
-          load_tuple_item->GetOutput(),
-          Type::fromObject(
-              PyTuple_GET_ITEM(const_tuple, load_tuple_item->idx())));
-
-      instr.ReplaceWith(*new_load_const);
-      delete load_tuple_item;
-    }
-  }
-}
-
-void SpecializeBinarySubscrList::Run(Function& func) {
-  for (auto& block : func.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end();) {
-      auto& instr = *it;
-      ++it;
-
-      if (!instr.IsBinaryOp()) {
-        continue;
-      }
-      BinaryOp* binary_op = static_cast<BinaryOp*>(&instr);
-      if (binary_op->op() != BinaryOpKind::kSubscript) {
-        continue;
-      }
-      Register* left = binary_op->left();
-      if (!(left->type() <= TListExact)) {
-        continue;
-      }
-      Register* right = binary_op->right();
-      if (!(right->type() <= TLongExact)) {
-        continue;
-      }
-      Register* right_index = func.env.AllocateRegister();
-      // TODO(T93509109): Replace TCInt64 with a more platform-specific
-      // representation of the type, which should be analagous to Py_ssize_t.
-      auto unbox = PrimitiveUnbox::create(right_index, right, TCInt64);
-      Register* adjusted_idx = func.env.AllocateRegister();
-      auto check_bounds = CheckSequenceBounds::create(
-          adjusted_idx, left, right_index, *get_frame_state(*binary_op));
-      Register* ob_item = func.env.AllocateRegister();
-      auto load_field = LoadField::create(
-          ob_item,
-          left,
-          GET_STRUCT_MEMBER_OFFSET(PyListObject, ob_item),
-          TCPtr);
-      auto load_array_item = LoadArrayItem::create(
-          binary_op->GetOutput(), ob_item, adjusted_idx, left, TObject);
-      binary_op->ExpandInto({unbox, check_bounds, load_field, load_array_item});
-      delete binary_op;
-    }
-  }
-
-  reflowTypes(func);
 }
 
 PyObject* loadGlobal(

@@ -439,6 +439,7 @@ JIT_OBJS=       \
 		Jit/hir/parser.o \
 		Jit/hir/printer.o \
 		Jit/hir/refcount_insertion.o \
+		Jit/hir/simplify.o \
 		Jit/hir/ssa.o \
 		Jit/hir/type.o \
 		Jit/inline_cache.o \

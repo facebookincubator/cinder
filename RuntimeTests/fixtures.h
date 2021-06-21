@@ -231,7 +231,7 @@ class HIRTest : public RuntimeTest {
         // Perform some straightforward cleanup on Python inputs to make the
         // output more reasonable. This implies that tests for the passes used
         // here are most useful as HIR-only tests.
-        NullCheckElimination{}.Run(*irfunc);
+        Simplify{}.Run(*irfunc);
         CopyPropagation{}.Run(*irfunc);
         PhiElimination{}.Run(*irfunc);
       }
