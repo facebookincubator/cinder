@@ -7428,7 +7428,7 @@ _PyFunction_CallStatic(PyFunctionObject *func,
 
     /* We are bound to a specific function that is known at compile time, and
      * all of the arguments are guaranteed to be provided */
-    assert(co->co_argcount == nargs);
+    assert(co->co_argcount + co->co_kwonlyargcount == nargs);
     assert(co->co_flags & CO_STATICALLY_COMPILED);
     assert(nargsf & _Py_VECTORCALL_INVOKED_STATICALLY);
     assert(tstate != NULL);

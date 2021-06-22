@@ -2226,7 +2226,6 @@ class Callable(Object[TClass]):
 
         num_star_args = [isinstance(a, ast.Starred) for a in node.args].count(True)
         num_dstar_args = [(a.arg is None) for a in node.keywords].count(True)
-        num_kwonly = len([arg for arg in self.args if arg.is_kwonly])
 
         start = 1 if has_self else 0
         for arg in self.args[start + len(node.args) :]:
@@ -2241,7 +2240,6 @@ class Callable(Object[TClass]):
             num_dstar_args > 1
             # We don't support f(1, 2, *a) if f has any default arg values
             or (has_default_args and has_star_args)
-            or num_kwonly
         ):
             return False
 

@@ -4270,10 +4270,20 @@ class StaticCompilationTests(StaticTestBase):
             a = x()
         """
         module = self.compile(codestr, StaticCodeGenerator)
-        # we don't yet support optimized dispatch to kw-only functions
-        self.assertInBytecode(module, "CALL_FUNCTION")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        self.assertInBytecode(module, "INVOKE_FUNCTION")
+        with self.in_module(codestr) as mod:
             self.assertEqual(mod["a"], "hunter2")
+
+    def test_verify_kwdefaults_with_value(self):
+        codestr = """
+            def x(*, b: str="hunter2"):
+                return b
+            a = x(b="hunter3")
+        """
+        module = self.compile(codestr, StaticCodeGenerator)
+        self.assertInBytecode(module, "INVOKE_FUNCTION")
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod["a"], "hunter3")
 
     def test_verify_lambda(self):
         codestr = """
