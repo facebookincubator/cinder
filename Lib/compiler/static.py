@@ -3758,13 +3758,14 @@ class DictInstance(Object[DictClass]):
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
 
 
-FUNCTION_TYPE = Class(TypeName("types", "FunctionType"))
-METHOD_TYPE = Class(TypeName("types", "MethodType"))
-MEMBER_TYPE = Class(TypeName("types", "MemberDescriptorType"))
-BUILTIN_METHOD_DESC_TYPE = Class(TypeName("types", "MethodDescriptorType"))
-BUILTIN_METHOD_TYPE = Class(TypeName("types", "BuiltinMethodType"))
-ARG_TYPE = Class(TypeName("builtins", "arg"))
-SLICE_TYPE = Class(TypeName("builtins", "slice"))
+FUNCTION_TYPE = Class(TypeName("types", "FunctionType"), is_exact=True)
+METHOD_TYPE = Class(TypeName("types", "MethodType"), is_exact=True)
+MEMBER_TYPE = Class(TypeName("types", "MemberDescriptorType"), is_exact=True)
+BUILTIN_METHOD_DESC_TYPE = Class(
+    TypeName("types", "MethodDescriptorType"), is_exact=True
+)
+BUILTIN_METHOD_TYPE = Class(TypeName("types", "BuiltinMethodType"), is_exact=True)
+SLICE_TYPE = Class(TypeName("builtins", "slice"), is_exact=True)
 
 # builtin types
 NONE_TYPE = NoneType()
@@ -3779,8 +3780,12 @@ COMPLEX_EXACT_TYPE = NumClass(
     TypeName("builtins", "complex"), pytype=complex, is_exact=True
 )
 BYTES_TYPE = Class(TypeName("builtins", "bytes"), [OBJECT_TYPE], pytype=bytes)
-BOOL_TYPE = Class(TypeName("builtins", "bool"), [OBJECT_TYPE], pytype=bool)
-ELLIPSIS_TYPE = Class(TypeName("builtins", "ellipsis"), [OBJECT_TYPE], pytype=type(...))
+BOOL_TYPE = Class(
+    TypeName("builtins", "bool"), [OBJECT_TYPE], pytype=bool, is_exact=True
+)
+ELLIPSIS_TYPE = Class(
+    TypeName("builtins", "ellipsis"), [OBJECT_TYPE], pytype=type(...), is_exact=True
+)
 DICT_TYPE = DictClass(is_exact=False)
 DICT_EXACT_TYPE = DictClass(is_exact=True)
 TUPLE_TYPE = TupleClass()
