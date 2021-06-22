@@ -14419,6 +14419,43 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertEqual(f("A"), b"A")
             self.assertEqual(f(None), b"")
 
+    def test_refine_or_expression(self):
+        codestr = """
+        from typing import Optional
+
+        def f(s: Optional[str]) -> str:
+            return s or "hi"
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(f("A"), "A")
+            self.assertEqual(f(None), "hi")
+
+    def test_refine_or_expression_with_multiple_optionals(self):
+        codestr = """
+        from typing import Optional
+
+        def f(s1: Optional[str], s2: Optional[str]) -> str:
+            return s1 or s2 or "hi"
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(f("A", None), "A")
+            self.assertEqual(f(None, "B"), "B")
+            self.assertEqual(f("A", "B"), "A")
+            self.assertEqual(f(None, None), "hi")
+
+    def test_or_expression_with_multiple_optionals_type_error(self):
+        codestr = """
+        from typing import Optional
+
+        def f(s1: Optional[str], s2: Optional[str]) -> str:
+            return s1 or s2
+        """
+        self.type_error(
+            codestr, r"type mismatch: Optional\[str\] cannot be assigned to str"
+        )
+
     def test_donotcompile_fn(self):
         codestr = """
         from __static__ import _donotcompile

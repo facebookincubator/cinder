@@ -6090,14 +6090,27 @@ class TypeBinder(GenericVisitor):
             # in a conditional context
             effect.undo(self.local_types)
         elif isinstance(node.op, ast.Or):
-            for value in node.values:
+            for value in node.values[:-1]:
                 new_effect = self.visit(value) or NO_EFFECT
                 effect = effect.or_(new_effect)
+
+                old_type = self.get_type(value)
+                # The or expression will only return the `value` we're visiting if it's
+                # effect holds, so we visit it assuming that the narrowing effects apply.
+                new_effect.apply(self.local_types)
+                self.visit(value)
+                new_effect.undo(self.local_types)
+
                 final_type = self.widen(final_type, self.get_type(value))
+                self.set_type(value, old_type, None)
 
                 new_effect.reverse(self.local_types)
+            # We know nothing about the last node of an or, so we simply widen with its type.
+            new_effect = self.visit(node.values[-1]) or NO_EFFECT
+            final_type = self.widen(final_type, self.get_type(node.values[-1]))
 
             effect.undo(self.local_types)
+            effect = effect.or_(new_effect)
         else:
             for value in node.values:
                 self.visit(value)
