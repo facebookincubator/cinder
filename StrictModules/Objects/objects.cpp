@@ -172,6 +172,12 @@ std::shared_ptr<StrictType> NoneType() {
   return t;
 }
 
+std::shared_ptr<StrictType> EllipsisType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictEllipsisType>(
+      "ellipsis", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> IntType() {
   static std::shared_ptr<StrictType> t = makeType<StrictIntType>(
       "int", kBuiltinsModule, objectTypeVec(), TypeType());
@@ -217,6 +223,18 @@ std::shared_ptr<StrictType> SliceType() {
 std::shared_ptr<StrictType> StrType() {
   static std::shared_ptr<StrictType> t = makeType<StrictStringType>(
       "str", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> BytesType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictBytesType>(
+      "bytes", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> ByteArrayType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictByteArrayType>(
+      "bytearray", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 
@@ -385,6 +403,12 @@ std::shared_ptr<BaseStrictObject> StrictFalse() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> EllipsisObject() {
+  static std::shared_ptr<BaseStrictObject> o(
+      new StrictEllipsisObject(EllipsisType(), kBuiltinsModule));
+  return o;
+}
+
 //--------------------Builtin Function Declarations-----------------------
 std::shared_ptr<BaseStrictObject> StrictRepr() {
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
@@ -433,6 +457,8 @@ bool initializeBuiltinsModuleDict() {
         {"bool", BoolType()},
         {"float", FloatType()},
         {"str", StrType()},
+        {"bytes", BytesType()},
+        {"bytearray", ByteArrayType()},
         {"list", ListType()},
         {"tuple", TupleType()},
         {"set", SetType()},

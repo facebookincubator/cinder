@@ -1009,6 +1009,11 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
         FloatType(), context_.caller, constant.value);
     return value;
   }
+  if (PyBytes_CheckExact(constant.value)) {
+    auto value = std::make_shared<StrictBytes>(
+        BytesType(), context_.caller, constant.value);
+    return value;
+  }
   if (constant.value == Py_None) {
     return NoneObject();
   }
@@ -1017,6 +1022,9 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
   }
   if (constant.value == Py_False) {
     return StrictFalse();
+  }
+  if (constant.value == Py_Ellipsis) {
+    return EllipsisObject();
   }
   return defaultVisitExpr();
 }

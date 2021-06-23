@@ -697,6 +697,8 @@ void StrictIntType::addMethods() {
   PyObject* intType = reinterpret_cast<PyObject*>(&PyLong_Type);
   addPyWrappedMethodObj<>(kDunderRepr, intType, StrictString::strFromPyObj);
   addPyWrappedMethodObj<1>("__format__", intType, StrictString::strFromPyObj);
+  addPyWrappedMethodDefaultObj(
+      "to_bytes", intType, StrictBytes::bytesFromPyObj, 1, 3);
 }
 
 // StrictBool

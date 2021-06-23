@@ -183,7 +183,7 @@ std::shared_ptr<BaseStrictObject> StrictString::str__iter__(
     const CallerContext& caller) {
   const std::string& value = self->getValue();
   std::vector<std::shared_ptr<BaseStrictObject>> chars;
-  chars.resize(value.size());
+  chars.reserve(value.size());
   for (char c : value) {
     chars.push_back(caller.makeStr(std::string{c}));
   }
@@ -262,5 +262,182 @@ void StrictStringType::addMethods() {
       "startswith", strType, StrictString::strFromPyObj, 2, 3);
   addPyWrappedMethodDefaultObj(
       "split", strType, StrictString::listFromPyStrList, 2, 2);
+}
+
+// Bytes Object
+StrictBytes::StrictBytes(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    PyObject* bytesObj)
+    : StrictInstance(std::move(type), std::move(creator)),
+      bytesObj_(Ref<>(bytesObj)) {}
+
+StrictBytes::StrictBytes(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    Ref<> bytesObj)
+    : StrictInstance(std::move(type), std::move(creator)),
+      bytesObj_(std::move(bytesObj)) {}
+
+Ref<> StrictBytes::getPyObject() const {
+  return Ref<>(bytesObj_.get());
+}
+
+std::string StrictBytes::getDisplayName() const {
+  return std::string(PyBytes_AsString(bytesObj_.get()));
+}
+
+// conversion methods
+std::shared_ptr<BaseStrictObject> StrictBytes::bytesFromPyObj(
+    Ref<> pyObj,
+    const CallerContext& caller) {
+  return std::make_shared<StrictBytes>(
+      BytesType(), caller.caller, std::move(pyObj));
+}
+
+// wrapped methods
+std::shared_ptr<BaseStrictObject> StrictBytes::bytes__len__(
+    std::shared_ptr<StrictBytes> self,
+    const CallerContext& caller) {
+  return caller.makeInt(PyBytes_Size(self->bytesObj_));
+}
+
+std::shared_ptr<BaseStrictObject> StrictBytes::bytes__iter__(
+    std::shared_ptr<StrictBytes> self,
+    const CallerContext& caller) {
+  Py_ssize_t len = PyBytes_Size(self->bytesObj_.get());
+  char* content = PyBytes_AsString(self->bytesObj_.get());
+  std::vector<std::shared_ptr<BaseStrictObject>> contentsVec;
+  contentsVec.reserve(len);
+  for (int i = 0; i < len; ++i) {
+    auto contentInt = caller.makeInt(content[i]);
+    contentsVec.push_back(std::move(contentInt));
+  }
+  auto contentTuple = std::make_shared<StrictTuple>(
+      TupleType(), caller.caller, std::move(contentsVec));
+  return std::make_shared<StrictSequenceIterator>(
+      SequenceIteratorType(), caller.caller, std::move(contentTuple));
+}
+
+std::unique_ptr<BaseStrictObject> StrictBytesType::constructInstance(
+    std::weak_ptr<StrictModuleObject> caller) {
+  Ref<> s = Ref<>::steal(PyBytes_FromString(""));
+  return std::make_unique<StrictBytes>(
+      BytesType(), std::move(caller), std::move(s));
+}
+
+std::shared_ptr<StrictType> StrictBytesType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictBytesType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+Ref<> StrictBytesType::getPyObject() const {
+  return Ref<>(reinterpret_cast<PyObject*>(&PyBytes_Type));
+}
+
+void StrictBytesType::addMethods() {
+  addMethod(kDunderLen, StrictBytes::bytes__len__);
+  addMethod(kDunderIter, StrictBytes::bytes__iter__);
+
+  PyObject* bytesType = reinterpret_cast<PyObject*>(&PyBytes_Type);
+
+  addPyWrappedMethodObj<>("lower", bytesType, StrictBytes::bytesFromPyObj);
+  addPyWrappedMethodObj<>("upper", bytesType, StrictBytes::bytesFromPyObj);
+  addPyWrappedMethodObj<1>("__add__", bytesType, StrictBytes::bytesFromPyObj);
+}
+
+std::vector<std::type_index> StrictBytesType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictBytesType));
+  return baseVec;
+}
+
+// ByteArray
+StrictByteArray::StrictByteArray(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    PyObject* bytearrayObj)
+    : StrictInstance(std::move(type), std::move(creator)),
+      bytearrayObj_(Ref<>(bytearrayObj)) {}
+
+StrictByteArray::StrictByteArray(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    Ref<> bytearrayObj)
+    : StrictInstance(std::move(type), std::move(creator)),
+      bytearrayObj_(std::move(bytearrayObj)) {}
+
+Ref<> StrictByteArray::getPyObject() const {
+  return Ref<>(bytearrayObj_.get());
+}
+
+std::string StrictByteArray::getDisplayName() const {
+  return std::string(PyByteArray_AsString(bytearrayObj_.get()));
+}
+
+// wrapped methods
+std::shared_ptr<BaseStrictObject> StrictByteArray::bytearray__iter__(
+    std::shared_ptr<StrictByteArray> self,
+    const CallerContext& caller) {
+  Py_ssize_t len = PyByteArray_Size(self->bytearrayObj_.get());
+  char* content = PyByteArray_AsString(self->bytearrayObj_.get());
+  std::vector<std::shared_ptr<BaseStrictObject>> contentsVec;
+  contentsVec.reserve(len);
+  for (int i = 0; i < len; ++i) {
+    auto contentInt = caller.makeInt(content[i]);
+    contentsVec.push_back(std::move(contentInt));
+  }
+  auto contentTuple = std::make_shared<StrictTuple>(
+      TupleType(), caller.caller, std::move(contentsVec));
+  return std::make_shared<StrictSequenceIterator>(
+      SequenceIteratorType(), caller.caller, std::move(contentTuple));
+}
+
+std::unique_ptr<BaseStrictObject> StrictByteArrayType::constructInstance(
+    std::weak_ptr<StrictModuleObject> caller) {
+  Ref<> s = Ref<>::steal(PyByteArray_FromStringAndSize("", 0));
+  return std::make_unique<StrictByteArray>(
+      ByteArrayType(), std::move(caller), std::move(s));
+}
+
+std::shared_ptr<StrictType> StrictByteArrayType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictByteArrayType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+Ref<> StrictByteArrayType::getPyObject() const {
+  return Ref<>(reinterpret_cast<PyObject*>(&PyByteArray_Type));
+}
+
+void StrictByteArrayType::addMethods() {
+  addMethod(kDunderIter, StrictByteArray::bytearray__iter__);
+}
+
+std::vector<std::type_index> StrictByteArrayType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictByteArrayType));
+  return baseVec;
 }
 } // namespace strictmod::objects

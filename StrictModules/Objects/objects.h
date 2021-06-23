@@ -37,6 +37,9 @@ std::shared_ptr<StrictType> IntType();
 std::shared_ptr<StrictType> FloatType();
 std::shared_ptr<StrictType> BoolType();
 std::shared_ptr<StrictType> StrType();
+std::shared_ptr<StrictType> BytesType();
+std::shared_ptr<StrictType> ByteArrayType();
+
 std::shared_ptr<StrictType> SuperType();
 std::shared_ptr<StrictType> UnionType();
 
@@ -78,6 +81,7 @@ std::shared_ptr<StrictType> DivisionByZeroType();
 
 //--------------------Builtin Constant Declarations-----------------------
 std::shared_ptr<BaseStrictObject> NoneObject();
+std::shared_ptr<BaseStrictObject> EllipsisObject();
 std::shared_ptr<BaseStrictObject> NotImplemented();
 std::shared_ptr<BaseStrictObject> StrictTrue();
 std::shared_ptr<BaseStrictObject> StrictFalse();

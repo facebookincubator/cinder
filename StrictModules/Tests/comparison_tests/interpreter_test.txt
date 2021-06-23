@@ -4913,7 +4913,7 @@ w = any([False, False, False])
 x y z w
 ---
 ---
-test_empty_bytearray @disabled
+test_empty_bytearray
 ---
 a = bytearray()
 t = type(a)
@@ -4921,14 +4921,14 @@ t = type(a)
 t
 ---
 ---
-test_empty_bytearray_iter @disabled
+test_empty_bytearray_iter
 ---
 a = bytearray()
-i = iter(a)
-next(i)
+i = a.__iter__()
+x = i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+3 4 StrictModuleUnhandledException(StopIteration)
 ---
 test_exec_one_scope
 ---
@@ -6076,7 +6076,7 @@ s = {a, b, c}
 s
 ---
 ---
-test_iterator_7 @disabled
+test_iterator_7
 ---
 l = 'abc'
 i = l.__iter__()
@@ -6087,7 +6087,7 @@ c = i.__next__()
 a b c
 ---
 ---
-test_iterator_8 @disabled
+test_iterator_8
 ---
 l = b'abc'
 i = l.__iter__()
@@ -8075,7 +8075,7 @@ c1.a.attr
 ---
 UnknownValueAttributeException
 ---
-test_int_ops @disabled
+test_int_ops
 ---
 A = 1
 B = 2
@@ -8083,6 +8083,7 @@ C = A + B
 D = A.to_bytes(2, "little")
 E = C.to_bytes(2, "little")
 ---
+D E
 ---
 ---
 test_mixed_int_ops @disabled
