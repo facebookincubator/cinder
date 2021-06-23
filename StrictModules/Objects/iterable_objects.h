@@ -70,6 +70,10 @@ class StrictSequence : public StrictIterable {
       std::shared_ptr<StrictSequence> self,
       const CallerContext& caller);
 
+  static std::shared_ptr<BaseStrictObject> sequence__reversed__(
+      std::shared_ptr<StrictSequence> self,
+      const CallerContext& caller);
+
   static std::shared_ptr<BaseStrictObject> sequence__mul__(
       std::shared_ptr<StrictSequence> self,
       const CallerContext& caller,
@@ -80,7 +84,6 @@ class StrictSequence : public StrictIterable {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> lhs);
 
-  // TODO: __reversed__
  protected:
   std::vector<std::shared_ptr<BaseStrictObject>> data_;
 };
@@ -485,6 +488,64 @@ class StrictSlice : public StrictInstance {
   std::shared_ptr<BaseStrictObject> start_;
   std::shared_ptr<BaseStrictObject> stop_;
   std::shared_ptr<BaseStrictObject> step_;
+};
+
+class StrictRange : public StrictInstance {
+ public:
+  StrictRange(
+      std::weak_ptr<StrictModuleObject> creator,
+      std::shared_ptr<BaseStrictObject> start,
+      std::shared_ptr<BaseStrictObject> stop,
+      std::shared_ptr<BaseStrictObject> step);
+  virtual std::string getDisplayName() const override;
+
+  const std::shared_ptr<BaseStrictObject>& getStart() {
+    return start_;
+  }
+  const std::shared_ptr<BaseStrictObject>& getStop() {
+    return stop_;
+  }
+  const std::shared_ptr<BaseStrictObject>& getStep() {
+    return step_;
+  }
+
+  // wrapped methods
+  static std::shared_ptr<BaseStrictObject> range__new__(
+      std::shared_ptr<BaseStrictObject>,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> range__iter__(
+      std::shared_ptr<StrictRange> self,
+      const CallerContext& caller);
+
+ private:
+  std::shared_ptr<BaseStrictObject> start_;
+  std::shared_ptr<BaseStrictObject> stop_;
+  std::shared_ptr<BaseStrictObject> step_;
+};
+
+class StrictRangeType : public StrictObjectType {
+ public:
+  using StrictObjectType::StrictObjectType;
+
+  virtual std::unique_ptr<BaseStrictObject> constructInstance(
+      std::weak_ptr<StrictModuleObject> caller) override;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+
+  virtual bool isBaseType() const override;
 };
 
 } // namespace strictmod::objects

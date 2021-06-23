@@ -51,6 +51,90 @@ class StrictSequenceIterator final : public StrictIteratorBase {
   bool done_;
 };
 
+class StrictReverseSequenceIterator final : public StrictIteratorBase {
+ public:
+  StrictReverseSequenceIterator(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::shared_ptr<StrictSequence> obj);
+
+  virtual std::shared_ptr<BaseStrictObject> next(
+      const CallerContext& caller) override;
+
+  virtual bool isEnd() const override;
+
+  static std::shared_ptr<BaseStrictObject> reverseSequenceIterator__next__(
+      std::shared_ptr<StrictReverseSequenceIterator> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> reverseSequenceIterator__iter__(
+      std::shared_ptr<StrictReverseSequenceIterator> self,
+      const CallerContext& caller);
+
+ private:
+  std::shared_ptr<StrictSequence> obj_; // object getting iterated on
+  std::vector<std::shared_ptr<BaseStrictObject>>::const_reverse_iterator
+      it_; // iterator state
+  std::vector<std::shared_ptr<BaseStrictObject>>::const_reverse_iterator
+      end_; // iterator state
+  bool done_;
+};
+
+class StrictVectorIterator final : public StrictIteratorBase {
+ public:
+  StrictVectorIterator(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::vector<std::shared_ptr<BaseStrictObject>> elements);
+
+  virtual std::shared_ptr<BaseStrictObject> next(
+      const CallerContext& caller) override;
+
+  virtual bool isEnd() const override;
+
+  static std::shared_ptr<BaseStrictObject> vectorIterator__next__(
+      std::shared_ptr<StrictVectorIterator> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> vectorIterator__iter__(
+      std::shared_ptr<StrictVectorIterator> self,
+      const CallerContext& caller);
+
+ private:
+  std::vector<std::shared_ptr<BaseStrictObject>> elements_;
+  std::vector<std::shared_ptr<BaseStrictObject>>::const_iterator
+      it_; // iterator state
+  bool done_;
+};
+
+class StrictRangeIterator final : public StrictIteratorBase {
+ public:
+  StrictRangeIterator(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::shared_ptr<StrictRange> rangeObj);
+
+  virtual std::shared_ptr<BaseStrictObject> next(
+      const CallerContext& caller) override;
+
+  virtual bool isEnd() const override;
+
+  static std::shared_ptr<BaseStrictObject> rangeIterator__next__(
+      std::shared_ptr<StrictRangeIterator> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> rangeIterator__iter__(
+      std::shared_ptr<StrictRangeIterator> self,
+      const CallerContext& caller);
+
+ private:
+  std::shared_ptr<StrictRange> range_;
+  long current_;
+  long stop_;
+  long step_;
+  bool done_;
+};
+
 class StrictGeneratorExp final : public StrictIteratorBase {
  public:
   StrictGeneratorExp(
@@ -179,6 +263,59 @@ class StrictGenericObjectIterator final : public StrictIteratorBase {
   bool done_;
 };
 
+class StrictZipIterator final : public StrictIteratorBase {
+ public:
+  StrictZipIterator(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::vector<std::shared_ptr<BaseStrictObject>> iterators);
+
+  virtual std::shared_ptr<BaseStrictObject> next(
+      const CallerContext& caller) override;
+
+  virtual bool isEnd() const override;
+
+  static std::shared_ptr<BaseStrictObject> zipIterator__next__(
+      std::shared_ptr<StrictZipIterator> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> zipIterator__iter__(
+      std::shared_ptr<StrictZipIterator> self,
+      const CallerContext& caller);
+
+ private:
+  std::vector<std::shared_ptr<BaseStrictObject>> iterators_;
+  bool done_;
+};
+
+class StrictMapIterator final : public StrictIteratorBase {
+ public:
+  StrictMapIterator(
+      std::shared_ptr<StrictType> type,
+      std::weak_ptr<StrictModuleObject> creator,
+      std::vector<std::shared_ptr<BaseStrictObject>> iterators,
+      std::shared_ptr<BaseStrictObject> func);
+
+  virtual std::shared_ptr<BaseStrictObject> next(
+      const CallerContext& caller) override;
+
+  virtual bool isEnd() const override;
+
+  static std::shared_ptr<BaseStrictObject> mapIterator__next__(
+      std::shared_ptr<StrictMapIterator> self,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> mapIterator__iter__(
+      std::shared_ptr<StrictMapIterator> self,
+      const CallerContext& caller);
+
+ private:
+  std::vector<std::shared_ptr<BaseStrictObject>> iterators_;
+  std::shared_ptr<BaseStrictObject> func_;
+  bool done_;
+};
+
+// ------------------------iterator type declarations--------------------
 class StrictIteratorBaseType : public StrictObjectType {
  public:
   using StrictObjectType::StrictObjectType;
@@ -205,6 +342,40 @@ class StrictIteratorBaseType : public StrictObjectType {
 };
 
 class StrictSequenceIteratorType : public StrictIteratorBaseType {
+ public:
+  using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+};
+
+class StrictReverseSequenceIteratorType : public StrictIteratorBaseType {
+ public:
+  using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+};
+
+class StrictVectorIteratorType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
 
@@ -290,6 +461,57 @@ class StrictGenericObjectIteratorType : public StrictIteratorBaseType {
 };
 
 class StrictGeneratorFunctionType : public StrictIteratorBaseType {
+ public:
+  using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+};
+
+class StrictRangeIteratorType : public StrictIteratorBaseType {
+ public:
+  using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+};
+
+class StrictZipIteratorType : public StrictIteratorBaseType {
+ public:
+  using StrictIteratorBaseType::StrictIteratorBaseType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual void addMethods() override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+};
+
+class StrictMapIteratorType : public StrictIteratorBaseType {
  public:
   using StrictIteratorBaseType::StrictIteratorBaseType;
 

@@ -187,10 +187,8 @@ std::shared_ptr<BaseStrictObject> StrictString::str__iter__(
   for (char c : value) {
     chars.push_back(caller.makeStr(std::string{c}));
   }
-  auto list = std::make_shared<StrictTuple>(
-      TupleType(), caller.caller, std::move(chars));
-  return std::make_shared<StrictSequenceIterator>(
-      SequenceIteratorType(), caller.caller, std::move(list));
+  return std::make_shared<StrictVectorIterator>(
+      VectorIteratorType(), caller.caller, std::move(chars));
 }
 
 // StrictStringType
@@ -313,10 +311,8 @@ std::shared_ptr<BaseStrictObject> StrictBytes::bytes__iter__(
     auto contentInt = caller.makeInt(content[i]);
     contentsVec.push_back(std::move(contentInt));
   }
-  auto contentTuple = std::make_shared<StrictTuple>(
-      TupleType(), caller.caller, std::move(contentsVec));
-  return std::make_shared<StrictSequenceIterator>(
-      SequenceIteratorType(), caller.caller, std::move(contentTuple));
+  return std::make_shared<StrictVectorIterator>(
+      VectorIteratorType(), caller.caller, std::move(contentsVec));
 }
 
 std::unique_ptr<BaseStrictObject> StrictBytesType::constructInstance(
@@ -398,10 +394,8 @@ std::shared_ptr<BaseStrictObject> StrictByteArray::bytearray__iter__(
     auto contentInt = caller.makeInt(content[i]);
     contentsVec.push_back(std::move(contentInt));
   }
-  auto contentTuple = std::make_shared<StrictTuple>(
-      TupleType(), caller.caller, std::move(contentsVec));
-  return std::make_shared<StrictSequenceIterator>(
-      SequenceIteratorType(), caller.caller, std::move(contentTuple));
+  return std::make_shared<StrictVectorIterator>(
+      VectorIteratorType(), caller.caller, std::move(contentsVec));
 }
 
 std::unique_ptr<BaseStrictObject> StrictByteArrayType::constructInstance(

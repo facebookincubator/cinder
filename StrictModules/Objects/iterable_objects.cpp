@@ -86,6 +86,13 @@ std::shared_ptr<BaseStrictObject> StrictSequence::sequence__iter__(
       SequenceIteratorType(), caller.caller, std::move(self));
 }
 
+std::shared_ptr<BaseStrictObject> StrictSequence::sequence__reversed__(
+    std::shared_ptr<StrictSequence> self,
+    const CallerContext& caller) {
+  return std::make_shared<StrictReverseSequenceIterator>(
+      ReverseSequenceIteratorType(), caller.caller, std::move(self));
+}
+
 static std::shared_ptr<BaseStrictObject> sequenceEqHelper(
     std::shared_ptr<StrictSequence> self,
     const CallerContext& caller,
@@ -245,6 +252,7 @@ void StrictSequenceType::addMethods() {
   addMethod("__mul__", StrictSequence::sequence__mul__);
   addMethod("__rmul__", StrictSequence::sequence__rmul__);
   addMethod(kDunderIter, StrictSequence::sequence__iter__);
+  addMethod("__reversed__", StrictSequence::sequence__reversed__);
 }
 
 // -------------------------List-------------------------
@@ -1064,4 +1072,114 @@ std::tuple<int, int, int> StrictSlice::normalizeToSequenceIndex(
   }
   return std::make_tuple(start, stop, step);
 }
+
+// Range object
+
+StrictRange::StrictRange(
+    std::weak_ptr<StrictModuleObject> creator,
+    std::shared_ptr<BaseStrictObject> start,
+    std::shared_ptr<BaseStrictObject> stop,
+    std::shared_ptr<BaseStrictObject> step)
+    : StrictInstance(RangeType(), std::move(creator)),
+      start_(std::move(start)),
+      stop_(std::move(stop)),
+      step_(std::move(step)) {}
+
+std::string StrictRange::getDisplayName() const {
+  return fmt::format("range({}, {}, {})", start_, stop_, step_);
+}
+
+// wrapped methods
+std::shared_ptr<BaseStrictObject> StrictRange::range__new__(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  if (!namedArgs.empty()) {
+    caller.raiseTypeError("range() does not take keyword args");
+  }
+  if (args.size() > 4) {
+    caller.raiseTypeError(
+        "range() expects at most 3 argument, got {}", args.size());
+  }
+  for (std::size_t i = 1; i < args.size(); ++i) {
+    auto& arg = args[i];
+    auto intObj = std::dynamic_pointer_cast<StrictInt>(arg);
+    if (!intObj) {
+      caller.raiseTypeError(
+          "range() arg {} should be int, got {} object",
+          i - 1,
+          arg->getTypeRef().getName());
+    }
+  }
+  // first arg is cls, which is always range and we skip over it
+  // if only one other argument, it is stop
+  if (args.size() == 2) {
+    return std::make_shared<StrictRange>(
+        caller.caller, caller.makeInt(0), args[1], caller.makeInt(1));
+  } else if (args.size() < 2) {
+    caller.raiseTypeError("range() expects at least 1 argument, got 0");
+  }
+  // otherwise, it is in order of start, stop, step
+  std::shared_ptr<BaseStrictObject> step;
+
+  std::shared_ptr<BaseStrictObject> start = args[1];
+  std::shared_ptr<BaseStrictObject> stop = args[2];
+
+  if (args.size() > 3) {
+    step = args[3];
+  } else {
+    step = caller.makeInt(1);
+  }
+  return std::make_shared<StrictRange>(
+      caller.caller, std::move(start), std::move(stop), std::move(step));
+}
+
+std::shared_ptr<BaseStrictObject> StrictRange::range__iter__(
+    std::shared_ptr<StrictRange> self,
+    const CallerContext& caller) {
+  return std::make_shared<StrictRangeIterator>(
+      RangeIteratorType(), caller.caller, std::move(self));
+}
+
+std::unique_ptr<BaseStrictObject> StrictRangeType::constructInstance(
+    std::weak_ptr<StrictModuleObject> caller) {
+  return std::make_unique<StrictRange>(
+      caller,
+      std::make_shared<StrictInt>(IntType(), caller, 0),
+      std::make_shared<StrictInt>(IntType(), caller, 0),
+      std::make_shared<StrictInt>(IntType(), caller, 1));
+}
+
+std::shared_ptr<StrictType> StrictRangeType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictRangeType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+void StrictRangeType::addMethods() {
+  addBuiltinFunctionOrMethod("__new__", StrictRange::range__new__);
+  addMethod(kDunderIter, StrictRange::range__iter__);
+}
+
+std::vector<std::type_index> StrictRangeType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictRangeType));
+  return baseVec;
+}
+
+bool StrictRangeType::isBaseType() const {
+  return false;
+}
+
 } // namespace strictmod::objects

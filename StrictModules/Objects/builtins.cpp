@@ -225,4 +225,118 @@ std::shared_ptr<BaseStrictObject> execImpl(
       caller.lineno, caller.col, std::move(globals), std::move(locals));
   return NoneObject();
 }
+
+// --------------------end of exec() implementation------------------
+
+std::shared_ptr<BaseStrictObject> iterImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg,
+    std::shared_ptr<BaseStrictObject> sentinel) {
+  std::shared_ptr<BaseStrictObject> result;
+  if (sentinel == nullptr) {
+    auto iterFunc = iLoadAttrOnType(arg, kDunderIter, nullptr, caller);
+    if (iterFunc) {
+      result = iCall(std::move(iterFunc), kEmptyArgs, kEmptyArgNames, caller);
+    }
+  } else {
+    // iter with sentinel has a completely different meaning:
+    // arg should be called until the return value == sentinel
+    // This is expressed using a call iterator
+    result = std::make_shared<StrictCallableIterator>(
+        CallableIteratorType(), caller.caller, arg, std::move(sentinel));
+  }
+  if (!result) {
+    caller.raiseTypeError(
+        "{} object is not iterable", arg->getTypeRef().getName());
+  }
+  return result;
+}
+
+std::shared_ptr<BaseStrictObject> nextImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> iterator,
+    std::shared_ptr<BaseStrictObject> defaultValue) {
+  auto nextFunc = iLoadAttrOnType(iterator, kDunderNext, nullptr, caller);
+  if (!nextFunc) {
+    caller.raiseTypeError(
+        "{} object is not an iterator", iterator->getTypeRef().getName());
+  }
+  try {
+    return iCall(std::move(nextFunc), kEmptyArgs, kEmptyArgNames, caller);
+  } catch (StrictModuleUserException<BaseStrictObject>& e) {
+    auto wrapped = e.getWrapped();
+    if (defaultValue != nullptr &&
+        (wrapped == StopIterationType() ||
+         wrapped->getType() == StopIterationType())) {
+      return defaultValue;
+    }
+    throw;
+  }
+}
+
+std::shared_ptr<BaseStrictObject> reversedImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  std::shared_ptr<BaseStrictObject> result;
+  auto iterFunc = iLoadAttrOnType(arg, "__reversed__", nullptr, caller);
+  if (iterFunc) {
+    return iCall(std::move(iterFunc), kEmptyArgs, kEmptyArgNames, caller);
+  }
+
+  else {
+    caller.raiseTypeError(
+        "{} object is not reversible", arg->getTypeRef().getName());
+  }
+  return result;
+}
+
+std::shared_ptr<BaseStrictObject> enumerateImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  auto elements = iGetElementsVec(arg, caller);
+  std::vector<std::shared_ptr<BaseStrictObject>> resultVec;
+  resultVec.reserve(elements.size());
+  int idx = 0;
+  for (auto& e : elements) {
+    auto idxObj = caller.makeInt(idx++);
+    resultVec.push_back(caller.makePair(std::move(idxObj), e));
+  }
+  return std::make_shared<StrictVectorIterator>(
+      VectorIteratorType(), caller.caller, std::move(resultVec));
+}
+
+std::shared_ptr<BaseStrictObject> zipImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> args,
+    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>) {
+  std::vector<std::shared_ptr<BaseStrictObject>> iterators;
+  iterators.reserve(args.size());
+  for (auto a : args) {
+    auto it = iterImpl(nullptr, caller, std::move(a));
+    iterators.push_back(std::move(it));
+  }
+  return std::make_shared<StrictZipIterator>(
+      ZipIteratorType(), caller.caller, std::move(iterators));
+}
+
+std::shared_ptr<BaseStrictObject> mapImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> args,
+    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>,
+    std::shared_ptr<BaseStrictObject> func) {
+  std::vector<std::shared_ptr<BaseStrictObject>> iterators;
+  iterators.reserve(args.size());
+  for (auto a : args) {
+    auto it = iterImpl(nullptr, caller, std::move(a));
+    iterators.push_back(std::move(it));
+  }
+  return std::make_shared<StrictMapIterator>(
+      MapIteratorType(), caller.caller, std::move(iterators), std::move(func));
+}
 } // namespace strictmod::objects

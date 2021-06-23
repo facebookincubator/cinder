@@ -220,6 +220,12 @@ std::shared_ptr<StrictType> SliceType() {
   return t;
 }
 
+std::shared_ptr<StrictType> RangeType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictRangeType>(
+      "range", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> StrType() {
   static std::shared_ptr<StrictType> t = makeType<StrictStringType>(
       "str", kBuiltinsModule, objectTypeVec(), TypeType());
@@ -259,6 +265,35 @@ std::shared_ptr<StrictType> DictViewType() {
 std::shared_ptr<StrictType> SequenceIteratorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictSequenceIteratorType>(
       "sequence_iter", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+std::shared_ptr<StrictType> ReverseSequenceIteratorType() {
+  static std::shared_ptr<StrictType> t =
+      makeType<StrictReverseSequenceIteratorType>(
+          "reverse_sequence_iter",
+          kBuiltinsModule,
+          objectTypeVec(),
+          TypeType());
+  return t;
+}
+std::shared_ptr<StrictType> VectorIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictVectorIteratorType>(
+      "vector_iter", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+std::shared_ptr<StrictType> RangeIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictRangeIteratorType>(
+      "range_iter", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+std::shared_ptr<StrictType> ZipIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictZipIteratorType>(
+      "zip_iter", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+std::shared_ptr<StrictType> MapIteratorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictMapIteratorType>(
+      "map_iter", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 std::shared_ptr<StrictType> GeneratorExpType() {
@@ -446,6 +481,54 @@ std::shared_ptr<BaseStrictObject> StrictExec() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictIter() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(iterImpl, "iter", std::shared_ptr<BaseStrictObject>()),
+      nullptr,
+      "iter"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictNext() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(nextImpl, "next", std::shared_ptr<BaseStrictObject>()),
+      nullptr,
+      "next"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictReversed() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(reversedImpl, "reversed"),
+      nullptr,
+      "reversed"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictEnumerate() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(enumerateImpl, "enumerate"),
+      nullptr,
+      "enumerate"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictZip() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, StarCallableWrapper(zipImpl, "zip"), nullptr, "zip"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictMap() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, StarCallableWrapper(mapImpl, "map"), nullptr, "map"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -463,6 +546,7 @@ bool initializeBuiltinsModuleDict() {
         {"tuple", TupleType()},
         {"set", SetType()},
         {"frozenset", SetType()},
+        {"range", RangeType()},
         {"dict", DictObjectType()},
         {"super", SuperType()},
         {"classmethod", ClassMethodType()},
@@ -486,6 +570,12 @@ bool initializeBuiltinsModuleDict() {
         {"isinstance", StrictIsinstance()},
         {"len", StrictLen()},
         {"exec", StrictExec()},
+        {"iter", StrictIter()},
+        {"next", StrictNext()},
+        {"reversed", StrictReversed()},
+        {"enumerate", StrictEnumerate()},
+        {"zip", StrictZip()},
+        {"map", StrictMap()},
     });
     kBuiltinsModule->getDict().insert(builtinsDict.begin(), builtinsDict.end());
   }

@@ -29,8 +29,8 @@ StrictSequenceIterator::StrictSequenceIterator(
     std::shared_ptr<StrictSequence> obj)
     : StrictIteratorBase(std::move(type), std::move(creator)),
       obj_(std::move(obj)),
-      it_(obj_->getData().begin()),
-      end_(obj_->getData().end()),
+      it_(obj_->getData().cbegin()),
+      end_(obj_->getData().cend()),
       done_(false) {}
 
 std::shared_ptr<BaseStrictObject> StrictSequenceIterator::next(
@@ -68,26 +68,161 @@ StrictSequenceIterator::sequenceIterator__iter__(
   return self;
 }
 
-// GeneratorExp
+// ReverseStrictSequenceIterator final
+StrictReverseSequenceIterator::StrictReverseSequenceIterator(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::shared_ptr<StrictSequence> obj)
+    : StrictIteratorBase(std::move(type), std::move(creator)),
+      obj_(std::move(obj)),
+      it_(obj_->getData().rbegin()),
+      end_(obj_->getData().rend()),
+      done_(false) {}
 
+std::shared_ptr<BaseStrictObject> StrictReverseSequenceIterator::next(
+    const CallerContext&) {
+  if (it_ == end_) {
+    done_ = true;
+    return nullptr;
+  }
+  return *(it_++);
+}
+
+bool StrictReverseSequenceIterator::isEnd() const {
+  return done_;
+}
+
+std::shared_ptr<BaseStrictObject>
+StrictReverseSequenceIterator::reverseSequenceIterator__next__(
+    std::shared_ptr<StrictReverseSequenceIterator> self,
+    const CallerContext& caller) {
+  // follow python protocols, raise StopIteration when iteration ends
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  auto res = self->next(caller);
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  return res;
+}
+
+std::shared_ptr<BaseStrictObject>
+StrictReverseSequenceIterator::reverseSequenceIterator__iter__(
+    std::shared_ptr<StrictReverseSequenceIterator> self,
+    const CallerContext&) {
+  return self;
+}
+
+// StrictVectorIterator
+StrictVectorIterator::StrictVectorIterator(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::vector<std::shared_ptr<BaseStrictObject>> elements)
+    : StrictIteratorBase(std::move(type), std::move(creator)),
+      elements_(std::move(elements)),
+      it_(elements_.cbegin()),
+      done_(false) {}
+
+std::shared_ptr<BaseStrictObject> StrictVectorIterator::next(
+    const CallerContext&) {
+  if (it_ == elements_.cend()) {
+    done_ = true;
+    return nullptr;
+  }
+  return *(it_++);
+}
+
+bool StrictVectorIterator::isEnd() const {
+  return done_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictVectorIterator::vectorIterator__next__(
+    std::shared_ptr<StrictVectorIterator> self,
+    const CallerContext& caller) {
+  // follow python protocols, raise StopIteration when iteration ends
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  auto res = self->next(caller);
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  return res;
+}
+
+std::shared_ptr<BaseStrictObject> StrictVectorIterator::vectorIterator__iter__(
+    std::shared_ptr<StrictVectorIterator> self,
+    const CallerContext&) {
+  return self;
+}
+// StrictRangeIterator
+
+StrictRangeIterator::StrictRangeIterator(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::shared_ptr<StrictRange> rangeObj)
+    : StrictIteratorBase(std::move(type), std::move(creator)),
+      range_(std::move(rangeObj)),
+      done_(false) {
+  current_ = assertStaticCast<StrictInt>(range_->getStart())->getValue();
+  stop_ = assertStaticCast<StrictInt>(range_->getStop())->getValue();
+  step_ = assertStaticCast<StrictInt>(range_->getStep())->getValue();
+}
+
+std::shared_ptr<BaseStrictObject> StrictRangeIterator::next(
+    const CallerContext& caller) {
+  if (current_ >= stop_) {
+    done_ = true;
+    return nullptr;
+  }
+  long result = current_;
+  current_ += step_;
+  return caller.makeInt(result);
+}
+
+bool StrictRangeIterator::isEnd() const {
+  return done_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictRangeIterator::rangeIterator__next__(
+    std::shared_ptr<StrictRangeIterator> self,
+    const CallerContext& caller) {
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  auto res = self->next(caller);
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  return res;
+}
+
+std::shared_ptr<BaseStrictObject> StrictRangeIterator::rangeIterator__iter__(
+    std::shared_ptr<StrictRangeIterator> self,
+    const CallerContext&) {
+  return self;
+}
+
+// GeneratorExp
 StrictGeneratorExp::StrictGeneratorExp(
     std::shared_ptr<StrictType> type,
     std::weak_ptr<StrictModuleObject> creator,
     std::vector<std::shared_ptr<BaseStrictObject>> data)
     : StrictIteratorBase(std::move(type), std::move(creator)),
       data_(std::move(data)),
-      it_(data_.begin()) {}
+      it_(data_.cbegin()) {}
 
 std::shared_ptr<BaseStrictObject> StrictGeneratorExp::next(
     const CallerContext&) {
-  if (it_ == data_.end()) {
+  if (it_ == data_.cend()) {
     return nullptr;
   }
   return *(it_++);
 }
 
 bool StrictGeneratorExp::isEnd() const {
-  return it_ == data_.end();
+  return it_ == data_.cend();
 }
 
 std::shared_ptr<BaseStrictObject> StrictGeneratorExp::generatorExp__next__(
@@ -112,12 +247,12 @@ StrictSetIterator::StrictSetIterator(
     std::shared_ptr<StrictSetLike> obj)
     : StrictIteratorBase(std::move(type), std::move(creator)),
       obj_(std::move(obj)),
-      it_(obj_->getData().begin()),
+      it_(obj_->getData().cbegin()),
       done_(false) {}
 
 std::shared_ptr<BaseStrictObject> StrictSetIterator::next(
     const CallerContext&) {
-  if (it_ == obj_->getData().end()) {
+  if (it_ == obj_->getData().cend()) {
     done_ = true;
     return nullptr;
   }
@@ -225,8 +360,9 @@ std::shared_ptr<BaseStrictObject> StrictGenericObjectIterator::next(
   count_++;
   try {
     return iCall(obj_, kEmptyArgs, kEmptyArgNames, caller);
-  } catch (const StrictModuleUserException<BaseStrictObject>& exc) {
-    if (exc.getWrapped() == StopIterationType()) {
+  } catch (StrictModuleUserException<BaseStrictObject>& exc) {
+    if (exc.getWrapped() == StopIterationType() ||
+        exc.getWrapped()->getType() == StopIterationType()) {
       done_ = true;
       return nullptr;
     } else {
@@ -298,6 +434,115 @@ StrictGeneratorFunction::generatorFuncIterator__iter__(
     const CallerContext&) {
   return self;
 }
+
+// StrictZipIterator
+StrictZipIterator::StrictZipIterator(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::vector<std::shared_ptr<BaseStrictObject>> iterators)
+    : StrictIteratorBase(std::move(type), std::move(creator)),
+      iterators_(std::move(iterators)),
+      done_(false) {}
+
+std::shared_ptr<BaseStrictObject> StrictZipIterator::next(
+    const CallerContext& caller) {
+  std::vector<std::shared_ptr<BaseStrictObject>> resultVec;
+  for (auto it : iterators_) {
+    try {
+      auto value = nextImpl(nullptr, caller, std::move(it));
+      resultVec.push_back(std::move(value));
+    } catch (StrictModuleUserException<BaseStrictObject> e) {
+      auto wrapped = e.getWrapped();
+      if (wrapped == StopIterationType() ||
+          wrapped->getType() == StopIterationType()) {
+        done_ = true;
+        return nullptr;
+      }
+      throw;
+    }
+  }
+  return std::make_shared<StrictTuple>(
+      TupleType(), caller.caller, std::move(resultVec));
+}
+
+bool StrictZipIterator::isEnd() const {
+  return done_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictZipIterator::zipIterator__next__(
+    std::shared_ptr<StrictZipIterator> self,
+    const CallerContext& caller) {
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  auto res = self->next(caller);
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  return res;
+}
+
+std::shared_ptr<BaseStrictObject> StrictZipIterator::zipIterator__iter__(
+    std::shared_ptr<StrictZipIterator> self,
+    const CallerContext&) {
+  return self;
+}
+
+// StrictMapIterator
+StrictMapIterator::StrictMapIterator(
+    std::shared_ptr<StrictType> type,
+    std::weak_ptr<StrictModuleObject> creator,
+    std::vector<std::shared_ptr<BaseStrictObject>> iterators,
+    std::shared_ptr<BaseStrictObject> func)
+    : StrictIteratorBase(std::move(type), std::move(creator)),
+      iterators_(std::move(iterators)),
+      func_(std::move(func)),
+      done_(false) {}
+
+std::shared_ptr<BaseStrictObject> StrictMapIterator::next(
+    const CallerContext& caller) {
+  std::vector<std::shared_ptr<BaseStrictObject>> argsVec;
+  for (auto it : iterators_) {
+    try {
+      auto value = nextImpl(nullptr, caller, std::move(it));
+      argsVec.push_back(std::move(value));
+    } catch (StrictModuleUserException<BaseStrictObject> e) {
+      auto wrapped = e.getWrapped();
+      if (wrapped == StopIterationType() ||
+          wrapped->getType() == StopIterationType()) {
+        done_ = true;
+        return nullptr;
+      }
+      throw;
+    }
+  }
+  return iCall(func_, argsVec, kEmptyArgNames, caller);
+}
+
+bool StrictMapIterator::isEnd() const {
+  return done_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictMapIterator::mapIterator__next__(
+    std::shared_ptr<StrictMapIterator> self,
+    const CallerContext& caller) {
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  auto res = self->next(caller);
+  if (self->done_) {
+    caller.raiseException(StopIterationType());
+  }
+  return res;
+}
+
+std::shared_ptr<BaseStrictObject> StrictMapIterator::mapIterator__iter__(
+    std::shared_ptr<StrictMapIterator> self,
+    const CallerContext&) {
+  return self;
+}
+
+//-----------------------------Type declarations--------------------------
 
 // StrictIteratorBaseType
 void StrictIteratorBaseType::addMethods() {
@@ -379,6 +624,102 @@ std::vector<std::type_index> StrictSequenceIteratorType::getBaseTypeinfos()
   std::vector<std::type_index> baseVec =
       StrictIteratorBaseType::getBaseTypeinfos();
   baseVec.emplace_back(typeid(StrictSequenceIteratorType));
+  return baseVec;
+}
+
+// StrictReverseSequenceIteratorType
+void StrictReverseSequenceIteratorType::addMethods() {
+  StrictIteratorBaseType::addMethods();
+  addMethod(
+      kDunderIter,
+      StrictReverseSequenceIterator::reverseSequenceIterator__iter__);
+  addMethod(
+      kDunderNext,
+      StrictReverseSequenceIterator::reverseSequenceIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictReverseSequenceIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictReverseSequenceIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index>
+StrictReverseSequenceIteratorType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictReverseSequenceIteratorType));
+  return baseVec;
+}
+
+// StrictVectorIteratorType
+void StrictVectorIteratorType::addMethods() {
+  StrictIteratorBaseType::addMethods();
+  addMethod(kDunderIter, StrictVectorIterator::vectorIterator__iter__);
+  addMethod(kDunderNext, StrictVectorIterator::vectorIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictVectorIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictVectorIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictVectorIteratorType::getBaseTypeinfos()
+    const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictVectorIteratorType));
+  return baseVec;
+}
+
+// StrictRangeIteratorType
+void StrictRangeIteratorType::addMethods() {
+  StrictIteratorBaseType::addMethods();
+  addMethod(kDunderIter, StrictRangeIterator::rangeIterator__iter__);
+  addMethod(kDunderNext, StrictRangeIterator::rangeIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictRangeIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictRangeIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictRangeIteratorType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictRangeIteratorType));
   return baseVec;
 }
 
@@ -534,6 +875,66 @@ std::vector<std::type_index> StrictGeneratorFunctionType::getBaseTypeinfos()
   std::vector<std::type_index> baseVec =
       StrictIteratorBaseType::getBaseTypeinfos();
   baseVec.emplace_back(typeid(StrictGeneratorFunctionType));
+  return baseVec;
+}
+
+// StrictZipIteratorType
+void StrictZipIteratorType::addMethods() {
+  StrictIteratorBaseType::addMethods();
+  addMethod(kDunderIter, StrictZipIterator::zipIterator__iter__);
+  addMethod(kDunderNext, StrictZipIterator::zipIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictZipIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictZipIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictZipIteratorType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictZipIteratorType));
+  return baseVec;
+}
+
+// StrictMapIteratorType
+void StrictMapIteratorType::addMethods() {
+  StrictIteratorBaseType::addMethods();
+  addMethod(kDunderIter, StrictMapIterator::mapIterator__iter__);
+  addMethod(kDunderNext, StrictMapIterator::mapIterator__next__);
+}
+
+std::shared_ptr<StrictType> StrictMapIteratorType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictMapIteratorType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+std::vector<std::type_index> StrictMapIteratorType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec =
+      StrictIteratorBaseType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictMapIteratorType));
   return baseVec;
 }
 } // namespace strictmod::objects

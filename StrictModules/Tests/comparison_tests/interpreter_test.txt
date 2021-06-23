@@ -4664,7 +4664,7 @@ l = list(42)
 ---
 1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_enumerate @disabled
+test_enumerate
 ---
 l = [1, 2]
 enum = list(enumerate(l))
@@ -4672,12 +4672,12 @@ enum = list(enumerate(l))
 enum
 ---
 ---
-test_enumerate_non_iterable @disabled
+test_enumerate_non_iterable
 ---
 enumerate(42)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
 test_key_error
 ---
@@ -4859,7 +4859,7 @@ d0 = j.__defaults__
 d0 d1 d2 d3 d4 d5 d6 d7 d8 d9
 ---
 ---
-test_map_list @disabled
+test_map_list
 ---
 l = [1 ,2, 3]
 def f(v):
@@ -4872,7 +4872,7 @@ c = next(i)
 a b c
 ---
 ---
-test_map_list_stop @disabled
+test_map_list_stop
 ---
 l = [1 ,2, 3]
 def f(v):
@@ -4884,7 +4884,7 @@ c = next(i)
 d = next(i)
 ---
 ---
-StrictModuleUnhandledException
+8 4 StrictModuleUnhandledException(StopIteration)
 ---
 test_iter_call @disabled
 ---
@@ -5204,7 +5204,7 @@ x = f()
 x
 ---
 ---
-test_range_loop @disabled
+test_range_loop
 ---
 for i in range(10):
     pass
@@ -6098,7 +6098,7 @@ c = i.__next__()
 a b c
 ---
 ---
-test_iterator_9 @disabled
+test_iterator_9
 ---
 l = range(3)
 i = l.__iter__()
@@ -6109,7 +6109,7 @@ c = i.__next__()
 a b c
 ---
 ---
-test_iterator_10 @disabled
+test_iterator_10
 ---
 l = zip([1, 2, 3], [4, 5, 6])
 i = l.__iter__()
@@ -6204,7 +6204,7 @@ i.__next__()
 ---
 6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iterator_stop_7 @disabled
+test_iterator_stop_7
 ---
 l = 'abc'
 i = l.__iter__()
@@ -6214,9 +6214,9 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iterator_stop_8 @disabled
+test_iterator_stop_8
 ---
 l = b'abc'
 i = l.__iter__()
@@ -6226,9 +6226,9 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iterator_stop_9 @disabled
+test_iterator_stop_9
 ---
 l = range(3)
 i = l.__iter__()
@@ -6238,7 +6238,7 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
 test_iterator_stop_10 @disabled
 ---
@@ -6252,7 +6252,7 @@ i.__next__()
 ---
 StrictModuleUnhandledException
 ---
-test_iter_next_0 @disabled
+test_iter_next_0
 ---
 l = [1, 2, 3]
 i = iter(l)
@@ -6263,7 +6263,7 @@ c = next(i)
 a b c
 ---
 ---
-test_iter_next_1 @disabled
+test_iter_next_1
 ---
 l = (1, 2, 3)
 i = iter(l)
@@ -6274,18 +6274,19 @@ c = next(i)
 a b c
 ---
 ---
-test_iter_next_2 @disabled
+test_iter_next_2
 ---
 l = {1, 2, 3}
 i = iter(l)
 a = next(i)
 b = next(i)
 c = next(i)
+x = {a, b, c}
 ---
-a b c
+x
 ---
 ---
-test_iter_next_3 @disabled
+test_iter_next_3
 ---
 l = (i for i in [1, 2, 3])
 i = iter(l)
@@ -6296,51 +6297,55 @@ c = next(i)
 a b c
 ---
 ---
-test_iter_next_4 @disabled
+test_iter_next_4
 ---
 l = {1:3, 2:4, 3:5}.keys()
 i = iter(l)
 a = next(i)
 b = next(i)
 c = next(i)
+x = {a, b, c}
 ---
-a b c
+x
 ---
 ---
-test_iter_next_5 @disabled
+test_iter_next_5
 ---
 l = {3:1, 4:2, 5:3}.values()
 i = iter(l)
 a = next(i)
 b = next(i)
 c = next(i)
+x = {a, b, c}
 ---
-a b c
+x
 ---
 ---
-test_iter_next_6 @disabled
+test_iter_next_6
 ---
 l = {1:3, 2:4, 3:5}.items()
 i = iter(l)
 a = next(i)
 b = next(i)
 c = next(i)
+x = {a, b, c}
 ---
-a b c
+x
 ---
 ---
-test_iter_next_7 @disabled
+test_iter_next_7
 ---
 l = 'abc'
 i = iter(l)
 a = next(i)
 b = next(i)
 c = next(i)
+x = {a, b, c}
 ---
-a b c
+x
 ---
 ---
-test_iter_next_8 @disabled
+test_iter_next_8
 ---
 l = b'abc'
 i = iter(l)
@@ -6351,7 +6356,7 @@ c = next(i)
 a b c
 ---
 ---
-test_iter_next_9 @disabled
+test_iter_next_9
 ---
 l = range(3)
 i = iter(l)
@@ -6373,7 +6378,7 @@ c = next(i)
 a b c
 ---
 ---
-test_iter_next_stop_0 @disabled
+test_iter_next_stop_0
 ---
 l = [1, 2, 3]
 i = iter(l)
@@ -6383,9 +6388,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_1 @disabled
+test_iter_next_stop_1
 ---
 l = (1, 2, 3)
 i = iter(l)
@@ -6395,9 +6400,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_2 @disabled
+test_iter_next_stop_2
 ---
 l = {1, 2, 3}
 i = iter(l)
@@ -6407,9 +6412,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_3 @disabled
+test_iter_next_stop_3
 ---
 l = (i for i in [1, 2, 3])
 i = iter(l)
@@ -6419,9 +6424,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_4 @disabled
+test_iter_next_stop_4
 ---
 l = {1:3, 2:4, 3:5}.keys()
 i = iter(l)
@@ -6431,9 +6436,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_5 @disabled
+test_iter_next_stop_5
 ---
 l = {3:1, 4:2, 5:3}.values()
 i = iter(l)
@@ -6443,9 +6448,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_6 @disabled
+test_iter_next_stop_6
 ---
 l = {1:3, 2:4, 3:5}.items()
 i = iter(l)
@@ -6455,9 +6460,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_7 @disabled
+test_iter_next_stop_7
 ---
 l = 'abc'
 i = iter(l)
@@ -6467,9 +6472,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_8 @disabled
+test_iter_next_stop_8
 ---
 l = b'abc'
 i = iter(l)
@@ -6479,9 +6484,9 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_9 @disabled
+test_iter_next_stop_9
 ---
 l = range(3)
 i = iter(l)
@@ -6491,7 +6496,7 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
 test_iter_next_stop_10 @disabled
 ---
@@ -6505,7 +6510,7 @@ next(i)
 ---
 StrictModuleUnhandledException
 ---
-test_reversed_next_0 @disabled
+test_reversed_next_0
 ---
 l = [1, 2, 3]
 i = reversed(l)
@@ -6516,7 +6521,7 @@ c = next(i)
 a b c
 ---
 ---
-test_reversed_stop_0 @disabled
+test_reversed_stop_0
 ---
 l = [1, 2, 3]
 i = reversed(l)
@@ -6526,7 +6531,7 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
 test_dunder_repr_0 @disabled
 ---
@@ -8782,7 +8787,7 @@ x = ord("asdf")
 ---
 StrictModuleUnhandledException
 ---
-test_range_ok @disabled
+test_range_ok
 ---
 x = range(1)
 y = range(1,2)
@@ -8790,25 +8795,13 @@ z = range(3,2,1)
 ---
 ---
 ---
-test_range_bad_arg @disabled
+test_range_bad_arg
 ---
 from x import a
 x = range(a)
 ---
 ---
-StrictModuleTypeError
----
-test_range_weird_call @disabled
----
-x = range.__new__()
----
----
----
-test_range_weird_call_2 @disabled
----
-x = range.__new__(42)
----
----
+2 4 StrictModuleUnhandledException(TypeError)
 ---
 test_list_mul_slice_ok @disabled
 ---
@@ -9644,13 +9637,13 @@ x = bytes.upper(b'abc')
 ---
 ---
 ---
-test_bad_base_type_range @disabled
+test_bad_base_type_range
 ---
 class C(range):
     pass
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
 test_bad_base_type_bool @disabled
 ---
