@@ -416,6 +416,12 @@ std::shared_ptr<BaseStrictObject> StrictLen() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictExec() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, execImpl, nullptr, "exec"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -453,6 +459,7 @@ bool initializeBuiltinsModuleDict() {
         {"issubclass", StrictIssubclass()},
         {"isinstance", StrictIsinstance()},
         {"len", StrictLen()},
+        {"exec", StrictExec()},
     });
     kBuiltinsModule->getDict().insert(builtinsDict.begin(), builtinsDict.end());
   }

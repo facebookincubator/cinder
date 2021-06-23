@@ -99,6 +99,11 @@ Ref<> StrictDict::getPyObject() const {
   return nullptr;
 }
 
+void StrictDict::cleanContent(const StrictModuleObject* owner) {
+  data_->clear();
+  StrictIterable::cleanContent(owner);
+}
+
 // wrapped method
 void StrictDict::dictUpdateHelper(
     std::shared_ptr<StrictDict> self,

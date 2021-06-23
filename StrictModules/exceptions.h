@@ -45,6 +45,9 @@ class StrictModuleException : public std::exception {
   const std::string& getScopeName() const;
   /* concise string form of the exception, used in tests */
   std::string testString() const;
+  void setCause(std::shared_ptr<StrictModuleException> cause) {
+    cause_ = std::move(cause);
+  }
 
   /* dynamically dispatched throw
    * All subclasses need to implement this
@@ -124,6 +127,11 @@ class StrictModuleUserException : public StrictModuleException {
 
   const std::shared_ptr<const T> getWrapped() const;
   const std::shared_ptr<T> getWrapped();
+
+  void setlineInfo(int lineno, int col) {
+    lineno_ = lineno;
+    col_ = col;
+  }
 
   [[noreturn]] virtual void raise() override;
   virtual std::unique_ptr<StrictModuleException> clone() const override;
@@ -545,6 +553,26 @@ class StarImportDisallowedException
           StarImportDisallowedExceptionHelper,
           StarImportDisallowedException,
           &StarImportDisallowedExceptionHelper::fromMod> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
+// ImportDisallowedException
+struct ImportDisallowedExceptionHelper {
+  ImportDisallowedExceptionHelper(std::string context);
+
+  std::string context;
+
+  static constexpr const char* excName = "ImportDisallowedException";
+  static constexpr const char* fmt = "import statements in {} is disallowed";
+  static constexpr const char* wiki = "";
+};
+class ImportDisallowedException
+    : public StructuredStrictModuleException<
+          ImportDisallowedExceptionHelper,
+          ImportDisallowedException,
+          &ImportDisallowedExceptionHelper::context> {
  public:
   using StructuredStrictModuleException::StructuredStrictModuleException;
   [[noreturn]] virtual void raise() override;

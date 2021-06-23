@@ -7,6 +7,9 @@
 
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
+
+#include "StrictModules/Compiler/abstract_module_loader.h"
+#include "StrictModules/Compiler/module_info.h"
 namespace strictmod::objects {
 std::shared_ptr<BaseStrictObject> reprImpl(
     std::shared_ptr<BaseStrictObject>,
@@ -140,5 +143,86 @@ std::shared_ptr<BaseStrictObject> lenImpl(
   }
   caller.raiseTypeError(
       "object of type '{}' has no len()", arg->getTypeRef().getName());
+}
+
+/** -------------------exec() implementation-------------------- */
+
+void execArgHelper(
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller,
+    std::string& codeOut,
+    std::shared_ptr<StrictDict>& globalsOut,
+    std::shared_ptr<StrictDict>& localsOut) {
+  if (!namedArgs.empty()) {
+    caller.raiseTypeError("keyword arguments on exec() is not supported");
+  }
+  if (args.size() < 1 || args.size() > 3) {
+    caller.raiseTypeError(
+        "exec() expects 1 to 3 arguments but got {}", args.size());
+  }
+  auto arg0 = args[0];
+  auto arg0Str = std::dynamic_pointer_cast<StrictString>(arg0);
+  if (arg0Str) {
+    codeOut = arg0Str->getValue();
+  } else {
+    caller.raiseTypeError(
+        "exec() first argument should be str, got {}",
+        arg0->getTypeRef().getName());
+  }
+  if (args.size() < 2) {
+    caller.raiseTypeError("calling exec() without globals is not supported");
+  }
+  auto arg1 = args[1];
+  auto arg1Dict = std::dynamic_pointer_cast<StrictDict>(arg1);
+  if (arg1Dict) {
+    globalsOut = arg1Dict;
+  } else {
+    caller.raiseTypeError(
+        "exec() second argument should be dict, got {}",
+        arg1->getTypeRef().getName());
+  }
+  if (args.size() > 2) {
+    auto arg2 = args[2];
+    auto arg2Dict = std::dynamic_pointer_cast<StrictDict>(arg2);
+    if (arg2Dict) {
+      localsOut = std::move(arg2Dict);
+    } else {
+      caller.raiseTypeError(
+          "exec() third argument should be dict, got {}",
+          arg2->getTypeRef().getName());
+    }
+  } else {
+    localsOut = arg1Dict;
+  }
+}
+
+std::shared_ptr<BaseStrictObject> execImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  std::string code;
+  std::shared_ptr<StrictDict> globals;
+  std::shared_ptr<StrictDict> locals;
+  execArgHelper(args, namedArgs, caller, code, globals, locals);
+  if (caller.loader == nullptr) {
+    caller.raiseTypeError("cannot call exec() from inside exec()");
+  }
+  std::unique_ptr<compiler::ModuleInfo> modinfo =
+      caller.loader->findModuleFromSource(code, "<exec>", "<exec>");
+  Symtable table(modinfo->passSymtable());
+  Analyzer analyzer(
+      modinfo->getAst(),
+      nullptr,
+      std::move(table),
+      caller.errorSink,
+      "<exec>",
+      "<exec>",
+      "",
+      caller.caller);
+  analyzer.analyzeExec(
+      caller.lineno, caller.col, std::move(globals), std::move(locals));
+  return NoneObject();
 }
 } // namespace strictmod::objects

@@ -91,6 +91,10 @@ class ModuleLoader {
   std::unique_ptr<ModuleInfo> findModule(
       const std::string& modName,
       FileSuffixKind suffixKind);
+  std::unique_ptr<ModuleInfo> findModuleFromSource(
+      const std::string& source,
+      const std::string& modName,
+      const std::string& filename);
 
   AnalyzedModule* loadSingleModule(const std::string& modName);
 

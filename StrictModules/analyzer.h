@@ -56,6 +56,17 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       mod_ty root,
       compiler::ModuleLoader* loader,
       Symtable table,
+      BaseErrorSink* errors,
+      std::string filename,
+      std::string modName,
+      std::string scopeName,
+      std::weak_ptr<StrictModuleObject> caller,
+      bool futureAnnotations = false);
+
+  Analyzer(
+      mod_ty root,
+      compiler::ModuleLoader* loader,
+      Symtable table,
       std::shared_ptr<DictType> toplevelNS,
       BaseErrorSink* errors,
       std::string filename,
@@ -83,6 +94,11 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       SymtableEntry entry,
       std::unique_ptr<objects::DictType> callArgs,
       AnalysisResult firstArg);
+  void analyzeExec(
+      int execLino,
+      int execCol,
+      std::shared_ptr<objects::StrictDict> globals,
+      std::shared_ptr<objects::StrictDict> locals);
   // module level
   void visitStmtSeq(const asdl_seq* seq);
   void visitStmtSeq(std::vector<stmt_ty> seq);
@@ -275,10 +291,17 @@ class TryFinallyManager {
 class AnalysisScopeData {
  public:
   AnalysisScopeData(
-      CallerContext* caller = nullptr,
+      const CallerContext& caller,
       AnalysisResult callFirstArg = nullptr,
       AnalysisResult alternateDict = nullptr)
       : caller_(caller),
+        callFirstArg_(std::move(callFirstArg)),
+        prepareDict_(std::move(alternateDict)) {}
+
+  AnalysisScopeData(
+      AnalysisResult callFirstArg = nullptr,
+      AnalysisResult alternateDict = nullptr)
+      : caller_(),
         callFirstArg_(std::move(callFirstArg)),
         prepareDict_(std::move(alternateDict)) {}
 
@@ -292,7 +315,7 @@ class AnalysisScopeData {
   }
 
  private:
-  CallerContext* caller_;
+  std::optional<CallerContext> caller_;
   AnalysisResult callFirstArg_;
   AnalysisResult prepareDict_; // dict provided by __prepare__
 };

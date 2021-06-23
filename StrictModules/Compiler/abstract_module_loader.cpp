@@ -194,6 +194,26 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
   return findModule(modName, importPath_, suffixKind);
 }
 
+std::unique_ptr<ModuleInfo> ModuleLoader::findModuleFromSource(
+    const std::string& source,
+    const std::string& modName,
+    const std::string& filename) {
+  auto readResult = readFromSource(source.c_str(), filename.c_str(), arena_);
+  if (readResult) {
+    AstAndSymbols& result = readResult.value();
+    assert(result.ast != nullptr);
+    assert(result.symbols != nullptr);
+    auto modinfo = std::make_unique<ModuleInfo>(
+        modName,
+        filename,
+        result.ast,
+        result.futureAnnotations,
+        std::move(result.symbols));
+    return modinfo;
+  }
+  return nullptr;
+}
+
 AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   const mod_ty ast = modInfo->getAst();
   const std::string& name = modInfo->getModName();

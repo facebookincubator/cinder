@@ -14,8 +14,13 @@ class BaseStrictObject;
 class StrictType;
 } // namespace objects
 
+namespace compiler {
+class ModuleLoader;
+}
+
 class StrictModuleException;
 
+using compiler::ModuleLoader;
 using objects::BaseStrictObject;
 using objects::StrictModuleObject;
 using objects::StrictType;
@@ -32,6 +37,8 @@ class CallerContext {
    * borrow the pointer
    */
   BaseErrorSink* errorSink;
+  /* the loader running this analysis */
+  ModuleLoader* loader;
 
   CallerContext(
       std::shared_ptr<StrictModuleObject> caller,
@@ -39,13 +46,15 @@ class CallerContext {
       std::string scopeName,
       int lineno,
       int col,
-      BaseErrorSink* error)
+      BaseErrorSink* error,
+      ModuleLoader* loader)
       : caller(std::weak_ptr<StrictModuleObject>(caller)),
         filename(std::move(filename)),
         scopeName(std::move(scopeName)),
         lineno(lineno),
         col(col),
-        errorSink(error) {
+        errorSink(error),
+        loader(loader) {
     assert(errorSink != nullptr);
   }
 
@@ -55,15 +64,26 @@ class CallerContext {
       std::string scopeName,
       int lineno,
       int col,
-      BaseErrorSink* error)
+      BaseErrorSink* error,
+      ModuleLoader* loader)
       : caller(std::move(caller)),
         filename(std::move(filename)),
         scopeName(std::move(scopeName)),
         lineno(lineno),
         col(col),
-        errorSink(error) {
+        errorSink(error),
+        loader(loader) {
     assert(errorSink != nullptr);
   }
+
+  CallerContext(const CallerContext& ctx)
+      : caller(ctx.caller),
+        filename(ctx.filename),
+        scopeName(ctx.scopeName),
+        lineno(ctx.lineno),
+        col(ctx.col),
+        errorSink(ctx.errorSink),
+        loader(ctx.loader) {}
 
   template <typename T, typename... Args>
   void error(Args&&... args) const {

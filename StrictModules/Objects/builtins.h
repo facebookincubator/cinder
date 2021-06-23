@@ -28,6 +28,12 @@ std::shared_ptr<BaseStrictObject> lenImpl(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> arg);
 
+std::shared_ptr<BaseStrictObject> execImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller);
+
 } // namespace strictmod::objects
 
 #endif // __STRICTM_BUILTINS_OBJ___

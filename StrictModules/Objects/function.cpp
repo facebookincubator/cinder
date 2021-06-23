@@ -258,9 +258,12 @@ std::shared_ptr<BaseStrictObject> StrictFuncType::call(
     // calling a coroutine function return a generator function object
     return std::make_shared<StrictGeneratorFunction>(
         GeneratorFuncIteratorType(), caller.caller, func);
-  } catch (const StrictModuleUserException<BaseStrictObject>&) {
+  } catch (StrictModuleUserException<BaseStrictObject>& e) {
     // user exceptions should be propagated
-    throw;
+    auto propagated = StrictModuleUserException<BaseStrictObject>(e);
+    propagated.setlineInfo(caller.lineno, caller.col);
+    propagated.setCause(e.clone());
+    throw propagated;
   } catch (const StrictModuleException& exc) {
     // function call is unsafe
     caller.error<UnsafeCallException>(

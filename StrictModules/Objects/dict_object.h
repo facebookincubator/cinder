@@ -149,6 +149,9 @@ class StrictDict : public StrictIterable {
   virtual std::string getDisplayName() const override;
   virtual Ref<> getPyObject() const override;
 
+  /* clear dict content before other clean up */
+  virtual void cleanContent(const StrictModuleObject* owner) override;
+
   // wrapped method
   static std::shared_ptr<BaseStrictObject> dict__init__(
       std::shared_ptr<BaseStrictObject> obj,

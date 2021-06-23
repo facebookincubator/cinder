@@ -16,6 +16,7 @@ using namespace objects;
 // AnalysisContextManager
 class LoopContinueException {};
 class LoopBreakException {};
+class ImportLoaderUnavailableException {};
 
 AnalysisContextManager::AnalysisContextManager(
     CallerContext& ctx,
@@ -46,13 +47,42 @@ Analyzer::Analyzer(
           root,
           loader,
           std::move(table),
-          std::make_shared<DictType>(),
           errors,
           std::move(filename),
           std::move(modName),
           std::move(scopeName),
-          caller,
+          std::weak_ptr(caller),
           futureAnnotations) {}
+
+Analyzer::Analyzer(
+    mod_ty root,
+    compiler::ModuleLoader* loader,
+    Symtable table,
+    BaseErrorSink* errors,
+    std::string filename,
+    std::string modName,
+    std::string scopeName,
+    std::weak_ptr<StrictModuleObject> caller,
+    bool futureAnnotations)
+    : root_(root),
+      loader_(loader),
+      context_(
+          std::move(caller),
+          std::move(filename),
+          std::move(scopeName),
+          0,
+          0,
+          errors,
+          loader),
+      stack_(
+          table,
+          scopeFactory,
+          scopeFactory(
+              table.entryFromAst(root_),
+              std::make_shared<DictType>())),
+      futureAnnotations_(futureAnnotations),
+      currentExceptionContext_(),
+      modName_(std::move(modName)) {}
 
 Analyzer::Analyzer(
     mod_ty root,
@@ -73,7 +103,8 @@ Analyzer::Analyzer(
           std::move(scopeName),
           0,
           0,
-          errors),
+          errors,
+          loader),
       stack_(
           table,
           scopeFactory,
@@ -101,7 +132,8 @@ Analyzer::Analyzer(
           std::move(scopeName),
           lineno,
           col,
-          errors),
+          errors,
+          loader),
       stack_(EnvT(closure)),
       futureAnnotations_(futureAnnotations),
       currentExceptionContext_(),
@@ -162,7 +194,7 @@ void Analyzer::visitImport(const stmt_ty stmt) {
    * the runtime in failing the import if it doesn't exist.
    */
   if (loader_ == nullptr) {
-    return;
+    throw ImportLoaderUnavailableException();
   }
   auto importNames = stmt->v.Import.names;
   int n = asdl_seq_LEN(importNames);
@@ -200,6 +232,9 @@ void Analyzer::visitImport(const stmt_ty stmt) {
 }
 
 void Analyzer::visitImportFrom(const stmt_ty stmt) {
+  if (loader_ == nullptr) {
+    throw ImportLoaderUnavailableException();
+  }
   auto importFrom = stmt->v.ImportFrom;
   bool hasFromName = importFrom.module != nullptr;
   std::string fromName = hasFromName ? PyUnicode_AsUTF8(importFrom.module) : "";
@@ -644,7 +679,7 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
         stack_.enterScope(std::move(hiddenDunderClassScope));
     auto classContextManager = stack_.enterScopeByAst(stmt, ns);
     classContextManager.getScope()->setScopeData(
-        AnalysisScopeData(&context_, nullptr, nsObj));
+        AnalysisScopeData(context_, nullptr, nsObj));
     visitStmtSeq(classDef.body);
   }
 
@@ -1730,7 +1765,7 @@ void Analyzer::analyzeFunction(
     std::unique_ptr<DictType> callArgs,
     AnalysisResult firstArg) {
   auto scope = Analyzer::scopeFactory(std::move(entry), std::move(callArgs));
-  scope->setScopeData(AnalysisScopeData(nullptr, std::move(firstArg)));
+  scope->setScopeData(AnalysisScopeData(std::move(firstArg)));
   // enter function body scope
   auto scopeManager = stack_.enterScope(std::move(scope));
   visitStmtSeq(std::move(body));
@@ -1769,6 +1804,41 @@ std::unique_ptr<Analyzer::ScopeT> Analyzer::scopeFactory(
   return std::make_unique<ScopeT>(entry, std::move(map), AnalysisScopeData());
 }
 
+void Analyzer::analyzeExec(
+    int execLino,
+    int execCol,
+    std::shared_ptr<StrictDict> globals,
+    std::shared_ptr<StrictDict> locals) {
+  // fix the inner caller context's lineno and col
+  context_.lineno = execLino;
+  context_.col = execCol;
+
+  // we will use the globals and locals for namespace, the initial scope
+  // is useless for this purpose
+  stack_.pop();
+  SymtableEntry entry = stack_.getSymtable().entryFromAst(root_);
+  auto scope =
+      Analyzer::scopeFactory(std::move(entry), std::make_unique<DictType>());
+  scope->setScopeData(AnalysisScopeData(context_, nullptr, std::move(globals)));
+
+  if (locals == globals) {
+    auto scopeManager = stack_.enterScope(std::move(scope));
+    visitMod(root_);
+  } else {
+    auto localScope =
+        Analyzer::scopeFactory(std::move(entry), std::make_unique<DictType>());
+    localScope->setScopeData(
+        AnalysisScopeData(context_, nullptr, std::move(locals)));
+    auto scopeManagerGlobals = stack_.enterScope(std::move(scope));
+    auto scopeManagerLocals = stack_.enterScope(std::move(localScope));
+    try {
+      visitMod(root_);
+    } catch (const ImportLoaderUnavailableException&) {
+      context_.error<ImportDisallowedException>("exec()");
+    }
+  }
+}
+
 // TryFinallyManager
 TryFinallyManager::TryFinallyManager(Analyzer& analyzer, asdl_seq* finalbody)
     : analyzer_(analyzer), finalbody_(finalbody) {}
@@ -1777,32 +1847,34 @@ TryFinallyManager::~TryFinallyManager() {
   analyzer_.visitStmtSeq(finalbody_);
 }
 
+// Scope data
 const AnalysisResult& AnalysisScopeData::getCallFirstArg() const {
   return callFirstArg_;
 }
 void AnalysisScopeData::set(const std::string& key, AnalysisResult value) {
   assert(prepareDict_ != nullptr);
-  assert(caller_ != nullptr);
+  assert(caller_.has_value());
   iSetElement(prepareDict_, caller_->makeStr(key), value, *caller_);
 }
 AnalysisResult AnalysisScopeData::at(const std::string& key) {
   assert(prepareDict_ != nullptr);
-  assert(caller_ != nullptr);
+  assert(caller_.has_value());
   return iGetElement(prepareDict_, caller_->makeStr(key), *caller_);
 }
 
 bool AnalysisScopeData::erase(const std::string& key) {
   assert(prepareDict_ != nullptr);
-  assert(caller_ != nullptr);
+  assert(caller_.has_value());
   iDelElement(prepareDict_, caller_->makeStr(key), *caller_);
   return true;
 }
 bool AnalysisScopeData::contains(const std::string& key) const {
   assert(prepareDict_ != nullptr);
-  assert(caller_ != nullptr);
+  assert(caller_.has_value());
   return iContainsElement(prepareDict_, caller_->makeStr(key), *caller_);
 }
 
+// template specialization for Scope with AnalysisScopeData
 template <>
 void Scope<AnalysisResult, AnalysisScopeData>::set(
     const std::string& key,

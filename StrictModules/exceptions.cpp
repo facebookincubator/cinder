@@ -260,4 +260,13 @@ StarImportDisallowedExceptionHelper::StarImportDisallowedExceptionHelper(
 void StarImportDisallowedException::raise() {
   throw *this;
 }
+
+// ImportDisallowedExceptionHelper
+ImportDisallowedExceptionHelper::ImportDisallowedExceptionHelper(
+    std::string context)
+    : context(std::move(context)) {}
+
+void ImportDisallowedException::raise() {
+  throw *this;
+}
 } // namespace strictmod

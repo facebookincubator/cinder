@@ -1997,7 +1997,7 @@ class C:
 t1 = object.__subclasscheck__(C())
 ---
 ---
-4 8 StrictModuleUnhandledException(<ValueError instance>)
+6 5 StrictModuleUnhandledException(<ValueError instance>) 4 8 StrictModuleUserException <ValueError instance>
 ---
 test_subclasscheck_bad_bases
 ---
@@ -3224,7 +3224,7 @@ def f(self):
 f(B())
 ---
 ---
-8 11 StrictModuleUnhandledException(RuntimeError)
+9 0 StrictModuleUnhandledException(RuntimeError) 8 11 StrictModuleUserException RuntimeError
 ---
 test_super_shadow_dunder_class
 ---
@@ -4930,7 +4930,7 @@ next(i)
 ---
 StrictModuleUnhandledException
 ---
-test_exec_one_scope @disabled
+test_exec_one_scope
 ---
 code = 'y = x'
 d = {'x': 2}
@@ -4940,7 +4940,7 @@ y = d['y']
 y
 ---
 ---
-test_exec_two_scopes @disabled
+test_exec_two_scopes
 ---
 code = "x = 1"
 d1 = {'x': 0}
@@ -4952,13 +4952,92 @@ x2 = d2['x']
 x1 x2
 ---
 ---
-test_exec_import @disabled
+test_exec_import
 ---
 code = 'import x'
 exec(code, {})
 ---
 ---
-ImportInExecDisallowedException
+2 0 ImportDisallowedException exec()
+---
+test_exec_func
+---
+code = """
+x = 1
+def f():
+    return x
+"""
+d = {}
+exec(code, d)
+f = d['f']
+x = f()
+---
+x
+---
+---
+test_exec_func_error
+---
+# line and col will be inside the exec string
+
+
+code = """
+x = 1
+def f():
+    return x.y # AttributeError
+"""
+d = {}
+exec(code, d)
+f = d['f']
+x = f()
+---
+---
+12 4 StrictModuleUnhandledException(AttributeError) 4 11 StrictModuleUserException AttributeError
+---
+test_exec_func_error_toplevel
+---
+# line and col will be inside the exec string
+code = """
+x = 1
+y = z
+"""
+d = {}
+exec(code, d)
+---
+---
+3 4 StrictModuleUnhandledException(NameError)
+---
+test_exec_class
+---
+code = """
+class C:
+    def __init__(self, y):
+        self.x = y
+    def plus(self, y):
+        self.x = self.x + y
+        return self.x
+"""
+d = {}
+exec(code, d)
+C = d['C']
+c = C(10)
+x = c.plus(1)
+y = c.plus(11)
+---
+x y
+---
+---
+test_exec_nested
+---
+code = """
+x = 1
+exec("x = 2", {})
+"""
+d = {}
+exec(code, d)
+x = d['x']
+---
+---
+3 0 StrictModuleUnhandledException(NameError)
 ---
 test_object_repr @disabled
 ---

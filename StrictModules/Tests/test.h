@@ -59,7 +59,7 @@ class AnalyzerTest : public PythonTest {
     bool success;
     try {
       analyzer.analyze();
-    } catch (strictmod::StrictModuleException& e) {
+    } catch (...) {
     }
     success = !errors->hasError();
     if (arena != nullptr) {
@@ -88,7 +88,7 @@ class AnalyzerTest : public PythonTest {
     bool success;
     try {
       analyzer.analyze();
-    } catch (strictmod::StrictModuleException& e) {
+    } catch (...) {
     }
     success = !errors->hasError();
     if (arena != nullptr) {
@@ -216,8 +216,8 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
       ASSERT_NE(pyValue, nullptr);
       auto strictPyValue = value->getPyObject();
       ASSERT_NE(strictPyValue, nullptr);
-      EXPECT_TRUE(
-          PyObject_RichCompareBool(pyValue, strictPyValue.get(), Py_EQ)) << value->getDisplayName();
+      EXPECT_TRUE(PyObject_RichCompareBool(pyValue, strictPyValue.get(), Py_EQ))
+          << value->getDisplayName();
     }
     Py_DECREF(global);
 
