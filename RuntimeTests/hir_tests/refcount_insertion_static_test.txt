@@ -19,7 +19,6 @@ fun jittestmodule:Test.__init__ {
     v8:Nullptr = LoadConst<Nullptr>
     StoreField<16> v5 v6 v8
     v10:NoneType = LoadConst<NoneType>
-    Incref v10
     Return v10
   }
 }
@@ -39,11 +38,9 @@ fun jittestmodule:Test.__init__ {
     v4:Object = LoadArg<0; "self">
     v5:LongExact[0] = LoadConst<LongExact[0]>
     v7:OptObject = LoadField<16> v4
-    Incref v5
     StoreField<16> v4 v5 v7
     XDecref v7
     v8:NoneType = LoadConst<NoneType>
-    Incref v8
     Return v8
   }
 }

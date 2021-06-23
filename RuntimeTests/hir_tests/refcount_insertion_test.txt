@@ -324,7 +324,6 @@ fun jittestmodule:test {
     Decref v44
     Decref v47
     v48:NoneType = LoadConst<NoneType>
-    Incref v48
     Return v48
   }
 }
@@ -439,7 +438,6 @@ fun jittestmodule:test {
     Decref v54
     Decref v57
     v58:NoneType = LoadConst<NoneType>
-    Incref v58
     Return v58
   }
 }
@@ -541,7 +539,6 @@ fun jittestmodule:test {
     Decref v25
     XDecref v26
     v42:NoneType = LoadConst<NoneType>
-    Incref v42
     Return v42
   }
 }
@@ -561,7 +558,6 @@ fun jittestmodule:test {
       Locals<2> v4 v5
     }
     v9:NoneType = LoadConst<NoneType>
-    Incref v9
     Return v9
   }
 }
@@ -773,7 +769,7 @@ fun jittestmodule:test {
     }
     v22:LongExact[1] = LoadConst<LongExact[1]>
     v23:Object = BinaryOp<Add> v21 v22 {
-      LiveValues<3> b:v11 b:v21 b:v22
+      LiveValues<3> b:v11 b:v21 unc:v22
       NextInstrOffset 18
       Locals<2> v11 v21
     }
@@ -826,7 +822,6 @@ fun jittestmodule:test {
     v34:OptObject = Phi<5, 9> v31 v26
     XDecref v34
     v35:NoneType = LoadConst<NoneType>
-    Incref v35
     Return v35
   }
 }
@@ -859,7 +854,7 @@ fun jittestmodule:test {
       Locals<4> v15 v16 v17 v18
     }
     v21:Object = VectorCall<0> v20 {
-      LiveValues<5> b:v15 b:v16 b:v17 unc:v18 b:v20
+      LiveValues<5> b:v15 b:v16 b:v17 unc:v18 unc:v20
       NextInstrOffset 4
       Locals<4> v15 v16 v17 v18
     }
@@ -904,7 +899,6 @@ fun jittestmodule:test {
 
   bb 3 (preds 2) {
     v39:NoneType = LoadConst<NoneType>
-    Incref v39
     Branch<4>
   }
 
@@ -920,14 +914,14 @@ fun jittestmodule:test {
     v47:OptObject = LoadGlobalCached<1; "print">
     v48:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v47 {
       Descr 'LOAD_GLOBAL: print'
-      LiveValues<6> b:v17 b:v27 o:v42 o:v44 b:v45 b:v47
+      LiveValues<6> b:v17 b:v27 o:v42 o:v44 unc:v45 b:v47
       NextInstrOffset 34
       Locals<4> v27 v42 v17 v44
     }
     Incref v27
     Decref v42
     v50:Object = VectorCall<1> v48 v27 {
-      LiveValues<5> b:v17 o:v27 o:v44 b:v45 b:v48
+      LiveValues<5> b:v17 o:v27 o:v44 unc:v45 b:v48
       NextInstrOffset 44
       Locals<4> v27 v45 v17 v44
     }
@@ -935,7 +929,6 @@ fun jittestmodule:test {
     Decref v44
     Decref v50
     v51:NoneType = LoadConst<NoneType>
-    Incref v51
     Return v51
   }
 }
