@@ -100,30 +100,9 @@ def f() -> None:
   ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
 
   auto lir_str = getLIRString(pyfunc.get());
-#ifdef Py_DEBUG
-  auto bb = "BB %3 - preds: %0 - succs: %13 %14";
-#else
-  auto bb = "BB %3 - preds: %0 - succs: %10 %11";
-#endif
-
-  auto lir_expected = fmt::format(
-      R"(Function:
-BB %0 - succs: %3
-       %1:Object = Bind R10:Object
-       %2:Object = Bind R11:Object
-
-{0}
-
-# v3:Nullptr = LoadConst<Nullptr>
-       %4:Object = Move 0(0x0):Object
-
-# v4:CInt64[12] = LoadConst<CInt64[12]>
-        %5:64bit = Move 12(0xc):Object
-
-)",
-      bb);
-  // Note - we only check whether the LIR has the stuff we care about
-  ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);
+  // Check that the resulting LIR has the unboxed constant we care about,
+  // without hardcoding a variable name or the program structure.
+  ASSERT_NE(lir_str.find(":64bit = Move 12(0xc):Object"), std::string::npos);
 }
 
 TEST_F(LIRGeneratorTest, StaticLoadDouble) {
@@ -138,31 +117,12 @@ def f() -> None:
   ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
 
   auto lir_str = getLIRString(pyfunc.get());
-#ifdef Py_DEBUG
-  auto bb = "BB %3 - preds: %0 - succs: %14 %15";
-#else
-  auto bb = "BB %3 - preds: %0 - succs: %11 %12";
-#endif
-
-  auto lir_expected = fmt::format(
-      R"(Function:
-BB %0 - succs: %3
-       %1:Object = Bind R10:Object
-       %2:Object = Bind R11:Object
-
-{0}
-
-# v3:Nullptr = LoadConst<Nullptr>
-       %4:Object = Move 0(0x0):Object
-
-# v4:CDouble[3.1415] = LoadConst<CDouble[3.1415]>
-        %5:64bit = Move 4614256447914709615(0x400921cac083126f):Object
-       %6:Double = Move %5:64bit
-
-)",
-      bb);
-  // Note - we only check whether the LIR has the stuff we care about
-  ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);
+  // Check that the resulting LIR has the unboxed constant we care about,
+  // without hardcoding a variable name or the program structure.
+  ASSERT_NE(
+      lir_str.find(
+          ":64bit = Move 4614256447914709615(0x400921cac083126f):Object"),
+      std::string::npos);
 }
 
 TEST_F(LIRGeneratorTest, StaticBoxDouble) {

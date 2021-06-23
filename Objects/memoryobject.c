@@ -3160,7 +3160,7 @@ static PyMethodDef memory_methods[] = {
 
 
 PyTypeObject PyMemoryView_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "memoryview",                             /* tp_name */
     offsetof(PyMemoryViewObject, ob_array),   /* tp_basicsize */
     sizeof(Py_ssize_t),                       /* tp_itemsize */

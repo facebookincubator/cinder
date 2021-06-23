@@ -610,7 +610,7 @@ Return an iterator yielding those items of iterable for which function(item)\n\
 is true. If function is None, return the items that are true.");
 
 PyTypeObject PyFilter_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "filter",                           /* tp_name */
     sizeof(filterobject),               /* tp_basicsize */
     0,                                  /* tp_itemsize */
@@ -1325,7 +1325,7 @@ Make an iterator that computes the function using arguments from\n\
 each of the iterables.  Stops when the shortest iterable is exhausted.");
 
 PyTypeObject PyMap_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "map",                              /* tp_name */
     sizeof(mapobject),                  /* tp_basicsize */
     0,                                  /* tp_itemsize */
@@ -2712,7 +2712,7 @@ comes from the i-th iterable argument to zip().  This continues until the\n\
 shortest argument is exhausted.");
 
 PyTypeObject PyZip_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "zip",                              /* tp_name */
     sizeof(zipobject),                  /* tp_basicsize */
     0,                                  /* tp_itemsize */

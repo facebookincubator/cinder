@@ -219,7 +219,7 @@ static PyMethodDef parser_methods[] = {
 
 static
 PyTypeObject PyST_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
     "parser.st",                        /* tp_name              */
     (int) sizeof(PyST_Object),          /* tp_basicsize         */
     0,                                  /* tp_itemsize          */

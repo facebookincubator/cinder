@@ -84,8 +84,15 @@ whose size is determined when the object is allocated.
     { _PyObject_EXTRA_INIT              \
     1, type },
 
+#define PyObject_HEAD_INIT_IMMORTAL(type) \
+    { _PyObject_EXTRA_INIT                \
+    kImmortalInitialCount, type },
+
 #define PyVarObject_HEAD_INIT(type, size)       \
     { PyObject_HEAD_INIT(type) size },
+
+#define PyVarObject_HEAD_INIT_IMMORTAL(type, size) \
+    { PyObject_HEAD_INIT_IMMORTAL(type) size },
 
 /* PyObject_VAR_HEAD defines the initial segment of all variable-size
  * container objects.  These end with a declaration of an array with 1
@@ -533,11 +540,15 @@ static const Py_ssize_t kImmortalInitialCount = kImmortalBit;
             ((PyObject *)op)->ob_refcnt = refcnt; \
     } while (0)
 
+#define Py_INCREF_IMMORTAL(op) (void)0
+
 #else
 
 static const Py_ssize_t kImmortalInitialCount = 1;
 
 #define Py_SET_REFCNT(op, refcnt)  (((PyObject *)op)->ob_refcnt = refcnt)
+
+#define Py_INCREF_IMMORTAL(op) Py_INCREF(op)
 
 #endif
 
@@ -573,12 +584,12 @@ PyAPI_FUNC(void) _Py_Dealloc(PyObject *);
 
 static inline void _Py_INCREF(PyObject *op)
 {
-    _Py_INC_REFTOTAL;
 #ifdef Py_IMMORTAL_INSTANCES
     if (Py_IS_IMMORTAL(op)) {
         return;
     }
 #endif
+    _Py_INC_REFTOTAL;
     op->ob_refcnt++;
 }
 
@@ -589,12 +600,12 @@ static inline void _Py_DECREF(const char *filename, int lineno,
 {
     (void)filename; /* may be unused, shut up -Wunused-parameter */
     (void)lineno; /* may be unused, shut up -Wunused-parameter */
-    _Py_DEC_REFTOTAL;
 #ifdef Py_IMMORTAL_INSTANCES
     if (Py_IS_IMMORTAL(op)) {
         return;
     }
 #endif
+    _Py_DEC_REFTOTAL;
     if (--op->ob_refcnt != 0) {
 #ifdef Py_REF_DEBUG
         if (op->ob_refcnt < 0) {
@@ -688,7 +699,7 @@ PyAPI_DATA(PyObject) _Py_NoneStruct; /* Don't use this directly */
 #define Py_None (&_Py_NoneStruct)
 
 /* Macro for returning Py_None from a function */
-#define Py_RETURN_NONE return Py_INCREF(Py_None), Py_None
+#define Py_RETURN_NONE return Py_INCREF_IMMORTAL(Py_None), Py_None
 
 /*
 Py_NotImplemented is a singleton used to signal that an operation is

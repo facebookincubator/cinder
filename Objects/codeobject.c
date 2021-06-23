@@ -897,7 +897,7 @@ static struct PyMethodDef code_methods[] = {
 };
 
 PyTypeObject PyCode_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "code",
     sizeof(PyCodeObject),
     0,

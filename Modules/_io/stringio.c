@@ -1002,7 +1002,7 @@ static PyGetSetDef stringio_getset[] = {
 };
 
 PyTypeObject PyStringIO_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
     "_io.StringIO",                            /*tp_name*/
     sizeof(stringio),                    /*tp_basicsize*/
     0,                                         /*tp_itemsize*/

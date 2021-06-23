@@ -1880,7 +1880,7 @@ static PyNumberMethods float_as_number = {
 };
 
 PyTypeObject PyFloat_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "float",
     sizeof(PyFloatObject),
     0,

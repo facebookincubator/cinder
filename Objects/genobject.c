@@ -1001,7 +1001,7 @@ static PyMethodDef gen_methods[] = {
 };
 
 PyTypeObject PyGen_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "generator",                                /* tp_name */
     sizeof(PyGenObject),                        /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -1311,7 +1311,7 @@ static PyAsyncMethods coro_as_async = {
 };
 
 PyTypeObject PyCoro_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "coroutine",                                /* tp_name */
     sizeof(PyCoroObject),                       /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -1570,7 +1570,7 @@ _PyCoro_ForFrame(PyThreadState *tstate,
 }
 
 PyTypeObject PyWaitHandle_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     .tp_name = "wait handle",
     .tp_basicsize = sizeof(PyWaitHandleObject),
     .tp_flags = Py_TPFLAGS_DEFAULT,
@@ -1800,7 +1800,7 @@ static PyAsyncMethods async_gen_as_async = {
 };
 
 PyTypeObject PyAsyncGen_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "async_generator",                          /* tp_name */
     sizeof(PyAsyncGenObject),                   /* tp_basicsize */
     0,                                          /* tp_itemsize */

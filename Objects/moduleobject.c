@@ -24,7 +24,7 @@ bad_traverse_test(PyObject *self, void *arg) {
 #endif
 
 PyTypeObject PyModuleDef_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "moduledef",                                /* tp_name */
     sizeof(struct PyModuleDef),                 /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -900,7 +900,7 @@ static PyMethodDef module_methods[] = {
 };
 
 PyTypeObject PyModule_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "module",                                   /* tp_name */
     sizeof(PyModuleObject),                     /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -1400,7 +1400,7 @@ static PyGetSetDef strict_module_getset[] = {
 
 
 PyTypeObject PyStrictModule_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
     "StrictModule",                             /* tp_name */
     sizeof(PyStrictModuleObject),               /* tp_basicsize */
     0,                                          /* tp_itemsize */

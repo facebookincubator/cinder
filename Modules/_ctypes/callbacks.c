@@ -43,7 +43,7 @@ CThunkObject_clear(PyObject *myself)
 }
 
 PyTypeObject PyCThunk_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
     "_ctypes.CThunkObject",
     sizeof(CThunkObject),                       /* tp_basicsize */
     sizeof(ffi_type),                           /* tp_itemsize */

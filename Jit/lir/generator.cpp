@@ -408,6 +408,27 @@ void LIRGenerator::MakeIncref(
         cont);
   }
 
+  auto r1 = GetSafeTempName();
+
+  bbb.AppendCode(
+      "Load {}, {}, {:#x}\n",
+      r1,
+      obj,
+      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt));
+
+#ifdef Py_IMMORTAL_INSTANCES
+  auto mortal = GetSafeLabelName();
+  bbb.AppendCode(
+      "BitTest {}, {}\n"
+      "BranchC {}\n"
+      "{}:\n",
+      r1, // BitTest
+      kImmortalBitPos,
+      end_incref, // BranchC
+      mortal // label
+  );
+#endif
+
 #ifdef Py_DEBUG
   auto r0 = GetSafeTempName();
   bbb.AppendCode(
@@ -421,28 +442,10 @@ void LIRGenerator::MakeIncref(
       reinterpret_cast<uint64_t>(&_Py_RefTotal));
 #endif
 
-  auto r1 = GetSafeTempName();
-  auto cond_incref = GetSafeLabelName();
-
   bbb.AppendCode(
-      "Load {}, {}, {:#x}\n"
-#ifdef Py_IMMORTAL_INSTANCES
-      "BitTest {}, {}\n"
-      "BranchC {}\n"
-#endif
-      "{}:\n"
       "Inc {}\n"
       "Store {}, {}, {:#x}\n"
       "{}:",
-      r1, // Load
-      obj,
-      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt),
-#ifdef Py_IMMORTAL_INSTANCES
-      r1, // BitTest
-      kImmortalBitPos,
-      end_incref, // BranchC
-#endif
-      cond_incref, // label
       r1, // Inc
       r1, // Store
       obj,
@@ -468,6 +471,28 @@ void LIRGenerator::MakeDecref(
         cont);
   }
 
+  auto r1 = GetSafeTempName();
+  auto r2 = GetSafeTempName();
+
+  bbb.AppendCode(
+      "Load {}, {}, {:#x}\n",
+      r1,
+      obj,
+      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt));
+
+#ifdef Py_IMMORTAL_INSTANCES
+  auto mortal = GetSafeLabelName();
+  bbb.AppendCode(
+      "BitTest {}, {}\n"
+      "BranchC {}\n"
+      "{}:\n",
+      r1, // BitTest
+      kImmortalBitPos,
+      end_decref, // BranchC
+      mortal // label
+  );
+#endif
+
 #ifdef Py_DEBUG
   auto r0 = GetSafeTempName();
   bbb.AppendCode(
@@ -481,33 +506,14 @@ void LIRGenerator::MakeDecref(
       reinterpret_cast<uint64_t>(&_Py_RefTotal));
 #endif
 
-  auto r1 = GetSafeTempName();
-  auto r2 = GetSafeTempName();
-  auto cond_decref = GetSafeLabelName();
   auto dealloc = GetSafeLabelName();
-
   bbb.AppendCode(
-      "Load {}, {}, {:#x}\n"
-#ifdef Py_IMMORTAL_INSTANCES
-      "BitTest {}, {}\n"
-      "BranchC {}\n"
-#endif
-      "{}:\n"
       "Sub {}, {}, 1\n"
       "Store {}, {}, {:#x}\n"
       "BranchNZ {}\n"
       "{}:\n"
       "Invoke {:#x}, {}\n"
       "{}:",
-      r1, // Load
-      obj,
-      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt),
-#ifdef Py_IMMORTAL_INSTANCES
-      r1, // BitTest
-      kImmortalBitPos,
-      end_decref, // BranchC
-#endif
-      cond_decref, // label
       r2, // Sub
       r1,
       r2, // Store
