@@ -2217,7 +2217,7 @@ compiler_function(struct compiler *c, stmt_ty s, int is_async)
         return 0;
     }
     // steal the reference to qualname
-    co->co_qualname = qualname;
+    Py_SETREF(co->co_qualname, qualname);
     compiler_make_closure(c, co, funcflags, co->co_qualname);
     Py_DECREF(co);
 
@@ -2602,7 +2602,7 @@ compiler_lambda(struct compiler *c, expr_ty e)
         return 0;
 
     // steal the reference to qualname
-    co->co_qualname = qualname;
+    Py_SETREF(co->co_qualname, qualname);
     compiler_make_closure(c, co, funcflags, co->co_qualname);
     Py_DECREF(co);
 
@@ -4711,7 +4711,7 @@ compiler_comprehension(struct compiler *c, expr_ty e, int type,
         goto error;
 
     // steal the reference to qualname
-    co->co_qualname = qualname;
+    Py_SETREF(co->co_qualname, qualname);
     qualname = NULL;
     if (!compiler_make_closure(c, co, 0, co->co_qualname))
         goto error;
@@ -6157,6 +6157,11 @@ makecode(struct compiler *c, struct assembler *a)
                                    maxdepth, flags, bytecode, consts, names,
                                    varnames, freevars, cellvars, c->c_filename,
                                    c->u->u_name, c->u->u_firstlineno, a->a_lnotab);
+    if (co != NULL) {
+        // set qualname to initially be the same as co_name
+        co->co_qualname = c->u->u_name;
+        Py_INCREF(co->co_qualname);
+    }
  error:
     Py_XDECREF(consts);
     Py_XDECREF(names);

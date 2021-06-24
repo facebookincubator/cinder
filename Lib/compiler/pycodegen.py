@@ -2170,6 +2170,7 @@ class Python37CodeGenerator(CodeGenerator):
             name, filename, s.scopes[tree], peephole_enabled=peephole_enabled
         )
         code_gen = cls(None, tree, s, graph, flags, optimize)
+        code_gen._qual_name = name
         walk(tree, code_gen)
         return code_gen
 

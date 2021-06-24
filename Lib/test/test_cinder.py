@@ -8,6 +8,7 @@ from functools import wraps
 from test.support import gc_collect, requires_type_collecting, temp_dir, unlink, TESTFN
 from test.support.script_helper import assert_python_ok, make_script
 from types import FunctionType, GeneratorType, ModuleType, CodeType
+from textwrap import dedent
 
 import cinder
 from cinder import (
@@ -1377,6 +1378,20 @@ class CodeObjectQualnameTest(unittest.TestCase):
 
         co = c.replace(co_flags=c.co_flags)
         self.assertEqual(cinder._get_qualname(co), "f")
+
+        src = """\
+        import sys
+        import cinder
+        modname = cinder._get_qualname(sys._getframe(0).f_code)
+        clsname = None
+        class C:
+            global clsname
+            clsname = cinder._get_qualname(sys._getframe(0).f_code)
+        """
+        g = {}
+        exec(dedent(src), g)
+        self.assertEqual(g["modname"], "<module>")
+        self.assertEqual(g["clsname"], "C")
 
 if __name__ == "__main__":
     unittest.main()
