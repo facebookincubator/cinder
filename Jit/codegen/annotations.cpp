@@ -14,7 +14,7 @@ std::string Annotations::disassemble(
     void* entry,
     const asmjit::CodeHolder& code) {
   JIT_CHECK(
-      g_disas_funcs, "Annotations are not recorded without -X jit-disas-funcs");
+      g_dump_asm, "Annotations are not recorded without -X jit-disas-funcs");
   auto text = code.textSection();
   JIT_DCHECK(text->offset() == 0, "Unexpected .text section offset");
   auto base = static_cast<const char*>(entry);

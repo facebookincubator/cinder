@@ -1121,7 +1121,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   compiled_size_ = codeholder.codeSize();
 
   JIT_LOGIF(
-      g_disas_funcs,
+      g_dump_asm,
       "Disassembly for %s\n%s",
       GetFunction()->fullname,
       env_.annotations.disassemble(orig_entry, codeholder));
@@ -1456,7 +1456,7 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   ASM_CHECK(a.finalize(), name);
   ASM_CHECK(rt.add(&result, &code), name);
   JIT_LOGIF(
-      g_disas_funcs,
+      g_dump_asm,
       "Disassembly for %s\n%s",
       name,
       annot.disassemble(result, code));
@@ -1524,7 +1524,7 @@ void* generateJitTrampoline(asmjit::JitRuntime& rt) {
   ASM_CHECK(rt.add(&result, &code), name);
 
   JIT_LOGIF(
-      g_disas_funcs,
+      g_dump_asm,
       "Disassembly for %s\n%s",
       name,
       annot.disassemble(result, code));
@@ -1561,7 +1561,7 @@ void* generatePyFrameUnlinkTrampoline(asmjit::JitRuntime& rt) {
   ASM_CHECK(rt.add(&result, &code), name);
 
   JIT_LOGIF(
-      g_disas_funcs,
+      g_dump_asm,
       "Disassembly for %s\n%s",
       name,
       annot.disassemble(result, code));

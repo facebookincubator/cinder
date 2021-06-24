@@ -783,8 +783,14 @@ int _PyJIT_Initialize() {
     g_dump_c_helper = 1;
   }
   if (_is_flag_set("jit-disas-funcs", "PYTHONJITDISASFUNCS")) {
-    JIT_DLOG("Enabling JIT disas-funcs mode.");
-    g_disas_funcs = 1;
+    JIT_DLOG(
+        "jit-disas-funcs/PYTHONJITDISASFUNCS are deprecated and will soon be "
+        "removed. Use jit-dump-asm and PYTHONJITDUMPASM instead.");
+    g_dump_asm = 1;
+  }
+  if (_is_flag_set("jit-dump-asm", "PYTHONJITDUMPASM")) {
+    JIT_DLOG("Enabling JIT dump-asm mode.");
+    g_dump_asm = 1;
   }
   if (_is_flag_set("jit-gdb-support", "PYTHONJITGDBSUPPORT")) {
     JIT_DLOG("Enable GDB support and JIT debug mode.");
