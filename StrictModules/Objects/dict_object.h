@@ -224,8 +224,6 @@ class StrictDict : public StrictIterable {
       std::shared_ptr<StrictDict> self,
       const CallerContext& caller);
 
-  // TODO __init__, update (require kwargs support)
-
  private:
   std::unique_ptr<DictDataInterface> data_;
   std::string displayName_;

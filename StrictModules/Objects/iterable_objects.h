@@ -17,7 +17,6 @@ class StrictIterable : public StrictInstance {
 class StrictIterableType : public StrictObjectType {
  public:
   using StrictObjectType::StrictObjectType;
-  // TODO: getElements
 
   virtual std::shared_ptr<StrictType> recreate(
       std::string name,
@@ -338,8 +337,36 @@ class StrictSetLike : public StrictIterable {
       std::shared_ptr<StrictSetLike> self,
       const CallerContext& caller);
 
-  // TODO issubset, issuperset, __le__, __lt__,
-  // __ge__, __gt__
+  static std::shared_ptr<BaseStrictObject> setIssubset(
+      std::shared_ptr<StrictSetLike> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> setIssuperset(
+      std::shared_ptr<StrictSetLike> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> set__le__(
+      std::shared_ptr<StrictSetLike> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> set__lt__(
+      std::shared_ptr<StrictSetLike> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> set__ge__(
+      std::shared_ptr<StrictSetLike> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
+  static std::shared_ptr<BaseStrictObject> set__gt__(
+      std::shared_ptr<StrictSetLike> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> rhs);
+
  protected:
   SetDataT data_;
 };
@@ -389,7 +416,15 @@ class StrictSet final : public StrictSetLike {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> item);
 
-  // TODO  __init__, update,
+  static std::shared_ptr<BaseStrictObject> set__init__(
+      std::shared_ptr<StrictSet> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> arg = nullptr);
+
+  static std::shared_ptr<BaseStrictObject> setUpdate(
+      std::shared_ptr<StrictSet> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> arg);
 };
 
 class StrictSetType final : public StrictSetLikeType {
@@ -433,7 +468,11 @@ class StrictFrozenSet final : public StrictSetLike {
       SetDataT data) override;
 
   // wrapped methods
-  // TODO __new__,
+  static std::shared_ptr<BaseStrictObject> frozensetNew(
+      std::shared_ptr<StrictFrozenSet> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> instType,
+      std::shared_ptr<BaseStrictObject> arg = nullptr);
 
  private:
   mutable Ref<> pyObj_;

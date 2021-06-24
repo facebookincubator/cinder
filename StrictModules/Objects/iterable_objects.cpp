@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/iterable_objects.h"
 #include "StrictModules/Objects/callable_wrapper.h"
+#include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
 
@@ -154,10 +155,6 @@ std::shared_ptr<BaseStrictObject> StrictSequence::sequence__rmul__(
   return sequenceMulHelper(std::move(self), caller, std::move(lhs));
 }
 
-static inline int normalizeIndex(int index, int size) {
-  return index < 0 ? index + size : index;
-}
-
 static std::shared_ptr<BaseStrictObject> sequenceGetItemHelper(
     std::shared_ptr<StrictSequence> self,
     std::shared_ptr<StrictType> type,
@@ -206,7 +203,6 @@ static std::shared_ptr<BaseStrictObject> sequenceGetItemHelper(
       index->getTypeRef().getName());
 }
 
-// TODO: __reversed__
 std::shared_ptr<StrictIteratorBase> StrictSequenceType::getElementsIter(
     std::shared_ptr<BaseStrictObject> obj,
     const CallerContext& caller) {
@@ -770,8 +766,101 @@ std::shared_ptr<BaseStrictObject> StrictSetLike::set__iter__(
   return std::make_shared<StrictSetIterator>(
       SetIteratorType(), caller.caller, std::move(self));
 }
-// TODO issubset, issuperset, __le__, __lt__,
-// __ge__, __gt__
+
+// return true if lhs <= rhs, false otherwise
+bool subsetHelper(
+    std::shared_ptr<StrictSetLike> lhs,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs,
+    bool isStrict = false) {
+  std::vector<std::shared_ptr<BaseStrictObject>> rhsElements =
+      iGetElementsVec(std::move(rhs), caller);
+  auto lhsData = lhs->getData();
+  if (lhsData.size() > rhsElements.size()) {
+    return false;
+  }
+  if (isStrict && lhsData.size() == rhsElements.size()) {
+    return false;
+  }
+  SetDataT rhsData(
+      std::move_iterator(rhsElements.begin()),
+      std::move_iterator(rhsElements.end()));
+  for (auto& e : lhsData) {
+    if (rhsData.find(e) == rhsData.end()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// return true if lhs <= rhs, false otherwise
+bool supersetHelper(
+    std::shared_ptr<StrictSetLike> lhs,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs,
+    bool isStrict = false) {
+  std::vector<std::shared_ptr<BaseStrictObject>> rhsElements =
+      iGetElementsVec(std::move(rhs), caller);
+  auto lhsData = lhs->getData();
+  if (lhsData.size() < rhsElements.size()) {
+    return false;
+  }
+  if (isStrict && lhsData.size() == rhsElements.size()) {
+    return false;
+  }
+  for (auto& e : rhsElements) {
+    if (lhsData.find(e) == lhsData.end()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+std::shared_ptr<BaseStrictObject> StrictSetLike::setIssubset(
+    std::shared_ptr<StrictSetLike> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  return caller.makeBool(subsetHelper(std::move(self), caller, std::move(rhs)));
+}
+
+std::shared_ptr<BaseStrictObject> StrictSetLike::setIssuperset(
+    std::shared_ptr<StrictSetLike> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  return caller.makeBool(
+      supersetHelper(std::move(self), caller, std::move(rhs)));
+}
+
+std::shared_ptr<BaseStrictObject> StrictSetLike::set__le__(
+    std::shared_ptr<StrictSetLike> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  return caller.makeBool(subsetHelper(std::move(self), caller, std::move(rhs)));
+}
+
+std::shared_ptr<BaseStrictObject> StrictSetLike::set__lt__(
+    std::shared_ptr<StrictSetLike> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  return caller.makeBool(
+      subsetHelper(std::move(self), caller, std::move(rhs), true));
+}
+
+std::shared_ptr<BaseStrictObject> StrictSetLike::set__ge__(
+    std::shared_ptr<StrictSetLike> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  return caller.makeBool(
+      supersetHelper(std::move(self), caller, std::move(rhs)));
+}
+
+std::shared_ptr<BaseStrictObject> StrictSetLike::set__gt__(
+    std::shared_ptr<StrictSetLike> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  return caller.makeBool(
+      supersetHelper(std::move(self), caller, std::move(rhs), true));
+}
 
 void StrictSetLikeType::addMethods() {
   addMethod(kDunderContains, StrictSetLike::set__contains__);
@@ -779,6 +868,12 @@ void StrictSetLikeType::addMethods() {
   addMethod("__and__", StrictSetLike::set__and__);
   addMethod("__or__", StrictSetLike::set__or__);
   addMethod("__xor__", StrictSetLike::set__xor__);
+  addMethod("__le__", StrictSetLike::set__le__);
+  addMethod("__lt__", StrictSetLike::set__lt__);
+  addMethod("__ge__", StrictSetLike::set__ge__);
+  addMethod("__gt__", StrictSetLike::set__gt__);
+  addMethod("issubset", StrictSetLike::setIssubset);
+  addMethod("issuperset", StrictSetLike::setIssuperset);
   addMethod(kDunderIter, StrictSetLike::set__iter__);
 }
 
@@ -870,7 +965,35 @@ std::shared_ptr<BaseStrictObject> StrictSet::setAdd(
   }
   return NoneObject();
 }
-// TODO  __init__, update,
+
+std::shared_ptr<BaseStrictObject> StrictSet::set__init__(
+    std::shared_ptr<StrictSet> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  checkExternalModification(self, caller);
+  self->data_.clear();
+  if (arg) {
+    auto elementsVec = iGetElementsVec(std::move(arg), caller);
+    self->data_.reserve(elementsVec.size());
+    self->data_.insert(
+        std::move_iterator(elementsVec.begin()),
+        std::move_iterator(elementsVec.end()));
+  }
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> StrictSet::setUpdate(
+    std::shared_ptr<StrictSet> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  checkExternalModification(self, caller);
+  auto elementsVec = iGetElementsVec(std::move(arg), caller);
+  self->data_.reserve(elementsVec.size() + self->data_.size());
+  self->data_.insert(
+      std::move_iterator(elementsVec.begin()),
+      std::move_iterator(elementsVec.end()));
+  return NoneObject();
+}
 
 std::unique_ptr<BaseStrictObject> StrictSetType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
@@ -903,6 +1026,8 @@ std::vector<std::type_index> StrictSetType::getBaseTypeinfos() const {
 void StrictSetType::addMethods() {
   StrictSetLikeType::addMethods();
   addMethod("add", StrictSet::setAdd);
+  addMethodDefault("__init__", StrictSet::set__init__, nullptr);
+  addMethod("update", StrictSet::setUpdate);
   addPyWrappedMethodObj<>(
       kDunderRepr,
       reinterpret_cast<PyObject*>(&PySet_Type),
@@ -966,7 +1091,26 @@ std::shared_ptr<StrictSetLike> StrictFrozenSet::makeSetLike(
 }
 
 // wrapped methods
-// TODO __new__,
+std::shared_ptr<BaseStrictObject> StrictFrozenSet::frozensetNew(
+    std::shared_ptr<StrictFrozenSet>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> instTypeArg,
+    std::shared_ptr<BaseStrictObject> arg) {
+  auto instType = std::dynamic_pointer_cast<StrictFrozenSetType>(instTypeArg);
+  if (!instType) {
+    caller.raiseTypeError("{} is not a subtype of frozenset", instTypeArg);
+  }
+  SetDataT data;
+  if (arg) {
+    auto elementsVec = iGetElementsVec(std::move(arg), caller);
+    data.reserve(elementsVec.size());
+    data.insert(
+        std::move_iterator(elementsVec.begin()),
+        std::move_iterator(elementsVec.end()));
+  }
+  return std::make_shared<StrictFrozenSet>(
+      std::move(instType), caller.caller, std::move(data));
+}
 
 std::unique_ptr<BaseStrictObject> StrictFrozenSetType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
@@ -998,6 +1142,7 @@ std::vector<std::type_index> StrictFrozenSetType::getBaseTypeinfos() const {
 
 void StrictFrozenSetType::addMethods() {
   StrictSetLikeType::addMethods();
+  addStaticMethod("__new__", StrictFrozenSet::frozensetNew);
   addPyWrappedMethodObj<>(
       kDunderRepr,
       reinterpret_cast<PyObject*>(&PyFrozenSet_Type),

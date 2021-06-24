@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/string_object.h"
 
+#include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
 
@@ -191,6 +192,50 @@ std::shared_ptr<BaseStrictObject> StrictString::str__iter__(
       VectorIteratorType(), caller.caller, std::move(chars));
 }
 
+std::shared_ptr<BaseStrictObject> StrictString::str__getitem__(
+    std::shared_ptr<StrictString> self,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> index) {
+  const std::string& data = self->getValue();
+  std::shared_ptr<StrictInt> intIndex =
+      std::dynamic_pointer_cast<StrictInt>(index);
+  if (intIndex != nullptr) {
+    int idx = normalizeIndex(intIndex->getValue(), data.size());
+    if (idx >= 0 && (size_t)idx < data.size()) {
+      return caller.makeStr(data.substr(idx, 1));
+    } else {
+      caller.raiseTypeError("string index out of range: {}", idx);
+    }
+  }
+  std::shared_ptr<StrictSlice> sliceIndex =
+      std::dynamic_pointer_cast<StrictSlice>(index);
+  if (sliceIndex != nullptr) {
+    int dataSize = int(data.size());
+    std::string result;
+    result.reserve(dataSize);
+    int start, stop, step;
+    std::tie(start, stop, step) =
+        sliceIndex->normalizeToSequenceIndex(caller, dataSize);
+
+    if (step > 0) {
+      for (int i = std::max(0, start); i < std::min(stop, dataSize);
+           i += step) {
+        result.push_back(data[i]);
+      }
+    } else {
+      for (int i = std::min(dataSize - 1, start); i > std::max(-1, stop);
+           i += step) {
+        result.push_back(data[i]);
+      }
+    }
+    // sliced result is always the base type
+    return caller.makeStr(std::move(result));
+  }
+  caller.raiseTypeError(
+      "string indices must be integers or slices, not {}",
+      index->getTypeRef().getName());
+}
+
 // StrictStringType
 std::unique_ptr<BaseStrictObject> StrictStringType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
@@ -233,6 +278,7 @@ void StrictStringType::addMethods() {
   addMethod(kDunderIter, StrictString::str__iter__);
   addMethod("__eq__", StrictString::str__eq__);
   addMethod("join", StrictString::strJoin);
+  addMethod(kDunderGetItem, StrictString::str__getitem__);
   PyObject* strType = reinterpret_cast<PyObject*>(&PyUnicode_Type);
   addPyWrappedMethodObj<1>("__format__", strType, StrictString::strFromPyObj);
   addPyWrappedMethodObj<>(kDunderRepr, strType, StrictString::strFromPyObj);

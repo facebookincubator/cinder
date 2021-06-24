@@ -71,6 +71,11 @@ class StrictString : public StrictInstance {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> iterable);
 
+  static std::shared_ptr<BaseStrictObject> str__getitem__(
+      std::shared_ptr<StrictString> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> index);
+
  private:
   mutable Ref<> pyStr_;
   std::string value_;

@@ -3590,7 +3590,7 @@ del f.__name__
 ---
 4 0 StrictModuleUnhandledException(TypeError)
 ---
-test_set_init @disabled
+test_set_init
 ---
 
 s1 = set()
@@ -3606,21 +3606,21 @@ l4 = len(s4)
 s1 s2 s3 s4 l1 l2 l3 l4
 ---
 ---
-test_set_init_too_many_args @disabled
+test_set_init_too_many_args
 ---
 s1 = set(1, 2)
 ---
 ---
-StrictModuleUnhandledException
+1 5 StrictModuleUnhandledException(TypeError)
 ---
-test_set_init_not_iterable @disabled
+test_set_init_not_iterable
 ---
 s1 = set(1)
 ---
 ---
-StrictModuleTypeError
+1 5 StrictModuleUnhandledException(TypeError)
 ---
-test_set_methods @disabled
+test_set_methods
 ---
 s = set([1, 2])
 l1 = len(s)
@@ -3639,7 +3639,7 @@ b3 = s <= set()
 l1 l2 l3 l4 l5 b1 b2 b3
 ---
 ---
-test_frozenset_init @disabled
+test_frozenset_init
 ---
 s1 = frozenset()
 s2 = frozenset([1, 2])
@@ -3653,21 +3653,21 @@ l4 = len(s4)
 s1 s2 s3 l1 l2 l3 l4
 ---
 ---
-test_frozenset_init_too_many_args @disabled
+test_frozenset_init_too_many_args
 ---
 s1 = frozenset(1, 2)
 ---
 ---
-StrictModuleUnhandledException
+1 5 StrictModuleUnhandledException(TypeError)
 ---
-test_frozenset_init_not_iterable @disabled
+test_frozenset_init_not_iterable
 ---
 s1 = frozenset(1)
 ---
 ---
-StrictModuleTypeError
+1 5 StrictModuleUnhandledException(TypeError)
 ---
-test_set_frozenset_binop @disabled
+test_set_frozenset_binop
 ---
 l = set([1, 2])
 r = frozenset([3, 4])
@@ -4144,12 +4144,6 @@ x9 = min([3, 1, 5, 4, 2])
 x10 = max("a", "b", "o", "u", "about")
 ---
 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10
----
----
-test_max_unknown_keyword @disabled
----
-x = max(1, 3, default=5)
----
 ---
 ---
 test_max_iterable_no_default
@@ -4774,7 +4768,7 @@ x = type(D.f).__name__
 x
 ---
 ---
-test_descriptor_get @disabled
+test_descriptor_get
 ---
 class C:
     def __get__(self, inst, ctx):
@@ -5591,42 +5585,42 @@ x = (42.0+0j) % (3.0+0j)
 ---
 StrictModuleTypeError
 ---
-test_str_index_0 @disabled
+test_str_index_0
 ---
 x = "abc"[0]
 ---
 x
 ---
 ---
-test_str_index_1 @disabled
+test_str_index_1
 ---
 x = "abc"[-1]
 ---
 x
 ---
 ---
-test_str_index_2 @disabled
+test_str_index_2
 ---
 x = "abc"[1:2]
 ---
 x
 ---
 ---
-test_str_index_3 @disabled
+test_str_index_3
 ---
 x = "abc"[0:-1]
 ---
 x
 ---
 ---
-test_str_index_4 @disabled
+test_str_index_4
 ---
 x = "abc"[::-1]
 ---
 x
 ---
 ---
-test_str_index_5 @disabled
+test_str_index_5
 ---
 x = ""[1:2]
 ---
@@ -5892,7 +5886,7 @@ flags = code.co_flags
 argcount varnames kwonly name flags
 ---
 ---
-test_set_binop_0 @disabled
+test_set_binop_0
 ---
 l = set((1, 2))
 r = set((3, 4))
@@ -5903,7 +5897,7 @@ x = l ^ r
 l r a o x
 ---
 ---
-test_set_binop_1 @disabled
+test_set_binop_1
 ---
 l = set((1, 2))
 r = set((1, 2))
@@ -5914,7 +5908,7 @@ x = l ^ r
 l r a o x
 ---
 ---
-test_set_binop_2 @disabled
+test_set_binop_2
 ---
 l = set((1, 2))
 r = set((2, 3))
@@ -5925,7 +5919,7 @@ x = l ^ r
 l r a o x
 ---
 ---
-test_frozenset_binop_0 @disabled
+test_frozenset_binop_0
 ---
 l = frozenset((1, 2))
 r = frozenset((3, 4))
@@ -5936,7 +5930,7 @@ x = l ^ r
 l r a o x
 ---
 ---
-test_frozenset_binop_1 @disabled
+test_frozenset_binop_1
 ---
 l = frozenset((1, 2))
 r = frozenset((1, 2))
@@ -5947,7 +5941,7 @@ x = l ^ r
 l r a o x
 ---
 ---
-test_frozenset_binop_2 @disabled
+test_frozenset_binop_2
 ---
 l = frozenset((1, 2))
 r = frozenset((2, 3))
@@ -9410,11 +9404,11 @@ z = [x for x in [1,2,3] if y]
 2 4 UnknownValueBoolException <y imported from u>
 2 4 UnknownValueBoolException <y imported from u>
 ---
-test_scoping_generators_first_iter @disabled
+test_scoping_generators_first_iter
 ---
-
 x = [x for x in (lambda: [1,2,3])()]
 ---
+x
 ---
 ---
 test_metaclass_violation_init
