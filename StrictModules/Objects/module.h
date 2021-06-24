@@ -27,9 +27,9 @@ class StrictModuleObject : public StrictInstance {
       return;
     }
     for (auto it : *dict_) {
-      auto owner = it.second->getCreator();
+      auto owner = it.second.first->getCreator();
       if (!owner.expired() && owner.lock().get() == this) {
-        auto inst = std::dynamic_pointer_cast<StrictInstance>(it.second);
+        auto inst = std::dynamic_pointer_cast<StrictInstance>(it.second.first);
         if (inst) {
           inst->cleanContent(this);
         }

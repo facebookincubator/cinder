@@ -550,7 +550,7 @@ static AnalysisResult strDictToObjHelper(
   DictDataT dictObj;
   dictObj.reserve(dict->size());
   for (auto& item : *dict) {
-    dictObj[caller.makeStr(item.first)] = item.second;
+    dictObj[caller.makeStr(item.first)] = item.second.first;
   }
   return std::make_shared<StrictDict>(
       DictObjectType(), caller.caller, std::move(dictObj));
@@ -1212,9 +1212,9 @@ AnalysisResult Analyzer::visitDict(const expr_ty expr) {
     if (keyExpr == nullptr) {
       // handle unpacking
       DictDataT unpackedMap = visitDictUnpackHelper(valueExpr);
-      map.insert(
-          std::move_iterator(unpackedMap.begin()),
-          std::move_iterator(unpackedMap.end()));
+      for (auto& item : unpackedMap) {
+        map[std::move(item.first)] = std::move(item.second.first);
+      }
     } else {
       AnalysisResult kResult = visitExpr(keyExpr);
       AnalysisResult vResult = visitExpr(valueExpr);
@@ -1917,6 +1917,6 @@ bool Scope<AnalysisResult, AnalysisScopeData>::contains(
   if (data_.hasAlternativeDict()) {
     return data_.contains(key);
   }
-  return vars_->find(key) != vars_->end();
+  return vars_->find(key) != vars_->map_end();
 }
 } // namespace strictmod

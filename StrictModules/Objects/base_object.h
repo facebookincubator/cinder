@@ -5,11 +5,11 @@
 #include "StrictModules/py_headers.h"
 
 #include "Jit/ref.h"
+#include "StrictModules/sequence_map.h"
 #include "StrictModules/caller_context.h"
 
 #include <list>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 #include <fmt/format.h>
@@ -43,7 +43,9 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
   virtual size_t hash() const;
   virtual bool eq(const BaseStrictObject& other) const;
 
-  virtual bool isUnknown() const {return false;}
+  virtual bool isUnknown() const {
+    return false;
+  }
 
   /** get equivalent python object of this object
    * return nullptr if conversion is not supported
@@ -82,8 +84,7 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
   std::weak_ptr<StrictModuleObject> creator_;
 };
 
-typedef std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>
-    DictType;
+typedef sequence_map<std::string, std::shared_ptr<BaseStrictObject>> DictType;
 
 // format arguments for function call
 std::string formatArgs(

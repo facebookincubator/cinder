@@ -5,7 +5,7 @@
 #include "StrictModules/Objects/iterable_objects.h"
 
 namespace strictmod::objects {
-typedef std::unordered_map<
+typedef sequence_map<
     std::shared_ptr<BaseStrictObject>,
     std::shared_ptr<BaseStrictObject>,
     StrictObjectHasher,

@@ -21,7 +21,7 @@ bool Scope<TVar, TScopeData>::erase(const std::string& key) {
 
 template <typename TVar, typename TScopeData>
 bool Scope<TVar, TScopeData>::contains(const std::string& key) const {
-  return vars_->find(key) != vars_->end();
+  return vars_->find(key) != vars_->map_end();
 }
 
 //------------------------ScopeStack----------------------------
@@ -162,7 +162,7 @@ ScopeStack<TVar, TScopeData>::enterScopeByAstBody(
     std::optional<std::string> className) {
   SymtableEntry entry = symbols_.entryFromAst(key);
   if (vars == nullptr) {
-    vars = std::make_shared<std::unordered_map<std::string, TVar>>();
+    vars = std::make_shared<ScopeDictType>();
   }
   auto scope = scopeFactory_(entry, std::move(vars));
   return ScopeManager<TVar, TScopeData>(

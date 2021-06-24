@@ -41,8 +41,8 @@ class StrictInstance : public BaseStrictObject {
   virtual void cleanContent(const StrictModuleObject* owner) override {
     if (dict_ != nullptr) {
       for (auto& item : *dict_) {
-        if (item.second) {
-          item.second->cleanContent(owner);
+        if (item.second.first) {
+          item.second.first->cleanContent(owner);
         }
       }
       if (creator_.expired() || owner == creator_.lock().get()) {

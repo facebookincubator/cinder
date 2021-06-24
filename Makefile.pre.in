@@ -1302,6 +1302,7 @@ STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/StrictModules/Objects/object_interface.h \
 		$(srcdir)/StrictModules/Objects/objects.h \
 		$(srcdir)/StrictModules/Objects/builtins.h \
+		$(srcdir)/StrictModules/sequence_map.h \
 		$(srcdir)/StrictModules/symbol_table.h \
 		$(srcdir)/StrictModules/ast_visitor.h \
 		$(srcdir)/StrictModules/analyzer.h \

@@ -36,8 +36,8 @@ std::unique_ptr<BaseStrictObject> StrictInstance::copy() const {
 std::shared_ptr<BaseStrictObject> StrictInstance::getAttr(
     const std::string& name) {
   auto it = dict_->find(name);
-  if (it != dict_->end()) {
-    return it->second;
+  if (it != dict_->map_end()) {
+    return it->second.first;
   }
   return std::shared_ptr<BaseStrictObject>();
 }

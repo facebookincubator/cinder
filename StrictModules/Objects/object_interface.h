@@ -8,8 +8,6 @@
 
 #include "Python-ast.h"
 
-#include <unordered_map>
-
 namespace strictmod::objects {
 class BaseStrictObject;
 class StrictType;

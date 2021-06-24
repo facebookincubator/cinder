@@ -4,6 +4,8 @@
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/caller_context_impl.h"
 
+#include <unordered_map>
+
 namespace strictmod::objects {
 
 // FuncSignature

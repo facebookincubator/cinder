@@ -707,7 +707,10 @@ bool initializeBuiltinsModuleDict() {
         {"any", StrictAny()},
         {"all", StrictAll()},
     });
-    kBuiltinsModule->getDict().insert(builtinsDict.begin(), builtinsDict.end());
+    auto& builtinsModuleDict = kBuiltinsModule->getDict();
+    for (auto& item : builtinsDict) {
+      builtinsModuleDict[std::move(item.first)] = std::move(item.second.first);
+    }
   }
   return initialized;
 }

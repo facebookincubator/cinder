@@ -356,7 +356,7 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
   });
 
   auto dunderModuleIt = members.find("__module__");
-  if (dunderModuleIt == members.end()) {
+  if (dunderModuleIt == members.map_end()) {
     // getting __name__ from creator may not be accurate.
     // But we probably don't care about __module__ being accurate
     members["__module__"] =
@@ -364,14 +364,14 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
   }
 
   auto initSubclassItem = members.find("__init_subclass__");
-  if (initSubclassItem != members.end()) {
+  if (initSubclassItem != members.map_end()) {
     // __init_sublcass__ is automatically treated as a class method
     auto initSubclassFunc =
-        std::dynamic_pointer_cast<StrictFunction>(initSubclassItem->second);
+        std::dynamic_pointer_cast<StrictFunction>(initSubclassItem->second.first);
     if (initSubclassFunc != nullptr) {
       auto initSubclassMethod = std::make_shared<StrictClassMethod>(
           ClassMethodType(), caller.caller, std::move(initSubclassFunc));
-      initSubclassItem->second = std::move(initSubclassMethod);
+      initSubclassItem->second.first = std::move(initSubclassMethod);
     }
   }
 

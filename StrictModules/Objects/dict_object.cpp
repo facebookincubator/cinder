@@ -4,12 +4,11 @@
 #include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
+#include "StrictModules/sequence_map.h"
 
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 #include "StrictModules/exceptions.h"
-
-#include <unordered_map>
 
 namespace strictmod::objects {
 
@@ -581,15 +580,15 @@ bool DirectMapDictData::set(
 std::optional<std::shared_ptr<BaseStrictObject>> DirectMapDictData::get(
     const std::shared_ptr<BaseStrictObject>& key) {
   auto item = data_.find(key);
-  if (item == data_.end()) {
+  if (item == data_.map_end()) {
     return std::nullopt;
   }
-  return item->second;
+  return item->second.first;
 }
 
 bool DirectMapDictData::contains(
     const std::shared_ptr<BaseStrictObject>& key) const {
-  return data_.find(key) != data_.end();
+  return data_.find(key) != data_.map_end();
 }
 
 std::size_t DirectMapDictData::size() const {
@@ -628,7 +627,7 @@ void DirectMapDictData::iter(std::function<bool(
                                  std::shared_ptr<BaseStrictObject>,
                                  std::shared_ptr<BaseStrictObject>)> func) {
   for (auto& item : data_) {
-    bool ok = func(item.first, item.second);
+    bool ok = func(item.first, item.second.first);
     if (!ok) {
       break;
     }
@@ -639,7 +638,7 @@ void DirectMapDictData::const_iter(
         std::shared_ptr<BaseStrictObject>,
         std::shared_ptr<BaseStrictObject>)> func) const {
   for (auto& item : data_) {
-    bool ok = func(item.first, item.second);
+    bool ok = func(item.first, item.second.first);
     if (!ok) {
       break;
     }
@@ -671,8 +670,8 @@ std::optional<std::shared_ptr<BaseStrictObject>> InstanceDictDictData::get(
   auto keyStr = keyToStr(key);
   if (keyStr) {
     auto item = data_->find(keyStr.value());
-    if (item != data_->end()) {
-      return item->second;
+    if (item != data_->map_end()) {
+      return item->second.first;
     }
   }
   return std::nullopt;
@@ -682,7 +681,7 @@ bool InstanceDictDictData::contains(
     const std::shared_ptr<BaseStrictObject>& key) const {
   auto keyStr = keyToStr(key);
   if (keyStr) {
-    return data_->find(keyStr.value()) != data_->end();
+    return data_->find(keyStr.value()) != data_->map_end();
   }
   return false;
 }
@@ -730,7 +729,7 @@ void InstanceDictDictData::iter(std::function<bool(
   for (auto& item : *data_) {
     auto keyObj =
         std::make_shared<StrictString>(StrType(), creator_, item.first);
-    bool ok = func(std::move(keyObj), item.second);
+    bool ok = func(std::move(keyObj), item.second.first);
     if (!ok) {
       break;
     }
@@ -744,7 +743,7 @@ void InstanceDictDictData::const_iter(
   for (auto& item : *data_) {
     auto keyObj =
         std::make_shared<StrictString>(StrType(), creator_, item.first);
-    bool ok = func(std::move(keyObj), item.second);
+    bool ok = func(std::move(keyObj), item.second.first);
     if (!ok) {
       break;
     }

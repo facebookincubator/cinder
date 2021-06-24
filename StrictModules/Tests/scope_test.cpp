@@ -12,7 +12,7 @@ using strictmod::SymtableEntry;
 
 std::unique_ptr<Scope<int, std::nullptr_t>> factory(
     strictmod::SymtableEntry entry,
-    std::shared_ptr<std::unordered_map<std::string, int>> map) {
+    std::shared_ptr<sequence_map<std::string, int>> map) {
   return std::make_unique<Scope<int, std::nullptr_t>>(entry, map, nullptr);
 }
 
@@ -40,7 +40,7 @@ class B:
   mod_ty ast = result.value().ast;
   strictmod::Symtable table(std::move(result.value().symbols));
   SymtableEntry entry = table.entryFromAst(ast);
-  auto map = std::make_shared<std::unordered_map<std::string, int>>();
+  auto map = std::make_shared<sequence_map<std::string, int>>();
   auto topScope = std::shared_ptr(factory(entry, map));
   std::vector<std::shared_ptr<Scope<int, std::nullptr_t>>> scopeVector;
   scopeVector.emplace_back(topScope);

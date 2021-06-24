@@ -4,8 +4,6 @@
 
 #include "StrictModules/Objects/base_object.h"
 
-#include <unordered_map>
-
 namespace strictmod::objects {
 
 // Stores references to the args from the function object

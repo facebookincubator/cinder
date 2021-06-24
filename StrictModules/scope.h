@@ -5,9 +5,9 @@
 #include <memory>
 #include <optional>
 #include <sstream>
-#include <unordered_map>
 #include <vector>
 #include "StrictModules/symbol_table.h"
+#include "StrictModules/sequence_map.h"
 namespace strictmod {
 
 std::string mangle(const std::string& className, const std::string& name);
@@ -15,20 +15,21 @@ std::string mangle(const std::string& className, const std::string& name);
 template <typename TVar, typename TScopeData>
 class Scope {
  public:
+  typedef sequence_map<std::string, TVar> ScopeDictType;
   Scope(
       SymtableEntry scope,
       TScopeData data,
       bool invisible = false,
       bool hasAlternativeDict = false)
       : scope_(scope),
-        vars_(std::make_shared<std::unordered_map<std::string, TVar>>()),
+        vars_(std::make_shared<ScopeDictType>()),
         data_(data),
         invisible_(invisible),
         hasAlternativeDict_(hasAlternativeDict) {}
 
   Scope(
       SymtableEntry scope,
-      std::shared_ptr<std::unordered_map<std::string, TVar>> vars,
+      std::shared_ptr<ScopeDictType> vars,
       TScopeData data,
       bool invisible = false,
       bool hasAlternativeDict = false)
@@ -82,7 +83,7 @@ class Scope {
 
  private:
   SymtableEntry scope_;
-  std::shared_ptr<std::unordered_map<std::string, TVar>> vars_;
+  std::shared_ptr<ScopeDictType> vars_;
   TScopeData data_;
   bool invisible_;
   bool hasAlternativeDict_; // look into ScopeData instead of vars_ for dict
@@ -93,7 +94,8 @@ class ScopeManager;
 
 template <typename TVar, typename TScopeData>
 class ScopeStack {
-  typedef std::shared_ptr<std::unordered_map<std::string, TVar>> TMapPtr;
+  typedef sequence_map<std::string, TVar> ScopeDictType;
+  typedef std::shared_ptr<ScopeDictType> TMapPtr;
   typedef std::function<
       std::unique_ptr<Scope<TVar, TScopeData>>(SymtableEntry, TMapPtr)>
       ScopeFactory;
