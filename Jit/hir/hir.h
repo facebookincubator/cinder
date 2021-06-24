@@ -947,8 +947,8 @@ BinaryOpKind ParseBinaryOpName(const char* name);
 class INSTR_CLASS(BinaryOp, HasOutput, Operands<2>, DeoptBase) {
  public:
   BinaryOp(
-      BinaryOpKind op,
       Register* dst,
+      BinaryOpKind op,
       Register* left,
       Register* right,
       const FrameState& frame)
@@ -984,8 +984,8 @@ UnaryOpKind ParseUnaryOpName(const char* name);
 class INSTR_CLASS(UnaryOp, HasOutput, Operands<1>, DeoptBase) {
  public:
   UnaryOp(
-      UnaryOpKind op,
       Register* dst,
+      UnaryOpKind op,
       Register* operand,
       const FrameState& frame)
       : InstrT(dst, operand, frame), op_(op) {}
@@ -1025,8 +1025,8 @@ InPlaceOpKind ParseInPlaceOpName(const char* name);
 class INSTR_CLASS(InPlaceOp, HasOutput, Operands<2>, DeoptBase) {
  public:
   InPlaceOp(
-      InPlaceOpKind op,
       Register* dst,
+      InPlaceOpKind op,
       Register* left,
       Register* right,
       const FrameState& frame)
@@ -1785,7 +1785,7 @@ class INSTR_CLASS(Cast, HasOutput, Operands<1>, DeoptBase) {
 // Perform a binary operation (e.g. '+', '-') on primitive int operands
 class INSTR_CLASS(IntBinaryOp, HasOutput, Operands<2>) {
  public:
-  IntBinaryOp(BinaryOpKind op, Register* dst, Register* left, Register* right)
+  IntBinaryOp(Register* dst, BinaryOpKind op, Register* left, Register* right)
       : InstrT(dst, left, right), op_(op) {}
 
   BinaryOpKind op() const {
@@ -1808,8 +1808,8 @@ class INSTR_CLASS(IntBinaryOp, HasOutput, Operands<2>) {
 class INSTR_CLASS(DoubleBinaryOp, HasOutput, Operands<2>) {
  public:
   DoubleBinaryOp(
-      BinaryOpKind op,
       Register* dst,
+      BinaryOpKind op,
       Register* left,
       Register* right)
       : InstrT(dst, left, right), op_(op) {}
@@ -1841,7 +1841,7 @@ PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(const char* name);
 // Perform a unary operation (e.g. '~', '-') on primitive operands
 class INSTR_CLASS(PrimitiveUnaryOp, HasOutput, Operands<1>) {
  public:
-  PrimitiveUnaryOp(PrimitiveUnaryOpKind op, Register* dst, Register* value)
+  PrimitiveUnaryOp(Register* dst, PrimitiveUnaryOpKind op, Register* value)
       : InstrT(dst, value), op_(op) {}
 
   PrimitiveUnaryOpKind op() const {
@@ -1881,8 +1881,8 @@ const char* GetCompareOpName(CompareOp op);
 class INSTR_CLASS(Compare, HasOutput, Operands<2>, DeoptBase) {
  public:
   Compare(
-      CompareOp op,
       Register* dst,
+      CompareOp op,
       Register* left,
       Register* right,
       const FrameState& frame)
@@ -1970,8 +1970,8 @@ PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name);
 class INSTR_CLASS(PrimitiveCompare, HasOutput, Operands<2>) {
  public:
   PrimitiveCompare(
-      PrimitiveCompareOp op,
       Register* dst,
+      PrimitiveCompareOp op,
       Register* left,
       Register* right)
       : InstrT(dst, left, right), op_(op) {}
@@ -2399,7 +2399,7 @@ class INSTR_CLASS(LoadGlobal, HasOutput, Operands<0>, DeoptBase) {
 // intersection of the given Type and the input's Type.
 class INSTR_CLASS(RefineType, HasOutput, Operands<1>) {
  public:
-  RefineType(Type type, Register* dst, Register* src)
+  RefineType(Register* dst, Type type, Register* src)
       : InstrT(dst, src), type_(type) {}
 
   Type type() const {
@@ -2856,7 +2856,7 @@ DEFINE_SIMPLE_INSTR(Guard, Operands<1>, DeoptBase);
 // deopts if not.
 class INSTR_CLASS(GuardIs, HasOutput, Operands<1>, DeoptBase) {
  public:
-  GuardIs(PyObject* target, Register* dst, Register* src)
+  GuardIs(Register* dst, PyObject* target, Register* src)
       : InstrT(dst, src), target_(target) {}
 
   PyObject* target() const {

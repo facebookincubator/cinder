@@ -271,33 +271,33 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    instruction = newInstr<BinaryOp>(op, dst, left, right);
+    instruction = newInstr<BinaryOp>(dst, op, left, right);
   } else if (strcmp(opcode, "PrimitiveCompareOp") == 0) {
     expect("<");
     PrimitiveCompareOp op = ParsePrimitiveCompareOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    NEW_INSTR(PrimitiveCompare, op, dst, left, right);
+    NEW_INSTR(PrimitiveCompare, dst, op, left, right);
   } else if (strcmp(opcode, "PrimitiveUnaryOp") == 0) {
     expect("<");
     PrimitiveUnaryOpKind op = ParsePrimitiveUnaryOpName(GetNextToken());
     expect(">");
     auto operand = ParseRegister();
-    NEW_INSTR(PrimitiveUnaryOp, op, dst, operand);
+    NEW_INSTR(PrimitiveUnaryOp, dst, op, operand);
   } else if (strcmp(opcode, "InPlaceOp") == 0) {
     expect("<");
     InPlaceOpKind op = ParseInPlaceOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    instruction = newInstr<InPlaceOp>(op, dst, left, right);
+    instruction = newInstr<InPlaceOp>(dst, op, left, right);
   } else if (strcmp(opcode, "UnaryOp") == 0) {
     expect("<");
     UnaryOpKind op = ParseUnaryOpName(GetNextToken());
     expect(">");
     auto operand = ParseRegister();
-    instruction = newInstr<UnaryOp>(op, dst, operand);
+    instruction = newInstr<UnaryOp>(dst, op, operand);
   } else if (strcmp(opcode, "RaiseAwaitableError") == 0) {
     expect("<");
     auto tok = GetNextToken();

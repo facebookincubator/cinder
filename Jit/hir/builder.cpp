@@ -1524,7 +1524,7 @@ void HIRBuilder::emitBinaryOp(
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   BinaryOpKind op_kind = get_bin_op_kind(bc_instr);
-  tc.emit<BinaryOp>(op_kind, result, left, right, tc.frame);
+  tc.emit<BinaryOp>(result, op_kind, left, right, tc.frame);
   stack.push(result);
 }
 
@@ -1586,7 +1586,7 @@ void HIRBuilder::emitInPlaceOp(
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   InPlaceOpKind op_kind = get_inplace_op_kind(bc_instr);
-  tc.emit<InPlaceOp>(op_kind, result, left, right, tc.frame);
+  tc.emit<InPlaceOp>(result, op_kind, left, right, tc.frame);
   stack.push(result);
 }
 
@@ -1618,7 +1618,7 @@ void HIRBuilder::emitUnaryOp(
   Register* operand = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
   UnaryOpKind op_kind = get_unary_op_kind(bc_instr);
-  tc.emit<UnaryOp>(op_kind, result, operand, tc.frame);
+  tc.emit<UnaryOp>(result, op_kind, operand, tc.frame);
   tc.frame.stack.push(result);
 }
 
@@ -1718,7 +1718,7 @@ void HIRBuilder::emitLoadIterableArg(
   tc.emit<LoadConst>(tmp, Type::fromCInt(bc_instr.oparg(), TCInt64));
   tc.emitChecked<PrimitiveBox>(tup_idx, tmp, true);
   tc.emit<BinaryOp>(
-      BinaryOpKind::kSubscript, element, tuple, tup_idx, tc.frame);
+      element, BinaryOpKind::kSubscript, tuple, tup_idx, tc.frame);
   tc.frame.stack.push(element);
   tc.frame.stack.push(tuple);
 }
@@ -1928,7 +1928,7 @@ void HIRBuilder::emitCompareOp(
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   CompareOp op = static_cast<CompareOp>(bc_instr.oparg());
-  tc.emit<Compare>(op, result, left, right, tc.frame);
+  tc.emit<Compare>(result, op, left, right, tc.frame);
   stack.push(result);
 }
 
@@ -2298,9 +2298,9 @@ void HIRBuilder::emitPrimitiveBinaryOp(
   BinaryOpKind op_kind = get_primitive_bin_op_kind(bc_instr);
 
   if (is_double_binop(bc_instr.oparg())) {
-    tc.emit<DoubleBinaryOp>(op_kind, result, left, right);
+    tc.emit<DoubleBinaryOp>(result, op_kind, left, right);
   } else {
-    tc.emit<IntBinaryOp>(op_kind, result, left, right);
+    tc.emit<IntBinaryOp>(result, op_kind, left, right);
   }
 
   stack.push(result);
@@ -2355,7 +2355,7 @@ void HIRBuilder::emitPrimitiveCompare(
       JIT_CHECK(false, "unsupported comparison");
       break;
   }
-  tc.emit<PrimitiveCompare>(op, result, left, right);
+  tc.emit<PrimitiveCompare>(result, op, left, right);
   stack.push(result);
 }
 
@@ -2376,7 +2376,7 @@ void HIRBuilder::emitPrimitiveUnaryOp(
       JIT_CHECK(false, "unsupported unary op");
       break;
   }
-  tc.emit<PrimitiveUnaryOp>(op, result, value);
+  tc.emit<PrimitiveUnaryOp>(result, op, value);
   tc.frame.stack.push(result);
 }
 
@@ -2448,7 +2448,7 @@ void HIRBuilder::emitRefineType(
     type |= TNoneType;
   }
   Register* dst = tc.frame.stack.top();
-  tc.emit<RefineType>(type, dst, dst);
+  tc.emit<RefineType>(dst, type, dst);
 }
 
 void HIRBuilder::emitSequenceGet(
@@ -2461,8 +2461,8 @@ void HIRBuilder::emitSequenceGet(
   if (oparg == SEQ_LIST_INEXACT) {
     auto type = temps_.AllocateStack();
     tc.emit<LoadField>(type, sequence, offsetof(PyObject, ob_type), TType);
-    tc.emit<GuardIs>((PyObject*)&PyList_Type, type, type);
-    tc.emit<RefineType>(TListExact, sequence, sequence);
+    tc.emit<GuardIs>(type, (PyObject*)&PyList_Type, type);
+    tc.emit<RefineType>(sequence, TListExact, sequence);
   }
 
   Register* adjusted_idx;
@@ -2566,8 +2566,8 @@ void HIRBuilder::emitSequenceSet(
   if (oparg == SEQ_LIST_INEXACT) {
     auto type = temps_.AllocateStack();
     tc.emit<LoadField>(type, sequence, offsetof(PyObject, ob_type), TType);
-    tc.emit<GuardIs>((PyObject*)&PyList_Type, type, type);
-    tc.emit<RefineType>(TListExact, sequence, sequence);
+    tc.emit<GuardIs>(type, (PyObject*)&PyList_Type, type);
+    tc.emit<RefineType>(sequence, TListExact, sequence);
   }
   tc.emit<CheckSequenceBounds>(adjusted_idx, sequence, idx, tc.frame);
   auto ob_item = temps_.AllocateStack();
@@ -2604,7 +2604,7 @@ void HIRBuilder::emitLoadGlobal(
       return false;
     }
     tc.emit<LoadGlobalCached>(result, name_idx);
-    auto guard_is = tc.emit<GuardIs>(value, result, result);
+    auto guard_is = tc.emit<GuardIs>(result, value, result);
     BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
     guard_is->setDescr(fmt::format("LOAD_GLOBAL: {}", PyUnicode_AsUTF8(name)));
     return true;
@@ -3015,7 +3015,7 @@ void HIRBuilder::emitUnpackSequence(
   tc.emit<LoadVarObjectSize>(seq_size, seq);
   tc.emit<LoadConst>(target_size, Type::fromCInt(bc_instr.oparg(), TCInt64));
   tc.emit<PrimitiveCompare>(
-      PrimitiveCompareOp::kEqual, is_equal, seq_size, target_size);
+      is_equal, PrimitiveCompareOp::kEqual, seq_size, target_size);
   fast_path = cfg.AllocateBlock();
   tc.emit<CondBranch>(is_equal, fast_path, deopt_path.block);
   tc.block = fast_path;

@@ -54,9 +54,9 @@ Instr* DynamicComparisonElimination::ReplaceCompare(
   // For other comparisons we can use ComapreBool.
   if (compare->op() == CompareOp::kIs || compare->op() == CompareOp::kIsNot) {
     return PrimitiveCompare::create(
+        truthy->GetOutput(),
         (compare->op() == CompareOp::kIs) ? PrimitiveCompareOp::kEqual
                                           : PrimitiveCompareOp::kNotEqual,
-        truthy->GetOutput(),
         compare->GetOperand(0),
         compare->GetOperand(1));
   }
@@ -148,7 +148,7 @@ Instr* DynamicComparisonElimination::ReplaceVectorCall(
         LoadField::create(obj_type, obj_op, offsetof(PyObject, ob_type), TType);
 
     auto compare_type = PrimitiveCompare::create(
-        PrimitiveCompareOp::kEqual, fast_eq, obj_type, type_op);
+        fast_eq, PrimitiveCompareOp::kEqual, obj_type, type_op);
 
     load_type->copyBytecodeOffset(*vectorcall);
     load_type->InsertBefore(*truthy);
@@ -296,9 +296,9 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
       }
       auto cbool = irfunc.env.AllocateRegister();
       auto primitive_compare = PrimitiveCompare::create(
+          cbool,
           compare->op() == CompareOp::kIs ? PrimitiveCompareOp::kEqual
                                           : PrimitiveCompareOp::kNotEqual,
-          cbool,
           compare->left(),
           compare->right());
       auto box = PrimitiveBox::create(compare->dst(), cbool, TYPED_BOOL);
@@ -473,7 +473,7 @@ BasicBlock* LoadAttrSpecialization::specializeForType(
   block->appendWithOff<LoadTypeAttrCacheItem>(bc_off, guard, cache_id, 0);
   auto cond1 = env.AllocateRegister();
   block->appendWithOff<Compare>(
-      bc_off, CompareOp::kIs, cond1, guard, receiver, FrameState{});
+      bc_off, cond1, CompareOp::kIs, guard, receiver, FrameState{});
   auto cond2 = env.AllocateRegister();
   // TODO(bsimmers): Get rid of this once we have a type checker for HIR.
   cond2->set_type(TCInt32);
