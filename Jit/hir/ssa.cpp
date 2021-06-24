@@ -471,7 +471,22 @@ Type outputType(const Instr& instr) {
 
     case Opcode::kPrimitiveBox: {
       auto& pb = static_cast<const PrimitiveBox&>(instr);
-      return pb.value()->type() <= TCDouble ? TOptFloatExact : TOptLongExact;
+      if (pb.value()->type() <= TCDouble) {
+        return TOptFloatExact;
+      }
+      if (pb.value()->type() <= (TCUnsigned | TCSigned | TNullptr)) {
+        // Special Nullptr case for an uninitialized variable; load zero.
+        return TOptLongExact;
+      }
+      if (pb.value()->type() <= TCBool) {
+        // JITRT_BoxBool cannot fail since it returns one of two globals and
+        // does not allocate.
+        return TBool;
+      }
+      JIT_CHECK(
+          false,
+          "only primitive numeric types should be boxed. got %s",
+          pb.value()->type());
     }
 
     case Opcode::kPrimitiveUnbox: {

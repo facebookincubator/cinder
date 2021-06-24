@@ -1019,7 +1019,10 @@ PyObject* JITRT_BoxU32(uint32_t i) {
 }
 
 PyObject* JITRT_BoxBool(uint32_t i) {
-  return PyBool_FromLong(i);
+  if (i) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
 }
 
 PyObject* JITRT_BoxI64(int64_t i) {

@@ -52,6 +52,36 @@ fun jittestmodule:test {
   }
 }
 ---
+IsBecomesComparisonOutsideIf
+---
+def test(x, y):
+  return x is y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "x">
+    v4:Object = LoadArg<1; "y">
+    v8:CBool = PrimitiveCompare<Equal> v3 v4
+    v7:Bool = PrimitiveBox<false> v8
+    Return v7
+  }
+}
+---
+IsNotBecomesComparisonOutsideIf
+---
+def test(x, y):
+  return x is not y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "x">
+    v4:Object = LoadArg<1; "y">
+    v8:CBool = PrimitiveCompare<NotEqual> v3 v4
+    v7:Bool = PrimitiveBox<false> v8
+    Return v7
+  }
+}
+---
 IsInstanceFastpath
 ---
 def test(x):

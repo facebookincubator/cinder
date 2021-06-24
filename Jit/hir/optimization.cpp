@@ -187,6 +187,7 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
   liveness.Run();
   auto last_uses = liveness.GetLastUses();
 
+  // Optimize "if x is y" case
   for (auto& block : irfunc.cfg.blocks) {
     auto& instr = block.back();
 
@@ -276,6 +277,35 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
         snapshot->unlink();
         delete snapshot;
       }
+    }
+  }
+
+  // Optimize the more general case of "x is y" used outside "if"
+  for (auto& block : irfunc.cfg.blocks) {
+    for (auto it = block.begin(); it != block.end();) {
+      auto& instr = *it;
+      ++it;
+
+      if (!instr.IsCompare()) {
+        continue;
+      }
+      auto compare = static_cast<Compare*>(&instr);
+      if (compare->op() != CompareOp::kIs &&
+          compare->op() != CompareOp::kIsNot) {
+        continue;
+      }
+      auto cbool = irfunc.env.AllocateRegister();
+      auto primitive_compare = PrimitiveCompare::create(
+          compare->op() == CompareOp::kIs ? PrimitiveCompareOp::kEqual
+                                          : PrimitiveCompareOp::kNotEqual,
+          cbool,
+          compare->left(),
+          compare->right());
+      auto box = PrimitiveBox::create(compare->dst(), cbool, TYPED_BOOL);
+      primitive_compare->copyBytecodeOffset(instr);
+      box->copyBytecodeOffset(instr);
+      compare->ExpandInto({primitive_compare, box});
+      delete compare;
     }
   }
 
