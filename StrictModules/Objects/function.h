@@ -13,6 +13,8 @@ class ModuleLoader;
 
 namespace strictmod::objects {
 
+class StrictFuncType;
+
 class FunctionReturnException {
  public:
   FunctionReturnException(std::shared_ptr<BaseStrictObject> val);
@@ -29,6 +31,7 @@ class YieldReachedException {};
 
 class StrictFunction : public StrictInstance {
  public:
+  friend class StrictFuncType;
   StrictFunction(
       std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
@@ -49,6 +52,7 @@ class StrictFunction : public StrictInstance {
       compiler::ModuleLoader* loader,
       std::string fileName,
       std::string modName,
+      std::optional<std::string> doc,
       std::shared_ptr<BaseStrictObject> annotations,
       bool useFutureAnnotations = true,
       bool isCoroutine = false);
@@ -120,8 +124,6 @@ class StrictFunction : public StrictInstance {
       std::shared_ptr<StrictType> type,
       const CallerContext& caller);
 
-  // TODO code object
-
  private:
   std::string funcName_;
   std::string qualName_;
@@ -143,7 +145,10 @@ class StrictFunction : public StrictInstance {
 
   compiler::ModuleLoader* loader_;
   std::string fileName_;
-  std::string modName_;
+  std::string modName_; // metadata used by sub analyzer to decide things like
+                        // import path
+  std::optional<std::string> doc_; // the __doc__ field
+  std::optional<std::string> modNameField_; // the __module__ field
 
   std::shared_ptr<BaseStrictObject> annotations_;
 

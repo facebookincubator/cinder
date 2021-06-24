@@ -24,6 +24,9 @@ static std::shared_ptr<StrictType> kTypeType(
 static std::shared_ptr<StrictType> kModuleType(
     new StrictModuleType("module", nullptr, {kObjectType}, kTypeType));
 
+static std::shared_ptr<StrictType> kStrType(
+    new StrictStringType("str", nullptr, {kObjectType}, kTypeType));
+
 static std::shared_ptr<StrictType> kBuiltinFunctionOrMethodType(
     new StrictBuiltinFunctionOrMethodType(
         "builtin_function_or_method",
@@ -33,6 +36,12 @@ static std::shared_ptr<StrictType> kBuiltinFunctionOrMethodType(
 
 static std::shared_ptr<StrictType> kMethodDescrType(new StrictMethodDescrType(
     "method_descriptor",
+    nullptr,
+    {kObjectType},
+    kTypeType));
+
+static std::shared_ptr<StrictType> kClassMethodType(new StrictClassMethodType(
+    "classmethod",
     nullptr,
     {kObjectType},
     kTypeType));
@@ -57,31 +66,33 @@ bool bootstrapBuiltins() {
     kTypeType->setType(kTypeType);
     kObjectType->setType(kTypeType);
 
+    auto builtinModuleName = std::make_shared<StrictString>(
+        kStrType, kBuiltinsModule, kBuiltinsModule->getModuleName());
+
     kObjectType->setCreator(kBuiltinsModule);
-    kObjectType->setModuleName(kBuiltinsModule->getModuleName());
 
     kTypeType->setCreator(kBuiltinsModule);
-    kTypeType->setModuleName(kBuiltinsModule->getModuleName());
 
     kModuleType->setCreator(kBuiltinsModule);
-    kModuleType->setModuleName(kBuiltinsModule->getModuleName());
 
     kBuiltinFunctionOrMethodType->setCreator(kBuiltinsModule);
-    kBuiltinFunctionOrMethodType->setModuleName(
-        kBuiltinsModule->getModuleName());
 
     kMethodDescrType->setCreator(kBuiltinsModule);
-    kMethodDescrType->setModuleName(kBuiltinsModule->getModuleName());
+
+    kClassMethodType->setCreator(kBuiltinsModule);
 
     kGetSetDescriptorType->setCreator(kBuiltinsModule);
-    kGetSetDescriptorType->setModuleName(kBuiltinsModule->getModuleName());
+
+    kStrType->setCreator(kBuiltinsModule);
 
     kTypeType->addMethods();
     kObjectType->addMethods();
     kModuleType->addMethods();
     kBuiltinFunctionOrMethodType->addMethods();
     kMethodDescrType->addMethods();
+    kClassMethodType->addMethods();
     kGetSetDescriptorType->addMethods();
+    kStrType->addMethods();
   }
   return initialized;
 }
@@ -114,9 +125,19 @@ std::shared_ptr<StrictType> MethodDescrType() {
   return kMethodDescrType;
 }
 
+std::shared_ptr<StrictType> ClassMethodType() {
+  [[maybe_unused]] static bool init = bootstrapBuiltins();
+  return kClassMethodType;
+}
+
 std::shared_ptr<StrictType> GetSetDescriptorType() {
   [[maybe_unused]] static bool init = bootstrapBuiltins();
   return kGetSetDescriptorType;
+}
+
+std::shared_ptr<StrictType> StrType() {
+  [[maybe_unused]] static bool init = bootstrapBuiltins();
+  return kStrType;
 }
 
 TObjectPtrVec objectTypeVec() {
@@ -139,12 +160,6 @@ std::shared_ptr<StrictType> CodeObjectType() {
 std::shared_ptr<StrictType> MethodType() {
   static std::shared_ptr<StrictType> t = makeType<StrictMethodType>(
       "method", kBuiltinsModule, objectTypeVec(), TypeType());
-  return t;
-}
-
-std::shared_ptr<StrictType> ClassMethodType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictClassMethodType>(
-      "classmethod", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 
@@ -223,12 +238,6 @@ std::shared_ptr<StrictType> SliceType() {
 std::shared_ptr<StrictType> RangeType() {
   static std::shared_ptr<StrictType> t = makeType<StrictRangeType>(
       "range", kBuiltinsModule, objectTypeVec(), TypeType());
-  return t;
-}
-
-std::shared_ptr<StrictType> StrType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictStringType>(
-      "str", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 

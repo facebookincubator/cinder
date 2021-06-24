@@ -4,6 +4,7 @@
 #include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
+
 namespace strictmod::objects {
 std::shared_ptr<BaseStrictObject> StrictTypeType::loadAttr(
     std::shared_ptr<BaseStrictObject> obj,
@@ -42,6 +43,7 @@ void StrictTypeType::storeAttr(
   if (descr && descr->getTypeRef().isDataDescr(caller)) {
     // data descr found on metatype
     iSetDescr(std::move(descr), std::move(obj), std::move(value), caller);
+    return;
   }
 
   std::shared_ptr<StrictType> typ = std::dynamic_pointer_cast<StrictType>(obj);
@@ -80,6 +82,14 @@ void StrictTypeType::addMethods() {
   addGetSetDescriptor(kDunderDict, getDunderDictAllowed, nullptr, nullptr);
   addGetSetDescriptor(
       "__bases__", StrictType::type__bases__Getter, nullptr, nullptr);
+  addGetSetDescriptor(
+      "__module__",
+      StrictType::type__module__Getter,
+      StrictType::type__module__Setter,
+      nullptr);
+  addGetSetDescriptor(
+      "__mro__", StrictType::type__mro__Getter, nullptr, nullptr);
+  addStringMemberDescriptor<StrictType, &StrictType::name_>("__name__");
 }
 
 std::vector<std::type_index> StrictTypeType::getBaseTypeinfos() const {

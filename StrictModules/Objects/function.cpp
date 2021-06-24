@@ -30,6 +30,7 @@ StrictFunction::StrictFunction(
     compiler::ModuleLoader* loader,
     std::string fileName,
     std::string modName,
+    std::optional<std::string> doc,
     std::shared_ptr<BaseStrictObject> annotations,
     bool useFutureAnnotations,
     bool isCoroutine)
@@ -50,7 +51,9 @@ StrictFunction::StrictFunction(
       kwDefaults_(std::move(kwDefaults)),
       loader_(loader),
       fileName_(std::move(fileName)),
-      modName_(std::move(modName)),
+      modName_(modName),
+      doc_(std::move(doc)),
+      modNameField_(std::move(modName)),
       annotations_(std::move(annotations)),
       useFutureAnnotations_(useFutureAnnotations),
       isCoroutine_(isCoroutine),
@@ -333,6 +336,14 @@ void StrictFuncType::addMethods() {
       nullptr);
   addGetSetDescriptor(
       "__code__", StrictFunction::function__code__getter, nullptr, nullptr);
+  addStringMemberDescriptor<StrictFunction, &StrictFunction::funcName_>(
+      "__name__");
+  addStringMemberDescriptor<StrictFunction, &StrictFunction::qualName_>(
+      "__qualname__");
+  addStringOptionalMemberDescriptor<
+      StrictFunction,
+      &StrictFunction::modNameField_>("__module__");
+  addStringOptionalMemberDescriptor<StrictFunction, &StrictFunction::doc_>(
+      "__doc__");
 }
-
 } // namespace strictmod::objects

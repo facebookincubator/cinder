@@ -22,7 +22,6 @@ StrictType::StrictType(
     bool immutable)
     : StrictInstance(metatype, creator),
       name_(std::move(name)),
-      moduleName_(creator ? creator->getModuleName() : ""),
       baseClasses_(std::move(bases)),
       immutable_(immutable),
       mro_(),
@@ -38,10 +37,6 @@ StrictType::StrictType(
     bool immutable)
     : StrictInstance(metatype, creator, std::move(members)),
       name_(std::move(name)),
-      moduleName_(
-          (creator.expired() || creator.lock() == nullptr)
-              ? ""
-              : creator.lock()->getModuleName()),
       baseClasses_(std::move(bases)),
       immutable_(immutable),
       mro_(),
@@ -360,6 +355,14 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
     return true;
   });
 
+  auto dunderModuleIt = members.find("__module__");
+  if (dunderModuleIt == members.end()) {
+    // getting __name__ from creator may not be accurate.
+    // But we probably don't care about __module__ being accurate
+    members["__module__"] =
+        caller.makeStr(caller.caller.lock()->getModuleName());
+  }
+
   auto initSubclassItem = members.find("__init_subclass__");
   if (initSubclassItem != members.end()) {
     // __init_sublcass__ is automatically treated as a class method
@@ -367,7 +370,7 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
         std::dynamic_pointer_cast<StrictFunction>(initSubclassItem->second);
     if (initSubclassFunc != nullptr) {
       auto initSubclassMethod = std::make_shared<StrictClassMethod>(
-          caller.caller, std::move(initSubclassFunc));
+          ClassMethodType(), caller.caller, std::move(initSubclassFunc));
       initSubclassItem->second = std::move(initSubclassMethod);
     }
   }
@@ -527,6 +530,35 @@ std::shared_ptr<BaseStrictObject> StrictType::type__bases__Getter(
         TupleType(), cls->creator_, cls->baseClasses_);
   }
   return cls->basesObj_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictType::type__module__Getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  auto cls = assertStaticCast<StrictType>(std::move(inst));
+  auto mod = cls->getAttr("__module__");
+  if (mod) {
+    return mod;
+  }
+  return caller.makeStr("builtins");
+}
+
+void StrictType::type__module__Setter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  checkExternalModification(inst, caller);
+  auto cls = assertStaticCast<StrictType>(std::move(inst));
+  cls->setAttr("__module__", std::move(value));
+}
+
+std::shared_ptr<BaseStrictObject> StrictType::type__mro__Getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  auto cls = assertStaticCast<StrictType>(std::move(inst));
+  return StrictType::typeMro(std::move(cls), caller);
 }
 
 } // namespace strictmod::objects

@@ -3,6 +3,7 @@
 #define __STRICTM_PROPERTY_H__
 
 #include "StrictModules/Objects/object_type.h"
+#include "StrictModules/Objects/string_object.h"
 namespace strictmod::objects {
 class StrictProperty : public StrictInstance {
  public:

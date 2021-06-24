@@ -158,6 +158,8 @@ class StrictMethodType : public StrictObjectType {
       std::shared_ptr<StrictType> metatype,
       bool isImmutable) override;
 
+  virtual void addMethods() override;
+
   virtual bool isCallable(const CallerContext& caller) override;
 
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
@@ -167,6 +169,7 @@ class StrictMethodType : public StrictObjectType {
 class StrictClassMethod : public StrictInstance {
  public:
   StrictClassMethod(
+      std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
       std::shared_ptr<BaseStrictObject> func);
 
@@ -220,6 +223,7 @@ class StrictClassMethodType : public StrictObjectType {
 class StrictStaticMethod : public StrictInstance {
  public:
   StrictStaticMethod(
+      std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
       std::shared_ptr<BaseStrictObject> func);
 
@@ -286,6 +290,18 @@ void StrictType::addMethod(const std::string& name, T func) {
   auto method = std::make_shared<StrictMethodDescr>(
       creator_, CallableWrapper(func, name), nullptr, name);
   setAttr(name, method);
+}
+
+extern std::shared_ptr<StrictType> ClassMethodType();
+
+template <typename T>
+void StrictType::addClassMethod(const std::string& name, T func) {
+  auto method = std::make_shared<StrictMethodDescr>(
+      creator_, CallableWrapper(func, name), nullptr, name);
+  setAttr(
+      name,
+      std::make_shared<StrictClassMethod>(
+          ClassMethodType(), creator_, std::move(method)));
 }
 
 template <typename T>

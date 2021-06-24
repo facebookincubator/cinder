@@ -205,12 +205,26 @@ bool StrictMethodType::isCallable(const CallerContext&) {
   return true;
 }
 
+template <typename T>
+std::shared_ptr<BaseStrictObject> method__func__Getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext&) {
+  return (assertStaticCast<T>(std::move(inst))->getFunc());
+}
+
+void StrictMethodType::addMethods() {
+  addGetSetDescriptor(
+      "__func__", method__func__Getter<StrictMethod>, nullptr, nullptr);
+}
+
 // class (user) Method
 
 StrictClassMethod::StrictClassMethod(
+    std::shared_ptr<StrictType> type,
     std::weak_ptr<StrictModuleObject> creator,
     std::shared_ptr<BaseStrictObject> func)
-    : StrictInstance(ClassMethodType(), std::move(creator)),
+    : StrictInstance(std::move(type), std::move(creator)),
       func_(std::move(func)) {}
 
 std::shared_ptr<BaseStrictObject> StrictClassMethod::classmethod__init__(
@@ -244,7 +258,10 @@ std::shared_ptr<BaseStrictObject> StrictClassMethodType::getDescr(
 
 std::unique_ptr<BaseStrictObject> StrictClassMethodType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
-  return std::make_unique<StrictClassMethod>(caller, nullptr);
+  return std::make_unique<StrictClassMethod>(
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      caller,
+      nullptr);
 }
 
 std::shared_ptr<StrictType> StrictClassMethodType::recreate(
@@ -272,14 +289,17 @@ std::vector<std::type_index> StrictClassMethodType::getBaseTypeinfos() const {
 void StrictClassMethodType::addMethods() {
   addMethod(kDunderInit, StrictClassMethod::classmethod__init__);
   addMethod("__get__", StrictClassMethod::classmethod__get__);
+  addGetSetDescriptor(
+      "__func__", method__func__Getter<StrictClassMethod>, nullptr, nullptr);
 }
 
 // static (user) Method
 
 StrictStaticMethod::StrictStaticMethod(
+    std::shared_ptr<StrictType> type,
     std::weak_ptr<StrictModuleObject> creator,
     std::shared_ptr<BaseStrictObject> func)
-    : StrictInstance(StaticMethodType(), std::move(creator)),
+    : StrictInstance(std::move(type), std::move(creator)),
       func_(std::move(func)) {}
 
 std::shared_ptr<BaseStrictObject> StrictStaticMethod::staticmethod__init__(
@@ -312,7 +332,10 @@ std::shared_ptr<BaseStrictObject> StrictStaticMethodType::getDescr(
 
 std::unique_ptr<BaseStrictObject> StrictStaticMethodType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
-  return std::make_unique<StrictStaticMethod>(caller, nullptr);
+  return std::make_unique<StrictStaticMethod>(
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      caller,
+      nullptr);
 }
 
 std::shared_ptr<StrictType> StrictStaticMethodType::recreate(
@@ -340,5 +363,7 @@ std::vector<std::type_index> StrictStaticMethodType::getBaseTypeinfos() const {
 void StrictStaticMethodType::addMethods() {
   addMethod(kDunderInit, StrictStaticMethod::staticmethod__init__);
   addMethod("__get__", StrictStaticMethod::staticmethod__get__);
+  addGetSetDescriptor(
+      "__func__", method__func__Getter<StrictStaticMethod>, nullptr, nullptr);
 }
 } // namespace strictmod::objects

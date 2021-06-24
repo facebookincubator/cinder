@@ -455,7 +455,7 @@ void StrictObjectType::addMethods() {
   addMethod("__format__", object__format__);
   addMethod(kDunderRepr, object__repr__);
   addMethod("__hash__", object__hash__);
-  addMethod("__hash__", object__init_subclass__);
+  addClassMethod("__init_subclass__", object__init_subclass__);
   addGetSetDescriptor(kDunderClass, getDunderClass, nullptr, nullptr);
   addGetSetDescriptor(kDunderDict, getDunderDictDisallowed, nullptr, nullptr);
 }

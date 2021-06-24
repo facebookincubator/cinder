@@ -191,8 +191,9 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
         nullptr,
         [](const std::string&, const std::string&) { return true; },
         [] { return std::make_unique<strictmod::CollectingErrorSink>(); });
+    const char* modname = "<string>";
     strictmod::compiler::AnalyzedModule* mod =
-        loader->loadModuleFromSource(source_, "<string>", "<string>", {});
+        loader->loadModuleFromSource(source_, modname, modname, {});
     // analysis side
     ASSERT_NE(mod, nullptr);
     auto modValue = mod->getModuleValue();
@@ -200,7 +201,12 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     // python side
     PyObject* global = PyDict_New();
     ASSERT_NE(global, nullptr);
-    auto v = PyRun_String(source_.c_str(), Py_file_input, global, global);
+    PyObject* modNameObj = PyUnicode_FromString(modname);
+    PyDict_SetItemString(global, "__name__", modNameObj);
+    Py_XDECREF(modNameObj);
+    PyObject* code =
+        Py_CompileString(source_.c_str(), modname, Py_file_input);
+    auto v = PyEval_EvalCode(code, global, global);
     if (varNames_.empty()) {
       // Only care about errors. In this case we allow python code
       // to throw
@@ -216,10 +222,15 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
       ASSERT_NE(pyValue, nullptr);
       auto strictPyValue = value->getPyObject();
       ASSERT_NE(strictPyValue, nullptr);
+      auto repr = PyObject_Repr(pyValue);
       EXPECT_TRUE(PyObject_RichCompareBool(pyValue, strictPyValue.get(), Py_EQ))
-          << value->getDisplayName();
+          << value->getDisplayName() << " : "
+          << PyUnicode_AsUTF8(repr);
+      Py_XDECREF(repr);
     }
     Py_DECREF(global);
+    Py_XDECREF(code);
+    Py_XDECREF(v);
 
     auto& errors = mod->getErrorSink().getErrors();
     ASSERT_EQ(errors.size(), exceptions_.size());

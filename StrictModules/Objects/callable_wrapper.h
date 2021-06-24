@@ -440,6 +440,95 @@ class PythonWrappedCallableDefaultByName {
   }
 };
 
+template <typename T, std::string T::*mp>
+std::shared_ptr<BaseStrictObject> stringMemberGetFunc(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  return caller.makeStr(static_cast<T*>(inst.get())->*mp);
+}
+
+template <typename T, std::string T::*mp>
+void stringMemberSetFunc(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  auto strValue = std::dynamic_pointer_cast<StrictString>(value);
+  if (!strValue) {
+    caller.raiseTypeError(
+        "string member of {} object can only be set to string",
+        inst->getTypeRef().getName());
+  }
+  static_cast<T*>(inst.get())->*mp = strValue->getValue();
+}
+
+template <typename T, std::string T::*mp>
+void stringMemberDelFunc(
+    std::shared_ptr<BaseStrictObject> inst,
+    const CallerContext& caller) {
+  caller.raiseTypeError(
+      "string member of {} object can only be set to string",
+      inst->getTypeRef().getName());
+}
+
+template <typename T, std::optional<std::string> T::*mp>
+std::shared_ptr<BaseStrictObject> stringOptionalMemberGetFunc(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  auto optStr = static_cast<T*>(inst.get())->*mp;
+  if (optStr) {
+    return caller.makeStr(*optStr);
+  }
+  return NoneObject();
+}
+
+template <typename T, std::optional<std::string> T::*mp>
+void stringOptionalMemberSetFunc(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> value,
+    const CallerContext& caller) {
+  if (value == nullptr || value == NoneObject()) {
+    static_cast<T*>(inst.get())->*mp = std::nullopt;
+  }
+  auto strValue = std::dynamic_pointer_cast<StrictString>(value);
+  if (!strValue) {
+    caller.raiseTypeError(
+        "string member of {} object can only be set to string or None",
+        inst->getTypeRef().getName());
+  }
+  static_cast<T*>(inst.get())->*mp = strValue->getValue();
+}
+
+template <typename T, std::optional<std::string> T::*mp>
+void stringOptionalMemberDelFunc(
+    std::shared_ptr<BaseStrictObject> inst,
+    const CallerContext&) {
+  static_cast<T*>(inst.get())->*mp = std::nullopt;
+}
+
+template <typename T, std::string T::*mp>
+void StrictType::addStringMemberDescriptor(const std::string& name) {
+  auto descr = std::make_shared<StrictGetSetDescriptor>(
+      creator_,
+      name,
+      stringMemberGetFunc<T, mp>,
+      stringMemberSetFunc<T, mp>,
+      stringMemberDelFunc<T, mp>);
+  setAttr(name, std::move(descr));
+}
+
+template <typename T, std::optional<std::string> T::*mp>
+void StrictType::addStringOptionalMemberDescriptor(const std::string& name) {
+  auto descr = std::make_shared<StrictGetSetDescriptor>(
+      creator_,
+      name,
+      stringOptionalMemberGetFunc<T, mp>,
+      stringOptionalMemberSetFunc<T, mp>,
+      stringOptionalMemberDelFunc<T, mp>);
+  setAttr(name, std::move(descr));
+}
+
 } // namespace strictmod::objects
 
 #endif // __STRICTM_CALLABLE_WRAPPER_H__

@@ -513,6 +513,7 @@ AnalysisResult Analyzer::visitFunctionDefHelper(
       loader_,
       context_.filename,
       modName_,
+      std::nullopt,
       std::move(annotationsObj),
       futureAnnotations_,
       isAsync));

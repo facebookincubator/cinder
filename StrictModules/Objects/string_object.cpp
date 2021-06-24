@@ -319,7 +319,9 @@ std::unique_ptr<BaseStrictObject> StrictBytesType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
   Ref<> s = Ref<>::steal(PyBytes_FromString(""));
   return std::make_unique<StrictBytes>(
-      BytesType(), std::move(caller), std::move(s));
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      std::move(caller),
+      std::move(s));
 }
 
 std::shared_ptr<StrictType> StrictBytesType::recreate(
@@ -402,7 +404,9 @@ std::unique_ptr<BaseStrictObject> StrictByteArrayType::constructInstance(
     std::weak_ptr<StrictModuleObject> caller) {
   Ref<> s = Ref<>::steal(PyByteArray_FromStringAndSize("", 0));
   return std::make_unique<StrictByteArray>(
-      ByteArrayType(), std::move(caller), std::move(s));
+      std::static_pointer_cast<StrictType>(shared_from_this()),
+      std::move(caller),
+      std::move(s));
 }
 
 std::shared_ptr<StrictType> StrictByteArrayType::recreate(

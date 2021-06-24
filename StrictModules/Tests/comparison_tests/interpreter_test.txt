@@ -251,12 +251,12 @@ int.__new__(object)
 ---
 1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_int_new_bad_str @disabled
+test_int_new_bad_str
 ---
 a = int('abc')
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(ValueError)
 ---
 test_complex_int @disabled
 ---
@@ -2747,7 +2747,7 @@ y = d['zed']
 x y
 ---
 ---
-test_class_getitem @disabled
+test_class_getitem
 ---
 class C:
     def __class_getitem__(cls, index):
@@ -2758,7 +2758,7 @@ x, y = C[42]
 x y
 ---
 ---
-test_class_getitem_inheritance @disabled
+test_class_getitem_inheritance
 ---
 class C:
     def __class_getitem__(cls, index):
@@ -2771,7 +2771,7 @@ x, y = D[42]
 x y
 ---
 ---
-test_class_getitem_mc @disabled
+test_class_getitem_mc
 ---
 class MC(type):
     def __getitem__(self, index):
@@ -3033,7 +3033,7 @@ d = C.__dict__
 ---
 3 0 StrictModuleUnhandledException(AttributeError)
 ---
-test_type_mro @disabled
+test_type_mro
 ---
 x = int.__mro__[0]
 ---
@@ -3534,7 +3534,7 @@ w = j(2, f=3)
 x y z w
 ---
 ---
-test_function_member_get @disabled
+test_function_member_get
 ---
 def f(x):
     "something"
@@ -3544,10 +3544,10 @@ b = f.__qualname__
 c = f.__module__
 d = f.__doc__
 ---
-a b c d
+a b c
 ---
 ---
-test_function_member_set @disabled
+test_function_member_set
 ---
 def f(x):
     "something"
@@ -3564,7 +3564,7 @@ d = f.__doc__
 a b c d
 ---
 ---
-test_function_member_deletion_allowed @disabled
+test_function_member_deletion_allowed
 ---
 def f(x):
     return x
@@ -3580,7 +3580,7 @@ d = f.__doc__
 a b c d
 ---
 ---
-test_function_member_deletion_disallowed @disabled
+test_function_member_deletion_disallowed
 ---
 def f(x):
     return x
@@ -3588,7 +3588,7 @@ def f(x):
 del f.__name__
 ---
 ---
-StrictModuleUnhandledException
+4 0 StrictModuleUnhandledException(TypeError)
 ---
 test_set_init @disabled
 ---
@@ -4742,7 +4742,7 @@ x = inst.f.foo
 x
 ---
 ---
-test_classmethod_subclass @disabled
+test_classmethod_subclass
 ---
 
 class mycls(classmethod):
@@ -4758,7 +4758,7 @@ x = type(D.__dict__['f']).__name__
 x
 ---
 ---
-test_staticmethod_subclass @disabled
+test_staticmethod_subclass
 ---
 
 class mycls(staticmethod):
@@ -5021,11 +5021,12 @@ x.__module__ = "mod1"
 y = x.__module__
 C.__module__ = "mod2"
 z = C.__module__
+w = x.__module__
 ---
-y z
+y z w
 ---
 ---
-test_method_func @disabled
+test_method_func
 ---
 class C:
     def __init__(self, x):
@@ -9568,7 +9569,7 @@ type('foo', (42, ), {})
 ---
 1 0 UnsafeBaseClassException 42
 ---
-test_classmethod_subclass
+test_classmethod_subclass_2
 ---
 class x(classmethod): pass
 ---

@@ -14,8 +14,10 @@
 
 namespace strictmod::objects {
 class StrictIteratorBase;
+class StrictTypeType;
 class StrictType : public StrictInstance {
  public:
+  friend class StrictTypeType;
   StrictType(
       std::string name,
       std::shared_ptr<StrictModuleObject> creator,
@@ -42,11 +44,8 @@ class StrictType : public StrictInstance {
     return name_;
   }
 
-  std::string getModuleName() const {
-    return moduleName_;
-  }
-  void setModuleName(std::string name) {
-    moduleName_ = std::move(name);
+  std::string getCreatorModuleName() const {
+    return creator_.lock()->getModuleName();
   }
 
   bool isImmutable() const {
@@ -213,10 +212,28 @@ class StrictType : public StrictInstance {
       std::shared_ptr<StrictType> type,
       const CallerContext& caller);
 
+  static std::shared_ptr<BaseStrictObject> type__module__Getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller);
+
+  static void type__module__Setter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<BaseStrictObject> value,
+      const CallerContext& caller);
+
+  static std::shared_ptr<BaseStrictObject> type__mro__Getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType> type,
+      const CallerContext& caller);
+
   // helpers to add builtin methods to types
 
   template <typename T>
   void addMethod(const std::string& name, T func);
+
+  template <typename T>
+  void addClassMethod(const std::string& name, T func);
 
   template <typename T>
   void addStaticMethod(const std::string& name, T func);
@@ -264,9 +281,14 @@ class StrictType : public StrictInstance {
       S setter = nullptr,
       D deleter = nullptr);
 
+  template <typename T, std::string T::*mp>
+  void addStringMemberDescriptor(const std::string& name);
+
+  template <typename T, std::optional<std::string> T::*mp>
+  void addStringOptionalMemberDescriptor(const std::string& name);
+
  private:
   std::string name_;
-  std::string moduleName_;
   std::vector<std::shared_ptr<BaseStrictObject>> baseClasses_;
   bool immutable_;
   mutable std::optional<std::vector<std::shared_ptr<const BaseStrictObject>>>
