@@ -1424,6 +1424,86 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(f, "JUMP_IF_ZERO_OR_POP")
             self.assertIs(f(), False)
 
+    def test_double_compare(self):
+        tests = [
+            (1.0, 2.0, "==", False),
+            (1.0, 2.0, "!=", True),
+            (1.0, 2.0, "<", True),
+            (1.0, 2.0, "<=", True),
+            (2.0, 1.0, "<", False),
+            (2.0, 1.0, "<=", False),
+        ]
+        for x, y, op, res in tests:
+            codestr = f"""
+            from __static__ import double, box
+            def testfunc(tst):
+                x: double = {x}
+                y: double = {y}
+                if tst:
+                    x = x + 1
+                    y = y + 2
+
+                if x {op} y:
+                    return True
+                return False
+            """
+            with self.subTest(type=type, x=x, y=y, op=op, res=res):
+                f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+                self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
+
+    def test_double_compare_with_literal(self):
+        codestr = f"""
+        from __static__ import double
+        def testfunc(x: float) -> bool:
+            y = double(x)
+            if y > 3.14:
+                return True
+            return False
+        """
+        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        self.assertTrue(f(4.1))
+        self.assertFalse(f(1.1))
+
+    def test_double_compare_with_integer_literal(self):
+        codestr = f"""
+        from __static__ import double
+        def testfunc(x: float) -> bool:
+            y = double(x)
+            if y > 3:
+                return True
+            return False
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, re.escape("can't compare double to Literal[3]")
+        ):
+            self.compile(codestr, StaticCodeGenerator)
+
+    def test_double_mixed_compare(self):
+        codestr = """
+        from __static__ import double, box, unbox
+        def f(a):
+            x: double = 0
+            while x != a:
+                pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "can't compare double to dynamic"
+        ):
+            self.compile(codestr, StaticCodeGenerator)
+
+    def test_double_mixed_compare_reverse(self):
+        codestr = """
+        from __static__ import double, box, unbox
+        def f(a):
+            x: double = 0
+            while a > x:
+                pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "can't compare double to dynamic"
+        ):
+            self.compile(codestr, StaticCodeGenerator)
+
     def test_disallow_prim_nonprim_union(self):
         codestr = """
             from __static__ import int32

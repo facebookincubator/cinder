@@ -885,8 +885,25 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             JIT_CHECK(false, "not implemented %d", (int)instr->op());
             break;
         }
-        bbb.AppendCode(
-            "{} {} {} {}", op, instr->dst(), instr->left(), instr->right());
+
+        if (instr->left()->type() <= TCDouble ||
+            instr->right()->type() <= TCDouble) {
+          // Manually format the code string, otherwise registers with literal
+          // values end up being treated as immediates, and there's no way to
+          // load immediates in an XMM register.
+          auto codestr = fmt::format(
+              "{} {}, {}:{}, {}:{}",
+              op,
+              instr->dst(),
+              instr->left()->name(),
+              instr->left()->type().unspecialized(),
+              instr->right()->name(),
+              instr->right()->type().unspecialized());
+          bbb.AppendCode(codestr);
+        } else {
+          bbb.AppendCode(
+              "{} {} {} {}", op, instr->dst(), instr->left(), instr->right());
+        }
         break;
       }
       case Opcode::kPrimitiveBox: {

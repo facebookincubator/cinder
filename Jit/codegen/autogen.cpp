@@ -919,6 +919,9 @@ END_RULES
 
 BEGIN_RULES(Instruction::kExchange)
   GEN("Rr", ASM(xchg, OP(0), OP(1)))
+  GEN("Xx", ASM(pxor, OP(0), OP(1)),
+            ASM(pxor, OP(1), OP(0)),
+            ASM(pxor, OP(0), OP(1)))
 END_RULES
 
 BEGIN_RULES(Instruction::kCmp)

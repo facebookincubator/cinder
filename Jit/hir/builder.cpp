@@ -2316,9 +2316,11 @@ void HIRBuilder::emitPrimitiveCompare(
   PrimitiveCompareOp op;
   switch (bc_instr.oparg()) {
     case PRIM_OP_EQ_INT:
+    case PRIM_OP_EQ_DBL:
       op = PrimitiveCompareOp::kEqual;
       break;
     case PRIM_OP_NE_INT:
+    case PRIM_OP_NE_DBL:
       op = PrimitiveCompareOp::kNotEqual;
       break;
     case PRIM_OP_LT_INT:
@@ -2334,15 +2336,19 @@ void HIRBuilder::emitPrimitiveCompare(
       op = PrimitiveCompareOp::kGreaterThanEqual;
       break;
     case PRIM_OP_LT_UN_INT:
+    case PRIM_OP_LT_DBL:
       op = PrimitiveCompareOp::kLessThanUnsigned;
       break;
     case PRIM_OP_LE_UN_INT:
+    case PRIM_OP_LE_DBL:
       op = PrimitiveCompareOp::kLessThanEqualUnsigned;
       break;
     case PRIM_OP_GT_UN_INT:
+    case PRIM_OP_GT_DBL:
       op = PrimitiveCompareOp::kGreaterThanUnsigned;
       break;
     case PRIM_OP_GE_UN_INT:
+    case PRIM_OP_GE_DBL:
       op = PrimitiveCompareOp::kGreaterThanEqualUnsigned;
       break;
     default:

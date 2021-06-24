@@ -129,6 +129,12 @@ _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject *code);
 #define PRIM_OP_LE_UN_INT 7
 #define PRIM_OP_GT_UN_INT 8
 #define PRIM_OP_GE_UN_INT 9
+#define PRIM_OP_EQ_DBL 10
+#define PRIM_OP_NE_DBL 11
+#define PRIM_OP_LT_DBL 12
+#define PRIM_OP_LE_DBL 13
+#define PRIM_OP_GT_DBL 14
+#define PRIM_OP_GE_DBL 15
 
 #define PRIM_OP_NEG_INT 0
 #define PRIM_OP_INV_INT 1

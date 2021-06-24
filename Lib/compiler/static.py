@@ -127,6 +127,12 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     PRIM_OP_LE_UN_INT,
     PRIM_OP_GT_UN_INT,
     PRIM_OP_GE_UN_INT,
+    PRIM_OP_EQ_DBL,
+    PRIM_OP_NE_DBL,
+    PRIM_OP_LT_DBL,
+    PRIM_OP_LE_DBL,
+    PRIM_OP_GT_DBL,
+    PRIM_OP_GE_DBL,
     PRIM_OP_ADD_INT,
     PRIM_OP_SUB_INT,
     PRIM_OP_MUL_INT,
@@ -858,7 +864,7 @@ class Value:
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> bool:
-        raise visitor.syntax_error(f"cannot reverse  with {self.name}", node)
+        raise visitor.syntax_error(f"cannot reverse compare with {self.name}", node)
 
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultEmitCompare(op)
@@ -4886,6 +4892,12 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         ast.Sub: PRIM_OP_SUB_DBL,
         ast.Mult: PRIM_OP_MUL_DBL,
         ast.Div: PRIM_OP_DIV_DBL,
+        ast.Lt: PRIM_OP_LT_DBL,
+        ast.Gt: PRIM_OP_GT_DBL,
+        ast.Eq: PRIM_OP_EQ_DBL,
+        ast.NotEq: PRIM_OP_NE_DBL,
+        ast.LtE: PRIM_OP_LE_DBL,
+        ast.GtE: PRIM_OP_GE_DBL,
     }
 
     def get_op_id(self, op: AST) -> int:
@@ -4901,6 +4913,71 @@ class CDoubleInstance(CInstance["CDoubleType"]):
             code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
         else:
             raise TypedSyntaxError("unsupported op")
+
+    def bind_compare(
+        self,
+        node: ast.Compare,
+        left: expr,
+        op: cmpop,
+        right: expr,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> bool:
+        rtype = visitor.get_type(right)
+        cannot_compare = False
+        if rtype != self:
+            if rtype == FLOAT_EXACT_TYPE.instance:
+                try:
+                    visitor.visit(right, self)
+                except TypedSyntaxError:
+                    cannot_compare = True
+            else:
+                cannot_compare = True
+
+        if cannot_compare:
+            # Report a better error message than the generic can't be used
+            raise visitor.syntax_error(
+                f"can't compare {self.name} to {rtype.name}", node
+            )
+
+        visitor.set_type(op, self, None)
+        visitor.set_type(node, CBOOL_TYPE.instance, type_ctx)
+        return True
+
+    def bind_reverse_compare(
+        self,
+        node: ast.Compare,
+        left: expr,
+        op: cmpop,
+        right: expr,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> bool:
+        ltype = visitor.get_type(left)
+        if ltype != self:
+            cannot_compare = False
+            if ltype == FLOAT_EXACT_TYPE.instance:
+                try:
+                    visitor.visit(left, self)
+                except TypedSyntaxError:
+                    cannot_compare = True
+            else:
+                cannot_compare = True
+
+            if cannot_compare:
+                # Report a better error message than the generic can't be used
+                raise visitor.syntax_error(
+                    f"can't compare {self.name} to {ltype.name}", node
+                )
+
+            visitor.set_type(op, self, None)
+            visitor.set_type(node, CBOOL_TYPE.instance, type_ctx)
+            return True
+
+        return False
+
+    def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("PRIMITIVE_COMPARE_OP", self.get_op_id(op))
 
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]

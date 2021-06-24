@@ -4687,6 +4687,19 @@ main_loop:
         FAST_DISPATCH();                                                      \
     }
 
+#define DBL_CMP_OPCODE(opid, op)                                              \
+    case opid: {                                                              \
+        r = POP();                                                            \
+        l = POP();                                                            \
+        res = ((PyFloat_AS_DOUBLE(l) op PyFloat_AS_DOUBLE(r)) ?               \
+                Py_True : Py_False);                                          \
+        Py_DECREF(r);                                                         \
+        Py_DECREF(l);                                                         \
+        Py_INCREF(res);                                                       \
+        PUSH(res);                                                            \
+        FAST_DISPATCH();                                                      \
+    }
+
         case TARGET(PRIMITIVE_COMPARE_OP): {
             PyObject *l, *r, *res;
             Py_ssize_t sleft, sright;
@@ -4702,7 +4715,12 @@ main_loop:
                 INT_CMP_OPCODE_UNSIGNED(PRIM_OP_GT_UN_INT, >)
                 INT_CMP_OPCODE_UNSIGNED(PRIM_OP_LE_UN_INT, <=)
                 INT_CMP_OPCODE_UNSIGNED(PRIM_OP_GE_UN_INT, >=)
-
+                DBL_CMP_OPCODE(PRIM_OP_EQ_DBL, ==)
+                DBL_CMP_OPCODE(PRIM_OP_NE_DBL, !=)
+                DBL_CMP_OPCODE(PRIM_OP_LT_DBL, <)
+                DBL_CMP_OPCODE(PRIM_OP_GT_DBL, >)
+                DBL_CMP_OPCODE(PRIM_OP_LE_DBL, <=)
+                DBL_CMP_OPCODE(PRIM_OP_GE_DBL, >=)
             }
             PyErr_SetString(PyExc_RuntimeError, "unknown op");
             goto error;
