@@ -43,6 +43,7 @@ def test(a, b):
   LiveValue a_val{
       PhyLocation{PhyLocation::RDI},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
 
   auto b = Ref<>::steal(PyLong_FromLong(20));
@@ -51,6 +52,7 @@ def test(a, b):
   LiveValue b_val{
       PhyLocation{PhyLocation::RSI},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
 
   PyCodeObject* code =
@@ -96,6 +98,7 @@ def test(a, b):
   LiveValue a_val{
       PhyLocation{PhyLocation::RDI},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
 
   auto b = Ref<>::steal(PyLong_FromLong(20));
@@ -104,6 +107,7 @@ def test(a, b):
   LiveValue b_val{
       PhyLocation{PhyLocation::RSI},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
 
   PyCodeObject* code =
@@ -151,13 +155,17 @@ def test(a, b):
   LiveValue a_val{
       PhyLocation{-2 * kPointerSize},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
   mem[0] = reinterpret_cast<uint64_t>(a.get());
 
   auto b = Ref<>::steal(PyLong_FromLong(20));
   ASSERT_NE(b, nullptr);
   LiveValue b_val{
-      PhyLocation{-kPointerSize}, RefKind::kOwned, LiveValue::Source::kUnknown};
+      PhyLocation{-kPointerSize},
+      RefKind::kOwned,
+      ValueKind::kObject,
+      LiveValue::Source::kUnknown};
   mem[1] = reinterpret_cast<uint64_t>(b.get());
 
   PyCodeObject* code =
@@ -208,6 +216,7 @@ def test(num):
   LiveValue num_val{
       PhyLocation{PhyLocation::RDI},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
 
   auto fact = Ref<>::steal(PyLong_FromLong(20));
@@ -216,6 +225,7 @@ def test(num):
   LiveValue fact_val{
       PhyLocation{PhyLocation::RSI},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
 
   auto tmp = Ref<>::steal(PyLong_FromLong(1));
@@ -224,6 +234,7 @@ def test(num):
   LiveValue tmp_val{
       PhyLocation{PhyLocation::RDX},
       RefKind::kOwned,
+      ValueKind::kObject,
       LiveValue::Source::kUnknown};
 
   PyCodeObject* code =
@@ -279,7 +290,8 @@ def test(x, y):
     regs[PhyLocation::RDI] = i;
     LiveValue a_val{
         PhyLocation{PhyLocation::RDI},
-        RefKind::kBool,
+        RefKind::kUncounted,
+        ValueKind::kBool,
         LiveValue::Source::kUnknown};
 
     PyCodeObject* code =
@@ -704,16 +716,15 @@ def test(n):
 
 using DeoptTest = RuntimeTest;
 
-TEST_F(DeoptTest, RefKind) {
-  EXPECT_EQ(deoptRefKind(TCBool, RefKind::kOwned), RefKind::kBool);
+TEST_F(DeoptTest, ValueKind) {
+  EXPECT_EQ(deoptValueKind(TCBool), ValueKind::kBool);
 
-  EXPECT_EQ(deoptRefKind(TCInt8, RefKind::kOwned), RefKind::kSigned);
-  EXPECT_EQ(deoptRefKind(TCInt8 | TNullptr, RefKind::kOwned), RefKind::kSigned);
+  EXPECT_EQ(deoptValueKind(TCInt8), ValueKind::kSigned);
+  EXPECT_EQ(deoptValueKind(TCInt8 | TNullptr), ValueKind::kSigned);
 
-  EXPECT_EQ(deoptRefKind(TCUInt32, RefKind::kOwned), RefKind::kUnsigned);
-  EXPECT_EQ(
-      deoptRefKind(TCUInt32 | TNullptr, RefKind::kOwned), RefKind::kUnsigned);
+  EXPECT_EQ(deoptValueKind(TCUInt32), ValueKind::kUnsigned);
+  EXPECT_EQ(deoptValueKind(TCUInt32 | TNullptr), ValueKind::kUnsigned);
 
-  EXPECT_EQ(deoptRefKind(TLong, RefKind::kBorrowed), RefKind::kBorrowed);
-  EXPECT_EQ(deoptRefKind(TNullptr, RefKind::kUncounted), RefKind::kUncounted);
+  EXPECT_EQ(deoptValueKind(TLong), ValueKind::kObject);
+  EXPECT_EQ(deoptValueKind(TNullptr), ValueKind::kObject);
 }

@@ -14,17 +14,15 @@ namespace jit {
 
 class CodeRuntime;
 
-// Return the RefKind to use for a value with the given Type and lifetime
-// RefKind (kUncounted, kBorrowed, or kOwned).
-//
-// TODO(T82768187): This shouldn't both take and return a RefKind.
-hir::RefKind deoptRefKind(hir::Type type, hir::RefKind lifetime_kind);
+// Return the ValueKind to use for a value with the given Type.
+hir::ValueKind deoptValueKind(hir::Type type);
 
 // LiveValue contains metadata about a live value at a specific point in a
 // JIT-compiled function.
 struct LiveValue {
   jit::codegen::PhyLocation location;
   jit::hir::RefKind ref_kind;
+  jit::hir::ValueKind value_kind;
 
   // The LOAD_METHOD opcode leaves the stack in one of two forms depending
   // on the type of the receiver and the result of the method lookup:

@@ -894,16 +894,16 @@ void fillDeoptLiveRegs(const StateMap& live_regs, Instr& instr) {
 
   for (auto& pair : live_regs) {
     auto& rstate = pair.second;
-    auto kind = rstate.kind();
+    auto ref_kind = rstate.kind();
     for (int i = 0, n = rstate.numCopies(); i < n; ++i) {
       Register* reg = rstate.copy(i);
-      deopt->emplaceLiveReg(reg, deoptRefKind(reg->type(), kind));
-      if (kind == RefKind::kOwned) {
+      deopt->emplaceLiveReg(reg, ref_kind, deoptValueKind(reg->type()));
+      if (ref_kind == RefKind::kOwned) {
         // Treat anything other than the first copy as borrowed, to avoid
         // over-decrefing it. We can probably do better in the future by
         // ensuring that we only ever have one copy of each value in the
         // FrameState/live regs, but that's a more disruptive change.
-        kind = RefKind::kBorrowed;
+        ref_kind = RefKind::kBorrowed;
       }
     }
   }

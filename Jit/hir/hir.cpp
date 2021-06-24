@@ -894,16 +894,24 @@ std::ostream& operator<<(std::ostream& os, RefKind kind) {
       return os << "Borrowed";
     case RefKind::kOwned:
       return os << "Owned";
-    case RefKind::kSigned:
-      return os << "Signed";
-    case RefKind::kUnsigned:
-      return os << "Unsigned";
-    case RefKind::kBool:
-      return os << "Bool";
-    case RefKind::kDouble:
-      return os << "Double";
   }
   JIT_CHECK(false, "Bad RefKind %d", static_cast<int>(kind));
+}
+
+std::ostream& operator<<(std::ostream& os, ValueKind kind) {
+  switch (kind) {
+    case ValueKind::kObject:
+      return os << "Object";
+    case ValueKind::kSigned:
+      return os << "Signed";
+    case ValueKind::kUnsigned:
+      return os << "Unsigned";
+    case ValueKind::kBool:
+      return os << "Bool";
+    case ValueKind::kDouble:
+      return os << "Double";
+  }
+  JIT_CHECK(false, "Bad ValueKind %d", static_cast<int>(kind));
 }
 
 const FrameState* get_frame_state(const Instr& instr) {

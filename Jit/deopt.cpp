@@ -16,13 +16,13 @@ namespace {
 std::unordered_set<std::string> s_descrs;
 } // namespace
 
-hir::RefKind deoptRefKind(hir::Type type, hir::RefKind lifetime_kind) {
+hir::ValueKind deoptValueKind(hir::Type type) {
   if (type <= jit::hir::TCBool) {
-    return jit::hir::RefKind::kBool;
+    return jit::hir::ValueKind::kBool;
   }
 
   if (type <= jit::hir::TCDouble) {
-    return jit::hir::RefKind::kDouble;
+    return jit::hir::ValueKind::kDouble;
   }
 
   // TODO(bsimmers): The type predicates here are gross and indicate a deeper
@@ -33,16 +33,16 @@ hir::RefKind deoptRefKind(hir::Type type, hir::RefKind lifetime_kind) {
   // here for the moment.
   if (type.couldBe(jit::hir::TCUnsigned | jit::hir::TCSigned)) {
     if (type <= (jit::hir::TCUnsigned | jit::hir::TNullptr)) {
-      return jit::hir::RefKind::kUnsigned;
+      return jit::hir::ValueKind::kUnsigned;
     }
     if (type <= (jit::hir::TCSigned | jit::hir::TNullptr)) {
-      return jit::hir::RefKind::kSigned;
+      return jit::hir::ValueKind::kSigned;
     }
   }
 
   JIT_CHECK(
       type <= jit::hir::TOptObject, "Unexpected type %s in deopt value", type);
-  return lifetime_kind;
+  return jit::hir::ValueKind::kObject;
 }
 
 const char* deoptReasonName(DeoptReason reason) {
@@ -75,30 +75,29 @@ struct MemoryView {
       raw = *(reinterpret_cast<uint64_t*>(rbp + loc.loc));
     }
 
-    switch (value.ref_kind) {
-      case jit::hir::RefKind::kUncounted:
-      case jit::hir::RefKind::kBorrowed:
-      case jit::hir::RefKind::kOwned: {
+    switch (value.value_kind) {
+      case jit::hir::ValueKind::kSigned:
+        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+        return PyLong_FromSsize_t((Py_ssize_t)raw);
+      case jit::hir::ValueKind::kUnsigned:
+        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+        return PyLong_FromSize_t(raw);
+      case hir::ValueKind::kDouble:
+        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+        return PyFloat_FromDouble(raw);
+      case jit::hir::ValueKind::kBool: {
+        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+        PyObject* res = raw ? Py_True : Py_False;
+        Py_INCREF(res);
+        return res;
+      }
+      case jit::hir::ValueKind::kObject: {
         PyObject* res = reinterpret_cast<PyObject*>(raw);
         if (!borrow) {
           Py_XINCREF(res);
         }
         return res;
       }
-      case jit::hir::RefKind::kSigned:
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        return PyLong_FromSsize_t((Py_ssize_t)raw);
-      case jit::hir::RefKind::kUnsigned:
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        return PyLong_FromSize_t(raw);
-      case hir::RefKind::kDouble:
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        return PyFloat_FromDouble(raw);
-      case jit::hir::RefKind::kBool:
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        PyObject* res = raw ? Py_True : Py_False;
-        Py_INCREF(res);
-        return res;
     }
     return nullptr;
   }
@@ -220,10 +219,6 @@ static void releaseRefs(
     const MemoryView& mem) {
   for (const auto& value : live_values) {
     switch (value.ref_kind) {
-      case jit::hir::RefKind::kSigned:
-      case jit::hir::RefKind::kUnsigned:
-      case jit::hir::RefKind::kBool:
-      case jit::hir::RefKind::kDouble:
       case jit::hir::RefKind::kUncounted:
       case jit::hir::RefKind::kBorrowed: {
         continue;
@@ -350,6 +345,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
         // location will be filled in once we've generated code
         .location = 0,
         .ref_kind = reg_state.ref_kind,
+        .value_kind = reg_state.value_kind,
         .source = get_source(reg),
     };
     meta.live_values.emplace_back(std::move(lv));

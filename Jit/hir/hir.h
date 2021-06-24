@@ -99,15 +99,21 @@ class Register {
 
 std::ostream& operator<<(std::ostream& os, const Register& reg);
 
-// The kind of value held in a Register.
+// The refcount semantics of a value held in a Register.
 enum class RefKind {
   // A PyObject* that is either null or points to an immortal object, and
-  // doesn't need to be reference counted.
+  // doesn't need to be reference counted, or a primitive.
   kUncounted,
   // A PyObject* with a borrowed reference.
   kBorrowed,
   // A PyObject* that owns a reference.
   kOwned,
+};
+
+// The kind of value held in a Register.
+enum class ValueKind {
+  // A PyObject*.
+  kObject,
   // A signed 64-bit integer.
   kSigned,
   // An unsigned 64-bit integer.
@@ -643,10 +649,12 @@ using InstrPredicate = std::function<bool(const Instr&)>;
 
 struct RegState {
   RegState() = default;
-  RegState(Register* reg, RefKind ref_kind) : reg{reg}, ref_kind{ref_kind} {}
+  RegState(Register* reg, RefKind ref_kind, ValueKind value_kind)
+      : reg{reg}, ref_kind{ref_kind}, value_kind{value_kind} {}
 
   Register* reg{nullptr};
   RefKind ref_kind{RefKind::kUncounted};
+  ValueKind value_kind{ValueKind::kObject};
 };
 
 class DeoptBase : public Instr {

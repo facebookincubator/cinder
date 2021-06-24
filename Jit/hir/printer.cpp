@@ -96,34 +96,39 @@ static void print_reg_states(
   auto sep = "";
   for (auto& reg_state : rss) {
     const char* prefix = "?";
-    switch (reg_state.ref_kind) {
-      case RefKind::kUncounted: {
-        prefix = "unc";
-        break;
-      }
-      case RefKind::kBorrowed: {
-        prefix = "b";
-        break;
-      }
-      case RefKind::kOwned: {
-        prefix = "o";
-        break;
-      }
-      case RefKind::kSigned: {
+    switch (reg_state.value_kind) {
+      case ValueKind::kSigned: {
         prefix = "s";
         break;
       }
-      case RefKind::kUnsigned: {
+      case ValueKind::kUnsigned: {
         prefix = "uns";
         break;
       }
-      case RefKind::kBool: {
+      case ValueKind::kBool: {
         prefix = "bool";
         break;
       }
-      case RefKind::kDouble:
+      case ValueKind::kDouble:
         prefix = "double";
         break;
+      case ValueKind::kObject: {
+        switch (reg_state.ref_kind) {
+          case RefKind::kUncounted: {
+            prefix = "unc";
+            break;
+          }
+          case RefKind::kBorrowed: {
+            prefix = "b";
+            break;
+          }
+          case RefKind::kOwned: {
+            prefix = "o";
+            break;
+          }
+        }
+        break;
+      }
     }
     os << fmt::format("{}{}:{}", sep, prefix, reg_state.reg->name());
     sep = " ";
