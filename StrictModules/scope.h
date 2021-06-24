@@ -143,6 +143,7 @@ class ScopeStack {
   /* use this for reading, return nullopt if key doesn't exist */
   std::optional<TVar> at(const std::string& key) const;
   bool erase(const std::string& key);
+  void clear();
 
   bool isGlobal(const std::string& key) const;
   bool isNonLocal(const std::string& key) const;

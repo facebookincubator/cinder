@@ -61,6 +61,8 @@ class StrictMethodDescrType : public StrictObjectType {
       std::shared_ptr<StrictType> metatype,
       bool isImmutable) override;
 
+  virtual bool isCallable(const CallerContext& caller) override;
+
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 
@@ -106,6 +108,8 @@ class StrictBuiltinFunctionOrMethodType : public StrictObjectType {
       std::shared_ptr<DictType> members,
       std::shared_ptr<StrictType> metatype,
       bool isImmutable) override;
+
+  virtual bool isCallable(const CallerContext& caller) override;
 
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
@@ -153,6 +157,8 @@ class StrictMethodType : public StrictObjectType {
       std::shared_ptr<DictType> members,
       std::shared_ptr<StrictType> metatype,
       bool isImmutable) override;
+
+  virtual bool isCallable(const CallerContext& caller) override;
 
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };

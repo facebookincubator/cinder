@@ -186,7 +186,7 @@ std::shared_ptr<StrictType> IntType() {
 
 std::shared_ptr<StrictType> BoolType() {
   static std::shared_ptr<StrictType> t = makeType<StrictBoolType>(
-      "bool", kBuiltinsModule, objectTypeVec(), TypeType());
+      "bool", kBuiltinsModule, TObjectPtrVec{IntType()}, TypeType());
   return t;
 }
 
@@ -344,19 +344,19 @@ std::shared_ptr<StrictType> NotImplementedType() {
 }
 
 std::shared_ptr<StrictType> ExceptionType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "Exception", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 
 std::shared_ptr<StrictType> TypeErrorType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "TypeError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
   return t;
 }
 
 std::shared_ptr<StrictType> AttributeErrorType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "AttributeError",
       kBuiltinsModule,
       TObjectPtrVec{ExceptionType()},
@@ -365,7 +365,7 @@ std::shared_ptr<StrictType> AttributeErrorType() {
 }
 
 std::shared_ptr<StrictType> ValueErrorType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "ValueError",
       kBuiltinsModule,
       TObjectPtrVec{ExceptionType()},
@@ -374,13 +374,13 @@ std::shared_ptr<StrictType> ValueErrorType() {
 }
 
 std::shared_ptr<StrictType> NameErrorType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "NameError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
   return t;
 }
 
 std::shared_ptr<StrictType> StopIterationType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "StopIteration",
       kBuiltinsModule,
       TObjectPtrVec{ExceptionType()},
@@ -389,13 +389,13 @@ std::shared_ptr<StrictType> StopIterationType() {
 }
 
 std::shared_ptr<StrictType> KeyErrorType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "KeyError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
   return t;
 }
 
 std::shared_ptr<StrictType> RuntimeErrorType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "RuntimeError",
       kBuiltinsModule,
       TObjectPtrVec{ExceptionType()},
@@ -404,7 +404,7 @@ std::shared_ptr<StrictType> RuntimeErrorType() {
 }
 
 std::shared_ptr<StrictType> DivisionByZeroType() {
-  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "ZeroDivisionError",
       kBuiltinsModule,
       TObjectPtrVec{ExceptionType()},
@@ -529,6 +529,112 @@ std::shared_ptr<BaseStrictObject> StrictMap() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictHash() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(hashImpl, "hash"), nullptr, "hash"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictAbs() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(absImpl, "abs"), nullptr, "abs"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictRound() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(roundImpl, "round"), nullptr, "round"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictDivmod() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(divmodImpl, "divmod"),
+      nullptr,
+      "divmod"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictChr() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(chrImpl, "chr"), nullptr, "chr"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictOrd() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(ordImpl, "ord"), nullptr, "ord"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictGetattr() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(
+          getattrImpl, "getattr", std::shared_ptr<BaseStrictObject>()),
+      nullptr,
+      "getattr"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictSetattr() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(setattrImpl, "setattr"),
+      nullptr,
+      "setattr"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictHasattr() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(hasattrImpl, "hasattr"),
+      nullptr,
+      "hasattr"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictIsCallable() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(isCallableImpl, "callable"),
+      nullptr,
+      "callable"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictPrint() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, printImpl, nullptr, "print"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictMax() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, StarCallableWrapper(maxImpl, "max"), nullptr, "max"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictMin() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, StarCallableWrapper(minImpl, "min"), nullptr, "min"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictAny() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(anyImpl, "any"), nullptr, "any"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictAll() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, CallableWrapper(allImpl, "all"), nullptr, "all"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -576,6 +682,21 @@ bool initializeBuiltinsModuleDict() {
         {"enumerate", StrictEnumerate()},
         {"zip", StrictZip()},
         {"map", StrictMap()},
+        {"hash", StrictHash()},
+        {"abs", StrictAbs()},
+        {"round", StrictRound()},
+        {"divmod", StrictDivmod()},
+        {"chr", StrictChr()},
+        {"ord", StrictOrd()},
+        {"getattr", StrictGetattr()},
+        {"setattr", StrictSetattr()},
+        {"hasattr", StrictHasattr()},
+        {"callable", StrictIsCallable()},
+        {"print", StrictPrint()},
+        {"max", StrictMax()},
+        {"min", StrictMin()},
+        {"any", StrictAny()},
+        {"all", StrictAll()},
     });
     kBuiltinsModule->getDict().insert(builtinsDict.begin(), builtinsDict.end());
   }

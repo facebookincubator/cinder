@@ -52,6 +52,8 @@ class StrictFunction : public StrictInstance {
       std::shared_ptr<BaseStrictObject> annotations,
       bool useFutureAnnotations = true,
       bool isCoroutine = false);
+
+  virtual void cleanContent(const StrictModuleObject* owner) override;
   // accessors
   bool isCoroutine() const {
     return isCoroutine_;
@@ -178,6 +180,8 @@ class StrictFuncType : public StrictObjectType {
       std::shared_ptr<DictType> members,
       std::shared_ptr<StrictType> metatype,
       bool isImmutable) override;
+
+  virtual bool isCallable(const CallerContext& caller) override;
 
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 

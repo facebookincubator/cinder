@@ -141,8 +141,11 @@ std::shared_ptr<BaseStrictObject> lenImpl(
   if (lenFunc) {
     return iCall(std::move(lenFunc), kEmptyArgs, kEmptyArgNames, caller);
   }
-  caller.raiseTypeError(
-      "object of type '{}' has no len()", arg->getTypeRef().getName());
+  if (!arg->isUnknown()) {
+    caller.raiseTypeError(
+        "object of type '{}' has no len()", arg->getTypeRef().getName());
+  }
+  return makeUnknown(caller, "len({})", arg);
 }
 
 /** -------------------exec() implementation-------------------- */
@@ -338,5 +341,358 @@ std::shared_ptr<BaseStrictObject> mapImpl(
   }
   return std::make_shared<StrictMapIterator>(
       MapIteratorType(), caller.caller, std::move(iterators), std::move(func));
+}
+
+std::shared_ptr<BaseStrictObject> hashImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  auto func = iLoadAttr(arg, "__hash__", nullptr, caller);
+  if (!func) {
+    caller.raiseTypeError(
+        "{} object is not hashable", arg->getTypeRef().getName());
+  }
+  return iCall(std::move(func), kEmptyArgs, kEmptyArgNames, caller);
+}
+
+std::shared_ptr<BaseStrictObject> absImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  auto func = iLoadAttr(arg, "__abs__", nullptr, caller);
+  if (!func) {
+    caller.raiseTypeError(
+        "bad operand type for abs(): {}", arg->getTypeRef().getName());
+  }
+  return iCall(std::move(func), kEmptyArgs, kEmptyArgNames, caller);
+}
+
+std::shared_ptr<BaseStrictObject> roundImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> arg) {
+  auto func = iLoadAttr(arg, "__round__", nullptr, caller);
+  if (!func) {
+    caller.raiseTypeError(
+        "bad operand type for abs(): {}", arg->getTypeRef().getName());
+  }
+  return iCall(std::move(func), kEmptyArgs, kEmptyArgNames, caller);
+}
+
+std::shared_ptr<BaseStrictObject> divmodImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> lhs,
+    std::shared_ptr<BaseStrictObject> rhs) {
+  bool triedRight = false;
+  auto lType = lhs->getType();
+  auto rType = rhs->getType();
+  if (lType != rType && rType->isSubType(lType)) {
+    // do reverse op first
+    auto rfunc = iLoadAttr(rhs, "__rdivmod__", nullptr, caller);
+    if (rfunc) {
+      auto result = iCall(std::move(rfunc), {lhs}, kEmptyArgNames, caller);
+      if (result != NotImplemented()) {
+        return result;
+      }
+    }
+    triedRight = true;
+  }
+
+  auto func = iLoadAttr(lhs, "__divmod__", nullptr, caller);
+  if (func) {
+    auto result = iCall(std::move(func), {rhs}, kEmptyArgNames, caller);
+    if (result != NotImplemented()) {
+      return result;
+    }
+  }
+
+  if (!triedRight) {
+    auto rfunc = iLoadAttr(rhs, "__rdivmod__", nullptr, caller);
+    if (rfunc) {
+      auto result = iCall(std::move(rfunc), {lhs}, kEmptyArgNames, caller);
+      if (result != NotImplemented()) {
+        return result;
+      }
+    }
+  }
+
+  caller.raiseTypeError(
+      "bad operand type for divmod(): {} and {}",
+      lType->getName(),
+      rType->getName());
+}
+
+std::shared_ptr<BaseStrictObject> chrImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> i) {
+  auto iInt = std::dynamic_pointer_cast<StrictInt>(i);
+  if (!iInt) {
+    caller.raiseTypeError(
+        "bad operand type for chr(): {}", i->getTypeRef().getName());
+  }
+  long v = iInt->getValue();
+  if (v < 0 || v > 0x10ffff) {
+    caller.raiseExceptionStr(ValueErrorType(), "chr arg {} not in range", v);
+  }
+  Ref<> resPyObj = Ref<>::steal(PyUnicode_FromOrdinal(v));
+  return StrictString::strFromPyObj(std::move(resPyObj), caller);
+}
+
+std::shared_ptr<BaseStrictObject> ordImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> c) {
+  auto cStr = std::dynamic_pointer_cast<StrictString>(c);
+  if (!cStr) {
+    caller.raiseTypeError(
+        "bad operand type for ord(): {}", c->getTypeRef().getName());
+  }
+  const std::string& v = cStr->getValue();
+  if (v.size() == 1) {
+    long result = long(PyUnicode_READ_CHAR(cStr->getPyObject().get(), 0));
+    return caller.makeInt(result);
+  }
+  caller.raiseTypeError(
+      "ord() expects a character, but got string of size {}", v.size());
+}
+
+std::shared_ptr<BaseStrictObject> getattrImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> name,
+    std::shared_ptr<BaseStrictObject> defaultValue) {
+  auto nameStr = std::dynamic_pointer_cast<StrictString>(name);
+  if (!nameStr) {
+    caller.raiseTypeError("getattr() attribute name must be string");
+  }
+  std::shared_ptr<BaseStrictObject> result;
+  try {
+    result =
+        iLoadAttr(std::move(obj), nameStr->getValue(), defaultValue, caller);
+  } catch (StrictModuleUserException<BaseStrictObject>& e) {
+    auto exc = e.getWrapped();
+    if (exc == AttributeErrorType() || exc->getType() == AttributeErrorType()) {
+      result = defaultValue;
+    } else {
+      throw;
+    }
+  }
+  if (result == nullptr) {
+    caller.raiseExceptionFromObj(AttributeErrorType());
+  }
+  return result;
+}
+
+std::shared_ptr<BaseStrictObject> setattrImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> name,
+    std::shared_ptr<BaseStrictObject> value) {
+  auto nameStr = std::dynamic_pointer_cast<StrictString>(name);
+  if (!nameStr) {
+    caller.raiseTypeError("setattr() attribute name must be string");
+  }
+  iStoreAttr(std::move(obj), nameStr->getValue(), std::move(value), caller);
+  return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> hasattrImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> name) {
+  auto nameStr = std::dynamic_pointer_cast<StrictString>(name);
+  if (!nameStr) {
+    caller.raiseTypeError("hasattr() attribute name must be string");
+  }
+  std::shared_ptr<BaseStrictObject> result;
+  try {
+    result = iLoadAttr(std::move(obj), nameStr->getValue(), nullptr, caller);
+  } catch (StrictModuleUserException<BaseStrictObject>& e) {
+    auto exc = e.getWrapped();
+    if (exc == AttributeErrorType() || exc->getType() == AttributeErrorType()) {
+      return StrictFalse();
+    } else {
+      throw;
+    }
+  }
+  if (result == nullptr) {
+    return StrictFalse();
+  }
+  return StrictTrue();
+}
+
+std::shared_ptr<BaseStrictObject> isCallableImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> obj) {
+  return caller.makeBool(obj->getTypeRef().isCallable(caller));
+}
+
+std::shared_ptr<BaseStrictObject> printImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>&,
+    const std::vector<std::string>&,
+    const CallerContext&) {
+  return NoneObject();
+}
+
+static std::shared_ptr<BaseStrictObject> minmaxMultiArgHelper(
+    const CallerContext& caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> elements,
+    std::shared_ptr<BaseStrictObject> keyFunc,
+    std::shared_ptr<BaseStrictObject> defaultValue,
+    cmpop_ty op) {
+  std::shared_ptr<BaseStrictObject> maxVal;
+  std::shared_ptr<BaseStrictObject> maxItem;
+
+  for (auto e : elements) {
+    std::shared_ptr<BaseStrictObject> current = e;
+    if (keyFunc) {
+      current = iCall(keyFunc, {std::move(current)}, kEmptyArgNames, caller);
+    }
+    if (!maxVal) {
+      maxVal = current;
+      maxItem = e;
+    } else {
+      auto cmpResult = iBinCmpOp(current, maxVal, op, caller);
+      cmpResult = iGetTruthValue(std::move(cmpResult), caller);
+
+      if (cmpResult == StrictTrue()) {
+        maxVal = current;
+        maxItem = e;
+      } else if (cmpResult->isUnknown()) {
+        return nullptr;
+      }
+    }
+  }
+  if (elements.empty()) {
+    if (defaultValue) {
+      return defaultValue;
+    }
+    caller.raiseExceptionStr(ValueErrorType(), "min/max got an empty sequence");
+  }
+  return maxItem;
+}
+
+static std::shared_ptr<BaseStrictObject> minmaxMultiArgHelper(
+    const CallerContext& caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> args,
+    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    std::shared_ptr<BaseStrictObject> arg1,
+    cmpop_ty op) {
+  auto keyIt = kwargs.find("key");
+  std::shared_ptr<BaseStrictObject> k;
+  if (keyIt != kwargs.end()) {
+    k = keyIt->second;
+  }
+
+  args.insert(args.begin(), std::move(arg1));
+  return minmaxMultiArgHelper(
+      caller, std::move(args), std::move(k), nullptr, op);
+}
+
+static std::shared_ptr<BaseStrictObject> minmaxSingleArgHelper(
+    const CallerContext& caller,
+    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    std::shared_ptr<BaseStrictObject> iterable,
+    cmpop_ty op) {
+  auto keyIt = kwargs.find("key");
+  std::shared_ptr<BaseStrictObject> k;
+  if (keyIt != kwargs.end()) {
+    k = keyIt->second;
+  }
+  auto defaultIt = kwargs.find("default");
+  std::shared_ptr<BaseStrictObject> d;
+  if (defaultIt != kwargs.end()) {
+    d = defaultIt->second;
+  }
+
+  auto elements = iGetElementsVec(std::move(iterable), caller);
+  return minmaxMultiArgHelper(
+      caller, std::move(elements), std::move(k), std::move(d), op);
+}
+
+static std::shared_ptr<BaseStrictObject> minmaxHelper(
+    const CallerContext& caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> args,
+    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    std::shared_ptr<BaseStrictObject> arg1,
+    cmpop_ty op) {
+  if (args.size() > 0) {
+    return minmaxMultiArgHelper(
+        caller, std::move(args), std::move(kwargs), std::move(arg1), op);
+  }
+  return minmaxSingleArgHelper(caller, std::move(kwargs), std::move(arg1), op);
+}
+
+std::shared_ptr<BaseStrictObject> maxImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> args,
+    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    std::shared_ptr<BaseStrictObject> arg1) {
+  auto result = minmaxHelper(
+      caller, std::move(args), std::move(kwargs), std::move(arg1), Gt);
+  if (result == nullptr) {
+    return makeUnknown(caller, "max()");
+  }
+  return result;
+}
+
+std::shared_ptr<BaseStrictObject> minImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> args,
+    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    std::shared_ptr<BaseStrictObject> arg1) {
+  auto result = minmaxHelper(
+      caller, std::move(args), std::move(kwargs), std::move(arg1), Lt);
+  if (result == nullptr) {
+    return makeUnknown(caller, "min()");
+  }
+  return result;
+}
+
+std::shared_ptr<BaseStrictObject> anyImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> iterable) {
+  auto it = iGetElementsIter(std::move(iterable), caller);
+  while (true) {
+    auto nextValue = it->next(caller);
+    if (it->isEnd()) {
+      break;
+    }
+    auto truthValue = iGetTruthValue(std::move(nextValue), caller);
+    if (truthValue == StrictTrue()) {
+      return StrictTrue();
+    }
+  }
+  return StrictFalse();
+}
+
+std::shared_ptr<BaseStrictObject> allImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> iterable) {
+  {
+    auto it = iGetElementsIter(std::move(iterable), caller);
+    while (true) {
+      auto nextValue = it->next(caller);
+      if (it->isEnd()) {
+        break;
+      }
+      auto truthValue = iGetTruthValue(std::move(nextValue), caller);
+      if (truthValue == StrictFalse()) {
+        return StrictFalse();
+      }
+    }
+    return StrictTrue();
+  }
 }
 } // namespace strictmod::objects

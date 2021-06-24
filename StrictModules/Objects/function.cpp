@@ -81,6 +81,11 @@ Analyzer StrictFunction::getFuncAnalyzer(
       useFutureAnnotations_);
 }
 
+void StrictFunction::cleanContent(const StrictModuleObject* owner) {
+  closure_.clear();
+  StrictInstance::cleanContent(owner);
+}
+
 std::string StrictFunction::getDisplayName() const {
   return qualName_;
 }
@@ -153,11 +158,17 @@ std::shared_ptr<BaseStrictObject> StrictFunction::function__kwdefaults__getter(
     } else {
       DictDataT kwDefaultsDict;
       for (std::size_t i = 0; i < self->kwDefaults_.size(); ++i) {
-        kwDefaultsDict[caller.makeStr(self->kwonlyArgs_[i])] =
-            self->kwDefaults_[i];
+        if (self->kwDefaults_[i]) {
+          kwDefaultsDict[caller.makeStr(self->kwonlyArgs_[i])] =
+              self->kwDefaults_[i];
+        }
       }
-      self->kwDefaultsObj_ = std::make_shared<StrictDict>(
-          DictObjectType(), caller.caller, std::move(kwDefaultsDict));
+      if (kwDefaultsDict.empty()) {
+        self->kwDefaultsObj_ = NoneObject();
+      } else {
+        self->kwDefaultsObj_ = std::make_shared<StrictDict>(
+            DictObjectType(), caller.caller, std::move(kwDefaultsDict));
+      }
     }
   }
   return self->kwDefaultsObj_;
@@ -231,8 +242,10 @@ std::shared_ptr<BaseStrictObject> StrictFuncType::call(
   std::shared_ptr<StrictFunction> func =
       assertStaticCast<StrictFunction>(std::move(obj));
   if (func->isCoroutine()) {
-    // TODO create async call
-    throw std::runtime_error("unsupported async func");
+    caller.error<UnsupportedException>(
+        "calling async function", func->getTypeRef().getName());
+    return makeUnknown(
+        caller, "{}({})", func->getFuncName(), formatArgs(args, argNames));
   }
 
   std::unique_ptr<BaseErrorSink> errorSink = caller.errorSink->getNestedSink();
@@ -295,6 +308,10 @@ std::vector<std::type_index> StrictFuncType::getBaseTypeinfos() const {
   std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
   baseVec.emplace_back(typeid(StrictFuncType));
   return baseVec;
+}
+
+bool StrictFuncType::isCallable(const CallerContext&) {
+  return true;
 }
 
 void StrictFuncType::addMethods() {

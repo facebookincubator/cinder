@@ -79,6 +79,10 @@ std::vector<std::type_index> StrictMethodDescrType::getBaseTypeinfos() const {
   return baseVec;
 }
 
+bool StrictMethodDescrType::isCallable(const CallerContext&) {
+  return true;
+}
+
 // builtin functions
 StrictBuiltinFunctionOrMethod::StrictBuiltinFunctionOrMethod(
     std::weak_ptr<StrictModuleObject> creator,
@@ -128,6 +132,10 @@ StrictBuiltinFunctionOrMethodType::getBaseTypeinfos() const {
   std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
   baseVec.emplace_back(typeid(StrictBuiltinFunctionOrMethodType));
   return baseVec;
+}
+
+bool StrictBuiltinFunctionOrMethodType::isCallable(const CallerContext&) {
+  return true;
 }
 
 // user methods
@@ -193,6 +201,10 @@ std::vector<std::type_index> StrictMethodType::getBaseTypeinfos() const {
   return baseVec;
 }
 
+bool StrictMethodType::isCallable(const CallerContext&) {
+  return true;
+}
+
 // class (user) Method
 
 StrictClassMethod::StrictClassMethod(
@@ -224,7 +236,6 @@ std::shared_ptr<BaseStrictObject> StrictClassMethodType::getDescr(
     std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<StrictType> type,
     const CallerContext& caller) {
-
   std::shared_ptr<StrictClassMethod> method =
       assertStaticCast<StrictClassMethod>(obj);
   return StrictClassMethod::classmethod__get__(

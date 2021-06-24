@@ -991,6 +991,8 @@ void Analyzer::visitContinue(const stmt_ty) {
   throw LoopContinueException();
 }
 
+void Analyzer::visitGlobal(const stmt_ty) {}
+
 // Expressions
 AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
   auto constant = expr->v.Constant;

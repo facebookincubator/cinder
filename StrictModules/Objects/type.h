@@ -64,6 +64,7 @@ class StrictType : public StrictInstance {
   virtual std::string getDisplayName() const override;
 
   virtual bool isBaseType() const;
+  virtual bool isCallable(const CallerContext& caller);
   virtual bool isDataDescr(const CallerContext& caller);
 
   virtual void addMethods();
@@ -272,6 +273,7 @@ class StrictType : public StrictInstance {
       mro_;
   mutable std::optional<bool> isDataDescr_;
   mutable std::shared_ptr<BaseStrictObject> basesObj_;
+  mutable std::optional<bool> isCallable_;
 };
 
 template <typename T>

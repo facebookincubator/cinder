@@ -34,6 +34,10 @@ class StrictModuleObject : public StrictInstance {
           inst->cleanContent(this);
         }
       }
+      // dict may have been cleared by children
+      if (dict_->empty()) {
+        break;
+      }
     }
     dict_->clear();
   }

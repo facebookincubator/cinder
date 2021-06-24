@@ -81,6 +81,11 @@ bool ScopeStack<TVar, TScopeData>::erase(const std::string& key) {
 }
 
 template <typename TVar, typename TScopeData>
+void ScopeStack<TVar, TScopeData>::clear() {
+  scopes_.clear();
+}
+
+template <typename TVar, typename TScopeData>
 bool ScopeStack<TVar, TScopeData>::isGlobal(const std::string& key) const {
   if (scopes_.size() == 1) {
     return true;

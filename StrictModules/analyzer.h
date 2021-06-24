@@ -124,6 +124,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   void visitAssert(const stmt_ty stmt);
   void visitBreak(const stmt_ty stmt);
   void visitContinue(const stmt_ty stmt);
+  void visitGlobal(const stmt_ty stmt);
   // expressions
   AnalysisResult visitConstant(const expr_ty expr);
   AnalysisResult visitName(const expr_ty expr);

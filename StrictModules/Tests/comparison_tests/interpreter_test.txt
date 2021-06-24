@@ -178,7 +178,7 @@ class C:
 ---
 ---
 ---
-test_float @disabled
+test_float
 ---
 x = 1.0
 y = x.is_integer()
@@ -350,7 +350,7 @@ x_cls = C.x
 x_inst x_cls
 ---
 ---
-test_metaclass_attr_property @disabled
+test_metaclass_attr_property
 ---
 class MC(type):
     @property
@@ -367,7 +367,7 @@ x_cls = C.x
 x_inst x_cls
 ---
 ---
-test_metaclass_extra_kwargs @disabled
+test_metaclass_extra_kwargs
 ---
 
 class MC(type):
@@ -462,28 +462,28 @@ z = E.extra
 x y z
 ---
 ---
-test_cell_meth_with_instance @disabled
+test_cell_meth_with_instance
 ---
 x = bytes.upper(b'abc')
 ---
 x
 ---
 ---
-test_cell_meth_missing_instance @disabled
+test_cell_meth_missing_instance
 ---
 bytes.upper()
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_cell_meth_bad_self @disabled
+test_cell_meth_bad_self
 ---
 bytes.upper(42)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_property_reinit @disabled
+test_property_reinit
 ---
 class C:
     @property
@@ -499,7 +499,7 @@ x = C().f
 x
 ---
 ---
-test_property_no_setting @disabled
+test_property_no_setting
 ---
 class C:
     @property
@@ -509,9 +509,9 @@ class C:
 C().f = 42
 ---
 ---
-StrictModuleAttributeError
+6 0 StrictModuleUnhandledException(AttributeError)
 ---
-test_property_no_deleting @disabled
+test_property_no_deleting
 ---
 class C:
     @property
@@ -521,9 +521,9 @@ class C:
 del C().f
 ---
 ---
-StrictModuleAttributeError
+6 0 StrictModuleUnhandledException(AttributeError)
 ---
-test_property_no_getting @disabled
+test_property_no_getting
 ---
 class C:
     f = property(None, lambda x, y: None)
@@ -531,9 +531,9 @@ class C:
 x = C().f
 ---
 ---
-StrictModuleAttributeError
+4 4 StrictModuleUnhandledException(AttributeError)
 ---
-test_property_init_fset @disabled
+test_property_init_fset
 ---
 class C:
     def x(self, value):
@@ -547,7 +547,7 @@ x = a.v
 x
 ---
 ---
-test_property_init_fdel @disabled
+test_property_init_fdel
 ---
 class C:
     def x(self):
@@ -770,7 +770,7 @@ classmethod(x=2)
 ---
 1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_staticmethod @disabled
+test_staticmethod
 ---
 class C:
     @staticmethod
@@ -786,29 +786,26 @@ b = y == 42
 a b
 ---
 ---
-test_staticmethod_no_args @disabled
+test_staticmethod_no_args
 ---
-
 staticmethod()
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_staticmethod_too_many_args @disabled
+test_staticmethod_too_many_args
 ---
-
 staticmethod(1, 2)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_staticmethod_kw_args @disabled
+test_staticmethod_kw_args
 ---
-
 staticmethod(x=2)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
 test_int_object_subtype
 ---
@@ -1006,18 +1003,55 @@ x = -1.1 != -1.1
 x
 ---
 ---
-test_numeric_builtin_ops @disabled
+test_numeric_builtin_ops
 ---
 x = abs(-1.1)
 ---
 x
 ---
 ---
-test_numeric_divmod @disabled
+test_numeric_divmod
 ---
 x = divmod(-1.1, -1.1)
+y = divmod(20, 2.1)
 ---
-x
+x y
+---
+---
+test_divmod
+---
+class A:
+    def __divmod__(self, other):
+        return 1
+
+    def __rdivmod__(self, other):
+        return 2
+
+class B:
+    def __divmod__(self, other):
+        return 3
+
+    def __rdivmod__(self, other):
+        return 4
+
+class C(A):
+    def __divmod__(self, other):
+        return 5
+
+    def __rdivmod__(self, other):
+        return 6
+
+x1 = divmod(A(), A())
+x2 = divmod(A(), B())
+x3 = divmod(A(), C())
+x4 = divmod(B(), A())
+x5 = divmod(B(), B())
+x6 = divmod(B(), C())
+x7 = divmod(C(), A())
+x8 = divmod(C(), B())
+x9 = divmod(C(), C())
+---
+x1 x2 x3 x4 x5 x6 x7 x8 x9
 ---
 ---
 test_method
@@ -1997,7 +2031,7 @@ class C:
 t1 = object.__subclasscheck__(C())
 ---
 ---
-6 5 StrictModuleUnhandledException(<ValueError instance>) 4 8 StrictModuleUserException <ValueError instance>
+6 5 StrictModuleUnhandledException(ValueError) 4 8 StrictModuleUserException ValueError
 ---
 test_subclasscheck_bad_bases
 ---
@@ -2035,12 +2069,12 @@ issubclass(object, 42)
 ---
 1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_unknown_call_display_name @disabled
+test_unknown_call_display_name
 ---
 x = "abc".unknown_method(1)
 ---
 ---
-StrictModuleUnhandledException(AttributeError)
+1 4 StrictModuleUnhandledException(AttributeError)
 ---
 test_star_args
 ---
@@ -2058,7 +2092,7 @@ z = g(*('abc', 1))
 w x y z
 ---
 ---
-test_custom_len @disabled
+test_custom_len
 ---
 class C:
     def __len__(self):
@@ -2070,7 +2104,7 @@ l = len(c)
 l
 ---
 ---
-test_iterable_len @disabled
+test_iterable_len
 ---
 l1 = len([])
 l2 = len([1])
@@ -2082,16 +2116,16 @@ l6 = len('ab')
 l1 l2 l3 l4 l5 l6
 ---
 ---
-test_len_not_implemented @disabled
+test_len_not_implemented
 ---
 class C:
     pass
 len(C())
 ---
 ---
-StrictModuleTypeError
+3 0 StrictModuleUnhandledException(TypeError)
 ---
-test_bool @disabled
+test_bool
 ---
 b1 = bool()
 b2 = bool(1)
@@ -2154,7 +2188,7 @@ for i in l:
 i
 ---
 ---
-test_for_loop_body
+test_for_loop_body_0
 ---
 l = [1, 2, 3, 4]
 x = 0
@@ -2215,7 +2249,7 @@ a = C().f()
 a
 ---
 ---
-test_exception_construction @disabled
+test_exception_construction
 ---
 exc = Exception(1)
 a = exc.args
@@ -2223,7 +2257,7 @@ a = exc.args
 a
 ---
 ---
-test_attribute_error_construction @disabled
+test_attribute_error_construction
 ---
 exc = AttributeError(1)
 a = exc.args
@@ -2231,13 +2265,28 @@ a = exc.args
 a
 ---
 ---
-test_attribute_error_try_catch @disabled
+test_attribute_error_try_catch
 ---
 try:
     x = 1
     raise AttributeError(2)
 except AttributeError as a:
     x = a.args[0]
+else:
+    x = 3
+finally:
+    y = 4
+---
+x y
+---
+---
+test_attribute_error_type_try_catch
+---
+try:
+    x = 1
+    raise AttributeError
+except AttributeError as a:
+    x = 2
 else:
     x = 3
 finally:
@@ -2261,7 +2310,7 @@ finally:
 x y
 ---
 ---
-test_attribute_error_try_catch_multi_level @disabled
+test_attribute_error_try_catch_multi_level
 ---
 try:
     x = 1
@@ -2290,7 +2339,7 @@ except AttributeError as e:
 x
 ---
 ---
-test_getattr_builtin @disabled
+test_getattr_builtin
 ---
 class C:
     a: int
@@ -2301,7 +2350,7 @@ a = getattr(c, "a")
 a
 ---
 ---
-test_getattr_non_string @disabled
+test_getattr_non_string
 ---
 class C:
     a: int
@@ -2310,9 +2359,9 @@ c.a = 1
 a = getattr(c, 1)
 ---
 ---
-StrictModuleTypeError
+5 4 StrictModuleUnhandledException(TypeError)
 ---
-test_getattr_raises_attr_error @disabled
+test_getattr_raises_attr_error
 ---
 class C:
     @property
@@ -2324,7 +2373,7 @@ a = getattr(c, "x", 42)
 a
 ---
 ---
-test_getattr_raises_other @disabled
+test_getattr_raises_other
 ---
 class C:
     @property
@@ -2334,9 +2383,9 @@ c = C()
 a = getattr(c, "x", 42)
 ---
 ---
-StrictModuleUnhandledException
+6 4 StrictModuleUnhandledException(TypeError) 4 8 StrictModuleUserException TypeError
 ---
-test_setattr_builtin @disabled
+test_setattr_builtin
 ---
 class C:
     a: int
@@ -2347,7 +2396,7 @@ a = c.a
 a
 ---
 ---
-test_setattr_non_string @disabled
+test_setattr_non_string
 ---
 class C:
     a: int
@@ -2355,9 +2404,9 @@ c = C()
 setattr(c, 1, 2)
 ---
 ---
-StrictModuleTypeError
+4 0 StrictModuleUnhandledException(TypeError)
 ---
-test_hasattr_builtin @disabled
+test_hasattr_builtin
 ---
 class C:
     a: int
@@ -2369,7 +2418,7 @@ b2 = hasattr(c, "a")
 b1 b2
 ---
 ---
-test_hasattr_non_string @disabled
+test_hasattr_non_string
 ---
 class C:
     a: int
@@ -2377,9 +2426,9 @@ c = C()
 b = hasattr(c, 1)
 ---
 ---
-StrictModuleTypeError
+4 4 StrictModuleUnhandledException(TypeError)
 ---
-test_hasattr_raises_attr_error @disabled
+test_hasattr_raises_attr_error
 ---
 class C:
     @property
@@ -2391,7 +2440,7 @@ a = hasattr(c, "x")
 a
 ---
 ---
-test_hasattr_raises_other @disabled
+test_hasattr_raises_other
 ---
 class C:
     @property
@@ -2401,9 +2450,9 @@ c = C()
 a = hasattr(c, "x")
 ---
 ---
-StrictModuleUnhandledException
+6 4 StrictModuleUnhandledException(TypeError) 4 8 StrictModuleUserException TypeError
 ---
-test_math @disabled
+test_math
 ---
 a = b'abc'
 b = b'def'
@@ -2416,7 +2465,7 @@ g = 1 / c
 c d e f g
 ---
 ---
-test_div @disabled
+test_div
 ---
 a = b'abc'
 b = b'def'
@@ -2426,7 +2475,7 @@ d = c / 2
 c d
 ---
 ---
-test_float_math @disabled
+test_float_math
 ---
 a = b'abc'
 b = b'def'
@@ -2437,7 +2486,7 @@ e = d + 1.0
 e
 ---
 ---
-test_float_math_rev @disabled
+test_float_math_rev
 ---
 a = b'abc'
 b = b'def'
@@ -2624,23 +2673,23 @@ y = d.__contains__(3)
 x y
 ---
 ---
-test_dict_getitem_unknown @disabled
+test_dict_getitem_unknown
 ---
 from x import y
 d = {1:2}
 y = d.__getitem__(y)
 ---
 ---
-UnknownValueAttributeException
+3 4 UnknownValueAttributeException <y imported from x> __hash__
 ---
-test_dict_contains_unknown @disabled
+test_dict_contains_unknown
 ---
 from x import y
 d = {2:3}
 x = d.__contains__(y)
 ---
 ---
-UnknownValueAttributeException
+3 4 UnknownValueAttributeException <y imported from x> __hash__
 ---
 test_dict_subclass_getitem
 ---
@@ -2669,7 +2718,7 @@ x = d['foo']
 x
 ---
 ---
-test_dict_subclass_missing @disabled
+test_dict_subclass_missing
 ---
 class mydict(dict):
     def __missing__(self, key):
@@ -2682,7 +2731,7 @@ y = d['zed']
 x y
 ---
 ---
-test_dict_subclass_missing_not_called @disabled
+test_dict_subclass_missing_not_called
 ---
 class mydict(dict):
     def __missing__(self, key):
@@ -2825,26 +2874,26 @@ x = ','.join(['abc', object()])
 ---
 1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_str_bad_index @disabled
+test_str_bad_index
 ---
 x = "abc"[-5]
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_str_unsupported_index @disabled
+test_str_unsupported_index
 ---
 x = "abc"[0.0]
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_str_slice_unsupported @disabled
+test_str_slice_unsupported
 ---
 x = "abc"[0.0:1]
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
 test_str_formatting
 ---
@@ -3240,7 +3289,7 @@ a = C().f()
 a
 ---
 ---
-test_callable @disabled
+test_callable
 ---
 def f():
     pass
@@ -3266,12 +3315,11 @@ b9 = callable(c)
 b1 b2 b3 b4 b5 b6 b7 b8 b9
 ---
 ---
-test_callable_on_unknown @disabled
+test_callable_on_unknown
 ---
 import unknown
 b = callable(unknown)
 ---
-b
 ---
 ---
 test_dunder_call
@@ -4012,7 +4060,7 @@ b = g.__dict__["b"]
 b1 b2 x1 x2 a b
 ---
 ---
-test_str_init @disabled
+test_str_init
 ---
 x = str("foo")
 
@@ -4027,7 +4075,7 @@ d = str()
 x c d
 ---
 ---
-test_str_init_non_string @disabled
+test_str_init_non_string
 ---
 class C:
     def __str__(self):
@@ -4036,7 +4084,7 @@ class C:
 str(C())
 ---
 ---
-StrictModuleTypeError
+5 0 StrictModuleUnhandledException(TypeError)
 ---
 test_str_compare
 ---
@@ -4080,7 +4128,7 @@ b12 = "a" < E()
 b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12
 ---
 ---
-test_min_max @disabled
+test_min_max
 ---
 x1 = max(1, 2)
 x2 = max(1, 2, 3, 4, 3, 2, 1)
@@ -4103,102 +4151,19 @@ test_max_unknown_keyword @disabled
 x = max(1, 3, default=5)
 ---
 ---
-StrictModuleTypeError
 ---
-test_max_iterable_no_default @disabled
+test_max_iterable_no_default
 ---
 x = max([])
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(ValueError)
 ---
 test_not_implemented
 ---
 def f():
     return NotImplemented
 a = f()
----
-a
----
----
-test_cached_class_property @disabled
----
-from strict_modules import cached_classproperty
-
-class C:
-    @cached_classproperty
-    def f(cls):
-        return 42
-
-a = C.f
-b = C.f
----
-a b
----
----
-test_cached_class_property_set @disabled
----
-from strict_modules import cached_classproperty
-
-class C:
-    @cached_classproperty
-    def f(cls):
-        return cls
-
-C.f = 42
-a = C.f
----
-a
----
----
-test_cached_class_property_bad_init @disabled
----
-from strict_modules import cached_classproperty
-
-class C:
-    f = cached_classproperty(None)
----
----
-StrictModuleUnhandledException
----
-test_cached_class_property_uninit @disabled
----
-from strict_modules import cached_classproperty
-
-class C:
-    f = cached_classproperty.__new__(cached_classproperty)
-
-a = C.f
----
----
-StrictModuleUnhandledException
----
-test_cached_property @disabled
----
-from strict_modules import cached_property
-
-class C:
-    @cached_property
-    def f(self):
-        return 42
-
-inst = C()
-a = inst.f
-b = inst.f
----
-a b
----
----
-test_cached_property_class_access @disabled
----
-from strict_modules import cached_property
-
-class C:
-    @cached_property
-    def f(self):
-        return 42
-
-a = C.f != 42
 ---
 a
 ---
@@ -4220,19 +4185,19 @@ y = cast(str, 2) # no runtime conversion
 x y
 ---
 ---
-test_dict_view @disabled
+test_dict_view
 ---
 d = {1:2, 3:4}
 k = d.keys()
 v = d.values()
 i = d.items()
-l1 = [i for i in k]
-l2 = [i for i in v]
-l3 = [i+j for i, j in i]
+l1 = {i for i in k}
+l2 = {i for i in v}
+l3 = {i+j for i, j in i}
 d.update({5:6})
-l4 = [i for i in k]
-l5 = [i for i in v]
-l6 = [i+j for i, j in i]
+l4 = {i for i in k}
+l5 = {i for i in v}
+l6 = {i+j for i, j in i}
 ---
 l1 l2 l3 l4 l5 l6
 ---
@@ -4294,14 +4259,14 @@ b15 = 2 not in C(2)
 b3
 ---
 ---
-test_contains_unsupported @disabled
+test_contains_unsupported
 ---
 class C:
     pass
 1 in C()
 ---
 ---
-StrictModuleTypeError
+3 0 StrictModuleUnhandledException(TypeError)
 ---
 test_rich_comparison_eq_ne
 ---
@@ -4718,7 +4683,7 @@ y = x.__init__(x=1)
 ---
 3 4 StrictModuleUnhandledException(TypeError)
 ---
-test_object_hash_exist @disabled
+test_object_hash_exist
 ---
 o = object()
 h = o.__hash__
@@ -4754,15 +4719,15 @@ x.__next__()
 ---
 10 0 CoroutineFunctionNotSupportedException coroutine_func_2
 ---
-test_async_call @disabled
+test_async_call
 ---
 async def f(l):
     l[0] = 1
 l = [0]
 f(l)
 ---
-l
 ---
+4 0 UnsupportedException calling async function function
 ---
 test_method_attr
 ---
@@ -4828,7 +4793,7 @@ none, name2, const2 = D.desc
 abc name const none name2 const2
 ---
 ---
-test_function_defaults @disabled
+test_function_defaults
 ---
 def f(a, b, *, c):
     pass
@@ -4886,7 +4851,7 @@ d = next(i)
 ---
 8 4 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_call @disabled
+test_iter_call
 ---
 class C:
     def __init__(self):
@@ -4903,7 +4868,7 @@ c = next(i)
 a b c
 ---
 ---
-test_any_all @disabled
+test_any_all
 ---
 x = any([True, False, False])
 y = all([True, False, False])
@@ -5039,14 +5004,12 @@ x = d['x']
 ---
 3 0 StrictModuleUnhandledException(NameError)
 ---
-test_object_repr @disabled
+test_object_repr
 ---
 class C:
     pass
 s = repr(C())
-a = s == "<C object>"
 ---
-a
 ---
 ---
 test_object_module
@@ -5078,7 +5041,7 @@ a2 = f2(c2)
 a1 a2
 ---
 ---
-test_function_defaults_get_set @disabled
+test_function_defaults_get_set
 ---
 def f(x, y = 1):
     return x + y
@@ -5118,7 +5081,7 @@ x = l.index(5)
 x
 ---
 ---
-test_str_replace @disabled
+test_str_replace
 ---
 s = "foobar"
 s1 = s.replace("o", "a")
@@ -5126,7 +5089,7 @@ s1 = s.replace("o", "a")
 s1
 ---
 ---
-test_str_startswith @disabled
+test_str_startswith
 ---
 s = "foobar"
 b1 = s.startswith("foo")
@@ -5151,7 +5114,7 @@ x = D.__orig_bases__[0].x
 b1 x
 ---
 ---
-test_str_split @disabled
+test_str_split
 ---
 s = "a,b,c"
 l = s.split(",")
@@ -5166,7 +5129,7 @@ loose_isinstance(x, tuple) # no error
 ---
 ---
 ---
-test_yield_lambda @disabled
+test_yield_lambda
 ---
 f = lambda: (yield)
 f()
@@ -5183,7 +5146,7 @@ x = f()
 x
 ---
 ---
-test_future_annotations_function @disabled
+test_future_annotations_function
 ---
 from __future__ import annotations
 def f():
@@ -5212,7 +5175,7 @@ for i in range(10):
 i
 ---
 ---
-test_custom_iter @disabled
+test_custom_iter
 ---
 class Iterable:
     def __iter__(self):
@@ -5232,7 +5195,7 @@ l = list(Iterable())
 l
 ---
 ---
-test_generator_iter @disabled
+test_generator_iter
 ---
 def gen_f():
     for x in [1, 2, 3]:
@@ -5243,7 +5206,7 @@ for y in gen_f():
     z = y
 ---
 ---
-StrictModuleCoroutineFunctionNotSupportedException
+6 0 CoroutineFunctionNotSupportedException gen_f
 ---
 test_known_unknown_obj_no_usage @disabled
 ---
@@ -5318,7 +5281,7 @@ if TYPE_CHECKING:
 ---
 ---
 ---
-test_print @disabled
+test_print
 ---
 print(2)
 print("abc", flush=True)
@@ -5669,28 +5632,28 @@ x = ""[1:2]
 x
 ---
 ---
-test_str_isidentifier_0 @disabled
+test_str_isidentifier_0
 ---
 x = "abc".isidentifier()
 ---
 x
 ---
 ---
-test_str_isidentifier_1 @disabled
+test_str_isidentifier_1
 ---
 x = "def".isidentifier()
 ---
 x
 ---
 ---
-test_str_isidentifier_2 @disabled
+test_str_isidentifier_2
 ---
 x = "01".isidentifier()
 ---
 x
 ---
 ---
-test_str_isidentifier_3 @disabled
+test_str_isidentifier_3
 ---
 x = "abc def".isidentifier()
 ---
@@ -6240,7 +6203,7 @@ i.__next__()
 ---
 6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iterator_stop_10 @disabled
+test_iterator_stop_10
 ---
 l = zip([1, 2, 3], [4, 5, 6])
 i = l.__iter__()
@@ -6250,7 +6213,7 @@ c = i.__next__()
 i.__next__()
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
 test_iter_next_0
 ---
@@ -6367,7 +6330,7 @@ c = next(i)
 a b c
 ---
 ---
-test_iter_next_10 @disabled
+test_iter_next_10
 ---
 l = zip([1, 2, 3], [4, 5, 6])
 i = iter(l)
@@ -6498,7 +6461,7 @@ next(i)
 ---
 6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_iter_next_stop_10 @disabled
+test_iter_next_stop_10
 ---
 l = zip([1, 2, 3], [4, 5, 6])
 i = iter(l)
@@ -6508,7 +6471,7 @@ c = next(i)
 next(i)
 ---
 ---
-StrictModuleUnhandledException
+6 0 StrictModuleUnhandledException(StopIteration)
 ---
 test_reversed_next_0
 ---
@@ -6533,7 +6496,7 @@ next(i)
 ---
 6 0 StrictModuleUnhandledException(StopIteration)
 ---
-test_dunder_repr_0 @disabled
+test_dunder_repr_0
 ---
 x = (None).__repr__()
 y = repr(None)
@@ -6542,7 +6505,7 @@ z = str(None)
 x y z
 ---
 ---
-test_dunder_repr_1 @disabled
+test_dunder_repr_1
 ---
 x = (True).__repr__()
 y = repr(True)
@@ -6551,7 +6514,7 @@ z = str(True)
 x y z
 ---
 ---
-test_dunder_repr_2 @disabled
+test_dunder_repr_2
 ---
 x = (1).__repr__()
 y = repr(1)
@@ -6560,7 +6523,7 @@ z = str(1)
 x y z
 ---
 ---
-test_dunder_repr_3 @disabled
+test_dunder_repr_3
 ---
 x = (1.5).__repr__()
 y = repr(1.5)
@@ -6578,7 +6541,7 @@ z = str(2j)
 x y z
 ---
 ---
-test_dunder_repr_5 @disabled
+test_dunder_repr_5
 ---
 x = ((1, 2)).__repr__()
 y = repr((1, 2))
@@ -6587,7 +6550,7 @@ z = str((1, 2))
 x y z
 ---
 ---
-test_dunder_repr_6 @disabled
+test_dunder_repr_6
 ---
 x = ([1, 2]).__repr__()
 y = repr([1, 2])
@@ -6596,7 +6559,7 @@ z = str([1, 2])
 x y z
 ---
 ---
-test_dunder_repr_7 @disabled
+test_dunder_repr_7
 ---
 x = ({1, 2}).__repr__()
 y = repr({1, 2})
@@ -6605,7 +6568,7 @@ z = str({1, 2})
 x y z
 ---
 ---
-test_dunder_repr_8 @disabled
+test_dunder_repr_8
 ---
 x = ({1: 2}).__repr__()
 y = repr({1: 2})
@@ -6614,7 +6577,7 @@ z = str({1: 2})
 x y z
 ---
 ---
-test_dunder_repr_9 @disabled
+test_dunder_repr_9
 ---
 x = ('abc').__repr__()
 y = repr('abc')
@@ -7168,17 +7131,16 @@ import m as a
 2 0 UnknownValueAttributeException <imported module m as a> __gt__
 2 0 UnknownValueBoolException 1 < <imported module m as a>
 ---
-test_import_if_exp_assign_usage @disabled
+test_import_if_exp_assign_usage
 ---
 import m as a
 b = 2 if 1 in [2] else a
 b.x
 ---
 ---
-UnknownValueAttributeException
-UnknownValueAttributeException
+3 0 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_if_exp_assign_usage_ok @disabled
+test_import_if_exp_assign_usage_ok
 ---
 import m as a
 b = 2 if True else a
@@ -7405,16 +7367,16 @@ d[3].x
 ---
 3 0 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_dict_comprehension_key_usage @disabled
+test_import_dict_comprehension_key_usage
 ---
 import m as a
 l = [(a, 2)]
 d = {k.x: v for k, v in l}
 ---
 ---
-UnknownValueAttributeException
+3 5 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_dict_comprehension_key_usage_ok @disabled
+test_import_dict_comprehension_key_usage_ok
 ---
 import m as a
 l = [(2, a)]
@@ -7422,16 +7384,16 @@ d = {k.__bool__: v for k, v in l}
 ---
 ---
 ---
-test_import_dict_comprehension_value_usage @disabled
+test_import_dict_comprehension_value_usage
 ---
 import m as a
 l = [(2, a)]
 d = {k: v.x for k, v in l}
 ---
 ---
-UnknownValueAttributeException
+3 8 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_dict_comprehension_value_usage_ok @disabled
+test_import_dict_comprehension_value_usage_ok
 ---
 import m as a
 l = [(a, 2)]
@@ -7439,14 +7401,14 @@ d = {k: v.__bool__ for k, v in l}
 ---
 ---
 ---
-test_import_dict_comprehension_bad_value @disabled
+test_import_dict_comprehension_bad_value
 ---
 import m as a
-l = [a, 2]
+l = [(a, 2)]
 d = {k: v.x for k, v in l}
 ---
 ---
-StrictModuleTypeError
+3 8 StrictModuleUnhandledException(AttributeError)
 ---
 test_import_function_body_ok
 ---
@@ -7651,7 +7613,7 @@ d = c.some_method() # not ok
 ---
 11 4 UnsafeCallException some_method 7 15 UnknownValueAttributeException <imported module m as a> x
 ---
-test_import_class_baseclass_method_usage @disabled
+test_import_class_baseclass_method_usage
 ---
 from n import B
 class C(B):
@@ -7661,25 +7623,25 @@ c = C()
 c.f(1) # baseclass lookup
 ---
 ---
-UnknownValueAttributeException
-asd
+5 4 UnknownValueAttributeException <B imported from n> __new__
+5 4 StrictModuleUnhandledException(TypeError)
 ---
-test_import_lambda_usage @disabled
+test_import_lambda_usage
 ---
 from m import a
 (lambda n: n.x)(a)
 ---
 ---
-UnsafeCallException
+2 0 UnsafeCallException <lambda> 2 11 UnknownValueAttributeException <a imported from m> x
 ---
-test_import_lambda_assign_usage @disabled
+test_import_lambda_assign_usage
 ---
 from m import a
 f = lambda n: n.x
 f(a)
 ---
 ---
-UnsafeCallException
+3 0 UnsafeCallException <lambda> 2 14 UnknownValueAttributeException <a imported from m> x
 ---
 test_class_scope_hidden
 ---
@@ -7726,7 +7688,7 @@ class A:
 ---
 ---
 ---
-test_property @disabled
+test_property
 ---
 class C:
     @property
@@ -7735,9 +7697,10 @@ class C:
 a = C()
 b = a.f
 ---
+b
 ---
 ---
-test_property_unsafe @disabled
+test_property_unsafe
 ---
 from m import a
 class C:
@@ -7748,7 +7711,7 @@ c = C()
 b = c.f
 ---
 ---
-UnsafeCallException
+7 4 UnsafeCallException f 5 15 UnknownValueAttributeException <a imported from m> foo
 ---
 test_dataclass_def @disabled
 ---
@@ -7759,7 +7722,7 @@ class C:
 ---
 ---
 ---
-test_property_getter_unsafe @disabled
+test_property_getter_unsafe
 ---
 from m import a
 class C:
@@ -7774,7 +7737,7 @@ c = C()
 b = c.f
 ---
 ---
-UnsafeCallException
+11 4 UnsafeCallException f 9 15 UnknownValueAttributeException <a imported from m> foo
 ---
 test_dataclass_instantiation @disabled
 ---
@@ -7786,7 +7749,7 @@ c = C(1)
 ---
 ---
 ---
-test_property_setter @disabled
+test_property_setter
 ---
 class C:
     @property
@@ -7799,10 +7762,12 @@ class C:
 
 a = C()
 a.f = 42
+x = a.f
+---
+x
 ---
 ---
----
-test_property_setter_unsafe @disabled
+test_property_setter_unsafe
 ---
 from m import a
 class C:
@@ -7818,9 +7783,9 @@ c = C()
 c.f = 42
 ---
 ---
-UnsafeCallException
+12 0 UnsafeCallException f 9 15 UnknownValueAttributeException <a imported from m> foo
 ---
-test_property_deleter @disabled
+test_property_deleter
 ---
 class C:
     @property
@@ -7836,7 +7801,7 @@ del a.f
 ---
 ---
 ---
-test_property_deleter_unsafe @disabled
+test_property_deleter_unsafe
 ---
 from m import a
 class C:
@@ -7852,9 +7817,9 @@ c = C()
 del c.f
 ---
 ---
-UnsafeCallException
+12 0 UnsafeCallException f 9 15 UnknownValueAttributeException <a imported from m> foo
 ---
-test_classmethod_usage @disabled
+test_classmethod_usage
 ---
 from m import a
 class C:
@@ -7865,9 +7830,9 @@ class C:
 C.f(1)
 ---
 ---
-UnsafeCallException
+7 0 UnsafeCallException f 6 12 UnknownValueAttributeException <a imported from m> x
 ---
-test_classmethod_instance_usage @disabled
+test_classmethod_instance_usage
 ---
 from m import a
 class C:
@@ -7879,9 +7844,9 @@ c = C()
 c.f(1)
 ---
 ---
-UnsafeCallException
+8 0 UnsafeCallException f 6 12 UnknownValueAttributeException <a imported from m> x
 ---
-test_classmethod_ok @disabled
+test_classmethod_ok
 ---
 from m import a
 class C:
@@ -7893,7 +7858,7 @@ C.f(1)
 ---
 ---
 ---
-test_staticmethod_instance_usage @disabled
+test_staticmethod_instance_usage
 ---
 from m import a
 class C:
@@ -7904,9 +7869,9 @@ class C:
 C.f(a)
 ---
 ---
-UnsafeCallException
+7 0 UnsafeCallException f 6 12 UnknownValueAttributeException <a imported from m> x
 ---
-test_staticmethod_instance_ok @disabled
+test_staticmethod_instance_ok
 ---
 from m import a
 class C:
@@ -7918,7 +7883,7 @@ C.f(C)
 ---
 ---
 ---
-test_decorator_noop_usage @disabled
+test_decorator_noop_usage
 ---
 import m as a
 def dec(func):
@@ -7931,9 +7896,9 @@ def f(x):
 f(a)
 ---
 ---
-UnsafeCallException
+9 0 UnsafeCallException f 7 8 UnknownValueAttributeException <imported module m as a> y
 ---
-test_decorator_wrap_usage @disabled
+test_decorator_wrap_usage
 ---
 import m as a
 def dec(func):
@@ -7950,9 +7915,9 @@ def f(x):
 f(a)
 ---
 ---
-UnsafeCallException
+13 0 UnsafeCallException wrapper 4 12 UnknownValueAttributeException <imported module m as a> y
 ---
-test_decorator_side_effect_usage @disabled
+test_decorator_side_effect_usage
 ---
 import m as a
 def dec(func):
@@ -7969,9 +7934,10 @@ def f(x):
 f(1)
 ---
 ---
-UnsafeCallException
+9 1 UnsafeCallException dec 3 8 UnknownValueAttributeException <imported module m as a> y
+13 0 UnknownValueCallException dec(f,)
 ---
-test_decorator_side_effect_call_usage @disabled
+test_decorator_side_effect_call_usage
 ---
 import m as a
 def dec(func):
@@ -7987,9 +7953,9 @@ def f(x):
 f(1)
 ---
 ---
-UnsafeCallException
+12 0 UnsafeCallException wrapper 5 15 UnsafeCallException f 11 8 UnknownValueAttributeException <imported module m as a> y
 ---
-test_decorator_ok @disabled
+test_decorator_ok
 ---
 import m as a
 def dec(func):
@@ -8006,7 +7972,7 @@ def f(x):
 ---
 ---
 ---
-test_decorator_unknown @disabled
+test_decorator_unknown
 ---
 import m as a
 
@@ -8015,9 +7981,9 @@ def f(x):
     pass
 ---
 ---
-UnknownValueCallException
+3 1 StrictModuleUnhandledException(NameError)
 ---
-test_separate_decorator_usage @disabled
+test_separate_decorator_usage
 ---
 from m import a
 
@@ -8032,9 +7998,9 @@ c1 = C.h(a) # should be ok
 c2 = C.g(a) # should be error
 ---
 ---
-UnsafeCallException
+11 5 UnsafeCallException f 6 12 UnknownValueAttributeException <a imported from m> __bool__
 ---
-test_non_local_usage @disabled
+test_non_local_usage
 ---
 from m import a
 def f():
@@ -8042,16 +8008,16 @@ def f():
     def g():
         nonlocal b
         b = a
-    c1 = b.x #ok
+    c1 = b + 1 #ok
     g()
     return b
 res = f() # ok
 res.x # error
 ---
 ---
-StrictModuleUnhandledException
+11 0 UnknownValueAttributeException <a imported from m> x
 ---
-test_global_usage @disabled
+test_global_usage
 ---
 from m import a
 b = 1
@@ -8063,7 +8029,7 @@ g()
 c2 = b.x # error
 ---
 ---
-UnknownValueAttributeException
+8 5 UnknownValueAttributeException <a imported from m> x
 ---
 test_dataclass_replace @disabled
 ---
@@ -8091,50 +8057,52 @@ E = C.to_bytes(2, "little")
 D E
 ---
 ---
-test_mixed_int_ops @disabled
+test_mixed_int_ops
 ---
 from m import a
 A = 1
 C = A + a
 ---
 ---
-UnknownValueBinaryOpException
+3 4 UnknownValueBinaryOpException <a imported from m> + 1
 ---
-test_mixed_int_ops_right @disabled
+test_mixed_int_ops_right
 ---
 from m import a
 A = 1
 C = a + A
 ---
 ---
-UnknownValueBinaryOpException
+3 4 UnknownValueBinaryOpException <a imported from m> + 1
 ---
-test_byte_ops @disabled
+test_byte_ops
 ---
 A = b'abc'
 B = b'foo'
 C = A + B
 D = C.upper()
+D
+---
+D
 ---
 ---
----
-test_mixed_byte_ops_right @disabled
+test_mixed_byte_ops_right
 ---
 from m import a
 A = b'abc'
 C = A + a
 ---
 ---
-UnknownValueBinaryOpException
+3 4 UnsupportedException __add__ <a imported from m>
 ---
-test_mixed_byte_ops @disabled
+test_mixed_byte_ops
 ---
 from m import a
 A = b'abc'
 C = a + A
 ---
 ---
-UnknownValueBinaryOpException
+3 4 UnknownValueBinaryOpException <a imported from m> + abc
 ---
 test_typing_unknown @disabled
 ---
@@ -8371,7 +8339,7 @@ def f(x: Union[int, str]) -> None:
 ---
 ---
 ---
-test_slicing_ok @disabled
+test_slicing_ok
 ---
 import m as a
 x = [a, 1, 2]
@@ -8380,7 +8348,7 @@ b = [a.__bool__ for a in y]
 ---
 ---
 ---
-test_slicing_fail @disabled
+test_slicing_fail
 ---
 import m as a
 x = [a, 1, 2]
@@ -8388,7 +8356,7 @@ y = x[:1]
 b = [a.x for a in y]
 ---
 ---
-UnknownValueAttributeException
+4 5 UnknownValueAttributeException <imported module m as a> x
 ---
 test_import_tuple_matched_assign_usage
 ---
@@ -8451,7 +8419,7 @@ import xml.dom
 ---
 ---
 ---
-test_decorator_with_generator @disabled
+test_decorator_with_generator
 ---
 def mydec(gen):
     def myfunc(x):
@@ -8466,7 +8434,7 @@ def f():
 ---
 ---
 ---
-test_class_decorator_with_generator @disabled
+test_class_decorator_with_generator
 ---
 def mydec(gen):
     def myfunc(x):
@@ -8481,7 +8449,7 @@ class C:
 ---
 ---
 ---
-test_class_decorator_add_attr @disabled
+test_class_decorator_add_attr
 ---
 def mydec(klass):
     klass.foo = 42
@@ -8495,7 +8463,7 @@ abc = C.foo.to_bytes(2, "little")
 ---
 ---
 ---
-test_class_decorator_add_imported_attr @disabled
+test_class_decorator_add_imported_attr
 ---
 from x import a
 def mydec(klass):
@@ -8506,94 +8474,94 @@ def mydec(klass):
 class C:
     x = 42
 
-abc = C.foo.to_bytes(2, "little")
+abc = C.foo.x
 ---
 ---
-UnknownValueAttributeException
+10 6 UnknownValueAttributeException <a imported from x> x
 ---
-test_dict @disabled
----
-from x import a
-x = {}
-x[2] = 3
-x[3] = a
-x[2].to_bytes(2, "little")
----
----
----
-test_dict_bad @disabled
+test_dict
 ---
 from x import a
 x = {}
 x[2] = 3
 x[3] = a
-x[3].to_bytes(2, "little")
+z = x[2] + 1
 ---
 ---
-UnknownValueAttributeException
 ---
-test_dict_str_keys @disabled
+test_dict_bad
+---
+from x import a
+x = {}
+x[2] = 3
+x[3] = a
+z = x[3] + 1
+---
+---
+5 4 UnknownValueBinaryOpException <a imported from x> + 1
+---
+test_dict_str_keys
 ---
 from x import a
 x = {}
 x['abc'] = 3
 x['def'] = a
-x['abc'].to_bytes(2, "little")
+z = x['abc'] + 1
 ---
 ---
 ---
-test_dict_str_keys_bad @disabled
+test_dict_str_keys_bad
 ---
 from x import a
 x = {}
 x['abc'] = 3
 x['def'] = a
-x['def'].to_bytes(2, "little")
+x['def'] + 1
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueBinaryOpException <a imported from x> + 1
 ---
-test_dict_tuple_keys @disabled
----
-from x import a
-x = {}
-x[('abc', 42)] = 3
-x[('abc', 100)] = a
-x[('abc', 42)].to_bytes(2, "little")
----
----
----
-test_dict_tuple_keys_bad @disabled
+test_dict_tuple_keys
 ---
 from x import a
 x = {}
 x[('abc', 42)] = 3
 x[('abc', 100)] = a
-x[('abc', 100)].to_bytes(2, "little")
+z = x[('abc', 42)] + 1
 ---
 ---
-UnknownValueAttributeException
 ---
-test_dict_float_keys @disabled
+test_dict_tuple_keys_bad
+---
+from x import a
+x = {}
+x[('abc', 42)] = 3
+x[('abc', 100)] = a
+x[('abc', 100)] + 1
+---
+---
+5 0 UnknownValueBinaryOpException <a imported from x> + 1
+---
+test_dict_float_keys
 ---
 from x import a
 x = {}
 x[1.0] = 3
 x[2.0] = a
-x[1.0].to_bytes(2, "little")
+x[1.0] + 1
 ---
 ---
 ---
-test_dict_float_keys_bad @disabled
+test_dict_float_keys_bad
 ---
 from x import a
 x = {}
 x[1.0] = 3
 x[2.0] = a
-x[2.0].to_bytes(2, "little")
+x[2.0] + 1
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueBinaryOpException <a imported from x> + 1
 ---
 test_dict_complex_keys @disabled
 ---
@@ -8616,49 +8584,49 @@ x[2j].to_bytes(2, "little")
 ---
 UnknownValueAttributeException
 ---
-test_dict_int_float_keys @disabled
+test_dict_int_float_keys
 ---
 from x import a
 x = {}
 x[1] = 3
 x[2] = a
-x[1.0].to_bytes(2, "little")
+x[1.0] + 1
 ---
 ---
 ---
-test_dict_int_float_keys_bad @disabled
+test_dict_int_float_keys_bad
 ---
 from x import a
 x = {}
 x[1] = 3
 x[2] = a
-x[2.0].to_bytes(2, "little")
+x[2.0] + 1
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueBinaryOpException <a imported from x> + 1
 ---
-test_dict_mixed_keys @disabled
----
-from x import a
-x = {}
-x[False] = 3
-x[True] = a
-x[False].to_bytes(2, "little")
----
----
----
-test_dict_mixed_keys_bad @disabled
+test_dict_mixed_keys
 ---
 from x import a
 x = {}
 x[False] = 3
 x[True] = a
-x[True].to_bytes(2, "little")
+x[False] + 1
 ---
 ---
-UnknownValueAttributeException
 ---
-test_for_loop_body @disabled
+test_dict_mixed_keys_bad
+---
+from x import a
+x = {}
+x[False] = 3
+x[True] = a
+x[True] + 1
+---
+---
+5 0 UnknownValueBinaryOpException <a imported from x> + 1
+---
+test_for_loop_body_1
 ---
 from outside import unknown
 l = [unknown, 2, 3]
@@ -8669,14 +8637,14 @@ x = x + 1
 ---
 ---
 ---
-test_dict_splat_not_mapping @disabled
+test_dict_splat_not_mapping
 ---
 y = {**2}
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_dict_splat @disabled
+test_dict_splat
 ---
 x = {2:3}
 y = {**x}
@@ -8684,7 +8652,7 @@ y[2].__bool__
 ---
 ---
 ---
-test_dict_splat_bad @disabled
+test_dict_splat_bad
 ---
 from a import b
 x = {2:b}
@@ -8692,100 +8660,94 @@ y = {**x}
 y[2].x # bad
 ---
 ---
-UnknownValueAttributeException
+4 0 UnknownValueAttributeException <b imported from a> x
 ---
-test_dict_splat_bad_2 @disabled
+test_dict_splat_bad_2
 ---
 x = {2:3}
 y = {**x}
 y[42].abc
 ---
 ---
-StrictModuleUnhandledException
+3 0 StrictModuleUnhandledException(KeyError)
 ---
-test_gen_exp_bad @disabled
----
-
----
----
----
-test_chr_ok @disabled
+test_chr_ok
 ---
 x = chr(42)
 ---
 ---
 ---
-test_chr_unknown_inp @disabled
+test_chr_unknown_inp
 ---
 from a import b
 x = chr(b)
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(TypeError)
 ---
-test_chr_out_of_range_inp @disabled
+test_chr_out_of_range_inp
 ---
 x = chr(100000000)
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(ValueError)
 ---
-test_chr_wrong_arg_cnt @disabled
+test_chr_wrong_arg_cnt
 ---
 x = chr(1, 2)
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_chr_wrong_arg_cnt_zero @disabled
+test_chr_wrong_arg_cnt_zero
 ---
 x = chr()
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_chr_wrong_kwarg_cnt @disabled
+test_chr_wrong_kwarg_cnt
 ---
 x = chr(x=2)
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_chr_wrong_kwarg_cnt_with_param @disabled
+test_chr_wrong_kwarg_cnt_with_param
 ---
 x = chr(1, x=2)
 ---
 ---
-StrictModuleTypeError
+1 4 StrictModuleUnhandledException(TypeError)
 ---
-test_chr_mixed_warning_error @disabled
+test_chr_mixed_warning_error
 ---
 from a import b
 x = chr(b, x=2)
 ---
 ---
-StrictModuleTypeError
+2 4 StrictModuleUnhandledException(TypeError)
 ---
-test_ord_ok @disabled
+test_ord_ok
 ---
 x = ord('a')
 ---
 ---
 ---
-test_ord_unknown_inp @disabled
+test_ord_unknown_inp
 ---
 from a import b
 x = ord(b)
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(TypeError)
 ---
-test_ord_invalid_input @disabled
+test_ord_invalid_input
 ---
 x = ord("asdf")
 ---
 ---
-StrictModuleUnhandledException
+1 4 StrictModuleUnhandledException(TypeError)
 ---
 test_range_ok
 ---
@@ -8803,14 +8765,14 @@ x = range(a)
 ---
 2 4 StrictModuleUnhandledException(TypeError)
 ---
-test_list_mul_slice_ok @disabled
+test_list_mul_slice_ok
 ---
 foo = [0]*42
 bar = [x[:] for x in [foo]*42]
 ---
 ---
 ---
-test_list_mul_slice_bad @disabled
+test_list_mul_slice_bad
 ---
 from x import a
 foo = [a]*51
@@ -8818,9 +8780,9 @@ bar = [x[:] for x in [foo]*51]
 bar[0][1].foo
 ---
 ---
-UnknownValueAttributeException
+4 0 UnknownValueAttributeException <a imported from x> foo
 ---
-test_unknown_list_index @disabled
+test_unknown_list_index
 ---
 from x import a, b
 l = [1, a]
@@ -8828,24 +8790,24 @@ x = l[b]
 x.foo
 ---
 ---
-UnknownValueAttributeException
+3 4 StrictModuleUnhandledException(TypeError)
 ---
-test_assign_builtin_inst @disabled
+test_assign_builtin_inst
 ---
 from x import a
 y = 2
 y.foo = a
 ---
 ---
-StrictModuleTypeError
+3 0 ImmutableException foo object 2
 ---
-test_assign_builtin_type @disabled
+test_assign_builtin_type
 ---
 from x import a
 object.foo = a
 ---
 ---
-StrictModuleTypeError
+2 0 ImmutableException foo type object
 ---
 test_namedtuple_def @disabled
 ---
@@ -9187,29 +9149,29 @@ c1.c.attr
 ---
 UnknownValueAttributeException
 ---
-test_len_unknown @disabled
+test_len_unknown
 ---
 from outside import unknown
 len(unknown)
 ---
 ---
-UnknownValueAttributeException
+2 0 UnknownValueAttributeException <unknown imported from outside> __len__
 ---
-test_bool_ok @disabled
+test_bool_ok
 ---
 bool(1)
 ---
 ---
 ---
-test_bool_unknown @disabled
+test_bool_unknown
 ---
 from outside import unknown
 bool(unknown)
 ---
 ---
-UnknownValueBoolException
+2 0 UnknownValueBoolException <unknown imported from outside>
 ---
-test_for_loop_does_replace @disabled
+test_for_loop_does_replace
 ---
 from outside import unknown
 l = [unknown, 2, 3]
@@ -9219,7 +9181,7 @@ y = i.__bool__ # should be ok since i is guaranteed to be replaced
 ---
 ---
 ---
-test_for_loop_does_replace_unsafe @disabled
+test_for_loop_does_replace_unsafe
 ---
 from outside import unknown
 l = [1, 2, unknown]
@@ -9228,20 +9190,9 @@ for i in l:
 y = i.attr
 ---
 ---
-UnknownValueAttributeException
+5 4 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_for_loop_body @disabled
----
-from outside import unknown
-l = [unknown, 2, 3]
-x = 1
-for i in l:
-    x = i
-x = x + 1
----
----
----
-test_for_loop_body_unsafe @disabled
+test_for_loop_body_unsafe
 ---
 from outside import unknown
 l = [1, 2, 3, unknown]
@@ -9251,9 +9202,9 @@ for i in l:
 x.attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_for_loop_class_def_empty @disabled
+test_for_loop_class_def_empty
 ---
 l = []
 for s in l:
@@ -9263,9 +9214,9 @@ for s in l:
 c = C()
 ---
 ---
-UnknownValueCallException
+6 4 StrictModuleUnhandledException(NameError)
 ---
-test_exception_branch @disabled
+test_exception_branch
 ---
 from outside import unknown
 try:
@@ -9279,9 +9230,9 @@ except Exception as e:
 x.attr
 ---
 ---
-UnknownValueAttributeException
+10 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_exception_branch_except @disabled
+test_exception_branch_except
 ---
 from outside import unknown
 try:
@@ -9294,9 +9245,9 @@ except Exception as e:
 x.attr
 ---
 ---
-UnknownValueAttributeException
+9 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_exception_loop @disabled
+test_exception_loop
 ---
 from outside import unknown
 x = 2
@@ -9311,9 +9262,9 @@ else:
 x.attr
 ---
 ---
-UnknownValueAttributeException
+11 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_exception_nested @disabled
+test_exception_nested
 ---
 from outside import unknown
 try:
@@ -9327,9 +9278,9 @@ except Exception:
 x.attr
 ---
 ---
-UnknownValueAttributeException
+10 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_exception_with_cause @disabled
+test_exception_with_cause
 ---
 from outside import unknown
 try:
@@ -9338,17 +9289,17 @@ except Exception:
     pass
 ---
 ---
-UnknownValueAttributeException
+3 30 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_getattr_unknown @disabled
+test_getattr_unknown
 ---
 from outside import unknown
 a = getattr(unknown, "a", 1)
 ---
 ---
-UnknownValueAttributeException
+2 4 UnknownValueAttributeException <unknown imported from outside> a
 ---
-test_starred_assignment @disabled
+test_starred_assignment
 ---
 from outside import unknown
 a, *b, c = 1, unknown, 2, 3
@@ -9358,9 +9309,9 @@ b[1].__bool__
 b[0].attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_starred_assignment_empty_star @disabled
+test_starred_assignment_empty_star
 ---
 from outside import unknown
 a, *b, c = 1, unknown
@@ -9368,9 +9319,9 @@ a.__bool__
 c.attr
 ---
 ---
-UnknownValueAttributeException
+4 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_starred_assignment_unknown_rest @disabled
+test_starred_assignment_unknown_rest
 ---
 from outside import unknown
 a, *b, c = 1, 2, 3, unknown
@@ -9380,33 +9331,37 @@ b[1].__bool__
 c.attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_unknown_bool_while @disabled
+test_unknown_bool_while
 ---
+from u import x
 while x:
     pass
 ---
 ---
-UnknownValueBoolException
+2 0 UnknownValueBoolException <x imported from u>
 ---
-test_unknown_bool_if @disabled
+test_unknown_bool_if
 ---
+from u import x
 if x:
     pass
 ---
 ---
-UnknownValueBoolException
+2 0 UnknownValueBoolException <x imported from u>
 ---
-test_unknown_bool_not @disabled
+test_unknown_bool_not
 ---
+from u import x
 y = not x
 ---
 ---
-UnknownValueBoolException
+2 4 UnknownValueBoolException <x imported from u>
 ---
-test_unknown_bool_cmp @disabled
+test_unknown_bool_cmp
 ---
+from u import x
 class C:
     def __gt__(self, other):
         return x
@@ -9414,10 +9369,11 @@ class C:
 C() > C()
 ---
 ---
-UnknownValueBoolException
+6 0 UnknownValueBoolException <x imported from u>
 ---
-test_bool_unknown_return @disabled
+test_bool_unknown_return
 ---
+from u import x
 class C:
     def __bool__(self):
         return x
@@ -9425,28 +9381,33 @@ class C:
 C() or 42
 ---
 ---
-StrictModuleTypeError
+6 0 StrictModuleUnhandledException(TypeError)
 ---
-test_unknown_bool_bool_op @disabled
+test_unknown_bool_bool_op
 ---
+from u import x
 x or 42
 ---
 ---
-UnknownValueBoolException
+2 0 UnknownValueBoolException <x imported from u>
 ---
-test_unknown_bool_ifexp @disabled
+test_unknown_bool_ifexp
 ---
+from u import x
 y = 42 if x else 23
 ---
 ---
-UnknownValueBoolException
+2 4 UnknownValueBoolException <x imported from u>
 ---
-test_unknown_bool_comp @disabled
+test_unknown_bool_comp
 ---
+from u import y
 z = [x for x in [1,2,3] if y]
 ---
 ---
-UnknownValueBoolException
+2 4 UnknownValueBoolException <y imported from u>
+2 4 UnknownValueBoolException <y imported from u>
+2 4 UnknownValueBoolException <y imported from u>
 ---
 test_scoping_generators_first_iter @disabled
 ---
@@ -9455,7 +9416,7 @@ x = [x for x in (lambda: [1,2,3])()]
 ---
 ---
 ---
-test_metaclass_violation_init @disabled
+test_metaclass_violation_init
 ---
 import unknown
 
@@ -9467,9 +9428,9 @@ class x(metaclass=mc):
     pass
 ---
 ---
-UnsafeCallException
+7 0 UnsafeCallException __init__ 5 8 UnknownValueAttributeException <imported module unknown> path
 ---
-test_metaclass_violation_new @disabled
+test_metaclass_violation_new
 ---
 import unknown
 
@@ -9481,9 +9442,9 @@ class x(metaclass=mc):
     pass
 ---
 ---
-UnsafeCallException
+7 0 UnsafeCallException __new__ 5 8 UnknownValueAttributeException <imported module unknown> path
 ---
-test_metaclass_okay @disabled
+test_metaclass_okay
 ---
 import sys
 
@@ -9498,7 +9459,7 @@ y = x.foo.to_bytes(2, "little")
 ---
 ---
 ---
-test_metaclass_unknown @disabled
+test_metaclass_unknown
 ---
 from a import B
 
@@ -9506,9 +9467,10 @@ class X(metaclass=B):
     pass
 ---
 ---
-UnknownValueCallException
+3 0 UnknownValueCallException <B imported from a>
+3 0 UnknownValueCallException <B imported from a>
 ---
-test_metaclass_conflict @disabled
+test_metaclass_conflict
 ---
 
 class MX(type): pass
@@ -9520,39 +9482,39 @@ class Y(metaclass=MY): pass
 class Z(X, Y): pass
 ---
 ---
-MetaclassConflictException
+8 0 StrictModuleUnhandledException(TypeError)
 ---
-test_object_new_not_enough_args @disabled
+test_object_new_not_enough_args
 ---
 
 x = object.__new__()
 ---
 ---
-StrictModuleTypeError
+2 4 StrictModuleUnhandledException(TypeError)
 ---
-test_object_new_too_many_args @disabled
+test_object_new_too_many_args
 ---
 
 x = object.__new__(object, 42)
 ---
 ---
 ---
-test_object_new_okay @disabled
+test_object_new_okay
 ---
 
 x = object.__new__(object)
 ---
 ---
 ---
-test_object_new_non_type @disabled
+test_object_new_non_type
 ---
 
 x = object.__new__(42)
 ---
 ---
-StrictModuleTypeError
+2 4 StrictModuleUnhandledException(TypeError)
 ---
-test_object_creates_instance @disabled
+test_object_creates_instance
 ---
 from a import b
 
@@ -9562,80 +9524,74 @@ class C:
 object.__new__(C).x.blah
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <b imported from a> blah
 ---
-test_type_no_args @disabled
+test_type_no_args
 ---
 type()
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_type_too_many_args @disabled
+test_type_too_many_args
 ---
 type(1, 2, 3, 4)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_type_bad_name @disabled
+test_type_bad_name
 ---
 type(42, (), {})
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_type_bad_bases @disabled
+test_type_bad_bases
 ---
 type('foo', 'abc', {})
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_type_bad_dict @disabled
+test_type_bad_dict
 ---
 type('foo', (), 42.0)
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_type_bad_base @disabled
+test_type_bad_base
 ---
 type('foo', (42, ), {})
 ---
 ---
-StrictModuleTypeError
+1 0 UnsafeBaseClassException 42
 ---
-test_classmethod_subclass @disabled
+test_classmethod_subclass
 ---
 class x(classmethod): pass
 ---
 ---
 ---
-test_slice_list_assignment_okay @disabled
+test_slice_list_assignment_okay
 ---
 from a import b
 x = [b]
 x[:] = [1,2,3]
-x[0].to_bytes(2, "little")
+x[0] + 1
 ---
 ---
 ---
-test_slice_list_assignment_bad @disabled
+test_slice_list_assignment_bad
 ---
 from a import b
 x = [1,2,3]
 x[:] = [b]
-x[0].to_bytes(2, "little")
+x[0] + 1
 ---
 ---
-UnknownValueAttributeException
----
-test_cell_meth_with_instance @disabled
----
-x = bytes.upper(b'abc')
----
----
+4 0 UnknownValueBinaryOpException <b imported from a> + 1
 ---
 test_bad_base_type_range
 ---
@@ -9645,31 +9601,31 @@ class C(range):
 ---
 1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_bad_base_type_bool @disabled
+test_bad_base_type_bool
 ---
 class C(bool):
     pass
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_inconsistent_hierarchy @disabled
+test_inconsistent_hierarchy
 ---
 class C(object, int):
     pass
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_base_conflict_layout @disabled
+test_base_conflict_layout
 ---
 class C(int, bytes):
     pass
 ---
 ---
-StrictModuleTypeError
+1 0 StrictModuleUnhandledException(TypeError)
 ---
-test_classproperty @disabled
+test_classproperty
 ---
 class classproperty:
     def __init__(self, getter):

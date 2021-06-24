@@ -70,7 +70,7 @@ class ASTVisitor {
         return static_cast<TAnalyzer*>(this)->visitImportFrom(stmt);
       case Global_kind:
       case Nonlocal_kind:
-        break;
+        return static_cast<TAnalyzer*>(this)->visitGlobal(stmt);
       case Expr_kind:
         return static_cast<TAnalyzer*>(this)->visitExprStmt(stmt);
       case Pass_kind:

@@ -718,8 +718,11 @@ std::string StrictBool::getDisplayName() const {
 
 std::shared_ptr<BaseStrictObject> StrictBool::boolFromPyObj(
     Ref<> pyObj,
-    const CallerContext& caller) {
-  return std::make_shared<StrictBool>(BoolType(), caller.caller, pyObj.get());
+    const CallerContext&) {
+  if (pyObj.get() == Py_True) {
+    return StrictTrue();
+  }
+  return StrictFalse();
 }
 
 std::shared_ptr<BaseStrictObject> StrictBool::boolOrNotImplementedFromPyObj(
@@ -729,6 +732,21 @@ std::shared_ptr<BaseStrictObject> StrictBool::boolOrNotImplementedFromPyObj(
     return NotImplemented();
   }
   return boolFromPyObj(std::move(pyObj), caller);
+}
+
+std::shared_ptr<BaseStrictObject> StrictBool::bool__new__(
+    std::shared_ptr<StrictBool>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> instType,
+    std::shared_ptr<BaseStrictObject> value) {
+  auto type = assertStaticCast<StrictType>(std::move(instType));
+  if (!type->isSubType(BoolType())) {
+    caller.raiseTypeError("{} is not a subtype of bool", type->getName());
+  }
+  if (!value) {
+    return StrictFalse();
+  }
+  return iGetTruthValue(std::move(value), caller);
 }
 
 // StrictBoolType
@@ -780,9 +798,15 @@ std::shared_ptr<BaseStrictObject> StrictBoolType::getTruthValue(
 
 void StrictBoolType::addMethods() {
   StrictIntType::addMethods();
+  addStaticMethodDefault("__new__", StrictBool::bool__new__, nullptr);
 
   addPyWrappedMethodObj<>(
       kDunderRepr,
+      reinterpret_cast<PyObject*>(&PyBool_Type),
+      StrictString::strFromPyObj);
+
+  addPyWrappedMethodObj<>(
+      kDunderStr,
       reinterpret_cast<PyObject*>(&PyBool_Type),
       StrictString::strFromPyObj);
 }
@@ -1266,7 +1290,6 @@ void StrictFloatType::addMethods() {
   addMethod("__ge__", StrictFloat::float__ge__);
 
   addMethod(kDunderBool, StrictFloat::float__bool__);
-  addMethod(kDunderStr, StrictFloat::float__str__);
   addMethod("__abs__", StrictFloat::float__abs__);
   addMethodDefault("__round__", StrictFloat::float__round__, nullptr);
   addStaticMethodDefault("__new__", StrictFloat::float__new__, nullptr);
@@ -1277,6 +1300,8 @@ void StrictFloatType::addMethods() {
 
   PyObject* floatType = reinterpret_cast<PyObject*>(&PyFloat_Type);
   addPyWrappedMethodObj<>(kDunderRepr, floatType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<>(kDunderStr, floatType, StrictString::strFromPyObj);
   addPyWrappedMethodObj<1>("__format__", floatType, StrictString::strFromPyObj);
+  addPyWrappedMethodObj<>("is_integer", floatType, StrictBool::boolFromPyObj);
 }
 } // namespace strictmod::objects

@@ -181,6 +181,15 @@ bool StrictType::isBaseType() const {
   return true;
 }
 
+bool StrictType::isCallable(const CallerContext& caller) {
+  if (isCallable_.has_value()) {
+    return isCallable_.value();
+  }
+  auto dunderCall = typeLookup(kDunderCall, caller);
+  isCallable_ = dunderCall != nullptr;
+  return isCallable_.value();
+}
+
 bool StrictType::isDataDescr(const CallerContext& caller) {
   if (isDataDescr_.has_value()) {
     return isDataDescr_.value();

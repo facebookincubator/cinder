@@ -257,7 +257,7 @@ void StrictStringType::addMethods() {
   addPyWrappedMethodDefaultObj(
       "replace", strType, StrictString::strFromPyObj, 1, 3);
   addPyWrappedMethodDefaultObj(
-      "startswith", strType, StrictString::strFromPyObj, 2, 3);
+      "startswith", strType, StrictBool::boolFromPyObj, 2, 3);
   addPyWrappedMethodDefaultObj(
       "split", strType, StrictString::listFromPyStrList, 2, 2);
 }
