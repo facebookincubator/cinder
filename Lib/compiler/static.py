@@ -3018,6 +3018,12 @@ class LenFunction(Object[Class]):
         super().__init__(klass)
         self.boxed = boxed
 
+    def exact(self) -> Value:
+        return self
+
+    def inexact(self) -> Value:
+        return self
+
     @property
     def name(self) -> str:
         return f"{'' if self.boxed else 'c'}len function"
@@ -3052,6 +3058,12 @@ class SortedFunction(Object[Class]):
     def name(self) -> str:
         return "sorted function"
 
+    def exact(self) -> Value:
+        return self
+
+    def inexact(self) -> Value:
+        return self
+
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -3076,6 +3088,12 @@ class ExtremumFunction(Object[Class]):
     def __init__(self, klass: Class, is_min: bool) -> None:
         super().__init__(klass)
         self.is_min = is_min
+
+    def exact(self) -> Value:
+        return self
+
+    def inexact(self) -> Value:
+        return self
 
     @property
     def _extremum(self) -> str:
@@ -3129,6 +3147,12 @@ class IsInstanceFunction(Object[Class]):
     @property
     def name(self) -> str:
         return "isinstance function"
+
+    def exact(self) -> Value:
+        return self
+
+    def inexact(self) -> Value:
+        return self
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
