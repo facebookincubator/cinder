@@ -2,6 +2,8 @@
 #ifndef __LIR_SYMBOL_MAPPING_H__
 #define __LIR_SYMBOL_MAPPING_H__
 
+#include <cstdint>
+#include <string>
 #include <unordered_map>
 
 namespace jit {
