@@ -5894,31 +5894,6 @@ class TypeBinder(GenericVisitor):
         self.set_type(arg, arg_type.instance, None)
 
     def _visitParameters(self, args: ast.arguments, scope: BindingScope) -> None:
-        for arg in args.posonlyargs:
-            ann = arg.annotation
-            if ann:
-                self.visit(ann)
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
-            elif arg.arg in scope.decl_types:
-                # Already handled self
-                continue
-            else:
-                arg_type = DYNAMIC_TYPE
-            self.set_param(arg, arg_type, scope)
-
-        for arg in args.args:
-            ann = arg.annotation
-            if ann:
-                self.visit(ann)
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
-            elif arg.arg in scope.decl_types:
-                # Already handled self
-                continue
-            else:
-                arg_type = DYNAMIC_TYPE
-
-            self.set_param(arg, arg_type, scope)
-
         if args.defaults:
             for default in args.defaults:
                 self.visit(default)
@@ -5928,6 +5903,50 @@ class TypeBinder(GenericVisitor):
                 if default is not None:
                     self.visit(default)
 
+        default_index = len(args.defaults or []) - (
+            len(args.posonlyargs) + len(args.args)
+        )
+        for arg in args.posonlyargs:
+            ann = arg.annotation
+            if ann:
+                self.visit(ann)
+                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+            elif arg.arg in scope.decl_types:
+                # Already handled self
+                default_index += 1
+                continue
+            else:
+                arg_type = DYNAMIC_TYPE
+            if default_index >= 0:
+                self.check_can_assign_from(
+                    arg_type,
+                    self.get_type(args.defaults[default_index]).klass,
+                    args.defaults[default_index],
+                )
+            default_index += 1
+            self.set_param(arg, arg_type, scope)
+
+        for arg in args.args:
+            ann = arg.annotation
+            if ann:
+                self.visit(ann)
+                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+            elif arg.arg in scope.decl_types:
+                # Already handled self
+                default_index += 1
+                continue
+            else:
+                arg_type = DYNAMIC_TYPE
+
+            if default_index >= 0:
+                self.check_can_assign_from(
+                    arg_type,
+                    self.get_type(args.defaults[default_index]).klass,
+                    args.defaults[default_index],
+                )
+            default_index += 1
+            self.set_param(arg, arg_type, scope)
+
         vararg = args.vararg
         if vararg:
             ann = vararg.annotation
@@ -5936,6 +5955,7 @@ class TypeBinder(GenericVisitor):
 
             self.set_param(vararg, TUPLE_EXACT_TYPE, scope)
 
+        default_index = len(args.kw_defaults or []) - len(args.kwonlyargs)
         for arg in args.kwonlyargs:
             ann = arg.annotation
             if ann:
@@ -5944,6 +5964,15 @@ class TypeBinder(GenericVisitor):
             else:
                 arg_type = DYNAMIC_TYPE
 
+            if default_index >= 0:
+                default = args.kw_defaults[default_index]
+                if default is not None:
+                    self.check_can_assign_from(
+                        arg_type,
+                        self.get_type(default).klass,
+                        default,
+                    )
+            default_index += 1
             self.set_param(arg, arg_type, scope)
 
         kwarg = args.kwarg

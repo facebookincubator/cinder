@@ -10392,6 +10392,42 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
+    def test_default_type_error(self):
+        codestr = """
+        def foo(x: int = "") -> int:
+            return x
+        """
+        self.type_error(
+            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+        )
+
+    def test_default_type_error_with_non_defaults(self):
+        codestr = """
+        def foo(non_default: int, x: int = "") -> int:
+            return non_default + x
+        """
+        self.type_error(
+            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+        )
+
+    def test_default_type_error_with_positional_only_arguments(self):
+        codestr = """
+        def foo(x: int = "", /) -> int:
+            return x
+        """
+        self.type_error(
+            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+        )
+
+    def test_default_type_error_with_keywords(self):
+        codestr = """
+        def foo(x: int, *, y: int, z: int = "") -> int:
+            return x + y + z
+        """
+        self.type_error(
+            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+        )
+
     def test_slotification_decorated(self):
         codestr = """
             class _Inner():
