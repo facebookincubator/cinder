@@ -148,6 +148,7 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     PRIM_OP_AND_INT,
     PRIM_OP_NEG_INT,
     PRIM_OP_INV_INT,
+    PRIM_OP_NEG_DBL,
     PRIM_OP_ADD_DBL,
     PRIM_OP_SUB_DBL,
     PRIM_OP_MUL_DBL,
@@ -5007,6 +5008,25 @@ class CDoubleInstance(CInstance["CDoubleType"]):
 
     def as_oparg(self) -> int:
         return TYPED_DOUBLE
+
+    def bind_unaryop(
+        self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if isinstance(node.op, (ast.USub, ast.UAdd)):
+            visitor.set_type(node, self, type_ctx)
+        else:
+            raise visitor.syntax_error("Cannot invert/not a double", node)
+
+    def emit_unaryop(self, node: ast.UnaryOp, code_gen: Static38CodeGenerator) -> None:
+        code_gen.update_lineno(node)
+        assert not isinstance(
+            node.op, (ast.Invert, ast.Not)
+        )  # should be prevent by the type checker
+        if isinstance(node.op, ast.USub):
+            code_gen.visit(node.operand)
+            code_gen.emit("PRIMITIVE_UNARY_OP", PRIM_OP_NEG_DBL)
+        elif isinstance(node.op, ast.UAdd):
+            code_gen.visit(node.operand)
 
     def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
         if isinstance(node.ctx, ast.Load):

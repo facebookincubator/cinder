@@ -2366,17 +2366,29 @@ void HIRBuilder::emitPrimitiveUnaryOp(
   Register* result = temps_.AllocateStack();
   PrimitiveUnaryOpKind op;
   switch (bc_instr.oparg()) {
-    case PRIM_OP_NEG_INT:
+    case PRIM_OP_NEG_INT: {
       op = PrimitiveUnaryOpKind::kNegateInt;
+      tc.emit<PrimitiveUnaryOp>(result, op, value);
       break;
-    case PRIM_OP_INV_INT:
+    }
+    case PRIM_OP_INV_INT: {
       op = PrimitiveUnaryOpKind::kInvertInt;
+      tc.emit<PrimitiveUnaryOp>(result, op, value);
       break;
-    default:
+    }
+    case PRIM_OP_NEG_DBL: {
+      // For doubles, there's no easy way to unary negate a value, so just
+      // multiply it by -1
+      auto tmp = temps_.AllocateStack();
+      tc.emit<LoadConst>(tmp, Type::fromCDouble(-1.0));
+      tc.emit<DoubleBinaryOp>(result, BinaryOpKind::kMultiply, tmp, value);
+      break;
+    }
+    default: {
       JIT_CHECK(false, "unsupported unary op");
       break;
+    }
   }
-  tc.emit<PrimitiveUnaryOp>(result, op, value);
   tc.frame.stack.push(result);
 }
 

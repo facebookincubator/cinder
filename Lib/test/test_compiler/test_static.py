@@ -142,7 +142,6 @@ try:
 except ImportError:
     cinderjit = None
 
-
 RICHARDS_PATH = path.join(
     path.dirname(__file__),
     "..",
@@ -152,7 +151,6 @@ RICHARDS_PATH = path.join(
     "benchmarks",
     "richards_static.py",
 )
-
 
 PRIM_NAME_TO_TYPE = {
     "cbool": TYPED_BOOL,
@@ -1239,6 +1237,39 @@ class StaticCompilationTests(StaticTestBase):
                 code = self.compile(codestr, StaticCodeGenerator)
                 f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {op} {x} {res}")
+
+    def test_double_unary(self):
+        tests = [
+            ("-", 1.0, -1.0),
+            ("+", 1.0, 1.0),
+            ("-", -1.0, 1.0),
+        ]
+        for op, x, res in tests:
+            codestr = f"""
+            from __static__ import double, box
+            def testfunc(tst):
+                x: double = {x}
+                if tst:
+                    x = x + 1
+                x = {op}x
+                return box(x)
+            """
+            with self.subTest(type=type, op=op, x=x, res=res):
+                f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+                self.assertEqual(f(False), res, f"{type} {op} {x} {res}")
+
+    def test_double_unary_unsupported(self):
+        codestr = f"""
+        from __static__ import double, box
+        def testfunc(tst):
+            x: double = 1.0
+            if tst:
+                x = x + 1
+            x = ~x
+            return box(x)
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, "Cannot invert/not a double"):
+            self.compile(codestr)
 
     def test_int_compare(self):
         tests = [
@@ -10334,7 +10365,6 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaisesRegex(
                 TypeError, "type 'C' is not an acceptable base type"
             ):
-
                 class D(mod["C"]):
                     pass
 
@@ -10713,7 +10743,6 @@ class StaticCompilationTests(StaticTestBase):
 class StaticRuntimeTests(StaticTestBase):
     def test_bad_slots_qualname_conflict(self):
         with self.assertRaises(ValueError):
-
             class C:
                 __slots__ = ("x",)
                 __slot_types__ = {"x": ("__static__", "int32")}
@@ -10732,21 +10761,18 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_typed_slots_bad_slots(self):
         with self.assertRaises(TypeError):
-
             class C:
                 __slots__ = ("a",)
                 __slot_types__ = None
 
     def test_typed_slots_bad_slot_dict(self):
         with self.assertRaises(TypeError):
-
             class C:
                 __slots__ = ("__dict__",)
                 __slot_types__ = {"__dict__": "object"}
 
     def test_typed_slots_bad_slot_weakerf(self):
         with self.assertRaises(TypeError):
-
             class C:
                 __slots__ = ("__weakref__",)
                 __slot_types__ = {"__weakref__": "object"}
@@ -11904,14 +11930,11 @@ class StaticRuntimeTests(StaticTestBase):
     def test_array_not_subclassable(self):
 
         with self.assertRaises(TypeError):
-
             class C(Array[int64]):
                 pass
 
         with self.assertRaises(TypeError):
-
             class C(Array):
-
                 pass
 
     def test_array_enum(self):
@@ -13711,6 +13734,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_vtable_shadow_builtin_subclass_before_init(self):
         """Shadowing methods on subclass of list before vtables are inited."""
+
         # Create a subclass of list...
         class MyList(list):
             pass

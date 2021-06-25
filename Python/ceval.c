@@ -4649,11 +4649,20 @@ main_loop:
         FAST_DISPATCH();                                                      \
     }
 
+#define DBL_UNARY_OPCODE(opid, op)                                            \
+    case opid: {                                                              \
+        val = POP();                                                          \
+        PUSH(PyFloat_FromDouble(op(PyFloat_AS_DOUBLE(val))));                 \
+        Py_DECREF(val);                                                       \
+        FAST_DISPATCH();                                                      \
+    }
+
         case TARGET(PRIMITIVE_UNARY_OP): {
             PyObject *val;
             switch (oparg) {
                 INT_UNARY_OPCODE(PRIM_OP_NEG_INT, -)
                 INT_UNARY_OPCODE(PRIM_OP_INV_INT, ~)
+                DBL_UNARY_OPCODE(PRIM_OP_NEG_DBL, -)
             }
             PyErr_SetString(PyExc_RuntimeError, "unknown op");
             goto error;
