@@ -654,7 +654,7 @@ class ModuleTable:
             # not a subclass, and it's useful to track that knowledge, when we
             # annotate `x: str` that annotation should not exclude subclasses.
             if klass:
-                klass = klass.inexact()
+                klass = inexact_type(klass)
                 # PEP-484 specifies that ints should be treated as a subclass of floats,
                 # even though they differ in the runtime. We need to maintain the distinction
                 # between the two internally, so we should view user-specified `float` annotations
@@ -753,12 +753,6 @@ class Value:
     @property
     def name(self) -> str:
         return type(self).__name__
-
-    def exact(self) -> Value:
-        return self.klass.exact().instance
-
-    def inexact(self) -> Value:
-        return self.klass.inexact().instance
 
     def finish_bind(self, module: ModuleTable) -> None:
         pass
@@ -1266,12 +1260,6 @@ class Class(Object["Class"]):
 
     def __repr__(self) -> str:
         return f"<{self.name} class>"
-
-    def exact(self) -> Class:
-        return self
-
-    def inexact(self) -> Class:
-        return self
 
     def isinstance(self, src: Value) -> bool:
         return self.issubclass(src.klass)
@@ -3018,12 +3006,6 @@ class LenFunction(Object[Class]):
         super().__init__(klass)
         self.boxed = boxed
 
-    def exact(self) -> Value:
-        return self
-
-    def inexact(self) -> Value:
-        return self
-
     @property
     def name(self) -> str:
         return f"{'' if self.boxed else 'c'}len function"
@@ -3058,12 +3040,6 @@ class SortedFunction(Object[Class]):
     def name(self) -> str:
         return "sorted function"
 
-    def exact(self) -> Value:
-        return self
-
-    def inexact(self) -> Value:
-        return self
-
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -3088,12 +3064,6 @@ class ExtremumFunction(Object[Class]):
     def __init__(self, klass: Class, is_min: bool) -> None:
         super().__init__(klass)
         self.is_min = is_min
-
-    def exact(self) -> Value:
-        return self
-
-    def inexact(self) -> Value:
-        return self
 
     @property
     def _extremum(self) -> str:
@@ -3148,12 +3118,6 @@ class IsInstanceFunction(Object[Class]):
     def name(self) -> str:
         return "isinstance function"
 
-    def exact(self) -> Value:
-        return self
-
-    def inexact(self) -> Value:
-        return self
-
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -3179,13 +3143,13 @@ class IsInstanceFunction(Object[Class]):
             else:
                 arg1_type = visitor.get_type(node.args[1])
                 if isinstance(arg1_type, Class):
-                    klass_type = arg1_type.inexact()
+                    klass_type = inexact(arg1_type)
 
             if klass_type is not None:
                 return IsInstanceEffect(
                     arg0,
                     visitor.get_type(arg0),
-                    klass_type.instance.inexact(),
+                    inexact(klass_type.instance),
                     visitor,
                 )
 
@@ -3274,24 +3238,6 @@ class NumClass(Class):
             if self.is_exact and src.is_exact and self.type_descr == src.type_descr:
                 return True
         return super().can_assign_from(src)
-
-    def exact(self) -> Class:
-        if self.pytype is int:
-            return INT_EXACT_TYPE
-        if self.pytype is float:
-            return FLOAT_EXACT_TYPE
-        if self.pytype is complex:
-            return COMPLEX_EXACT_TYPE
-        return self
-
-    def inexact(self) -> Class:
-        if self.pytype is int:
-            return INT_TYPE
-        if self.pytype is float:
-            return FLOAT_TYPE
-        if self.pytype is complex:
-            return COMPLEX_TYPE
-        return self
 
 
 class NumInstance(Object[NumClass]):
@@ -3494,12 +3440,6 @@ class TupleClass(Class):
             pytype=tuple,
         )
 
-    def exact(self) -> Class:
-        return TUPLE_EXACT_TYPE
-
-    def inexact(self) -> Class:
-        return TUPLE_TYPE
-
 
 class TupleInstance(Object[TupleClass]):
     def get_fast_len_type(self) -> int:
@@ -3565,12 +3505,6 @@ class SetClass(Class):
             is_exact=is_exact,
             pytype=tuple,
         )
-
-    def exact(self) -> Class:
-        return SET_EXACT_TYPE
-
-    def inexact(self) -> Class:
-        return SET_TYPE
 
 
 class SetInstance(Object[SetClass]):
@@ -3670,12 +3604,6 @@ class ListClass(Class):
         )
         if is_exact:
             self.members["append"] = ListAppendMethod("append", self)
-
-    def exact(self) -> Class:
-        return LIST_EXACT_TYPE
-
-    def inexact(self) -> Class:
-        return LIST_TYPE
 
 
 class ListInstance(Object[ListClass]):
@@ -3777,12 +3705,6 @@ class StrClass(Class):
             pytype=str,
         )
 
-    def exact(self) -> Class:
-        return STR_EXACT_TYPE
-
-    def inexact(self) -> Class:
-        return STR_TYPE
-
 
 class StrInstance(Object[StrClass]):
     def get_fast_len_type(self) -> int:
@@ -3812,12 +3734,6 @@ class DictClass(Class):
             is_exact=is_exact,
             pytype=dict,
         )
-
-    def exact(self) -> Class:
-        return DICT_EXACT_TYPE
-
-    def inexact(self) -> Class:
-        return DICT_TYPE
 
 
 class DictInstance(Object[DictClass]):
@@ -4000,22 +3916,6 @@ class UnionType(GenericClass):
     @property
     def opt_type(self) -> Optional[Class]:
         return self.type_name.opt_type
-
-    def exact(self) -> Class:
-        generic_types = self.generic_types
-        if generic_types is not None:
-            return UNION_TYPE.make_generic_type(
-                tuple(a.exact() for a in self.type_args), generic_types
-            )
-        return super().exact()
-
-    def inexact(self) -> Class:
-        generic_types = self.generic_types
-        if generic_types is not None:
-            return UNION_TYPE.make_generic_type(
-                tuple(a.inexact() for a in self.type_args), generic_types
-            )
-        return self
 
     def issubclass(self, src: Class) -> bool:
         if isinstance(src, UnionType):
@@ -4331,16 +4231,6 @@ class ArrayClass(GenericClass):
             pytype,
         )
 
-    def exact(self) -> Class:
-        if self.contains_generic_parameters:
-            return ARRAY_EXACT_TYPE
-        return self
-
-    def inexact(self) -> Class:
-        if self.contains_generic_parameters:
-            return ARRAY_TYPE
-        return self
-
     @property
     def index(self) -> Class:
         return self.type_args[0]
@@ -4394,12 +4284,6 @@ class VectorClass(ArrayClass):
             ),
         )
 
-    def exact(self) -> Class:
-        return self
-
-    def inexact(self) -> Class:
-        return self
-
 
 BUILTIN_GENERICS: Dict[Class, Dict[GenericTypeIndex, Class]] = {}
 UNION_TYPE = UnionType()
@@ -4437,16 +4321,6 @@ class CheckedDict(GenericClass):
             is_exact,
             pytype,
         )
-
-    def exact(self) -> Class:
-        if self.contains_generic_parameters:
-            return CHECKED_DICT_EXACT_TYPE
-        return self
-
-    def inexact(self) -> Class:
-        if self.contains_generic_parameters:
-            return CHECKED_DICT_TYPE
-        return self
 
 
 class CheckedDictInstance(Object[CheckedDict]):
@@ -5302,6 +5176,69 @@ CHECKED_DICT_EXACT_TYPE = CheckedDict(
     CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=chkdict, is_exact=True
 )
 
+EXACT_TYPES: Mapping[Class, Class] = {
+    ARRAY_TYPE: ARRAY_EXACT_TYPE,
+    LIST_TYPE: LIST_EXACT_TYPE,
+    TUPLE_TYPE: TUPLE_EXACT_TYPE,
+    INT_TYPE: INT_EXACT_TYPE,
+    FLOAT_TYPE: FLOAT_EXACT_TYPE,
+    COMPLEX_TYPE: COMPLEX_EXACT_TYPE,
+    DICT_TYPE: DICT_EXACT_TYPE,
+    CHECKED_DICT_TYPE: CHECKED_DICT_EXACT_TYPE,
+    SET_TYPE: SET_EXACT_TYPE,
+    STR_TYPE: STR_EXACT_TYPE,
+}
+
+EXACT_INSTANCES: Mapping[Value, Value] = {
+    k.instance: v.instance for k, v in EXACT_TYPES.items()
+}
+
+INEXACT_TYPES: Mapping[Class, Class] = {v: k for k, v in EXACT_TYPES.items()}
+
+INEXACT_INSTANCES: Mapping[Value, Value] = {v: k for k, v in EXACT_INSTANCES.items()}
+
+
+def exact(maybe_inexact: Value) -> Value:
+    if isinstance(maybe_inexact, UnionInstance):
+        return exact_type(maybe_inexact.klass).instance
+    exact = EXACT_INSTANCES.get(maybe_inexact)
+    return exact or maybe_inexact
+
+
+def inexact(maybe_exact: Value) -> Value:
+    if isinstance(maybe_exact, UnionInstance):
+        return inexact_type(maybe_exact.klass).instance
+    elif (
+        isinstance(maybe_exact, NumInstance)
+        and maybe_exact.klass.is_exact
+        and maybe_exact.klass.pytype is int
+    ):
+        return INT_TYPE.instance
+    inexact = INEXACT_INSTANCES.get(maybe_exact)
+    return inexact or maybe_exact
+
+
+def exact_type(maybe_inexact: Class) -> Class:
+    if isinstance(maybe_inexact, UnionType):
+        generic_types = maybe_inexact.generic_types
+        if generic_types is not None:
+            return UNION_TYPE.make_generic_type(
+                tuple(exact_type(a) for a in maybe_inexact.type_args), generic_types
+            )
+    exact = EXACT_TYPES.get(maybe_inexact)
+    return exact or maybe_inexact
+
+
+def inexact_type(maybe_exact: Class) -> Class:
+    if isinstance(maybe_exact, UnionType):
+        generic_types = maybe_exact.generic_types
+        if generic_types is not None:
+            return UNION_TYPE.make_generic_type(
+                tuple(inexact_type(a) for a in maybe_exact.type_args), generic_types
+            )
+    inexact = INEXACT_TYPES.get(maybe_exact)
+    return inexact or maybe_exact
+
 
 if spamobj is not None:
     SPAM_OBJ = GenericClass(
@@ -5602,7 +5539,7 @@ class LocalsBranch:
             return types[0]
 
         return UNION_TYPE.make_generic_type(
-            tuple(t.inexact().klass for t in types), self.scope.generic_types
+            tuple(inexact(t).klass for t in types), self.scope.generic_types
         ).instance
 
 
@@ -5650,7 +5587,7 @@ class ModuleBindingScope(BindingScope):
         # an annotation, but we don't want to infer the exact type; should be
         # able to reassign to a subtype
         if is_inferred:
-            typ = typ.inexact()
+            typ = inexact(typ)
             is_inferred = False
         self.module.children[name] = typ
         return super().declare(name, typ, is_final=is_final, is_inferred=is_inferred)
@@ -6202,7 +6139,7 @@ class TypeBinder(GenericVisitor):
 
     def visitAugAssign(self, node: AugAssign) -> None:
         self.visit(node.target)
-        target_type = self.get_type(node.target).inexact()
+        target_type = inexact(self.get_type(node.target))
         self.visit(node.value, target_type)
         self.set_type(node, target_type, None)
 

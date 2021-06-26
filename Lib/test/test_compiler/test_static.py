@@ -2649,33 +2649,6 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(acomp, "f")
         self.assertInBytecode(x, "CAST", ("builtins", "bool"))
 
-    def test_pseudo_strict_module_isinstance(self):
-        tree = ast.parse(
-            dedent(
-                """
-            from typing import Optional
-
-            def foo(tval: Optional[object]) -> str:
-                if isinstance(tval, str):
-                    return tval
-                return "hi"
-        """
-            )
-        )
-        builtins = ast.Assign(
-            [ast.Name("isinstance", ast.Store())],
-            ast.Subscript(
-                ast.Name("<builtins>", ast.Load()),
-                ast.Index(ast.Str("isinstance")),
-                ast.Load(),
-            ),
-            None,
-        )
-        tree.body.insert(0, builtins)
-        symtable = SymbolTable()
-        symtable.add_module("a", "a.py", tree)
-        acomp = symtable.compile("a", "a.py", tree)
-
     def test_cross_module_inheritance(self) -> None:
         acode = """
             class C:
