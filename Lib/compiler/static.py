@@ -933,12 +933,26 @@ class Value:
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
     ) -> None:
-        CinderCodeGenerator.compileJumpIf(code_gen, test, next, is_if_true)
+        code_gen.visit(test)
+        self.emit_jumpif_only(next, is_if_true, code_gen)
+
+    def emit_jumpif_only(
+        self, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
+    ) -> None:
+        code_gen.emit("POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next)
 
     def emit_jumpif_pop(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
     ) -> None:
-        CinderCodeGenerator.compileJumpIfPop(code_gen, test, next, is_if_true)
+        code_gen.visit(test)
+        self.emit_jumpif_pop_only(next, is_if_true, code_gen)
+
+    def emit_jumpif_pop_only(
+        self, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
+    ) -> None:
+        code_gen.emit(
+            "JUMP_IF_TRUE_OR_POP" if is_if_true else "JUMP_IF_FALSE_OR_POP", next
+        )
 
     def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         raise RuntimeError(f"Unsupported box type: {code_gen.get_type(node)}")
@@ -961,7 +975,7 @@ class Value:
     ) -> Value:
         return self
 
-    def emit_convert(self, to_type: Value, code_gen: Static38CodeGenerator) -> None:
+    def emit_convert(self, from_type: Value, code_gen: Static38CodeGenerator) -> None:
         pass
 
 
@@ -4702,16 +4716,14 @@ class CIntInstance(CInstance["CIntType"]):
         else:
             raise TypedSyntaxError("unsupported op")
 
-    def emit_jumpif(
-        self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
+    def emit_jumpif_only(
+        self, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.visit(test)
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
 
-    def emit_jumpif_pop(
-        self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
+    def emit_jumpif_pop_only(
+        self, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.visit(test)
         code_gen.emit(
             "JUMP_IF_NONZERO_OR_POP" if is_if_true else "JUMP_IF_ZERO_OR_POP", next
         )
@@ -4793,10 +4805,12 @@ class CIntInstance(CInstance["CIntType"]):
         elif isinstance(node.op, ast.Not):
             raise NotImplementedError()
 
-    def emit_convert(self, to_type: Value, code_gen: Static38CodeGenerator) -> None:
-        assert isinstance(to_type, CIntInstance)
+    def emit_convert(self, from_type: Value, code_gen: Static38CodeGenerator) -> None:
+        assert isinstance(from_type, CIntInstance)
         # Lower nibble is type-from, higher nibble is type-to.
-        code_gen.emit("CONVERT_PRIMITIVE", (self.as_oparg() << 4) | to_type.as_oparg())
+        code_gen.emit(
+            "CONVERT_PRIMITIVE", (self.as_oparg() << 4) | from_type.as_oparg()
+        )
 
 
 class CIntType(CType):
@@ -7369,7 +7383,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
             ltype = self.get_type(left)
             if ltype != optype:
                 optype.emit_convert(ltype, self)
-            self.emitChainedCompareStep(op, optype, code, cleanup)
+            self.emitChainedCompareStep(op, code, cleanup)
             left = code
         # now do the last comparison
         if node.ops:
@@ -7393,13 +7407,9 @@ class Static38CodeGenerator(CinderCodeGenerator):
             self.nextBlock(end)
 
     def emitChainedCompareStep(
-        self,
-        op: cmpop,
-        optype: Value,
-        value: AST,
-        cleanup: Block,
-        jump: str = "JUMP_IF_ZERO_OR_POP",
+        self, op: cmpop, value: AST, cleanup: Block, always_pop: bool = False
     ) -> None:
+        optype = self.get_type(op)
         self.visit(value)
         rtype = self.get_type(value)
         if rtype != optype:
@@ -7407,7 +7417,8 @@ class Static38CodeGenerator(CinderCodeGenerator):
         self.emit("DUP_TOP")
         self.emit("ROT_THREE")
         optype.emit_compare(op, self)
-        self.emit(jump, cleanup)
+        method = optype.emit_jumpif_only if always_pop else optype.emit_jumpif_pop_only
+        method(cleanup, False, self)
         self.nextBlock(label="compare_or_cleanup")
 
     def visitBoolOp(self, node: BoolOp) -> None:
