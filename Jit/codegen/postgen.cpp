@@ -60,7 +60,10 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
   auto constant_size = input0->dataType();
 
   auto move = block->allocateInstrBefore(
-      instr_iter, Instruction::kMove, OutVReg(), Imm(constant, constant_size));
+      instr_iter,
+      Instruction::kMove,
+      OutVReg(constant_size),
+      Imm(constant, constant_size));
 
   instr->allocateLinkedInput(move);
   auto new_input = instr->removeInputOperand(instr->getNumInputs() - 1);

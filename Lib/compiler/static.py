@@ -4587,7 +4587,16 @@ class CIntInstance(CInstance["CIntType"]):
                     node,
                 )
 
-        compare_type = self.validate_mixed_math(visitor.get_type(right))
+        other = visitor.get_type(right)
+        comparing_cbools = self.constant == TYPED_BOOL and (
+            isinstance(other, CIntInstance) and other.constant == TYPED_BOOL
+        )
+        if comparing_cbools:
+            visitor.set_type(op, CBOOL_TYPE.instance, None)
+            visitor.set_type(node, CBOOL_TYPE.instance, type_ctx)
+            return True
+
+        compare_type = self.validate_mixed_math(other)
         if compare_type is None:
             raise visitor.syntax_error(
                 f"can't compare {self.name} to {visitor.get_type(right).name}", node
@@ -4612,13 +4621,15 @@ class CIntInstance(CInstance["CIntType"]):
             except TypedSyntaxError:
                 # Report a better error message than the generic can't be used
                 raise visitor.syntax_error(
-                    f"can't compare {self.name} to {visitor.get_type(right).name}", node
+                    f"can't compare {self.name} to {visitor.get_type(right).name}",
+                    node,
                 )
 
             compare_type = self.validate_mixed_math(visitor.get_type(left))
             if compare_type is None:
                 raise visitor.syntax_error(
-                    f"can't compare {visitor.get_type(left).name} to {self.name}", node
+                    f"can't compare {visitor.get_type(left).name} to {self.name}",
+                    node,
                 )
 
             visitor.set_type(op, compare_type, None)
