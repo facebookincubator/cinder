@@ -313,15 +313,15 @@ uint64_t JITRT_IsNegativeAndErrOccurred_64(int64_t i);
 uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i);
 
 /* Array lookup helpers */
-uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx);
-uint64_t JITRT_GetU8_FromArray(char* arr, int64_t idx);
-uint64_t JITRT_GetI16_FromArray(char* arr, int64_t idx);
-uint64_t JITRT_GetU16_FromArray(char* arr, int64_t idx);
-uint64_t JITRT_GetI32_FromArray(char* arr, int64_t idx);
-uint64_t JITRT_GetU32_FromArray(char* arr, int64_t idx);
-uint64_t JITRT_GetI64_FromArray(char* arr, int64_t idx);
-uint64_t JITRT_GetU64_FromArray(char* arr, int64_t idx);
-PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx);
+uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx, ssize_t offset);
+uint64_t JITRT_GetU8_FromArray(char* arr, int64_t idx, ssize_t offset);
+uint64_t JITRT_GetI16_FromArray(char* arr, int64_t idx, ssize_t offset);
+uint64_t JITRT_GetU16_FromArray(char* arr, int64_t idx, ssize_t offset);
+uint64_t JITRT_GetI32_FromArray(char* arr, int64_t idx, ssize_t offset);
+uint64_t JITRT_GetU32_FromArray(char* arr, int64_t idx, ssize_t offset);
+uint64_t JITRT_GetI64_FromArray(char* arr, int64_t idx, ssize_t offset);
+uint64_t JITRT_GetU64_FromArray(char* arr, int64_t idx, ssize_t offset);
+PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx, ssize_t offset);
 
 /* Array set helpers */
 void JITRT_SetI8_InArray(char* arr, uint64_t val, int64_t idx);

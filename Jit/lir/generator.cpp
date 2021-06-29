@@ -1816,11 +1816,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         JIT_CHECK(func != 0, "unknown array type %s", type.toString().c_str());
 
         bbb.AppendCode(
-            "Call {}, {:#x}, {}, {}",
+            "Call {}, {:#x}, {}, {}, {:#x}",
             instr->dst(),
             func,
             instr->ob_item(),
-            instr->idx());
+            instr->idx(),
+            instr->offset());
         break;
       }
       case Opcode::kStoreArrayItem: {

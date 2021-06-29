@@ -112,7 +112,8 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
       env.emit<CheckSequenceBounds>(lhs, right_index, *instr->frameState());
   Register* ob_item =
       env.emit<LoadField>(lhs, offsetof(PyListObject, ob_item), TCPtr);
-  return env.emit<LoadArrayItem>(ob_item, adjusted_idx, lhs, TObject);
+  ssize_t offset = 0;
+  return env.emit<LoadArrayItem>(ob_item, adjusted_idx, lhs, offset, TObject);
 }
 
 Register* simplifyInstr(Env& env, const Instr* instr) {

@@ -536,12 +536,18 @@ TEST_F(BackendTest, GetI32FromArrayTest) {
   auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(lirfunc.get());
 
   long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
-  ASSERT_EQ(func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0));
-  ASSERT_EQ(func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1));
-  ASSERT_EQ(func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2));
-  ASSERT_EQ(func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3));
-  ASSERT_EQ(func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4));
-  ASSERT_EQ(func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5));
+  ASSERT_EQ(
+      func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
 }
 
 TEST_F(BackendTest, CastTest) {
@@ -650,12 +656,18 @@ TEST_F(BackendTest, ParserGetI32FromArrayTest) {
   auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(parsed_func.get());
 
   long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
-  ASSERT_EQ(func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0));
-  ASSERT_EQ(func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1));
-  ASSERT_EQ(func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2));
-  ASSERT_EQ(func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3));
-  ASSERT_EQ(func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4));
-  ASSERT_EQ(func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5));
+  ASSERT_EQ(
+      func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
+  ASSERT_EQ(
+      func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
 }
 
 TEST_F(BackendTest, ParserCastTest) {

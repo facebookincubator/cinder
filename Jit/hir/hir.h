@@ -2547,16 +2547,22 @@ class INSTR_CLASS(LoadTupleItem, HasOutput, Operands<1>) {
   size_t idx_;
 };
 
-// Load an element from an array at a known index, with no bounds checking.
+// Load an element from an array at a known index and offset, with no bounds
+// checking. Equivalent to ((type*)(((char*)ob_item)+offset))[idx]
 class INSTR_CLASS(LoadArrayItem, HasOutput, Operands<3>) {
  public:
   LoadArrayItem(
       Register* dst,
       Register* ob_item,
       Register* idx,
+      // This operand is never actually used, but it's an input for this because
+      // we need to keep a reference to the container alive. The refcount
+      // insertion pass handles this for us if the container is an input for
+      // this instruction.
       Register* array_unused,
+      ssize_t offset,
       Type type)
-      : InstrT(dst, ob_item, idx, array_unused), type_(type) {}
+      : InstrT(dst, ob_item, idx, array_unused), offset_(offset), type_(type) {}
 
   Register* ob_item() const {
     return GetOperand(0);
@@ -2566,11 +2572,16 @@ class INSTR_CLASS(LoadArrayItem, HasOutput, Operands<3>) {
     return GetOperand(1);
   }
 
+  ssize_t offset() const {
+    return offset_;
+  }
+
   Type type() const {
     return type_;
   }
 
  private:
+  ssize_t offset_;
   Type type_;
 };
 

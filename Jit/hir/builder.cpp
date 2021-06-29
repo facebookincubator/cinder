@@ -2499,7 +2499,8 @@ void HIRBuilder::emitSequenceGet(
   tc.emit<LoadField>(ob_item, sequence, offset, TCPtr);
 
   auto type = element_type_from_seq_type(oparg);
-  tc.emit<LoadArrayItem>(result, ob_item, adjusted_idx, sequence, type);
+  tc.emit<LoadArrayItem>(
+      result, ob_item, adjusted_idx, sequence, /*offset=*/0, type);
   stack.push(result);
 }
 

@@ -1045,44 +1045,44 @@ uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i) {
   return (i == -1 && _PyErr_OCCURRED()) ? -1 : 0;
 }
 
-uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx) {
-  long result = arr[idx];
+uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  long result = (arr + offset)[idx];
   if (result >= 128)
     result -= 256;
   return result;
 }
 
-uint64_t JITRT_GetU8_FromArray(char* arr, int64_t idx) {
-  long result = ((unsigned char*)arr)[idx];
+uint64_t JITRT_GetU8_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  long result = ((unsigned char*)(arr + offset))[idx];
   return result;
 }
 
-uint64_t JITRT_GetI16_FromArray(char* arr, int64_t idx) {
-  return (long)((short*)arr)[idx];
+uint64_t JITRT_GetI16_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  return (long)((short*)(arr + offset))[idx];
 }
 
-uint64_t JITRT_GetU16_FromArray(char* arr, int64_t idx) {
-  return (long)((unsigned short*)arr)[idx];
+uint64_t JITRT_GetU16_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  return (long)((unsigned short*)(arr + offset))[idx];
 }
 
-uint64_t JITRT_GetI32_FromArray(char* arr, int64_t idx) {
-  return ((long*)arr)[idx];
+uint64_t JITRT_GetI32_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  return ((long*)(arr + offset))[idx];
 }
 
-uint64_t JITRT_GetU32_FromArray(char* arr, int64_t idx) {
-  return ((unsigned long*)arr)[idx];
+uint64_t JITRT_GetU32_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  return ((unsigned long*)(arr + offset))[idx];
 }
 
-uint64_t JITRT_GetI64_FromArray(char* arr, int64_t idx) {
-  return ((long long*)arr)[idx];
+uint64_t JITRT_GetI64_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  return ((long long*)(arr + offset))[idx];
 }
 
-uint64_t JITRT_GetU64_FromArray(char* arr, int64_t idx) {
-  return ((unsigned long long*)arr)[idx];
+uint64_t JITRT_GetU64_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  return ((unsigned long long*)(arr + offset))[idx];
 }
 
-PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx) {
-  return ((PyObject**)arr)[idx];
+PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx, ssize_t offset) {
+  return ((PyObject**)(arr + offset))[idx];
 }
 
 void JITRT_SetI8_InArray(char* arr, uint64_t val, int64_t idx) {
