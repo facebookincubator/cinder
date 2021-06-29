@@ -248,3 +248,24 @@ fun jittestmodule:test {
   }
 }
 ---
+BinaryOpSubscriptFromTupleIsSpecialized
+---
+def test():
+  ls = (1, 2, 3)
+  return ls[1]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:Nullptr = LoadConst<Nullptr>
+    v5:TupleExact[tuple:0xdeadbeef] = LoadConst<TupleExact[tuple:0xdeadbeef]>
+    v8:LongExact[1] = LoadConst<LongExact[1]>
+    v10:CInt64 = PrimitiveUnbox<CInt64> v8
+    v11:CInt64 = CheckSequenceBounds v5 v10 {
+      NextInstrOffset 10
+      Locals<1> v5
+    }
+    v12:Object = LoadArrayItem<Offset[24]> v5 v11 v5
+    Return v12
+  }
+}
+---

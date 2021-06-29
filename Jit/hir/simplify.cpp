@@ -101,19 +101,27 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   }
   Register* lhs = instr->left();
   Register* rhs = instr->right();
-  if (!lhs->isA(TListExact) || !rhs->isA(TLongExact)) {
+  if (!rhs->isA(TLongExact)) {
     return nullptr;
   }
-
-  // TODO(T93509109): Replace TCInt64 with a less platform-specific
-  // representation of the type, which should be analagous to Py_ssize_t.
-  Register* right_index = env.emit<PrimitiveUnbox>(rhs, TCInt64);
-  Register* adjusted_idx =
-      env.emit<CheckSequenceBounds>(lhs, right_index, *instr->frameState());
-  Register* ob_item =
-      env.emit<LoadField>(lhs, offsetof(PyListObject, ob_item), TCPtr);
-  ssize_t offset = 0;
-  return env.emit<LoadArrayItem>(ob_item, adjusted_idx, lhs, offset, TObject);
+  if (lhs->isA(TListExact) || lhs->isA(TTupleExact)) {
+    // TODO(T93509109): Replace TCInt64 with a less platform-specific
+    // representation of the type, which should be analagous to Py_ssize_t.
+    Register* right_index = env.emit<PrimitiveUnbox>(rhs, TCInt64);
+    Register* adjusted_idx =
+        env.emit<CheckSequenceBounds>(lhs, right_index, *instr->frameState());
+    ssize_t offset = GET_STRUCT_MEMBER_OFFSET(PyTupleObject, ob_item);
+    Register* array = lhs;
+    // Lists carry a nested array of ob_item whereas tuples are variable-sized
+    // structs.
+    if (lhs->isA(TListExact)) {
+      array = env.emit<LoadField>(lhs, offsetof(PyListObject, ob_item), TCPtr);
+      offset = 0;
+    }
+    return env.emit<LoadArrayItem>(array, adjusted_idx, lhs, offset, TObject);
+  }
+  // Unsupported case.
+  return nullptr;
 }
 
 Register* simplifyInstr(Env& env, const Instr* instr) {

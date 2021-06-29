@@ -229,7 +229,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kIsTruthy:
     case Opcode::kListAppend:
     case Opcode::kListExtend:
-    case Opcode::kLoadArrayItem:
     case Opcode::kLoadCellItem:
     case Opcode::kLoadCurrentFunc:
     case Opcode::kLoadEvalBreaker:
@@ -257,6 +256,10 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kXDecref:
     case Opcode::kXIncref: {
       return "";
+    }
+    case Opcode::kLoadArrayItem: {
+      const auto& load = static_cast<const LoadArrayItem&>(instr);
+      return load.offset() == 0 ? "" : fmt::format("Offset[{}]", load.offset());
     }
     case Opcode::kReturn: {
       const auto& ret = static_cast<const Return&>(instr);
