@@ -26,7 +26,7 @@ def run_static_tests():
     CODE_SAMPLES_RUN = []
 
     class CompileCaptureOverrides:
-        def _finalize_module(self, mod_dict):
+        def _finalize_module(self, name, mod_dict=None):
             pass
 
         def _in_module(self, *args):

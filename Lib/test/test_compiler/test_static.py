@@ -258,17 +258,14 @@ class StaticTestBase(CompilerTest):
             StaticTestBase._temp_mod_num
         )
 
-    def _finalize_module(self, mod_dict):
-        name = mod_dict["__name__"]
-        # don't throw a new exception if we failed to compile
+    def _finalize_module(self, name, mod_dict=None):
         if name in sys.modules:
             del sys.modules[name]
+        if mod_dict is not None:
             mod_dict.clear()
-            gc.collect()
+        gc.collect()
 
     def _in_module(self, code, name, code_gen, optimize):
-        if name is None:
-            name = self._temp_mod_name()
         compiled = self.compile(code, code_gen, name, optimize)
         m = type(sys)(name)
         d = m.__dict__
@@ -279,11 +276,14 @@ class StaticTestBase(CompilerTest):
 
     @contextmanager
     def in_module(self, code, name=None, code_gen=StaticCodeGenerator, optimize=0):
+        d = None
+        if name is None:
+            name = self._temp_mod_name()
         try:
             d = self._in_module(code, name, code_gen, optimize)
             yield d
         finally:
-            self._finalize_module(d)
+            self._finalize_module(name, d)
 
     def _in_strict_module(
         self,
@@ -293,8 +293,6 @@ class StaticTestBase(CompilerTest):
         optimize,
         enable_patching,
     ):
-        if name is None:
-            name = self._temp_mod_name()
         compiled = self.compile(code, code_gen, name, optimize)
         d = {"__name__": name}
         m = StrictModule(d, enable_patching)
@@ -311,13 +309,16 @@ class StaticTestBase(CompilerTest):
         optimize=0,
         enable_patching=False,
     ):
+        d = None
+        if name is None:
+            name = self._temp_mod_name()
         try:
             d, m = self._in_strict_module(
                 code, name, code_gen, optimize, enable_patching
             )
             yield m
         finally:
-            self._finalize_module(d)
+            self._finalize_module(name, d)
 
     def _run_code(self, code, generator, modname, peephole_enabled):
         if modname is None:
@@ -10408,7 +10409,7 @@ class StaticCompilationTests(StaticTestBase):
             return x
         """
         self.type_error(
-            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
         )
 
     def test_default_type_error_with_non_defaults(self):
@@ -10417,7 +10418,7 @@ class StaticCompilationTests(StaticTestBase):
             return non_default + x
         """
         self.type_error(
-            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
         )
 
     def test_default_type_error_with_positional_only_arguments(self):
@@ -10426,7 +10427,7 @@ class StaticCompilationTests(StaticTestBase):
             return x
         """
         self.type_error(
-            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
         )
 
     def test_default_type_error_with_keywords(self):
@@ -10435,7 +10436,7 @@ class StaticCompilationTests(StaticTestBase):
             return x + y + z
         """
         self.type_error(
-            codestr, "type mismatch: Exact\[str\] cannot be assigned to int"
+            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
         )
 
     def test_slotification_decorated(self):
