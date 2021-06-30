@@ -357,11 +357,12 @@ class SysModuleTest(unittest.TestCase):
         # the reference count to increase by 2 instead of 1.
         global n
         self.assertRaises(TypeError, sys.getrefcount)
-        c = sys.getrefcount(None)
-        n = None
-        self.assertEqual(sys.getrefcount(None), c)
+        obj = [123]
+        c = sys.getrefcount(obj)
+        n = obj
+        self.assertEqual(sys.getrefcount(obj), c+1)
         del n
-        self.assertEqual(sys.getrefcount(None), c)
+        self.assertEqual(sys.getrefcount(obj), c)
         if hasattr(sys, "gettotalrefcount"):
             self.assertIsInstance(sys.gettotalrefcount(), int)
 

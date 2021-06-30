@@ -444,9 +444,16 @@ std::vector<PredState> collectPredStates(Env& env, BasicBlock* block) {
 // value.
 bool isUncounted(const Register* reg) {
   Type ty = reg->type();
-  PyObject* obj = ty.asObject();
-  return !ty.couldBe(TObject) || ty <= (TNoneType | TBool) ||
-      (obj != nullptr && Py_IS_IMMORTAL(obj));
+  if (!ty.couldBe(TObject)) {
+    return true;
+  }
+
+  if (kImmortalInstances) {
+    PyObject* obj = ty.asObject();
+    return ty <= (TNoneType | TBool) || (obj != nullptr && Py_IS_IMMORTAL(obj));
+  }
+
+  return false;
 }
 
 // Insert an Incref of `reg` before `cursor`.

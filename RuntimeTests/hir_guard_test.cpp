@@ -104,6 +104,11 @@ TEST(GuardTest, BindFrameStateFromInstr) {
 }
 
 TEST(GuardTest, BindFrameStateFromInstrWithStack) {
+  if (!kImmortalInstances) {
+    // This test's output differs without immortal instance support.
+    GTEST_SKIP();
+  }
+
   const char* hir = R"(
 fun __main__:test {
   bb 0 {

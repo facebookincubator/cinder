@@ -512,9 +512,6 @@ PyAPI_FUNC(void) _Py_dec_count(struct _typeobject *);
    when a memory block is reused from a free list. */
 PyAPI_FUNC(int) _PyTraceMalloc_NewReference(PyObject *op);
 
-// TODO(eelizondo): Update cinder builds to set -DPy_IMMORTAL_INSTANCES
-/* facebook start */
-#define Py_IMMORTAL_INSTANCES
 /* facebook end */
 
 /* Immortalizing causes the instance to not participate in reference counting.
@@ -522,6 +519,8 @@ PyAPI_FUNC(int) _PyTraceMalloc_NewReference(PyObject *op);
  * This avoids an unnecessary copy-on-write for applications that share
  * a common python heap across many processes. */
 #ifdef Py_IMMORTAL_INSTANCES
+
+static const int kImmortalInstances = 1;
 
 /* The GC bit-shifts refcounts left by two, and after that shift we still
  * need this to be >>0, so leave three high zero bits (the sign bit and
@@ -544,9 +543,13 @@ static const Py_ssize_t kImmortalInitialCount = kImmortalBit;
 
 #else
 
+static const int kImmortalInstances = 0;
+
 static const Py_ssize_t kImmortalInitialCount = 1;
 
-#define Py_SET_REFCNT(op, refcnt)  (((PyObject *)op)->ob_refcnt = refcnt)
+#define Py_IS_IMMORTAL(op) ((void)(op), 0)
+
+#define Py_SET_REFCNT(op, refcnt) (((PyObject *)op)->ob_refcnt = refcnt)
 
 #define Py_INCREF_IMMORTAL(op) Py_INCREF(op)
 
