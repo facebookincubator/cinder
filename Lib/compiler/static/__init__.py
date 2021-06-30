@@ -168,12 +168,12 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     rand,
 )
 
-from . import symbols, opcode38static
-from .consts import SC_LOCAL, SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT
-from .opcodebase import Opcode
-from .optimizer import AstOptimizer
-from .pyassem import Block, PyFlowGraph, PyFlowGraphCinder, IndexedSet
-from .pycodegen import (
+from .. import symbols, opcode38static
+from ..consts import SC_LOCAL, SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT
+from ..opcodebase import Opcode
+from ..optimizer import AstOptimizer
+from ..pyassem import Block, PyFlowGraph, PyFlowGraphCinder, IndexedSet
+from ..pycodegen import (
     AugAttribute,
     AugName,
     AugSubscript,
@@ -184,9 +184,9 @@ from .pycodegen import (
     wrap_aug,
     FOR_LOOP,
 )
-from .symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
-from .unparse import to_expr
-from .visitor import ASTVisitor, ASTRewriter, TAst
+from ..symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
+from ..unparse import to_expr
+from ..visitor import ASTVisitor, ASTRewriter, TAst
 
 
 try:
