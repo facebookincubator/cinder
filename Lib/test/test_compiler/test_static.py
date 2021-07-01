@@ -2339,6 +2339,20 @@ class StaticCompilationTests(StaticTestBase):
 
         self.assertEqual(repr(self.bind_expr("1 + 2", optimize=True)), "<Literal[3]>")
 
+    def test_type_exact(self) -> None:
+        self.assertIs(LIST_TYPE.exact(), LIST_TYPE)
+        self.assertIs(LIST_EXACT_TYPE.exact(), LIST_EXACT_TYPE)
+
+        self.assertIs(LIST_TYPE.exact_type(), LIST_EXACT_TYPE)
+        self.assertIs(LIST_EXACT_TYPE.exact_type(), LIST_EXACT_TYPE)
+
+    def test_type_inexact(self) -> None:
+        self.assertIs(LIST_TYPE.inexact(), LIST_TYPE)
+        self.assertIs(LIST_EXACT_TYPE.inexact(), LIST_EXACT_TYPE)
+
+        self.assertIs(LIST_TYPE.inexact_type(), LIST_TYPE)
+        self.assertIs(LIST_EXACT_TYPE.inexact_type(), LIST_TYPE)
+
     def test_type_is_exact(self) -> None:
         self.assertTrue(FUNCTION_TYPE.is_exact)
         self.assertTrue(METHOD_TYPE.is_exact)
@@ -2736,6 +2750,33 @@ class StaticCompilationTests(StaticTestBase):
         acomp = symtable.compile("a", "a.py", tree)
         x = self.find_code(acomp, "f")
         self.assertInBytecode(x, "CAST", ("builtins", "bool"))
+
+    def test_pseudo_strict_module_isinstance(self):
+        tree = ast.parse(
+            dedent(
+                """
+            from typing import Optional
+
+            def foo(tval: Optional[object]) -> str:
+                if isinstance(tval, str):
+                    return tval
+                return "hi"
+        """
+            )
+        )
+        builtins = ast.Assign(
+            [ast.Name("isinstance", ast.Store())],
+            ast.Subscript(
+                ast.Name("<builtins>", ast.Load()),
+                ast.Index(ast.Str("isinstance")),
+                ast.Load(),
+            ),
+            None,
+        )
+        tree.body.insert(0, builtins)
+        symtable = SymbolTable()
+        symtable.add_module("a", "a.py", tree)
+        acomp = symtable.compile("a", "a.py", tree)
 
     def test_cross_module_inheritance(self) -> None:
         acode = """
