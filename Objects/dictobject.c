@@ -5689,7 +5689,7 @@ _PyCheckedDict_NewPresized(PyTypeObject *type, Py_ssize_t minused)
 _PyGenericTypeDef _PyCheckedDict_Type = {
     .gtd_type =
         {
-            PyVarObject_HEAD_INIT(&PyType_Type, 0) "dict[K, V]",
+            PyVarObject_HEAD_INIT(&PyType_Type, 0) "chkdict[K, V]",
             sizeof(PyDictObject),
             0,
             (destructor)chkdict_dealloc, /* tp_dealloc */

@@ -8808,7 +8808,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
         with self.assertRaisesRegex(
-            TypeError, "cannot create 'dict\\[K, V\\]' instances"
+            TypeError, "cannot create 'chkdict\\[K, V\\]' instances"
         ):
             with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
                 test = mod["testfunc"]
@@ -13548,6 +13548,11 @@ class StaticRuntimeTests(StaticTestBase):
         x["abc"] = 42
         x = chkdict[int, str]()
         x[42] = "abc"
+
+    def test_checked_dict_type_name(self):
+        self.assertEqual(chkdict.__name__, "chkdict[K, V]")
+        x = chkdict[str, str]
+        self.assertEqual(x.__name__, "chkdict[str, str]")
 
     def test_checked_dict_optional(self):
         x = chkdict[str, Optional[str]]()
