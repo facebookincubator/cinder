@@ -296,7 +296,6 @@ void
 _PyType_Fini(void)
 {
     PyType_ClearCache();
-    _PyType_ClearSwitchboard();
     clear_slotdefs();
 }
 

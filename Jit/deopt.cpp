@@ -198,7 +198,7 @@ static void profileDeopt(
     const MemoryView& mem) {
   const LiveValue* live_val = meta.getGuiltyValue();
   PyObject* val = live_val == nullptr ? nullptr : mem.read(*live_val, true);
-  codegen::NativeGenerator::runtime()->recordDeopt(deopt_idx, val);
+  codegen::NativeGeneratorFactory::runtime()->recordDeopt(deopt_idx, val);
 }
 
 static void reifyBlockStack(

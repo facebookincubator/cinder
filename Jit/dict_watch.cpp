@@ -143,7 +143,8 @@ void _PyJIT_NotifyDictClear(PyObject* dict) {
 PyObject** _PyJIT_GetGlobalCache(PyObject* globals, PyObject* key) {
   try {
     auto cache =
-        jit::codegen::NativeGenerator::runtime()->findGlobalCache(globals, key);
+        jit::codegen::NativeGeneratorFactory::runtime()->findGlobalCache(
+            globals, key);
     return cache.valuePtr();
   } catch (std::bad_alloc& ba) {
     return nullptr;
@@ -152,8 +153,8 @@ PyObject** _PyJIT_GetGlobalCache(PyObject* globals, PyObject* key) {
 
 PyObject** _PyJIT_GetDictCache(PyObject* globals, PyObject* key) {
   try {
-    auto cache =
-        jit::codegen::NativeGenerator::runtime()->findDictCache(globals, key);
+    auto cache = jit::codegen::NativeGeneratorFactory::runtime()->findDictCache(
+        globals, key);
     return cache.valuePtr();
   } catch (std::bad_alloc& ba) {
     return nullptr;

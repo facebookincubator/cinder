@@ -129,6 +129,8 @@ static const auto deopt_scratch_reg = x86::r15;
 
 JitRuntime* NativeGeneratorFactory::rt = nullptr;
 void* NativeGeneratorFactory::py_frame_unlink_trampoline_ = nullptr;
+Runtime* NativeGeneratorFactory::s_jit_asm_code_rt_ = nullptr;
+
 // these functions call int returning functions and convert their output from
 // int (32 bits) to uint64_t (64 bits). This is solely because the code
 // generator cannot support an operand size other than 64 bits at this moment. A
@@ -190,8 +192,6 @@ extern "C" void ___debug_helper(const char* name) {
 }
 #endif
 
-Runtime NativeGenerator::s_jit_asm_code_rt_;
-
 constexpr int NUM_REG_ARGS = sizeof(ARGUMENT_REGS) / sizeof(ARGUMENT_REGS[0]);
 
 PhyLocation get_arg_location_phy_location(int arg) {
@@ -233,7 +233,7 @@ void* NativeGenerator::GetEntryPoint() {
   auto num_lat_caches = func->CountInstrs(
       [](const Instr& instr) { return instr.IsFillTypeAttrCache(); });
 
-  env_.rt = runtime();
+  env_.rt = NativeGeneratorFactory::runtime();
   PyCodeObject* code_obj = func->code;
   env_.code_rt = env_.rt->allocateCodeRuntime(
       code_obj,
@@ -1404,7 +1404,8 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   // index of deopt metadata
   annot_cursor = a.cursor();
   a.mov(x86::rdi, x86::rsp);
-  a.mov(x86::rsi, reinterpret_cast<uint64_t>(NativeGenerator::runtime()));
+  a.mov(
+      x86::rsi, reinterpret_cast<uint64_t>(NativeGeneratorFactory::runtime()));
   auto deopt_meta_addr =
       x86::ptr(x86::rsp, (PhyLocation::NUM_GP_REGS + 1) * kPointerSize);
   a.mov(x86::rdx, deopt_meta_addr);

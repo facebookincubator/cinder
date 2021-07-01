@@ -360,7 +360,7 @@ static PyObject* get_function_compilation_time(
 }
 
 static Ref<> make_deopt_stats() {
-  Runtime* runtime = codegen::NativeGenerator::runtime();
+  Runtime* runtime = codegen::NativeGeneratorFactory::runtime();
   auto stats = Ref<>::steal(PyList_New(0));
   if (stats == nullptr) {
     return nullptr;
@@ -466,7 +466,7 @@ static PyObject* get_and_clear_runtime_stats(PyObject* /* self */, PyObject*) {
 }
 
 static PyObject* clear_runtime_stats(PyObject* /* self */, PyObject*) {
-  codegen::NativeGenerator::runtime()->clearDeoptStats();
+  codegen::NativeGeneratorFactory::runtime()->clearDeoptStats();
   Py_RETURN_NONE;
 }
 
@@ -1120,8 +1120,8 @@ int _PyJIT_Finalize() {
 
   // Always release references from Runtime objects: C++ clients may have
   // invoked the JIT directly without initializing a full _PyJITContext.
-  jit::codegen::NativeGenerator::runtime()->releaseReferences();
-  jit::codegen::NativeGenerator::runtime()->clearDeoptStats();
+  jit::codegen::NativeGeneratorFactory::runtime()->clearDeoptStats();
+  jit::codegen::NativeGeneratorFactory::runtime()->releaseReferences();
 
   if (jit_config.init_state != JIT_INITIALIZED) {
     return 0;
@@ -1139,6 +1139,10 @@ int _PyJIT_Finalize() {
   INTERNED_STRINGS(CLEAR_STR)
 #undef CLEAR_STR
 
+  _PyFunction_ClearSwitchboard();
+  _PyType_ClearSwitchboard();
+
+  jit::codegen::NativeGeneratorFactory::shutdown();
   return 0;
 }
 

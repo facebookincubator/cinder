@@ -342,7 +342,7 @@ class DeoptStressTest : public RuntimeTest {
       delete it->second;
       guards.erase(it);
     };
-    auto ngen_rt = NativeGenerator::runtime();
+    Runtime* ngen_rt = NativeGeneratorFactory::runtime();
     auto pyfunc = reinterpret_cast<PyFunctionObject*>(funcobj.get());
     while (!guards.empty()) {
       asmjit::JitRuntime rt;

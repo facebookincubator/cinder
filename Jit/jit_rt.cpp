@@ -1531,7 +1531,8 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
       _PyJIT_CompileFunction(func) == PYJIT_RESULT_OK) {
     *compiled = 1;
     void** indirect =
-        jit::codegen::NativeGenerator::runtime()->findFunctionEntryCache(func);
+        jit::codegen::NativeGeneratorFactory::runtime()->findFunctionEntryCache(
+            func);
     *indirect = (void*)JITRT_GET_STATIC_ENTRY(func->vectorcall);
     return JITRT_StaticCallReturn{
         (void*)JITRT_GET_STATIC_ENTRY(func->vectorcall), no_error};
@@ -1577,9 +1578,8 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
     dest_args = final_args;
   }
 
-  _PyTypedArgsInfo* arg_info =
-      jit::codegen::NativeGenerator::runtime()->findFunctionPrimitiveArgInfo(
-          func);
+  _PyTypedArgsInfo* arg_info = jit::codegen::NativeGeneratorFactory::runtime()
+                                   ->findFunctionPrimitiveArgInfo(func);
   PyObject* allocated_args[arg_info == nullptr ? 0 : Py_SIZE(arg_info)];
   int allocated_count = 0;
 

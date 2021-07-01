@@ -1275,9 +1275,6 @@ _Py_FinalizeEx(int skip_cleanup)
     /* Print debug stats if any */
     _PyEval_Fini();
 
-    /* De-optimize any remaining objects and clean up executable memory */
-    _PyJIT_Finalize();
-
     /* Flush sys.stdout and sys.stderr (again, in case more was printed) */
     if (flush_std_files() < 0) {
         status = -1;
@@ -1301,8 +1298,6 @@ _Py_FinalizeEx(int skip_cleanup)
 #if 0
     _PyGC_CollectIfEnabled();
 #endif
-
-    _PyFunction_ClearSwitchboard();
 
     /* Disable tracemalloc after all Python objects have been destroyed,
        so it is possible to use tracemalloc in objects destructor. */
@@ -1342,6 +1337,10 @@ _Py_FinalizeEx(int skip_cleanup)
         _Py_PrintReferences(stderr);
     }
 #endif /* Py_TRACE_REFS */
+
+
+    /* De-optimize any remaining objects and clean up executable memory */
+    _PyJIT_Finalize();
 
     /* Clear interpreter state and all thread states. */
     PyInterpreterState_Clear(interp);

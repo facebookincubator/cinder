@@ -700,7 +700,7 @@ void GlobalCache::update(
 
 void GlobalCache::disable() const {
   *valuePtr() = nullptr;
-  jit::codegen::NativeGenerator::runtime()->forgetLoadGlobalCache(*this);
+  jit::codegen::NativeGeneratorFactory::runtime()->forgetLoadGlobalCache(*this);
 }
 
 } // namespace jit
