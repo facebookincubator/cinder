@@ -244,14 +244,6 @@ void* NativeGenerator::GetEntryPoint() {
       num_sa_caches,
       num_lat_caches);
 
-  // Prepare the location for where our arguments will go, these
-  // will be initialized in the prologue
-  int total_args = func->numArgs();
-
-  for (int i = 0; i < total_args && i < NUM_REG_ARGS; i++) {
-    env_.arg_locations.push_back(get_arg_location_phy_location(i));
-  }
-
   jit::lir::LIRGenerator lirgen(GetFunction(), &env_);
   auto lir_func = lirgen.TranslateFunction();
 

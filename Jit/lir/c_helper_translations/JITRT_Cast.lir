@@ -1,7 +1,7 @@
 Function:
 BB %0 - succs: %2 %1
-       %5:Object = Bind RDI:Object
-       %6:Object = Bind RSI:Object
+       %5:Object = LoadArg 0(0x0):Object
+       %6:Object = LoadArg 1(0x1):Object
        %7:Object = Move [%5:Object + 0x8]:Object
        %8:Object = Equal %7:Object, %6:Object
                    CondBranch %8:Object

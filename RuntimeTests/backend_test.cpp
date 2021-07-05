@@ -514,13 +514,10 @@ TEST_F(BackendTest, GetI32FromArrayTest) {
   auto lirfunc = std::make_unique<Function>();
   auto bb = lirfunc->allocateBasicBlock();
 
-  auto start = bb->allocateInstr(
-      Instruction::kBind, nullptr, OutVReg(), PhyReg(PhyLocation::RDI));
+  auto start =
+      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
   auto index = bb->allocateInstr(
-      Instruction::kBind,
-      nullptr,
-      OutVReg(OperandBase::k64bit),
-      PhyReg(PhyLocation::RSI));
+      Instruction::kLoadArg, nullptr, OutVReg(OperandBase::k64bit), Imm(1));
 
   auto address = Ind(start, index, 3, 0);
 
@@ -562,11 +559,10 @@ TEST_F(BackendTest, CastTest) {
   auto epilogue = lirfunc->allocateBasicBlock();
 
   // BB 1 : Py_TYPE(ob) == (tp)
-  auto a = bb1->allocateInstr(
-      Instruction::kBind, nullptr, OutVReg(), PhyReg(PhyLocation::RDI));
-
-  auto b = bb1->allocateInstr(
-      Instruction::kBind, nullptr, OutVReg(), PhyReg(PhyLocation::RSI));
+  auto a =
+      bb1->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
+  auto b =
+      bb1->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(1));
 
   auto a_tp = bb1->allocateInstr(
       Instruction::kMove,
