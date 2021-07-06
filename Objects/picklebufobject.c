@@ -204,7 +204,7 @@ static PyMethodDef picklebuf_methods[] = {
 };
 
 PyTypeObject PyPickleBuffer_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "pickle.PickleBuffer",
     .tp_doc = "Wrapper for potentially out-of-band buffers",
     .tp_basicsize = sizeof(PyPickleBufferObject),

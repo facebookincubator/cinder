@@ -1244,27 +1244,6 @@ else
   AC_MSG_RESULT(no)
 fi
 
-AC_MSG_CHECKING(for --disable-immortal-instances)
-AC_ARG_ENABLE(immortal-instances, AS_HELP_STRING([--disable-immortal-instances], [Disable immortal instance support.  Enabled by default.]),
-[
-if test "$enableval" = yes
-then
-  AC_MSG_RESULT(no)
-else
-  AC_MSG_RESULT(yes)
-fi
-],
-[
-AC_MSG_RESULT(no)
-enable_immortal_instances=yes
-])
-
-if test "$enable_immortal_instances" = "yes"
-then
-  CFLAGS="-DPy_IMMORTAL_INSTANCES ${CFLAGS}"
-  CXXFLAGS="-DPy_IMMORTAL_INSTANCES ${CXXFLAGS}"
-fi
-
 # Enable optimization flags
 AC_SUBST(DEF_MAKE_ALL_RULE)
 AC_SUBST(DEF_MAKE_RULE)

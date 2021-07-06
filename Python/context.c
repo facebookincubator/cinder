@@ -671,7 +671,7 @@ static PyMappingMethods PyContext_as_mapping = {
 };
 
 PyTypeObject PyContext_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "Context",
     sizeof(PyContext),
     .tp_methods = PyContext_methods,
@@ -1031,7 +1031,7 @@ static PyMethodDef PyContextVar_methods[] = {
 };
 
 PyTypeObject PyContextVar_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "ContextVar",
     sizeof(PyContextVar),
     .tp_methods = PyContextVar_methods,
@@ -1166,7 +1166,7 @@ static PyGetSetDef PyContextTokenType_getsetlist[] = {
 };
 
 PyTypeObject PyContextToken_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "Token",
     sizeof(PyContextToken),
     .tp_getset = PyContextTokenType_getsetlist,
@@ -1224,7 +1224,7 @@ context_token_missing_tp_repr(PyObject *self)
 
 
 PyTypeObject PyContextTokenMissing_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "Token.MISSING",
     sizeof(PyContextTokenMissing),
     .tp_getattro = PyObject_GenericGetAttr,

@@ -1002,7 +1002,7 @@ static struct PyMethodDef bytesio_methods[] = {
 };
 
 PyTypeObject PyBytesIO_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_io.BytesIO",                             /*tp_name*/
     sizeof(bytesio),                     /*tp_basicsize*/
     0,                                         /*tp_itemsize*/

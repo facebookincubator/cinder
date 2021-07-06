@@ -421,7 +421,7 @@ method_descr_get(PyObject *meth, PyObject *obj, PyObject *cls)
 }
 
 PyTypeObject PyMethod_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "method",
     sizeof(PyMethodObject),
     0,
@@ -693,7 +693,7 @@ instancemethod_new(PyTypeObject* type, PyObject* args, PyObject *kw)
 }
 
 PyTypeObject PyInstanceMethod_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "instancemethod",                           /* tp_name */
     sizeof(PyInstanceMethodObject),             /* tp_basicsize */
     0,                                          /* tp_itemsize */

@@ -443,17 +443,7 @@ std::vector<PredState> collectPredStates(Env& env, BasicBlock* block) {
 // Return true iff the given Register is definitely not a reference-counted
 // value.
 bool isUncounted(const Register* reg) {
-  Type ty = reg->type();
-  if (!ty.couldBe(TObject)) {
-    return true;
-  }
-
-  if (kImmortalInstances) {
-    PyObject* obj = ty.asObject();
-    return ty <= (TNoneType | TBool) || (obj != nullptr && Py_IS_IMMORTAL(obj));
-  }
-
-  return false;
+  return !reg->type().couldBe(TObject);
 }
 
 // Insert an Incref of `reg` before `cursor`.

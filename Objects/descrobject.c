@@ -820,7 +820,7 @@ descr_traverse(PyObject *self, visitproc visit, void *arg)
 }
 
 PyTypeObject PyMethodDescr_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "method_descriptor",
     sizeof(PyMethodDescrObject),
     0,
@@ -860,7 +860,7 @@ PyTypeObject PyMethodDescr_Type = {
 
 /* This is for METH_CLASS in C, not for "f = classmethod(f)" in Python! */
 PyTypeObject PyClassMethodDescr_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "classmethod_descriptor",
     sizeof(PyMethodDescrObject),
     0,
@@ -897,7 +897,7 @@ PyTypeObject PyClassMethodDescr_Type = {
 };
 
 PyTypeObject PyMemberDescr_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "member_descriptor",
     sizeof(PyMemberDescrObject),
     0,
@@ -934,7 +934,7 @@ PyTypeObject PyMemberDescr_Type = {
 };
 
 PyTypeObject PyGetSetDescr_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "getset_descriptor",
     sizeof(PyGetSetDescrObject),
     0,
@@ -971,7 +971,7 @@ PyTypeObject PyGetSetDescr_Type = {
 };
 
 PyTypeObject PyWrapperDescr_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "wrapper_descriptor",
     sizeof(PyWrapperDescrObject),
     0,
@@ -1942,7 +1942,7 @@ property_clear(PyObject *self)
 #include "clinic/descrobject.c.h"
 
 PyTypeObject PyDictProxy_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "mappingproxy",                             /* tp_name */
     sizeof(mappingproxyobject),                 /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -1984,7 +1984,7 @@ PyTypeObject PyDictProxy_Type = {
 };
 
 PyTypeObject PyProperty_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "property",                                 /* tp_name */
     sizeof(propertyobject),                     /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -2401,7 +2401,7 @@ static PyMemberDef cached_property_members[] = {
 
 
 PyTypeObject PyCachedProperty_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "cached_property",
     .tp_basicsize = sizeof(PyCachedPropertyDescrObject),
     .tp_dealloc =  (destructor)cached_property_dealloc,
@@ -2419,7 +2419,7 @@ PyTypeObject PyCachedProperty_Type = {
 };
 
 PyTypeObject PyCachedPropertyWithDescr_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "cached_property_with_descr",
     .tp_base = &PyCachedProperty_Type,
     .tp_basicsize = sizeof(PyCachedPropertyDescrObject),
@@ -2632,7 +2632,7 @@ static PyMemberDef async_cached_property_members[] = {
 
 
 PyTypeObject PyAsyncCachedProperty_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "async_cached_property",
     .tp_basicsize = sizeof(PyAsyncCachedPropertyDescrObject),
     .tp_dealloc =  (destructor)async_cached_property_dealloc,
@@ -2754,7 +2754,7 @@ static PyMemberDef async_cached_classproperty_members[] = {
 };
 
 PyTypeObject PyAsyncCachedClassProperty_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "async_cached_classproperty",
     .tp_basicsize = sizeof(PyAsyncCachedClassPropertyDescrObject),
     .tp_dealloc =  (destructor)async_cached_classproperty_dealloc,

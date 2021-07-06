@@ -1186,7 +1186,7 @@ static PyMemberDef fileio_members[] = {
 };
 
 PyTypeObject PyFileIO_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_io.FileIO",
     sizeof(fileio),
     0,

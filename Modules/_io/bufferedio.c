@@ -2326,7 +2326,7 @@ static PyMethodDef bufferediobase_methods[] = {
 };
 
 PyTypeObject PyBufferedIOBase_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_io._BufferedIOBase",      /*tp_name*/
     0,                          /*tp_basicsize*/
     0,                          /*tp_itemsize*/
@@ -2416,7 +2416,7 @@ static PyGetSetDef bufferedreader_getset[] = {
 
 
 PyTypeObject PyBufferedReader_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_io.BufferedReader",       /*tp_name*/
     sizeof(buffered),           /*tp_basicsize*/
     0,                          /*tp_itemsize*/
@@ -2502,7 +2502,7 @@ static PyGetSetDef bufferedwriter_getset[] = {
 
 
 PyTypeObject PyBufferedWriter_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_io.BufferedWriter",       /*tp_name*/
     sizeof(buffered),           /*tp_basicsize*/
     0,                          /*tp_itemsize*/
@@ -2579,7 +2579,7 @@ static PyGetSetDef bufferedrwpair_getset[] = {
 };
 
 PyTypeObject PyBufferedRWPair_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_io.BufferedRWPair",       /*tp_name*/
     sizeof(rwpair),            /*tp_basicsize*/
     0,                          /*tp_itemsize*/
@@ -2673,7 +2673,7 @@ static PyGetSetDef bufferedrandom_getset[] = {
 
 
 PyTypeObject PyBufferedRandom_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(NULL, 0)
+    PyVarObject_HEAD_INIT(NULL, 0)
     "_io.BufferedRandom",       /*tp_name*/
     sizeof(buffered),           /*tp_basicsize*/
     0,                          /*tp_itemsize*/

@@ -475,7 +475,7 @@ static PyGetSetDef stdprinter_getsetlist[] = {
 };
 
 PyTypeObject PyStdPrinter_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "stderrprinter",                            /* tp_name */
     sizeof(PyStdPrinter_Object),                /* tp_basicsize */
     0,                                          /* tp_itemsize */

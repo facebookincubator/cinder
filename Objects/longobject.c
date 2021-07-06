@@ -5757,7 +5757,7 @@ static PyNumberMethods long_as_number = {
 };
 
 PyTypeObject PyLong_Type = {
-    PyVarObject_HEAD_INIT_IMMORTAL(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "int",                                      /* tp_name */
     offsetof(PyLongObject, ob_digit),           /* tp_basicsize */
     sizeof(digit),                              /* tp_itemsize */
@@ -5858,10 +5858,6 @@ _PyLong_Init(void)
 
             refcnt = Py_REFCNT(op) < 0 ? 0 : Py_REFCNT(op);
             _Py_NewReference(op);
-#ifdef Py_IMMORTAL_INSTANCES
-            _Py_DEC_REFTOTAL;
-            Py_SET_IMMORTAL(op);
-#endif
             /* _Py_NewReference sets the ref count to 1 but
              * the ref count might be larger. Set the refcnt
              * to the original refcnt + 1 */
@@ -5871,10 +5867,6 @@ _PyLong_Init(void)
         }
         else {
             (void)PyObject_INIT(v, &PyLong_Type);
-#ifdef Py_IMMORTAL_INSTANCES
-            _Py_DEC_REFTOTAL;
-            Py_SET_IMMORTAL(v);
-#endif
         }
         Py_SIZE(v) = size;
         v->ob_digit[0] = (digit)abs(ival);
@@ -5909,9 +5901,7 @@ PyLong_Fini(void)
     int i;
     PyLongObject *v = small_ints;
     for (i = 0; i < NSMALLNEGINTS + NSMALLPOSINTS; i++, v++) {
-#ifndef Py_IMMORTAL_INSTANCES
         _Py_DEC_REFTOTAL;
-#endif
         _Py_ForgetReference((PyObject*)v);
     }
 #endif

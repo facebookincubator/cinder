@@ -826,7 +826,6 @@ enable_profiling
 with_pydebug
 with_trace_refs
 with_assertions
-enable_immortal_instances
 enable_optimizations
 with_lto
 with_hash_algorithm
@@ -1503,9 +1502,6 @@ Optional Features:
                           Build (MacOSX|Darwin) framework
   --enable-shared         disable/enable building shared python library
   --enable-profiling      enable C-level code profiling
-  --disable-immortal-instances
-                          Disable immortal instance support. Enabled by
-                          default.
   --enable-optimizations  Enable expensive, stable optimizations (PGO, etc).
                           Disabled by default.
   --enable-loadable-sqlite-extensions
@@ -6393,35 +6389,6 @@ $as_echo "implied by --with-pydebug" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --disable-immortal-instances" >&5
-$as_echo_n "checking for --disable-immortal-instances... " >&6; }
-# Check whether --enable-immortal-instances was given.
-if test "${enable_immortal_instances+set}" = set; then :
-  enableval=$enable_immortal_instances;
-if test "$enableval" = yes
-then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-fi
-
-else
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-enable_immortal_instances=yes
-
-fi
-
-
-if test "$enable_immortal_instances" = "yes"
-then
-  CFLAGS="-DPy_IMMORTAL_INSTANCES ${CFLAGS}"
-  CXXFLAGS="-DPy_IMMORTAL_INSTANCES ${CXXFLAGS}"
 fi
 
 # Enable optimization flags

@@ -71,13 +71,9 @@ int main(int argc, char* argv[]) {
   register_test("RuntimeTests/hir_tests/hir_builder_static_test.txt", true);
   register_test("RuntimeTests/hir_tests/load_attr_specialization_test.txt");
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
-  if (kImmortalInstances) {
-    // These tests have very different output without immortal instance
-    // support.
-    register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
-    register_test(
-        "RuntimeTests/hir_tests/refcount_insertion_static_test.txt", true);
-  }
+  register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
+  register_test(
+      "RuntimeTests/hir_tests/refcount_insertion_static_test.txt", true);
   register_test("RuntimeTests/hir_tests/super_access_test.txt", true);
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
 
