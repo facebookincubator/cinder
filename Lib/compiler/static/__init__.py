@@ -562,6 +562,10 @@ class ModuleTable:
         # type annotations is not safe.
         self.first_pass_done = False
 
+    def declare_class(self, node: ClassDef, klass: Class) -> None:
+        self.decls.append((node, klass))
+        self.children[node.name] = klass
+
     def finish_bind(self) -> None:
         self.first_pass_done = True
         for node, value in self.decls:
@@ -1157,6 +1161,7 @@ class Class(Object["Class"]):
         self.bases: List[Class] = bases or []
         self._mro: Optional[List[Class]] = None
         self._mro_type_descrs: Optional[Set[TypeDescr]] = None
+        # members are attributes or methods
         self.members: Dict[str, Value] = members or {}
         self.is_exact = is_exact
         self.is_final = False
@@ -1178,6 +1183,12 @@ class Class(Object["Class"]):
         if self.is_exact and not self.suppress_exact:
             name = f"Exact[{name}]"
         return name
+
+    def declare_class(self, node: ClassDef, klass: Class) -> None:
+        self.members[node.name] = klass
+
+    def resolve_name(self, name: str) -> Optional[Value]:
+        return self.members.get(name)
 
     @property
     def qualname(self) -> str:
@@ -1318,6 +1329,8 @@ class Class(Object["Class"]):
                     raise TypedSyntaxError(
                         f"class cannot hide inherited member: {value!r}"
                     )
+                elif isinstance(value, Class):
+                    value.finish_bind(module)
                 elif isinstance(value, Slot):
                     inherited.add(name)
                 elif isinstance(value, (Function, StaticMethod)):
@@ -2365,10 +2378,15 @@ class Function(Callable[Class]):
         self.process_args(module)
         self.inline = False
         self.donotcompile = False
+        self._inner_classes: Dict[str, Value] = {}
 
     @property
     def name(self) -> str:
         return f"function {self.qualname}"
+
+    def declare_class(self, node: AST, klass: Class) -> None:
+        # currently, we don't allow declaring classes within functions
+        raise NotImplementedError("Unsupported")
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -5510,6 +5528,7 @@ class DeclarationVisitor(GenericVisitor):
         super().__init__(mod_name, filename)
         self.symbols = symbols
         self.module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
+        self.scopes: List[ModuleTable | Class | Function] = [self.module]
 
     def finish_bind(self) -> None:
         self.module.finish_bind()
@@ -5517,12 +5536,22 @@ class DeclarationVisitor(GenericVisitor):
     def visitAnnAssign(self, node: AnnAssign) -> None:
         self.module.decls.append((node, None))
 
+    def parent_scope(self) -> ModuleTable | Class | Function:
+        return self.scopes[-1]
+
+    def enter_scope(self, scope: ModuleTable | Class | Function) -> None:
+        self.scopes.append(scope)
+
+    def exit_scope(self) -> None:
+        self.scopes.pop()
+
     def visitClassDef(self, node: ClassDef) -> None:
         bases = [self.module.resolve_type(base) or DYNAMIC_TYPE for base in node.bases]
         if not bases:
             bases.append(OBJECT_TYPE)
         klass = Class(TypeName(self.module_name, node.name), bases)
-        self.module.decls.append((node, klass))
+        parent_scope = self.parent_scope()
+        self.enter_scope(klass)
         for item in node.body:
             with error_context(self.filename, item):
                 if isinstance(item, (AsyncFunctionDef, FunctionDef)):
@@ -5549,6 +5578,8 @@ class DeclarationVisitor(GenericVisitor):
                             # Note down whether the slot has been assigned a value.
                             assignment=item if item.value else None,
                         )
+                elif isinstance(item, ClassDef):
+                    self.visit(item)
 
         for base in bases:
             if base is NAMED_TUPLE_TYPE:
@@ -5576,7 +5607,8 @@ class DeclarationVisitor(GenericVisitor):
                 decorator = self.module.resolve_type(d) or DYNAMIC_TYPE
                 klass = decorator.bind_decorate_class(klass)
 
-        self.module.children[node.name] = klass
+        parent_scope.declare_class(node, klass)
+        self.exit_scope()
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         function = self._make_function(node)
@@ -5939,11 +5971,16 @@ class TypeBinder(GenericVisitor):
         return local_type
 
     def maybe_get_current_class(self) -> Optional[Class]:
-        scope = self.scope
-        if isinstance(scope, ClassDef):
-            klass = self.cur_mod.resolve_name(scope.name)
-            assert isinstance(klass, Class)
-            return klass
+        current: ModuleTable | Class = self.cur_mod
+        result = None
+        for scope in self.scopes:
+            node = scope.node
+            if isinstance(node, ClassDef):
+                result = current.resolve_name(node.name)
+                if not isinstance(result, Class):
+                    return None
+                current = result
+        return result
 
     def visit(
         self, node: Union[AST, Sequence[AST]], *args: object
@@ -6147,6 +6184,13 @@ class TypeBinder(GenericVisitor):
         self._visitFunc(node)
 
     def visitClassDef(self, node: ClassDef) -> None:
+        parent_scope = self.scope
+        if isinstance(parent_scope, (FunctionDef, AsyncFunctionDef)):
+            raise self.syntax_error(
+                f"Cannot declare class `{node.name}` inside a function, `{parent_scope.name}`",
+                node,
+            )
+
         for decorator in node.decorator_list:
             self.visit(decorator)
 
@@ -6215,7 +6259,7 @@ class TypeBinder(GenericVisitor):
         # Try to look up the Class and associated Slot
         scope = self.scope
         if isinstance(target, ast.Name) and isinstance(scope, ast.ClassDef):
-            klass = self.cur_mod.resolve_name(scope.name)
+            klass = self.maybe_get_current_class()
             assert isinstance(klass, Class)
             member_name = target.id
             member = klass.get_member(member_name)

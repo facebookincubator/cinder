@@ -10936,6 +10936,38 @@ class StaticCompilationTests(StaticTestBase):
                     self.assertEqual(f(5), 1)
                     self.assertEqual(f(6), 0)
 
+    def test_compile_nested_class(self):
+        codestr = """
+            class Outer:
+                class Inner:
+                    c: int = 1
+        """
+        self.compile(codestr)
+
+        codestr = """
+            class Outer:
+                class Inner1:
+                    c: int = 1
+                    class Inner2:
+                        c: int = 2
+                        class Inner3:
+                            c: int = 3
+        """
+        self.compile(codestr)
+
+    def test_compile_nested_class_in_fn(self):
+        codestr = """
+        
+        def fn():
+            class C:
+                c: int = 1
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Cannot declare class `C` inside a function, `fn`"
+        ):
+            self.compile(codestr)
+
+
 class StaticRuntimeTests(StaticTestBase):
     def test_bad_slots_qualname_conflict(self):
         with self.assertRaises(ValueError):
@@ -14730,12 +14762,6 @@ class StaticRuntimeTests(StaticTestBase):
             @classmethod
             def cm():
                 pass
-
-            def f(self):
-                class G:
-                    def y(self):
-                        pass
-                return G.y
         """
         with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
             f = mod["f"]
@@ -14745,8 +14771,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertEqual(cinder._get_qualname(C.x.__code__), "C.x")
             self.assertEqual(cinder._get_qualname(C.sm.__code__), "C.sm")
             self.assertEqual(cinder._get_qualname(C.cm.__code__), "C.cm")
-
-            self.assertEqual(cinder._get_qualname(C().f().__code__), "C.f.<locals>.G.y")
 
     def test_refine_optional_name(self):
         codestr = """
