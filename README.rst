@@ -228,7 +228,7 @@ The Static Python compiler is built on top of the Python ``compiler`` module
 that was removed from the standard library in Python 3 and has since been
 maintained and updated externally; this compiler is incorporated into Cinder
 in ``Lib/compiler``. The Static Python compiler is implemented in
-``Lib/compiler/static.py``, and its tests are in
+``Lib/compiler/static/``, and its tests are in
 ``Lib/test/test_compiler/test_static.py``.
 
 Classes defined in Static Python modules are automatically given typed slots
