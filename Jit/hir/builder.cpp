@@ -2161,8 +2161,7 @@ void HIRBuilder::emitPrimitiveUnbox(
   Register* src = tc.frame.stack.pop();
   auto typ = prim_type_to_type(bc_instr.oparg());
   if (typ <= TCDouble) {
-    tc.emit<LoadField>(
-        tmp, src, GET_STRUCT_MEMBER_OFFSET(PyFloatObject, ob_fval), typ);
+    tc.emit<LoadField>(tmp, src, offsetof(PyFloatObject, ob_fval), typ);
   } else {
     tc.emit<PrimitiveUnbox>(tmp, src, typ);
     auto did_unbox_work = temps_.AllocateStack();
@@ -2406,24 +2405,24 @@ void HIRBuilder::emitFastLen(
   oparg &= ~FAST_LEN_INEXACT;
   if (oparg == FAST_LEN_LIST) {
     type = TListExact;
-    offset = GET_STRUCT_MEMBER_OFFSET(PyVarObject, ob_size);
+    offset = offsetof(PyVarObject, ob_size);
   } else if (oparg == FAST_LEN_TUPLE) {
     type = TTupleExact;
-    offset = GET_STRUCT_MEMBER_OFFSET(PyVarObject, ob_size);
+    offset = offsetof(PyVarObject, ob_size);
   } else if (oparg == FAST_LEN_ARRAY) {
     type = TArrayExact;
-    offset = GET_STRUCT_MEMBER_OFFSET(PyVarObject, ob_size);
+    offset = offsetof(PyVarObject, ob_size);
   } else if (oparg == FAST_LEN_DICT) {
     type = TDictExact;
-    offset = GET_STRUCT_MEMBER_OFFSET(PyDictObject, ma_used);
+    offset = offsetof(PyDictObject, ma_used);
   } else if (oparg == FAST_LEN_SET) {
     type = TSetExact;
-    offset = GET_STRUCT_MEMBER_OFFSET(PySetObject, used);
+    offset = offsetof(PySetObject, used);
   } else if (oparg == FAST_LEN_STR) {
     type = TUnicodeExact;
     // Note: In debug mode, the interpreter has an assert that
     // ensures the string is "ready", check PyUnicode_GET_LENGTH
-    offset = GET_STRUCT_MEMBER_OFFSET(PyASCIIObject, length);
+    offset = offsetof(PyASCIIObject, length);
   }
   JIT_CHECK(offset > 0, "Bad oparg for FAST_LEN");
 
@@ -2490,9 +2489,9 @@ void HIRBuilder::emitSequenceGet(
   auto result = temps_.AllocateStack();
   int offset;
   if (_Py_IS_TYPED_ARRAY(oparg)) {
-    offset = GET_STRUCT_MEMBER_OFFSET(PyStaticArrayObject, ob_item);
+    offset = offsetof(PyStaticArrayObject, ob_item);
   } else if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT) {
-    offset = GET_STRUCT_MEMBER_OFFSET(PyListObject, ob_item);
+    offset = offsetof(PyListObject, ob_item);
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_GET: %d", oparg);
   }
@@ -2586,9 +2585,9 @@ void HIRBuilder::emitSequenceSet(
   auto ob_item = temps_.AllocateStack();
   int offset;
   if (_Py_IS_TYPED_ARRAY(oparg)) {
-    offset = GET_STRUCT_MEMBER_OFFSET(PyStaticArrayObject, ob_item);
+    offset = offsetof(PyStaticArrayObject, ob_item);
   } else if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT) {
-    offset = GET_STRUCT_MEMBER_OFFSET(PyListObject, ob_item);
+    offset = offsetof(PyListObject, ob_item);
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_SET: %d", oparg);
   }

@@ -568,7 +568,7 @@ TEST_F(BackendTest, CastTest) {
       Instruction::kMove,
       nullptr,
       OutVReg(),
-      Ind(a, GET_STRUCT_MEMBER_OFFSET(PyObject, ob_type)));
+      Ind(a, offsetof(PyObject, ob_type)));
   auto eq1 = bb1->allocateInstr(
       Instruction::kEqual, nullptr, OutVReg(), VReg(a_tp), VReg(b));
   bb1->allocateInstr(Instruction::kCondBranch, nullptr, VReg(eq1));
@@ -596,12 +596,12 @@ TEST_F(BackendTest, CastTest) {
       Instruction::kMove,
       nullptr,
       OutVReg(),
-      Ind(a_tp, GET_STRUCT_MEMBER_OFFSET(PyTypeObject, tp_name)));
+      Ind(a_tp, offsetof(PyTypeObject, tp_name)));
   auto b_name = bb4->allocateInstr(
       Instruction::kMove,
       nullptr,
       OutVReg(),
-      Ind(b, GET_STRUCT_MEMBER_OFFSET(PyTypeObject, tp_name)));
+      Ind(b, offsetof(PyTypeObject, tp_name)));
   bb4->allocateInstr(
       Instruction::kCall,
       nullptr,

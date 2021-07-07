@@ -304,7 +304,7 @@ void emitStoreGenYieldPoint(
   env->unresolved_gen_entry_labels.emplace(gen_yield_point, resume_label);
 
   as->mov(scratch_r, reinterpret_cast<uint64_t>(gen_yield_point));
-  auto yieldPointOffset = GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
+  auto yieldPointOffset = offsetof(GenDataFooter, yieldPoint);
   as->mov(x86::qword_ptr(suspend_data_r, yieldPointOffset), scratch_r);
 }
 
@@ -365,7 +365,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
 
   // Set RDI to gen->gi_jit_data for use in emitStoreGenYieldPoint() and data
   // copy using 'movsq' below.
-  auto gi_jit_data_offset = GET_STRUCT_MEMBER_OFFSET(PyGenObject, gi_jit_data);
+  auto gi_jit_data_offset = offsetof(PyGenObject, gi_jit_data);
   as->mov(x86::rdi, x86::ptr(gen_reg, gi_jit_data_offset));
 
   // Arbitrary scratch register for use in emitStoreGenYieldPoint().
@@ -452,7 +452,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
     // set finish_yield_from (RCX) to 0. This register setup matches that when
     // `resume_label` is reached from the resume entry.
     as->mov(x86::rdx, tstate_phys_reg);
-    auto gen_offs = GET_STRUCT_MEMBER_OFFSET(GenDataFooter, gen);
+    auto gen_offs = offsetof(GenDataFooter, gen);
     as->mov(x86::rdi, x86::ptr(x86::rbp, gen_offs));
     as->xor_(x86::rcx, x86::rcx);
   }

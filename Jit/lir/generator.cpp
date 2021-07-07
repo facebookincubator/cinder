@@ -436,7 +436,7 @@ void LIRGenerator::MakeIncref(
       "{}:",
       r1, // Load
       obj,
-      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt),
+      offsetof(PyObject, ob_refcnt),
 #ifdef Py_IMMORTAL_INSTANCES
       r1, // BitTest
       kImmortalBitPos,
@@ -446,7 +446,7 @@ void LIRGenerator::MakeIncref(
       r1, // Inc
       r1, // Store
       obj,
-      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt),
+      offsetof(PyObject, ob_refcnt),
       end_incref // label
   );
 }
@@ -501,7 +501,7 @@ void LIRGenerator::MakeDecref(
       "{}:",
       r1, // Load
       obj,
-      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt),
+      offsetof(PyObject, ob_refcnt),
 #ifdef Py_IMMORTAL_INSTANCES
       r1, // BitTest
       kImmortalBitPos,
@@ -512,7 +512,7 @@ void LIRGenerator::MakeDecref(
       r1,
       r2, // Store
       obj,
-      GET_STRUCT_MEMBER_OFFSET(PyObject, ob_refcnt),
+      offsetof(PyObject, ob_refcnt),
       end_decref, // BranchNZ
       dealloc, // label
       reinterpret_cast<uint64_t>(JITRT_Dealloc), // Invoke
@@ -599,7 +599,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Load {}, {}, {}",
             i.GetOutput(),
             i.GetOperand(0),
-            GET_STRUCT_MEMBER_OFFSET(PyCellObject, ob_ref));
+            offsetof(PyCellObject, ob_ref));
         break;
       }
       case Opcode::kSetCellItem: {
@@ -608,7 +608,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Store {}, {}, {}",
             instr->src(),
             instr->cell(),
-            GET_STRUCT_MEMBER_OFFSET(PyCellObject, ob_ref));
+            offsetof(PyCellObject, ob_ref));
         break;
       }
       case Opcode::kLoadConst: {
@@ -1097,7 +1097,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Load {}, {}, {}",
             type_var,
             instr.reg(),
-            GET_STRUCT_MEMBER_OFFSET(PyObject, ob_type));
+            offsetof(PyObject, ob_type));
         bbb.AppendCode(
             "Equal {}, {}, {:#x}",
             eq_res_var,
@@ -1745,15 +1745,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string tmp_id = GetSafeTempName();
         if (!is_tuple && instr->NumOperands() > 1) {
           bbb.AppendCode(
-              "Load {}, {}, {}",
-              tmp_id,
-              base,
-              GET_STRUCT_MEMBER_OFFSET(PyListObject, ob_item));
+              "Load {}, {}, {}", tmp_id, base, offsetof(PyListObject, ob_item));
           base = std::move(tmp_id);
         }
 
         const size_t ob_item_offset =
-            is_tuple ? GET_STRUCT_MEMBER_OFFSET(PyTupleObject, ob_item) : 0;
+            is_tuple ? offsetof(PyTupleObject, ob_item) : 0;
         for (size_t i = 1; i < instr->NumOperands(); i++) {
           bbb.AppendCode(
               "Store {}, {}, {}",
@@ -1767,8 +1764,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadTupleItem*>(&i);
 
         const size_t item_offset =
-            GET_STRUCT_MEMBER_OFFSET(PyTupleObject, ob_item) +
-            instr->idx() * kPointerSize;
+            offsetof(PyTupleObject, ob_item) + instr->idx() * kPointerSize;
         bbb.AppendCode(
             "Load {} {} {}", instr->GetOutput(), instr->tuple(), item_offset);
         break;
@@ -2283,7 +2279,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Load {}, {}, {}",
             instr.GetOutput()->name(),
             instr.reg(),
-            GET_STRUCT_MEMBER_OFFSET(PyWaitHandleObject, wh_waiter));
+            offsetof(PyWaitHandleObject, wh_waiter));
         break;
       }
       case Opcode::kWaitHandleLoadCoroOrResult: {
@@ -2292,7 +2288,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Load {}, {}, {}",
             instr.GetOutput()->name(),
             instr.reg(),
-            GET_STRUCT_MEMBER_OFFSET(PyWaitHandleObject, wh_coro_or_result));
+            offsetof(PyWaitHandleObject, wh_coro_or_result));
         break;
       }
       case Opcode::kWaitHandleRelease: {
@@ -2301,11 +2297,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Store 0, {}, {}",
             instr.reg(),
-            GET_STRUCT_MEMBER_OFFSET(PyWaitHandleObject, wh_coro_or_result));
+            offsetof(PyWaitHandleObject, wh_coro_or_result));
         bbb.AppendCode(
             "Store 0, {}, {}",
             instr.reg(),
-            GET_STRUCT_MEMBER_OFFSET(PyWaitHandleObject, wh_waiter));
+            offsetof(PyWaitHandleObject, wh_waiter));
         break;
       }
       case Opcode::kDeleteSubscr: {

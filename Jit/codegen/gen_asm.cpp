@@ -64,8 +64,7 @@ static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
 } // namespace
 
 void RestoreOriginalGeneratorRBP(x86::Emitter* as) {
-  size_t original_rbp_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, originalRbp);
+  size_t original_rbp_offset = offsetof(GenDataFooter, originalRbp);
   as->mov(x86::rbp, x86::ptr(x86::rbp, original_rbp_offset));
 }
 
@@ -817,7 +816,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   if (is_gen) {
     // Set generator state to "completed". We access the state via RBP which
     // points to the of spill data and bottom of GenDataFooter.
-    auto state_offs = GET_STRUCT_MEMBER_OFFSET(GenDataFooter, state);
+    auto state_offs = offsetof(GenDataFooter, state);
     as_->mov(
         x86::ptr(x86::rbp, state_offs, sizeof(GenDataFooter::state)),
         _PyJitGenState_Completed);
@@ -928,25 +927,21 @@ void NativeGenerator::generateResumeEntry() {
   const auto jit_data_r = x86::r9;
 
   // jit_data_r = gen->gi_jit_data
-  size_t gi_jit_data_offset =
-      GET_STRUCT_MEMBER_OFFSET(PyGenObject, gi_jit_data);
+  size_t gi_jit_data_offset = offsetof(PyGenObject, gi_jit_data);
   as_->mov(jit_data_r, x86::ptr(gen_r, gi_jit_data_offset));
 
   // Store linked frame address
-  size_t link_address_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, linkAddress);
+  size_t link_address_offset = offsetof(GenDataFooter, linkAddress);
   as_->mov(scratch_r, x86::ptr(x86::rbp));
   as_->mov(x86::ptr(jit_data_r, link_address_offset), scratch_r);
 
   // Store return address
-  size_t return_address_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, returnAddress);
+  size_t return_address_offset = offsetof(GenDataFooter, returnAddress);
   as_->mov(scratch_r, x86::ptr(x86::rbp, 8));
   as_->mov(x86::ptr(jit_data_r, return_address_offset), scratch_r);
 
   // Store "original" RBP
-  size_t original_rbp_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, originalRbp);
+  size_t original_rbp_offset = offsetof(GenDataFooter, originalRbp);
   as_->mov(x86::ptr(jit_data_r, original_rbp_offset), x86::rbp);
 
   // RBP = gen->gi_jit_data
@@ -954,12 +949,10 @@ void NativeGenerator::generateResumeEntry() {
 
   // Resume generator execution: load and clear yieldPoint, then jump to the
   // resume target.
-  size_t yield_point_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenDataFooter, yieldPoint);
+  size_t yield_point_offset = offsetof(GenDataFooter, yieldPoint);
   as_->mov(scratch_r, x86::ptr(x86::rbp, yield_point_offset));
   as_->mov(x86::qword_ptr(x86::rbp, yield_point_offset), 0);
-  size_t resume_target_offset =
-      GET_STRUCT_MEMBER_OFFSET(GenYieldPoint, resume_target_);
+  size_t resume_target_offset = GenYieldPoint::resumeTargetOffset();
   as_->jmp(x86::ptr(scratch_r, resume_target_offset));
 
   env_.addAnnotation("Resume entry point", cursor);

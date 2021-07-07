@@ -21,9 +21,6 @@
   klass(const klass&) = delete;         \
   klass& operator=(const klass&) = delete
 
-#define GET_STRUCT_MEMBER_OFFSET(__type, __mem) \
-  (reinterpret_cast<uintptr_t>(&(reinterpret_cast<__type*>(0)->__mem)))
-
 #define UNUSED __attribute__((unused))
 
 extern "C" {

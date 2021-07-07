@@ -114,8 +114,6 @@ const size_t kMinGenSpillWords = 89;
 
 class GenYieldPoint {
  public:
-  uint64_t resume_target_;
-
   explicit GenYieldPoint(
       const std::vector<ptrdiff_t>&& pyobj_offs,
       bool is_yield_from,
@@ -132,7 +130,12 @@ class GenYieldPoint {
   void releaseRefs(PyGenObject* gen) const;
   PyObject* yieldFromValue(GenDataFooter* gen_footer) const;
 
+  static constexpr int resumeTargetOffset() {
+    return offsetof(GenYieldPoint, resume_target_);
+  }
+
  private:
+  uint64_t resume_target_;
   const std::vector<ptrdiff_t> pyobj_offs_;
   const bool isYieldFrom_;
   const ptrdiff_t yieldFromOffs_;

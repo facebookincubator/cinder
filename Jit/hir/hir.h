@@ -1203,13 +1203,13 @@ class INSTR_CLASS(SetFunctionAttr, Operands<2>) {
   uint64_t offset() const {
     switch (field_) {
       case FunctionAttr::kClosure:
-        return GET_STRUCT_MEMBER_OFFSET(PyFunctionObject, func_closure);
+        return offsetof(PyFunctionObject, func_closure);
       case FunctionAttr::kAnnotations:
-        return GET_STRUCT_MEMBER_OFFSET(PyFunctionObject, func_annotations);
+        return offsetof(PyFunctionObject, func_annotations);
       case FunctionAttr::kKwDefaults:
-        return GET_STRUCT_MEMBER_OFFSET(PyFunctionObject, func_kwdefaults);
+        return offsetof(PyFunctionObject, func_kwdefaults);
       case FunctionAttr::kDefaults:
-        return GET_STRUCT_MEMBER_OFFSET(PyFunctionObject, func_defaults);
+        return offsetof(PyFunctionObject, func_defaults);
     }
     JIT_CHECK(false, "invalid field %d", static_cast<int>(field_));
   }

@@ -241,7 +241,7 @@ int PostRegAllocRewrite::rewriteVectorCallFunctions(instr_iter_t instr_iter) {
     move->appendInputOperand(std::move(last_input));
 
     // Subtract the length of kwnames (always a tuple) from nargsf (rdx)
-    size_t ob_size_offs = GET_STRUCT_MEMBER_OFFSET(PyVarObject, ob_size);
+    size_t ob_size_offs = offsetof(PyVarObject, ob_size);
     block->allocateInstrBefore(
         instr_iter,
         Instruction::kMove,
