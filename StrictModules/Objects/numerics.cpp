@@ -15,7 +15,7 @@ bool StrictNumeric::eq(const BaseStrictObject& other) const {
   try {
     const StrictNumeric& num = dynamic_cast<const StrictNumeric&>(other);
     return num.getReal() == getReal() && num.getImaginary() == getImaginary();
-  } catch (std::bad_cast) {
+  } catch (const std::bad_cast&) {
     return false;
   }
 }
@@ -133,10 +133,10 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__new__(
     try {
       long i = std::stol(str->getValue());
       return std::make_shared<StrictInt>(std::move(type), caller.caller, i);
-    } catch (std::invalid_argument) {
+    } catch (const std::invalid_argument&) {
       caller.raiseExceptionStr(
           ValueErrorType(), "'{}' cannot be converted to int", str->getValue());
-    } catch (std::out_of_range) {
+    } catch (const std::out_of_range&) {
       caller.raiseExceptionStr(
           ValueErrorType(), "'{}' cannot be converted to int", str->getValue());
     }
@@ -942,12 +942,12 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__new__(
     try {
       double i = std::stod(str->getValue());
       return std::make_shared<StrictFloat>(std::move(type), caller.caller, i);
-    } catch (std::invalid_argument) {
+    } catch (const std::invalid_argument&) {
       caller.raiseExceptionStr(
           ValueErrorType(),
           "'{}' cannot be converted to float",
           str->getValue());
-    } catch (std::out_of_range) {
+    } catch (const std::out_of_range&) {
       caller.raiseExceptionStr(
           ValueErrorType(),
           "'{}' cannot be converted to float",
