@@ -1407,7 +1407,6 @@ JITRT_YieldFromRes JITRT_YieldFrom(
     return {NULL, 1};
   }
   if (finish_yield_from) {
-    Py_INCREF(v);
     return {v, 1};
   }
   PyObject* retval;
@@ -1439,6 +1438,7 @@ JITRT_YieldFromRes JITRT_YieldFrom(
       retval = _PyObject_CallMethodIdObjArgs(gen, &PyId_send, v, NULL);
     }
   }
+  Py_DECREF(v);
   if (retval == NULL) {
     PyObject* val;
     if (stopIterationResult) {
