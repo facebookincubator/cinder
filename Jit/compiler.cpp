@@ -68,6 +68,7 @@ void Compiler::runPasses(jit::hir::Function& irfunc) {
   runPass<jit::hir::DynamicComparisonElimination>(irfunc);
   runPass<jit::hir::CallOptimization>(irfunc);
   runPass<jit::hir::PhiElimination>(irfunc);
+  runPass<jit::hir::DeadCodeElimination>(irfunc);
   runPass<jit::hir::RefcountInsertion>(irfunc);
 
   JIT_LOGIF(

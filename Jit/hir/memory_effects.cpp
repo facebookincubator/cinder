@@ -56,8 +56,11 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kSnapshot:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:
-    case Opcode::kWaitHandleRelease:
       return commonEffects(inst, AEmpty);
+
+    // Can write to fields of its operands
+    case Opcode::kWaitHandleRelease:
+      return commonEffects(inst, AOther);
 
     // These can deopt but don't write to any memory locations when they fall
     // through.
@@ -136,7 +139,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
 
     case Opcode::kIncref:
     case Opcode::kXIncref:
-      return {false, AEmpty, {inst.NumOperands()}, AEmpty};
+      return {false, AEmpty, {inst.NumOperands()}, AOther};
 
     case Opcode::kDecref:
     case Opcode::kXDecref:

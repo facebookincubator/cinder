@@ -34,6 +34,7 @@ PassRegistry::PassRegistry() {
   addPass(DynamicComparisonElimination::Factory);
   addPass(PhiElimination::Factory);
   addPass(Simplify::Factory);
+  addPass(DeadCodeElimination::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
@@ -390,6 +391,46 @@ void PhiElimination::Run(Function& func) {
   }
 
   func.cfg.RemoveTrampolineBlocks();
+}
+
+static bool isUseful(Instr& instr) {
+  return instr.IsTerminator() || instr.IsSnapshot() ||
+      dynamic_cast<const DeoptBase*>(&instr) != nullptr ||
+      (!instr.IsPhi() && memoryEffects(instr).may_store != AEmpty);
+}
+
+void DeadCodeElimination::Run(Function& func) {
+  Worklist<Instr*> worklist;
+  for (auto& block : func.cfg.blocks) {
+    for (Instr& instr : block) {
+      if (isUseful(instr)) {
+        worklist.push(&instr);
+      }
+    }
+  }
+  std::unordered_set<Instr*> live_set;
+  while (!worklist.empty()) {
+    auto live_op = worklist.front();
+    worklist.pop();
+    if (live_set.insert(live_op).second) {
+      live_op->visitUses([&](Register*& reg) {
+        if (live_set.count(reg->instr()) == 0) {
+          worklist.push(reg->instr());
+        }
+        return true;
+      });
+    }
+  }
+  for (auto& block : func.cfg.blocks) {
+    for (auto it = block.begin(); it != block.end();) {
+      auto& instr = *it;
+      ++it;
+      if (live_set.count(&instr) == 0) {
+        instr.unlink();
+        delete &instr;
+      }
+    }
+  }
 }
 
 PyObject* loadGlobal(

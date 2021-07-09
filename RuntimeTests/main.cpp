@@ -76,6 +76,7 @@ int main(int argc, char* argv[]) {
       "RuntimeTests/hir_tests/refcount_insertion_static_test.txt", true);
   register_test("RuntimeTests/hir_tests/super_access_test.txt", true);
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
+  register_test("RuntimeTests/hir_tests/dead_code_elimination_test.txt");
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {
