@@ -632,7 +632,7 @@ class MyStr(str):
   EXPECT_NE(class_obj, str_obj);
   EXPECT_NE(int_obj, str_obj);
 
-  // Internal types
+  // Primitive types
   auto five = Type::fromCInt(5, TCInt32);
   EXPECT_FALSE(five < my_class);
   EXPECT_FALSE(my_class < five);

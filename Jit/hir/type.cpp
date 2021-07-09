@@ -437,7 +437,7 @@ bool Type::specSubtype(Type other) const {
   }
   if ((hasIntSpec() || other.hasIntSpec()) ||
       (hasDoubleSpec() || other.hasDoubleSpec())) {
-    // Internal specializations don't support subtypes other than exact
+    // Primitive specializations don't support subtypes other than exact
     // equality.
     return *this == other;
   }
@@ -461,7 +461,7 @@ Type Type::operator|(Type other) const {
   }
   if ((hasIntSpec() || other.hasIntSpec()) ||
       ((hasDoubleSpec() || other.hasDoubleSpec()))) {
-    // Internal specializations only survive unification when the types are
+    // Primitive specializations only survive unification when the types are
     // equal.
     return *this == other ? *this : Type{bits};
   }

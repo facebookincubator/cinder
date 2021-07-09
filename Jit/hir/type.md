@@ -9,12 +9,12 @@
 Some of these terms only make sense in the context of other terms, or in the larger context of `Type` as a whole. Don’t feel obligated to read and understand everything the first time through this section.
 
 * *predefined type* - A type that is supported natively by `Type` and can be a member of arbitrary union types. Examples include `Long`, `Bytes`, `BaseException`, and `CInt32`.
-* *internal type* - A predefined type that represents a C type for a runtime internal value, rather than a Python type. Examples include `CInt32` (`int`) and `CBool` (`bool`).
+* *primitive type* - A predefined type that represents a type for a primitive C value, rather than a Python object. Examples include `CInt32` (`int`) and `CBool` (`bool`).
 * *specialization* - Additional data added to a predefined `Type` to make it more specific.
 * *type specialization* - A `PyTypeObject*` stored in a `Type`.
 * *exact type specialization* - A type specialization flagged to exclude subtypes of the given `PyTypeObject*`.
 * *object specialization* - A `PyObject*` stored in a `Type`. A `Type` with an object specialization is similar to *literal types* in other type systems.
-* *internal specialization* - A specialization for an internal type, holding a C value (`int` for `CInt32`, `bool` for `CBool`, etc.). Like object specializations, intenal specializations create literal types (holding unboxed C values, rather than `PyObject*`s). At the moment, all internal specializations are for integral/double types, but that may change in the future.
+* *primitive specialization* - A specialization for a primitive type, holding a C value (`int` for `CInt32`, `bool` for `CBool`, etc.). Like object specializations, primitive specializations create literal types (holding unboxed C values, rather than `PyObject*`s). At the moment, all primitive specializations are for integral/double types, but that may change in the future.
 
 ## Semantics
 
@@ -33,10 +33,10 @@ Common set operations are supported, including equality/inequality (`==`/`!=`), 
 Predefined `Type`s can be represented without using a specialization, and a `Type` can hold an arbitrary union of any of these types. The set of predefined `Type`s is similar to, but not exactly the same as, Python’s built-in types: some types, such as `NotImplementedType` and `ellipsis` do not have predefined `Type`s, and must be represented using specializations.
 
 * `Top` is the set of all `Type`s and the top of the hierarchy.
-* `Object` is the set of all Python-visible types.
+* `Object` is the set of all Python-visible object types.
 * `FooExact` represents *exactly* `Foo`, excluding any subtypes. This is only defined for types that can be subclassed (excluding things like `Bool`, `Code`, `Frame`, etc.).
 * `FooUser` represents user-defined types that inherit from `Foo` and no other built-in type (except for `Object`, which all types inherit from).
-* `Internal` is the set of all runtime-internal types, none of which are ever exposed to Python code. These are used to work with the return values of functions like `int PyObject_IsTrue(PyObject*)`.
+* `Primitive` is the set of all primitive types, which are only exposed to Python code in Static Python modules. They are also used to work with the return values of functions like `int PyObject_IsTrue(PyObject*)`.
 *  `Bottom` is the empty type, with no values. It is a strict subtype of all other types.
 
 The main hierarchy of predefined `Type`s is shown here (excluding `Bottom`):
@@ -79,7 +79,7 @@ Top
 |   +-- Func
 |   +-- NoneType
 |   +-- Slice
-+-- Internal
++-- Primitive
     +-- Nullptr
     +-- CBool
     +-- CDouble
@@ -250,9 +250,9 @@ An important consequence of this is that `**T1 & T2**`** might not be a subtype 
 
 All subtyping relationships between `Type`s use the same definition as `PyType_IsSubtype()`. Importantly, this means `__subclasscheck__()` and `__instancecheck__()` are never considered; only a type’s MRO is consulted. This shouldn’t impact most of the use cases for `Type` in the JIT (like attribute lookup), but it does mean that any attempt to optimize calls to `isinstance()` or `issubclass()` will need to be careful. This restriction is unlikely to change, since invoking arbitrary Python code in the compiler is a recipe for disaster.
 
-### Internal `Type`s
+### Primitive `Type`s
 
-The subtypes of `Internal` also support specialization. None of the internal types are related to each other, and none of them are related to `Object` subtypes that represent similar types or values:
+The subtypes of `Primitive` also support specialization. None of the primitive types are related to each other, and none of them are related to `Object` subtypes that represent similar types or values:
 
 ```
 CInt32[123] < CInt
@@ -261,7 +261,7 @@ CInt32[123] < CInt
 !(CInt32[123] < CInt64)
 !(CInt32 < CInt64)
 CBool[true] < CBool
-CBool[false] < Internal
+CBool[false] < Primitive
 ```
 
 ## Implementation
@@ -279,7 +279,7 @@ As mentioned previously, the set of values represented by a `Type` is the inters
 * `Long` is `({LongExact|LongUser|Bool}, kSpecTop, 0)`
 * `CInt32[5]` is `(CInt32, kSpecInt, 5)`
 * `LongUser[SomeClass]` is `(LongUser, kSpecType, <SomeClass PyTypeObject*>)`
-* `(BytesUser, kSpecInt, ...)` is invalid, because `kSpecInt` is only valid for the internal types.
+* `(BytesUser, kSpecInt, ...)` is invalid, because `kSpecInt` is only valid for the primitive types.
 * `(CInt32, kSpecObject, ...)` is also invalid, because `kSpecObject`, `kSpecType`, and `kSpecExact` are only valid for `Object` subtypes.
 
 ## API/Usage

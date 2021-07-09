@@ -13,7 +13,8 @@
 #include <ostream>
 
 // This file defines jit::hir::Type, which represents types of objects in HIR,
-// both Python-visible and runtime-internal. For a high-level overview, see
+// both Python objects and primitive C types (some of which are exposed to
+// Python code in Static Python). For a high-level overview, see
 // Jit/hir_type.md.
 
 namespace jit {
@@ -87,27 +88,27 @@ namespace hir {
   HIR_BASE_TYPES(HIR_BASE_TYPE, T, X)
 
 // Basic types; not visible to Python unless Static Python.
-#define HIR_BASIC_INTERNAL_TYPES(X) \
-  X(CBool)                          \
-  X(CInt8)                          \
-  X(CInt16)                         \
-  X(CInt32)                         \
-  X(CInt64)                         \
-  X(CUInt8)                         \
-  X(CUInt16)                        \
-  X(CUInt32)                        \
-  X(CUInt64)                        \
-  X(CPtr)                           \
-  X(CDouble)                        \
+#define HIR_BASIC_PRIMITIVE_TYPES(X) \
+  X(CBool)                           \
+  X(CInt8)                           \
+  X(CInt16)                          \
+  X(CInt32)                          \
+  X(CInt64)                          \
+  X(CUInt8)                          \
+  X(CUInt16)                         \
+  X(CUInt32)                         \
+  X(CUInt64)                         \
+  X(CPtr)                            \
+  X(CDouble)                         \
   X(Nullptr)
 
 // Call X with all arguments. Used as the transform macro in situations where
 // no derived names are needed.
 #define HIR_NOP(X, ...) X(__VA_ARGS__)
 
-// All basic types, Python and internal.
+// All basic types, Python and primitive.
 #define HIR_BASIC_TYPES(X) \
-  HIR_BASIC_PYTYPES(HIR_NOP, X) HIR_BASIC_INTERNAL_TYPES(X)
+  HIR_BASIC_PYTYPES(HIR_NOP, X) HIR_BASIC_PRIMITIVE_TYPES(X)
 
 //////////////////////////////////////////////////////////////////////////////
 // Union types
@@ -126,12 +127,12 @@ namespace hir {
   X(name, bits) X(Opt##name, (bits) | kNullptr)
 
 // Define the union types: a number of special types like Top, Bottom,
-// BuiltinExact, Internal, unions for each base type combining the *Exact and
+// BuiltinExact, Primitive, unions for each base type combining the *Exact and
 // *User types as appropriate, and optional variants of Object subtype unions.
 #define HIR_UNION_TYPES(X)                                                    \
   X(Top, 0 HIR_BASIC_TYPES(HIR_OR_BITS))                                      \
   X(Bottom, 0)                                                                \
-  X(Internal, 0 HIR_BASIC_INTERNAL_TYPES(HIR_OR_BITS))                        \
+  X(Primitive, 0 HIR_BASIC_PRIMITIVE_TYPES(HIR_OR_BITS))                      \
   X(CUnsigned, kCUInt8 | kCUInt16 | kCUInt32 | kCUInt64)                      \
   X(CSigned, kCInt8 | kCInt16 | kCInt32 | kCInt64)                            \
   HIR_OPT_UNION(                                                              \
@@ -256,7 +257,7 @@ class Type {
   bool hasIntSpec() const;
   bool hasDoubleSpec() const;
 
-  // Does this Type have an object or internal specialization, and is it a
+  // Does this Type have an object or primitive specialization, and is it a
   // subtype of the given Type?
   bool hasValueSpec(Type ty) const;
 

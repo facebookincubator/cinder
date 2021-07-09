@@ -48,7 +48,7 @@ struct fmt::formatter<Register*> {
           "{}:{}",
           reg->type().doubleSpec(),
           reg->type().unspecialized());
-    } else if (reg->type() <= TInternal) {
+    } else if (reg->type() <= TPrimitive) {
       return fmt::format_to(
           ctx.out(), "{}:{}", reg->name(), reg->type().toString());
     } else {

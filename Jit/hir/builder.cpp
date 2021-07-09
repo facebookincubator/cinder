@@ -1887,7 +1887,7 @@ bool HIRBuilder::emitInvokeFunction(
         }
 
         Type t = prim_type_to_type(_Py_SIG_TYPE_MASK(elem->se_argtype));
-        if (t <= TInternal) {
+        if (t <= TPrimitive) {
           Register* reg = arg_regs.at(i);
           tc.emit<PrimitiveBox>(reg, reg, _Py_SIG_TYPE_MASK(elem->se_argtype));
         }
@@ -1911,7 +1911,7 @@ bool HIRBuilder::emitInvokeFunction(
   // Since we are not doing a direct invoke, we will get a boxed int back; if
   // the function is supposed to return a primitive int, we need to unbox it
   // because later code in the function will expect the primitive.
-  if (ret_type <= TInternal) {
+  if (ret_type <= TPrimitive) {
     tc.emit<PrimitiveUnbox>(out, out, ret_type);
   }
 
@@ -3319,7 +3319,7 @@ bool HIRBuilder::emitInvokeMethod(
     // Since we are not doing a direct invoke, we will get a boxed int back; if
     // the function is supposed to return a primitive, we need to unbox it
     // because later code in the function will expect the primitive.
-    if (ret_type <= TInternal) {
+    if (ret_type <= TPrimitive) {
       tc.emit<PrimitiveUnbox>(
           invoke->GetOutput(), invoke->GetOutput(), ret_type);
     }
@@ -3353,7 +3353,7 @@ void HIRBuilder::emitInvokeTypedMethod(
 
   if (_Py_SIG_TYPE_MASK(def->tmd_ret) == TYPED_ERROR) {
     tc.emit<CheckNeg>(out, out, tc.frame);
-  } else if (!(type <= TInternal)) {
+  } else if (!(type <= TPrimitive)) {
     tc.emit<CheckExc>(out, out, tc.frame);
   }
   if (out == NULL || def->tmd_ret == _Py_SIG_ERROR) {
@@ -3402,7 +3402,7 @@ void HIRBuilder::emitStoreField(
   Register* receiver = tc.frame.stack.pop();
   Register* value = tc.frame.stack.pop();
   Register* previous = temps_.AllocateStack();
-  if (type <= TInternal) {
+  if (type <= TPrimitive) {
     Register* converted = temps_.AllocateStack();
     tc.emit<LoadConst>(previous, TNullptr);
     tc.emit<IntConvert>(converted, value, type);

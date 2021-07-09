@@ -3417,7 +3417,7 @@ class Function {
 
   // Does this function return a primitive type?
   bool returnsPrimitive() const {
-    return return_type <= TInternal;
+    return return_type <= TPrimitive;
   }
 
  private:
