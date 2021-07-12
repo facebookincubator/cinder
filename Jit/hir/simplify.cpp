@@ -168,6 +168,11 @@ void Simplify::Run(Function& irfunc) {
             "Simplify function should return a new output if and only if the "
             "existing instruction has an output");
         if (new_output != nullptr) {
+          JIT_CHECK(
+              new_output->type() <= instr.GetOutput()->type(),
+              "New output type %s isn't compatible with old output type %s",
+              new_output->type(),
+              instr.GetOutput()->type());
           env.new_instrs.emplace_back(
               Assign::create(instr.GetOutput(), new_output));
         }
