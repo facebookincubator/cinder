@@ -164,6 +164,22 @@ Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   return nullptr;
 }
 
+Register* simplifyIsNegativeAndErrOccurred(
+    Env& env,
+    const IsNegativeAndErrOccurred* instr) {
+  if (!instr->GetOperand(0)->instr()->IsLoadConst()) {
+    return nullptr;
+  }
+  // Other optimizations might reduce the strength of global loads, etc. to load
+  // consts. If this is the case, we know that there can't be an active
+  // exception. In this case, the IsNegativeAndErrOccurred instruction has a
+  // known result. Instead of deleting it, we replace it with load of false -
+  // the idea is that if there are other downstream consumers of it, they will
+  // still have access to the result. Otherwise, DCE will take care of this.
+  Type output_type = instr->GetOutput()->type();
+  return env.emit<LoadConst>(Type::fromCInt(0, output_type));
+}
+
 Register* simplifyInstr(Env& env, const Instr* instr) {
   switch (instr->opcode()) {
     case Opcode::kCheckVar:
@@ -185,6 +201,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
       return simplifyPrimitiveUnbox(
           env, static_cast<const PrimitiveUnbox*>(instr));
 
+    case Opcode::kIsNegativeAndErrOccurred:
+      return simplifyIsNegativeAndErrOccurred(
+          env, static_cast<const IsNegativeAndErrOccurred*>(instr));
     default:
       return nullptr;
   }
