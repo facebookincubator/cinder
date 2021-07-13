@@ -1,0 +1,99 @@
+SimplifyStaticTest
+---
+Simplify
+---
+UnboxOfRandMaxIsEliminated
+---
+from __static__ import rand, RAND_MAX, box, int64
+def test():
+    x: int64 = rand() // int64(RAND_MAX)
+    return box(x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:CInt32 = CallStatic<0>
+    v9:CInt64 = IntConvert<CInt64> v8
+    v10:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
+    v11:CInt64 = IntBinaryOp<FloorDivide> v9 v10
+    v13:OptLongExact = PrimitiveBox<true> v11
+    v14:LongExact = CheckExc v13 {
+      NextInstrOffset 18
+      Locals<1> v11
+    }
+    Return v14
+  }
+}
+---
+UnboxOfFinalIsEliminated
+---
+from typing import Final
+from __static__ import int64, unbox
+
+MY_FINAL: Final[int] = 111
+
+def test() -> bool:
+    i: int64 = 64
+    if i < unbox(MY_FINAL):
+        return True
+    else:
+        return False
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:CInt64[64] = LoadConst<CInt64[64]>
+    v9:CInt64[111] = LoadConst<CInt64[111]>
+    v10:CBool = PrimitiveCompare<LessThan> v7 v9
+    CondBranch<1, 2> v10
+  }
+
+  bb 1 (preds 0) {
+    v11:Bool[True] = LoadConst<Bool[True]>
+    Return v11
+  }
+
+  bb 2 (preds 0) {
+    v12:Bool[False] = LoadConst<Bool[False]>
+    Return v12
+  }
+}
+---
+UnboxOfFinalDoubleIsEliminated
+---
+from typing import Final
+from __static__ import double, unbox
+
+MY_FINAL: Final[float] = 1.23
+
+def test() -> double:
+    d: double = unbox(MY_FINAL)
+    return d
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Nullptr = LoadConst<Nullptr>
+    v3:CDouble[1.23] = LoadConst<CDouble[1.23]>
+    Return<CDouble> v3
+  }
+}
+---
+UnboxOfFinalUnsignedIsEliminated
+---
+from typing import Final
+from __static__ import uint8, unbox
+
+MY_FINAL: Final[int] = 42
+
+def test() -> uint8:
+    u: uint8 = unbox(MY_FINAL)
+    return u
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Nullptr = LoadConst<Nullptr>
+    v3:CUInt8[42] = LoadConst<CUInt8[42]>
+    Return<CUInt8> v3
+  }
+}
+---

@@ -218,8 +218,8 @@ fun jittestmodule:test {
     }
     InitListTuple<list, 3> v12 v9 v10 v11
     v16:LongExact[1] = LoadConst<LongExact[1]>
-    v18:CInt64 = PrimitiveUnbox<CInt64> v16
-    v19:CInt64 = CheckSequenceBounds v12 v18 {
+    v22:CInt64[1] = LoadConst<CInt64[1]>
+    v19:CInt64 = CheckSequenceBounds v12 v22 {
       NextInstrOffset 16
       Locals<1> v12
     }
@@ -259,8 +259,8 @@ fun jittestmodule:test {
     v4:Nullptr = LoadConst<Nullptr>
     v5:TupleExact[tuple:0xdeadbeef] = LoadConst<TupleExact[tuple:0xdeadbeef]>
     v8:LongExact[1] = LoadConst<LongExact[1]>
-    v10:CInt64 = PrimitiveUnbox<CInt64> v8
-    v11:CInt64 = CheckSequenceBounds v5 v10 {
+    v13:CInt64[1] = LoadConst<CInt64[1]>
+    v11:CInt64 = CheckSequenceBounds v5 v13 {
       NextInstrOffset 10
       Locals<1> v5
     }

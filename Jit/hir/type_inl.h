@@ -25,26 +25,30 @@ inline Type Type::fromCDouble(double_t d) {
   return Type{kCDouble, d};
 }
 
+inline bool Type::CIntFitsType(int64_t i, Type t) {
+  return t == TCInt64 || (t == TCInt32 && i >= INT32_MIN && i <= INT32_MAX) ||
+      (t == TCInt16 && i >= INT64_MIN && i <= INT16_MAX) ||
+      (i >= INT8_MIN && i <= INT8_MAX);
+}
+
 inline Type Type::fromCInt(int64_t i, Type t) {
   JIT_DCHECK(
       t == TCInt64 || t == TCInt32 || t == TCInt16 || t == TCInt8,
       "expected signed value");
-  JIT_DCHECK(
-      t == TCInt64 || (t == TCInt32 && i >= INT32_MIN && i <= INT32_MAX) ||
-          (t == TCInt16 && i >= INT64_MIN && i <= INT16_MAX) ||
-          (i >= INT8_MIN && i <= INT8_MAX),
-      "int value out of range");
+  JIT_DCHECK(CIntFitsType(i, t), "int value out of range");
   return Type{t.bits_, kSpecInt, i};
+}
+
+inline bool Type::CUIntFitsType(uint64_t i, Type t) {
+  return t == TCUInt64 || (t == TCUInt32 && i <= UINT32_MAX) ||
+      (t == TCUInt16 && i <= UINT16_MAX) || i <= UINT8_MAX;
 }
 
 inline Type Type::fromCUInt(uint64_t i, Type t) {
   JIT_DCHECK(
       t == TCUInt64 || t == TCUInt32 || t == TCUInt16 || t == TCUInt8,
       "expected unsigned value");
-  JIT_DCHECK(
-      t == TCUInt64 || (t == TCUInt32 && i <= UINT32_MAX) ||
-          (t == TCUInt16 && i <= UINT16_MAX) || i <= UINT8_MAX,
-      "int value out of range");
+  JIT_DCHECK(Type::CUIntFitsType(i, t), "int value out of range");
   return Type{t.bits_, kSpecInt, (intptr_t)i};
 }
 

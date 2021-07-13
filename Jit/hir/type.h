@@ -214,7 +214,9 @@ class Type {
   static Type fromCBool(bool b);
   static Type fromCDouble(double d);
 
+  static bool CIntFitsType(int64_t i, Type t);
   static Type fromCInt(int64_t i, Type t);
+  static bool CUIntFitsType(uint64_t i, Type t);
   static Type fromCUInt(uint64_t i, Type t);
 
   // Return the PyTypeObject* that uniquely represents this type, or nullptr if

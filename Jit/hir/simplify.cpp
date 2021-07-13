@@ -124,6 +124,46 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   return nullptr;
 }
 
+Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
+  Register* unboxed_value = instr->GetOperand(0);
+  Type unbox_output_type = instr->GetOutput()->type();
+  // Ensure that we are dealing with either a integer or a double.
+  Type unboxed_value_type = unboxed_value->type();
+  if (!(unboxed_value_type.hasObjectSpec())) {
+    return nullptr;
+  }
+  PyObject* value = unboxed_value_type.objectSpec();
+  if (unbox_output_type <= (TCSigned | TCUnsigned)) {
+    if (!PyLong_Check(value)) {
+      return nullptr;
+    }
+    int overflow = 0;
+    long number =
+        PyLong_AsLongAndOverflow(unboxed_value_type.objectSpec(), &overflow);
+    if (overflow != 0) {
+      return nullptr;
+    }
+    if (unbox_output_type <= TCSigned) {
+      if (!Type::CIntFitsType(number, unbox_output_type)) {
+        return nullptr;
+      }
+      return env.emit<LoadConst>(Type::fromCInt(number, unbox_output_type));
+    } else {
+      if (!Type::CUIntFitsType(number, unbox_output_type)) {
+        return nullptr;
+      }
+      return env.emit<LoadConst>(Type::fromCUInt(number, unbox_output_type));
+    }
+  } else if (unbox_output_type <= TCDouble) {
+    if (!PyFloat_Check(value)) {
+      return nullptr;
+    }
+    double number = PyFloat_AS_DOUBLE(unboxed_value_type.objectSpec());
+    return env.emit<LoadConst>(Type::fromCDouble(number));
+  }
+  return nullptr;
+}
+
 Register* simplifyInstr(Env& env, const Instr* instr) {
   switch (instr->opcode()) {
     case Opcode::kCheckVar:
@@ -140,6 +180,10 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
 
     case Opcode::kBinaryOp:
       return simplifyBinaryOp(env, static_cast<const BinaryOp*>(instr));
+
+    case Opcode::kPrimitiveUnbox:
+      return simplifyPrimitiveUnbox(
+          env, static_cast<const PrimitiveUnbox*>(instr));
 
     default:
       return nullptr;
