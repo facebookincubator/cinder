@@ -241,6 +241,7 @@ PyObject* JITRT_CallWithIncorrectArgcount(
   Py_ssize_t defcount = PyTuple_GET_SIZE(defaults);
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
   PyObject* arg_space[argcount];
+  Py_ssize_t defaulted_args = argcount - nargs;
 
   if (nargs + defcount < argcount || nargs > argcount) {
     // Not enough args with defaults, or too many args without defaults.
@@ -253,7 +254,7 @@ PyObject* JITRT_CallWithIncorrectArgcount(
   }
 
   PyObject** def_items =
-      &((PyTupleObject*)defaults)->ob_item[defcount - (argcount - nargs)];
+      &((PyTupleObject*)defaults)->ob_item[defcount - defaulted_args];
   for (; i < argcount; i++) {
     arg_space[i] = *def_items++;
   }
@@ -262,7 +263,9 @@ PyObject* JITRT_CallWithIncorrectArgcount(
       (PyObject*)func,
       arg_space,
       argcount | (nargsf & (_Py_AWAITED_CALL_MARKER)),
-      NULL);
+      // We lie to C++ here, and smuggle in the number of defaulted args filled
+      // in.
+      (PyObject*)defaulted_args);
 }
 
 PyObject* JITRT_CallStaticallyWithPrimitiveSignatureWorker(
