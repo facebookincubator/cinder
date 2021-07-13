@@ -11,17 +11,19 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v7:Nullptr = LoadConst<Nullptr>
-    v8:CInt32 = CallStatic<0>
-    v9:CInt64 = IntConvert<CInt64> v8
-    v10:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
-    v11:CInt64 = IntBinaryOp<FloorDivide> v9 v10
-    v13:OptLongExact = PrimitiveBox<true> v11
-    v14:LongExact = CheckExc v13 {
-      NextInstrOffset 18
-      Locals<1> v11
+    v9:Nullptr = LoadConst<Nullptr>
+    v10:CInt32 = CallStatic<0>
+    v11:CInt64 = IntConvert<CInt64> v10
+    v12:LongExact[2147483647] = LoadConst<LongExact[2147483647]>
+    v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
+    v20:CInt64[0] = LoadConst<CInt64[0]>
+    v15:CInt64 = IntBinaryOp<FloorDivide> v11 v19
+    v17:OptLongExact = PrimitiveBox<true> v15
+    v18:LongExact = CheckExc v17 {
+      NextInstrOffset 20
+      Locals<1> v15
     }
-    Return v14
+    Return v18
   }
 }
 ---
@@ -41,21 +43,23 @@ def test() -> bool:
 ---
 fun jittestmodule:test {
   bb 0 {
-    v6:Nullptr = LoadConst<Nullptr>
-    v7:CInt64[64] = LoadConst<CInt64[64]>
-    v9:CInt64[111] = LoadConst<CInt64[111]>
-    v10:CBool = PrimitiveCompare<LessThan> v7 v9
-    CondBranch<1, 2> v10
+    v8:Nullptr = LoadConst<Nullptr>
+    v9:CInt64[64] = LoadConst<CInt64[64]>
+    v11:LongExact[111] = LoadConst<LongExact[111]>
+    v17:CInt64[111] = LoadConst<CInt64[111]>
+    v18:CInt64[0] = LoadConst<CInt64[0]>
+    v14:CBool = PrimitiveCompare<LessThan> v9 v17
+    CondBranch<1, 2> v14
   }
 
   bb 1 (preds 0) {
-    v11:Bool[True] = LoadConst<Bool[True]>
-    Return v11
+    v15:Bool[True] = LoadConst<Bool[True]>
+    Return v15
   }
 
   bb 2 (preds 0) {
-    v12:Bool[False] = LoadConst<Bool[False]>
-    Return v12
+    v16:Bool[False] = LoadConst<Bool[False]>
+    Return v16
   }
 }
 ---
@@ -72,9 +76,10 @@ def test() -> double:
 ---
 fun jittestmodule:test {
   bb 0 {
-    v2:Nullptr = LoadConst<Nullptr>
-    v3:CDouble[1.23] = LoadConst<CDouble[1.23]>
-    Return<CDouble> v3
+    v3:Nullptr = LoadConst<Nullptr>
+    v4:FloatExact[1.23] = LoadConst<FloatExact[1.23]>
+    v5:CDouble = LoadField<16> v4
+    Return<CDouble> v5
   }
 }
 ---
@@ -91,9 +96,11 @@ def test() -> uint8:
 ---
 fun jittestmodule:test {
   bb 0 {
-    v2:Nullptr = LoadConst<Nullptr>
-    v3:CUInt8[42] = LoadConst<CUInt8[42]>
-    Return<CUInt8> v3
+    v4:Nullptr = LoadConst<Nullptr>
+    v5:LongExact[42] = LoadConst<LongExact[42]>
+    v9:CUInt8[42] = LoadConst<CUInt8[42]>
+    v10:CInt64[0] = LoadConst<CInt64[0]>
+    Return<CUInt8> v9
   }
 }
 ---

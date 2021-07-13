@@ -886,6 +886,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 21)
 
     def test_mixed_cmpop_sign(self):
+
         """mixed signed/unsigned ops should be promoted to signed"""
         codestr = """
             from __static__ import int8, uint8, box
@@ -12702,7 +12703,8 @@ class StaticRuntimeTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod["f"]
-            self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST")
+            self.assertInBytecode(f, "LOAD_CONST")
+            self.assertInBytecode(f, "PRIMITIVE_UNBOX")
             self.assertIsInstance(f(), int)
 
     def test_rand_max_inlined2(self):
