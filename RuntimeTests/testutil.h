@@ -18,7 +18,7 @@ struct HIRTestCase {
 
 struct HIRTestSuite {
   std::string name;
-  std::string pass_name;
+  std::vector<std::string> pass_names;
   std::vector<HIRTestCase> test_cases;
 };
 
@@ -33,7 +33,9 @@ struct HIRTestSuite {
 //
 // <Test suite name>
 // ---
-// <Optimization pass name>
+// <Optimization pass name 1>
+// <Optimization pass name 2>
+// ...
 // ---
 // <Test case name>
 // ---

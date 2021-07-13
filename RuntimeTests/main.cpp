@@ -16,15 +16,17 @@ static void register_test(const char* path, bool compile_static = false) {
   if (suite == nullptr) {
     std::exit(1);
   }
-  auto pass_name = suite->pass_name;
-  bool has_pass = !pass_name.empty();
-  if (has_pass) {
+  auto pass_names = suite->pass_names;
+  bool has_passes = !pass_names.empty();
+  if (has_passes) {
     jit::hir::PassRegistry registry;
-    auto pass = registry.MakePass(pass_name);
-    if (pass == nullptr) {
-      std::cerr << "ERROR [" << path << "] Unknown pass name "
-                << suite->pass_name << std::endl;
-      std::exit(1);
+    for (auto& pass_name : pass_names) {
+      auto pass = registry.MakePass(pass_name);
+      if (pass == nullptr) {
+        std::cerr << "ERROR [" << path << "] Unknown pass name " << pass_name
+                  << std::endl;
+        std::exit(1);
+      }
     }
   }
   for (auto& test_case : suite->test_cases) {
@@ -42,11 +44,14 @@ static void register_test(const char* path, bool compile_static = false) {
         __FILE__,
         __LINE__,
         [=]() -> RuntimeTest* {
-          if (has_pass) {
+          if (has_passes) {
             jit::hir::PassRegistry registry;
-            auto p = registry.MakePass(pass_name);
+            std::vector<std::unique_ptr<jit::hir::Pass>> passes;
+            for (auto& pass_name : pass_names) {
+              passes.push_back(registry.MakePass(pass_name));
+            }
             return new HIRTest(
-                std::move(p),
+                std::move(passes),
                 test_case.src_is_hir,
                 test_case.src,
                 test_case.expected_hir,
@@ -77,6 +82,9 @@ int main(int argc, char* argv[]) {
   register_test("RuntimeTests/hir_tests/super_access_test.txt", true);
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
   register_test("RuntimeTests/hir_tests/dead_code_elimination_test.txt");
+  register_test(
+      "RuntimeTests/hir_tests/dead_code_elimination_and_simplify_test.txt",
+      true);
   register_test("RuntimeTests/hir_tests/simplify_static_test.txt", true);
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);

@@ -189,13 +189,13 @@ class RuntimeTest : public ::testing::Test {
 class HIRTest : public RuntimeTest {
  public:
   HIRTest(
-      std::unique_ptr<jit::hir::Pass>&& pass,
+      std::vector<std::unique_ptr<jit::hir::Pass>>&& passes,
       bool src_is_hir,
       const std::string& src,
       const std::string& expected_hir,
       bool compile_static = false)
       : RuntimeTest(compile_static),
-        pass_(std::move(pass)),
+        passes_(std::move(passes)),
         src_is_hir_(src_is_hir),
         src_(src),
         expected_hir_(expected_hir) {}
@@ -214,7 +214,7 @@ class HIRTest : public RuntimeTest {
     std::unique_ptr<Function> irfunc;
     if (src_is_hir_) {
       irfunc = HIRParser{}.ParseHIR(src_.c_str());
-      ASSERT_NE(pass_, nullptr)
+      ASSERT_FALSE(passes_.empty())
           << "HIR tests don't make sense without a pass to test";
       ASSERT_NE(irfunc, nullptr);
       ASSERT_TRUE(checkFunc(*irfunc, std::cout));
@@ -225,7 +225,7 @@ class HIRTest : public RuntimeTest {
       ASSERT_NO_FATAL_FAILURE(CompileToHIR(src_.c_str(), "test", irfunc));
     }
 
-    if (pass_) {
+    if (!passes_.empty()) {
       if (!src_is_hir_) {
         SSAify{}.Run(*irfunc);
         // Perform some straightforward cleanup on Python inputs to make the
@@ -235,7 +235,9 @@ class HIRTest : public RuntimeTest {
         CopyPropagation{}.Run(*irfunc);
         PhiElimination{}.Run(*irfunc);
       }
-      pass_->Run(*irfunc);
+      for (auto& pass : passes_) {
+        pass->Run(*irfunc);
+      }
       ASSERT_TRUE(checkFunc(*irfunc, std::cout));
     }
     HIRPrinter printer;
@@ -244,7 +246,7 @@ class HIRTest : public RuntimeTest {
   }
 
  private:
-  std::unique_ptr<jit::hir::Pass> pass_;
+  std::vector<std::unique_ptr<jit::hir::Pass>> passes_;
   bool src_is_hir_;
   std::string src_;
   std::string expected_hir_;

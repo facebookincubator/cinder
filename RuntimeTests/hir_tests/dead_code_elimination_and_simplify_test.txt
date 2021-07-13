@@ -1,0 +1,28 @@
+DeadCodeEliminationAndSimplifyTest
+---
+Simplify
+DeadCodeElimination
+---
+UnboxOfStaticGlobalIsOptimized
+---
+from __static__ import rand, RAND_MAX, box, int64
+def test():
+    x: int64 = rand() // int64(RAND_MAX)
+    return box(x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:CInt32 = CallStatic<0>
+    v9:CInt64 = IntConvert<CInt64> v8
+    v10:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
+    v11:CInt64 = IntBinaryOp<FloorDivide> v9 v10
+    v13:OptLongExact = PrimitiveBox<true> v11
+    v14:LongExact = CheckExc v13 {
+      NextInstrOffset 18
+      Locals<1> v11
+    }
+    Return v14
+  }
+}
+---

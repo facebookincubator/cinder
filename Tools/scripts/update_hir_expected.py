@@ -134,11 +134,12 @@ def update_text_test(old_lines, suite_name, failed_tests):
 
     expect(suite_name)
     expect("---")
-    # Optional pass name
+    # Optional pass names
     line = next(line_iter)
     new_lines.append(line)
-    if line != "---":
-        expect("---")
+    while line != "---":
+        line = next(line_iter)
+        new_lines.append(line)
 
     try:
         while True:

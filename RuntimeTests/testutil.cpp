@@ -146,9 +146,9 @@ std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& path) {
     err(path) << "Failed reading pass name: " << result.error << std::endl;
     return nullptr;
   }
-  if (pass_name != kDelim) {
-    suite->pass_name = pass_name;
-    result = reader.ReadDelim();
+  while (pass_name != kDelim) {
+    suite->pass_names.push_back(pass_name);
+    result = reader.ReadLine(pass_name);
     if (result.is_error) {
       err(path) << "Failed reading pass name: " << result.error << std::endl;
       return nullptr;
