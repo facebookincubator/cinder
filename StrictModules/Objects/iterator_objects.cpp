@@ -360,9 +360,10 @@ std::shared_ptr<BaseStrictObject> StrictGenericObjectIterator::next(
   count_++;
   try {
     return iCall(obj_, kEmptyArgs, kEmptyArgNames, caller);
-  } catch (StrictModuleUserException<BaseStrictObject>& exc) {
-    if (exc.getWrapped() == StopIterationType() ||
-        exc.getWrapped()->getType() == StopIterationType()) {
+  } catch (const StrictModuleUserException<BaseStrictObject>& exc) {
+    const auto wrapped = exc.getWrapped();
+    if (wrapped == StopIterationType() ||
+        wrapped->getType() == StopIterationType()) {
       done_ = true;
       return nullptr;
     } else {
@@ -451,8 +452,8 @@ std::shared_ptr<BaseStrictObject> StrictZipIterator::next(
     try {
       auto value = nextImpl(nullptr, caller, std::move(it));
       resultVec.push_back(std::move(value));
-    } catch (StrictModuleUserException<BaseStrictObject> e) {
-      auto wrapped = e.getWrapped();
+    } catch (const StrictModuleUserException<BaseStrictObject>& e) {
+      const auto wrapped = e.getWrapped();
       if (wrapped == StopIterationType() ||
           wrapped->getType() == StopIterationType()) {
         done_ = true;
@@ -506,8 +507,8 @@ std::shared_ptr<BaseStrictObject> StrictMapIterator::next(
     try {
       auto value = nextImpl(nullptr, caller, std::move(it));
       argsVec.push_back(std::move(value));
-    } catch (StrictModuleUserException<BaseStrictObject> e) {
-      auto wrapped = e.getWrapped();
+    } catch (const StrictModuleUserException<BaseStrictObject>& e) {
+      const auto wrapped = e.getWrapped();
       if (wrapped == StopIterationType() ||
           wrapped->getType() == StopIterationType()) {
         done_ = true;

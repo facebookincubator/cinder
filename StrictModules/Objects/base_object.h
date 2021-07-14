@@ -59,6 +59,9 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
   std::shared_ptr<StrictType> getType() {
     return type_;
   }
+  const std::shared_ptr<const StrictType> getType() const {
+    return type_;
+  }
   const StrictType& getTypeRef() const {
     return *type_;
   }
