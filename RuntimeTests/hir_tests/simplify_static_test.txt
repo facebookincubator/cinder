@@ -104,3 +104,27 @@ fun jittestmodule:test {
   }
 }
 ---
+UnboxOfFinalWithOverflowIsNotEliminated
+---
+from typing import Final
+from __static__ import int8, unbox
+
+MY_FINAL: Final[int] = 10000
+
+def test() -> int8:
+    i: int8 = unbox(MY_FINAL)
+    return i
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:Nullptr = LoadConst<Nullptr>
+    v5:LongExact[10000] = LoadConst<LongExact[10000]>
+    v6:CInt8 = PrimitiveUnbox<CInt8> v5
+    v7:CInt64 = IsNegativeAndErrOccurred v6 {
+      NextInstrOffset 6
+      Locals<1> v4
+    }
+    Return<CInt8> v6
+  }
+}
+---
