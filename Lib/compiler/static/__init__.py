@@ -5077,21 +5077,27 @@ class CIntType(CType):
         except TypedSyntaxError:
             visitor.visit(arg)
             arg_type = visitor.get_type(arg)
-            if (
-                (arg_type is not DYNAMIC and arg_type is not OBJECT)
-                and not (arg_type.klass is BOOL_TYPE and self is CBOOL_TYPE)
-                and not (
-                    (
-                        arg_type is INT_TYPE.instance
-                        or self.is_valid_exact_int(arg_type)
-                        or isinstance(arg_type, CIntInstance)
-                    )
-                    and self is not CBOOL_TYPE
-                )
-            ):
+            if not self.is_valid_arg(arg_type):
                 raise
 
         return NO_EFFECT
+
+    def is_valid_arg(self, arg_type: Value) -> bool:
+        if arg_type is DYNAMIC or arg_type is OBJECT:
+            return True
+
+        if self is CBOOL_TYPE:
+            if arg_type.klass is BOOL_TYPE:
+                return True
+            return False
+
+        if arg_type is INT_TYPE.instance or self.is_valid_exact_int(arg_type):
+            return True
+
+        if isinstance(arg_type, CIntInstance):
+            return True
+
+        return False
 
     def is_valid_exact_int(self, arg_type: Value) -> bool:
         if isinstance(arg_type, NumExactInstance):
