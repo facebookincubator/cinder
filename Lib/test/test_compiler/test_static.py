@@ -170,6 +170,9 @@ def type_mismatch(from_type: str, to_type: str) -> str:
     return re.escape(f"type mismatch: {from_type} cannot be assigned to {to_type}")
 
 
+def bad_ret_type(from_type: str, to_type: str) -> str:
+    return re.escape(f"return type must be {to_type}, not {from_type}")
+
 def optional(type: str) -> str:
     return f"Optional[{type}]"
 
@@ -2189,7 +2192,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("int64", "dynamic")
+            TypedSyntaxError, "Call argument cannot be a primitive"
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -2499,6 +2502,15 @@ class StaticCompilationTests(StaticTestBase):
 
         return tree, symtable, type_binder
 
+    def assertMatch(self, error: Exception, pattern: str):
+        self.assertTrue(isinstance(error, TypedSyntaxError))
+        self.assertRegex(error.msg, pattern)
+
+    def assertErrors(self, symtable: SymbolTable, *args: str) -> None:
+        self.assertEqual(len(symtable.error_sink.errors), len(args))
+        for err, expected in zip(symtable.error_sink.errors, args):
+            self.assertMatch(err, expected)
+
     def test_collecting_error_sink(self) -> None:
         code = """
             def f():
@@ -2507,8 +2519,11 @@ class StaticCompilationTests(StaticTestBase):
         """
         symtable = SymbolTable(CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
-        # TODO: Ideally this would be 2, but we double report errors
-        self.assertEqual(len(symtable.error_sink.errors), 4)
+        self.assertErrors(
+            symtable,
+            type_mismatch("Exact[str]", "int"),
+            type_mismatch("Literal[42]", "str"),
+        )
 
     def test_collecting_error_sink_calls(self) -> None:
         code = """
@@ -2519,8 +2534,12 @@ class StaticCompilationTests(StaticTestBase):
         """
         symtable = SymbolTable(CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
-        # TODO: Ideally this would be 1, but we double report errors
-        self.assertEqual(len(symtable.error_sink.errors), 2)
+        self.assertErrors(
+            symtable,
+            re.escape(
+                "type mismatch: Exact[str] received for positional arg 'x', expected int"
+            ),
+        )
 
     def test_collecting_error_sink_names(self) -> None:
         code = """
@@ -2530,8 +2549,35 @@ class StaticCompilationTests(StaticTestBase):
         """
         symtable = SymbolTable(CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
-        # TODO: Ideally this would be 2, but we double report errors
-        self.assertEqual(len(symtable.error_sink.errors), 4)
+        self.assertErrors(
+            symtable, type_mismatch("str", "int"), type_mismatch("int", "str")
+        )
+
+    def test_collecting_error_sink_prim_math(self) -> None:
+        code = """
+            from __static__ import int64
+            def f(x: str):
+                y: int64 = 42
+                if y + x:
+                    print('hi')
+
+            f('abc')
+        """
+        symtable = SymbolTable(CollectingErrorSink())
+        symtable.bind("a", "a.py", ast.parse(dedent(code)))
+        self.assertErrors(symtable, "cannot add int64 and str")
+
+    def test_collecting_error_sink_double(self) -> None:
+        code = """
+            from __static__ import double
+            def f(x: str):
+                double(x)
+
+            f('abc')
+        """
+        symtable = SymbolTable(CollectingErrorSink())
+        symtable.bind("a", "a.py", ast.parse(dedent(code)))
+        self.assertErrors(symtable, "type mismatch: double cannot be created from str")
 
     def test_cross_module(self) -> None:
         acode = """
@@ -2602,10 +2648,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         symtable = SymbolTable()
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
-        with self.assertRaisesRegex(
-            TypedSyntaxError,
-            "type mismatch: int is an invalid return type, expected str",
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
             symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
 
     def test_cross_module_decl_visit_type_check_fields(self) -> None:
@@ -2636,7 +2679,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         symtable = SymbolTable()
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
-        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("int", "str")):
+        with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
             symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
 
     def test_cross_module_import_time_resolution(self) -> None:
@@ -3854,7 +3897,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Union[int, None]) -> int:
                 return x
             """,
-            type_mismatch("Optional[int]", "int"),
+            bad_ret_type("Optional[int]", "int"),
         )
 
     def test_union_can_assign_to_broader_union(self):
@@ -3975,7 +4018,7 @@ class StaticCompilationTests(StaticTestBase):
                     return x
                 return 1
             """,
-            type_mismatch("Union[int, str]", "int"),
+            bad_ret_type("Union[int, str]", "int"),
         )
 
     def test_union_or_syntax_none(self):
@@ -3986,7 +4029,7 @@ class StaticCompilationTests(StaticTestBase):
                     return x
                 return 1
             """,
-            type_mismatch("Optional[int]", "int"),
+            bad_ret_type("Optional[int]", "int"),
         )
 
     def test_union_or_syntax_builtin_type(self):
@@ -4010,7 +4053,7 @@ class StaticCompilationTests(StaticTestBase):
                     return x
                 return 1
             """,
-            type_mismatch("Optional[int]", "int"),
+            bad_ret_type("Optional[int]", "int"),
         )
 
     def test_union_or_syntax_annotation(self):
@@ -4020,7 +4063,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: int|str = y or z
                 return x
             """,
-            type_mismatch("Union[int, str]", "int"),
+            bad_ret_type("Union[int, str]", "int"),
         )
 
     def test_union_or_syntax_error(self):
@@ -4196,9 +4239,7 @@ class StaticCompilationTests(StaticTestBase):
                 f([])
 
     def test_error_return_int(self):
-        with self.assertRaisesRegex(
-            TypedSyntaxError, "type mismatch: int64 cannot be assigned to dynamic"
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int64", "dynamic")):
             code = self.compile(
                 """
             from __static__ import ssize_t
@@ -6035,7 +6076,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Optional[int]", "None"),
+            bad_ret_type("Optional[int]", "None"),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -7884,7 +7925,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Optional[int]", "int"),
+            bad_ret_type("Optional[int]", "int"),
         ):
             self.compile(codestr)
 
@@ -7901,7 +7942,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Optional[int]", "int"),
+            bad_ret_type("Optional[int]", "int"),
         ):
             self.compile(codestr)
 
@@ -8138,8 +8179,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError,
-            "type mismatch: int64 is an invalid return type, expected dynamic",
+            TypedSyntaxError, type_mismatch("int64", "dynamic")
         ):
             code = self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -9862,9 +9902,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: int32 = 1
                 return x
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, "type mismatch: int32 cannot be assigned to dynamic"
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int32", "dynamic")):
             self.compile(codestr)
 
     def test_module_level_final_decl(self):
@@ -10582,7 +10620,7 @@ class StaticCompilationTests(StaticTestBase):
                 z = x or y
                 return z
         """
-        self.type_error(codestr, "type mismatch: float cannot be assigned to int")
+        self.type_error(codestr, bad_ret_type("float", "int"))
 
     def test_exact_float_type(self):
         codestr = """
@@ -10847,9 +10885,7 @@ class StaticCompilationTests(StaticTestBase):
             def g() -> str:
                 return f()
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, r"int is an invalid return type, expected str"
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
             self.compile(codestr)
 
     def test_augassign_primitive_int(self):
@@ -14833,9 +14869,7 @@ class StaticRuntimeTests(StaticTestBase):
         def f(s1: Optional[str], s2: Optional[str]) -> str:
             return s1 or s2
         """
-        self.type_error(
-            codestr, r"type mismatch: Optional\[str\] cannot be assigned to str"
-        )
+        self.type_error(codestr, bad_ret_type("Optional[str]", "str"))
 
     def test_donotcompile_fn(self):
         codestr = """
@@ -15055,7 +15089,7 @@ class StaticRuntimeTests(StaticTestBase):
             assert isinstance(x, int)
             return x
         """
-        self.type_error(codestr, "type mismatch: int cannot be assigned to str")
+        self.type_error(codestr, bad_ret_type("int", "str"))
 
     def test_assert_narrowing_debug(self):
         codestr = """

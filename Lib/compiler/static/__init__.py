@@ -2034,7 +2034,7 @@ class ArgMapping:
             resolved_type,
             visitor.get_type(arg).klass,
             arg,
-            f"received for {desc}, expected",
+            f"type mismatch: {{}} received for {desc}, expected {{}}",
         )
         if exc is not None:
             raise exc
@@ -4555,7 +4555,9 @@ class CheckedDictInstance(Object[CheckedDict]):
         visitor: TypeBinder,
         type_ctx: Optional[Class] = None,
     ) -> None:
-        visitor.visit(node.slice, self.klass.gen_name.args[0].instance)
+        visitor.visitExpectedType(
+            node.slice, self.klass.gen_name.args[0].instance, blame=node
+        )
         visitor.set_type(node, self.klass.gen_name.args[1].instance, type_ctx)
 
     def emit_subscr(
@@ -4673,18 +4675,15 @@ class CInstance(Value, Generic[TClass]):
     def name(self) -> str:
         return self.klass.instance_name
 
-    def binop_error(self, left: Value, right: Value, op: ast.operator) -> str:
-        return f"cannot {self._op_name[type(op)]} {left.name} and {right.name}"
+    def binop_error(self, left: str, right: str, op: ast.operator) -> str:
+        return f"cannot {self._op_name[type(op)]} {left} and {right}"
 
     def bind_reverse_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> bool:
-        try:
-            visitor.visit(node.left, self)
-        except TypedSyntaxError:
-            visitor.syntax_error(
-                self.binop_error(visitor.get_type(node.left), self, node.op), node
-            )
+        visitor.visitExpectedType(
+            node.left, self, self.binop_error("{}", "{}", node.op)
+        )
         visitor.set_type(node, self, type_ctx)
         return True
 
@@ -4811,14 +4810,7 @@ class CIntInstance(CInstance["CIntType"]):
     ) -> bool:
         rtype = visitor.get_type(right)
         if rtype != self and not isinstance(rtype, CIntInstance):
-            try:
-                visitor.visit(right, self)
-            except TypedSyntaxError:
-                # Report a better error message than the generic can't be used
-                visitor.syntax_error(
-                    f"can't compare {self.name} to {visitor.get_type(right).name}",
-                    node,
-                )
+            visitor.visit(right, self)
 
         other = visitor.get_type(right)
         comparing_cbools = self.constant == TYPED_BOOL and (
@@ -4850,14 +4842,7 @@ class CIntInstance(CInstance["CIntType"]):
         type_ctx: Optional[Class],
     ) -> bool:
         if not isinstance(visitor.get_type(left), CIntInstance):
-            try:
-                visitor.visit(left, self)
-            except TypedSyntaxError:
-                # Report a better error message than the generic can't be used
-                visitor.syntax_error(
-                    f"can't compare {self.name} to {visitor.get_type(right).name}",
-                    node,
-                )
+            visitor.visitExpectedType(left, self)
 
             compare_type = self.validate_mixed_math(visitor.get_type(left))
             if compare_type is None:
@@ -4966,23 +4951,26 @@ class CIntInstance(CInstance["CIntType"]):
                 visitor.set_type(node, TUPLE_EXACT_TYPE.instance, type_ctx)
                 return True
 
-            try:
-                visitor.visit(node.right, type_ctx or INT64_VALUE)
-            except TypedSyntaxError:
-                # Report a better error message than the generic can't be used
-                visitor.syntax_error(
-                    self.binop_error(self, visitor.get_type(node.right), node.op),
-                    node,
-                )
+            visitor.visit(node.right, type_ctx or INT64_VALUE)
+
 
         if type_ctx is None:
             type_ctx = self.validate_mixed_math(visitor.get_type(node.right))
             if type_ctx is None:
                 visitor.syntax_error(
-                    self.binop_error(self, visitor.get_type(node.right), node.op),
+                    self.binop_error(
+                        self.name, visitor.get_type(node.right).name, node.op
+                    ),
                     node,
                 )
                 type_ctx = DYNAMIC
+        else:
+            visitor.check_can_assign_from(
+                type_ctx.klass,
+                visitor.get_type(node.right).klass,
+                node.right,
+                self.binop_error("{1}", "{0}", node.op),
+            )
 
         visitor.set_type(node, type_ctx, None)
         return True
@@ -5072,13 +5060,11 @@ class CIntType(CType):
         # so we don't pass the type context.
         visitor.set_type(node, self.instance, None)
         arg = node.args[0]
-        try:
-            visitor.visit(arg, self.instance)
-        except TypedSyntaxError:
-            visitor.visit(arg)
-            arg_type = visitor.get_type(arg)
-            if not self.is_valid_arg(arg_type):
-                raise
+        visitor.visit(arg, self.instance)
+
+        arg_type = visitor.get_type(arg)
+        if not self.is_valid_arg(arg_type):
+            visitor.check_can_assign_from(self, arg_type.klass, arg)
 
         return NO_EFFECT
 
@@ -5187,19 +5173,11 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         type_ctx: Optional[Class],
     ) -> bool:
         rtype = visitor.get_type(right)
-        cannot_compare = False
         if rtype != self:
             if rtype == FLOAT_EXACT_TYPE.instance:
-                try:
-                    visitor.visit(right, self)
-                except TypedSyntaxError:
-                    cannot_compare = True
+                visitor.visitExpectedType(right, self, f"can't compare {{}} to {{}}")
             else:
-                cannot_compare = True
-
-        if cannot_compare:
-            # Report a better error message than the generic can't be used
-            visitor.syntax_error(f"can't compare {self.name} to {rtype.name}", node)
+                visitor.syntax_error(f"can't compare {self.name} to {rtype.name}", node)
 
         visitor.set_type(op, self, None)
         visitor.set_type(node, CBOOL_TYPE.instance, type_ctx)
@@ -5216,17 +5194,9 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     ) -> bool:
         ltype = visitor.get_type(left)
         if ltype != self:
-            cannot_compare = False
             if ltype == FLOAT_EXACT_TYPE.instance:
-                try:
-                    visitor.visit(left, self)
-                except TypedSyntaxError:
-                    cannot_compare = True
+                visitor.visitExpectedType(left, self, f"can't compare {{}} to {{}}")
             else:
-                cannot_compare = True
-
-            if cannot_compare:
-                # Report a better error message than the generic can't be used
                 visitor.syntax_error(f"can't compare {self.name} to {ltype.name}", node)
 
             visitor.set_type(op, self, None)
@@ -5243,17 +5213,14 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     ) -> bool:
         rtype = visitor.get_type(node.right)
         if type(node.op) not in self._double_binary_opcode_signed:
-            visitor.syntax_error(self.binop_error(self, rtype, node.op), node)
+            visitor.syntax_error(self.binop_error(self.name, rtype.name, node.op), node)
 
         if rtype != self:
-            try:
-                visitor.visit(node.right, type_ctx or DOUBLE_TYPE.instance)
-            except TypedSyntaxError:
-                # Report a better error message than the generic can't be used
-                visitor.syntax_error(
-                    self.binop_error(self, visitor.get_type(node.right), node.op),
-                    node,
-                )
+            visitor.visitExpectedType(
+                node.right,
+                type_ctx or DOUBLE_TYPE.instance,
+                self.binop_error("{}", "{}", node.op),
+            )
 
         visitor.set_type(node, self, type_ctx)
         return True
@@ -5297,17 +5264,16 @@ class CDoubleType(CType):
 
         visitor.set_type(node, self.instance, None)
         arg = node.args[0]
-        try:
-            visitor.visit(arg, self.instance)
-        except TypedSyntaxError:
-            visitor.visit(arg)
-            arg_type = visitor.get_type(arg)
-            if arg_type not in (
-                FLOAT_TYPE.instance,
-                FLOAT_EXACT_TYPE.instance,
-                DYNAMIC_TYPE.instance,
-            ):
-                raise
+        visitor.visit(arg, self.instance)
+        arg_type = visitor.get_type(arg)
+        if arg_type not in (
+            FLOAT_TYPE.instance,
+            FLOAT_EXACT_TYPE.instance,
+            DYNAMIC_TYPE.instance,
+        ):
+            visitor.syntax_error(
+                f"type mismatch: double cannot be created from {arg_type.name}", node
+            )
 
         return NO_EFFECT
 
@@ -6226,8 +6192,6 @@ class TypeBinder(GenericVisitor):
         reason: str = "cannot be assigned to",
     ) -> None:
         self.cur_mod.types[node] = type
-        if type_ctx is not None:
-            self.check_can_assign_from(type_ctx.klass, type.klass, node, reason)
 
     def get_type(self, node: AST) -> Value:
         assert node in self.cur_mod.types, f"node not found: {node}, {node.lineno}"
@@ -6319,7 +6283,7 @@ class TypeBinder(GenericVisitor):
         self.visit(target)
         value = node.value
         if value:
-            self.visit(value, comp_type.instance)
+            self.visitExpectedType(value, comp_type.instance)
             if isinstance(target, Name):
                 # We could be narrowing the type after the assignment, so we update it here
                 # even though we assigned it above (but we never narrow primtives)
@@ -6370,13 +6334,17 @@ class TypeBinder(GenericVisitor):
         self.set_type(node, value_type, None)
 
     def check_can_assign_from(
-        self, dest: Class, src: Class, node: AST, reason: str = "cannot be assigned to"
+        self,
+        dest: Class,
+        src: Class,
+        node: AST,
+        reason: str = "type mismatch: {} cannot be assigned to {}",
     ) -> None:
         if not dest.can_assign_from(src) and (
             src is not DYNAMIC_TYPE or isinstance(dest, CType)
         ):
             self.syntax_error(
-                f"type mismatch: {src.instance.name} {reason} {dest.instance.name} ",
+                reason.format(src.instance.name, dest.instance.name),
                 node,
             )
 
@@ -6440,18 +6408,8 @@ class TypeBinder(GenericVisitor):
     def visitBinOp(
         self, node: BinOp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        # In order to interpret numeric literals as primitives within a
-        # primitive type context, we want to try to pass the type context down
-        # to each side, but we can't require this, otherwise things like `List:
-        # List * int` would fail.
-        try:
-            self.visit(node.left, type_ctx)
-        except TypedSyntaxError:
-            self.visit(node.left)
-        try:
-            self.visit(node.right, type_ctx)
-        except TypedSyntaxError:
-            self.visit(node.right)
+        self.visit(node.left, type_ctx)
+        self.visit(node.right, type_ctx)
 
         ltype = self.get_type(node.left)
         rtype = self.get_type(node.right)
@@ -6937,11 +6895,24 @@ class TypeBinder(GenericVisitor):
 
         return NO_EFFECT
 
+    def visitExpectedType(
+        self,
+        node: AST,
+        expected: Value,
+        reason: str = "type mismatch: {} cannot be assigned to {}",
+        blame: Optional[AST] = None,
+    ) -> Optional[NarrowingEffect]:
+        res = self.visit(node, expected)
+        self.check_can_assign_from(
+            expected.klass, self.get_type(node).klass, blame or node, reason
+        )
+        return res
+
     def visitList(
         self, node: ast.List, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         for elt in node.elts:
-            self.visit(elt, DYNAMIC)
+            self.visitExpectedType(elt, DYNAMIC)
         self.set_type(node, LIST_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
@@ -6949,7 +6920,7 @@ class TypeBinder(GenericVisitor):
         self, node: ast.Tuple, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         for elt in node.elts:
-            self.visit(elt, DYNAMIC)
+            self.visitExpectedType(elt, DYNAMIC)
         self.set_type(node, TUPLE_EXACT_TYPE.instance, type_ctx)
         return NO_EFFECT
 
