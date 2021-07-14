@@ -2019,25 +2019,18 @@ class ArgMapping:
         self, visitor: TypeBinder, param: Parameter, arg: expr, arg_style: str
     ) -> Class:
         resolved_type = param.type_ref.resolved()
-        exc = None
-        try:
-            visitor.visit(arg, resolved_type.instance if resolved_type else None)
-        except TypedSyntaxError as e:
-            # We may report a better error message below...
-            exc = e
         desc = (
             f"{arg_style} arg '{param.name}'"
             if param.name
             else f"{arg_style} arg {param.index}"
         )
-        visitor.check_can_assign_from(
-            resolved_type,
-            visitor.get_type(arg).klass,
+        expected = resolved_type.instance
+        visitor.visitExpectedType(
             arg,
+            expected,
             f"type mismatch: {{}} received for {desc}, expected {{}}",
         )
-        if exc is not None:
-            raise exc
+
         return resolved_type
 
 
@@ -4711,12 +4704,19 @@ class CInstance(Value, Generic[TClass]):
 class CIntInstance(CInstance["CIntType"]):
     def __init__(self, klass: CIntType, constant: int, size: int, signed: bool) -> None:
         super().__init__(klass)
+        self.klass: CIntType = klass
         self.constant = constant
         self.size = size
         self.signed = signed
 
     def as_oparg(self) -> int:
         return self.constant
+
+    @property
+    def name(self) -> str:
+        if self.klass.literal_value is not None:
+            return f"Literal[{self.klass.literal_value}]"
+        return super().name
 
     _int_binary_opcode_signed: Mapping[Type[ast.AST], int] = {
         ast.Lt: PRIM_OP_LT_INT,
@@ -4862,25 +4862,6 @@ class CIntInstance(CInstance["CIntType"]):
         elif mode == "store":
             code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
 
-    def validate_int(self, val: object, node: ast.AST, visitor: TypeBinder) -> None:
-        if not isinstance(val, int):
-            visitor.syntax_error(
-                f"{type(val).__name__} cannot be used in a context where an int is expected",
-                node,
-            )
-            return
-
-        if not self.is_valid_int(val):
-            # We set a type here so that when call handles the syntax error and tries to
-            # improve the error message to "positional argument type mismatch" it can
-            # successfully get the type
-            visitor.set_type(node, INT_TYPE.instance)
-            low, high = self.get_int_range()
-            visitor.syntax_error(
-                f"constant {val} is outside of the range {low} to {high} for {self.name}",
-                node,
-            )
-
     def get_int_range(self) -> Tuple[int, int]:
         bits = 8 << self.size
         if self.signed:
@@ -4897,12 +4878,22 @@ class CIntInstance(CInstance["CIntType"]):
         return low <= val <= high
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
-        self.validate_int(node.value, node, visitor)
-        visitor.set_type(node, self)
+        if type(node.value) is int:
+            node_type = CIntType(self.klass.constant, literal_value=node.value).instance
+        elif type(node.value) is bool and self is CBOOL_TYPE.instance:
+            assert self is CBOOL_TYPE.instance
+            node_type = self
+        else:
+            node_type = CONSTANT_TYPES[type(node.value)]
+
+        visitor.set_type(node, node_type)
 
     def emit_constant(
         self, node: ast.Constant, code_gen: Static38CodeGenerator
     ) -> None:
+        assert (literal := self.klass.literal_value) is None or self.is_valid_int(
+            literal
+        )
         val = node.value
         if self.constant == TYPED_BOOL:
             val = bool(val)
@@ -5013,11 +5004,17 @@ class CIntInstance(CInstance["CIntType"]):
 class CIntType(CType):
     instance: CIntInstance
 
-    def __init__(self, constant: int, name_override: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        constant: int,
+        name_override: Optional[str] = None,
+        literal_value: Optional[int] = None,
+    ) -> None:
         self.constant = constant
         # See TYPED_SIZE macro
         self.size: int = (constant >> 1) & 3
         self.signed: bool = bool(constant & 1)
+        self.literal_value = literal_value
         if name_override is None:
             name = ("" if self.signed else "u") + "int" + str(8 << self.size)
         else:
@@ -5030,6 +5027,9 @@ class CIntType(CType):
 
     def can_assign_from(self, src: Class) -> bool:
         if isinstance(src, CIntType):
+            literal = src.literal_value
+            if literal is not None:
+                return self.instance.is_valid_int(literal)
             if src.size <= self.size and src.signed == self.signed:
                 # assignment to same or larger size, with same sign
                 # is allowed
@@ -5074,6 +5074,9 @@ class CIntType(CType):
             return True
 
         if isinstance(arg_type, CIntInstance):
+            literal = arg_type.klass.literal_value
+            if literal is not None:
+                return self.instance.is_valid_int(literal)
             return True
 
         return False

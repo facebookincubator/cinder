@@ -684,7 +684,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_int_bad_assign(self):
         with self.assertRaisesRegex(
-            TypedSyntaxError, "str cannot be used in a context where an int is expected"
+            TypedSyntaxError, type_mismatch("Exact[str]", "int64")
         ):
             code = self.compile(
                 """
@@ -1096,7 +1096,7 @@ class StaticCompilationTests(StaticTestBase):
             with self.subTest(type=type, val=val, low=low, high=high):
                 with self.assertRaisesRegex(
                     TypedSyntaxError,
-                    f"constant {val} is outside of the range {low} to {high} for {type}",
+                    f"type mismatch: Literal\\[{val}\\] cannot be assigned to {type}",
                 ):
                     self.compile(codestr, StaticCodeGenerator)
 
@@ -1107,8 +1107,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: int8 = 1.0
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError,
-            f"float cannot be used in a context where an int is expected",
+            TypedSyntaxError, type_mismatch("Exact[float]", "int")
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -1119,8 +1118,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: int8 = 'abc' + 'def'
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError,
-            f"str cannot be used in a context where an int is expected",
+            TypedSyntaxError, type_mismatch("Exact[str]", "int8")
         ):
             self.compile(codestr, StaticCodeGenerator)
 
@@ -6521,7 +6519,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "constant 128 is outside of the range -128 to 127 for int8",
+            "type mismatch: Literal\\[128\\] cannot be assigned to int8",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6549,7 +6547,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "constant 300 is outside of the range -128 to 127 for int8",
+            "type mismatch: Literal\\[300\\] cannot be assigned to int8",
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6582,7 +6580,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y = 42
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "int8 cannot be assigned to object"
+            TypedSyntaxError, "Literal\\[42\\] cannot be assigned to object"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6634,7 +6632,7 @@ class StaticCompilationTests(StaticTestBase):
                 y = x = 42
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("int16", "dynamic")
+            TypedSyntaxError, type_mismatch("Literal[42]", "dynamic")
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
@@ -6854,7 +6852,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"int received for positional arg 'v', expected int8",
+            r"Literal\[128\] received for positional arg 'v', expected int8",
         ):
             self.compile(codestr)
 
@@ -9977,6 +9975,18 @@ class StaticCompilationTests(StaticTestBase):
                     else:
                         self.assertEqual(f(), 1)
 
+    def test_assign_bool_to_primitive_int(self):
+        codestr = f"""
+        from __static__ import int8
+
+        def f() -> int:
+            a: int8 = True
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, type_mismatch("Exact[bool]", "int8")
+        ):
+            self.compile(codestr)
+
     def test_inline_primitive(self):
 
         codestr = """
@@ -12531,7 +12541,8 @@ class StaticRuntimeTests(StaticTestBase):
             with self.subTest(type=type, val=val, overflows=overflows):
                 if overflows:
                     with self.assertRaisesRegex(
-                        TypedSyntaxError, "outside of the range"
+                        TypedSyntaxError,
+                        f"type mismatch: Literal\\[{val}\\] cannot be assigned to {type}",
                     ):
                         self.compile(codestr)
                 else:
@@ -12603,7 +12614,7 @@ class StaticRuntimeTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "constant 255 is outside of the range -128 to 127 for int8",
+            "type mismatch: Literal\\[255\\] cannot be assigned to int8",
         ):
             self.compile(codestr)
 
