@@ -107,6 +107,7 @@ from compiler.static import (
     TYPED_DOUBLE,
     InlinedCall,
 )
+from compiler.static.errors import CollectingErrorSink
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -2497,6 +2498,40 @@ class StaticCompilationTests(StaticTestBase):
         code_gen.visit(tree)
 
         return tree, symtable, type_binder
+
+    def test_collecting_error_sink(self) -> None:
+        code = """
+            def f():
+                x: int = 'abc'
+                b: str = 42
+        """
+        symtable = SymbolTable(CollectingErrorSink())
+        symtable.bind("a", "a.py", ast.parse(dedent(code)))
+        # TODO: Ideally this would be 2, but we double report errors
+        self.assertEqual(len(symtable.error_sink.errors), 4)
+
+    def test_collecting_error_sink_calls(self) -> None:
+        code = """
+            def f(x: int):
+                pass
+
+            f('abc')
+        """
+        symtable = SymbolTable(CollectingErrorSink())
+        symtable.bind("a", "a.py", ast.parse(dedent(code)))
+        # TODO: Ideally this would be 1, but we double report errors
+        self.assertEqual(len(symtable.error_sink.errors), 2)
+
+    def test_collecting_error_sink_names(self) -> None:
+        code = """
+            def f(a: int, b: str):
+                x: int = b
+                y: str = a
+        """
+        symtable = SymbolTable(CollectingErrorSink())
+        symtable.bind("a", "a.py", ast.parse(dedent(code)))
+        # TODO: Ideally this would be 2, but we double report errors
+        self.assertEqual(len(symtable.error_sink.errors), 4)
 
     def test_cross_module(self) -> None:
         acode = """
@@ -6743,7 +6778,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(
-            TypedSyntaxError, "Cannot assign a dynamic to int64"
+            TypedSyntaxError, type_mismatch("dynamic", "int64")
         ):
             self.compile(codestr)
 
