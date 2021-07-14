@@ -2577,6 +2577,561 @@ class StaticCompilationTests(StaticTestBase):
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
         self.assertErrors(symtable, "type mismatch: double cannot be created from str")
 
+    def test_error_starred_primitive(self):
+        code = """
+            from __static__ import int64
+
+            def g(*args):
+                pass
+
+            def f(a):
+                x: int64 = 0
+                return f(*x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "starred expression cannot be primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_after_starred(self):
+        code = """
+            from __static__ import int64
+
+            def g(*args):
+                pass
+
+            def f(a):
+                x: int64 = 0
+                y = []
+                return f(*y, x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_builtin_method_desc(self):
+        code = """
+            from __static__ import int64
+
+            def f(a):
+                x: int64 = 0
+                return tuple.index((1,2,3), x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_len(self):
+        code = """
+            from __static__ import int64
+
+            def f(a):
+                x: int64 = 0
+                return len(x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_sorted(self):
+        code = """
+            from __static__ import int64
+
+            def f(a):
+                x: int64 = 0
+                return sorted(x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_isinstance(self):
+        code = """
+            from __static__ import int64
+
+            def f(a):
+                x: int64 = 0
+                return isinstance(x, int)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_issubclass(self):
+        code = """
+            from __static__ import int64
+
+            def f(a):
+                x: int64 = 0
+                return issubclass(x, int)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_cast(self):
+        code = """
+            from __static__ import int64, cast
+
+            def f(a):
+                x: int64 = 0
+                return cast(x, int)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_primitive_sorted_kw(self):
+        code = """
+            from __static__ import int64
+
+            def f(a):
+                x: int64 = 0
+                return sorted([], key = x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Call argument cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_ann(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                def g(foo: x):
+                    pass
+                return g
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "argument annotation cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_starargs_ann(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                def g(*args: x):
+                    pass
+                return g
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "argument annotation cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_kwargs_ann(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                def g(**kwargs: x):
+                    pass
+                return g
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "argument annotation cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_kwonly_ann(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                def g(*, foo: x = 42):
+                    pass
+                return g
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "argument annotation cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_annass_prim_annotation(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                y: x = 2
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "annotation can not be a primitive value"
+        ):
+            self.compile(code)
+
+    def test_assert_primitive(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 1
+                assert x
+        """
+        with self.in_module(code) as mod:
+            f = mod["f"]
+            self.assertInBytecode(f, "POP_JUMP_IF_NONZERO")
+
+    def test_assert_primitive_msg(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 1
+                assert False, x
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "assert message cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_lambda_ret_primitive(self):
+        code = """
+            from __static__ import int64
+            from typing import Final
+
+            X: Final[int] = 42
+            def f():
+                return lambda: int64(X)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "lambda cannot return primitive value"
+        ):
+            self.compile(code)
+
+    def test_list_slice_primitive(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x = [2,3,4]
+                y: int64 = 1
+                return x[y:2]
+        """
+
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "slice indices cannot be primitives"
+        ):
+            self.compile(code)
+
+        code = """
+            from __static__ import int64
+
+            def f():
+                x = [2,3,4]
+                y: int64 = 1
+                return x[0:y]
+        """
+
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "slice indices cannot be primitives"
+        ):
+            self.compile(code)
+
+        code = """
+            from __static__ import int64
+
+            def f():
+                x = [2,3,4]
+                y: int64 = 1
+                return x[0:2:y]
+        """
+
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "slice indices cannot be primitives"
+        ):
+            self.compile(code)
+
+    def test_dict_primitive(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 1
+                return {x: 42}
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, "dict keys cannot be primitives"):
+            self.compile(code)
+
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 1
+                return {42: x}
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, "dict keys cannot be primitives"):
+            self.compile(code)
+
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 1
+                return {**x}
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "dict splat cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_set_primitive(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 1
+                return {x}
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "set members cannot be primitives"
+        ):
+            self.compile(code)
+
+    def test_generator_primitive_condition(self):
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = False
+
+            def f(abc):
+                return [x for x in abc if cbool(COND)]
+        """
+        with self.in_module(code) as mod:
+            f = mod["f"]
+            gen_code = [x for x in f.__code__.co_consts if isinstance(x, CodeType)][0]
+            self.assertInBytecode(gen_code, "POP_JUMP_IF_ZERO")
+            self.assertEqual(f([1, 2, 3]), [])
+
+    def test_generator_primitive_iter(self):
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = False
+
+            def f(abc):
+                return [x for x in cbool(COND)]
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, "cannot iterate over cbool"):
+            self.compile(code)
+
+    def test_generator_primitive_element(self):
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = True
+
+            def f(abc):
+                return [cbool(COND) for x in abc]
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "generator element cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_format_primitive(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                return f"{x}"
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "cannot use primitive in formatted value"
+        ):
+            self.compile(code)
+
+    def test_subscr_primitive(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                return [*x]
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "cannot use primitive in starred expression"
+        ):
+            self.compile(code)
+
+    def test_dict_comp_primitive_element(self):
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = True
+
+            def f(abc):
+                return {k:cbool(COND) for k in abc}
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "dictionary comprehension value cannot be a primitive"
+        ):
+            self.compile(code)
+
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = True
+
+            def f(abc):
+                return {cbool(COND):v for v in abc}
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "dictionary comprehension key cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_await_primitive(self):
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = True
+
+            async def f(abc):
+                await cbool(COND)
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, "cannot await a primitive value"):
+            self.compile(code)
+
+    def test_yield_primitive(self):
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = True
+
+            def f(abc):
+                yield cbool(COND)
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, "cannot yield a primitive value"):
+            self.compile(code)
+
+    def test_yield_from_primitive(self):
+        code = """
+            from __static__ import cbool
+            from typing import Final
+            COND: Final[bool] = True
+
+            def f(abc):
+                yield from cbool(COND)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "cannot yield from a primitive value"
+        ):
+            self.compile(code)
+
+    def test_error_nested_return_ann(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                def g() -> x:
+                    pass
+                return g
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "return annotation cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_prim_decorator(self):
+        code = """
+            from __static__ import int64
+
+            def f():
+                x: int64 = 0
+                @x
+                def g():
+                    pass
+                return g
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "decorator cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_class_prim_decorator(self):
+        code = """
+            from __static__ import int64, unbox
+            from typing import Final
+
+            X: Final[int] = 42
+
+            @int64(X)
+            class C: pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "decorator cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_class_prim_kwarg(self):
+        code = """
+            from __static__ import int64, unbox
+            from typing import Final
+
+            X: Final[int] = 42
+
+            class C(metaclass=int64(X)): pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "class kwarg cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_error_nested_class_prim_base(self):
+        code = """
+            from __static__ import int64, unbox
+            from typing import Final
+
+            X: Final[int] = 42
+
+            class C(int64(X)): pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "class base cannot be a primitive"
+        ):
+            self.compile(code)
+
+    def test_unbox_kw_args(self):
+        code = """
+            from __static__ import int64, unbox
+
+            def f(a):
+                x: int64 = unbox(42, x=2)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "unbox\\(\\) takes no keyword arguments"
+        ):
+            self.compile(code)
+
+    def test_len_kw_args(self):
+        code = """
+            from __static__ import int64
+
+            def f(a):
+                len([], x=2)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "len\\(\\) takes no keyword arguments"
+        ):
+            self.compile(code)
+
     def test_cross_module(self) -> None:
         acode = """
             class C:

@@ -745,6 +745,7 @@ class ModuleTable:
 
 TClass = TypeVar("TClass", bound="Class", covariant=True)
 TClassInv = TypeVar("TClassInv", bound="Class")
+CALL_ARGUMENT_CANNOT_BE_PRIMITIVE = "Call argument cannot be a primitive"
 
 
 class Value:
@@ -794,14 +795,6 @@ class Value:
     ) -> NarrowingEffect:
         visitor.syntax_error(f"cannot call {self.name}", node)
         return NO_EFFECT
-
-    def check_args_for_primitives(self, node: ast.Call, visitor: TypeBinder) -> None:
-        for arg in node.args:
-            if isinstance(visitor.get_type(arg), CInstance):
-                visitor.syntax_error("Call argument cannot be a primitive", arg)
-        for arg in node.keywords:
-            if isinstance(visitor.get_type(arg.value), CInstance):
-                visitor.syntax_error("Call argument cannot be a primitive", arg.value)
 
     def bind_descr_get(
         self,
@@ -1013,11 +1006,13 @@ class Object(Value, Generic[TClass]):
     ) -> NarrowingEffect:
         visitor.set_type(node, DYNAMIC)
         for arg in node.args:
-            visitor.visit(arg)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
 
         for arg in node.keywords:
-            visitor.visit(arg.value)
-        self.check_args_for_primitives(node, visitor)
+            visitor.visitExpectedType(
+                arg.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
+
         return NO_EFFECT
 
     def bind_attr(
@@ -1277,10 +1272,12 @@ class Class(Object["Class"]):
     ) -> NarrowingEffect:
         visitor.set_type(node, self.instance)
         for arg in node.args:
-            visitor.visit(arg)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
         for arg in node.keywords:
-            visitor.visit(arg.value)
-        self.check_args_for_primitives(node, visitor)
+            visitor.visitExpectedType(
+                arg.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
+
         return NO_EFFECT
 
     def can_assign_from(self, src: Class) -> bool:
@@ -1913,7 +1910,14 @@ class ArgMapping:
                 self.emitters.append(StarredArg(arg.value, star_params))
                 self.nseen = len(self.callable.args)
                 for arg in self.args[idx:]:
-                    visitor.visit(arg)
+                    if isinstance(arg, Starred):
+                        visitor.visitExpectedType(
+                            arg.value, DYNAMIC, "starred expression cannot be primitive"
+                        )
+                    else:
+                        visitor.visitExpectedType(
+                            arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                        )
                 break
 
             resolved_type = self.visit_arg(visitor, param, arg, "positional")
@@ -2596,7 +2600,6 @@ class MethodType(Object[Class]):
         result = self.function.bind_call_self(
             node, visitor, type_ctx, self.target.value
         )
-        self.check_args_for_primitives(node, visitor)
         return result
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -2777,7 +2780,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
 
         visitor.set_type(node, DYNAMIC)
         for arg in node.args:
-            visitor.visit(arg)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
 
         return NO_EFFECT
 
@@ -2844,8 +2847,8 @@ class BuiltinMethod(Callable[Class]):
         visitor.set_type(node, self.return_type.resolved().instance)
         visitor.visit(self.target.value)
         for arg in node.args:
-            visitor.visit(arg)
-        self.check_args_for_primitives(node, visitor)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -3028,10 +3031,12 @@ class UnboxFunction(Object[Class]):
     ) -> NarrowingEffect:
         if len(node.args) != 1:
             visitor.syntax_error("unbox only accepts a single argument", node)
+        if node.keywords:
+            visitor.syntax_error("unbox() takes no keyword arguments", node)
 
         for arg in node.args:
-            visitor.visit(arg, DYNAMIC)
-        self.check_args_for_primitives(node, visitor)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+
         visitor.set_type(node, type_ctx or INT64_VALUE)
         return NO_EFFECT
 
@@ -3056,12 +3061,15 @@ class LenFunction(Object[Class]):
                 f"len() does not accept more than one arguments ({len(node.args)} given)",
                 node,
             )
+        if node.keywords:
+            visitor.syntax_error("len() takes no keyword arguments", node)
+
         arg = node.args[0]
-        visitor.visit(arg)
+        visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
         arg_type = visitor.get_type(arg)
         if not self.boxed and arg_type.get_fast_len_type() is None:
             visitor.syntax_error(f"bad argument type '{arg_type.name}' for clen()", arg)
-        self.check_args_for_primitives(node, visitor)
+
         output_type = INT_EXACT_TYPE.instance if self.boxed else INT64_TYPE.instance
 
         visitor.set_type(node, output_type)
@@ -3084,10 +3092,14 @@ class SortedFunction(Object[Class]):
                 f"sorted() accepts one positional argument ({len(node.args)} given)",
                 node,
             )
-        visitor.visit(node.args[0])
+        visitor.visitExpectedType(
+            node.args[0], DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+        )
         for kw in node.keywords:
-            visitor.visit(kw.value)
-        self.check_args_for_primitives(node, visitor)
+            visitor.visitExpectedType(
+                kw.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
+
         visitor.set_type(node, LIST_EXACT_TYPE.instance)
         return NO_EFFECT
 
@@ -3160,8 +3172,8 @@ class IsInstanceFunction(Object[Class]):
         if node.keywords:
             visitor.syntax_error("isinstance() does not accept keyword arguments", node)
         for arg in node.args:
-            visitor.visit(arg)
-        self.check_args_for_primitives(node, visitor)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+
         visitor.set_type(node, BOOL_TYPE.instance)
         if len(node.args) == 2:
             arg0 = node.args[0]
@@ -3206,9 +3218,8 @@ class IsSubclassFunction(Object[Class]):
         if node.keywords:
             visitor.syntax_error("issubclass() does not accept keyword arguments", node)
         for arg in node.args:
-            visitor.visit(arg)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
         visitor.set_type(node, BOOL_TYPE.instance)
-        self.check_args_for_primitives(node, visitor)
         return NO_EFFECT
 
 
@@ -4613,8 +4624,7 @@ class CastFunction(Object[Class]):
             visitor.syntax_error("cast requires two parameters: type and value", node)
 
         for arg in node.args:
-            visitor.visit(arg)
-        self.check_args_for_primitives(node, visitor)
+            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
 
         cast_type = visitor.cur_mod.resolve_annotation(node.args[0])
         if cast_type is None:
@@ -4837,15 +4847,7 @@ class CIntInstance(CInstance["CIntType"]):
         if not isinstance(visitor.get_type(left), CIntInstance):
             visitor.visitExpectedType(left, self)
 
-            compare_type = self.validate_mixed_math(visitor.get_type(left))
-            if compare_type is None:
-                visitor.syntax_error(
-                    f"can't compare {visitor.get_type(left).name} to {self.name}",
-                    node,
-                )
-                compare_type = DYNAMIC
-
-            visitor.set_type(op, compare_type)
+            visitor.set_type(op, self)
             visitor.set_type(node, CBOOL_TYPE.instance)
             return True
 
@@ -6038,7 +6040,9 @@ class TypeBinder(GenericVisitor):
         for arg in args.posonlyargs:
             ann = arg.annotation
             if ann:
-                self.visit(ann)
+                self.visitExpectedType(
+                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                )
                 arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
             elif arg.arg in scope.decl_types:
                 # Already handled self
@@ -6058,7 +6062,9 @@ class TypeBinder(GenericVisitor):
         for arg in args.args:
             ann = arg.annotation
             if ann:
-                self.visit(ann)
+                self.visitExpectedType(
+                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                )
                 arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
             elif arg.arg in scope.decl_types:
                 # Already handled self
@@ -6080,7 +6086,9 @@ class TypeBinder(GenericVisitor):
         if vararg:
             ann = vararg.annotation
             if ann:
-                self.visit(ann)
+                self.visitExpectedType(
+                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                )
 
             self.set_param(vararg, TUPLE_EXACT_TYPE, scope)
 
@@ -6088,7 +6096,9 @@ class TypeBinder(GenericVisitor):
         for arg in args.kwonlyargs:
             ann = arg.annotation
             if ann:
-                self.visit(ann)
+                self.visitExpectedType(
+                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                )
                 arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
             else:
                 arg_type = DYNAMIC_TYPE
@@ -6108,13 +6118,17 @@ class TypeBinder(GenericVisitor):
         if kwarg:
             ann = kwarg.annotation
             if ann:
-                self.visit(ann)
+                self.visitExpectedType(
+                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                )
             self.set_param(kwarg, DICT_EXACT_TYPE, scope)
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         scope = BindingScope(node, generic_types=self.symtable.generic_types)
         for decorator in node.decorator_list:
-            self.visit(decorator)
+            self.visitExpectedType(
+                decorator, DYNAMIC, "decorator cannot be a primitive"
+            )
         cur_scope = self.scope
 
         if (
@@ -6137,7 +6151,9 @@ class TypeBinder(GenericVisitor):
             # don't need to store type information for it
             expected = self.cur_mod.resolve_annotation(returns) or DYNAMIC_TYPE
             self.set_type(node, expected.instance)
-            self.visit(returns)
+            self.visitExpectedType(
+                returns, DYNAMIC, "return annotation cannot be a primitive"
+            )
         else:
             self.set_type(node, DYNAMIC)
 
@@ -6163,13 +6179,17 @@ class TypeBinder(GenericVisitor):
             )
 
         for decorator in node.decorator_list:
-            self.visit(decorator)
+            self.visitExpectedType(
+                decorator, DYNAMIC, "decorator cannot be a primitive"
+            )
 
         for kwarg in node.keywords:
-            self.visit(kwarg.value)
+            self.visitExpectedType(
+                kwarg.value, DYNAMIC, "class kwarg cannot be a primitive"
+            )
 
         for base in node.bases:
-            self.visit(base)
+            self.visitExpectedType(base, DYNAMIC, "class base cannot be a primitive")
 
         self.scopes.append(
             BindingScope(node, generic_types=self.symtable.generic_types)
@@ -6252,7 +6272,9 @@ class TypeBinder(GenericVisitor):
             )
 
     def visitAnnAssign(self, node: AnnAssign) -> None:
-        self.visit(node.annotation)
+        self.visitExpectedType(
+            node.annotation, DYNAMIC, "annotation can not be a primitive value"
+        )
 
         target = node.target
         comp_type = (
@@ -6348,7 +6370,9 @@ class TypeBinder(GenericVisitor):
         self.set_node_data(node, NarrowingEffect, effect)
         message = node.msg
         if message:
-            self.visit(message)
+            self.visitExpectedType(
+                message, DYNAMIC, "assert message cannot be a primitive"
+            )
 
     def visitBoolOp(
         self, node: BoolOp, type_ctx: Optional[Class] = None
@@ -6442,7 +6466,9 @@ class TypeBinder(GenericVisitor):
         self._visitParameters(node.args, scope)
 
         self.scopes.append(scope)
-        self.visit(node.body)
+        self.visitExpectedType(
+            node.body, DYNAMIC, "lambda cannot return primitive value"
+        )
         self.scopes.pop()
 
         self.set_type(node, DYNAMIC)
@@ -6482,13 +6508,13 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         lower = node.lower
         if lower:
-            self.visit(lower, type_ctx)
+            self.visitExpectedType(lower, DYNAMIC, "slice indices cannot be primitives")
         upper = node.upper
         if upper:
-            self.visit(upper, type_ctx)
+            self.visitExpectedType(upper, DYNAMIC, "slice indices cannot be primitives")
         step = node.step
         if step:
-            self.visit(step, type_ctx)
+            self.visitExpectedType(step, DYNAMIC, "slice indices cannot be primitives")
         self.set_type(node, SLICE_TYPE.instance)
         return NO_EFFECT
 
@@ -6510,12 +6536,12 @@ class TypeBinder(GenericVisitor):
         value_type: Optional[Value] = None
         for k, v in zip(node.keys, node.values):
             if k:
-                self.visit(k)
+                self.visitExpectedType(k, DYNAMIC, "dict keys cannot be primitives")
                 key_type = self.widen(key_type, self.get_type(k))
-                self.visit(v)
+                self.visitExpectedType(v, DYNAMIC, "dict keys cannot be primitives")
                 value_type = self.widen(value_type, self.get_type(v))
             else:
-                self.visit(v, type_ctx)
+                self.visitExpectedType(v, DYNAMIC, "dict splat cannot be a primitive")
                 d_type = self.get_type(v).klass
                 if (
                     d_type.generic_type_def is CHECKED_DICT_TYPE
@@ -6588,7 +6614,7 @@ class TypeBinder(GenericVisitor):
         self, node: ast.Set, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         for elt in node.elts:
-            self.visit(elt)
+            self.visitExpectedType(elt, DYNAMIC, "set members cannot be primitives")
         self.set_type(node, SET_EXACT_TYPE.instance)
         return NO_EFFECT
 
@@ -6682,11 +6708,13 @@ class TypeBinder(GenericVisitor):
             self.visit(gen.iter)
             iter_type = self.get_type(gen.iter).get_iter_type(gen.iter, self)
             self.assign_value(gen.target, iter_type)
-            for if_ in node.generators[0].ifs:
-                self.visit(if_)
 
-        self.visit(node.key)
-        self.visit(node.value)
+        self.visitExpectedType(
+            node.key, DYNAMIC, "dictionary comprehension key cannot be a primitive"
+        )
+        self.visitExpectedType(
+            node.value, DYNAMIC, "dictionary comprehension value cannot be a primitive"
+        )
 
         self.scopes.pop()
 
@@ -6716,18 +6744,18 @@ class TypeBinder(GenericVisitor):
             self.visit(gen.iter)
             iter_type = self.get_type(gen.iter).get_iter_type(gen.iter, self)
             self.assign_value(gen.target, iter_type)
-            for if_ in generators[0].ifs:
-                self.visit(if_)
 
         for elt in elts:
-            self.visit(elt)
+            self.visitExpectedType(
+                elt, DYNAMIC, "generator element cannot be a primitive"
+            )
 
         self.scopes.pop()
 
     def visitAwait(
         self, node: Await, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        self.visit(node.value)
+        self.visitExpectedType(node.value, DYNAMIC, "cannot await a primitive value")
         self.set_type(node, DYNAMIC)
         return NO_EFFECT
 
@@ -6736,14 +6764,16 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         value = node.value
         if value is not None:
-            self.visit(value)
+            self.visitExpectedType(value, DYNAMIC, "cannot yield a primitive value")
         self.set_type(node, DYNAMIC)
         return NO_EFFECT
 
     def visitYieldFrom(
         self, node: YieldFrom, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        self.visit(node.value)
+        self.visitExpectedType(
+            node.value, DYNAMIC, "cannot yield from a primitive value"
+        )
         self.set_type(node, DYNAMIC)
         return NO_EFFECT
 
@@ -6821,7 +6851,9 @@ class TypeBinder(GenericVisitor):
     def visitFormattedValue(
         self, node: FormattedValue, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        self.visit(node.value)
+        self.visitExpectedType(
+            node.value, DYNAMIC, "cannot use primitive in formatted value"
+        )
         self.set_type(node, DYNAMIC)
         return NO_EFFECT
 
@@ -6862,7 +6894,9 @@ class TypeBinder(GenericVisitor):
     def visitStarred(
         self, node: Starred, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        self.visit(node.value)
+        self.visitExpectedType(
+            node.value, DYNAMIC, "cannot use primitive in starred expression"
+        )
         self.set_type(node, DYNAMIC)
         return NO_EFFECT
 
