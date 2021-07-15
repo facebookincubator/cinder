@@ -2603,7 +2603,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(a):
                 x: int64 = 0
                 y = []
-                return f(*y, x)
+                return g(*y, x)
         """
         with self.assertRaisesRegex(
             TypedSyntaxError, "Call argument cannot be a primitive"
@@ -5141,6 +5141,19 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             r"Exact\[str\] received for positional arg 'a', expected int",
+        ):
+            self.compile(codestr, StaticCodeGenerator)
+
+    def test_verify_too_many_args(self):
+        codestr = """
+            def x():
+                return 42
+
+            x(1)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            r"Mismatched number of args for function <module>.x. Expected 0, got 1",
         ):
             self.compile(codestr, StaticCodeGenerator)
 

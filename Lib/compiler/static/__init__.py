@@ -1895,6 +1895,13 @@ class ArgMapping:
         # https://fburl.com/diffusion/q6tpinw8
 
         # Process provided position arguments to expected parameters
+        if len(self.args) > len(self.callable.args):
+            visitor.syntax_error(
+                f"Mismatched number of args for {self.callable.name}. "
+                f"Expected {len(self.callable.args)}, got {len(self.args)}",
+                self.call,
+            )
+
         for idx, (param, arg) in enumerate(zip(self.callable.args, self.args)):
             if param.is_kwonly:
                 visitor.syntax_error(
