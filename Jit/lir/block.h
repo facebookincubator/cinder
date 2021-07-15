@@ -174,6 +174,14 @@ class BasicBlock {
 
   void print() const;
 
+  // Split this block before instr.
+  // Current basic block contains all instructions up to (but excluding) instr.
+  // Return a new block with all instructions (including and) after instr.
+  BasicBlock* splitBefore(Instruction* instr);
+
+  // Replace any references to old_pred in this block's Phis with new_pred.
+  void fixupPhis(BasicBlock* old_pred, BasicBlock* new_pred);
+
  private:
   int id_;
   Function* func_;

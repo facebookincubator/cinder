@@ -263,6 +263,10 @@ class Instruction {
     return this;
   }
 
+  void setbasicblock(BasicBlock* bb) {
+    basic_block_ = bb;
+  }
+
   BasicBlock* basicblock() {
     return basic_block_;
   }

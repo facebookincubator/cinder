@@ -716,4 +716,54 @@ BB %4 - preds: %0
   std::string ret = func();
   ASSERT_EQ(ret, "hello");
 }
+
+TEST_F(BackendTest, SplitBasicBlockTest) {
+  auto lirfunc = std::make_unique<Function>();
+  auto bb1 = lirfunc->allocateBasicBlock();
+  auto bb2 = lirfunc->allocateBasicBlock();
+  auto bb3 = lirfunc->allocateBasicBlock();
+  auto bb4 = lirfunc->allocateBasicBlock();
+  auto epilogue = lirfunc->allocateBasicBlock();
+
+  auto r1 =
+      bb1->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
+  bb1->allocateInstr(Instruction::kCondBranch, nullptr, VReg(r1));
+  bb1->addSuccessor(bb2);
+  bb1->addSuccessor(bb3);
+
+  auto r2 = bb2->allocateInstr(
+      Instruction::kAdd, nullptr, OutVReg(), VReg(r1), Imm(8));
+  bb2->addSuccessor(bb4);
+
+  auto r3 = bb3->allocateInstr(
+      Instruction::kAdd, nullptr, OutVReg(), VReg(r1), Imm(8));
+  auto r4 = bb3->allocateInstr(
+      Instruction::kAdd, nullptr, OutVReg(), VReg(r3), Imm(8));
+  bb3->addSuccessor(bb4);
+
+  auto r5 = bb4->allocateInstr(
+      Instruction::kPhi,
+      nullptr,
+      OutVReg(),
+      Lbl(bb2),
+      VReg(r2),
+      Lbl(bb3),
+      VReg(r4));
+  bb4->allocateInstr(Instruction::kReturn, nullptr, VReg(r5));
+  bb4->addSuccessor(epilogue);
+
+  // split blocks and then test that function output is still correct
+  auto bb_new = bb1->splitBefore(r1);
+  bb_new->splitBefore(r1); // test that bb_new is valid
+  bb2->splitBefore(r2); // test fixupPhis
+  auto bb_nullptr = bb2->splitBefore(r3); // test instruction not in block
+  ASSERT_EQ(bb_nullptr, nullptr);
+  bb3->splitBefore(r4); // test split in middle of block
+
+  auto func = (uint64_t(*)(int64_t))SimpleCompile(lirfunc.get());
+
+  ASSERT_EQ(func(0), 16);
+  ASSERT_EQ(func(1), 9);
+}
+
 } // namespace jit::codegen
