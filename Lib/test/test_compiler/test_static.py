@@ -16,7 +16,9 @@ from compiler import consts, walk
 from compiler.consts38 import CO_NO_FRAME, CO_STATICALLY_COMPILED
 from compiler.optimizer import AstOptimizer
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
-from compiler.static import (
+from compiler.static import StaticCodeGenerator, SymbolTable, TypeBinder
+from compiler.static.errors import CollectingErrorSink
+from compiler.static.types import (
     prim_name_to_type,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
@@ -60,9 +62,6 @@ from compiler.static import (
     TYPE_TYPE,
     DeclarationVisitor,
     Function,
-    StaticCodeGenerator,
-    SymbolTable,
-    TypeBinder,
     TypedSyntaxError,
     Value,
     TUPLE_EXACT_TYPE,
@@ -107,7 +106,6 @@ from compiler.static import (
     TYPED_DOUBLE,
     InlinedCall,
 )
-from compiler.static.errors import CollectingErrorSink
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -172,6 +170,7 @@ def type_mismatch(from_type: str, to_type: str) -> str:
 
 def bad_ret_type(from_type: str, to_type: str) -> str:
     return re.escape(f"return type must be {to_type}, not {from_type}")
+
 
 def optional(type: str) -> str:
     return f"Optional[{type}]"
@@ -596,7 +595,7 @@ class StaticCompilationTests(StaticTestBase):
             call_count += 1
             return orig_bind_attr(*args)
 
-        with patch("compiler.static.Object.bind_attr", bind_attr):
+        with patch("compiler.static.types.Object.bind_attr", bind_attr):
             with self.in_module(codestr) as mod:
                 f = mod["f"]
                 x = C()
@@ -11160,6 +11159,7 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaisesRegex(
                 TypeError, "type 'C' is not an acceptable base type"
             ):
+
                 class D(mod["C"]):
                     pass
 
@@ -11626,6 +11626,7 @@ class StaticCompilationTests(StaticTestBase):
 class StaticRuntimeTests(StaticTestBase):
     def test_bad_slots_qualname_conflict(self):
         with self.assertRaises(ValueError):
+
             class C:
                 __slots__ = ("x",)
                 __slot_types__ = {"x": ("__static__", "int32")}
@@ -11644,18 +11645,21 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_typed_slots_bad_slots(self):
         with self.assertRaises(TypeError):
+
             class C:
                 __slots__ = ("a",)
                 __slot_types__ = None
 
     def test_typed_slots_bad_slot_dict(self):
         with self.assertRaises(TypeError):
+
             class C:
                 __slots__ = ("__dict__",)
                 __slot_types__ = {"__dict__": "object"}
 
     def test_typed_slots_bad_slot_weakerf(self):
         with self.assertRaises(TypeError):
+
             class C:
                 __slots__ = ("__weakref__",)
                 __slot_types__ = {"__weakref__": "object"}
@@ -12813,10 +12817,12 @@ class StaticRuntimeTests(StaticTestBase):
     def test_array_not_subclassable(self):
 
         with self.assertRaises(TypeError):
+
             class C(Array[int64]):
                 pass
 
         with self.assertRaises(TypeError):
+
             class C(Array):
                 pass
 
