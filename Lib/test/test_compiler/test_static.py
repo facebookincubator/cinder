@@ -2342,6 +2342,11 @@ class StaticCompilationTests(StaticTestBase):
 
         self.assertEqual(repr(self.bind_expr("1 + 2", optimize=True)), "<Literal[3]>")
 
+    def test_type_attrs(self):
+        attrs = TYPE_TYPE.__dict__.keys()
+        obj_attrs = OBJECT_TYPE.__dict__.keys()
+        self.assertEqual(set(attrs), set(obj_attrs))
+
     def test_type_exact(self) -> None:
         self.assertIs(LIST_TYPE.exact(), LIST_TYPE)
         self.assertIs(LIST_EXACT_TYPE.exact(), LIST_EXACT_TYPE)

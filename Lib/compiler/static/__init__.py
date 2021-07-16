@@ -2941,8 +2941,12 @@ TYPE_TYPE.instance = TYPE_TYPE
 TYPE_TYPE.members = {}
 TYPE_TYPE.is_exact = False
 TYPE_TYPE.is_final = False
+TYPE_TYPE.allow_weakrefs = False
+TYPE_TYPE.donotcompile = False
 TYPE_TYPE._mro = None
 TYPE_TYPE._mro_type_descrs = None
+TYPE_TYPE.pytype = type
+TYPE_TYPE._slot_redefs = {}
 
 
 class Slot(Object[TClassInv]):
