@@ -823,14 +823,12 @@ class CodeGenerator(ASTVisitor):
         self.visit(node.orelse)
         self.nextBlock(endblock)
 
-    def emitChainedCompareStep(self, op, value, cleanup, always_pop=False):
+    def emitChainedCompareStep(self, op, value, cleanup, jump="JUMP_IF_FALSE_OR_POP"):
         self.visit(value)
         self.emit("DUP_TOP")
         self.emit("ROT_THREE")
         self.defaultEmitCompare(op)
-        self.emit(
-            "POP_JUMP_IF_FALSE" if always_pop else "JUMP_IF_FALSE_OR_POP", cleanup
-        )
+        self.emit(jump, cleanup)
         self.nextBlock(label="compare_or_cleanup")
 
     def defaultEmitCompare(self, op):
@@ -2278,7 +2276,7 @@ class Python37CodeGenerator(CodeGenerator):
                 self.visit(test.left)
                 for op, comparator in zip(test.ops[:-1], test.comparators[:-1]):
                     self.emitChainedCompareStep(
-                        op, comparator, cleanup, always_pop=True
+                        op, comparator, cleanup, "POP_JUMP_IF_FALSE"
                     )
                 self.visit(test.comparators[-1])
                 self.emit("COMPARE_OP", self._cmp_opcode[type(test.ops[-1])])

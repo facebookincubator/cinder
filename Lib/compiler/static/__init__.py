@@ -2231,7 +2231,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
             ltype = self.get_type(left)
             if ltype != optype:
                 optype.emit_convert(ltype, self)
-            self.emitChainedCompareStep(op, code, cleanup)
+            self.emitChainedCompareStep(op, optype, code, cleanup)
             left = code
         # now do the last comparison
         if node.ops:
@@ -2255,9 +2255,13 @@ class Static38CodeGenerator(CinderCodeGenerator):
             self.nextBlock(end)
 
     def emitChainedCompareStep(
-        self, op: cmpop, value: AST, cleanup: Block, always_pop: bool = False
+        self,
+        op: cmpop,
+        optype: Value,
+        value: AST,
+        cleanup: Block,
+        jump: str = "JUMP_IF_ZERO_OR_POP",
     ) -> None:
-        optype = self.get_type(op)
         self.visit(value)
         rtype = self.get_type(value)
         if rtype != optype:
@@ -2265,8 +2269,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
         self.emit("DUP_TOP")
         self.emit("ROT_THREE")
         optype.emit_compare(op, self)
-        method = optype.emit_jumpif_only if always_pop else optype.emit_jumpif_pop_only
-        method(cleanup, False, self)
+        self.emit(jump, cleanup)
         self.nextBlock(label="compare_or_cleanup")
 
     def visitBoolOp(self, node: BoolOp) -> None:
