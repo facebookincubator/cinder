@@ -13,7 +13,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "Foo">
-    v3:TypeExact[Foo:obj] = GuardIs<0xdeadbeef> v2
+    v3:MortalTypeExact[Foo:obj] = GuardIs<0xdeadbeef> v2
     v7:OptObject = LoadTypeAttrCacheItem<0, 0>
     v8:Object = Compare<Is> v7 v3 {
       NextInstrOffset 0
@@ -50,7 +50,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "int">
-    v3:TypeExact[int:obj] = GuardIs<0xdeadbeef> v2
+    v3:MortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v2
     v7:OptObject = LoadTypeAttrCacheItem<0, 0>
     v8:Object = Compare<Is> v7 v3 {
       NextInstrOffset 0
@@ -89,7 +89,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "sys">
-    v3:ObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v3:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v2
     v4:Object = LoadAttr<1; "path"> v3 {
       NextInstrOffset 4
     }
@@ -123,7 +123,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 0) {
     v15:OptObject = LoadGlobalCached<0; "Klass">
-    v16:TypeExact[Klass:obj] = GuardIs<0xdeadbeef> v15
+    v16:MortalTypeExact[Klass:obj] = GuardIs<0xdeadbeef> v15
     v27:OptObject = LoadTypeAttrCacheItem<0, 0>
     v28:Object = Compare<Is> v27 v16 {
       NextInstrOffset 0

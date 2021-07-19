@@ -170,7 +170,7 @@ using unique_c_ptr = std::unique_ptr<T, FreeDeleter>;
 } // namespace jit
 
 template <typename D, typename S>
-inline D safe_cast(const S& src) {
+inline D bit_cast(const S& src) {
   static_assert(sizeof(S) == sizeof(D), "src and dst must be the same size");
   static_assert(
       std::is_scalar_v<D> && std::is_scalar_v<S>,

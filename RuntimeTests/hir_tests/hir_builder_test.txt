@@ -77,7 +77,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<UnicodeExact["foo"]>
+    v3 = LoadConst<MortalUnicodeExact["foo"]>
     v1 = Assign v3
     Branch<2>
   }
@@ -133,12 +133,12 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v2 = LoadConst<Bool[True]>
+    v2 = LoadConst<MortalBool[True]>
     Return v2
   }
 
   bb 2 (preds 0) {
-    v3 = LoadConst<Bool[False]>
+    v3 = LoadConst<MortalBool[False]>
     Return v3
   }
 }
@@ -189,7 +189,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v1 = LoadConst<LongExact[100]>
+    v1 = LoadConst<MortalLongExact[100]>
     v0 = Assign v1
     v0 = CheckVar<0; "x"> v0 {
       NextInstrOffset 6
@@ -221,7 +221,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<LongExact[100]>
+    v3 = LoadConst<MortalLongExact[100]>
     v1 = Assign v3
     Branch<2>
   }
@@ -256,12 +256,12 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<Bool[True]>
+    v3 = LoadConst<MortalBool[True]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
-    v4 = LoadConst<Bool[False]>
+    v4 = LoadConst<MortalBool[False]>
     v3 = Assign v4
     Branch<3>
   }
@@ -486,12 +486,12 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
-    v2 = LoadConst<Bool[True]>
+    v2 = LoadConst<MortalBool[True]>
     Return v2
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<Bool[False]>
+    v3 = LoadConst<MortalBool[False]>
     Return v3
   }
 }
@@ -547,7 +547,7 @@ fun jittestmodule:test {
       NextInstrOffset 16
       Locals<3> v0 v1 v2
     }
-    v8 = LoadConst<Bool[True]>
+    v8 = LoadConst<MortalBool[True]>
     v0 = CheckVar<0; "self"> v0 {
       NextInstrOffset 20
       Locals<3> v0 v1 v2
@@ -723,7 +723,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 4, 5) {
-    v2 = LoadConst<LongExact[1]>
+    v2 = LoadConst<MortalLongExact[1]>
     v0 = Assign v2
     Branch<4>
   }
@@ -760,7 +760,7 @@ fun jittestmodule:test {
   }
 
   bb 0 (preds 3, 4) {
-    v1 = LoadConst<LongExact[1]>
+    v1 = LoadConst<MortalLongExact[1]>
     v0 = Assign v1
     Branch<3>
   }
@@ -778,7 +778,7 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[1]>
+    v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<GreaterThan> v0 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -799,7 +799,7 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[1]>
+    v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<GreaterThanEqual> v0 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -820,7 +820,7 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[1]>
+    v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<LessThan> v0 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -841,7 +841,7 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[1]>
+    v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<LessThanEqual> v0 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -862,7 +862,7 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[1]>
+    v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<Equal> v0 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -883,7 +883,7 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[1]>
+    v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<NotEqual> v0 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -1883,8 +1883,8 @@ fun jittestmodule:test {
       Locals<2> v0 v1
       Stack<1> v0
     }
-    v2 = LoadConst<LongExact[12]>
-    v3 = LoadConst<LongExact[34]>
+    v2 = LoadConst<MortalLongExact[12]>
+    v3 = LoadConst<MortalLongExact[34]>
     v4 = MakeDict<2> {
       NextInstrOffset 10
       Locals<2> v0 v1
@@ -1911,9 +1911,9 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = LoadConst<UnicodeExact["a value"]>
-    v1 = LoadConst<LongExact[48879]>
-    v2 = LoadConst<TupleExact[tuple:0xdeadbeef]>
+    v0 = LoadConst<MortalUnicodeExact["a value"]>
+    v1 = LoadConst<MortalLongExact[48879]>
+    v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v3 = MakeDict<2> {
       NextInstrOffset 8
       Stack<3> v0 v1 v2
@@ -2220,9 +2220,9 @@ fun jittestmodule:test {
     v253 = LoadArg<253; "a253">
     v254 = LoadArg<254; "a254">
     v255 = LoadArg<255; "a255">
-    v257 = LoadConst<LongExact[1]>
+    v257 = LoadConst<MortalLongExact[1]>
     v10 = Assign v257
-    v258 = LoadConst<LongExact[1337]>
+    v258 = LoadConst<MortalLongExact[1337]>
     v256 = Assign v258
     v256 = CheckVar<256; "a256"> v256 {
       NextInstrOffset 14
@@ -2244,8 +2244,8 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[1]>
-    v2 = LoadConst<LongExact[5]>
+    v1 = LoadConst<MortalLongExact[1]>
+    v2 = LoadConst<MortalLongExact[5]>
     v3 = BuildSlice<2> v1 v2 {
       NextInstrOffset 8
       Locals<1> v0
@@ -2271,9 +2271,9 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v1 = LoadConst<LongExact[100]>
-    v2 = LoadConst<LongExact[20]>
-    v3 = LoadConst<LongExact[-2]>
+    v1 = LoadConst<MortalLongExact[100]>
+    v2 = LoadConst<MortalLongExact[20]>
+    v3 = LoadConst<MortalLongExact[-2]>
     v4 = BuildSlice<3> v1 v2 v3 {
       NextInstrOffset 10
       Locals<1> v0
@@ -2412,8 +2412,8 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v1 = LoadConst<Code["<listcomp>"]>
-    v2 = LoadConst<UnicodeExact["test.<locals>.<listc"...]>
+    v1 = LoadConst<MortalCode["<listcomp>"]>
+    v2 = LoadConst<MortalUnicodeExact["test.<locals>.<listc"...]>
     v3 = MakeFunction v2 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -2458,8 +2458,8 @@ fun jittestmodule:test {
     }
     InitListTuple<tuple, 1> v2 v0
     v3 = Assign v2
-    v4 = LoadConst<Code["nested"]>
-    v5 = LoadConst<UnicodeExact["test.<locals>.nested"]>
+    v4 = LoadConst<MortalCode["nested"]>
+    v5 = LoadConst<MortalUnicodeExact["test.<locals>.nested"]>
     v6 = MakeFunction v5 v4 {
       NextInstrOffset 10
       Locals<2> v0 v1
@@ -2491,7 +2491,7 @@ fun jittestmodule:test {
       Locals<1> v0
       Cells<1> v1
     }
-    v3 = LoadConst<LongExact[1]>
+    v3 = LoadConst<MortalLongExact[1]>
     v4 = StealCellItem v1
     SetCellItem v1 v3 v4
     v5 = MakeListTuple<tuple, 1> {
@@ -2502,8 +2502,8 @@ fun jittestmodule:test {
     }
     InitListTuple<tuple, 1> v5 v1
     v6 = Assign v5
-    v7 = LoadConst<Code["g"]>
-    v8 = LoadConst<UnicodeExact["test.<locals>.g"]>
+    v7 = LoadConst<MortalCode["g"]>
+    v8 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v9 = MakeFunction v8 v7 {
       NextInstrOffset 14
       Locals<1> v0
@@ -2545,8 +2545,8 @@ fun jittestmodule:test {
     }
     InitListTuple<tuple, 1> v4 v2
     v5 = Assign v4
-    v6 = LoadConst<Code["g"]>
-    v7 = LoadConst<UnicodeExact["test.<locals>.g"]>
+    v6 = LoadConst<MortalCode["g"]>
+    v7 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v8 = MakeFunction v7 v6 {
       NextInstrOffset 10
       Locals<2> v3 v1
@@ -2589,8 +2589,8 @@ fun jittestmodule:test {
     }
     InitListTuple<tuple, 1> v5 v3
     v6 = Assign v5
-    v7 = LoadConst<Code["g"]>
-    v8 = LoadConst<UnicodeExact["test.<locals>.g"]>
+    v7 = LoadConst<MortalCode["g"]>
+    v8 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v9 = MakeFunction v8 v7 {
       NextInstrOffset 10
       Locals<3> v4 v1 v2
@@ -2702,7 +2702,7 @@ fun jittestmodule:test {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v2 = LoadConst<LongExact[10]>
+    v2 = LoadConst<MortalLongExact[10]>
     v3 = Compare<LessThan> v0 v2 {
       NextInstrOffset 6
       Locals<2> v0 v1
@@ -2740,7 +2740,7 @@ fun jittestmodule:test {
       NextInstrOffset 20
       Locals<2> v0 v1
     }
-    v8 = LoadConst<LongExact[1]>
+    v8 = LoadConst<MortalLongExact[1]>
     v9 = InPlaceOp<Add> v0 v8 {
       NextInstrOffset 24
       Locals<2> v0 v1
@@ -2765,7 +2765,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v2 = LoadConst<TupleExact[tuple:0xdeadbeef]>
+    v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v3 = GetIter v2 {
       NextInstrOffset 4
       Locals<2> v0 v1
@@ -2836,7 +2836,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v1 = LoadConst<LongExact[0]>
+    v1 = LoadConst<MortalLongExact[0]>
     v2 = LoadConst<NoneType>
     v3 = ImportName<0; "test_import"> v2 v1 {
       NextInstrOffset 6
@@ -2916,8 +2916,8 @@ fun jittestmodule:test {
   }
 
   bb 0 (preds 3, 4) {
-    v1 = LoadConst<Code["<listcomp>"]>
-    v2 = LoadConst<UnicodeExact["test.<locals>.<listc"...]>
+    v1 = LoadConst<MortalCode["<listcomp>"]>
+    v2 = LoadConst<MortalUnicodeExact["test.<locals>.<listc"...]>
     v3 = MakeFunction v2 v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -2995,7 +2995,7 @@ fun jittestmodule:test {
       NextInstrOffset 8
       Locals<1> v0
     }
-    v3 = LoadConst<LongExact[0]>
+    v3 = LoadConst<MortalLongExact[0]>
     v4 = Compare<NotEqual> v0 v3 {
       NextInstrOffset 12
       Locals<1> v0
@@ -3040,7 +3040,7 @@ fun jittestmodule:test {
       NextInstrOffset 8
       Locals<4> v0 v1 v2 v3
     }
-    v6 = LoadConst<UnicodeExact["02"]>
+    v6 = LoadConst<MortalUnicodeExact["02"]>
     v7 = FormatValue<None> v6 v1 {
       NextInstrOffset 12
       Locals<4> v0 v1 v2 v3

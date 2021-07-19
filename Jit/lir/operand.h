@@ -250,7 +250,7 @@ class Operand : public OperandBase {
 
   Operand(Instruction* parent, Type type, double data)
       : OperandBase(parent), type_(type), data_type_(kDouble) {
-    value_ = safe_cast<uint64_t>(data);
+    value_ = bit_cast<uint64_t>(data);
   }
 
   uint64_t getConstant() const override {
@@ -259,7 +259,7 @@ class Operand : public OperandBase {
 
   double getFPConstant() const override {
     auto value = std::get<uint64_t>(value_);
-    return safe_cast<double>(value);
+    return bit_cast<double>(value);
   }
 
   void setConstant(uint64_t n, DataType data_type = k64bit) {
@@ -271,7 +271,7 @@ class Operand : public OperandBase {
   void setFPConstant(double n) {
     type_ = kImm;
     data_type_ = kDouble;
-    value_ = safe_cast<uint64_t>(n);
+    value_ = bit_cast<uint64_t>(n);
   }
 
   int getPhyRegister() const override {

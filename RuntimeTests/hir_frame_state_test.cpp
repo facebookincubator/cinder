@@ -564,7 +564,7 @@ def test(x, y):
       Locals<2> v0 v1
       Stack<1> v1
     }
-    v2 = LoadConst<LongExact[1]>
+    v2 = LoadConst<MortalLongExact[1]>
     v3 = StoreSubscr v0 v2 v1 {
       NextInstrOffset 8
       Locals<2> v0 v1
@@ -605,7 +605,7 @@ def test(x, y):
       Locals<2> v0 v1
       Stack<1> v0
     }
-    v2 = LoadConst<TupleExact[tuple:0xdeadbeef]>
+    v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v3 = MakeDict<2> {
       NextInstrOffset 8
       Locals<2> v0 v1
@@ -753,8 +753,8 @@ def test(x):
       Locals<2> v0 v1
       Stack<1> v3
     }
-    v4 = LoadConst<Code["foo"]>
-    v5 = LoadConst<UnicodeExact["test.<locals>.foo"]>
+    v4 = LoadConst<MortalCode["foo"]>
+    v5 = LoadConst<MortalUnicodeExact["test.<locals>.foo"]>
     v6 = MakeFunction v5 v4 {
       NextInstrOffset 10
       Locals<2> v0 v1

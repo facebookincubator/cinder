@@ -18,7 +18,7 @@ inline std::size_t Type::hash() const {
 }
 
 inline Type Type::fromCBool(bool b) {
-  return Type{kCBool, kSpecInt, b};
+  return Type{kCBool, kLifetimeBottom, kSpecInt, b};
 }
 
 inline Type Type::fromCDouble(double_t d) {
@@ -36,7 +36,7 @@ inline Type Type::fromCInt(int64_t i, Type t) {
       t == TCInt64 || t == TCInt32 || t == TCInt16 || t == TCInt8,
       "expected signed value");
   JIT_DCHECK(CIntFitsType(i, t), "int value out of range");
-  return Type{t.bits_, kSpecInt, i};
+  return Type{t.bits_, kLifetimeBottom, kSpecInt, i};
 }
 
 inline bool Type::CUIntFitsType(uint64_t i, Type t) {
@@ -49,7 +49,7 @@ inline Type Type::fromCUInt(uint64_t i, Type t) {
       t == TCUInt64 || t == TCUInt32 || t == TCUInt16 || t == TCUInt8,
       "expected unsigned value");
   JIT_DCHECK(Type::CUIntFitsType(i, t), "int value out of range");
-  return Type{t.bits_, kSpecInt, (intptr_t)i};
+  return Type{t.bits_, kLifetimeBottom, kSpecInt, (intptr_t)i};
 }
 
 inline bool Type::hasTypeSpec() const {
@@ -98,7 +98,14 @@ inline double_t Type::doubleSpec() const {
 }
 
 inline Type Type::unspecialized() const {
-  return Type{bits_};
+  return Type{bits_, lifetime_};
+}
+
+inline Type Type::dropMortality() const {
+  if (lifetime_ == kLifetimeBottom) {
+    return *this;
+  }
+  return Type{bits_, kLifetimeTop, specKind(), int_};
 }
 
 inline bool Type::hasSpec() const {

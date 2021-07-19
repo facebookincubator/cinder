@@ -290,7 +290,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v38:OptObject = LoadGlobalCached<0; "print">
-    v39:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v38 {
+    v39:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v38 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<8> b:v14 b:v15 b:v16 o:v21 b:v27 o:v28 o:v36 b:v38
       NextInstrOffset 10
@@ -403,7 +403,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v48:OptObject = LoadGlobalCached<2; "print">
-    v49:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v48 {
+    v49:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v48 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<8> b:v18 o:v21 o:v24 o:v29 b:v36 o:v37 o:v45 b:v48
       NextInstrOffset 22
@@ -504,7 +504,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v35:OptObject = LoadGlobalCached<1; "print">
-    v36:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v35 {
+    v36:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v35 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<6> b:v14 o:v20 o:v25 o:v26 o:v32 b:v35
       NextInstrOffset 12
@@ -629,7 +629,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
-    v12:LongExact[1] = LoadConst<LongExact[1]>
+    v12:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Branch<3>
   }
 
@@ -651,7 +651,7 @@ fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "val">
     v4:Nullptr = LoadConst<Nullptr>
-    v5:LongExact[1] = LoadConst<LongExact[1]>
+    v5:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Incref v3
     Return v3
   }
@@ -708,8 +708,8 @@ fun jittestmodule:test {
     }
     Incref v14
     InitListTuple<tuple, 1> v19 v14
-    v21:Code["g"] = LoadConst<Code["g"]>
-    v22:UnicodeExact["test.<locals>.g"] = LoadConst<UnicodeExact["test.<locals>.g"]>
+    v21:MortalCode["g"] = LoadConst<MortalCode["g"]>
+    v22:MortalUnicodeExact["test.<locals>.g"] = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v23:Func = MakeFunction v22 v21 {
       LiveValues<5> unc:v13 o:v14 o:v19 b:v21 b:v22
       NextInstrOffset 18
@@ -747,7 +747,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v15:LongExact[0] = LoadConst<LongExact[0]>
+    v15:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     Branch<2>
   }
 
@@ -756,7 +756,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1, 7) {
-    v18:OptLongExact = Phi<1, 7> v15 v12
+    v18:OptMortalLongExact = Phi<1, 7> v15 v12
     v20:CInt32 = IsTruthy v11 {
       LiveValues<2> b:v11 b:v18
       NextInstrOffset 12
@@ -766,12 +766,12 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 2) {
-    v21:LongExact = CheckVar<1; "total_time"> v18 {
+    v21:MortalLongExact = CheckVar<1; "total_time"> v18 {
       LiveValues<2> b:v11 b:v18
       NextInstrOffset 14
       Locals<2> v11 v18
     }
-    v22:LongExact[1] = LoadConst<LongExact[1]>
+    v22:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v23:Object = BinaryOp<Add> v21 v22 {
       LiveValues<3> b:v11 b:v21 b:v22
       NextInstrOffset 18
@@ -797,7 +797,7 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v29:OptObject = LoadGlobalCached<0; "print">
-    v30:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v29 {
+    v30:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v29 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<3> b:v11 o:v26 b:v29
       NextInstrOffset 24
@@ -852,7 +852,7 @@ fun jittestmodule:test {
     v17:Object = LoadArg<2; "c">
     v18:Nullptr = LoadConst<Nullptr>
     v19:OptObject = LoadGlobalCached<0; "dict">
-    v20:TypeExact[dict:obj] = GuardIs<0xdeadbeef> v19 {
+    v20:MortalTypeExact[dict:obj] = GuardIs<0xdeadbeef> v19 {
       Descr 'LOAD_GLOBAL: dict'
       LiveValues<5> b:v15 b:v16 b:v17 unc:v18 b:v19
       NextInstrOffset 0
@@ -882,7 +882,7 @@ fun jittestmodule:test {
   bb 2 (preds 1, 5) {
     v27:Object = Phi<1, 5> v21 v15
     v31:OptObject = LoadGlobalCached<1; "print">
-    v32:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v31 {
+    v32:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v31 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<5> b:v16 b:v17 o:v21 b:v27 b:v31
       NextInstrOffset 14
@@ -918,7 +918,7 @@ fun jittestmodule:test {
     v44:Object = Phi<3, 6> v39 v21
     v45:NoneType = LoadConst<NoneType>
     v47:OptObject = LoadGlobalCached<1; "print">
-    v48:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v47 {
+    v48:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v47 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<6> b:v17 b:v27 o:v42 o:v44 b:v45 b:v47
       NextInstrOffset 34

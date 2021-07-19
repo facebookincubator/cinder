@@ -17,7 +17,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v12:LongExact[1] = LoadConst<LongExact[1]>
+    v12:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Return v12
   }
 
@@ -42,7 +42,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v12:LongExact[1] = LoadConst<LongExact[1]>
+    v12:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Return v12
   }
 
@@ -92,9 +92,9 @@ fun jittestmodule:test {
   bb 0 {
     v7:Object = LoadArg<0; "x">
     v8:OptObject = LoadGlobalCached<0; "isinstance">
-    v9:ObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v8
+    v9:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v8
     v11:OptObject = LoadGlobalCached<1; "str">
-    v12:TypeExact[str:obj] = GuardIs<0xdeadbeef> v11
+    v12:MortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v11
     v17:Type = LoadField<8> v7
     v18:CBool = PrimitiveCompare<Equal> v17 v12
     CondBranch<1, 3> v18
@@ -109,7 +109,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0, 3) {
-    v15:LongExact[1] = LoadConst<LongExact[1]>
+    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Return v15
   }
 

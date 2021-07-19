@@ -70,6 +70,15 @@ TEST_F(HIRTypeTest, BuiltinSubtypes) {
   EXPECT_TRUE(TObject < TOptObject);
   EXPECT_TRUE(TBytes < TOptBytes);
   EXPECT_TRUE(TLong < TOptLong);
+
+  EXPECT_TRUE(TImmortalLong < TLong);
+  EXPECT_TRUE(TMortalLong < TLong);
+  EXPECT_TRUE(TMortalLongExact < TLong);
+  EXPECT_TRUE(TMortalLongExact < TMortalLong);
+  EXPECT_TRUE(TMortalLongExact < TLongExact);
+  EXPECT_FALSE(TImmortalLongUser < TImmortalLongExact);
+  EXPECT_TRUE(TImmortalLong < TImmortalObject);
+  EXPECT_FALSE(TMortalLong < TImmortalObject);
 }
 
 TEST_F(HIRTypeTest, BuiltinCouldBe) {
@@ -77,6 +86,9 @@ TEST_F(HIRTypeTest, BuiltinCouldBe) {
   EXPECT_TRUE(TBytes.couldBe(TBuiltinExact));
   EXPECT_TRUE(TUser.couldBe(TUnicode));
   EXPECT_TRUE(TList.couldBe(TUser));
+  EXPECT_TRUE(TLong.couldBe(TMortalObject));
+  EXPECT_TRUE(TLong.couldBe(TImmortalObject));
+  EXPECT_FALSE(TImmortalLong.couldBe(TMortalObject));
 }
 
 TEST_F(HIRTypeTest, FromBuiltinObjects) {
@@ -94,7 +106,7 @@ TEST_F(HIRTypeTest, FromBuiltinObjects) {
   EXPECT_TRUE(long_obj < TType);
   EXPECT_TRUE(long_obj.hasObjectSpec());
   EXPECT_EQ(long_obj.objectSpec(), reinterpret_cast<PyObject*>(&PyLong_Type));
-  EXPECT_EQ(long_obj.toString(), "TypeExact[int:obj]");
+  EXPECT_EQ(long_obj.toString(), "MortalTypeExact[int:obj]");
 }
 
 TEST_F(HIRTypeTest, FromBuiltinType) {
@@ -125,12 +137,14 @@ TEST_F(HIRTypeTest, FromBuiltinType) {
   auto type = Type::fromType(&PyType_Type);
   auto type_obj = Type::fromObject(reinterpret_cast<PyObject*>(&PyType_Type));
   EXPECT_EQ(type.toString(), "Type");
-  EXPECT_EQ(type_obj.toString(), "TypeExact[type:obj]");
+  EXPECT_EQ(type_obj.toString(), "MortalTypeExact[type:obj]");
   EXPECT_TRUE(type_obj < type);
 }
 
 TEST_F(HIRTypeTest, UniquePyType) {
   EXPECT_EQ(TLong.uniquePyType(), &PyLong_Type);
+  EXPECT_EQ(TImmortalLong.uniquePyType(), &PyLong_Type);
+  EXPECT_EQ(TMortalList.uniquePyType(), &PyList_Type);
   EXPECT_EQ(TBool.uniquePyType(), &PyBool_Type);
   EXPECT_EQ(TUnicode.uniquePyType(), &PyUnicode_Type);
   EXPECT_EQ(TList.uniquePyType(), &PyList_Type);
@@ -182,6 +196,9 @@ TEST_F(HIRTypeTest, IsExact) {
   EXPECT_FALSE(TCInt32.isExact());
   EXPECT_FALSE(TCBool.isExact());
 
+  EXPECT_TRUE(TMortalListExact.isExact());
+  EXPECT_FALSE(TMortalList.isExact());
+
   auto three = Ref<>::steal(PyLong_FromLong(3));
   EXPECT_TRUE(Type::fromObject(three).isExact());
 
@@ -215,8 +232,33 @@ TEST_F(HIRTypeTest, ToString) {
   EXPECT_EQ(TCUInt32.toString(), "CUInt32");
   EXPECT_EQ(TCUInt64.toString(), "CUInt64");
 
-  EXPECT_EQ(Type::fromObject(Py_True).toString(), "Bool[True]");
-  EXPECT_EQ(Type::fromObject(Py_False).toString(), "Bool[False]");
+  EXPECT_EQ((TList | TNullptr | TCInt64).toString(), "{CInt64|List|Nullptr}");
+
+  EXPECT_EQ(TMortalList.toString(), "MortalList");
+  EXPECT_EQ(TImmortalList.toString(), "ImmortalList");
+  EXPECT_EQ(TOptImmortalTuple.toString(), "OptImmortalTuple");
+  EXPECT_EQ(
+      (TMortalObject & (TList | TTuple)).toString(), "Mortal{List|Tuple}");
+
+  // These weird types are mostly impossible to hit in real code, but it's
+  // easier to support them with a fully-general solution than to special case
+  // the types we do care about.
+  EXPECT_EQ(
+      (TImmortalDict | TImmortalSet | TCInt64).toString(),
+      "{CInt64|Immortal{Dict|Set}}");
+  EXPECT_EQ(
+      (TImmortalDict | TImmortalSet | TCInt64 | TCBool).toString(),
+      "{CBool|CInt64|Immortal{Dict|Set}}");
+  EXPECT_EQ(
+      (TNullptr | TImmortalDict | TImmortalLong).toString(),
+      "{Immortal{Dict|Long}|Nullptr}");
+  EXPECT_EQ((TCBool | TImmortalUnicode).toString(), "{CBool|ImmortalUnicode}");
+  EXPECT_EQ(
+      (TMortalDict | TCBool | TNullptr).toString(),
+      "{CBool|MortalDict|Nullptr}");
+
+  EXPECT_EQ(Type::fromObject(Py_True).toString(), "MortalBool[True]");
+  EXPECT_EQ(Type::fromObject(Py_False).toString(), "MortalBool[False]");
 
   auto llong_max = Ref<>::steal(PyLong_FromLongLong(LLONG_MAX));
   ASSERT_NE(llong_max, nullptr);
@@ -229,29 +271,31 @@ TEST_F(HIRTypeTest, ToString) {
   auto underflow = Ref<>::steal(PyNumber_Multiply(llong_max, negi));
   ASSERT_NE(underflow, nullptr);
 
-  EXPECT_EQ(Type::fromObject(i).toString(), "LongExact[24]");
-  EXPECT_EQ(Type::fromObject(negi).toString(), "LongExact[-24]");
-  EXPECT_EQ(Type::fromObject(overflow).toString(), "LongExact[overflow]");
-  EXPECT_EQ(Type::fromObject(underflow).toString(), "LongExact[underflow]");
+  EXPECT_EQ(Type::fromObject(i).toString(), "MortalLongExact[24]");
+  EXPECT_EQ(Type::fromObject(negi).toString(), "MortalLongExact[-24]");
+  EXPECT_EQ(Type::fromObject(overflow).toString(), "MortalLongExact[overflow]");
+  EXPECT_EQ(
+      Type::fromObject(underflow).toString(), "MortalLongExact[underflow]");
 
   auto dbl = Ref<>::steal(PyFloat_FromDouble(1234.5));
   ASSERT_NE(dbl, nullptr);
-  EXPECT_EQ(Type::fromObject(dbl).toString(), "FloatExact[1234.5]");
+  EXPECT_EQ(Type::fromObject(dbl).toString(), "MortalFloatExact[1234.5]");
 
   auto str = Ref<>::steal(PyUnicode_FromString("Hello there!"));
   ASSERT_NE(str, nullptr);
-  EXPECT_EQ(Type::fromObject(str).toString(), "UnicodeExact[\"Hello there!\"]");
+  EXPECT_EQ(
+      Type::fromObject(str).toString(), "MortalUnicodeExact[\"Hello there!\"]");
 
   auto long_str = Ref<>::steal(
       PyUnicode_FromString("The quick brown fox jumps over the lazy dog."));
   ASSERT_NE(long_str, nullptr);
   EXPECT_EQ(
       Type::fromObject(long_str).toString(),
-      "UnicodeExact[\"The quick brown fox \"...]");
+      "MortalUnicodeExact[\"The quick brown fox \"...]");
 
   auto bytes = Ref<>::steal(PyBytes_FromString("hi"));
   ASSERT_NE(bytes, nullptr);
-  EXPECT_EQ(Type::fromObject(bytes).toString(), "BytesExact['hi']");
+  EXPECT_EQ(Type::fromObject(bytes).toString(), "MortalBytesExact['hi']");
 
   EXPECT_EQ(Type::fromCBool(true).toString(), "CBool[true]");
   EXPECT_EQ(Type::fromCBool(false).toString(), "CBool[false]");
@@ -272,7 +316,7 @@ TEST_F(HIRTypeTest, ToString) {
   Ref<> my_pyobj(getGlobal("obj"));
   ASSERT_NE(my_pyobj, nullptr);
   auto my_obj = Type::fromObject(my_pyobj);
-  EXPECT_EQ(my_obj.toString(), "ObjectUser[MyClass:0xdeadbeef]");
+  EXPECT_EQ(my_obj.toString(), "MortalObjectUser[MyClass:0xdeadbeef]");
 }
 
 TEST_F(HIRTypeTest, Parse) {
@@ -280,6 +324,8 @@ TEST_F(HIRTypeTest, Parse) {
   EXPECT_EQ(Type::parse("Bottom"), TBottom);
   EXPECT_EQ(Type::parse("NoneType"), TNoneType);
   EXPECT_EQ(Type::parse("Long"), TLong);
+  EXPECT_EQ(Type::parse("ImmortalTuple"), TImmortalTuple);
+  EXPECT_EQ(Type::parse("MortalUser"), TMortalUser);
 
   EXPECT_EQ(Type::parse("CInt64[123456]"), Type::fromCInt(123456, TCInt64));
   EXPECT_EQ(Type::parse("CUInt8[42]"), Type::fromCUInt(42, TCUInt8));
@@ -305,6 +351,9 @@ TEST_F(HIRTypeTest, SimpleUnion) {
   EXPECT_EQ(TOptBytesExact, TBytesExact | TNullptr);
   EXPECT_EQ(TOptUnicode, TUnicode | TNullptr);
   EXPECT_EQ(TOptObject, TObject | TNullptr);
+
+  EXPECT_EQ(TMortalUnicode | TImmortalUnicode, TUnicode);
+  EXPECT_EQ(TMortalLong | TImmortalDict, TLong | TDict);
 }
 
 TEST_F(HIRTypeTest, SimpleIntersection) {
@@ -318,6 +367,10 @@ TEST_F(HIRTypeTest, SimpleIntersection) {
   auto t2 = TBool | TUser;
   auto t3 = t1 & t2;
   EXPECT_EQ(t3, TBool | TUnicodeUser | TBytesUser | TLongUser);
+
+  EXPECT_EQ(TLong & TMortalObject, TMortalLong);
+  EXPECT_EQ(TMortalList & TImmortalList, TBottom);
+  EXPECT_EQ(TMortalList & TMortalDict, TBottom);
 }
 
 TEST_F(HIRTypeTest, SimpleSubtraction) {
@@ -328,6 +381,14 @@ TEST_F(HIRTypeTest, SimpleSubtraction) {
       TObjectUser);
   EXPECT_EQ(TUnicode - TUnicodeExact, TUnicodeUser);
   EXPECT_EQ(TLong - TBool, TLongExact | TLongUser);
+  EXPECT_EQ(TOptLong - TNullptr, TLong);
+  EXPECT_EQ(TTop - TObject, TPrimitive);
+
+  EXPECT_EQ(TList - TMortalList, TImmortalList);
+  EXPECT_EQ(TList - TImmortalObject, TMortalList);
+  EXPECT_EQ(TMortalObject - TImmortalObject, TMortalObject);
+  EXPECT_EQ(TMortalLong - TMortalObject, TBottom);
+  EXPECT_EQ(TOptMortalList - TNullptr, TMortalList);
 }
 
 TEST_F(HIRTypeTest, SpecializedIntegerTypes) {
@@ -398,10 +459,10 @@ obj = MyClass()
   auto obj = Type::fromObject(obj_pyobj);
 
   EXPECT_EQ(metaclass.toString(), "TypeUser[Metaclass]");
-  EXPECT_EQ(metaclass_obj.toString(), "TypeExact[Metaclass:obj]");
+  EXPECT_EQ(metaclass_obj.toString(), "MortalTypeExact[Metaclass:obj]");
   EXPECT_EQ(my_class.toString(), "User[MyClass]");
-  EXPECT_EQ(my_class_obj.toString(), "TypeUser[MyClass:obj]");
-  EXPECT_EQ(obj.toString(), "ObjectUser[MyClass:0xdeadbeef]");
+  EXPECT_EQ(my_class_obj.toString(), "MortalTypeUser[MyClass:obj]");
+  EXPECT_EQ(obj.toString(), "MortalObjectUser[MyClass:0xdeadbeef]");
 
   EXPECT_TRUE(metaclass < TTypeUser);
   EXPECT_TRUE(metaclass_obj < TTypeExact);
@@ -559,7 +620,7 @@ class MyStr(str):
   EXPECT_EQ(my_class | TObjectUser, TUser);
   EXPECT_EQ(class_obj | TUser, TUser);
   EXPECT_EQ(class_obj | TObjectUser, TObjectUser);
-  EXPECT_EQ(class_obj | int_obj, TObjectUser | TLongUser);
+  EXPECT_EQ(class_obj | int_obj, TMortalObjectUser | TMortalLongUser);
 
   EXPECT_FALSE(my_class_exact < class_obj);
   EXPECT_TRUE(class_obj < my_class_exact);
@@ -591,8 +652,8 @@ class MyStr(str):
   EXPECT_EQ(class_obj & my_subclass, TBottom);
   EXPECT_EQ(subclass_obj & my_class, subclass_obj);
   EXPECT_EQ(subclass_obj & my_subclass, subclass_obj);
-  EXPECT_EQ(subclass_obj | class_obj, TObjectUser & my_class);
-  EXPECT_EQ(class_obj | subclass_obj, my_class & TObjectUser);
+  EXPECT_EQ(subclass_obj | class_obj, TMortalObjectUser & my_class);
+  EXPECT_EQ(class_obj | subclass_obj, my_class & TMortalObjectUser);
   EXPECT_EQ(subclass_obj | my_class_exact, my_class & TObjectUser);
   EXPECT_FALSE(subclass_obj < my_class_exact);
 
@@ -638,7 +699,7 @@ class MyStr(str):
   EXPECT_FALSE(my_class < five);
   EXPECT_EQ(five & my_class, TBottom);
   EXPECT_EQ(five | my_class, TCInt32 | TUser);
-  EXPECT_EQ(class_obj | five, TCInt32 | TObjectUser);
+  EXPECT_EQ(class_obj | five, TCInt32 | TMortalObjectUser);
 }
 
 TEST_F(HIRTypeTest, UserExceptionInheritance) {

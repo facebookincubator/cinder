@@ -17,7 +17,7 @@ static_assert(sizeof(Type) == 16, "Type should fit in two registers");
 static_assert(sizeof(intptr_t) == sizeof(int64_t), "Expected 64-bit pointers");
 
 #define TY(name, ...) constexpr Type::bits_t Type::k##name;
-HIR_TYPES(TY, TY)
+HIR_TYPES(TY)
 #undef TY
 
 namespace {
@@ -232,9 +232,9 @@ std::string Type::specString() const {
 }
 
 static auto typeToName() {
-  std::unordered_map<Type::bits_t, std::string> map{
-#define TY(name, ...) {Type::k##name, #name},
-      HIR_TYPES(TY, TY)
+  std::unordered_map<Type, std::string> map{
+#define TY(name, ...) {T##name, #name},
+      HIR_TYPES(TY)
 #undef TY
   };
   return map;
@@ -243,18 +243,43 @@ static auto typeToName() {
 static auto nameToType() {
   std::unordered_map<std::string, Type> map{
 #define TY(name, ...) {#name, T##name},
-      HIR_TYPES(TY, TY)
+      HIR_TYPES(TY)
 #undef TY
   };
   return map;
 }
 
+// Return a list of pairs of predefined type bit patterns and their name, used
+// to create string representations of nontrivial union types.
 static auto makeSortedBits() {
-  std::vector<std::pair<Type::bits_t, std::string>> vec{
-#define TY(name, ...) {Type::k##name, #name},
-      HIR_TYPES(TY, TY)
-#undef TY
+  std::vector<std::pair<Type::bits_t, std::string>> vec;
+
+  // Exclude predefined types with nontrivial mortality, since their 'bits'
+  // component is the same as the version with kLifetime{Top,Bottom}. We could
+  // restructure the macros in type.h to avoid this but that would be much more
+  // complex overall.
+  //
+  // Also exclude any strict supertype of Nullptr, to give strings like
+  // {List|Dict|Nullptr} rather than {OptList|Dict}.
+  auto include_bits = [](Type::bits_t bits,
+                         Type::bits_t lifetime,
+                         const char* name) {
+    if ((lifetime == Type::kLifetimeTop || lifetime == Type::kLifetimeBottom) &&
+        (bits == Type::kNullptr || (bits & Type::kNullptr) == 0)) {
+      JIT_CHECK(
+          (bits & Type::kObject) == bits || (bits & Type::kPrimitive) == bits,
+          "Bits for %s should be subset of kObject or kPrimitive",
+          name);
+      return true;
+    }
+    return false;
   };
+#define TY(name, bits, lifetime)                            \
+  if (include_bits(Type::k##name, Type::lifetime, #name)) { \
+    vec.emplace_back(Type::k##name, #name);                 \
+  }
+  HIR_TYPES(TY)
+#undef TY
 
   // Sort the vector so types with the most bits set show up first.
   auto pred = [](auto& a, auto& b) {
@@ -267,11 +292,22 @@ static auto makeSortedBits() {
   return vec;
 }
 
+static std::string joinParts(std::vector<std::string>& parts) {
+  if (parts.size() == 1) {
+    return parts.front();
+  }
+
+  // Always show the parts in alphabetical order, regardless of which has the
+  // most bits.
+  std::sort(parts.begin(), parts.end());
+  return fmt::format("{{{}}}", fmt::join(parts, "|"));
+}
+
 std::string Type::toString() const {
   std::string base;
 
   static auto const type_names = typeToName();
-  auto it = type_names.find(bits_);
+  auto it = type_names.find(unspecialized());
   if (it != type_names.end()) {
     base = it->second;
   } else {
@@ -279,11 +315,15 @@ std::string Type::toString() const {
     // containing the most bits.
     static auto const sorted_bits = makeSortedBits();
     bits_t bits_left = bits_;
-    std::vector<std::string> parts;
+    std::vector<std::string> parts, obj_parts;
     for (auto& pair : sorted_bits) {
       auto bits = pair.first;
       if ((bits_left & bits) == bits) {
-        parts.emplace_back(pair.second);
+        if (bits & kObject) {
+          obj_parts.emplace_back(pair.second);
+        } else {
+          parts.emplace_back(pair.second);
+        }
         bits_left ^= bits;
         if (bits_left == 0) {
           break;
@@ -292,17 +332,15 @@ std::string Type::toString() const {
     }
     JIT_CHECK(bits_left == 0, "Type contains invalid bits");
 
-    // Always show the parts in alphabetical order, regardless of which has the
-    // most bits.
-    std::sort(parts.begin(), parts.end());
-    base = "{";
-    auto sep = "";
-    for (auto& part : parts) {
-      base += sep;
-      sep = "|";
-      base += part;
+    // If we have a nontrivial lifetime component, turn obj_parts into one part
+    // with that prepended, then combine that with parts.
+    if (lifetime_ != kLifetimeTop && lifetime_ != kLifetimeBottom) {
+      const char* mortal = lifetime_ == kLifetimeMortal ? "Mortal" : "Immortal";
+      parts.emplace_back(fmt::format("{}{}", mortal, joinParts(obj_parts)));
+    } else {
+      parts.insert(parts.end(), obj_parts.begin(), obj_parts.end());
     }
-    base += "}";
+    base = joinParts(parts);
   }
 
   return hasSpec() ? fmt::format("{}[{}]", base, specString()) : base;
@@ -349,7 +387,7 @@ Type Type::parse(std::string str) {
   if (errno != 0) {
     return TBottom;
   }
-  return Type{base.bits_, SpecKind::kSpecInt, spec_value};
+  return Type{base.bits_, kLifetimeBottom, SpecKind::kSpecInt, spec_value};
 }
 
 Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {
@@ -366,7 +404,7 @@ Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {
     auto it = type_map.find(ty);
     if (it != type_map.end()) {
       auto bits = it->second.bits_;
-      return Type{bits & kUser, type, exact};
+      return Type{bits & kUser, kLifetimeTop, type, exact};
     }
   }
   JIT_CHECK(
@@ -388,7 +426,8 @@ Type Type::fromObject(PyObject* obj) {
     return TNoneType;
   }
 
-  return Type{fromTypeExact(Py_TYPE(obj)).bits_, obj};
+  bits_t lifetime = Py_IS_IMMORTAL(obj) ? kLifetimeImmortal : kLifetimeMortal;
+  return Type{fromTypeExact(Py_TYPE(obj)).bits_, lifetime, obj};
 }
 
 PyTypeObject* Type::uniquePyType() const {
@@ -399,7 +438,7 @@ PyTypeObject* Type::uniquePyType() const {
     return typeSpec();
   }
   auto& type_map = typeToPyTypeWithExact();
-  auto it = type_map.find(*this);
+  auto it = type_map.find(dropMortality());
   if (it != type_map.end()) {
     return it->second;
   }
@@ -422,7 +461,8 @@ bool Type::isSingleValue() const {
 }
 
 bool Type::operator<=(Type other) const {
-  return (bits_ & other.bits_) == bits_ && specSubtype(other);
+  return (bits_ & other.bits_) == bits_ &&
+      (lifetime_ & other.lifetime_) == lifetime_ && specSubtype(other);
 }
 
 bool Type::specSubtype(Type other) const {
@@ -454,16 +494,18 @@ bool Type::specSubtype(Type other) const {
 
 Type Type::operator|(Type other) const {
   bits_t bits = bits_ | other.bits_;
+  bits_t lifetime = lifetime_ | other.lifetime_;
 
+  Type no_spec{bits, lifetime};
   if (!hasSpec() || !other.hasSpec()) {
     // If either type isn't specialized, the result isn't specialized.
-    return Type{bits};
+    return no_spec;
   }
-  if ((hasIntSpec() || other.hasIntSpec()) ||
-      ((hasDoubleSpec() || other.hasDoubleSpec()))) {
+  if (hasIntSpec() || other.hasIntSpec() || hasDoubleSpec() ||
+      other.hasDoubleSpec()) {
     // Primitive specializations only survive unification when the types are
     // equal.
-    return *this == other ? *this : Type{bits};
+    return *this == other ? *this : no_spec;
   }
 
   if (hasObjectSpec() && other.hasObjectSpec() &&
@@ -479,27 +521,39 @@ Type Type::operator|(Type other) const {
   if (hasTypeExactSpec() && other.hasTypeExactSpec() && type_a == type_b) {
     // We only return an exact specialization if we're unifying the same exact
     // type with itself.
-    return Type{bits, type_a, true};
+    return Type{bits, lifetime, type_a, true};
   }
   if (PyType_IsSubtype(type_a, type_b)) {
-    return Type{bits, type_b, false};
+    return Type{bits, lifetime, type_b, false};
   }
   if (PyType_IsSubtype(type_b, type_a)) {
-    return Type{bits, type_a, false};
+    return Type{bits, lifetime, type_a, false};
   }
-  return Type{bits};
+  return no_spec;
 }
 
 Type Type::operator&(Type other) const {
   bits_t bits = bits_ & other.bits_;
+  bits_t lifetime = lifetime_ & other.lifetime_;
+
+  // The kObject part of 'bits' and all of 'lifetime' are only meaningful if
+  // both are non-zero. If one has gone to zero, clear the other as well. This
+  // prevents creating types like "MortalBottom" or "LifetimeBottomList", both
+  // of which we canonicalize to Bottom.
+  if ((bits & kObject) == 0) {
+    lifetime = kLifetimeBottom;
+  } else if (lifetime == kLifetimeBottom) {
+    bits &= ~kObject;
+  }
+
   if (bits == kBottom) {
     return TBottom;
   }
   if (specSubtype(other)) {
-    return Type{bits, specKind(), int_};
+    return Type{bits, lifetime, specKind(), int_};
   }
   if (other.specSubtype(*this)) {
-    return Type{bits, other.specKind(), other.int_};
+    return Type{bits, lifetime, other.specKind(), other.int_};
   }
 
   // Two different, non-exact type specializations can still have a non-empty
@@ -516,26 +570,37 @@ Type Type::operator&(Type other) const {
     auto type_b = other.typeSpec();
     auto cmp = std::strcmp(type_a->tp_name, type_b->tp_name);
     if (cmp < 0 || (cmp == 0 && type_a < type_b)) {
-      return Type{bits, type_a, false};
+      return Type{bits, lifetime, type_a, false};
     }
-    return Type{bits, type_b, false};
+    return Type{bits, lifetime, type_b, false};
   }
 
   return TBottom;
 }
 
-Type Type::operator-(Type other) const {
-  if (*this <= other) {
+Type Type::operator-(Type rhs) const {
+  if (*this <= rhs) {
     return TBottom;
   }
-
-  // We only want to remove parts of *this that are subsumed by other, which
-  // can't happen unless our specialization is a subtype of other's.
-  if (!specSubtype(other)) {
+  if (!specSubtype(rhs)) {
     return *this;
   }
-  bits_t bits = bits_ & ~other.bits_;
-  return Type{bits, specKind(), int_};
+
+  bits_t bits = bits_ & ~(rhs.bits_ & kPrimitive);
+  bits_t lifetime = lifetime_;
+  auto bits_subset = [](bits_t a, bits_t b) { return (a & b) == a; };
+
+  // We only want to remove the kObject parts of 'bits', or any part of
+  // 'lifetime', when the corresponding parts of the other component are
+  // subsumed by rhs's part.
+  if (bits_subset(lifetime_, rhs.lifetime_)) {
+    bits &= ~(rhs.bits_ & kObject);
+  }
+  if (bits_subset(bits_ & kObject, rhs.bits_ & kObject)) {
+    lifetime &= ~rhs.lifetime_;
+  }
+
+  return Type{bits, lifetime, specKind(), int_};
 }
 
 } // namespace hir

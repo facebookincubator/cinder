@@ -10,6 +10,7 @@ Some of these terms only make sense in the context of other terms, or in the lar
 
 * *predefined type* - A type that is supported natively by `Type` and can be a member of arbitrary union types. Examples include `Long`, `Bytes`, `BaseException`, and `CInt32`.
 * *primitive type* - A predefined type that represents a type for a primitive C value, rather than a Python object. Examples include `CInt32` (`int`) and `CBool` (`bool`).
+* *lifetime/mortality* - Python objects in Cinder can be "immortal", which means they live forever and are not reference counted. The concept of an object being mortal or immortal is referred to as its lifetime or its mortality.
 * *specialization* - Additional data added to a predefined `Type` to make it more specific.
 * *type specialization* - A `PyTypeObject*` stored in a `Type`.
 * *exact type specialization* - A type specialization flagged to exclude subtypes of the given `PyTypeObject*`.
@@ -18,9 +19,9 @@ Some of these terms only make sense in the context of other terms, or in the lar
 
 ## Semantics
 
-A `Type` has two parts: an arbitrary union of predefined types and an optional specialization. A specialization can be a `PyTypeObject*`, an `PyObject*`, or another C type (like `int` or `bool`). The set of values represented by a `Type` is the intersection of the union with the specialization.
+A `Type` has three parts: an arbitrary union of predefined types, lifetime information (whether an object is mortal, immortal, either, or neither), and an optional specialization. A specialization can be a `PyTypeObject*`, a `PyObject*`, or another C type (like `int` or `bool`). The set of values represented by a `Type` is the intersection of the union, the lifetime information, and the specialization.
 
-Common set operations are supported, including equality/inequality (`==`/`!=`), subtype (`<=`), strict subtype (`<`), union (`|`), intersection (`&`), and subtraction (`-`).
+Common set operations are supported, including equality/inequality (`==`/`!=`), subtype (`<=`), strict subtype (`<`), union (`|`), intersection (`&`), and subtraction (`-`). This is discussed in more detail later, but users of `Type` should be aware that when the result of a set operation cannot be expressed by `Type`'s internal representation, the returned `Type` will be slightly larger than the true result. This ensures that the JIT never thinks a value has a more precise type than we can prove.
 
 ### Notation
 
@@ -34,6 +35,8 @@ Predefined `Type`s can be represented without using a specialization, and a `Typ
 
 * `Top` is the set of all `Type`s and the top of the hierarchy.
 * `Object` is the set of all Python-visible object types.
+* `MortalFoo` is all objects in `Foo` that are mortal.
+* `ImmortalFoo` is all objects in `Foo` that are immortal.
 * `FooExact` represents *exactly* `Foo`, excluding any subtypes. This is only defined for types that can be subclassed (excluding things like `Bool`, `Code`, `Frame`, etc.).
 * `FooUser` represents user-defined types that inherit from `Foo` and no other built-in type (except for `Object`, which all types inherit from).
 * `Primitive` is the set of all primitive types, which are only exposed to Python code in Static Python modules. They are also used to work with the return values of functions like `int PyObject_IsTrue(PyObject*)`.
@@ -91,6 +94,27 @@ Top
     +-- CUInt16
     +-- CUInt32
     +-- CUInt64
+```
+
+Mortality was not included in the chart above because it doesn't fit nicely into that textual representation. Every `Object` subtype can be mortal or immortal, and the mini-hierarchy for a type like `Dict` can be visualized in one of two ways:
+```
++-- Dict
+    +-- MortalDict
+    |   +-- MortalDictExact
+    |   +-- MortalDictUser
+    +-- ImmortalDict
+        +-- ImmortalDictExact
+        +-- ImmortalDictUser
+```
+
+```
++-- Dict
+    +-- DictExact
+    |   +-- MortalDictExact
+    |   +-- ImmortalDictExact
+    +-- DictUser
+        +-- MortalDictUser
+        +-- ImmortalDictUser
 ```
 
 There is also a predefined type named `User`, which represents all user-defined types (and doesn’t fit nicely into the above diagram). It exists to support multiple inheritance (explained in the next section).
@@ -166,9 +190,23 @@ LongUser[my_class_int] < User[MyClass]
 
 BytesExact[a_bytes] < BytesExact
 BytesUser[my_bytes] < BytesUser[MyBytes]
+
+# Types that inherit both from MyClass and int:
+User[MyClass] & Long == LongUser[MyClass]
+
+ObjectUser[my_obj] & User[MyClass] == ObjectUser[my_obj]
+ObjectUser[my_obj] & ObjectUser[my_obj2] == Bottom
+ObjectUser[my_subobj] & ObjectUser[my_obj] == Bottom
+ObjectUser[my_obj] & LongUser[my_int] == Bottom
 ```
 
-All of the set operations are specialization-aware, with the important caveat that since a `Type` can only hold one specialization, some types cannot be represented in a `Type`. **When the exact result of an operation cannot be represented, the result is the smallest `Type` that is a supertype of the actual result**, which often results in dropping the specialization. Clients must be aware of this restriction and take it into account. Most of the time, it simply means the type of a value is slightly wider than the best type we can prove, which client code should tolerate anyway.
+All of the set operations are specialization-aware, with the important caveat that since a `Type` can only hold one specialization, some types cannot be represented in a `Type`.
+
+### Representation limitations
+
+**When the exact result of an operation cannot be represented, the result is the smallest `Type` that is a supertype of the actual result**. In practice, this usually means dropping a specialization or losing lifetime information. Clients must be aware of this restriction and take it into account. Most of the time, it simply means the type of a value is slightly wider than the best type we can prove, which client code should tolerate anyway.
+
+Continuing from the examples in the previous section:
 
 ```
 User[MyClass] | User[MySubclass] == User[MyClass]
@@ -186,13 +224,9 @@ ObjectUser[my_obj] | LongUser[my_int] == {ObjectUser|LongUser}
 User[MyClass] & User[MySubclass] == User[MySubclass]
 LongUser[MyInt] & BytesUser[MyBytes] == Bottom
 
-# Types that inherit both from MyClass and int:
-User[MyClass] & Long == LongUser[MyClass]
-
-ObjectUser[my_obj] & User[MyClass] == ObjectUser[my_obj]
-ObjectUser[my_obj] & ObjectUser[my_obj2] == Bottom
-ObjectUser[my_subobj] & ObjectUser[my_obj] == Bottom
-ObjectUser[my_obj] & LongUser[my_int] == Bottom
+# We can't mix mortal and immortal types:
+MortalDict | ImmortalLong == Dict | Long
+{Dict|Long} - MortalDict == ImmortalDict | Long == {Dict|Long}
 ```
 
 ### Metaclasses
@@ -268,19 +302,21 @@ CBool[false] < Primitive
 
 ### Internal Representation
 
-`Type` is 16 bytes, and is meant to be cheaply copied and always passed by value. It has three components:
+`Type` is 16 bytes, and is meant to be cheaply copied and always passed by value. It has multiple components:
 
 1. A bitset representing the arbitrary union of predefined types. Every leaf type in the main hierarchy diagram above has a bit assigned to it, meaning predefined types like `Long` have three bits set: `LongExact`, `Bool`, and `LongUser`.
-2. A specialization kind: one of `kSpecTop`, `kSpecObject`, `kSpecTypeExact`, `kSpecType`, or `kSpecInt`. This indicates how to interpret the third component.
-3. A `union` containing a `PyTypeObject*`, a `PyObject*`, and an `int64_t`. When the specialization kind is `kSpecTop`, this will be `0`. Otherwise, this holds the specialization’s value.
+2. A bitset encoding the lifetime of the objects represented by the `Type`: `kLifetimeTop` for `Object` subtypes with unknown mortality, `kLifetimeMortal` and `kLifetimeImmortal` for `Object` subtypes with known mortality, or `kLifetimeBottom` for `Bottom` and primitive types.
+3. A specialization kind: one of `kSpecTop`, `kSpecObject`, `kSpecTypeExact`, `kSpecType`, or `kSpecInt`. This indicates how to interpret the next component.
+4. A `union` containing a `PyTypeObject*`, a `PyObject*`, and an `int64_t`. When the specialization kind is `kSpecTop`, this will be `0`. Otherwise, this holds the specialization’s value.
 
-As mentioned previously, the set of values represented by a `Type` is the intersection of the bitset union with the specialization. Here are a few examples of this in practice:
+As mentioned previously, the set of values represented by a `Type` is the intersection of the different components. Here are a few examples of this in practice:
 
-* `Long` is `({LongExact|LongUser|Bool}, kSpecTop, 0)`
-* `CInt32[5]` is `(CInt32, kSpecInt, 5)`
-* `LongUser[SomeClass]` is `(LongUser, kSpecType, <SomeClass PyTypeObject*>)`
-* `(BytesUser, kSpecInt, ...)` is invalid, because `kSpecInt` is only valid for the primitive types.
-* `(CInt32, kSpecObject, ...)` is also invalid, because `kSpecObject`, `kSpecType`, and `kSpecExact` are only valid for `Object` subtypes.
+* `Long` is `({LongExact|LongUser|Bool}, kLifetimeTop, kSpecTop, 0)`
+* `MortalBytes` is `({BytesUser|BytesExact}, kLifetimeMortal, kSpecTop, 0)`
+* `CInt32[5]` is `(CInt32, kLifetimeBottom, kSpecInt, 5)`
+* `LongUser[SomeClass]` is `(LongUser, kLifetimeTop, kSpecType, <SomeClass PyTypeObject*>)`
+* `(BytesUser, _, kSpecInt, _)` is invalid, because `kSpecInt` is only valid for the primitive types.
+* `(CInt32, _, kSpecObject, _)` is also invalid, because `kSpecObject`, `kSpecType`, and `kSpecExact` are only valid for `Object` subtypes.
 
 ## API/Usage
 

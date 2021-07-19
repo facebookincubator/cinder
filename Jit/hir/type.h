@@ -34,7 +34,7 @@ namespace hir {
 // macro: T1 and T2 are transform macros that derive one or more related names
 // from the base type name. T1 calls T2 with X and each derived name, and T2
 // calls X with further derived names. This composability is used to support
-// optional types (TOptFoo == TFoo | TNullptr).
+// the unions we derive from basic type names for optional and immortal types.
 //
 // Long is defined down in HIR_UNION_TYPES rather than here in HIR_BASE_TYPES
 // because it has another predefined type as a subtype (Bool). It's possible to
@@ -88,27 +88,30 @@ namespace hir {
   HIR_BASE_TYPES(HIR_BASE_TYPE, T, X)
 
 // Basic types; not visible to Python unless Static Python.
-#define HIR_BASIC_PRIMITIVE_TYPES(X) \
-  X(CBool)                           \
-  X(CInt8)                           \
-  X(CInt16)                          \
-  X(CInt32)                          \
-  X(CInt64)                          \
-  X(CUInt8)                          \
-  X(CUInt16)                         \
-  X(CUInt32)                         \
-  X(CUInt64)                         \
-  X(CPtr)                            \
-  X(CDouble)                         \
-  X(Nullptr)
+#define HIR_BASIC_PRIMITIVE_TYPES(T, X) \
+  T(X, CBool)                           \
+  T(X, CInt8)                           \
+  T(X, CInt16)                          \
+  T(X, CInt32)                          \
+  T(X, CInt64)                          \
+  T(X, CUInt8)                          \
+  T(X, CUInt16)                         \
+  T(X, CUInt32)                         \
+  T(X, CUInt64)                         \
+  T(X, CPtr)                            \
+  T(X, CDouble)                         \
+  T(X, Nullptr)
 
 // Call X with all arguments. Used as the transform macro in situations where
 // no derived names are needed.
 #define HIR_NOP(X, ...) X(__VA_ARGS__)
 
+#define HIR_MAKE_PRIMITIVE_BIT(X, name) \
+  X(name, (1UL << k##name##Bit), kLifetimeBottom)
+
 // All basic types, Python and primitive.
 #define HIR_BASIC_TYPES(X) \
-  HIR_BASIC_PYTYPES(HIR_NOP, X) HIR_BASIC_PRIMITIVE_TYPES(X)
+  HIR_BASIC_PYTYPES(HIR_NOP, X) HIR_BASIC_PRIMITIVE_TYPES(HIR_NOP, X)
 
 //////////////////////////////////////////////////////////////////////////////
 // Union types
@@ -122,46 +125,56 @@ namespace hir {
 #define HIR_BASE_TYPE_UNION(T, X, name) \
   T(X, name, k##name##Exact | k##name##User)
 
-// Call X to create both name and Optname.
-#define HIR_OPT_UNION(X, name, bits) \
-  X(name, bits) X(Opt##name, (bits) | kNullptr)
+// Call X for both name and Opt##name.
+#define HIR_OPT_UNIONS(X, name, bits, lifetime) \
+  X(name, bits, lifetime)                       \
+  X(Opt##name, (bits) | kNullptr, lifetime)
+
+// Call X to create variants of name for all values of mortality and
+// optionality.
+#define HIR_PYTYPE_UNIONS(X, name, bits)                 \
+  HIR_OPT_UNIONS(X, name, bits, kLifetimeTop)            \
+  HIR_OPT_UNIONS(X, Mortal##name, bits, kLifetimeMortal) \
+  HIR_OPT_UNIONS(X, Immortal##name, bits, kLifetimeImmortal)
+
+// Call X with all variants of a basic pytype.
+#define HIR_MAKE_PYTYPE_VARIANTS(X, name) \
+  HIR_PYTYPE_UNIONS(X, name, (1UL << k##name##Bit))
 
 // Define the union types: a number of special types like Top, Bottom,
 // BuiltinExact, Primitive, unions for each base type combining the *Exact and
 // *User types as appropriate, and optional variants of Object subtype unions.
-#define HIR_UNION_TYPES(X)                                                    \
-  X(Top, 0 HIR_BASIC_TYPES(HIR_OR_BITS))                                      \
-  X(Bottom, 0)                                                                \
-  X(Primitive, 0 HIR_BASIC_PRIMITIVE_TYPES(HIR_OR_BITS))                      \
-  X(CUnsigned, kCUInt8 | kCUInt16 | kCUInt32 | kCUInt64)                      \
-  X(CSigned, kCInt8 | kCInt16 | kCInt32 | kCInt64)                            \
-  HIR_OPT_UNION(                                                              \
-      X,                                                                      \
-      BuiltinExact,                                                           \
-      0 HIR_BASE_TYPES(HIR_BASE_TYPE_EXACT, HIR_NOP, HIR_OR_BITS)             \
-          HIR_BASIC_EXACT_TYPES(HIR_NOP, HIR_OR_BITS)                         \
-              HIR_BASIC_FINAL_TYPES(HIR_NOP, HIR_OR_BITS))                    \
-  HIR_BASE_TYPES(HIR_BASE_TYPE_UNION, HIR_OPT_UNION, X)                       \
-  HIR_OPT_UNION(X, Long, kLongExact | kBool | kLongUser)                      \
-  HIR_OPT_UNION(                                                              \
-      X,                                                                      \
-      User,                                                                   \
-      kObjectUser |                                                           \
-          kLongUser HIR_BASE_TYPES(HIR_BASE_TYPE_USER, HIR_NOP, HIR_OR_BITS)) \
-  HIR_OPT_UNION(X, Object, 0 HIR_BASIC_PYTYPES(HIR_NOP, HIR_OR_BITS))
-
-// Transform macro used to create optional versions of each basic pytype.
-#define HIR_OPT_BASIC_TYPE(X, name) X(Opt##name, k##name | kNullptr)
+#define HIR_UNION_TYPES(X)                                                \
+  X(Top, 0 HIR_BASIC_TYPES(HIR_OR_BITS), kLifetimeTop)                    \
+  X(Bottom, 0, kLifetimeBottom)                                           \
+  X(Primitive,                                                            \
+    0 HIR_BASIC_PRIMITIVE_TYPES(HIR_NOP, HIR_OR_BITS),                    \
+    kLifetimeBottom)                                                      \
+  X(CUnsigned, kCUInt8 | kCUInt16 | kCUInt32 | kCUInt64, kLifetimeBottom) \
+  X(CSigned, kCInt8 | kCInt16 | kCInt32 | kCInt64, kLifetimeBottom)       \
+  HIR_PYTYPE_UNIONS(                                                      \
+      X,                                                                  \
+      BuiltinExact,                                                       \
+      0 HIR_BASE_TYPES(HIR_BASE_TYPE_EXACT, HIR_NOP, HIR_OR_BITS)         \
+          HIR_BASIC_EXACT_TYPES(HIR_NOP, HIR_OR_BITS)                     \
+              HIR_BASIC_FINAL_TYPES(HIR_NOP, HIR_OR_BITS))                \
+  HIR_BASE_TYPES(HIR_BASE_TYPE_UNION, HIR_PYTYPE_UNIONS, X)               \
+  HIR_PYTYPE_UNIONS(X, Long, kLongExact | kBool | kLongUser)              \
+  HIR_PYTYPE_UNIONS(                                                      \
+      X,                                                                  \
+      User,                                                               \
+      0 HIR_BASE_TYPES(HIR_BASE_TYPE_USER, HIR_NOP, HIR_OR_BITS)          \
+          HIR_BASIC_USER_TYPES(HIR_NOP, HIR_OR_BITS))                     \
+  HIR_PYTYPE_UNIONS(X, Object, 0 HIR_BASIC_PYTYPES(HIR_NOP, HIR_OR_BITS))
 
 //////////////////////////////////////////////////////////////////////////////
 // All HIR Types
 //
-// BASIC(name) will be called for basic types.
-// UNION(name, bits) will be called for union types.
-#define HIR_TYPES(BASIC, UNION)                \
-  HIR_BASIC_TYPES(BASIC)                       \
-  HIR_BASIC_PYTYPES(HIR_OPT_BASIC_TYPE, UNION) \
-  HIR_UNION_TYPES(UNION)
+// X(name, bits, lifetime) will be called for all predefined types.
+#define HIR_TYPES(X)                                   \
+  HIR_BASIC_PRIMITIVE_TYPES(HIR_MAKE_PRIMITIVE_BIT, X) \
+  HIR_BASIC_PYTYPES(HIR_MAKE_PYTYPE_VARIANTS, X)       \
+  HIR_UNION_TYPES(X)
 
 class Type {
   // Assign each basic type its index in the bitset. These values are only
@@ -182,16 +195,20 @@ class Type {
   // Construct a bits_t for all predefined types. The union types are defined
   // in terms of the basic types and other unions, so the order of entries in
   // HIR_UNION_TYPES() above is significant.
-#define BASIC_TY(name) static constexpr bits_t k##name = 1UL << k##name##Bit;
-#define UNION_TY(name, bits) static constexpr bits_t k##name = (bits);
-  HIR_TYPES(BASIC_TY, UNION_TY)
-#undef BASIC_TY
-#undef UNION_TY
+#define TY(name, bits, ...) static constexpr bits_t k##name = (bits);
+  HIR_TYPES(TY)
+#undef TY
+
+  static constexpr bits_t kLifetimeBottom = 0;
+  static constexpr bits_t kLifetimeMortal = 1UL << 0;
+  static constexpr bits_t kLifetimeImmortal = 1UL << 1;
+  static constexpr bits_t kLifetimeTop = kLifetimeMortal | kLifetimeImmortal;
 
   // Create a Type with the given bits. This isn't intended for general
   // consumption and is only public for the TFoo predefined Types (created near
   // the bottom of this file).
-  explicit constexpr Type(bits_t bits) : Type{bits, kSpecTop, 0} {}
+  explicit constexpr Type(bits_t bits, bits_t lifetime)
+      : Type{bits, lifetime, kSpecTop, 0} {}
 
   std::size_t hash() const;
   std::string toString() const;
@@ -222,8 +239,8 @@ class Type {
   // Return the PyTypeObject* that uniquely represents this type, or nullptr if
   // there isn't one. The PyTypeObject* may be from a type
   // specialization. "Uniquely" here means that there should be no loss of
-  // information in the Type -> PyTypeObject* conversion, other than whether or
-  // not this Type is exact.
+  // information in the Type -> PyTypeObject* conversion, other than mortality
+  // and exactness.
   //
   // Some examples:
   // TLong.uniquePyType() == &PyLong_Type
@@ -277,6 +294,9 @@ class Type {
   // Return a copy of this Type with its specialization removed.
   Type unspecialized() const;
 
+  // Return a copy of this Type with unknown mortality.
+  Type dropMortality() const;
+
   // Return true iff this Type is specialized with an exact PyTypeObject* or is
   // a subtype of all builtin exact types.
   bool isExact() const;
@@ -328,21 +348,44 @@ class Type {
   };
 
   // Constructors used to create specialized Types.
-  constexpr Type(bits_t bits, PyTypeObject* type_spec, bool exact)
+  constexpr Type(
+      bits_t bits,
+      bits_t lifetime,
+      PyTypeObject* type_spec,
+      bool exact)
       : Type{
             bits,
+            lifetime,
             exact ? kSpecTypeExact : kSpecType,
             reinterpret_cast<intptr_t>(type_spec)} {}
-  constexpr Type(bits_t bits, PyObject* value_spec)
-      : Type{bits, kSpecObject, reinterpret_cast<intptr_t>(value_spec)} {}
-  constexpr Type(bits_t bits, double_t spec)
-      : bits_{bits}, spec_kind_{kSpecDouble}, padding_{}, double_{spec} {}
 
-  constexpr Type(bits_t bits, SpecKind spec_kind, intptr_t spec)
-      : bits_{bits}, spec_kind_{spec_kind}, padding_{}, int_{spec} {
+  constexpr Type(bits_t bits, bits_t lifetime, PyObject* value_spec)
+      : Type{
+            bits,
+            lifetime,
+            kSpecObject,
+            reinterpret_cast<intptr_t>(value_spec)} {}
+
+  constexpr Type(bits_t bits, double_t spec)
+      : Type{bits, kLifetimeBottom, kSpecDouble, bit_cast<intptr_t>(spec)} {}
+
+  constexpr Type(
+      bits_t bits,
+      bits_t lifetime,
+      SpecKind spec_kind,
+      intptr_t spec)
+      : bits_{bits},
+        lifetime_{lifetime},
+        spec_kind_{spec_kind},
+        padding_{},
+        int_{spec} {
     JIT_DCHECK(
         bits != kBottom || (spec_kind == kSpecTop && spec == 0),
         "Bottom can't be specialized");
+    JIT_DCHECK(
+        (lifetime == kLifetimeBottom) == ((bits & kObject) == 0),
+        "lifetime component should be kLifetimeBottom if and only if no "
+        "kObject bits are set");
     JIT_DCHECK(padding_ == 0, "Invalid padding");
   }
 
@@ -365,14 +408,16 @@ class Type {
 
   // Bit field sizes, computed to fill any padding with zeros to make comparing
   // cheaper.
+  static constexpr int kLifetimeBits = 2;
   static constexpr int kSpecBits = 3;
   static constexpr int kPaddingBits =
-      int{sizeof(bits_t) * CHAR_BIT} - kNumBits - kSpecBits;
+      int{sizeof(bits_t) * CHAR_BIT} - kNumBits - kLifetimeBits - kSpecBits;
   static_assert(
       kPaddingBits > 0,
       "Too many basic types and/or specialization kinds");
 
   bits_t bits_ : kNumBits;
+  bits_t lifetime_ : kLifetimeBits;
   bits_t spec_kind_ : kSpecBits;
   bits_t padding_ : kPaddingBits;
 
@@ -390,8 +435,9 @@ inline std::ostream& operator<<(std::ostream& os, const Type& ty) {
 }
 
 // Define TFoo constants for all built-in types.
-#define TY(name, ...) constexpr Type T##name{Type::k##name};
-HIR_TYPES(TY, TY)
+#define TY(name, raw_bits, lifetime) \
+  constexpr Type T##name{Type::k##name, Type::lifetime};
+HIR_TYPES(TY)
 #undef TY
 
 } // namespace hir

@@ -14,7 +14,7 @@ fun jittestmodule:test {
     v9:Nullptr = LoadConst<Nullptr>
     v10:CInt32 = CallStatic<0>
     v11:CInt64 = IntConvert<CInt64> v10
-    v12:LongExact[2147483647] = LoadConst<LongExact[2147483647]>
+    v12:MortalLongExact[2147483647] = LoadConst<MortalLongExact[2147483647]>
     v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
     v20:CInt64[0] = LoadConst<CInt64[0]>
     v15:CInt64 = IntBinaryOp<FloorDivide> v11 v19
@@ -45,7 +45,7 @@ fun jittestmodule:test {
   bb 0 {
     v8:Nullptr = LoadConst<Nullptr>
     v9:CInt64[64] = LoadConst<CInt64[64]>
-    v11:LongExact[111] = LoadConst<LongExact[111]>
+    v11:MortalLongExact[111] = LoadConst<MortalLongExact[111]>
     v17:CInt64[111] = LoadConst<CInt64[111]>
     v18:CInt64[0] = LoadConst<CInt64[0]>
     v14:CBool = PrimitiveCompare<LessThan> v9 v17
@@ -53,12 +53,12 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v15:Bool[True] = LoadConst<Bool[True]>
+    v15:MortalBool[True] = LoadConst<MortalBool[True]>
     Return v15
   }
 
   bb 2 (preds 0) {
-    v16:Bool[False] = LoadConst<Bool[False]>
+    v16:MortalBool[False] = LoadConst<MortalBool[False]>
     Return v16
   }
 }
@@ -77,7 +77,7 @@ def test() -> double:
 fun jittestmodule:test {
   bb 0 {
     v3:Nullptr = LoadConst<Nullptr>
-    v4:FloatExact[1.23] = LoadConst<FloatExact[1.23]>
+    v4:MortalFloatExact[1.23] = LoadConst<MortalFloatExact[1.23]>
     v5:CDouble = LoadField<16> v4
     Return<CDouble> v5
   }
@@ -97,7 +97,7 @@ def test() -> uint8:
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
-    v5:LongExact[42] = LoadConst<LongExact[42]>
+    v5:MortalLongExact[42] = LoadConst<MortalLongExact[42]>
     v9:CUInt8[42] = LoadConst<CUInt8[42]>
     v10:CInt64[0] = LoadConst<CInt64[0]>
     Return<CUInt8> v9
@@ -118,7 +118,7 @@ def test() -> int8:
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
-    v5:LongExact[10000] = LoadConst<LongExact[10000]>
+    v5:MortalLongExact[10000] = LoadConst<MortalLongExact[10000]>
     v6:CInt8 = PrimitiveUnbox<CInt8> v5
     v7:CInt64 = IsNegativeAndErrOccurred v6 {
       NextInstrOffset 6

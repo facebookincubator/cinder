@@ -16,19 +16,19 @@ fun jittestmodule:test {
     v9:Object = LoadArg<0; "a">
     v10:Object = LoadArg<1; "b">
     v11:Nullptr = LoadConst<Nullptr>
-    v14:TupleExact[tuple:0xdeadbeef] = LoadConst<TupleExact[tuple:0xdeadbeef]>
+    v14:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v15:Dict = MakeDict<2> {
       NextInstrOffset 8
       Locals<3> v9 v10 v11
       Stack<3> v9 v10 v14
     }
-    v22:UnicodeExact["aaa"] = LoadConst<UnicodeExact["aaa"]>
+    v22:MortalUnicodeExact["aaa"] = LoadConst<MortalUnicodeExact["aaa"]>
     v17:CInt32 = SetDictItem v15 v22 v9 {
       NextInstrOffset 8
       Locals<3> v9 v10 v11
       Stack<2> v9 v10
     }
-    v23:UnicodeExact["bbb"] = LoadConst<UnicodeExact["bbb"]>
+    v23:MortalUnicodeExact["bbb"] = LoadConst<MortalUnicodeExact["bbb"]>
     v19:CInt32 = SetDictItem v15 v23 v10 {
       NextInstrOffset 8
       Locals<3> v9 v10 v11
@@ -49,9 +49,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
-    v5:LongExact[0] = LoadConst<LongExact[0]>
+    v5:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     v7:OptObject = LoadGlobalCached<0; "box">
-    v8:Func[function:0xdeadbeef] = GuardIs<0xdeadbeef> v7
+    v8:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v7
     v10:Object = VectorCall<1> v8 v5 {
       NextInstrOffset 10
       Locals<1> v5
@@ -81,7 +81,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:Nullptr = LoadConst<Nullptr>
-    v3:LongExact[1] = LoadConst<LongExact[1]>
+    v3:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Return v3
   }
 }
@@ -105,13 +105,13 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v8:LongExact[1] = LoadConst<LongExact[1]>
+    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Branch<2>
   }
 
   bb 2 (preds 0, 1) {
-    v11:OptLongExact = Phi<0, 1> v5 v8
-    v12:LongExact = CheckVar<1; "y"> v11 {
+    v11:OptMortalLongExact = Phi<0, 1> v5 v8
+    v12:MortalLongExact = CheckVar<1; "y"> v11 {
       NextInstrOffset 10
       Locals<2> v4 v11
     }
@@ -140,17 +140,17 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v9:LongExact[1] = LoadConst<LongExact[1]>
+    v9:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
-    v11:LongExact[2] = LoadConst<LongExact[2]>
+    v11:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
     Branch<3>
   }
 
   bb 3 (preds 1, 2) {
-    v14:LongExact = Phi<1, 2> v9 v11
+    v14:MortalLongExact = Phi<1, 2> v9 v11
     Return v14
   }
 }
@@ -176,7 +176,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v10:LongExact[1] = LoadConst<LongExact[1]>
+    v10:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v13:CInt32 = IsTruthy v10 {
       NextInstrOffset 12
       Locals<2> v6 v10
@@ -185,13 +185,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
-    v14:LongExact[100] = LoadConst<LongExact[100]>
+    v14:MortalLongExact[100] = LoadConst<MortalLongExact[100]>
     Return v14
   }
 
   bb 3 (preds 0, 1) {
-    v16:OptLongExact = Phi<0, 1> v7 v10
-    v17:LongExact = CheckVar<1; "y"> v16 {
+    v16:OptMortalLongExact = Phi<0, 1> v7 v10
+    v17:MortalLongExact = CheckVar<1; "y"> v16 {
       NextInstrOffset 18
       Locals<2> v6 v16
     }
@@ -208,16 +208,16 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v8:Nullptr = LoadConst<Nullptr>
-    v9:LongExact[1] = LoadConst<LongExact[1]>
-    v10:LongExact[2] = LoadConst<LongExact[2]>
-    v11:LongExact[3] = LoadConst<LongExact[3]>
+    v9:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v10:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v11:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v12:ListExact = MakeListTuple<list, 3> {
       NextInstrOffset 8
       Locals<1> v8
       Stack<3> v9 v10 v11
     }
     InitListTuple<list, 3> v12 v9 v10 v11
-    v16:LongExact[1] = LoadConst<LongExact[1]>
+    v16:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v22:CInt64[1] = LoadConst<CInt64[1]>
     v19:CInt64 = CheckSequenceBounds v12 v22 {
       NextInstrOffset 16
@@ -239,8 +239,8 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v3:OptObject = LoadGlobalCached<0; "ls">
-    v4:ObjectExact[object:0xdeadbeef] = GuardIs<0xdeadbeef> v3
-    v5:LongExact[1] = LoadConst<LongExact[1]>
+    v4:MortalObjectExact[object:0xdeadbeef] = GuardIs<0xdeadbeef> v3
+    v5:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v6:Object = BinaryOp<Subscript> v4 v5 {
       NextInstrOffset 6
     }
@@ -257,8 +257,8 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
-    v5:TupleExact[tuple:0xdeadbeef] = LoadConst<TupleExact[tuple:0xdeadbeef]>
-    v8:LongExact[1] = LoadConst<LongExact[1]>
+    v5:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
+    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v13:CInt64[1] = LoadConst<CInt64[1]>
     v11:CInt64 = CheckSequenceBounds v5 v13 {
       NextInstrOffset 10
