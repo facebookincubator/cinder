@@ -5,7 +5,7 @@ import ast
 from typing import Dict, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from . import TypeBinder
+    from .type_binder import TypeBinder
     from .types import Value
 
 

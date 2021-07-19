@@ -180,9 +180,10 @@ from .effects import NarrowingEffect, NO_EFFECT
 from .errors import TypedSyntaxError
 
 if TYPE_CHECKING:
-    from . import SymbolTable, TypeBinder, Static38CodeGenerator
+    from . import SymbolTable, Static38CodeGenerator
     from .declaration_visitor import DeclarationVisitor
     from .module_table import ModuleTable
+    from .type_binder import TypeBinder
 
 try:
     import xxclassloader  # pyre-ignore[21]: unknown module
