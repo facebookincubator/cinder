@@ -184,6 +184,7 @@ from ..pycodegen import (
 )
 from ..symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
 from ..unparse import to_expr
+from .declaration_visitor import GenericVisitor, DeclarationVisitor
 from .errors import ErrorSink
 from .types import (
     ALLOW_WEAKREFS_TYPE,
@@ -216,7 +217,6 @@ from .types import (
     DYNAMIC,
     DYNAMIC_RETURN_TYPE,
     DYNAMIC_TYPE,
-    DeclarationVisitor,
     EXCEPTION_TYPE,
     ExtremumFunction,
     FINAL_METHOD_TYPE,
@@ -227,7 +227,6 @@ from .types import (
     Function,
     GenericClass,
     GenericTypesDict,
-    GenericVisitor,
     INLINE_TYPE,
     INT16_TYPE,
     INT32_TYPE,
@@ -314,7 +313,6 @@ def reflect_builtin_function(obj: BuiltinFunctionType) -> BuiltinFunction:
     else:
         method = BuiltinFunction(obj.__name__, obj.__module__)
     return method
-
 
 
 class SymbolTable:

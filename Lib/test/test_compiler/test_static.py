@@ -17,6 +17,7 @@ from compiler.consts38 import CO_NO_FRAME, CO_STATICALLY_COMPILED
 from compiler.optimizer import AstOptimizer
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
 from compiler.static import StaticCodeGenerator, SymbolTable, TypeBinder
+from compiler.static.declaration_visitor import DeclarationVisitor
 from compiler.static.errors import CollectingErrorSink
 from compiler.static.types import (
     prim_name_to_type,
@@ -60,7 +61,6 @@ from compiler.static.types import (
     TUPLE_EXACT_TYPE,
     TUPLE_TYPE,
     TYPE_TYPE,
-    DeclarationVisitor,
     Function,
     TypedSyntaxError,
     Value,
