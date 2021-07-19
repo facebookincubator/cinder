@@ -186,6 +186,7 @@ from ..symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
 from ..unparse import to_expr
 from .declaration_visitor import GenericVisitor, DeclarationVisitor
 from .errors import ErrorSink
+from .module_table import ModuleTable
 from .types import (
     ALLOW_WEAKREFS_TYPE,
     ARRAY_EXACT_TYPE,
@@ -239,7 +240,6 @@ from .types import (
     LIST_EXACT_TYPE,
     LIST_TYPE,
     LenFunction,
-    ModuleTable,
     NAMED_TUPLE_TYPE,
     NONE_TYPE,
     NO_EFFECT,

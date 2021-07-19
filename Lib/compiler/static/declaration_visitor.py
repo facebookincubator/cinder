@@ -26,11 +26,11 @@ from contextlib import nullcontext
 from typing import Union, Sequence, Optional, List, TYPE_CHECKING
 
 from ..visitor import ASTVisitor
+from .module_table import ModuleTable
 from .types import (
     Class,
     DYNAMIC_TYPE,
     Function,
-    ModuleTable,
     NAMED_TUPLE_TYPE,
     OBJECT_TYPE,
     PROTOCOL_TYPE,
