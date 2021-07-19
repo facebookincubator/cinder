@@ -73,6 +73,8 @@ class AstOptimizer(ASTRewriter):
     def visitUnaryOp(self, node: ast.UnaryOp) -> ast.expr:
         op = self.visit(node.operand)
         if is_const(op):
+            # pyre-fixme[6]: Expected `Type[typing.Union[_ast.Invert, _ast.Not,
+            #  _ast.UAdd, _ast.USub]]` for 1st param but got `Type[_ast.unaryop]`.
             conv = UNARY_OPS[type(node.op)]
             val = get_const_value(op)
             try:
@@ -96,6 +98,10 @@ class AstOptimizer(ASTRewriter):
         right = self.visit(node.right)
 
         if is_const(left) and is_const(right):
+            # pyre-fixme[6]: Expected `Type[typing.Union[_ast.Add, _ast.BitAnd,
+            #  _ast.BitOr, _ast.BitXor, _ast.Div, _ast.FloorDiv, _ast.LShift, _ast.Mod,
+            #  _ast.Mult, _ast.Pow, _ast.RShift, _ast.Sub]]` for 1st param but got
+            #  `Type[_ast.operator]`.
             handler = BIN_OPS.get(type(node.op))
             if handler is not None:
                 lval = get_const_value(left)

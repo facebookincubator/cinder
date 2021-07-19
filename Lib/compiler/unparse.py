@@ -164,6 +164,10 @@ BIN_OPS = {
 def _format_binaryop(node: ast.BinOp, level: int) -> str:
     tgt_level = PR_FACTOR
 
+    # pyre-fixme[6]: Expected `Type[typing.Union[_ast.Add, _ast.BitAnd, _ast.BitOr,
+    #  _ast.BitXor, _ast.Div, _ast.FloorDiv, _ast.LShift, _ast.MatMult, _ast.Mod,
+    #  _ast.Mult, _ast.Pow, _ast.RShift, _ast.Sub]]` for 1st param but got
+    #  `Type[_ast.operator]`.
     op, tgt_level = BIN_OPS[type(node.op)]
     rassoc = 0
     if isinstance(node.op, ast.Pow):
