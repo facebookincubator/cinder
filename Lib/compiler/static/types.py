@@ -157,8 +157,6 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     FAST_LEN_ARRAY,
     FAST_LEN_STR,
     TYPED_DOUBLE,
-    RAND_MAX,
-    posix_clock_gettime_ns,
     rand,
 )
 
@@ -180,9 +178,10 @@ from .effects import NarrowingEffect, NO_EFFECT
 from .errors import TypedSyntaxError
 
 if TYPE_CHECKING:
-    from . import SymbolTable, Static38CodeGenerator
+    from . import Static38CodeGenerator
     from .declaration_visitor import DeclarationVisitor
     from .module_table import ModuleTable
+    from .symbol_table import SymbolTable
     from .type_binder import TypeBinder
 
 try:

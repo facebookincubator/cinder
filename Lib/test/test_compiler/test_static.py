@@ -16,9 +16,11 @@ from compiler import consts, walk
 from compiler.consts38 import CO_NO_FRAME, CO_STATICALLY_COMPILED
 from compiler.optimizer import AstOptimizer
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
-from compiler.static import StaticCodeGenerator, SymbolTable, TypeBinder
+from compiler.static import StaticCodeGenerator
 from compiler.static.declaration_visitor import DeclarationVisitor
 from compiler.static.errors import CollectingErrorSink
+from compiler.static.symbol_table import SymbolTable
+from compiler.static.type_binder import TypeBinder
 from compiler.static.types import (
     prim_name_to_type,
     BASE_EXCEPTION_TYPE,
@@ -244,7 +246,7 @@ class StaticTestBase(CompilerTest):
                 ast_optimizer_enabled,
             )
 
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         code = inspect.cleandoc("\n" + code)
         tree = ast.parse(code)
         return symtable.compile(modname, f"{modname}.py", tree, optimize)
@@ -2485,7 +2487,7 @@ class StaticCompilationTests(StaticTestBase):
         if optimize:
             tree = AstOptimizer().visit(tree)
 
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         decl_visit = DeclarationVisitor("foo", "foo.py", symtable)
         decl_visit.visit(tree)
         decl_visit.module.finish_bind()
@@ -2519,7 +2521,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: int = 'abc'
                 b: str = 42
         """
-        symtable = SymbolTable(CollectingErrorSink())
+        symtable = SymbolTable(StaticCodeGenerator, CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
         self.assertErrors(
             symtable,
@@ -2534,7 +2536,7 @@ class StaticCompilationTests(StaticTestBase):
 
             f('abc')
         """
-        symtable = SymbolTable(CollectingErrorSink())
+        symtable = SymbolTable(StaticCodeGenerator, CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
         self.assertErrors(
             symtable,
@@ -2549,7 +2551,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: int = b
                 y: str = a
         """
-        symtable = SymbolTable(CollectingErrorSink())
+        symtable = SymbolTable(StaticCodeGenerator, CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
         self.assertErrors(
             symtable, type_mismatch("str", "int"), type_mismatch("int", "str")
@@ -2565,7 +2567,7 @@ class StaticCompilationTests(StaticTestBase):
 
             f('abc')
         """
-        symtable = SymbolTable(CollectingErrorSink())
+        symtable = SymbolTable(StaticCodeGenerator, CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
         self.assertErrors(symtable, "cannot add int64 and str")
 
@@ -2577,7 +2579,7 @@ class StaticCompilationTests(StaticTestBase):
 
             f('abc')
         """
-        symtable = SymbolTable(CollectingErrorSink())
+        symtable = SymbolTable(StaticCodeGenerator, CollectingErrorSink())
         symtable.bind("a", "a.py", ast.parse(dedent(code)))
         self.assertErrors(symtable, "type mismatch: double cannot be created from str")
 
@@ -3149,7 +3151,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = C()
                 return x.f()
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)))
         bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
@@ -3169,7 +3171,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 return x.f()
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
@@ -3187,7 +3189,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 return C().f('abc')
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(
             TypedSyntaxError,
@@ -3203,7 +3205,7 @@ class StaticCompilationTests(StaticTestBase):
             def f() -> str:
                 return C().f(42)
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
             symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
@@ -3220,7 +3222,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 C().x = 'abc'
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(
             TypedSyntaxError,
@@ -3234,7 +3236,7 @@ class StaticCompilationTests(StaticTestBase):
             def f() -> str:
                 return C().x
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
             symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
@@ -3257,7 +3259,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = C()
                 return x.f()
         """
-        symtable = TestSymbolTable()
+        symtable = TestSymbolTable(StaticCodeGenerator)
         bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
@@ -3277,7 +3279,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: C):
                 return x.f()
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         symtable.add_module("b", "b.py", ast.parse(dedent(bcode)))
         acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)))
@@ -3346,7 +3348,7 @@ class StaticCompilationTests(StaticTestBase):
         tree = ast.parse(dedent(code))
         tree.body.insert(0, builtins)
 
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         symtable.add_module("a", "a.py", tree)
         acomp = symtable.compile("a", "a.py", tree)
         x = self.find_code(acomp, "f")
@@ -3381,7 +3383,7 @@ class StaticCompilationTests(StaticTestBase):
         tree = ast.parse(dedent(code))
         tree.body.insert(0, builtins)
 
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         symtable.add_module("a", "a.py", tree)
         acomp = symtable.compile("a", "a.py", tree)
         x = self.find_code(acomp, "f")
@@ -3410,7 +3412,7 @@ class StaticCompilationTests(StaticTestBase):
             None,
         )
         tree.body.insert(0, builtins)
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         symtable.add_module("a", "a.py", tree)
         acomp = symtable.compile("a", "a.py", tree)
 
@@ -3435,7 +3437,7 @@ class StaticCompilationTests(StaticTestBase):
                     x = C()
                 return x.f()
         """
-        symtable = SymbolTable()
+        symtable = SymbolTable(StaticCodeGenerator)
         symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         symtable.add_module("b", "b.py", ast.parse(dedent(bcode)))
         acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)))
