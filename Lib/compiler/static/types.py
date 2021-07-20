@@ -2450,36 +2450,6 @@ class BuiltinMethod(Callable[Class]):
                 code_gen.emit_invoke_method(self.type_descr, len(node.args))
 
 
-class StrictBuiltins(Object[Class]):
-    def __init__(self, builtins: Dict[str, Value]) -> None:
-        super().__init__(DICT_TYPE)
-        self.builtins = builtins
-
-    def bind_subscr(
-        self,
-        node: ast.Subscript,
-        type: Value,
-        visitor: TypeBinder,
-        type_ctx: Optional[Class] = None,
-    ) -> None:
-        slice = node.slice
-        type = DYNAMIC
-        if isinstance(slice, ast.Index):
-            val = slice.value
-            if isinstance(val, ast.Str):
-                builtin = self.builtins.get(val.s)
-                if builtin is not None:
-                    type = builtin
-            elif isinstance(val, ast.Constant):
-                svalue = val.value
-                if isinstance(svalue, str):
-                    builtin = self.builtins.get(svalue)
-                    if builtin is not None:
-                        type = builtin
-
-        visitor.set_type(node, type)
-
-
 def get_default_value(default: expr) -> object:
     if not isinstance(default, (Constant, Str, Num, Bytes, NameConstant, ast.Ellipsis)):
 

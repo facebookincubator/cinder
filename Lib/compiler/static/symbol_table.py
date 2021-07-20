@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
+import ast
 from ast import AST
 from types import CodeType
 from typing import Optional, Dict, Tuple, Type, TYPE_CHECKING
@@ -18,70 +19,73 @@ from .errors import ErrorSink
 from .module_table import ModuleTable
 from .type_binder import TypeBinder
 from .types import (
-    OBJECT_TYPE,
-    NONE_TYPE,
-    INT_EXACT_TYPE,
-    COMPLEX_EXACT_TYPE,
-    GenericTypesDict,
-    TYPE_TYPE,
-    BUILTIN_GENERICS,
-    STR_EXACT_TYPE,
-    BYTES_TYPE,
+    ALLOW_WEAKREFS_TYPE,
+    ARRAY_EXACT_TYPE,
+    BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
+    BUILTIN_GENERICS,
+    BYTES_TYPE,
+    BoxFunction,
+    BuiltinFunction,
+    BuiltinFunctionType,
+    CBOOL_TYPE,
+    CHAR_TYPE,
+    CHECKED_DICT_EXACT_TYPE,
+    CLASSVAR_TYPE,
+    COMPLEX_EXACT_TYPE,
+    CastFunction,
+    Class,
+    DICT_TYPE,
+    DONOTCOMPILE_TYPE,
+    DOUBLE_TYPE,
+    DYNAMIC,
+    DYNAMIC_RETURN_TYPE,
+    EXCEPTION_TYPE,
+    ExtremumFunction,
+    FINAL_METHOD_TYPE,
+    FINAL_TYPE,
     FLOAT_EXACT_TYPE,
     FUNCTION_TYPE,
-    LIST_EXACT_TYPE,
-    TUPLE_EXACT_TYPE,
-    SET_EXACT_TYPE,
-    EXCEPTION_TYPE,
-    BASE_EXCEPTION_TYPE,
-    STATIC_METHOD_TYPE,
-    CLASSVAR_TYPE,
-    DICT_TYPE,
-    LIST_TYPE,
-    FINAL_TYPE,
-    FINAL_METHOD_TYPE,
-    NAMED_TUPLE_TYPE,
-    PROTOCOL_TYPE,
-    OPTIONAL_TYPE,
-    UNION_TYPE,
-    TUPLE_TYPE,
-    ARRAY_EXACT_TYPE,
-    CHECKED_DICT_EXACT_TYPE,
-    ALLOW_WEAKREFS_TYPE,
-    DYNAMIC_RETURN_TYPE,
-    UINT64_TYPE,
-    INT64_TYPE,
-    CBOOL_TYPE,
+    GenericTypesDict,
     INLINE_TYPE,
-    DONOTCOMPILE_TYPE,
-    INT8_TYPE,
     INT16_TYPE,
     INT32_TYPE,
-    UINT8_TYPE,
-    UINT16_TYPE,
-    UINT32_TYPE,
-    CHAR_TYPE,
-    DOUBLE_TYPE,
-    VECTOR_TYPE,
-    XX_GENERIC_TYPE,
-    LenFunction,
-    ExtremumFunction,
-    SortedFunction,
+    INT64_TYPE,
+    INT8_TYPE,
+    INT_EXACT_TYPE,
     IsInstanceFunction,
     IsSubclassFunction,
-    RevealTypeFunction,
-    StrictBuiltins,
-    BoxFunction,
-    CastFunction,
-    UnboxFunction,
+    LIST_EXACT_TYPE,
+    LIST_TYPE,
+    LenFunction,
+    NAMED_TUPLE_TYPE,
+    NONE_TYPE,
     NumClass,
-    TypeName,
-    parse_typed_signature,
-    SPAM_OBJ,
-    BuiltinFunctionType,
+    OBJECT_TYPE,
+    OPTIONAL_TYPE,
+    Object,
+    PROTOCOL_TYPE,
     ResolvedTypeRef,
-    BuiltinFunction,
+    RevealTypeFunction,
+    SET_EXACT_TYPE,
+    SPAM_OBJ,
+    STATIC_METHOD_TYPE,
+    STR_EXACT_TYPE,
+    SortedFunction,
+    TUPLE_EXACT_TYPE,
+    TUPLE_TYPE,
+    TYPE_TYPE,
+    TypeName,
+    UINT16_TYPE,
+    UINT32_TYPE,
+    UINT64_TYPE,
+    UINT8_TYPE,
+    UNION_TYPE,
+    UnboxFunction,
+    VECTOR_TYPE,
+    Value,
+    XX_GENERIC_TYPE,
+    parse_typed_signature,
 )
 
 if TYPE_CHECKING:
@@ -106,6 +110,36 @@ def reflect_builtin_function(obj: BuiltinFunctionType) -> BuiltinFunction:
     else:
         method = BuiltinFunction(obj.__name__, obj.__module__)
     return method
+
+
+class StrictBuiltins(Object[Class]):
+    def __init__(self, builtins: Dict[str, Value]) -> None:
+        super().__init__(DICT_TYPE)
+        self.builtins = builtins
+
+    def bind_subscr(
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
+    ) -> None:
+        slice = node.slice
+        type = DYNAMIC
+        if isinstance(slice, ast.Index):
+            val = slice.value
+            if isinstance(val, ast.Str):
+                builtin = self.builtins.get(val.s)
+                if builtin is not None:
+                    type = builtin
+            elif isinstance(val, ast.Constant):
+                svalue = val.value
+                if isinstance(svalue, str):
+                    builtin = self.builtins.get(svalue)
+                    if builtin is not None:
+                        type = builtin
+
+        visitor.set_type(node, type)
 
 
 class SymbolTable:
