@@ -10,6 +10,8 @@ extern "C" {
 
 #include "pystate.h"   /* _PyErr_StackItem */
 
+#include "pycore_shadow_frame_struct.h"
+
 struct _frame; /* Avoid including frameobject.h */
 
 /* Opaque type used by JIT internals. For more details see comments around
@@ -33,6 +35,7 @@ typedef enum {
     PyObject_HEAD                                                           \
     /* Note: gi_frame can be NULL if the generator is "finished" */         \
     struct _frame *prefix##_frame;                                          \
+    _PyShadowFrame prefix##_shadow_frame;                                   \
     /* True if generator is being executed. */                              \
     char prefix##_running;                                                  \
     /* The code object backing the generator */                             \

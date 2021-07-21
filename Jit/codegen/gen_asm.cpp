@@ -52,8 +52,8 @@ static constexpr x86::Mem kFramePtr = x86::ptr(x86::rbp, -kFrameSize);
   -kFrameSize + int {                 \
     (offsetof(_PyShadowFrame, field)) \
   }
-static constexpr x86::Mem kPrevPtr = x86::ptr(x86::rbp, FIELD_OFF(prev));
-static constexpr x86::Mem kDataPtr = x86::ptr(x86::rbp, FIELD_OFF(data));
+static constexpr x86::Mem kInFramePrevPtr = x86::ptr(x86::rbp, FIELD_OFF(prev));
+static constexpr x86::Mem kInFrameDataPtr = x86::ptr(x86::rbp, FIELD_OFF(data));
 #undef FIELD_OFF
 
 static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
@@ -71,14 +71,18 @@ void RestoreOriginalGeneratorRBP(x86::Emitter* as) {
 void EmitEpilogueUnlinkFrame(
     x86::Builder* as,
     x86::Gp tstate_r,
-    FrameMode frameMode,
+    FrameMode frame_mode,
     bool is_generator) {
   // It's safe to use caller saved registers in this function
-  using namespace shadow_frame;
   auto scratch_reg = tstate_r == x86::rsi ? x86::rdx : x86::rsi;
   auto unlinkShadowFrame = [&] {
-    x86::Mem shadow_stack_top_ptr = getStackTopPtr(tstate_r);
-    as->mov(scratch_reg, kPrevPtr);
+    x86::Mem shadow_stack_top_ptr = shadow_frame::getStackTopPtr(tstate_r);
+    // scratch_reg = tstate->shadow_frame
+    as->mov(scratch_reg, shadow_stack_top_ptr);
+    // tstate->shadow_frame = ((_PyShadowFrame*)scratch_reg)->prev
+    as->mov(
+        scratch_reg,
+        x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, prev)));
     as->mov(shadow_stack_top_ptr, scratch_reg);
   };
   auto unlinkPyFrame = [&] {
@@ -90,31 +94,30 @@ void EmitEpilogueUnlinkFrame(
     as->call(reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
     as->mov(x86::rax, saved_rax_ptr);
   };
-  switch (frameMode) {
+  switch (frame_mode) {
     case FrameMode::kNone:
       break;
     case FrameMode::kNormal:
-      unlinkShadowFrame();
+      if (!is_generator) {
+        unlinkShadowFrame();
+      }
       unlinkPyFrame();
       break;
     case FrameMode::kShadow:
-      unlinkShadowFrame();
-      // Need to check if a Python frame was materialized for the generator.  If
-      // so, unlink it too.
+      // Generators need to unlink a frame if one was allocated but not shadow
+      // frames as these are handled by the send implementation.
       if (is_generator) {
-        auto done = as->newLabel();
-        // Load gen - this needs to happen before we save rax; it may clobber
-        // the value we need to load
-        as->mov(scratch_reg, kDataPtr);
-        // Sign extension extends the mask bits into the upper 32 bits for us
-        as->and_(
-            scratch_reg, static_cast<unsigned int>(_PyShadowFrame_PtrMask));
-        // Check for gen->gi_frame
-        as->cmp(
-            x86::qword_ptr(scratch_reg, offsetof(PyGenObject, gi_frame)), 0);
-        as->jz(done);
+        asmjit::Label done = as->newLabel();
+        x86::Mem shadow_stack_top_ptr = shadow_frame::getStackTopPtr(tstate_r);
+        as->mov(scratch_reg, shadow_stack_top_ptr);
+        as->bt(
+            x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)),
+            _PyShadowFrame_NumHasPyFrameBits - 1);
+        as->jnc(done);
         unlinkPyFrame();
         as->bind(done);
+      } else {
+        unlinkShadowFrame();
       }
       break;
   }
@@ -342,14 +345,12 @@ void NativeGenerator::loadTState(x86::Gp dst_reg) {
   }
 }
 
-void NativeGenerator::linkShadowFrame(
-    x86::Gp tstate_reg,
-    std::optional<x86::Gp> gen_reg) {
+void NativeGenerator::linkOnStackShadowFrame(x86::Gp tstate_reg) {
   const jit::hir::Function* func = GetFunction();
   jit::hir::FrameMode frame_mode = func->frameMode;
   auto scratch_reg = x86::rax;
   using namespace shadow_frame;
-  auto shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
+  x86::Mem shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
   switch (frame_mode) {
     case jit::hir::FrameMode::kNone:
       break;
@@ -358,21 +359,13 @@ void NativeGenerator::linkShadowFrame(
       as_->push(scratch_reg);
       // Save old top of shadow stack
       as_->mov(scratch_reg, shadow_stack_top_ptr);
-      as_->mov(kPrevPtr, scratch_reg);
+      as_->mov(kInFramePrevPtr, scratch_reg);
       // Set data
-      if (isGen()) {
-        // Load pointer to generator
-        as_->mov(scratch_reg, gen_reg.value());
-        // Set ptr type to PYSF_GEN
-        as_->or_(scratch_reg, PYSF_GEN << 1);
-        as_->mov(kDataPtr, scratch_reg);
-      } else {
-        bool has_pyframe = frame_mode == jit::hir::FrameMode::kNormal;
-        uintptr_t data =
-            _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, has_pyframe);
-        as_->mov(scratch_reg, data);
-        as_->mov(kDataPtr, scratch_reg);
-      }
+      bool has_pyframe = frame_mode == jit::hir::FrameMode::kNormal;
+      uintptr_t data =
+          _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, has_pyframe);
+      as_->mov(scratch_reg, data);
+      as_->mov(kInFrameDataPtr, scratch_reg);
       // Set our shadow frame as top of shadow stack
       as_->lea(scratch_reg, kFramePtr);
       as_->mov(shadow_stack_top_ptr, scratch_reg);
@@ -381,10 +374,7 @@ void NativeGenerator::linkShadowFrame(
   }
 }
 
-int NativeGenerator::setupFrameAndSaveCallerRegisters(
-    x86::Gp tstate_reg,
-    EntryKind entry_kind,
-    std::optional<x86::Gp> gen_reg) {
+int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   // During execution, the stack looks like this: (items marked with *
   // represent 0 or more words, items marked with ? represent 0 or 1 words,
   // items marked with ^ share the space from the item above):
@@ -417,17 +407,10 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(
   as_->sub(x86::rsp, spill_stack);
   env_.fixed_frame_size = spill_stack + saved_regs_size;
 
-  switch (entry_kind) {
-    case EntryKind::kInitial:
-      // The initial yield for a generator just creates the generator object
-      // and shouldn't link any frames.
-      if (!isGen()) {
-        linkShadowFrame(tstate_reg, gen_reg);
-      }
-      break;
-    case EntryKind::kResume:
-      linkShadowFrame(tstate_reg, gen_reg);
-      break;
+  // Generator shadow frames live in generator objects and only get linked in
+  // on the first resume.
+  if (!isGen()) {
+    linkOnStackShadowFrame(tstate_reg);
   }
 
   // Push used callee-saved registers.
@@ -690,7 +673,7 @@ void NativeGenerator::generatePrologue(
   auto native_entry_cursor = as_->cursor();
   as_->bind(native_entry_point);
 
-  setupFrameAndSaveCallerRegisters(x86::r11, EntryKind::kInitial);
+  setupFrameAndSaveCallerRegisters(x86::r11);
 
   env_.addAnnotation("Link frame", frame_cursor);
   env_.addAnnotation("Native entry", native_entry_cursor);
@@ -853,7 +836,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   as_->setCursor(epilogue_cursor);
 
   // now we can use all the caller save registers except for RAX
-  FrameMode frameMode = GetFunction()->frameMode;
+  FrameMode frame_mode = GetFunction()->frameMode;
   as_->bind(env_.exit_label);
 
   bool is_gen = GetFunction()->code->co_flags & kCoFlagsAnyGenerator;
@@ -868,7 +851,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
     RestoreOriginalGeneratorRBP(as_->as<x86::Emitter>());
   }
 
-  EmitEpilogueUnlinkFrame(as_, x86::rdi, frameMode, is_gen);
+  EmitEpilogueUnlinkFrame(as_, x86::rdi, frame_mode, is_gen);
 
   // If we return a primitive, set edx to 1 to indicate no error (in case of
   // error, deopt will set it to 0 and jump to hard_exit_label, skipping this.)
@@ -963,7 +946,7 @@ void NativeGenerator::generateResumeEntry() {
   as_->bind(env_.gen_resume_entry_label);
 
   generateFunctionEntry();
-  setupFrameAndSaveCallerRegisters(x86::rdx, EntryKind::kResume, gen_r);
+  setupFrameAndSaveCallerRegisters(x86::rdx);
 
   // Setup RBP to use storage in generator rather than stack.
 
@@ -1343,9 +1326,11 @@ static PyFrameObject* prepareForDeopt(
       Py_XDECREF(*sp);
     }
 
-    // Unlink frames
-    if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone) {
-      unlinkShadowFrame(tstate, frame_base, *deopt_meta.code_rt);
+    // Unlink frames. No unlink for generator shadow frames as this is handled
+    // by the send implementation.
+    if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone &&
+        !deopt_meta.code_rt->isGen()) {
+      unlinkShadowFrame(tstate, *deopt_meta.code_rt);
     }
     JITRT_UnlinkFrame(tstate);
     return nullptr;
@@ -1354,11 +1339,12 @@ static PyFrameObject* prepareForDeopt(
   *err_occurred = (deopt_meta.reason != DeoptReason::kGuardFailure);
 
   // We need to maintain the invariant that there is at most one shadow frame
-  // on the shadow stack for each frame on the Python stack. The interpreter
-  // will insert a new entry on the shadow stack when execution resumes there,
-  // so we remove our entry.
-  if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone) {
-    unlinkShadowFrame(tstate, frame_base, *deopt_meta.code_rt);
+  // on the shadow stack for each frame on the Python stack. Unless we are a
+  // a generator, the interpreter will insert a new entry on the shadow stack
+  // when execution resumes there, so we remove our entry.
+  if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone &&
+      !deopt_meta.code_rt->isGen()) {
+    unlinkShadowFrame(tstate, *deopt_meta.code_rt);
   }
 
   return frame;

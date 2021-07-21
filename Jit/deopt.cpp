@@ -7,6 +7,8 @@
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
+#include "pycore_shadow_frame.h"
+
 using jit::codegen::PhyLocation;
 
 namespace jit {
@@ -267,6 +269,7 @@ void reifyFrame(
             reinterpret_cast<jit::GenDataFooter*>(regs[PhyLocation::RBP])->gen;
         frame->f_gen = reinterpret_cast<PyObject*>(gen);
         gen->gi_frame = frame;
+        _PyShadowFrame_SetHasPyFrame(&gen->gi_shadow_frame);
         Py_INCREF(frame);
         break;
       }

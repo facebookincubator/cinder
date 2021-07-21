@@ -38,10 +38,10 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
 // shadow_frame
 CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame);
 
-// Unlink the shadow frame for the JIT frame starting at base
+// Unlink the shadow frame at the top of the tstate stack. Assumes this top is
+// a JIT frame for the function backed by code_rt.
 void unlinkShadowFrame(
     PyThreadState* tstate,
-    void** base,
     CodeRuntime& code_rt);
 
 } // namespace jit

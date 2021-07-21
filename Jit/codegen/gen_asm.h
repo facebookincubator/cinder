@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <list>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -100,14 +99,8 @@ class NativeGenerator {
   int calcFrameHeaderSize(const hir::Function* func);
   void generateCode(asmjit::CodeHolder& code);
   void generateFunctionEntry();
-  void linkShadowFrame(
-      asmjit::x86::Gp tstate_reg,
-      std::optional<asmjit::x86::Gp> gen_reg = std::nullopt);
-  enum class EntryKind { kInitial, kResume };
-  int setupFrameAndSaveCallerRegisters(
-      asmjit::x86::Gp tstate_reg,
-      EntryKind entry_kind,
-      std::optional<asmjit::x86::Gp> gen_reg = std::nullopt);
+  void linkOnStackShadowFrame(asmjit::x86::Gp tstate_reg);
+  int setupFrameAndSaveCallerRegisters(asmjit::x86::Gp tstate_reg);
   void generatePrologue(
       asmjit::Label correct_arg_count,
       asmjit::Label native_entry_point);

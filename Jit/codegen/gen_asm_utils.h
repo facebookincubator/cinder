@@ -12,12 +12,6 @@ namespace codegen {
 // Set RBP to "original RBP" value when called in the context of a generator.
 void RestoreOriginalGeneratorRBP(asmjit::x86::Emitter* as);
 
-// Generate code to unlink the current frame.
-void EmitEpilogueUnlinkFrame(
-    asmjit::x86::Builder* as,
-    asmjit::x86::Gp tstate_r,
-    jit::hir::FrameMode frameMode,
-    bool is_generator);
 
 } // namespace codegen
 } // namespace jit

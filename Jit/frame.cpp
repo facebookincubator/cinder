@@ -33,10 +33,6 @@ struct JITFrame {
     base[kRetAddrIdx] = addr;
   }
 
-  _PyShadowFrame* shadowFrame() const {
-    return reinterpret_cast<_PyShadowFrame*>(base) - 1;
-  }
-
   void insertPyFrameUnlinkTrampoline(PyFrameObject* frame) {
     void* trampoline =
         jit::codegen::NativeGeneratorFactory::pyFrameUnlinkTrampoline();
@@ -127,7 +123,7 @@ Ref<PyFrameObject> materializePyFrameForDeopt(
     void** base) {
   JITFrame jf{base};
   auto py_frame = Ref<PyFrameObject>::steal(
-      materializePyFrame(tstate, nullptr, jf.shadowFrame()));
+      materializePyFrame(tstate, nullptr, tstate->shadow_frame));
   jf.removePyFrameUnlinkTrampoline(py_frame);
   return py_frame;
 }
@@ -214,15 +210,13 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
 
 void unlinkShadowFrame(
     PyThreadState* tstate,
-    void** base,
     CodeRuntime& code_rt) {
-  JITFrame jit_frame(base);
   switch (code_rt.frameMode()) {
     case jit::hir::FrameMode::kNone:
       break;
     case jit::hir::FrameMode::kNormal:
     case jit::hir::FrameMode::kShadow:
-      _PyShadowFrame_Pop(tstate, jit_frame.shadowFrame());
+      _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
       break;
   }
 }

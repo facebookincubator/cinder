@@ -3,6 +3,7 @@
 #include "Python.h"
 #include "pycore_object.h"
 #include "pycore_pystate.h"
+#include "pycore_shadow_frame.h"
 #include "frameobject.h"
 #include "structmember.h"
 #include "opcode.h"
@@ -291,6 +292,8 @@ gen_send_ex_with_finish_yf(PyGenObject *gen,
     gen->gi_running = 1;
     gen->gi_exc_state.previous_item = tstate->exc_info;
     tstate->exc_info = &gen->gi_exc_state;
+    gen->gi_shadow_frame.prev = tstate->shadow_frame;
+    tstate->shadow_frame = &gen->gi_shadow_frame;
     if (gen->gi_jit_data) {
       result = _PyJIT_GenSend(gen, arg, exc, f, tstate, finish_yield_from);
       /* We might get a frame in no-frame mode if a deopt occurs. */
@@ -299,6 +302,7 @@ gen_send_ex_with_finish_yf(PyGenObject *gen,
     } else {
         result = PyEval_EvalFrameEx(f, exc);
     }
+    _PyShadowFrame_Pop(tstate, &gen->gi_shadow_frame);
     tstate->exc_info = gen->gi_exc_state.previous_item;
     gen->gi_exc_state.previous_item = NULL;
     gen->gi_running = 0;
@@ -453,6 +457,8 @@ _PyGen_Send_NoStopIteration(PyThreadState *tstate,
     gen->gi_running = 1;
     gen->gi_exc_state.previous_item = tstate->exc_info;
     tstate->exc_info = &gen->gi_exc_state;
+    gen->gi_shadow_frame.prev = tstate->shadow_frame;
+    tstate->shadow_frame = &gen->gi_shadow_frame;
     if (gen->gi_jit_data) {
         result = _PyJIT_GenSend(gen, arg, 0, f, tstate, 0);
         /* We might get a frame in no-frame mode if a deopt occurs. */
@@ -461,6 +467,7 @@ _PyGen_Send_NoStopIteration(PyThreadState *tstate,
     } else {
         result = PyEval_EvalFrameEx(f, 0);
     }
+    _PyShadowFrame_Pop(tstate, &gen->gi_shadow_frame);
     tstate->exc_info = gen->gi_exc_state.previous_item;
     gen->gi_exc_state.previous_item = NULL;
     gen->gi_running = 0;
@@ -1089,6 +1096,10 @@ gen_new_with_qualname(PyGenObject *gen,
     }
 
     gen->gi_jit_data = NULL;
+
+    gen->gi_shadow_frame.prev = NULL;
+    gen->gi_shadow_frame.data =
+        _PyShadowFrame_MakeData(gen, PYSF_GEN, f != NULL);
 
     gen->gi_frame = f;
     if (f) {

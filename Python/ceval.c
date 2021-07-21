@@ -1260,7 +1260,10 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     tstate->frame = f;
     co = f->f_code;
     co->co_cache.curcalls++;
-    _PyShadowFrame_PushInterp(tstate, &shadow_frame, f);
+    // Generator shadow frames are managed by the send implementation.
+    if (f->f_gen == NULL) {
+        _PyShadowFrame_PushInterp(tstate, &shadow_frame, f);
+    }
 
     if (tstate->use_tracing) {
         if (tstate->c_tracefunc != NULL) {
@@ -5869,7 +5872,9 @@ exit_eval_frame:
     f->f_executing = 0;
     tstate->frame = f->f_back;
     co->co_cache.curcalls--;
-    _PyShadowFrame_Pop(tstate, &shadow_frame);
+    if (f->f_gen == NULL) {
+        _PyShadowFrame_Pop(tstate, &shadow_frame);
+    }
 
     if (g_capture_interp_cost) {
         _PyJIT_BumpCodeInterpCost(f->f_code, code_cost);

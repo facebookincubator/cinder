@@ -1238,6 +1238,7 @@ PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
   frame->f_gen = reinterpret_cast<PyObject*>(gen);
   Py_INCREF(frame);
   gen->gi_frame = frame;
+  _PyShadowFrame_SetHasPyFrame(&gen->gi_shadow_frame);
   return frame;
 }
 

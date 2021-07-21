@@ -1233,7 +1233,7 @@ class SizeofTest(unittest.TestCase):
             check(bar, size('PP'))
         # generator
         def get_gen(): yield 1
-        check(get_gen(), size('Pb2PPP4PP'))
+        check(get_gen(), size('3Pb2PPP4PP'))
         # iterator
         check(iter('abc'), size('lP'))
         # callable-iterator

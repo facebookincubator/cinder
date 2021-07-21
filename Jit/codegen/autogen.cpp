@@ -359,9 +359,8 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   const auto gen_reg = x86::rax;
 
   // Exit early if return from JITRT_MakeGenObject was NULL.
-  auto initial_yield_exit = as->newLabel();
   as->test(gen_reg, gen_reg);
-  as->jz(initial_yield_exit);
+  as->jz(env->hard_exit_label);
 
   // Set RDI to gen->gi_jit_data for use in emitStoreGenYieldPoint() and data
   // copy using 'movsq' below.
@@ -381,8 +380,6 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   as->std();
   as->rep().movsq();
   as->cld();
-
-  as->bind(initial_yield_exit);
 
   // Jump to bottom half of epilogue
   as->jmp(env->hard_exit_label);
