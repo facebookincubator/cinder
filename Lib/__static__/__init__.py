@@ -10,6 +10,7 @@ from typing import (
     Dict,
     Iterable,
     Mapping,
+    Optional,
     Type,
     TypeVar,
     Tuple,
@@ -79,6 +80,7 @@ except ImportError:
 
     def posix_clock_gettime_ns():
         return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+
 
 try:
     import cinder
@@ -408,6 +410,7 @@ class Array(array.array, StaticGeneric[ArrayElement]):
 
 class Vector(array.array, StaticGeneric[ArrayElement]):
     """Vector is a resizable array of primitive elements"""
+
     __slots__ = ()
 
     def __new__(cls, initializer: int | Iterable[ArrayElement] | None = None):
@@ -493,6 +496,11 @@ def cast(typ, val):
         raise TypeError(f"expected {typ.__name__}, got {type(val).__name__}")
 
     return val
+
+
+def prod_assert(value: bool, message: Optional[str] = None):
+    if not value:
+        raise AssertionError(message) if message else AssertionError()
 
 
 CheckedDict = chkdict

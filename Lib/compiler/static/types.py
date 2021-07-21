@@ -4944,6 +4944,35 @@ CHECKED_DICT_TYPE = CheckedDict(CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=ch
 CHECKED_DICT_EXACT_TYPE = CheckedDict(
     CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=chkdict, is_exact=True
 )
+
+
+class ProdAssertFunction(Object[Class]):
+    def __init__(self) -> None:
+        super().__init__(FUNCTION_TYPE)
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+
+        if node.keywords:
+            visitor.syntax_error(
+                "prod_assert() does not accept keyword arguments", node
+            )
+            return NO_EFFECT
+        num_args = len(node.args)
+        if num_args != 1 and num_args != 2:
+            visitor.syntax_error(
+                "prod_assert() must be called with one or two arguments", node
+            )
+            return NO_EFFECT
+
+        effect = visitor.visit(node.args[0]) or NO_EFFECT
+        if num_args == 2:
+            visitor.visitExpectedType(node.args[1], STR_TYPE.instance)
+        effect.apply(visitor.local_types)
+        return NO_EFFECT
+
+
 if spamobj is not None:
     SPAM_OBJ = GenericClass(
         GenericTypeName("xxclassloader", "spamobj", (GenericParameter("T", 0),)),

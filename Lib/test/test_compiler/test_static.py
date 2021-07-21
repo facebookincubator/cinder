@@ -11534,7 +11534,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertTrue(hasattr(replacement, "end_lineno"))
             self.assertTrue(hasattr(replacement, "end_col_offset"))
 
-
     def test_compile_nested_class(self):
         codestr = """
             class Outer:
@@ -15650,6 +15649,95 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertEqual(foo(1), 1)
             with self.assertRaises(TypeError):
                 foo("a")
+
+    def test_prod_assert(self):
+        codestr = """
+        from typing import Optional
+        from __static__ import prod_assert
+
+        def foo(x: Optional[int]) -> int:
+            prod_assert(x)
+            return x
+        """
+        with self.in_module(codestr) as mod:
+            foo = mod["foo"]
+            self.assertEqual(foo(1), 1)
+
+    def test_prod_assert_static_error(self):
+        codestr = """
+        from typing import Optional
+        from __static__ import prod_assert
+
+        def foo(x: Optional[int]) -> str:
+            prod_assert(x)
+            return x
+        """
+        self.type_error(codestr, "return type must be str, not int")
+
+    def test_prod_assert_raises(self):
+        codestr = """
+        from typing import Optional
+        from __static__ import prod_assert
+
+        def foo(x: Optional[int]) -> int:
+            prod_assert(x)
+            return x
+        """
+        with self.in_module(codestr) as mod:
+            foo = mod["foo"]
+            with self.assertRaises(AssertionError):
+                foo(None)
+
+    def test_prod_assert_raises_with_message(self):
+        codestr = """
+        from typing import Optional
+        from __static__ import prod_assert
+
+        def foo(x: Optional[int]) -> int:
+            prod_assert(x, "x must be int")
+            return x
+        """
+        with self.in_module(codestr) as mod:
+            foo = mod["foo"]
+            with self.assertRaisesRegex(AssertionError, "x must be int"):
+                foo(None)
+
+    def test_prod_assert_message_type(self):
+        codestr = """
+        from typing import Optional
+        from __static__ import prod_assert
+
+        def foo(x: Optional[int]) -> int:
+            prod_assert(x, 3)
+            return x
+        """
+        self.type_error(
+            codestr, r"type mismatch: Literal\[3\] cannot be assigned to str"
+        )
+
+    def test_prod_assert_argcount_type_error(self):
+        codestr = """
+        from typing import Optional
+        from __static__ import prod_assert
+
+        def foo(x: Optional[int]) -> int:
+            prod_assert(x, 3, 2)
+            return x
+        """
+        self.type_error(
+            codestr, r"prod_assert\(\) must be called with one or two arguments"
+        )
+
+    def test_prod_assert_keywords_type_error(self):
+        codestr = """
+        from typing import Optional
+        from __static__ import prod_assert
+
+        def foo(x: Optional[int]) -> int:
+            prod_assert(x, message="x must be int")
+            return x
+        """
+        self.type_error(codestr, r"prod_assert\(\) does not accept keyword arguments")
 
     def test_protocol_is_dynamic(self):
         codestr = """
