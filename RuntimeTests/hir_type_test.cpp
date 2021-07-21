@@ -902,9 +902,9 @@ TEST_F(HIRTypeTest, ReflowSimpleTypes) {
   ASSERT_TRUE(checkFunc(func, std::cerr));
   reflowTypes(func);
 
-  EXPECT_EQ(v0->type(), TDict);
-  EXPECT_EQ(v1->type(), TListExact);
-  EXPECT_EQ(v2->type(), TDict | TListExact);
+  EXPECT_EQ(v0->type(), TMortalDict);
+  EXPECT_EQ(v1->type(), TMortalListExact);
+  EXPECT_EQ(v2->type(), (TMortalDict | TMortalListExact));
 }
 
 TEST_F(HIRTypeTest, ReflowLoopTypes) {
@@ -930,7 +930,7 @@ TEST_F(HIRTypeTest, ReflowLoopTypes) {
   ASSERT_TRUE(checkFunc(func, std::cerr));
   reflowTypes(func);
 
-  EXPECT_EQ(v0->type(), TTupleExact);
-  EXPECT_EQ(v1->type(), TTupleExact | TDict);
-  EXPECT_EQ(v2->type(), TDict);
+  EXPECT_EQ(v0->type(), TMortalTupleExact);
+  EXPECT_EQ(v1->type(), TMortalTupleExact | TMortalDict);
+  EXPECT_EQ(v2->type(), TMortalDict);
 }

@@ -443,7 +443,7 @@ std::vector<PredState> collectPredStates(Env& env, BasicBlock* block) {
 // Return true iff the given Register is definitely not a reference-counted
 // value.
 bool isUncounted(const Register* reg) {
-  return !reg->type().couldBe(TObject);
+  return !reg->type().couldBe(TMortalObject);
 }
 
 // Insert an Incref of `reg` before `cursor`.

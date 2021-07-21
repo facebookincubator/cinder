@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "Jit/hir/hir.h"
 #include "Jit/log.h"
 #include "Jit/ref.h"
 #include "classloader.h"
@@ -39,6 +40,8 @@ Register* HIRParser::allocateRegister(const char* name) {
   if (reg == nullptr) {
     reg = env_->addRegister(std::make_unique<Register>(id));
   }
+
+  max_reg_id_ = std::max(max_reg_id_, id);
   return reg;
 }
 
@@ -173,6 +176,15 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     for (int i = 0; i < num_args; i++) {
       instr->SetOperand(i + 1, args[i]);
     }
+  } else if (strcmp(opcode, "MakeListTuple") == 0) {
+    expect("<");
+    auto kind = parseListOrTuple();
+    expect(",");
+    int nvalues = GetNextInteger();
+    expect(">");
+
+    instruction =
+        newInstr<MakeListTuple>(kind == ListOrTuple::Tuple, dst, nvalues);
   } else if (strcmp(opcode, "LoadArg") == 0) {
     expect("<");
     int idx = GetNextNameIdx();
@@ -642,6 +654,7 @@ std::unique_ptr<Function> HIRParser::ParseHIR(const char* hir) {
 
   expect("}");
 
+  hir_func->env.setNextRegisterId(max_reg_id_ + 1);
   return hir_func;
 }
 

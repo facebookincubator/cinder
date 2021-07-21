@@ -395,8 +395,15 @@ void LIRGenerator::MakeIncref(
     BasicBlockBuilder& bbb,
     const hir::Instr& instr,
     bool xincref) {
+  Register* obj = instr.GetOperand(0);
+#ifdef Py_IMMORTAL_INSTANCES
+  if (!obj->type().couldBe(TMortalObject)) {
+    // don't generate anything for immortal object
+    return;
+  }
+#endif
+
   auto end_incref = GetSafeLabelName();
-  auto obj = instr.GetOperand(0);
   if (xincref) {
     auto cont = GetSafeLabelName();
     bbb.AppendCode(
@@ -407,6 +414,10 @@ void LIRGenerator::MakeIncref(
         end_incref,
         cont);
   }
+
+  auto r1 = GetSafeTempName();
+  bbb.AppendCode(
+      "Load {}, {}, {:#x}\n", r1, obj, offsetof(PyObject, ob_refcnt));
 
 #ifdef Py_DEBUG
   auto r0 = GetSafeTempName();
@@ -421,28 +432,25 @@ void LIRGenerator::MakeIncref(
       reinterpret_cast<uint64_t>(&_Py_RefTotal));
 #endif
 
-  auto r1 = GetSafeTempName();
-  auto cond_incref = GetSafeLabelName();
+#ifdef Py_IMMORTAL_INSTANCES
+  if (obj->type().couldBe(TImmortalObject)) {
+    auto mortal = GetSafeLabelName();
+    bbb.AppendCode(
+        "BitTest {}, {}\n"
+        "BranchC {}\n"
+        "{}:\n",
+        r1, // BitTest
+        kImmortalBitPos,
+        end_incref, // BranchC
+        mortal // label
+    );
+  }
+#endif
 
   bbb.AppendCode(
-      "Load {}, {}, {:#x}\n"
-#ifdef Py_IMMORTAL_INSTANCES
-      "BitTest {}, {}\n"
-      "BranchC {}\n"
-#endif
-      "{}:\n"
       "Inc {}\n"
       "Store {}, {}, {:#x}\n"
       "{}:",
-      r1, // Load
-      obj,
-      offsetof(PyObject, ob_refcnt),
-#ifdef Py_IMMORTAL_INSTANCES
-      r1, // BitTest
-      kImmortalBitPos,
-      end_incref, // BranchC
-#endif
-      cond_incref, // label
       r1, // Inc
       r1, // Store
       obj,
@@ -455,8 +463,16 @@ void LIRGenerator::MakeDecref(
     BasicBlockBuilder& bbb,
     const jit::hir::Instr& instr,
     bool xdecref) {
+  Register* obj = instr.GetOperand(0);
+
+#ifdef Py_IMMORTAL_INSTANCES
+  if (!obj->type().couldBe(TMortalObject)) {
+    // don't generate anything for immortal object
+    return;
+  }
+#endif
+
   auto end_decref = GetSafeLabelName();
-  auto obj = instr.GetOperand(0);
   if (xdecref) {
     auto cont = GetSafeLabelName();
     bbb.AppendCode(
@@ -467,6 +483,12 @@ void LIRGenerator::MakeDecref(
         end_decref,
         cont);
   }
+
+  auto r1 = GetSafeTempName();
+  auto r2 = GetSafeTempName();
+
+  bbb.AppendCode(
+      "Load {}, {}, {:#x}\n", r1, obj, offsetof(PyObject, ob_refcnt));
 
 #ifdef Py_DEBUG
   auto r0 = GetSafeTempName();
@@ -481,44 +503,43 @@ void LIRGenerator::MakeDecref(
       reinterpret_cast<uint64_t>(&_Py_RefTotal));
 #endif
 
-  auto r1 = GetSafeTempName();
-  auto r2 = GetSafeTempName();
-  auto cond_decref = GetSafeLabelName();
+#ifdef Py_IMMORTAL_INSTANCES
+  if (obj->type().couldBe(TImmortalObject)) {
+    auto mortal = GetSafeLabelName();
+    bbb.AppendCode(
+        "BitTest {}, {}\n"
+        "BranchC {}\n"
+        "{}:\n",
+        r1, // BitTest
+        kImmortalBitPos,
+        end_decref, // BranchC
+        mortal // label
+    );
+  }
+#endif
+
   auto dealloc = GetSafeLabelName();
+  bbb.AppendCode(
+      "Sub {}, {}, 1\n"
+      "Store {}, {}, {:#x}\n",
+      r2,
+      r1,
+      r2,
+      obj,
+      offsetof(PyObject, ob_refcnt));
 
   bbb.AppendCode(
-      "Load {}, {}, {:#x}\n"
-#ifdef Py_IMMORTAL_INSTANCES
-      "BitTest {}, {}\n"
-      "BranchC {}\n"
-#endif
-      "{}:\n"
-      "Sub {}, {}, 1\n"
-      "Store {}, {}, {:#x}\n"
       "BranchNZ {}\n"
-      "{}:\n"
+      "{}:",
+      end_decref,
+      dealloc);
+
+  bbb.AppendCode(
       "Invoke {:#x}, {}\n"
       "{}:",
-      r1, // Load
-      obj,
-      offsetof(PyObject, ob_refcnt),
-#ifdef Py_IMMORTAL_INSTANCES
-      r1, // BitTest
-      kImmortalBitPos,
-      end_decref, // BranchC
-#endif
-      cond_decref, // label
-      r2, // Sub
-      r1,
-      r2, // Store
-      obj,
-      offsetof(PyObject, ob_refcnt),
-      end_decref, // BranchNZ
-      dealloc, // label
-      reinterpret_cast<uint64_t>(JITRT_Dealloc), // Invoke
-      obj,
-      end_decref // label
-  );
+      reinterpret_cast<uint64_t>(JITRT_Dealloc),
+      obj, // Invoke
+      end_decref);
 }
 
 // Checks if a type has reasonable == semantics, that is that

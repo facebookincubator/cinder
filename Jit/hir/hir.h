@@ -3359,6 +3359,14 @@ class Environment {
   // Returns nullptr if a register with the given `id` isn't found
   Register* getRegister(int id);
 
+  int nextRegisterId() const {
+    return next_register_id_;
+  }
+
+  void setNextRegisterId(int id) {
+    next_register_id_ = id;
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Environment);
 

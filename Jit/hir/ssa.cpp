@@ -279,7 +279,6 @@ Type outputType(const Instr& instr) {
     case Opcode::kCallMethod:
     case Opcode::kCompare:
     case Opcode::kBinaryOp:
-    case Opcode::kBuildString:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kFormatValue:
     case Opcode::kGetIter:
@@ -300,6 +299,8 @@ Type outputType(const Instr& instr) {
     case Opcode::kVectorCallStatic:
     case Opcode::kWaitHandleLoadCoroOrResult:
       return TObject;
+    case Opcode::kBuildString:
+      return TMortalUnicode;
     // Many opcodes just return a possibly-null PyObject*. Some of these will
     // be further specialized based on the input types in the hopefully near
     // future.
@@ -363,7 +364,7 @@ Type outputType(const Instr& instr) {
 
     // Some return something slightly more interesting.
     case Opcode::kBuildSlice:
-      return TSlice;
+      return TMortalSlice;
     case Opcode::kGetTuple:
       return TTupleExact;
     case Opcode::kInitialYield:
@@ -376,17 +377,17 @@ Type outputType(const Instr& instr) {
     case Opcode::kLoadEvalBreaker:
       return TCInt32;
     case Opcode::kMakeCell:
-      return TCell;
+      return TMortalCell;
     case Opcode::kMakeDict:
-      return TDict;
+      return TMortalDict;
     case Opcode::kMakeCheckedDict: {
       auto& makechkdict = static_cast<const MakeCheckedDict&>(instr);
       return makechkdict.type();
     }
     case Opcode::kMakeFunction:
-      return TFunc;
+      return TMortalFunc;
     case Opcode::kMakeSet:
-      return TSet;
+      return TMortalSet;
     case Opcode::kRunPeriodicTasks:
       return TBool;
 
@@ -432,11 +433,11 @@ Type outputType(const Instr& instr) {
     }
     case Opcode::kMakeListTuple: {
       auto is_tuple = static_cast<const MakeListTuple&>(instr).is_tuple();
-      return is_tuple ? TTupleExact : TListExact;
+      return is_tuple ? TMortalTupleExact : TMortalListExact;
     }
     case Opcode::kMakeTupleFromList:
     case Opcode::kUnpackExToTuple:
-      return TTupleExact;
+      return TMortalTupleExact;
     case Opcode::kPhi: {
       auto ty = TBottom;
       for (std::size_t i = 0, n = instr.NumOperands(); i < n; ++i) {

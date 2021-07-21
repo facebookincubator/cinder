@@ -38,6 +38,7 @@ class HIRParser {
   std::unordered_map<CondBranch*, std::pair<int, int>> cond_branches_;
   std::unordered_map<Branch*, int> branches_;
   std::unordered_map<int, std::vector<PhiInfo>> phis_;
+  int max_reg_id_{0};
 
   const char* GetNextToken() {
     JIT_CHECK(token_iter_ != tokens_.end(), "No more tokens");
