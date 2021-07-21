@@ -108,9 +108,12 @@ void EmitEpilogueUnlinkFrame(
         asmjit::Label done = as->newLabel();
         x86::Mem shadow_stack_top_ptr = shadow_frame::getStackTopPtr(tstate_r);
         as->mov(scratch_reg, shadow_stack_top_ptr);
-        as->bt(
-            x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)),
-            _PyShadowFrame_NumHasPyFrameBits - 1);
+        // Check bit 0 of _PyShadowFrame::data to see if a frame needs
+        // unlinking. This bit will be set (pointer kind == PYSF_PYFRAME) if so.
+        static_assert(
+            PYSF_PYFRAME == 1 && _PyShadowFrame_PtrKindMask == 1,
+            "Unexpected constants");
+        as->bt(x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)), 0);
         as->jnc(done);
         unlinkPyFrame();
         as->bind(done);
@@ -354,10 +357,16 @@ void NativeGenerator::linkOnStackShadowFrame(x86::Gp tstate_reg) {
   as_->mov(scratch_reg, shadow_stack_top_ptr);
   as_->mov(kInFramePrevPtr, scratch_reg);
   // Set data
-  bool has_pyframe = frame_mode == jit::hir::FrameMode::kNormal;
-  uintptr_t data =
-      _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, has_pyframe);
-  as_->mov(scratch_reg, data);
+  if (frame_mode == jit::hir::FrameMode::kNormal) {
+    as_->mov(scratch_reg, x86::ptr(tstate_reg, offsetof(PyThreadState, frame)));
+    static_assert(
+        PYSF_PYFRAME == 1 && _PyShadowFrame_PtrKindMask == 1,
+        "Unexpected constant");
+    as_->bts(scratch_reg, 0);
+  } else {
+    uintptr_t data = _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT);
+    as_->mov(scratch_reg, data);
+  }
   as_->mov(kInFrameDataPtr, scratch_reg);
   // Set our shadow frame as top of shadow stack
   as_->lea(scratch_reg, kFramePtr);

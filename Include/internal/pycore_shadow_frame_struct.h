@@ -44,27 +44,23 @@ typedef struct _PyShadowFrame {
    * This data field holds a pointer in the upper bits and meta-data in the
    * lower bits. The format is as follows:
    *
-   *   [pointer: void*][pointer_kind: _PyShadowFrame_PtrKind][has_pyframe: bool]
-   *    62 bits         1 bit                                 1 bit
-   *
-   * When `has_pyframe` is set a frame has been materialized for this shadow
-   * frame and is available by walking the chain of PyFrameObject's rooted in
-   * PyThreadState::frame. This is always set for interpreted functions.
+   *   [pointer: void*][pointer_kind: _PyShadowFrame_PtrKind]
+   *    63 bits         1 bit
    *
    * The contents of `pointer` depends on the value of `pointer_kind`. See below
    * in the definition of _PyShadowFrame_PtrKind for details. A full 64 bit
-   * pointer takes the 62 bits with the bottom bits padded with zeros.
+   * pointer takes the 63 bits with the bottom bits padded with zeros.
    */
   uintptr_t data;
 } _PyShadowFrame;
 
 typedef enum {
-  PYSF_CODE_RT,  /* Pointer holds jit::CodeRuntime*. The frame refers to a JIT
-                    function which is sufficient to reify a PyFrameObject,
-                    access a PyCodeObject, or tell if the function is a
-                    generator. */
+  PYSF_CODE_RT, /* Pointer holds jit::CodeRuntime*. The frame refers to a JIT
+                   function which is sufficient to reify a PyFrameObject,
+                   access a PyCodeObject, or tell if the function is a
+                   generator. */
 
-  PYSF_CODE_OBJ, /* Pointer holds PyCodeObject*. `has_pyframe` will be true. */
+  PYSF_PYFRAME, /* Pointer holds PyFrameObject*. */
 } _PyShadowFrame_PtrKind;
 
 #endif /* !Py_SHADOW_FRAME_STRUCT_H */

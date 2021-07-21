@@ -34,10 +34,6 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen);
 
-// Return the CodeRuntime for the JIT-compiled function associated with
-// shadow_frame
-CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame);
-
 } // namespace jit
 
 #endif // !__FRAME_H__

@@ -1358,8 +1358,9 @@ static inline PyObject* make_gen_object(
     return nullptr;
   }
 
-  gen->gi_shadow_frame.data =
-      _PyShadowFrame_MakeData(code_rt, PYSF_CODE_RT, gen->gi_frame != nullptr);
+  gen->gi_shadow_frame.data = gen->gi_frame == nullptr
+      ? _PyShadowFrame_MakeData(code_rt, PYSF_CODE_RT)
+      : _PyShadowFrame_MakeData(gen->gi_frame, PYSF_PYFRAME);
 
   spill_words = std::max(spill_words, jit::kMinGenSpillWords);
 

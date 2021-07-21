@@ -14,13 +14,14 @@
 
 static bool is_shadow_frame_for_gen(_PyShadowFrame* shadow_frame) {
   bool is_jit_gen = _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT &&
-      jit::getCodeRuntime(shadow_frame)->isGen();
-  bool is_non_jit_gen =
-      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_OBJ &&
-      (reinterpret_cast<PyCodeObject*>(_PyShadowFrame_GetPtr(shadow_frame))
-           ->co_flags &
+      static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame))
+          ->isGen();
+  // Note this may be JIT or interpreted.
+  bool is_gen_with_frame =
+      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME &&
+      (_PyShadowFrame_GetPyFrame(shadow_frame)->f_code->co_flags &
        jit::kCoFlagsAnyGenerator);
-  return is_jit_gen || is_non_jit_gen;
+  return is_jit_gen || is_gen_with_frame;
 }
 
 namespace jit {
@@ -79,13 +80,16 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     PyThreadState* tstate,
     PyFrameObject* prev,
     _PyShadowFrame* shadow_frame) {
-  if (_PyShadowFrame_HasPyFrame(shadow_frame)) {
-    return prev == nullptr ? tstate->frame : prev->f_back;
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+    return _PyShadowFrame_GetPyFrame(shadow_frame);
   }
   // Python frame doesn't exist yet, create it and insert it into the
   // stack. Ownership of the new reference is transferred to whomever
   // unlinks the frame.
-  CodeRuntime* code_rt = getCodeRuntime(shadow_frame);
+  JIT_CHECK(
+      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
+      "Unexpected shadow frame type");
+  auto code_rt = static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
   PyFrameObject* frame = createPyFrame(tstate, *code_rt);
   if (prev != nullptr) {
     // New frame steals reference from previous frame to next frame.
@@ -122,7 +126,7 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     // trampoline.
     JITFrame{shadow_frame}.insertPyFrameUnlinkTrampoline(frame);
   }
-  _PyShadowFrame_SetHasPyFrame(shadow_frame);
+  shadow_frame->data = _PyShadowFrame_MakeData(frame, PYSF_PYFRAME);
 
   return frame;
 }
@@ -139,17 +143,16 @@ Ref<PyFrameObject> materializePyFrameForDeopt(
   return py_frame;
 }
 
-BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
+void assertShadowCallStackConsistent(PyThreadState* tstate) {
   PyFrameObject* py_frame = tstate->frame;
-  PyFrameObject* prev_py_frame = nullptr;
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
 
   while (shadow_frame) {
-    if (_PyShadowFrame_HasPyFrame(shadow_frame)) {
-      prev_py_frame = py_frame;
+    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+      JIT_CHECK(
+          py_frame == _PyShadowFrame_GetPyFrame(shadow_frame),
+          "Inconsistent shadow and py frame");
       py_frame = py_frame->f_back;
-    } else {
-      prev_py_frame = materializePyFrame(tstate, prev_py_frame, shadow_frame);
     }
     shadow_frame = shadow_frame->prev;
   }
@@ -166,6 +169,24 @@ BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
     }
     JIT_CHECK(false, "stack walk didn't consume entire python stack");
   }
+}
+
+BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
+  PyFrameObject* prev_py_frame = nullptr;
+  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+
+  while (shadow_frame) {
+    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+      prev_py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+    } else {
+      prev_py_frame = materializePyFrame(tstate, prev_py_frame, shadow_frame);
+    }
+    shadow_frame = shadow_frame->prev;
+  }
+
+  if (py_debug) {
+    assertShadowCallStackConsistent(tstate);
+  }
 
   return tstate->frame;
 }
@@ -178,16 +199,11 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
     return gen->gi_frame;
   }
 
-  PyFrameObject* py_frame = tstate->frame;
   PyFrameObject* prev_py_frame = nullptr;
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   while (shadow_frame) {
-    if (_PyShadowFrame_HasPyFrame(shadow_frame)) {
-      if (py_frame->f_gen == reinterpret_cast<PyObject*>(gen)) {
-        return py_frame;
-      }
-      prev_py_frame = py_frame;
-      py_frame = py_frame->f_back;
+    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+      prev_py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
     } else if (is_shadow_frame_for_gen(shadow_frame)) {
       PyGenObject* cur_gen = _PyShadowFrame_GetGen(shadow_frame);
       if (cur_gen == gen) {
@@ -200,18 +216,6 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
   JIT_CHECK(false, "failed to find frame for gen");
 
   return nullptr;
-}
-
-CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
-  _PyShadowFrame_PtrKind kind = _PyShadowFrame_GetPtrKind(shadow_frame);
-  void* ptr = _PyShadowFrame_GetPtr(shadow_frame);
-  switch (kind) {
-    case PYSF_CODE_RT:
-      return reinterpret_cast<CodeRuntime*>(ptr);
-    case PYSF_CODE_OBJ:
-      JIT_CHECK(false, "Not a JIT-compiled function!");
-  }
-  JIT_CHECK(false, "Invalid pointer kind %d", kind);
 }
 
 } // namespace jit

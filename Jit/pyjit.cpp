@@ -1231,7 +1231,7 @@ PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
   frame->f_gen = reinterpret_cast<PyObject*>(gen);
   Py_INCREF(frame);
   gen->gi_frame = frame;
-  _PyShadowFrame_SetHasPyFrame(&gen->gi_shadow_frame);
+  gen->gi_shadow_frame.data = _PyShadowFrame_MakeData(frame, PYSF_PYFRAME);
   return frame;
 }
 
@@ -1273,9 +1273,13 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
         "py frame w/out corresponding shadow frame\n");
     return nullptr;
   }
-  if (_PyShadowFrame_HasPyFrame(shadow_frame)) {
-    return tstate->frame->f_globals;
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+    return _PyShadowFrame_GetPyFrame(shadow_frame)->f_globals;
   }
-  jit::CodeRuntime* code_rt = getCodeRuntime(shadow_frame);
+  JIT_DCHECK(
+      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
+      "Unexpected shadow frame type");
+  jit::CodeRuntime* code_rt =
+      static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
   return code_rt->GetGlobals();
 }
