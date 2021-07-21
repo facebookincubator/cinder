@@ -9,81 +9,62 @@
  * PyFrameObjects unless absolutely necessary (e.g. when a user calls
  * sys._getframe()).
  *
- * Shadow frames are stack allocated by both the interpreter and JIT-compiled
- * functions and are linked into a call stack. The top of the stack is stored in
- * PyThreadState.
+ * Shadow frames are allocated by both the interpreter and JIT-compiled
+ * functions either on the system stack or in generator object instances and
+ * linked into a call stack with the top linked to in PyThreadState.
  *
  * When a user requests a Python frame for a JIT-compiled function, the runtime
  * will allocate one and insert it into the appropriate place in chain of
  * PyFrameObjects. If the JIT-compiled function corresponded to a generator, the
  * newly allocated PyFrameObject will be linked to the corresponding generator
  * for the rest of its execution.
+ *
+ * In addition to allowing materialization of PyFrameObjects, shadow frames
+ * provide enough information for introspection of the PyCodeObject's for all
+ * active functions in the current call-stack.
+ *
+ * For stack introspection, we'll want to walk either the synchronous call
+ * stack or the "await stack" and retrieve the PyCodeObject for each member.
+ * The synchronous call stack is represented by the linked-list of shadow
+ * frames that begins at the top-most shadow frame of the current thread.
+ * The "await stack" consists of the chain of coroutines that are
+ * transitively awaiting on the top-most coroutine of the current
+ * thread. This chain is threaded through the coroutine object; to recover it
+ * from a shadow frame, we must be able to go from a shadow frame to its
+ * associated coroutine object. To do this we take advantage of shadow frames
+ * for generator-like functions being stored within the associated PyGenObject.
+ * Thus we can recover a pointer of the PyGenObject at a fixed offset from a
+ * shadow frame pointer. We can use other data in the shadow frame to determine
+ * if it refers to a generator function and so such a translation is valid.
  */
 typedef struct _PyShadowFrame {
   struct _PyShadowFrame *prev;
 
   /*
-   * Shadow frames need to support two main use cases: materializing
-   * PyFrameObjects and introspecting the active call stack.
+   * This data field holds a pointer in the upper bits and meta-data in the
+   * lower bits. The format is as follows:
    *
-   * When materializing a PyFrameObject, we need the following:
+   *   [pointer: void*][pointer_kind: _PyShadowFrame_PtrKind][has_pyframe: bool]
+   *    62 bits         1 bit                                 1 bit
    *
-   * 1. An indicator for whether or not we need to materialize anything.  We
-   *    don't need to materialize anything if the shadow frame corresponds to
-   *    an interpreted function or we already materialized a frame for it.
-   * 2. If (1) is true, we need access to enough metadata about the
-   *    corresponding function to allow us to create a `PyFrameObject` for
-   *    it. (A pointer to the associated `jit::CodeRuntime` is enough.)
-   * 3. If (1) is true, and the function is a generator, we also need access
-   *    to the generator so that we can attach the newly materialized frame to
-   *    it.
+   * When `has_pyframe` is set a frame has been materialized for this shadow
+   * frame and is available by walking the chain of PyFrameObject's rooted in
+   * PyThreadState::frame. This is always set for interpreted functions.
    *
-   * For stack introspection, we'll want to walk either the synchronous call
-   * stack or the "await stack" and retrieve the PyCodeObject for each member.
-   * The synchronous call stack is represented by the linked-list of shadow
-   * frames that begins at the top-most shadow frame of the current thread.
-   * The "await stack" consists of the chain of coroutines that are
-   * transitively awaiting on the top-most coroutine of the current
-   * thread. This chain is threaded through the coroutine object; to recover it
-   * from a shadow frame, we must be able to go from a shadow frame to its
-   * associated coroutine object.
-   *
-   * We encode the necessary information in a tagged pointer with the following
-   * format:
-   *
-   * [pointer][pointer_type][has_pyframe]
-   *  61 bits  2 bits        1 bit
-   *
-   * For non-generator functions, the `has_pyframe` bit indicates whether or
-   * not there is a corresponding `PyFrameObject` in the linked-list of active
-   * Python frames. For generator functions the `gi_frame` field on the
-   * associated generator is the source of truth. The `has_pyframe` bit is
-   * treated as an optimization. A corresponding `PyFrameObject` will exist if
-   * it's set, however, one may also exist even if it is unset.
-   *
-   * The `pointer_type` bits specify the type of `pointer`.
-   * - PYSF_CODE_RT: `jit::CodeRuntime`, whose `py_code_` field points to a
-   * `PyCodeObject`.
-   * - PYSF_CODE_OBJ: `PyCodeObject`
-   * - PYSF_GEN: A subtype of `PyGenObject`
-   *
-   * Mask off the bottom 3 bits to retrieve the raw pointer.
-   *
-   * For interpreted functions, the `has_pyframe` bit of `data` will always be
-   * set.  If the function being executing is not a generator, `pointer_type`
-   * will be `PYSF_CODE_OBJ` and `pointer` will point to a
-   * `PyCodeObject`. Otherwise, `pointer_type` will be `PYSF_GEN` and `pointer`
-   * will point to subtype of `PyGenObject`.
-   *
-   * For JIT-compiled functions, the value of the `has_pyframe` bit will depend
-   * on whether or not a frame has been materialized. If the function is not a
-   * generator, `pointer_type` will be `PYSF_CODE_RT` and `pointer` will point
-   * to a `jit::CodeRuntime`. Otherwise, `pointer_type` be `PYSF_GEN` and
-   * `pointer` will point to a subtype of `PyGenObject` (the same as the
-   * interpreted case).
-   *
+   * The contents of `pointer` depends on the value of `pointer_kind`. See below
+   * in the definition of _PyShadowFrame_PtrKind for details. A full 64 bit
+   * pointer uses the 62 bits here plus two zero bits in the lower end.
    */
   uintptr_t data;
 } _PyShadowFrame;
+
+typedef enum {
+  PYSF_CODE_RT,  /* Pointer holds jit::CodeRuntime*. The frame refers to a JIT
+                    function which is sufficient to reify a PyFrameObject,
+                    access a PyCodeObject, or tell if the function is a
+                    generator. */
+
+  PYSF_CODE_OBJ, /* Pointer holds PyCodeObject*. `has_pyframe` will be true. */
+} _PyShadowFrame_PtrKind;
 
 #endif /* !Py_SHADOW_FRAME_STRUCT_H */

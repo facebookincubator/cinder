@@ -12,6 +12,17 @@
 #include <optional>
 #include <unordered_set>
 
+static bool is_shadow_frame_for_gen(_PyShadowFrame* shadow_frame) {
+  bool is_jit_gen = _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT &&
+      jit::getCodeRuntime(shadow_frame)->isGen();
+  bool is_non_jit_gen =
+      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_OBJ &&
+      (reinterpret_cast<PyCodeObject*>(_PyShadowFrame_GetPtr(shadow_frame))
+           ->co_flags &
+       jit::kCoFlagsAnyGenerator);
+  return is_jit_gen || is_non_jit_gen;
+}
+
 namespace jit {
 
 namespace {
@@ -88,7 +99,7 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     // ThreadState holds a borrowed reference
     tstate->frame = frame;
   }
-  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_GEN) {
+  if (code_rt->isGen()) {
     // Transfer ownership of the new reference to frame to the generator
     // epilogue.  It handles detecting and unlinking the frame if the generator
     // is present in the `data` field of the shadow frame.
@@ -177,7 +188,7 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
       }
       prev_py_frame = py_frame;
       py_frame = py_frame->f_back;
-    } else if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_GEN) {
+    } else if (is_shadow_frame_for_gen(shadow_frame)) {
       PyGenObject* cur_gen = _PyShadowFrame_GetGen(shadow_frame);
       if (cur_gen == gen) {
         return materializePyFrame(tstate, prev_py_frame, shadow_frame);
@@ -199,11 +210,6 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
       return reinterpret_cast<CodeRuntime*>(ptr);
     case PYSF_CODE_OBJ:
       JIT_CHECK(false, "Not a JIT-compiled function!");
-    case PYSF_GEN:
-      auto gen = reinterpret_cast<PyGenObject*>(ptr);
-      JIT_DCHECK(gen->gi_jit_data != nullptr, "Not a JIT generator!");
-      auto jd = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-      return jd->code_rt;
   }
   JIT_CHECK(false, "Invalid pointer kind %d", kind);
 }
@@ -222,3 +228,15 @@ void unlinkShadowFrame(
 }
 
 } // namespace jit
+
+PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
+  JIT_DCHECK(
+      is_shadow_frame_for_gen(shadow_frame),
+      "Not shadow-frame for a generator");
+
+  // For generators, shadow frame is embedded in generator object. Thus we
+  // can recover the generator object pointer from the shadow frame pointer.
+  return reinterpret_cast<PyGenObject*>(
+      reinterpret_cast<uintptr_t>(shadow_frame) -
+      offsetof(PyGenObject, gi_shadow_frame));
+}

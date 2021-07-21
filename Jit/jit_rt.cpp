@@ -15,6 +15,7 @@
 #include "frameobject.h"
 #include "listobject.h"
 #include "object.h"
+#include "pycore_shadow_frame.h"
 #include "pystate.h"
 #include "switchboard.h"
 
@@ -1357,6 +1358,9 @@ static inline PyObject* make_gen_object(
   if (gen == nullptr) {
     return nullptr;
   }
+
+  gen->gi_shadow_frame.data =
+      _PyShadowFrame_MakeData(code_rt, PYSF_CODE_RT, gen->gi_frame != nullptr);
 
   spill_words = std::max(spill_words, jit::kMinGenSpillWords);
 

@@ -15,15 +15,14 @@
 extern "C" {
 #endif
 
-typedef enum { PYSF_CODE_RT, PYSF_CODE_OBJ, PYSF_GEN } _PyShadowFrame_PtrKind;
-
 static const unsigned int _PyShadowFrame_NumHasPyFrameBits = 1;
 static const uintptr_t _PyShadowFrame_HasPyFrameMask = 1;
-static const unsigned int _PyShadowFrame_NumPtrKindBits = 2;
+static const unsigned int _PyShadowFrame_NumPtrKindBits = 1;
 static const uintptr_t _PyShadowFrame_PtrKindMask =
     ((1 << _PyShadowFrame_NumPtrKindBits) - 1)
     << _PyShadowFrame_NumHasPyFrameBits;
-static const unsigned int _PyShadowFrame_NumTagBits = 3;
+static const unsigned int _PyShadowFrame_NumTagBits =
+    _PyShadowFrame_NumHasPyFrameBits + _PyShadowFrame_NumPtrKindBits;
 static const uintptr_t _PyShadowFrame_TagMask = (1 << _PyShadowFrame_NumTagBits) - 1;
 static const uintptr_t _PyShadowFrame_PtrMask = ~((uintptr_t)_PyShadowFrame_TagMask);
 
@@ -38,15 +37,10 @@ static inline void *_PyShadowFrame_GetPtr(_PyShadowFrame *shadow_frame) {
   return (void *)(shadow_frame->data & _PyShadowFrame_PtrMask);
 }
 
-static inline PyGenObject *_PyShadowFrame_GetGen(_PyShadowFrame *shadow_frame) {
-  assert(_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_GEN);
-  return (PyGenObject *)_PyShadowFrame_GetPtr(shadow_frame);
-}
+PyGenObject *_PyShadowFrame_GetGen(_PyShadowFrame *shadow_frame);
 
 static inline bool _PyShadowFrame_HasPyFrame(_PyShadowFrame *shadow_frame) {
-  return (shadow_frame->data & _PyShadowFrame_HasPyFrameMask) ||
-         ((_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_GEN) &&
-          (_PyShadowFrame_GetGen(shadow_frame)->gi_frame != NULL));
+  return shadow_frame->data & _PyShadowFrame_HasPyFrameMask;
 }
 
 static inline void _PyShadowFrame_SetHasPyFrame(_PyShadowFrame *shadow_frame) {
