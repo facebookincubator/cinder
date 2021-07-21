@@ -1341,6 +1341,7 @@ AnalysisResult Analyzer::visitSliceHelper(slice_ty slice) {
     case Index_kind:
       return visitExpr(slice->v.Index.value);
   }
+  Py_UNREACHABLE();
 }
 
 AnalysisResult Analyzer::visitLambda(const expr_ty expr) {

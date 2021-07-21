@@ -29,6 +29,7 @@ CallerContext::exception(std::shared_ptr<StrictType> excType, Args... args)
   std::make_unique<StrictModuleUserException<BaseStrictObject>>(
       lineno, col, filename, scopeName, std::move(excObj))
       ->raise();
+  Py_UNREACHABLE();
 }
 
 template <typename... Args>
