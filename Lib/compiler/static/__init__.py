@@ -177,8 +177,8 @@ class Static38CodeGenerator(CinderCodeGenerator):
                 tree, graph, codegen_type=CinderCodeGenerator
             )
         graph.setFlag(self.consts.CO_STATICALLY_COMPILED)
-        if self.cur_mod.noframe:
-            graph.setFlag(self.consts.CO_NO_FRAME)
+        if self.cur_mod.shadow_frame:
+            graph.setFlag(self.consts.CO_SHADOW_FRAME)
         gen = StaticCodeGenerator(
             self,
             tree,

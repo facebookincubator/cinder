@@ -177,7 +177,7 @@ def hasInfiniteRecursion(test):
 
 def skipUnderCinderJITNotFullFrame(reason):
     """
-    Skip tests if we're in Shadow or No Frame modes.
+    Skip tests if we're in Shadow Frame mode.
     """
     if CINDERJIT_NOT_FULL_FRAME:
         return skip(reason)

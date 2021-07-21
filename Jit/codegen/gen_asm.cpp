@@ -95,8 +95,6 @@ void EmitEpilogueUnlinkFrame(
     as->mov(x86::rax, saved_rax_ptr);
   };
   switch (frame_mode) {
-    case FrameMode::kNone:
-      break;
     case FrameMode::kNormal:
       if (!is_generator) {
         unlinkShadowFrame();
@@ -351,27 +349,20 @@ void NativeGenerator::linkOnStackShadowFrame(x86::Gp tstate_reg) {
   auto scratch_reg = x86::rax;
   using namespace shadow_frame;
   x86::Mem shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
-  switch (frame_mode) {
-    case jit::hir::FrameMode::kNone:
-      break;
-    case jit::hir::FrameMode::kNormal:
-    case jit::hir::FrameMode::kShadow:
-      as_->push(scratch_reg);
-      // Save old top of shadow stack
-      as_->mov(scratch_reg, shadow_stack_top_ptr);
-      as_->mov(kInFramePrevPtr, scratch_reg);
-      // Set data
-      bool has_pyframe = frame_mode == jit::hir::FrameMode::kNormal;
-      uintptr_t data =
-          _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, has_pyframe);
-      as_->mov(scratch_reg, data);
-      as_->mov(kInFrameDataPtr, scratch_reg);
-      // Set our shadow frame as top of shadow stack
-      as_->lea(scratch_reg, kFramePtr);
-      as_->mov(shadow_stack_top_ptr, scratch_reg);
-      as_->pop(scratch_reg);
-      break;
-  }
+  as_->push(scratch_reg);
+  // Save old top of shadow stack
+  as_->mov(scratch_reg, shadow_stack_top_ptr);
+  as_->mov(kInFramePrevPtr, scratch_reg);
+  // Set data
+  bool has_pyframe = frame_mode == jit::hir::FrameMode::kNormal;
+  uintptr_t data =
+      _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, has_pyframe);
+  as_->mov(scratch_reg, data);
+  as_->mov(kInFrameDataPtr, scratch_reg);
+  // Set our shadow frame as top of shadow stack
+  as_->lea(scratch_reg, kFramePtr);
+  as_->mov(shadow_stack_top_ptr, scratch_reg);
+  as_->pop(scratch_reg);
 }
 
 int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
@@ -443,7 +434,6 @@ void NativeGenerator::generateLinkFrame(asmjit::x86::Gp tstate_reg) {
         x86::rsi, reinterpret_cast<intptr_t>(GetFunction()->globals.get()));
   };
   switch (GetFunction()->frameMode) {
-    case FrameMode::kNone:
     case FrameMode::kShadow:
       loadTState(tstate_reg);
       break;
@@ -999,8 +989,7 @@ void NativeGenerator::generateStaticEntryPoint(
   // Save incoming args across link call...
   int total_args = GetFunction()->numArgs();
 
-  const jit::hir::Function* func = GetFunction();
-  if ((func->frameMode != FrameMode::kNone) && !isGen()) {
+  if (!isGen()) {
     int pushed_args = std::min(total_args, NUM_REG_ARGS);
     // save native args across frame linkage call
     if (pushed_args % 2 != 0) {
@@ -1147,8 +1136,6 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   const hir::Function* func = GetFunction();
   std::string prefix = [&] {
     switch (func->frameMode) {
-      case FrameMode::kNone:
-        return perf::kNoFrameSymbolPrefix;
       case FrameMode::kNormal:
         return perf::kFuncSymbolPrefix;
       case FrameMode::kShadow:
@@ -1243,20 +1230,6 @@ static void raiseAttributeErrorNone(PyFrameObject* frame, int name_idx) {
       PyTuple_GET_ITEM(co_names, name_idx));
 }
 
-static PyFrameObject* allocateFrameForDeopt(
-    PyThreadState* tstate,
-    CodeRuntime* code_rt) {
-  PyCodeObject* co = code_rt->GetCode();
-  PyObject* globals = code_rt->GetGlobals();
-  PyObject* builtins = code_rt->GetBuiltins();
-  Py_INCREF(builtins);
-  PyFrameObject* frame =
-      _PyFrame_NewWithBuiltins_NoTrack(tstate, co, globals, builtins, NULL);
-  JIT_CHECK(frame != nullptr, "failed allocating frame");
-  tstate->frame = frame;
-  return frame;
-}
-
 static PyFrameObject* prepareForDeopt(
     const uint64_t* regs,
     Runtime* runtime,
@@ -1266,12 +1239,8 @@ static PyFrameObject* prepareForDeopt(
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
   PyFrameObject* frame = nullptr;
-  if (deopt_meta.code_rt->frameMode() == jit::hir::FrameMode::kNone) {
-    frame = allocateFrameForDeopt(tstate, deopt_meta.code_rt);
-  } else {
-    Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate, frame_base);
-    frame = f.release();
-  }
+  Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate, frame_base);
+  frame = f.release();
   reifyFrame(frame, deopt_idx, deopt_meta, regs);
   if (!PyErr_Occurred()) {
     auto reason = deopt_meta.reason;
@@ -1328,9 +1297,8 @@ static PyFrameObject* prepareForDeopt(
 
     // Unlink frames. No unlink for generator shadow frames as this is handled
     // by the send implementation.
-    if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone &&
-        !deopt_meta.code_rt->isGen()) {
-      unlinkShadowFrame(tstate, *deopt_meta.code_rt);
+    if (!deopt_meta.code_rt->isGen()) {
+      _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
     }
     JITRT_UnlinkFrame(tstate);
     return nullptr;
@@ -1342,9 +1310,8 @@ static PyFrameObject* prepareForDeopt(
   // on the shadow stack for each frame on the Python stack. Unless we are a
   // a generator, the interpreter will insert a new entry on the shadow stack
   // when execution resumes there, so we remove our entry.
-  if (deopt_meta.code_rt->frameMode() != jit::hir::FrameMode::kNone &&
-      !deopt_meta.code_rt->isGen()) {
-    unlinkShadowFrame(tstate, *deopt_meta.code_rt);
+  if (!deopt_meta.code_rt->isGen()) {
+    _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
   }
 
   return frame;
@@ -1613,10 +1580,7 @@ bool NativeGenerator::isPredefinedUsed(const char* name) {
 }
 
 int NativeGenerator::calcFrameHeaderSize(const hir::Function* func) {
-  if (func == nullptr || func->frameMode == jit::hir::FrameMode::kNone) {
-    return 0;
-  }
-  return sizeof(_PyShadowFrame);
+  return func == nullptr ? 0 : sizeof(_PyShadowFrame);
 }
 
 } // namespace codegen

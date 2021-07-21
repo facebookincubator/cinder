@@ -53,7 +53,7 @@ typedef struct _PyShadowFrame {
    *
    * The contents of `pointer` depends on the value of `pointer_kind`. See below
    * in the definition of _PyShadowFrame_PtrKind for details. A full 64 bit
-   * pointer uses the 62 bits here plus two zero bits in the lower end.
+   * pointer takes the 62 bits with the bottom bits padded with zeros.
    */
   uintptr_t data;
 } _PyShadowFrame;

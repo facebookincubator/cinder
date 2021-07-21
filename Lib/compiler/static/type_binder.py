@@ -305,8 +305,8 @@ class TypeBinder(GenericVisitor):
                     for name in stmt.names:
                         if name.name == "nonchecked_dicts":
                             self.cur_mod.nonchecked_dicts = True
-                        elif name.name == "noframe":
-                            self.cur_mod.noframe = True
+                        elif name.name in ("noframe", "shadow_frame"):
+                            self.cur_mod.shadow_frame = True
 
     def visitModule(self, node: Module) -> None:
         self.scopes.append(

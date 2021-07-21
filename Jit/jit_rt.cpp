@@ -1320,8 +1320,7 @@ static inline PyObject* make_gen_object(
     jit::CodeRuntime* code_rt) {
   PyGenObject* gen = nullptr;
   PyCodeObject* code = code_rt->GetCode();
-  if (_PyJIT_ShadowFrame() || _PyJIT_NoFrame() ||
-      code->co_flags & CO_NO_FRAME) {
+  if (_PyJIT_ShadowFrame() || code->co_flags & CO_SHADOW_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(_PyCoro_NewNoFrame(tstate, code));
     } else if (mode == MakeGenObjectMode::kAsyncGenerator) {

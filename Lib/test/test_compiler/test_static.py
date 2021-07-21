@@ -13,7 +13,7 @@ import warnings
 from array import array
 from collections import UserDict
 from compiler import consts, walk
-from compiler.consts38 import CO_NO_FRAME, CO_STATICALLY_COMPILED
+from compiler.consts38 import CO_SHADOW_FRAME, CO_STATICALLY_COMPILED
 from compiler.optimizer import AstOptimizer
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
 from compiler.static import StaticCodeGenerator
@@ -606,23 +606,23 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertLess(call_count, 10)
 
     @skipIf(cinderjit is None, "not jitting")
-    def test_no_frame(self):
+    def test_shadow_frame(self):
         codestr = """
-        from __static__.compiler_flags import noframe
+        from __static__.compiler_flags import shadow_frame
 
         def f():
             return 456
         """
         with self.in_module(codestr) as mod:
             f = mod["f"]
-            self.assertTrue(f.__code__.co_flags & CO_NO_FRAME)
+            self.assertTrue(f.__code__.co_flags & CO_SHADOW_FRAME)
             self.assertEqual(f(), 456)
             self.assert_jitted(f)
 
     @skipIf(cinderjit is None, "not jitting")
-    def test_no_frame_generator(self):
+    def test_shadow_frame_generator(self):
         codestr = """
-        from __static__.compiler_flags import noframe
+        from __static__.compiler_flags import shadow_frame
 
         def g():
             for i in range(10):
@@ -632,7 +632,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod["f"]
-            self.assertTrue(f.__code__.co_flags & CO_NO_FRAME)
+            self.assertTrue(f.__code__.co_flags & CO_SHADOW_FRAME)
             self.assertEqual(f(), list(range(10)))
             self.assert_jitted(f)
 
@@ -7799,9 +7799,9 @@ class StaticCompilationTests(StaticTestBase):
             c = C()
             self.assertEqual(c.x, None)
 
-    def test_invoke_and_raise_noframe_strictmod(self):
+    def test_invoke_and_raise_shadow_frame_strictmod(self):
         codestr = """
-        from __static__.compiler_flags import noframe
+        from __static__.compiler_flags import shadow_frame
 
         def x():
             raise TypeError()

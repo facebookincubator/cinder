@@ -214,19 +214,6 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
   JIT_CHECK(false, "Invalid pointer kind %d", kind);
 }
 
-void unlinkShadowFrame(
-    PyThreadState* tstate,
-    CodeRuntime& code_rt) {
-  switch (code_rt.frameMode()) {
-    case jit::hir::FrameMode::kNone:
-      break;
-    case jit::hir::FrameMode::kNormal:
-    case jit::hir::FrameMode::kShadow:
-      _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
-      break;
-  }
-}
-
 } // namespace jit
 
 PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {

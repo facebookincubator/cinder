@@ -520,15 +520,12 @@ static bool should_snapshot(
 
 static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
   /* check for code specific flags */
-  if (code->co_flags & CO_NO_FRAME) {
-    return FrameMode::kNone;
+  if (code->co_flags & CO_SHADOW_FRAME) {
+    return FrameMode::kShadow;
   } else if (code->co_flags & CO_NORMAL_FRAME) {
     return FrameMode::kNormal;
   }
 
-  if (_PyJIT_NoFrame()) {
-    return FrameMode::kNone;
-  }
   if (_PyJIT_ShadowFrame()) {
     return FrameMode::kShadow;
   }

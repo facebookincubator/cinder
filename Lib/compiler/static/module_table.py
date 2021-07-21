@@ -52,7 +52,7 @@ class ModuleTable:
         self.types: Dict[Union[AST, Delegator], Value] = {}
         self.node_data: Dict[Tuple[Union[AST, Delegator], object], object] = {}
         self.nonchecked_dicts = False
-        self.noframe = False
+        self.shadow_frame = False
         self.decls: List[Tuple[AST, Optional[Value]]] = []
         # TODO: final constants should be typed to literals, and
         # this should be removed in the future

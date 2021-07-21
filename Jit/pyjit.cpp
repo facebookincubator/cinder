@@ -37,7 +37,7 @@ int64_t __strobe_PyThreadState_shadow_frame = -1;
 int64_t __strobe_CodeRuntime_py_code = CodeRuntime::kPyCodeOffset;
 
 enum InitState { JIT_NOT_INITIALIZED, JIT_INITIALIZED, JIT_FINALIZED };
-enum FrameMode { PY_FRAME = 0, NO_FRAME, SHADOW_FRAME };
+enum FrameMode { PY_FRAME = 0, SHADOW_FRAME };
 
 struct JitConfig {
   InitState init_state{JIT_NOT_INITIALIZED};
@@ -898,9 +898,6 @@ int _PyJIT_Initialize() {
   jit_config.init_state = JIT_INITIALIZED;
   jit_config.is_enabled = 1;
   g_jit_list = jit_list.release();
-  if (_is_flag_set("jit-no-frame", "PYTHONJITNOFRAME")) {
-    jit_config.frame_mode = NO_FRAME;
-  }
   if (_is_flag_set("jit-shadow-frame", "PYTHONJITSHADOWFRAME")) {
     jit_config.frame_mode = SHADOW_FRAME;
     _PyThreadState_GetFrame =
@@ -1144,10 +1141,6 @@ int _PyJIT_Finalize() {
 
   jit::codegen::NativeGeneratorFactory::shutdown();
   return 0;
-}
-
-int _PyJIT_NoFrame() {
-  return jit_config.frame_mode == NO_FRAME;
 }
 
 int _PyJIT_ShadowFrame() {

@@ -158,16 +158,6 @@ PyAPI_FUNC(int) _PyJIT_Finalize(void);
 PyAPI_FUNC(int) _PyJIT_OnJitList(PyFunctionObject* func);
 
 /*
- * Returns whether JITed code should be run a PyFrameObject.
- *
- * Returns 0 if all JITed functions should create a PyFrameObject in their
- * prologs.
- *
- * Returns 1 otherwise.
- */
-PyAPI_FUNC(int) _PyJIT_NoFrame(void);
-
-/*
  * Returns a boolean indicating whether or not jitted functions should use a
  * shadow frame object by default instead of a full PyFrameObject.
  */

@@ -14,7 +14,7 @@ based on a Java version:
 from __future__ import annotations
 
 from __static__ import cast, int64, box, Array, inline
-from __static__.compiler_flags import noframe
+from __static__.compiler_flags import shadow_frame
 from typing import Final, Optional, List
 from typing import Optional
 

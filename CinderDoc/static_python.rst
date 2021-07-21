@@ -105,14 +105,14 @@ compiled ``.pyc`` file instead of executing the module.
 You may see some unfamiliar imports from a new ``__static__`` module in
 modules using Static Python. This reference should clarify their purpose.
 
-``from __static__.compiler_flags import noframe``
--------------------------------------------------
+``from __static__.compiler_flags import shadow_frame``
+------------------------------------------------------
 
 This is a “magic” import that signals to the Static Python compiler to enable
-“noframe” mode in the Cinder JIT. This improves performance of function calls
-by avoiding the creation of Python frame objects until they are definitely
-needed (e.g. if an exception is raised.) In the future this should become
-default.
+“shadow frame” mode in the Cinder JIT. This improves performance of function
+calls by avoiding the creation of full Python frame objects until they are
+definitely needed (e.g. if an exception is raised.) In the future this should
+become default.
 
 ``from __static__ import cbool, int8, uint8, int16, uint16, int32, uint32, int64, uint64, double``
 --------------------------------------------------------------------------------------------------

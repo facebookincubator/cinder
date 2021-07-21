@@ -262,24 +262,7 @@ void reifyFrame(
   // Clear our references now that we've transferred them to the frame
   releaseRefs(meta.live_values, mem);
   reifyBlockStack(frame, meta.block_stack);
-  if (meta.code_rt->GetCode()->co_flags & kCoFlagsAnyGenerator) {
-    switch (meta.code_rt->frameMode()) {
-      case hir::FrameMode::kNone: {
-        auto gen =
-            reinterpret_cast<jit::GenDataFooter*>(regs[PhyLocation::RBP])->gen;
-        frame->f_gen = reinterpret_cast<PyObject*>(gen);
-        gen->gi_frame = frame;
-        _PyShadowFrame_SetHasPyFrame(&gen->gi_shadow_frame);
-        Py_INCREF(frame);
-        break;
-      }
-      case hir::FrameMode::kNormal:
-      case hir::FrameMode::kShadow:
-        // Generator/frame linkage happens in `materializePyFrame` in
-        // frame.cpp
-        break;
-    }
-  }
+  // Generator/frame linkage happens in `materializePyFrame` in frame.cpp
 }
 
 static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
