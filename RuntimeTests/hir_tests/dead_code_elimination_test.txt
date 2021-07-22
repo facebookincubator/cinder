@@ -73,3 +73,29 @@ fun jittestmodule:test {
   }
 }
 ---
+DeadCodeEliminationDoesNotRemoveInitFunction
+---
+def test():
+    def inner():
+        x = 4
+    inner()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:MortalCode["inner"] = LoadConst<MortalCode["inner"]>
+    v8:MortalUnicodeExact["test.<locals>.inner"] = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
+    v9:Func = MakeFunction v8 v7 {
+      NextInstrOffset 6
+      Locals<1> v6
+    }
+    InitFunction v9
+    v12:Object = VectorCall<0> v9 {
+      NextInstrOffset 12
+      Locals<1> v9
+    }
+    v13:NoneType = LoadConst<NoneType>
+    Return v13
+  }
+}
+---

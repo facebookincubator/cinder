@@ -149,7 +149,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
       // InitFunction mostly writes to a bunch of func fields we don't track,
       // but it can also invoke the JIT which may at some point have effects
       // worth tracking.
-      return commonEffects(inst, AEmpty);
+      return commonEffects(inst, AOther);
 
     case Opcode::kInitListTuple: {
       // Steal all inputs except the first, which is the container to
