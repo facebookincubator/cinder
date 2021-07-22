@@ -34,9 +34,11 @@ except ImportError:
 
     _static = None
     chkdict = dict
+    chklist = list
 
 else:
     chkdict = _static.chkdict
+    chklist = _static.chklist
     set_type_code = _static.set_type_code
     is_type_static = _static.is_type_static
     set_type_static = _static.set_type_static

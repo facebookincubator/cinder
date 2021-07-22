@@ -5,6 +5,7 @@
 #include "pycore_pystate.h"
 #include "pycore_tupleobject.h"
 #include "pycore_accu.h"
+#include "classloader.h"
 
 #ifdef STDC_HEADERS
 #include <stddef.h>
@@ -3412,3 +3413,95 @@ listiter_reduce_general(void *_it, int forward)
         return NULL;
     return Py_BuildValue("N(N)", _PyEval_GetBuiltinId(&PyId_iter), list);
 }
+
+static PyObject *chklist_cls_getitem(_PyGenericTypeDef *type, PyObject *args) {
+    PyObject *item = _PyClassLoader_GtdGetItem(type, args);
+    if (item == NULL) {
+        return NULL;
+    }
+    _Py_IDENTIFIER(__module__);
+    PyTypeObject *new_type = (PyTypeObject *)item;
+    PyObject *module_name = PyUnicode_FromString("__static__");
+    if (module_name == NULL) {
+        Py_DECREF(item);
+        return NULL;
+    }
+    if (_PyDict_SetItemId(new_type->tp_dict, &PyId___module__, module_name) == -1) {
+        Py_DECREF(item);
+        item = NULL;  // return NULL on errors
+    }
+    Py_DECREF(module_name);
+    return item;
+}
+
+static PyMethodDef chklist_methods[] = {
+    {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
+    LIST___REVERSED___METHODDEF
+    LIST___SIZEOF___METHODDEF
+    LIST_CLEAR_METHODDEF
+    LIST_COPY_METHODDEF
+    LIST_APPEND_METHODDEF
+    LIST_INSERT_METHODDEF
+    LIST_EXTEND_METHODDEF
+    LIST_POP_METHODDEF
+    LIST_REMOVE_METHODDEF
+    LIST_INDEX_METHODDEF
+    LIST_COUNT_METHODDEF
+    LIST_REVERSE_METHODDEF
+    LIST_SORT_METHODDEF
+    {"__class_getitem__", (PyCFunction)chklist_cls_getitem, METH_VARARGS | METH_CLASS, NULL},
+    {NULL,              NULL}           /* sentinel */
+};
+
+static PyObject *
+chklist_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    return PyList_New(0);
+}
+
+_PyGenericTypeDef _PyCheckedList_Type = {
+  .gtd_type =
+      {
+        PyVarObject_HEAD_INIT(&PyType_Type, 0) "chklist[T]",
+        sizeof(PyListObject),
+        0,
+        (destructor)list_dealloc,                   /* tp_dealloc */
+        0,                                          /* tp_vectorcall_offset */
+        0,                                          /* tp_getattr */
+        0,                                          /* tp_setattr */
+        0,                                          /* tp_as_async */
+        (reprfunc)list_repr,                        /* tp_repr */
+        0,                                          /* tp_as_number */
+        &list_as_sequence,                          /* tp_as_sequence */
+        &list_as_mapping,                           /* tp_as_mapping */
+        PyObject_HashNotImplemented,                /* tp_hash */
+        0,                                          /* tp_call */
+        0,                                          /* tp_str */
+        PyObject_GenericGetAttr,                    /* tp_getattro */
+        0,                                          /* tp_setattro */
+        0,                                          /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+            Py_TPFLAGS_GENERIC_TYPE_DEF,            /* tp_flags */
+        list___init____doc__,                       /* tp_doc */
+        (traverseproc)list_traverse,                /* tp_traverse */
+        (inquiry)_list_clear,                       /* tp_clear */
+        list_richcompare,                           /* tp_richcompare */
+        0,                                          /* tp_weaklistoffset */
+        list_iter,                                  /* tp_iter */
+        0,                                          /* tp_iternext */
+        chklist_methods,                            /* tp_methods */
+        0,                                          /* tp_members */
+        0,                                          /* tp_getset */
+        0,                                          /* tp_base */
+        0,                                          /* tp_dict */
+        0,                                          /* tp_descr_get */
+        0,                                          /* tp_descr_set */
+        0,                                          /* tp_dictoffset */
+        (initproc)list___init__,                    /* tp_init */
+        PyType_GenericAlloc,                        /* tp_alloc */
+        NULL,                                       /* tp_new */
+        PyObject_GC_Del,                            /* tp_free */
+      },
+  .gtd_size = 1,
+  .gtd_new = chklist_new,
+};

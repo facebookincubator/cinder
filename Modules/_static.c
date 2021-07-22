@@ -9,6 +9,7 @@ PyDoc_STRVAR(_static__doc__,
              "_static contains types related to static Python\n");
 
 extern PyTypeObject _PyCheckedDict_Type;
+extern PyTypeObject _PyCheckedList_Type;
 
 static int
 _static_exec(PyObject *m)
@@ -16,9 +17,15 @@ _static_exec(PyObject *m)
     if (PyType_Ready((PyTypeObject *)&_PyCheckedDict_Type) < 0)
         return -1;
 
+    if (PyType_Ready((PyTypeObject *)&_PyCheckedList_Type) < 0)
+        return -1;
+
     PyObject *globals = ((PyStrictModuleObject *)m)->globals;
 
     if (PyDict_SetItemString(globals, "chkdict", (PyObject *)&_PyCheckedDict_Type) < 0)
+        return -1;
+
+    if (PyDict_SetItemString(globals, "chklist", (PyObject *)&_PyCheckedList_Type) < 0)
         return -1;
     PyObject *type_code;
 #define SET_TYPE_CODE(name)                                           \

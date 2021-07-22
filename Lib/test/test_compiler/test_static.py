@@ -126,6 +126,7 @@ from __static__ import (
     Array,
     Vector,
     chkdict,
+    chklist,
     int32,
     int64,
     int8,
@@ -14372,6 +14373,12 @@ class StaticRuntimeTests(StaticTestBase):
         x = t2()
         x_id2 = id(x)
         self.assertEqual(x_id1, x_id2)
+
+    def test_checked_list(self):
+        x = chklist[int]()
+        x.append(1)
+        self.assertEqual(repr(x), "[1]")
+        self.assertEqual(chklist[int].__module__, "__static__")
 
     def test_check_args(self):
         """
