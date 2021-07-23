@@ -15,6 +15,15 @@ class LIRInliner {
  public:
   explicit LIRInliner(lir::Instruction* instr) : call_instr_(instr) {}
 
+  // Public function for inlining call_instr_.
+  // Return true if inlining succeeds.
+  // Return false if inlining cannot be completed
+  // and don't modify call_instr_ and its function.
+  // NOTE: Assume that callee and caller don't have relative jumps or stack
+  // allocation instructions. These instructions should be very infrequent, but
+  // we may want to add a check for this later.
+  bool inlineCall();
+
  private:
   // The call instruction that we want to inline.
   lir::Instruction* call_instr_;
@@ -24,6 +33,29 @@ class LIRInliner {
   // in caller->basic_blocks_.
   int callee_start_;
   int callee_end_;
+  // List of arguments from call_instr_.
+  std::vector<lir::OperandBase*> arguments_;
+
+  // Checks if call instruction and callee are inlineable.
+  // Calls checkEntryExitReturn, checkArguments, checkLoadArg.
+  // Return true if they are inlineable, otherwise return false.
+  // NOTE: We may want to extract some of these checks, so that we can apply
+  // them as a general pass across all functions.
+  bool isInlineable(lir::Function* callee);
+
+  // Check that there is exactly 1 entry and 1 exit block.
+  // Check that these blocks are found at the ends of basic_blocks_.
+  // Check that return statements only appear in
+  // the predecesoors of the exit block.
+  bool checkEntryExitReturn(lir::Function* callee);
+
+  // Check that call inputs are immediate or virtual registers.
+  // Add the inputs to arguments_.
+  bool checkArguments();
+
+  // Check that kLoadArg instructions occur at the beginning.
+  // Check that kLoadArg instructions don't exceed the number of arguments.
+  bool checkLoadArg(lir::Function* callee);
 
   // Find corresponding function body.
   // Returns nullptr if function cannot be found.
@@ -40,7 +72,6 @@ class LIRInliner {
   // Assume that instr_it corresponds to a kLoadArg instruction.
   // Assume that arguments are immediate or linked.
   void resolveLoadArg(
-      std::vector<lir::OperandBase*>& argument_list,
       std::unordered_map<lir::OperandBase*, lir::LinkedOperand*>& vreg_map,
       lir::BasicBlock* bb,
       lir::BasicBlock::InstrList::iterator& instr_it);

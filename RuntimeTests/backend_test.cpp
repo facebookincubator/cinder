@@ -2,10 +2,12 @@
 #include "Jit/codegen/environ.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/x86_64.h"
+#include "Jit/jit_rt.h"
 #include "Jit/lir/instruction.h"
 #include "gtest/gtest.h"
 
 #include "Jit/codegen/autogen.h"
+#include "Jit/codegen/inliner.h"
 #include "Jit/codegen/postalloc.h"
 #include "Jit/codegen/postgen.h"
 #include "Jit/codegen/regalloc.h"
@@ -857,6 +859,124 @@ BB %1 - preds: %6
   basicblocks->erase(
       std::remove(basicblocks->begin(), basicblocks->end(), bb2),
       basicblocks->end());
+  CheckCast(caller.get());
+}
+
+TEST_F(BackendTest, InlineJITRTFromArrayTest) {
+  auto caller = std::make_unique<Function>();
+  auto bb = caller->allocateBasicBlock();
+  auto r1 =
+      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
+  auto r2 =
+      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(1));
+  auto call_instr = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(),
+      Imm(reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray)),
+      VReg(r1),
+      VReg(r2));
+  bb->allocateInstr(Instruction::kReturn, nullptr, VReg(call_instr));
+  auto epilogue = caller->allocateBasicBlock();
+  bb->addSuccessor(epilogue);
+  LIRInliner inliner(call_instr);
+  inliner.inlineCall();
+
+  // Check that caller LIR is as expected.
+  auto expected_caller = fmt::format(R"(Function:
+BB %0 - succs: %7
+       %1:Object = LoadArg 0(0x0):Object
+       %2:Object = LoadArg 1(0x1):Object
+
+BB %7 - preds: %0 - succs: %8
+       %11:64bit = Move [%1:Object + %2:Object * 8]:Object
+
+BB %8 - preds: %7 - succs: %6
+      %13:Object = Phi (BB%7, %11:64bit)
+
+BB %6 - preds: %8 - succs: %5
+       %3:Object = Move %13:Object
+                   Return %3:Object
+
+BB %5 - preds: %6
+
+)");
+  std::stringstream ss;
+  caller->sortBasicBlocks();
+  ss << *caller;
+  ASSERT_EQ(expected_caller, ss.str());
+
+  // Test execution of caller
+  CheckFromArray(caller.get());
+}
+
+TEST_F(BackendTest, InlineJITRTCastTest) {
+  auto caller = std::make_unique<Function>();
+  auto bb = caller->allocateBasicBlock();
+  auto r1 =
+      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
+  auto r2 =
+      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(1));
+  auto call_instr = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(),
+      Imm(reinterpret_cast<uint64_t>(JITRT_Cast)),
+      VReg(r1),
+      VReg(r2));
+  bb->allocateInstr(Instruction::kReturn, nullptr, VReg(call_instr));
+  auto epilogue = caller->allocateBasicBlock();
+  bb->addSuccessor(epilogue);
+  LIRInliner inliner(call_instr);
+  inliner.inlineCall();
+
+  // Check that caller LIR is as expected.
+  auto expected_caller = fmt::format(
+      R"(Function:
+BB %0 - succs: %7
+       %1:Object = LoadArg 0(0x0):Object
+       %2:Object = LoadArg 1(0x1):Object
+
+BB %7 - preds: %0 - succs: %9 %8
+      %14:Object = Move [%1:Object + 0x8]:Object
+      %15:Object = Equal %14:Object, %2:Object
+                   CondBranch %15:Object
+
+BB %8 - preds: %7 - succs: %9 %10
+      %17:Object = Call {0}({0:#x}):Object, %14:Object, %2:Object
+                   CondBranch %17:Object
+
+BB %10 - preds: %8 - succs: %11
+      %20:Object = Move [%14:Object + 0x18]:Object
+      %21:Object = Move [%2:Object + 0x18]:Object
+                   Call {1}({1:#x}):Object, {2}({2:#x}):Object, string_literal, %21:Object, %20:Object
+      %23:Object = Move 0(0x0):Object
+
+BB %9 - preds: %7 %8 - succs: %11
+
+BB %11 - preds: %9 %10 - succs: %6
+      %25:Object = Phi (BB%9, %1:Object), (BB%10, %23:Object)
+
+BB %6 - preds: %11 - succs: %5
+       %3:Object = Move %25:Object
+                   Return %3:Object
+
+BB %5 - preds: %6
+
+)",
+      reinterpret_cast<uint64_t>(PyType_IsSubtype),
+      reinterpret_cast<uint64_t>(PyErr_Format),
+      reinterpret_cast<uint64_t>(PyExc_TypeError));
+  std::stringstream ss;
+  caller->sortBasicBlocks();
+  ss << *caller;
+  // Replace the string literal address
+  std::regex reg("\\d+\\(0x[0-9a-fA-F]+\\):Object, %21:Object, %20:Object");
+  std::string caller_str =
+      regex_replace(ss.str(), reg, "string_literal, %21:Object, %20:Object");
+  ASSERT_EQ(expected_caller, caller_str);
+
+  // Test execution of caller
   CheckCast(caller.get());
 }
 

@@ -65,6 +65,10 @@ TEST_F(LIRInlinerTest, ResolveArgumentsTest) {
   LIRInliner inliner(call_instr);
   inliner.callee_start_ = 1;
   inliner.callee_end_ = 2;
+  // Set up arguments list
+  for (size_t i = 1; i < call_instr->getNumInputs(); i++) {
+    inliner.arguments_.emplace_back(call_instr->getInput(i));
+  }
   inliner.resolveArguments();
 
   auto lir_expected = fmt::format(R"(Function:

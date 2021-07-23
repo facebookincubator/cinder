@@ -12,6 +12,143 @@ using namespace jit::lir;
 namespace jit {
 namespace codegen {
 
+bool LIRInliner::inlineCall() {
+  // Try to find function.
+  Function* callee = findFunction();
+  if (callee == nullptr) {
+    // If function is not found, we cannot inline.
+    JIT_DLOG(
+        "Cannot find the function that corresponds to the call instruction.");
+    return false;
+  }
+
+  if (!isInlineable(callee)) {
+    JIT_DLOG("Found the callee, but cannot inline.");
+    return false;
+  }
+
+  // Split basic blocks of caller.
+  BasicBlock* block1 = call_instr_->basicblock();
+  BasicBlock* block2 = block1->splitBefore(call_instr_);
+
+  // Copy callee into caller.
+  Function* caller = call_instr_->basicblock()->function();
+  Function::CopyResult callee_bounds = caller->copyFrom(callee, block1, block2);
+  callee_start_ = callee_bounds.begin_bb;
+  callee_end_ = callee_bounds.end_bb;
+
+  resolveArguments();
+
+  resolveReturnValue();
+
+  return true;
+}
+
+bool LIRInliner::isInlineable(Function* callee) {
+  if (!checkEntryExitReturn(callee)) {
+    return false;
+  }
+  if (!checkArguments()) {
+    return false;
+  }
+  if (!checkLoadArg(callee)) {
+    return false;
+  }
+  return true;
+}
+
+bool LIRInliner::checkEntryExitReturn(Function* callee) {
+  if (callee->basicblocks().empty()) {
+    JIT_DLOG("Callee has no basic block.");
+    return false;
+  }
+  BasicBlock* entry_block = callee->getEntryBlock();
+  if (!entry_block->predecessors().empty()) {
+    JIT_DLOG("Expect entry block to have no predecessors.");
+    return false;
+  }
+  BasicBlock* exit_block = callee->basicblocks().back();
+  if (!exit_block->successors().empty()) {
+    JIT_DLOG("Expect exit block to have no successors.");
+    return false;
+  }
+  for (BasicBlock* bb : callee->basicblocks()) {
+    if (bb->predecessors().empty() && bb != entry_block) {
+      JIT_DLOG("Expect callee to have only 1 entry block.");
+      return false;
+    }
+    if (bb->successors().empty() && bb != exit_block) {
+      JIT_DLOG("Expect callee to have only 1 exit block.");
+      return false;
+    }
+    for (auto& instr : bb->instructions()) {
+      if (instr->isReturn()) {
+        if (instr.get() != bb->getLastInstr() || bb->successors().size() != 1 ||
+            bb->successors()[0] != exit_block) {
+          JIT_DLOG(
+              "Expect return to be last instruction of the predecessor of the "
+              "exit block.");
+          // Expect return to be the last instruction in the block.
+          // Expect the successor to be the exit block.
+          return false;
+        }
+      }
+    }
+  }
+  if (!exit_block->instructions().empty()) {
+    JIT_DLOG("Expect exit block to have no instructions.");
+    return false;
+  }
+  return true;
+}
+
+bool LIRInliner::checkArguments() {
+  size_t numInputs = call_instr_->getNumInputs();
+  for (size_t i = 1; i < numInputs; ++i) {
+    auto input = call_instr_->getInput(i);
+    if (!input->isImm() && !input->isVreg()) {
+      return false;
+    }
+    arguments_.emplace_back(input);
+  }
+  return true;
+}
+
+bool LIRInliner::checkLoadArg(Function* callee) {
+  // Subtract by 1 since first argument is callee address.
+  size_t numInputs = call_instr_->getNumInputs() - 1;
+  // Use check_load_arg to track if we are still in LoadArg instructions.
+  bool check_load_arg = true;
+  for (auto bb : callee->basicblocks()) {
+    for (auto& instr : bb->instructions()) {
+      if (check_load_arg) {
+        if (instr->isLoadArg()) {
+          if (instr->getNumInputs() < 1) {
+            return false;
+          }
+          auto input = instr->getInput(0);
+          if (!input->isImm()) {
+            return false;
+          }
+          if (input->getConstant() >= numInputs) {
+            return false;
+          }
+        } else {
+          // No longer LoadArg instructions.
+          check_load_arg = false;
+        }
+      } else {
+        if (instr->isLoadArg()) {
+          // kLoadArg instructions should only be at the
+          // beginning of the callee.
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
 lir::Function* LIRInliner::findFunction() {
   // Get the address.
   if (call_instr_->getNumInputs() < 1) {
@@ -60,14 +197,6 @@ lir::Function* LIRInliner::parseFunction(const std::string& name) {
 }
 
 bool LIRInliner::resolveArguments() {
-  // Map index to arguments of call_instr_.
-  std::vector<OperandBase*> argument_list;
-  size_t num_inputs = call_instr_->getNumInputs();
-  argument_list.reserve(num_inputs);
-  for (size_t i = 1; i < num_inputs; ++i) {
-    argument_list.emplace_back(call_instr_->getInput(i));
-  }
-
   // Remove load arg instructions and update virtual registers.
   std::unordered_map<OperandBase*, LinkedOperand*> vreg_map;
   auto caller_blocks = &call_instr_->basicblock()->function()->basicblocks();
@@ -77,7 +206,7 @@ bool LIRInliner::resolveArguments() {
     // Use while loop since instructions may be removed.
     while (it != bb->instructions().end()) {
       if ((*it)->isLoadArg()) {
-        resolveLoadArg(argument_list, vreg_map, bb, it);
+        resolveLoadArg(vreg_map, bb, it);
       } else {
         // When instruction is not kLoadArg,
         // fix any inputs are linked to output registers from kLoadArg.
@@ -90,18 +219,17 @@ bool LIRInliner::resolveArguments() {
 }
 
 void LIRInliner::resolveLoadArg(
-    std::vector<OperandBase*>& argument_list,
     std::unordered_map<OperandBase*, LinkedOperand*>& vreg_map,
     BasicBlock* bb,
     BasicBlock::InstrList::iterator& instr_it) {
   auto instr = instr_it->get();
-  JIT_CHECK(
-      instr->getNumInputs() > 0,
+  JIT_DCHECK(
+      instr->getNumInputs() > 0 && instr->getInput(0)->isImm(),
       "LoadArg instruction should have at least 1 input.");
 
   // Get the corresponding parameter from the call instruction.
   auto argument = instr->getInput(0);
-  auto param = argument_list.at(argument->getConstant());
+  auto param = arguments_.at(argument->getConstant());
 
   // Based on the parameter type, resolve the kLoadArg.
   if (param->isImm()) {
