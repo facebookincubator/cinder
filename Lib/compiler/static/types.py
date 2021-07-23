@@ -912,6 +912,10 @@ class Class(Object["Class"]):
                         raise TypedSyntaxError(
                             f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
                         )
+                    assert isinstance(my_value, StaticMethod)
+                    value.function.validate_compat_signature(
+                        my_value.function, module, first_arg_is_implicit=False
+                    )
             if (
                 isinstance(my_value, Slot)
                 and my_value.is_final
@@ -2156,7 +2160,10 @@ class Function(Callable[Class]):
             self.has_kwarg = True
 
     def validate_compat_signature(
-        self, override: Function, module: ModuleTable
+        self,
+        override: Function,
+        module: ModuleTable,
+        first_arg_is_implicit: bool = True,
     ) -> None:
         ret_type = self.return_type.resolved()
         override_ret_type = override.return_type.resolved()
@@ -2176,7 +2183,8 @@ class Function(Callable[Class]):
                 override.node,
             )
 
-        for arg, override_arg in zip(self.args[1:], override.args[1:]):
+        start_arg = 1 if first_arg_is_implicit else 0
+        for arg, override_arg in zip(self.args[start_arg:], override.args[start_arg:]):
             if arg.name != override_arg.name:
                 if arg.is_kwonly:
                     arg_desc = f"Keyword only argument `{arg.name}`"
@@ -2298,8 +2306,10 @@ class StaticMethod(Object[Class]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> None:
-        visitor.set_type(node, self.function)
-
+        if inst is None:
+            visitor.set_type(node, self.function)
+        else:
+            visitor.set_type(node, DYNAMIC)
 
 class TypingFinalDecorator(Class):
     def bind_decorate_function(
