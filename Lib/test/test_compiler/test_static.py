@@ -2695,6 +2695,36 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(code)
 
+    def test_primitive_defaults(self):
+        code = """
+            from __static__ import int64, box
+
+            def f(a: int64 = 42) -> int64:
+                return a
+
+            def g():
+                return box(f())
+        """
+        with self.in_module(code) as mod:
+            g = mod["g"]
+            f = mod["f"]
+            self.assertEqual(g(), 42)
+            self.assertEqual(f(), 42)
+            self.assertEqual(f(0), 0)
+
+    def test_primitive_defaults_nested_func(self):
+        code = """
+            from __static__ import int64, box
+
+            def g():
+                def f(a: int64 = 42) -> int64:
+                    return a
+                return f
+        """
+        with self.in_module(code) as mod:
+            g = mod["g"]
+            self.assertEqual(g()(), 42)
+
     def test_error_primitive_sorted_kw(self):
         code = """
             from __static__ import int64

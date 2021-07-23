@@ -556,6 +556,7 @@ void NativeGenerator::generatePrologue(
   const auto args_past_six_reg = x86::r10;
 
   _PyTypedArgsInfo* typed_arg_checks = nullptr;
+  bool has_primitive_args = false;
   if (code->co_flags & CO_STATICALLY_COMPILED) {
     // If we've been invoked statically we can skip all of the
     // argument checking because we know our args have been
@@ -564,6 +565,7 @@ void NativeGenerator::generatePrologue(
     // avoid this by doing direct invokes from JITed code.
     ThreadedCompileSerialize guard;
     if (_PyClassLoader_HasPrimitiveArgs(code)) {
+      has_primitive_args = true;
       typed_arg_checks = _PyClassLoader_GetTypedArgsInfo(code, true);
       JIT_CHECK(typed_arg_checks != nullptr, "OOM on typed arg checks");
       env_.code_rt->addReference((PyObject*)typed_arg_checks);
@@ -579,42 +581,45 @@ void NativeGenerator::generatePrologue(
     }
   }
 
-  as_->test(x86::rcx, x86::rcx); // test for kwargs
-  if (!((code->co_flags & (CO_VARARGS | CO_VARKEYWORDS)) ||
-        code->co_kwonlyargcount)) {
-    // If we have varargs or var kwargs we need to dispatch
-    // through our helper regardless if kw args are provided to
-    // create the var args tuple and dict and free them on exit
-    //
-    // Similarly, if the function has keyword-only args, we dispatch
-    // through the helper to check that they were, in fact, passed via
-    // keyword arguments.
-    //
-    // There's a lot of other things that happen in
-    // the helper so there is potentially a lot of room for optimization
-    // here.
-    as_->je(argCheck);
-  }
+  if (!has_primitive_args) {
+    as_->test(x86::rcx, x86::rcx); // test for kwargs
+    if (!((code->co_flags & (CO_VARARGS | CO_VARKEYWORDS)) ||
+          code->co_kwonlyargcount)) {
+      // If we have varargs or var kwargs we need to dispatch
+      // through our helper regardless if kw args are provided to
+      // create the var args tuple and dict and free them on exit
+      //
+      // Similarly, if the function has keyword-only args, we dispatch
+      // through the helper to check that they were, in fact, passed via
+      // keyword arguments.
+      //
+      // There's a lot of other things that happen in
+      // the helper so there is potentially a lot of room for optimization
+      // here.
+      as_->je(argCheck);
+    }
 
-  // We don't check the length of the kwnames tuple here, normal callers will
-  // never pass the empty tuple.  It is possible for odd callers to still pass
-  // the empty tuple in which case we'll just go through the slow binding path.
-  as_->call(reinterpret_cast<uint64_t>(JITRT_CallWithKeywordArgs));
-  as_->leave();
-  as_->ret();
-
-  // check that we have a valid number of args
-  if (!(code->co_flags & (CO_VARARGS | CO_VARKEYWORDS))) {
-    as_->bind(argCheck);
-    as_->cmp(x86::edx, GetFunction()->numArgs());
-
-    // We don't have the correct number of arguments. Call a helper to either
-    // fix them up with defaults or raise an approprate exception.
-    as_->jz(correct_arg_count);
-    as_->mov(x86::rcx, GetFunction()->numArgs());
-    as_->call(reinterpret_cast<uint64_t>(JITRT_CallWithIncorrectArgcount));
+    // We don't check the length of the kwnames tuple here, normal callers will
+    // never pass the empty tuple.  It is possible for odd callers to still pass
+    // the empty tuple in which case we'll just go through the slow binding
+    // path.
+    as_->call(reinterpret_cast<uint64_t>(JITRT_CallWithKeywordArgs));
     as_->leave();
     as_->ret();
+
+    // check that we have a valid number of args
+    if (!(code->co_flags & (CO_VARARGS | CO_VARKEYWORDS))) {
+      as_->bind(argCheck);
+      as_->cmp(x86::edx, GetFunction()->numArgs());
+
+      // We don't have the correct number of arguments. Call a helper to either
+      // fix them up with defaults or raise an approprate exception.
+      as_->jz(correct_arg_count);
+      as_->mov(x86::rcx, GetFunction()->numArgs());
+      as_->call(reinterpret_cast<uint64_t>(JITRT_CallWithIncorrectArgcount));
+      as_->leave();
+      as_->ret();
+    }
   }
 
   as_->bind(correct_arg_count);

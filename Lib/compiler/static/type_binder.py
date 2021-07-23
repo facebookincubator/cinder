@@ -327,15 +327,6 @@ class TypeBinder(GenericVisitor):
         self.set_type(arg, arg_type.instance)
 
     def _visitParameters(self, args: ast.arguments, scope: BindingScope) -> None:
-        if args.defaults:
-            for default in args.defaults:
-                self.visit(default)
-
-        if args.kw_defaults:
-            for default in args.kw_defaults:
-                if default is not None:
-                    self.visit(default)
-
         default_index = len(args.defaults or []) - (
             len(args.posonlyargs) + len(args.args)
         )
@@ -353,6 +344,7 @@ class TypeBinder(GenericVisitor):
             else:
                 arg_type = DYNAMIC_TYPE
             if default_index >= 0:
+                self.visit(args.defaults[default_index], arg_type.instance)
                 self.check_can_assign_from(
                     arg_type,
                     self.get_type(args.defaults[default_index]).klass,
@@ -376,6 +368,7 @@ class TypeBinder(GenericVisitor):
                 arg_type = DYNAMIC_TYPE
 
             if default_index >= 0:
+                self.visit(args.defaults[default_index], arg_type.instance)
                 self.check_can_assign_from(
                     arg_type,
                     self.get_type(args.defaults[default_index]).klass,
@@ -408,6 +401,7 @@ class TypeBinder(GenericVisitor):
             if default_index >= 0:
                 default = args.kw_defaults[default_index]
                 if default is not None:
+                    self.visit(default, arg_type.instance)
                     self.check_can_assign_from(
                         arg_type,
                         self.get_type(default).klass,

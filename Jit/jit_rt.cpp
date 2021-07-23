@@ -269,7 +269,13 @@ PyObject* JITRT_CallWithIncorrectArgcount(
       (PyObject*)defaulted_args);
 }
 
-PyObject* JITRT_CallStaticallyWithPrimitiveSignatureWorker(
+typedef JITRT_StaticCallReturn (*staticvectorcallfunc)(
+    PyObject* callable,
+    PyObject* const* args,
+    size_t nargsf,
+    PyObject* kwnames);
+
+JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,
@@ -305,14 +311,20 @@ PyObject* JITRT_CallStaticallyWithPrimitiveSignatureWorker(
     arg_space[i] = args[i];
   }
 
-  return JITRT_GET_REENTRY(func->vectorcall)(
-      (PyObject*)func, (PyObject**)arg_space, nargsf, NULL);
+  return ((staticvectorcallfunc)JITRT_GET_REENTRY(
+      func->vectorcall))((PyObject*)func, (PyObject**)arg_space, nargsf, NULL);
 
 fail:
-  return _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
+  return {_PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL), NULL};
 }
 
-PyObject* JITRT_CallStaticallyWithPrimitiveSignature(
+// This can either be a static method returning a primitive or a Python object,
+// so we use JITRT_StaticCallReturn.  If it's returning a primitive we'll return
+// rdx from the function, or return NULL for rdx when we dispatch to
+// _PyFunction_Vectorcall for error generation.  If it returns a Python object
+// we'll return an additional garbage rdx from our caller, but our caller won't
+// care about it either.
+JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,
@@ -346,7 +358,8 @@ PyObject* JITRT_CallStaticallyWithPrimitiveSignature(
           func, arg_space, total_args | PyVectorcall_FLAGS(nargsf), arg_info);
     }
 
-    return _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames);
+    return {
+        _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames), NULL};
   }
 
   return JITRT_CallStaticallyWithPrimitiveSignatureWorker(

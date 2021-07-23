@@ -73,6 +73,7 @@ from .type_binder import BindingScope, TypeBinder
 from .types import (
     CHECKED_DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE,
+    CInstance,
     CType,
     Class,
     DICT_EXACT_TYPE,
@@ -500,6 +501,12 @@ class Static38CodeGenerator(CinderCodeGenerator):
 
     def visitConstant(self, node: Constant) -> None:
         self.get_type(node).emit_constant(node, self)
+
+    def visitDefault(self, node: expr) -> None:
+        if isinstance(self.get_type(node), CInstance):
+            self.get_type(node).emit_box(node, self)
+        else:
+            self.visit(node)
 
     def get_final_literal(self, node: AST) -> Optional[ast.Constant]:
         return self.cur_mod.get_final_literal(node, self.scope)

@@ -464,7 +464,7 @@ class CodeGenerator(ASTVisitor):
         gen.finishFunction()
         if node.args.defaults:
             for default in node.args.defaults:
-                self.visit(default)
+                self.visitDefault(default)
                 flags |= 0x01
             self.emit("BUILD_TUPLE", len(node.args.defaults))
 
@@ -472,7 +472,7 @@ class CodeGenerator(ASTVisitor):
         for kwonly, default in zip(node.args.kwonlyargs, node.args.kw_defaults):
             if default is not None:
                 kwdefaults.append(self.mangle(kwonly.arg))
-                self.visit(default)
+                self.visitDefault(default)
 
         if kwdefaults:
             self.emit("LOAD_CONST", tuple(kwdefaults))
@@ -493,6 +493,9 @@ class CodeGenerator(ASTVisitor):
 
         for _ in range(ndecorators):
             self.emit("CALL_FUNCTION", 1)
+
+    def visitDefault(self, node: ast.expr) -> None:
+        self.visit(node)
 
     def annotate_args(self, args: ast.arguments) -> List[str]:
         ann_args = []

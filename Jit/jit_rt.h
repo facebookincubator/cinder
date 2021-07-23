@@ -453,7 +453,7 @@ PyObject* JITRT_UnpackExToTuple(
 JITRT_StaticCallReturn
 JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled);
 
-PyObject* JITRT_CallStaticallyWithPrimitiveSignature(
+JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,

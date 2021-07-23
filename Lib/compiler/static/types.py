@@ -1589,7 +1589,15 @@ class ArgMapping:
                         KeywordMappingArg(param, f"{_TMP_VAR_PREFIX}**")
                     )
                 elif param.has_default:
-                    self.emitters.append(DefaultArg(param.default_val))
+                    if isinstance(param.default_val, expr):
+                        # We'll force these to normal calls in can_call_self, we'll add
+                        # an emitter which makes sure we never try and do code gen for this
+                        self.emitters.append(UnreachableArg())
+                    else:
+                        const = ast.Constant(param.default_val)
+                        copy_location(const, self.call)
+                        visitor.visit(const, param.type_ref.resolved(False).instance)
+                        self.emitters.append(DefaultArg(const))
                 else:
                     # It's an error if this arg did not have a default value in the definition
                     visitor.syntax_error(
@@ -1737,11 +1745,19 @@ class KeywordMappingArg(ArgEmitter):
 
 
 class DefaultArg(ArgEmitter):
-    def __init__(self, value: object) -> None:
-        self.value = value
+    def __init__(self, expr: expr) -> None:
+        self.expr = expr
 
     def emit(self, node: Call, code_gen: Static38CodeGenerator) -> None:
-        code_gen.emit("LOAD_CONST", self.value)
+        code_gen.visit(self.expr)
+
+
+class UnreachableArg(ArgEmitter):
+    def __init__(self) -> None:
+        pass
+
+    def emit(self, node: Call, code_gen: Static38CodeGenerator) -> None:
+        raise ValueError("this arg should never be emitted")
 
 
 class Callable(Object[TClass]):
@@ -2015,10 +2031,7 @@ class Function(Callable[Class]):
             name = self.node.args.args[idx].arg
 
             if isinstance(arg, DefaultArg):
-                arg_replacements[name] = constant = ast.Constant(arg.value)
-                # for default args, we copy lineno from the call node, because the
-                # arg isn't represented in the AST
-                copy_location(constant, node)
+                arg_replacements[name] = constant = arg.expr
                 continue
             elif not isinstance(arg, (PositionArg, KeywordArg)):
                 # We don't support complicated calls to inline functions
