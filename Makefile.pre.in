@@ -460,6 +460,7 @@ JIT_OBJS=       \
 		Jit/codegen/autogen.o \
 		Jit/codegen/copy_graph.o \
 		Jit/codegen/gen_asm.o \
+		Jit/codegen/inliner.o \
 		Jit/codegen/postalloc.o \
 		Jit/codegen/postgen.o \
 		Jit/codegen/regalloc.o \
@@ -1238,6 +1239,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/codegen/copy_graph.h \
 		$(srcdir)/Jit/codegen/environ.h \
 		$(srcdir)/Jit/codegen/gen_asm.h \
+		$(srcdir)/Jit/codegen/inliner.h \
 		$(srcdir)/Jit/codegen/postalloc.h \
 		$(srcdir)/Jit/codegen/postgen.h \
 		$(srcdir)/Jit/codegen/regalloc.h \
@@ -2293,6 +2295,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/deopt_test.o \
 	${RUNTIME_TESTS_DIR}/jit_list_test.o \
 	${RUNTIME_TESTS_DIR}/lir_test.o \
+	${RUNTIME_TESTS_DIR}/lir_inliner_test.o \
 	${RUNTIME_TESTS_DIR}/hir_copy_propagation_test.o \
 	${RUNTIME_TESTS_DIR}/hir_frame_state_test.o \
 	${RUNTIME_TESTS_DIR}/hir_guard_test.o \
