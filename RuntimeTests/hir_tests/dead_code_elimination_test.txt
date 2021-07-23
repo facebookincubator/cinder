@@ -85,7 +85,7 @@ fun jittestmodule:test {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalCode["inner"] = LoadConst<MortalCode["inner"]>
     v8:MortalUnicodeExact["test.<locals>.inner"] = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
-    v9:Func = MakeFunction v8 v7 {
+    v9:MortalFunc = MakeFunction v8 v7 {
       NextInstrOffset 6
       Locals<1> v6
     }
