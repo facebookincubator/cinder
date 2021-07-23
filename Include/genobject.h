@@ -10,7 +10,7 @@ extern "C" {
 
 #include "pystate.h"   /* _PyErr_StackItem */
 
-#include "pycore_shadow_frame_struct.h"
+#include "internal/pycore_shadow_frame_struct.h"
 
 struct _frame; /* Avoid including frameobject.h */
 

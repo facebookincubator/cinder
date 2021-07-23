@@ -4,7 +4,7 @@
 
 #include "Python.h"
 #include "frameobject.h"
-#include "pycore_shadow_frame_struct.h"
+#include "internal/pycore_shadow_frame_struct.h"
 
 #include <stdbool.h>
 #include <stdint.h>
