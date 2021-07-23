@@ -3434,13 +3434,35 @@ static PyObject *chklist_cls_getitem(_PyGenericTypeDef *type, PyObject *args) {
     return item;
 }
 
+static inline int
+chklist_append(PyListObject *self, PyObject *value)
+{
+    Py_ssize_t n = Py_SIZE(self);
+
+    assert(value != NULL);
+    if (n == PY_SSIZE_T_MAX) {
+      PyErr_SetString(PyExc_OverflowError,
+                      "cannot add more objects to list");
+      return -1;
+    }
+
+    if (list_resize(self, n+1) < 0)
+      return -1;
+
+    Py_INCREF(value);
+    PyList_SET_ITEM(self, n, value);
+    return 0;
+}
+
+_Py_TYPED_SIGNATURE(chklist_append, _Py_SIG_ERROR, &_Py_Sig_T0, NULL);
+
 static PyMethodDef chklist_methods[] = {
     {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
     LIST___REVERSED___METHODDEF
     LIST___SIZEOF___METHODDEF
     LIST_CLEAR_METHODDEF
     LIST_COPY_METHODDEF
-    LIST_APPEND_METHODDEF
+    {"append", (PyCFunction)&chklist_append_def, METH_TYPED, list_append__doc__},
     LIST_INSERT_METHODDEF
     LIST_EXTEND_METHODDEF
     LIST_POP_METHODDEF
@@ -3456,7 +3478,43 @@ static PyMethodDef chklist_methods[] = {
 static PyObject *
 chklist_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-    return PyList_New(0);
+    PyListObject *op;
+#ifdef SHOW_ALLOC_COUNT
+    static int initialized = 0;
+    if (!initialized) {
+        Py_AtExit(show_alloc);
+        initialized = 1;
+    }
+#endif
+
+    if (numfree) {
+        numfree--;
+        op = free_list[numfree];
+        Py_TYPE(op) = type;
+        _Py_NewReference((PyObject *)op);
+        Py_INCREF(type);
+#ifdef SHOW_ALLOC_COUNT
+        count_reuse++;
+#endif
+    } else {
+        op = PyObject_GC_New(PyListObject, type);
+        if (op == NULL)
+            return NULL;
+#ifdef SHOW_ALLOC_COUNT
+        count_alloc++;
+#endif
+    }
+    op->ob_item = NULL;
+    Py_SIZE(op) = 0;
+    op->allocated = 0;
+    _PyObject_GC_TRACK(op);
+    return (PyObject *) op;
+}
+
+static void chklist_dealloc(PyListObject *self)
+{
+  Py_TYPE(self) = &PyList_Type;
+  list_dealloc(self);
 }
 
 _PyGenericTypeDef _PyCheckedList_Type = {
@@ -3465,7 +3523,7 @@ _PyGenericTypeDef _PyCheckedList_Type = {
         PyVarObject_HEAD_INIT(&PyType_Type, 0) "chklist[T]",
         sizeof(PyListObject),
         0,
-        (destructor)list_dealloc,                   /* tp_dealloc */
+        (destructor)chklist_dealloc,                /* tp_dealloc */
         0,                                          /* tp_vectorcall_offset */
         0,                                          /* tp_getattr */
         0,                                          /* tp_setattr */

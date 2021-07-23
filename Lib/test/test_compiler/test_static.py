@@ -14380,6 +14380,24 @@ class StaticRuntimeTests(StaticTestBase):
         self.assertEqual(repr(x), "[1]")
         self.assertEqual(chklist[int].__module__, "__static__")
 
+    def test_checked_list_append_bad_type(self):
+        x = chklist[int]()
+        # No error
+        x.append(42)
+        self.assertEqual(x[0], 42)
+        with self.assertRaisesRegex(TypeError, "int"):
+            x.append("A")
+
+    def test_checked_list_free_list(self):
+        t1 = chklist[str]
+        t2 = chklist[str]
+        x = t1()
+        x_id1 = id(x)
+        del x
+        x = t2()
+        x_id2 = id(x)
+        self.assertEqual(x_id1, x_id2)
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,
