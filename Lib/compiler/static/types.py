@@ -2275,6 +2275,67 @@ class MethodType(Object[Class]):
         self.function.emit_call_self(node, code_gen)
 
 
+class StaticMethodInstanceBound(Object[Class]):
+    """This represents a static method that has been bound to an instance
+    method.  Such a thing doesn't really exist in Python as the function
+    will always be returned.  But we need to defer the resolution of the
+    static method to runtime if the instance that it is accessed to is not
+    final or exact.  In that case we'll use an INVOKE_METHOD opcode to invoke
+    it and the internal runtime machinery will understand that static methods
+    should have their self parameters removed on the call."""
+
+    def __init__(
+        self,
+        function: Function,
+        target: ast.Attribute,
+    ) -> None:
+        super().__init__(STATIC_METHOD_TYPE)
+        self.function = function
+        self.target = target
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        if self.function.has_vararg or self.function.has_kwarg:
+            return super().bind_call(node, visitor, type_ctx)
+
+        arg_mapping = ArgMapping(self.function, node, None)
+
+        self_type = visitor.get_type(self.target.value)
+        if not (self_type.klass.is_exact or self_type.klass.is_final):
+            arg_mapping.emitters.insert(0, PositionArg(self.target.value, OBJECT_TYPE))
+
+        arg_mapping.bind_args(visitor)
+
+        visitor.set_type(node, self.function.return_type.resolved().instance)
+        visitor.set_node_data(node, ArgMapping, arg_mapping)
+        return NO_EFFECT
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if (
+            not self.function.can_call_self(node, True)
+            or self.function.func_name in NON_VIRTUAL_METHODS
+        ):
+            return super().emit_call(node, code_gen)
+
+        code_gen.update_lineno(node)
+
+        arg_mapping: ArgMapping = code_gen.get_node_data(node, ArgMapping)
+        for emitter in arg_mapping.emitters:
+            emitter.emit(node, code_gen)
+
+        self_type = code_gen.get_type(self.target.value)
+        if self_type.klass.is_exact or self_type.klass.is_final:
+            code_gen.emit("EXTENDED_ARG", 0)
+            code_gen.emit(
+                "INVOKE_FUNCTION", (self.function.type_descr, len(self.function.args))
+            )
+        else:
+            code_gen.emit_invoke_method(
+                self.function.type_descr, len(self.function.args)
+            )
+
+
 class StaticMethod(Object[Class]):
     def __init__(
         self,
@@ -2309,7 +2370,8 @@ class StaticMethod(Object[Class]):
         if inst is None:
             visitor.set_type(node, self.function)
         else:
-            visitor.set_type(node, DYNAMIC)
+            visitor.set_type(node, StaticMethodInstanceBound(self.function, node))
+
 
 class TypingFinalDecorator(Class):
     def bind_decorate_function(
