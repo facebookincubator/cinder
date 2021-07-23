@@ -25,6 +25,14 @@ class LIRInliner {
   int callee_start_;
   int callee_end_;
 
+  // Find corresponding function body.
+  // Returns nullptr if function cannot be found.
+  lir::Function* findFunction();
+
+  // Given the name of the function, try to find the corresponding LIR text
+  // and parse it.
+  lir::Function* parseFunction(const std::string& name);
+
   // Assume that kLoadArg instructions are only found
   // at the beginning of callee_.
   bool resolveArguments();
@@ -51,6 +59,8 @@ class LIRInliner {
   FRIEND_TEST(LIRInlinerTest, ResolveArgumentsTest);
   FRIEND_TEST(LIRInlinerTest, ResolveReturnWithPhiTest);
   FRIEND_TEST(LIRInlinerTest, ResolveReturnWithoutPhiTest);
+  FRIEND_TEST(LIRInlinerTest, FindFunctionSuccessTest);
+  FRIEND_TEST(LIRInlinerTest, FindFunctionFailureTest);
 };
 
 } // namespace codegen

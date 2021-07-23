@@ -1,4 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include "Jit/jit_rt.h"
 #include "Jit/lir/instruction.h"
 #include "gtest/gtest.h"
 
@@ -176,6 +177,38 @@ BB %4 - preds: %2 %3
   std::stringstream ss;
   ss << *caller << std::endl;
   ASSERT_EQ(ss.str(), lir_expected);
+}
+
+TEST_F(LIRInlinerTest, FindFunctionSuccessTest) {
+  auto caller = std::make_unique<Function>();
+  auto bb = caller->allocateBasicBlock();
+  auto call_instr = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(),
+      Imm(reinterpret_cast<uint64_t>(JITRT_Cast)));
+  LIRInliner inliner(call_instr);
+  auto callee = inliner.findFunction();
+  ASSERT_TRUE(callee != nullptr);
+  // The second time that the same function is called,
+  // it should already have been parsed.
+  auto callee2 = inliner.findFunction();
+  ASSERT_EQ(callee, callee2);
+}
+
+TEST_F(LIRInlinerTest, FindFunctionFailureTest) {
+  auto caller = std::make_unique<Function>();
+  auto bb = caller->allocateBasicBlock();
+  auto call_instr = bb->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(),
+      Imm(reinterpret_cast<uint64_t>(JITRT_BoxBool)));
+  // JITRT_BoxBool is a function that we have not yet translated.
+  LIRInliner inliner(call_instr);
+  auto callee = inliner.findFunction();
+
+  ASSERT_EQ(callee, nullptr);
 }
 
 } // namespace jit::codegen

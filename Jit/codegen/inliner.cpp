@@ -1,13 +1,63 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/inliner.h"
+#include <dlfcn.h>
+#include <fstream>
+#include <string_view>
 #include <unordered_map>
 #include "Jit/lir/lir.h"
-#include "Jit/lir/operand.h"
+#include "Jit/lir/parser.h"
 
 using namespace jit::lir;
 
 namespace jit {
 namespace codegen {
+
+lir::Function* LIRInliner::findFunction() {
+  // Get the address.
+  if (call_instr_->getNumInputs() < 1) {
+    return nullptr;
+  }
+  OperandBase* dest_operand = call_instr_->getInput(0);
+  if (!dest_operand->isImm()) {
+    return nullptr;
+  }
+  uint64_t addr = dest_operand->getConstant();
+
+  // Resolve the addres to a name.
+  Dl_info helper_info;
+  if (dladdr(reinterpret_cast<void*>(addr), &helper_info) == 0 ||
+      helper_info.dli_sname == NULL) {
+    return nullptr;
+  }
+  const std::string& name = helper_info.dli_sname;
+  return parseFunction(name);
+}
+
+lir::Function* LIRInliner::parseFunction(const std::string& name) {
+  static std::unordered_map<std::string, std::unique_ptr<Function>>
+      name_to_function;
+
+  // Check if function is in map, return function if in map.
+  auto iter = name_to_function.find(name);
+  if (iter != name_to_function.end()) {
+    return iter->second.get();
+  }
+
+  // Using function name, try to open and parse text file with function.
+  std::ifstream lir_text(
+      fmt::format("Jit/lir/c_helper_translations/{}.lir", name));
+  if (!lir_text.good()) {
+    return nullptr;
+  }
+  std::stringstream buffer;
+  buffer << lir_text.rdbuf();
+  Parser parser;
+  std::unique_ptr<Function> parsed_func = parser.parse(buffer.str());
+  // Add function to map.
+  name_to_function.emplace(name, std::move(parsed_func));
+  // Return parsed function.
+  return map_get_strict(name_to_function, name).get();
+}
 
 bool LIRInliner::resolveArguments() {
   // Map index to arguments of call_instr_.
