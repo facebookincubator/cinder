@@ -4303,6 +4303,186 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(code, "STORE_ATTR", "store")
         self.assertInBytecode(code, "DELETE_ATTR", "delete")
 
+    def test_incompat_override_method_ret_type(self):
+        codestr = """
+            class A:
+                def m(self) -> str:
+                    return "hello"
+
+            class B(A):
+                def m(self) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. "
+            "Returned type `int` is not a subtype of the overridden return `str`",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_num_args(self):
+        codestr = """
+            class A:
+                def m(self) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, x: int) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. Number of arguments differ",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_arg_type(self):
+        codestr = """
+            class A:
+                def m(self, x: str) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, x: int) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. "
+            "Parameter x of type `int` is not a subtype of the overridden parameter `str`",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_arg_name(self):
+        codestr = """
+            class A:
+                def m(self, x: str) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, y: str) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. "
+            "Positional argument 2 named `x` is overridden as `y`",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_starargs(self):
+        codestr = """
+            class A:
+                def m(self) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, *args) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. "
+            "Functions differ by including \\*args",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_num_kwonly_args(self):
+        codestr = """
+            class A:
+                def m(self) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, *, x: int) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. Number of arguments differ",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_kwonly_name(self):
+        codestr = """
+            class A:
+                def m(self, *, y: int) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, *, x: int) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. Keyword only argument `y` is overridden as `x`",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_kwonly_mismatch(self):
+        codestr = """
+            class A:
+                def m(self, x: str) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, *, x: str) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. `x` differs by keyword only vs positional",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_starkwargs(self):
+        codestr = """
+            class A:
+                def m(self) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, **args) -> int:
+                    return 0
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "<module>.B.m overrides <module>.A.m inconsistently. "
+            "Functions differ by including \\*\\*kwargs",
+        ):
+            self.compile(codestr)
+
+    def test_incompat_override_method_arg_type_okay(self):
+        codestr = """
+            class A:
+                def m(self, x: str) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, x: object) -> int:
+                    return 0
+        """
+        self.compile(codestr)
+
+    def test_incompat_override_init_okay(self):
+        codestr = """
+            class A:
+                def __init__(self) -> None:
+                    pass
+
+            class B(A):
+                def __init__(self, x: int) -> None:
+                    pass
+
+            def f(x: A):
+                x.__init__()
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            # calling __init__ directly shouldn't use INVOKE_METHOD
+            # as we allow users to override this inconsistently
+            self.assertNotInBytecode(f, "INVOKE_METHOD")
+
     def test_incompat_override(self):
         codestr = """
         class C:

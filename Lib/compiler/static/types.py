@@ -899,7 +899,15 @@ class Class(Object["Class"]):
                     value.finish_bind(module)
                 elif isinstance(value, Slot):
                     inherited.add(name)
-                elif isinstance(value, (Function, StaticMethod)):
+                elif isinstance(value, Function):
+                    if value.is_final:
+                        raise TypedSyntaxError(
+                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                        )
+                    if value.func_name not in NON_VIRTUAL_METHODS:
+                        assert isinstance(my_value, Function)
+                        value.validate_compat_signature(my_value, module)
+                elif isinstance(value, StaticMethod):
                     if value.is_final:
                         raise TypedSyntaxError(
                             f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
@@ -1927,6 +1935,12 @@ class InlinedCall:
         self.spills = spills
 
 
+# These are methods which are implicitly non-virtual, that is we'll never
+# generate virtual invokes against them, and therefore their signatures
+# also don't have any requirements to be compatible.
+NON_VIRTUAL_METHODS = {"__init__", "__new__", "__init_subclass__"}
+
+
 class Function(Callable[Class]):
     def __init__(
         self,
@@ -2141,6 +2155,71 @@ class Function(Callable[Class]):
         if kwarg:
             self.has_kwarg = True
 
+    def validate_compat_signature(
+        self, override: Function, module: ModuleTable
+    ) -> None:
+        ret_type = self.return_type.resolved()
+        override_ret_type = override.return_type.resolved()
+
+        if not ret_type.can_assign_from(override_ret_type):
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"Returned type `{override_ret_type.instance_name}` is not a subtype "
+                f"of the overridden return `{ret_type.instance_name}`",
+                override.node,
+            )
+
+        if len(self.args) != len(override.args):
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                "Number of arguments differ",
+                override.node,
+            )
+
+        for arg, override_arg in zip(self.args[1:], override.args[1:]):
+            if arg.name != override_arg.name:
+                if arg.is_kwonly:
+                    arg_desc = f"Keyword only argument `{arg.name}`"
+                else:
+                    arg_desc = f"Positional argument {arg.index + 1} named `{arg.name}`"
+
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"{arg_desc} is overridden as `{override_arg.name}`",
+                    override.node,
+                )
+
+            if arg.is_kwonly != override_arg.is_kwonly:
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"`{arg.name}` differs by keyword only vs positional",
+                    override.node,
+                )
+
+            override_type = override_arg.type_ref.resolved()
+            arg_type = arg.type_ref.resolved()
+            if not override_type.can_assign_from(arg_type):
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"Parameter {arg.name} of type `{override_type.instance_name}` is not a subtype "
+                    f"of the overridden parameter `{arg_type.instance_name}`",
+                    override.node,
+                )
+
+        if self.has_vararg != override.has_vararg:
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"Functions differ by including *args",
+                override.node,
+            )
+
+        if self.has_kwarg != override.has_kwarg:
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"Functions differ by including **kwargs",
+                override.node,
+            )
+
     def __repr__(self) -> str:
         return f"<{self.name} '{self.name}' instance, args={self.args}>"
 
@@ -2177,7 +2256,10 @@ class MethodType(Object[Class]):
         return result
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if not self.function.can_call_self(node, True):
+        if (
+            not self.function.can_call_self(node, True)
+            or self.function.func_name in NON_VIRTUAL_METHODS
+        ):
             return super().emit_call(node, code_gen)
 
         code_gen.update_lineno(node)

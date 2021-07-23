@@ -202,7 +202,7 @@ class Task(TaskState):
         wa.taskList = self
         wa.taskTab[i] = self
 
-    def fn(self, pkt, r) -> Optional[Task]:
+    def fn(self, pkt: Optional[Packet], r: TaskRec) -> Optional[Task]:
         raise NotImplementedError
 
     def addPacket(self, p: Packet, old: Task) -> Task:
@@ -266,8 +266,8 @@ class DeviceTask(Task):
     def __init__(self, i: int, p: int, w: Optional[Packet], s: TaskState, r: DeviceTaskRec) -> None:
         Task.__init__(self, i, p, w, s, r)
 
-    def fn(self, pkt: Optional[Packet], r: DeviceTaskRec) -> Task:
-        d: DeviceTaskRec = r
+    def fn(self, pkt: Optional[Packet], r: TaskRec) -> Task:
+        d: DeviceTaskRec = cast(DeviceTaskRec, r)
         if pkt is None:
             pkt = d.pending
             if pkt is None:
@@ -287,8 +287,8 @@ class HandlerTask(Task):
     def __init__(self, i: int, p: int, w: Packet, s: TaskState, r: HandlerTaskRec) -> None:
         Task.__init__(self, i, p, w, s, r)
 
-    def fn(self, pkt: Optional[Packet], r: HandlerTaskRec) -> Task:
-        h: HandlerTaskRec = r
+    def fn(self, pkt: Optional[Packet], r: TaskRec) -> Task:
+        h: HandlerTaskRec = cast(HandlerTaskRec, r)
         if pkt is not None:
             if pkt.kind == int64(K_WORK):
                 h.workInAdd(pkt)
@@ -319,8 +319,8 @@ class IdleTask(Task):
     def __init__(self, i: int, p: int, w: int, s: TaskState, r: IdleTaskRec) -> None:
         Task.__init__(self, i, 0, None, s, r)
 
-    def fn(self, pkt: Optional[Packet], r: IdleTaskRec) -> Optional[Task]:
-        i: IdleTaskRec = r
+    def fn(self, pkt: Optional[Packet], r: TaskRec) -> Optional[Task]:
+        i: IdleTaskRec = cast(IdleTaskRec, r)
         i.count -= 1
         if i.count == 0:
             return self.hold()
@@ -345,8 +345,8 @@ class WorkTask(Task):
     def __init__(self, i: int, p: int, w: Packet, s: TaskState, r: WorkerTaskRec) -> None:
         Task.__init__(self, i, p, w, s, r)
 
-    def fn(self, pkt: Optional[Packet], r: WorkerTaskRec) -> Task:
-        w: WorkerTaskRec = r
+    def fn(self, pkt: Optional[Packet], r: TaskRec) -> Task:
+        w: WorkerTaskRec = cast(WorkerTaskRec, r)
         if pkt is None:
             return self.waitTask()
 

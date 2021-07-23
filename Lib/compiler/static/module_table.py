@@ -67,6 +67,9 @@ class ModuleTable:
         # type annotations is not safe.
         self.first_pass_done = False
 
+    def syntax_error(self, msg: str, node: AST) -> None:
+        return self.symtable.error_sink.syntax_error(msg, self.filename, node)
+
     def declare_class(self, node: ClassDef, klass: Class) -> None:
         self.decls.append((node, klass))
         self.children[node.name] = klass
