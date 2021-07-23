@@ -104,21 +104,39 @@ class BackendTest : public RuntimeTest {
   }
 
   void CheckFromArray(Function* lir_func) {
-    auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(lir_func);
+    auto func = (uint64_t(*)(char*, int64_t, ssize_t))SimpleCompile(lir_func);
 
     long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
     ASSERT_EQ(
-        func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
+        func((char*)a, 0, 0),
+        JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
     ASSERT_EQ(
-        func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
+        func((char*)a, 1, 0),
+        JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
     ASSERT_EQ(
-        func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
+        func((char*)a, 2, 0),
+        JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
     ASSERT_EQ(
-        func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
+        func((char*)a, 3, 0),
+        JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
     ASSERT_EQ(
-        func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
+        func((char*)a, 4, 0),
+        JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
     ASSERT_EQ(
-        func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
+        func((char*)a, 5, 0),
+        JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
+    ASSERT_EQ(
+        func((char*)a, 0, 16),
+        JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/16));
+    ASSERT_EQ(
+        func((char*)a, 1, 24),
+        JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/24));
+    ASSERT_EQ(
+        func((char*)a, 4, -24),
+        JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/-24));
+    ASSERT_EQ(
+        func((char*)a, 5, -16),
+        JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/-16));
   }
 
   void CheckCast(Function* lir_func) {
@@ -568,8 +586,17 @@ TEST_F(BackendTest, GetI32FromArrayTest) {
       bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
   auto index = bb->allocateInstr(
       Instruction::kLoadArg, nullptr, OutVReg(OperandBase::k64bit), Imm(1));
+  auto offset = bb->allocateInstr(
+      Instruction::kLoadArg, nullptr, OutVReg(OperandBase::k64bit), Imm(2));
 
-  auto address = Ind(start, index, 3, 0);
+  auto base_address = bb->allocateInstr(
+      Instruction::kAdd,
+      nullptr,
+      OutVReg(OperandBase::k64bit),
+      VReg(start),
+      VReg(offset));
+
+  auto address = Ind(base_address, index, 3, 0);
 
   auto ret = bb->allocateInstr(
       Instruction::kMove, nullptr, OutVReg(OperandBase::k64bit), address);
@@ -760,8 +787,10 @@ BB %0 - succs: %2
 BB %2 - preds: %0 - succs: %3
        %4:Object = LoadArg 0(0x0):Object
         %5:64bit = LoadArg 1(0x1):Object
-        %6:64bit = Move [%4:Object + %5:64bit * 8]:Object
-                   Return %6:64bit
+        %6:64bit = LoadArg 2(0x2):Object
+        %7:64bit = Add %4:Object, %6:64bit
+        %8:64bit = Move [%7:64bit + %5:64bit * 8]:Object
+                   Return %8:64bit
 
 BB %3 - preds: %2 - succs: %1
 
@@ -869,13 +898,16 @@ TEST_F(BackendTest, InlineJITRTFromArrayTest) {
       bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
   auto r2 =
       bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(1));
+  auto r3 =
+      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(2));
   auto call_instr = bb->allocateInstr(
       Instruction::kCall,
       nullptr,
       OutVReg(),
       Imm(reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray)),
       VReg(r1),
-      VReg(r2));
+      VReg(r2),
+      VReg(r3));
   bb->allocateInstr(Instruction::kReturn, nullptr, VReg(call_instr));
   auto epilogue = caller->allocateBasicBlock();
   bb->addSuccessor(epilogue);
@@ -884,21 +916,23 @@ TEST_F(BackendTest, InlineJITRTFromArrayTest) {
 
   // Check that caller LIR is as expected.
   auto expected_caller = fmt::format(R"(Function:
-BB %0 - succs: %7
+BB %0 - succs: %8
        %1:Object = LoadArg 0(0x0):Object
        %2:Object = LoadArg 1(0x1):Object
+       %3:Object = LoadArg 2(0x2):Object
 
-BB %7 - preds: %0 - succs: %8
-       %11:64bit = Move [%1:Object + %2:Object * 8]:Object
+BB %8 - preds: %0 - succs: %9
+       %13:64bit = Add %1:Object, %3:Object
+       %14:64bit = Move [%13:64bit + %2:Object * 8]:Object
 
-BB %8 - preds: %7 - succs: %6
-      %13:Object = Phi (BB%7, %11:64bit)
+BB %9 - preds: %8 - succs: %7
+      %16:Object = Phi (BB%8, %14:64bit)
 
-BB %6 - preds: %8 - succs: %5
-       %3:Object = Move %13:Object
-                   Return %3:Object
+BB %7 - preds: %9 - succs: %6
+       %4:Object = Move %16:Object
+                   Return %4:Object
 
-BB %5 - preds: %6
+BB %6 - preds: %7
 
 )");
   std::stringstream ss;
