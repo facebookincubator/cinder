@@ -787,6 +787,16 @@ methodtable_callback_impl(PyObject *Py_UNUSED(self), PyMethodTableRef *tableref)
     Py_RETURN_NONE;
 }
 
+static PyObject*
+clear_method_table(PyObject *Py_UNUSED(module), PyMethodTableRef *arg)
+{
+    if (arg == Future_TableRef) {
+        Py_RETURN_NONE;
+    }
+    _PyWeakref_ClearRef((PyWeakReference*)arg);
+    return methodtable_callback_impl(NULL, arg);
+}
+
 PyMethodDef _MethodTableRefCallback = {
     "methodtableref_callback",
     (PyCFunction)methodtable_callback_impl,
@@ -7722,6 +7732,14 @@ _asyncio_create_awaitable_value(PyObject *Py_UNUSED(module), PyObject *value)
 }
 
 static PyObject *
+_asyncio_clear_caches(PyObject *Py_UNUSED(module), PyObject *Py_UNUSED(arg))
+{
+    PySet_Clear(awaitable_types_cache);
+    PySet_Clear(iscoroutine_typecache);
+    Py_RETURN_NONE;
+}
+
+static PyObject *
 _start_immediate_impl(PyObject *coro, PyObject *loop);
 
 /*[clinic input]
@@ -8044,6 +8062,8 @@ static PyMethodDef asyncio_methods[] = {
     { "ig_gather_iterable_no_raise", (PyCFunction)_asyncio_ig_gather_iterable_no_raise, METH_FASTCALL, NULL },
     { "create_awaitable_value", (PyCFunction)_asyncio_create_awaitable_value, METH_O, NULL },
     _ASYNCIO__START_IMMEDIATE_METHODDEF
+    { "_clear_caches", (PyCFunction)_asyncio_clear_caches, METH_NOARGS, NULL },
+    { "_clear_method_table", (PyCFunction)clear_method_table, METH_O, NULL},
     {NULL, NULL}
 };
 

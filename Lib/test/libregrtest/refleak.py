@@ -23,6 +23,10 @@ try:
 except:
     cinder = None
 
+try:
+    import _asyncio
+except:
+    _asyncio = None
 
 def dash_R(ns, test_name, test_func):
     """Run a test multiple times, looking for reference leaks.
@@ -173,6 +177,8 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
     else:
         zipimport._zip_directory_cache.clear()
         zipimport._zip_directory_cache.update(zdc)
+    if _asyncio is not None:
+        _asyncio._clear_caches()
 
     if cinder is not None:
         # disable shadow byte code, we don't want to allocate new caches while
@@ -217,10 +223,24 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
             obj._abc_caches_clear()
 
     clear_caches()
+    clear_asyncio_caches()
 
     if cinder is not None:
         cinder.setknobs(CINDER_KNOBS)
 
+def clear_asyncio_caches():
+
+    try:
+        asyncio_coroutines = sys.modules["asyncio.coroutines"]
+    except KeyError:
+        pass
+    else:
+        asyncio_coroutines._iscoroutine_typecache.clear()
+
+    refs = [x for x in gc.get_objects() if type(x).__name__ == "future_method_table"]
+    for ref in refs:
+        _asyncio._clear_method_table(ref)
+    del refs
 
 def clear_caches():
     # Clear the warnings registry, so they can be displayed again
