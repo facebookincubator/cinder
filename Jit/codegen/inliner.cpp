@@ -103,5 +103,41 @@ void LIRInliner::resolveLinkedArgumentsUses(
   ++instr_it;
 }
 
+void LIRInliner::resolveReturnValue() {
+  auto epilogue =
+      call_instr_->basicblock()->function()->basicblocks().at(callee_end_ - 1);
+
+  // Create phi instruction.
+  auto phi_instr =
+      epilogue->allocateInstr(Instruction::kPhi, nullptr, OutVReg());
+
+  // Find return instructions from predecessor of epilogue.
+  for (auto pred : epilogue->predecessors()) {
+    auto lastInstr = pred->getLastInstr();
+    if (lastInstr != nullptr && lastInstr->isReturn()) {
+      phi_instr->allocateLabelInput(pred);
+      JIT_CHECK(
+          lastInstr->getNumInputs() > 0,
+          "Return instruction should have at least 1 input operand.");
+      phi_instr->appendInputOperand(lastInstr->releaseInputOperand(0));
+      pred->removeInstr(pred->getLastInstrIter());
+    }
+  }
+
+  if (phi_instr->getNumInputs() == 0) {
+    // Callee has no return statements.
+    // Remove phi instruction.
+    epilogue->removeInstr(epilogue->getLastInstrIter());
+    call_instr_->setOpcode(Instruction::kNop);
+  } else {
+    call_instr_->setOpcode(Instruction::kMove);
+    // Remove all inputs.
+    while (call_instr_->getNumInputs() > 0) {
+      call_instr_->removeInputOperand(0);
+    }
+    call_instr_->allocateLinkedInput(phi_instr);
+  }
+}
+
 } // namespace codegen
 } // namespace jit

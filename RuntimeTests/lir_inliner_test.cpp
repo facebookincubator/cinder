@@ -88,4 +88,94 @@ BB %4
   ASSERT_EQ(ss.str().substr(0, lir_expected.size()), lir_expected);
 }
 
+TEST_F(LIRInlinerTest, ResolveReturnWithPhiTest) {
+  auto caller = std::make_unique<Function>();
+  auto caller_bb1 = caller->allocateBasicBlock();
+  auto call_instr = caller_bb1->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(),
+      Imm(123), // random call address
+      Imm(1), // extra inputs that resolveReturnValue should remove
+      Imm(2),
+      Imm(3));
+
+  // Temporarily add callee blocks into caller
+  auto bb1 = caller->allocateBasicBlock();
+  auto bb2 = caller->allocateBasicBlock();
+  auto epilogue = caller->allocateBasicBlock();
+  auto r1 = bb1->allocateInstr(Instruction::kMove, nullptr, OutVReg(), Imm(1));
+  bb1->allocateInstr(Instruction::kReturn, nullptr, VReg(r1));
+  bb1->addSuccessor(epilogue);
+  auto r2 = bb2->allocateInstr(Instruction::kMove, nullptr, OutVReg(), Imm(2));
+  bb2->allocateInstr(Instruction::kReturn, nullptr, VReg(r2));
+  bb2->addSuccessor(epilogue);
+
+  LIRInliner inliner(call_instr);
+  inliner.callee_start_ = 1;
+  inliner.callee_end_ = 4;
+  inliner.resolveReturnValue();
+
+  auto lir_expected = fmt::format(R"(Function:
+BB %0
+       %1:Object = Move %9:Object
+
+BB %2 - succs: %4
+       %5:Object = Move 1(0x1):Object
+
+BB %3 - succs: %4
+       %7:Object = Move 2(0x2):Object
+
+BB %4 - preds: %2 %3
+       %9:Object = Phi (BB%2, %5:Object), (BB%3, %7:Object)
+
+)");
+  std::stringstream ss;
+  ss << *caller << std::endl;
+  ASSERT_EQ(ss.str().substr(0, lir_expected.size()), lir_expected);
+}
+
+TEST_F(LIRInlinerTest, ResolveReturnWithoutPhiTest) {
+  auto caller = std::make_unique<Function>();
+  auto caller_bb1 = caller->allocateBasicBlock();
+  auto call_instr = caller_bb1->allocateInstr(
+      Instruction::kCall,
+      nullptr,
+      OutVReg(),
+      Imm(123), // random call address
+      Imm(1), // extra inputs that resolveReturnValue should remove
+      Imm(2));
+
+  auto bb1 = caller->allocateBasicBlock();
+  auto bb2 = caller->allocateBasicBlock();
+  auto epilogue = caller->allocateBasicBlock();
+  bb1->allocateInstr(Instruction::kMove, nullptr, OutVReg(), Imm(1));
+  bb1->addSuccessor(epilogue);
+  bb2->allocateInstr(Instruction::kMove, nullptr, OutVReg(), Imm(2));
+  bb2->addSuccessor(epilogue);
+
+  LIRInliner inliner(call_instr);
+  inliner.callee_start_ = 1;
+  inliner.callee_end_ = 4;
+  inliner.resolveReturnValue();
+
+  auto lir_expected = fmt::format(R"(Function:
+BB %0
+       %1:Object = Nop 123(0x7b):Object, 1(0x1):Object, 2(0x2):Object
+
+BB %2 - succs: %4
+       %5:Object = Move 1(0x1):Object
+
+BB %3 - succs: %4
+       %6:Object = Move 2(0x2):Object
+
+BB %4 - preds: %2 %3
+
+
+)");
+  std::stringstream ss;
+  ss << *caller << std::endl;
+  ASSERT_EQ(ss.str(), lir_expected);
+}
+
 } // namespace jit::codegen

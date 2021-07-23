@@ -43,7 +43,14 @@ class LIRInliner {
       std::unordered_map<lir::OperandBase*, lir::LinkedOperand*>& vreg_map,
       std::list<std::unique_ptr<lir::Instruction>>::iterator& instr_it);
 
+  // Expects callee to have one empty epilogue block.
+  // Expects return instructions to only appear as
+  // the last statement in the predecessors of the epilogue blocks.
+  void resolveReturnValue();
+
   FRIEND_TEST(LIRInlinerTest, ResolveArgumentsTest);
+  FRIEND_TEST(LIRInlinerTest, ResolveReturnWithPhiTest);
+  FRIEND_TEST(LIRInlinerTest, ResolveReturnWithoutPhiTest);
 };
 
 } // namespace codegen
