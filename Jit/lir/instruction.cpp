@@ -17,6 +17,13 @@ Instruction::Instruction(
       basic_block_(basic_block),
       origin_(origin) {}
 
+Instruction::Instruction(BasicBlock* bb, Instruction* instr)
+    : id_(bb->function()->allocateId()),
+      opcode_(instr->opcode_),
+      output_(this, &instr->output_),
+      basic_block_(bb),
+      origin_(instr->origin_) {}
+
 Operand* Instruction::allocateImmediateInput(
     uint64_t n,
     OperandBase::DataType data_type) {

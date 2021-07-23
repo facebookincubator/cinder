@@ -130,6 +130,11 @@ class Instruction {
 
   Instruction(BasicBlock* basic_block, Opcode opcode, const hir::Instr* origin);
 
+  // Only copies simple fields (opcode_, basic_block_, origin_) from instr.
+  // The output_ only has its simple fields copied.
+  // The inputs are not copied.
+  Instruction(BasicBlock* bb, Instruction* instr);
+
   int id() const {
     return id_;
   }

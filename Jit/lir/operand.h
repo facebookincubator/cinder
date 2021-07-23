@@ -241,6 +241,14 @@ class MemoryIndirect {
 class Operand : public OperandBase {
  public:
   explicit Operand(Instruction* parent) : OperandBase(parent) {}
+
+  // Only copies simple fields (type and data type) from operand.
+  // The value_ field is not copied.
+  Operand(Instruction* parent, Operand* operand)
+      : OperandBase(parent),
+        type_(operand->type_),
+        data_type_(operand->data_type_) {}
+
   virtual ~Operand() {}
 
   Operand(Instruction* parent, DataType data_type, Type type, uint64_t data)

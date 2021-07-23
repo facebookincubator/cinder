@@ -39,6 +39,10 @@ class BasicBlock {
     bb->predecessors_.push_back(this);
   }
 
+  // Set successor at index to bb.
+  // Expects index to be within the current size of successors.
+  void setSuccessor(size_t index, BasicBlock* bb);
+
   // insert a basic block on the edge between the current basic
   // block and another basic block specified by block.
   BasicBlock* insertBasicBlockBetween(BasicBlock* block);

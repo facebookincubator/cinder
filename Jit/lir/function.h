@@ -18,6 +18,21 @@ class Function {
     return next_id_++;
   }
 
+  struct CopyResult {
+    int begin_bb;
+    int end_bb;
+  };
+
+  // Deep copy function into dest_func.
+  // Insert the blocks between prev_bb and next_bb.
+  // Assumes that prev_bb and next_bb appear consecutively
+  // in dest_func->basic_blocks_.
+  // Returns the range of inserted blocks in dest_func->basic_blocks_.
+  // The inserted blocks start at (inclusive) dest_func->basic_blocks_[begin_bb]
+  // and end right before (exclusive) dest_func->basic_blocks_[begin_bb].
+  CopyResult
+  copyFrom(const Function* src_func, BasicBlock* prev_bb, BasicBlock* next_bb);
+
   BasicBlock* allocateBasicBlock();
 
   BasicBlock* allocateBasicBlockAfter(BasicBlock* block);
@@ -67,8 +82,9 @@ class Function {
   // This approach gave a roughly 33% perf improvement over the vector of
   // unique_ptrs for a pathalogically large function.
   std::deque<BasicBlock> basic_block_store_;
-  // NOTE: the first basic block should always be the entry basic block,
-  // where the function starts.
+  // NOTE: The first basic block should always be the entry basic block,
+  // where the function starts. The last basic block should be the exit block,
+  // where the function ends.
   std::vector<BasicBlock*> basic_blocks_;
 
   // The next id to assign to a BasicBlock or Instruction.

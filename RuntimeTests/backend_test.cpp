@@ -16,6 +16,7 @@
 #include "testutil.h"
 
 #include <fstream>
+#include <regex>
 #include "Python.h"
 
 using namespace jit;
@@ -98,6 +99,53 @@ class BackendTest : public RuntimeTest {
     rt_.add(&func, &code);
     gen.lir_func_.release();
     return func;
+  }
+
+  void CheckFromArray(Function* lir_func) {
+    auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(lir_func);
+
+    long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
+    ASSERT_EQ(
+        func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
+    ASSERT_EQ(
+        func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
+    ASSERT_EQ(
+        func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
+    ASSERT_EQ(
+        func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
+    ASSERT_EQ(
+        func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
+    ASSERT_EQ(
+        func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
+  }
+
+  void CheckCast(Function* lir_func) {
+    auto func =
+        (PyObject * (*)(PyObject*, PyTypeObject*)) SimpleCompile(lir_func);
+
+    auto test_noerror = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
+      auto ret_test = func(a_in, b_in);
+      ASSERT_TRUE(PyErr_Occurred() == NULL);
+      auto ret_jitrt = JITRT_Cast(a_in, b_in);
+      ASSERT_TRUE(PyErr_Occurred() == NULL);
+      ASSERT_EQ(ret_test, ret_jitrt);
+    };
+
+    auto test_error = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
+      auto ret_test = func(a_in, b_in);
+      ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
+      PyErr_Clear();
+
+      auto ret_jitrt = JITRT_Cast(a_in, b_in);
+      ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
+      PyErr_Clear();
+
+      ASSERT_EQ(ret_test, ret_jitrt);
+    };
+
+    test_noerror(Py_False, &PyBool_Type);
+    test_noerror(Py_False, &PyLong_Type);
+    test_error(Py_False, &PyUnicode_Type);
   }
 
  private:
@@ -530,21 +578,7 @@ TEST_F(BackendTest, GetI32FromArrayTest) {
   auto epilogue = lirfunc->allocateBasicBlock();
   bb->addSuccessor(epilogue);
 
-  auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(lirfunc.get());
-
-  long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
-  ASSERT_EQ(
-      func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
+  CheckFromArray(lirfunc.get());
 }
 
 TEST_F(BackendTest, CastTest) {
@@ -614,32 +648,7 @@ TEST_F(BackendTest, CastTest) {
   bb4->allocateInstr(Instruction::kReturn, nullptr, VReg(nll));
   bb4->addSuccessor(epilogue);
 
-  auto func =
-      (PyObject * (*)(PyObject*, PyTypeObject*)) SimpleCompile(lirfunc.get());
-
-  auto test_noerror = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
-    auto ret_test = func(a_in, b_in);
-    ASSERT_TRUE(PyErr_Occurred() == NULL);
-    auto ret_jitrt = JITRT_Cast(a_in, b_in);
-    ASSERT_TRUE(PyErr_Occurred() == NULL);
-    ASSERT_EQ(ret_test, ret_jitrt);
-  };
-
-  auto test_error = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
-    auto ret_test = func(a_in, b_in);
-    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
-    PyErr_Clear();
-
-    auto ret_jitrt = JITRT_Cast(a_in, b_in);
-    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
-    PyErr_Clear();
-
-    ASSERT_EQ(ret_test, ret_jitrt);
-  };
-
-  test_noerror(Py_False, &PyBool_Type);
-  test_noerror(Py_False, &PyLong_Type);
-  test_error(Py_False, &PyUnicode_Type);
+  CheckCast(lirfunc.get());
 }
 
 TEST_F(BackendTest, ParserGetI32FromArrayTest) {
@@ -649,21 +658,7 @@ TEST_F(BackendTest, ParserGetI32FromArrayTest) {
   Parser parser;
   auto parsed_func = parser.parse(buffer.str());
 
-  auto func = (uint64_t(*)(char*, int64_t))SimpleCompile(parsed_func.get());
-
-  long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
-  ASSERT_EQ(
-      func((char*)a, 0), JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 1), JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 2), JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 3), JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 4), JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
-  ASSERT_EQ(
-      func((char*)a, 5), JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
+  CheckFromArray(parsed_func.get());
 }
 
 TEST_F(BackendTest, ParserCastTest) {
@@ -673,32 +668,8 @@ TEST_F(BackendTest, ParserCastTest) {
 
   Parser parser;
   auto parsed_func = parser.parse(buffer.str());
-  auto func = (PyObject * (*)(PyObject*, PyTypeObject*))
-      SimpleCompile(parsed_func.get());
 
-  auto test_noerror = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
-    auto ret_test = func(a_in, b_in);
-    ASSERT_TRUE(PyErr_Occurred() == NULL);
-    auto ret_jitrt = JITRT_Cast(a_in, b_in);
-    ASSERT_TRUE(PyErr_Occurred() == NULL);
-    ASSERT_EQ(ret_test, ret_jitrt);
-  };
-
-  auto test_error = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
-    auto ret_test = func(a_in, b_in);
-    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
-    PyErr_Clear();
-
-    auto ret_jitrt = JITRT_Cast(a_in, b_in);
-    ASSERT_TRUE(PyErr_ExceptionMatches(PyExc_TypeError));
-    PyErr_Clear();
-
-    ASSERT_EQ(ret_test, ret_jitrt);
-  };
-
-  test_noerror(Py_False, &PyBool_Type);
-  test_noerror(Py_False, &PyLong_Type);
-  test_error(Py_False, &PyUnicode_Type);
+  CheckCast(parsed_func.get());
 }
 
 TEST_F(BackendTest, ParserStringInputTest) {
@@ -764,6 +735,129 @@ TEST_F(BackendTest, SplitBasicBlockTest) {
 
   ASSERT_EQ(func(0), 16);
   ASSERT_EQ(func(1), 9);
+}
+
+TEST_F(BackendTest, CopyFromArrayTest) {
+  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI32_FromArray.lir");
+  std::stringstream buffer;
+  buffer << t.rdbuf();
+  Parser parser;
+  auto parsed_func = parser.parse(buffer.str());
+
+  auto caller = std::make_unique<Function>();
+  auto bb1 = caller->allocateBasicBlock();
+  auto bb2 = caller->allocateBasicBlock();
+  bb1->addSuccessor(bb2);
+  auto [begin_bb, end_bb] = caller->copyFrom(parsed_func.get(), bb1, bb2);
+  parsed_func.reset();
+
+  // Check that the caller is what we expected.
+  auto expected_caller = fmt::format(R"(Function:
+BB %0 - succs: %2
+
+BB %2 - preds: %0 - succs: %3
+       %4:Object = LoadArg 0(0x0):Object
+        %5:64bit = LoadArg 1(0x1):Object
+        %6:64bit = Move [%4:Object + %5:64bit * 8]:Object
+                   Return %6:64bit
+
+BB %3 - preds: %2 - succs: %1
+
+BB %1 - preds: %3
+
+)");
+  std::stringstream ss;
+  caller->sortBasicBlocks();
+  ss << *caller;
+  ASSERT_EQ(expected_caller, ss.str());
+
+  // Remove bb1 and bb2,
+  // so that the function can execute correctly.
+  auto basicblocks = &caller->basicblocks();
+  auto start = basicblocks->at(begin_bb);
+  start->predecessors().clear();
+  auto end = basicblocks->at(end_bb - 1);
+  end->successors().clear();
+  basicblocks->erase(
+      std::remove(basicblocks->begin(), basicblocks->end(), bb1),
+      basicblocks->end());
+  basicblocks->erase(
+      std::remove(basicblocks->begin(), basicblocks->end(), bb2),
+      basicblocks->end());
+  CheckFromArray(caller.get());
+}
+
+TEST_F(BackendTest, CopyCastTest) {
+  std::ifstream t("Jit/lir/c_helper_translations/JITRT_Cast.lir");
+  std::stringstream buffer;
+  buffer << t.rdbuf();
+
+  Parser parser;
+  auto parsed_func = parser.parse(buffer.str());
+
+  auto caller = std::make_unique<Function>();
+  auto bb1 = caller->allocateBasicBlock();
+  auto bb2 = caller->allocateBasicBlock();
+  bb1->addSuccessor(bb2);
+  auto [begin_bb, end_bb] = caller->copyFrom(parsed_func.get(), bb1, bb2);
+  parsed_func.reset();
+
+  auto expected_caller = fmt::format(
+      R"(Function:
+BB %0 - succs: %2
+
+BB %2 - preds: %0 - succs: %4 %3
+       %7:Object = LoadArg 0(0x0):Object
+       %8:Object = LoadArg 1(0x1):Object
+       %9:Object = Move [%7:Object + 0x8]:Object
+      %10:Object = Equal %9:Object, %8:Object
+                   CondBranch %10:Object
+
+BB %3 - preds: %2 - succs: %4 %5
+      %12:Object = Call {0}({0:#x}):Object, %9:Object, %8:Object
+                   CondBranch %12:Object
+
+BB %5 - preds: %3 - succs: %6
+      %15:Object = Move [%9:Object + 0x18]:Object
+      %16:Object = Move [%8:Object + 0x18]:Object
+                   Call {1}({1:#x}):Object, {2}({2:#x}):Object, string_literal, %16:Object, %15:Object
+      %18:Object = Move 0(0x0):Object
+                   Return %18:Object
+
+BB %4 - preds: %2 %3 - succs: %6
+                   Return %7:Object
+
+BB %6 - preds: %4 %5 - succs: %1
+
+BB %1 - preds: %6
+
+)",
+      reinterpret_cast<uint64_t>(PyType_IsSubtype),
+      reinterpret_cast<uint64_t>(PyErr_Format),
+      reinterpret_cast<uint64_t>(PyExc_TypeError));
+  std::stringstream ss;
+  caller->sortBasicBlocks();
+  ss << *caller;
+  // Replace the string literal address
+  std::regex reg("\\d+\\(0x[0-9a-fA-F]+\\):Object, %16:Object, %15:Object");
+  std::string caller_str =
+      regex_replace(ss.str(), reg, "string_literal, %16:Object, %15:Object");
+  ASSERT_EQ(expected_caller, caller_str);
+
+  // Remove bb1 and bb2,
+  // so that the function can execute correctly.
+  auto basicblocks = &caller->basicblocks();
+  auto start = basicblocks->at(begin_bb);
+  start->predecessors().clear();
+  auto end = basicblocks->at(end_bb - 1);
+  end->successors().clear();
+  basicblocks->erase(
+      std::remove(basicblocks->begin(), basicblocks->end(), bb1),
+      basicblocks->end());
+  basicblocks->erase(
+      std::remove(basicblocks->begin(), basicblocks->end(), bb2),
+      basicblocks->end());
+  CheckCast(caller.get());
 }
 
 } // namespace jit::codegen

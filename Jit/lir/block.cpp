@@ -94,5 +94,15 @@ void BasicBlock::fixupPhis(BasicBlock* old_pred, BasicBlock* new_pred) {
   });
 }
 
+void BasicBlock::setSuccessor(size_t index, BasicBlock* bb) {
+  JIT_CHECK(index < successors_.size(), "Index out of range");
+  BasicBlock* old_bb = successors_.at(index);
+  std::vector<BasicBlock*>& old_preds = old_bb->predecessors_;
+  old_preds.erase(std::find(old_preds.begin(), old_preds.end(), this));
+
+  successors_.at(index) = bb;
+  bb->predecessors_.push_back(this);
+}
+
 } // namespace lir
 } // namespace jit
