@@ -3434,7 +3434,7 @@ static PyObject *chklist_cls_getitem(_PyGenericTypeDef *type, PyObject *args) {
     return item;
 }
 
-static inline int
+static int
 chklist_append(PyListObject *self, PyObject *value)
 {
     Py_ssize_t n = Py_SIZE(self);
@@ -3456,6 +3456,12 @@ chklist_append(PyListObject *self, PyObject *value)
 
 _Py_TYPED_SIGNATURE(chklist_append, _Py_SIG_ERROR, &_Py_Sig_T0, NULL);
 
+const _Py_SigElement *const insert_sig[] = {&_Py_Sig_SSIZET, &_Py_Sig_T0, NULL};
+_PyTypedMethodDef chklist_insert_def = {
+  ins1, insert_sig, _Py_SIG_ERROR
+};
+
+
 static PyMethodDef chklist_methods[] = {
     {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
     LIST___REVERSED___METHODDEF
@@ -3463,7 +3469,7 @@ static PyMethodDef chklist_methods[] = {
     LIST_CLEAR_METHODDEF
     LIST_COPY_METHODDEF
     {"append", (PyCFunction)&chklist_append_def, METH_TYPED, list_append__doc__},
-    LIST_INSERT_METHODDEF
+    {"insert", (PyCFunction)&chklist_insert_def, METH_TYPED, list_insert__doc__},
     LIST_EXTEND_METHODDEF
     LIST_POP_METHODDEF
     LIST_REMOVE_METHODDEF

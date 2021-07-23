@@ -14398,6 +14398,14 @@ class StaticRuntimeTests(StaticTestBase):
         x_id2 = id(x)
         self.assertEqual(x_id1, x_id2)
 
+    def test_checked_list_insert(self):
+        x = chklist[int]()
+        x.insert(0, 12)
+        x.insert(0, 23)
+        self.assertEqual(repr(x), "[23, 12]")
+        with self.assertRaisesRegex(TypeError, "argument 2 expected int"):
+            x.insert(1, "ASD")
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,
