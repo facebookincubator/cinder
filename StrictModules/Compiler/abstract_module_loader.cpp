@@ -132,11 +132,21 @@ std::shared_ptr<StrictModuleObject> ModuleLoader::loadModuleValue(
   return nullptr;
 }
 
+void ModuleLoader::recordLazyModule(const std::string& modName) {
+  lazy_modules_.emplace(modName);
+}
+
 std::shared_ptr<StrictModuleObject> ModuleLoader::tryGetModuleValue(
     const std::string& modName) {
   auto exist = modules_.find(modName);
   if (exist != modules_.end() && exist->second) {
     return exist->second->getModuleValue();
+  } else {
+    auto it = lazy_modules_.find(modName);
+    if (it != lazy_modules_.end()) {
+      lazy_modules_.erase(it);
+      return loadModuleValue(modName);
+    }
   }
   return nullptr;
 }
@@ -390,6 +400,7 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   AnalyzedModule* analyzedModule =
       new AnalyzedModule(kind, std::move(errorSink));
   modules_[name] = std::unique_ptr<AnalyzedModule>(analyzedModule);
+  lazy_modules_.erase(name);
   if (analyzedModule->isStrict() || isForcedStrict(name, filename)) {
     assert(ast != nullptr);
     // Run ast visits

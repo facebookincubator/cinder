@@ -367,6 +367,7 @@ void Analyzer::visitImportFrom(const stmt_ty stmt) {
           std::move(unknownName),
           context_,
           aliasName);
+      loader_->recordLazyModule(importedName);
     }
 
     if (modValue != nullptr) {

@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #include "StrictModules/Compiler/analyzed_module.h"
@@ -61,6 +62,7 @@ class ModuleLoader {
         stubImportPath_(std::move(stubImportPath)),
         allowList_(std::move(allowList)),
         modules_(),
+        lazy_modules_(),
         forceStrict_(forceStrict),
         errorSinkFactory_(factory) {
     arena_ = PyArena_New();
@@ -98,6 +100,7 @@ class ModuleLoader {
   */
   AnalyzedModule* loadModule(const char* modName);
   AnalyzedModule* loadModule(const std::string& modName);
+  void recordLazyModule(const std::string& modName);
 
   std::shared_ptr<StrictModuleObject> loadModuleValue(const char* modName);
   std::shared_ptr<StrictModuleObject> loadModuleValue(
@@ -151,6 +154,8 @@ class ModuleLoader {
   PyArena* arena_;
   // the loader owns all analyzed module produced during the analysis
   std::unordered_map<std::string, std::unique_ptr<AnalyzedModule>> modules_;
+  // modules that are lazily imported but not evaluated yet
+  std::unordered_set<std::string> lazy_modules_;
   std::optional<ForceStrictFunc> forceStrict_;
   ErrorSinkFactory errorSinkFactory_;
 

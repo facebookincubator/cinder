@@ -666,6 +666,12 @@ std::optional<std::shared_ptr<BaseStrictObject>> InstanceDictDictData::get(
   if (keyStr) {
     auto item = data_->find(keyStr.value());
     if (item != data_->map_end()) {
+      auto& result = item->second.first;
+      if (result->isLazy()) {
+        auto lazy = std::static_pointer_cast<StrictLazyObject>(result);
+        auto evaluated = lazy->evaluate();
+        item->second.first = evaluated;
+      }
       return item->second.first;
     }
   }
@@ -724,6 +730,12 @@ void InstanceDictDictData::iter(std::function<bool(
   for (auto& item : *data_) {
     auto keyObj =
         std::make_shared<StrictString>(StrType(), creator_, item.first);
+    auto& valueObj = item.second.first;
+    if (valueObj->isLazy()) {
+      auto lazy = std::static_pointer_cast<StrictLazyObject>(valueObj);
+      auto evaluated = lazy->evaluate();
+      item.second.first = evaluated;
+    }
     bool ok = func(std::move(keyObj), item.second.first);
     if (!ok) {
       break;
@@ -738,6 +750,12 @@ void InstanceDictDictData::const_iter(
   for (auto& item : *data_) {
     auto keyObj =
         std::make_shared<StrictString>(StrType(), creator_, item.first);
+    auto& valueObj = item.second.first;
+    if (valueObj->isLazy()) {
+      auto lazy = std::static_pointer_cast<StrictLazyObject>(valueObj);
+      auto evaluated = lazy->evaluate();
+      item.second.first = evaluated;
+    }
     bool ok = func(std::move(keyObj), item.second.first);
     if (!ok) {
       break;
@@ -750,14 +768,6 @@ std::shared_ptr<BaseStrictObject> StrictInstance::getDunderDict() {
     return dictObj_;
   }
 
-  // evaluate all laziness in dict_ when __dict__ is invoked
-  for (auto& it : *dict_) {
-    if (it.second.first->isLazy()) {
-      auto lazy = std::static_pointer_cast<StrictLazyObject>(it.second.first);
-      auto evaluated = lazy->evaluate();
-      it.second.first = evaluated;
-    }
-  }
 
   std::unique_ptr<DictDataInterface> dict =
       std::make_unique<InstanceDictDictData>(dict_, creator_);
