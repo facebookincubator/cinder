@@ -15,6 +15,8 @@ class StrictUnion : public StrictInstance {
   }
 
   virtual std::string getDisplayName() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> union__instancecheck__(

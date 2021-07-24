@@ -41,6 +41,8 @@ class StrictInt : public StrictNumeric {
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> int__bool__(
       std::shared_ptr<StrictInt> self,
@@ -282,6 +284,8 @@ class StrictBool : public StrictInt {
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+
   bool getValue() const {
     return value_ != 0;
   }
@@ -352,6 +356,8 @@ class StrictFloat : public StrictNumeric {
 
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
+
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> float__bool__(

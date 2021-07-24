@@ -34,4 +34,8 @@ std::vector<std::type_index> StrictModuleType::getBaseTypeinfos() const {
   baseVec.emplace_back(typeid(StrictModuleType));
   return baseVec;
 }
+
+void StrictModuleType::addMethods() {
+  addGetSetDescriptor(kDunderDict, getDunderDictAllowed, nullptr, nullptr);
+}
 } // namespace strictmod::objects

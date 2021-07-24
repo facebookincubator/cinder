@@ -19,7 +19,8 @@ class StrictInstance : public BaseStrictObject {
 
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
-  virtual std::unique_ptr<BaseStrictObject> copy() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   std::shared_ptr<BaseStrictObject> getAttr(const std::string& name);
   void setAttr(std::string name, std::shared_ptr<BaseStrictObject> value);

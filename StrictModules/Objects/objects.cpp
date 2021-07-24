@@ -433,6 +433,15 @@ std::shared_ptr<StrictType> DivisionByZeroType() {
   return t;
 }
 
+std::shared_ptr<StrictType> DeprecationWarningType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "DeprecationWarning",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 //--------------------Builtin Constant Declarations-----------------------
 
 std::shared_ptr<BaseStrictObject> NoneObject() {
@@ -608,6 +617,15 @@ std::shared_ptr<BaseStrictObject> StrictSetattr() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictDelattr() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(delattrImpl, "delattr"),
+      nullptr,
+      "delattr"));
+  return o;
+}
+
 std::shared_ptr<BaseStrictObject> StrictHasattr() {
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
       kBuiltinsModule,
@@ -665,6 +683,24 @@ std::shared_ptr<BaseStrictObject> StrictLooseIsinstance() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictTryImport() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(strictTryImport, "__strict_tryimport__"),
+      nullptr,
+      "__strict_tryimport__"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictCopy() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(strictCopy, "__strict_copy__"),
+      nullptr,
+      "__strict_copy__"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -697,8 +733,9 @@ bool initializeBuiltinsModuleDict() {
         {"KeyError", KeyErrorType()},
         {"RuntimeError", RuntimeErrorType()},
         {"ZeroDivisionError", DivisionByZeroType()},
-        {"None", NoneObject()},
+        {"DeprecationWarning", DeprecationWarningType()},
         {"NotImplemented", NotImplemented()},
+        {"None", NoneObject()},
         {"True", StrictTrue()},
         {"False", StrictFalse()},
         {"Ellipsis", EllipsisObject()},
@@ -721,6 +758,7 @@ bool initializeBuiltinsModuleDict() {
         {"ord", StrictOrd()},
         {"getattr", StrictGetattr()},
         {"setattr", StrictSetattr()},
+        {"delattr", StrictDelattr()},
         {"hasattr", StrictHasattr()},
         {"callable", StrictIsCallable()},
         {"print", StrictPrint()},
@@ -730,6 +768,9 @@ bool initializeBuiltinsModuleDict() {
         {"all", StrictAll()},
         {"memoryview", MemoryViewType()},
         {"loose_isinstance", StrictLooseIsinstance()},
+        {"__strict_tryimport__", StrictTryImport()},
+        {"__strict_object__", ObjectType()},
+        {"__strict_copy__", StrictCopy()},
     });
     auto& builtinsModuleDict = kBuiltinsModule->getDict();
     for (auto& item : builtinsDict) {

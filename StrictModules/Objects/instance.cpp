@@ -3,6 +3,9 @@
 
 #include "StrictModules/Objects/type.h"
 
+#include "StrictModules/caller_context.h"
+#include "StrictModules/caller_context_impl.h"
+
 #include <stdexcept>
 
 namespace strictmod::objects {
@@ -30,8 +33,10 @@ std::string StrictInstance::getDisplayName() const {
   return "<" + getTypeRef().getName() + " instance>";
 }
 
-std::unique_ptr<BaseStrictObject> StrictInstance::copy() const {
-  throw std::runtime_error("Copying StrictInstance unsupported");
+std::shared_ptr<BaseStrictObject> StrictInstance::copy(
+    const CallerContext& caller) {
+  caller.error<UnsupportedException>("copy", type_->getName());
+  return makeUnknown(caller, "copy({})", getDisplayName());
 }
 
 std::shared_ptr<BaseStrictObject> StrictInstance::getAttr(

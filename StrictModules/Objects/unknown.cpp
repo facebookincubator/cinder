@@ -24,8 +24,8 @@ std::string UnknownObject::getDisplayName() const {
   return name_;
 }
 
-std::unique_ptr<BaseStrictObject> UnknownObject::copy() const {
-  throw std::runtime_error("Copying StrictInstance unsupported");
+std::shared_ptr<BaseStrictObject> UnknownObject::copy(const CallerContext&) {
+  return shared_from_this();
 }
 
 // UnknownObjectType

@@ -83,6 +83,10 @@ std::string StrictInt::getDisplayName() const {
   return displayName_;
 }
 
+std::shared_ptr<BaseStrictObject> StrictInt::copy(const CallerContext& caller) {
+  return std::make_shared<StrictInt>(type_, caller.caller, value_);
+}
+
 // wrapped methods
 std::shared_ptr<BaseStrictObject> StrictInt::int__bool__(
     std::shared_ptr<StrictInt> self,
@@ -716,6 +720,11 @@ std::string StrictBool::getDisplayName() const {
   return displayName_;
 }
 
+std::shared_ptr<BaseStrictObject> StrictBool::copy(
+    const CallerContext& caller) {
+  return std::make_shared<StrictBool>(type_, caller.caller, value_);
+}
+
 std::shared_ptr<BaseStrictObject> StrictBool::boolFromPyObj(
     Ref<> pyObj,
     const CallerContext&) {
@@ -856,6 +865,11 @@ std::string StrictFloat::getDisplayName() const {
     displayName_ = std::to_string(value_);
   }
   return displayName_;
+}
+
+std::shared_ptr<BaseStrictObject> StrictFloat::copy(
+    const CallerContext& caller) {
+  return std::make_shared<StrictFloat>(type_, caller.caller, value_);
 }
 
 // wrapped methods

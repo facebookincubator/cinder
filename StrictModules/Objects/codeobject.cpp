@@ -24,6 +24,11 @@ StrictCodeObject::StrictCodeObject(
       flags_(std::move(flags)),
       varNames_(std::move(varNames)) {}
 
+std::shared_ptr<BaseStrictObject> StrictCodeObject::copy(const CallerContext&) {
+  return shared_from_this();
+}
+
+// wrapped methods
 std::shared_ptr<BaseStrictObject> StrictCodeObject::codeArgCountGetter(
     std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<StrictType>,

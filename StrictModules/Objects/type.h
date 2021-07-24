@@ -52,6 +52,10 @@ class StrictType : public StrictInstance {
     return immutable_;
   }
 
+  void setIsImmutable(bool immutable) {
+    immutable_ = immutable;
+  }
+
   bool isSubType(std::shared_ptr<StrictType> base) const;
   const std::vector<std::shared_ptr<const BaseStrictObject>>& mro() const;
   std::shared_ptr<BaseStrictObject> typeLookup(
@@ -61,6 +65,9 @@ class StrictType : public StrictInstance {
   bool hasSubLayout(std::shared_ptr<StrictType> other) const;
 
   virtual std::string getDisplayName() const override;
+
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   virtual bool isBaseType() const;
   virtual bool isCallable(const CallerContext& caller);

@@ -25,6 +25,10 @@ std::string StrictProperty::getDisplayName() const {
   return "<property object>";
 }
 
+std::shared_ptr<BaseStrictObject> StrictProperty::copy(const CallerContext&) {
+  return shared_from_this();
+}
+
 // wrapped functions
 std::shared_ptr<BaseStrictObject> StrictProperty::property__init__(
     std::shared_ptr<BaseStrictObject> obj,
@@ -244,12 +248,20 @@ StrictGetSetDescriptor::StrictGetSetDescriptor(
       fset_(fset),
       fdel_(fdel) {}
 
+std::shared_ptr<BaseStrictObject> StrictGetSetDescriptor::copy(
+    const CallerContext&) {
+  return shared_from_this();
+}
+
 // wrapped funcitons
 std::shared_ptr<BaseStrictObject> StrictGetSetDescriptor::getsetdescr__get__(
     std::shared_ptr<StrictGetSetDescriptor> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<BaseStrictObject> type) {
+  if (inst == nullptr) {
+    return self;
+  }
   auto t = assertStaticCast<StrictType>(std::move(type));
   return self->getFget()(std::move(inst), std::move(t), caller);
 }

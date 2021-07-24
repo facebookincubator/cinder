@@ -1119,7 +1119,7 @@ y = C.f(42)
 y
 ---
 ---
-test_dataclass_def @disabled
+test_dataclass_def
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1128,7 +1128,7 @@ class C:
 ---
 ---
 ---
-test_dataclass_instantiation @disabled
+test_dataclass_instantiation
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1140,20 +1140,7 @@ a = c.a
 a
 ---
 ---
-test_dataclass_frozen_conflict @disabled
----
-from dataclasses import dataclass
-@dataclass(frozen=True)
-class C:
-    a: int
-@dataclass
-class D(C):
-    b: int
----
----
-StrictModuleTypeError
----
-test_dataclass_default @disabled
+test_dataclass_default
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1167,7 +1154,7 @@ a1 = c1.a
 a a1
 ---
 ---
-test_dataclass_default_fixed @disabled
+test_dataclass_default_fixed
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1182,7 +1169,7 @@ a1 = c1.a
 a a1
 ---
 ---
-test_dataclass_default_inheritance @disabled
+test_dataclass_default_inheritance
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1202,7 +1189,7 @@ b1 = d1.b
 a a1 b b1
 ---
 ---
-test_dataclass_post_init @disabled
+test_dataclass_post_init
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1218,7 +1205,7 @@ d = c.d
 b d
 ---
 ---
-test_dataclass_init_conflict @disabled
+test_dataclass_init_conflict
 ---
 from dataclasses import dataclass
 @dataclass(frozen=True)
@@ -1228,9 +1215,9 @@ class C:
 c = C(1, a=1)
 ---
 ---
-StrictModuleTypeError
+6 4 StrictModuleUnhandledException(TypeError)
 ---
-test_dataclass_field_default @disabled
+test_dataclass_field_default
 ---
 from dataclasses import field, dataclass
 @dataclass
@@ -1245,7 +1232,7 @@ a1 = c1.a
 a a1
 ---
 ---
-test_dataclass_field_default_factory @disabled
+test_dataclass_field_default_factory
 ---
 from dataclasses import field, dataclass
 def fact():
@@ -1262,7 +1249,7 @@ a1 = c1.a
 a a1
 ---
 ---
-test_dataclass_default_and_factory @disabled
+test_dataclass_default_and_factory
 ---
 from dataclasses import field, dataclass
 def fact():
@@ -1272,9 +1259,9 @@ class C:
     a: int = field(default_factory=fact, default=1)
 ---
 ---
-StrictModuleTypeError
+6 13 StrictModuleUnhandledException(ValueError) 337 8 StrictModuleUserException ValueError
 ---
-test_dataclass_default_order @disabled
+test_dataclass_default_order
 ---
 from dataclasses import field, dataclass
 def fact():
@@ -1285,17 +1272,17 @@ class C:
     b: int
 ---
 ---
-StrictModuleTypeError
+4 1 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 278 27 StrictModuleUserException TypeError 502 16 StrictModuleUserException TypeError
 ---
-test_dataclass_field_pos_arg @disabled
+test_dataclass_field_pos_arg
 ---
 from dataclasses import field
 f = field(1)
 ---
 ---
-StrictModuleTypeError
+2 4 StrictModuleUnhandledException(TypeError)
 ---
-test_dataclass_corrupted_annotation @disabled
+test_dataclass_corrupted_annotation
 ---
 from dataclasses import dataclass
 class C:
@@ -1304,9 +1291,9 @@ C.__annotations__[2] = 3
 c = dataclass(C)
 ---
 ---
-StrictModuleTypeError
+5 4 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 251 18 StrictModuleUserException TypeError 152 14 StrictModuleUserException TypeError
 ---
-test_dataclass_corrupted_fields @disabled
+test_dataclass_corrupted_fields
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1318,9 +1305,9 @@ class D(C):
     b: int
 ---
 ---
-StrictModuleTypeError
+6 1 StrictModuleUnhandledException(AttributeError) 1019 11 StrictModuleUserException AttributeError 1011 15 StrictModuleUserException AttributeError 245 21 StrictModuleUserException AttributeError
 ---
-test_dataclass_corrupted_fields_1 @disabled
+test_dataclass_corrupted_fields_1
 ---
 from dataclasses import dataclass
 @dataclass
@@ -1332,9 +1319,9 @@ class D(C):
     b: int
 ---
 ---
-StrictModuleTypeError
+6 1 StrictModuleUnhandledException(AttributeError) 1019 11 StrictModuleUserException AttributeError 1011 15 StrictModuleUserException AttributeError 246 23 StrictModuleUserException AttributeError
 ---
-test_dataclass_init_var_post_init @disabled
+test_dataclass_init_var_post_init
 ---
 from dataclasses import InitVar, dataclass, field
 @dataclass
@@ -1352,7 +1339,7 @@ cc = c.c
 ca cc
 ---
 ---
-test_dataclass_init_var_post_init_future_annotations @disabled
+test_dataclass_init_var_post_init_future_annotations
 ---
 from __future__ import annotations
 from dataclasses import InitVar, dataclass, field
@@ -1371,7 +1358,7 @@ cc = c.c
 ca cc
 ---
 ---
-test_dataclass_init_var_not_field @disabled
+test_dataclass_init_var_not_field
 ---
 from dataclasses import InitVar, dataclass, field
 @dataclass
@@ -1389,7 +1376,7 @@ cc = c.c
 ca cc
 ---
 ---
-test_dataclass_replace @disabled
+test_dataclass_replace
 ---
 from dataclasses import dataclass, replace
 @dataclass
@@ -1403,7 +1390,7 @@ a = c1.a
 a
 ---
 ---
-test_dataclass_replace_non_dataclass @disabled
+test_dataclass_replace_non_dataclass
 ---
 from dataclasses import replace
 class C:
@@ -1413,9 +1400,9 @@ c = C()
 c1 = replace(c, a=2)
 ---
 ---
-StrictModuleTypeError
+6 5 StrictModuleUnhandledException(TypeError) 1264 8 StrictModuleUserException TypeError
 ---
-test_dataclass_replace_no_initvar @disabled
+test_dataclass_replace_no_initvar
 ---
 from dataclasses import dataclass, replace, InitVar
 @dataclass
@@ -1427,9 +1414,9 @@ c = C(1, 2)
 c1 = replace(c, a=2)
 ---
 ---
-StrictModuleTypeError
+8 5 StrictModuleUnhandledException(ValueError) 1284 16 StrictModuleUserException ValueError
 ---
-test_dataclass_replace_no_init @disabled
+test_dataclass_replace_no_init
 ---
 from dataclasses import dataclass, replace, field
 @dataclass
@@ -1441,9 +1428,9 @@ c = C(1)
 c1 = replace(c, a=2, b=1)
 ---
 ---
-StrictModuleTypeError
+8 5 StrictModuleUnhandledException(ValueError) 1277 16 StrictModuleUserException ValueError
 ---
-test_dataclass_replace_partial @disabled
+test_dataclass_replace_partial
 ---
 from dataclasses import dataclass, replace
 @dataclass
@@ -1458,7 +1445,7 @@ b = c1.b
 a b
 ---
 ---
-test_dataclass_replace_too_many_posarg @disabled
+test_dataclass_replace_too_many_posarg
 ---
 from dataclasses import dataclass, replace
 @dataclass
@@ -1469,9 +1456,9 @@ c = C(1, 2)
 d = replace(c, 1)
 ---
 ---
-StrictModuleTypeError
+7 4 StrictModuleUnhandledException(TypeError) 1249 8 StrictModuleUserException TypeError
 ---
-test_dataclass_replace_named_obj @disabled
+test_dataclass_replace_named_obj
 ---
 from dataclasses import dataclass, replace
 @dataclass
@@ -1485,7 +1472,7 @@ a = d.a
 a
 ---
 ---
-test_dataclass_make @disabled
+test_dataclass_make
 ---
 from dataclasses import make_dataclass
 C = make_dataclass("C", ["x", "y"])
@@ -1496,7 +1483,7 @@ y = c.y
 x y
 ---
 ---
-test_dataclass_make_with_field @disabled
+test_dataclass_make_with_field
 ---
 from dataclasses import make_dataclass, field
 C = make_dataclass("C", ["x", ("y", int, field(init=False))])
@@ -1508,7 +1495,7 @@ y = c.y
 x y
 ---
 ---
-test_dataclass_make_with_namespace @disabled
+test_dataclass_make_with_namespace
 ---
 from dataclasses import make_dataclass, field
 C = make_dataclass(
@@ -1523,7 +1510,7 @@ y = c.f()
 x y
 ---
 ---
-test_dataclass_make_with_bases @disabled
+test_dataclass_make_with_bases
 ---
 from dataclasses import make_dataclass, field, dataclass
 @dataclass
@@ -1577,7 +1564,7 @@ d1 = dict((1, 2))
 ---
 1 5 StrictModuleUnhandledException(TypeError)
 ---
-test_dataclass_asdict @disabled
+test_dataclass_asdict
 ---
 from dataclasses import dataclass, asdict
 @dataclass
@@ -1590,7 +1577,7 @@ d = asdict(c)
 d
 ---
 ---
-test_dataclass_asdict_with_subclass @disabled
+test_dataclass_asdict_with_subclass
 ---
 from dataclasses import dataclass, asdict
 @dataclass
@@ -1606,7 +1593,7 @@ d = asdict(c)
 d
 ---
 ---
-test_dataclass_asdict_with_list_tuple @disabled
+test_dataclass_asdict_with_list_tuple
 ---
 from dataclasses import dataclass, asdict
 @dataclass
@@ -1625,7 +1612,7 @@ d_b_1 = d_b[1]
 d_a_0 d_a_1 d_b_0 d_b_1
 ---
 ---
-test_dataclass_asdict_with_namedtuple @disabled
+test_dataclass_asdict_with_namedtuple
 ---
 from dataclasses import dataclass, asdict
 from collections import namedtuple
@@ -1643,7 +1630,7 @@ d_a_1 = d_a[1]
 d_a_0 d_a_1
 ---
 ---
-test_dataclass_asdict_with_None @disabled
+test_dataclass_asdict_with_None
 ---
 from dataclasses import dataclass, asdict
 from typing import Optional
@@ -1657,7 +1644,7 @@ d = asdict(c)
 d
 ---
 ---
-test_dataclasses_fields @disabled
+test_dataclasses_fields
 ---
 from dataclasses import dataclass, fields
 @dataclass
@@ -1674,7 +1661,7 @@ l = len(fs)
 l n0 n1
 ---
 ---
-test_dataclasses_fields_instance @disabled
+test_dataclasses_fields_instance
 ---
 from dataclasses import dataclass, fields
 @dataclass
@@ -1692,7 +1679,7 @@ l = len(fs)
 l n0 n1
 ---
 ---
-test_dataclasses_fields_pseudo_fields @disabled
+test_dataclasses_fields_pseudo_fields
 ---
 from dataclasses import dataclass, fields, InitVar
 @dataclass
@@ -1828,7 +1815,7 @@ type(Literal)("NewLiteral", "some doc")
 ---
 ---
 ---
-test_dataclass_classvar @disabled
+test_dataclass_classvar
 ---
 from typing import ClassVar
 from dataclasses import dataclass
@@ -1842,7 +1829,7 @@ a = c.a
 a
 ---
 ---
-test_dataclass_classvar_future_annotations @disabled
+test_dataclass_classvar_future_annotations
 ---
 from __future__ import annotations
 from typing import ClassVar
@@ -1857,7 +1844,7 @@ a = c.a
 a
 ---
 ---
-test_dataclass_classvar_default @disabled
+test_dataclass_classvar_default
 ---
 from typing import ClassVar
 from dataclasses import dataclass
@@ -1872,19 +1859,23 @@ b = c.b
 a b
 ---
 ---
-test_dataclass_classvar_default_factory @disabled
+test_dataclass_classvar_default_factory
 ---
 from typing import ClassVar
 from dataclasses import dataclass, field
+
+def f():
+    return "a"
+
 @dataclass
 class C:
     b: ClassVar[str] = field(default_factory=f)
     a: int
 ---
 ---
-StrictModuleTypeError
+7 1 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 251 18 StrictModuleUserException TypeError 180 12 StrictModuleUserException TypeError
 ---
-test_dataclass_classvar_fields @disabled
+test_dataclass_classvar_fields
 ---
 from typing import ClassVar
 from dataclasses import dataclass, fields
@@ -1904,7 +1895,7 @@ l = len(fs)
 n0 n1 l
 ---
 ---
-test_dataclass_classvar_replace @disabled
+test_dataclass_classvar_replace
 ---
 from typing import ClassVar
 from dataclasses import dataclass, replace
@@ -1917,7 +1908,7 @@ c = C(1, 2)
 d = replace(c, c=4)
 ---
 ---
-StrictModuleTypeError
+9 4 StrictModuleUnhandledException(TypeError) 1293 11 StrictModuleUserException TypeError
 ---
 test_isinstance
 ---
@@ -7762,15 +7753,6 @@ b = c.f
 ---
 7 4 UnsafeCallException f 5 15 UnknownValueAttributeException <a imported from m> foo
 ---
-test_dataclass_def @disabled
----
-from dataclasses import dataclass
-@dataclass
-class C:
-    a: int
----
----
----
 test_property_getter_unsafe
 ---
 from m import a
@@ -7787,16 +7769,6 @@ b = c.f
 ---
 ---
 11 4 UnsafeCallException f 9 15 UnknownValueAttributeException <a imported from m> foo
----
-test_dataclass_instantiation @disabled
----
-from dataclasses import dataclass
-@dataclass
-class C:
-    a: int
-c = C(1)
----
----
 ---
 test_property_setter
 ---
@@ -8079,21 +8051,6 @@ c2 = b.x # error
 ---
 ---
 8 5 UnknownValueAttributeException <a imported from m> x
----
-test_dataclass_replace @disabled
----
-from dataclasses import dataclass, replace
-from outside import unknown
-@dataclass
-class C:
-    a: int
-
-c = C(1)
-c1 = replace(c, a = unknown)
-c1.a.attr
----
----
-UnknownValueAttributeException
 ---
 test_int_ops
 ---
@@ -9037,26 +8994,7 @@ C.__annotations__["b"].attr
 ---
 5 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_def @disabled
----
-from dataclasses import dataclass
-@dataclass
-class C:
-    a: int
----
----
----
-test_dataclass_instantiation @disabled
----
-from dataclasses import dataclass
-@dataclass
-class C:
-    a: int
-c = C(1)
----
----
----
-test_dataclass_field_access @disabled
+test_dataclass_field_access
 ---
 from dataclasses import dataclass
 from outside import unknown
@@ -9067,9 +9005,9 @@ c = C(unknown)
 c.a.attr
 ---
 ---
-UnknownValueAttributeException
+7 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_subclass @disabled
+test_dataclass_subclass
 ---
 from dataclasses import dataclass
 from outside import unknown
@@ -9084,24 +9022,24 @@ d.a # ok
 d.b.attr
 ---
 ---
-UnknownValueAttributeException
+11 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_field_assign @disabled
+test_dataclass_field_assign
 ---
 from dataclasses import dataclass
 from outside import unknown
 @dataclass
 class C:
-    a: C
+    a: object
 c = C(C(1))
 c.a.a # ok
 c.a = unknown
 c.a.attr
 ---
 ---
-UnknownValueAttributeException
+9 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_non_default @disabled
+test_dataclass_non_default
 ---
 from dataclasses import dataclass
 @dataclass
@@ -9110,9 +9048,9 @@ class C:
     b: int
 ---
 ---
-StrictModuleTypeError
+2 1 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 278 27 StrictModuleUserException TypeError 502 16 StrictModuleUserException TypeError
 ---
-test_dataclass_field @disabled
+test_dataclass_field
 ---
 from dataclasses import field
 from outside import unknown
@@ -9120,9 +9058,9 @@ f = field(init=unknown)
 f.init.attr
 ---
 ---
-UnknownValueAttributeException
+4 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_field_no_init @disabled
+test_dataclass_field_no_init
 ---
 from dataclasses import field, dataclass
 from outside import unknown
@@ -9136,9 +9074,9 @@ c = C()
 c.a.attr
 ---
 ---
-UnknownValueAttributeException
+10 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_init_var @disabled
+test_dataclass_init_var
 ---
 from dataclasses import InitVar, dataclass, field
 from outside import unknown
@@ -9146,7 +9084,7 @@ from outside import unknown
 class C:
     a: int
     b: InitVar[int]
-    c: init = field(init=False)
+    c: int = field(init=False)
     def __post_init__(self, b):
         self.c = b
 
@@ -9154,9 +9092,9 @@ c = C(1, unknown)
 c.c.attr
 ---
 ---
-UnknownValueAttributeException
+12 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_replace @disabled
+test_dataclass_replace_unknown
 ---
 from dataclasses import dataclass, replace
 from outside import unknown
@@ -9169,9 +9107,9 @@ c1 = replace(c, a = unknown)
 c1.a.attr
 ---
 ---
-UnknownValueAttributeException
+9 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_dataclass_replace_initvar @disabled
+test_dataclass_replace_initvar
 ---
 from dataclasses import dataclass, replace, InitVar, field
 from outside import unknown
@@ -9188,7 +9126,7 @@ c1 = replace(c, a = 1, b= unknown)
 c1.c.attr
 ---
 ---
-UnknownValueAttributeException
+13 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
 test_len_unknown
 ---

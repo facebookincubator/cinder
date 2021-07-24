@@ -13,7 +13,7 @@ class UnknownObject : public BaseStrictObject {
   UnknownObject(std::string name, std::weak_ptr<StrictModuleObject> creator);
 
   virtual std::string getDisplayName() const override;
-  virtual std::unique_ptr<BaseStrictObject> copy() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
   virtual bool isUnknown() const override {
     return true;
   }

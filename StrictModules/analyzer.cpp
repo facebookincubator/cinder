@@ -1076,6 +1076,16 @@ AnalysisResult Analyzer::visitCall(const expr_ty expr) {
     return callMagicalSuperHelper(std::move(func));
   }
 
+  if (argsLen == 1 && kwargsLen == 0 && func == StrictTryImport()) {
+    expr_ty argExpr = reinterpret_cast<expr_ty>(asdl_seq_GET(argsSeq, 0));
+    auto argV = visitExpr(argExpr);
+    auto argStr = std::dynamic_pointer_cast<StrictString>(argV);
+    if (argStr) {
+      auto mod = loader_->tryGetModuleValue(argStr->getValue());
+      return mod ? mod : NoneObject();
+    }
+  }
+
   std::vector<AnalysisResult> args;
   std::vector<std::string> argNames;
   args.reserve(argsLen + kwargsLen);

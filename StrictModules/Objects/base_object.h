@@ -37,7 +37,7 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
    * shutdown */
   virtual void cleanContent(const StrictModuleObject*) {}
 
-  virtual std::unique_ptr<BaseStrictObject> copy() const = 0;
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) = 0;
   virtual std::string getDisplayName() const = 0;
   virtual bool isHashable() const;
   virtual size_t hash() const;

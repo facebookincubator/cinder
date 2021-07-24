@@ -15,6 +15,7 @@ class NoneObject_ : public StrictInstance {
 
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
 };
 
 class NoneType_ : public StrictObjectType {
@@ -35,6 +36,7 @@ class NotImplementedObject : public StrictInstance {
 
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
 };
 
 class StrictEllipsisObject : public StrictInstance {
@@ -47,6 +49,7 @@ class StrictEllipsisObject : public StrictInstance {
 
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
 };
 
 class StrictEllipsisType : public StrictObjectType {

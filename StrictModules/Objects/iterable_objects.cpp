@@ -675,6 +675,16 @@ void StrictSetLike::addElement(
   data_.insert(element);
 }
 
+std::shared_ptr<BaseStrictObject> StrictSetLike::copy(
+    const CallerContext& caller) {
+  SetDataT copied;
+  copied.reserve(data_.size());
+  for (auto& e : data_) {
+    copied.insert(e->copy(caller));
+  }
+  return makeSetLike(type_, caller.caller, std::move(copied));
+}
+
 static bool strictSetLikeContainsHelper(
     const SetDataT& data,
     const CallerContext&,

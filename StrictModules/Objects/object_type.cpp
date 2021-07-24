@@ -292,7 +292,7 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::getElement(
       }
     }
     caller.raiseTypeError(
-        "'{}' object is not subscriptable", obj->getTypeRef().getDisplayName());
+        "'{}' object {} is not subscriptable", obj->getTypeRef().getDisplayName(), obj->getDisplayName());
   }
   return iCall(getItem, {index}, kEmptyArgNames, caller);
 }

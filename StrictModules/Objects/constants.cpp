@@ -13,6 +13,9 @@ Ref<> NoneObject_::getPyObject() const {
 std::string NoneObject_::getDisplayName() const {
   return "None";
 }
+std::shared_ptr<BaseStrictObject> NoneObject_::copy(const CallerContext&) {
+  return shared_from_this();
+}
 
 std::shared_ptr<BaseStrictObject> NoneObject_::None__bool__(
     std::shared_ptr<NoneObject_>,
@@ -48,6 +51,10 @@ Ref<> NotImplementedObject::getPyObject() const {
 std::string NotImplementedObject::getDisplayName() const {
   return "NotImplemented()";
 }
+std::shared_ptr<BaseStrictObject> NotImplementedObject::copy(
+    const CallerContext&) {
+  return shared_from_this();
+}
 
 // StrictEllipsisObject
 Ref<> StrictEllipsisObject::getPyObject() const {
@@ -55,6 +62,10 @@ Ref<> StrictEllipsisObject::getPyObject() const {
 }
 std::string StrictEllipsisObject::getDisplayName() const {
   return "...";
+}
+std::shared_ptr<BaseStrictObject> StrictEllipsisObject::copy(
+    const CallerContext&) {
+  return shared_from_this();
 }
 
 std::shared_ptr<BaseStrictObject> StrictEllipsisObject::Ellipsis__repr__(

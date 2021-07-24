@@ -21,6 +21,11 @@ class StrictTypeType : public StrictObjectType {
       std::shared_ptr<BaseStrictObject> value,
       const CallerContext& caller) override;
 
+  virtual void delAttr(
+      std::shared_ptr<BaseStrictObject> obj,
+      const std::string& key,
+      const CallerContext& caller) override;
+
   virtual std::shared_ptr<StrictType> recreate(
       std::string name,
       std::weak_ptr<StrictModuleObject> caller,

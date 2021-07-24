@@ -93,6 +93,12 @@ std::string StrictFunction::getDisplayName() const {
   return qualName_;
 }
 
+std::shared_ptr<BaseStrictObject> StrictFunction::copy(const CallerContext&) {
+  // similar to python copy.deepcopy, functions and types are
+  // not actually copied
+  return shared_from_this();
+}
+
 // wrapped methods
 std::shared_ptr<BaseStrictObject> StrictFunction::function__annotations__getter(
     std::shared_ptr<BaseStrictObject> inst,
@@ -276,6 +282,8 @@ std::shared_ptr<BaseStrictObject> StrictFuncType::call(
     // user exceptions should be propagated
     auto propagated = StrictModuleUserException<BaseStrictObject>(e);
     propagated.setlineInfo(caller.lineno, caller.col);
+    propagated.setFilename(caller.filename);
+    propagated.setScopeName(caller.scopeName);
     propagated.setCause(e.clone());
     throw propagated;
   } catch (const StrictModuleException& exc) {
@@ -316,7 +324,8 @@ bool StrictFuncType::isCallable(const CallerContext&) {
 }
 
 void StrictFuncType::addMethods() {
-  addGetSetDescriptor("__dict__", getDunderDictAllowed, setDunderDict, nullptr);
+  addGetSetDescriptor(
+      kDunderDict, getDunderDictAllowed, setDunderDict, nullptr);
   addGetSetDescriptor(
       kDunderAnnotations,
       StrictFunction::function__annotations__getter,

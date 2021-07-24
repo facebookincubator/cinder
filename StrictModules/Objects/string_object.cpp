@@ -64,6 +64,11 @@ std::string StrictString::getDisplayName() const {
   return value_;
 }
 
+std::shared_ptr<BaseStrictObject> StrictString::copy(
+    const CallerContext& caller) {
+  return std::make_shared<StrictString>(type_, caller.caller, value_);
+}
+
 std::shared_ptr<BaseStrictObject> StrictString::strFromPyObj(
     Ref<> pyObj,
     const CallerContext& caller) {

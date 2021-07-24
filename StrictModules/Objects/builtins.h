@@ -115,6 +115,12 @@ std::shared_ptr<BaseStrictObject> setattrImpl(
     std::shared_ptr<BaseStrictObject> name,
     std::shared_ptr<BaseStrictObject> value);
 
+std::shared_ptr<BaseStrictObject> delattrImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> name);
+
 std::shared_ptr<BaseStrictObject> hasattrImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
@@ -170,6 +176,25 @@ std::shared_ptr<BaseStrictObject> looseIsinstance(
     std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<BaseStrictObject> clsInfo);
 
+/** deepcopy like operation. Does not work on all instances.
+ * If copy failed, a strict module unsupport error is registered
+ * and an unknown is returned
+ */
+std::shared_ptr<BaseStrictObject> strictCopy(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst);
+
+/** Try getting a module by name, and return None if that module is
+ *  not already imported.
+ *  The implementation of this functin is empty, because the actual getting
+ *  module require participation of the module loader. The actual
+ *  handling of this logic is is visitCall (analyzer.cpp)
+ */
+std::shared_ptr<BaseStrictObject> strictTryImport(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> name);
 } // namespace strictmod::objects
 
 #endif // __STRICTM_BUILTINS_OBJ___

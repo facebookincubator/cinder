@@ -103,7 +103,7 @@ bool issubclassBody(
   }
   // use subclass hook, it should always exist since it's defined on type
   auto subclassCheckHook =
-      iLoadAttr(clsInfo, "__subclasscheck__", nullptr, caller);
+      iLoadAttrOnType(clsInfo, "__subclasscheck__", nullptr, caller);
   if (subclassCheckHook) {
     auto checkResult = iCall(subclassCheckHook, {cls}, kEmptyArgNames, caller);
     if (iGetTruthValue(checkResult, caller) == StrictTrue()) {
@@ -503,6 +503,19 @@ std::shared_ptr<BaseStrictObject> setattrImpl(
   return NoneObject();
 }
 
+std::shared_ptr<BaseStrictObject> delattrImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> obj,
+    std::shared_ptr<BaseStrictObject> name) {
+  auto nameStr = std::dynamic_pointer_cast<StrictString>(name);
+  if (!nameStr) {
+    caller.raiseTypeError("delattr() attribute name must be string");
+  }
+  iDelAttr(std::move(obj), nameStr->getValue(), caller);
+  return NoneObject();
+}
+
 std::shared_ptr<BaseStrictObject> hasattrImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
@@ -709,5 +722,19 @@ std::shared_ptr<BaseStrictObject> looseIsinstance(
   }
 
   return isinstanceImpl(nullptr, caller, std::move(inst), std::move(clsInfo));
+}
+
+std::shared_ptr<BaseStrictObject> strictCopy(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst) {
+  return inst->copy(caller);
+}
+
+std::shared_ptr<BaseStrictObject> strictTryImport(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext&,
+    std::shared_ptr<BaseStrictObject>) {
+  return NoneObject();
 }
 } // namespace strictmod::objects

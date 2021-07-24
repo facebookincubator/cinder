@@ -43,6 +43,10 @@ StrictType::StrictType(
       isDataDescr_(),
       basesObj_() {}
 
+std::shared_ptr<BaseStrictObject> StrictType::copy(const CallerContext&) {
+  return shared_from_this();
+}
+
 bool StrictType::isSubType(std::shared_ptr<StrictType> base) const {
   auto mroVec = mro();
   return std::find(mroVec.begin(), mroVec.end(), base) != mroVec.end();
@@ -364,8 +368,8 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
   auto initSubclassItem = members.find("__init_subclass__");
   if (initSubclassItem != members.map_end()) {
     // __init_sublcass__ is automatically treated as a class method
-    auto initSubclassFunc =
-        std::dynamic_pointer_cast<StrictFunction>(initSubclassItem->second.first);
+    auto initSubclassFunc = std::dynamic_pointer_cast<StrictFunction>(
+        initSubclassItem->second.first);
     if (initSubclassFunc != nullptr) {
       auto initSubclassMethod = std::make_shared<StrictClassMethod>(
           ClassMethodType(), caller.caller, std::move(initSubclassFunc));

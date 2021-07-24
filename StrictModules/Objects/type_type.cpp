@@ -46,14 +46,33 @@ void StrictTypeType::storeAttr(
     return;
   }
 
-  std::shared_ptr<StrictType> typ = std::dynamic_pointer_cast<StrictType>(obj);
-  assert(typ != nullptr);
+  std::shared_ptr<StrictType> typ = assertStaticCast<StrictType>(obj);
   if (typ->isImmutable()) {
     caller.error<ImmutableException>(key, "type", typ->getName());
     return;
   }
   checkExternalModification(obj, caller);
-  typ->setAttr(key, std::move(value));
+  typ->setAttr(std::move(key), std::move(value));
+}
+
+void StrictTypeType::delAttr(
+    std::shared_ptr<BaseStrictObject> obj,
+    const std::string& key,
+    const CallerContext& caller) {
+  auto objType = obj->getType();
+  auto descr = objType->typeLookup(key, caller);
+  if (descr && descr->getTypeRef().isDataDescr(caller)) {
+    iDelDescr(std::move(descr), std::move(obj), caller);
+    return;
+  }
+
+  std::shared_ptr<StrictType> typ = assertStaticCast<StrictType>(obj);
+  if (typ->isImmutable()) {
+    caller.error<ImmutableException>(key, "type", typ->getName());
+    return;
+  }
+  checkExternalModification(obj, caller);
+  typ->setAttr(std::move(key), nullptr);
 }
 
 std::shared_ptr<StrictType> StrictTypeType::recreate(

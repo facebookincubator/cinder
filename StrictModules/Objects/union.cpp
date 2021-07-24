@@ -47,6 +47,10 @@ std::string StrictUnion::getDisplayName() const {
   return fmt::format("{}", fmt::join(args_, "|"));
 }
 
+std::shared_ptr<BaseStrictObject> StrictUnion::copy(const CallerContext&) {
+  return shared_from_this();
+}
+
 // wrapped methods
 std::shared_ptr<BaseStrictObject> StrictUnion::union__instancecheck__(
     std::shared_ptr<StrictUnion> self,

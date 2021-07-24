@@ -15,6 +15,9 @@ class StrictProperty : public StrictInstance {
       std::shared_ptr<BaseStrictObject> fdel);
 
   virtual std::string getDisplayName() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
+
   // wrapped functions
   static std::shared_ptr<BaseStrictObject> property__init__(
       std::shared_ptr<BaseStrictObject> obj,
@@ -135,6 +138,8 @@ class StrictGetSetDescriptor : public StrictInstance {
   const std::string& getName() const {
     return name_;
   }
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped funcitons
   static std::shared_ptr<BaseStrictObject> getsetdescr__get__(

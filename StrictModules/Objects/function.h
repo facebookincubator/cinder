@@ -92,6 +92,8 @@ class StrictFunction : public StrictInstance {
       BaseErrorSink* errorSink);
 
   virtual std::string getDisplayName() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> function__annotations__getter(

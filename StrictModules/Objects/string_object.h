@@ -34,6 +34,9 @@ class StrictString : public StrictInstance {
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
+
   static std::shared_ptr<BaseStrictObject> strFromPyObj(
       Ref<> pyObj,
       const CallerContext& caller);

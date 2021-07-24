@@ -89,6 +89,10 @@ class ModuleLoader {
   std::shared_ptr<StrictModuleObject> loadModuleValue(
       const std::string& modName);
 
+  // return module value if module is already loaded, nullptr otherwise
+  std::shared_ptr<StrictModuleObject> tryGetModuleValue(
+      const std::string& modName);
+
   AnalyzedModule* loadModuleFromSource(
       const std::string& source,
       const std::string& name,

@@ -7,7 +7,7 @@
 #include "StrictModules/Objects/string_object.h"
 
 namespace strictmod::objects {
-class StrictCodeObject : public StrictInstance{
+class StrictCodeObject : public StrictInstance {
  public:
   StrictCodeObject(
       std::weak_ptr<StrictModuleObject> creator,
@@ -17,6 +17,9 @@ class StrictCodeObject : public StrictInstance{
       std::shared_ptr<StrictInt> kwOnlyArgCount,
       std::shared_ptr<StrictInt> flags,
       std::shared_ptr<BaseStrictObject> varNames);
+
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> codeArgCountGetter(

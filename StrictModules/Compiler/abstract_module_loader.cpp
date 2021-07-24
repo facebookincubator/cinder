@@ -132,6 +132,15 @@ std::shared_ptr<StrictModuleObject> ModuleLoader::loadModuleValue(
   return nullptr;
 }
 
+std::shared_ptr<StrictModuleObject> ModuleLoader::tryGetModuleValue(
+    const std::string& modName) {
+  auto exist = modules_.find(modName);
+  if (exist != modules_.end() && exist->second) {
+    return exist->second->getModuleValue();
+  }
+  return nullptr;
+}
+
 AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
   auto exist = modules_.find(modName);
   if (exist != modules_.end()) {

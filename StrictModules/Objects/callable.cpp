@@ -19,6 +19,11 @@ StrictMethodDescr::StrictMethodDescr(
       declType_(std::move(declType)),
       funcName_(std::move(name)) {}
 
+std::shared_ptr<BaseStrictObject> StrictMethodDescr::copy(
+    const CallerContext&) {
+  return shared_from_this();
+}
+
 std::shared_ptr<BaseStrictObject> StrictMethodDescrType::getDescr(
     std::shared_ptr<BaseStrictObject> obj,
     std::shared_ptr<BaseStrictObject> inst,
@@ -99,6 +104,11 @@ std::string StrictBuiltinFunctionOrMethod::getDisplayName() const {
   return displayName_;
 }
 
+std::shared_ptr<BaseStrictObject> StrictBuiltinFunctionOrMethod::copy(
+    const CallerContext&) {
+  return shared_from_this();
+}
+
 std::shared_ptr<BaseStrictObject> StrictBuiltinFunctionOrMethodType::call(
     std::shared_ptr<BaseStrictObject> obj,
     const std::vector<std::shared_ptr<BaseStrictObject>>& args,
@@ -146,6 +156,10 @@ StrictMethod::StrictMethod(
     : StrictInstance(MethodType(), std::move(creator)),
       func_(std::move(func)),
       inst_(std::move(inst)) {}
+
+std::shared_ptr<BaseStrictObject> StrictMethod::copy(const CallerContext&) {
+  return shared_from_this();
+}
 
 std::shared_ptr<BaseStrictObject> StrictMethodType::loadAttr(
     std::shared_ptr<BaseStrictObject> obj,
@@ -227,6 +241,11 @@ StrictClassMethod::StrictClassMethod(
     : StrictInstance(std::move(type), std::move(creator)),
       func_(std::move(func)) {}
 
+std::shared_ptr<BaseStrictObject> StrictClassMethod::copy(
+    const CallerContext&) {
+  return shared_from_this();
+}
+
 std::shared_ptr<BaseStrictObject> StrictClassMethod::classmethod__init__(
     std::shared_ptr<StrictClassMethod> self,
     const CallerContext& caller,
@@ -301,6 +320,11 @@ StrictStaticMethod::StrictStaticMethod(
     std::shared_ptr<BaseStrictObject> func)
     : StrictInstance(std::move(type), std::move(creator)),
       func_(std::move(func)) {}
+
+std::shared_ptr<BaseStrictObject> StrictStaticMethod::copy(
+    const CallerContext&) {
+  return shared_from_this();
+}
 
 std::shared_ptr<BaseStrictObject> StrictStaticMethod::staticmethod__init__(
     std::shared_ptr<StrictStaticMethod> self,

@@ -215,23 +215,22 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     ASSERT_NE(mod, nullptr);
     auto modValue = mod->getModuleValue();
     ASSERT_NE(modValue.get(), nullptr);
-    // python side
-    PyObject* global = PyDict_New();
-    ASSERT_NE(global, nullptr);
-    PyObject* modNameObj = PyUnicode_FromString(modname);
-    PyDict_SetItemString(global, "__name__", modNameObj);
-    Py_XDECREF(modNameObj);
+
     PyObject* code = Py_CompileString(source_.c_str(), modname, Py_file_input);
     const wchar_t* evalImportPaths =
         L"Lib:StrictModules/Tests/comparison_tests/imports";
     PySys_SetPath(evalImportPaths);
-    auto v = PyEval_EvalCode(code, global, global);
+
+    auto pyMod = PyImport_ExecCodeModule(modname, code);
+    PyObject* global = nullptr;
     if (varNames_.empty()) {
       // Only care about errors. In this case we allow python code
       // to throw
       PyErr_Clear();
     } else {
-      ASSERT_NE(v, nullptr);
+      ASSERT_NE(pyMod, nullptr);
+      global = PyObject_GenericGetDict(pyMod, nullptr);
+      ASSERT_NE(global, nullptr);
     }
 
     for (auto vName : varNames_) {
@@ -246,9 +245,10 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
           << value->getDisplayName() << " : " << PyUnicode_AsUTF8(repr);
       Py_XDECREF(repr);
     }
-    Py_DECREF(global);
+
     Py_XDECREF(code);
-    Py_XDECREF(v);
+    Py_XDECREF(pyMod);
+    Py_XDECREF(global);
 
     auto& errors = mod->getErrorSink().getErrors();
     ASSERT_EQ(errors.size(), exceptions_.size());

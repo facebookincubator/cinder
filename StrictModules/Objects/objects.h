@@ -93,6 +93,9 @@ std::shared_ptr<BaseStrictObject> NotImplemented();
 std::shared_ptr<BaseStrictObject> StrictTrue();
 std::shared_ptr<BaseStrictObject> StrictFalse();
 
+//-------------------Strict Module Specific Helpers-----------------------
+std::shared_ptr<BaseStrictObject> StrictTryImport();
+
 /* Create a dictionary containing all values in the builtins module
  */
 static inline std::unique_ptr<DictType> getBuiltinsDict() {

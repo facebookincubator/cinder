@@ -150,6 +150,7 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__init__(
         posArgNum);
   }
   std::shared_ptr<StrictDict> self = assertStaticCast<StrictDict>(obj);
+  checkExternalModification(self, caller);
   self->data_->clear();
   dictUpdateHelper(std::move(self), args, namedArgs, posArgNum == 0, caller);
   return NoneObject();
@@ -168,6 +169,7 @@ std::shared_ptr<BaseStrictObject> StrictDict::dictUpdate(
         posArgNum);
   }
   std::shared_ptr<StrictDict> self = assertStaticCast<StrictDict>(obj);
+  checkExternalModification(self, caller);
   dictUpdateHelper(std::move(self), args, namedArgs, posArgNum == 0, caller);
   return NoneObject();
 }
@@ -296,6 +298,7 @@ std::shared_ptr<BaseStrictObject> StrictDict::dictSetDefault(
         key->getDisplayName(), "__hash__");
     return value;
   }
+  checkExternalModification(self, caller);
   auto got = self->data_->get(key);
   if (got == std::nullopt) {
     self->data_->set(std::move(key), value);

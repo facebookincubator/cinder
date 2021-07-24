@@ -300,6 +300,8 @@ class StrictSetLike : public StrictIterable {
       std::weak_ptr<StrictModuleObject> creator,
       SetDataT data) = 0;
 
+  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+
   const SetDataT& getData() {
     return data_;
   }

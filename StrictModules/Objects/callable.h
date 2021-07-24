@@ -31,6 +31,8 @@ class StrictMethodDescr : public StrictInstance {
   std::string getFuncName() {
     return funcName_;
   }
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
  private:
   InstCallType func_;
@@ -83,6 +85,8 @@ class StrictBuiltinFunctionOrMethod : public StrictInstance {
   }
 
   virtual std::string getDisplayName() const override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
  private:
   InstCallType func_;
@@ -128,6 +132,8 @@ class StrictMethod : public StrictInstance {
   std::shared_ptr<BaseStrictObject> getInst() const {
     return inst_;
   }
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
  private:
   std::shared_ptr<BaseStrictObject> func_;
@@ -176,6 +182,8 @@ class StrictClassMethod : public StrictInstance {
   std::shared_ptr<BaseStrictObject> getFunc() const {
     return func_;
   }
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped method
   static std::shared_ptr<BaseStrictObject> classmethod__init__(
@@ -230,6 +238,8 @@ class StrictStaticMethod : public StrictInstance {
   std::shared_ptr<BaseStrictObject> getFunc() const {
     return func_;
   }
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped method
   static std::shared_ptr<BaseStrictObject> staticmethod__init__(

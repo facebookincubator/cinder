@@ -41,8 +41,12 @@ class StrictModuleException : public std::exception {
   const std::shared_ptr<const StrictModuleException> getCause() const;
   int getLineno() const;
   int getCol() const;
+  void setlineInfo(int lineno, int col);
   const std::string& getFilename() const;
   const std::string& getScopeName() const;
+  void setFilename(std::string filename);
+  void setScopeName(std::string scopeName);
+
   /* concise string form of the exception, used in tests */
   std::string testString() const;
   void setCause(std::shared_ptr<StrictModuleException> cause) {
@@ -123,15 +127,11 @@ class StrictModuleUserException : public StrictModuleException {
       int col,
       std::string filename,
       std::string scopeName,
-      std::shared_ptr<T> wrapped);
+      std::shared_ptr<T> wrapped,
+      std::shared_ptr<const StrictModuleException> cause = nullptr);
 
   const std::shared_ptr<const T> getWrapped() const;
   const std::shared_ptr<T> getWrapped();
-
-  void setlineInfo(int lineno, int col) {
-    lineno_ = lineno;
-    col_ = col;
-  }
 
   [[noreturn]] virtual void raise() override;
   virtual std::unique_ptr<StrictModuleException> clone() const override;
@@ -598,12 +598,25 @@ inline int StrictModuleException::getCol() const {
   return col_;
 }
 
+inline void StrictModuleException::setlineInfo(int lineno, int col) {
+  lineno_ = lineno;
+  col_ = col;
+}
+
 inline const std::string& StrictModuleException::getFilename() const {
   return filename_;
 }
 
 inline const std::string& StrictModuleException::getScopeName() const {
   return scopeName_;
+}
+
+inline void StrictModuleException::setFilename(std::string filename) {
+  filename_ = std::move(filename);
+}
+
+inline void StrictModuleException::setScopeName(std::string scopeName) {
+  scopeName_ = std::move(scopeName);
 }
 
 inline std::string StrictModuleException::testString() const {
@@ -621,14 +634,15 @@ StrictModuleUserException<T>::StrictModuleUserException(
     int col,
     std::string filename,
     std::string scopeName,
-    std::shared_ptr<T> wrapped)
+    std::shared_ptr<T> wrapped,
+    std::shared_ptr<const StrictModuleException> cause)
     : StrictModuleException(
           lineno,
           col,
           std::move(filename),
           std::move(scopeName),
           "",
-          nullptr),
+          std::move(cause)),
       wrapped_(std::move(wrapped)) {}
 
 template <typename T>
@@ -651,7 +665,7 @@ template <typename T>
 std::unique_ptr<StrictModuleException> StrictModuleUserException<T>::clone()
     const {
   return std::make_unique<StrictModuleUserException<T>>(
-      lineno_, col_, filename_, scopeName_, wrapped_);
+      lineno_, col_, filename_, scopeName_, wrapped_, cause_);
 }
 
 template <typename T>
