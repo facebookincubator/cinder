@@ -126,8 +126,10 @@ class ModuleLoaderTest : public PythonTest {
     importPaths.emplace_back(importPath);
     std::vector<std::string> stubImportPaths;
     stubImportPaths.emplace_back(stubPath);
-    return std::make_unique<strictmod::compiler::ModuleLoader>(
+    auto loader = std::make_unique<strictmod::compiler::ModuleLoader>(
         std::move(importPaths), std::move(stubImportPaths));
+    loader->loadStrictModuleModule();
+    return loader;
   }
 
   std::unique_ptr<strictmod::compiler::ModuleLoader> getLoader(
@@ -145,12 +147,14 @@ class ModuleLoaderTest : public PythonTest {
     importPaths.emplace_back(importPath);
     std::vector<std::string> stubImportPaths;
     stubImportPaths.emplace_back(stubPath);
-    return std::make_unique<strictmod::compiler::ModuleLoader>(
+    auto loader = std::make_unique<strictmod::compiler::ModuleLoader>(
         std::move(importPaths),
         std::move(stubImportPaths),
         strictmod::compiler::ModuleLoader::AllowListType{},
         func,
         factory);
+    loader->loadStrictModuleModule();
+    return loader;
   }
 
   std::unique_ptr<strictmod::compiler::AnalyzedModule>
@@ -212,6 +216,7 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
         [errorSink] { return errorSink; });
     loader->setImportPath(
         {"StrictModules/Tests/comparison_tests/imports", "Lib"});
+    loader->loadStrictModuleModule();
     const char* modname = "<string>";
     strictmod::compiler::AnalyzedModule* mod =
         loader->loadModuleFromSource(source_, modname, modname, {});

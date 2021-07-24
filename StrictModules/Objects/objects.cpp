@@ -852,4 +852,82 @@ std::shared_ptr<StrictType> getExceptionFromString(
   }
   return it->second;
 }
+
+static std::shared_ptr<StrictModuleObject> kStrictModule =
+    StrictModuleObject::makeStrictModule(kModuleType, strictModName);
+
+bool initializeStrictModulesModule();
+
+std::shared_ptr<StrictModuleObject> StrictModulesModule() {
+  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
+  [[maybe_unused]] static bool init = initializeStrictModulesModule();
+  return kStrictModule;
+}
+
+std::shared_ptr<BaseStrictObject> StrictModuleLooseSlots() {
+  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kStrictModule,
+      CallableWrapper(looseSlots, "loose_slots"),
+      nullptr,
+      "loose_slots"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictModuleStrictSlots() {
+  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kStrictModule,
+      CallableWrapper(strictSlots, "strict_slots"),
+      nullptr,
+      "strict_slots"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictModuleExtraSlot() {
+  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kStrictModule,
+      CallableWrapper(extraSlot, "extra_slot"),
+      nullptr,
+      "extra_slot"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictModuleMutable() {
+  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kStrictModule,
+      CallableWrapper(setMutable, "mutable"),
+      nullptr,
+      "mutable"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictModuleMarkCachedProperty() {
+  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kStrictModule,
+      CallableWrapper(markCachedProperty, "_mark_cached_property"),
+      nullptr,
+      "_mark_cached_property"));
+  return o;
+}
+
+bool initializeStrictModulesModule() {
+  static bool initialized = false;
+  if (!initialized) {
+    initialized = true;
+    DictType* dict = new DictType({
+        {"loose_slots", StrictModuleLooseSlots()},
+        {"strict_slots", StrictModuleStrictSlots()},
+        {"extra_slot", StrictModuleExtraSlot()},
+        {"mutable", StrictModuleMutable()},
+        {"_mark_cached_property", StrictModuleMarkCachedProperty()},
+    });
+    kStrictModule->setDict(std::shared_ptr<DictType>(dict));
+  }
+  return initialized;
+}
+
 } // namespace strictmod::objects

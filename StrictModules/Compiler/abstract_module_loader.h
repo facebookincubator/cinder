@@ -140,6 +140,11 @@ class ModuleLoader {
 
   int getAnalyzedModuleCount() const;
 
+  /** load in the __strict__ module builtin into the loader
+   *  return true if new module is added
+   */
+  bool loadStrictModuleModule();
+
   PyArena* getArena() {
     return arena_;
   }

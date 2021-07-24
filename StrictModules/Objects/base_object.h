@@ -5,8 +5,9 @@
 #include "StrictModules/py_headers.h"
 
 #include "Jit/ref.h"
-#include "StrictModules/sequence_map.h"
 #include "StrictModules/caller_context.h"
+#include "StrictModules/rewriter_attributes.h"
+#include "StrictModules/sequence_map.h"
 
 #include <list>
 #include <memory>
@@ -24,12 +25,12 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
   BaseStrictObject(
       std::shared_ptr<StrictType> type,
       std::shared_ptr<StrictModuleObject> creator)
-      : type_(type), creator_(creator) {}
+      : type_(type), creator_(creator), rewriterAttrs_() {}
 
   BaseStrictObject(
       std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator)
-      : type_(type), creator_(creator) {}
+      : type_(type), creator_(creator), rewriterAttrs_() {}
 
   virtual ~BaseStrictObject() {}
 
@@ -37,7 +38,8 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
    * shutdown */
   virtual void cleanContent(const StrictModuleObject*) {}
 
-  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) = 0;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) = 0;
   virtual std::string getDisplayName() const = 0;
   virtual bool isHashable() const;
   virtual size_t hash() const;
@@ -86,9 +88,33 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
     creator_ = std::move(creator);
   }
 
+  void initRewriterAttrs() {
+    rewriterAttrs_ = std::make_unique<RewriterAttrs>();
+  }
+
+  RewriterAttrs& ensureRewriterAttrs() {
+    if (rewriterAttrs_ == nullptr) {
+      initRewriterAttrs();
+    }
+    return *rewriterAttrs_;
+  }
+
+  RewriterAttrs& getRewriterAttrs() {
+    return *rewriterAttrs_;
+  }
+
+  const RewriterAttrs& getRewriterAttrs() const {
+    return *rewriterAttrs_;
+  }
+
+  bool hasRewritterAttrs() const {
+    return rewriterAttrs_ != nullptr;
+  }
+
  protected:
   std::shared_ptr<StrictType> type_;
   std::weak_ptr<StrictModuleObject> creator_;
+  std::unique_ptr<RewriterAttrs> rewriterAttrs_;
 };
 
 typedef sequence_map<std::string, std::shared_ptr<BaseStrictObject>> DictType;

@@ -4,7 +4,7 @@ import collections.abc
 import contextlib
 import sys
 from abc import abstractmethod, ABCMeta
-from strict_modules import extra_slot
+from __strict__ import extra_slot
 TYPE_CHECKING = False
 _bltin_isinstance = isinstance
 import types

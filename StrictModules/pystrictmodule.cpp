@@ -47,13 +47,16 @@ static int StrictModuleLoaderObject_init(
   PyObject* stub_import_path_obj;
   PyObject* allow_list_obj;
   PyObject* allow_list_exact_obj;
+  PyObject* load_strictmod_builtin;
+  load_strictmod_builtin = Py_True;
   if (!PyArg_ParseTuple(
           args,
-          "OOOO",
+          "OOOO|O",
           &import_paths_obj,
           &stub_import_path_obj,
           &allow_list_obj,
-          &allow_list_exact_obj)) {
+          &allow_list_exact_obj,
+          &load_strictmod_builtin)) {
     return -1;
   }
 
@@ -142,6 +145,25 @@ static int StrictModuleLoaderObject_init(
         PyExc_RuntimeError,
         "failed to set the stub import path on StrictModuleLoader object");
     return -1;
+  }
+
+  // load strict module builtins
+  int should_load = PyObject_IsTrue(load_strictmod_builtin);
+  if (should_load < 0) {
+    PyErr_SetString(
+        PyExc_RuntimeError,
+        "error checking 'should_load_builtin' on StrictModuleLoader");
+    return -1;
+  }
+  if (should_load) {
+    int loaded = StrictModuleChecker_LoadStrictModuleBuiltins(self->checker);
+    if (loaded < 0) {
+      PyErr_SetString(
+          PyExc_RuntimeError,
+          "failed to load the strict module builtins on StrictModuleLoader "
+          "object");
+      return -1;
+    }
   }
   return 0;
 }

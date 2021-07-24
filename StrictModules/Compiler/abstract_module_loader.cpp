@@ -482,4 +482,23 @@ int ModuleLoader::getAnalyzedModuleCount() const {
   }
   return count;
 }
+
+bool ModuleLoader::loadStrictModuleModule() {
+  const std::string& name = objects::strictModName;
+  auto it = modules_.find(name);
+  if (it == modules_.end()) {
+    auto strictModKind = ModuleKind::kStrict;
+    auto analyzedModule =
+        std::make_unique<AnalyzedModule>(strictModKind, errorSinkFactory_());
+    auto strictModModule = objects::StrictModulesModule();
+    strictModModule->setAttr(
+        "__name__",
+        std::make_shared<objects::StrictString>(
+            objects::StrType(), strictModModule, name));
+    analyzedModule->setModuleValue(std::move(strictModModule));
+    modules_[name] = std::move(analyzedModule);
+    return true;
+  }
+  return false;
+}
 } // namespace strictmod::compiler

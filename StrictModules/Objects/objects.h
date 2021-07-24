@@ -19,6 +19,7 @@
 #include "StrictModules/Objects/numerics.h"
 #include "StrictModules/Objects/object_type.h"
 #include "StrictModules/Objects/property.h"
+#include "StrictModules/Objects/strict_modules_builtins.h"
 #include "StrictModules/Objects/string_object.h"
 #include "StrictModules/Objects/super.h"
 #include "StrictModules/Objects/type.h"
@@ -29,6 +30,7 @@
 namespace strictmod::objects {
 //--------------------Builtin Type Declarations-----------------------
 std::shared_ptr<StrictModuleObject> BuiltinsModule();
+std::shared_ptr<StrictModuleObject> StrictModulesModule();
 
 std::shared_ptr<StrictType> ObjectType();
 std::shared_ptr<StrictType> TypeType();
@@ -204,5 +206,7 @@ static const std::string kRCmpOpNames[] = {"",
                                            ""};
 
 static const int kIterationLimit = 10000;
+
+static const std::string strictModName = "__strict__";
 } // namespace strictmod::objects
 #endif // __STRICTM_OBJECTS_H__
