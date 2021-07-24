@@ -64,7 +64,12 @@ template <typename... Args>
       std::forward<Args>(args)...);
 }
 
-inline std::shared_ptr<BaseStrictObject> CallerContext::makeInt(long i) const {
+inline std::shared_ptr<BaseStrictObject> CallerContext::makeInt(
+    long long i) const {
+  return std::make_shared<objects::StrictInt>(objects::IntType(), caller, i);
+}
+
+inline std::shared_ptr<BaseStrictObject> CallerContext::makeInt(Ref<> i) const {
   return std::make_shared<objects::StrictInt>(objects::IntType(), caller, i);
 }
 
@@ -72,6 +77,12 @@ inline std::shared_ptr<BaseStrictObject> CallerContext::makeFloat(
     double i) const {
   return std::make_shared<objects::StrictFloat>(
       objects::FloatType(), caller, i);
+}
+
+inline std::shared_ptr<BaseStrictObject> CallerContext::makeFloat(
+    Ref<> f) const {
+  return std::make_shared<objects::StrictFloat>(
+      objects::FloatType(), caller, f);
 }
 
 inline std::shared_ptr<BaseStrictObject> CallerContext::makeBool(bool b) const {

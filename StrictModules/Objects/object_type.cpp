@@ -362,8 +362,8 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::getTruthValue(
           obj->getDisplayName(),
           len->getDisplayName());
     }
-    long lenValue = lenInt->getValue();
-    return lenValue > 0 ? StrictTrue() : StrictFalse();
+    auto lenValue = lenInt->getValue();
+    return lenValue == 0 ? StrictFalse() : StrictTrue();
   }
   // by default, bool(obj) should return True
   return StrictTrue();

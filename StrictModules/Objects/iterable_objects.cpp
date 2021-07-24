@@ -133,7 +133,7 @@ static std::shared_ptr<BaseStrictObject> sequenceMulHelper(
   }
   std::vector<std::shared_ptr<BaseStrictObject>> result;
   auto& data = self->getData();
-  long repeat = multFactor->getValue();
+  int_type repeat = multFactor->getValueOr(0);
   result.reserve(data.size() * repeat);
   for (int i = 0; i < repeat; ++i) {
     result.insert(result.end(), data.begin(), data.end());
@@ -164,7 +164,13 @@ static std::shared_ptr<BaseStrictObject> sequenceGetItemHelper(
   std::shared_ptr<StrictInt> intIndex =
       std::dynamic_pointer_cast<StrictInt>(index);
   if (intIndex != nullptr) {
-    int idx = normalizeIndex(intIndex->getValue(), data.size());
+    if (!intIndex->getValue()) {
+      caller.raiseTypeError(
+          "{} index out of range: {}",
+          self->getTypeRef().getName(),
+          intIndex->getDisplayName());
+    }
+    int idx = normalizeIndex(*intIndex->getValue(), data.size());
     if (idx >= 0 && (size_t)idx < data.size()) {
       return data[idx];
     } else {
@@ -369,7 +375,11 @@ std::shared_ptr<BaseStrictObject> StrictList::list__setitem__(
   std::shared_ptr<StrictInt> intIndex =
       std::dynamic_pointer_cast<StrictInt>(index);
   if (intIndex != nullptr) {
-    int idx = normalizeIndex(intIndex->getValue(), data.size());
+    if (!intIndex->getValue()) {
+      caller.raiseTypeError(
+          "list assignment index out of range: {}", intIndex->getDisplayName());
+    }
+    int idx = normalizeIndex(*intIndex->getValue(), data.size());
     if (idx >= 0 && (size_t)idx < data.size()) {
       self->setData(idx, std::move(value));
     } else {
@@ -1196,7 +1206,7 @@ std::tuple<int, int, int> StrictSlice::normalizeToSequenceIndex(
     step = 1;
   } else {
     auto stepInt = getSliceIndex(step_, caller);
-    step = stepInt->getValue();
+    step = stepInt->getValueOr(0);
   }
   if (step == 0) {
     caller.raiseTypeError("slice step cannot be 0");
@@ -1208,7 +1218,7 @@ std::tuple<int, int, int> StrictSlice::normalizeToSequenceIndex(
     start = step > 0 ? 0 : sequenceSize - 1;
   } else {
     auto startInt = getSliceIndex(start_, caller);
-    start = startInt->getValue();
+    start = startInt->getValueOr(0);
   }
   if (start < 0) {
     start += sequenceSize;
@@ -1220,7 +1230,7 @@ std::tuple<int, int, int> StrictSlice::normalizeToSequenceIndex(
     stop = step > 0 ? sequenceSize : -sequenceSize - 1;
   } else {
     auto stopInt = getSliceIndex(stop_, caller);
-    stop = stopInt->getValue();
+    stop = stopInt->getValueOr(-1);
   }
   if (stop < 0) {
     stop += sequenceSize;

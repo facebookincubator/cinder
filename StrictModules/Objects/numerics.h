@@ -5,29 +5,32 @@
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
 
+#include <optional>
+
 namespace strictmod::objects {
 
 class StrictNumeric : public StrictInstance {
  public:
   using StrictInstance::StrictInstance;
-  virtual double getReal() const = 0;
-  virtual double getImaginary() const = 0;
-  virtual bool eq(const BaseStrictObject& other) const override;
+  virtual bool isOverflow() const = 0;
   virtual bool isHashable() const override;
-  virtual size_t hash() const override;
+  virtual bool eq(const BaseStrictObject& other) const override;
+  virtual std::optional<double> getReal() const = 0;
 };
+
+typedef long long int_type;
 
 class StrictInt : public StrictNumeric {
  public:
   StrictInt(
       std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
-      long value);
+      int_type value);
 
   StrictInt(
       std::shared_ptr<StrictType> type,
       std::shared_ptr<StrictModuleObject> creator,
-      long value);
+      int_type value);
 
   StrictInt(
       std::shared_ptr<StrictType> type,
@@ -35,13 +38,16 @@ class StrictInt : public StrictNumeric {
       PyObject* pyValue // constructor will incref on the object
   );
 
-  virtual double getReal() const override;
-  virtual double getImaginary() const override;
+  virtual bool isOverflow() const override;
+
+  virtual size_t hash() const override;
+  virtual std::optional<double> getReal() const override;
 
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
-  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> int__bool__(
@@ -241,12 +247,16 @@ class StrictInt : public StrictNumeric {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> rhs);
 
-  long getValue() const {
+  std::optional<int_type> getValue() const {
     return value_;
   }
 
+  int_type getValueOr(int_type defaultValue) const {
+    return value_.value_or(defaultValue);
+  }
+
  protected:
-  long value_;
+  std::optional<int_type> value_;
   mutable Ref<> pyValue_;
   mutable std::string displayName_;
 };
@@ -284,7 +294,8 @@ class StrictBool : public StrictInt {
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
-  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   bool getValue() const {
     return value_ != 0;
@@ -351,13 +362,15 @@ class StrictFloat : public StrictNumeric {
       PyObject* pyValue // constructor will incref on the object
   );
 
-  virtual double getReal() const override;
-  virtual double getImaginary() const override;
+  virtual bool isOverflow() const override;
+  virtual size_t hash() const override;
+  virtual std::optional<double> getReal() const override;
 
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
 
-  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
 
   // wrapped methods
   static std::shared_ptr<BaseStrictObject> float__bool__(

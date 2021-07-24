@@ -9,23 +9,83 @@
 
 #include <cmath>
 
-namespace strictmod::objects {
+#define INT_OP_BOTH_VALUE(lhs, rhs, make, op, py_op)                         \
+  do {                                                                       \
+    if ((lhs)->value_ && (rhs)->value_) {                                    \
+      return (make)((*((lhs)->value_))op(*((rhs)->value_)));                 \
+    } else {                                                                 \
+      Ref<> r =                                                              \
+          Ref<>::steal((py_op)((lhs)->getPyObject(), (rhs)->getPyObject())); \
+      return (make)(std::move(r));                                           \
+    }                                                                        \
+  } while (0)
 
-bool StrictNumeric::eq(const BaseStrictObject& other) const {
-  try {
-    const StrictNumeric& num = dynamic_cast<const StrictNumeric&>(other);
-    return num.getReal() == getReal() && num.getImaginary() == getImaginary();
-  } catch (const std::bad_cast&) {
-    return false;
-  }
-}
+#define FLOAT_OP_BOTH_VALUE(lhs, rhs, make, op, py_op)                       \
+  do {                                                                       \
+    auto l = (lhs)->getReal();                                               \
+    auto r = (rhs)->getReal();                                               \
+    if (l && r) {                                                            \
+      return (make)((*l)op(*r));                                             \
+    } else {                                                                 \
+      Ref<> ref =                                                            \
+          Ref<>::steal((py_op)((lhs)->getPyObject(), (rhs)->getPyObject())); \
+      return (make)(std::move(ref));                                         \
+    }                                                                        \
+  } while (0)
+
+#define INT_CMPOP_EITHER_VALUE(lhs, rhs, make, op, cmp_op)     \
+  do {                                                         \
+    if ((lhs)->value_ || (rhs)->value_) {                      \
+      return (make)(((lhs)->value_)op((rhs)->value_));         \
+    } else {                                                   \
+      bool b = PyObject_RichCompareBool(                       \
+          (lhs)->getPyObject(), (rhs)->getPyObject(), cmp_op); \
+      return (make)(b);                                        \
+    }                                                          \
+  } while (0)
+
+#define INT_CMPOP_BOTH_VALUE(lhs, rhs, make, op, cmp_op)       \
+  do {                                                         \
+    if ((lhs)->value_ && (rhs)->value_) {                      \
+      return (make)((*((lhs)->value_))op((*(rhs)->value_)));   \
+    } else {                                                   \
+      bool b = PyObject_RichCompareBool(                       \
+          (lhs)->getPyObject(), (rhs)->getPyObject(), cmp_op); \
+      return (make)(b);                                        \
+    }                                                          \
+  } while (0)
+
+#define FLOAT_CMPOP_BOTH_VALUE(lhs, rhs, make, op, cmp_op)     \
+  do {                                                         \
+    auto l = (lhs)->getReal();                                 \
+    auto r = (rhs)->getReal();                                 \
+    if (l && r) {                                              \
+      return (make)((*l)op(*r));                               \
+    } else {                                                   \
+      bool res = PyObject_RichCompareBool(                     \
+          (lhs)->getPyObject(), (rhs)->getPyObject(), cmp_op); \
+      return (make)(res);                                      \
+    }                                                          \
+  } while (0)
+
+namespace strictmod::objects {
 
 bool StrictNumeric::isHashable() const {
   return true;
 }
 
-size_t StrictNumeric::hash() const {
-  return size_t(getReal());
+bool StrictNumeric::eq(const BaseStrictObject& other) const {
+  try {
+    const StrictNumeric& num = dynamic_cast<const StrictNumeric&>(other);
+    auto l = getReal();
+    auto r = num.getReal();
+    if (l.has_value() && r.has_value()) {
+      return l == r;
+    }
+    return PyObject_RichCompareBool(getPyObject(), num.getPyObject(), Py_EQ);
+  } catch (const std::bad_cast&) {
+    return false;
+  }
 }
 
 static void checkDivisionByZero(
@@ -40,7 +100,7 @@ static void checkDivisionByZero(
 StrictInt::StrictInt(
     std::shared_ptr<StrictType> type,
     std::weak_ptr<StrictModuleObject> creator,
-    long value)
+    int_type value)
     : StrictNumeric(std::move(type), std::move(creator)),
       value_(value),
       pyValue_(nullptr),
@@ -49,7 +109,7 @@ StrictInt::StrictInt(
 StrictInt::StrictInt(
     std::shared_ptr<StrictType> type,
     std::shared_ptr<StrictModuleObject> creator,
-    long value)
+    int_type value)
     : StrictInt(std::move(type), std::weak_ptr(creator), value) {}
 
 StrictInt::StrictInt(
@@ -58,33 +118,59 @@ StrictInt::StrictInt(
     PyObject* pyValue // constructor will incref on the object
     )
     : StrictNumeric(std::move(type), std::move(creator)),
-      value_(PyLong_AsLong(pyValue)),
+      value_(),
       pyValue_(Ref<>(pyValue)),
-      displayName_() {}
+      displayName_() {
+  int overflow = 0;
+  value_ = PyLong_AsLongLongAndOverflow(pyValue, &overflow);
+  if (PyErr_Occurred()) {
+    PyErr_Clear();
+    value_ = std::nullopt;
+  } else if (overflow) {
+    value_ = std::nullopt;
+  }
+}
 
-double StrictInt::getReal() const {
+std::optional<double> StrictInt::getReal() const {
   return value_;
 }
-double StrictInt::getImaginary() const {
-  return 0;
+
+bool StrictInt::isOverflow() const {
+  return !value_.has_value();
+}
+
+size_t StrictInt::hash() const {
+  if (value_) {
+    return size_t(*value_);
+  }
+  return PyObject_Hash(getPyObject());
 }
 
 Ref<> StrictInt::getPyObject() const {
   if (pyValue_ == nullptr) {
-    pyValue_ = Ref<>::steal(PyLong_FromLong(value_));
+    assert(value_.has_value());
+    pyValue_ = Ref<>::steal(PyLong_FromLongLong(*value_));
   }
   return Ref<>(pyValue_.get());
 }
 
 std::string StrictInt::getDisplayName() const {
   if (displayName_.empty()) {
-    displayName_ = std::to_string(value_);
+    if (value_) {
+      displayName_ = std::to_string(*value_);
+    } else {
+      Ref<> pyStr = Ref<>::steal(PyObject_Str(getPyObject().get()));
+      displayName_ = PyUnicode_AsUTF8(pyStr.get());
+    }
   }
   return displayName_;
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::copy(const CallerContext& caller) {
-  return std::make_shared<StrictInt>(type_, caller.caller, value_);
+  if (value_) {
+    return std::make_shared<StrictInt>(type_, caller.caller, *value_);
+  }
+  return std::make_shared<StrictInt>(type_, caller.caller, getPyObject().get());
 }
 
 // wrapped methods
@@ -97,20 +183,23 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__bool__(
 std::shared_ptr<BaseStrictObject> StrictInt::int__str__(
     std::shared_ptr<StrictInt> self,
     const CallerContext& caller) {
-  return caller.makeStr(std::to_string(self->value_));
+  return caller.makeStr(self->getDisplayName());
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::int__abs__(
     std::shared_ptr<StrictInt> self,
     const CallerContext& caller) {
-  return caller.makeInt(abs(self->value_));
+  if (self->value_) {
+    return caller.makeInt(abs(*(self->value_)));
+  }
+  return caller.makeInt(Ref<>::steal(PyNumber_Absolute(self->getPyObject())));
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::int__round__(
     std::shared_ptr<StrictInt> self,
-    const CallerContext& caller,
+    const CallerContext&,
     std::shared_ptr<BaseStrictObject>) {
-  return caller.makeInt(self->value_);
+  return self;
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::int__new__(
@@ -127,9 +216,16 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__new__(
   }
   // value is numeric
   auto num = std::dynamic_pointer_cast<StrictNumeric>(value);
-  if (num && num->getImaginary() == 0) {
-    return std::make_shared<StrictInt>(
-        std::move(type), caller.caller, long(num->getReal()));
+  if (num) {
+    auto real = num->getReal();
+    if (real) {
+      return std::make_shared<StrictInt>(
+          std::move(type), caller.caller, long(*real));
+    } else {
+      Ref<> l = Ref<>::steal(PyNumber_Long(num->getPyObject()));
+      return std::make_shared<StrictInt>(
+          std::move(type), caller.caller, l.get());
+    }
   }
   // value is string
   auto str = std::dynamic_pointer_cast<StrictString>(value);
@@ -283,7 +379,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__add__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ + rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, +, PyNumber_Add);
   }
   return NotImplemented();
 }
@@ -294,7 +390,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__and__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ & rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, &, PyNumber_And);
   }
   return NotImplemented();
 }
@@ -306,7 +402,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__floordiv__(
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   checkDivisionByZero(rhsInt, caller);
   if (rhsInt) {
-    return caller.makeInt(self->value_ / rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, /, PyNumber_FloorDivide);
   }
   return NotImplemented();
 }
@@ -317,7 +413,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__lshift__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ << rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, <<, PyNumber_Lshift);
   }
   return NotImplemented();
 }
@@ -328,7 +424,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__mod__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ % rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, %, PyNumber_Remainder);
   }
   return NotImplemented();
 }
@@ -339,7 +435,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__mul__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ * rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, *, PyNumber_Multiply);
   }
   return NotImplemented();
 }
@@ -350,7 +446,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__or__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ | rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, |, PyNumber_Or);
   }
   return NotImplemented();
 }
@@ -361,7 +457,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rshift__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ >> rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, >>, PyNumber_Rshift);
   }
   return NotImplemented();
 }
@@ -372,7 +468,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__sub__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ - rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, -, PyNumber_Subtract);
   }
   return NotImplemented();
 }
@@ -384,7 +480,13 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__truediv__(
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   checkDivisionByZero(rhsInt, caller);
   if (rhsInt) {
-    return caller.makeFloat(double(self->value_) / rhsInt->value_);
+    if (self->value_ && rhsInt->value_) {
+      return caller.makeFloat(double(*self->value_) / *rhsInt->value_);
+    } else {
+      Ref<> l = Ref<>::steal(
+          PyNumber_TrueDivide(self->getPyObject(), rhsInt->getPyObject()));
+      return caller.makeFloat(std::move(l));
+    }
   }
   return NotImplemented();
 }
@@ -395,7 +497,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__xor__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeInt(self->value_ ^ rhsInt->value_);
+    INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, ^, PyNumber_Xor);
   }
   return NotImplemented();
 }
@@ -406,7 +508,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__radd__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ + self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, +, PyNumber_Add);
   }
   return NotImplemented();
 }
@@ -417,7 +519,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rand__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ & self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, &, PyNumber_And);
   }
   return NotImplemented();
 }
@@ -429,7 +531,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rfloordiv__(
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   checkDivisionByZero(lhsInt, caller);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ / self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, /, PyNumber_FloorDivide);
   }
   return NotImplemented();
 }
@@ -440,7 +542,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rlshift__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ << self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, <<, PyNumber_Lshift);
   }
   return NotImplemented();
 }
@@ -451,7 +553,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rmod__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ % self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, %, PyNumber_Remainder);
   }
   return NotImplemented();
 }
@@ -462,7 +564,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rmul__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ * self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, *, PyNumber_Multiply);
   }
   return NotImplemented();
 }
@@ -473,7 +575,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__ror__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ | self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, |, PyNumber_Or);
   }
   return NotImplemented();
 }
@@ -484,7 +586,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rrshift__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ >> self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, >>, PyNumber_Rshift);
   }
   return NotImplemented();
 }
@@ -495,7 +597,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rsub__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ - self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, -, PyNumber_Subtract);
   }
   return NotImplemented();
 }
@@ -507,7 +609,13 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rtruediv__(
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   checkDivisionByZero(lhsInt, caller);
   if (lhsInt) {
-    return caller.makeFloat(double(lhsInt->value_) / self->value_);
+    if (self->value_ && lhsInt->value_) {
+      return caller.makeFloat(double(*lhsInt->value_) / *self->value_);
+    } else {
+      Ref<> l = Ref<>::steal(
+          PyNumber_TrueDivide(lhsInt->getPyObject(), self->getPyObject()));
+      return caller.makeFloat(std::move(l));
+    }
   }
   return NotImplemented();
 }
@@ -518,47 +626,58 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rxor__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
-    return caller.makeInt(lhsInt->value_ ^ self->value_);
+    INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, ^, PyNumber_Xor);
   }
   return NotImplemented();
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::int__pos__(
     std::shared_ptr<StrictInt> self,
-    const CallerContext& caller) {
-  return caller.makeInt(self->value_);
+    const CallerContext&) {
+  return self;
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::int__neg__(
     std::shared_ptr<StrictInt> self,
     const CallerContext& caller) {
-  return caller.makeInt(-self->value_);
+  if (self->value_) {
+    return caller.makeInt(-*self->value_);
+  } else {
+    Ref<> l = Ref<>::steal(PyNumber_Negative(self->getPyObject()));
+    return caller.makeInt(std::move(l));
+  }
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::int__invert__(
     std::shared_ptr<StrictInt> self,
     const CallerContext& caller) {
-  return caller.makeInt(~self->value_);
+  if (self->value_) {
+    return caller.makeInt(~*self->value_);
+  } else {
+    Ref<> l = Ref<>::steal(PyNumber_Invert(self->getPyObject()));
+    return caller.makeInt(std::move(l));
+  }
 }
 
 std::shared_ptr<BaseStrictObject> StrictInt::int__eq__(
     std::shared_ptr<StrictInt> self,
-    const CallerContext&,
+    const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsNum = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsNum) {
-    return rhsNum->getValue() == self->value_ ? StrictTrue() : StrictFalse();
+    INT_CMPOP_EITHER_VALUE(self, rhsNum, caller.makeBool, ==, Py_EQ);
   }
   return NotImplemented();
 }
 
+// TODO handle both overflow case
 std::shared_ptr<BaseStrictObject> StrictInt::int__ne__(
     std::shared_ptr<StrictInt> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeBool(self->value_ != rhsInt->value_);
+    INT_CMPOP_EITHER_VALUE(self, rhsInt, caller.makeBool, !=, Py_NE);
   }
   return NotImplemented();
 }
@@ -569,7 +688,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__lt__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeBool(self->value_ < rhsInt->value_);
+    INT_CMPOP_BOTH_VALUE(self, rhsInt, caller.makeBool, <, Py_LT);
   }
   return NotImplemented();
 }
@@ -580,7 +699,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__le__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeBool(self->value_ <= rhsInt->value_);
+    INT_CMPOP_BOTH_VALUE(self, rhsInt, caller.makeBool, <=, Py_LE);
   }
   return NotImplemented();
 }
@@ -591,7 +710,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__gt__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeBool(self->value_ > rhsInt->value_);
+    INT_CMPOP_BOTH_VALUE(self, rhsInt, caller.makeBool, >, Py_GT);
   }
   return NotImplemented();
 }
@@ -602,7 +721,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__ge__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
-    return caller.makeBool(self->value_ >= rhsInt->value_);
+    INT_CMPOP_BOTH_VALUE(self, rhsInt, caller.makeBool, >=, Py_GE);
   }
   return NotImplemented();
 }
@@ -708,7 +827,7 @@ void StrictIntType::addMethods() {
 // StrictBool
 Ref<> StrictBool::getPyObject() const {
   if (pyValue_ == nullptr) {
-    pyValue_ = Ref<>::steal(PyBool_FromLong(value_));
+    pyValue_ = Ref<>(value_ == 0 ? Py_False : Py_True);
   }
   return Ref<>(pyValue_.get());
 }
@@ -722,7 +841,8 @@ std::string StrictBool::getDisplayName() const {
 
 std::shared_ptr<BaseStrictObject> StrictBool::copy(
     const CallerContext& caller) {
-  return std::make_shared<StrictBool>(type_, caller.caller, value_);
+  assert(value_.has_value());
+  return std::make_shared<StrictBool>(type_, caller.caller, *value_);
 }
 
 std::shared_ptr<BaseStrictObject> StrictBool::boolFromPyObj(
@@ -846,11 +966,16 @@ StrictFloat::StrictFloat(
       pyValue_(Ref<>(pyValue)),
       displayName_() {}
 
-double StrictFloat::getReal() const {
+std::optional<double> StrictFloat::getReal() const {
   return value_;
 }
-double StrictFloat::getImaginary() const {
-  return 0;
+
+bool StrictFloat::isOverflow() const {
+  return false;
+}
+
+size_t StrictFloat::hash() const {
+  return size_t((long long)(value_));
 }
 
 Ref<> StrictFloat::getPyObject() const {
@@ -946,9 +1071,15 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__new__(
   }
   // value is numeric
   auto num = std::dynamic_pointer_cast<StrictNumeric>(value);
-  if (num && num->getImaginary() == 0) {
-    return std::make_shared<StrictFloat>(
-        std::move(type), caller.caller, num->getReal());
+  if (num) {
+    auto real = num->getReal();
+    if (real) {
+      return std::make_shared<StrictFloat>(
+          std::move(type), caller.caller, *real);
+    } else {
+      return std::make_shared<StrictFloat>(
+          std::move(type), caller.caller, num->getPyObject());
+    }
   }
   // value is string
   auto str = std::dynamic_pointer_cast<StrictString>(value);
@@ -1023,8 +1154,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__add__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(self->value_ + num->getReal());
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(self, num, caller.makeFloat, +, PyNumber_Add);
   }
   return NotImplemented();
 }
@@ -1035,8 +1166,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__floordiv__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   checkDivisionByZero(num, caller);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeInt(self->value_ / num->getReal());
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(self, num, caller.makeInt, /, PyNumber_FloorDivide);
   }
   return NotImplemented();
 }
@@ -1046,14 +1177,11 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__mod__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
-  if (num && num->getImaginary() == 0) {
+  if (num) {
     Ref<> selfFloat = self->getPyObject();
-    Ref<> numFloat = Ref<>::steal(PyFloat_FromDouble(num->getReal()));
-    Ref<> result =
-        Ref<>::steal(PyNumber_Remainder(selfFloat.get(), numFloat.get()));
-
-    return std::make_shared<StrictFloat>(
-        FloatType(), caller.caller, result.get());
+    Ref<> numFloat = num->getPyObject();
+    Ref<> result = Ref<>::steal(PyNumber_Remainder(selfFloat, numFloat));
+    return caller.makeFloat(std::move(result));
   }
   return NotImplemented();
 }
@@ -1063,8 +1191,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__mul__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(self->value_ * num->getReal());
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(self, num, caller.makeFloat, *, PyNumber_Multiply);
   }
   return NotImplemented();
 }
@@ -1074,8 +1202,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__sub__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(self->value_ - num->getReal());
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(self, num, caller.makeFloat, -, PyNumber_Subtract);
   }
   return NotImplemented();
 }
@@ -1086,8 +1214,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__truediv__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   checkDivisionByZero(num, caller);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(self->value_ / num->getReal());
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(self, num, caller.makeFloat, /, PyNumber_TrueDivide);
   }
   return NotImplemented();
 }
@@ -1097,8 +1225,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__radd__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(num->getReal() + self->value_);
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(num, self, caller.makeFloat, +, PyNumber_Add);
   }
   return NotImplemented();
 }
@@ -1109,8 +1237,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rfloordiv__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
   checkDivisionByZero(num, caller);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeInt(num->getReal() / self->value_);
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(num, self, caller.makeInt, /, PyNumber_FloorDivide);
   }
   return NotImplemented();
 }
@@ -1120,14 +1248,11 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rmod__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
-  if (num && num->getImaginary() == 0) {
+  if (num) {
     Ref<> selfFloat = self->getPyObject();
-    Ref<> numFloat = Ref<>::steal(PyFloat_FromDouble(num->getReal()));
-    Ref<> result =
-        Ref<>::steal(PyNumber_Remainder(numFloat.get(), selfFloat.get()));
-
-    return std::make_shared<StrictFloat>(
-        FloatType(), caller.caller, result.get());
+    Ref<> numFloat = num->getPyObject();
+    Ref<> result = Ref<>::steal(PyNumber_Remainder(numFloat, selfFloat));
+    return caller.makeFloat(std::move(result));
   }
   return NotImplemented();
 }
@@ -1137,8 +1262,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rmul__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(num->getReal() * self->value_);
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(num, self, caller.makeFloat, *, PyNumber_Multiply);
   }
   return NotImplemented();
 }
@@ -1148,8 +1273,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rsub__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(num->getReal() - self->value_);
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(num, self, caller.makeFloat, -, PyNumber_Subtract);
   }
   return NotImplemented();
 }
@@ -1160,8 +1285,8 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rtruediv__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
   checkDivisionByZero(num, caller);
-  if (num && num->getImaginary() == 0) {
-    return caller.makeFloat(num->getReal() / self->value_);
+  if (num) {
+    FLOAT_OP_BOTH_VALUE(num, self, caller.makeFloat, /, PyNumber_TrueDivide);
   }
   return NotImplemented();
 }
@@ -1182,9 +1307,9 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__eq__(
     std::shared_ptr<StrictFloat> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
-  auto num = std::dynamic_pointer_cast<StrictFloat>(rhs);
+  auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   if (num) {
-    return caller.makeBool(self->value_ == num->value_);
+    return caller.makeBool(self->value_ == num->getReal());
   }
   return NotImplemented();
 }
@@ -1193,9 +1318,9 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__ne__(
     std::shared_ptr<StrictFloat> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
-  auto num = std::dynamic_pointer_cast<StrictFloat>(rhs);
+  auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   if (num) {
-    return caller.makeBool(self->value_ != num->value_);
+    return caller.makeBool(self->value_ != num->getReal());
   }
   return NotImplemented();
 }
@@ -1204,9 +1329,9 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__lt__(
     std::shared_ptr<StrictFloat> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
-  auto num = std::dynamic_pointer_cast<StrictFloat>(rhs);
+  auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   if (num) {
-    return caller.makeBool(self->value_ < num->value_);
+    FLOAT_CMPOP_BOTH_VALUE(self, num, caller.makeBool, <, Py_LT);
   }
   return NotImplemented();
 }
@@ -1215,9 +1340,9 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__le__(
     std::shared_ptr<StrictFloat> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
-  auto num = std::dynamic_pointer_cast<StrictFloat>(rhs);
+  auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   if (num) {
-    return caller.makeBool(self->value_ <= num->value_);
+    FLOAT_CMPOP_BOTH_VALUE(self, num, caller.makeBool, <=, Py_LE);
   }
   return NotImplemented();
 }
@@ -1226,9 +1351,9 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__gt__(
     std::shared_ptr<StrictFloat> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
-  auto num = std::dynamic_pointer_cast<StrictFloat>(rhs);
+  auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   if (num) {
-    return caller.makeBool(self->value_ > num->value_);
+    FLOAT_CMPOP_BOTH_VALUE(self, num, caller.makeBool, >, Py_GT);
   }
   return NotImplemented();
 }
@@ -1237,9 +1362,9 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__ge__(
     std::shared_ptr<StrictFloat> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
-  auto num = std::dynamic_pointer_cast<StrictFloat>(rhs);
+  auto num = std::dynamic_pointer_cast<StrictNumeric>(rhs);
   if (num) {
-    return caller.makeBool(self->value_ >= num->value_);
+    FLOAT_CMPOP_BOTH_VALUE(self, num, caller.makeBool, >=, Py_GE);
   }
   return NotImplemented();
 }

@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <memory>
+#include "Jit/ref.h"
 #include "StrictModules/error_sink.h"
 
 namespace strictmod {
@@ -114,8 +115,10 @@ class CallerContext {
   [[noreturn]] void raiseTypeError(std::string&& fmtStr, Args&&... args) const;
 
   // convenience methods
-  std::shared_ptr<BaseStrictObject> makeInt(long i) const;
+  std::shared_ptr<BaseStrictObject> makeInt(long long i) const;
+  std::shared_ptr<BaseStrictObject> makeInt(Ref<> i) const;
   std::shared_ptr<BaseStrictObject> makeFloat(double f) const;
+  std::shared_ptr<BaseStrictObject> makeFloat(Ref<> f) const;
   std::shared_ptr<BaseStrictObject> makeBool(bool b) const;
   std::shared_ptr<BaseStrictObject> makeStr(std::string s) const;
   std::shared_ptr<BaseStrictObject> makePair(

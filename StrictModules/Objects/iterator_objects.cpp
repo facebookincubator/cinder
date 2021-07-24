@@ -165,9 +165,9 @@ StrictRangeIterator::StrictRangeIterator(
     : StrictIteratorBase(std::move(type), std::move(creator)),
       range_(std::move(rangeObj)),
       done_(false) {
-  current_ = assertStaticCast<StrictInt>(range_->getStart())->getValue();
-  stop_ = assertStaticCast<StrictInt>(range_->getStop())->getValue();
-  step_ = assertStaticCast<StrictInt>(range_->getStep())->getValue();
+  current_ = assertStaticCast<StrictInt>(range_->getStart())->getValueOr(0);
+  stop_ = assertStaticCast<StrictInt>(range_->getStop())->getValueOr(-1);
+  step_ = assertStaticCast<StrictInt>(range_->getStep())->getValueOr(1);
 }
 
 std::shared_ptr<BaseStrictObject> StrictRangeIterator::next(

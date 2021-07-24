@@ -205,7 +205,11 @@ std::shared_ptr<BaseStrictObject> StrictString::str__getitem__(
   std::shared_ptr<StrictInt> intIndex =
       std::dynamic_pointer_cast<StrictInt>(index);
   if (intIndex != nullptr) {
-    int idx = normalizeIndex(intIndex->getValue(), data.size());
+    if (!intIndex->getValue()) {
+      caller.raiseTypeError(
+          "string index out of range: {}", intIndex->getDisplayName());
+    }
+    int idx = normalizeIndex(*intIndex->getValue(), data.size());
     if (idx >= 0 && (size_t)idx < data.size()) {
       return caller.makeStr(data.substr(idx, 1));
     } else {

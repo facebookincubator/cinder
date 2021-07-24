@@ -435,11 +435,12 @@ std::shared_ptr<BaseStrictObject> chrImpl(
     caller.raiseTypeError(
         "bad operand type for chr(): {}", i->getTypeRef().getName());
   }
-  long v = iInt->getValue();
-  if (v < 0 || v > 0x10ffff) {
-    caller.raiseExceptionStr(ValueErrorType(), "chr arg {} not in range", v);
+  auto v = iInt->getValue();
+  if (!v.has_value() || v < 0 || v > 0x10ffff) {
+    caller.raiseExceptionStr(
+        ValueErrorType(), "chr arg {} not in range", iInt->getDisplayName());
   }
-  Ref<> resPyObj = Ref<>::steal(PyUnicode_FromOrdinal(v));
+  Ref<> resPyObj = Ref<>::steal(PyUnicode_FromOrdinal(*v));
   return StrictString::strFromPyObj(std::move(resPyObj), caller);
 }
 
