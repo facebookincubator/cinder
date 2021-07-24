@@ -60,7 +60,7 @@ void StrictInstance::setAttr(
 }
 
 void StrictInstance::cleanContent(const StrictModuleObject* owner) {
-  if (cleaned_) {
+  if (cleaned_ || (!creator_.expired() && owner != creator_.lock().get())) {
     return;
   }
   cleaned_ = true;

@@ -247,6 +247,16 @@ AnalyzedModule* ModuleLoader::loadModuleFromSource(
   return nullptr;
 }
 
+bool ModuleLoader::isForcedStrict(
+    const std::string& modName,
+    const std::string& fileName) {
+  auto stubKind = StubKind::getStubKind(fileName, isAllowListed(modName));
+  if (stubKind.isForcedStrict()) {
+    return true;
+  }
+  return forceStrict_ && (*forceStrict_)(modName, fileName);
+}
+
 std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
     const std::string& modName,
     const std::vector<std::string>& searchLocations,
@@ -266,10 +276,17 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
         std::filesystem::path(importPath) / modPathStr;
     pyModPath += suffix;
     const char* modPathCstr = pyModPath.c_str();
-    auto readResult = readFromFile(modPathCstr, arena_);
+    std::string filename = pyModPath.string();
+    std::optional<AstAndSymbols> readResult;
+
+    if (isForcedStrict(modName, filename)) {
+      readResult = readFromFile(modPathCstr, arena_, {});
+    } else {
+      readResult = readFromFile(modPathCstr, arena_, kStrictFlags);
+    }
+
     if (readResult) {
       AstAndSymbols& result = readResult.value();
-      std::string filename = pyModPath.string();
       bool allowlisted = isAllowListed(modName);
       return std::make_unique<ModuleInfo>(
           std::move(modName),
@@ -285,10 +302,16 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
         std::filesystem::path(importPath) / modPathStr / "__init__";
     initModPath += suffix;
     const char* initPathCstr = initModPath.c_str();
-    readResult = readFromFile(initPathCstr, arena_);
+    filename = initModPath.string();
+
+    if (isForcedStrict(modName, filename)) {
+      readResult = readFromFile(initPathCstr, arena_, {});
+    } else {
+      readResult = readFromFile(initPathCstr, arena_, kStrictFlags);
+    }
+
     if (readResult) {
       AstAndSymbols& result = readResult.value();
-      std::string filename = initModPath.string();
       bool allowlisted = isAllowListed(modName);
       return std::make_unique<ModuleInfo>(
           std::move(modName),
@@ -353,15 +376,22 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModuleFromSource(
 AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   const mod_ty ast = modInfo->getAst();
   const std::string& name = modInfo->getModName();
+  const std::string& filename = modInfo->getFilename();
 
   // Following python semantics, publish the module before ast visits
   auto errorSink = errorSinkFactory_();
   BaseErrorSink* errorSinkBorrowed = errorSink.get();
+  ModuleKind kind;
+  if (ast != nullptr) {
+    kind = getModuleKind(ast);
+  } else {
+    kind = ModuleKind::kNonStrict;
+  }
   AnalyzedModule* analyzedModule =
-      new AnalyzedModule(getModuleKind(ast), std::move(errorSink));
+      new AnalyzedModule(kind, std::move(errorSink));
   modules_[name] = std::unique_ptr<AnalyzedModule>(analyzedModule);
-  if (analyzedModule->isStrict() || modInfo->getStubKind().isForcedStrict() ||
-      (forceStrict_ && (*forceStrict_)(name, modInfo->getFilename()))) {
+  if (analyzedModule->isStrict() || isForcedStrict(name, filename)) {
+    assert(ast != nullptr);
     // Run ast visits
     auto globalScope = std::shared_ptr(objects::getBuiltinsDict());
     // create module object. Analysis result will be the __dict__ of this object

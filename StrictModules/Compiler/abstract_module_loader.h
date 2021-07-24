@@ -17,6 +17,8 @@ enum class FileSuffixKind { kPythonFile, kStrictStubFile, kTypingStubFile };
 
 enum class AllowListKind { kPrefix, kExact };
 
+static const std::vector<std::string> kStrictFlags{"__strict__", "__static__"};
+
 const char* getFileSuffixKindName(FileSuffixKind kind);
 
 class ModuleLoader {
@@ -152,6 +154,7 @@ class ModuleLoader {
 
   AnalyzedModule* analyze(std::unique_ptr<ModuleInfo> modInfo);
   bool isAllowListed(const std::string& modName);
+  bool isForcedStrict(const std::string& modName, const std::string& fileName);
 };
 
 } // namespace strictmod::compiler

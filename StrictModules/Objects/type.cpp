@@ -198,12 +198,13 @@ bool StrictType::isDataDescr(const CallerContext& caller) {
 void StrictType::addMethods() {}
 
 void StrictType::cleanContent(const StrictModuleObject* owner) {
-  StrictInstance::cleanContent(owner);
-  if (creator_.expired() || owner == creator_.lock().get()) {
-    baseClasses_.clear();
-    mro_.reset();
-    basesObj_.reset();
+  if ((!creator_.expired() && owner != creator_.lock().get())) {
+    return;
   }
+  StrictInstance::cleanContent(owner);
+  baseClasses_.clear();
+  mro_.reset();
+  basesObj_.reset();
 }
 
 std::shared_ptr<BaseStrictObject> StrictType::type__call__(

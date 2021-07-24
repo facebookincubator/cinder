@@ -1,15 +1,41 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/parser_util.h"
+#include <fstream>
 
 namespace strictmod {
 std::optional<AstAndSymbols> readFromFile(
     const char* filenameStr,
-    PyArena* arena) {
+    PyArena* arena,
+    const std::vector<std::string>& checkSubStrings) {
   PyFutureFeatures* pyFutures = nullptr;
   PySymtable* symbols = nullptr;
   mod_ty mod = nullptr;
   bool futureAnnotations;
   PyCompilerFlags localflags = _PyCompilerFlags_INIT;
+
+  // if checkSubStrs is available, preliminarily check
+  // the file for those strings, and skip parsing if absent
+  if (!checkSubStrings.empty()) {
+    std::string line;
+    bool found = false;
+
+    std::ifstream checkFp(filenameStr);
+    if (checkFp.is_open()) {
+      while (!checkFp.eof() && !found) {
+        getline(checkFp, line);
+        for (auto& checkedSubStr : checkSubStrings) {
+          if (line.find(checkedSubStr, 0) != std::string::npos) {
+            found = true;
+            break;
+          }
+        }
+      }
+      checkFp.close();
+    }
+    if (!found) {
+      std::make_optional<AstAndSymbols>(mod, symbols, false, false);
+    }
+  }
 
   FILE* fp = _Py_fopen(filenameStr, "rb");
 
@@ -41,7 +67,8 @@ std::optional<AstAndSymbols> readFromFile(
   fclose(fp);
   PyObject_Free(pyFutures);
   Py_DECREF(filename);
-  return std::make_optional<AstAndSymbols>(mod, symbols, futureAnnotations);
+  return std::make_optional<AstAndSymbols>(
+      mod, symbols, futureAnnotations, true);
 
 error:
   // do not free `mod` since its allocated via arena
@@ -83,7 +110,8 @@ readFromSource(const char* source, const char* filenameStr, PyArena* arena) {
     goto error;
   PyObject_Free(pyFutures);
   Py_DECREF(filename);
-  return std::make_optional<AstAndSymbols>(mod, symbols, futureAnnotations);
+  return std::make_optional<AstAndSymbols>(
+      mod, symbols, futureAnnotations, true);
 
 error:
   // do not free `mod` since its allocated via arena

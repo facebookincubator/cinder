@@ -21,27 +21,6 @@ class StrictModuleObject : public StrictInstance {
     return name_;
   }
 
-  /* clear all content in __dict__. Use this during shutdown */
-  void cleanModule() {
-    if (!dict_) {
-      return;
-    }
-    for (auto it : *dict_) {
-      auto owner = it.second.first->getCreator();
-      if (!owner.expired() && owner.lock().get() == this) {
-        auto inst = std::dynamic_pointer_cast<StrictInstance>(it.second.first);
-        if (inst) {
-          inst->cleanContent(this);
-        }
-      }
-      // dict may have been cleared by children
-      if (dict_->empty()) {
-        break;
-      }
-    }
-    dict_->clear();
-  }
-
   static std::shared_ptr<StrictModuleObject> makeStrictModule(
       std::shared_ptr<StrictType> type,
       std::string name,

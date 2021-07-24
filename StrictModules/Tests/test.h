@@ -44,7 +44,7 @@ class AnalyzerTest : public PythonTest {
  public:
   bool analyzeFile(const char* name) {
     PyArena* arena = PyArena_New();
-    auto result = strictmod::readFromFile(name, arena);
+    auto result = strictmod::readFromFile(name, arena, {});
     EXPECT_NE(result, std::nullopt);
     auto errors = std::make_unique<strictmod::ErrorSink>();
     strictmod::Analyzer analyzer(

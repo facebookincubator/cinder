@@ -85,6 +85,9 @@ Analyzer StrictFunction::getFuncAnalyzer(
 }
 
 void StrictFunction::cleanContent(const StrictModuleObject* owner) {
+  if ((!creator_.expired() && owner != creator_.lock().get())) {
+    return;
+  }
   closure_.clear();
   StrictInstance::cleanContent(owner);
 }

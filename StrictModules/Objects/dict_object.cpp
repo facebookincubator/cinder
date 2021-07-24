@@ -99,6 +99,9 @@ Ref<> StrictDict::getPyObject() const {
 }
 
 void StrictDict::cleanContent(const StrictModuleObject* owner) {
+  if ((!creator_.expired() && owner != creator_.lock().get())) {
+    return;
+  }
   data_->clear();
   StrictIterable::cleanContent(owner);
 }
