@@ -5,9 +5,10 @@
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <tuple>
 #include <vector>
-#include "StrictModules/symbol_table.h"
 #include "StrictModules/sequence_map.h"
+#include "StrictModules/symbol_table.h"
 namespace strictmod {
 
 std::string mangle(const std::string& className, const std::string& name);
@@ -146,6 +147,9 @@ class ScopeStack {
   std::optional<TVar> at(const std::string& key) const;
   bool erase(const std::string& key);
   void clear();
+  /* return the looked up variable and the scope it comes from */
+  std::tuple<std::optional<TVar>, Scope<TVar, TScopeData>*> at_and_scope(
+      const std::string& key);
 
   bool isGlobal(const std::string& key) const;
   bool isNonLocal(const std::string& key) const;

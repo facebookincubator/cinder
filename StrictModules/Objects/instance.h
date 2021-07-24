@@ -26,8 +26,8 @@ class StrictInstance : public BaseStrictObject {
   std::shared_ptr<BaseStrictObject> getAttr(const std::string& name);
   void setAttr(std::string name, std::shared_ptr<BaseStrictObject> value);
 
-  DictType& getDict() {
-    return *dict_;
+  std::unique_ptr<DictType> copyDict() {
+    return std::make_unique<DictType>(*dict_);
   }
 
   // implemented in dict_object.cpp

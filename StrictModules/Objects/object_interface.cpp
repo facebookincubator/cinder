@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/object_interface.h"
 
+#include "StrictModules/Compiler/abstract_module_loader.h"
 #include "StrictModules/Objects/base_object.h"
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/Objects/type.h"
@@ -201,5 +202,27 @@ bool iStrictObjectEq(
   }
   auto result = iBinCmpOp(std::move(lhs), std::move(rhs), Eq, caller);
   return iGetTruthValue(std::move(result), caller) == StrictTrue();
+}
+
+std::shared_ptr<BaseStrictObject> iImportFrom(
+    std::shared_ptr<BaseStrictObject> fromMod,
+    const std::string& name,
+    const CallerContext& context,
+    ModuleLoader* loader) {
+  auto value = iLoadAttr(fromMod, name, nullptr, context);
+  if (value != nullptr) {
+    return value;
+  }
+  auto dunderPath = iLoadAttr(fromMod, "__path__", nullptr, context);
+  if (dunderPath == nullptr) {
+    // not a package
+    return nullptr;
+  }
+  auto modName = iLoadAttr(fromMod, "__name__", nullptr, context);
+  auto modNameStr = std::dynamic_pointer_cast<StrictString>(modName);
+  if (modNameStr == nullptr) {
+    return nullptr;
+  }
+  return loader->loadModuleValue(modNameStr->getValue() + "." + name);
 }
 } // namespace strictmod::objects

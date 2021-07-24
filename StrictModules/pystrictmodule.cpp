@@ -238,6 +238,12 @@ static PyObject* StrictModuleLoader_set_force_strict(
   Py_RETURN_FALSE;
 }
 
+static PyObject* StrictModuleLoader_get_analyzed_count(
+    StrictModuleLoaderObject* self) {
+  int count = StrictModuleChecker_GetAnalyzedModuleCount(self->checker);
+  return PyLong_FromLong(count);
+}
+
 static PyMethodDef StrictModuleLoader_methods[] = {
     {"check",
      (PyCFunction)StrictModuleLoader_check,
@@ -248,6 +254,10 @@ static PyMethodDef StrictModuleLoader_methods[] = {
      (PyCFunction)StrictModuleLoader_set_force_strict,
      METH_VARARGS,
      PyDoc_STR("force_strict(force: bool) -> bool")},
+    {"get_analyzed_count",
+     (PyCFunction)StrictModuleLoader_get_analyzed_count,
+     METH_NOARGS,
+     PyDoc_STR("get_analyzed_count() -> int")},
     {NULL, NULL, 0, NULL} /* sentinel */
 };
 #pragma GCC diagnostic push

@@ -125,6 +125,12 @@ bool iStrictObjectEq(
     std::shared_ptr<BaseStrictObject> lhs,
     std::shared_ptr<BaseStrictObject> rhs,
     const CallerContext& caller);
+
+std::shared_ptr<BaseStrictObject> iImportFrom(
+    std::shared_ptr<BaseStrictObject> fromMod,
+    const std::string& name,
+    const CallerContext& context,
+    ModuleLoader* loader);
 } // namespace strictmod::objects
 
 #endif // __STRICTM_OBJECT_INTERFACE_H__

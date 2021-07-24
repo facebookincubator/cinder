@@ -749,6 +749,16 @@ std::shared_ptr<BaseStrictObject> StrictInstance::getDunderDict() {
   if (dictObj_ != nullptr) {
     return dictObj_;
   }
+
+  // evaluate all laziness in dict_ when __dict__ is invoked
+  for (auto& it : *dict_) {
+    if (it.second.first->isLazy()) {
+      auto lazy = std::static_pointer_cast<StrictLazyObject>(it.second.first);
+      auto evaluated = lazy->evaluate();
+      it.second.first = evaluated;
+    }
+  }
+
   std::unique_ptr<DictDataInterface> dict =
       std::make_unique<InstanceDictDictData>(dict_, creator_);
   dictObj_ = std::make_shared<StrictDict>(

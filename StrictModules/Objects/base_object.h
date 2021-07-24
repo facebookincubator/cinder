@@ -47,6 +47,10 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
     return false;
   }
 
+  virtual bool isLazy() const {
+    return false;
+  }
+
   /** get equivalent python object of this object
    * return nullptr if conversion is not supported
    *

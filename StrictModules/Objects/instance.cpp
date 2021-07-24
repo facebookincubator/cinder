@@ -44,7 +44,13 @@ std::shared_ptr<BaseStrictObject> StrictInstance::getAttr(
     const std::string& name) {
   auto it = dict_->find(name);
   if (it != dict_->map_end()) {
-    return it->second.first;
+    auto result = it->second.first;
+    if (result->isLazy()) {
+      auto lazy = std::static_pointer_cast<StrictLazyObject>(result);
+      result = lazy->evaluate();
+      (*dict_)[name] = result;
+    }
+    return result;
   }
   return std::shared_ptr<BaseStrictObject>();
 }

@@ -135,6 +135,8 @@ class ModuleLoader {
   bool setAllowListPrefix(std::vector<std::string> allowList);
   bool setAllowListExact(std::vector<std::string> allowList);
 
+  int getAnalyzedModuleCount() const;
+
   PyArena* getArena() {
     return arena_;
   }

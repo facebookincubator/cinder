@@ -78,6 +78,9 @@ int StrictModuleChecker_GetErrors(
     ErrorInfo errors_out[],
     size_t length);
 
+/** Return how many modules have been analyzed*/
+int StrictModuleChecker_GetAnalyzedModuleCount(StrictModuleChecker* checker);
+
 /** Set whether the loader should force a module to be strict
  *  reutrn 0 if no error and -1 for internal error
  */

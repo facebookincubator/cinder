@@ -13,6 +13,7 @@
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/iterable_objects.h"
 #include "StrictModules/Objects/iterator_objects.h"
+#include "StrictModules/Objects/lazy_object.h"
 #include "StrictModules/Objects/module.h"
 #include "StrictModules/Objects/module_type.h"
 #include "StrictModules/Objects/numerics.h"
@@ -86,6 +87,8 @@ std::shared_ptr<StrictType> KeyErrorType();
 std::shared_ptr<StrictType> RuntimeErrorType();
 std::shared_ptr<StrictType> DivisionByZeroType();
 
+std::shared_ptr<StrictType> LazyObjectType();
+
 //--------------------Builtin Constant Declarations-----------------------
 std::shared_ptr<BaseStrictObject> NoneObject();
 std::shared_ptr<BaseStrictObject> EllipsisObject();
@@ -99,7 +102,7 @@ std::shared_ptr<BaseStrictObject> StrictTryImport();
 /* Create a dictionary containing all values in the builtins module
  */
 static inline std::unique_ptr<DictType> getBuiltinsDict() {
-  return std::make_unique<DictType>(BuiltinsModule()->getDict());
+  return BuiltinsModule()->copyDict();
 }
 
 /** return `def` if `excName` cannot be resolved

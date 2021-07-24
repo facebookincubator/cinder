@@ -462,4 +462,13 @@ bool ModuleLoader::isAllowListed(const std::string& modName) {
   return false;
 }
 
+int ModuleLoader::getAnalyzedModuleCount() const {
+  int count = 0;
+  for (auto& m : modules_) {
+    if (m.second != nullptr && m.second->getModuleValue() != nullptr) {
+      count++;
+    }
+  }
+  return count;
+}
 } // namespace strictmod::compiler

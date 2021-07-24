@@ -9,11 +9,11 @@
 
 #include "StrictModules/Objects/base_object.h"
 #include "StrictModules/Objects/dict_object.h"
-#include "StrictModules/sequence_map.h"
 #include "StrictModules/ast_visitor.h"
 #include "StrictModules/caller_context.h"
 #include "StrictModules/error_sink.h"
 #include "StrictModules/scope.h"
+#include "StrictModules/sequence_map.h"
 
 namespace strictmod {
 namespace compiler {
@@ -38,8 +38,7 @@ class AnalysisContextManager {
 class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   using BaseStrictObject = objects::BaseStrictObject;
   typedef Scope<std::shared_ptr<BaseStrictObject>, AnalysisScopeData> ScopeT;
-  typedef sequence_map<std::string, std::shared_ptr<BaseStrictObject>>
-      DictType;
+  typedef sequence_map<std::string, std::shared_ptr<BaseStrictObject>> DictType;
 
  public:
   Analyzer(
@@ -242,6 +241,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   bool checkGeneratorIfHelper(asdl_seq* ifs);
 
   AnalysisResult callMagicalSuperHelper(AnalysisResult func);
+
+  std::optional<AnalysisResult> getFromScope(const std::string& name);
 
   void assignToTarget(
       const expr_ty target,

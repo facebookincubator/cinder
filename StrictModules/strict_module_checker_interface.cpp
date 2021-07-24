@@ -133,3 +133,9 @@ int StrictModuleChecker_SetForceStrict(
   loader->setForceStrict(forceStrictBool);
   return 0;
 }
+
+int StrictModuleChecker_GetAnalyzedModuleCount(StrictModuleChecker* checker) {
+  strictmod::compiler::ModuleLoader* loader =
+      reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  return loader->getAnalyzedModuleCount();
+}

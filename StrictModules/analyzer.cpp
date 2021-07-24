@@ -32,6 +32,69 @@ AnalysisContextManager::~AnalysisContextManager() {
   context_->col = oldCol_;
 }
 
+// Scope data
+const AnalysisResult& AnalysisScopeData::getCallFirstArg() const {
+  return callFirstArg_;
+}
+
+void AnalysisScopeData::set(const std::string& key, AnalysisResult value) {
+  assert(prepareDict_ != nullptr);
+  assert(caller_.has_value());
+  iSetElement(prepareDict_, caller_->makeStr(key), value, *caller_);
+}
+AnalysisResult AnalysisScopeData::at(const std::string& key) {
+  assert(prepareDict_ != nullptr);
+  assert(caller_.has_value());
+  return iGetElement(prepareDict_, caller_->makeStr(key), *caller_);
+}
+
+bool AnalysisScopeData::erase(const std::string& key) {
+  assert(prepareDict_ != nullptr);
+  assert(caller_.has_value());
+  iDelElement(prepareDict_, caller_->makeStr(key), *caller_);
+  return true;
+}
+bool AnalysisScopeData::contains(const std::string& key) const {
+  assert(prepareDict_ != nullptr);
+  assert(caller_.has_value());
+  return iContainsElement(prepareDict_, caller_->makeStr(key), *caller_);
+}
+
+// template specialization for Scope with AnalysisScopeData
+template <>
+void Scope<AnalysisResult, AnalysisScopeData>::set(
+    const std::string& key,
+    AnalysisResult value) {
+  if (data_.hasAlternativeDict()) {
+    data_.set(key, std::move(value));
+  } else {
+    (*vars_)[key] = std::move(value);
+  }
+}
+
+template <>
+AnalysisResult Scope<AnalysisResult, AnalysisScopeData>::at(
+    const std::string& key) {
+  return data_.hasAlternativeDict() ? data_.at(key) : vars_->at(key);
+}
+
+template <>
+bool Scope<AnalysisResult, AnalysisScopeData>::erase(const std::string& key) {
+  if (data_.hasAlternativeDict()) {
+    return data_.erase(key);
+  }
+  return vars_->erase(key) > 0;
+}
+
+template <>
+bool Scope<AnalysisResult, AnalysisScopeData>::contains(
+    const std::string& key) const {
+  if (data_.hasAlternativeDict()) {
+    return data_.contains(key);
+  }
+  return vars_->find(key) != vars_->map_end();
+}
+
 // Analyzer
 Analyzer::Analyzer(
     mod_ty root,
@@ -215,8 +278,11 @@ void Analyzer::visitImport(const stmt_ty stmt) {
             break;
           }
           std::size_t nextSplit = modName.find('.', split + 1);
-          mod = handleFromListHelper(
-              std::move(mod), modName.substr(split + 1, nextSplit));
+          mod = iImportFrom(
+              std::move(mod),
+              modName.substr(split + 1, nextSplit),
+              context_,
+              loader_);
           split = nextSplit;
         }
       }
@@ -261,7 +327,12 @@ void Analyzer::visitImportFrom(const stmt_ty stmt) {
   } else if (hasFromName) {
     importedName = fromName;
   }
-  AnalysisResult mod = loader_->loadModuleValue(importedName);
+  AnalysisResult mod = nullptr;
+
+  bool useLazy = stack_.isGlobalScope();
+  if (!useLazy) {
+    mod = loader_->loadModuleValue(importedName);
+  }
 
   int namesSize = asdl_seq_LEN(importFrom.names);
   for (int i = 0; i < namesSize; ++i) {
@@ -273,12 +344,31 @@ void Analyzer::visitImportFrom(const stmt_ty stmt) {
       context_.error<StarImportDisallowedException>(importedName);
       continue;
     }
+    std::string displayName = std::string(importFrom.level, '.') + fromName;
+    std::string nameToStore = importedNameHelper(alias);
+
     AnalysisResult modValue;
     if (mod != nullptr) {
-      modValue = handleFromListHelper(mod, aliasName);
+      modValue = iImportFrom(mod, aliasName, context_, loader_);
+    } else if (useLazy) {
+      std::string unknownName;
+      if (alias->asname == nullptr) {
+        unknownName =
+            fmt::format("<{} imported from {}>", aliasName, displayName);
+      } else {
+        unknownName = fmt::format(
+            "<{} imported from {} as {}>", aliasName, displayName, nameToStore);
+      }
+      modValue = std::make_shared<StrictLazyObject>(
+          LazyObjectType(),
+          context_.caller,
+          loader_,
+          importedName,
+          std::move(unknownName),
+          context_,
+          aliasName);
     }
-    std::string nameToStore = importedNameHelper(alias);
-    std::string displayName = std::string(importFrom.level, '.') + fromName;
+
     if (modValue != nullptr) {
       stack_.set(std::move(nameToStore), std::move(modValue));
     } else if (alias->asname == nullptr) {
@@ -369,7 +459,7 @@ void Analyzer::addToDunderAnnotationsHelper(
 
   auto key = std::make_shared<StrictString>(
       StrType(), context_.caller, target->v.Name.id);
-  auto dunderAnnotationsDict = stack_.at(kDunderAnnotations);
+  auto dunderAnnotationsDict = getFromScope(kDunderAnnotations);
   assert(dunderAnnotationsDict != std::nullopt);
   iSetElement(
       std::move(dunderAnnotationsDict.value()),
@@ -1034,7 +1124,7 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
 AnalysisResult Analyzer::visitName(const expr_ty expr) {
   auto name = expr->v.Name;
   const char* nameStr = PyUnicode_AsUTF8(name.id);
-  auto value = stack_.at(nameStr);
+  auto value = getFromScope(nameStr);
   if (!value) {
     // TODO? decide whether to raise NameError or UnboundLocalError base on
     // declaration
@@ -1133,7 +1223,7 @@ AnalysisResult Analyzer::visitCall(const expr_ty expr) {
 
 AnalysisResult Analyzer::callMagicalSuperHelper(AnalysisResult func) {
   // rule out cases where user explicitly define __class__ on module level
-  auto dunderClass = stack_.at(kDunderClass);
+  auto dunderClass = getFromScope(kDunderClass);
   if (dunderClass == std::nullopt || stack_.isGlobal(kDunderClass)) {
     context_.raiseExceptionStr(
         RuntimeErrorType(), "super(): __class__ not found");
@@ -1857,6 +1947,22 @@ void Analyzer::analyzeExec(
   }
 }
 
+std::optional<AnalysisResult> Analyzer::getFromScope(const std::string& name) {
+  std::optional<AnalysisResult> result;
+  ScopeT* resultScope;
+  std::tie(result, resultScope) = stack_.at_and_scope(name);
+
+  if (result.has_value() && (*result)->isLazy()) {
+    assert(resultScope != nullptr);
+    auto evaluated =
+        std::static_pointer_cast<StrictLazyObject>(*result)->evaluate();
+    resultScope->set(name, evaluated);
+    return evaluated;
+  } else {
+    return result;
+  }
+}
+
 // TryFinallyManager
 TryFinallyManager::TryFinallyManager(Analyzer& analyzer, asdl_seq* finalbody)
     : analyzer_(analyzer), finalbody_(finalbody) {}
@@ -1865,65 +1971,4 @@ TryFinallyManager::~TryFinallyManager() {
   analyzer_.visitStmtSeq(finalbody_);
 }
 
-// Scope data
-const AnalysisResult& AnalysisScopeData::getCallFirstArg() const {
-  return callFirstArg_;
-}
-void AnalysisScopeData::set(const std::string& key, AnalysisResult value) {
-  assert(prepareDict_ != nullptr);
-  assert(caller_.has_value());
-  iSetElement(prepareDict_, caller_->makeStr(key), value, *caller_);
-}
-AnalysisResult AnalysisScopeData::at(const std::string& key) {
-  assert(prepareDict_ != nullptr);
-  assert(caller_.has_value());
-  return iGetElement(prepareDict_, caller_->makeStr(key), *caller_);
-}
-
-bool AnalysisScopeData::erase(const std::string& key) {
-  assert(prepareDict_ != nullptr);
-  assert(caller_.has_value());
-  iDelElement(prepareDict_, caller_->makeStr(key), *caller_);
-  return true;
-}
-bool AnalysisScopeData::contains(const std::string& key) const {
-  assert(prepareDict_ != nullptr);
-  assert(caller_.has_value());
-  return iContainsElement(prepareDict_, caller_->makeStr(key), *caller_);
-}
-
-// template specialization for Scope with AnalysisScopeData
-template <>
-void Scope<AnalysisResult, AnalysisScopeData>::set(
-    const std::string& key,
-    AnalysisResult value) {
-  if (data_.hasAlternativeDict()) {
-    data_.set(key, std::move(value));
-  } else {
-    (*vars_)[key] = std::move(value);
-  }
-}
-
-template <>
-AnalysisResult Scope<AnalysisResult, AnalysisScopeData>::at(
-    const std::string& key) {
-  return data_.hasAlternativeDict() ? data_.at(key) : vars_->at(key);
-}
-
-template <>
-bool Scope<AnalysisResult, AnalysisScopeData>::erase(const std::string& key) {
-  if (data_.hasAlternativeDict()) {
-    return data_.erase(key);
-  }
-  return vars_->erase(key) > 0;
-}
-
-template <>
-bool Scope<AnalysisResult, AnalysisScopeData>::contains(
-    const std::string& key) const {
-  if (data_.hasAlternativeDict()) {
-    return data_.contains(key);
-  }
-  return vars_->find(key) != vars_->map_end();
-}
 } // namespace strictmod

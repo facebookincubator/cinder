@@ -64,6 +64,25 @@ std::optional<TVar> ScopeStack<TVar, TScopeData>::at(
 }
 
 template <typename TVar, typename TScopeData>
+std::tuple<std::optional<TVar>, Scope<TVar, TScopeData>*>
+ScopeStack<TVar, TScopeData>::at_and_scope(const std::string& key) {
+  // reading in python scope is different from writing.
+  // search from innermost to outmost scope, skipping over non-leaf class scope
+  auto currentScope = scopes_.back();
+  if (currentScope->contains(key)) {
+    return std::make_tuple(currentScope->at(key), currentScope.get());
+  }
+
+  for (auto it = std::next(scopes_.rbegin()); it != scopes_.rend(); ++it) {
+    auto scope = *it;
+    if (!scope->isClassScope() && scope->contains(key)) {
+      return std::make_tuple(scope->at(key), scope.get());
+    }
+  }
+  return std::make_tuple(std::nullopt, nullptr);
+}
+
+template <typename TVar, typename TScopeData>
 bool ScopeStack<TVar, TScopeData>::erase(const std::string& key) {
   const std::string mangledKey = mangleName(key);
   const Symbol& symbol = scopes_.back()->getSTEntry().getSymbol(mangledKey);

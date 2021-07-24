@@ -454,6 +454,12 @@ std::shared_ptr<StrictType> IOErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> LazyObjectType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictLazyObjectType>(
+      "<lazy type>", kBuiltinsModule, TObjectPtrVec{}, TypeType());
+  return t;
+}
+
 //--------------------Builtin Constant Declarations-----------------------
 
 std::shared_ptr<BaseStrictObject> NoneObject() {
@@ -747,7 +753,7 @@ bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
     initialized = true;
-    DictType builtinsDict({
+    DictType* builtinsDict = new DictType({
         {"__builtins__", DunderBuiltins()},
         {"object", ObjectType()},
         {"type", TypeType()},
@@ -821,10 +827,7 @@ bool initializeBuiltinsModuleDict() {
         {"__strict_object__", ObjectType()},
         {"__strict_copy__", StrictCopy()},
     });
-    auto& builtinsModuleDict = kBuiltinsModule->getDict();
-    for (auto& item : builtinsDict) {
-      builtinsModuleDict[std::move(item.first)] = std::move(item.second.first);
-    }
+    kBuiltinsModule->setDict(std::shared_ptr<DictType>(builtinsDict));
   }
   return initialized;
 }
