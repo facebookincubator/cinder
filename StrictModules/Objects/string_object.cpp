@@ -298,6 +298,8 @@ void StrictStringType::addMethods() {
   addPyWrappedMethodObj<1>(
       "__lt__", strType, StrictBool::boolOrNotImplementedFromPyObj);
 
+  addPyWrappedMethodObj<1>("__add__", strType, StrictString::strFromPyObj);
+
   addPyWrappedMethodDefaultObj(
       "strip", strType, StrictString::strFromPyObj, 1, 1);
   addPyWrappedMethodDefaultObj(

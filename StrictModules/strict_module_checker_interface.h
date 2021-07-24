@@ -29,6 +29,13 @@ int StrictModuleChecker_SetImportPaths(
     const char* import_paths[],
     int length);
 
+/** Set stub import path
+ * return 0 for success and -1 for failure
+ */
+int StrictModuleChecker_SetStubImportPath(
+    StrictModuleChecker* checker,
+    const char* stub_import_path);
+
 void StrictModuleChecker_Free(StrictModuleChecker* checker);
 
 /** Whether `module_name` is a strict module (0) or not (1)

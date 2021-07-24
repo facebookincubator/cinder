@@ -1,0 +1,22 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+@implicit
+class DynamicClassAttribute:
+    ...
+
+
+class _C:
+    def _m(self): pass
+MethodType = type(_C()._m)
+
+def f():
+    pass
+
+FunctionType = type(f)
+
+
+MappingProxyType = type(type.__dict__)
+
+Union = type(int | str)
+
+BuiltinFunctionType = type(len)
+BuiltinMethodType = type([].append)     # Same as BuiltinFunctionType

@@ -7,7 +7,7 @@
 #include "StrictModules/Compiler/abstract_module_loader.h"
 
 StrictModuleChecker* StrictModuleChecker_New() {
-  auto checker = new strictmod::compiler::ModuleLoader({});
+  auto checker = new strictmod::compiler::ModuleLoader({}, {});
   return reinterpret_cast<StrictModuleChecker*>(checker);
 }
 
@@ -21,6 +21,14 @@ int StrictModuleChecker_SetImportPaths(
   }
   auto loader = reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
   bool success = loader->setImportPath(importPaths);
+  return success ? 0 : -1;
+}
+
+int StrictModuleChecker_SetStubImportPath(
+    StrictModuleChecker* checker,
+    const char* stub_import_path) {
+  auto loader = reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  bool success = loader->setStubImportPath(std::string(stub_import_path));
   return success ? 0 : -1;
 }
 

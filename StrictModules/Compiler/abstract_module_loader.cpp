@@ -1,10 +1,16 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Compiler/abstract_module_loader.h"
-#include <cstring>
-#include <filesystem>
+
+#include "StrictModules/Compiler/stub.h"
+
 #include "StrictModules/Objects/objects.h"
+
 #include "StrictModules/analyzer.h"
 #include "StrictModules/parser_util.h"
+
+#include <cstring>
+#include <filesystem>
+
 namespace strictmod::compiler {
 
 using strictmod::objects::ModuleType;
@@ -97,6 +103,10 @@ AnalyzedModule* ModuleLoader::loadModule(const char* modName) {
 }
 
 AnalyzedModule* ModuleLoader::loadModule(const std::string& modName) {
+  auto exist = modules_.find(modName);
+  if (exist != modules_.end()) {
+    return exist->second.get();
+  }
   char delimiter = '.';
   auto end = modName.find(delimiter);
   while (end != std::string::npos) {
@@ -104,7 +114,7 @@ AnalyzedModule* ModuleLoader::loadModule(const std::string& modName) {
     if (!mod) {
       return nullptr;
     }
-    end = modName.find(delimiter, end);
+    end = modName.find(delimiter, end + 1);
   }
   return loadSingleModule(modName);
 }
@@ -123,6 +133,22 @@ std::shared_ptr<StrictModuleObject> ModuleLoader::loadModuleValue(
 }
 
 AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
+  auto exist = modules_.find(modName);
+  if (exist != modules_.end()) {
+    return exist->second.get();
+  }
+  // look for pys (strict module specific) stub
+  auto stubModInfo =
+      findModule(modName, stubImportPath_, FileSuffixKind::kStrictStubFile);
+  if (stubModInfo) {
+    std::unique_ptr<ModuleInfo> replacedStubInfo =
+        getStubModuleInfo(std::move(stubModInfo), this);
+    if (!replacedStubInfo) {
+      return nullptr;
+    }
+    return analyze(std::move(replacedStubInfo));
+  }
+
   // look for py source code
   auto modInfo = findModule(modName, FileSuffixKind::kPythonFile);
   if (!modInfo) {
@@ -133,6 +159,16 @@ AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
 
 bool ModuleLoader::setImportPath(std::vector<std::string> importPath) {
   importPath_ = std::move(importPath);
+  return true;
+}
+
+bool ModuleLoader::setStubImportPath(std::string importPath) {
+  stubImportPath_ = {std::move(importPath)};
+  return true;
+}
+
+bool ModuleLoader::setStubImportPath(std::vector<std::string> importPath) {
+  stubImportPath_ = std::move(importPath);
   return true;
 }
 
@@ -170,19 +206,36 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
 
   const char* suffix = getFileSuffixKindName(suffixKind);
   for (const std::string& importPath : searchLocations) {
-    std::filesystem::path modPath = importPath;
-    modPath /= modPathStr;
-    modPath += suffix;
-    const char* modPathCstr = modPath.c_str();
+    // case 1: .py file
+    std::filesystem::path pyModPath =
+        std::filesystem::path(importPath) / modPathStr;
+    pyModPath += suffix;
+    const char* modPathCstr = pyModPath.c_str();
     auto readResult = readFromFile(modPathCstr, arena_);
     if (readResult) {
       AstAndSymbols& result = readResult.value();
       return std::make_unique<ModuleInfo>(
           std::move(modName),
-          modPath.string(),
+          pyModPath.string(),
           result.ast,
           result.futureAnnotations,
           std::move(result.symbols));
+    }
+    // case 2: __init__.py file
+    std::filesystem::path initModPath =
+        std::filesystem::path(importPath) / modPathStr / "__init__";
+    initModPath += suffix;
+    const char* initPathCstr = initModPath.c_str();
+    readResult = readFromFile(initPathCstr, arena_);
+    if (readResult) {
+      AstAndSymbols& result = readResult.value();
+      return std::make_unique<ModuleInfo>(
+          std::move(modName),
+          initModPath.string(),
+          result.ast,
+          result.futureAnnotations,
+          std::move(result.symbols),
+          std::vector<std::string>{importPath});
     }
   }
   return nullptr;
@@ -230,10 +283,32 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   }
   // Run ast visits
   auto globalScope = std::shared_ptr(objects::getBuiltinsDict());
+  // create module object. Analysis result will be the __dict__ of this object
   auto mod =
       StrictModuleObject::makeStrictModule(ModuleType(), name, globalScope);
+
+  // set __name__ and __path__
+  mod->setAttr(
+      "__name__",
+      std::make_shared<objects::StrictString>(objects::StrType(), mod, name));
+  const auto& subModuleLocs = modInfo->getSubmoduleSearchLocations();
+  if (!subModuleLocs.empty()) {
+    std::vector<std::shared_ptr<objects::BaseStrictObject>> pathVec;
+    pathVec.reserve(subModuleLocs.size());
+    for (const std::string& s : subModuleLocs) {
+      auto strObj =
+          std::make_shared<objects::StrictString>(objects::StrType(), mod, s);
+      pathVec.push_back(std::move(strObj));
+    }
+    mod->setAttr(
+        "__path__",
+        std::make_shared<objects::StrictList>(
+            objects::ListType(), mod, std::move(pathVec)));
+  }
+
   analyzedModule->setModuleValue(mod);
 
+  // do analysis
   Analyzer analyzer(
       ast,
       this,

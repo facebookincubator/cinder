@@ -151,6 +151,12 @@ std::shared_ptr<StrictType> FunctionType() {
   return t;
 }
 
+std::shared_ptr<StrictType> AsyncCallType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictAsyncCallType>(
+      "coroutine", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> CodeObjectType() {
   static std::shared_ptr<StrictType> t = makeType<StrictCodeObjectType>(
       "code", kBuiltinsModule, objectTypeVec(), TypeType(), false);
@@ -268,6 +274,12 @@ std::shared_ptr<StrictType> DictObjectType() {
 std::shared_ptr<StrictType> DictViewType() {
   static std::shared_ptr<StrictType> t = makeType<StrictDictViewType>(
       "dict_view", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> MemoryViewType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+      "memoryview", kBuiltinsModule, objectTypeVec(), TypeType());
   return t;
 }
 
@@ -644,6 +656,15 @@ std::shared_ptr<BaseStrictObject> StrictAll() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictLooseIsinstance() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(looseIsinstance, "loose_isinstance"),
+      nullptr,
+      "loose_isinstance"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -680,6 +701,7 @@ bool initializeBuiltinsModuleDict() {
         {"NotImplemented", NotImplemented()},
         {"True", StrictTrue()},
         {"False", StrictFalse()},
+        {"Ellipsis", EllipsisObject()},
         {"repr", StrictRepr()},
         {"issubclass", StrictIssubclass()},
         {"isinstance", StrictIsinstance()},
@@ -706,6 +728,8 @@ bool initializeBuiltinsModuleDict() {
         {"min", StrictMin()},
         {"any", StrictAny()},
         {"all", StrictAll()},
+        {"memoryview", MemoryViewType()},
+        {"loose_isinstance", StrictLooseIsinstance()},
     });
     auto& builtinsModuleDict = kBuiltinsModule->getDict();
     for (auto& item : builtinsDict) {

@@ -1,0 +1,21 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+from functools import wraps
+import abc
+
+@implicit
+def contextmanager(): ...
+
+@implicit
+def asynccontextmanager(): ...
+
+@implicit
+class ContextDecorator:
+    ...
+
+@implicit
+class AbstractContextManager:
+    ...
+
+@implicit
+class AbstractAsyncContextManager:
+    ...

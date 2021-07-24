@@ -488,6 +488,7 @@ STRICTM_OBJS=       \
 		StrictModules/Compiler/analyzed_module.o \
 		StrictModules/Compiler/abstract_module_loader.o \
 		StrictModules/Compiler/module_info.o \
+		StrictModules/Compiler/stub.o \
 		StrictModules/Objects/base_object.o \
 		StrictModules/Objects/callable.o \
 		StrictModules/Objects/instance.o \
@@ -1277,6 +1278,7 @@ STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/StrictModules/Compiler/module_info.h \
 		$(srcdir)/StrictModules/Compiler/analyzed_module.h \
 		$(srcdir)/StrictModules/Compiler/abstract_module_loader.h\
+		$(srcdir)/StrictModules/Compiler/stub.h\
 		$(srcdir)/StrictModules/Objects/base_object.h \
 		$(srcdir)/StrictModules/Objects/callable.h \
 		$(srcdir)/StrictModules/Objects/callable_wrapper.h \

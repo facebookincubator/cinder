@@ -38,22 +38,12 @@ class StrictInstance : public BaseStrictObject {
 
   /* clear all content in __dict__ that's owned by owner. Use this during
    * shutdown */
-  virtual void cleanContent(const StrictModuleObject* owner) override {
-    if (dict_ != nullptr) {
-      for (auto& item : *dict_) {
-        if (item.second.first) {
-          item.second.first->cleanContent(owner);
-        }
-      }
-      if (creator_.expired() || owner == creator_.lock().get()) {
-        dict_->clear();
-      }
-    }
-  }
+  virtual void cleanContent(const StrictModuleObject* owner) override;
 
  protected:
   std::shared_ptr<DictType> dict_;
   std::shared_ptr<BaseStrictObject> dictObj_; // __dict__, backed by dict_
+  bool cleaned_; // flag used during clean up to prevent cycles
 };
 } // namespace strictmod::objects
 #endif // !__STRICTM_INSTANCE_H__

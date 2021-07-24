@@ -245,10 +245,8 @@ std::shared_ptr<BaseStrictObject> StrictFuncType::call(
   std::shared_ptr<StrictFunction> func =
       assertStaticCast<StrictFunction>(std::move(obj));
   if (func->isCoroutine()) {
-    caller.error<UnsupportedException>(
-        "calling async function", func->getTypeRef().getName());
-    return makeUnknown(
-        caller, "{}({})", func->getFuncName(), formatArgs(args, argNames));
+    return std::make_shared<StrictAsyncCall>(
+        caller.caller, func->getFuncName());
   }
 
   std::unique_ptr<BaseErrorSink> errorSink = caller.errorSink->getNestedSink();
@@ -346,4 +344,54 @@ void StrictFuncType::addMethods() {
   addStringOptionalMemberDescriptor<StrictFunction, &StrictFunction::doc_>(
       "__doc__");
 }
+
+// async call
+
+StrictAsyncCall::StrictAsyncCall(
+    std::weak_ptr<StrictModuleObject> creator,
+    std::string funcName)
+    : StrictInstance(AsyncCallType(), std::move(creator)),
+      funcName_(std::move(funcName)) {}
+
+std::string StrictAsyncCall::getDisplayName() const {
+  return funcName_;
+}
+
+// wrapped method
+std::shared_ptr<BaseStrictObject> StrictAsyncCall::asyncCallClose(
+    std::shared_ptr<StrictAsyncCall>,
+    const CallerContext&) {
+  return NoneObject();
+}
+
+std::shared_ptr<StrictType> StrictAsyncCallType::recreate(
+    std::string name,
+    std::weak_ptr<StrictModuleObject> caller,
+    std::vector<std::shared_ptr<BaseStrictObject>> bases,
+    std::shared_ptr<DictType> members,
+    std::shared_ptr<StrictType> metatype,
+    bool isImmutable) {
+  return createType<StrictAsyncCallType>(
+      std::move(name),
+      std::move(caller),
+      std::move(bases),
+      std::move(members),
+      std::move(metatype),
+      isImmutable);
+}
+
+bool StrictAsyncCallType::isBaseType() const {
+  return false;
+}
+
+std::vector<std::type_index> StrictAsyncCallType::getBaseTypeinfos() const {
+  std::vector<std::type_index> baseVec = StrictObjectType::getBaseTypeinfos();
+  baseVec.emplace_back(typeid(StrictAsyncCallType));
+  return baseVec;
+}
+
+void StrictAsyncCallType::addMethods() {
+  addMethod("close", StrictAsyncCall::asyncCallClose);
+}
+
 } // namespace strictmod::objects

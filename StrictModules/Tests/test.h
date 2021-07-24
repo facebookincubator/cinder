@@ -106,66 +106,79 @@ class ModuleLoaderTest : public PythonTest {
  public:
   std::unique_ptr<strictmod::compiler::ModuleLoader> getLoader(
       const char* importPath,
+      const char* stubPath,
       strictmod::compiler::ModuleLoader::ForceStrictFunc func) {
-    return getLoader(importPath, func, [] {
+    return getLoader(importPath, stubPath, func, [] {
       return std::make_unique<strictmod::ErrorSink>();
     });
   }
 
   std::unique_ptr<strictmod::compiler::ModuleLoader> getLoader(
-      const char* importPath) {
+      const char* importPath,
+      const char* stubPath) {
     if (importPath == nullptr) {
       importPath = "StrictModules/Tests/python_tests";
     }
+    if (stubPath == nullptr) {
+      stubPath = "StrictModules/Tests/python_tests/stubs";
+    }
     std::vector<std::string> importPaths;
     importPaths.emplace_back(importPath);
+    std::vector<std::string> stubImportPaths;
+    stubImportPaths.emplace_back(stubPath);
     return std::make_unique<strictmod::compiler::ModuleLoader>(
-        std::move(importPaths));
+        std::move(importPaths), std::move(stubImportPaths));
   }
 
   std::unique_ptr<strictmod::compiler::ModuleLoader> getLoader(
       const char* importPath,
+      const char* stubPath,
       strictmod::compiler::ModuleLoader::ForceStrictFunc func,
       strictmod::compiler::ModuleLoader::ErrorSinkFactory factory) {
     if (importPath == nullptr) {
       importPath = "StrictModules/Tests/python_tests";
     }
+    if (stubPath == nullptr) {
+      stubPath = "StrictModules/Tests/python_tests/stubs";
+    }
     std::vector<std::string> importPaths;
     importPaths.emplace_back(importPath);
+    std::vector<std::string> stubImportPaths;
+    stubImportPaths.emplace_back(stubPath);
     return std::make_unique<strictmod::compiler::ModuleLoader>(
-        std::move(importPaths), func, factory);
+        std::move(importPaths), std::move(stubImportPaths), func, factory);
   }
 
-  std::unique_ptr<strictmod::compiler::AnalyzedModule> loadFile(
-      const char* name,
-      const char* importPath) {
-    auto loader = getLoader(importPath);
+  std::unique_ptr<strictmod::compiler::AnalyzedModule>
+  loadFile(const char* name, const char* importPath, const char* stubPath) {
+    auto loader = getLoader(importPath, stubPath);
     loader->loadModule(name);
     return loader->passModule(name);
   }
 
   std::unique_ptr<strictmod::compiler::AnalyzedModule> loadFile(
       const char* name) {
-    return loadFile(name, nullptr);
+    return loadFile(name, nullptr, nullptr);
   }
 
   std::unique_ptr<strictmod::compiler::AnalyzedModule> loadSingleFile(
       const char* name,
-      const char* importPath) {
-    auto loader = getLoader(importPath);
+      const char* importPath,
+      const char* stubPath) {
+    auto loader = getLoader(importPath, stubPath);
     loader->loadSingleModule(name);
     return loader->passModule(name);
   }
 
   std::unique_ptr<strictmod::compiler::AnalyzedModule> loadSingleFile(
       const char* name) {
-    return loadSingleFile(name, nullptr);
+    return loadSingleFile(name, nullptr, nullptr);
   }
 
   std::unique_ptr<strictmod::compiler::ModuleInfo> findModule(
       const char* name,
       const char* importPath) {
-    auto loader = getLoader(importPath);
+    auto loader = getLoader(importPath, nullptr);
     return loader->findModule(
         name, strictmod::compiler::FileSuffixKind::kPythonFile);
   }
@@ -187,10 +200,14 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
         exceptions_(std::move(exceptions)) {}
 
   void TestBody() override {
+    auto errorSink = std::make_shared<strictmod::CollectingErrorSink>();
     auto loader = getLoader(
         nullptr,
+        "StrictModules/Tests/comparison_tests/stubs",
         [](const std::string&, const std::string&) { return true; },
-        [] { return std::make_unique<strictmod::CollectingErrorSink>(); });
+        [errorSink] { return errorSink; });
+    loader->setImportPath(
+        {"StrictModules/Tests/comparison_tests/imports", "Lib"});
     const char* modname = "<string>";
     strictmod::compiler::AnalyzedModule* mod =
         loader->loadModuleFromSource(source_, modname, modname, {});
@@ -204,8 +221,10 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     PyObject* modNameObj = PyUnicode_FromString(modname);
     PyDict_SetItemString(global, "__name__", modNameObj);
     Py_XDECREF(modNameObj);
-    PyObject* code =
-        Py_CompileString(source_.c_str(), modname, Py_file_input);
+    PyObject* code = Py_CompileString(source_.c_str(), modname, Py_file_input);
+    const wchar_t* evalImportPaths =
+        L"Lib:StrictModules/Tests/comparison_tests/imports";
+    PySys_SetPath(evalImportPaths);
     auto v = PyEval_EvalCode(code, global, global);
     if (varNames_.empty()) {
       // Only care about errors. In this case we allow python code
@@ -224,8 +243,7 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
       ASSERT_NE(strictPyValue, nullptr);
       auto repr = PyObject_Repr(pyValue);
       EXPECT_TRUE(PyObject_RichCompareBool(pyValue, strictPyValue.get(), Py_EQ))
-          << value->getDisplayName() << " : "
-          << PyUnicode_AsUTF8(repr);
+          << value->getDisplayName() << " : " << PyUnicode_AsUTF8(repr);
       Py_XDECREF(repr);
     }
     Py_DECREF(global);

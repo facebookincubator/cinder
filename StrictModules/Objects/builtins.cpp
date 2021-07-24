@@ -7,9 +7,11 @@
 
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
+#include "StrictModules/sequence_map.h"
 
 #include "StrictModules/Compiler/abstract_module_loader.h"
 #include "StrictModules/Compiler/module_info.h"
+
 namespace strictmod::objects {
 std::shared_ptr<BaseStrictObject> reprImpl(
     std::shared_ptr<BaseStrictObject>,
@@ -124,8 +126,9 @@ std::shared_ptr<BaseStrictObject> issubclassImpl(
   auto cls = std::dynamic_pointer_cast<StrictObjectType>(obj);
   if (!cls) {
     caller.raiseTypeError(
-        "issubclass() arg 1 must be a class, not {} object",
-        obj->getTypeRef().getName());
+        "issubclass() arg 1 must be a class, not {} {} object",
+        obj->getTypeRef().getName(),
+        obj->getDisplayName());
   }
   if (issubclassBody(caller, std::move(cls), std::move(clsInfo))) {
     return StrictTrue();
@@ -316,7 +319,7 @@ std::shared_ptr<BaseStrictObject> zipImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>) {
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>>) {
   std::vector<std::shared_ptr<BaseStrictObject>> iterators;
   iterators.reserve(args.size());
   for (auto a : args) {
@@ -331,7 +334,7 @@ std::shared_ptr<BaseStrictObject> mapImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>>,
     std::shared_ptr<BaseStrictObject> func) {
   std::vector<std::shared_ptr<BaseStrictObject>> iterators;
   iterators.reserve(args.size());
@@ -582,13 +585,13 @@ static std::shared_ptr<BaseStrictObject> minmaxMultiArgHelper(
 static std::shared_ptr<BaseStrictObject> minmaxMultiArgHelper(
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
     std::shared_ptr<BaseStrictObject> arg1,
     cmpop_ty op) {
   auto keyIt = kwargs.find("key");
   std::shared_ptr<BaseStrictObject> k;
-  if (keyIt != kwargs.end()) {
-    k = keyIt->second;
+  if (keyIt != kwargs.map_end()) {
+    k = keyIt->second.first;
   }
 
   args.insert(args.begin(), std::move(arg1));
@@ -598,18 +601,18 @@ static std::shared_ptr<BaseStrictObject> minmaxMultiArgHelper(
 
 static std::shared_ptr<BaseStrictObject> minmaxSingleArgHelper(
     const CallerContext& caller,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
     std::shared_ptr<BaseStrictObject> iterable,
     cmpop_ty op) {
   auto keyIt = kwargs.find("key");
   std::shared_ptr<BaseStrictObject> k;
-  if (keyIt != kwargs.end()) {
-    k = keyIt->second;
+  if (keyIt != kwargs.map_end()) {
+    k = keyIt->second.first;
   }
   auto defaultIt = kwargs.find("default");
   std::shared_ptr<BaseStrictObject> d;
-  if (defaultIt != kwargs.end()) {
-    d = defaultIt->second;
+  if (defaultIt != kwargs.map_end()) {
+    d = defaultIt->second.first;
   }
 
   auto elements = iGetElementsVec(std::move(iterable), caller);
@@ -620,7 +623,7 @@ static std::shared_ptr<BaseStrictObject> minmaxSingleArgHelper(
 static std::shared_ptr<BaseStrictObject> minmaxHelper(
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
     std::shared_ptr<BaseStrictObject> arg1,
     cmpop_ty op) {
   if (args.size() > 0) {
@@ -634,7 +637,7 @@ std::shared_ptr<BaseStrictObject> maxImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
     std::shared_ptr<BaseStrictObject> arg1) {
   auto result = minmaxHelper(
       caller, std::move(args), std::move(kwargs), std::move(arg1), Gt);
@@ -648,7 +651,7 @@ std::shared_ptr<BaseStrictObject> minImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
     std::shared_ptr<BaseStrictObject> arg1) {
   auto result = minmaxHelper(
       caller, std::move(args), std::move(kwargs), std::move(arg1), Lt);
@@ -694,5 +697,17 @@ std::shared_ptr<BaseStrictObject> allImpl(
     }
     return StrictTrue();
   }
+}
+
+std::shared_ptr<BaseStrictObject> looseIsinstance(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> clsInfo) {
+  if (inst->isUnknown()) {
+    return StrictFalse();
+  }
+
+  return isinstanceImpl(nullptr, caller, std::move(inst), std::move(clsInfo));
 }
 } // namespace strictmod::objects

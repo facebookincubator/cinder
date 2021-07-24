@@ -1,0 +1,320 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+import collections
+import collections.abc
+import contextlib
+import sys
+from abc import abstractmethod, ABCMeta
+from strict_modules import extra_slot
+TYPE_CHECKING = False
+_bltin_isinstance = isinstance
+import types
+
+
+def isinstance(obj, cls):
+    # allow checking if type parameters are tuples or lists
+    if cls in (tuple, list):
+        return loose_isinstance(obj, cls)
+    # allow checking typing specific types against unknowns
+    if cls in (_GenericAlias, TypeVar, _SpecialForm, types.Union):
+        return loose_isinstance(obj, cls)
+    return _bltin_isinstance(obj, cls)
+
+
+def _remove_dups_flatten(parameters):
+    params = []
+    for p in parameters:
+        if (isinstance(p, _GenericAlias) and p.__origin__ is Union) or isinstance(p, types.Union):
+            params.extend(p.__args__)
+        elif isinstance(p, tuple) and len(p) > 0 and p[0] is Union:
+            params.extend(p[1:])
+        else:
+            params.append(p)
+
+    new_params = []
+    for t in params:
+        # avoid using set or list contains to make unknown
+        # type parameters correctly deduped, which is pretty common
+        contains = False
+        for e in new_params:
+            if t is e:
+                contains = True
+                break
+        if not contains:
+            new_params.append(t)
+
+    params = new_params
+    return tuple(params)
+
+def _tp_cache(func):
+    """for stubing purpose a noop should suffice
+    Implement actual caching if performance is an issue
+    """
+    return func
+
+
+# a simpler version that does not do isinstance checks
+# since the type parameters may be unknown in many cases.
+# Once we have __annotations__ = True for most files this
+# will be easier to support
+
+def _type_check(arg, msg, is_argument=True):
+    if arg is None:
+        return type(None)
+
+    return arg
+
+@implicit
+def _collect_type_vars(types): ...
+
+@implicit
+def _subs_tvars(): ...
+
+@implicit
+class _Final: ...
+
+@implicit
+def final(func):
+    ...
+
+
+@implicit
+class _Immutable: ...
+
+@implicit
+class _SpecialForm: ...
+
+class TypeVar(_Final, _Immutable, _root=True):
+    """
+    explicitly declared to skip the sys._getframe in __init__
+    """
+
+    __slots__ = ('__name__', '__bound__', '__constraints__',
+                 '__covariant__', '__contravariant__')
+
+    def __init__(self, name, *constraints, bound=None,
+                 covariant=False, contravariant=False):
+        self.__name__ = name
+        if covariant and contravariant:
+            raise ValueError("Bivariant types are not supported.")
+        self.__covariant__ = bool(covariant)
+        self.__contravariant__ = bool(contravariant)
+        if constraints and bound is not None:
+            raise TypeError("Constraints cannot be combined with bound=...")
+        if constraints and len(constraints) == 1:
+            raise TypeError("A single constraint is not allowed")
+        msg = "TypeVar(name, constraint, ...): constraints must be types."
+        self.__constraints__ = tuple(_type_check(t, msg) for t in constraints)
+        if bound:
+            self.__bound__ = _type_check(bound, "Bound must be a type.")
+        else:
+            self.__bound__ = None
+
+    def __or__(self, right):
+        return Union[self, right]
+
+    def __ror__(self, right):
+        return Union[self, right]
+
+
+_normalize_alias = {'list': 'List',
+                    'tuple': 'Tuple',
+                    'dict': 'Dict',
+                    'set': 'Set',
+                    'frozenset': 'FrozenSet',
+                    'deque': 'Deque',
+                    'defaultdict': 'DefaultDict',
+                    'type': 'Type',
+                    'Set': 'AbstractSet'}
+
+
+# this is purely for validation in typing which strict modules is not concerned with
+# We can add support if this is needed
+def _check_generic(cls, parameters):
+    pass
+
+@implicit
+class _TypingEmpty:
+    pass
+
+@implicit
+class _TypingEllipsis:
+    pass
+
+@implicit
+class _GenericAlias: ...
+
+@implicit
+class _VariadicGenericAlias: ...
+
+class Generic:
+
+    __slots__ = ()
+
+    def __new__(cls, *args, **kwds):
+        if super().__new__ is object.__new__ and cls.__init__ is not object.__init__:
+            obj = super().__new__(cls)
+        else:
+            obj = super().__new__(cls, *args, **kwds)
+        return obj
+
+    @_tp_cache
+    def __class_getitem__(cls, params):
+        if not isinstance(params, tuple):
+            params = (params,)
+        msg = "Parameters to generic types must be types."
+        params = tuple(_type_check(p, msg) for p in params)
+        if cls is Generic or cls is Protocol:
+            pass
+        else:
+            # Subscripting a regular Generic subclass.
+            _check_generic(cls, params)
+        return _GenericAlias(cls, params)
+
+    def __init_subclass__(cls, *args, **kwargs):
+        super().__init_subclass__(*args, **kwargs)
+        tvars = []
+        if '__orig_bases__' in cls.__dict__:
+            tvars = _collect_type_vars(cls.__orig_bases__)
+            # Look for Generic[T1, ..., Tn].
+            # If found, tvars must be a subset of it.
+            # If not found, tvars is it.
+            # Also check for and reject plain Generic,
+            # and reject multiple Generic[...].
+            gvars = None
+            for base in cls.__orig_bases__:
+                if (isinstance(base, _GenericAlias) and base.__origin__ is Generic):
+                    gvars = base.__parameters__
+            if gvars is None:
+                gvars = tvars
+            else:
+                tvars = gvars
+        extra_slot(cls, "__orig_class__")
+        cls.__parameters__ = tuple(tvars)
+
+@implicit
+class _ProtocolMeta: ...
+
+class Protocol(Generic, metaclass=_ProtocolMeta):
+    __slots__ = ()
+
+    _is_protocol = True
+
+    def __class_getitem__(cls, params):
+        # we need to treat `__class_getitem__` specially as classmethods
+        return super().__class_getitem__(cls, params)
+
+@implicit
+def _alias(): ...
+
+T = TypeVar('T')  # Any type.
+KT = TypeVar('KT')  # Key type.
+VT = TypeVar('VT')  # Value type.
+T_co = TypeVar('T_co', covariant=True)  # Any type covariant containers.
+V_co = TypeVar('V_co', covariant=True)  # Any type covariant containers.
+VT_co = TypeVar('VT_co', covariant=True)  # Value type covariant containers.
+T_contra = TypeVar('T_contra', contravariant=True)  # Ditto contravariant.
+# Internal type variable used for Type[].
+CT_co = TypeVar('CT_co', covariant=True, bound=type)
+
+# A useful type variable with constraints.  This represents string types.
+# (This one *is* for export!)
+AnyStr = TypeVar('AnyStr', bytes, str)
+
+Hashable = _alias(collections.abc.Hashable, ())  # Not generic.
+Awaitable = _alias(collections.abc.Awaitable, T_co)
+Coroutine = _alias(collections.abc.Coroutine, (T_co, T_contra, V_co))
+AsyncIterable = _alias(collections.abc.AsyncIterable, T_co)
+AsyncIterator = _alias(collections.abc.AsyncIterator, T_co)
+Iterable = _alias(collections.abc.Iterable, T_co)
+Iterator = _alias(collections.abc.Iterator, T_co)
+Reversible = _alias(collections.abc.Reversible, T_co)
+Sized = _alias(collections.abc.Sized, ())  # Not generic.
+Container = _alias(collections.abc.Container, T_co)
+Collection = _alias(collections.abc.Collection, T_co)
+Callable = _VariadicGenericAlias(collections.abc.Callable, (), special=True)
+AbstractSet = _alias(collections.abc.Set, T_co)
+MutableSet = _alias(collections.abc.MutableSet, T)
+Mapping = _alias(collections.abc.Mapping, (KT, VT_co))
+MutableMapping = _alias(collections.abc.MutableMapping, (KT, VT))
+Sequence = _alias(collections.abc.Sequence, T_co)
+MutableSequence = _alias(collections.abc.MutableSequence, T)
+ByteString = _alias(collections.abc.ByteString, ())  # Not generic
+Tuple = _VariadicGenericAlias(tuple, (), inst=False, special=True)
+List = _alias(list, T, inst=False)
+# Deque = _alias(collections.deque, T)
+Set = _alias(set, T, inst=False)
+FrozenSet = _alias(frozenset, T_co, inst=False)
+MappingView = _alias(collections.abc.MappingView, T_co)
+KeysView = _alias(collections.abc.KeysView, KT)
+ItemsView = _alias(collections.abc.ItemsView, (KT, VT_co))
+ValuesView = _alias(collections.abc.ValuesView, VT_co)
+ContextManager = _alias(contextlib.AbstractContextManager, T_co)
+AsyncContextManager = _alias(contextlib.AbstractAsyncContextManager, T_co)
+Dict = _alias(dict, (KT, VT), inst=False)
+DefaultDict = _alias(collections.defaultdict, (KT, VT))
+OrderedDict = _alias(collections.OrderedDict, (KT, VT))
+Counter = _alias(collections.Counter, T)
+ChainMap = _alias(collections.ChainMap, (KT, VT))
+Generator = _alias(collections.abc.Generator, (T_co, T_contra, V_co))
+AsyncGenerator = _alias(collections.abc.AsyncGenerator, (T_co, T_contra))
+Type = _alias(type, CT_co, inst=False)
+
+def _make_nmtuple(name, types):
+    msg = "NamedTuple('Name', [(f0, t0), (f1, t1), ...]); each t must be a type"
+    types = [(n, _type_check(t, msg)) for n, t in types]
+    nm_tpl = collections.namedtuple(name, [n for n, t in types])
+    # Prior to PEP 526, only _field_types attribute was assigned.
+    # Now, both __annotations__ and _field_types are used to maintain compatibility.
+    nm_tpl.__annotations__ = nm_tpl._field_types = collections.OrderedDict(types)
+    return nm_tpl
+
+
+# attributes prohibited to set in NamedTuple class syntax
+_prohibited = ('__new__', '__init__', '__slots__', '__getnewargs__',
+               '_fields', '_field_defaults', '_field_types',
+               '_make', '_replace', '_asdict', '_source')
+
+_special = ('__module__', '__name__', '__annotations__')
+
+@implicit
+class NamedTupleMeta(type):
+    ...
+
+@implicit
+class NamedTuple:
+    ...
+
+
+ClassVar = _SpecialForm('ClassVar', doc="")
+Any = _SpecialForm('Any', doc="")
+
+NoReturn = _SpecialForm('NoReturn', doc="")
+Union = _SpecialForm('Union', doc="")
+
+Optional = _SpecialForm('Optional', doc="")
+
+Final = _SpecialForm('Final', doc="")
+
+@implicit
+def cast():
+    ...
+
+# forward ref without support for compiling the string
+class ForwardRef(_Final, _root=True):
+
+    def __init__(self, arg, is_argument=True):
+        if not isinstance(arg, str):
+            raise TypeError(f"Forward reference must be a string -- got {arg!r}")
+
+        self.__forward_arg__ = arg
+        self.__forward_evaluated__ = False
+        self.__forward_value__ = None
+        self.__forward_is_argument__ = is_argument
+
+@implicit
+def overload(func):
+    ...
+
+@implicit
+def _overload_dummy():
+    ...

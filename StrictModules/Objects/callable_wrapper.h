@@ -7,7 +7,7 @@
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 
-#include <unordered_map>
+#include "StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 
@@ -110,7 +110,7 @@ using WrappedFStarType = std::shared_ptr<BaseStrictObject> (*)(
     std::shared_ptr<T>,
     const CallerContext&,
     std::vector<std::shared_ptr<BaseStrictObject>>,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>>,
     Args...);
 
 template <typename T, typename... Args>
@@ -143,7 +143,7 @@ class StarCallableWrapper {
       // *args
       starArgs.push_back(args[i]);
     }
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwArgs;
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwArgs;
     kwArgs.reserve(namedArgs.size());
     for (size_t i = 0; i < namedArgs.size(); ++i) {
       kwArgs[namedArgs[i]] = args[i + unnamedSize];
@@ -168,7 +168,7 @@ class StarCallableWrapper {
       const std::vector<std::shared_ptr<BaseStrictObject>>& args,
       const CallerContext& caller,
       std::vector<std::shared_ptr<BaseStrictObject>> starArgs,
-      std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwArgs,
+      sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwArgs,
       std::index_sequence<Is...>) {
     return func_(
         std::static_pointer_cast<T>(std::move(obj)),
@@ -490,12 +490,15 @@ void stringOptionalMemberSetFunc(
     const CallerContext& caller) {
   if (value == nullptr || value == NoneObject()) {
     static_cast<T*>(inst.get())->*mp = std::nullopt;
+    return;
   }
   auto strValue = std::dynamic_pointer_cast<StrictString>(value);
   if (!strValue) {
     caller.raiseTypeError(
-        "string member of {} object can only be set to string or None",
-        inst->getTypeRef().getName());
+        "string member of {} object can only be set to string or None, but got "
+        "{}",
+        inst->getTypeRef().getName(),
+        value->getDisplayName());
   }
   static_cast<T*>(inst.get())->*mp = strValue->getValue();
 }

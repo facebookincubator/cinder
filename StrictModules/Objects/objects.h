@@ -66,6 +66,7 @@ std::shared_ptr<StrictType> NoneType();
 std::shared_ptr<StrictType> NotImplementedType();
 
 std::shared_ptr<StrictType> FunctionType();
+std::shared_ptr<StrictType> AsyncCallType();
 std::shared_ptr<StrictType> CodeObjectType();
 std::shared_ptr<StrictType> BuiltinFunctionOrMethodType();
 std::shared_ptr<StrictType> MethodDescrType();

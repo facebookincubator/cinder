@@ -275,7 +275,7 @@ void Analyzer::visitImportFrom(const stmt_ty stmt) {
     }
     AnalysisResult modValue;
     if (mod != nullptr) {
-      modValue = handleFromListHelper(std::move(mod), aliasName);
+      modValue = handleFromListHelper(mod, aliasName);
     }
     std::string nameToStore = importedNameHelper(alias);
     std::string displayName = std::string(importFrom.level, '.') + fromName;
@@ -936,10 +936,9 @@ bool Analyzer::visitExceptionHandlerHelper(
       auto handlerV = handler->v.ExceptHandler;
       bool matched = false;
       if (handlerV.type != nullptr) {
-        auto handledType =
-            assertStaticCast<StrictType>(visitExpr(handlerV.type));
-        // TODO: use the implementation of isinstance here
-        matched = exc->getTypeRef().isSubType(handledType);
+        matched =
+            isinstanceImpl(nullptr, context_, exc, visitExpr(handlerV.type)) ==
+            StrictTrue();
       } else {
         // match against everything
         matched = true;

@@ -211,18 +211,20 @@ StrictGeneratorExp::StrictGeneratorExp(
     std::vector<std::shared_ptr<BaseStrictObject>> data)
     : StrictIteratorBase(std::move(type), std::move(creator)),
       data_(std::move(data)),
-      it_(data_.cbegin()) {}
+      it_(data_.cbegin()),
+      done_(false) {}
 
 std::shared_ptr<BaseStrictObject> StrictGeneratorExp::next(
     const CallerContext&) {
   if (it_ == data_.cend()) {
+    done_ = true;
     return nullptr;
   }
   return *(it_++);
 }
 
 bool StrictGeneratorExp::isEnd() const {
-  return it_ == data_.cend();
+  return done_;
 }
 
 std::shared_ptr<BaseStrictObject> StrictGeneratorExp::generatorExp__next__(
@@ -231,7 +233,11 @@ std::shared_ptr<BaseStrictObject> StrictGeneratorExp::generatorExp__next__(
   if (self->isEnd()) {
     caller.raiseException(StopIterationType());
   }
-  return self->next(caller);
+  auto res = self->next(caller);
+  if (self->isEnd()) {
+    caller.raiseException(StopIterationType());
+  }
+  return res;
 }
 
 std::shared_ptr<BaseStrictObject> StrictGeneratorExp::generatorExp__iter__(

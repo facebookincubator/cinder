@@ -35,7 +35,7 @@ StrictType::StrictType(
     std::shared_ptr<DictType> members,
     std::shared_ptr<StrictType> metatype,
     bool immutable)
-    : StrictInstance(metatype, creator, std::move(members)),
+    : StrictInstance(metatype, std::move(creator), std::move(members)),
       name_(std::move(name)),
       baseClasses_(std::move(bases)),
       immutable_(immutable),
@@ -44,11 +44,8 @@ StrictType::StrictType(
       basesObj_() {}
 
 bool StrictType::isSubType(std::shared_ptr<StrictType> base) const {
-  if (base.get() == this) {
-    return true;
-  }
-  return std::find(baseClasses_.begin(), baseClasses_.end(), base) !=
-      baseClasses_.end();
+  auto mroVec = mro();
+  return std::find(mroVec.begin(), mroVec.end(), base) != mroVec.end();
 }
 
 static std::list<std::shared_ptr<const BaseStrictObject>> _mroMerge(
@@ -355,6 +352,7 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
     return true;
   });
 
+  // set __module__
   auto dunderModuleIt = members.find("__module__");
   if (dunderModuleIt == members.map_end()) {
     // getting __name__ from creator may not be accurate.
@@ -551,6 +549,7 @@ void StrictType::type__module__Setter(
   checkExternalModification(inst, caller);
   auto cls = assertStaticCast<StrictType>(std::move(inst));
   cls->setAttr("__module__", std::move(value));
+  // cls->moduleName_ = value;
 }
 
 std::shared_ptr<BaseStrictObject> StrictType::type__mro__Getter(

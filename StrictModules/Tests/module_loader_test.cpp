@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Tests/test.h"
 TEST_F(ModuleLoaderTest, GetLoader) {
-  auto mod = getLoader(nullptr);
+  auto mod = getLoader(nullptr, nullptr);
   ASSERT_NE(mod.get(), nullptr);
 }
 
@@ -17,6 +17,11 @@ TEST_F(ModuleLoaderTest, FindModuleMissing) {
 
 TEST_F(ModuleLoaderTest, LoadSingleModuleEmpty) {
   auto mod = loadSingleFile("empty");
+  ASSERT_NE(mod.get(), nullptr);
+}
+
+TEST_F(ModuleLoaderTest, LoadSingleModuleStub) {
+  auto mod = loadSingleFile("simple_func");
   ASSERT_NE(mod.get(), nullptr);
 }
 

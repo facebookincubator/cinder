@@ -3,6 +3,7 @@
 #define __STRICTM_EXCEPTION_OBJ_H__
 
 #include "StrictModules/Objects/object_type.h"
+#include "StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 class StrictExceptionObject : public StrictInstance {
@@ -15,8 +16,7 @@ class StrictExceptionObject : public StrictInstance {
       std::shared_ptr<StrictExceptionObject>,
       const CallerContext& caller,
       std::vector<std::shared_ptr<BaseStrictObject>> args,
-      std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>
-          kwargs);
+      sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs);
 
  private:
   mutable std::string displayName_;

@@ -159,6 +159,7 @@ class StrictGeneratorExp final : public StrictIteratorBase {
   std::vector<std::shared_ptr<BaseStrictObject>> data_;
   std::vector<std::shared_ptr<BaseStrictObject>>::const_iterator
       it_; // iterator state
+  bool done_;
 };
 
 class StrictSetIterator final : public StrictIteratorBase {

@@ -4,6 +4,7 @@
 
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/object_type.h"
+#include "StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 std::shared_ptr<BaseStrictObject> reprImpl(
@@ -60,13 +61,13 @@ std::shared_ptr<BaseStrictObject> zipImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>);
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>>);
 
 std::shared_ptr<BaseStrictObject> mapImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>>,
     std::shared_ptr<BaseStrictObject> func);
 
 std::shared_ptr<BaseStrictObject> hashImpl(
@@ -135,14 +136,14 @@ std::shared_ptr<BaseStrictObject> maxImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
     std::shared_ptr<BaseStrictObject> arg1);
 
 std::shared_ptr<BaseStrictObject> minImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwargs,
     std::shared_ptr<BaseStrictObject> arg1);
 
 std::shared_ptr<BaseStrictObject> anyImpl(
@@ -154,6 +155,21 @@ std::shared_ptr<BaseStrictObject> allImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> iterable);
+
+/** An version of isinstance that does not raise error
+    for unknowns, but return False instead.
+    This can only be used in stubs to imitate what otherwise
+    can only be done when handcrafting an implementation such as:
+        if not isinstance(obj, AbstractTuple):
+            # put obj in an tuple even if obj is unknown
+    This should be used sparingly
+*/
+std::shared_ptr<BaseStrictObject> looseIsinstance(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<BaseStrictObject> clsInfo);
+
 } // namespace strictmod::objects
 
 #endif // __STRICTM_BUILTINS_OBJ___

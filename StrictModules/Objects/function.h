@@ -193,5 +193,41 @@ class StrictFuncType : public StrictObjectType {
   virtual void addMethods() override;
 };
 
+// async call
+class StrictAsyncCall : public StrictInstance {
+ public:
+  StrictAsyncCall(
+      std::weak_ptr<StrictModuleObject> creator,
+      std::string funcName);
+
+  virtual std::string getDisplayName() const override;
+  // wrapped method
+  static std::shared_ptr<BaseStrictObject> asyncCallClose(
+      std::shared_ptr<StrictAsyncCall> self,
+      const CallerContext& caller);
+
+ private:
+  std::string funcName_;
+};
+
+class StrictAsyncCallType : public StrictObjectType {
+ public:
+  using StrictObjectType::StrictObjectType;
+
+  virtual std::shared_ptr<StrictType> recreate(
+      std::string name,
+      std::weak_ptr<StrictModuleObject> caller,
+      std::vector<std::shared_ptr<BaseStrictObject>> bases,
+      std::shared_ptr<DictType> members,
+      std::shared_ptr<StrictType> metatype,
+      bool isImmutable) override;
+
+  virtual bool isBaseType() const override;
+
+  virtual std::vector<std::type_index> getBaseTypeinfos() const override;
+
+  virtual void addMethods() override;
+};
+
 } // namespace strictmod::objects
 #endif // __STRICTM_FUNCTION_H__

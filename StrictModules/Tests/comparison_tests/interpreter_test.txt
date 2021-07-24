@@ -171,11 +171,51 @@ u = i(1, 2, 3, 4, 5, w=6, a=7, b=8)
 x y z w v u
 ---
 ---
+FunctionPosOnly
+---
+def f(x = 1, /,  y =1):
+    return x + y
+x = f()
+y = f(2)
+z = f(2, 3)
+w = f(2, y = 4)
+v = f(y = 5)
+---
+x y z w v
+---
+---
 ClassSimple
 ---
 class C:
     pass
 ---
+---
+---
+StubImplicit
+---
+from implicit_test import f
+
+y = f()
+---
+y
+---
+---
+InitNoStub
+---
+from no_stub import g
+
+y = g(2)
+---
+y
+---
+---
+PackageNoStub
+---
+import no_stub.abc as abc
+
+x = abc.x
+---
+x
 ---
 ---
 test_float
@@ -612,7 +652,7 @@ y = x + 1
 y
 ---
 ---
-test_namedtuple_def @disabled
+test_namedtuple_def
 ---
 from collections import namedtuple
 P = namedtuple("P", "x, y")
@@ -622,7 +662,7 @@ y = P._fields[1]
 x y
 ---
 ---
-test_namedtuple_def_keyword_args @disabled
+test_namedtuple_def_keyword_args
 ---
 from collections import namedtuple
 P = namedtuple(typename="P", field_names="x, y")
@@ -632,7 +672,7 @@ y = P._fields[1]
 x y
 ---
 ---
-test_namedtuple_access @disabled
+test_namedtuple_access
 ---
 from collections import namedtuple
 P = namedtuple("P", "x, y")
@@ -643,7 +683,7 @@ b = p[1]
 a b
 ---
 ---
-test_namedtuple_access_2 @disabled
+test_namedtuple_access_2
 ---
 from collections import namedtuple
 P = namedtuple("P", ["x", "y"])
@@ -654,7 +694,7 @@ b = p[1]
 a b
 ---
 ---
-test_namedtuple_replace @disabled
+test_namedtuple_replace
 ---
 from collections import namedtuple
 P = namedtuple("P", "x, y")
@@ -666,39 +706,39 @@ b = p1.y
 a b
 ---
 ---
-test_namedtuple_error_underscored_name @disabled
+test_namedtuple_error_underscored_name
 ---
 from collections import namedtuple
 P = namedtuple("P", "x, _y")
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(ValueError) 378 12 StrictModuleUserException ValueError
 ---
-test_namedtuple_error_keyword_name @disabled
+test_namedtuple_error_keyword_name
 ---
 from collections import namedtuple
 P = namedtuple("P", "x, def")
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(ValueError) 372 12 StrictModuleUserException ValueError
 ---
-test_namedtuple_error_non_identifier_name @disabled
+test_namedtuple_error_non_identifier_name
 ---
 from collections import namedtuple
 P = namedtuple("P", "x, ?")
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(ValueError) 369 12 StrictModuleUserException ValueError
 ---
-test_namedtuple_duplicate_name @disabled
+test_namedtuple_duplicate_name
 ---
 from collections import namedtuple
 P = namedtuple("P", "x x")
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(ValueError) 381 12 StrictModuleUserException ValueError
 ---
-test_namedtuple_fields @disabled
+test_namedtuple_fields
 ---
 from collections import namedtuple
 P = namedtuple("P", "x y")
@@ -709,7 +749,7 @@ f = d[0]
 f
 ---
 ---
-test_namedtuple_kwargs @disabled
+test_namedtuple_kwargs
 ---
 from collections import namedtuple
 P = namedtuple("P", "x y")
@@ -720,7 +760,7 @@ y = p.y
 x y
 ---
 ---
-test_namedtuple_kwargs_subclass @disabled
+test_namedtuple_kwargs_subclass
 ---
 from collections import namedtuple
 P = namedtuple("P", "x y")
@@ -1222,7 +1262,7 @@ a1 = c1.a
 a a1
 ---
 ---
-test_namedtuple_default_and_factory @disabled
+test_dataclass_default_and_factory @disabled
 ---
 from dataclasses import field, dataclass
 def fact():
@@ -1234,7 +1274,7 @@ class C:
 ---
 StrictModuleTypeError
 ---
-test_namedtuple_default_order @disabled
+test_dataclass_default_order @disabled
 ---
 from dataclasses import field, dataclass
 def fact():
@@ -1671,7 +1711,7 @@ l = len(fs)
 l n0 n1
 ---
 ---
-test_typing_iterable @disabled
+test_typing_iterable
 ---
 from typing import Iterable
 t = Iterable[str]
@@ -1682,7 +1722,7 @@ params = t.__parameters__
 n args params
 ---
 ---
-test_typing_namedtuple @disabled
+test_typing_namedtuple
 ---
 from typing import NamedTuple
 Employee = NamedTuple('Employee', name=str, id=int)
@@ -1693,7 +1733,7 @@ id = employee.id
 name id
 ---
 ---
-test_typing_namedtuple_fields @disabled
+test_typing_namedtuple_fields
 ---
 from typing import NamedTuple
 Employee = NamedTuple('Employee', [('name', str), ('id', int)])
@@ -1704,23 +1744,23 @@ id = employee.id
 name id
 ---
 ---
-test_typing_namedtuple_fields_and_kwargs @disabled
+test_typing_namedtuple_fields_and_kwargs
 ---
 from typing import NamedTuple
 Employee = NamedTuple('Employee', [('name', str), ('id', int)], name=str, id=int)
 ---
 ---
-StrictModuleUnhandledException
+2 11 StrictModuleUnhandledException(TypeError) 1705 12 StrictModuleUserException TypeError
 ---
-test_typing_namedtuple_meta_no_get @disabled
+test_typing_namedtuple_meta_no_get
 ---
 from typing import NamedTupleMeta
 NamedTupleMeta('foo', (), 42)
 ---
 ---
-StrictModuleUnhandledException
+2 0 StrictModuleUnhandledException(AttributeError) 1619 11 StrictModuleUserException AttributeError
 ---
-test_typing_namedtuple_inheritance @disabled
+test_typing_namedtuple_inheritance
 ---
 from typing import NamedTuple
 class Employee(NamedTuple):
@@ -1734,7 +1774,7 @@ id = employee.id
 name id
 ---
 ---
-test_typing_namedtuple_inheritance_empty @disabled
+test_typing_namedtuple_inheritance_empty
 ---
 from typing import NamedTuple
 class Employee(NamedTuple):
@@ -1746,7 +1786,7 @@ l = len(employee)
 l
 ---
 ---
-test_typing_typeddict @disabled
+test_typing_typeddict
 ---
 from typing_extensions import TypedDict
 class Employee(TypedDict, total=False):
@@ -1760,7 +1800,7 @@ total = Employee.__total__
 age total
 ---
 ---
-test_typing_literal_single_value @disabled
+test_typing_literal_single_value
 ---
 from typing_extensions import Literal
 
@@ -1770,7 +1810,7 @@ x = Mode.__args__[0]
 x
 ---
 ---
-test_typing_literal @disabled
+test_typing_literal
 ---
 from typing_extensions import Literal
 
@@ -1780,7 +1820,7 @@ x = Mode.__args__[0]
 x
 ---
 ---
-test_typing_literal_call_type @disabled
+test_typing_literal_call_type
 ---
 from typing_extensions import Literal
 
@@ -2786,7 +2826,7 @@ x, y = C[42]
 x y
 ---
 ---
-test_generic_dict @disabled
+test_generic_dict
 ---
 __name__ = 'abc'
 from typing import DefaultDict, Generic, TypeVar
@@ -3739,8 +3779,10 @@ z1 = [(x, y) for x in l1 for y in l2]
 z2 = [w for j in l3 for w in j]
 z3 = [v for k in z1 for v in k]
 z4 = [u for m in z1 for u in m if u > 1 and u < 8]
+z5 = tuple(a for a in l1)
+z6 = tuple(w for j in l3 for w in j)
 ---
-z1 z2 z3 z4
+z1 z2 z3 z4 z5 z6
 ---
 ---
 test_functools_wraps @disabled
@@ -4170,7 +4212,7 @@ l2 = [1, *l1, 5]
 l2
 ---
 ---
-test_cast @disabled
+test_cast
 ---
 from typing import cast
 x = cast(int, 1)
@@ -4721,7 +4763,6 @@ l = [0]
 f(l)
 ---
 ---
-4 0 UnsupportedException calling async function function
 ---
 test_method_attr
 ---
@@ -5006,6 +5047,19 @@ s = repr(C())
 ---
 ---
 ---
+test_class_module
+---
+class C:
+    pass
+x = C.__module__
+y = C().__module__
+C.__module__ = 1
+z = C.__module__
+w = C().__module__
+---
+x y z w
+---
+---
 test_object_module
 ---
 class C:
@@ -5117,7 +5171,7 @@ l = s.split(",")
 l
 ---
 ---
-test_loose_instance_check @disabled
+test_loose_instance_check
 ---
 from unknown import x
 loose_isinstance(x, tuple) # no error
@@ -6698,7 +6752,7 @@ arg_size = len(t.__args__)
 is_int_instance is_str_instance is_None_instance has_int has_str arg_size
 ---
 ---
-test_union_builtin_with_typing_0 @disabled
+test_union_builtin_with_typing_0
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6709,7 +6763,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_1 @disabled
+test_union_builtin_with_typing_1
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6720,7 +6774,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_2 @disabled
+test_union_builtin_with_typing_2
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6731,7 +6785,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_3 @disabled
+test_union_builtin_with_typing_3
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6742,7 +6796,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_4 @disabled
+test_union_builtin_with_typing_4
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6753,7 +6807,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_5 @disabled
+test_union_builtin_with_typing_5
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6764,7 +6818,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_6 @disabled
+test_union_builtin_with_typing_6
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6775,7 +6829,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_7 @disabled
+test_union_builtin_with_typing_7
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6786,7 +6840,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_8 @disabled
+test_union_builtin_with_typing_8
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6797,7 +6851,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_9 @disabled
+test_union_builtin_with_typing_9
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -6808,7 +6862,7 @@ arg_size = len(t.__args__)
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_10 @disabled
+test_union_builtin_with_typing_10
 ---
 from typing import Union, List
 from types import Union as TypesUnion
@@ -7198,7 +7252,7 @@ for i in a:
 ---
 2 0 UnknownValueNotIterableException <imported module m as a>
 ---
-test_namedtuple_def @disabled
+test_namedtuple_def_1
 ---
 from collections import namedtuple
 namedtuple("P", "x y")
@@ -7224,7 +7278,7 @@ while a:
 ---
 2 0 UnknownValueBoolException <imported module m as a>
 ---
-test_namedtuple_constructor @disabled
+test_namedtuple_constructor
 ---
 from collections import namedtuple
 P = namedtuple("P", "x y")
@@ -8099,15 +8153,15 @@ C = a + A
 ---
 3 4 UnknownValueBinaryOpException <a imported from m> + abc
 ---
-test_typing_unknown @disabled
+test_typing_unknown
 ---
 from typing import unknown
 X = unknown('TFoo')
 ---
 ---
-UnknownValueCallException
+2 4 UnknownValueCallException <unknown imported from typing>
 ---
-test_typing_async_iterable @disabled
+test_typing_async_iterable
 ---
 from typing import AsyncIterable
 def f(x: AsyncIterable[str]) -> None:
@@ -8115,7 +8169,7 @@ def f(x: AsyncIterable[str]) -> None:
 ---
 ---
 ---
-test_typing_awaitable @disabled
+test_typing_awaitable
 ---
 from typing import Awaitable
 def f(x: Awaitable[int]) -> None:
@@ -8123,7 +8177,7 @@ def f(x: Awaitable[int]) -> None:
 ---
 ---
 ---
-test_typing_callable @disabled
+test_typing_callable
 ---
 from typing import Callable
 def f(x: Callable[[int], int]) -> None:
@@ -8131,7 +8185,7 @@ def f(x: Callable[[int], int]) -> None:
 ---
 ---
 ---
-test_typing_classvar @disabled
+test_typing_classvar
 ---
 from typing import ClassVar
 class C:
@@ -8139,7 +8193,7 @@ class C:
 ---
 ---
 ---
-test_typing_collection @disabled
+test_typing_collection
 ---
 from typing import Collection
 def f(x: Collection[int]) -> None:
@@ -8147,7 +8201,7 @@ def f(x: Collection[int]) -> None:
 ---
 ---
 ---
-test_typing_context_manager @disabled
+test_typing_context_manager
 ---
 from typing import ContextManager
 def f(x: ContextManager[int]) -> None:
@@ -8155,7 +8209,7 @@ def f(x: ContextManager[int]) -> None:
 ---
 ---
 ---
-test_typing_default_dict @disabled
+test_typing_default_dict
 ---
 from typing import DefaultDict
 def f(x: DefaultDict[int, int]) -> None:
@@ -8163,7 +8217,7 @@ def f(x: DefaultDict[int, int]) -> None:
 ---
 ---
 ---
-test_typing_dict @disabled
+test_typing_dict
 ---
 from typing import Dict
 def f(x: Dict[str, int]) -> None:
@@ -8171,7 +8225,7 @@ def f(x: Dict[str, int]) -> None:
 ---
 ---
 ---
-test_typing_frozenset @disabled
+test_typing_frozenset
 ---
 from typing import FrozenSet
 def f(x: FrozenSet[int]) -> None:
@@ -8179,7 +8233,7 @@ def f(x: FrozenSet[int]) -> None:
 ---
 ---
 ---
-test_typing_generator @disabled
+test_typing_generator
 ---
 from typing import Generator
 def f(x: Generator[int, int, int]) -> None:
@@ -8187,7 +8241,7 @@ def f(x: Generator[int, int, int]) -> None:
 ---
 ---
 ---
-test_typing_generic @disabled
+test_typing_generic
 ---
 from typing import TypeVar, Generic
 class C(Generic[TypeVar("T")]):
@@ -8197,30 +8251,30 @@ a = C[int]()
 ---
 ---
 ---
-test_typing_generic_unknown @disabled
+test_typing_generic_unknown
 ---
 from unknown import x
 from typing import TypeVar, Generic
 class C(Generic[TypeVar("T")], x):
     pass
 
-class D(C[int]): pass
 ---
 ---
-UnsafeCallException
+3 0 UnsafeCallException __mro_entries__ 760 15 UnknownValueAttributeException <x imported from unknown> __eq__
+3 0 UnknownValueNotIterableException __mro_entries__(<_GenericAlias instance>,(<_GenericAlias instance>,<x imported from unknown>),)
 ---
-test_typing_typevar @disabled
+test_typing_typevar
 ---
 from typing import TypeVar
 from m import a
 T = TypeVar('T')
 T.a = a
-T.a.foo()
+T.a.foo
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueAttributeException <a imported from m> foo
 ---
-test_typing_iterable @disabled
+test_typing_iterable_2
 ---
 from typing import Iterable
 def f(x: Iterable[str]) -> None:
@@ -8228,7 +8282,7 @@ def f(x: Iterable[str]) -> None:
 ---
 ---
 ---
-test_typing_list @disabled
+test_typing_list
 ---
 from typing import List
 def f(x: List[int]) -> None:
@@ -8236,7 +8290,7 @@ def f(x: List[int]) -> None:
 ---
 ---
 ---
-test_typing_mapping @disabled
+test_typing_mapping
 ---
 from typing import Mapping
 def f(x: Mapping[str, str]) -> None:
@@ -8244,15 +8298,7 @@ def f(x: Mapping[str, str]) -> None:
 ---
 ---
 ---
-test_typing_iterable @disabled
----
-from typing import Iterable
-def f(x: Iterable[str]) -> None:
-    pass
----
----
----
-test_typing_mutable_mapping @disabled
+test_typing_mutable_mapping
 ---
 from typing import MutableMapping
 def f(x: MutableMapping[str, str]) -> None:
@@ -8260,7 +8306,7 @@ def f(x: MutableMapping[str, str]) -> None:
 ---
 ---
 ---
-test_typing_mutable_sequence @disabled
+test_typing_mutable_sequence
 ---
 from typing import MutableSequence
 def f(x: MutableSequence[str]) -> None:
@@ -8268,7 +8314,7 @@ def f(x: MutableSequence[str]) -> None:
 ---
 ---
 ---
-test_typing_optional @disabled
+test_typing_optional
 ---
 from typing import Optional
 def f(x: Optional[int]) -> None:
@@ -8276,7 +8322,7 @@ def f(x: Optional[int]) -> None:
 ---
 ---
 ---
-test_typing_mutablesequence @disabled
+test_typing_mutablesequence
 ---
 from typing import MutableSequence
 def f(x: MutableSequence[int]) -> None:
@@ -8284,7 +8330,7 @@ def f(x: MutableSequence[int]) -> None:
 ---
 ---
 ---
-test_typing_sequence @disabled
+test_typing_sequence
 ---
 from typing import Sequence
 def f(x: Sequence[int]) -> None:
@@ -8292,7 +8338,7 @@ def f(x: Sequence[int]) -> None:
 ---
 ---
 ---
-test_typing_set @disabled
+test_typing_set
 ---
 from typing import Set
 def f(x: Set[int]) -> None:
@@ -8300,7 +8346,7 @@ def f(x: Set[int]) -> None:
 ---
 ---
 ---
-test_typing_tuple @disabled
+test_typing_tuple
 ---
 from typing import Tuple
 def f(x: Tuple[str, ...]) -> None:
@@ -8308,7 +8354,7 @@ def f(x: Tuple[str, ...]) -> None:
 ---
 ---
 ---
-test_typing_type @disabled
+test_typing_type
 ---
 from typing import Type, TypeVar
 class User: pass
@@ -8318,7 +8364,7 @@ def f(x: Type[U]) -> None:
 ---
 ---
 ---
-test_typing_var @disabled
+test_typing_var
 ---
 from typing import TypeVar
 X = TypeVar('TFoo')
@@ -8326,7 +8372,7 @@ Y = X.__name__
 ---
 ---
 ---
-test_typing_union @disabled
+test_typing_union
 ---
 from typing import Union
 def f(x: Union[int, str]) -> None:
@@ -8804,14 +8850,14 @@ object.foo = a
 ---
 2 0 ImmutableException foo type object
 ---
-test_namedtuple_def @disabled
+test_namedtuple_def_2
 ---
 from collections import namedtuple
 namedtuple("P", "x y")
 ---
 ---
 ---
-test_namedtuple_constructor @disabled
+test_namedtuple_constructor_1
 ---
 from collections import namedtuple
 P = namedtuple("P", "x y")
@@ -8819,25 +8865,25 @@ P(1, 2)
 ---
 ---
 ---
-test_namedtuple_constructor_kwargs @disabled
+test_namedtuple_constructor_kwargs
 ---
 from collections import namedtuple
 X = namedtuple("P", "x y")
 P = X.__new__(x = 2)
 ---
 ---
-StrictModuleUnhandledException
+3 4 StrictModuleUnhandledException(TypeError)
 ---
-test_namedtuple_bad_new @disabled
+test_namedtuple_bad_new
 ---
 from collections import namedtuple
 X = namedtuple("P", "x y")
 X.__new__(object)
 ---
 ---
-StrictModuleUnhandledException
+3 0 StrictModuleUnhandledException(TypeError)
 ---
-test_namedtuple_index @disabled
+test_namedtuple_index
 ---
 from collections import namedtuple
 P = namedtuple("P", "x y")
@@ -8846,7 +8892,7 @@ x[0]
 ---
 ---
 ---
-test_namedtuple_attr @disabled
+test_namedtuple_attr
 ---
 from collections import namedtuple
 P = namedtuple("P", "x y")
@@ -8856,7 +8902,7 @@ p.y
 ---
 ---
 ---
-test_namedtuple_sublcass_attr @disabled
+test_namedtuple_sublcass_attr
 ---
 from collections import namedtuple
 B = namedtuple("P", "x y")
@@ -8868,7 +8914,7 @@ p.y
 ---
 ---
 ---
-test_namedtuple_import_index @disabled
+test_namedtuple_import_index
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8877,9 +8923,9 @@ p = P(1, unknown)
 p[1].attr
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_namedtuple_import_attr @disabled
+test_namedtuple_import_attr
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8888,9 +8934,9 @@ p = P(1, unknown)
 p.y.attr
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_namedtuple_rename @disabled
+test_namedtuple_rename
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8900,9 +8946,9 @@ p.x # ok
 p._1.attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_namedtuple_rename_duplicate @disabled
+test_namedtuple_rename_duplicate
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8912,18 +8958,18 @@ p.x # ok
 p._1.attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_namedtuple_unknown_field_name @disabled
+test_namedtuple_unknown_field_name
 ---
 from collections import namedtuple
 P = namedtuple("P", 1)
 p = P(1)
 ---
 ---
-StrictModuleUnhandledException
+2 4 StrictModuleUnhandledException(TypeError) 352 23 StrictModuleUserException TypeError
 ---
-test_namedtuple_asdict @disabled
+test_namedtuple_asdict
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8933,9 +8979,9 @@ d = p._asdict()
 d["y"].attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_namedtuple_getnewargs @disabled
+test_namedtuple_getnewargs
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8945,9 +8991,9 @@ d = p.__getnewargs__()
 d[1].attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_namedtuple_make @disabled
+test_namedtuple_make
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8956,9 +9002,9 @@ p = P._make([1, unknown])
 p.y.attr
 ---
 ---
-UnknownValueAttributeException
+5 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
-test_namedtuple_make_inst_call @disabled
+test_namedtuple_make_inst_call
 ---
 from collections import namedtuple
 from outside import unknown
@@ -8968,7 +9014,7 @@ p = p1._make([1, unknown])
 p.y.attr
 ---
 ---
-UnknownValueAttributeException
+6 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
 test_annotations
 ---

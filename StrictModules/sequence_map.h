@@ -193,6 +193,10 @@ class sequence_map {
 
   size_t erase(const Key& key) {
     auto map_it = map.find(key);
+    return erase(map_it);
+  }
+
+  size_t erase(const MapItT& map_it) {
     if (map_it == map.end()) {
       return 0;
     }

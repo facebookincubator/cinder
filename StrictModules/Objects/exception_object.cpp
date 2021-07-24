@@ -21,7 +21,7 @@ std::shared_ptr<BaseStrictObject> StrictExceptionObject::exception__new__(
     std::shared_ptr<StrictExceptionObject>,
     const CallerContext& caller,
     std::vector<std::shared_ptr<BaseStrictObject>> args,
-    std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>>) {
+    sequence_map<std::string, std::shared_ptr<BaseStrictObject>>) {
   std::shared_ptr<StrictType> type;
   if (!args.empty()) {
     type = std::dynamic_pointer_cast<StrictType>(args[0]);

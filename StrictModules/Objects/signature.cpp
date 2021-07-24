@@ -4,7 +4,7 @@
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/caller_context_impl.h"
 
-#include <unordered_map>
+#include "StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 
@@ -35,28 +35,22 @@ std::unique_ptr<DictType> FuncSignature::bind(
   DictType& map = *mapPtr;
   map.reserve(args.size());
 
-  int posonlyCount = posonlyArgs_.size();
-  int posCount = posArgs_.size() + posonlyCount;
-  int posDefaultCount = posDefaults_.size();
-
-  int nonNamedArgsCount = args.size() - names.size();
-  // The number of passed pos args must cover all pos only parameters
-  if (nonNamedArgsCount < posonlyCount) {
-    caller.raiseTypeError(
-        "{} got some positional only arguments passed as keyword arguments",
-        funcName_);
-  }
+  size_t posonlyCount = posonlyArgs_.size();
+  size_t posCount = posArgs_.size() + posonlyCount;
+  size_t posDefaultCount = posDefaults_.size();
+  assert(args.size() >= names.size());
+  size_t nonNamedArgsCount = args.size() - names.size();
 
   std::vector<std::shared_ptr<BaseStrictObject>> varArgValues;
   // populate positional args without defaults
-  for (int i = 0; i < nonNamedArgsCount; ++i) {
+  for (size_t i = 0; i < nonNamedArgsCount; ++i) {
     if (i >= posCount) {
       // unnamed argument but no more positional parameters
       // check vararg
       if (varArg_.has_value()) {
         // put the rest of non-named args into varArg
         varArgValues.reserve(nonNamedArgsCount - posCount);
-        for (int j = i; j < nonNamedArgsCount; ++j) {
+        for (size_t j = i; j < nonNamedArgsCount; ++j) {
           varArgValues.push_back(args[j]);
         }
         break;
@@ -76,23 +70,39 @@ std::unique_ptr<DictType> FuncSignature::bind(
       map[posArgs_[i - posonlyCount]] = std::move(args[i]);
     }
   }
+  // still have positional only parameters without provided args
+  // these must come from defaults.
+  if (nonNamedArgsCount < posonlyCount) {
+    size_t posOnlyNeedDefaultOffset = nonNamedArgsCount;
+    assert(posCount >= posDefaultCount);
+    size_t posDefaultsOffset = posCount - posDefaultCount;
+    if (posOnlyNeedDefaultOffset < posDefaultsOffset) {
+      caller.raiseTypeError(
+          "{} missing required positional argument {}",
+          funcName_,
+          posonlyArgs_[posOnlyNeedDefaultOffset]);
+    }
+    for (size_t i = posOnlyNeedDefaultOffset; i < posonlyCount; ++i) {
+      map[posonlyArgs_[i]] = std::move(posDefaults_[i - posDefaultsOffset]);
+    }
+  }
 
-  std::unordered_map<std::string, std::shared_ptr<BaseStrictObject>> kwMap;
+  sequence_map<std::string, std::shared_ptr<BaseStrictObject>> kwMap;
   kwMap.reserve(names.size());
   for (size_t i = nonNamedArgsCount; i < args.size(); ++i) {
     kwMap[names[i - nonNamedArgsCount]] = args[i];
   }
   // process the rest of posArgs_
+
+  // this can be negative when posDefaults also covers posonly args
   int posDefaultsOffset = posArgs_.size() - posDefaultCount;
-  assert(posDefaultsOffset >= 0);
-  assert(map.size() - posonlyCount >= 0);
-  for (size_t i = map.size() - posonlyCount; i >= 0 && i < posArgs_.size();
-       ++i) {
+  assert(map.size() - posonlyCount >= 0); // since we processed all posonly args
+  for (size_t i = map.size() - posonlyCount; i < posArgs_.size(); ++i) {
     const std::string& posArgName = posArgs_[i];
     auto got = kwMap.find(posArgName);
-    if (got == kwMap.end()) {
+    if (got == kwMap.map_end()) {
       // no default for this arg, error
-      if (i < size_t(posDefaultsOffset)) {
+      if (int(i) < posDefaultsOffset) {
         caller.raiseTypeError(
             "{} missing required positional argument {}",
             funcName_,
@@ -102,7 +112,7 @@ std::unique_ptr<DictType> FuncSignature::bind(
       map[posArgName] = posDefaults_[i - posDefaultsOffset];
     } else {
       // caller provided value for this posArg
-      map[posArgName] = got->second;
+      map[posArgName] = got->second.first;
       kwMap.erase(got);
     }
   }
@@ -118,7 +128,7 @@ std::unique_ptr<DictType> FuncSignature::bind(
   for (size_t i = 0; i < kwonlyArgs_.size(); ++i) {
     const std::string& kwArgName = kwonlyArgs_[i];
     auto got = kwMap.find(kwArgName);
-    if (got == kwMap.end()) {
+    if (got == kwMap.map_end()) {
       const std::shared_ptr<BaseStrictObject> kwArgDefault = kwDefaults_[i];
       if (kwArgDefault == nullptr) {
         // error
@@ -127,7 +137,7 @@ std::unique_ptr<DictType> FuncSignature::bind(
       }
       map[kwArgName] = kwArgDefault;
     } else {
-      map[kwArgName] = got->second;
+      map[kwArgName] = got->second.first;
       kwMap.erase(got);
     }
   }
@@ -138,7 +148,7 @@ std::unique_ptr<DictType> FuncSignature::bind(
     bool duplicated = false;
     std::string duplicatedName;
     for (auto& posName : posArgs_) {
-      if (kwMap.find(posName) != kwMap.end()) {
+      if (kwMap.find(posName) != kwMap.map_end()) {
         duplicated = true;
         duplicatedName = posName;
         break;
@@ -146,7 +156,7 @@ std::unique_ptr<DictType> FuncSignature::bind(
     }
     if (!duplicated) {
       for (auto& kwName : kwonlyArgs_) {
-        if (kwMap.find(kwName) != kwMap.end()) {
+        if (kwMap.find(kwName) != kwMap.map_end()) {
           duplicated = true;
           duplicatedName = kwName;
           break;
@@ -164,7 +174,7 @@ std::unique_ptr<DictType> FuncSignature::bind(
     DictDataT kwDict;
     kwDict.reserve(kwMap.size());
     for (auto& item : kwMap) {
-      kwDict[caller.makeStr(item.first)] = item.second;
+      kwDict[caller.makeStr(item.first)] = item.second.first;
     }
     map[kwVarArg_.value()] = std::make_shared<StrictDict>(
         DictObjectType(), caller.caller, std::move(kwDict));

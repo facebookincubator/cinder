@@ -18,23 +18,34 @@ class ModuleLoader {
  public:
   typedef std::function<bool(const std::string&, const std::string&)>
       ForceStrictFunc;
-  typedef std::function<std::unique_ptr<BaseErrorSink>()> ErrorSinkFactory;
-
-  ModuleLoader(std::vector<std::string> importPath)
-      : ModuleLoader(std::move(importPath), std::nullopt, [] {
-          return std::make_unique<ErrorSink>();
-        }) {}
-
-  ModuleLoader(std::vector<std::string> importPath, ForceStrictFunc forceStrict)
-      : ModuleLoader(std::move(importPath), forceStrict, [] {
-          return std::make_unique<ErrorSink>();
-        }) {}
+  typedef std::function<std::shared_ptr<BaseErrorSink>()> ErrorSinkFactory;
 
   ModuleLoader(
       std::vector<std::string> importPath,
+      std::vector<std::string> stubImportPath)
+      : ModuleLoader(
+            std::move(importPath),
+            std::move(stubImportPath),
+            std::nullopt,
+            [] { return std::make_unique<ErrorSink>(); }) {}
+
+  ModuleLoader(
+      std::vector<std::string> importPath,
+      std::vector<std::string> stubImportPath,
+      ForceStrictFunc forceStrict)
+      : ModuleLoader(
+            std::move(importPath),
+            std::move(stubImportPath),
+            forceStrict,
+            [] { return std::make_unique<ErrorSink>(); }) {}
+
+  ModuleLoader(
+      std::vector<std::string> importPath,
+      std::vector<std::string> stubImportPath,
       std::optional<ForceStrictFunc> forceStrict,
       ErrorSinkFactory factory)
       : importPath_(std::move(importPath)),
+        stubImportPath_(std::move(stubImportPath)),
         modules_(),
         forceStrict_(forceStrict),
         errorSinkFactory_(factory) {
@@ -99,6 +110,8 @@ class ModuleLoader {
   AnalyzedModule* loadSingleModule(const std::string& modName);
 
   bool setImportPath(std::vector<std::string> importPath);
+  bool setStubImportPath(std::string importPath);
+  bool setStubImportPath(std::vector<std::string> importPath);
 
   PyArena* getArena() {
     return arena_;
@@ -107,6 +120,7 @@ class ModuleLoader {
  private:
   static const std::string kArenaNewErrorMsg;
   std::vector<std::string> importPath_;
+  std::vector<std::string> stubImportPath_;
   PyArena* arena_;
   // the loader owns all analyzed module produced during the analysis
   std::unordered_map<std::string, std::unique_ptr<AnalyzedModule>> modules_;

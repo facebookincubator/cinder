@@ -15,11 +15,11 @@ class AnalyzedModule {
   AnalyzedModule(
       std::unique_ptr<StrictModuleObject> module,
       ModuleKind kind,
-      std::unique_ptr<BaseErrorSink> error)
+      std::shared_ptr<BaseErrorSink> error)
       : module_(std::move(module)),
         moduleKind_(kind),
         errorSink_(std::move(error)) {}
-  AnalyzedModule(ModuleKind kind, std::unique_ptr<BaseErrorSink> error)
+  AnalyzedModule(ModuleKind kind, std::shared_ptr<BaseErrorSink> error)
       : AnalyzedModule(nullptr, kind, std::move(error)) {}
 
   bool isStrict() const;
@@ -34,7 +34,7 @@ class AnalyzedModule {
  private:
   std::shared_ptr<StrictModuleObject> module_;
   ModuleKind moduleKind_;
-  std::unique_ptr<BaseErrorSink> errorSink_;
+  std::shared_ptr<BaseErrorSink> errorSink_;
 };
 } // namespace strictmod::compiler
 

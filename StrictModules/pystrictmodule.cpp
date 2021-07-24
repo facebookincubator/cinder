@@ -21,7 +21,8 @@ static int StrictModuleLoaderObject_init(
     PyObject* args,
     PyObject*) {
   PyObject* import_paths_obj;
-  if (!PyArg_ParseTuple(args, "O", &import_paths_obj))
+  PyObject* stub_import_path_obj;
+  if (!PyArg_ParseTuple(args, "OO", &import_paths_obj, &stub_import_path_obj))
     return -1;
   if (!PyList_Check(import_paths_obj)) {
     PyErr_Format(
@@ -30,6 +31,14 @@ static int StrictModuleLoaderObject_init(
         import_paths_obj);
     return -1;
   }
+  if (!PyUnicode_Check(stub_import_path_obj)) {
+    PyErr_Format(
+        PyExc_TypeError,
+        "stub_import_path is expect to be str, but got %s object",
+        stub_import_path_obj);
+    return -1;
+  }
+
   PyObject** items = _PyList_ITEMS(import_paths_obj);
   Py_ssize_t size = PyList_GET_SIZE(import_paths_obj);
   const char* import_paths_arr[size];
@@ -56,6 +65,19 @@ static int StrictModuleLoaderObject_init(
     PyErr_SetString(
         PyExc_RuntimeError,
         "failed to set import paths on StrictModuleLoader object");
+    return -1;
+  }
+
+  const char* stub_str = PyUnicode_AsUTF8(stub_import_path_obj);
+  if (stub_str == NULL) {
+    return -1;
+  }
+  int stub_path_set =
+      StrictModuleChecker_SetStubImportPath(self->checker, stub_str);
+  if (stub_path_set < 0) {
+    PyErr_SetString(
+        PyExc_RuntimeError,
+        "failed to set the stub import path on StrictModuleLoader object");
     return -1;
   }
   return 0;

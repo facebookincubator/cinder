@@ -1,0 +1,22 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+def intern(s):
+    return s
+
+class _sys_version_info:
+    major = 3
+    def __gt__(self, other):
+        return other[0] <= self.major
+
+    def __ge__(self, other):
+        return other[0] <= self.major
+
+    def __lt__(self, other):
+        return other[0] > self.major
+
+    def __le__(self, other):
+        return other[0] > self.major
+
+version_info = _sys_version_info()
+
+def _getframe(x):
+    raise AttributeError()
