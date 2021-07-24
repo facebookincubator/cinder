@@ -217,6 +217,12 @@ std::shared_ptr<StrictType> FloatType() {
   return t;
 }
 
+std::shared_ptr<StrictType> ComplexType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
+      "complex", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> ListType() {
   static std::shared_ptr<StrictType> t = makeType<StrictListType>(
       "list", kBuiltinsModule, objectTypeVec(), TypeType());
@@ -442,6 +448,12 @@ std::shared_ptr<StrictType> DeprecationWarningType() {
   return t;
 }
 
+std::shared_ptr<StrictType> IOErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "IOError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
+  return t;
+}
+
 //--------------------Builtin Constant Declarations-----------------------
 
 std::shared_ptr<BaseStrictObject> NoneObject() {
@@ -471,6 +483,12 @@ std::shared_ptr<BaseStrictObject> StrictFalse() {
 std::shared_ptr<BaseStrictObject> EllipsisObject() {
   static std::shared_ptr<BaseStrictObject> o(
       new StrictEllipsisObject(EllipsisType(), kBuiltinsModule));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> DunderBuiltins() {
+  static std::shared_ptr<BaseStrictObject> o(
+      new UnknownObject("__builtins__", kBuiltinsModule));
   return o;
 }
 
@@ -650,6 +668,12 @@ std::shared_ptr<BaseStrictObject> StrictPrint() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictInput() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, inputImpl, nullptr, "input"));
+  return o;
+}
+
 std::shared_ptr<BaseStrictObject> StrictMax() {
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
       kBuiltinsModule, StarCallableWrapper(maxImpl, "max"), nullptr, "max"));
@@ -701,16 +725,36 @@ std::shared_ptr<BaseStrictObject> StrictCopy() {
   return o;
 }
 
+std::shared_ptr<BaseStrictObject> StrictKnownUnknownObj() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      CallableWrapper(strictKnownUnknownObj, "_known_unknown_obj"),
+      nullptr,
+      "_known_unknown_obj"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictKnownUnknownCallable() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule,
+      strictKnownUnknownCallable,
+      nullptr,
+      "_known_unknown_callable"));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
     initialized = true;
     DictType builtinsDict({
+        {"__builtins__", DunderBuiltins()},
         {"object", ObjectType()},
         {"type", TypeType()},
         {"int", IntType()},
         {"bool", BoolType()},
         {"float", FloatType()},
+        {"complex", ComplexType()},
         {"str", StrType()},
         {"bytes", BytesType()},
         {"bytearray", ByteArrayType()},
@@ -734,6 +778,7 @@ bool initializeBuiltinsModuleDict() {
         {"RuntimeError", RuntimeErrorType()},
         {"ZeroDivisionError", DivisionByZeroType()},
         {"DeprecationWarning", DeprecationWarningType()},
+        {"IOError", IOErrorType()},
         {"NotImplemented", NotImplemented()},
         {"None", NoneObject()},
         {"True", StrictTrue()},
@@ -762,11 +807,15 @@ bool initializeBuiltinsModuleDict() {
         {"hasattr", StrictHasattr()},
         {"callable", StrictIsCallable()},
         {"print", StrictPrint()},
+        {"input", StrictInput()},
         {"max", StrictMax()},
         {"min", StrictMin()},
         {"any", StrictAny()},
         {"all", StrictAll()},
         {"memoryview", MemoryViewType()},
+        {"loose_isinstance", StrictLooseIsinstance()},
+        {"_known_unknown_obj", StrictKnownUnknownObj()},
+        {"_known_unknown_callable", StrictKnownUnknownCallable()},
         {"loose_isinstance", StrictLooseIsinstance()},
         {"__strict_tryimport__", StrictTryImport()},
         {"__strict_object__", ObjectType()},

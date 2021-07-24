@@ -3,7 +3,10 @@ def intern(s):
     return s
 
 class _sys_version_info:
-    major = 3
+    def __init__(self, major, minor):
+        self.major = major
+        self.minor = minor
+        self.lst = [major, minor]
     def __gt__(self, other):
         return other[0] <= self.major
 
@@ -16,7 +19,12 @@ class _sys_version_info:
     def __le__(self, other):
         return other[0] > self.major
 
-version_info = _sys_version_info()
+    def __getitem__(self, i):
+        if i < len(self.lst):
+            return self.lst[i]
+        return None
+
+version_info = _sys_version_info(3, 8)
 
 def _getframe(x):
     raise AttributeError()

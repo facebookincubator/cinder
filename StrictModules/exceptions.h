@@ -49,6 +49,8 @@ class StrictModuleException : public std::exception {
 
   /* concise string form of the exception, used in tests */
   std::string testString() const;
+  /* more readable string form of the exception, shown to users */
+  std::string displayString(bool useLocation = false) const;
   void setCause(std::shared_ptr<StrictModuleException> cause) {
     cause_ = std::move(cause);
   }
@@ -78,6 +80,7 @@ class StrictModuleException : public std::exception {
   std::shared_ptr<const StrictModuleException> cause_;
 
   virtual std::string testStringHelper() const;
+  virtual std::string displayStringHelper() const;
 };
 
 /** exception for unsupported language features
@@ -98,6 +101,7 @@ class StrictModuleNotImplementedException : public StrictModuleException {
 
  private:
   virtual std::string testStringHelper() const override;
+  virtual std::string displayStringHelper() const override;
 };
 
 /** iteration exceeds limit. */
@@ -113,6 +117,7 @@ class StrictModuleTooManyIterationsException : public StrictModuleException {
 
  private:
   virtual std::string testStringHelper() const override;
+  virtual std::string displayStringHelper() const override;
 };
 
 /** Use this for user space exceptions, i.e. exceptions
@@ -141,6 +146,7 @@ class StrictModuleUserException : public StrictModuleException {
   std::shared_ptr<T> wrapped_;
 
   virtual std::string testStringHelper() const override;
+  virtual std::string displayStringHelper() const override;
 };
 
 class StrictModuleUnhandledException : public StrictModuleException {
@@ -163,6 +169,7 @@ class StrictModuleUnhandledException : public StrictModuleException {
   std::vector<std::string> exceptionArgs_;
 
   virtual std::string testStringHelper() const override;
+  virtual std::string displayStringHelper() const override;
 };
 
 /**
@@ -199,6 +206,7 @@ class StructuredStrictModuleException : public T, public StrictModuleException {
  private:
   std::string formatError() const;
   virtual std::string testStringHelper() const override;
+  virtual std::string displayStringHelper() const override;
 };
 
 //--------------------------Structured exceptions---------------------------
@@ -241,7 +249,7 @@ struct UnknownValueUnaryOpExceptionHelper {
 
   static constexpr const char* excName = "UnknownValueUnaryOpException";
   static constexpr const char* fmt =
-      "Module-level unary operation on non-strict value '%s %s' is "
+      "Module-level unary operation on non-strict value '{} {}' is "
       "prohibited.";
   static constexpr const char* wiki = "unknown_value_binary_op";
 };
@@ -266,7 +274,7 @@ struct UnknownValueAttributeExceptionHelper {
 
   static constexpr const char* excName = "UnknownValueAttributeException";
   static constexpr const char* fmt =
-      "Module-level attribute access on non-strict value '%s.%s' is "
+      "Module-level attribute access on non-strict value '{}.{}' is "
       "prohibited.";
   static constexpr const char* wiki = "unknown_value_attribute";
 };
@@ -291,7 +299,7 @@ struct UnknownValueIndexExceptionHelper {
 
   static constexpr const char* excName = "UnknownValueIndexException";
   static constexpr const char* fmt =
-      "Module-level index into non-strict value '%s[%s]' is "
+      "Module-level index into non-strict value '{}[{}]' is "
       "prohibited.";
   static constexpr const char* wiki = "unknown_value_index";
 };
@@ -315,7 +323,7 @@ struct UnknownValueCallExceptionHelper {
 
   static constexpr const char* excName = "UnknownValueCallException";
   static constexpr const char* fmt =
-      "Module-level call of non-strict value '%s()' is prohibited.";
+      "Module-level call of non-strict value '{}()' is prohibited.";
   static constexpr const char* wiki = "unknown_call";
 };
 
@@ -337,7 +345,7 @@ struct UnknownValueBoolExceptionHelper {
 
   static constexpr const char* excName = "UnknownValueBoolException";
   static constexpr const char* fmt =
-      "Module-level conversion to bool on non-strict value '%s' is prohibited.";
+      "Module-level conversion to bool on non-strict value '{}' is prohibited.";
   static constexpr const char* wiki = "unknown_value_bool_op";
 };
 
@@ -359,7 +367,7 @@ struct UnknownValueNotIterableExceptionHelper {
 
   static constexpr const char* excName = "UnknownValueNotIterableException";
   static constexpr const char* fmt =
-      "Attempt to iterate over non-iterable object: '%s";
+      "Attempt to iterate over non-iterable object: '{}";
   static constexpr const char* wiki = "unknown_value_attribute";
 };
 
@@ -386,7 +394,7 @@ struct ImmutableExceptionHelper {
 
   static constexpr const char* excName = "ImmutableException";
   static constexpr const char* fmt =
-      "can't set attribute %s of immutable %s '%s'";
+      "can't set attribute {} of immutable {} '{}'";
   static constexpr const char* wiki = "";
 };
 
@@ -414,7 +422,7 @@ struct ModifyImportValueExceptionHelper {
 
   static constexpr const char* excName = "ModifyImportValueException";
   static constexpr const char* fmt =
-      "%s from module %s is modified by %s; this is prohibited.";
+      "{} from module {} is modified by {}; this is prohibited.";
   static constexpr const char* wiki = "modify_imported_value";
 };
 
@@ -438,7 +446,7 @@ class CoroutineFunctionNotSupportedExceptionHelper {
   static constexpr const char* excName =
       "CoroutineFunctionNotSupportedException";
   static constexpr const char* fmt =
-      "coroutines function %s with yield expressions are not supported.";
+      "coroutines function {} with yield expressions are not supported.";
   static constexpr const char* wiki = "";
 };
 
@@ -460,7 +468,7 @@ struct UnsafeCallExceptionHelper {
 
   static constexpr const char* excName = "UnsafeCallException";
   static constexpr const char* fmt =
-      "Call '%s()' may have side effects and is prohibited at module level.";
+      "Call '{}()' may have side effects and is prohibited at module level.";
   static constexpr const char* wiki = "unsafe_call";
 };
 
@@ -482,7 +490,7 @@ struct UnsupportedExceptionHelper {
 
   static constexpr const char* excName = "UnsupportedException";
   static constexpr const char* fmt =
-      "Operation '%s' on type '%s' is unsupported";
+      "Operation '{}' on type '{}' is unsupported";
   static constexpr const char* wiki = "";
 };
 
@@ -503,7 +511,7 @@ struct UnsafeBaseClassExceptionHelper {
   std::string unknownName;
 
   static constexpr const char* excName = "UnsafeBaseClassException";
-  static constexpr const char* fmt = "'%s' is not a valid base class";
+  static constexpr const char* fmt = "'{}' is not a valid base class";
   static constexpr const char* wiki = "";
 };
 
@@ -524,7 +532,7 @@ struct FailedToUnpackExceptionHelper {
   std::string packSize;
 
   static constexpr const char* excName = "FailedToUnpackException";
-  static constexpr const char* fmt = "failed to unpack rhs into %s variables";
+  static constexpr const char* fmt = "failed to unpack rhs into {} variables";
   static constexpr const char* wiki = "";
 };
 
@@ -627,6 +635,24 @@ inline std::string StrictModuleException::testString() const {
   return fmt::format("{} {} {}", lineno_, col_, testStringHelper());
 }
 
+inline std::string StrictModuleException::displayString(
+    bool useLocation) const {
+  std::string res;
+  if (cause_ != nullptr) {
+    res = fmt::format(
+        "{}\nCaused by: {}",
+        displayStringHelper(),
+        cause_->displayString(true)); // cause always has lineinfo
+  } else {
+    res = displayStringHelper();
+  }
+  if (useLocation) {
+    return fmt::format("[{} {}:{}] {}", filename_, lineno_, col_, res);
+  } else {
+    return res;
+  }
+}
+
 // StrictModuleUserException
 template <typename T>
 StrictModuleUserException<T>::StrictModuleUserException(
@@ -676,7 +702,12 @@ const char* StrictModuleUserException<T>::what() const noexcept {
 
 template <typename T>
 std::string StrictModuleUserException<T>::testStringHelper() const {
-  return "StrictModuleUserException " + wrapped_->getDisplayName();
+  return "StrictModuleUserException " + wrapped_->getTypeRef().getDisplayName();
+}
+
+template <typename T>
+std::string StrictModuleUserException<T>::displayStringHelper() const {
+  return fmt::format("UserException({})", wrapped_->getDisplayName());
 }
 
 // StrictModuleStructuredException
@@ -749,6 +780,12 @@ std::string StructuredStrictModuleException<T, E, mp...>::testStringHelper()
       (static_cast<const T*>(this)->*mp)...};
   return fmt::format(
       "{} {}", static_cast<const T*>(this)->excName, fmt::join(strings, " "));
+}
+
+template <typename T, typename E, std::string T::*... mp>
+std::string StructuredStrictModuleException<T, E, mp...>::displayStringHelper()
+    const {
+  return fmt::format(T::fmt, static_cast<const T*>(this)->*mp...);
 }
 } // namespace strictmod
 

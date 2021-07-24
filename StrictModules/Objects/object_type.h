@@ -159,8 +159,10 @@ std::shared_ptr<BaseStrictObject> object__hash__(
     const CallerContext& caller);
 
 std::shared_ptr<BaseStrictObject> object__init_subclass__(
-    std::shared_ptr<BaseStrictObject> obj,
-    const CallerContext& caller);
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>&,
+    const std::vector<std::string>&,
+    const CallerContext&);
 
 // operations on __dict__
 std::shared_ptr<BaseStrictObject> getDunderDictAllowed(

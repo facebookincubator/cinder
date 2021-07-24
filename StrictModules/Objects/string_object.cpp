@@ -34,7 +34,19 @@ StrictString::StrictString(
     PyObject* pyValue)
     : StrictInstance(std::move(type), std::move(creator)),
       pyStr_(Ref<>(pyValue)),
-      value_(PyUnicode_AsUTF8(pyValue)) {}
+      value_() {
+  const char* v = PyUnicode_AsUTF8(pyValue);
+  if (v == nullptr) {
+    PyErr_Clear();
+    Ref<> enStr = Ref<>::steal(
+        PyUnicode_AsEncodedString(pyValue, "utf-8", "surrogatepass"));
+
+    assert(enStr != nullptr);
+    value_ = PyBytes_AsString(enStr.get());
+  } else {
+    value_ = v;
+  }
+}
 
 bool StrictString::isHashable() const {
   return true;
@@ -306,6 +318,8 @@ void StrictStringType::addMethods() {
       "__le__", strType, StrictBool::boolOrNotImplementedFromPyObj);
   addPyWrappedMethodObj<1>(
       "__lt__", strType, StrictBool::boolOrNotImplementedFromPyObj);
+  addPyWrappedMethodObj<1>(
+      "__contains__", strType, StrictBool::boolOrNotImplementedFromPyObj);
 
   addPyWrappedMethodObj<1>("__add__", strType, StrictString::strFromPyObj);
 
@@ -317,6 +331,8 @@ void StrictStringType::addMethods() {
       "startswith", strType, StrictBool::boolFromPyObj, 2, 3);
   addPyWrappedMethodDefaultObj(
       "split", strType, StrictString::listFromPyStrList, 2, 2);
+  addPyWrappedMethodDefaultObj(
+      "encode", strType, StrictBytes::bytesFromPyObj, 2, 2);
 }
 
 // Bytes Object

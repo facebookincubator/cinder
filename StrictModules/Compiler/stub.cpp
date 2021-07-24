@@ -232,8 +232,12 @@ std::unique_ptr<ModuleInfo> getStubModuleInfo(
   }
 
   // get mapping of needed implicit nodes
-  std::unordered_map<int, stmt_ty> sourceMapping =
-      getLocToSrcHelper(implicitMapping, sourceInfo->getAst());
+  std::unordered_map<int, stmt_ty> sourceMapping;
+  try {
+    sourceMapping = getLocToSrcHelper(implicitMapping, sourceInfo->getAst());
+  } catch (const CannotDecideSourceException&) {
+    return nullptr;
+  }
 
   // update AST with implicit AST nodes expanded using mapping
   updateStubHelper(mod, sourceMapping);
@@ -244,12 +248,14 @@ std::unique_ptr<ModuleInfo> getStubModuleInfo(
   auto futureFeatures = PyFuture_FromAST(mod, filename);
   auto symbolTable = PySymtable_Build(mod, filename, futureFeatures);
   PyObject_Free(futureFeatures);
+
   return std::make_unique<ModuleInfo>(
       info->getModName(),
       info->getFilename(),
       mod,
       info->getFutureAnnotations(),
       std::unique_ptr<PySymtable, PySymtableDeleter>(symbolTable),
+      StubKind::getStubKind(info->getFilename(), false),
       info->getSubmoduleSearchLocations());
 }
 } // namespace strictmod::compiler

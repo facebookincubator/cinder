@@ -12,7 +12,17 @@
 extern "C" {
 #endif
 
+typedef struct _ErrorInfo {
+  PyObject* msg;
+  PyObject* filename;
+  int lineno;
+  int col;
+} ErrorInfo;
+
+void ErrorInfo_Clean(ErrorInfo* info);
+
 typedef struct StrictModuleChecker StrictModuleChecker;
+typedef struct StrictAnalyzedModule StrictAnalyzedModule;
 
 /*
  * Create a new strict module checker
@@ -36,14 +46,44 @@ int StrictModuleChecker_SetStubImportPath(
     StrictModuleChecker* checker,
     const char* stub_import_path);
 
+int StrictModuleChecker_SetAllowListPrefix(
+    StrictModuleChecker* checker,
+    const char* allowList[],
+    int length);
+
+int StrictModuleChecker_SetAllowListExact(
+    StrictModuleChecker* checker,
+    const char* allowList[],
+    int length);
+
 void StrictModuleChecker_Free(StrictModuleChecker* checker);
 
-/** Whether `module_name` is a strict module (0) or not (1)
- *  return -1 for internal error cases
+/** Return the analyzed module
+ *  return NULL for internal error cases
+ *  out parameter: `error_count` how many errors in error sink
+ *  is reported
  */
-int StrictModuleChecker_Check(
+StrictAnalyzedModule* StrictModuleChecker_Check(
     StrictModuleChecker* checker,
-    PyObject* module_name);
+    PyObject* module_name,
+    int* out_error_count,
+    int* is_strict_out);
+
+/** Fill in errors_out (of size `length`) with ErrorInfo
+ *  Of the given module. The size is obtained in `StrictModuleChecker_Check`
+ *  Return 0 for success and -1 for failure
+ */
+int StrictModuleChecker_GetErrors(
+    StrictAnalyzedModule* mod,
+    ErrorInfo errors_out[],
+    size_t length);
+
+/** Set whether the loader should force a module to be strict
+ *  reutrn 0 if no error and -1 for internal error
+ */
+int StrictModuleChecker_SetForceStrict(
+    StrictModuleChecker* checker,
+    PyObject* force_strict);
 
 #ifdef __cplusplus
 }

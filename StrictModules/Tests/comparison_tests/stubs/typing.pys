@@ -203,6 +203,8 @@ class Protocol(Generic, metaclass=_ProtocolMeta):
         # we need to treat `__class_getitem__` specially as classmethods
         return super().__class_getitem__(cls, params)
 
+_Protocol = Protocol
+
 @implicit
 def _alias(): ...
 

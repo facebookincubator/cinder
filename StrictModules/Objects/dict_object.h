@@ -146,6 +146,12 @@ class StrictDict : public StrictIterable {
     return *data_;
   }
 
+  void updateDict(const DictType& data, const CallerContext& caller) {
+    for (auto item : data) {
+      data_->set(caller.makeStr(item.first), item.second.first);
+    }
+  }
+
   virtual std::string getDisplayName() const override;
   virtual Ref<> getPyObject() const override;
 

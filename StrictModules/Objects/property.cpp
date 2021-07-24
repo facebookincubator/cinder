@@ -19,7 +19,8 @@ StrictProperty::StrictProperty(
     : StrictInstance(std::move(type), std::move(creator)),
       fget_(std::move(fget)),
       fset_(std::move(fset)),
-      fdel_(std::move(fdel)) {}
+      fdel_(std::move(fdel)),
+      doc_() {}
 
 std::string StrictProperty::getDisplayName() const {
   return "<property object>";
@@ -227,6 +228,8 @@ void StrictPropertyType::addMethods() {
   addMethod("__get__", StrictProperty::property__get__);
   addMethod("__set__", StrictProperty::property__set__);
   addMethod("__delete__", StrictProperty::property__delete__);
+  addStringOptionalMemberDescriptor<StrictProperty, &StrictProperty::doc_>(
+      "__doc__");
 }
 
 bool StrictPropertyType::isDataDescr(const CallerContext&) {

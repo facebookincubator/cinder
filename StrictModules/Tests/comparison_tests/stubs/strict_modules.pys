@@ -1,3 +1,17 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 def extra_slot(a, b):
     return a
+
+def loose_slots(x):
+    return x
+
+def strict_slots(x):
+    return x
+
+def mutable(x):
+    return x
+
+def _mark_cached_property(
+    func, is_async, original_dec
+):
+    return func

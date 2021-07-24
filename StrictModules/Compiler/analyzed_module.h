@@ -21,6 +21,9 @@ class AnalyzedModule {
         errorSink_(std::move(error)) {}
   AnalyzedModule(ModuleKind kind, std::shared_ptr<BaseErrorSink> error)
       : AnalyzedModule(nullptr, kind, std::move(error)) {}
+  ~AnalyzedModule() {
+    cleanModuleContent();
+  }
 
   bool isStrict() const;
   bool isStatic() const;

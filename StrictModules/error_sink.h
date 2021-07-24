@@ -35,6 +35,7 @@ class BaseErrorSink {
   virtual std::unique_ptr<BaseErrorSink> getNestedSink() = 0;
 
   bool hasError() const;
+  int getErrorCount() const;
 
   const std::vector<std::unique_ptr<StrictModuleException>>& getErrors() const;
 

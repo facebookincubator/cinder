@@ -23,7 +23,8 @@ StrictInstance::StrictInstance(
     : BaseStrictObject(std::move(type), std::move(creator)),
       dict_(dict == nullptr ? std::make_shared<DictType>() : std::move(dict)),
       dictObj_(),
-      cleaned_(false) {}
+      cleaned_(false),
+      doc_() {}
 
 Ref<> StrictInstance::getPyObject() const {
   return nullptr;
@@ -70,9 +71,10 @@ void StrictInstance::cleanContent(const StrictModuleObject* owner) {
         childData->cleanContent(owner);
       }
     }
-    if (creator_.expired() || owner == creator_.lock().get()) {
-      dict_->clear();
-    }
+    dict_->clear();
+  }
+  if (dictObj_ != nullptr) {
+    dictObj_->cleanContent(owner);
   }
 }
 

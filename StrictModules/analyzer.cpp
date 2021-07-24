@@ -1834,9 +1834,6 @@ void Analyzer::analyzeExec(
   context_.lineno = execLino;
   context_.col = execCol;
 
-  // we will use the globals and locals for namespace, the initial scope
-  // is useless for this purpose
-  stack_.pop();
   SymtableEntry entry = stack_.getSymtable().entryFromAst(root_);
   auto scope =
       Analyzer::scopeFactory(std::move(entry), std::make_unique<DictType>());

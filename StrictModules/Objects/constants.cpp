@@ -17,6 +17,19 @@ std::shared_ptr<BaseStrictObject> NoneObject_::copy(const CallerContext&) {
   return shared_from_this();
 }
 
+bool NoneObject_::eq(const BaseStrictObject& other) const {
+  return typeid(other) == typeid(NoneObject_);
+}
+
+bool NoneObject_::isHashable() const {
+  return true;
+}
+
+size_t NoneObject_::hash() const {
+  // some random constant
+  return 255347;
+}
+
 std::shared_ptr<BaseStrictObject> NoneObject_::None__bool__(
     std::shared_ptr<NoneObject_>,
     const CallerContext&) {
@@ -66,6 +79,19 @@ std::string StrictEllipsisObject::getDisplayName() const {
 std::shared_ptr<BaseStrictObject> StrictEllipsisObject::copy(
     const CallerContext&) {
   return shared_from_this();
+}
+
+bool StrictEllipsisObject::eq(const BaseStrictObject& other) const {
+  return typeid(other) == typeid(StrictEllipsisObject);
+}
+
+bool StrictEllipsisObject::isHashable() const {
+  return true;
+}
+
+size_t StrictEllipsisObject::hash() const {
+  // some random constant
+  return 798211021;
 }
 
 std::shared_ptr<BaseStrictObject> StrictEllipsisObject::Ellipsis__repr__(

@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "StrictModules/Compiler/analyzed_module.h"
 #include "StrictModules/Compiler/module_info.h"
@@ -14,38 +15,49 @@
 namespace strictmod::compiler {
 enum class FileSuffixKind { kPythonFile, kStrictStubFile, kTypingStubFile };
 
+enum class AllowListKind { kPrefix, kExact };
+
+const char* getFileSuffixKindName(FileSuffixKind kind);
+
 class ModuleLoader {
  public:
   typedef std::function<bool(const std::string&, const std::string&)>
       ForceStrictFunc;
   typedef std::function<std::shared_ptr<BaseErrorSink>()> ErrorSinkFactory;
-
-  ModuleLoader(
-      std::vector<std::string> importPath,
-      std::vector<std::string> stubImportPath)
-      : ModuleLoader(
-            std::move(importPath),
-            std::move(stubImportPath),
-            std::nullopt,
-            [] { return std::make_unique<ErrorSink>(); }) {}
+  typedef std::vector<std::pair<std::string, AllowListKind>> AllowListType;
 
   ModuleLoader(
       std::vector<std::string> importPath,
       std::vector<std::string> stubImportPath,
+      AllowListType allowList = {})
+      : ModuleLoader(
+            std::move(importPath),
+            std::move(stubImportPath),
+            std::move(allowList),
+            std::nullopt,
+            [] { return std::make_unique<CollectingErrorSink>(); }) {}
+
+  ModuleLoader(
+      std::vector<std::string> importPath,
+      std::vector<std::string> stubImportPath,
+      AllowListType allowList,
       ForceStrictFunc forceStrict)
       : ModuleLoader(
             std::move(importPath),
             std::move(stubImportPath),
+            std::move(allowList),
             forceStrict,
-            [] { return std::make_unique<ErrorSink>(); }) {}
+            [] { return std::make_unique<CollectingErrorSink>(); }) {}
 
   ModuleLoader(
       std::vector<std::string> importPath,
       std::vector<std::string> stubImportPath,
+      AllowListType allowList,
       std::optional<ForceStrictFunc> forceStrict,
       ErrorSinkFactory factory)
       : importPath_(std::move(importPath)),
         stubImportPath_(std::move(stubImportPath)),
+        allowList_(std::move(allowList)),
         modules_(),
         forceStrict_(forceStrict),
         errorSinkFactory_(factory) {
@@ -116,6 +128,10 @@ class ModuleLoader {
   bool setImportPath(std::vector<std::string> importPath);
   bool setStubImportPath(std::string importPath);
   bool setStubImportPath(std::vector<std::string> importPath);
+  void setForceStrict(bool force);
+  bool clearAllowList();
+  bool setAllowListPrefix(std::vector<std::string> allowList);
+  bool setAllowListExact(std::vector<std::string> allowList);
 
   PyArena* getArena() {
     return arena_;
@@ -125,6 +141,9 @@ class ModuleLoader {
   static const std::string kArenaNewErrorMsg;
   std::vector<std::string> importPath_;
   std::vector<std::string> stubImportPath_;
+  // list of module names that's allowed for strict analysis
+  // even if they are not otherwise marked as strict
+  AllowListType allowList_;
   PyArena* arena_;
   // the loader owns all analyzed module produced during the analysis
   std::unordered_map<std::string, std::unique_ptr<AnalyzedModule>> modules_;
@@ -132,6 +151,7 @@ class ModuleLoader {
   ErrorSinkFactory errorSinkFactory_;
 
   AnalyzedModule* analyze(std::unique_ptr<ModuleInfo> modInfo);
+  bool isAllowListed(const std::string& modName);
 };
 
 } // namespace strictmod::compiler

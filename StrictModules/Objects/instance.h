@@ -4,9 +4,10 @@
 #include "StrictModules/Objects/base_object.h"
 
 namespace strictmod::objects {
-
+class StrictObjectType;
 class StrictInstance : public BaseStrictObject {
  public:
+  friend class StrictObjectType;
   StrictInstance(
       std::shared_ptr<StrictType> type,
       std::shared_ptr<StrictModuleObject> creator,
@@ -45,6 +46,7 @@ class StrictInstance : public BaseStrictObject {
   std::shared_ptr<DictType> dict_;
   std::shared_ptr<BaseStrictObject> dictObj_; // __dict__, backed by dict_
   bool cleaned_; // flag used during clean up to prevent cycles
+  std::optional<std::string> doc_; // every object can have __doc__
 };
 } // namespace strictmod::objects
 #endif // !__STRICTM_INSTANCE_H__

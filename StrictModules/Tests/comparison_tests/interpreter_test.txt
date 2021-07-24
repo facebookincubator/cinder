@@ -2863,6 +2863,14 @@ x = 'abc'.upper()
 x
 ---
 ---
+test_str_encode
+---
+x = 'abc'.encode()
+y = 'abc'.encode("utf-8")
+---
+x y
+---
+---
 test_str_strip
 ---
 x = ' abc '.strip()
@@ -4127,8 +4135,12 @@ b3 = "A" < "a"
 b4 = "foo" < "bar"
 b5 = "bar" < "baz"
 b6 = "abc" < "bbc" > "bac"
+b7 = "abc" in "abc"
+b8 = "a" in "abc"
+b9 = "a" in ""
+b10 = "abc" not in "abc"
 ---
-b1 b2 b3 b4 b5 b6
+b1 b2 b3 b4 b5 b6 b7 b8 b9 b10
 ---
 ---
 test_str_subclass_compare
@@ -5028,7 +5040,7 @@ exec(code, d)
 x = d['x']
 ---
 ---
-3 0 StrictModuleUnhandledException(NameError)
+3 0 StrictModuleUnhandledException(TypeError)
 ---
 test_object_repr
 ---
@@ -5311,6 +5323,16 @@ sb = str(C.b)
 sc = str(C.c)
 ---
 a b c sa sb sc
+---
+---
+test_typing_TYPE_CHECKING
+---
+from typing import TYPE_CHECKING
+x = 1
+if TYPE_CHECKING:
+    x = 2
+---
+x
 ---
 ---
 test_builtin_TYPE_CHECKING @disabled

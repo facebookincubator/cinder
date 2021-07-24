@@ -1,4 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+from collections import namedtuple
 from reprlib import recursive_repr
 
 WRAPPER_ASSIGNMENTS =  ('__module__', '__name__', '__qualname__', '__doc__', '__annotations__')
@@ -12,6 +13,10 @@ def wraps(): ...
 @implicit
 class partial:
     pass
+
+@implicit
+def _unwrap_partial():
+    ...
 
 @implicit
 def _gt_from_lt(): ...
@@ -52,6 +57,8 @@ _convert = {
                ('__gt__', _gt_from_ge),
                ('__lt__', _lt_from_ge)]
 }
+
+_CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
 
 def total_ordering(cls):
     """Class decorator that fills in missing ordering methods"""

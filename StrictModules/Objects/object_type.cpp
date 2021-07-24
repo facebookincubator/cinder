@@ -292,7 +292,9 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::getElement(
       }
     }
     caller.raiseTypeError(
-        "'{}' object {} is not subscriptable", obj->getTypeRef().getDisplayName(), obj->getDisplayName());
+        "'{}' object {} is not subscriptable",
+        obj->getTypeRef().getDisplayName(),
+        obj->getDisplayName());
   }
   return iCall(getItem, {index}, kEmptyArgNames, caller);
 }
@@ -455,9 +457,11 @@ void StrictObjectType::addMethods() {
   addMethod("__format__", object__format__);
   addMethod(kDunderRepr, object__repr__);
   addMethod("__hash__", object__hash__);
-  addClassMethod("__init_subclass__", object__init_subclass__);
+  addBuiltinFunctionOrMethod("__init_subclass__", object__init_subclass__);
   addGetSetDescriptor(kDunderClass, getDunderClass, nullptr, nullptr);
   addGetSetDescriptor(kDunderDict, getDunderDictDisallowed, nullptr, nullptr);
+  addStringOptionalMemberDescriptor<StrictInstance, &StrictInstance::doc_>(
+      "__doc__");
 }
 
 std::shared_ptr<BaseStrictObject> object__init__(
@@ -556,6 +560,8 @@ std::shared_ptr<BaseStrictObject> object__hash__(
 
 std::shared_ptr<BaseStrictObject> object__init_subclass__(
     std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>&,
+    const std::vector<std::string>&,
     const CallerContext&) {
   return NoneObject();
 }

@@ -149,21 +149,39 @@ AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
   // look for pys (strict module specific) stub
   auto stubModInfo =
       findModule(modName, stubImportPath_, FileSuffixKind::kStrictStubFile);
+  bool stubIsNamespacePackage = false;
   if (stubModInfo) {
-    std::unique_ptr<ModuleInfo> replacedStubInfo =
-        getStubModuleInfo(std::move(stubModInfo), this);
-    if (!replacedStubInfo) {
+    stubModInfo = getStubModuleInfo(std::move(stubModInfo), this);
+    if (!stubModInfo) {
       return nullptr;
     }
-    return analyze(std::move(replacedStubInfo));
+    stubIsNamespacePackage =
+        std::filesystem::is_directory(stubModInfo->getFilename());
   }
 
   // look for py source code
   auto modInfo = findModule(modName, FileSuffixKind::kPythonFile);
-  if (!modInfo) {
-    return nullptr;
+  if (stubModInfo && (!stubIsNamespacePackage || !modInfo)) {
+    return analyze(std::move(stubModInfo));
   }
-  return analyze(std::move(modInfo));
+  if (modInfo) {
+    return analyze(std::move(modInfo));
+  }
+
+  // look for typing stub
+  auto typingModInfo = findModule(modName, FileSuffixKind::kTypingStubFile);
+  if (typingModInfo) {
+    typingModInfo->setFutureAnnotations(true);
+    if (typingModInfo->getStubKind().isForcedStrict()) {
+      return analyze(std::move(typingModInfo));
+    }
+    if (typingModInfo->getStubKind().isTyping() &&
+        getModuleKind(typingModInfo->getAst()) == ModuleKind::kStatic) {
+      // TODO: remove annotations
+      return analyze(std::move(typingModInfo));
+    }
+  }
+  return nullptr;
 }
 
 bool ModuleLoader::setImportPath(std::vector<std::string> importPath) {
@@ -181,6 +199,31 @@ bool ModuleLoader::setStubImportPath(std::vector<std::string> importPath) {
   return true;
 }
 
+void ModuleLoader::setForceStrict(bool force) {
+  forceStrict_ = [force](const std::string&, const std::string&) {
+    return force;
+  };
+}
+
+bool ModuleLoader::clearAllowList() {
+  allowList_.clear();
+  return true;
+}
+
+bool ModuleLoader::setAllowListPrefix(std::vector<std::string> allowList) {
+  for (const std::string& mod : allowList) {
+    allowList_.emplace_back(mod, AllowListKind::kPrefix);
+  }
+  return true;
+}
+
+bool ModuleLoader::setAllowListExact(std::vector<std::string> allowList) {
+  for (const std::string& mod : allowList) {
+    allowList_.emplace_back(mod, AllowListKind::kExact);
+  }
+  return true;
+}
+
 AnalyzedModule* ModuleLoader::loadModuleFromSource(
     const std::string& source,
     const std::string& name,
@@ -189,12 +232,15 @@ AnalyzedModule* ModuleLoader::loadModuleFromSource(
   auto readResult = readFromSource(source.c_str(), filename.c_str(), arena_);
   if (readResult) {
     AstAndSymbols& result = readResult.value();
+    bool allowlisted = isAllowListed(name);
+    auto stubKind = StubKind::getStubKind(filename, allowlisted);
     auto modinfo = std::make_unique<ModuleInfo>(
         std::move(name),
         std::move(filename),
         result.ast,
         result.futureAnnotations,
         std::move(result.symbols),
+        stubKind,
         std::move(searchLocations));
     return analyze(std::move(modinfo));
   }
@@ -223,13 +269,17 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
     auto readResult = readFromFile(modPathCstr, arena_);
     if (readResult) {
       AstAndSymbols& result = readResult.value();
+      std::string filename = pyModPath.string();
+      bool allowlisted = isAllowListed(modName);
       return std::make_unique<ModuleInfo>(
           std::move(modName),
-          pyModPath.string(),
+          filename,
           result.ast,
           result.futureAnnotations,
-          std::move(result.symbols));
+          std::move(result.symbols),
+          StubKind::getStubKind(filename, allowlisted));
     }
+
     // case 2: __init__.py file
     std::filesystem::path initModPath =
         std::filesystem::path(importPath) / modPathStr / "__init__";
@@ -238,13 +288,36 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
     readResult = readFromFile(initPathCstr, arena_);
     if (readResult) {
       AstAndSymbols& result = readResult.value();
+      std::string filename = initModPath.string();
+      bool allowlisted = isAllowListed(modName);
       return std::make_unique<ModuleInfo>(
           std::move(modName),
-          initModPath.string(),
+          filename,
           result.ast,
           result.futureAnnotations,
           std::move(result.symbols),
+          StubKind::getStubKind(filename, allowlisted),
           std::vector<std::string>{importPath});
+    }
+
+    // case 3: namespace package (path is a directory)
+    std::filesystem::path nmPackagePath =
+        std::filesystem::path(importPath) / modPathStr;
+    if (std::filesystem::is_directory(nmPackagePath)) {
+      readResult = readFromSource("", nmPackagePath.c_str(), arena_);
+      if (readResult) {
+        AstAndSymbols& result = readResult.value();
+        std::string filename = nmPackagePath.string();
+        bool allowlisted = isAllowListed(modName);
+        return std::make_unique<ModuleInfo>(
+            std::move(modName),
+            filename,
+            result.ast,
+            result.futureAnnotations,
+            std::move(result.symbols),
+            StubKind::getStubKind(filename, allowlisted),
+            std::vector<std::string>{importPath});
+      }
     }
   }
   return nullptr;
@@ -270,7 +343,8 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModuleFromSource(
         filename,
         result.ast,
         result.futureAnnotations,
-        std::move(result.symbols));
+        std::move(result.symbols),
+        StubKind::getStubKind(filename, false));
     return modinfo;
   }
   return nullptr;
@@ -286,52 +360,76 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   AnalyzedModule* analyzedModule =
       new AnalyzedModule(getModuleKind(ast), std::move(errorSink));
   modules_[name] = std::unique_ptr<AnalyzedModule>(analyzedModule);
-  if (!analyzedModule->isStrict() &&
-      !(forceStrict_ && forceStrict_.value()(name, modInfo->getFilename()))) {
-    return analyzedModule;
-  }
-  // Run ast visits
-  auto globalScope = std::shared_ptr(objects::getBuiltinsDict());
-  // create module object. Analysis result will be the __dict__ of this object
-  auto mod =
-      StrictModuleObject::makeStrictModule(ModuleType(), name, globalScope);
+  if (analyzedModule->isStrict() || modInfo->getStubKind().isForcedStrict() ||
+      (forceStrict_ && (*forceStrict_)(name, modInfo->getFilename()))) {
+    // Run ast visits
+    auto globalScope = std::shared_ptr(objects::getBuiltinsDict());
+    // create module object. Analysis result will be the __dict__ of this object
+    auto mod =
+        StrictModuleObject::makeStrictModule(ModuleType(), name, globalScope);
 
-  // set __name__ and __path__
-  mod->setAttr(
-      "__name__",
-      std::make_shared<objects::StrictString>(objects::StrType(), mod, name));
-  const auto& subModuleLocs = modInfo->getSubmoduleSearchLocations();
-  if (!subModuleLocs.empty()) {
-    std::vector<std::shared_ptr<objects::BaseStrictObject>> pathVec;
-    pathVec.reserve(subModuleLocs.size());
-    for (const std::string& s : subModuleLocs) {
-      auto strObj =
-          std::make_shared<objects::StrictString>(objects::StrType(), mod, s);
-      pathVec.push_back(std::move(strObj));
-    }
+    // set __name__ and __path__
     mod->setAttr(
-        "__path__",
-        std::make_shared<objects::StrictList>(
-            objects::ListType(), mod, std::move(pathVec)));
+        "__name__",
+        std::make_shared<objects::StrictString>(objects::StrType(), mod, name));
+    const auto& subModuleLocs = modInfo->getSubmoduleSearchLocations();
+    if (!subModuleLocs.empty()) {
+      std::vector<std::shared_ptr<objects::BaseStrictObject>> pathVec;
+      pathVec.reserve(subModuleLocs.size());
+      for (const std::string& s : subModuleLocs) {
+        auto strObj =
+            std::make_shared<objects::StrictString>(objects::StrType(), mod, s);
+        pathVec.push_back(std::move(strObj));
+      }
+      mod->setAttr(
+          "__path__",
+          std::make_shared<objects::StrictList>(
+              objects::ListType(), mod, std::move(pathVec)));
+    }
+
+    analyzedModule->setModuleValue(mod);
+
+    // do analysis
+    Analyzer analyzer(
+        ast,
+        this,
+        Symtable(modInfo->passSymtable()),
+        globalScope,
+        errorSinkBorrowed,
+        modInfo->getFilename(),
+        name,
+        "<module>",
+        mod,
+        modInfo->getFutureAnnotations());
+
+    analyzer.analyze();
   }
-
-  analyzedModule->setModuleValue(mod);
-
-  // do analysis
-  Analyzer analyzer(
-      ast,
-      this,
-      Symtable(modInfo->passSymtable()),
-      globalScope,
-      errorSinkBorrowed,
-      modInfo->getFilename(),
-      name,
-      "<module>",
-      mod,
-      modInfo->getFutureAnnotations());
-  analyzer.analyze();
 
   return analyzedModule;
+}
+
+bool ModuleLoader::isAllowListed(const std::string& modName) {
+  for (const auto& allowed : allowList_) {
+    if (allowed.first == modName) {
+      return true;
+    }
+    switch (allowed.second) {
+      case AllowListKind::kPrefix: {
+        std::size_t startPos = modName.rfind(allowed.first, 0);
+        // modName startswith an allowlisted mod name prefix,
+        // and the next character after the prefix is '.'.
+        // This differentiates allowed.mod.name.the.rest versus
+        // allowed.mod.nameAndOthers
+        if (startPos == 0 && modName[allowed.first.size()] == '.') {
+          return true;
+        }
+      }
+      case AllowListKind::kExact: {
+        continue;
+      }
+    }
+  }
+  return false;
 }
 
 } // namespace strictmod::compiler

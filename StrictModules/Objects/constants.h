@@ -16,6 +16,9 @@ class NoneObject_ : public StrictInstance {
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
   virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+  virtual bool eq(const BaseStrictObject& other) const override;
+  virtual bool isHashable() const override;
+  virtual size_t hash() const override;
 };
 
 class NoneType_ : public StrictObjectType {
@@ -50,6 +53,9 @@ class StrictEllipsisObject : public StrictInstance {
   virtual Ref<> getPyObject() const override;
   virtual std::string getDisplayName() const override;
   virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+  virtual bool eq(const BaseStrictObject& other) const override;
+  virtual bool isHashable() const override;
+  virtual size_t hash() const override;
 };
 
 class StrictEllipsisType : public StrictObjectType {

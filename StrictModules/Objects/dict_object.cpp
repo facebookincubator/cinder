@@ -217,9 +217,6 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__setitem__(
   }
   checkExternalModification(self, caller);
 
-  if (!key->isHashable()) {
-    caller.raiseTypeError("key of type {} is unhashable", keyType->getName());
-  }
   bool success = self->data_->set(std::move(key), std::move(value));
   if (!success) {
     caller.error<UnsupportedException>(
@@ -241,9 +238,6 @@ std::shared_ptr<BaseStrictObject> StrictDict::dict__delitem__(
   }
   checkExternalModification(self, caller);
 
-  if (!key->isHashable()) {
-    caller.raiseTypeError("key of type {} is unhashable", keyType->getName());
-  }
   bool success = self->data_->erase(key);
   if (!success) {
     caller.error<UnsupportedException>(
@@ -574,12 +568,10 @@ std::vector<std::type_index> StrictDictViewType::getBaseTypeinfos() const {
 bool DirectMapDictData::set(
     std::shared_ptr<BaseStrictObject> key,
     std::shared_ptr<BaseStrictObject> value) {
-  if (key->isHashable()) {
-    data_[std::move(key)] = std::move(value);
-    return true;
-  }
-  return false;
+  data_[std::move(key)] = std::move(value);
+  return true;
 }
+
 std::optional<std::shared_ptr<BaseStrictObject>> DirectMapDictData::get(
     const std::shared_ptr<BaseStrictObject>& key) {
   auto item = data_.find(key);
@@ -599,11 +591,8 @@ std::size_t DirectMapDictData::size() const {
 }
 
 bool DirectMapDictData::erase(const std::shared_ptr<BaseStrictObject>& key) {
-  if (key->isHashable()) {
-    data_.erase(key);
-    return true;
-  }
-  return false;
+  std::size_t erased = data_.erase(key);
+  return erased > 0;
 }
 
 void DirectMapDictData::clear() {

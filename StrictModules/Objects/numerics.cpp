@@ -231,7 +231,7 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__new__(
   auto str = std::dynamic_pointer_cast<StrictString>(value);
   if (str) {
     try {
-      long i = std::stol(str->getValue());
+      int_type i = std::stoll(str->getValue());
       return std::make_shared<StrictInt>(std::move(type), caller.caller, i);
     } catch (const std::invalid_argument&) {
       caller.raiseExceptionStr(
@@ -400,8 +400,8 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__floordiv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
-  checkDivisionByZero(rhsInt, caller);
   if (rhsInt) {
+    checkDivisionByZero(rhsInt, caller);
     INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, /, PyNumber_FloorDivide);
   }
   return NotImplemented();
@@ -478,8 +478,8 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__truediv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
-  checkDivisionByZero(rhsInt, caller);
   if (rhsInt) {
+    checkDivisionByZero(rhsInt, caller);
     if (self->value_ && rhsInt->value_) {
       return caller.makeFloat(double(*self->value_) / *rhsInt->value_);
     } else {
@@ -529,8 +529,8 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rfloordiv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
-  checkDivisionByZero(lhsInt, caller);
   if (lhsInt) {
+    checkDivisionByZero(lhsInt, caller);
     INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, /, PyNumber_FloorDivide);
   }
   return NotImplemented();
@@ -607,8 +607,8 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rtruediv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
-  checkDivisionByZero(lhsInt, caller);
   if (lhsInt) {
+    checkDivisionByZero(self, caller);
     if (self->value_ && lhsInt->value_) {
       return caller.makeFloat(double(*lhsInt->value_) / *self->value_);
     } else {
@@ -1236,7 +1236,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rfloordiv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
-  checkDivisionByZero(num, caller);
+  checkDivisionByZero(self, caller);
   if (num) {
     FLOAT_OP_BOTH_VALUE(num, self, caller.makeInt, /, PyNumber_FloorDivide);
   }
@@ -1284,7 +1284,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__rtruediv__(
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> lhs) {
   auto num = std::dynamic_pointer_cast<StrictNumeric>(lhs);
-  checkDivisionByZero(num, caller);
+  checkDivisionByZero(self, caller);
   if (num) {
     FLOAT_OP_BOTH_VALUE(num, self, caller.makeFloat, /, PyNumber_TrueDivide);
   }

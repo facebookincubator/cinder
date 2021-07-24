@@ -34,6 +34,10 @@ std::string StrictModuleException::testStringHelper() const {
   return "StrictModuleException";
 }
 
+std::string StrictModuleException::displayStringHelper() const {
+  return "StrictModuleException";
+}
+
 // StrictModuleNotImplementedException
 StrictModuleNotImplementedException::StrictModuleNotImplementedException(
     int lineno,
@@ -50,6 +54,10 @@ StrictModuleNotImplementedException::StrictModuleNotImplementedException(
           std::move(cause)) {}
 
 std::string StrictModuleNotImplementedException::testStringHelper() const {
+  return "StrictModuleNotImplementedException";
+}
+
+std::string StrictModuleNotImplementedException::displayStringHelper() const {
   return "StrictModuleNotImplementedException";
 }
 
@@ -71,6 +79,11 @@ StrictModuleTooManyIterationsException::StrictModuleTooManyIterationsException(
           "too many iterations") {}
 
 std::string StrictModuleTooManyIterationsException::testStringHelper() const {
+  return "StrictModuleTooManyIterationsException";
+}
+
+std::string StrictModuleTooManyIterationsException::displayStringHelper()
+    const {
   return "StrictModuleTooManyIterationsException";
 }
 
@@ -119,6 +132,10 @@ const char* StrictModuleUnhandledException::what() const noexcept {
 }
 
 std::string StrictModuleUnhandledException::testStringHelper() const {
+  return fmt::format("StrictModuleUnhandledException({})", exceptionName_);
+}
+
+std::string StrictModuleUnhandledException::displayStringHelper() const {
   return fmt::format("StrictModuleUnhandledException({})", exceptionName_);
 }
 

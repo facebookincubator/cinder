@@ -138,6 +138,12 @@ std::shared_ptr<BaseStrictObject> printImpl(
     const std::vector<std::string>& namedArgs,
     const CallerContext& caller);
 
+std::shared_ptr<BaseStrictObject> inputImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller);
+
 std::shared_ptr<BaseStrictObject> maxImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
@@ -195,6 +201,24 @@ std::shared_ptr<BaseStrictObject> strictTryImport(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> name);
+
+/** Create an unknown object with given name. Callable
+ *  from user code
+ */
+std::shared_ptr<BaseStrictObject> strictKnownUnknownObj(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> name);
+
+/** Create an unknown object with given func name and
+ * arg, formatted as a function call. Callable
+ *  from user code
+ */
+std::shared_ptr<BaseStrictObject> strictKnownUnknownCallable(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller);
 } // namespace strictmod::objects
 
 #endif // __STRICTM_BUILTINS_OBJ___

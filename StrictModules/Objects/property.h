@@ -7,6 +7,7 @@
 namespace strictmod::objects {
 class StrictProperty : public StrictInstance {
  public:
+  friend class StrictPropertyType;
   StrictProperty(
       std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
@@ -61,6 +62,7 @@ class StrictProperty : public StrictInstance {
   std::shared_ptr<BaseStrictObject> fget_;
   std::shared_ptr<BaseStrictObject> fset_;
   std::shared_ptr<BaseStrictObject> fdel_;
+  std::optional<std::string> doc_; // the __doc__ field
 };
 
 class StrictPropertyType : public StrictObjectType {

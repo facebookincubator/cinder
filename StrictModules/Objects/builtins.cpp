@@ -222,11 +222,12 @@ std::shared_ptr<BaseStrictObject> execImpl(
       modinfo->getAst(),
       nullptr,
       std::move(table),
+      std::shared_ptr<DictType>(getBuiltinsDict()),
       caller.errorSink,
       "<exec>",
       "<exec>",
       "",
-      caller.caller);
+      caller.caller.lock());
   analyzer.analyzeExec(
       caller.lineno, caller.col, std::move(globals), std::move(locals));
   return NoneObject();
@@ -485,7 +486,7 @@ std::shared_ptr<BaseStrictObject> getattrImpl(
     }
   }
   if (result == nullptr) {
-    caller.raiseExceptionFromObj(AttributeErrorType());
+    caller.raiseExceptionStr(AttributeErrorType(), "");
   }
   return result;
 }
@@ -556,6 +557,14 @@ std::shared_ptr<BaseStrictObject> printImpl(
     const std::vector<std::string>&,
     const CallerContext&) {
   return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> inputImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>&,
+    const std::vector<std::string>&,
+    const CallerContext& caller) {
+  return caller.makeStr("");
 }
 
 static std::shared_ptr<BaseStrictObject> minmaxMultiArgHelper(
@@ -737,5 +746,25 @@ std::shared_ptr<BaseStrictObject> strictTryImport(
     const CallerContext&,
     std::shared_ptr<BaseStrictObject>) {
   return NoneObject();
+}
+
+std::shared_ptr<BaseStrictObject> strictKnownUnknownObj(
+    std::shared_ptr<BaseStrictObject>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject> name) {
+  return makeUnknown(caller, "{}", name);
+}
+
+std::shared_ptr<BaseStrictObject> strictKnownUnknownCallable(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  if (args.empty()) {
+    return makeUnknown(caller, "<unknown>");
+  }
+  std::vector<std::shared_ptr<BaseStrictObject>> restArg(
+      std::next(args.begin()), args.end());
+  return makeUnknown(caller, "{}({})", args[0], formatArgs(restArg, namedArgs));
 }
 } // namespace strictmod::objects

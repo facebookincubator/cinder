@@ -146,7 +146,11 @@ class ModuleLoaderTest : public PythonTest {
     std::vector<std::string> stubImportPaths;
     stubImportPaths.emplace_back(stubPath);
     return std::make_unique<strictmod::compiler::ModuleLoader>(
-        std::move(importPaths), std::move(stubImportPaths), func, factory);
+        std::move(importPaths),
+        std::move(stubImportPaths),
+        strictmod::compiler::ModuleLoader::AllowListType{},
+        func,
+        factory);
   }
 
   std::unique_ptr<strictmod::compiler::AnalyzedModule>
