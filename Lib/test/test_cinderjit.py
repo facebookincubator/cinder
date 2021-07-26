@@ -15,9 +15,9 @@ from compiler.static import StaticCodeGenerator
 try:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        from .test_compiler.test_static import StaticTestBase
+        from .test_compiler.test_static.common import StaticTestBase
 except ImportError:
-    from test_compiler.test_static import StaticTestBase
+    from test_compiler.test_static.common import StaticTestBase
 
 from contextlib import contextmanager
 

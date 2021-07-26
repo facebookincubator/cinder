@@ -20,6 +20,8 @@ from cinder import StrictModule
 
 def run_static_tests():
     import test_compiler.test_static as test_static
+    from test_compiler.test_static.common import StaticTestBase
+    from test_compiler.test_static.tests import init_xxclassloader
 
     CODE_SAMPLES_IN_MODULE = []
     CODE_SAMPLES_IN_STRICT_MODULE = []
@@ -69,9 +71,9 @@ def run_static_tests():
     unittest.TextTestRunner().run(suite)
 
     print("Regenerate Static Python tests Python code")
-    class StaticTestCodeRegenerator(test_static.StaticTestBase):
+    class StaticTestCodeRegenerator(StaticTestBase):
         def __init__(self):
-            test_static.init_xxclassloader()
+            init_xxclassloader()
 
             for args in CODE_SAMPLES_IN_MODULE:
                 self._in_module(*args)
