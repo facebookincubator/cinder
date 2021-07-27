@@ -14605,6 +14605,31 @@ class StaticRuntimeTests(StaticTestBase):
         clist_copy[0].x = 1
         self.assertEqual(clist[0].x, 1)
 
+    def test_checked_list_extend(self):
+        x = chklist[int]()
+        x.append(3)
+        x.extend([1, 2])
+        self.assertEqual(repr(x), "[3, 1, 2]")
+        self.assertEqual(repr(type(x)), "<class '__static__.chklist[int]'>")
+
+    def test_checked_list_extend_type_error(self):
+        x = chklist[int]()
+        x.append(3)
+        with self.assertRaisesRegex(TypeError, r"bad value 'str' for chklist\[int\]"):
+            x.extend([1, "hi"])
+        # Ensure that we leave the chklist in its old state when extend fails.
+        self.assertEqual(repr(x), "[3]")
+
+    def test_checked_list_extend_with_non_list(self):
+        x = chklist[int]()
+        d = {1: 2, 2: 3}
+        x.extend(d.keys())
+        self.assertEqual(repr(x), "[1, 2]")
+        d["a"] = 4
+        with self.assertRaisesRegex(TypeError, r"bad value 'str' for chklist\[int\]"):
+            x.extend(d.keys())
+        self.assertEqual(repr(x), "[1, 2, 1, 2]")
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,

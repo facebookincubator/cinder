@@ -129,6 +129,11 @@ _PyGenericTypeDef _PyCheckedList_Type;
 #define IS_CHECKED_LIST(x)                                                    \
     (_PyClassLoader_GetGenericTypeDef((PyObject *)x) == &_PyCheckedList_Type)
 
+static inline int
+_PyList_CheckIncludingChecked(PyObject *x)
+{
+    return PyList_Check(x) || IS_CHECKED_LIST(x);
+}
 
 int
 PyList_ClearFreeList(void)
@@ -3192,9 +3197,9 @@ listiter_next(listiterobject *it)
     seq = it->it_seq;
     if (seq == NULL)
         return NULL;
-    assert(PyList_Check(seq));
+    assert(_PyList_CheckIncludingChecked((PyObject *) seq));
 
-    if (it->it_index < PyList_GET_SIZE(seq)) {
+    if (it->it_index < Py_SIZE(seq)) {
         item = PyList_GET_ITEM(seq, it->it_index);
         ++it->it_index;
         Py_INCREF(item);
@@ -3211,7 +3216,7 @@ listiter_len(listiterobject *it, PyObject *Py_UNUSED(ignored))
 {
     Py_ssize_t len;
     if (it->it_seq) {
-        len = PyList_GET_SIZE(it->it_seq) - it->it_index;
+        len = Py_SIZE(it->it_seq) - it->it_index;
         if (len >= 0)
             return PyLong_FromSsize_t(len);
     }
@@ -3310,7 +3315,7 @@ list___reversed___impl(PyListObject *self)
     it = PyObject_GC_New(listreviterobject, &PyListRevIter_Type);
     if (it == NULL)
         return NULL;
-    assert(PyList_Check(self) || IS_CHECKED_LIST(self));
+    assert(_PyList_CheckIncludingChecked((PyObject *) self));
     it->it_index = Py_SIZE(self) - 1;
     Py_INCREF(self);
     it->it_seq = self;
@@ -3345,7 +3350,7 @@ listreviter_next(listreviterobject *it)
     if (seq == NULL) {
         return NULL;
     }
-    assert(PyList_Check(seq) || IS_CHECKED_LIST(seq));
+    assert(_PyList_CheckIncludingChecked((PyObject *) seq));
 
     index = it->it_index;
     if (index>=0 && index < Py_SIZE(seq)) {
@@ -3549,6 +3554,175 @@ chklist_copy(PyListObject *self)
 
 _Py_TYPED_SIGNATURE(chklist_copy, _Py_SIG_OBJECT, NULL);
 
+static inline int
+chklist_checkitem(PyListObject *list, PyObject *value)
+{
+    if (!_PyClassLoader_CheckParamType((PyObject *)list, value, 0)) {
+        PyErr_Format(PyExc_TypeError,
+                     "bad value '%s' for %s",
+                     Py_TYPE(value)->tp_name,
+                     Py_TYPE(list)->tp_name);
+        return -1;
+    }
+    return 0;
+}
+
+static PyObject *
+chklist_iter(PyObject *seq)
+{
+    listiterobject *it;
+
+    if (!IS_CHECKED_LIST(seq)) {
+        PyErr_BadInternalCall();
+        return NULL;
+    }
+    it = PyObject_GC_New(listiterobject, &PyListIter_Type);
+    if (it == NULL)
+        return NULL;
+    it->it_index = 0;
+    Py_INCREF(seq);
+    it->it_seq = (PyListObject *)seq;
+    _PyObject_GC_TRACK(it);
+    return (PyObject *)it;
+}
+
+
+static int
+chklist_extend(PyListObject *self, PyObject *iterable)
+{
+    PyObject *it;                  /* iter(v) */
+    Py_ssize_t m;                  /* size of self */
+    Py_ssize_t n;                  /* guess for size of iterable */
+    Py_ssize_t mn;                 /* m + n */
+    Py_ssize_t i;
+    PyObject *(*iternext)(PyObject *);
+
+    /* Special cases:
+       1) lists and tuples which can use PySequence_Fast ops
+       2) extending self to self requires making a copy first
+    */
+    const int iterable_is_same_type =
+      IS_CHECKED_LIST(iterable) &&
+      Py_TYPE(self) == Py_TYPE(iterable);
+    if (_PyList_CheckIncludingChecked(iterable) || PyTuple_CheckExact(iterable) ||
+                (PyObject *)self == iterable) {
+        PyObject **src, **dest;
+        iterable = PySequence_Fast(iterable, "argument must be iterable");
+        if (!iterable)
+            return -1;
+        n = PySequence_Fast_GET_SIZE(iterable);
+        if (n == 0) {
+            /* short circuit when iterable is empty */
+            Py_DECREF(iterable);
+            return 0;
+        }
+        m = Py_SIZE(self);
+        if (!iterable_is_same_type) {
+             PyObject **items = PySequence_Fast_ITEMS(iterable);
+             for (i = 0; i < n; i++) {
+               if (chklist_checkitem(self, items[i])) {
+                   Py_DECREF(iterable);
+                   return -1;
+               }
+             }
+
+        }
+        /* It should not be possible to allocate a list large enough to cause
+        an overflow on any relevant platform */
+        assert(m < PY_SSIZE_T_MAX - n);
+        if (list_resize(self, m + n) < 0) {
+            Py_DECREF(iterable);
+            return -1;
+        }
+        /* note that we may still have self == iterable here for the
+         * situation a.extend(a), but the following code works
+         * in that case too.  Just make sure to resize self
+         * before calling PySequence_Fast_ITEMS.
+         */
+        /* populate the end of self with iterable's items */
+        src = PySequence_Fast_ITEMS(iterable);
+        dest = self->ob_item + m;
+        for (i = 0; i < n; i++) {
+            PyObject *o = src[i];
+            Py_INCREF(o);
+            dest[i] = o;
+        }
+        Py_DECREF(iterable);
+        return 0;
+    }
+
+    it = PyObject_GetIter(iterable);
+    if (it == NULL)
+        return -1;
+    iternext = *it->ob_type->tp_iternext;
+
+    /* Guess a result list size. */
+    n = PyObject_LengthHint(iterable, 8);
+    if (n < 0) {
+        Py_DECREF(it);
+        return -1;
+    }
+    m = Py_SIZE(self);
+    if (m > PY_SSIZE_T_MAX - n) {
+        /* m + n overflowed; on the chance that n lied, and there really
+         * is enough room, ignore it.  If n was telling the truth, we'll
+         * eventually run out of memory during the loop.
+         */
+    }
+    else {
+        mn = m + n;
+        /* Make room. */
+        if (list_resize(self, mn) < 0)
+            goto error;
+        /* Make the list sane again. */
+        Py_SIZE(self) = m;
+    }
+
+    /* Run iterator to exhaustion. */
+    for (;;) {
+        PyObject *item = iternext(it);
+        if (item == NULL || chklist_checkitem(self, item)) {
+            if (item != NULL) {
+                Py_DECREF(item);
+            }
+            if (PyErr_Occurred()) {
+                if (PyErr_ExceptionMatches(PyExc_StopIteration))
+                    PyErr_Clear();
+                else
+                    goto error;
+            }
+            break;
+        }
+        if (Py_SIZE(self) < self->allocated) {
+            /* steals ref */
+            PyList_SET_ITEM(self, Py_SIZE(self), item);
+            ++Py_SIZE(self);
+        }
+        else {
+            int status = app1(self, item);
+            Py_DECREF(item);  /* append creates a new ref */
+            if (status < 0)
+                goto error;
+        }
+    }
+
+    /* Cut back result list if initial guess was too large. */
+    if (Py_SIZE(self) < self->allocated) {
+        if (list_resize(self, Py_SIZE(self)) < 0)
+            goto error;
+    }
+
+    Py_DECREF(it);
+    return 0;
+
+  error:
+    Py_DECREF(it);
+    return -1;
+}
+
+_Py_TYPED_SIGNATURE(chklist_extend, _Py_SIG_ERROR, &_Py_Sig_Object, NULL);
+
+
 static PyMethodDef chklist_methods[] = {
     {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
     // TODO(T96351329): We should implement a custom reverse iterator for checked lists.
@@ -3558,7 +3732,7 @@ static PyMethodDef chklist_methods[] = {
     {"copy", (PyCFunction)&chklist_copy_def, METH_TYPED, list_copy__doc__},
     {"append", (PyCFunction)&chklist_append_def, METH_TYPED, list_append__doc__},
     {"insert", (PyCFunction)&chklist_insert_def, METH_TYPED, list_insert__doc__},
-    LIST_EXTEND_METHODDEF
+    {"extend", (PyCFunction)&chklist_extend_def, METH_TYPED, list_extend__doc__},
     LIST_POP_METHODDEF
     LIST_REMOVE_METHODDEF
     LIST_INDEX_METHODDEF
@@ -3603,7 +3777,7 @@ _PyGenericTypeDef _PyCheckedList_Type = {
         (inquiry)_list_clear,                       /* tp_clear */
         list_richcompare,                           /* tp_richcompare */
         0,                                          /* tp_weaklistoffset */
-        list_iter,                                  /* tp_iter */
+        chklist_iter,                                  /* tp_iter */
         0,                                          /* tp_iternext */
         chklist_methods,                            /* tp_methods */
         0,                                          /* tp_members */
