@@ -14630,6 +14630,16 @@ class StaticRuntimeTests(StaticTestBase):
             x.extend(d.keys())
         self.assertEqual(repr(x), "[1, 2, 1, 2]")
 
+    def test_checked_list_pop(self):
+        x = chklist[int]()
+        x.extend([1, 2, 3, 4])
+        self.assertEqual(x.pop(), 4)
+        self.assertEqual(x.pop(), 3)
+        self.assertEqual(x.pop(), 2)
+        self.assertEqual(x.pop(), 1)
+        with self.assertRaises(IndexError):
+            x.pop()
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,
