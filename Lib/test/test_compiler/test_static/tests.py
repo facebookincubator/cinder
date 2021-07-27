@@ -14583,6 +14583,28 @@ class StaticRuntimeTests(StaticTestBase):
         self.assertEqual(repr(x), "[]")
         self.assertEqual(str(type(x)), "<class '__static__.chklist[int]'>")
 
+    def test_checked_list_copy(self):
+        x = chklist[int]()
+        x.append(12)
+        x.append(23)
+        self.assertEqual(repr(x), "[12, 23]")
+        y = x.copy()
+        y.append(34)
+        self.assertEqual(repr(x), "[12, 23]")
+        self.assertEqual(repr(y), "[12, 23, 34]")
+        self.assertEqual(str(type(y)), "<class '__static__.chklist[int]'>")
+
+        # Test that the copy is shallow.
+        class C:
+            x: int = 0
+
+        clist = chklist[C]()
+        clist.append(C())
+        clist_copy = clist.copy()
+        self.assertEqual(clist[0].x, 0)
+        clist_copy[0].x = 1
+        self.assertEqual(clist[0].x, 1)
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,

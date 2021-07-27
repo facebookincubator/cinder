@@ -3466,27 +3466,6 @@ _PyTypedMethodDef chklist_insert_def = {
   ins1, insert_sig, _Py_SIG_ERROR
 };
 
-
-static PyMethodDef chklist_methods[] = {
-    {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
-    // TODO(T96351329): We should implement a custom reverse iterator for checked lists.
-    LIST___REVERSED___METHODDEF
-    LIST___SIZEOF___METHODDEF
-    LIST_CLEAR_METHODDEF
-    LIST_COPY_METHODDEF
-    {"append", (PyCFunction)&chklist_append_def, METH_TYPED, list_append__doc__},
-    {"insert", (PyCFunction)&chklist_insert_def, METH_TYPED, list_insert__doc__},
-    LIST_EXTEND_METHODDEF
-    LIST_POP_METHODDEF
-    LIST_REMOVE_METHODDEF
-    LIST_INDEX_METHODDEF
-    LIST_COUNT_METHODDEF
-    LIST_REVERSE_METHODDEF
-    LIST_SORT_METHODDEF
-    {"__class_getitem__", (PyCFunction)chklist_cls_getitem, METH_VARARGS | METH_CLASS, NULL},
-    {NULL,              NULL}           /* sentinel */
-};
-
 static PyObject *
 chklist_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
@@ -3522,6 +3501,73 @@ chklist_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     _PyObject_GC_TRACK(op);
     return (PyObject *) op;
 }
+
+static PyObject *
+chklist_new_prealloc(PyTypeObject *type, Py_ssize_t size)
+{
+  PyListObject *op = (PyListObject *) chklist_new(type, NULL, NULL);
+    if (size == 0 || op == NULL) {
+        return (PyObject *) op;
+    }
+    assert(op->ob_item == NULL);
+    op->ob_item = PyMem_New(PyObject *, size);
+    if (op->ob_item == NULL) {
+        Py_DECREF(op);
+        return PyErr_NoMemory();
+    }
+    op->allocated = size;
+    return (PyObject *) op;
+}
+
+static PyObject *
+chklist_slice(PyListObject *self, Py_ssize_t ilow, Py_ssize_t ihigh)
+{
+    PyListObject *np;
+    PyObject **src, **dest;
+    Py_ssize_t i, len;
+    len = ihigh - ilow;
+    np = (PyListObject *) chklist_new_prealloc(Py_TYPE(self), len);
+    if (np == NULL)
+        return NULL;
+
+    src = self->ob_item + ilow;
+    dest = np->ob_item;
+    for (i = 0; i < len; i++) {
+        PyObject *v = src[i];
+        Py_INCREF(v);
+        dest[i] = v;
+    }
+    Py_SIZE(np) = len;
+    return (PyObject *)np;
+}
+
+static inline PyObject *
+chklist_copy(PyListObject *self)
+{
+  return chklist_slice(self, 0, Py_SIZE(self));
+}
+
+_Py_TYPED_SIGNATURE(chklist_copy, _Py_SIG_OBJECT, NULL);
+
+static PyMethodDef chklist_methods[] = {
+    {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
+    // TODO(T96351329): We should implement a custom reverse iterator for checked lists.
+    LIST___REVERSED___METHODDEF
+    LIST___SIZEOF___METHODDEF
+    LIST_CLEAR_METHODDEF
+    {"copy", (PyCFunction)&chklist_copy_def, METH_TYPED, list_copy__doc__},
+    {"append", (PyCFunction)&chklist_append_def, METH_TYPED, list_append__doc__},
+    {"insert", (PyCFunction)&chklist_insert_def, METH_TYPED, list_insert__doc__},
+    LIST_EXTEND_METHODDEF
+    LIST_POP_METHODDEF
+    LIST_REMOVE_METHODDEF
+    LIST_INDEX_METHODDEF
+    LIST_COUNT_METHODDEF
+    LIST_REVERSE_METHODDEF
+    LIST_SORT_METHODDEF
+    {"__class_getitem__", (PyCFunction)chklist_cls_getitem, METH_VARARGS | METH_CLASS, NULL},
+    {NULL,              NULL}           /* sentinel */
+};
 
 static void chklist_dealloc(PyListObject *self)
 {
