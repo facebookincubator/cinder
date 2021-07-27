@@ -2245,7 +2245,7 @@ list_sort_impl(PyListObject *self, PyObject *keyfunc, int reverse)
     PyObject **keys;
 
     assert(self != NULL);
-    assert(PyList_Check(self));
+    assert(_PyList_CheckIncludingChecked((PyObject *) self));
     if (keyfunc == Py_None)
         keyfunc = NULL;
 
