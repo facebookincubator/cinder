@@ -14557,6 +14557,15 @@ class StaticRuntimeTests(StaticTestBase):
         with self.assertRaisesRegex(TypeError, "argument 2 expected int"):
             x.insert(1, "ASD")
 
+    def test_checked_list_reversed(self):
+        x = chklist[int]()
+        x.append(12)
+        x.append(23)
+        y = x.__reversed__()
+        # TODO(T96351329): This should be a generic chklist_reverseiterator[int].
+        self.assertEqual(repr(type(y)), "<class 'list_reverseiterator'>")
+        self.assertEqual(repr(list(y)), "[23, 12]")
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,

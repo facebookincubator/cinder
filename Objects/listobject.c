@@ -125,6 +125,11 @@ show_alloc(void)
 static PyListObject *free_list[PyList_MAXFREELIST];
 static int numfree = 0;
 
+_PyGenericTypeDef _PyCheckedList_Type;
+#define IS_CHECKED_LIST(x)                                                    \
+    (_PyClassLoader_GetGenericTypeDef((PyObject *)x) == &_PyCheckedList_Type)
+
+
 int
 PyList_ClearFreeList(void)
 {
@@ -3305,8 +3310,8 @@ list___reversed___impl(PyListObject *self)
     it = PyObject_GC_New(listreviterobject, &PyListRevIter_Type);
     if (it == NULL)
         return NULL;
-    assert(PyList_Check(self));
-    it->it_index = PyList_GET_SIZE(self) - 1;
+    assert(PyList_Check(self) || IS_CHECKED_LIST(self));
+    it->it_index = Py_SIZE(self) - 1;
     Py_INCREF(self);
     it->it_seq = self;
     PyObject_GC_Track(it);
@@ -3340,10 +3345,10 @@ listreviter_next(listreviterobject *it)
     if (seq == NULL) {
         return NULL;
     }
-    assert(PyList_Check(seq));
+    assert(PyList_Check(seq) || IS_CHECKED_LIST(seq));
 
     index = it->it_index;
-    if (index>=0 && index < PyList_GET_SIZE(seq)) {
+    if (index>=0 && index < Py_SIZE(seq)) {
         item = PyList_GET_ITEM(seq, index);
         it->it_index--;
         Py_INCREF(item);
@@ -3359,7 +3364,7 @@ static PyObject *
 listreviter_len(listreviterobject *it, PyObject *Py_UNUSED(ignored))
 {
     Py_ssize_t len = it->it_index + 1;
-    if (it->it_seq == NULL || PyList_GET_SIZE(it->it_seq) < len)
+    if (it->it_seq == NULL || Py_SIZE(it->it_seq) < len)
         len = 0;
     return PyLong_FromSsize_t(len);
 }
@@ -3464,6 +3469,7 @@ _PyTypedMethodDef chklist_insert_def = {
 
 static PyMethodDef chklist_methods[] = {
     {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
+    // TODO(T96351329): We should implement a custom reverse iterator for checked lists.
     LIST___REVERSED___METHODDEF
     LIST___SIZEOF___METHODDEF
     LIST_CLEAR_METHODDEF
