@@ -76,7 +76,7 @@ PyObject* JITRT_CallWithKeywordArgs(
     size_t nargsf,
     PyObject* kwnames);
 
-PyObject* JITRT_CallWithIncorrectArgcount(
+JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,

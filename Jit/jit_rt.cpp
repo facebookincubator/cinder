@@ -223,21 +223,23 @@ PyObject* JITRT_CallWithKeywordArgs(
   return _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames);
 }
 
-PyObject* JITRT_CallWithIncorrectArgcount(
+typedef JITRT_StaticCallReturn (*staticvectorcallfunc)(
+    PyObject* callable,
+    PyObject* const* args,
+    size_t nargsf,
+    PyObject* kwnames);
+
+JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,
     int argcount) {
-  auto fail = [&] {
-    // Fallback to the default _PyFunction_Vectorcall implementation
-    // to produce an appropriate exception.
-    return _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
-  };
-
   PyObject* defaults = func->func_defaults;
   if (defaults == nullptr) {
     // Function has no defaults; there's nothing we can do.
-    return fail();
+    // Fallback to the default _PyFunction_Vectorcall implementation
+    // to produce an appropriate exception.
+    return {_PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL), NULL};
   }
   Py_ssize_t defcount = PyTuple_GET_SIZE(defaults);
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
@@ -246,7 +248,7 @@ PyObject* JITRT_CallWithIncorrectArgcount(
 
   if (nargs + defcount < argcount || nargs > argcount) {
     // Not enough args with defaults, or too many args without defaults.
-    return fail();
+    return {_PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL), NULL};
   }
 
   Py_ssize_t i;
@@ -260,7 +262,8 @@ PyObject* JITRT_CallWithIncorrectArgcount(
     arg_space[i] = *def_items++;
   }
 
-  return JITRT_GET_REENTRY(func->vectorcall)(
+  return reinterpret_cast<staticvectorcallfunc>(
+      JITRT_GET_REENTRY(func->vectorcall))(
       (PyObject*)func,
       arg_space,
       argcount | (nargsf & (_Py_AWAITED_CALL_MARKER)),
@@ -268,12 +271,6 @@ PyObject* JITRT_CallWithIncorrectArgcount(
       // in.
       (PyObject*)defaulted_args);
 }
-
-typedef JITRT_StaticCallReturn (*staticvectorcallfunc)(
-    PyObject* callable,
-    PyObject* const* args,
-    size_t nargsf,
-    PyObject* kwnames);
 
 JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
     PyFunctionObject* func,
@@ -311,7 +308,7 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
     arg_space[i] = args[i];
   }
 
-  return ((staticvectorcallfunc)JITRT_GET_REENTRY(
+  return reinterpret_cast<staticvectorcallfunc>(JITRT_GET_REENTRY(
       func->vectorcall))((PyObject*)func, (PyObject**)arg_space, nargsf, NULL);
 
 fail:
