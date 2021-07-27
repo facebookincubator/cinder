@@ -14574,6 +14574,15 @@ class StaticRuntimeTests(StaticTestBase):
         self.assertGreater(x.__sizeof__(), 20)
         self.assertLess(x.__sizeof__(), 100)
 
+    def test_checked_list_clear(self):
+        x = chklist[int]()
+        x.append(12)
+        x.append(23)
+        self.assertEqual(repr(x), "[12, 23]")
+        x.clear()
+        self.assertEqual(repr(x), "[]")
+        self.assertEqual(str(type(x)), "<class '__static__.chklist[int]'>")
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,
