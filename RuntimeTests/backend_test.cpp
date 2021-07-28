@@ -717,6 +717,27 @@ BB %4 - preds: %0
   ASSERT_EQ(ret, "hello");
 }
 
+TEST_F(BackendTest, ParserMultipleStringInputTest) {
+  auto lir_str = fmt::format(R"(Function:
+BB %0 - succs: %8
+        %1:Object = Move "hello1"
+        %2:Object = Move "hello2"
+        %3:Object = Move "hello3"
+        %4:Object = Move "hello4"
+        %5:Object = Move "hello5"
+        %6:Object = Move "hello6"
+                    Return %1:Object
+
+BB %8 - preds: %0
+
+)");
+  Parser parser;
+  auto parsed_func = parser.parse(lir_str);
+  auto func = (char* (*)())SimpleCompile(parsed_func.get());
+  std::string ret = func();
+  ASSERT_EQ(ret, "hello1");
+}
+
 TEST_F(BackendTest, SplitBasicBlockTest) {
   auto lirfunc = std::make_unique<Function>();
   auto bb1 = lirfunc->allocateBasicBlock();

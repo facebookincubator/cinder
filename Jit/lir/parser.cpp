@@ -14,8 +14,8 @@
 namespace jit {
 namespace lir {
 
-std::vector<std::string>& GetStringLiterals() {
-  static std::vector<std::string> string_literals_;
+std::unordered_set<std::string>& GetStringLiterals() {
+  static std::unordered_set<std::string> string_literals_;
   return string_literals_;
 }
 
@@ -391,10 +391,11 @@ void Parser::parseInput(const Token& token, const char* code) {
       break;
     }
     case kStringLiteral: {
-      std::vector<std::string>& v = GetStringLiterals();
-      v.emplace_back(code, 1, token.length - 2);
+      std::unordered_set<std::string>& v = GetStringLiterals();
+      auto ret = v.emplace(code, 1, token.length - 2);
       instr_->allocateImmediateInput(
-          reinterpret_cast<uint64_t>(v.back().c_str()), OperandBase::kObject);
+          reinterpret_cast<uint64_t>((*ret.first).c_str()),
+          OperandBase::kObject);
       break;
     }
     default:

@@ -14,7 +14,7 @@
 namespace jit {
 namespace lir {
 
-std::vector<std::string>& GetStringLiterals();
+std::unordered_set<std::string>& GetStringLiterals();
 
 class Parser {
  public:
