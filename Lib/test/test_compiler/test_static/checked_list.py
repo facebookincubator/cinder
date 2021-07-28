@@ -1,17 +1,17 @@
-from __static__ import chklist
+from __static__ import CheckedList
 
 from .common import StaticTestBase
 
 
 class CheckedListTests(StaticTestBase):
     def test_checked_list(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.append(1)
         self.assertEqual(repr(x), "[1]")
-        self.assertEqual(chklist[int].__module__, "__static__")
+        self.assertEqual(CheckedList[int].__module__, "__static__")
 
     def test_checked_list_append_bad_type(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         # No error
         x.append(42)
         self.assertEqual(x[0], 42)
@@ -19,8 +19,8 @@ class CheckedListTests(StaticTestBase):
             x.append("A")
 
     def test_checked_list_free_list(self):
-        t1 = chklist[str]
-        t2 = chklist[str]
+        t1 = CheckedList[str]
+        t2 = CheckedList[str]
         x = t1()
         x_id1 = id(x)
         del x
@@ -29,7 +29,7 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(x_id1, x_id2)
 
     def test_checked_list_insert(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.insert(0, 12)
         x.insert(0, 23)
         self.assertEqual(repr(x), "[23, 12]")
@@ -37,16 +37,16 @@ class CheckedListTests(StaticTestBase):
             x.insert(1, "ASD")
 
     def test_checked_list_reversed(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.append(12)
         x.append(23)
         y = x.__reversed__()
-        # TODO(T96351329): This should be a generic chklist_reverseiterator[int].
+        # TODO(T96351329): This should be a generic CheckedList_reverseiterator[int].
         self.assertEqual(repr(type(y)), "<class 'list_reverseiterator'>")
         self.assertEqual(repr(list(y)), "[23, 12]")
 
     def test_checked_list_sizeof(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.append(12)
         x.append(23)
         # Ensure that the list is a reasonable size, and that the `__sizeof__` call succeeds.
@@ -54,7 +54,7 @@ class CheckedListTests(StaticTestBase):
         self.assertLess(x.__sizeof__(), 100)
 
     def test_checked_list_clear(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.append(12)
         x.append(23)
         self.assertEqual(repr(x), "[12, 23]")
@@ -63,7 +63,7 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(str(type(x)), "<class '__static__.chklist[int]'>")
 
     def test_checked_list_copy(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.append(12)
         x.append(23)
         self.assertEqual(repr(x), "[12, 23]")
@@ -77,7 +77,7 @@ class CheckedListTests(StaticTestBase):
         class C:
             x: int = 0
 
-        clist = chklist[C]()
+        clist = CheckedList[C]()
         clist.append(C())
         clist_copy = clist.copy()
         self.assertEqual(clist[0].x, 0)
@@ -85,22 +85,22 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(clist[0].x, 1)
 
     def test_checked_list_extend(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.append(3)
         x.extend([1, 2])
         self.assertEqual(repr(x), "[3, 1, 2]")
         self.assertEqual(repr(type(x)), "<class '__static__.chklist[int]'>")
 
     def test_checked_list_extend_type_error(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.append(3)
         with self.assertRaisesRegex(TypeError, r"bad value 'str' for chklist\[int\]"):
             x.extend([1, "hi"])
-        # Ensure that we leave the chklist in its old state when extend fails.
+        # Ensure that we leave the CheckedList in its old state when extend fails.
         self.assertEqual(repr(x), "[3]")
 
     def test_checked_list_extend_with_non_list(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         d = {1: 2, 2: 3}
         x.extend(d.keys())
         self.assertEqual(repr(x), "[1, 2]")
@@ -110,7 +110,7 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(repr(x), "[1, 2, 1, 2]")
 
     def test_checked_list_pop(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.extend([1, 2, 3, 4])
         self.assertEqual(x.pop(), 4)
         self.assertEqual(x.pop(), 3)
@@ -120,7 +120,7 @@ class CheckedListTests(StaticTestBase):
             x.pop()
 
     def test_checked_list_remove(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.extend([1, 2, 3, 1, 2, 3])
         x.remove(1)
         self.assertEqual(repr(x), "[2, 3, 1, 2, 3]")
@@ -131,7 +131,7 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(repr(x), "[2, 3, 2, 3]")
 
     def test_checked_list_index(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.extend([1, 2, 3, 1, 2, 3])
         self.assertEqual(x.index(1), 0)
         x.remove(1)
@@ -141,14 +141,14 @@ class CheckedListTests(StaticTestBase):
             x.index(1)
 
     def test_checked_list_count(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.extend([1, 2, 3, 1, 2, 3])
         self.assertEqual(x.count(1), 2)
         x.remove(1)
         self.assertEqual(x.count(1), 1)
 
     def test_checked_list_reverse(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.extend([1, 2, 3, 4])
         self.assertEqual(repr(x), "[1, 2, 3, 4]")
         self.assertEqual(x.reverse(), None)
@@ -156,29 +156,29 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(repr(x), "[4, 3, 2, 1]")
 
     def test_checked_list_sort(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.extend([3, 1, 2, 4])
         self.assertEqual(x.sort(), None)
         self.assertEqual(repr(type(x)), "<class '__static__.chklist[int]'>")
         self.assertEqual(repr(x), "[1, 2, 3, 4]")
 
     def test_checked_list_richcompare(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         x.extend([1, 2, 3])
         self.assertEqual(x < x, False)
         self.assertEqual(x <= x, True)
-        y = chklist[int]()
+        y = CheckedList[int]()
         y.extend([2, 2, 3])
         self.assertEqual(y <= x, False)
         self.assertEqual(x < y, True)
 
-        # Compare chklists of different types.
-        z = chklist[str]()
+        # Compare CheckedLists of different types.
+        z = CheckedList[str]()
         z.extend(["a", "a"])
         with self.assertRaises(TypeError):
             x < z
 
-        # Compare chklists to lists.
+        # Compare CheckedLists to lists.
         self.assertEqual(x < [2, 2, 3], True)
         self.assertEqual([1, 2, 2] < x, True)
 
@@ -186,7 +186,7 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(x == [1, 2, 3], True)
 
     def test_checked_list_assign_subscript(self):
-        x = chklist[int]([1, 2, 3, 4])
+        x = CheckedList[int]([1, 2, 3, 4])
         self.assertEqual(x[2], 3)
         x[2] = 2
         self.assertEqual(x[2], 2)
@@ -195,22 +195,22 @@ class CheckedListTests(StaticTestBase):
         self.assertEqual(x[2], 2)
 
     def test_checked_list_init(self):
-        x = chklist[int]()
+        x = CheckedList[int]()
         self.assertEqual(repr(x), "[]")
-        x = chklist[int]([1, 2, 3])
+        x = CheckedList[int]([1, 2, 3])
         self.assertEqual(repr(x), "[1, 2, 3]")
         self.assertEqual(repr(type(x)), "<class '__static__.chklist[int]'>")
         with self.assertRaises(TypeError):
-            chklist[str]([1, 2, 3])
+            CheckedList[str]([1, 2, 3])
 
-        x = chklist[int]({3: "a", 2: "b", 1: "c"})
+        x = CheckedList[int]({3: "a", 2: "b", 1: "c"})
         self.assertEqual(repr(x), "[3, 2, 1]")
         with self.assertRaisesRegex(
             TypeError, r"chklist\(\) takes no keyword arguments"
         ):
-            chklist[int](iterable=[1, 2, 3])
+            CheckedList[int](iterable=[1, 2, 3])
 
         with self.assertRaisesRegex(
             TypeError, "chklist expected at most 1 argument, got 2"
         ):
-            chklist[int]([], [])
+            CheckedList[int]([], [])

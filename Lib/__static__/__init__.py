@@ -506,3 +506,4 @@ def prod_assert(value: bool, message: Optional[str] = None):
 
 
 CheckedDict = chkdict
+CheckedList = chklist
