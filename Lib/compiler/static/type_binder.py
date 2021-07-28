@@ -103,6 +103,8 @@ from .types import (
     UNION_TYPE,
     UnionInstance,
     Value,
+    OptionalType,
+    OptionalInstance,
 )
 
 if TYPE_CHECKING:
@@ -707,7 +709,13 @@ class TypeBinder(GenericVisitor):
                 self.visit(value)
                 new_effect.undo(self.local_types)
 
-                final_type = self.widen(final_type, self.get_type(value))
+                final_type = self.widen(
+                    final_type,
+                    # For Optional[T], we use `T` when widening, to handle `my_optional or something`
+                    old_type.klass.opt_type.instance
+                    if isinstance(old_type, OptionalInstance)
+                    else old_type,
+                )
                 self.set_type(value, old_type)
 
                 new_effect.reverse(self.local_types)

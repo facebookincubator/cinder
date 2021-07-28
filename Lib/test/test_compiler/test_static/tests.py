@@ -4657,6 +4657,50 @@ class StaticCompilationTests(StaticTestBase):
             modname="foo.py",
         )
 
+    def test_optional_refine_boolop(self):
+        self.compile(
+            """
+            from typing import Optional
+            
+            def a(x: bool) -> Optional[int]:
+                if x:
+                    return None
+                else:
+                    return 4
+            
+            def b() -> int:
+                return 5
+            
+            def c() -> int:
+                return a(True) or b()  
+
+            def d() -> int:
+                return a(True) or a(False) or b()
+            """,
+            StaticCodeGenerator,
+            modname="foo",
+        )
+
+    def test_optional_refine_boolop_fail(self):
+        self.type_error(
+            """
+            from typing import Optional
+            
+            def a(x: bool) -> Optional[int]:
+                if x:
+                    return None
+                else:
+                    return 4
+            
+            def b() -> int:
+                return 5
+            
+            def c() -> int:
+                return b() or a(True)
+            """,
+            bad_ret_type("Optional[int]", "int"),
+        )
+
     def test_union_or_syntax_none_first(self):
         self.type_error(
             """
