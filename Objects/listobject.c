@@ -3763,6 +3763,52 @@ static PyMappingMethods chklist_as_mapping = {
     (objobjargproc)chklist_ass_subscript,
 };
 
+static int
+chklist_init(PyListObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *iterable = NULL;
+
+    if (IS_CHECKED_LIST(self) && !_PyArg_NoKeywords("chklist", kwds)) {
+        return -1;
+    }
+    if (!_PyArg_CheckPositional("chklist", PyTuple_GET_SIZE(args), 0, 1)) {
+        return -1;
+    }
+    if (PyTuple_GET_SIZE(args) >= 1) {
+        iterable = PyTuple_GET_ITEM(args, 0);
+    }
+
+    /* Verify list invariants established by PyType_GenericAlloc() */
+    assert(0 <= Py_SIZE(self));
+    assert(Py_SIZE(self) <= self->allocated || self->allocated == -1);
+    assert(self->ob_item != NULL ||
+           self->allocated == 0 || self->allocated == -1);
+
+    /* Empty previous contents */
+    if (self->ob_item != NULL) {
+        (void)_list_clear(self);
+    }
+    if (iterable != NULL) {
+        if (_PyObject_HasLen(iterable)) {
+            Py_ssize_t iter_len = PyObject_Size(iterable);
+            if (iter_len == -1) {
+                if (!PyErr_ExceptionMatches(PyExc_TypeError)) {
+                    return -1;
+                }
+                PyErr_Clear();
+            }
+            if (iter_len > 0 && self->ob_item == NULL
+                && list_preallocate_exact(self, iter_len)) {
+                return -1;
+            }
+        }
+        if (chklist_extend(self, iterable) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 _PyGenericTypeDef _PyCheckedList_Type = {
   .gtd_type =
       {
@@ -3801,7 +3847,7 @@ _PyGenericTypeDef _PyCheckedList_Type = {
         0,                                          /* tp_descr_get */
         0,                                          /* tp_descr_set */
         0,                                          /* tp_dictoffset */
-        (initproc)list___init__,                    /* tp_init */
+        (initproc)chklist_init,                    /* tp_init */
         PyType_GenericAlloc,                        /* tp_alloc */
         NULL,                                       /* tp_new */
         PyObject_GC_Del,                            /* tp_free */

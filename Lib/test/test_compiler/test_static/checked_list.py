@@ -193,3 +193,24 @@ class CheckedListTests(StaticTestBase):
         with self.assertRaises(TypeError):
             x[2] = "A"
         self.assertEqual(x[2], 2)
+
+    def test_checked_list_init(self):
+        x = chklist[int]()
+        self.assertEqual(repr(x), "[]")
+        x = chklist[int]([1, 2, 3])
+        self.assertEqual(repr(x), "[1, 2, 3]")
+        self.assertEqual(repr(type(x)), "<class '__static__.chklist[int]'>")
+        with self.assertRaises(TypeError):
+            chklist[str]([1, 2, 3])
+
+        x = chklist[int]({3: "a", 2: "b", 1: "c"})
+        self.assertEqual(repr(x), "[3, 2, 1]")
+        with self.assertRaisesRegex(
+            TypeError, r"chklist\(\) takes no keyword arguments"
+        ):
+            chklist[int](iterable=[1, 2, 3])
+
+        with self.assertRaisesRegex(
+            TypeError, "chklist expected at most 1 argument, got 2"
+        ):
+            chklist[int]([], [])
