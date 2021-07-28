@@ -98,6 +98,7 @@ from .types import (
     STR_EXACT_TYPE,
     Slot,
     TType,
+    TYPE_TYPE,
     TUPLE_EXACT_TYPE,
     UNION_TYPE,
     UnionInstance,
@@ -433,11 +434,16 @@ class TypeBinder(GenericVisitor):
             and node.args.args
         ):
             # Handle type of "self"
-            klass = self.cur_mod.resolve_name(cur_scope.name)
-            if isinstance(klass, Class):
-                self.set_param(node.args.args[0], klass, scope)
+            if node.name == "__new__":
+                # __new__ is special and isn't a normal method, so we expect a
+                # type for cls
+                self.set_param(node.args.args[0], TYPE_TYPE, scope)
             else:
-                self.set_param(node.args.args[0], DYNAMIC_TYPE, scope)
+                klass = self.maybe_get_current_class()
+                if klass is not None:
+                    self.set_param(node.args.args[0], klass, scope)
+                else:
+                    self.set_param(node.args.args[0], DYNAMIC_TYPE, scope)
 
         self._visitParameters(node.args, scope)
 

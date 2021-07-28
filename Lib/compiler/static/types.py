@@ -837,13 +837,50 @@ class Class(Object["Class"]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
-        visitor.set_type(node, self.instance)
-        for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
-        for arg in node.keywords:
-            visitor.visitExpectedType(
-                arg.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
-            )
+        self_type = self.instance
+
+        dynamic_call = True
+        dynamic_new = False
+        for klass in self.mro:
+            if klass is DYNAMIC_TYPE:
+                dynamic_new = True
+
+            new = klass.members.get("__new__")
+            if new is not None:
+                if isinstance(new, Function):
+                    new_mapping = ArgMapping(new, node, None)
+                    new_mapping.bind_args(visitor, True)
+                    self_type = new.return_type.resolved().instance
+                    dynamic_call = False
+                break
+
+        # if __new__ returns something that isn't a subclass of
+        # our type then __new__ isn't invoked
+        if not dynamic_new and self_type.klass.can_assign_from(self.instance.klass):
+            for klass in self.mro:
+                if klass is DYNAMIC_TYPE:
+                    dynamic_call = True
+                    break
+
+                init = klass.members.get("__init__")
+                if init is not None:
+                    if isinstance(init, Function):
+                        init_mapping = ArgMapping(init, node, None)
+                        init_mapping.bind_args(visitor, True)
+                        dynamic_call = False
+                    break
+
+        visitor.set_type(node, self_type)
+
+        if dynamic_call:
+            for arg in node.args:
+                visitor.visitExpectedType(
+                    arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                )
+            for arg in node.keywords:
+                visitor.visitExpectedType(
+                    arg.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                )
 
         return NO_EFFECT
 
@@ -1469,19 +1506,24 @@ class ArgMapping:
         self.nseen = 0
         self.spills: Dict[int, SpillArg] = {}
 
-    def bind_args(self, visitor: TypeBinder) -> None:
+    def bind_args(self, visitor: TypeBinder, skip_self: bool = False) -> None:
         # TODO: handle duplicate args and other weird stuff a-la
         # https://fburl.com/diffusion/q6tpinw8
 
         # Process provided position arguments to expected parameters
-        if len(self.args) > len(self.callable.args):
+        expected_args = self.callable.args
+        if skip_self:
+            expected_args = expected_args[1:]
+            self.nseen += 1
+
+        if len(self.args) > len(expected_args):
             visitor.syntax_error(
                 f"Mismatched number of args for {self.callable.name}. "
-                f"Expected {len(self.callable.args)}, got {len(self.args)}",
+                f"Expected {len(expected_args) + self.nseen}, got {len(self.args) + self.nseen}",
                 self.call,
             )
 
-        for idx, (param, arg) in enumerate(zip(self.callable.args, self.args)):
+        for idx, (param, arg) in enumerate(zip(expected_args, self.args)):
             if param.is_kwonly:
                 visitor.syntax_error(
                     f"{self.callable.qualname} takes {idx} positional args but "
@@ -1911,6 +1953,9 @@ class ContainerTypeRef(TypeRef):
     def __init__(self, func: Function) -> None:
         self.func = func
 
+    def __repr__(self) -> str:
+        return f"ContainerTypeRef({self.func!r})"
+
     def resolved(self, is_declaration: bool = False) -> Class:
         res = self.func.container_type
         if res is None:
@@ -1966,7 +2011,7 @@ class Function(Callable[Class]):
         self,
         node: Union[AsyncFunctionDef, FunctionDef],
         module: ModuleTable,
-        ret_type: TypeRef,
+        return_type: TypeRef,
     ) -> None:
         super().__init__(
             FUNCTION_TYPE,
@@ -1977,7 +2022,7 @@ class Function(Callable[Class]):
             0,
             None,
             None,
-            ret_type,
+            return_type,
         )
         self.node = node
         self.module = module
