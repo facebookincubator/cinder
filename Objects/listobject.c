@@ -3749,6 +3749,20 @@ static void chklist_dealloc(PyListObject *self)
   list_dealloc(self);
 }
 
+static int chklist_ass_subscript(PyListObject* self, PyObject* item, PyObject* value)
+{
+    if (chklist_checkitem(self, value)) {
+      return -1;
+    }
+    return list_ass_subscript(self, item, value);
+}
+
+static PyMappingMethods chklist_as_mapping = {
+    (lenfunc)list_length,
+    (binaryfunc)list_subscript,
+    (objobjargproc)chklist_ass_subscript,
+};
+
 _PyGenericTypeDef _PyCheckedList_Type = {
   .gtd_type =
       {
@@ -3763,7 +3777,7 @@ _PyGenericTypeDef _PyCheckedList_Type = {
         (reprfunc)list_repr,                        /* tp_repr */
         0,                                          /* tp_as_number */
         &list_as_sequence,                          /* tp_as_sequence */
-        &list_as_mapping,                           /* tp_as_mapping */
+        &chklist_as_mapping,                           /* tp_as_mapping */
         PyObject_HashNotImplemented,                /* tp_hash */
         0,                                          /* tp_call */
         0,                                          /* tp_str */

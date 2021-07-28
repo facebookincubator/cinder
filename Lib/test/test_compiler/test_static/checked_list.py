@@ -184,3 +184,12 @@ class CheckedListTests(StaticTestBase):
 
         # This is a bit weird, but consistent with our chkdict semantics.
         self.assertEqual(x == [1, 2, 3], True)
+
+    def test_checked_list_assign_subscript(self):
+        x = chklist[int]([1, 2, 3, 4])
+        self.assertEqual(x[2], 3)
+        x[2] = 2
+        self.assertEqual(x[2], 2)
+        with self.assertRaises(TypeError):
+            x[2] = "A"
+        self.assertEqual(x[2], 2)
