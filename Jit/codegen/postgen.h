@@ -10,13 +10,18 @@ class PostGenerationRewrite : public Rewrite {
  public:
   PostGenerationRewrite(lir::Function* func, Environ* env)
       : Rewrite(func, env) {
-    registerOneRewriteFunction(rewriteBinaryOpConstantPosition);
-    registerOneRewriteFunction(rewriteBinaryOpLargeConstant);
-    registerOneRewriteFunction(rewriteCondBranch);
-    registerOneRewriteFunction(rewriteLoadArg);
+    // rewriteInlineHelper should occur before other rewrites.
+    registerOneRewriteFunction(rewriteInlineHelper, 0);
+    registerOneRewriteFunction(rewriteBinaryOpConstantPosition, 1);
+    registerOneRewriteFunction(rewriteBinaryOpLargeConstant, 1);
+    registerOneRewriteFunction(rewriteCondBranch, 1);
+    registerOneRewriteFunction(rewriteLoadArg, 1);
   }
 
  private:
+  // Inline C helper functions.
+  static RewriteResult rewriteInlineHelper(function_rewrite_arg_t func);
+
   // Fix constant input position
   // If a binary operation has a constant input, always put it as the
   // second operand (or move the 2nd to a register for div instructions)

@@ -10,7 +10,33 @@
 using namespace jit::lir;
 
 namespace jit {
+
+int g_disable_lir_inliner = 0;
+
 namespace codegen {
+
+bool LIRInliner::inlineCalls(Function* func) {
+  bool changed = false;
+  std::vector<BasicBlock*>& blocks = func->basicblocks();
+
+  for (size_t i = 0; i < blocks.size(); ++i) {
+    BasicBlock* bb = blocks[i];
+
+    for (auto& instr : bb->instructions()) {
+      if (instr->isCall()) {
+        LIRInliner inliner(instr.get());
+        if (inliner.inlineCall()) {
+          changed = true;
+          // This block has been split,
+          // so there's nothing left to process in it.
+          break;
+        }
+      }
+    }
+  }
+
+  return changed;
+}
 
 bool LIRInliner::inlineCall() {
   // Try to find function.

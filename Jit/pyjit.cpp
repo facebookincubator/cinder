@@ -18,6 +18,7 @@
 #include <unordered_set>
 
 #include "Jit/codegen/gen_asm.h"
+#include "Jit/codegen/inliner.h"
 #include "Jit/frame.h"
 #include "Jit/hir/builder.h"
 #include "Jit/jit_context.h"
@@ -810,6 +811,10 @@ int _PyJIT_Initialize() {
   if (_is_flag_set("jit-dump-stats", "PYTHONJITDUMPSTATS")) {
     JIT_DLOG("Dumping JIT runtime stats at shutdown.");
     g_dump_stats = 1;
+  }
+  if (_is_flag_set("jit-disable-lir-inliner", "PYTHONJITDISABLELIRINLINER")) {
+    JIT_DLOG("Disable JIT lir inlining.");
+    g_disable_lir_inliner = 1;
   }
 
   if (_is_flag_set(

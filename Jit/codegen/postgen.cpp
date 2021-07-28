@@ -1,9 +1,19 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/postgen.h"
+#include "Jit/codegen/inliner.h"
 
 using namespace jit::lir;
 
 namespace jit::codegen {
+
+Rewrite::RewriteResult PostGenerationRewrite::rewriteInlineHelper(
+    function_rewrite_arg_t func) {
+  if (g_disable_lir_inliner) {
+    return kUnchanged;
+  }
+
+  return LIRInliner::inlineCalls(func) ? kChanged : kUnchanged;
+}
 
 Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
     instr_iter_t instr_iter) {

@@ -9,6 +9,9 @@
 #include "Jit/util.h"
 
 namespace jit {
+
+extern int g_disable_lir_inliner;
+
 namespace codegen {
 
 class LIRInliner {
@@ -23,6 +26,11 @@ class LIRInliner {
   // allocation instructions. These instructions should be very infrequent, but
   // we may want to add a check for this later.
   bool inlineCall();
+
+  // Given a function, try to inline all calls.
+  // Return true if one or more calls have been inlined (i.e. the function has
+  // been modified). Otherwise, return false.
+  static bool inlineCalls(lir::Function* function);
 
  private:
   // The call instruction that we want to inline.
