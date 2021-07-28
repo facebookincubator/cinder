@@ -14683,6 +14683,29 @@ class StaticRuntimeTests(StaticTestBase):
         self.assertEqual(repr(type(x)), "<class '__static__.chklist[int]'>")
         self.assertEqual(repr(x), "[1, 2, 3, 4]")
 
+    def test_checked_list_richcompare(self):
+        x = chklist[int]()
+        x.extend([1, 2, 3])
+        self.assertEqual(x < x, False)
+        self.assertEqual(x <= x, True)
+        y = chklist[int]()
+        y.extend([2, 2, 3])
+        self.assertEqual(y <= x, False)
+        self.assertEqual(x < y, True)
+
+        # Compare chklists of different types.
+        z = chklist[str]()
+        z.extend(["a", "a"])
+        with self.assertRaises(TypeError):
+            x < z
+
+        # Compare chklists to lists.
+        self.assertEqual(x < [2, 2, 3], True)
+        self.assertEqual([1, 2, 2] < x, True)
+
+        # This is a bit weird, but consistent with our chkdict semantics.
+        self.assertEqual(x == [1, 2, 3], True)
+
     def test_check_args(self):
         """
         Tests whether CHECK_ARGS can handle variables which are in a Cell,

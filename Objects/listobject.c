@@ -2672,7 +2672,7 @@ list_richcompare(PyObject *v, PyObject *w, int op)
     PyListObject *vl, *wl;
     Py_ssize_t i;
 
-    if (!PyList_Check(v) || !PyList_Check(w))
+    if (!_PyList_CheckIncludingChecked(v) || !_PyList_CheckIncludingChecked(w))
         Py_RETURN_NOTIMPLEMENTED;
 
     vl = (PyListObject *)v;
