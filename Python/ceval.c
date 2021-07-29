@@ -3944,7 +3944,6 @@ main_loop:
             PyObject *container;
             PyObject *func = _PyClassLoader_ResolveFunction(target, &container);
             if (func == NULL) {
-                PyErr_Format(PyExc_TypeError, "unknown function %R", target);
                 goto error;
             }
             PyObject *res;
@@ -4261,7 +4260,6 @@ main_loop:
                     PyTuple_GET_ITEM(_PyShadow_GetOriginalConst(&shadow, next_instr), 0);
                 func = _PyClassLoader_ResolveFunction(target, NULL);
                 if (func == NULL) {
-                    PyErr_Format(PyExc_TypeError, "unknown function %R", target);
                     goto error;
                 }
 

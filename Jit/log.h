@@ -4,6 +4,7 @@
 
 #include "Jit/ref.h"
 #include "Python.h"
+#include "internal/pycore_pystate.h"
 
 #include <fmt/format.h>
 #include <fmt/printf.h>
@@ -73,19 +74,27 @@ void protected_fprintf(std::FILE* file, const char* fmt, Args&&... args) {
     }                             \
   }
 
-#define JIT_CHECK(__cond, ...)                       \
-  {                                                  \
-    if (!(__cond)) {                                 \
-      fmt::fprintf(                                  \
-          stderr,                                    \
-          "JIT: %s:%d -- assertion failed: %s\n",    \
-          __FILE__,                                  \
-          __LINE__,                                  \
-          #__cond);                                  \
-      ::jit::protected_fprintf(stderr, __VA_ARGS__); \
-      fmt::fprintf(stderr, "\n");                    \
-      abort();                                       \
-    }                                                \
+#define JIT_CHECK(__cond, ...)                             \
+  {                                                        \
+    if (!(__cond)) {                                       \
+      fmt::fprintf(                                        \
+          stderr,                                          \
+          "JIT: %s:%d -- assertion failed: %s\n",          \
+          __FILE__,                                        \
+          __LINE__,                                        \
+          #__cond);                                        \
+      ::jit::protected_fprintf(stderr, __VA_ARGS__);       \
+      fmt::fprintf(stderr, "\n");                          \
+      std::fflush(stderr);                                 \
+      PyThreadState* tstate = _PyThreadState_GET();        \
+      if (tstate != NULL && tstate->curexc_type != NULL) { \
+        PyErr_Display(                                     \
+            tstate->curexc_type,                           \
+            tstate->curexc_value,                          \
+            tstate->curexc_traceback);                     \
+      }                                                    \
+      abort();                                             \
+    }                                                      \
   }
 
 #ifdef Py_DEBUG

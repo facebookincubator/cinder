@@ -598,11 +598,7 @@ PyObject* JITRT_LoadFunctionIndirect(PyObject** func, PyObject* descr) {
   PyObject* res = *func;
   if (!res) {
     res = _PyClassLoader_ResolveFunction(descr, NULL);
-    if (res == NULL) {
-      PyErr_Format(PyExc_TypeError, "unknown function %R", descr);
-      return NULL;
-    }
-    Py_DECREF(res);
+    Py_XDECREF(res);
   }
 
   return res;

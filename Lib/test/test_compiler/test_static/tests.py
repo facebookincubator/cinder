@@ -9852,7 +9852,10 @@ class StaticCompilationTests(StaticTestBase):
             del mod["f"]
             with self.assertRaisesRegex(
                 TypeError,
-                re.escape(f"unknown function ('{mod['__name__']}', 'f')"),
+                re.escape(
+                    "bad name provided for class loader, "
+                    + f"'f' doesn't exist in ('{mod['__name__']}', 'f')"
+                ),
             ):
                 g()
 
