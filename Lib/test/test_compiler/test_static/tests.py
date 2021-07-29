@@ -5194,6 +5194,30 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
+    def test_invoke_func_unexistent_module(self):
+        codestr = """
+        from xxclassloader import bar
+        from __static__ import int64, box
+
+        def func():
+            a: int64 = bar(42)
+            return box(a)
+
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            # remove xxclassloader from sys.modules during this test
+            xxclassloader = sys.modules["xxclassloader"]
+            del sys.modules["xxclassloader"]
+            try:
+                func = mod["func"]
+                self.assertInBytecode(
+                    func, "INVOKE_FUNCTION", ((("xxclassloader", "bar"), 1))
+                )
+                self.assertEqual(func(), 42)
+                self.assert_jitted(func)
+            finally:
+                sys.modules["xxclassloader"] = xxclassloader
+
     def test_invoke_meth_o(self):
         codestr = """
         from xxclassloader import spamobj

@@ -951,7 +951,8 @@ classloader_get_member(PyObject *path,
                        Py_ssize_t items,
                        PyObject **container)
 {
-    PyObject *cur = PyThreadState_GET()->interp->modules;
+    PyThreadState *tstate = PyThreadState_GET();
+    PyObject *cur = tstate->interp->modules;
 
     if (cur == NULL) {
         PyErr_Format(
@@ -1054,10 +1055,22 @@ classloader_get_member(PyObject *path,
             continue;
         }
 
+        PyObject *et = NULL, *ev = NULL, *tb = NULL;
         PyObject *next = _PyDict_GetItem_Unicode(d, name);
-        if (next == Py_None && d == PyEval_GetBuiltins()) {
+        if (next == NULL && d == tstate->interp->modules) {
+            /* import module in case it's not available in sys.modules */
+            if (PyImport_ImportModuleLevelObject(name, NULL, NULL, NULL, 0) == NULL) {
+                PyErr_Fetch(&et, &ev, &tb);
+            } else {
+                next = _PyDict_GetItem_Unicode(d, name);
+            }
+        } else
+        if (next == Py_None && d == tstate->interp->builtins) {
             /* special case builtins.None, it's used to represent NoneType */
             next = (PyObject *)&_PyNone_Type;
+            Py_INCREF(next);
+        } else {
+            Py_XINCREF(next);
         }
 
         if (next == NULL) {
@@ -1066,9 +1079,9 @@ classloader_get_member(PyObject *path,
                 "bad name provided for class loader, '%U' doesn't exist in %R",
                 name,
                 path);
+            _PyErr_ChainExceptions(et, ev, tb);
             goto error;
         }
-        Py_INCREF(next);
         Py_DECREF(cur);
         cur = next;
     }
