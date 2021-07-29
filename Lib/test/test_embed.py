@@ -358,6 +358,8 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         'show_ref_count': 0,
         'show_alloc_count': 0,
         'dump_refs': 0,
+        'lazy_imports_all': 0,
+        'lazy_imports_warmup': 0,
         'malloc_stats': 0,
 
         'filesystem_encoding': GET_DEFAULT_CONFIG,
@@ -438,6 +440,8 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         'Py_HasFileSystemDefaultEncoding': 0,
         'Py_HashRandomizationFlag': 1,
         '_Py_HasFileSystemDefaultEncodeErrors': 0,
+        'Py_LazyImportsAllFlag': 0,
+        'Py_LazyImportsWarmupFlag': 0,
     }
     COPY_GLOBAL_PRE_CONFIG = [
         ('Py_UTF8Mode', 'utf8_mode'),

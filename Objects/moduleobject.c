@@ -4,6 +4,9 @@
 #include "Python.h"
 #include "pycore_pystate.h"
 #include "structmember.h"
+#include "frameobject.h"
+
+PyAPI_DATA(int) Py_LazyImportsAllFlag;
 
 static Py_ssize_t max_module_number;
 
@@ -11,6 +14,8 @@ static PyMemberDef module_members[] = {
     {"__dict__", T_OBJECT, offsetof(PyModuleObject, md_dict), READONLY},
     {0}
 };
+
+static PyObject *deferred_name(PyDeferredObject *m);
 
 
 /* Helper for sanity check for traverse not handling m_state == NULL
@@ -70,6 +75,7 @@ module_init_dict(PyModuleObject *mod, PyObject *md_dict,
         return -1;
     if (_PyDict_SetItemId(md_dict, &PyId___spec__, Py_None) != 0)
         return -1;
+
     if (PyUnicode_CheckExact(name)) {
         Py_INCREF(name);
         Py_XSETREF(mod->md_name, name);
@@ -598,6 +604,8 @@ _PyModule_ClearDict(PyObject *d)
 
     int verbose = _PyInterpreterState_GET_UNSAFE()->config.verbose;
 
+    _PyDict_UnsetHasDeferredObjects(d);
+
     /* First, clear only names starting with a single underscore */
     pos = 0;
     while (PyDict_Next(d, &pos, &key, &value)) {
@@ -729,6 +737,22 @@ _PyModuleSpec_IsInitializing(PyObject *spec)
     return 0;
 }
 
+int
+PyDeferred_Compare(PyObject* deferred, PyObject *mod_dict, PyObject *name)
+{
+    _Py_IDENTIFIER(__name__);
+    PyObject *mod_name = _PyDict_GetItemId(mod_dict, &PyId___name__);
+    if (mod_name == NULL || !PyUnicode_Check(mod_name)) {
+        return -1;
+    }
+    PyObject *fqn = PyUnicode_FromFormat("%U.%U", mod_name, name);
+    PyObject *deferred_fqn = deferred_name((PyDeferredObject *)deferred);
+    int cmp = PyUnicode_Compare(fqn, deferred_fqn);
+    Py_DECREF(fqn);
+    Py_DECREF(deferred_fqn);
+    return cmp;
+}
+
 static PyObject *
 module_lookupattro(PyModuleObject *m, PyObject *name, int suppress)
 {
@@ -752,7 +776,7 @@ module_lookupattro(PyModuleObject *m, PyObject *name, int suppress)
     } else {
         /* Otherwise we have no other data descriptors, just look in the
          * dictionary  and elide the _PyType_Lookup */
-        attr = _PyDict_GetItem_Unicode(m->md_dict, name);
+        attr = _PyDict_GetAttrItem_Unicode(m->md_dict, name);
         if (attr != NULL) {
             Py_INCREF(attr);
             return attr;
@@ -1038,7 +1062,7 @@ int strictmodule_is_unassigned(PyObject *dict, PyObject *name) {
         if (assigned_name == NULL) {
             return -1;
         }
-        PyObject *assigned_status = _PyDict_GetItem_Unicode(dict, assigned_name);
+        PyObject *assigned_status = _PyDict_GetAttrItem_Unicode(dict, assigned_name);
         Py_DECREF(assigned_name);
         if (assigned_status == Py_False) {
             // name has a corresponding <assigned:name> that's False
@@ -1064,8 +1088,7 @@ static PyObject * strict_module_dict_get(PyObject *self, void *closure)
     Py_ssize_t i = 0;
     PyObject *key, *value;
 
-
-    while (PyDict_Next(m->globals, &i, &key, &value)){
+    while (PyDict_NextUnresolved(m->globals, &i, &key, &value)){
         if (key == NULL || value == NULL) {
             goto error;
         }
@@ -1098,6 +1121,11 @@ static PyObject * strict_module_dict_get(PyObject *self, void *closure)
             }
         }
     }
+
+    if (_PyDict_HasDeferredObjects(m->globals)) {
+        _PyDict_SetHasDeferredObjects(dict);
+    }
+
     return dict;
 error:
     Py_XDECREF(dict);
@@ -1279,7 +1307,7 @@ strictmodule_lookupattro(PyStrictModuleObject *m, PyObject *name, int suppress)
             if (name_unassigned < 0) {
                 return NULL;
             } else if (!name_unassigned) {
-                attr = _PyDict_GetItem_Unicode(m->globals, name);
+                attr = _PyDict_GetAttrItem_Unicode(m->globals, name);
                 if (attr != NULL) {
                     Py_INCREF(attr);
                     return attr;
@@ -1442,3 +1470,169 @@ PyTypeObject PyStrictModule_Type = {
 };
 
  Py_ssize_t strictmodule_dictoffset = offsetof(PyStrictModuleObject, globals);
+
+PyObject *
+PyDeferredModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
+{
+    PyDeferredObject *m;
+    if (!name || !PyUnicode_Check(name) ||
+        !globals || !locals ||
+        !fromlist || !level) {
+        PyErr_BadArgument();
+        return NULL;
+    }
+    m = PyObject_GC_New(PyDeferredObject, &PyDeferred_Type);
+    if (m == NULL) {
+        return NULL;
+    }
+    m->df_deferred = NULL;
+    Py_INCREF(name);
+    m->df_name = name;
+    Py_INCREF(globals);
+    m->df_globals = globals;
+    Py_INCREF(locals);
+    m->df_locals = locals;
+    Py_INCREF(fromlist);
+    m->df_fromlist = fromlist;
+    Py_INCREF(level);
+    m->df_level = level;
+    m->df_obj = NULL;
+    m->df_next = NULL;
+    PyObject_GC_Track(m);
+    return (PyObject *)m;
+}
+
+PyObject *
+PyDeferred_NewObject(PyObject *deferred, PyObject *name)
+{
+    PyDeferredObject *m;
+    if (!deferred || !PyDeferred_CheckExact(deferred) ||
+        !name || !PyUnicode_Check(name)) {
+        PyErr_BadArgument();
+        return NULL;
+    }
+    m = PyObject_GC_New(PyDeferredObject, &PyDeferred_Type);
+    if (m == NULL) {
+        return NULL;
+    }
+    Py_INCREF(deferred);
+    m->df_deferred = deferred;
+    Py_INCREF(name);
+    m->df_name = name;
+    m->df_globals = NULL;
+    m->df_locals = NULL;
+    m->df_fromlist = NULL;
+    m->df_level = NULL;
+    m->df_obj = NULL;
+    m->df_next = NULL;
+    PyObject_GC_Track(m);
+    return (PyObject *)m;
+}
+
+static void
+deferred_dealloc(PyDeferredObject *m)
+{
+    Py_XDECREF(m->df_deferred);
+    Py_XDECREF(m->df_name);
+    Py_XDECREF(m->df_globals);
+    Py_XDECREF(m->df_locals);
+    Py_XDECREF(m->df_fromlist);
+    Py_XDECREF(m->df_level);
+    Py_XDECREF(m->df_obj);
+    Py_XDECREF(m->df_next);
+    Py_TYPE(m)->tp_free((PyObject *)m);
+}
+
+static PyObject *
+deferred_name(PyDeferredObject *m)
+{
+    if (m->df_deferred != NULL) {
+        PyObject *name = deferred_name((PyDeferredObject *)m->df_deferred);
+        PyObject *res = PyUnicode_FromFormat("%U.%U", name, m->df_name);
+        Py_DECREF(name);
+        return res;
+    }
+    Py_INCREF(m->df_name);
+    return m->df_name;
+}
+
+static PyObject *
+deferred_repr(PyDeferredObject *m)
+{
+    PyObject *name = deferred_name(m);
+    PyObject *res = PyUnicode_FromFormat("<deferred '%U'>", name);
+    Py_DECREF(name);
+    return res;
+}
+
+static int
+deferred_traverse(PyDeferredObject *m, visitproc visit, void *arg)
+{
+    Py_VISIT(m->df_deferred);
+    Py_VISIT(m->df_name);
+    Py_VISIT(m->df_globals);
+    Py_VISIT(m->df_locals);
+    Py_VISIT(m->df_fromlist);
+    Py_VISIT(m->df_level);
+    Py_VISIT(m->df_obj);
+    Py_VISIT(m->df_next);
+    return 0;
+}
+
+static int
+deferred_clear(PyDeferredObject *m)
+{
+    Py_CLEAR(m->df_deferred);
+    Py_CLEAR(m->df_name);
+    Py_CLEAR(m->df_globals);
+    Py_CLEAR(m->df_locals);
+    Py_CLEAR(m->df_fromlist);
+    Py_CLEAR(m->df_level);
+    Py_CLEAR(m->df_obj);
+    Py_CLEAR(m->df_next);
+    return 0;
+}
+
+
+PyTypeObject PyDeferred_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    "deferred",                                 /* tp_name */
+    sizeof(PyDeferredObject),                   /* tp_basicsize */
+    0,                                          /* tp_itemsize */
+    (destructor)deferred_dealloc,               /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_reserved */
+    (reprfunc)deferred_repr,                    /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_BASETYPE,                    /* tp_flags */
+    0,                                          /* tp_doc */
+    (traverseproc)deferred_traverse,            /* tp_traverse */
+    (inquiry)deferred_clear,                    /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    PyType_GenericAlloc,                        /* tp_alloc */
+    PyType_GenericNew,                          /* tp_new */
+    PyObject_GC_Del,                            /* tp_free */
+};

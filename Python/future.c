@@ -45,6 +45,10 @@ future_check_features(PyFutureFeatures *ff, stmt_ty s, PyObject *filename)
             continue;
         } else if (strcmp(feature, FUTURE_ANNOTATIONS) == 0) {
             ff->ff_features |= CO_FUTURE_ANNOTATIONS;
+        } else if (strcmp(feature, FUTURE_EAGER_IMPORTS) == 0) {
+            ff->ff_features |= CO_FUTURE_EAGER_IMPORTS;
+        } else if (strcmp(feature, FUTURE_LAZY_IMPORTS) == 0) {
+            ff->ff_features |= CO_FUTURE_LAZY_IMPORTS;
         } else if (strcmp(feature, "braces") == 0) {
             PyErr_SetString(PyExc_SyntaxError,
                             "not a chance");

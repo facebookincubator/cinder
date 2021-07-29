@@ -17,7 +17,8 @@ PyAPI_FUNC(PyCodeObject *) PyNode_Compile(struct _node *, const char *);
                    CO_FUTURE_WITH_STATEMENT | CO_FUTURE_PRINT_FUNCTION | \
                    CO_FUTURE_UNICODE_LITERALS | CO_FUTURE_BARRY_AS_BDFL | \
                    CO_FUTURE_GENERATOR_STOP | CO_FUTURE_ANNOTATIONS | \
-                   CO_STATICALLY_COMPILED | CO_SHADOW_FRAME)
+                   CO_STATICALLY_COMPILED | CO_SHADOW_FRAME | \
+                   CO_FUTURE_EAGER_IMPORTS | CO_FUTURE_LAZY_IMPORTS)
 #define PyCF_MASK_OBSOLETE (CO_NESTED)
 
 /* bpo-39562: CO_FUTURE_ and PyCF_ constants must be kept unique.
@@ -59,6 +60,8 @@ typedef struct {
 #define FUTURE_BARRY_AS_BDFL "barry_as_FLUFL"
 #define FUTURE_GENERATOR_STOP "generator_stop"
 #define FUTURE_ANNOTATIONS "annotations"
+#define FUTURE_EAGER_IMPORTS "eager_imports"
+#define FUTURE_LAZY_IMPORTS "lazy_imports"
 
 struct _mod; /* Declare the existence of this type */
 #define PyAST_Compile(mod, s, f, ar) PyAST_CompileEx(mod, s, f, -1, ar)

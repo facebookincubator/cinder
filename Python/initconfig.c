@@ -94,6 +94,8 @@ static const char usage_3[] = "\
              otherwise activate automatically)\n\
          -X pycache_prefix=PATH: enable writing .pyc files to a parallel tree rooted at the\n\
              given directory instead of to the code tree\n\
+         -X lazyimportsall: Enable lazy imports by default\n\
+         -X lazyimportswarmup: Warmup lazy imports\n\
 \n\
 --check-hash-based-pycs always|default|never:\n\
     control how Python invalidates hash-based .pyc files\n\
@@ -128,7 +130,9 @@ static const char usage_6[] =
 "PYTHONBREAKPOINT: if this variable is set to 0, it disables the default\n"
 "   debugger. It can be set to the callable of your debugger of choice.\n"
 "PYTHONDEVMODE: enable the development mode.\n"
-"PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n";
+"PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
+"PYTHONLAZYIMPORTSALL: Enable lazy imports by default.\n"
+"PYTHONLAZYIMPORTSWARMUP: Warmup lazy imports.\n";
 
 #if defined(MS_WINDOWS)
 #  define PYTHONHOMEHELP "<prefix>\\python{major}{minor}"
@@ -161,6 +165,8 @@ int Py_IsolatedFlag = 0; /* for -I, isolate from user's env */
 int Py_LegacyWindowsFSEncodingFlag = 0; /* Uses mbcs instead of utf-8 */
 int Py_LegacyWindowsStdioFlag = 0; /* Uses FileIO instead of WindowsConsoleIO */
 #endif
+int Py_LazyImportsAllFlag = 0; /* Needed by ceval.c */
+int Py_LazyImportsWarmupFlag = 0; /* Needed by ceval.c */
 
 
 static PyObject *
@@ -221,6 +227,9 @@ _Py_GetGlobalVariablesAsDict(void)
     SET_ITEM_INT(Py_LegacyWindowsFSEncodingFlag);
     SET_ITEM_INT(Py_LegacyWindowsStdioFlag);
 #endif
+
+    SET_ITEM_INT(Py_LazyImportsAllFlag);
+    SET_ITEM_INT(Py_LazyImportsWarmupFlag);
 
     return dict;
 
@@ -842,6 +851,8 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
 #ifdef MS_WINDOWS
     COPY_ATTR(legacy_windows_stdio);
 #endif
+    COPY_ATTR(lazy_imports_all);
+    COPY_ATTR(lazy_imports_warmup);
     COPY_ATTR(skip_source_first_line);
     COPY_WSTR_ATTR(run_command);
     COPY_WSTR_ATTR(run_module);
@@ -940,6 +951,8 @@ config_as_dict(const PyConfig *config)
 #ifdef MS_WINDOWS
     SET_ITEM_INT(legacy_windows_stdio);
 #endif
+    SET_ITEM_INT(lazy_imports_all);
+    SET_ITEM_INT(lazy_imports_warmup);
     SET_ITEM_INT(skip_source_first_line);
     SET_ITEM_WSTR(run_command);
     SET_ITEM_WSTR(run_module);
@@ -1041,6 +1054,8 @@ config_get_global_vars(PyConfig *config)
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
+    COPY_FLAG(lazy_imports_all, Py_LazyImportsAllFlag);
+    COPY_FLAG(lazy_imports_warmup, Py_LazyImportsWarmupFlag);
     COPY_NOT_FLAG(pathconfig_warnings, Py_FrozenFlag);
 
     COPY_NOT_FLAG(buffered_stdio, Py_UnbufferedStdioFlag);
@@ -1078,6 +1093,8 @@ config_set_global_vars(const PyConfig *config)
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
+    COPY_FLAG(lazy_imports_all, Py_LazyImportsAllFlag);
+    COPY_FLAG(lazy_imports_warmup, Py_LazyImportsWarmupFlag);
     COPY_NOT_FLAG(pathconfig_warnings, Py_FrozenFlag);
 
     COPY_NOT_FLAG(buffered_stdio, Py_UnbufferedStdioFlag);
@@ -1429,6 +1446,16 @@ config_read_complex_options(PyConfig *config)
     if (config_get_env(config, "PYTHONPROFILEIMPORTTIME")
        || config_get_xoption(config, L"importtime")) {
         config->import_time = 1;
+    }
+
+    if (config_get_env(config, "PYTHONLAZYIMPORTSALL")
+       || config_get_xoption(config, L"lazyimportsall")) {
+        config->lazy_imports_all = 1;
+    }
+
+    if (config_get_env(config, "PYTHONLAZYIMPORTSWARMUP")
+       || config_get_xoption(config, L"lazyimportswarmup")) {
+        config->lazy_imports_warmup = 1;
     }
 
     PyStatus status;

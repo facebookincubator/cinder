@@ -7,13 +7,19 @@
 extern "C" {
 #endif
 
+PyAPI_DATA(PyTypeObject) PyDeferred_Type;
 PyAPI_DATA(PyTypeObject) PyModule_Type;
 PyAPI_DATA(PyTypeObject) PyStrictModule_Type;
+
+#define PyDeferred_CheckExact(op) (Py_TYPE(op) == &PyDeferred_Type)
 
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
 #define PyModule_CheckExact(op) (Py_TYPE(op) == &PyModule_Type)
 #define PyStrictModule_Check(op) PyObject_TypeCheck(op, &PyStrictModule_Type)
 #define PyStrictModule_CheckExact(op) (Py_TYPE(op) == &PyStrictModule_Type)
+
+PyAPI_FUNC(PyObject *) PyDeferredModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
+PyAPI_FUNC(PyObject *) PyDeferred_NewObject(PyObject *deferred, PyObject *name);
 
 PyAPI_FUNC(PyObject *) PyStrictModule_New(PyTypeObject*, PyObject*, PyObject*);
 
@@ -74,6 +80,20 @@ typedef struct PyModuleDef_Slot{
 
 #ifndef Py_LIMITED_API
 #define _Py_mod_LAST_SLOT 2
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *df_deferred;
+    PyObject *df_name;
+    PyObject *df_globals;
+    PyObject *df_locals;
+    PyObject *df_fromlist;
+    PyObject *df_level;
+    PyObject *df_obj;
+    PyObject *df_next;
+} PyDeferredObject;
+
+int PyDeferred_Compare(PyObject* deferred, PyObject *mod_dict, PyObject *name);
 
 typedef struct {
     PyObject_HEAD

@@ -12,11 +12,12 @@ typedef struct {
  * -1 when no entry found, -3 when compare raises error.
  */
 typedef Py_ssize_t (*dict_lookup_func)
-    (PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr);
+    (PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr, int getting);
 
 #define DKIX_EMPTY (-1)
 #define DKIX_DUMMY (-2)  /* Used internally */
 #define DKIX_ERROR (-3)
+#define DKIX_VALUE_ERROR (-4)  /* Used by deferred values resolution */
 
 /* See dictobject.c for actual layout of DictKeysObject */
 struct _dictkeysobject {
@@ -30,9 +31,18 @@ struct _dictkeysobject {
        - lookdict(): general-purpose, and may return DKIX_ERROR if (and
          only if) a comparison raises an exception.
 
+       - lookdict_deferred(): general-purpose with deferred values, may return
+         DKIX_ERROR if (and only if) a comparison raises an exception. On
+         deferred object resolution errors, it may return DKIX_VALUE_ERROR.
+
        - lookdict_unicode(): specialized to Unicode string keys, comparison of
          which can never raise an exception; that function can never return
          DKIX_ERROR.
+
+       - lookdict_unicode_deferred(): specialized to Unicode string keys,
+         comparison of which can never raise an exception; that function can
+         never return DKIX_ERROR. On deferred object resolution errors, it may
+         return DKIX_VALUE_ERROR.
 
        - lookdict_unicode_nodummy(): similar to lookdict_unicode() but further
          specialized for Unicode string keys that cannot be the <dummy> value.

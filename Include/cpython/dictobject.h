@@ -93,6 +93,7 @@ typedef struct {
 PyAPI_FUNC(PyObject *) _PyDictView_New(PyObject *, PyTypeObject *);
 PyAPI_FUNC(PyObject *) _PyDictView_Intersect(PyObject* self, PyObject *other);
 
+PyObject *_PyDict_GetAttrItem_Unicode(PyObject *op, PyObject *key);
 PyObject *_PyDict_GetItem_Unicode(PyObject *op, PyObject *key);
 PyObject *_PyDict_GetItem_String_KnownHash(PyObject *op,
                                            const char *key,
@@ -119,6 +120,17 @@ void _PyDict_Watch(PyObject *);
 
 /* Stop watching the given dict. */
 void _PyDict_Unwatch(PyObject *);
+
+/* Return 1 if the given dict has deferred objects, or 0 otherwise. */
+int _PyDict_HasDeferredObjects(PyObject *);
+
+/* Flag dictionary as having deferred objects in it */
+void _PyDict_SetHasDeferredObjects(PyObject *);
+
+/* Unflag dictionary as having deferred objects in it */
+void _PyDict_UnsetHasDeferredObjects(PyObject *);
+
+int _PyDict_LoadDeferred(PyDictObject *);
 
 /* Increment the given dict's version tag for a set operation, notifying any
  * watchers of the new value.

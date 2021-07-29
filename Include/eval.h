@@ -40,6 +40,7 @@ PyAPI_FUNC(PyObject *) _PyEval_EvalCodeWithName(
 PyAPI_FUNC(PyObject *) _PyEval_CallTracing(PyObject *func, PyObject *args);
 
 PyAPI_DATA(int) _PyEval_ShadowByteCodeEnabled; /* facebook */
+PyAPI_DATA(int) _PyEval_LazyImportsEnabled; /* facebook */
 
 PyAPI_FUNC(PyObject *) _PyEval_SuperLookupMethodOrAttr(
     PyThreadState *tstate,

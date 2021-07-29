@@ -8,8 +8,11 @@
 #include "pycore_pylifecycle.h"
 #include "pycore_pymem.h"
 #include "pycore_pystate.h"
+#include "pycore_pyerrors.h"
 #include "errcode.h"
+#include "eval.h"
 #include "marshal.h"
+#include "moduleobject.h"
 #include "code.h"
 #include "frameobject.h"
 #include "osdefs.h"
@@ -1722,6 +1725,156 @@ import_find_and_load(PyObject *abs_name)
     }
 
     return mod;
+}
+
+PyObject *
+PyImport_ImportDeferred(PyObject *deferred)
+{
+    PyObject *obj;
+    assert(deferred != NULL);
+    assert(PyDeferred_CheckExact(deferred));
+    PyDeferredObject *d = (PyDeferredObject *)deferred;
+    obj = d->df_obj;
+    if (obj == NULL) {
+        if (d->df_next != NULL) {
+            if (PyImport_ImportDeferred(d->df_next) == NULL) {
+                return NULL;
+            }
+        }
+        if (d->df_deferred == NULL) {
+            obj = PyImport_ImportName(d->df_name,
+                                      d->df_globals,
+                                      d->df_locals,
+                                      d->df_fromlist,
+                                      d->df_level);
+            if (obj == NULL) {
+                return NULL;
+            }
+        }
+        else {
+            PyObject *from = PyImport_ImportDeferred(d->df_deferred);
+            if (from == NULL) {
+                return NULL;
+            }
+            PyThreadState *tstate = _PyThreadState_GET();
+            obj = _Py_DoImportFrom(tstate, from, d->df_name);
+            if (obj == NULL) {
+                return NULL;
+            }
+            if (PyDeferred_CheckExact(obj)) {
+                PyObject *value = PyImport_ImportDeferred(obj);
+                Py_XINCREF(value);
+                Py_DECREF(obj);
+                if (value == NULL) {
+                    return NULL;
+                }
+                obj = value;
+            }
+        }
+        d->df_obj = obj;
+    }
+    return obj;
+}
+
+PyObject *
+PyImport_DeferredImportName(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
+{
+    PyObject *res;
+
+    int ilevel = _PyLong_AsInt(level);
+    if (ilevel == -1 && PyErr_Occurred()) {
+        return NULL;
+    }
+
+    res = PyImport_DeferredImportModuleLevelObject(
+                    name,
+                    globals,
+                    locals,
+                    fromlist,
+                    ilevel);
+
+    return res;
+}
+
+PyObject *
+PyImport_ImportName(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
+{
+    _Py_IDENTIFIER(__import__);
+    PyObject *import_func, *res;
+    PyObject *stack[5];
+
+    PyThreadState *tstate = _PyThreadState_GET();
+
+    PyObject *builtins = PyEval_GetBuiltins();
+    import_func = _PyDict_GetItemIdWithError(builtins, &PyId___import__);
+    if (import_func == NULL) {
+        if (!_PyErr_Occurred(tstate)) {
+            _PyErr_SetString(tstate, PyExc_ImportError, "__import__ not found");
+        }
+        return NULL;
+    }
+
+    /* Fast path for not overloaded __import__. */
+    if (import_func == tstate->interp->import_func) {
+        int ilevel = _PyLong_AsInt(level);
+        if (ilevel == -1 && _PyErr_Occurred(tstate)) {
+            return NULL;
+        }
+        res = PyImport_ImportModuleLevelObject(
+                        name,
+                        globals,
+                        locals,
+                        fromlist,
+                        ilevel);
+        return res;
+    }
+
+    Py_INCREF(import_func);
+
+    stack[0] = name;
+    stack[1] = globals;
+    stack[2] = locals;
+    stack[3] = fromlist;
+    stack[4] = level;
+    res = _PyObject_VectorcallTstate(tstate, import_func, stack, 5, NULL);
+    Py_DECREF(import_func);
+    return res;
+}
+
+PyObject *
+PyImport_DeferredImportModuleLevelObject(
+    PyObject *name,
+    PyObject *globals,
+    PyObject *locals,
+    PyObject *fromlist,
+    int level)
+{
+    PyObject *olevel = NULL;
+    PyObject *deferred = NULL;
+    PyObject *abs_name = NULL;
+
+    if (level > 0) {
+        abs_name = resolve_name(name, globals, level);
+        if (abs_name == NULL) {
+            goto error;
+        }
+    }
+    else {  /* level == 0 */
+        if (PyUnicode_GET_LENGTH(name) == 0) {
+            PyErr_SetString(PyExc_ValueError, "Empty module name");
+            goto error;
+        }
+        abs_name = name;
+        Py_INCREF(abs_name);
+    }
+
+    olevel = PyLong_FromLong(0);
+    deferred = PyDeferredModule_NewObject(abs_name, globals, locals, fromlist, olevel);
+
+  error:
+    Py_XDECREF(abs_name);
+    Py_XDECREF(olevel);
+    return deferred;
 }
 
 PyObject *

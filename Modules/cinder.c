@@ -22,6 +22,12 @@ cinder_setknobs(PyObject *self, PyObject *o)
         _PyEval_ShadowByteCodeEnabled = enabled != -1 && enabled;
     }
 
+    PyObject* lazy_imports = PyDict_GetItemString(o, "lazyimports");
+    if (lazy_imports != NULL) {
+        int enabled = PyObject_IsTrue(lazy_imports);
+        _PyEval_LazyImportsEnabled = enabled != -1 && enabled;
+    }
+
     PyObject *genfreelist = PyDict_GetItemString(o, "genfreelist");
     if (genfreelist != NULL) {
         int enabled = PyObject_IsTrue(genfreelist);
@@ -69,7 +75,11 @@ cinder_getknobs(PyObject *self, PyObject *args)
 
     int err = PyDict_SetItemString(res, "shadowcode",
                          _PyEval_ShadowByteCodeEnabled ? Py_True : Py_False);
+    if (err == -1)
+        return NULL;
 
+    err = PyDict_SetItemString(res, "lazyimports",
+                         _PyEval_LazyImportsEnabled ? Py_True : Py_False);
     if (err == -1)
         return NULL;
 

@@ -176,4 +176,3 @@ int _PyOS_GetOpt(Py_ssize_t argc, wchar_t * const *argv, int *longindex)
 #ifdef __cplusplus
 }
 #endif
-

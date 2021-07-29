@@ -1526,13 +1526,13 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         if (PyStrictModule_Check(owner)) {
             version = PYCACHE_STRICT_MODULE_VERSION(owner);
             if (strictmodule_is_unassigned(dict, name) == 0) {
-                value = PyDict_GetItem(dict, name);
+                value = _PyDict_GetAttrItem_Unicode(dict, name);
             } else {
                 value = NULL;
             }
         } else {
             version = PYCACHE_MODULE_VERSION(owner);
-            value = PyDict_GetItem(dict, name);
+            value = _PyDict_GetAttrItem_Unicode(dict, name);
         }
 
         if (value != NULL) {
@@ -1797,13 +1797,13 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         if (PyStrictModule_Check(obj)) {
             version = PYCACHE_STRICT_MODULE_VERSION(obj);
             if (strictmodule_is_unassigned(dict, name) == 0) {
-                value = PyDict_GetItem(dict, name);
+                value = _PyDict_GetAttrItem_Unicode(dict, name);
             } else {
                 value = NULL;
             }
         } else {
             version = PYCACHE_MODULE_VERSION(obj);
-            value = PyDict_GetItem(dict, name);
+            value = _PyDict_GetAttrItem_Unicode(dict, name);
         }
 
         if (value != NULL) {
