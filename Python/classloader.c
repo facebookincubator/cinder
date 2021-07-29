@@ -993,13 +993,13 @@ classloader_get_member(PyObject *path,
                     PyTuple_GET_ITEM(name, i), &optional);
                 if (param == NULL) {
                     Py_DECREF(tmp_tuple);
-                    return NULL;
+                    goto error;
                 }
                 if (optional) {
                     PyObject *union_args = PyTuple_New(2);
                     if (union_args == NULL) {
                         Py_DECREF(tmp_tuple);
-                        return NULL;
+                        goto error;
                     }
                     /* taking ref from _PyClassLoader_ResolveType */
                     PyTuple_SET_ITEM(union_args, 0, param);
@@ -1010,7 +1010,7 @@ classloader_get_member(PyObject *path,
                     if (union_obj == NULL) {
                         Py_DECREF(union_args);
                         Py_DECREF(tmp_tuple);
-                        return NULL;
+                        goto error;
                     }
                     Py_DECREF(union_args);
                     param = union_obj;
