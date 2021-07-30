@@ -3726,11 +3726,19 @@ static const _Py_SigElement *const getitem_sig[] = {&_Py_Sig_Object, NULL};
 _PyTypedMethodDef chklist_getitem_def = {
     list_subscript, getitem_sig, _Py_SIG_OBJECT};
 
+static const _Py_SigElement *const setitem_sig[] = {&_Py_Sig_Object, &_Py_Sig_Object, NULL};
+_PyTypedMethodDef chklist_setitem_def = {
+    list_ass_subscript, setitem_sig, _Py_SIG_ERROR};
+
 static PyMethodDef chklist_methods[] = {
     {"__getitem__",
          (PyCFunction)&chklist_getitem_def,
          METH_TYPED | METH_COEXIST,
          "x.__getitem__(y) <==> x[y]"},
+    {"__setitem__",
+         (PyCFunction)&chklist_setitem_def,
+         METH_TYPED | METH_COEXIST,
+         "Set self[index_or_slice] to value."},
     // TODO(T96351329): We should implement a custom reverse iterator for checked lists.
     LIST___REVERSED___METHODDEF
     LIST___SIZEOF___METHODDEF
@@ -3757,8 +3765,18 @@ static void chklist_dealloc(PyListObject *self)
 
 static int chklist_ass_subscript(PyListObject* self, PyObject* item, PyObject* value)
 {
-    if (chklist_checkitem(self, value)) {
-      return -1;
+    if (PySlice_Check(item)) {
+        if (Py_TYPE(value) != Py_TYPE(self)) {
+            PyErr_Format(PyExc_TypeError,
+                         "Incompatible slice type '%s' assigned to '%s'",
+                         Py_TYPE(value)->tp_name,
+                         Py_TYPE(self)->tp_name);
+
+          return -1;
+        }
+    }
+    else if (chklist_checkitem(self, value)) {
+        return -1;
     }
     return list_ass_subscript(self, item, value);
 }

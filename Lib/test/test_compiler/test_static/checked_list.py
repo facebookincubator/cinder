@@ -1,7 +1,7 @@
 from __static__ import CheckedList
 
 from .common import StaticTestBase
-from .tests import bad_ret_type
+from .tests import bad_ret_type, type_mismatch
 
 
 class CheckedListTests(StaticTestBase):
@@ -252,3 +252,51 @@ class CheckedListTests(StaticTestBase):
             f = mod["testfunc"]
             l = CheckedList[int]([1, 2, 3])
             self.assertEqual(f(l), [2])
+
+    def test_checked_list_compile_setitem(self):
+        codestr = """
+            from __static__ import CheckedList
+            def assign_to_index_1(x: CheckedList[int]) -> None:
+                x[1] = 2
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["assign_to_index_1"]
+            l = CheckedList[int]([1, 1, 1])
+            self.assertEqual(f(l), None)
+            self.assertEqual(repr(l), "[1, 2, 1]")
+
+    def test_checked_list_compile_setitem_bad_type(self):
+        codestr = """
+            from __static__ import CheckedList
+            def assign_to_index_1(x: CheckedList[int]) -> None:
+                x[1] = "a"
+        """
+        self.type_error(codestr, type_mismatch("Exact[str]", "int"))
+
+    def test_checked_list_compile_setitem_slice(self):
+        codestr = """
+            from __static__ import CheckedList
+            def assign_to_slice(x: CheckedList[int]) -> None:
+                x[1:3] = CheckedList[int]([2, 3])
+         """
+        with self.in_module(codestr) as mod:
+            f = mod["assign_to_slice"]
+            l = CheckedList[int]([1, 1, 1])
+            self.assertEqual(f(l), None)
+            self.assertEqual(repr(l), "[1, 2, 3]")
+
+    def test_checked_list_compile_setitem_slice_list_bad_type(self):
+        codestr = """
+            from __static__ import CheckedList
+            def assign_to_slice(x: CheckedList[int]) -> None:
+                x[1:3] = [2, 3]
+         """
+        self.type_error(codestr, type_mismatch("Exact[list]", "chklist[int]"))
+
+    def test_checked_list_compile_setitem_slice_list_bad_index_type(self):
+        codestr = """
+            from __static__ import CheckedList
+            def assign_to_slice(x: CheckedList[int]) -> None:
+                x["A"] = [2, 3]
+         """
+        self.type_error(codestr, type_mismatch("Exact[str]", "int"))

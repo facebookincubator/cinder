@@ -4477,6 +4477,14 @@ class CheckedListInstance(Object[CheckedList]):
             code_gen.visit(node.slice)
             update_descr = self.klass.type_descr + ("__getitem__",)
             code_gen.emit_invoke_method(update_descr, 1)
+        elif isinstance(node.ctx, ast.Store):
+            code_gen.visit(node.value)
+            code_gen.emit("ROT_TWO")
+            code_gen.visit(node.slice)
+            code_gen.emit("ROT_TWO")
+            setitem_descr = self.klass.type_descr + ("__setitem__",)
+            code_gen.emit_invoke_method(setitem_descr, 2)
+            code_gen.emit("POP_TOP")
         else:
             code_gen.defaultVisit(node, aug_flag)
 
