@@ -145,7 +145,8 @@ Analyzer::Analyzer(
               std::make_shared<DictType>())),
       futureAnnotations_(futureAnnotations),
       currentExceptionContext_(),
-      modName_(std::move(modName)) {}
+      modName_(std::move(modName)),
+      astToResults_(std::make_unique<astToResultT>()) {}
 
 Analyzer::Analyzer(
     mod_ty root,
@@ -174,7 +175,8 @@ Analyzer::Analyzer(
           scopeFactory(table.entryFromAst(root_), std::move(toplevelNS))),
       futureAnnotations_(futureAnnotations),
       currentExceptionContext_(),
-      modName_(std::move(modName)) {}
+      modName_(std::move(modName)),
+      astToResults_(std::make_unique<astToResultT>()) {}
 
 Analyzer::Analyzer(
     compiler::ModuleLoader* loader,
@@ -200,7 +202,8 @@ Analyzer::Analyzer(
       stack_(EnvT(closure)),
       futureAnnotations_(futureAnnotations),
       currentExceptionContext_(),
-      modName_(std::move(modName)) {}
+      modName_(std::move(modName)),
+      astToResults_(std::make_unique<astToResultT>()) {}
 
 /* if asname is not nullptr, return asname,
  * otherwise return base name of the alias (substring before first '.')
@@ -609,12 +612,16 @@ AnalysisResult Analyzer::visitFunctionDefHelper(
       futureAnnotations_,
       isAsync));
 
+  // rewriter attrs
+  (*astToResults_)[node] = func;
+
   // decorators
   int decoratorSize = asdl_seq_LEN(decoratorList);
   // decorators should be applied in reverse order
   for (int i = decoratorSize - 1; i >= 0; --i) {
     expr_ty dec = reinterpret_cast<expr_ty>(asdl_seq_GET(decoratorList, i));
     AnalysisResult decObj = visitExpr(dec);
+    (*astToResults_)[dec] = decObj;
     // call decorators, fix lineno
     {
       auto contextManager = updateContextHelper(dec->lineno, dec->col_offset);
@@ -645,6 +652,21 @@ static AnalysisResult strDictToObjHelper(
   }
   return std::make_shared<StrictDict>(
       DictObjectType(), caller.caller, std::move(dictObj));
+}
+
+static bool isNoSlotBuiltinType(AnalysisResult value) {
+  static std::vector<AnalysisResult> noSlotTypes{
+      IntType(), TupleType(), SetType(), TypeType()};
+  auto typ = std::dynamic_pointer_cast<StrictType>(value);
+  if (typ) {
+    for (auto& base : typ->mro()) {
+      if (std::find(noSlotTypes.begin(), noSlotTypes.end(), base) !=
+          noSlotTypes.end()) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void Analyzer::visitClassDef(const stmt_ty stmt) {
@@ -817,6 +839,12 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
       std::swap(classObj, tempClass);
     }
   }
+  // Additional step, add rewriter attrs of the class definition
+  if (isNoSlotBuiltinType(classObj)) {
+    classObj->ensureRewriterAttrs().setSlotsEnabled(false);
+  }
+  (*astToResults_)[stmt] = classObj;
+
   // Step 8, populate __class__ in hidden scope defined in step 3
   (*hiddenDunderClassScopeDict)[kDunderClass] = classObj;
   stack_.set(className, std::move(classObj));

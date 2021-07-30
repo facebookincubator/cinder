@@ -30,7 +30,9 @@
 namespace strictmod::objects {
 //--------------------Builtin Type Declarations-----------------------
 std::shared_ptr<StrictModuleObject> BuiltinsModule();
-std::shared_ptr<StrictModuleObject> StrictModulesModule();
+// every time this is called, a new strict module module
+// is created
+std::shared_ptr<StrictModuleObject> createStrictModulesModule();
 
 std::shared_ptr<StrictType> ObjectType();
 std::shared_ptr<StrictType> TypeType();

@@ -118,6 +118,8 @@ class BaseStrictObject : public std::enable_shared_from_this<BaseStrictObject> {
 };
 
 typedef sequence_map<std::string, std::shared_ptr<BaseStrictObject>> DictType;
+typedef std::unordered_map<void*, std::shared_ptr<BaseStrictObject>>
+    astToResultT;
 
 // format arguments for function call
 std::string formatArgs(

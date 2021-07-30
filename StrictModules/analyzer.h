@@ -37,6 +37,7 @@ class AnalysisContextManager {
 
 class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   using BaseStrictObject = objects::BaseStrictObject;
+  using astToResultT = strictmod::objects::astToResultT;
   typedef Scope<std::shared_ptr<BaseStrictObject>, AnalysisScopeData> ScopeT;
   typedef sequence_map<std::string, std::shared_ptr<BaseStrictObject>> DictType;
 
@@ -161,6 +162,10 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   AnalysisContextManager updateContext(expr_ty expr);
   AnalysisContextManager updateContext(mod_ty mod);
 
+  std::unique_ptr<astToResultT> passAstToResultsMap() {
+    return std::move(astToResults_);
+  }
+
   static std::unique_ptr<ScopeT> scopeFactory(
       SymtableEntry entry,
       std::shared_ptr<DictType> map);
@@ -186,6 +191,8 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
    * For function bodies, this is where the function is defined
    */
   std::string modName_;
+  // map ast nodes to analysis result
+  std::unique_ptr<astToResultT> astToResults_;
 
   std::shared_ptr<BaseStrictObject> handleFromListHelper(
       std::shared_ptr<BaseStrictObject> fromMod,

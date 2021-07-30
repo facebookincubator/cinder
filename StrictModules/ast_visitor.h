@@ -14,7 +14,8 @@ class ASTVisitor {
   */
  protected:
   MT visitMod(const mod_ty mod) {
-    auto context = static_cast<TAnalyzer*>(this)->updateContext(mod);
+    [[maybe_unused]] auto context =
+        static_cast<TAnalyzer*>(this)->updateContext(mod);
     switch (mod->kind) {
       case Module_kind:
         return static_cast<TAnalyzer*>(this)->visitStmtSeq(mod->v.Module.body);
@@ -28,7 +29,8 @@ class ASTVisitor {
   }
 
   ST visitStmt(const stmt_ty stmt) {
-    auto context = static_cast<TAnalyzer*>(this)->updateContext(stmt);
+    [[maybe_unused]] auto context =
+        static_cast<TAnalyzer*>(this)->updateContext(stmt);
     switch (stmt->kind) {
       case Import_kind:
         return static_cast<TAnalyzer*>(this)->visitImport(stmt);
@@ -84,7 +86,8 @@ class ASTVisitor {
   }
 
   ET visitExpr(const expr_ty expr) {
-    auto context = static_cast<TAnalyzer*>(this)->updateContext(expr);
+    [[maybe_unused]] auto context =
+        static_cast<TAnalyzer*>(this)->updateContext(expr);
     switch (expr->kind) {
       case BoolOp_kind:
         return static_cast<TAnalyzer*>(this)->visitBoolOp(expr);

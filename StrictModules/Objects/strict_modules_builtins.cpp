@@ -21,7 +21,7 @@ std::shared_ptr<BaseStrictObject> looseSlots(
         baseHasLooseSlots = true;
       }
     }
-    if (baseHasLooseSlots) {
+    if (!baseHasLooseSlots) {
       typAttrs.setLooseSlots(true);
     }
   }

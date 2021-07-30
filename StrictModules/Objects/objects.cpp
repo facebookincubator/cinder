@@ -853,81 +853,76 @@ std::shared_ptr<StrictType> getExceptionFromString(
   return it->second;
 }
 
-static std::shared_ptr<StrictModuleObject> kStrictModule =
-    StrictModuleObject::makeStrictModule(kModuleType, strictModName);
-
-bool initializeStrictModulesModule();
-
-std::shared_ptr<StrictModuleObject> StrictModulesModule() {
-  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
-  [[maybe_unused]] static bool init = initializeStrictModulesModule();
-  return kStrictModule;
-}
-
-std::shared_ptr<BaseStrictObject> StrictModuleLooseSlots() {
+std::shared_ptr<BaseStrictObject> StrictModuleLooseSlots(
+    std::shared_ptr<StrictModuleObject> mod) {
   [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
-      kStrictModule,
+      std::move(mod),
       CallableWrapper(looseSlots, "loose_slots"),
       nullptr,
       "loose_slots"));
   return o;
 }
 
-std::shared_ptr<BaseStrictObject> StrictModuleStrictSlots() {
+std::shared_ptr<BaseStrictObject> StrictModuleStrictSlots(
+    std::shared_ptr<StrictModuleObject> mod) {
   [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
-      kStrictModule,
+      std::move(mod),
       CallableWrapper(strictSlots, "strict_slots"),
       nullptr,
       "strict_slots"));
   return o;
 }
 
-std::shared_ptr<BaseStrictObject> StrictModuleExtraSlot() {
+std::shared_ptr<BaseStrictObject> StrictModuleExtraSlot(
+    std::shared_ptr<StrictModuleObject> mod) {
   [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
-      kStrictModule,
+      std::move(mod),
       CallableWrapper(extraSlot, "extra_slot"),
       nullptr,
       "extra_slot"));
   return o;
 }
 
-std::shared_ptr<BaseStrictObject> StrictModuleMutable() {
+std::shared_ptr<BaseStrictObject> StrictModuleMutable(
+    std::shared_ptr<StrictModuleObject> mod) {
   [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
-      kStrictModule,
+      std::move(mod),
       CallableWrapper(setMutable, "mutable"),
       nullptr,
       "mutable"));
   return o;
 }
 
-std::shared_ptr<BaseStrictObject> StrictModuleMarkCachedProperty() {
+std::shared_ptr<BaseStrictObject> StrictModuleMarkCachedProperty(
+    std::shared_ptr<StrictModuleObject> mod) {
   [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
-      kStrictModule,
+      std::move(mod),
       CallableWrapper(markCachedProperty, "_mark_cached_property"),
       nullptr,
       "_mark_cached_property"));
   return o;
 }
 
-bool initializeStrictModulesModule() {
-  static bool initialized = false;
-  if (!initialized) {
-    initialized = true;
-    DictType* dict = new DictType({
-        {"loose_slots", StrictModuleLooseSlots()},
-        {"strict_slots", StrictModuleStrictSlots()},
-        {"extra_slot", StrictModuleExtraSlot()},
-        {"mutable", StrictModuleMutable()},
-        {"_mark_cached_property", StrictModuleMarkCachedProperty()},
-    });
-    kStrictModule->setDict(std::shared_ptr<DictType>(dict));
-  }
-  return initialized;
+std::shared_ptr<StrictModuleObject> createStrictModulesModule() {
+  [[maybe_unused]] static bool bulitinInit = bootstrapBuiltins();
+  std::shared_ptr<StrictModuleObject> strictModule =
+      StrictModuleObject::makeStrictModule(kModuleType, strictModName);
+
+  DictType* dict = new DictType({
+      {"loose_slots", StrictModuleLooseSlots(strictModule)},
+      {"strict_slots", StrictModuleStrictSlots(strictModule)},
+      {"extra_slot", StrictModuleExtraSlot(strictModule)},
+      {"mutable", StrictModuleMutable(strictModule)},
+      {"_mark_cached_property", StrictModuleMarkCachedProperty(strictModule)},
+  });
+  strictModule->setDict(std::shared_ptr<DictType>(dict));
+
+  return strictModule;
 }
 
 } // namespace strictmod::objects

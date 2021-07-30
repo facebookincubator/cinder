@@ -1,5 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Compiler/analyzed_module.h"
+#include "StrictModules/ast_preprocessor.h"
 
 namespace strictmod::compiler {
 bool AnalyzedModule::isStrict() const {
@@ -32,4 +33,21 @@ void AnalyzedModule::cleanModuleContent() {
     module_->cleanContent(module_.get());
   }
 }
+
+Ref<> AnalyzedModule::getPyAst(bool preprocess, PyArena* arena) {
+  if (ast_ == nullptr) {
+    return nullptr;
+  }
+  if (preprocess) {
+    auto preprocessor = Preprocessor(ast_, astToResults_.get(), arena);
+    preprocessor.preprocess();
+  }
+  Ref<> result = Ref<>::steal(PyAST_mod2obj(ast_));
+  return result;
+}
+
+mod_ty AnalyzedModule::getAST() {
+  return ast_;
+}
+
 } // namespace strictmod::compiler

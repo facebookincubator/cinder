@@ -145,6 +145,8 @@ class ModuleLoader {
    */
   bool loadStrictModuleModule();
 
+  bool isModuleLoaded(const std::string& modName);
+
   PyArena* getArena() {
     return arena_;
   }

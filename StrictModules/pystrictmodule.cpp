@@ -296,6 +296,13 @@ PyTypeObject StrictModuleLoader_Type = {
     .tp_new = StrictModuleLoaderObject_new,
 };
 #pragma GCC diagnostic pop
+
+const char* MUTABLE_DEC = "<mutable>";
+const char* LOOSE_SLOTS_DEC = "<loose_slots>";
+const char* EXTRA_SLOTS_DEC = "<extra_slots>";
+const char* ENABLE_SLOTS_DEC = "<enable_slots>";
+const char* CACHED_PROP_DEC = "<cached_property>";
+
 #ifdef __cplusplus
 }
 #endif

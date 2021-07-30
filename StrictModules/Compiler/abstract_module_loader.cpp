@@ -398,7 +398,7 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
     kind = ModuleKind::kNonStrict;
   }
   AnalyzedModule* analyzedModule =
-      new AnalyzedModule(kind, std::move(errorSink));
+      new AnalyzedModule(kind, std::move(errorSink), ast);
   modules_[name] = std::unique_ptr<AnalyzedModule>(analyzedModule);
   lazy_modules_.erase(name);
   if (analyzedModule->isStrict() || isForcedStrict(name, filename)) {
@@ -444,6 +444,7 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
         modInfo->getFutureAnnotations());
 
     analyzer.analyze();
+    analyzedModule->setAstToResults(analyzer.passAstToResultsMap());
   }
 
   return analyzedModule;
@@ -488,9 +489,9 @@ bool ModuleLoader::loadStrictModuleModule() {
   auto it = modules_.find(name);
   if (it == modules_.end()) {
     auto strictModKind = ModuleKind::kStrict;
-    auto analyzedModule =
-        std::make_unique<AnalyzedModule>(strictModKind, errorSinkFactory_());
-    auto strictModModule = objects::StrictModulesModule();
+    auto analyzedModule = std::make_unique<AnalyzedModule>(
+        strictModKind, errorSinkFactory_(), nullptr);
+    auto strictModModule = objects::createStrictModulesModule();
     strictModModule->setAttr(
         "__name__",
         std::make_shared<objects::StrictString>(
@@ -501,4 +502,9 @@ bool ModuleLoader::loadStrictModuleModule() {
   }
   return false;
 }
+
+bool ModuleLoader::isModuleLoaded(const std::string& modName) {
+  return modules_.find(modName) != modules_.end();
+}
+
 } // namespace strictmod::compiler
