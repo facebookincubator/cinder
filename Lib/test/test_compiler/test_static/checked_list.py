@@ -1,6 +1,7 @@
 from __static__ import CheckedList
 
 from .common import StaticTestBase
+from .tests import bad_ret_type
 
 
 class CheckedListTests(StaticTestBase):
@@ -214,3 +215,40 @@ class CheckedListTests(StaticTestBase):
             TypeError, "chklist expected at most 1 argument, got 2"
         ):
             CheckedList[int]([], [])
+
+    def test_checked_list_getitem_bad_return_type(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc(x: CheckedList[int]) -> CheckedList[int]:
+                return x[1]
+        """
+        self.type_error(codestr, bad_ret_type("int", "chklist[int]"))
+
+    def test_checked_list_getitem_slice_bad_return_type(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc(x: CheckedList[int]) -> int:
+                return x[1:2]
+        """
+        self.type_error(codestr, bad_ret_type("chklist[int]", "int"))
+
+    def test_checked_list_compile_getitem(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc(x: CheckedList[int]) -> int:
+                return x[1]
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = CheckedList[int]([1, 2, 3])
+            self.assertEqual(f(l), 2)
+
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc(x: CheckedList[int]) -> CheckedList[int]:
+                return x[1:2]
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = CheckedList[int]([1, 2, 3])
+            self.assertEqual(f(l), [2])

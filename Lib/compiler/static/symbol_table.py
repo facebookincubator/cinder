@@ -31,6 +31,7 @@ from .types import (
     CBOOL_TYPE,
     CHAR_TYPE,
     CHECKED_DICT_EXACT_TYPE,
+    CHECKED_LIST_EXACT_TYPE,
     CLASSVAR_TYPE,
     COMPLEX_EXACT_TYPE,
     CastFunction,
@@ -212,6 +213,7 @@ class SymbolTable:
             {
                 "Array": ARRAY_EXACT_TYPE,
                 "CheckedDict": CHECKED_DICT_EXACT_TYPE,
+                "CheckedList": CHECKED_LIST_EXACT_TYPE,
                 "allow_weakrefs": ALLOW_WEAKREFS_TYPE,
                 "box": BoxFunction(FUNCTION_TYPE),
                 "cast": CastFunction(FUNCTION_TYPE),

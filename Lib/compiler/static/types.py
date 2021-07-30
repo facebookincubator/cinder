@@ -76,7 +76,7 @@ from typing import (
     Callable as typingCallable,
 )
 
-from __static__ import chkdict  # pyre-ignore[21]: unknown module
+from __static__ import chkdict, chklist  # pyre-ignore[21]: unknown module
 from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     TYPED_BOOL,
     TYPED_INT_8BIT,
@@ -4302,6 +4302,9 @@ CLASSVAR_TYPE = ClassVar(
 CHECKED_DICT_TYPE_NAME = GenericTypeName(
     "__static__", "chkdict", (GenericParameter("K", 0), GenericParameter("V", 1))
 )
+CHECKED_LIST_TYPE_NAME = GenericTypeName(
+    "__static__", "chklist", (GenericParameter("T", 0),)
+)
 
 
 class CheckedDict(GenericClass):
@@ -4409,6 +4412,82 @@ class CheckedDictInstance(Object[CheckedDict]):
     def inexact(self) -> Value:
         if self.klass.contains_generic_parameters:
             return CHECKED_DICT_TYPE.instance
+        return self
+
+
+class CheckedList(GenericClass):
+    def __init__(
+        self,
+        name: GenericTypeName,
+        bases: Optional[List[Class]] = None,
+        instance: Optional[Object[Class]] = None,
+        klass: Optional[Class] = None,
+        members: Optional[Dict[str, Value]] = None,
+        type_def: Optional[GenericClass] = None,
+        is_exact: bool = False,
+        pytype: Optional[Type[object]] = None,
+    ) -> None:
+        if instance is None:
+            instance = CheckedListInstance(self)
+        super().__init__(
+            name,
+            bases,
+            instance,
+            klass,
+            members,
+            type_def,
+            is_exact,
+            pytype,
+        )
+
+    def exact_type(self) -> Class:
+        if self.contains_generic_parameters:
+            return CHECKED_LIST_EXACT_TYPE
+        return self
+
+    def inexact_type(self) -> Class:
+        if self.contains_generic_parameters:
+            return CHECKED_LIST_TYPE
+        return self
+
+
+class CheckedListInstance(Object[CheckedList]):
+    def bind_subscr(
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class] = None,
+    ) -> None:
+        if type == SLICE_TYPE.instance:
+            visitor.set_type(node, self)
+        else:
+            visitor.visitExpectedType(node.slice, INT_TYPE.instance, blame=node)
+            visitor.set_type(node, self.klass.gen_name.args[0].instance)
+
+    def emit_subscr(
+        self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
+    ) -> None:
+        # From slice
+        if code_gen.get_type(node) == self:
+            return code_gen.defaultVisit(node, aug_flag)
+
+        if isinstance(node.ctx, ast.Load):
+            code_gen.visit(node.value)
+            code_gen.visit(node.slice)
+            update_descr = self.klass.type_descr + ("__getitem__",)
+            code_gen.emit_invoke_method(update_descr, 1)
+        else:
+            code_gen.defaultVisit(node, aug_flag)
+
+    def exact(self) -> Value:
+        if self.klass.contains_generic_parameters:
+            return CHECKED_LIST_EXACT_TYPE.instance
+        return self
+
+    def inexact(self) -> Value:
+        if self.klass.contains_generic_parameters:
+            return CHECKED_LIST_TYPE.instance
         return self
 
 
@@ -5156,6 +5235,13 @@ CHECKED_DICT_TYPE = CheckedDict(CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=ch
 CHECKED_DICT_EXACT_TYPE = CheckedDict(
     CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=chkdict, is_exact=True
 )
+
+CHECKED_LIST_TYPE = CheckedList(CHECKED_LIST_TYPE_NAME, [OBJECT_TYPE], pytype=chklist)
+
+CHECKED_LIST_EXACT_TYPE = CheckedList(
+    CHECKED_LIST_TYPE_NAME, [OBJECT_TYPE], pytype=chklist, is_exact=True
+)
+
 
 
 class ProdAssertFunction(Object[Class]):

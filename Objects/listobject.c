@@ -3722,9 +3722,15 @@ chklist_extend(PyListObject *self, PyObject *iterable)
 
 _Py_TYPED_SIGNATURE(chklist_extend, _Py_SIG_ERROR, &_Py_Sig_Object, NULL);
 
+static const _Py_SigElement *const getitem_sig[] = {&_Py_Sig_Object, NULL};
+_PyTypedMethodDef chklist_getitem_def = {
+    list_subscript, getitem_sig, _Py_SIG_OBJECT};
 
 static PyMethodDef chklist_methods[] = {
-    {"__getitem__", (PyCFunction)list_subscript, METH_O|METH_COEXIST, "x.__getitem__(y) <==> x[y]"},
+    {"__getitem__",
+         (PyCFunction)&chklist_getitem_def,
+         METH_TYPED | METH_COEXIST,
+         "x.__getitem__(y) <==> x[y]"},
     // TODO(T96351329): We should implement a custom reverse iterator for checked lists.
     LIST___REVERSED___METHODDEF
     LIST___SIZEOF___METHODDEF
