@@ -164,6 +164,27 @@ Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   return nullptr;
 }
 
+// If we're loading a field from a const float into a double,
+// this can be simplified into a LoadConst.
+Register* simplifyLoadField(Env& env, const LoadField* instr) {
+  Register* loadee = instr->GetOperand(0);
+  Type load_output_type = instr->GetOutput()->type();
+  // Ensure that we are dealing with either a integer or a double.
+  Type loadee_type = loadee->type();
+  if (!(loadee_type.hasObjectSpec())) {
+    return nullptr;
+  }
+  PyObject* value = loadee_type.objectSpec();
+  if (load_output_type <= TCDouble) {
+    if (!PyFloat_Check(value)) {
+      return nullptr;
+    }
+    double number = PyFloat_AS_DOUBLE(loadee_type.objectSpec());
+    return env.emit<LoadConst>(Type::fromCDouble(number));
+  }
+  return nullptr;
+}
+
 Register* simplifyIsNegativeAndErrOccurred(
     Env& env,
     const IsNegativeAndErrOccurred* instr) {
@@ -190,6 +211,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kIntConvert:
       return simplifyIntConvert(static_cast<const IntConvert*>(instr));
 
+    case Opcode::kLoadField:
+      return simplifyLoadField(env, static_cast<const LoadField*>(instr));
     case Opcode::kLoadTupleItem:
       return simplifyLoadTupleItem(
           env, static_cast<const LoadTupleItem*>(instr));

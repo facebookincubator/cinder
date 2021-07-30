@@ -26,3 +26,22 @@ fun jittestmodule:test {
   }
 }
 ---
+UnboxOfFinalDoubleIsEliminated
+---
+from typing import Final
+from __static__ import double, unbox
+
+MY_FINAL: Final[float] = 1.23
+
+def test() -> double:
+    d: double = unbox(MY_FINAL)
+    return d
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Nullptr = LoadConst<Nullptr>
+    v7:CDouble[1.23] = LoadConst<CDouble[1.23]>
+    Return<CDouble> v7
+  }
+}
+---
