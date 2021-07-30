@@ -217,7 +217,7 @@ std::shared_ptr<BaseStrictObject> execImpl(
   }
   std::unique_ptr<compiler::ModuleInfo> modinfo =
       caller.loader->findModuleFromSource(code, "<exec>", "<exec>");
-  Symtable table(modinfo->passSymtable());
+  Symtable table(modinfo->getSymtable());
   Analyzer analyzer(
       modinfo->getAst(),
       nullptr,

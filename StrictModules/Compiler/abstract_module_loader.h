@@ -64,7 +64,8 @@ class ModuleLoader {
         modules_(),
         lazy_modules_(),
         forceStrict_(forceStrict),
-        errorSinkFactory_(factory) {
+        errorSinkFactory_(factory),
+        deletedModules_() {
     arena_ = PyArena_New();
     if (arena_ == nullptr) {
       throw std::runtime_error(kArenaNewErrorMsg);
@@ -78,6 +79,11 @@ class ModuleLoader {
       // of modules could be nullptr
       if (am.second) {
         am.second->cleanModuleContent();
+      }
+    }
+    for (auto& am : deletedModules_) {
+      if (am) {
+        am->cleanModuleContent();
       }
     }
     PyArena_Free(arena_);
@@ -100,6 +106,10 @@ class ModuleLoader {
   */
   AnalyzedModule* loadModule(const char* modName);
   AnalyzedModule* loadModule(const std::string& modName);
+  /**
+  Remove a module from checked modules
+  */
+  void deleteModule(const std::string& modName);
   void recordLazyModule(const std::string& modName);
 
   std::shared_ptr<StrictModuleObject> loadModuleValue(const char* modName);
@@ -112,6 +122,11 @@ class ModuleLoader {
 
   AnalyzedModule* loadModuleFromSource(
       const std::string& source,
+      const std::string& name,
+      const std::string& filename,
+      std::vector<std::string> searchLocations);
+  AnalyzedModule* loadModuleFromSource(
+      const char* source,
       const std::string& name,
       const std::string& filename,
       std::vector<std::string> searchLocations);
@@ -165,6 +180,7 @@ class ModuleLoader {
   std::unordered_set<std::string> lazy_modules_;
   std::optional<ForceStrictFunc> forceStrict_;
   ErrorSinkFactory errorSinkFactory_;
+  std::unordered_set<std::unique_ptr<AnalyzedModule>> deletedModules_;
 
   AnalyzedModule* analyze(std::unique_ptr<ModuleInfo> modInfo);
   bool isAllowListed(const std::string& modName);

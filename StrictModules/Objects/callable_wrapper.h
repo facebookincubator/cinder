@@ -265,8 +265,8 @@ class PythonWrappedCallableByName {
       return makeUnknown(caller, "{}({})", name_, formatArgs(args, {}));
     }
 
-    PyObject* result = PyObject_CallFunctionObjArgs(
-        callable_, self.get(), (pyArgs[Is].get())..., nullptr);
+    Ref<> result = Ref<>::steal(PyObject_CallFunctionObjArgs(
+        callable_, self.get(), (pyArgs[Is].get())..., nullptr));
     if (result == nullptr) {
       PyObject *type, *value, *traceback;
       PyErr_Fetch(&type, &value, &traceback);
@@ -288,7 +288,7 @@ class PythonWrappedCallableByName {
           errName);
     }
     std::shared_ptr<BaseStrictObject> resultObj =
-        convertFunc_(Ref<>::steal(result), caller);
+        convertFunc_(std::move(result), caller);
     return resultObj;
   }
 };

@@ -208,7 +208,8 @@ void StrictFunction::makeCodeObjHelper(const CallerContext&) {
   std::vector<std::shared_ptr<BaseStrictObject>> varnamesVec;
 
   for (PyObject* name : varnames) {
-    auto nameStr = std::make_shared<StrictString>(StrType(), creator_, name);
+    auto nameStr =
+        std::make_shared<StrictString>(StrType(), creator_, Ref<>(name));
     varnamesVec.push_back(std::move(nameStr));
   }
   auto varnamesTuple = std::make_shared<StrictTuple>(

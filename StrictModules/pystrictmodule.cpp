@@ -1,11 +1,238 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/pystrictmodule.h"
 
+#include "structmember.h"
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// Analysis Result
+static PyObject* AnalysisResult_new(PyTypeObject* type, PyObject*, PyObject*) {
+  StrictModuleAnalysisResult* self;
+  self = (StrictModuleAnalysisResult*)type->tp_alloc(type, 0);
+  if (self == NULL)
+    return NULL;
+  self->valid_module = 0;
+  self->module_name = NULL;
+  self->file_name = NULL;
+  self->module_kind = 0;
+  self->stub_kind = 0;
+  self->ast = NULL;
+  self->ast_preprocessed = NULL;
+  self->symtable = NULL;
+  self->errors = NULL;
+  return (PyObject*)self;
+}
+
+static int AnalysisResult_init(
+    StrictModuleAnalysisResult* self,
+    PyObject* args,
+    PyObject*) {
+  PyObject* module_name;
+  PyObject* file_name;
+  int module_kind;
+  int stub_kind;
+  PyObject* ast;
+  PyObject* ast_preprocessed;
+  PyObject* symtable;
+  PyObject* errors;
+
+  if (!PyArg_ParseTuple(
+          args,
+          "UUiiOOO",
+          &module_name,
+          &file_name,
+          &module_kind,
+          &stub_kind,
+          &ast,
+          &ast_preprocessed,
+          &symtable,
+          &errors)) {
+    return -1;
+  }
+  self->valid_module = 1;
+  self->module_name = module_name;
+  Py_INCREF(self->module_name);
+  self->file_name = file_name;
+  Py_INCREF(self->file_name);
+  self->module_kind = module_kind;
+  self->stub_kind = stub_kind;
+  self->ast = ast;
+  Py_INCREF(self->ast);
+  self->ast_preprocessed = ast_preprocessed;
+  Py_INCREF(self->ast_preprocessed);
+  self->symtable = symtable;
+  Py_INCREF(self->symtable);
+  self->errors = errors;
+  Py_INCREF(self->errors);
+
+  return 0;
+}
+
+static PyObject* create_AnalysisResult_Helper(
+    int valid_module,
+    PyObject* module_name,
+    PyObject* file_name,
+    int module_kind,
+    int stub_kind,
+    PyObject* ast,
+    PyObject* ast_preprocessed,
+    PyObject* symtable,
+    PyObject* errors) {
+  StrictModuleAnalysisResult* self;
+  self = (StrictModuleAnalysisResult*)PyObject_GC_New(
+      StrictModuleAnalysisResult, &StrictModuleAnalysisResult_Type);
+  self->valid_module = valid_module;
+  self->module_name = module_name;
+  self->file_name = file_name;
+  self->module_kind = module_kind;
+  self->stub_kind = stub_kind;
+  self->ast = ast;
+  self->ast_preprocessed = ast_preprocessed;
+  self->symtable = symtable;
+  self->errors = errors;
+  PyObject_GC_Track(self);
+  return (PyObject*)self;
+}
+
+static PyObject* create_AnalysisResult(
+    StrictAnalyzedModule* mod,
+    PyObject* module_name,
+    PyObject* errors,
+    PyArena* arena) {
+  if (mod == NULL) {
+    Py_INCREF(module_name);
+    Py_INCREF(errors);
+    return create_AnalysisResult_Helper(
+        0, module_name, NULL, 0, 0, NULL, NULL, NULL, errors);
+  }
+  // all interface functions return new references
+  PyObject* filename = StrictAnalyzedModule_GetFilename(mod);
+  int mod_kind = StrictAnalyzedModule_GetModuleKind(mod);
+  int stub_kind = StrictAnalyzedModule_GetStubKind(mod);
+  PyObject* ast = StrictAnalyzedModule_GetAST(mod, arena, 0);
+  PyObject* ast_preprocessed = StrictAnalyzedModule_GetAST(mod, arena, 1);
+  PyObject* symtable = StrictAnalyzedModule_GetSymtable(mod);
+  Py_INCREF(module_name);
+  Py_INCREF(errors);
+  return create_AnalysisResult_Helper(
+      1,
+      module_name,
+      filename,
+      mod_kind,
+      stub_kind,
+      ast,
+      ast_preprocessed,
+      symtable,
+      errors);
+}
+
+static void AnalysisResult_dealloc(StrictModuleAnalysisResult* self) {
+  if (self != NULL) {
+    PyObject_GC_UnTrack(self);
+    Py_XDECREF(self->module_name);
+    Py_XDECREF(self->file_name);
+    Py_XDECREF(self->ast);
+    Py_XDECREF(self->ast_preprocessed);
+    Py_XDECREF(self->symtable);
+    Py_XDECREF(self->errors);
+    PyObject_GC_Del(self);
+  }
+}
+
+static int
+AnalysisResult_traverse(StrictModuleAnalysisResult *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->module_name);
+    Py_VISIT(self->file_name);
+    Py_VISIT(self->ast);
+    Py_VISIT(self->ast_preprocessed);
+    Py_VISIT(self->symtable);
+    Py_VISIT(self->errors);
+    return 0;
+}
+
+static int
+AnalysisResult_clear(StrictModuleAnalysisResult *self)
+{
+    Py_CLEAR(self->module_name);
+    Py_CLEAR(self->file_name);
+    Py_CLEAR(self->ast);
+    Py_CLEAR(self->ast_preprocessed);
+    Py_CLEAR(self->symtable);
+    Py_CLEAR(self->errors);
+    return 0;
+}
+
+static PyMemberDef AnalysisResult_members[] = {
+    {"is_valid",
+     T_BOOL,
+     offsetof(StrictModuleAnalysisResult, valid_module),
+     READONLY,
+     "whether the analyzed module is found or valid"},
+    {"module_name",
+     T_OBJECT,
+     offsetof(StrictModuleAnalysisResult, module_name),
+     READONLY,
+     "module name"},
+    {"file_name",
+     T_OBJECT,
+     offsetof(StrictModuleAnalysisResult, file_name),
+     READONLY,
+     "file name"},
+    {"module_kind",
+     T_INT,
+     offsetof(StrictModuleAnalysisResult, module_kind),
+     READONLY,
+     "whether module is strict (1), static (2) or neither (0)"},
+    {"stub_kind",
+     T_INT,
+     offsetof(StrictModuleAnalysisResult, stub_kind),
+     READONLY,
+     "stub kind represented as a bit mask."},
+    {"ast",
+     T_OBJECT,
+     offsetof(StrictModuleAnalysisResult, ast),
+     READONLY,
+     "original AST of the module"},
+    {"ast_preprocessed",
+     T_OBJECT,
+     offsetof(StrictModuleAnalysisResult, ast_preprocessed),
+     READONLY,
+     "preprocessed AST of the module"},
+    {"symtable",
+     T_OBJECT,
+     offsetof(StrictModuleAnalysisResult, symtable),
+     READONLY,
+     "symbol table of the module"},
+    {"errors",
+     T_OBJECT,
+     offsetof(StrictModuleAnalysisResult, errors),
+     0,
+     "list of errors"},
+    {NULL, 0, 0, 0, NULL} /* Sentinel */
+};
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+PyTypeObject StrictModuleAnalysisResult_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name =
+        "strictmodule.StrictModuleAnalysisResult",
+    .tp_basicsize = sizeof(StrictModuleAnalysisResult),
+    .tp_itemsize = 0,
+    .tp_dealloc = (destructor)AnalysisResult_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_doc = "Analysis result of strict module loader",
+    .tp_members = AnalysisResult_members,
+    .tp_init = (initproc)AnalysisResult_init,
+    .tp_new = AnalysisResult_new,
+    .tp_traverse = (traverseproc)AnalysisResult_traverse,
+    .tp_clear = (inquiry)AnalysisResult_clear,
+};
+#pragma GCC diagnostic pop
+
+// Module Loader
 static PyObject*
 StrictModuleLoaderObject_new(PyTypeObject* type, PyObject*, PyObject*) {
   StrictModuleLoaderObject* self;
@@ -63,28 +290,28 @@ static int StrictModuleLoaderObject_init(
   if (!PyList_Check(import_paths_obj)) {
     PyErr_Format(
         PyExc_TypeError,
-        "import_paths is expect to be list, but got %s object",
+        "import_paths is expect to be list, but got %S object",
         import_paths_obj);
     return -1;
   }
   if (!PyList_Check(allow_list_obj)) {
     PyErr_Format(
         PyExc_TypeError,
-        "allow_list is expect to be list, but got %s object",
+        "allow_list is expect to be list, but got %S object",
         allow_list_obj);
     return -1;
   }
   if (!PyList_Check(allow_list_exact_obj)) {
     PyErr_Format(
         PyExc_TypeError,
-        "allow_list_exact is expect to be list, but got %s object",
+        "allow_list_exact is expect to be list, but got %S object",
         allow_list_exact_obj);
     return -1;
   }
   if (!PyUnicode_Check(stub_import_path_obj)) {
     PyErr_Format(
         PyExc_TypeError,
-        "stub_import_path is expect to be str, but got %s object",
+        "stub_import_path is expect to be str, but got %S object",
         stub_import_path_obj);
     return -1;
   }
@@ -205,9 +432,9 @@ static PyObject* StrictModuleLoader_check(
     StrictModuleLoaderObject* self,
     PyObject* args) {
   PyObject* mod_name;
-  PyObject* py_is_strict;
-  PyObject* py_result_tuple;
   PyObject* errors;
+  PyArena* arena;
+  PyObject* result;
   if (!PyArg_ParseTuple(args, "U", &mod_name)) {
     return NULL;
   }
@@ -232,17 +459,109 @@ static PyObject* StrictModuleLoader_check(
   for (int i = 0; i < error_count; ++i) {
     ErrorInfo_Clean(&(error_infos[i]));
   }
+  arena = StrictModuleChecker_GetArena(self->checker);
+  result = create_AnalysisResult(mod, mod_name, errors, arena);
+  Py_XDECREF(errors);
+  return result;
 
-  py_is_strict = PyBool_FromLong(is_strict);
-  py_result_tuple = PyTuple_Pack(2, py_is_strict, errors);
-
-  return py_result_tuple;
 err_cleanup:
   for (int i = 0; i < error_count; ++i) {
     ErrorInfo_Clean(&(error_infos[i]));
   }
-  Py_XDECREF(mod_name);
   Py_XDECREF(errors);
+  return NULL;
+}
+
+static PyObject* StrictModuleLoader_check_source(
+    StrictModuleLoaderObject* self,
+    PyObject* args) {
+  // args to parse, do not decref since these are borrowed
+  PyObject* source; // str or bytes
+  PyObject* file_name;
+  PyObject* mod_name;
+  PyObject* submodule_search_locations; // list of string
+
+  // outputs
+  PyObject* errors;
+  PyArena* arena;
+  PyObject* result;
+
+  // parameter parsing
+  if (!PyArg_ParseTuple(
+          args,
+          "OUUO",
+          &source,
+          &file_name,
+          &mod_name,
+          &submodule_search_locations)) {
+    return NULL;
+  }
+  // source str
+  const char* source_str;
+  // verify search locations
+  if (!PyList_Check(submodule_search_locations)) {
+    PyErr_Format(
+        PyExc_TypeError,
+        "submodule_search_locations is expect to be list, but got %S object",
+        submodule_search_locations);
+    return NULL;
+  }
+  Py_ssize_t search_list_size = PyList_GET_SIZE(submodule_search_locations);
+  const char* search_list[search_list_size];
+  if (PyListToCharArray(
+          submodule_search_locations, search_list, search_list_size) < 0) {
+    return NULL;
+  }
+
+  // verify source
+  PyCompilerFlags cf = _PyCompilerFlags_INIT;
+  // buffer containing source str
+  PyObject* source_copy;
+  source_str =
+      _Py_SourceAsString(source, "parse", "str or bytes", &cf, &source_copy);
+  if (source_str == NULL) {
+    return NULL;
+  }
+
+  int error_count = 0;
+  int is_strict = 0;
+  StrictAnalyzedModule* mod = StrictModuleChecker_CheckSource(
+      self->checker,
+      source_str,
+      mod_name,
+      file_name,
+      search_list,
+      search_list_size,
+      &error_count,
+      &is_strict);
+
+  errors = PyList_New(error_count);
+  ErrorInfo error_infos[error_count];
+  if (error_count > 0 && mod != NULL) {
+    if (StrictModuleChecker_GetErrors(mod, error_infos, error_count) < 0) {
+      goto err_cleanup;
+    }
+    for (int i = 0; i < error_count; ++i) {
+      PyObject* py_err_tuple = errorInfoToTuple(&(error_infos[i]));
+      if (!py_err_tuple) {
+        goto err_cleanup;
+      }
+      PyList_SET_ITEM(errors, i, py_err_tuple);
+    }
+  }
+  for (int i = 0; i < error_count; ++i) {
+    ErrorInfo_Clean(&(error_infos[i]));
+  }
+  arena = StrictModuleChecker_GetArena(self->checker);
+  result = create_AnalysisResult(mod, mod_name, errors, arena);
+  Py_XDECREF(errors);
+  return result;
+err_cleanup:
+  for (int i = 0; i < error_count; ++i) {
+    ErrorInfo_Clean(&(error_infos[i]));
+  }
+  Py_XDECREF(errors);
+  Py_XDECREF(source_copy);
   return NULL;
 }
 
@@ -266,12 +585,34 @@ static PyObject* StrictModuleLoader_get_analyzed_count(
   return PyLong_FromLong(count);
 }
 
+static PyObject* StrictModuleLoader_delete_module(
+    StrictModuleLoaderObject* self,
+    PyObject* args) {
+  PyObject* name;
+  if (!PyArg_ParseTuple(args, "U", &name)) {
+    return NULL;
+  }
+  int ok =
+      StrictModuleChecker_DeleteModule(self->checker, PyUnicode_AsUTF8(name));
+  if (ok == 0) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
 static PyMethodDef StrictModuleLoader_methods[] = {
     {"check",
      (PyCFunction)StrictModuleLoader_check,
      METH_VARARGS,
      PyDoc_STR("check(mod_name: str) -> Tuple[int, List[Tuple[str, str, int, "
                "int]]]")},
+    {"check_source",
+     (PyCFunction)StrictModuleLoader_check_source,
+     METH_VARARGS,
+     PyDoc_STR("check_source("
+               "source:str | bytes, file_name: str, mod_name: str, "
+               "submodule_search_locations:List[str])"
+               " -> Tuple[int, List[Tuple[str, str, int, int]]]")},
     {"set_force_strict",
      (PyCFunction)StrictModuleLoader_set_force_strict,
      METH_VARARGS,
@@ -280,6 +621,10 @@ static PyMethodDef StrictModuleLoader_methods[] = {
      (PyCFunction)StrictModuleLoader_get_analyzed_count,
      METH_NOARGS,
      PyDoc_STR("get_analyzed_count() -> int")},
+     {"delete_module",
+     (PyCFunction)StrictModuleLoader_delete_module,
+     METH_VARARGS,
+     PyDoc_STR("delete_module(name: str) -> bool")},
     {NULL, NULL, 0, NULL} /* sentinel */
 };
 #pragma GCC diagnostic push

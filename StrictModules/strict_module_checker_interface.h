@@ -71,6 +71,22 @@ StrictAnalyzedModule* StrictModuleChecker_Check(
     int* out_error_count,
     int* is_strict_out);
 
+/** Return the analyzed module
+ *  return NULL for internal error cases
+ *  in parameter: `source` need to be parsed by python ast parser
+ *  out parameter: `error_count` how many errors in error sink
+ *  is reported
+ */
+StrictAnalyzedModule* StrictModuleChecker_CheckSource(
+    StrictModuleChecker* checker,
+    const char* source,
+    PyObject* module_name,
+    PyObject* file_name,
+    const char* submodule_search_locations[],
+    int search_locations_size,
+    int* out_error_count,
+    int* is_strict_out);
+
 /** Fill in errors_out (of size `length`) with ErrorInfo
  *  Of the given module. The size is obtained in `StrictModuleChecker_Check`
  *  Return 0 for success and -1 for failure
@@ -89,6 +105,42 @@ int StrictModuleChecker_GetAnalyzedModuleCount(StrictModuleChecker* checker);
 int StrictModuleChecker_SetForceStrict(
     StrictModuleChecker* checker,
     PyObject* force_strict);
+
+// Delete the module named `mod` from the analyzed modules
+int StrictModuleChecker_DeleteModule(
+    StrictModuleChecker* checker,
+    const char* module_name);
+
+PyArena* StrictModuleChecker_GetArena(StrictModuleChecker* checker);
+
+/** Retrieve the AST for a given module name
+ *  If the module with given name is not yet checked,
+ *  This will *not* trigger a check and NULL will be returned.
+ *
+ *  preprocess: if preprocess is true, indicator decorators will be
+ *    added to the AST for further compiler usage. See preprocessor.h
+ *  Note that preprocessing modifieds the mod_ty ast, and we should not
+ *  call preprocess on already preprocessed ast
+ */
+PyObject* StrictAnalyzedModule_GetAST(
+    StrictAnalyzedModule* mod,
+    PyArena* arena,
+    int preprocess);
+
+/** Retrieve the symtable for a given module name
+ *  If the module with given name is not yet checked,
+ *  This will *not* trigger a check and NULL will be returned.
+ */
+PyObject* StrictAnalyzedModule_GetSymtable(StrictAnalyzedModule* mod);
+
+// retrieve filename
+PyObject* StrictAnalyzedModule_GetFilename(StrictAnalyzedModule* mod);
+
+// retrieve modulekind as int
+int StrictAnalyzedModule_GetModuleKind(StrictAnalyzedModule* mod);
+
+// retrieve stubkind as int
+int StrictAnalyzedModule_GetStubKind(StrictAnalyzedModule* mod);
 
 #ifdef __cplusplus
 }

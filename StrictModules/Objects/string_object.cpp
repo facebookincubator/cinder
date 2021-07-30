@@ -31,18 +31,18 @@ StrictString::StrictString(
 StrictString::StrictString(
     std::shared_ptr<StrictType> type,
     std::weak_ptr<StrictModuleObject> creator,
-    PyObject* pyValue)
+    Ref<> pyValue)
     : StrictInstance(std::move(type), std::move(creator)),
-      pyStr_(Ref<>(pyValue)),
+      pyStr_(std::move(pyValue)),
       value_() {
-  const char* v = PyUnicode_AsUTF8(pyValue);
+  const char* v = PyUnicode_AsUTF8(pyStr_);
   if (v == nullptr) {
     PyErr_Clear();
     Ref<> enStr = Ref<>::steal(
-        PyUnicode_AsEncodedString(pyValue, "utf-8", "surrogatepass"));
+        PyUnicode_AsEncodedString(pyStr_, "utf-8", "surrogatepass"));
 
     assert(enStr != nullptr);
-    value_ = PyBytes_AsString(enStr.get());
+    value_ = PyBytes_AsString(enStr);
   } else {
     value_ = v;
   }
@@ -84,7 +84,8 @@ std::shared_ptr<BaseStrictObject> StrictString::copy(
 std::shared_ptr<BaseStrictObject> StrictString::strFromPyObj(
     Ref<> pyObj,
     const CallerContext& caller) {
-  return std::make_shared<StrictString>(StrType(), caller.caller, pyObj.get());
+  return std::make_shared<StrictString>(
+      StrType(), caller.caller, std::move(pyObj));
 }
 
 std::shared_ptr<BaseStrictObject> StrictString::listFromPyStrList(
@@ -97,9 +98,9 @@ std::shared_ptr<BaseStrictObject> StrictString::listFromPyStrList(
   std::vector<std::shared_ptr<BaseStrictObject>> data;
   data.reserve(size);
   for (std::size_t i = 0; i < size; ++i) {
-    PyObject* elem = PyList_GET_ITEM(pyObj.get(), i);
-    auto elemStr =
-        std::make_shared<StrictString>(StrType(), caller.caller, elem);
+    Ref<> elem = Ref<>(PyList_GET_ITEM(pyObj.get(), i));
+    auto elemStr = std::make_shared<StrictString>(
+        StrType(), caller.caller, std::move(elem));
     data.push_back(std::move(elemStr));
   }
   return std::make_shared<StrictList>(

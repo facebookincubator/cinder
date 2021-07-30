@@ -36,7 +36,6 @@ class StrictLazyObject : public BaseStrictObject {
     if (obj_ == nullptr) {
       forceEvaluate(context_);
     }
-    assert(obj_ != nullptr);
     return obj_;
   }
 

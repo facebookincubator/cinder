@@ -7,15 +7,18 @@
 extern "C" {
 #endif
 
-
 PyDoc_STRVAR(strictmodule_doc, "Strict Module related types and methods");
 
-static int strictmodule_exec(PyObject* m) {
+static int strictmodule_exec(PyObject *m) {
   if (PyType_Ready(&StrictModuleLoader_Type) < 0)
     goto fail;
+  if (PyType_Ready(&StrictModuleAnalysisResult_Type) < 0)
+    goto fail;
 
-  PyModule_AddObject(
-      m, "StrictModuleLoader", (PyObject*)&StrictModuleLoader_Type);
+  PyModule_AddObject(m, "StrictModuleLoader",
+                     (PyObject *)&StrictModuleLoader_Type);
+  PyModule_AddObject(m, "StrictAnalysisResult",
+                     (PyObject *)&StrictModuleAnalysisResult_Type);
   return 0;
 fail:
   Py_XDECREF(m);

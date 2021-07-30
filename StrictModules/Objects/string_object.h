@@ -21,7 +21,7 @@ class StrictString : public StrictInstance {
   StrictString(
       std::shared_ptr<StrictType> type,
       std::weak_ptr<StrictModuleObject> creator,
-      PyObject* pyValue);
+      Ref<> pyValue);
 
   const std::string& getValue() const {
     return value_;

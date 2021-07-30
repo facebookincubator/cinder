@@ -14,7 +14,20 @@ typedef struct {
   PyObject_HEAD StrictModuleChecker* checker;
 } StrictModuleLoaderObject;
 
+typedef struct {
+  PyObject_HEAD int valid_module;
+  PyObject* module_name;
+  PyObject* file_name;
+  int module_kind;
+  int stub_kind;
+  PyObject* ast;
+  PyObject* ast_preprocessed;
+  PyObject* symtable;
+  PyObject* errors;
+} StrictModuleAnalysisResult;
+
 PyAPI_DATA(PyTypeObject) StrictModuleLoader_Type;
+PyAPI_DATA(PyTypeObject) StrictModuleAnalysisResult_Type;
 PyAPI_DATA(const char*) MUTABLE_DEC;
 PyAPI_DATA(const char*) LOOSE_SLOTS_DEC;
 PyAPI_DATA(const char*) EXTRA_SLOTS_DEC;

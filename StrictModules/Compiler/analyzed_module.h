@@ -3,12 +3,19 @@
 #define __STRICTM_ANALYZED_MODULE_H__
 
 #include <memory>
+#include "StrictModules/Compiler/module_info.h"
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/error_sink.h"
+#include "StrictModules/symbol_table.h"
 namespace strictmod::compiler {
 using strictmod::objects::StrictModuleObject;
 
 enum class ModuleKind { kStrict, kStatic, kNonStrict };
+
+struct PreprocessingRecord {
+  mod_ty preprocessedAst;
+  mod_ty originalAst;
+};
 
 class AnalyzedModule {
   using astToResultT = strictmod::objects::astToResultT;
@@ -16,19 +23,24 @@ class AnalyzedModule {
  public:
   AnalyzedModule(
       std::unique_ptr<StrictModuleObject> module,
-      ModuleKind kind,
+      ModuleKind moduleKind,
       std::shared_ptr<BaseErrorSink> error,
-      mod_ty ast)
+      std::unique_ptr<ModuleInfo> modInfo)
       : module_(std::move(module)),
-        moduleKind_(kind),
+        moduleKind_(moduleKind),
         errorSink_(std::move(error)),
-        ast_(ast),
-        astToResults_() {}
+        astToResults_(),
+        modInfo_(std::move(modInfo)),
+        preprocessRecord_({nullptr, nullptr}) {}
   AnalyzedModule(
-      ModuleKind kind,
+      ModuleKind moduleKind,
       std::shared_ptr<BaseErrorSink> error,
-      mod_ty ast)
-      : AnalyzedModule(nullptr, kind, std::move(error), ast) {}
+      std::unique_ptr<ModuleInfo> modInfo)
+      : AnalyzedModule(
+            nullptr,
+            moduleKind,
+            std::move(error),
+            std::move(modInfo)) {}
   ~AnalyzedModule() {
     cleanModuleContent();
   }
@@ -46,18 +58,37 @@ class AnalyzedModule {
     astToResults_ = std::move(map);
   }
 
-  /** notice that this produces a fresh python AST
-   */
+  astToResultT* getAstToResults() {
+    return astToResults_.get();
+  }
+
   Ref<> getPyAst(bool preprocess, PyArena* arena);
 
-  mod_ty getAST();
+  const ModuleInfo& getModuleInfo() const {
+    return *modInfo_;
+  }
+
+  int getStubKindAsInt() const {
+    return modInfo_->getStubKind().getValue();
+  }
+  int getModKindAsInt() const {
+    switch (moduleKind_) {
+      case ModuleKind::kStrict:
+        return 1;
+      case ModuleKind::kStatic:
+        return 2;
+      case ModuleKind::kNonStrict:
+        return 0;
+    }
+  }
 
  private:
   std::shared_ptr<StrictModuleObject> module_;
   ModuleKind moduleKind_;
   std::shared_ptr<BaseErrorSink> errorSink_;
-  mod_ty ast_;
   std::unique_ptr<astToResultT> astToResults_;
+  std::unique_ptr<ModuleInfo> modInfo_;
+  PreprocessingRecord preprocessRecord_;
 };
 } // namespace strictmod::compiler
 

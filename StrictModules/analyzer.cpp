@@ -446,7 +446,7 @@ AnalysisResult Analyzer::visitAnnotationHelper(expr_ty annotation) {
   if (futureAnnotations_) {
     Ref<> annotationStr = Ref<>::steal(_PyAST_ExprAsUnicode(annotation));
     return std::make_shared<StrictString>(
-        StrType(), context_.caller, annotationStr.get());
+        StrType(), context_.caller, std::move(annotationStr));
   } else {
     return visitExpr(annotation);
   }
@@ -462,7 +462,7 @@ void Analyzer::addToDunderAnnotationsHelper(
   }
 
   auto key = std::make_shared<StrictString>(
-      StrType(), context_.caller, target->v.Name.id);
+      StrType(), context_.caller, Ref<>(target->v.Name.id));
   auto dunderAnnotationsDict = getFromScope(kDunderAnnotations);
   assert(dunderAnnotationsDict != std::nullopt);
   iSetElement(
@@ -476,8 +476,8 @@ void Analyzer::visitArgHelper(arg_ty arg, DictDataT& annotations) {
   if (arg->annotation == nullptr) {
     return;
   }
-  AnalysisResult key =
-      std::make_shared<StrictString>(StrType(), context_.caller, arg->arg);
+  AnalysisResult key = std::make_shared<StrictString>(
+      StrType(), context_.caller, Ref<>(arg->arg));
   annotations[std::move(key)] = visitAnnotationHelper(arg->annotation);
 }
 
@@ -1122,7 +1122,7 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
   }
   if (PyUnicode_CheckExact(constant.value)) {
     auto value = std::make_shared<StrictString>(
-        StrType(), context_.caller, constant.value);
+        StrType(), context_.caller, Ref<>(constant.value));
     return value;
   }
   if (PyFloat_CheckExact(constant.value)) {
@@ -1680,16 +1680,18 @@ AnalysisResult Analyzer::visitFormattedValue(const expr_ty expr) {
       break;
     case 's': {
       // call str()
-      value = iCall(StrType(), {std::move(value)}, kEmptyArgNames, context_);
+      value = iCall(StrType(), {value}, kEmptyArgNames, context_);
       break;
     }
-    case 'r':
+    case 'r': {
       // call repr()
-      value = reprImpl(nullptr, context_, std::move(value));
+      value = reprImpl(nullptr, context_, value);
       break;
-    case 'a':
+    }
+    case 'a': {
       context_.error<UnsupportedException>(
           "'joined str to ascii'", value->getDisplayName());
+    }
   }
   AnalysisResult formatSpec;
   if (fv.format_spec == nullptr) {

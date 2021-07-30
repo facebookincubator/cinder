@@ -7,6 +7,7 @@
 
 #include "StrictModules/analyzer.h"
 #include "StrictModules/parser_util.h"
+#include "StrictModules/symbol_table.h"
 
 #include <cstring>
 #include <filesystem>
@@ -117,6 +118,16 @@ AnalyzedModule* ModuleLoader::loadModule(const std::string& modName) {
     end = modName.find(delimiter, end + 1);
   }
   return loadSingleModule(modName);
+}
+
+void ModuleLoader::deleteModule(const std::string& modName) {
+  // For shutdown cleanup reason, we cannot just delete this module.
+  // Instead we move it to the deletedModules_ set
+  auto exist = modules_.find(modName);
+  if (exist != modules_.end()) {
+    deletedModules_.emplace(std::move(exist->second));
+    modules_.erase(exist);
+  }
 }
 
 std::shared_ptr<StrictModuleObject> ModuleLoader::loadModuleValue(
@@ -239,7 +250,16 @@ AnalyzedModule* ModuleLoader::loadModuleFromSource(
     const std::string& name,
     const std::string& filename,
     std::vector<std::string> searchLocations) {
-  auto readResult = readFromSource(source.c_str(), filename.c_str(), arena_);
+  return loadModuleFromSource(
+      source.c_str(), name, filename, std::move(searchLocations));
+}
+
+AnalyzedModule* ModuleLoader::loadModuleFromSource(
+    const char* source,
+    const std::string& name,
+    const std::string& filename,
+    std::vector<std::string> searchLocations) {
+  auto readResult = readFromSource(source, filename.c_str(), arena_);
   if (readResult) {
     AstAndSymbols& result = readResult.value();
     bool allowlisted = isAllowListed(name);
@@ -385,8 +405,6 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModuleFromSource(
 
 AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   const mod_ty ast = modInfo->getAst();
-  const std::string& name = modInfo->getModName();
-  const std::string& filename = modInfo->getFilename();
 
   // Following python semantics, publish the module before ast visits
   auto errorSink = errorSinkFactory_();
@@ -397,8 +415,12 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   } else {
     kind = ModuleKind::kNonStrict;
   }
+
   AnalyzedModule* analyzedModule =
-      new AnalyzedModule(kind, std::move(errorSink), ast);
+      new AnalyzedModule(kind, std::move(errorSink), std::move(modInfo));
+  const ModuleInfo& moduleInfo = analyzedModule->getModuleInfo();
+  const std::string& name = moduleInfo.getModName();
+  const std::string& filename = moduleInfo.getFilename();
   modules_[name] = std::unique_ptr<AnalyzedModule>(analyzedModule);
   lazy_modules_.erase(name);
   if (analyzedModule->isStrict() || isForcedStrict(name, filename)) {
@@ -413,7 +435,7 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
     mod->setAttr(
         "__name__",
         std::make_shared<objects::StrictString>(objects::StrType(), mod, name));
-    const auto& subModuleLocs = modInfo->getSubmoduleSearchLocations();
+    const auto& subModuleLocs = moduleInfo.getSubmoduleSearchLocations();
     if (!subModuleLocs.empty()) {
       std::vector<std::shared_ptr<objects::BaseStrictObject>> pathVec;
       pathVec.reserve(subModuleLocs.size());
@@ -434,14 +456,14 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
     Analyzer analyzer(
         ast,
         this,
-        Symtable(modInfo->passSymtable()),
+        Symtable(moduleInfo.getSymtable()),
         globalScope,
         errorSinkBorrowed,
-        modInfo->getFilename(),
+        filename,
         name,
         "<module>",
         mod,
-        modInfo->getFutureAnnotations());
+        moduleInfo.getFutureAnnotations());
 
     analyzer.analyze();
     analyzedModule->setAstToResults(analyzer.passAstToResultsMap());
@@ -489,8 +511,11 @@ bool ModuleLoader::loadStrictModuleModule() {
   auto it = modules_.find(name);
   if (it == modules_.end()) {
     auto strictModKind = ModuleKind::kStrict;
+    auto stubKind = StubKind(0);
+    auto moduleInfo = std::make_unique<ModuleInfo>(
+        name, "", nullptr, false, nullptr, stubKind);
     auto analyzedModule = std::make_unique<AnalyzedModule>(
-        strictModKind, errorSinkFactory_(), nullptr);
+        strictModKind, errorSinkFactory_(), std::move(moduleInfo));
     auto strictModModule = objects::createStrictModulesModule();
     strictModModule->setAttr(
         "__name__",
@@ -506,5 +531,4 @@ bool ModuleLoader::loadStrictModuleModule() {
 bool ModuleLoader::isModuleLoaded(const std::string& modName) {
   return modules_.find(modName) != modules_.end();
 }
-
 } // namespace strictmod::compiler

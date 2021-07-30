@@ -34,20 +34,50 @@ void AnalyzedModule::cleanModuleContent() {
   }
 }
 
+static mod_ty copyAST(mod_ty ast, PyArena* arena) {
+  return PyAST_obj2mod(Ref<>::steal(PyAST_mod2obj(ast)), arena, 0);
+}
+
 Ref<> AnalyzedModule::getPyAst(bool preprocess, PyArena* arena) {
-  if (ast_ == nullptr) {
-    return nullptr;
-  }
   if (preprocess) {
-    auto preprocessor = Preprocessor(ast_, astToResults_.get(), arena);
-    preprocessor.preprocess();
+    mod_ty target = preprocessRecord_.preprocessedAst;
+    if (!target) {
+      // preprocessed AST has to be the original parsed one
+      // in the module info since we need the original addresses
+      // as dict keys in the preprocessor
+      mod_ty original = modInfo_->getAst();
+      if (!original) {
+        return nullptr;
+      }
+      target = original;
+      preprocessRecord_.preprocessedAst = original;
+      if (!preprocessRecord_.originalAst) {
+        // before changing the original ast, create a copy for
+        // unprocessed AST
+        mod_ty copy = copyAST(original, arena);
+        preprocessRecord_.originalAst = copy;
+      }
+      if (astToResults_) {
+        // for modules not labeled strict, there is nothing to process
+        auto processor = Preprocessor(target, astToResults_.get(), arena);
+        processor.preprocess();
+      }
+    }
+    Ref<> result = Ref<>::steal(PyAST_mod2obj(target));
+    return result;
   }
-  Ref<> result = Ref<>::steal(PyAST_mod2obj(ast_));
+
+  mod_ty target = preprocessRecord_.originalAst;
+  if (!target) {
+    mod_ty original = modInfo_->getAst();
+    if (!original) {
+      return nullptr;
+    }
+    mod_ty copy = copyAST(original, arena);
+    target = copy;
+    preprocessRecord_.originalAst = copy;
+  }
+  Ref<> result = Ref<>::steal(PyAST_mod2obj(target));
   return result;
 }
-
-mod_ty AnalyzedModule::getAST() {
-  return ast_;
-}
-
 } // namespace strictmod::compiler

@@ -17,13 +17,6 @@ avoid macro naming conflict between gtest and python ast.h
 #include "StrictModules/exceptions.h"
 #include "StrictModules/parser_util.h"
 
-// #ifdef Compare
-// #undef Compare
-// #endif
-// #ifdef Set
-// #undef Set
-// #endif
-
 #include "StrictModules/Tests/test_util.h"
 #include "gtest/gtest.h"
 

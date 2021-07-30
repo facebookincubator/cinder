@@ -19,7 +19,7 @@ class StubKind {
   static const int kNone = 0b000;
   static const int kAllowList = 0b011;
   static const int kTyping = 0b100;
-  static const int kStrict = 0b101;
+  static const int kStrict = 0b001;
 
   int kind_;
 
@@ -38,6 +38,10 @@ class StubKind {
 
   bool isTyping() const {
     return kind_ == kTyping;
+  }
+
+  int getValue() const {
+    return kind_;
   }
 };
 
@@ -83,8 +87,8 @@ class ModuleInfo {
     return stubKind_;
   }
 
-  std::unique_ptr<PySymtable, PySymtableDeleter> passSymtable() {
-    return std::move(st_);
+  std::shared_ptr<PySymtable> getSymtable() const {
+    return st_;
   }
 
   const std::vector<std::string>& getSubmoduleSearchLocations() const {
@@ -96,7 +100,7 @@ class ModuleInfo {
   std::string filename_;
   mod_ty modAst_;
   bool futureAnnotations_;
-  std::unique_ptr<PySymtable, PySymtableDeleter> st_;
+  std::shared_ptr<PySymtable> st_;
   std::vector<std::string> submoduleSearchLocations_;
   StubKind stubKind_;
 };

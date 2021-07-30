@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "StrictModules/Compiler/abstract_module_loader.h"
+#include "StrictModules/Compiler/analyzed_module.h"
+#include "StrictModules/ast_preprocessor.h"
 
 void ErrorInfo_Clean(ErrorInfo* info) {
   Py_XDECREF(info->filename);
@@ -77,6 +79,17 @@ void StrictModuleChecker_Free(StrictModuleChecker* checker) {
   delete reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
 }
 
+static bool getAnalyzedResult(
+    strictmod::compiler::AnalyzedModule* analyzedModule,
+    int* out_error_count) {
+  *out_error_count = analyzedModule == nullptr
+      ? 0
+      : analyzedModule->getErrorSink().getErrorCount();
+  bool is_strict =
+      analyzedModule != nullptr && analyzedModule->getModuleValue() != nullptr;
+  return is_strict;
+}
+
 StrictAnalyzedModule* StrictModuleChecker_Check(
     StrictModuleChecker* checker,
     PyObject* module_name,
@@ -89,12 +102,32 @@ StrictAnalyzedModule* StrictModuleChecker_Check(
       reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
   const char* modName = PyUnicode_AsUTF8(module_name);
   auto analyzedModule = loader->loadModule(modName);
-  *out_error_count = analyzedModule == nullptr
-      ? 0
-      : analyzedModule->getErrorSink().getErrorCount();
-  bool is_strict =
-      analyzedModule != nullptr && analyzedModule->getModuleValue() != nullptr;
-  *is_strict_out = is_strict;
+  *is_strict_out = getAnalyzedResult(analyzedModule, out_error_count);
+  return reinterpret_cast<StrictAnalyzedModule*>(analyzedModule);
+}
+
+StrictAnalyzedModule* StrictModuleChecker_CheckSource(
+    StrictModuleChecker* checker,
+    const char* source,
+    PyObject* module_name,
+    PyObject* file_name,
+    const char* submodule_search_locations[],
+    int search_locations_size,
+    int* out_error_count,
+    int* is_strict_out) {
+  strictmod::compiler::ModuleLoader* loader =
+      reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  const char* modName = PyUnicode_AsUTF8(module_name);
+  const char* fileName = PyUnicode_AsUTF8(file_name);
+  std::vector<std::string> searchLocations;
+  searchLocations.reserve(search_locations_size);
+  for (int i = 0; i < search_locations_size; i++) {
+    searchLocations.emplace_back(submodule_search_locations[i]);
+  }
+
+  auto analyzedModule =
+      loader->loadModuleFromSource(source, modName, fileName, searchLocations);
+  *is_strict_out = getAnalyzedResult(analyzedModule, out_error_count);
   return reinterpret_cast<StrictAnalyzedModule*>(analyzedModule);
 }
 
@@ -144,4 +177,65 @@ int StrictModuleChecker_GetAnalyzedModuleCount(StrictModuleChecker* checker) {
   strictmod::compiler::ModuleLoader* loader =
       reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
   return loader->getAnalyzedModuleCount();
+}
+
+int StrictModuleChecker_DeleteModule(
+    StrictModuleChecker* checker,
+    const char* module_name) {
+  strictmod::compiler::ModuleLoader* loader =
+      reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  std::string name(module_name);
+  loader->deleteModule(name);
+  return 0;
+}
+
+PyArena* StrictModuleChecker_GetArena(StrictModuleChecker* checker) {
+  strictmod::compiler::ModuleLoader* loader =
+      reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  return loader->getArena();
+}
+
+PyObject* StrictAnalyzedModule_GetAST(
+    StrictAnalyzedModule* mod,
+    PyArena* arena,
+    int preprocess) {
+  strictmod::compiler::AnalyzedModule* module =
+      reinterpret_cast<strictmod::compiler::AnalyzedModule*>(mod);
+  Ref<> result = module->getPyAst(preprocess, arena);
+  return result.release();
+}
+
+PyObject* StrictAnalyzedModule_GetSymtable(StrictAnalyzedModule* mod) {
+  strictmod::compiler::AnalyzedModule* module =
+      reinterpret_cast<strictmod::compiler::AnalyzedModule*>(mod);
+  auto symtable = module->getModuleInfo().getSymtable();
+  if (symtable == nullptr) {
+    return nullptr;
+  }
+  PyObject* symtableTop = (PyObject*)symtable->st_top;
+  Py_INCREF(symtableTop);
+  return symtableTop;
+}
+
+// retrieve filename
+PyObject* StrictAnalyzedModule_GetFilename(StrictAnalyzedModule* mod) {
+  strictmod::compiler::AnalyzedModule* module =
+      reinterpret_cast<strictmod::compiler::AnalyzedModule*>(mod);
+  const std::string& fileStr = module->getModuleInfo().getFilename();
+  PyObject* filename = PyUnicode_FromString(fileStr.c_str());
+  return filename;
+}
+
+// retrieve modulekind as int
+int StrictAnalyzedModule_GetModuleKind(StrictAnalyzedModule* mod) {
+  strictmod::compiler::AnalyzedModule* module =
+      reinterpret_cast<strictmod::compiler::AnalyzedModule*>(mod);
+  return module->getModKindAsInt();
+}
+
+// retrieve stubkind as int
+int StrictAnalyzedModule_GetStubKind(StrictAnalyzedModule* mod) {
+  strictmod::compiler::AnalyzedModule* module =
+      reinterpret_cast<strictmod::compiler::AnalyzedModule*>(mod);
+  return module->getStubKindAsInt();
 }
