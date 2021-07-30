@@ -300,3 +300,31 @@ class CheckedListTests(StaticTestBase):
                 x["A"] = [2, 3]
          """
         self.type_error(codestr, type_mismatch("Exact[str]", "int"))
+
+    def test_checked_list_compile_jumpif(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc(x: CheckedList[int]) -> int:
+                if x:
+                    return 1
+                return 2
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = CheckedList[int]([])
+            self.assertEqual(f(l), 2)
+            l.append(1)
+            self.assertEqual(f(l), 1)
+
+    def test_checked_list_compile_len(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc(x: CheckedList[int]) -> int:
+                return len(x)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = CheckedList[int]([])
+            self.assertEqual(f(l), 0)
+            l.append(1)
+            self.assertEqual(f(l), 1)

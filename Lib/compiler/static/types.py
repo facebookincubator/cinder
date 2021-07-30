@@ -4488,6 +4488,33 @@ class CheckedListInstance(Object[CheckedList]):
         else:
             code_gen.defaultVisit(node, aug_flag)
 
+    def get_fast_len_type(self) -> int:
+        # CheckedList is always an exact type because we don't allow
+        # subclassing it.  So we just return FAST_LEN_LIST here which works
+        # because then we won't do type checks, and it has the same layout
+        # as a list
+        return FAST_LEN_LIST
+
+    def emit_len(
+        self, node: ast.Call, code_gen: Static38CodeGenerator, boxed: bool
+    ) -> None:
+        if len(node.args) != 1:
+            raise code_gen.syntax_error(
+                "Can only pass a single argument when checking list length", node
+            )
+        code_gen.visit(node.args[0])
+        code_gen.emit("FAST_LEN", self.get_fast_len_type())
+        if boxed:
+            signed = True
+            code_gen.emit("PRIMITIVE_BOX", int(signed))
+
+    def emit_jumpif(
+        self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
+    ) -> None:
+        code_gen.visit(test)
+        code_gen.emit("FAST_LEN", self.get_fast_len_type())
+        code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
+
     def exact(self) -> Value:
         if self.klass.contains_generic_parameters:
             return CHECKED_LIST_EXACT_TYPE.instance
