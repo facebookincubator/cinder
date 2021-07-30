@@ -5177,6 +5177,7 @@ class CDoubleType(CType):
             FLOAT_TYPE.instance,
             FLOAT_EXACT_TYPE.instance,
             DYNAMIC_TYPE.instance,
+            self.instance,
         ):
             visitor.syntax_error(
                 f"type mismatch: double cannot be created from {arg_type.name}", node

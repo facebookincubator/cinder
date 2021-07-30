@@ -1005,6 +1005,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           uint64_t true_addr = reinterpret_cast<uint64_t>(Py_True);
           bbb.AppendCode(
               "Equal {} {} {:#x}", instr->dst(), instr->value(), true_addr);
+        } else if (ty <= TCDouble) {
+          // For doubles, we can directly load the offset into the destination.
+          bbb.AppendCode(
+              "Load {}, {}, {}",
+              instr->dst(),
+              instr->value(),
+              offsetof(PyFloatObject, ob_fval));
         } else if (ty <= TCUInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxU64);
         } else if (ty <= TCUInt32) {
@@ -1022,7 +1029,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else if (ty <= TCInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxI8);
         } else {
-          Py_UNREACHABLE();
+          JIT_CHECK(false, "Cannot unbox type %s", ty.toString().c_str());
         }
 
         if (func) {
@@ -1680,11 +1687,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(ss.str());
 
         // functions that return primitives will signal error via edx
+        std::string err_indicator;
+        if (prim_ret_type == TYPED_OBJECT) {
+          err_indicator = instr->GetOutput()->name();
+        } else if (prim_ret_type == TYPED_DOUBLE) {
+          err_indicator = "reg:xmm1";
+        } else {
+          err_indicator = "reg:edx";
+        }
         bbb.AppendCode(MakeGuard(
-            "NotNull",
-            static_cast<const DeoptBase&>(i),
-            prim_ret_type != TYPED_OBJECT ? "reg:edx"
-                                          : instr->GetOutput()->name()));
+            "NotNull", static_cast<const DeoptBase&>(i), err_indicator));
         break;
       }
 

@@ -229,6 +229,60 @@ typedef JITRT_StaticCallReturn (*staticvectorcallfunc)(
     size_t nargsf,
     PyObject* kwnames);
 
+typedef JITRT_StaticCallFPReturn (*staticvectorcallfuncfp)(
+    PyObject* callable,
+    PyObject* const* args,
+    size_t nargsf,
+    PyObject* kwnames);
+
+JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
+    PyFunctionObject* func,
+    PyObject** args,
+    size_t nargsf,
+    int argcount) {
+  PyObject* defaults = func->func_defaults;
+  PyObject* result;
+  if (defaults == nullptr) {
+    // Function has no defaults; there's nothing we can do.
+    result = _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
+    assert(
+        result ==
+        NULL); // This must be true, we only called it so the exc is raised.
+    return {0.0, 0.0};
+  }
+  Py_ssize_t defcount = PyTuple_GET_SIZE(defaults);
+  Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+  PyObject* arg_space[argcount];
+  Py_ssize_t defaulted_args = argcount - nargs;
+
+  if (nargs + defcount < argcount || nargs > argcount) {
+    // Not enough args with defaults, or too many args without defaults.
+    result = _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
+    assert(result == NULL);
+    return {0.0, 0.0};
+  }
+
+  Py_ssize_t i;
+  for (i = 0; i < nargs; i++) {
+    arg_space[i] = *args++;
+  }
+
+  PyObject** def_items =
+      &((PyTupleObject*)defaults)->ob_item[defcount - defaulted_args];
+  for (; i < argcount; i++) {
+    arg_space[i] = *def_items++;
+  }
+
+  return reinterpret_cast<staticvectorcallfuncfp>(
+      JITRT_GET_REENTRY(func->vectorcall))(
+      (PyObject*)func,
+      arg_space,
+      argcount | (nargsf & (_Py_AWAITED_CALL_MARKER)),
+      // We lie to C++ here, and smuggle in the number of defaulted args filled
+      // in.
+      (PyObject*)defaulted_args);
+}
+
 JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
     PyFunctionObject* func,
     PyObject** args,

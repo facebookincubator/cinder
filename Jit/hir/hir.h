@@ -3427,6 +3427,11 @@ class Function {
     return return_type <= TPrimitive;
   }
 
+  // Does this function return a primitive double?
+  bool returnsPrimitiveDouble() const {
+    return return_type <= TCDouble;
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Function);
 };

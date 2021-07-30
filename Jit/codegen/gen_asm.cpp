@@ -486,7 +486,10 @@ void NativeGenerator::generatePrologue(
   // start of the "real" generic entry, after the return-boxing wrapper
   asmjit::BaseNode* generic_entry_cursor = nullptr;
 
-  if (func_->returnsPrimitive()) {
+  bool returns_primitive = func_->returnsPrimitive();
+  bool returns_double = func_->returnsPrimitiveDouble();
+
+  if (returns_primitive) {
     // If we return a primitive, then in the generic (non-static) entry path we
     // need to box it up (since our caller can't handle an actual primitive
     // return). We do this by generating a small wrapper "function" here that
@@ -501,7 +504,11 @@ void NativeGenerator::generatePrologue(
     as_->call(generic_entry);
 
     // if there was an error, there's nothing to box
-    as_->test(x86::edx, x86::edx);
+    if (returns_double) {
+      as_->ptest(x86::xmm1, x86::xmm1);
+    } else {
+      as_->test(x86::edx, x86::edx);
+    }
     as_->je(box_done);
 
     if (ret_type <= TCBool) {
@@ -531,6 +538,9 @@ void NativeGenerator::generatePrologue(
     } else if (ret_type <= TCUInt64) {
       as_->mov(x86::rdi, x86::rax);
       box_func = reinterpret_cast<uint64_t>(JITRT_BoxU64);
+    } else if (ret_type <= TCDouble) {
+      // xmm0 already contains the return value
+      box_func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
     } else {
       JIT_CHECK(
           false, "unsupported primitive return type %s", ret_type.toString());
@@ -616,7 +626,11 @@ void NativeGenerator::generatePrologue(
       // fix them up with defaults or raise an approprate exception.
       as_->jz(correct_arg_count);
       as_->mov(x86::rcx, GetFunction()->numArgs());
-      as_->call(reinterpret_cast<uint64_t>(JITRT_CallWithIncorrectArgcount));
+      as_->call(
+          (returns_double
+               ? reinterpret_cast<uint64_t>(
+                     JITRT_CallWithIncorrectArgcountFPReturn)
+               : reinterpret_cast<uint64_t>(JITRT_CallWithIncorrectArgcount)));
       as_->leave();
       as_->ret();
     }
@@ -857,10 +871,19 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
 
   EmitEpilogueUnlinkFrame(as_, x86::rdi, frame_mode, is_gen);
 
-  // If we return a primitive, set edx to 1 to indicate no error (in case of
-  // error, deopt will set it to 0 and jump to hard_exit_label, skipping this.)
+  // If we return a primitive, set edx/xmm1 to 1 to indicate no error (in case
+  // of error, deopt will set it to 0 and jump to hard_exit_label, skipping
+  // this.)
   if (func_->returnsPrimitive()) {
-    as_->mov(x86::edx, 1);
+    if (func_->returnsPrimitiveDouble()) {
+      // Loads an *integer* 1 in XMM1.. value doesn't matter,
+      // but it needs to be non-zero. See pg 124,
+      // https://www.agner.org/optimize/optimizing_assembly.pdf
+      as_->pcmpeqw(x86::xmm1, x86::xmm1);
+      as_->psrlq(x86::xmm1, 63);
+    } else {
+      as_->mov(x86::edx, 1);
+    }
   }
 
   as_->bind(env_.hard_exit_label);
@@ -1413,11 +1436,12 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   a.call(reinterpret_cast<uint64_t>(prepareForDeopt));
 
   // If we return a primitive and prepareForDeopt returned null, we need that
-  // null in edx to signal error to our caller. Since this trampoline is shared,
-  // we do this move unconditionally, but even if not needed, it's harmless. (To
-  // eliminate it, we'd need another trampoline specifically for deopt of
-  // primitive-returning functions, just to do this one move.)
+  // null in edx/xmm1 to signal error to our caller. Since this trampoline is
+  // shared, we do this move unconditionally, but even if not needed, it's
+  // harmless. (To eliminate it, we'd need another trampoline specifically for
+  // deopt of primitive-returning functions, just to do this one move.)
   a.mov(x86::edx, x86::eax);
+  a.movq(x86::xmm1, x86::eax);
 
   // Clean up saved registers.
   //

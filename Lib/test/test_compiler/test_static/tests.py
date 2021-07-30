@@ -10654,6 +10654,61 @@ class StaticCompilationTests(StaticTestBase):
                     else:
                         self.assert_jitted(f)
 
+    def test_double_return(self):
+        codestr = """
+        from __static__ import double
+    
+        def fn() -> double:
+            return double(3.14159)
+        """
+        with self.in_module(codestr) as mod:
+            fn = mod["fn"]
+            r = fn()
+            self.assertEqual(r, 3.14159)
+
+    def test_double_return_static(self):
+        codestr = """
+        from __static__ import double, box
+    
+        def fn() -> double:
+            return double(3.14159)
+        
+        def lol():
+            return box(fn()) + 1.0
+        """
+        with self.in_module(codestr) as mod:
+            lol = mod["lol"]
+            r = lol()
+            self.assertEqual(r, 4.14159)
+
+    def test_double_return_2(self):
+        codestr = """
+        from __static__ import double
+    
+        def fn(x: float, y: float) -> double:
+            i = double(x)
+            j = double(y)
+            return i + j
+        """
+        with self.in_module(codestr) as mod:
+            fn = mod["fn"]
+            r = fn(1.2, 2.3)
+            self.assertEqual(r, 3.5)
+
+    def test_double_return_with_default_args(self):
+        codestr = """
+        from __static__ import double
+
+        def fn(x: float, y: float = 3.2) -> double:
+            i = double(x)
+            j = double(y)
+            return i + j
+        """
+        with self.in_module(codestr) as mod:
+            fn = mod["fn"]
+            r = fn(1.2)
+            self.assertEqual(r, 4.4)
+
     def test_primitive_return_recursive(self):
         codestr = """
             from __static__ import int32
@@ -10690,6 +10745,23 @@ class StaticCompilationTests(StaticTestBase):
         def fn(x: int, y: int) -> int64:
             i = int64(x)
             j = int64(y)
+            return i + j
+        """
+        with self.in_module(codestr) as mod:
+            fn = mod["fn"]
+            with self.assertRaisesRegex(
+                TypeError,
+                re.escape("fn() missing 2 required positional arguments: 'x' and 'y'"),
+            ):
+                fn()  # bad call
+
+    def test_primitive_double_return_bad_call(self):
+        codestr = """
+        from __static__ import double
+
+        def fn(x: float, y: float) -> double:
+            i = double(x)
+            j = double(y)
             return i + j
         """
         with self.in_module(codestr) as mod:

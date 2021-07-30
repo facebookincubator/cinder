@@ -35,6 +35,11 @@ typedef struct {
   void* rdx;
 } JITRT_StaticCallReturn;
 
+typedef struct {
+  double xmm0;
+  double xmm1;
+} JITRT_StaticCallFPReturn;
+
 #define LOAD_METHOD_CACHE_SIZE 4
 
 typedef struct {
@@ -77,6 +82,12 @@ PyObject* JITRT_CallWithKeywordArgs(
     PyObject* kwnames);
 
 JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
+    PyFunctionObject* func,
+    PyObject** args,
+    size_t nargsf,
+    int argcount);
+
+JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,

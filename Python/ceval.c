@@ -2171,7 +2171,7 @@ main_loop:
             /* In the interpreter, we always return a boxed int. We have a boxed
              * value on the stack already, but we may have to deal with sign
              * extension. */
-            if (oparg & TYPED_INT_SIGNED) {
+            if (oparg & TYPED_INT_SIGNED && oparg != TYPED_DOUBLE) {
                 size_t ival = (size_t)PyLong_AsVoidPtr(retval);
                 if (ival & ((size_t)1) << 63) {
                     Py_DECREF(retval);
