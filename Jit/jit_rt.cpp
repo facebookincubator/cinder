@@ -241,13 +241,9 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
     size_t nargsf,
     int argcount) {
   PyObject* defaults = func->func_defaults;
-  PyObject* result;
   if (defaults == nullptr) {
     // Function has no defaults; there's nothing we can do.
-    result = _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
-    assert(
-        result ==
-        NULL); // This must be true, we only called it so the exc is raised.
+    _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
     return {0.0, 0.0};
   }
   Py_ssize_t defcount = PyTuple_GET_SIZE(defaults);
@@ -257,8 +253,7 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
 
   if (nargs + defcount < argcount || nargs > argcount) {
     // Not enough args with defaults, or too many args without defaults.
-    result = _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
-    assert(result == NULL);
+    _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
     return {0.0, 0.0};
   }
 
