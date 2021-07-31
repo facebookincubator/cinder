@@ -1632,7 +1632,19 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
            << reinterpret_cast<uint64_t>(instr->addr());
 
         for (size_t i = 0; i < nargs; i++) {
-          ss << ", " << instr->GetOperand(i)->name();
+          Type src_type = instr->GetOperand(i)->type();
+          if (src_type <= (TCBool | TCUInt8 | TCUInt16)) {
+            std::string tmp = GetSafeTempName();
+            bbb.AppendCode(
+                "ConvertUnsigned {}:CUInt64, {}", tmp, instr->GetOperand(i));
+            ss << ", " << tmp << ":CUInt64";
+          } else if (src_type <= (TCInt8 | TCInt16)) {
+            std::string tmp = GetSafeTempName();
+            bbb.AppendCode("Convert {}:CInt64, {}", tmp, instr->GetOperand(i));
+            ss << ", " << tmp << ":CInt64";
+          } else {
+            ss << ", " << instr->GetOperand(i)->name();
+          }
         }
 
         bbb.AppendCode(ss.str());
