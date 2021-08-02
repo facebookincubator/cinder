@@ -176,6 +176,7 @@ _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject *code);
     SEQ_REPEAT_REVERSED      | \
     SEQ_REPEAT_PRIMITIVE_NUM   \
 )
+#define SEQ_CHECKED_LIST (1 << 8)
 
 #define _Py_IS_TYPED_ARRAY(x) (x & TYPED_ARRAY)
 #define _Py_IS_TYPED_ARRAY_SIGNED(x) (x & (TYPED_INT_SIGNED << 4))

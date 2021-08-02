@@ -1,4 +1,5 @@
 from __static__ import CheckedList
+from _static import SEQ_CHECKED_LIST
 
 from .common import StaticTestBase
 from .tests import bad_ret_type, type_mismatch
@@ -328,3 +329,18 @@ class CheckedListTests(StaticTestBase):
             self.assertEqual(f(l), 0)
             l.append(1)
             self.assertEqual(f(l), 1)
+
+    def test_checked_list_getitem_with_c_ints(self):
+        codestr = """
+            from __static__ import CheckedList, int64, unbox
+            from typing import List
+            def testfunc(x: CheckedList[int]) -> int:
+                i: int64 = 0
+                j: int64 = 1
+                return x[i] + x[j]
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            cl = CheckedList[int]([1, 42, 3, 4, 5, 6])
+            self.assertInBytecode(f, "SEQUENCE_GET", SEQ_CHECKED_LIST)
+            self.assertEqual(f(cl), 43)

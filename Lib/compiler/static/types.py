@@ -95,6 +95,7 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     TYPED_UINT16,
     TYPED_UINT32,
     TYPED_UINT64,
+    SEQ_CHECKED_LIST,
     SEQ_LIST,
     SEQ_TUPLE,
     SEQ_LIST_INEXACT,
@@ -4462,7 +4463,8 @@ class CheckedListInstance(Object[CheckedList]):
         if type == SLICE_TYPE.instance:
             visitor.set_type(node, self)
         else:
-            visitor.visitExpectedType(node.slice, INT_TYPE.instance, blame=node)
+            if type.klass not in SIGNED_CINT_TYPES:
+                visitor.visitExpectedType(node.slice, INT_TYPE.instance, blame=node)
             visitor.set_type(node, self.klass.gen_name.args[0].instance)
 
     def emit_subscr(
@@ -4472,11 +4474,18 @@ class CheckedListInstance(Object[CheckedList]):
         if code_gen.get_type(node) == self:
             return code_gen.defaultVisit(node, aug_flag)
 
+        index_is_ctype = code_gen.get_type(node.slice).klass in SIGNED_CINT_TYPES
+
         if isinstance(node.ctx, ast.Load):
-            code_gen.visit(node.value)
-            code_gen.visit(node.slice)
-            update_descr = self.klass.type_descr + ("__getitem__",)
-            code_gen.emit_invoke_method(update_descr, 1)
+            if index_is_ctype:
+                code_gen.visit(node.value)
+                code_gen.visit(node.slice)
+                code_gen.emit("SEQUENCE_GET", SEQ_CHECKED_LIST)
+            else:
+                code_gen.visit(node.value)
+                code_gen.visit(node.slice)
+                update_descr = self.klass.type_descr + ("__getitem__",)
+                code_gen.emit_invoke_method(update_descr, 1)
         elif isinstance(node.ctx, ast.Store):
             code_gen.visit(node.value)
             code_gen.emit("ROT_TWO")

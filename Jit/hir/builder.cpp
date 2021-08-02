@@ -2274,6 +2274,7 @@ static inline Type element_type_from_seq_type(int seq_type) {
       return TCUInt64;
     case SEQ_LIST:
     case SEQ_LIST_INEXACT:
+    case SEQ_CHECKED_LIST:
     case SEQ_TUPLE:
       return TObject;
     default:
@@ -2487,7 +2488,9 @@ void HIRBuilder::emitSequenceGet(
   int offset;
   if (_Py_IS_TYPED_ARRAY(oparg)) {
     offset = offsetof(PyStaticArrayObject, ob_item);
-  } else if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT) {
+  } else if (
+      oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT ||
+      oparg == SEQ_CHECKED_LIST) {
     offset = offsetof(PyListObject, ob_item);
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_GET: %d", oparg);

@@ -5638,6 +5638,12 @@ main_loop:
                       goto error;
                   }
               }
+          } else if (oparg == SEQ_CHECKED_LIST) {
+            item = _PyCheckedList_GetItem(sequence, val);
+            Py_DECREF(sequence);
+            if (item == NULL) {
+              goto error;
+            }
           } else {
             PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_GET: %d", oparg);
             Py_DECREF(idx);

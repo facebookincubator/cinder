@@ -3781,6 +3781,10 @@ static int chklist_ass_subscript(PyListObject* self, PyObject* item, PyObject* v
     return list_ass_subscript(self, item, value);
 }
 
+inline PyObject * _PyCheckedList_GetItem(PyObject *op, Py_ssize_t i) {
+    return list_item((PyListObject *) op, i);
+}
+
 static PyMappingMethods chklist_as_mapping = {
     (lenfunc)list_length,
     (binaryfunc)list_subscript,
