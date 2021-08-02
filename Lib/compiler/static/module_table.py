@@ -101,6 +101,7 @@ class ModuleTable:
                             self.named_finals[target.id] = value
 
         # We don't need these anymore...
+
         self.decls.clear()
 
     def resolve_type(self, node: ast.AST) -> Optional[Class]:

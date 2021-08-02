@@ -3050,6 +3050,49 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
+    def test_cross_module_inst_decl_final_dynamic_is_not_invoked(self) -> None:
+        acode = """
+            from typing import Final, Protocol
+            def foo(x: int) -> int:
+                    return x + 42
+
+            class CallableProtocol(Protocol):
+                def __call__(self, x: int) -> int:
+                    pass
+
+            f: Final[CallableProtocol] = foo
+        """
+        bcode = """
+            from a import f
+
+            def g():
+                return f()
+        """
+        symtable = SymbolTable(StaticCodeGenerator)
+        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        x = self.find_code(bcomp, "g")
+        self.assertNotInBytecode(x, "INVOKE_FUNCTION")
+
+    def test_cross_module_inst_decl_alias_is_not_invoked(self) -> None:
+        acode = """
+            from typing import Final, Protocol
+            def foo(x: int) -> int:
+                    return x + 42
+            f = foo
+        """
+        bcode = """
+            from a import f
+
+            def g():
+                return f()
+        """
+        symtable = SymbolTable(StaticCodeGenerator)
+        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        x = self.find_code(bcomp, "g")
+        self.assertNotInBytecode(x, "INVOKE_FUNCTION")
+
     def test_cross_module_decl_visit_type_check_methods(self) -> None:
         acode = """
             class C:
@@ -4661,18 +4704,18 @@ class StaticCompilationTests(StaticTestBase):
         self.compile(
             """
             from typing import Optional
-            
+
             def a(x: bool) -> Optional[int]:
                 if x:
                     return None
                 else:
                     return 4
-            
+
             def b() -> int:
                 return 5
-            
+
             def c() -> int:
-                return a(True) or b()  
+                return a(True) or b()
 
             def d() -> int:
                 return a(True) or a(False) or b()
@@ -4685,16 +4728,16 @@ class StaticCompilationTests(StaticTestBase):
         self.type_error(
             """
             from typing import Optional
-            
+
             def a(x: bool) -> Optional[int]:
                 if x:
                     return None
                 else:
                     return 4
-            
+
             def b() -> int:
                 return 5
-            
+
             def c() -> int:
                 return b() or a(True)
             """,
@@ -11148,6 +11191,26 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
+
+    def test_final_callable_protocol_retains_inferred_type(self):
+        codestr = """
+        from typing import Final, Protocol
+
+        def foo(x: int) -> str:
+            return "A"
+
+        class CallableProtocol(Protocol):
+            def __call__(self, x: int) -> str:
+                pass
+
+        f: Final[CallableProtocol] = foo
+
+        def bar(x: int) -> str:
+            return f(x)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["bar"]
+            self.assertInBytecode(f, "INVOKE_FUNCTION")
 
     def test_class_level_final_decl(self):
         codestr = """

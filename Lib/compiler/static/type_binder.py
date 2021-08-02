@@ -596,14 +596,25 @@ class TypeBinder(GenericVisitor):
             is_final = True
             comp_type = comp_type.inner_type()
 
+        declared_type = comp_type.instance
+        is_dynamic_final = is_final and declared_type is DYNAMIC
         if isinstance(target, Name):
-            self.declare_local(target, comp_type.instance, is_final)
-            self.set_type(target, comp_type.instance)
+            # We special case x: Final[dynamic] = value to treat `x`'s inferred type as the
+            # declared type instead of the comp_type - this allows us to support aliasing of
+            # functions declared as protocols.
+            if is_dynamic_final:
+                value = node.value
+                if value:
+                    self.visit(value)
+                    declared_type = self.get_type(value)
+
+            self.declare_local(target, declared_type, is_final)
+            self.set_type(target, declared_type)
 
         self.visit(target)
         value = node.value
-        if value:
-            self.visitExpectedType(value, comp_type.instance)
+        if value and not is_dynamic_final:
+            self.visitExpectedType(value, declared_type)
             if isinstance(target, Name):
                 # We could be narrowing the type after the assignment, so we update it here
                 # even though we assigned it above (but we never narrow primtives)
