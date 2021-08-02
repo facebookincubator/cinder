@@ -5588,9 +5588,9 @@ main_loop:
           PyObject *idx = POP(), *sequence, *item;
 
           Py_ssize_t val = (Py_ssize_t)PyLong_AsVoidPtr(idx);
-          Py_DECREF(idx);
 
           if (val == -1 && _PyErr_Occurred(tstate)) {
+            Py_DECREF(idx);
             goto error;
           }
 
@@ -5609,12 +5609,14 @@ main_loop:
             Py_DECREF(sequence);
 
             if (item == NULL) {
+              Py_DECREF(idx);
               goto error;
             }
           } else if (oparg == SEQ_LIST) {
             item = PyList_GetItem(sequence, val);
             Py_DECREF(sequence);
             if (item == NULL) {
+              Py_DECREF(idx);
               goto error;
             }
             Py_INCREF(item);
@@ -5624,6 +5626,7 @@ main_loop:
                 item = PyList_GetItem(sequence, val);
                 Py_DECREF(sequence);
                 if (item == NULL) {
+                    Py_DECREF(idx);
                     goto error;
                 }
                 Py_INCREF(item);
@@ -5631,14 +5634,17 @@ main_loop:
                   item = PyObject_GetItem(sequence, idx);
                   Py_DECREF(sequence);
                   if (item == NULL) {
+                      Py_DECREF(idx);
                       goto error;
                   }
               }
           } else {
             PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_GET: %d", oparg);
+            Py_DECREF(idx);
             goto error;
           }
 
+          Py_DECREF(idx);
           PUSH(item);
           FAST_DISPATCH();
 
