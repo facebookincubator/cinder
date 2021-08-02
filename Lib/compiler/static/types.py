@@ -569,9 +569,8 @@ class Object(Value, Generic[TClass]):
     def as_oparg(self) -> int:
         return TYPED_OBJECT
 
-    def bind_call(
-        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> NarrowingEffect:
+    @staticmethod
+    def bind_dynamic_call(node: ast.Call, visitor: TypeBinder) -> NarrowingEffect:
         visitor.set_type(node, DYNAMIC)
         for arg in node.args:
             visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
@@ -582,6 +581,11 @@ class Object(Value, Generic[TClass]):
             )
 
         return NO_EFFECT
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        return self.bind_dynamic_call(node, visitor)
 
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -1489,15 +1493,11 @@ class ArgMapping:
         callable: Callable[TClass],
         call: ast.Call,
         self_arg: Optional[ast.expr],
+        args_override: Optional[List[ast.expr]] = None,
     ) -> None:
         self.callable = callable
         self.call = call
-        pos_args: List[ast.expr] = []
-        if self_arg is not None:
-            pos_args.append(self_arg)
-        pos_args.extend(call.args)
-        self.args: List[ast.expr] = pos_args
-
+        self.args: List[ast.expr] = args_override or list(call.args)
         self.kwargs: List[Tuple[Optional[str], ast.expr]] = [
             (kwarg.arg, kwarg.value) for kwarg in call.keywords
         ]
@@ -1506,38 +1506,46 @@ class ArgMapping:
         self.nvariadic = 0
         self.nseen = 0
         self.spills: Dict[int, SpillArg] = {}
+        self.dynamic_call = False
 
     def bind_args(self, visitor: TypeBinder, skip_self: bool = False) -> None:
         # TODO: handle duplicate args and other weird stuff a-la
         # https://fburl.com/diffusion/q6tpinw8
+        if not self.can_call_statically():
+            self.dynamic_call = True
+            Object.bind_dynamic_call(self.call, visitor)
+            return
+
+        func_args = self.callable.args
+        assert func_args is not None
 
         # Process provided position arguments to expected parameters
-        expected_args = self.callable.args
+        expected_args = func_args
         if skip_self:
-            expected_args = expected_args[1:]
+            expected_args = func_args[1:]
             self.nseen += 1
 
         if len(self.args) > len(expected_args):
             visitor.syntax_error(
                 f"Mismatched number of args for {self.callable.name}. "
-                f"Expected {len(expected_args) + self.nseen}, got {len(self.args) + self.nseen}",
+                f"Expected {len(expected_args) + skip_self}, got {len(self.args) + skip_self}",
                 self.call,
             )
 
         for idx, (param, arg) in enumerate(zip(expected_args, self.args)):
             if param.is_kwonly:
                 visitor.syntax_error(
-                    f"{self.callable.qualname} takes {idx} positional args but "
-                    f"{len(self.args)} {'was' if len(self.args) == 1 else 'were'} given",
+                    f"{self.callable.qualname} takes {idx + skip_self} positional args but "
+                    f"{len(self.args) + skip_self} {'was' if len(self.args) + skip_self == 1 else 'were'} given",
                     self.call,
                 )
             elif isinstance(arg, Starred):
                 # Skip type verification here, f(a, b, *something)
                 # TODO: add support for this by implementing type constrained tuples
                 self.nvariadic += 1
-                star_params = self.callable.args[idx:]
+                star_params = func_args[idx:]
                 self.emitters.append(StarredArg(arg.value, star_params))
-                self.nseen = len(self.callable.args)
+                self.nseen = len(func_args)
                 for arg in self.args[idx:]:
                     if isinstance(arg, Starred):
                         visitor.visitExpectedType(
@@ -1568,21 +1576,24 @@ class ArgMapping:
                 )
 
         # nseen must equal number of defined args if no variadic args are used
-        if self.nvariadic == 0 and (self.nseen != len(self.callable.args)):
+        if self.nvariadic == 0 and (self.nseen != len(func_args)):
             visitor.syntax_error(
                 f"Mismatched number of args for {self.callable.name}. "
-                f"Expected {len(self.callable.args)}, got {self.nseen}",
+                f"Expected {len(func_args)}, got {self.nseen}",
                 self.call,
             )
 
     def bind_kwargs(self, visitor: TypeBinder) -> None:
+        func_args = self.callable.args
+        assert func_args is not None
+
         spill_start = len(self.emitters)
         seen_variadic = False
         # Process unhandled arguments which can be populated via defaults,
         # keyword arguments, or **mapping.
         cur_kw_arg = 0
-        for idx in range(self.nseen, len(self.callable.args)):
-            param = self.callable.args[idx]
+        for idx in range(self.nseen, len(func_args)):
+            param = func_args[idx]
             name = param.name
             if (
                 cur_kw_arg is not None
@@ -1673,6 +1684,74 @@ class ArgMapping:
         )
 
         return resolved_type
+
+    def needs_virtual_invoke(self, code_gen: Static38CodeGenerator) -> bool:
+        self_arg = self.self_arg
+        if self_arg is None:
+            return False
+
+        self_type = code_gen.get_type(self_arg)
+        return not (self_type.klass.is_exact or self_type.klass.is_final)
+
+    def can_call_statically(self) -> bool:
+        func_args = self.callable.args
+        if func_args is None or self.callable.has_vararg or self.callable.has_kwarg:
+            return False
+
+        has_default_args = self.callable.num_required_args < len(self.args)
+        has_star_args = False
+        for a in self.call.args:
+            if isinstance(a, ast.Starred):
+                if has_star_args:
+                    # We don't support f(*a, *b)
+                    return False
+                has_star_args = True
+            elif has_star_args:
+                # We don't support f(*a, b)
+                return False
+
+        num_star_args = [isinstance(a, ast.Starred) for a in self.call.args].count(True)
+        num_dstar_args = [(a.arg is None) for a in self.call.keywords].count(True)
+
+        start = 1 if self.self_arg is not None else 0
+        for arg in func_args[start + len(self.call.args) :]:
+            if arg.has_default and isinstance(arg.default_val, ast.expr):
+                for kw_arg in self.call.keywords:
+                    if kw_arg.arg == arg.name:
+                        break
+                else:
+                    return False
+        if (
+            # We don't support f(**a, **b)
+            num_dstar_args > 1
+            # We don't support f(1, 2, *a) if f has any default arg values
+            or (has_default_args and has_star_args)
+        ):
+            return False
+
+        return True
+
+    def emit(self, code_gen: Static38CodeGenerator, extra_self: bool = False) -> None:
+        if self.dynamic_call:
+            code_gen.defaultVisit(self.call)
+            return
+
+        code_gen.update_lineno(self.call)
+
+        for emitter in self.emitters:
+            emitter.emit(self.call, code_gen)
+
+        func_args = self.callable.args
+        assert func_args is not None
+
+        if self.needs_virtual_invoke(code_gen):
+            code_gen.emit_invoke_method(
+                self.callable.type_descr,
+                len(func_args) if extra_self else len(func_args) - 1,
+            )
+        else:
+            code_gen.emit("EXTENDED_ARG", 0)
+            code_gen.emit("INVOKE_FUNCTION", (self.callable.type_descr, len(func_args)))
 
 
 class ArgEmitter:
@@ -1809,7 +1888,7 @@ class Callable(Object[TClass]):
         klass: Class,
         func_name: str,
         module_name: str,
-        args: List[Parameter],
+        args: Optional[List[Parameter]],
         args_by_name: Dict[str, Parameter],
         num_required_args: int,
         vararg: Optional[Parameter],
@@ -1858,10 +1937,12 @@ class Callable(Object[TClass]):
         type_ctx: Optional[Class],
         self_expr: Optional[ast.expr] = None,
     ) -> NarrowingEffect:
-        if self.has_vararg or self.has_kwarg:
-            return super().bind_call(node, visitor, type_ctx)
-
-        arg_mapping = ArgMapping(self, node, self_expr)
+        arg_mapping = ArgMapping(
+            self,
+            node,
+            self_expr,
+            node.args if self_expr is None else [self_expr] + node.args,
+        )
         arg_mapping.bind_args(visitor)
 
         visitor.set_type(node, self.return_type.resolved().instance)
@@ -1897,57 +1978,14 @@ class Callable(Object[TClass]):
                 variadic_idx = idx
         return provided_kwargs, variadic_idx
 
-    def can_call_self(self, node: ast.Call, has_self: bool) -> bool:
-        if self.has_vararg or self.has_kwarg:
-            return False
-
-        has_default_args = self.num_required_args < len(self.args)
-        has_star_args = False
-        for a in node.args:
-            if isinstance(a, ast.Starred):
-                if has_star_args:
-                    # We don't support f(*a, *b)
-                    return False
-                has_star_args = True
-            elif has_star_args:
-                # We don't support f(*a, b)
-                return False
-
-        num_star_args = [isinstance(a, ast.Starred) for a in node.args].count(True)
-        num_dstar_args = [(a.arg is None) for a in node.keywords].count(True)
-
-        start = 1 if has_self else 0
-        for arg in self.args[start + len(node.args) :]:
-            if arg.has_default and isinstance(arg.default_val, ast.expr):
-                for kw_arg in node.keywords:
-                    if kw_arg.arg == arg.name:
-                        break
-                else:
-                    return False
-        if (
-            # We don't support f(**a, **b)
-            num_dstar_args > 1
-            # We don't support f(1, 2, *a) if f has any default arg values
-            or (has_default_args and has_star_args)
-        ):
-            return False
-
-        return True
-
-    def emit_call_self(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+    def emit_call_self(
+        self,
+        node: ast.Call,
+        code_gen: Static38CodeGenerator,
+        self_expr: Optional[ast.expr] = None,
+    ) -> None:
         arg_mapping: ArgMapping = code_gen.get_node_data(node, ArgMapping)
-        for emitter in arg_mapping.emitters:
-            emitter.emit(node, code_gen)
-        self_expr = arg_mapping.self_arg
-        if (
-            self_expr is None
-            or code_gen.get_type(self_expr).klass.is_exact
-            or code_gen.get_type(self_expr).klass.is_final
-        ):
-            code_gen.emit("EXTENDED_ARG", 0)
-            code_gen.emit("INVOKE_FUNCTION", (self.type_descr, len(self.args)))
-        else:
-            code_gen.emit_invoke_method(self.type_descr, len(self.args) - 1)
+        arg_mapping.emit(code_gen)
 
 
 class ContainerTypeRef(TypeRef):
@@ -2008,6 +2046,8 @@ NON_VIRTUAL_METHODS = {"__init__", "__new__", "__init_subclass__"}
 
 
 class Function(Callable[Class]):
+    args: List[Parameter]
+
     def __init__(
         self,
         node: Union[AsyncFunctionDef, FunctionDef],
@@ -2052,9 +2092,6 @@ class Function(Callable[Class]):
         return res
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if not self.can_call_self(node, False):
-            return super().emit_call(node, code_gen)
-
         if self.inline and code_gen.optimization_lvl == 2:
             return self.emit_inline_call(node, code_gen)
 
@@ -2323,15 +2360,12 @@ class MethodType(Object[Class]):
         return result
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if (
-            not self.function.can_call_self(node, True)
-            or self.function.func_name in NON_VIRTUAL_METHODS
-        ):
+        if self.function.func_name in NON_VIRTUAL_METHODS:
             return super().emit_call(node, code_gen)
 
         code_gen.update_lineno(node)
 
-        self.function.emit_call_self(node, code_gen)
+        self.function.emit_call_self(node, code_gen, self.target.value)
 
 
 class StaticMethodInstanceBound(Object[Class]):
@@ -2355,15 +2389,7 @@ class StaticMethodInstanceBound(Object[Class]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
-        if self.function.has_vararg or self.function.has_kwarg:
-            return super().bind_call(node, visitor, type_ctx)
-
-        arg_mapping = ArgMapping(self.function, node, None)
-
-        self_type = visitor.get_type(self.target.value)
-        if not (self_type.klass.is_exact or self_type.klass.is_final):
-            arg_mapping.emitters.insert(0, PositionArg(self.target.value, OBJECT_TYPE))
-
+        arg_mapping = ArgMapping(self.function, node, self.target.value, node.args)
         arg_mapping.bind_args(visitor)
 
         visitor.set_type(node, self.function.return_type.resolved().instance)
@@ -2371,28 +2397,15 @@ class StaticMethodInstanceBound(Object[Class]):
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if (
-            not self.function.can_call_self(node, True)
-            or self.function.func_name in NON_VIRTUAL_METHODS
-        ):
+        if self.function.func_name in NON_VIRTUAL_METHODS:
             return super().emit_call(node, code_gen)
 
-        code_gen.update_lineno(node)
-
         arg_mapping: ArgMapping = code_gen.get_node_data(node, ArgMapping)
-        for emitter in arg_mapping.emitters:
-            emitter.emit(node, code_gen)
+        if arg_mapping.needs_virtual_invoke(code_gen):
+            # we need self for virtual invoke
+            code_gen.visit(self.target.value)
 
-        self_type = code_gen.get_type(self.target.value)
-        if self_type.klass.is_exact or self_type.klass.is_final:
-            code_gen.emit("EXTENDED_ARG", 0)
-            code_gen.emit(
-                "INVOKE_FUNCTION", (self.function.type_descr, len(self.function.args))
-            )
-        else:
-            code_gen.emit_invoke_method(
-                self.function.type_descr, len(self.function.args)
-            )
+        arg_mapping.emit(code_gen, extra_self=True)
 
 
 class StaticMethod(Object[Class]):
@@ -2522,9 +2535,7 @@ class BuiltinFunction(Callable[Class]):
         )
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if node.keywords or (
-            self.args is not None and not self.can_call_self(node, True)
-        ):
+        if node.keywords:
             return super().emit_call(node, code_gen)
 
         code_gen.update_lineno(node)
@@ -2639,15 +2650,13 @@ class BuiltinMethod(Callable[Class]):
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if node.keywords or (
-            self.args is not None and not self.desc.can_call_self(node, True)
-        ):
+        if node.keywords:
             return super().emit_call(node, code_gen)
 
         code_gen.update_lineno(node)
 
         if self.args is not None:
-            self.desc.emit_call_self(node, code_gen)
+            self.desc.emit_call_self(node, code_gen, self.target.value)
         else:
             # Untyped method, we can still do an INVOKE_METHOD
 
