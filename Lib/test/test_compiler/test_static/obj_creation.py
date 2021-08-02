@@ -358,3 +358,29 @@ class StaticObjCreationTests(StaticTestBase):
             )
             self.assertEqual(f(42), True)
             self.assertEqual(f(0), False)
+
+    def test_list_subclass(self):
+        codestr = """
+            class C(list):
+                pass
+
+            def f() -> C:
+                return C()
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(f(), [])
+            self.assertInBytecode(f, "TP_ALLOC")
+
+    def test_list_subclass_iterable(self):
+        codestr = """
+            class C(list):
+                pass
+
+            def f() -> C:
+                return C('abc')
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(f(), ["a", "b", "c"])
+            self.assertInBytecode(f, "TP_ALLOC")

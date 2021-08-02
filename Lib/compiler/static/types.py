@@ -3696,6 +3696,20 @@ class ListClass(Class):
         )
         if is_exact:
             self.members["append"] = ListAppendMethod("append", self)
+        # list inherits object.__new__
+        del self.members["__new__"]
+
+        self.members["__init__"] = BuiltinMethodDescriptor(
+            "__init__",
+            self,
+            (
+                Parameter("self", 0, ResolvedTypeRef(self), False, None, False),
+                # Ideally we would mark this as Optional and allow calling without
+                # providing the argument...
+                Parameter("iterable", 0, ResolvedTypeRef(OBJECT_TYPE), True, (), False),
+            ),
+            ResolvedTypeRef(NONE_TYPE),
+        )
 
     def exact_type(self) -> Class:
         return LIST_EXACT_TYPE
