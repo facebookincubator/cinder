@@ -80,6 +80,8 @@ class AnalyzedModule {
       case ModuleKind::kNonStrict:
         return 0;
     }
+    Py_UNREACHABLE();
+    return -1;
   }
 
  private:
