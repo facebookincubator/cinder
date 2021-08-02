@@ -520,6 +520,12 @@ Type outputType(const Instr& instr) {
       return from_type & to_type;
     }
 
+    case Opcode::kTpAlloc: {
+      auto& tp_alloc = static_cast<const TpAlloc&>(instr);
+      Type alloc_type = Type::fromTypeExact(tp_alloc.pytype());
+      return alloc_type;
+    }
+
     // Refine type gives us more information about the type of its input.
     case Opcode::kRefineType: {
       auto type = static_cast<const RefineType&>(instr).type();

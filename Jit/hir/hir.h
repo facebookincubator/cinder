@@ -329,6 +329,7 @@ struct FrameState {
   V(StoreAttr)                  \
   V(StoreField)                 \
   V(StoreSubscr)                \
+  V(TpAlloc)                    \
   V(UnaryOp)                    \
   V(UnpackExToTuple)            \
   V(VectorCall)                 \
@@ -1780,6 +1781,19 @@ class INSTR_CLASS(Cast, HasOutput, Operands<1>, DeoptBase) {
  private:
   PyTypeObject* pytype_;
   bool optional_;
+};
+
+class INSTR_CLASS(TpAlloc, HasOutput, Operands<0>, DeoptBase) {
+ public:
+  TpAlloc(Register* dst, PyTypeObject* pytype, const FrameState& frame)
+      : InstrT(dst, frame), pytype_(pytype) {}
+
+  PyTypeObject* pytype() const {
+    return pytype_;
+  }
+
+ private:
+  PyTypeObject* pytype_;
 };
 
 // Perform a binary operation (e.g. '+', '-') on primitive int operands

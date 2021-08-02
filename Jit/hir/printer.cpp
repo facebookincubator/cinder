@@ -345,6 +345,10 @@ static std::string format_immediates(const Instr& instr) {
         return fmt::format("{}", cast.pytype()->tp_name);
       }
     }
+    case Opcode::kTpAlloc: {
+      const auto& tp_alloc = static_cast<const TpAlloc&>(instr);
+      return fmt::format("{}", tp_alloc.pytype()->tp_name);
+    }
     case Opcode::kCompare: {
       const auto& cmp = static_cast<const Compare&>(instr);
       return GetCompareOpName(cmp.op());

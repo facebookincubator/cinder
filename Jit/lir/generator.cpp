@@ -1770,6 +1770,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
 
+      case Opcode::kTpAlloc: {
+        auto instr = static_cast<const TpAlloc*>(&i);
+
+        bbb.AppendCode(
+            "Call {}, {:#x}, {:#x}, {:#x}\n",
+            instr->dst(),
+            reinterpret_cast<uint64_t>(instr->pytype()->tp_alloc),
+            reinterpret_cast<uint64_t>(instr->pytype()),
+            /*nitems=*/0);
+        break;
+      }
+
       case Opcode::kMakeListTuple: {
         auto instr = static_cast<const MakeListTuple*>(&i);
 

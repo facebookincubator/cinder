@@ -249,6 +249,9 @@ class HIRBuilder {
   void emitCast(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitTpAlloc(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitStoreLocal(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

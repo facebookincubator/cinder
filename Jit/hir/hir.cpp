@@ -225,6 +225,7 @@ bool Instr::isReplayable() const {
     case Opcode::kStoreArrayItem:
     case Opcode::kStoreAttr:
     case Opcode::kStoreSubscr:
+    case Opcode::kTpAlloc:
     case Opcode::kUnaryOp:
     case Opcode::kUnpackExToTuple:
     case Opcode::kVectorCall:

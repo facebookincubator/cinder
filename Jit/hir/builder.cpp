@@ -181,6 +181,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     STORE_FIELD,
     STORE_LOCAL,
     STORE_SUBSCR,
+    TP_ALLOC,
     UNARY_INVERT,
     UNARY_NEGATIVE,
     UNARY_NOT,
@@ -1089,6 +1090,10 @@ void HIRBuilder::translate(
         }
         case CAST: {
           emitCast(tc, bc_instr);
+          break;
+        }
+        case TP_ALLOC: {
+          emitTpAlloc(tc, bc_instr);
           break;
         }
         case CHECK_ARGS: {
@@ -3425,6 +3430,21 @@ void HIRBuilder::emitCast(
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
   tc.emit<Cast>(result, value, type, optional, tc.frame);
+  tc.frame.stack.push(result);
+}
+
+void HIRBuilder::emitTpAlloc(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
+  int optional;
+  Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
+      Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
+  JIT_CHECK(type != NULL, "failed to resolve type %s", repr(descr));
+  JIT_CHECK(!optional, "TP_ALLOC type should not be optional")
+
+  Register* result = temps_.AllocateStack();
+  tc.emit<TpAlloc>(result, type, tc.frame);
   tc.frame.stack.push(result);
 }
 

@@ -54,6 +54,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kMakeTupleFromList:
     case Opcode::kRefineType:
     case Opcode::kSnapshot:
+    case Opcode::kTpAlloc:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:
       return commonEffects(inst, AEmpty);
