@@ -3889,6 +3889,22 @@ class DictInstance(Object[DictClass]):
         return DICT_TYPE.instance
 
 
+class BoolClass(Class):
+    def __init__(self) -> None:
+        super().__init__(
+            TypeName("builtins", "bool"), [OBJECT_TYPE], pytype=bool, is_exact=True
+        )
+        self.members["__new__"] = BuiltinNewFunction(
+            "__new__",
+            "builtins",
+            self,
+            (
+                Parameter("cls", 0, ResolvedTypeRef(TYPE_TYPE), False, None, False),
+                Parameter("x", 0, ResolvedTypeRef(OBJECT_TYPE), True, False, False),
+            ),
+            ResolvedTypeRef(self),
+        )
+
 FUNCTION_TYPE = Class(TypeName("types", "FunctionType"), is_exact=True)
 METHOD_TYPE = Class(TypeName("types", "MethodType"), is_exact=True)
 MEMBER_TYPE = Class(TypeName("types", "MemberDescriptorType"), is_exact=True)
@@ -3911,9 +3927,7 @@ COMPLEX_EXACT_TYPE = NumClass(
     TypeName("builtins", "complex"), pytype=complex, is_exact=True
 )
 BYTES_TYPE = Class(TypeName("builtins", "bytes"), [OBJECT_TYPE], pytype=bytes)
-BOOL_TYPE = Class(
-    TypeName("builtins", "bool"), [OBJECT_TYPE], pytype=bool, is_exact=True
-)
+BOOL_TYPE = BoolClass()
 ELLIPSIS_TYPE = Class(
     TypeName("builtins", "ellipsis"), [OBJECT_TYPE], pytype=type(...), is_exact=True
 )

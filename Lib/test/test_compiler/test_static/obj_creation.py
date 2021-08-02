@@ -345,3 +345,16 @@ class StaticObjCreationTests(StaticTestBase):
             "return type must be <module>.C, not object",
         ):
             self.compile(codestr)
+
+    def test_bool_call(self):
+        codestr = """
+            def f(x) -> bool:
+                return bool(x)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertInBytecode(
+                f, "INVOKE_FUNCTION", ((("builtins", "bool", "__new__"), 2))
+            )
+            self.assertEqual(f(42), True)
+            self.assertEqual(f(0), False)
