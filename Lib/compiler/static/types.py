@@ -631,7 +631,7 @@ class Object(Value, Generic[TClass]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> None:
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, self)
 
     def bind_subscr(
         self,
@@ -916,6 +916,14 @@ class Class(Object["Class"]):
     def issubclass(self, src: Class) -> bool:
         return self.type_descr in src.mro_type_descrs
 
+    def incompatible_override(self, override: Value, inherited: Value) -> bool:
+        # TODO: There's more checking we should be doing to ensure
+        # this is a compatible override
+        return type(override) != type(inherited) and (
+            type(override) is not Function
+            or not isinstance(inherited, (BuiltinFunction, BuiltinMethodDescriptor))
+        )
+
     def finish_bind(self, module: ModuleTable) -> None:
         for name, new_type_refs in self._slot_redefs.items():
             cur_slot = self.members[name]
@@ -931,9 +939,7 @@ class Class(Object["Class"]):
         for name, my_value in self.members.items():
             for base in self.mro[1:]:
                 value = base.members.get(name)
-                if value is not None and type(my_value) != type(value):
-                    # TODO: There's more checking we should be doing to ensure
-                    # this is a compatible override
+                if value is not None and self.incompatible_override(my_value, value):
                     raise TypedSyntaxError(
                         f"class cannot hide inherited member: {value!r}"
                     )
@@ -2518,6 +2524,7 @@ class BuiltinFunction(Callable[Class]):
         self,
         func_name: str,
         module: str,
+        klass: Optional[Class],
         args: Optional[Tuple[Parameter, ...]] = None,
         return_type: Optional[TypeRef] = None,
     ) -> None:
@@ -2533,6 +2540,7 @@ class BuiltinFunction(Callable[Class]):
             None,
             return_type or ResolvedTypeRef(DYNAMIC_TYPE),
         )
+        self.set_container_type(klass)
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         if node.keywords:
@@ -2540,6 +2548,26 @@ class BuiltinFunction(Callable[Class]):
 
         code_gen.update_lineno(node)
         self.emit_call_self(node, code_gen)
+
+    def make_generic(
+        self, new_type: Class, name: GenericTypeName, generic_types: GenericTypesDict
+    ) -> Value:
+        cur_args = self.args
+        cur_ret_type = self.return_type
+        if cur_args is not None and cur_ret_type is not None:
+            new_args = tuple(arg.bind_generics(name, generic_types) for arg in cur_args)
+            new_ret_type = cur_ret_type.resolved().bind_generics(name, generic_types)
+            return BuiltinFunction(
+                self.func_name,
+                self.module_name,
+                new_type,
+                new_args,
+                ResolvedTypeRef(new_ret_type),
+            )
+        else:
+            return BuiltinFunction(
+                self.func_name, self.module_name, new_type, None, self.return_type
+            )
 
 
 class BuiltinMethodDescriptor(Callable[Class]):
@@ -3251,12 +3279,36 @@ def reflect_method_desc(
     return method
 
 
+def reflect_builtin_function(
+    obj: BuiltinFunctionType, klass: Optional[Class] = None
+) -> BuiltinFunction:
+    sig = getattr(obj, "__typed_signature__", None)
+    if sig is not None:
+        signature, return_type = parse_typed_signature(sig)
+        method = BuiltinFunction(
+            obj.__name__,
+            obj.__module__,
+            klass,
+            signature,
+            ResolvedTypeRef(return_type),
+        )
+    else:
+        method = BuiltinFunction(obj.__name__, obj.__module__, klass)
+    return method
+
+
 def make_type_dict(klass: Class, t: Type[object]) -> Dict[str, Value]:
     ret: Dict[str, Value] = {}
     for k in t.__dict__.keys():
-        obj = getattr(t, k)
+        try:
+            obj = getattr(t, k)
+        except AttributeError:
+            continue
+
         if isinstance(obj, MethodDescriptorType):
             ret[k] = reflect_method_desc(obj, klass)
+        elif isinstance(obj, BuiltinFunctionType):
+            ret[k] = reflect_builtin_function(obj, klass)
 
     return ret
 
@@ -3783,6 +3835,8 @@ RESOLVED_STR_TYPE = ResolvedTypeRef(STR_TYPE)
 RESOLVED_NONE_TYPE = ResolvedTypeRef(NONE_TYPE)
 
 TYPE_TYPE.bases = [OBJECT_TYPE]
+TYPE_TYPE.members.update(make_type_dict(TYPE_TYPE, type))
+OBJECT_TYPE.members.update(make_type_dict(OBJECT_TYPE, object))
 
 CONSTANT_TYPES: Mapping[Type[object], Value] = {
     str: STR_EXACT_TYPE.instance,
@@ -4230,6 +4284,18 @@ class ArrayClass(GenericClass):
             type_def,
             is_exact,
             pytype,
+        )
+        self.members["__new__"] = BuiltinFunction(
+            "__new__",
+            "__static__",
+            self,
+            (
+                Parameter("cls", 0, ResolvedTypeRef(TYPE_TYPE), False, None, False),
+                Parameter(
+                    "initializer", 0, ResolvedTypeRef(OBJECT_TYPE), True, (), False
+                ),
+            ),
+            ResolvedTypeRef(self),
         )
 
     @property

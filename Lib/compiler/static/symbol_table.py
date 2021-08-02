@@ -88,6 +88,7 @@ from .types import (
     Value,
     XX_GENERIC_TYPE,
     parse_typed_signature,
+    reflect_builtin_function,
 )
 
 if TYPE_CHECKING:
@@ -97,21 +98,6 @@ try:
     import xxclassloader  # pyre-ignore[21]: unknown module
 except ImportError:
     xxclassloader = None
-
-
-def reflect_builtin_function(obj: BuiltinFunctionType) -> BuiltinFunction:
-    sig = getattr(obj, "__typed_signature__", None)
-    if sig is not None:
-        signature, return_type = parse_typed_signature(sig)
-        method = BuiltinFunction(
-            obj.__name__,
-            obj.__module__,
-            signature,
-            ResolvedTypeRef(return_type),
-        )
-    else:
-        method = BuiltinFunction(obj.__name__, obj.__module__)
-    return method
 
 
 class StrictBuiltins(Object[Class]):

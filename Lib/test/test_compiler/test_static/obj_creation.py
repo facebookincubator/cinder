@@ -1,6 +1,8 @@
 from compiler.static.errors import TypedSyntaxError
 from re import escape
 
+from __static__ import Array, int64
+
 from .common import StaticTestBase
 
 
@@ -181,3 +183,15 @@ class StaticObjCreationTests(StaticTestBase):
             TypedSyntaxError, "return type must be str, not int"
         ):
             self.compile(codestr)
+
+    def test_array_new(self):
+        codestr = """
+            from __static__ import Array, int64
+
+            def f() -> Array[int64]:
+                return Array[int64].__new__(Array[int64])
+
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(f(), Array[int64](()))
