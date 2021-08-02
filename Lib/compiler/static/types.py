@@ -56,7 +56,12 @@ from ast import (
     expr,
     copy_location,
 )
-from types import BuiltinFunctionType, CodeType, MethodDescriptorType
+from types import (
+    BuiltinFunctionType,
+    CodeType,
+    MethodDescriptorType,
+    WrapperDescriptorType,
+)
 from typing import (
     TypeVar,
     Generic,
@@ -707,6 +712,15 @@ class Object(Value, Generic[TClass]):
         return f"<{self.name}>"
 
 
+class ClassCallInfo:
+    def __init__(
+        self, new: Optional[ArgMapping], init: Optional[ArgMapping], dynamic_call: bool
+    ) -> None:
+        self.new = new
+        self.init = init
+        self.dynamic_call = dynamic_call
+
+
 class Class(Object["Class"]):
     """Represents a type object at compile time"""
 
@@ -843,20 +857,29 @@ class Class(Object["Class"]):
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
         self_type = self.instance
+        new_mapping: Optional[ArgMapping] = None
+        init_mapping: Optional[ArgMapping] = None
 
         dynamic_call = True
         dynamic_new = False
+        object_new = object_init = False
         for klass in self.mro:
             if klass is DYNAMIC_TYPE:
                 dynamic_new = True
+            elif klass is OBJECT_TYPE:
+                object_new = True
+                break
 
             new = klass.members.get("__new__")
             if new is not None:
-                if isinstance(new, Function):
-                    new_mapping = ArgMapping(new, node, None)
-                    new_mapping.bind_args(visitor, True)
-                    self_type = new.return_type.resolved().instance
-                    dynamic_call = False
+                if isinstance(new, Callable):
+                    new_mapping, self_type = new.map_call(
+                        node, visitor, None, [node.func] + node.args
+                    )
+                    if new_mapping.can_call_statically():
+                        dynamic_call = False
+                    else:
+                        dynamic_new = True
                 break
 
         # if __new__ returns something that isn't a subclass of
@@ -866,16 +889,36 @@ class Class(Object["Class"]):
                 if klass is DYNAMIC_TYPE:
                     dynamic_call = True
                     break
+                elif klass is OBJECT_TYPE:
+                    object_init = True
+                    break
 
                 init = klass.members.get("__init__")
                 if init is not None:
-                    if isinstance(init, Function):
+                    if isinstance(init, Callable):
                         init_mapping = ArgMapping(init, node, None)
                         init_mapping.bind_args(visitor, True)
-                        dynamic_call = False
+                        if init_mapping.can_call_statically():
+                            dynamic_call = False
                     break
 
+        if object_new and object_init:
+            if node.args or node.keywords:
+                visitor.syntax_error(f"{self.instance_name}() takes no arguments", node)
+            else:
+                dynamic_call = False
+
+        if new_mapping is not None and init_mapping is not None:
+            # If we have both a __new__ and __init__ function we can't currently
+            # invoke it statically, as the arguments could have side effects.
+            # In the future we could potentially do better by shuffling into
+            # temporaries, but this is pretty rare.
+            dynamic_call = True
+
         visitor.set_type(node, self_type)
+        visitor.set_node_data(
+            node, ClassCallInfo, ClassCallInfo(new_mapping, init_mapping, dynamic_call)
+        )
 
         if dynamic_call:
             for arg in node.args:
@@ -888,6 +931,25 @@ class Class(Object["Class"]):
                 )
 
         return NO_EFFECT
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        self_type = self.instance
+        call_info = code_gen.get_node_data(node, ClassCallInfo)
+
+        if call_info.dynamic_call:
+            return super().emit_call(node, code_gen)
+
+        new = call_info.new
+        if new:
+            new.emit(code_gen)
+        else:
+            code_gen.emit("TP_ALLOC", self.type_descr)
+
+        init = call_info.init
+        if init is not None:
+            code_gen.emit("DUP_TOP")
+            init.emit(code_gen)
+            code_gen.emit("POP_TOP")  # pop None
 
     def can_assign_from(self, src: Class) -> bool:
         """checks to see if the src value can be assigned to this value.  Currently
@@ -1930,6 +1992,18 @@ class Callable(Object[TClass]):
     def set_container_type(self, klass: Optional[Class]) -> None:
         self.container_type = klass
 
+    def map_call(
+        self,
+        node: ast.Call,
+        visitor: TypeBinder,
+        self_expr: Optional[ast.expr] = None,
+        args_override: Optional[List[ast.expr]] = None,
+    ) -> Tuple[ArgMapping, Value]:
+        arg_mapping = ArgMapping(self, node, self_expr, args_override)
+        arg_mapping.bind_args(visitor)
+
+        return arg_mapping, self.return_type.resolved().instance
+
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -1943,15 +2017,14 @@ class Callable(Object[TClass]):
         type_ctx: Optional[Class],
         self_expr: Optional[ast.expr] = None,
     ) -> NarrowingEffect:
-        arg_mapping = ArgMapping(
-            self,
+        arg_mapping, ret_type = self.map_call(
             node,
+            visitor,
             self_expr,
             node.args if self_expr is None else [self_expr] + node.args,
         )
-        arg_mapping.bind_args(visitor)
 
-        visitor.set_type(node, self.return_type.resolved().instance)
+        visitor.set_type(node, ret_type)
         visitor.set_node_data(node, ArgMapping, arg_mapping)
         return NO_EFFECT
 
@@ -2230,9 +2303,13 @@ class Function(Callable[Class]):
             if annotation:
                 ref = TypeRef(module, annotation)
             elif idx == 0:
-                ref = ContainerTypeRef(self)
+                if self.node.name == "__new__":
+                    ref = ResolvedTypeRef(TYPE_TYPE)
+                else:
+                    ref = ContainerTypeRef(self)
             else:
                 ref = ResolvedTypeRef(DYNAMIC_TYPE)
+
             self.register_arg(argument.arg, idx, ref, has_default, default_val, False)
 
         base_idx = idx
@@ -2523,7 +2600,7 @@ class BuiltinFunction(Callable[Class]):
     def __init__(
         self,
         func_name: str,
-        module: str,
+        module_name: str,
         klass: Optional[Class],
         args: Optional[Tuple[Parameter, ...]] = None,
         return_type: Optional[TypeRef] = None,
@@ -2532,7 +2609,7 @@ class BuiltinFunction(Callable[Class]):
         super().__init__(
             BUILTIN_METHOD_DESC_TYPE,
             func_name,
-            module,
+            module_name,
             args,
             {},
             0,
@@ -2568,6 +2645,29 @@ class BuiltinFunction(Callable[Class]):
             return BuiltinFunction(
                 self.func_name, self.module_name, new_type, None, self.return_type
             )
+
+
+class BuiltinNewFunction(BuiltinFunction):
+    def map_call(
+        self,
+        node: ast.Call,
+        visitor: TypeBinder,
+        self_expr: Optional[ast.expr] = None,
+        args_override: Optional[List[ast.expr]] = None,
+    ) -> Tuple[ArgMapping, Value]:
+        arg_mapping = ArgMapping(self, node, self_expr, args_override)
+        arg_mapping.bind_args(visitor)
+        ret_type = DYNAMIC
+        if args_override:
+            cls_type = visitor.get_type(args_override[0])
+            if isinstance(cls_type, Class):
+                ret_type = cls_type.instance
+                if ret_type is TYPE_TYPE:
+                    # if we get a generic "type" then we don't really know
+                    # what type we're producing
+                    ret_type = DYNAMIC
+
+        return arg_mapping, ret_type
 
 
 class BuiltinMethodDescriptor(Callable[Class]):
@@ -3262,7 +3362,7 @@ def parse_type(info: Dict[str, object]) -> Class:
 
 
 def reflect_method_desc(
-    obj: MethodDescriptorType, klass: Class
+    obj: MethodDescriptorType | WrapperDescriptorType, klass: Class
 ) -> BuiltinMethodDescriptor:
     sig = getattr(obj, "__typed_signature__", None)
     if sig is not None:
@@ -3293,7 +3393,10 @@ def reflect_builtin_function(
             ResolvedTypeRef(return_type),
         )
     else:
-        method = BuiltinFunction(obj.__name__, obj.__module__, klass)
+        if obj.__name__ == "__new__" and klass is not None:
+            method = BuiltinNewFunction(obj.__name__, obj.__module__, klass)
+        else:
+            method = BuiltinFunction(obj.__name__, obj.__module__, klass)
     return method
 
 
@@ -3305,7 +3408,7 @@ def make_type_dict(klass: Class, t: Type[object]) -> Dict[str, Value]:
         except AttributeError:
             continue
 
-        if isinstance(obj, MethodDescriptorType):
+        if isinstance(obj, (MethodDescriptorType, WrapperDescriptorType)):
             ret[k] = reflect_method_desc(obj, klass)
         elif isinstance(obj, BuiltinFunctionType):
             ret[k] = reflect_builtin_function(obj, klass)
@@ -3393,6 +3496,16 @@ class TupleClass(Class):
             instance=instance,
             is_exact=is_exact,
             pytype=tuple,
+        )
+        self.members["__new__"] = BuiltinNewFunction(
+            "__new__",
+            "builtins",
+            self,
+            (
+                Parameter("cls", 0, ResolvedTypeRef(TYPE_TYPE), False, None, False),
+                Parameter("x", 0, ResolvedTypeRef(OBJECT_TYPE), True, (), False),
+            ),
+            ResolvedTypeRef(self),
         )
 
     def exact_type(self) -> Class:
@@ -3837,6 +3950,13 @@ RESOLVED_NONE_TYPE = ResolvedTypeRef(NONE_TYPE)
 TYPE_TYPE.bases = [OBJECT_TYPE]
 TYPE_TYPE.members.update(make_type_dict(TYPE_TYPE, type))
 OBJECT_TYPE.members.update(make_type_dict(OBJECT_TYPE, object))
+OBJECT_TYPE.members["__new__"] = BuiltinNewFunction(
+    "__new__",
+    "builtins",
+    OBJECT_TYPE,
+    (Parameter("cls", 0, ResolvedTypeRef(TYPE_TYPE), False, None, False),),
+)
+
 
 CONSTANT_TYPES: Mapping[Type[object], Value] = {
     str: STR_EXACT_TYPE.instance,
@@ -4285,7 +4405,7 @@ class ArrayClass(GenericClass):
             is_exact,
             pytype,
         )
-        self.members["__new__"] = BuiltinFunction(
+        self.members["__new__"] = BuiltinNewFunction(
             "__new__",
             "__static__",
             self,
@@ -4417,7 +4537,6 @@ class CheckedDict(GenericClass):
         if self.contains_generic_parameters:
             return CHECKED_DICT_TYPE
         return self
-
 
 class CheckedDictInstance(Object[CheckedDict]):
     def bind_subscr(

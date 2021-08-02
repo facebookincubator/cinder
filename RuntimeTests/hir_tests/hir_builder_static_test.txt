@@ -879,15 +879,16 @@ fun jittestmodule:test {
     }
     InitListTuple<list, 3> v6 v3 v4 v5
     v7 = Assign v6
-    v8 = VectorCall<1> v2 v7 {
-      NextInstrOffset 18
+    v8 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v9 = VectorCallStatic<2> v8 v2 v7 {
+      NextInstrOffset 20
     }
-    v9 = LoadField<16> v8
-    v10 = PrimitiveBox<true> v9
-    v10 = CheckExc v10 {
-      NextInstrOffset 22
+    v10 = LoadField<16> v9
+    v11 = PrimitiveBox<true> v10
+    v11 = CheckExc v11 {
+      NextInstrOffset 24
     }
-    Return v10
+    Return v11
   }
 }
 ---
@@ -1166,34 +1167,35 @@ fun jittestmodule:test {
       Locals<2> v0 v1
       Stack<1> v9
     }
-    v10 = VectorCall<1> v9 v0 {
-      NextInstrOffset 24
+    v10 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v11 = VectorCallStatic<2> v10 v9 v0 {
+      NextInstrOffset 26
       Locals<2> v0 v1
     }
-    v1 = Assign v10
+    v1 = Assign v11
     v1 = CheckVar<1; "a"> v1 {
-      NextInstrOffset 28
+      NextInstrOffset 30
       Locals<2> v0 v1
     }
-    v11 = LoadConst<MortalLongExact[111]>
-    v12 = PrimitiveUnbox<CInt64> v11
-    v13 = IsNegativeAndErrOccurred v12 {
-      NextInstrOffset 32
+    v12 = LoadConst<MortalLongExact[111]>
+    v13 = PrimitiveUnbox<CInt64> v12
+    v14 = IsNegativeAndErrOccurred v13 {
+      NextInstrOffset 34
       Locals<2> v0 v1
       Stack<1> v1
     }
-    v14 = CheckSequenceBounds v1 v12 {
-      NextInstrOffset 34
-      Locals<2> v0 v1
-    }
-    v15 = LoadField<24> v1
-    v16 = LoadArrayItem v15 v14 v1
-    v17 = PrimitiveBox<true> v16
-    v17 = CheckExc v17 {
+    v15 = CheckSequenceBounds v1 v13 {
       NextInstrOffset 36
       Locals<2> v0 v1
     }
-    Return v17
+    v16 = LoadField<24> v1
+    v17 = LoadArrayItem v16 v15 v1
+    v18 = PrimitiveBox<true> v17
+    v18 = CheckExc v18 {
+      NextInstrOffset 38
+      Locals<2> v0 v1
+    }
+    Return v18
   }
 }
 ---
@@ -1226,32 +1228,33 @@ fun jittestmodule:test {
     }
     InitListTuple<list, 3> v7 v4 v5 v6
     v8 = Assign v7
-    v9 = VectorCall<1> v3 v8 {
-      NextInstrOffset 18
+    v9 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v10 = VectorCallStatic<2> v9 v3 v8 {
+      NextInstrOffset 20
       Locals<1> v0
     }
-    v0 = Assign v9
-    v10 = LoadConst<CInt8[7]>
+    v0 = Assign v10
+    v11 = LoadConst<CInt8[7]>
     v0 = CheckVar<0; "a"> v0 {
-      NextInstrOffset 24
+      NextInstrOffset 26
       Locals<1> v0
-      Stack<1> v10
+      Stack<1> v11
     }
-    v11 = LoadConst<MortalLongExact[1]>
-    v12 = PrimitiveUnbox<CInt64> v11
-    v13 = IsNegativeAndErrOccurred v12 {
-      NextInstrOffset 28
-      Locals<1> v0
-      Stack<2> v10 v0
-    }
-    v14 = CheckSequenceBounds v0 v12 {
+    v12 = LoadConst<MortalLongExact[1]>
+    v13 = PrimitiveUnbox<CInt64> v12
+    v14 = IsNegativeAndErrOccurred v13 {
       NextInstrOffset 30
       Locals<1> v0
+      Stack<2> v11 v0
     }
-    v15 = LoadField<24> v0
-    StoreArrayItem v15 v14 v10 v0
-    v0 = CheckVar<0; "a"> v0 {
+    v15 = CheckSequenceBounds v0 v13 {
       NextInstrOffset 32
+      Locals<1> v0
+    }
+    v16 = LoadField<24> v0
+    StoreArrayItem v16 v15 v11 v0
+    v0 = CheckVar<0; "a"> v0 {
+      NextInstrOffset 34
       Locals<1> v0
     }
     Return v0

@@ -5517,7 +5517,7 @@ class StaticCompilationTests(StaticTestBase):
             f = mod["f"]
             io = StringIO()
             dis.dis(f, file=io)
-            self.assertEqual(1, io.getvalue().count("LOAD_GLOBAL"))
+            self.assertEqual(1, io.getvalue().count("TP_ALLOC"))
 
     def test_call_function_unknown_ret_type(self):
         codestr = """
@@ -8721,20 +8721,6 @@ class StaticCompilationTests(StaticTestBase):
             x = C("abc")
             self.assertInBytecode(C.__eq__, "CHECK_ARGS", (0, (mod["__name__"], "C")))
             self.assertNotEqual(x, x)
-
-    def test_class_init_kw(self):
-        codestr = """
-            class C:
-                def __init__(self, x: str):
-                    self.x: str = x
-
-            def f():
-                x = C(x='abc')
-
-        """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
-            f = mod["f"]
-            self.assertInBytecode(f, "CALL_FUNCTION_KW", 1)
 
     def test_ret_type_cast(self):
         codestr = """

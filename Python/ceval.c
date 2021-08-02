@@ -4233,7 +4233,7 @@ main_loop:
             int awaited = IS_AWAITED();
 
             PyObject **sp = stack_pointer - nargs;
-            res = _PyVectorcall_Function(func)(
+            res = _PyObject_Vectorcall(
                 func,
                 sp,
                 nargs | (awaited ? _Py_AWAITED_CALL_MARKER : 0) |

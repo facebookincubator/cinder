@@ -44,6 +44,9 @@ opcode.hasconst.add(195)
 opcode.def_op("PRIMITIVE_LOAD_CONST", 196)
 opcode.hasconst.add(196)
 opcode.def_op("RETURN_INT", 197)
+opcode.def_op("TP_ALLOC", 200)
+opcode.hasconst.add(200)
+
 
 opcode.stack_effects.update(  # noqa: C408
     # Static opcodes
@@ -78,4 +81,5 @@ opcode.stack_effects.update(  # noqa: C408
     SEQUENCE_REPEAT=-1,
     REFINE_TYPE=0,
     RETURN_INT=-1,
+    TP_ALLOC=1,
 )
