@@ -139,10 +139,10 @@ extern "C" {
 #define PRIMITIVE_BOX           174
 #define POP_JUMP_IF_ZERO        175
 #define POP_JUMP_IF_NONZERO     176
-#define PRIMITIVE_UNBOX               177
-#define PRIMITIVE_BINARY_OP           178
-#define PRIMITIVE_UNARY_OP            179
-#define PRIMITIVE_COMPARE_OP          180
+#define PRIMITIVE_UNBOX         177
+#define PRIMITIVE_BINARY_OP     178
+#define PRIMITIVE_UNARY_OP      179
+#define PRIMITIVE_COMPARE_OP    180
 #define LOAD_ITERABLE_ARG       181
 #define LOAD_MAPPING_ARG        182
 #define INVOKE_FUNCTION         183
@@ -160,6 +160,8 @@ extern "C" {
 #define RETURN_INT              197
 #define LOAD_METHOD_SUPER       198
 #define LOAD_ATTR_SUPER         199
+#define TP_ALLOC                200
+#define TP_ALLOC_CACHED         210
 #define LOAD_ATTR_S_MODULE      211
 #define LOAD_METHOD_S_MODULE    212
 #define INVOKE_FUNCTION_CACHED  213

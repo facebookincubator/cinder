@@ -277,8 +277,11 @@ def_op("LOAD_METHOD_SUPER", 198)
 hasconst.append(198)
 def_op("LOAD_ATTR_SUPER", 199)
 hasconst.append(199)
+def_op("TP_ALLOC", 200)
+hasconst.append(200)
 
 # facebook begin - shadow byte codes
+shadow_op("TP_ALLOC_CACHED", 210)
 shadow_op("LOAD_ATTR_S_MODULE", 211)
 shadow_op("LOAD_METHOD_S_MODULE", 212)
 shadow_op("INVOKE_FUNCTION_CACHED", 213)

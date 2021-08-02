@@ -1139,6 +1139,8 @@ stack_effect(int opcode, int oparg, int jump)
             return -1;
         case LOAD_ATTR_SUPER:
             return -2;
+        case TP_ALLOC:
+            return 1;
         default:
             return PY_INVALID_STACK_EFFECT;
     }

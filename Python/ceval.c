@@ -4498,6 +4498,46 @@ main_loop:
             FAST_DISPATCH();
         }
 
+        case TARGET(TP_ALLOC): {
+            int optional;
+            PyTypeObject *type =
+                _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
+            assert(!optional);
+            if (type == NULL) {
+                goto error;
+            }
+
+            PyObject *inst = type->tp_alloc(type, 0);
+            if (inst == NULL) {
+                Py_DECREF(type);
+                goto error;
+            }
+            PUSH(inst);
+
+            if (shadow.shadow != NULL) {
+                int offset =
+                    _PyShadow_CacheCastType(&shadow, (PyObject *)type);
+                if (offset != -1) {
+                    _PyShadow_PatchByteCode(
+                        &shadow, next_instr, TP_ALLOC_CACHED, offset);
+                }
+            }
+            Py_DECREF(type);
+            FAST_DISPATCH();
+        }
+
+        case TARGET(TP_ALLOC_CACHED): {
+            PyTypeObject *type =
+                (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            PyObject *inst = type->tp_alloc(type, 0);
+            if (inst == NULL) {
+                goto error;
+            }
+
+            PUSH(inst);
+            FAST_DISPATCH();
+        }
+
         case TARGET(CHECK_ARGS): {
             PyObject *checks = GETITEM(consts, oparg);
             if (shadow.shadow != NULL) {
