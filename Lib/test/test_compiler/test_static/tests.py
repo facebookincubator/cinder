@@ -3050,7 +3050,7 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
-    def test_cross_module_inst_decl_final_dynamic_is_not_invoked(self) -> None:
+    def test_cross_module_inst_decl_final_dynamic_is_invoked(self) -> None:
         acode = """
             from typing import Final, Protocol
             def foo(x: int) -> int:
@@ -3066,13 +3066,13 @@ class StaticCompilationTests(StaticTestBase):
             from a import f
 
             def g():
-                return f()
+                return f(1)
         """
         symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
         bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "g")
-        self.assertNotInBytecode(x, "INVOKE_FUNCTION")
+        self.assertInBytecode(x, "INVOKE_FUNCTION")
 
     def test_cross_module_inst_decl_alias_is_not_invoked(self) -> None:
         acode = """
@@ -3085,7 +3085,7 @@ class StaticCompilationTests(StaticTestBase):
             from a import f
 
             def g():
-                return f()
+                return f(1)
         """
         symtable = SymbolTable(StaticCodeGenerator)
         acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))

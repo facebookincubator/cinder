@@ -22,6 +22,7 @@ from .types import (
     CType,
     Class,
     ClassVar,
+    DynamicClass,
     DYNAMIC_TYPE,
     FLOAT_TYPE,
     FinalClass,
@@ -74,6 +75,11 @@ class ModuleTable:
         self.decls.append((node, klass))
         self.children[node.name] = klass
 
+    def _get_inferred_type(self, value: ast.expr) -> Optional[Value]:
+        if not isinstance(value, ast.Name):
+            return None
+        return self.children.get(value.id)
+
     def finish_bind(self) -> None:
         self.first_pass_done = True
         for node, value in self.decls:
@@ -83,9 +89,20 @@ class ModuleTable:
                 elif isinstance(node, ast.AnnAssign):
                     typ = self.resolve_annotation(node.annotation, is_declaration=True)
                     if typ is not None:
+                        # Special case Final[dynamic] to use inferred type.
                         target = node.target
+                        instance = typ.instance
+                        value = node.value
+                        if (
+                            value is not None
+                            and isinstance(typ, FinalClass)
+                            and isinstance(typ.inner_type(), DynamicClass)
+                        ):
+                            instance = self._get_inferred_type(value) or instance
+
                         if isinstance(target, ast.Name):
-                            self.children[target.id] = typ.instance
+                            self.children[target.id] = instance
+
                     if isinstance(typ, FinalClass):
                         target = node.target
                         value = node.value
