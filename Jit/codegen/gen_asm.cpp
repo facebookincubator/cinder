@@ -728,15 +728,6 @@ static long getLocalForCheck(
 }
 
 void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
-  // JITRT_CallWithIncorrectArgcount uses the fact that our checks are set up
-  // from last to first argument - we order the jumps so that the common case of
-  // no defaulted arguments comes first, and end up with the following
-  // structure: generic entry: compare defaulted arg count to 0 if zero: go to
-  // first check compare defaulted arg count to 1 if zero: go to second check
-  // ...
-  // This is complicated a bit by the fact that not every argument will have a
-  // check, as we elide the dynamic ones. For that, we do bookkeeping and assign
-  // all defaulted arg counts up to the next local to the same label.
   PyCodeObject* code = GetFunction()->code;
   _Py_CODEUNIT* rawcode = code->co_rawcode;
   JIT_CHECK(
@@ -746,52 +737,13 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   if (!PyTuple_GET_SIZE(checks)) {
     return;
   }
-  // We build a vector of labels corresponding to [first_check, second_check,
-  // ..., setup_frame] which will have |checks| + 1 elements, and the
-  // first_check label will precede the first check.
-  auto table_label = as_->newLabel();
-  as_->lea(x86::r8, x86::ptr(table_label));
-  as_->lea(x86::r8, x86::ptr(x86::r8, x86::rcx, 3));
-  as_->jmp(x86::r8);
-  auto jump_table_cursor = as_->cursor();
-  as_->align(AlignMode::kAlignCode, 8);
-  as_->bind(table_label);
-  std::vector<Label> arg_labels;
-  int defaulted_arg_count = 0;
-  Py_ssize_t check_index = PyTuple_GET_SIZE(checks) - 2;
-  // Each check might be a label that hosts multiple arguments, as dynamic
-  // arguments aren't checked. We need to account for this in our bookkeeping.
   auto next_arg = as_->newLabel();
-  arg_labels.emplace_back(next_arg);
-  while (defaulted_arg_count < GetFunction()->numArgs()) {
-    as_->align(AlignMode::kAlignCode, 8);
-    as_->jmp(next_arg);
-
-    if (check_index >= 0) {
-      long local = getLocalForCheck(checks, check_index, code);
-      if (GetFunction()->numArgs() - defaulted_arg_count - 1 == local) {
-        if (check_index == 0) {
-          next_arg = setup_frame;
-        } else {
-          check_index -= 2;
-          next_arg = as_->newLabel();
-        }
-        arg_labels.emplace_back(next_arg);
-      }
-    }
-
-    defaulted_arg_count++;
-  }
-  env_.addAnnotation(
-      fmt::format("Jump to first non-defaulted argument"), jump_table_cursor);
-
-  as_->bind(arg_labels[0]);
-  for (Py_ssize_t i = PyTuple_GET_SIZE(checks) - 2; i >= 0; i -= 2) {
+  for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
     auto check_cursor = as_->cursor();
     long local = getLocalForCheck(checks, i, code);
-    next_arg = arg_labels[(PyTuple_GET_SIZE(checks) - i) / 2];
 
     PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);
+    bool last_arg = i == PyTuple_GET_SIZE(checks) - 2;
     int optional;
     PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
         _PyClassLoader_ResolveType(type_descr, &optional));
@@ -799,6 +751,11 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
     JIT_CHECK(
         type != (PyTypeObject*)&PyObject_Type,
         "shouldn't generate type checks for object");
+
+    if (last_arg) {
+      // jump to setup frame on last arg
+      next_arg = setup_frame;
+    }
 
     as_->mov(x86::r8, x86::ptr(x86::rsi, local * 8)); // load local
     as_->mov(
@@ -840,9 +797,9 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
 
     // no args match, bail to normal vector call to report error
     as_->jmp(env_.static_arg_typecheck_failed_label);
-    bool last_check = i == 0;
-    if (!last_check) {
+    if (!last_arg) {
       as_->bind(next_arg);
+      next_arg = as_->newLabel();
     }
     env_.addAnnotation(
         fmt::format("StaticTypeCheck[{}]", type->tp_name), check_cursor);
