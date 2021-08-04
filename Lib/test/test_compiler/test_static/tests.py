@@ -5645,6 +5645,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             x = mod["X"]
             self.assertEqual(x, 1)
+        compiled = self.compile(codestr)
+        self.assertEqual(compiled.co_nlocals, 1)
 
     def test_starargs_invoked_in_order(self):
         codestr = """
@@ -10686,7 +10688,7 @@ class StaticCompilationTests(StaticTestBase):
     def test_double_return(self):
         codestr = """
         from __static__ import double
-    
+
         def fn() -> double:
             return double(3.14159)
         """
@@ -10698,10 +10700,10 @@ class StaticCompilationTests(StaticTestBase):
     def test_double_return_static(self):
         codestr = """
         from __static__ import double, box
-    
+
         def fn() -> double:
             return double(3.14159)
-        
+
         def lol():
             return box(fn()) + 1.0
         """
@@ -10713,7 +10715,7 @@ class StaticCompilationTests(StaticTestBase):
     def test_double_return_2(self):
         codestr = """
         from __static__ import double
-    
+
         def fn(x: float, y: float) -> double:
             i = double(x)
             j = double(y)

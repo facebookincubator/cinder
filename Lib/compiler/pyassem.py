@@ -464,6 +464,7 @@ class PyFlowGraph(FlowGraph):
         # Add any extra consts that were requested to the const pool
         self.extra_consts = []
         self.initializeConsts()
+        self.fast_vars = set()
 
     def setFlag(self, flag: int) -> None:
         self.flags |= flag
@@ -665,6 +666,7 @@ class PyFlowGraph(FlowGraph):
         return type(value), value
 
     def _convert_LOAD_FAST(self, arg: object) -> int:
+        self.fast_vars.add(arg)
         return self.varnames.get_index(arg)
 
     def _convert_LOAD_LOCAL(self, arg: object) -> int:
@@ -763,7 +765,7 @@ class PyFlowGraph(FlowGraph):
     def newCodeObject(self):
         assert self.stage == DONE, self.stage
         if (self.flags & CO_NEWLOCALS) == 0:
-            nlocals = 0
+            nlocals = len(self.fast_vars)
         else:
             nlocals = len(self.varnames)
 
