@@ -4555,6 +4555,23 @@ class CheckedDict(GenericClass):
             is_exact,
             pytype,
         )
+        self.members["__new__"] = self.new_func = BuiltinNewFunction(
+            "__new__",
+            "builtins",
+            self,
+            (Parameter("cls", 0, ResolvedTypeRef(TYPE_TYPE), False, None, False),),
+            ResolvedTypeRef(self),
+        )
+        self.members["__init__"] = self.init_func = BuiltinFunction(
+            "__init__",
+            "builtins",
+            self,
+            (
+                Parameter("cls", 0, ResolvedTypeRef(TYPE_TYPE), False, None, False),
+                Parameter("x", 0, ResolvedTypeRef(OBJECT_TYPE), True, (), False),
+            ),
+            ResolvedTypeRef(self),
+        )
 
     def exact_type(self) -> Class:
         if self.contains_generic_parameters:
@@ -4565,6 +4582,44 @@ class CheckedDict(GenericClass):
         if self.contains_generic_parameters:
             return CHECKED_DICT_TYPE
         return self
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        # CheckedDict has a __new__ which logically takes no arguments, but is
+        # necessary to invoke as it does work beyond what tp_alloc does.  And
+        # then it has an __init__ function as well.  We can't handle this
+        # generically so CheckedDict overrides this and does the binding against
+        # __new__ as if no arguments were passed.
+        self_type = self.instance
+        new_mapping: Optional[ArgMapping] = None
+        init_mapping: Optional[ArgMapping] = None
+
+        new_mapping, self_type = self.new_func.map_call(
+            node, visitor, None, [node.func]
+        )
+
+        init_mapping = ArgMapping(self.init_func, node, None)
+        init_mapping.bind_args(visitor, True)
+        dynamic_call = not init_mapping.can_call_statically()
+
+        visitor.set_type(node, self_type)
+        visitor.set_node_data(
+            node, ClassCallInfo, ClassCallInfo(new_mapping, init_mapping, dynamic_call)
+        )
+
+        if dynamic_call:
+            for arg in node.args:
+                visitor.visitExpectedType(
+                    arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                )
+            for arg in node.keywords:
+                visitor.visitExpectedType(
+                    arg.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                )
+
+        return NO_EFFECT
+
 
 class CheckedDictInstance(Object[CheckedDict]):
     def bind_subscr(

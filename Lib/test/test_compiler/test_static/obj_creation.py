@@ -384,3 +384,85 @@ class StaticObjCreationTests(StaticTestBase):
             f = mod["f"]
             self.assertEqual(f(), ["a", "b", "c"])
             self.assertInBytecode(f, "TP_ALLOC")
+
+    def test_checkeddict_new(self):
+        codestr = """
+            from __static__ import CheckedDict
+
+            def f() -> CheckedDict[str, int]:
+                return CheckedDict[str, int]()
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(f(), {})
+            self.assertInBytecode(
+                f,
+                "INVOKE_FUNCTION",
+                (
+                    (
+                        (
+                            "__static__",
+                            "chkdict",
+                            (("builtins", "str"), ("builtins", "int")),
+                            "__new__",
+                        ),
+                        1,
+                    )
+                ),
+            )
+            self.assertInBytecode(
+                f,
+                "INVOKE_FUNCTION",
+                (
+                    (
+                        (
+                            "__static__",
+                            "chkdict",
+                            (("builtins", "str"), ("builtins", "int")),
+                            "__init__",
+                        ),
+                        2,
+                    )
+                ),
+            )
+
+    def test_checkeddict_new_2(self):
+        codestr = """
+            from __static__ import CheckedDict
+
+            def f() -> CheckedDict[str, int]:
+                return CheckedDict[str, int]({})
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertEqual(f(), {})
+            self.assertInBytecode(
+                f,
+                "INVOKE_FUNCTION",
+                (
+                    (
+                        (
+                            "__static__",
+                            "chkdict",
+                            (("builtins", "str"), ("builtins", "int")),
+                            "__new__",
+                        ),
+                        1,
+                    )
+                ),
+            )
+            self.assertInBytecode(
+                f,
+                "INVOKE_FUNCTION",
+                (
+                    (
+                        (
+                            "__static__",
+                            "chkdict",
+                            (("builtins", "str"), ("builtins", "int")),
+                            "__init__",
+                        ),
+                        2,
+                    )
+                ),
+            )
