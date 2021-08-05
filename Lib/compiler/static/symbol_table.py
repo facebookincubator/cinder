@@ -223,7 +223,7 @@ class SymbolTable:
                 "char": CHAR_TYPE,
                 "double": DOUBLE_TYPE,
                 "unbox": UnboxFunction(FUNCTION_TYPE),
-                "nonchecked_dicts": BOOL_TYPE.instance,
+                "checked_dicts": BOOL_TYPE.instance,
                 "prod_assert": ProdAssertFunction(),
                 "pydict": DICT_TYPE,
                 "PyDict": DICT_TYPE,

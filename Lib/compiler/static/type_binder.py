@@ -306,8 +306,8 @@ class TypeBinder(GenericVisitor):
             elif isinstance(stmt, ast.ImportFrom):
                 if stmt.module == "__static__.compiler_flags":
                     for name in stmt.names:
-                        if name.name == "nonchecked_dicts":
-                            self.cur_mod.nonchecked_dicts = True
+                        if name.name == "checked_dicts":
+                            self.cur_mod.checked_dicts = True
                         elif name.name in ("noframe", "shadow_frame"):
                             self.cur_mod.shadow_frame = True
 
@@ -875,7 +875,7 @@ class TypeBinder(GenericVisitor):
                     key_type = DYNAMIC
                     value_type = DYNAMIC
 
-        self.set_dict_type(node, key_type, value_type, type_ctx, is_exact=True)
+        self.set_dict_type(node, key_type, value_type, type_ctx)
         return NO_EFFECT
 
     def set_dict_type(
@@ -884,19 +884,19 @@ class TypeBinder(GenericVisitor):
         key_type: Optional[Value],
         value_type: Optional[Value],
         type_ctx: Optional[Class],
-        is_exact: bool = False,
     ) -> Value:
-        if self.cur_mod.nonchecked_dicts or not isinstance(
-            type_ctx, CheckedDictInstance
-        ):
-            # This is not a checked dict, or the user opted out of checked dicts
-            if type_ctx in (DICT_TYPE.instance, DICT_EXACT_TYPE.instance):
-                typ = type_ctx
-            elif is_exact:
-                typ = DICT_EXACT_TYPE.instance
+        if not isinstance(type_ctx, CheckedDictInstance):
+            if (
+                self.cur_mod.checked_dicts
+                and key_type is not None
+                and value_type is not None
+            ):
+                typ = CHECKED_DICT_EXACT_TYPE.make_generic_type(
+                    (key_type.klass.inexact_type(), value_type.klass.inexact_type()),
+                    self.symtable.generic_types,
+                ).instance
             else:
-                typ = DICT_TYPE.instance
-            assert typ is not None
+                typ = DICT_EXACT_TYPE.instance
             self.set_type(node, typ)
             return typ
 
@@ -906,7 +906,7 @@ class TypeBinder(GenericVisitor):
         assert type_class.generic_type_def in (
             CHECKED_DICT_EXACT_TYPE,
             CHECKED_DICT_TYPE,
-        )
+        ), type_class
         assert isinstance(type_class, GenericClass)
         if key_type is None:
             key_type = type_class.type_args[0].instance
@@ -914,9 +914,7 @@ class TypeBinder(GenericVisitor):
         if value_type is None:
             value_type = type_class.type_args[1].instance
 
-        checked_dict_typ = CHECKED_DICT_EXACT_TYPE if is_exact else CHECKED_DICT_TYPE
-
-        gen_type = checked_dict_typ.make_generic_type(
+        gen_type = CHECKED_DICT_EXACT_TYPE.make_generic_type(
             (key_type.klass, value_type.klass), self.symtable.generic_types
         )
 
@@ -1041,7 +1039,7 @@ class TypeBinder(GenericVisitor):
 
         key_type = self.get_type(node.key)
         value_type = self.get_type(node.value)
-        self.set_dict_type(node, key_type, value_type, type_ctx, is_exact=True)
+        self.set_dict_type(node, key_type, value_type, type_ctx)
 
         return NO_EFFECT
 

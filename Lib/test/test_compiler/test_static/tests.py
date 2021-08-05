@@ -181,7 +181,6 @@ def optional(type: str) -> str:
 def init_xxclassloader():
     codestr = """
         from typing import Generic, TypeVar, _tp_cache
-        from __static__.compiler_flags import nonchecked_dicts
         # Setup a test for typing
         T = TypeVar('T')
         U = TypeVar('U')
@@ -9516,9 +9515,8 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
-    def test_compile_checked_dict_opt_out(self):
+    def test_compile_checked_dict_opt_out_by_default(self):
         codestr = """
-            from __static__.compiler_flags import nonchecked_dicts
             class B: pass
             class D(B): pass
 
@@ -9530,6 +9528,21 @@ class StaticCompilationTests(StaticTestBase):
             test = mod["testfunc"]
             B = mod["B"]
             self.assertEqual(type(test()), dict)
+
+    def test_compile_checked_dict_opt_in(self):
+        codestr = """
+            from __static__.compiler_flags import checked_dicts
+            class B: pass
+            class D(B): pass
+
+            def testfunc():
+                x = {B():42, D():42}
+                return x
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            test = mod["testfunc"]
+            B = mod["B"]
+            self.assertEqual(type(test()), chkdict[B, int])
 
     def test_compile_checked_dict_explicit_dict(self):
         codestr = """
@@ -9657,18 +9670,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
-    def test_compile_checked_dict_opt_out_dict_call(self):
-        codestr = """
-            from __static__.compiler_flags import nonchecked_dicts
-
-            def testfunc():
-                x = dict(x=42)
-                return x
-        """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
-            test = mod["testfunc"]
-            self.assertEqual(type(test()), dict)
-
     def test_compile_checked_dict_explicit_dict_as_dict(self):
         codestr = """
             from __static__ import pydict as dict
@@ -9685,6 +9686,8 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_compile_checked_dict_from_dict_call(self):
         codestr = """
+            from __static__.compiler_flags import checked_dicts
+
             def testfunc():
                 x = dict(x=42)
                 return x
@@ -9698,6 +9701,8 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_compile_checked_dict_from_dict_call_2(self):
         codestr = """
+            from __static__.compiler_flags import checked_dicts
+
             def testfunc():
                 x = dict[str, int](x=42)
                 return x
@@ -9711,6 +9716,7 @@ class StaticCompilationTests(StaticTestBase):
         # should be fine as we're the compiler.
         codestr = """
             from __future__ import annotations
+            from __static__.compiler_flags import checked_dicts
 
             def testfunc():
                 x = dict[str, int](x=42)

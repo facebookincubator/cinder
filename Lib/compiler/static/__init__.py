@@ -371,7 +371,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
             gen.emit("STORE_NAME", "__slot_types__")
 
     def visitModule(self, node: Module) -> None:
-        if not self.cur_mod.nonchecked_dicts:
+        if self.cur_mod.checked_dicts:
             self.emit("LOAD_CONST", 0)
             self.emit("LOAD_CONST", ("chkdict",))
             self.emit("IMPORT_NAME", "_static")
