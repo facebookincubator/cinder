@@ -1,10 +1,9 @@
 from compiler.static.errors import TypedSyntaxError
+from inspect import CO_SUPPRESS_JIT
 from re import escape
 
 from __static__ import Array, int64
 from cinder import freeze_type
-
-from .common import StaticTestBase
 
 from .common import StaticTestBase
 
@@ -476,3 +475,34 @@ class StaticObjCreationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod["C"].__init__
             self.assertNotInBytecode(f, "INVOKE_METHOD")
+
+    def test_super_init_no_load_attr_super(self):
+        codestr = """
+            x = super
+
+            class B:
+                def __init__(self, a):
+                    pass
+
+
+            class D(B):
+                def __init__(self):
+                    # force a non-optimizable super
+                    try:
+                        super(1, 2, 3).__init__(a=2)
+                    except:
+                        pass
+                    # and then use the aliased super, we still
+                    # have __class__ available
+                    x().__init__(a=2)
+
+            def f():
+                return D()
+        """
+        code = self.compile(codestr)
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            D = mod["D"]
+            # super call suppresses jit
+            self.assertTrue(D.__init__.__code__.co_flags & CO_SUPPRESS_JIT)
+            self.assertTrue(isinstance(f(), D))

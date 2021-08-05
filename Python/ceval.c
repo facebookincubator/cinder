@@ -7664,11 +7664,24 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     }
 
     fastlocals = f->f_localsplus;
+
     f->f_lasti = 0; /* skip CHECK_ARGS */
 
     for (i = 0; i < nargs; i++) {
         Py_INCREF(*args);
         fastlocals[i] = *args++;
+    }
+
+    if (func->func_closure != NULL) {
+        PyObject **freevars = f->f_localsplus + co->co_nlocals;
+        PyObject *closure = func->func_closure;
+        Py_ssize_t freevar_cnt = PyTuple_GET_SIZE(co->co_freevars);
+        Py_ssize_t cellvar_cnt = PyTuple_GET_SIZE(co->co_cellvars);
+        for (i = 0; i < freevar_cnt; ++i) {
+            PyObject *o = PyTuple_GET_ITEM(closure, i);
+            Py_INCREF(o);
+            freevars[cellvar_cnt + i] = o;
+        }
     }
 
     for (i = 0; i < PyTuple_GET_SIZE(co->co_cellvars); ++i) {
