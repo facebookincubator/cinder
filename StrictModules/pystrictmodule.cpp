@@ -224,11 +224,11 @@ PyTypeObject StrictModuleAnalysisResult_Type = {
     .tp_dealloc = (destructor)AnalysisResult_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_doc = "Analysis result of strict module loader",
+    .tp_traverse = (traverseproc)AnalysisResult_traverse,
+    .tp_clear = (inquiry)AnalysisResult_clear,
     .tp_members = AnalysisResult_members,
     .tp_init = (initproc)AnalysisResult_init,
     .tp_new = AnalysisResult_new,
-    .tp_traverse = (traverseproc)AnalysisResult_traverse,
-    .tp_clear = (inquiry)AnalysisResult_clear,
 };
 #pragma GCC diagnostic pop
 
