@@ -466,3 +466,13 @@ class StaticObjCreationTests(StaticTestBase):
                     )
                 ),
             )
+
+    def test_super_init_no_obj_invoke(self):
+        codestr = """
+            class C:
+                def __init__(self):
+                    super().__init__()
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["C"].__init__
+            self.assertNotInBytecode(f, "INVOKE_METHOD")

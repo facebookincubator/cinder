@@ -3977,13 +3977,6 @@ RESOLVED_NONE_TYPE = ResolvedTypeRef(NONE_TYPE)
 
 TYPE_TYPE.bases = [OBJECT_TYPE]
 TYPE_TYPE.members.update(make_type_dict(TYPE_TYPE, type))
-OBJECT_TYPE.members.update(make_type_dict(OBJECT_TYPE, object))
-OBJECT_TYPE.members["__new__"] = BuiltinNewFunction(
-    "__new__",
-    "builtins",
-    OBJECT_TYPE,
-    (Parameter("cls", 0, ResolvedTypeRef(TYPE_TYPE), False, None, False),),
-)
 
 
 CONSTANT_TYPES: Mapping[Type[object], Value] = {
