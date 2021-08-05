@@ -75,6 +75,7 @@ PyAPI_FUNC(void) _PyList_DebugMallocStats(FILE *out);
 #define PyList_GET_SIZE(op)    (assert(PyList_Check(op)),Py_SIZE(op))
 #define _PyList_ITEMS(op)      (((PyListObject *)(op))->ob_item)
 PyAPI_FUNC(PyObject *) _PyCheckedList_GetItem(PyObject *self, Py_ssize_t);
+PyAPI_FUNC(PyObject *) _PyCheckedList_New(PyTypeObject *type, Py_ssize_t);
 
 PyAPI_FUNC(PyObject *) _PyList_Subscript(PyObject *self, PyObject *item);
 #endif

@@ -3507,8 +3507,8 @@ chklist_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     return (PyObject *) op;
 }
 
-static PyObject *
-chklist_new_prealloc(PyTypeObject *type, Py_ssize_t size)
+PyObject *
+_PyCheckedList_New(PyTypeObject *type, Py_ssize_t size)
 {
   PyListObject *op = (PyListObject *) chklist_new(type, NULL, NULL);
     if (size == 0 || op == NULL) {
@@ -3531,7 +3531,7 @@ chklist_slice(PyListObject *self, Py_ssize_t ilow, Py_ssize_t ihigh)
     PyObject **src, **dest;
     Py_ssize_t i, len;
     len = ihigh - ilow;
-    np = (PyListObject *) chklist_new_prealloc(Py_TYPE(self), len);
+    np = (PyListObject *) _PyCheckedList_New(Py_TYPE(self), len);
     if (np == NULL)
         return NULL;
 

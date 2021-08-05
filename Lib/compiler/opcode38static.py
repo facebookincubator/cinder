@@ -46,11 +46,14 @@ opcode.hasconst.add(196)
 opcode.def_op("RETURN_INT", 197)
 opcode.def_op("TP_ALLOC", 200)
 opcode.hasconst.add(200)
+opcode.def_op("BUILD_CHECKED_LIST", 201)
+opcode.hasconst.add(201)
 
 
 opcode.stack_effects.update(  # noqa: C408
     # Static opcodes
     BUILD_CHECKED_MAP=lambda oparg, jmp: 1 - 2 * oparg[1],
+    BUILD_CHECKED_LIST=lambda oparg, jmp: 1 - oparg[1],
     CAST=0,
     CHECK_ARGS=0,
     CONVERT_PRIMITIVE=0,

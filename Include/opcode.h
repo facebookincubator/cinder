@@ -161,6 +161,8 @@ extern "C" {
 #define LOAD_METHOD_SUPER       198
 #define LOAD_ATTR_SUPER         199
 #define TP_ALLOC                200
+#define BUILD_CHECKED_LIST      201
+#define BUILD_CHECKED_LIST_CACHED 209
 #define TP_ALLOC_CACHED         210
 #define LOAD_ATTR_S_MODULE      211
 #define LOAD_METHOD_S_MODULE    212

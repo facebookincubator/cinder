@@ -279,8 +279,11 @@ def_op("LOAD_ATTR_SUPER", 199)
 hasconst.append(199)
 def_op("TP_ALLOC", 200)
 hasconst.append(200)
+def_op("BUILD_CHECKED_LIST", 201)
+hasconst.append(201)
 
 # facebook begin - shadow byte codes
+shadow_op("BUILD_CHECKED_LIST_CACHED", 209)
 shadow_op("TP_ALLOC_CACHED", 210)
 shadow_op("LOAD_ATTR_S_MODULE", 211)
 shadow_op("LOAD_METHOD_S_MODULE", 212)

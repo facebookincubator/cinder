@@ -76,10 +76,13 @@ from .types import (
     BOOL_TYPE,
     CHECKED_DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE,
+    CHECKED_LIST_EXACT_TYPE,
+    CHECKED_LIST_TYPE,
     CInstance,
     CONSTANT_TYPES,
     CType,
     CheckedDictInstance,
+    CheckedListInstance,
     Class,
     ClassVar,
     DICT_EXACT_TYPE,
@@ -929,6 +932,41 @@ class TypeBinder(GenericVisitor):
             self.check_can_assign_from(type_class, gen_type, node)
         return type_ctx
 
+    def set_list_type(
+        self,
+        node: ast.expr,
+        item_type: Optional[Value],
+        type_ctx: Optional[Class],
+    ) -> Value:
+        if not isinstance(type_ctx, CheckedListInstance):
+            typ = LIST_EXACT_TYPE.instance
+            self.set_type(node, typ)
+            return typ
+
+        # Calculate the type that is inferred by the item.
+        assert type_ctx is not None
+        type_class = type_ctx.klass
+        assert type_class.generic_type_def in (
+            CHECKED_LIST_EXACT_TYPE,
+            CHECKED_LIST_TYPE,
+        ), type_class
+        assert isinstance(type_class, GenericClass)
+        if item_type is None:
+            item_type = type_class.type_args[0].instance
+
+        gen_type = CHECKED_LIST_EXACT_TYPE.make_generic_type(
+            (item_type.klass.inexact_type(),), self.symtable.generic_types
+        )
+
+        self.set_type(node, type_ctx)
+        # We can use the type context to have a type which is wider than the
+        # inferred types.  But we need to make sure that the items are compatible
+        # with the wider type, and if not, we'll report that the inferred type isn't
+        # compatible.
+        if not type_class.type_args[0].can_assign_from(item_type.klass):
+            self.check_can_assign_from(type_class, gen_type, node)
+        return type_ctx
+
     def visitSet(
         self, node: ast.Set, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
@@ -1256,9 +1294,19 @@ class TypeBinder(GenericVisitor):
     def visitList(
         self, node: ast.List, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
+        item_type: Optional[Value] = None
         for elt in node.elts:
             self.visitExpectedType(elt, DYNAMIC)
-        self.set_type(node, LIST_EXACT_TYPE.instance)
+            if isinstance(elt, ast.Starred):
+                unpacked_value_type = self.get_type(elt.value)
+                if isinstance(unpacked_value_type, CheckedListInstance):
+                    element_type = unpacked_value_type.klass.type_args[0].instance
+                else:
+                    element_type = DYNAMIC
+            else:
+                element_type = self.get_type(elt)
+            item_type = self.widen(item_type, element_type)
+        self.set_list_type(node, item_type, type_ctx)
         return NO_EFFECT
 
     def visitTuple(

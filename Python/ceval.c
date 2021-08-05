@@ -2920,6 +2920,71 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(BUILD_CHECKED_LIST): {
+            int optional;
+            PyObject *list_info = GETITEM(consts, oparg);
+            PyObject *list_type = PyTuple_GET_ITEM(list_info, 0);
+            Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(list_info, 1));
+            PyTypeObject *type =
+                _PyClassLoader_ResolveType(list_type, &optional);
+            assert(!optional);
+
+            if (shadow.shadow != NULL) {
+                PyObject *cache = PyTuple_New(2);
+                if (cache == NULL) {
+                    goto error;
+                }
+                PyTuple_SET_ITEM(cache, 0, (PyObject *)type);
+                Py_INCREF(type);
+                PyObject *size = PyLong_FromLong(list_size);
+                if (size == NULL) {
+                    Py_DECREF(cache);
+                    goto error;
+                }
+                PyTuple_SET_ITEM(cache, 1, size);
+
+                int offset = _PyShadow_CacheCastType(&shadow, cache);
+                Py_DECREF(cache);
+                if (offset != -1) {
+                    _PyShadow_PatchByteCode(
+                        &shadow, next_instr, BUILD_CHECKED_LIST_CACHED, offset);
+                }
+            }
+
+            PyObject *list = _PyCheckedList_New(type, list_size);
+            if (list == NULL) {
+                goto error;
+            }
+            Py_DECREF(type);
+
+            Py_SIZE(list) = list_size;
+            while (--list_size >= 0) {
+              PyObject *item = POP();
+              PyList_SET_ITEM(list, list_size, item);
+            }
+            PUSH(list);
+            DISPATCH();
+        }
+
+        case TARGET(BUILD_CHECKED_LIST_CACHED): {
+            PyObject *cache = _PyShadow_GetCastType(&shadow, oparg);
+            PyTypeObject *type = (PyTypeObject *)PyTuple_GET_ITEM(cache, 0);
+            Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(cache, 1));
+
+            PyObject * list = _PyCheckedList_New(type, list_size);
+            if (list == NULL) {
+                goto error;
+            }
+
+            Py_SIZE(list) = list_size;
+            while (--list_size >= 0) {
+              PyObject *item = POP();
+              PyList_SET_ITEM(list, list_size, item);
+            }
+            PUSH(list);
+            DISPATCH();
+        }
+
         case TARGET(BUILD_TUPLE_UNPACK_WITH_CALL):
         case TARGET(BUILD_TUPLE_UNPACK):
         case TARGET(BUILD_LIST_UNPACK): {

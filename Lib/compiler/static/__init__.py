@@ -73,6 +73,8 @@ from .type_binder import BindingScope, TypeBinder
 from .types import (
     CHECKED_DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE,
+    CHECKED_LIST_EXACT_TYPE,
+    CHECKED_LIST_TYPE,
     CInstance,
     CType,
     Class,
@@ -82,6 +84,8 @@ from .types import (
     DYNAMIC_TYPE,
     Function,
     GenericClass,
+    LIST_EXACT_TYPE,
+    LIST_TYPE,
     OBJECT,
     OBJECT_TYPE,
     Slot,
@@ -708,6 +712,61 @@ class Static38CodeGenerator(CinderCodeGenerator):
             )
             if built_final_dict:
                 self.emit_invoke_method(update_descr, 1)
+                self.emit("POP_TOP")
+
+    def compile_sub_checked_list(
+        self, node: ast.List, begin: int, end: int, type_descr: TypeDescr
+    ) -> None:
+        n = end - begin
+        for i in range(begin, end):
+            elt = node.elts[i]
+            assert not isinstance(elt, ast.Starred)
+            self.visit(elt)
+
+        self.emit("BUILD_CHECKED_LIST", (type_descr, n))
+
+    def visitList(self, node: ast.List) -> None:
+        list_type = self.get_type(node)
+        if list_type in (LIST_TYPE.instance, LIST_EXACT_TYPE.instance):
+            return super().visitList(node)
+        klass = list_type.klass
+
+        assert isinstance(klass, GenericClass) and (
+            klass.type_def is CHECKED_LIST_TYPE
+            or klass.type_def is CHECKED_LIST_EXACT_TYPE
+        ), list_type
+
+        self.update_lineno(node)
+        list_descr = list_type.klass.type_descr
+        extend_descr = list_descr + ("extend",)
+        built_final_list = False
+        elements = 0
+
+        for i, elt in enumerate(node.elts):
+            if isinstance(elt, ast.Starred):
+                if elements:
+                    self.compile_sub_checked_list(node, i - elements, i, list_descr)
+                    built_final_list = True
+                    elements = 0
+                if not built_final_list:
+                    # We need to generate the empty list to extend in the case of [*foo, ...].
+                    self.emit("BUILD_CHECKED_LIST", (list_descr, 0))
+                    built_final_list = True
+                self.emit("DUP_TOP")
+                self.visit(elt.value)
+                self.emit_invoke_method(extend_descr, 1)
+                self.emit("POP_TOP")
+            else:
+                elements += 1
+
+        if elements or not built_final_list:
+            if built_final_list:
+                self.emit("DUP_TOP")
+            self.compile_sub_checked_list(
+                node, len(node.elts) - elements, len(node.elts), list_descr
+            )
+            if built_final_list:
+                self.emit_invoke_method(extend_descr, 1)
                 self.emit("POP_TOP")
 
     def visitFor(self, node: ast.For) -> None:

@@ -286,13 +286,17 @@ class CheckedListTests(StaticTestBase):
             self.assertEqual(f(l), None)
             self.assertEqual(repr(l), "[1, 2, 3]")
 
-    def test_checked_list_compile_setitem_slice_list_bad_type(self):
+    def test_checked_list_compile_setitem_slice_list(self):
         codestr = """
             from __static__ import CheckedList
             def assign_to_slice(x: CheckedList[int]) -> None:
                 x[1:3] = [2, 3]
          """
-        self.type_error(codestr, type_mismatch("Exact[list]", "chklist[int]"))
+        with self.in_module(codestr) as mod:
+            f = mod["assign_to_slice"]
+            l = CheckedList[int]([1, 1, 1])
+            self.assertEqual(f(l), None)
+            self.assertEqual(repr(l), "[1, 2, 3]")
 
     def test_checked_list_compile_setitem_slice_list_bad_index_type(self):
         codestr = """
@@ -344,3 +348,58 @@ class CheckedListTests(StaticTestBase):
             cl = CheckedList[int]([1, 42, 3, 4, 5, 6])
             self.assertInBytecode(f, "SEQUENCE_GET", SEQ_CHECKED_LIST)
             self.assertEqual(f(cl), 43)
+
+    def test_checked_list_literal_basic(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc():
+                a: CheckedList[int] = [1, 2, 3, 4]
+                return a
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = f()
+            self.assertInBytecode(f, "BUILD_CHECKED_LIST")
+            self.assertEqual(repr(l), "[1, 2, 3, 4]")
+            self.assertEqual(type(l), CheckedList[int])
+
+    def test_checked_list_literal_type_error(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc():
+                a: CheckedList[int] = [1, 2, 3, "a"]
+                return a
+        """
+        self.type_error(
+            codestr, type_mismatch("Exact[chklist[Union[int, str]]]", "chklist[int]")
+        )
+
+    def test_checked_list_literal_basic_unpack(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc():
+                a: CheckedList[int] = [1, 2, 3, 4]
+                b: CheckedList[int] = [*a]
+                return b
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = f()
+            self.assertInBytecode(f, "BUILD_CHECKED_LIST")
+            self.assertEqual(repr(l), "[1, 2, 3, 4]")
+            self.assertEqual(type(l), CheckedList[int])
+
+    def test_checked_list_literal_unpack_with_elements(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc():
+                a: CheckedList[int] = [1, 2, 3, 4]
+                b: CheckedList[int] = [5, *a]
+                return b
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = f()
+            self.assertInBytecode(f, "BUILD_CHECKED_LIST")
+            self.assertEqual(repr(l), "[5, 1, 2, 3, 4]")
+            self.assertEqual(type(l), CheckedList[int])
