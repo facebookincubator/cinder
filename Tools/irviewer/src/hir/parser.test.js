@@ -18,13 +18,13 @@ function expectParseError(src, msg, lineNum, colNum) {
 }
 
 test("handles incomplete programs", () => {
-  let src = "fun rlcompleter:<lambda> 0 0";
-  expectParseError(src, "unexpected end of input", 1, 29);
+  let src = "fun rlcompleter:<lambda>";
+  expectParseError(src, "unexpected end of input", 1, 25);
 });
 
 test("handles unknown opcodes", () => {
   let src = `
-fun foo 0 0 0 {
+fun foo {
   bb 0 {
     v4:OptObject = Zazzle
     v5:Object = Bazzle<1> v4
@@ -37,7 +37,7 @@ fun foo 0 0 0 {
 
 test("parses blocks with no predecessors", () => {
   let src = `
-fun foo 0 0 0 {
+fun foo {
   bb 0 {
   }
 }
@@ -50,7 +50,7 @@ fun foo 0 0 0 {
 
 test("parses blocks with predecessors", () => {
   let src = `
-fun foo 0 0 4 {
+fun foo {
   bb 0 {
   }
 
@@ -83,7 +83,7 @@ fun foo 0 0 4 {
 
 test("parses instructions", () => {
   let src = `
-fun __main__:test 0 0 4 {
+fun __main__:test {
   bb 0 {
     v4:OptObject = LoadGlobalCached<0; "print">
     CondBranch<2, 1> v4

@@ -171,7 +171,6 @@ function parse(text) {
   let tokens = new TokenIter(tokenize(text));
   tokens.expect("fun");
   let funcName = parseFuncName(tokens);
-  tokens.dropN(3);
   tokens.expect("{");
   let blocks = [];
   let edges = [];
