@@ -1,9 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/inliner.h"
-#include <dlfcn.h>
-#include <fstream>
 #include <string_view>
 #include <unordered_map>
+#include "Jit/lir/c_helper_translations.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/parser.h"
 
@@ -66,7 +65,7 @@ bool LIRInliner::inlineCall() {
   resolveArguments();
 
   resolveReturnValue();
-
+  JIT_DLOG("inlined function");
   return true;
 }
 
@@ -186,40 +185,32 @@ lir::Function* LIRInliner::findFunction() {
   }
   uint64_t addr = dest_operand->getConstant();
 
-  // Resolve the addres to a name.
-  Dl_info helper_info;
-  if (dladdr(reinterpret_cast<void*>(addr), &helper_info) == 0 ||
-      helper_info.dli_sname == NULL) {
-    return nullptr;
-  }
-  const std::string& name = helper_info.dli_sname;
-  return parseFunction(name);
+  return parseFunction(addr);
 }
 
-lir::Function* LIRInliner::parseFunction(const std::string& name) {
-  static std::unordered_map<std::string, std::unique_ptr<Function>>
-      name_to_function;
+lir::Function* LIRInliner::parseFunction(uint64_t addr) {
+  // addr_to_function maps function address to parsed function
+  static std::unordered_map<uint64_t, std::unique_ptr<Function>>
+      addr_to_function;
 
-  // Check if function is in map, return function if in map.
-  auto iter = name_to_function.find(name);
-  if (iter != name_to_function.end()) {
+  // Check if function has already been parsed.
+  auto iter = addr_to_function.find(addr);
+  if (iter != addr_to_function.end()) {
     return iter->second.get();
   }
 
-  // Using function name, try to open and parse text file with function.
-  std::ifstream lir_text(
-      fmt::format("Jit/lir/c_helper_translations/{}.lir", name));
-  if (!lir_text.good()) {
-    return nullptr;
+  // Using function addr, try to get LIR text from kCHelperMapping.
+  auto lir_text_iter = kCHelperMapping.find(addr);
+  if (lir_text_iter == kCHelperMapping.end()) {
+    return nullptr; // No LIR text for that address.
   }
-  std::stringstream buffer;
-  buffer << lir_text.rdbuf();
+
   Parser parser;
-  std::unique_ptr<Function> parsed_func = parser.parse(buffer.str());
+  std::unique_ptr<Function> parsed_func = parser.parse(lir_text_iter->second);
   // Add function to map.
-  name_to_function.emplace(name, std::move(parsed_func));
+  addr_to_function.emplace(addr, std::move(parsed_func));
   // Return parsed function.
-  return map_get_strict(name_to_function, name).get();
+  return map_get_strict(addr_to_function, addr).get();
 }
 
 bool LIRInliner::resolveArguments() {

@@ -470,6 +470,7 @@ JIT_OBJS=       \
 		Jit/lir/lir.o \
 		Jit/lir/block.o \
 		Jit/lir/blocksorter.o \
+		Jit/lir/c_helper_translations.o \
 		Jit/lir/function.o \
 		Jit/lir/generator.o \
 		Jit/lir/instruction.o \
@@ -1253,6 +1254,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/lir/lir.h \
 		$(srcdir)/Jit/lir/block.h \
 		$(srcdir)/Jit/lir/blocksorter.h \
+		$(srcdir)/Jit/lir/c_helper_translations.h \
 		$(srcdir)/Jit/lir/function.h \
 		$(srcdir)/Jit/lir/generator.h \
 		$(srcdir)/Jit/lir/instruction.h \

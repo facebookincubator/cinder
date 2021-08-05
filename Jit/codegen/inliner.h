@@ -69,9 +69,9 @@ class LIRInliner {
   // Returns nullptr if function cannot be found.
   lir::Function* findFunction();
 
-  // Given the name of the function, try to find the corresponding LIR text
+  // Given the address of the function, try to find the corresponding LIR text
   // and parse it.
-  lir::Function* parseFunction(const std::string& name);
+  lir::Function* parseFunction(uint64_t addr);
 
   // Assume that kLoadArg instructions are only found
   // at the beginning of callee_.
