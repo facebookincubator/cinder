@@ -49,13 +49,13 @@ class LIRInliner {
   // Return true if they are inlineable, otherwise return false.
   // NOTE: We may want to extract some of these checks, so that we can apply
   // them as a general pass across all functions.
-  bool isInlineable(lir::Function* callee);
+  bool isInlineable(const lir::Function* callee);
 
   // Check that there is exactly 1 entry and 1 exit block.
   // Check that these blocks are found at the ends of basic_blocks_.
   // Check that return statements only appear in
   // the predecesoors of the exit block.
-  bool checkEntryExitReturn(lir::Function* callee);
+  bool checkEntryExitReturn(const lir::Function* callee);
 
   // Check that call inputs are immediate or virtual registers.
   // Add the inputs to arguments_.
@@ -63,7 +63,7 @@ class LIRInliner {
 
   // Check that kLoadArg instructions occur at the beginning.
   // Check that kLoadArg instructions don't exceed the number of arguments.
-  bool checkLoadArg(lir::Function* callee);
+  bool checkLoadArg(const lir::Function* callee);
 
   // Find corresponding function body.
   // Returns nullptr if function cannot be found.

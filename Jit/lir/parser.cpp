@@ -391,6 +391,7 @@ void Parser::parseInput(const Token& token, const char* code) {
       break;
     }
     case kStringLiteral: {
+      ThreadedCompileSerialize guard;
       std::unordered_set<std::string>& v = GetStringLiterals();
       auto ret = v.emplace(code, 1, token.length - 2);
       instr_->allocateImmediateInput(

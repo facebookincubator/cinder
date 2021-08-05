@@ -69,7 +69,7 @@ bool LIRInliner::inlineCall() {
   return true;
 }
 
-bool LIRInliner::isInlineable(Function* callee) {
+bool LIRInliner::isInlineable(const Function* callee) {
   if (!checkEntryExitReturn(callee)) {
     return false;
   }
@@ -82,12 +82,12 @@ bool LIRInliner::isInlineable(Function* callee) {
   return true;
 }
 
-bool LIRInliner::checkEntryExitReturn(Function* callee) {
+bool LIRInliner::checkEntryExitReturn(const Function* callee) {
   if (callee->basicblocks().empty()) {
     JIT_DLOG("Callee has no basic block.");
     return false;
   }
-  BasicBlock* entry_block = callee->getEntryBlock();
+  const BasicBlock* entry_block = callee->getEntryBlock();
   if (!entry_block->predecessors().empty()) {
     JIT_DLOG("Expect entry block to have no predecessors.");
     return false;
@@ -139,7 +139,7 @@ bool LIRInliner::checkArguments() {
   return true;
 }
 
-bool LIRInliner::checkLoadArg(Function* callee) {
+bool LIRInliner::checkLoadArg(const Function* callee) {
   // Subtract by 1 since first argument is callee address.
   size_t numInputs = call_instr_->getNumInputs() - 1;
   // Use check_load_arg to track if we are still in LoadArg instructions.
@@ -193,10 +193,15 @@ lir::Function* LIRInliner::parseFunction(uint64_t addr) {
   static std::unordered_map<uint64_t, std::unique_ptr<Function>>
       addr_to_function;
 
-  // Check if function has already been parsed.
-  auto iter = addr_to_function.find(addr);
-  if (iter != addr_to_function.end()) {
-    return iter->second.get();
+  {
+    // Guard usage of addr_to_function
+    ThreadedCompileSerialize guard;
+
+    // Check if function has already been parsed.
+    auto iter = addr_to_function.find(addr);
+    if (iter != addr_to_function.end()) {
+      return iter->second.get();
+    }
   }
 
   // Using function addr, try to get LIR text from kCHelperMapping.
@@ -207,6 +212,9 @@ lir::Function* LIRInliner::parseFunction(uint64_t addr) {
 
   Parser parser;
   std::unique_ptr<Function> parsed_func = parser.parse(lir_text_iter->second);
+
+  // Guard usage of addr_to_function
+  ThreadedCompileSerialize guard;
   // Add function to map.
   addr_to_function.emplace(addr, std::move(parsed_func));
   // Return parsed function.
