@@ -4041,7 +4041,7 @@ is_super_call(struct compiler *c, expr_ty e)
     }
     // ensure it is not defined in top level scope
     scope = PyST_GetScope(c->c_st->st_top, super_name);
-    if (scope != 0 && scope != GLOBAL_IMPLICIT) {
+    if (scope != 0 && scope != GLOBAL_IMPLICIT && scope != LOCAL) {
         return 0;
     }
 

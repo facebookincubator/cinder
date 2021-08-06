@@ -637,14 +637,15 @@ Free variables:
         """
         expected = """\
   4           0 LOAD_GLOBAL              0 (super)
-              2 CALL_FUNCTION            0
-              4 LOAD_ATTR                1 (f1)
-              6 LOAD_CONST               1 (1)
-              8 LOAD_CONST               2 (('a',))
-             10 CALL_FUNCTION_KW         1
-             12 POP_TOP
-             14 LOAD_CONST               0 (None)
-             16 RETURN_VALUE
+              2 LOAD_DEREF               0 (__class__)
+              4 LOAD_FAST                0 (self)
+              6 LOAD_ATTR_SUPER          1 ((1, True))
+              8 LOAD_CONST               2 (1)
+             10 LOAD_CONST               3 (('a',))
+             12 CALL_FUNCTION_KW         1
+             14 POP_TOP
+             16 LOAD_CONST               0 (None)
+             18 RETURN_VALUE
 """
         g = {}
         exec(dedent(src), g)
@@ -657,11 +658,12 @@ Positional-only arguments: 0
 Kw-only arguments: 0
 Number of locals:  1
 Stack size:        3
-Flags:             OPTIMIZED, NEWLOCALS, SUPPRESS_JIT
+Flags:             OPTIMIZED, NEWLOCALS
 Constants:
    0: None
-   1: 1
-   2: ('a',)
+   1: (1, True)
+   2: 1
+   3: ('a',)
 Names:
    0: super
    1: f1

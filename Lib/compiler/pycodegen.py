@@ -2861,9 +2861,9 @@ class CinderCodeGenerator(Python38CodeGenerator):
 
         # check that 'super' only appear as implicit global:
         # it is not defined in local or modules scope
-        if (
-            self.scope.check_name("super") != SC_GLOBAL_IMPLICIT
-            or self.module_gen.scope.check_name("super") != SC_GLOBAL_IMPLICIT
+        if self.scope.check_name("super") != SC_GLOBAL_IMPLICIT or (
+            self.module_gen.scope.check_name("super") != SC_GLOBAL_IMPLICIT
+            and self.module_gen.scope.check_name("super") != SC_LOCAL
         ):
             return False
 

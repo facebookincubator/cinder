@@ -1,3 +1,4 @@
+import inspect
 from compiler.static.errors import TypedSyntaxError
 from inspect import CO_SUPPRESS_JIT
 from re import escape
@@ -506,3 +507,22 @@ class StaticObjCreationTests(StaticTestBase):
             # super call suppresses jit
             self.assertTrue(D.__init__.__code__.co_flags & CO_SUPPRESS_JIT)
             self.assertTrue(isinstance(f(), D))
+
+    def test_super_redefined_uses_opt(self):
+        codestr = """
+            super = super
+
+            class C:
+                def __init__(self):
+                    super().__init__()
+        """
+        with self.in_module(codestr) as mod:
+            init = mod["C"].__init__
+            self.assertInBytecode(init, "LOAD_METHOD_SUPER")
+
+        code = compile(inspect.cleandoc(codestr), "exec", "exec")
+        d = {}
+        exec(code, d)
+
+        init = d["C"].__init__
+        self.assertInBytecode(init, "LOAD_METHOD_SUPER")
