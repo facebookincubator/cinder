@@ -2,6 +2,8 @@
 #ifndef __C_HELPER_TRANSLATIONS_H__
 #define __C_HELPER_TRANSLATIONS_H__
 
+#include <cstdint>
+#include <string>
 #include <unordered_map>
 
 namespace jit {
