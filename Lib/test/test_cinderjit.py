@@ -10,6 +10,7 @@ import types
 import unittest
 import warnings
 import weakref
+from compiler.consts38 import CO_SUPPRESS_JIT, CO_NORMAL_FRAME
 from compiler.static import StaticCodeGenerator
 
 try:
@@ -2505,7 +2506,7 @@ class RegressionTests(StaticTestBase):
 
 
 @unittest.skipUnlessCinderJITEnabled("Requires cinderjit module")
-class CinderJitModuleTests(unittest.TestCase):
+class CinderJitModuleTests(StaticTestBase):
     def test_bad_disable(self):
         with self.assertRaises(TypeError):
             cinderjit.disable(1, 2)
@@ -2517,8 +2518,6 @@ class CinderJitModuleTests(unittest.TestCase):
         def x():
             pass
 
-        CO_NORMAL_FRAME = 0x20000000
-
         self.assertEqual(x.__code__.co_flags & CO_NORMAL_FRAME, 0)
 
         forced_x = cinderjit.jit_force_normal_frame(x)
@@ -2528,6 +2527,33 @@ class CinderJitModuleTests(unittest.TestCase):
     def test_jit_force_normal_frame_raises_on_invalid_arg(self):
         with self.assertRaises(TypeError):
             cinderjit.jit_force_normal_frame(None)
+
+    def test_jit_suppress(self):
+        @cinderjit.jit_suppress
+        def x():
+            pass
+
+        self.assertEqual(x.__code__.co_flags & CO_SUPPRESS_JIT, CO_SUPPRESS_JIT)
+
+    def test_jit_suppress_static(self):
+        codestr = f"""
+            import cinderjit
+
+            @cinderjit.jit_suppress
+            def f():
+                return True
+
+            def g():
+                return True
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            g = mod["g"]
+            self.assertTrue(f())
+            self.assertTrue(g())
+
+            self.assertFalse(cinderjit.is_jit_compiled(f))
+            self.assertTrue(cinderjit.is_jit_compiled(g))
 
 
 class GetFrameTests(unittest.TestCase):

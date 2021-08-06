@@ -539,6 +539,19 @@ static PyObject* jit_force_normal_frame(PyObject*, PyObject* func_obj) {
   return func_obj;
 }
 
+static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
+  if (!PyFunction_Check(func_obj)) {
+    PyErr_SetString(PyExc_TypeError, "Input must be a function");
+    return NULL;
+  }
+  PyFunctionObject* func = reinterpret_cast<PyFunctionObject*>(func_obj);
+
+  reinterpret_cast<PyCodeObject*>(func->func_code)->co_flags |= CO_SUPPRESS_JIT;
+
+  Py_INCREF(func_obj);
+  return func_obj;
+}
+
 extern "C" {
 PyObject* _PyJIT_GetAndClearCodeInterpCost(void) {
   if (!g_capture_interp_cost) {
@@ -622,6 +635,10 @@ static PyMethodDef jit_methods[] = {
      jit_force_normal_frame,
      METH_O,
      "Decorator forcing a function to always use normal frame mode when JIT."},
+    {"jit_suppress",
+     jit_suppress,
+     METH_O,
+     "Decorator to disable the JIT for the decorated function."},
     {"multithreaded_compile_test",
      multithreaded_compile_test,
      METH_NOARGS,
