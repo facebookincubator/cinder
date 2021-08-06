@@ -21,7 +21,6 @@ _Py_IDENTIFIER(call_soon);
 _Py_IDENTIFIER(cancel);
 _Py_IDENTIFIER(current_task);
 _Py_IDENTIFIER(get_event_loop);
-_Py_IDENTIFIER(send);
 _Py_IDENTIFIER(throw);
 _Py_IDENTIFIER(done);
 
@@ -395,9 +394,9 @@ static PyTypeObject TaskType;
 static PyTypeObject ContextAwareTaskType;
 static PyTypeObject _GatheringFutureType;
 static PyTypeObject PyRunningLoopHolder_Type;
-static PyGenTypeObject _AsyncLazyValue_Type;
-static PyGenTypeObject _AsyncLazyValueCompute_Type;
-static PyGenTypeObject AwaitableValue_Type;
+static PyTypeObject _AsyncLazyValue_Type;
+static PyTypeObject _AsyncLazyValueCompute_Type;
+static PyTypeObject AwaitableValue_Type;
 
 #if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
 static pid_t current_pid;
@@ -3027,55 +3026,66 @@ FutureIter_dealloc(futureiterobject *it)
     }
 }
 
-static PyObject *
-FutureIter_gennext(futureiterobject *it, PyObject *Py_UNUSED(sentValue), int *pReturn)
+static PySendResult
+FutureIter_itersend(PyThreadState* Py_UNUSED(tstate),
+                   futureiterobject *it,
+                   PyObject *Py_UNUSED(sentValue),
+                   PyObject **pResult)
 {
+    *pResult = NULL;
+
     PyObject *res;
     FutureObj *fut = it->future;
 
     if (fut == NULL) {
-        return NULL;
+        return PYGEN_ERROR;
     }
 
     if (fut->fut_state == STATE_PENDING) {
         if (!fut->fut_blocking) {
             fut->fut_blocking = 1;
             Py_INCREF(fut);
-            if (pReturn) {
-                *pReturn = 0;
-            }
-            return (PyObject *)fut;
+            *pResult = (PyObject*)fut;
+            return PYGEN_NEXT;
         }
         PyErr_SetString(PyExc_RuntimeError,
                         "await wasn't used with future");
-        return NULL;
+        return PYGEN_ERROR;
     }
 
     it->future = NULL;
     res = _asyncio_Future_result_impl(fut);
+    PySendResult gen_status = PYGEN_ERROR;
     if (res != NULL) {
         /* facebook: USDT for latency profiler */
         FOLLY_SDT(python, future_iter_resume, PyThreadState_GET()->frame);
 
-        if (pReturn) {
-            *pReturn = 1;
-        }
-        else {
-            /* The result of the Future is not an exception. */
-            (void)_PyGen_SetStopIterationValue(res);
-            Py_DECREF(res);
-            res = NULL;
-        }
+        *pResult = res;
+        gen_status = PYGEN_RETURN;
     }
 
     Py_DECREF(fut);
-    return res;
+    return gen_status;
+}
+
+static inline PyObject*
+gen_status_to_iter(PySendResult gen_status, PyObject *result)
+{
+    if (gen_status == PYGEN_ERROR || gen_status == PYGEN_NEXT) {
+        return result;
+    }
+    assert(gen_status == PYGEN_RETURN);
+    _PyGen_SetStopIterationValue(result);
+    Py_DECREF(result);
+    return NULL;
 }
 
 static PyObject *
 FutureIter_iternext(futureiterobject *it)
 {
-    return FutureIter_gennext(it, NULL, NULL);
+    PyObject *result = NULL;
+    PySendResult gen_status = FutureIter_itersend(NULL, it, NULL, &result);
+    return gen_status_to_iter(gen_status, result);
 }
 
 static PyObject *
@@ -3164,21 +3174,28 @@ static PyMethodDef FutureIter_methods[] = {
     {NULL, NULL}        /* Sentinel */
 };
 
-static PyGenTypeObject FutureIterType = {
-    .gen_type = {
-        PyVarObject_HEAD_INIT(NULL, 0)
-        "_asyncio.FutureIter",
-        .tp_basicsize = sizeof(futureiterobject),
-        .tp_itemsize = 0,
-        .tp_dealloc = (destructor)FutureIter_dealloc,
-        .tp_getattro = PyObject_GenericGetAttr,
-        .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_USE_GENNEXT,
-        .tp_traverse = (traverseproc)FutureIter_traverse,
-        .tp_iter = PyObject_SelfIter,
-        .tp_iternext = (iternextfunc)FutureIter_iternext,
-        .tp_methods = FutureIter_methods,
+static PyAsyncMethodsWithSend FutureIterType_as_async = {
+    .ams_async_methods = {
+        0,                                   /* am_await */
+        0,                                   /* am_aiter */
+        0,                                   /* am_anext */
     },
-    .tp_gennext = {.g_gennext = (gennextfunc)FutureIter_gennext}
+    .ams_send = (sendfunc)FutureIter_itersend
+};
+
+static PyTypeObject FutureIterType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_asyncio.FutureIter",
+    .tp_basicsize = sizeof(futureiterobject),
+    .tp_itemsize = 0,
+    .tp_dealloc = (destructor)FutureIter_dealloc,
+    .tp_getattro = PyObject_GenericGetAttr,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_SEND,
+    .tp_traverse = (traverseproc)FutureIter_traverse,
+    .tp_iter = PyObject_SelfIter,
+    .tp_iternext = (iternextfunc)FutureIter_iternext,
+    .tp_methods = FutureIter_methods,
+    .tp_as_async = (PyAsyncMethods*)&FutureIterType_as_async,
 };
 
 static PyObject *
@@ -4210,49 +4227,6 @@ task_set_error_soon(TaskObj *task, PyObject *et, const char *format, ...)
     Py_RETURN_NONE;
 }
 
-/**
-    Helper to send value into the coroutine.
-    Special-cases coroutines/generator and types that support
-   Py_TPFLAGS_USE_GENNEXT. For all other cases just calls 'send' method. Return
-   value/stopIterationValue:
-    - NULL/value - when coroutine returns
-    - value/NULL - when coroutine yields
-    - NULL/NULL - is case of error
- */
-static PyObject *
-coro_send(PyThreadState *tstate,
-          PyObject *coro,
-          PyObject *arg,
-          PyObject **stopIterationValue)
-{
-    PyObject *res;
-    if (PyCoro_CheckExact(coro) || PyGen_CheckExact(coro)) {
-        return _PyGen_Send_NoStopIteration(
-            tstate, (PyGenObject *)coro, Py_None, stopIterationValue);
-    }
-    if (PyType_HasFeature(Py_TYPE(coro), Py_TPFLAGS_USE_GENNEXT)) {
-        int is_return = 0;
-        res = ((PyGenTypeObject *)Py_TYPE(coro))
-                  ->tp_gennext.g_gennext(coro, Py_None, &is_return);
-        if (res && is_return) {
-            *stopIterationValue = res;
-            res = NULL;
-        }
-        return res;
-    }
-    if (arg == Py_None && PyIter_Check(coro)) {
-        res = Py_TYPE(coro)->tp_iternext(coro);
-    }
-    else {
-        res = _PyObject_CallMethodIdObjArgs(coro, &PyId_send, Py_None, NULL);
-    }
-    if (res == NULL) {
-        _PyGen_FetchStopIterationValue(stopIterationValue);
-        return NULL;
-    }
-    return res;
-}
-
 static PyObject *
 _asyncio_AsyncLazyValueCompute_throw_impl(AsyncLazyValueComputeObj *self,
                                           PyObject *type,
@@ -4382,10 +4356,11 @@ task_set_fut_waiter_impl(TaskObj *task, PyObject *result)
             goto fail;
         }
     }
-    PyObject *o;
+    PyObject *o = NULL;
     if (_PyObject_LookupAttrId(result, &PyId__asyncio_future_blocking, &o) < 0) {
         goto fail;
     }
+    Py_XDECREF(o);
     if (blocking_state == BLOCKING_TRUE || blocking_state == BLOCKING_FALSE) {
         /* `result` is a Future-compatible object */
         PyObject *wrapper;
@@ -4442,7 +4417,6 @@ task_set_fut_waiter_impl(TaskObj *task, PyObject *result)
         Py_RETURN_NONE;
     }
 
-    Py_XDECREF(o);
     /* Check if `result` is a generator */
     int res = PyObject_IsInstance(result, (PyObject*)&PyGen_Type);
     if (res < 0) {
@@ -4492,13 +4466,26 @@ fail:
     return NULL;
 }
 
+static inline int
+gen_status_from_result(PyObject **result)
+{
+    if (*result != NULL) {
+        return PYGEN_NEXT;
+    }
+    if (_PyGen_FetchStopIterationValue(result) == 0) {
+        return PYGEN_RETURN;
+    }
+
+    assert(PyErr_Occurred());
+    return PYGEN_ERROR;
+}
+
 static PyObject *
 task_step_impl(TaskObj *task, PyObject *exc)
 {
     int res;
     int clear_exc = 0;
     PyObject *result = NULL;
-    PyObject *o;
     PyObject *coro;
 
     if (task->task_state != STATE_PENDING) {
@@ -4549,22 +4536,23 @@ task_step_impl(TaskObj *task, PyObject *exc)
         return NULL;
     }
 
-    o = NULL;
+    PySendResult gen_status;
     if (exc == NULL) {
-        result = coro_send(PyThreadState_GET(), coro, Py_None, &o);
+        gen_status = PyIter_Send(PyThreadState_GET(), coro, Py_None, &result);
     }
     else {
         result = coro_throw(coro, exc, NULL, NULL);
+        gen_status = gen_status_from_result(&result);
         if (clear_exc) {
             /* We created 'exc' during this call */
             Py_DECREF(exc);
         }
     }
 
-    if (result == NULL) {
+    if (gen_status == PYGEN_RETURN || gen_status == PYGEN_ERROR) {
         PyObject *et, *ev, *tb;
 
-        if (o || _PyGen_FetchStopIterationValue(&o) == 0) {
+        if (result != NULL) {
             /* The error is StopIteration and that means that
                the underlying coroutine has resolved */
 
@@ -4575,10 +4563,10 @@ task_step_impl(TaskObj *task, PyObject *exc)
                 res = future_cancel_impl((FutureObj*)task, NULL);
             }
             else {
-                res = future_set_result((FutureObj*)task, o);
+                res = future_set_result((FutureObj*)task, result);
             }
 
-            Py_DECREF(o);
+            Py_DECREF(result);
             if (res < 0) {
                 return NULL;
             }
@@ -4631,6 +4619,8 @@ task_step_impl(TaskObj *task, PyObject *exc)
 
         Py_RETURN_NONE;
     }
+    assert (gen_status == PYGEN_NEXT);
+    assert (result);
     return task_set_fut_waiter_impl(task, result);
 fail:
     Py_XDECREF(result);
@@ -5532,29 +5522,22 @@ AsyncLazyValue_dealloc(AsyncLazyValueObj *self)
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyObject *
-AsyncLazyValue_gennext(AsyncLazyValueObj *self,
+static PySendResult
+AsyncLazyValue_itersend(PyThreadState *Py_UNUSED(tstate),
+                       AsyncLazyValueObj *self,
                        PyObject *Py_UNUSED(sentValue),
-                       int *is_return)
+                       PyObject **pResult)
 {
-    if (is_return) {
-        *is_return = 0;
-    }
     switch (self->alv_state) {
     case ALV_NOT_STARTED:
     case ALV_RUNNING: {
         PyErr_SetString(PyExc_TypeError, "AsyncLazyValue needs to be awaited");
-        return NULL;
+        return PYGEN_ERROR;
     }
     case ALV_DONE: {
-        if (is_return == NULL) {
-            _PyGen_SetStopIterationValue(self->alv_result);
-            return NULL;
-        } else {
-            *is_return = 1;
-            Py_INCREF(self->alv_result);
-            return self->alv_result;
-        }
+        Py_INCREF(self->alv_result);
+        *pResult = self->alv_result;
+        return PYGEN_RETURN;
     }
     default:
         Py_UNREACHABLE();
@@ -5564,7 +5547,9 @@ AsyncLazyValue_gennext(AsyncLazyValueObj *self,
 static PyObject *
 AsyncLazyValue_iternext(AsyncLazyValueObj *self)
 {
-    return AsyncLazyValue_gennext(self, NULL, NULL);
+    PyObject *result;
+    PySendResult gen_status = AsyncLazyValue_itersend(NULL, self, NULL, &result);
+    return gen_status_to_iter(gen_status, result);
 }
 
 static PyObject *
@@ -5576,10 +5561,13 @@ AsyncLazyValue_get_awaiting_tasks(AsyncLazyValueObj *self,
     return PyLong_FromSsize_t(n);
 }
 
-static PyAsyncMethods _AsyncLazyValue_Type_as_async = {
-    (unaryfunc)AsyncLazyValue_await, /* am_await */
-    0,                               /* am_aiter */
-    0                                /* am_anext */
+static PyAsyncMethodsWithSend _AsyncLazyValue_Type_as_async = {
+    .ams_async_methods = {
+        (unaryfunc)AsyncLazyValue_await,         /* am_await */
+        0,                                       /* am_aiter */
+        0,                                       /* am_anext */
+    },
+    .ams_send = (sendfunc)AsyncLazyValue_itersend
 };
 
 static PyMethodDef AsyncLazyValue_methods[] = {
@@ -5592,25 +5580,22 @@ static PyGetSetDef AsyncLazyValue_getsetlist[] = {
     {NULL} /* Sentinel */
 };
 
-static PyGenTypeObject _AsyncLazyValue_Type = {
-    .gen_type =
-        {
-            PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValue",
-            .tp_basicsize = sizeof(AsyncLazyValueObj),
-            .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                        Py_TPFLAGS_USE_GENNEXT,
-            .tp_traverse = (traverseproc)AsyncLazyValue_traverse,
-            .tp_clear = (inquiry)AsyncLazyValue_clear,
-            .tp_iter = PyObject_SelfIter,
-            .tp_iternext = (iternextfunc)AsyncLazyValue_iternext,
-            .tp_methods = AsyncLazyValue_methods,
-            .tp_getset = AsyncLazyValue_getsetlist,
-            .tp_as_async = &_AsyncLazyValue_Type_as_async,
-            .tp_init = (initproc)AsyncLazyValue_init,
-            .tp_new = PyType_GenericNew,
-            .tp_dealloc = (destructor)AsyncLazyValue_dealloc,
-        },
-    .tp_gennext = {.g_gennext = (gennextfunc)AsyncLazyValue_gennext}};
+static PyTypeObject _AsyncLazyValue_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValue",
+    .tp_basicsize = sizeof(AsyncLazyValueObj),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_HAVE_AM_SEND,
+    .tp_traverse = (traverseproc)AsyncLazyValue_traverse,
+    .tp_clear = (inquiry)AsyncLazyValue_clear,
+    .tp_iter = PyObject_SelfIter,
+    .tp_iternext = (iternextfunc)AsyncLazyValue_iternext,
+    .tp_methods = AsyncLazyValue_methods,
+    .tp_getset = AsyncLazyValue_getsetlist,
+    .tp_as_async = (PyAsyncMethods*)&_AsyncLazyValue_Type_as_async,
+    .tp_init = (initproc)AsyncLazyValue_init,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor)AsyncLazyValue_dealloc,
+};
 
 /*[clinic input]
 class _asyncio.AsyncLazyValueCompute "AsyncLazyValueComputeObj *" "&_AsyncLazyValueCompute_Type"
@@ -5783,7 +5768,7 @@ AsyncLazyValueCompute_handle_error(AsyncLazyValueComputeObj *self,
   Implementation of a 'send' for AsyncLazyValueCompute
   */
 static PyObject *
-AsyncLazyValueCompute_gennext_(AsyncLazyValueComputeObj *self,
+AsyncLazyValueCompute_itersend_(AsyncLazyValueComputeObj *self,
                                PyThreadState *tstate,
                                PyObject *sentValue,
                                int *pReturn)
@@ -5822,73 +5807,67 @@ AsyncLazyValueCompute_gennext_(AsyncLazyValueComputeObj *self,
 
     assert(self->alvc_coroobj != NULL);
 
-    PyObject *stopIterationValue = NULL;
-    PyObject *res =
-        coro_send(tstate, self->alvc_coroobj, sentValue, &stopIterationValue);
+    PyObject *res;
+    PySendResult gen_status = PyIter_Send(tstate, self->alvc_coroobj, sentValue, &res);
 
-    if (stopIterationValue) {
+    if (gen_status == PYGEN_RETURN) {
         // RETURN
         int ok =
-            AsyncLazyValue_set_result(self->alvc_target, stopIterationValue);
+            AsyncLazyValue_set_result(self->alvc_target, res);
         if (ok < 0) {
-            Py_DECREF(stopIterationValue);
+            Py_DECREF(res);
             return NULL;
         }
         *pReturn = 1;
-        return stopIterationValue;
+        return res;
     }
-    if (res) {
+    if (gen_status == PYGEN_NEXT) {
         // YIELD
         return res;
     }
+    assert (gen_status == PYGEN_ERROR);
     // ERROR
     return AsyncLazyValueCompute_handle_error(self, tstate, 1, 0);
 }
 
 /**
-  Entrypoint for gennext used by Py_TPFLAGS_USE_GENNEXT supported types
+  Entrypoint for gennext used by Py_TPFLAGS_HAVE_AM_SEND supported types
   */
-static PyObject *
-AsyncLazyValueCompute_gennext(AsyncLazyValueComputeObj *self,
+static PySendResult
+AsyncLazyValueCompute_itersend(PyThreadState *tstate,
+                              AsyncLazyValueComputeObj *self,
                               PyObject *sentValue,
-                              int *pReturn)
+                              PyObject **pResult)
 {
-    if (pReturn != NULL) {
-        *pReturn = 0;
-    }
-
-    PyThreadState *tstate = PyThreadState_GET();
-
     _PyErr_StackItem *previous_exc_info = tstate->exc_info;
     self->alvc_exc_state.previous_item = previous_exc_info;
     tstate->exc_info = &self->alvc_exc_state;
 
+    int is_return = 0;
     PyObject *result =
-        AsyncLazyValueCompute_gennext_(self, tstate, sentValue, pReturn);
+        AsyncLazyValueCompute_itersend_(self, tstate, sentValue, &is_return);
+
+    *pResult = result;
 
     tstate->exc_info = previous_exc_info;
-    if (result == NULL || (pReturn && *pReturn)) {
-        // RETURN/ERROR case - this compute object is done and needs to be
-        // detached
+    if (result == NULL) {
         AsyncLazyValueCompute_clear(self);
+        return PYGEN_ERROR;
     }
-    return result;
+    if (is_return) {
+        assert(result);
+        AsyncLazyValueCompute_clear(self);
+        return PYGEN_RETURN;
+    }
+    return PYGEN_NEXT;
 }
 
 static PyObject *
 AsyncLazyValueCompute_send(AsyncLazyValueComputeObj *self, PyObject *val)
 {
-    int is_return = 0;
-    PyObject *res = AsyncLazyValueCompute_gennext(self, val, &is_return);
-    if (res == NULL) {
-        return NULL;
-    }
-    if (is_return) {
-        _PyGen_SetStopIterationValue(res);
-        Py_DECREF(res);
-        return NULL;
-    }
-    return res;
+    PyObject *res;
+    PySendResult gen_status = AsyncLazyValueCompute_itersend(PyThreadState_GET(), self, val, &res);
+    return gen_status_to_iter(gen_status, res);
 }
 
 static PyObject *
@@ -5997,33 +5976,33 @@ _asyncio_AsyncLazyValueCompute_throw_impl(AsyncLazyValueComputeObj *self,
 
 static PyMethodDef AsyncLazyValueCompute_methods[] = {
     {"send", (PyCFunction)AsyncLazyValueCompute_send, METH_O, NULL},
-    _ASYNCIO_ASYNCLAZYVALUECOMPUTE_THROW_METHODDEF{
-        "close", (PyCFunction)AsyncLazyValueCompute_close, METH_NOARGS, NULL},
+    _ASYNCIO_ASYNCLAZYVALUECOMPUTE_THROW_METHODDEF
+    {"close", (PyCFunction)AsyncLazyValueCompute_close, METH_NOARGS, NULL},
     {NULL, NULL} /* Sentinel */
 };
 
-static PyAsyncMethods _AsyncLazyValueCompute_Type_as_async = {
-    (unaryfunc)PyObject_SelfIter, /* am_await */
-    0,                            /* am_aiter */
-    0                             /* am_anext */
+static PyAsyncMethodsWithSend _AsyncLazyValueCompute_Type_as_async = {
+    .ams_async_methods = {
+        (unaryfunc)PyObject_SelfIter,                   /* am_await */
+        0,                                              /* am_aiter */
+        0,                                              /* am_anext */
+    },
+    .ams_send = (sendfunc)AsyncLazyValueCompute_itersend
 };
 
-static PyGenTypeObject _AsyncLazyValueCompute_Type = {
-    .gen_type =
-        {
-            PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValueCompute",
-            .tp_basicsize = sizeof(AsyncLazyValueComputeObj),
-            .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                        Py_TPFLAGS_USE_GENNEXT,
-            .tp_traverse = (traverseproc)AsyncLazyValueCompute_traverse,
-            .tp_clear = (inquiry)AsyncLazyValueCompute_clear,
-            .tp_methods = AsyncLazyValueCompute_methods,
-            .tp_as_async = &_AsyncLazyValueCompute_Type_as_async,
-            .tp_iternext = (iternextfunc)AsyncLazyValueCompute_next,
-            .tp_iter = PyObject_SelfIter,
-            .tp_dealloc = (destructor)AsyncLazyValueCompute_dealloc,
-        },
-    .tp_gennext = {.g_gennext = (gennextfunc)AsyncLazyValueCompute_gennext}};
+static PyTypeObject _AsyncLazyValueCompute_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValueCompute",
+    .tp_basicsize = sizeof(AsyncLazyValueComputeObj),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_HAVE_AM_SEND,
+    .tp_traverse = (traverseproc)AsyncLazyValueCompute_traverse,
+    .tp_clear = (inquiry)AsyncLazyValueCompute_clear,
+    .tp_methods = AsyncLazyValueCompute_methods,
+    .tp_as_async = (PyAsyncMethods*)&_AsyncLazyValueCompute_Type_as_async,
+    .tp_iternext = (iternextfunc)AsyncLazyValueCompute_next,
+    .tp_iter = PyObject_SelfIter,
+    .tp_dealloc = (destructor)AsyncLazyValueCompute_dealloc,
+};
 
 /*********************** AwaitableValue *********************/
 
@@ -6067,10 +6046,19 @@ AwaitableValueObj_clear(AwaitableValueObj *self)
     return 0;
 }
 
-static PyAsyncMethods AwaitableValue_Type_as_async = {
-    (unaryfunc)PyObject_SelfIter, /* am_await */
-    0,                            /* am_aiter */
-    0                             /* am_anext */
+static PySendResult
+AwaitableValueObj_itersend(PyThreadState *Py_UNUSED(tstate),
+                          AwaitableValueObj *self,
+                          PyObject *Py_UNUSED(sentValue),
+                          PyObject **pResult);
+
+static PyAsyncMethodsWithSend AwaitableValue_Type_as_async = {
+    .ams_async_methods = {
+        (unaryfunc)PyObject_SelfIter,                   /* am_await */
+        0,                                              /* am_aiter */
+        0,                                              /* am_anext */
+    },
+    .ams_send = (sendfunc)AwaitableValueObj_itersend
 };
 
 static PyObject *
@@ -6089,17 +6077,15 @@ AwaitableValueObj_dealloc(AwaitableValueObj *self)
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyObject *
-AwaitableValueObj_gennext(AwaitableValueObj *self,
+static PySendResult
+AwaitableValueObj_itersend(PyThreadState *Py_UNUSED(tstate),
+                          AwaitableValueObj *self,
                           PyObject *Py_UNUSED(sentValue),
-                          int *pReturn)
+                          PyObject **pResult)
 {
-    if (pReturn == NULL) {
-        return AwaitableValueObj_next(self);
-    }
-    *pReturn = 1;
     Py_INCREF(self->av_value);
-    return self->av_value;
+    *pResult = self->av_value;
+    return PYGEN_RETURN;
 }
 
 static PyObject *
@@ -6131,24 +6117,21 @@ static PyGetSetDef AwaitableValue_Type_getsetlist[] = {
     {NULL} /* Sentinel */
 };
 
-static PyGenTypeObject AwaitableValue_Type = {
-    .gen_type =
-        {
-            PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AwaitableValue",
-            .tp_basicsize = sizeof(AwaitableValueObj),
-            .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                        Py_TPFLAGS_USE_GENNEXT,
-            .tp_new = PyType_GenericNew,
-            .tp_traverse = (traverseproc)AwaitableValueObj_traverse,
-            .tp_clear = (inquiry)AwaitableValueObj_clear,
-            .tp_as_async = &AwaitableValue_Type_as_async,
-            .tp_getset = AwaitableValue_Type_getsetlist,
-            .tp_iternext = (iternextfunc)AwaitableValueObj_next,
-            .tp_iter = PyObject_SelfIter,
-            .tp_dealloc = (destructor)AwaitableValueObj_dealloc,
-            .tp_init = _asyncio_AwaitableValue___init__,
-        },
-    .tp_gennext = {.g_gennext = (gennextfunc)AwaitableValueObj_gennext}};
+static PyTypeObject AwaitableValue_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AwaitableValue",
+    .tp_basicsize = sizeof(AwaitableValueObj),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_HAVE_AM_SEND,
+    .tp_new = PyType_GenericNew,
+    .tp_traverse = (traverseproc)AwaitableValueObj_traverse,
+    .tp_clear = (inquiry)AwaitableValueObj_clear,
+    .tp_as_async = (PyAsyncMethods*)&AwaitableValue_Type_as_async,
+    .tp_getset = AwaitableValue_Type_getsetlist,
+    .tp_iternext = (iternextfunc)AwaitableValueObj_next,
+    .tp_iter = PyObject_SelfIter,
+    .tp_dealloc = (destructor)AwaitableValueObj_dealloc,
+    .tp_init = _asyncio_AwaitableValue___init__,
+};
 
 /*********************** Functions **************************/
 
@@ -6903,7 +6886,6 @@ _start_coroutine_helper(PyThreadState *tstate,
                         PyObject *loop,
                         int *finished)
 {
-    PyObject *res = NULL;
     PyObject *context = PyContext_CopyCurrent();
     if (context == NULL) {
         return NULL;
@@ -6913,8 +6895,9 @@ _start_coroutine_helper(PyThreadState *tstate,
         return NULL;
     }
 
-    PyObject *yielded = coro_send(tstate, coro, Py_None, &res);
-    if (yielded == NULL) {
+    PyObject *res;
+    PySendResult gen_status = PyIter_Send(tstate, coro, Py_None, &res);
+    if (gen_status == PYGEN_RETURN || gen_status == PYGEN_ERROR) {
         int failed = PyContext_Exit(context);
         Py_DECREF(context);
         if (failed) {
@@ -6925,19 +6908,18 @@ _start_coroutine_helper(PyThreadState *tstate,
     }
 
     *finished = 0;
-    assert(res == NULL);
     PyObject *fut = suspended_coroutine_to_future(coro, loop);
 
     int failed = PyContext_Exit(context);
     Py_DECREF(context);
     if (failed) {
-        Py_DECREF(yielded);
+        Py_DECREF(res);
         Py_XDECREF(fut);
         return NULL;
     }
 
     if (fut == NULL) {
-        Py_DECREF(yielded);
+        Py_DECREF(res);
         return NULL;
     }
 
@@ -6946,13 +6928,13 @@ _start_coroutine_helper(PyThreadState *tstate,
 
     // link task to yielded future so it will be woken up
     // once future is fulfilled
-    res = t->set_fut_waiter(fut, yielded);
-    Py_DECREF(yielded);
-    if (res == NULL) {
+    PyObject *retval = t->set_fut_waiter(fut, res);
+    Py_DECREF(res);
+    if (retval == NULL) {
         Py_DECREF(fut);
         return NULL;
     }
-    Py_DECREF(res);
+    Py_DECREF(retval);
     return fut;
 }
 
