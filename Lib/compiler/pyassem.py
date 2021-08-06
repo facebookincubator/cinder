@@ -670,6 +670,7 @@ class PyFlowGraph(FlowGraph):
         return self.varnames.get_index(arg)
 
     def _convert_LOAD_LOCAL(self, arg: object) -> int:
+        self.fast_vars.add(arg)
         assert isinstance(arg, tuple), "invalid oparg {arg!r}"
         return self._convert_LOAD_CONST((self.varnames.get_index(arg[0]), arg[1]))
 
