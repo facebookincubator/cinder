@@ -986,7 +986,8 @@ class TypeBinder(GenericVisitor):
         self, node: ListComp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit_comprehension(node, node.generators, node.elt)
-        self.set_type(node, LIST_EXACT_TYPE.instance)
+        item_type = self.get_type(node.elt)
+        self.set_list_type(node, item_type, type_ctx)
         return NO_EFFECT
 
     def visitSetComp(

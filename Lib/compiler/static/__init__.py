@@ -725,6 +725,25 @@ class Static38CodeGenerator(CinderCodeGenerator):
 
         self.emit("BUILD_CHECKED_LIST", (type_descr, n))
 
+    def visitListComp(self, node: ast.ListComp) -> None:
+        list_type = self.get_type(node)
+        if list_type in (LIST_TYPE.instance, LIST_EXACT_TYPE.instance):
+            return super().visitListComp(node)
+        klass = list_type.klass
+
+        assert isinstance(klass, GenericClass) and (
+            klass.type_def is CHECKED_LIST_TYPE
+            or klass.type_def is CHECKED_LIST_EXACT_TYPE
+        ), list_type
+        self.compile_comprehension(
+            node,
+            sys.intern("<listcomp>"),
+            node.elt,
+            None,
+            "BUILD_CHECKED_LIST",
+            (list_type.klass.type_descr, 0),
+        )
+
     def visitList(self, node: ast.List) -> None:
         list_type = self.get_type(node)
         if list_type in (LIST_TYPE.instance, LIST_EXACT_TYPE.instance):

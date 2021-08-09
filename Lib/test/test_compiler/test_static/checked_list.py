@@ -403,3 +403,25 @@ class CheckedListTests(StaticTestBase):
             self.assertInBytecode(f, "BUILD_CHECKED_LIST")
             self.assertEqual(repr(l), "[5, 1, 2, 3, 4]")
             self.assertEqual(type(l), CheckedList[int])
+
+    def test_checked_list_literal_comprehension(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc():
+                a: CheckedList[int] = [int(x + 1) for x in [1, 2, 3, 4]]
+                return a
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = f()
+            self.assertEqual(repr(l), "[2, 3, 4, 5]")
+            self.assertEqual(type(l), CheckedList[int])
+
+    def test_checked_list_literal_comprehension_type_error(self):
+        codestr = """
+            from __static__ import CheckedList
+            def testfunc():
+                a: CheckedList[int] = [str(x + 1) for x in [1, 2, 3, 4]]
+                return a
+        """
+        self.type_error(codestr, type_mismatch("Exact[chklist[str]]", "chklist[int]"))

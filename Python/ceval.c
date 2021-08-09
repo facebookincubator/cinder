@@ -1897,7 +1897,7 @@ main_loop:
             PyObject *v = POP();
             PyObject *list = PEEK(oparg);
             int err;
-            err = PyList_Append(list, v);
+            err = _PyList_APPEND(list, v);
             Py_DECREF(v);
             if (err != 0)
                 goto error;

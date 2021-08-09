@@ -339,7 +339,7 @@ PyList_Insert(PyObject *op, Py_ssize_t where, PyObject *newitem)
 static int
 app1(PyListObject *self, PyObject *v)
 {
-    Py_ssize_t n = PyList_GET_SIZE(self);
+    Py_ssize_t n = Py_SIZE(self);
 
     assert (v != NULL);
     if (n == PY_SSIZE_T_MAX) {
@@ -3783,6 +3783,13 @@ static int chklist_ass_subscript(PyListObject* self, PyObject* item, PyObject* v
 
 inline PyObject * _PyCheckedList_GetItem(PyObject *op, Py_ssize_t i) {
     return list_item((PyListObject *) op, i);
+}
+
+int
+_PyList_APPEND(PyObject *op, PyObject *newitem)
+{
+  assert(_PyList_CheckIncludingChecked(op) && (newitem != NULL));
+  return app1((PyListObject *)op, newitem);
 }
 
 static PyMappingMethods chklist_as_mapping = {
