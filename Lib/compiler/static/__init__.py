@@ -67,7 +67,7 @@ from ..unparse import to_expr
 from .declaration_visitor import GenericVisitor, DeclarationVisitor
 from .effects import NarrowingEffect
 from .errors import ErrorSink
-from .module_table import ModuleTable
+from .module_table import ModuleTable, ModuleFlag
 from .symbol_table import SymbolTable
 from .type_binder import BindingScope, TypeBinder
 from .types import (
@@ -182,7 +182,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
                 tree, graph, codegen_type=CinderCodeGenerator
             )
         graph.setFlag(self.consts.CO_STATICALLY_COMPILED)
-        if self.cur_mod.shadow_frame:
+        if ModuleFlag.SHADOW_FRAME in self.cur_mod.flags:
             graph.setFlag(self.consts.CO_SHADOW_FRAME)
         gen = StaticCodeGenerator(
             self,
@@ -375,7 +375,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
             gen.emit("STORE_NAME", "__slot_types__")
 
     def visitModule(self, node: Module) -> None:
-        if self.cur_mod.checked_dicts:
+        if ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:
             self.emit("LOAD_CONST", 0)
             self.emit("LOAD_CONST", ("chkdict",))
             self.emit("IMPORT_NAME", "_static")

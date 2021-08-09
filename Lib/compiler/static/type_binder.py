@@ -71,7 +71,7 @@ from ..pycodegen import Delegator
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
-from .module_table import ModuleTable
+from .module_table import ModuleTable, ModuleFlag
 from .types import (
     BOOL_TYPE,
     CHECKED_DICT_EXACT_TYPE,
@@ -310,9 +310,9 @@ class TypeBinder(GenericVisitor):
                 if stmt.module == "__static__.compiler_flags":
                     for name in stmt.names:
                         if name.name == "checked_dicts":
-                            self.cur_mod.checked_dicts = True
+                            self.cur_mod.flags.add(ModuleFlag.CHECKED_DICTS)
                         elif name.name in ("noframe", "shadow_frame"):
-                            self.cur_mod.shadow_frame = True
+                            self.cur_mod.flags.add(ModuleFlag.SHADOW_FRAME)
 
     def visitModule(self, node: Module) -> None:
         self.scopes.append(
@@ -890,7 +890,7 @@ class TypeBinder(GenericVisitor):
     ) -> Value:
         if not isinstance(type_ctx, CheckedDictInstance):
             if (
-                self.cur_mod.checked_dicts
+                ModuleFlag.CHECKED_DICTS in self.cur_mod.flags
                 and key_type is not None
                 and value_type is not None
             ):

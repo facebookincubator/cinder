@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 from ast import AST, ClassDef, Subscript, Index, Name, NameConstant
+from enum import Enum
 from functools import partial
 from typing import (
     Callable as typingCallable,
@@ -38,6 +39,11 @@ if TYPE_CHECKING:
     from . import SymbolTable
 
 
+class ModuleFlag(Enum):
+    CHECKED_DICTS = 1
+    SHADOW_FRAME = 2
+
+
 class ModuleTable:
     def __init__(
         self,
@@ -52,8 +58,7 @@ class ModuleTable:
         self.symtable = symtable
         self.types: Dict[Union[AST, Delegator], Value] = {}
         self.node_data: Dict[Tuple[Union[AST, Delegator], object], object] = {}
-        self.checked_dicts = False
-        self.shadow_frame = False
+        self.flags: Set[ModuleFlag] = set()
         self.decls: List[Tuple[AST, Optional[Value]]] = []
         # TODO: final constants should be typed to literals, and
         # this should be removed in the future
