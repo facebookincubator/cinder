@@ -1927,6 +1927,17 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->num());
         break;
       }
+      case Opcode::kMakeCheckedList: {
+        auto instr = static_cast<const MakeCheckedList*>(&i);
+        auto capacity = instr->GetCapacity();
+        bbb.AppendCode(
+            "Call {}, {:#x}, {:#x}, {}",
+            instr->GetOutput(),
+            reinterpret_cast<uint64_t>(_PyCheckedList_New),
+            reinterpret_cast<uint64_t>(instr->type().typeSpec()),
+            capacity);
+        break;
+      }
       case Opcode::kMakeCheckedDict: {
         auto instr = static_cast<const MakeCheckedDict*>(&i);
         auto capacity = instr->GetCapacity();
@@ -2155,7 +2166,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}",
             instr->dst(),
-            reinterpret_cast<uint64_t>(PyList_Append),
+            reinterpret_cast<uint64_t>(_PyList_APPEND),
             instr->list(),
             instr->item());
         break;

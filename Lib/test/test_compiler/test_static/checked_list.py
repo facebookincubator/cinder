@@ -385,6 +385,7 @@ class CheckedListTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod["testfunc"]
             l = f()
+            self.assert_jitted(f)
             self.assertInBytecode(f, "BUILD_CHECKED_LIST")
             self.assertEqual(repr(l), "[1, 2, 3, 4]")
             self.assertEqual(type(l), CheckedList[int])

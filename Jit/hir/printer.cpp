@@ -461,6 +461,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& makedict = static_cast<const MakeCheckedDict&>(instr);
       return fmt::format("{} {}", makedict.type(), makedict.GetCapacity());
     }
+    case Opcode::kMakeCheckedList: {
+      const auto& makelist = static_cast<const MakeCheckedList&>(instr);
+      return fmt::format("{} {}", makelist.type(), makelist.GetCapacity());
+    }
     case Opcode::kMakeDict: {
       const auto& makedict = static_cast<const MakeDict&>(instr);
       return fmt::format("{}", makedict.GetCapacity());

@@ -72,6 +72,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BUILD_CONST_KEY_MAP,
     BUILD_LIST,
     BUILD_LIST_UNPACK,
+    BUILD_CHECKED_LIST,
     BUILD_CHECKED_MAP,
     BUILD_MAP,
     BUILD_MAP_UNPACK,
@@ -772,6 +773,10 @@ void HIRBuilder::translate(
         case BUILD_TUPLE_UNPACK_WITH_CALL:
           emitMakeListTupleUnpack(tc, bc_instr);
           break;
+        case BUILD_CHECKED_LIST: {
+          emitBuildCheckedList(tc, bc_instr);
+          break;
+        }
         case BUILD_CHECKED_MAP: {
           emitBuildCheckedMap(tc, bc_instr);
           break;
@@ -2711,6 +2716,33 @@ void HIRBuilder::emitMakeListTupleUnpack(
 
   tc.frame.stack.discard(oparg);
   tc.frame.stack.push(retval);
+}
+
+void HIRBuilder::emitBuildCheckedList(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
+  PyObject* list_type = PyTuple_GET_ITEM(descr, 0);
+  Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1));
+
+  int optional = 0;
+  PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
+      _PyClassLoader_ResolveType(list_type, &optional));
+
+  JIT_CHECK(type != nullptr, "expected type to resolve");
+  JIT_CHECK(!optional, "expected non-optional checked list type");
+
+  Register* list = temps_.AllocateStack();
+  tc.emit<MakeCheckedList>(
+      list, list_size, Type::fromTypeExact(type), tc.frame);
+  // Fill list
+  auto init_checked_list = tc.emit<InitListTuple>(list_size + 1, false);
+  init_checked_list->SetOperand(0, list);
+  for (size_t i = list_size; i > 0; i--) {
+    auto operand = tc.frame.stack.pop();
+    init_checked_list->SetOperand(i, operand);
+  }
+  tc.frame.stack.push(list);
 }
 
 void HIRBuilder::emitBuildCheckedMap(

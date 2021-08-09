@@ -2950,7 +2950,6 @@ main_loop:
             }
             Py_DECREF(type);
 
-            Py_SIZE(list) = list_size;
             while (--list_size >= 0) {
               PyObject *item = POP();
               PyList_SET_ITEM(list, list_size, item);
@@ -2969,7 +2968,6 @@ main_loop:
                 goto error;
             }
 
-            Py_SIZE(list) = list_size;
             while (--list_size >= 0) {
               PyObject *item = POP();
               PyList_SET_ITEM(list, list_size, item);

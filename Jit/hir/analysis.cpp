@@ -104,6 +104,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
     case Opcode::kMakeDict:
+    case Opcode::kMakeCheckedList:
     case Opcode::kMakeFunction:
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:

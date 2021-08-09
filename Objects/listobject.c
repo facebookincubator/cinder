@@ -3521,6 +3521,7 @@ _PyCheckedList_New(PyTypeObject *type, Py_ssize_t size)
         return PyErr_NoMemory();
     }
     op->allocated = size;
+    Py_SIZE(op) = size;
     return (PyObject *) op;
 }
 
@@ -3542,7 +3543,6 @@ chklist_slice(PyListObject *self, Py_ssize_t ilow, Py_ssize_t ihigh)
         Py_INCREF(v);
         dest[i] = v;
     }
-    Py_SIZE(np) = len;
     return (PyObject *)np;
 }
 

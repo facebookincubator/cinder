@@ -302,6 +302,7 @@ struct FrameState {
   V(LoadTypeAttrCacheItem)      \
   V(LoadVarObjectSize)          \
   V(MakeCheckedDict)            \
+  V(MakeCheckedList)            \
   V(MakeCell)                   \
   V(MakeDict)                   \
   V(MakeFunction)               \
@@ -2686,6 +2687,30 @@ class INSTR_CLASS(MakeCheckedDict, HasOutput, Operands<0>, DeoptBase) {
       Type dict_type,
       const FrameState& frame)
       : InstrT(dst, frame), capacity_(capacity), type_(dict_type) {}
+
+  size_t GetCapacity() const {
+    return capacity_;
+  }
+
+  Type type() const {
+    return type_;
+  }
+
+ private:
+  size_t capacity_;
+  Type type_;
+};
+
+// Allocate an empty checked list with the given capacity, or the default
+// capacity if 0 is given.
+class INSTR_CLASS(MakeCheckedList, HasOutput, Operands<0>, DeoptBase) {
+ public:
+  MakeCheckedList(
+      Register* dst,
+      size_t capacity,
+      Type list_type,
+      const FrameState& frame)
+      : InstrT(dst, frame), capacity_(capacity), type_(list_type) {}
 
   size_t GetCapacity() const {
     return capacity_;

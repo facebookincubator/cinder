@@ -47,6 +47,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kLoadVarObjectSize:
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
+    case Opcode::kMakeCheckedList:
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
     case Opcode::kMakeListTuple:

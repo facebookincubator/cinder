@@ -203,6 +203,7 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadMethodSuper:
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
+    case Opcode::kMakeCheckedList:
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
     case Opcode::kMakeListTuple:

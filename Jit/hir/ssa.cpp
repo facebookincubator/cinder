@@ -384,6 +384,10 @@ Type outputType(const Instr& instr) {
       auto& makechkdict = static_cast<const MakeCheckedDict&>(instr);
       return makechkdict.type();
     }
+    case Opcode::kMakeCheckedList: {
+      auto& makechklist = static_cast<const MakeCheckedList&>(instr);
+      return makechklist.type();
+    }
     case Opcode::kMakeFunction:
       return TMortalFunc;
     case Opcode::kMakeSet:
