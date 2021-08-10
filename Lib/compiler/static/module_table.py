@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 class ModuleFlag(Enum):
     CHECKED_DICTS = 1
     SHADOW_FRAME = 2
+    CHECKED_LISTS = 3
 
 
 class ModuleTable:

@@ -311,6 +311,8 @@ class TypeBinder(GenericVisitor):
                     for name in stmt.names:
                         if name.name == "checked_dicts":
                             self.cur_mod.flags.add(ModuleFlag.CHECKED_DICTS)
+                        elif name.name == "checked_lists":
+                            self.cur_mod.flags.add(ModuleFlag.CHECKED_LISTS)
                         elif name.name in ("noframe", "shadow_frame"):
                             self.cur_mod.flags.add(ModuleFlag.SHADOW_FRAME)
 
@@ -939,7 +941,14 @@ class TypeBinder(GenericVisitor):
         type_ctx: Optional[Class],
     ) -> Value:
         if not isinstance(type_ctx, CheckedListInstance):
-            typ = LIST_EXACT_TYPE.instance
+            if ModuleFlag.CHECKED_LISTS in self.cur_mod.flags and item_type is not None:
+                typ = CHECKED_LIST_EXACT_TYPE.make_generic_type(
+                    (item_type.klass.inexact_type(),),
+                    self.symtable.generic_types,
+                ).instance
+            else:
+                typ = LIST_EXACT_TYPE.instance
+
             self.set_type(node, typ)
             return typ
 

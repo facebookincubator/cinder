@@ -426,3 +426,30 @@ class CheckedListTests(StaticTestBase):
                 return a
         """
         self.type_error(codestr, type_mismatch("Exact[chklist[str]]", "chklist[int]"))
+
+    def test_checked_list_literal_opt_in(self):
+        codestr = """
+            from __static__ import CheckedList
+            from __static__.compiler_flags import checked_lists
+
+            def testfunc():
+                a = [1, 2, 3, 4]
+                return a
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["testfunc"]
+            l = f()
+            self.assertInBytecode(f, "BUILD_CHECKED_LIST")
+            self.assertEqual(repr(l), "[1, 2, 3, 4]")
+            self.assertEqual(type(l), CheckedList[int])
+
+    def test_checked_list_literal_opt_in_with_explicit_list_annotation_type_error(self):
+        codestr = """
+            from __static__.compiler_flags import checked_lists
+            from typing import List
+
+            def testfunc():
+                a: List[int] = [1, 2, 3, 4]
+                return a
+        """
+        self.type_error(codestr, type_mismatch("Exact[chklist[int]]", "list"))
