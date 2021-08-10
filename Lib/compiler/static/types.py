@@ -394,7 +394,7 @@ class Value:
         visitor.syntax_error(f"cannot get descriptor {self.name}", node)
 
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | StaticMethod
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
     ) -> Optional[Value]:
         return None
 
@@ -1017,12 +1017,12 @@ class Class(Object["Class"]):
                     if value.func_name not in NON_VIRTUAL_METHODS:
                         assert isinstance(my_value, Function)
                         value.validate_compat_signature(my_value, module)
-                elif isinstance(value, StaticMethod):
+                elif isinstance(value, DecoratedMethod):
                     if value.is_final:
                         raise TypedSyntaxError(
                             f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
                         )
-                    assert isinstance(my_value, StaticMethod)
+                    assert isinstance(my_value, DecoratedMethod)
                     value.function.validate_compat_signature(
                         my_value.function, module, first_arg_is_implicit=False
                     )
@@ -1063,7 +1063,7 @@ class Class(Object["Class"]):
     def define_function(
         self,
         name: str,
-        func: Function | StaticMethod,
+        func: Function | DecoratedMethod,
         visitor: DeclarationVisitor,
     ) -> None:
         if name in self.members:
@@ -2491,17 +2491,10 @@ class StaticMethodInstanceBound(Object[Class]):
         arg_mapping.emit(code_gen, extra_self=True)
 
 
-class StaticMethod(Object[Class]):
-    def __init__(
-        self,
-        function: Function,
-    ) -> None:
-        super().__init__(STATIC_METHOD_TYPE)
+class DecoratedMethod(Object[Class]):
+    def __init__(self, klass: Class, function: Function) -> None:
+        super().__init__(klass)
         self.function = function
-
-    @property
-    def name(self) -> str:
-        return "staticmethod " + self.function.qualname
 
     @property
     def func_name(self) -> str:
@@ -2513,6 +2506,15 @@ class StaticMethod(Object[Class]):
 
     def set_container_type(self, container_type: Optional[Class]) -> None:
         self.function.set_container_type(container_type)
+
+
+class StaticMethod(DecoratedMethod):
+    def __init__(self, function: Function) -> None:
+        super().__init__(STATIC_METHOD_TYPE, function)
+
+    @property
+    def name(self) -> str:
+        return "staticmethod " + self.function.qualname
 
     def bind_descr_get(
         self,
@@ -2530,9 +2532,9 @@ class StaticMethod(Object[Class]):
 
 class TypingFinalDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | StaticMethod
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
     ) -> Value:
-        if isinstance(fn, StaticMethod):
+        if isinstance(fn, DecoratedMethod):
             fn.function.is_final = True
         else:
             fn.is_final = True
@@ -2551,9 +2553,9 @@ class AllowWeakrefsDecorator(Class):
 
 class DynamicReturnDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | StaticMethod
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
     ) -> Value:
-        real_fn = fn.function if isinstance(fn, StaticMethod) else fn
+        real_fn = fn.function if isinstance(fn, DecoratedMethod) else fn
         real_fn.return_type = ResolvedTypeRef(DYNAMIC_TYPE)
         real_fn.module.dynamic_returns.add(real_fn.node.args)
         return fn
@@ -2561,19 +2563,20 @@ class DynamicReturnDecorator(Class):
 
 class StaticMethodDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | StaticMethod
-    ) -> Value:
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
+    ) -> Optional[Value]:
         if isinstance(fn, StaticMethod):
-            # no-op
             return fn
+        elif isinstance(fn, DecoratedMethod):
+            return None
         return StaticMethod(fn)
 
 
 class InlineFunctionDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | StaticMethod
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
     ) -> Value:
-        real_fn = fn.function if isinstance(fn, StaticMethod) else fn
+        real_fn = fn.function if isinstance(fn, DecoratedMethod) else fn
         if not isinstance(real_fn.node.body[0], ast.Return):
             visitor.syntax_error(
                 "@inline only supported on functions with simple return", real_fn.node
@@ -2585,9 +2588,9 @@ class InlineFunctionDecorator(Class):
 
 class DoNotCompileDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | StaticMethod
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
     ) -> Optional[Value]:
-        real_fn = fn.function if isinstance(fn, StaticMethod) else fn
+        real_fn = fn.function if isinstance(fn, DecoratedMethod) else fn
         real_fn.donotcompile = True
         return fn
 
@@ -3918,6 +3921,7 @@ class BoolClass(Class):
             ),
             ResolvedTypeRef(self),
         )
+
 
 FUNCTION_TYPE = Class(TypeName("types", "FunctionType"), is_exact=True)
 METHOD_TYPE = Class(TypeName("types", "MethodType"), is_exact=True)
@@ -5556,7 +5560,6 @@ CHECKED_LIST_TYPE = CheckedList(CHECKED_LIST_TYPE_NAME, [OBJECT_TYPE], pytype=ch
 CHECKED_LIST_EXACT_TYPE = CheckedList(
     CHECKED_LIST_TYPE_NAME, [OBJECT_TYPE], pytype=chklist, is_exact=True
 )
-
 
 
 class ProdAssertFunction(Object[Class]):

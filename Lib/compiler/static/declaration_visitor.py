@@ -35,7 +35,7 @@ from .types import (
     OBJECT_TYPE,
     PROTOCOL_TYPE,
     ResolvedTypeRef,
-    StaticMethod,
+    DecoratedMethod,
     TypeName,
     TypeRef,
 )
@@ -197,12 +197,12 @@ class DeclarationVisitor(GenericVisitor):
 
     def _make_function(
         self, node: Union[FunctionDef, AsyncFunctionDef]
-    ) -> Function | StaticMethod | None:
+    ) -> Function | DecoratedMethod | None:
         func = Function(node, self.module, self.type_ref(node.returns))
         for decorator in node.decorator_list:
             decorator_type = self.module.resolve_type(decorator) or DYNAMIC_TYPE
             func = decorator_type.bind_decorate_function(self, func)
-            if not isinstance(func, (Function, StaticMethod)):
+            if not isinstance(func, (Function, DecoratedMethod)):
                 return None
         return func
 

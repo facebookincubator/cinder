@@ -78,6 +78,7 @@ from .types import (
     CInstance,
     CType,
     Class,
+    DecoratedMethod,
     DICT_EXACT_TYPE,
     DICT_TYPE,
     DYNAMIC,
@@ -89,7 +90,6 @@ from .types import (
     OBJECT,
     OBJECT_TYPE,
     Slot,
-    StaticMethod,
     TType,
     TypeDescr,
     Value,
@@ -162,7 +162,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
             # Wasn't a method, let's check if it's a module level function
             fn = self.cur_mod.resolve_name(node.name)
 
-        if isinstance(fn, (Function, StaticMethod)):
+        if isinstance(fn, (Function, DecoratedMethod)):
             return (
                 fn.donotcompile
                 if isinstance(fn, Function)
