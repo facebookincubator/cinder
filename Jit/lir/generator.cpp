@@ -1676,7 +1676,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::stringstream ss;
         JIT_CHECK(
             !usesRuntimeFunc(func->func_code),
-            "Can't statically invoke given function");
+            "Can't statically invoke given function: %s",
+            PyUnicode_AsUTF8(func->func_qualname));
         if (_PyJIT_IsCompiled((PyObject*)func)) {
           ss << fmt::format(
               "Call {}, {}",
