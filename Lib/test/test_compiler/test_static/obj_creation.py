@@ -508,6 +508,24 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertTrue(D.__init__.__code__.co_flags & CO_SUPPRESS_JIT)
             self.assertTrue(isinstance(f(), D))
 
+    def test_invoke_with_freevars(self):
+        codestr = """
+            class C:
+                def __init__(self) -> None:
+                    super().__init__()
+
+
+            def f() -> C:
+                return C()
+        """
+        code = self.compile(codestr)
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            C = mod["C"]
+            freeze_type(C)
+            self.assertInBytecode(f, "INVOKE_FUNCTION")
+            self.assertTrue(isinstance(f(), C))
+
     def test_super_redefined_uses_opt(self):
         codestr = """
             super = super

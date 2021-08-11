@@ -1797,6 +1797,11 @@ bool get_static_func_ret_type(PyObject* func, Type* ret_type) {
   return false;
 }
 
+bool is_function_using_runtime(PyObject* obj) {
+  return PyFunction_Check(obj) &&
+      usesRuntimeFunc(reinterpret_cast<PyFunctionObject*>(obj)->func_code);
+}
+
 bool HIRBuilder::emitInvokeFunction(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr,
@@ -1816,7 +1821,8 @@ bool HIRBuilder::emitInvokeFunction(
 
   Register* funcreg = temps_.AllocateStack();
   bool is_container_immutable = true;
-  if (_PyClassLoader_IsImmutable(container)) {
+  if (_PyClassLoader_IsImmutable(container) &&
+      !is_function_using_runtime(func)) {
     if (is_static_func && PyFunction_Check(func)) {
       if (_PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func)) ==
           PYJIT_RESULT_RETRY) {
