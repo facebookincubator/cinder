@@ -12431,6 +12431,7 @@ class StaticRuntimeTests(StaticTestBase):
         """
         with self.in_strict_module(codestr) as mod:
             self.assertInBytecode(mod.g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 0))
+            self.assertNotInBytecode(mod.g, "CAST")
             self.assertEqual(asyncio.run(mod.g()), 1)
 
     def test_awaited_invoke_function_unjitable(self):

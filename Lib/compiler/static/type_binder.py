@@ -73,6 +73,8 @@ from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
+    AWAITABLE_TYPE,
+    AwaitableType,
     BOOL_TYPE,
     CHECKED_DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE,
@@ -459,6 +461,10 @@ class TypeBinder(GenericVisitor):
             # We store the return type on the node for the function as we otherwise
             # don't need to store type information for it
             expected = self.cur_mod.resolve_annotation(returns) or DYNAMIC_TYPE
+            if isinstance(node, AsyncFunctionDef):
+                expected = AWAITABLE_TYPE.make_generic_type(
+                    (expected,), self.symtable.generic_types
+                )
             self.set_type(node, expected.instance)
             self.visitExpectedType(
                 returns, DYNAMIC, "return annotation cannot be a primitive"
@@ -1132,7 +1138,7 @@ class TypeBinder(GenericVisitor):
         self, node: Await, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visitExpectedType(node.value, DYNAMIC, "cannot await a primitive value")
-        self.set_type(node, DYNAMIC)
+        self.get_type(node.value).bind_await(node, self, type_ctx)
         return NO_EFFECT
 
     def visitYield(

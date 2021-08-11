@@ -985,10 +985,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 3) {
-    v9 = Cast<str> v1 {
-      NextInstrOffset 18
-    }
-    Return v9
+    Return v1
   }
 }
 ---

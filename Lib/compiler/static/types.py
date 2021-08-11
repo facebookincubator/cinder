@@ -377,6 +377,11 @@ class Value:
 
         visitor.syntax_error(f"cannot load attribute from {self.name}", node)
 
+    def bind_await(
+        self, node: ast.Await, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        visitor.set_type(node, DYNAMIC)
+
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -2065,6 +2070,70 @@ class Callable(Object[TClass]):
     ) -> None:
         arg_mapping: ArgMapping = code_gen.get_node_data(node, ArgMapping)
         arg_mapping.emit(code_gen)
+
+
+class AwaitableType(GenericClass):
+    def __init__(
+        self,
+        type_name: Optional[GenericTypeName] = None,
+        type_def: Optional[GenericClass] = None,
+    ) -> None:
+        super().__init__(
+            type_name
+            or GenericTypeName(
+                "static", "InferredAwaitable", (GenericParameter("T", 0),)
+            ),
+            instance=AwaitableInstance(self),
+            type_def=type_def,
+        )
+
+    @property
+    def type_descr(self) -> TypeDescr:
+        # This is not a real type, so we should not emit it.
+        raise NotImplementedError("Awaitables shouldn't have a type descr")
+
+    def make_generic_type(
+        self, index: Tuple[Class, ...], generic_types: GenericTypesDict
+    ) -> Class:
+        assert len(index) == 1
+
+        instantiations = generic_types.get(self)
+        if instantiations is not None:
+            instance = instantiations.get(index)
+            if instance is not None:
+                return instance
+        else:
+            generic_types[self] = instantiations = {}
+
+        type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
+        instantiations[index] = concrete = AwaitableType(
+            type_name,
+            type_def=self,
+        )
+
+        return concrete
+
+
+class AwaitableInstance(Object[AwaitableType]):
+    klass: AwaitableType
+
+    def bind_await(
+        self, node: ast.Await, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        visitor.set_type(node, self.klass.type_args[0].instance)
+
+
+class AwaitableTypeRef(TypeRef):
+    def __init__(self, ref: TypeRef, symtable: SymbolTable) -> None:
+        self.ref = ref
+        self.symtable = symtable
+
+    def resolved(self, is_declaration: bool = False) -> Class:
+        res = self.ref.resolved(is_declaration)
+        return AWAITABLE_TYPE.make_generic_type((res,), self.symtable.generic_types)
+
+    def __repr__(self) -> str:
+        return f"AwaitableTypeRef({self.ref!r})"
 
 
 class ContainerTypeRef(TypeRef):
@@ -4514,6 +4583,7 @@ class VectorClass(ArrayClass):
 
 
 BUILTIN_GENERICS: Dict[Class, Dict[GenericTypeIndex, Class]] = {}
+AWAITABLE_TYPE = AwaitableType()
 UNION_TYPE = UnionType()
 OPTIONAL_TYPE = OptionalType()
 FINAL_TYPE = FinalClass(GenericTypeName("typing", "Final", (GenericParameter("T", 0),)))

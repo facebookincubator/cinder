@@ -28,6 +28,7 @@ from typing import Union, Sequence, Optional, List, TYPE_CHECKING
 from ..visitor import ASTVisitor
 from .module_table import ModuleTable
 from .types import (
+    AwaitableTypeRef,
     Class,
     DYNAMIC_TYPE,
     Function,
@@ -198,7 +199,7 @@ class DeclarationVisitor(GenericVisitor):
     def _make_function(
         self, node: Union[FunctionDef, AsyncFunctionDef]
     ) -> Function | DecoratedMethod | None:
-        func = Function(node, self.module, self.type_ref(node.returns))
+        func = Function(node, self.module, self.type_ref(node))
         for decorator in node.decorator_list:
             decorator_type = self.module.resolve_type(decorator) or DYNAMIC_TYPE
             func = decorator_type.bind_decorate_function(self, func)
@@ -212,10 +213,14 @@ class DeclarationVisitor(GenericVisitor):
     def visitAsyncFunctionDef(self, node: AsyncFunctionDef) -> None:
         self._visitFunc(node)
 
-    def type_ref(self, ann: Optional[expr]) -> TypeRef:
+    def type_ref(self, node: Union[FunctionDef, AsyncFunctionDef]) -> TypeRef:
+        ann = node.returns
         if not ann:
             return ResolvedTypeRef(DYNAMIC_TYPE)
-        return TypeRef(self.module, ann)
+        res = TypeRef(self.module, ann)
+        if isinstance(node, AsyncFunctionDef):
+            res = AwaitableTypeRef(res, self.module.symtable)
+        return res
 
     def visitImport(self, node: Import) -> None:
         for name in node.names:

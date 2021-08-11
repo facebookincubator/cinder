@@ -71,6 +71,7 @@ from .module_table import ModuleTable, ModuleFlag
 from .symbol_table import SymbolTable
 from .type_binder import BindingScope, TypeBinder
 from .types import (
+    AwaitableType,
     CHECKED_DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE,
     CHECKED_LIST_EXACT_TYPE,
@@ -309,8 +310,10 @@ class Static38CodeGenerator(CinderCodeGenerator):
 
         # we tagged the graph as CO_STATICALLY_COMPILED, and the last co_const entry
         # will inform the runtime of the return type for the code object.
-        ret_type = self.get_type(func)
-        type_descr = ret_type.klass.type_descr
+        klass = self.get_type(func).klass
+        if isinstance(klass, AwaitableType):
+            klass = klass.type_args[0]
+        type_descr = klass.type_descr
         graph.extra_consts.append(type_descr)
         return graph
 
@@ -604,6 +607,9 @@ class Static38CodeGenerator(CinderCodeGenerator):
     def _visitReturnValue(self, value: ast.AST, expected: Class) -> None:
         self.visit(value)
         if expected is not DYNAMIC_TYPE and self.get_type(value) is DYNAMIC:
+            if isinstance(self.tree, AsyncFunctionDef):
+                assert isinstance(expected, AwaitableType)
+                expected = expected.type_args[0]
             self.emit("CAST", expected.type_descr)
 
     def visitReturn(self, node: ast.Return) -> None:
