@@ -9801,6 +9801,247 @@ class StaticCompilationTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 100)
 
+    def test_patch_async_method_incorrect_type(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            C = mod["C"]
+            c = C()
+            for i in range(100):
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 42)
+
+            with patch(
+                f"{mod['__name__']}.C.f", autospec=True, return_value="not an int"
+            ):
+                with self.assertRaises(TypeError):
+                    c.g().send(None)
+
+    def test_patch_async_method_raising(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+
+        def raise_error(self):
+            raise IndexError("failure!")
+
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            C = mod["C"]
+            c = C()
+            for i in range(100):
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 42)
+
+            with patch(f"{mod['__name__']}.C.f", raise_error):
+                with self.assertRaises(IndexError):
+                    c.g().send(None)
+
+    def test_patch_async_method_non_coroutine(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+
+        loop = asyncio.new_event_loop()
+
+        def future_return(self):
+            fut = loop.create_future()
+            fut.set_result(100)
+            return fut
+
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            C = mod["C"]
+            c = C()
+            for i in range(100):
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 42)
+
+            with patch(f"{mod['__name__']}.C.f", future_return):
+                asyncio.run(c.g())
+
+        loop.close()
+
+    def test_async_method_override(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 1
+
+            def f(x: C):
+                return x.f()
+        """
+        with self.in_strict_module(codestr) as mod:
+            class D(mod.C):
+                async def f(self):
+                    return "not an int"
+
+            self.assertInBytecode(
+                mod.f,
+                "INVOKE_METHOD",
+                ((mod.__name__, "C", "f"), 0),
+            )
+
+            d = D()
+            with self.assertRaises(TypeError):
+                asyncio.run(mod.f(d))
+
+    def test_async_method_override_future_correct_type(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+        with self.in_strict_module(codestr) as mod:
+            loop = asyncio.new_event_loop()
+
+            class D(mod.C):
+                def f(self):
+                    fut = loop.create_future()
+                    fut.set_result(100)
+                    return fut
+
+            d = D()
+            for i in range(100):
+                try:
+                    d.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 100)
+            loop.close()
+
+    def test_async_method_override_future_incorrect_type(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            loop = asyncio.new_event_loop()
+
+            class D(mod["C"]):
+                def f(self):
+                    fut = loop.create_future()
+                    fut.set_result("not an int")
+                    return fut
+
+            d = D()
+            with self.assertRaises(TypeError):
+                d.g().send(None)
+            loop.close()
+
+    def test_async_method_throw_exception(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                async def g(self):
+                    coro = self.f()
+                    return coro.throw(IndexError("ERROR"))
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            class D(mod["C"]):
+                async def f(self):
+                    return 0
+
+            coro = D().g()
+            with self.assertRaises(IndexError):
+                coro.send(None)
+
+    def test_async_method_throw(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                async def g(self):
+                    coro = self.f()
+                    return coro.throw(StopIteration(100))
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            loop = asyncio.new_event_loop()
+
+            class D(mod["C"]):
+                def f(self):
+                    return loop.create_future()
+
+            coro = D().g()
+            try:
+                coro.send(None)
+            except StopIteration as e:
+                self.assertEqual(e.args[0], 100)
+            loop.close()
+
+    def test_async_method_throw_incorrect_type(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                async def g(self):
+                    coro = self.f()
+                    return coro.throw(StopIteration("not an int"))
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            loop = asyncio.new_event_loop()
+
+            class D(mod["C"]):
+                def f(self):
+                    return loop.create_future()
+
+            coro = D().g()
+            with self.assertRaises(TypeError):
+                coro.send(None)
+            loop.close()
+
+    def test_async_method_close(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                async def g(self):
+                    coro = self.f()
+                    return coro.close()
+        """
+        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            class D(mod["C"]):
+                async def f(self):
+                    return 0
+
+            coro = D().g()
+            try:
+                coro.send(None)
+            except StopIteration as e:
+                self.assertEqual(e.args, ())
+
+
     def test_patch_parentclass_slot(self):
         codestr = """
         class A:

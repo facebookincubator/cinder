@@ -23,6 +23,13 @@ typedef struct {
     _PyType_VTableEntry vt_entries[1];
 } _PyType_VTable;
 
+typedef struct {
+    PyObject_HEAD
+    PyObject *state;
+    PyObject *coro;
+    PyObject *iter;
+} _PyClassLoader_Awaitable;
+
 Py_ssize_t _PyClassLoader_ResolveMethod(PyObject *path);
 Py_ssize_t _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);
 int _PyClassLoader_ResolvePrimitiveType(PyObject *descr);

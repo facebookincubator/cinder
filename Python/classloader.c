@@ -53,6 +53,192 @@ PyTypeObject _PyType_VTableType = {
     .tp_clear = (inquiry)vtableclear,
 };
 
+static int
+awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->state);
+    Py_VISIT(self->coro);
+    Py_VISIT(self->iter);
+    return 0;
+}
+
+static int
+awaitable_clear(_PyClassLoader_Awaitable *self)
+{
+    Py_CLEAR(self->state);
+    Py_CLEAR(self->coro);
+    Py_CLEAR(self->iter);
+    return 0;
+}
+
+static void
+awaitable_dealloc(_PyClassLoader_Awaitable *self)
+{
+    PyObject_GC_UnTrack((PyObject *)self);
+    awaitable_clear(self);
+    Py_TYPE(self)->tp_free(self);
+}
+
+static PyObject *
+awaitable_get_iter(_PyClassLoader_Awaitable *self) {
+    PyObject *iter = _PyCoro_GetAwaitableIter(self->coro);
+    if (iter == NULL) {
+        return NULL;
+    }
+    if (PyCoro_CheckExact(iter)) {
+        PyObject *yf = _PyGen_yf((PyGenObject*)iter);
+        if (yf != NULL) {
+            Py_DECREF(yf);
+            Py_DECREF(iter);
+            PyErr_SetString(PyExc_RuntimeError,
+                            "coroutine is being awaited already");
+            return NULL;
+        }
+    }
+    return iter;
+}
+
+static PyObject *
+awaitable_await(_PyClassLoader_Awaitable *self)
+{
+    PyObject *iter = awaitable_get_iter(self);
+    if (iter == NULL) {
+        return NULL;
+    }
+    Py_XSETREF(self->iter, iter);
+    Py_INCREF(self);
+    return (PyObject *)self;
+}
+
+static PyObject *
+rettype_check(PyObject *self, PyObject *ret, PyObject *state);
+
+static PySendResult
+awaitable_itersend(PyThreadState* tstate,
+                   _PyClassLoader_Awaitable *self,
+                   PyObject *value,
+                   PyObject **pResult)
+{
+    *pResult = NULL;
+
+    PyObject *iter = self->iter;
+    if (iter == NULL) {
+        iter = awaitable_get_iter(self);
+        if (iter == NULL) {
+            return PYGEN_ERROR;
+        }
+        self->iter = iter;
+    }
+
+    PyObject *result;
+    PySendResult status = PyIter_Send(tstate, iter, value, &result);
+    if (status == PYGEN_RETURN) {
+        result = rettype_check((PyObject *)self, result, self->state);
+        if (result == NULL) {
+            status = PYGEN_ERROR;
+        }
+    }
+
+    *pResult = result;
+    return status;
+}
+
+static PyAsyncMethodsWithSend awaitable_as_async = {
+    .ams_async_methods = {
+        (unaryfunc)awaitable_await,
+        NULL,
+        NULL,
+    },
+    .ams_send = (sendfunc)awaitable_itersend,
+};
+
+static PyObject *
+awaitable_send(_PyClassLoader_Awaitable *self, PyObject *value)
+{
+    PyObject *result;
+    PySendResult status = awaitable_itersend(PyThreadState_GET(), self, value, &result);
+    if (status == PYGEN_ERROR || status == PYGEN_NEXT) {
+        return result;
+    }
+    assert(status == PYGEN_RETURN);
+    _PyGen_SetStopIterationValue(result);
+    Py_DECREF(result);
+    return NULL;
+}
+
+static PyObject *
+awaitable_next(_PyClassLoader_Awaitable *self)
+{
+    return awaitable_send(self, Py_None);
+}
+
+extern int _PyObject_GetMethod(PyObject *, PyObject *, PyObject **);
+
+static PyObject *
+awaitable_throw(_PyClassLoader_Awaitable *self, PyObject *args)
+{
+    PyObject *iter = self->iter;
+    if (iter == NULL) {
+        iter = awaitable_get_iter(self);
+        if (iter == NULL) {
+            return NULL;
+        }
+        self->iter = iter;
+    }
+    _Py_IDENTIFIER(throw);
+    PyObject *method = _PyObject_GetAttrId(iter, &PyId_throw);
+    if (method == NULL) {
+        return NULL;
+    }
+    PyObject *ret = PyObject_CallObject(method, args);
+    Py_DECREF(method);
+    if (ret != NULL || _PyGen_FetchStopIterationValue(&ret) < 0) {
+        return ret;
+    }
+    return rettype_check((PyObject *)self, ret, self->state);
+}
+
+static PyObject *
+awaitable_close(_PyClassLoader_Awaitable *self, PyObject *val)
+{
+    PyObject *iter = self->iter;
+    if (iter == NULL) {
+        iter = awaitable_get_iter(self);
+        if (iter == NULL) {
+            return NULL;
+        }
+        self->iter = iter;
+    }
+    _Py_IDENTIFIER(close);
+    PyObject *ret = _PyObject_CallMethodIdObjArgs(iter, &PyId_close, val, NULL);
+    Py_CLEAR(self->iter);
+    return ret;
+}
+
+static PyMethodDef awaitable_methods[] = {
+    {"send",  (PyCFunction)awaitable_send, METH_O, NULL},
+    {"throw", (PyCFunction)awaitable_throw, METH_VARARGS, NULL},
+    {"close", (PyCFunction)awaitable_close, METH_NOARGS, NULL},
+    {NULL, NULL},
+};
+
+static PyTypeObject _PyClassLoader_AwaitableType = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0).tp_name = "awaitable_wrapper",
+    sizeof(_PyClassLoader_Awaitable),
+    0,
+    .tp_dealloc = (destructor)awaitable_dealloc,
+    .tp_as_async = (PyAsyncMethods *)&awaitable_as_async,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_AM_SEND,
+    .tp_traverse = (traverseproc)awaitable_traverse,
+    .tp_clear = (inquiry)awaitable_clear,
+    .tp_iter = PyObject_SelfIter,
+    .tp_iternext = (iternextfunc)awaitable_next,
+    .tp_methods = awaitable_methods,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_free = PyObject_GC_Del,
+};
+
 static PyObject *
 rettype_check(PyObject *self, PyObject *ret, PyObject *state)
 {
@@ -90,6 +276,7 @@ rettype_check(PyObject *self, PyObject *ret, PyObject *state)
                 break;
             default:
                 PyErr_SetString(PyExc_RuntimeError, "unsupported primitive return type");
+                Py_DECREF(ret);
                 return NULL;
         }
     }
@@ -122,6 +309,34 @@ rettype_check(PyObject *self, PyObject *ret, PyObject *state)
         return NULL;
     }
     return ret;
+}
+
+static PyObject *
+type_vtable_coroutine(PyObject *state,
+                      PyObject **args,
+                      size_t nargsf,
+                      PyObject *kwnames)
+{
+    if (PyType_Ready(&_PyClassLoader_AwaitableType) < 0) {
+        return NULL;
+    }
+    _PyClassLoader_Awaitable *awaitable =
+        PyObject_GC_New(_PyClassLoader_Awaitable,
+                        &_PyClassLoader_AwaitableType);
+    if (awaitable == NULL) {
+        return NULL;
+    }
+
+    Py_INCREF(state);
+    awaitable->state = state;
+    PyObject *callable = PyTuple_GET_ITEM(state, 0);
+    awaitable->coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    awaitable->iter = NULL;
+    if (awaitable->coro == NULL) {
+        Py_DECREF(awaitable);
+        return NULL;
+    }
+    return (PyObject *)awaitable;
 }
 
 static PyObject *
@@ -337,19 +552,14 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
 }
 
 PyTypeObject *
-_PyClassLoader_ResolveExpectedReturnType(PyFunctionObject *func, int *optional) {
-    /* We don't do any typing on co-routines, and if we did, the annotated return
-     * type isn't what we want to enforce - we would want to enforce returning a
-     * coroutine, or some awaitable shape.  So if we have a co-routine allow
-     * any value to be returned */
+_PyClassLoader_ResolveExpectedReturnType(PyFunctionObject *func,
+                                         int *optional,
+                                         int *coroutine) {
     if (((PyCodeObject *)func->func_code)->co_flags & CO_COROUTINE) {
-        Py_INCREF(&PyBaseObject_Type);
-        *optional = 1;
-        return &PyBaseObject_Type;
+        *coroutine = 1;
     }
-
-    return _PyClassLoader_ResolveType(
-            _PyClassLoader_GetReturnTypeDescr((PyFunctionObject *)func), optional);
+    return _PyClassLoader_ResolveType(_PyClassLoader_GetReturnTypeDescr(func),
+                                      optional);
 }
 
 PyObject *
@@ -370,12 +580,12 @@ _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject* code)
 static int
 type_vtable_setslot_typecheck(PyObject *ret_type,
                               int optional,
+                              int coroutine,
                               PyObject *name,
                               _PyType_VTable *vtable,
                               Py_ssize_t slot,
                               PyObject *value)
 {
-
     PyObject *state = PyTuple_New(4);
     if (state == NULL) {
         Py_XDECREF(ret_type);
@@ -393,7 +603,10 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
 
     Py_XDECREF(vtable->vt_entries[slot].vte_state);
     vtable->vt_entries[slot].vte_state = state;
-    if (PyFunction_Check(value)) {
+    if (coroutine) {
+        vtable->vt_entries[slot].vte_entry =
+            (vectorcallfunc)type_vtable_coroutine;
+    } else if (PyFunction_Check(value)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_func_overridable;
     } else {
@@ -413,12 +626,16 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
  * Returns a new reference or NULL.
  */
 static PyObject *
-resolve_slot_local_return_type(PyObject *func,
+resolve_slot_local_return_type(PyObject *name,
+                               PyObject *func,
                                _PyType_VTable *vtable,
                                Py_ssize_t index,
-                               int *optional)
+                               int *optional,
+                               int *coroutine)
 {
     PyObject *cur_type = NULL;
+    *optional = 0;
+    *coroutine = 0;
     if (func == NULL) {
         /* someone removed the method, and now is adding a method back */
         assert(vtable->vt_entries[index].vte_entry ==
@@ -429,19 +646,23 @@ resolve_slot_local_return_type(PyObject *func,
         *optional = PyTuple_GET_ITEM(state, 2) == Py_True;
     } else if (vtable->vt_entries[index].vte_entry ==
                    (vectorcallfunc)type_vtable_func_overridable ||
-               vtable->vt_entries[index].vte_entry == (vectorcallfunc)type_vtable_nonfunc) {
+               vtable->vt_entries[index].vte_entry ==
+                    (vectorcallfunc)type_vtable_nonfunc ||
+               vtable->vt_entries[index].vte_entry ==
+                    (vectorcallfunc)type_vtable_coroutine) {
         PyObject *state = vtable->vt_entries[index].vte_state;
         assert(PyTuple_Check(state));
         cur_type = PyTuple_GET_ITEM(state, 2);
         Py_INCREF(cur_type);
         *optional = PyTuple_GET_ITEM(state, 3) == Py_True;
     } else if (PyFunction_Check(func) && _PyClassLoader_IsStaticFunction(func)) {
-        cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType((PyFunctionObject *)func, optional);
+        cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
+            (PyFunctionObject *)func, optional, coroutine);
     } else if (Py_TYPE(func) == &PyStaticMethod_Type) {
         PyObject *static_func = _PyStaticMethod_GetFunc(func);
         if (_PyClassLoader_IsStaticFunction(static_func)) {
             cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
-                (PyFunctionObject*)static_func, optional);
+                (PyFunctionObject*)static_func, optional, coroutine);
         }
     } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
         // builtin methods for now assumed to return object
@@ -462,7 +683,8 @@ static PyObject *
 resolve_slot_overload_return_type(PyTypeObject *tp,
                                   PyObject *name,
                                   Py_ssize_t index,
-                                  int *optional)
+                                  int *optional,
+                                  int *coroutine)
 {
     PyObject *mro = tp->tp_mro;
     PyObject *found_type = NULL;
@@ -474,7 +696,8 @@ resolve_slot_overload_return_type(PyTypeObject *tp,
         if (value != NULL) {
             assert(cur_type->tp_cache != NULL);
             found_type = resolve_slot_local_return_type(
-                value, (_PyType_VTable *)cur_type->tp_cache, index, optional);
+                name, value, (_PyType_VTable *)cur_type->tp_cache,
+                index, optional, coroutine);
             if (found_type != NULL) {
                 return found_type;
             }
@@ -637,12 +860,14 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     }
 
     Py_ssize_t index = PyLong_AsSsize_t(slot);
-    int cur_optional;
-    PyObject* cur_type = resolve_slot_local_return_type(previous, vtable, index, &cur_optional);
+    int cur_optional, cur_coroutine;
+    PyObject* cur_type = resolve_slot_local_return_type(
+        name, previous, vtable, index, &cur_optional, &cur_coroutine);
     if (cur_type == NULL) {
         // Can't resolve slot type on this type (might have a patched-in non-static function),
         // let's check the MRO.
-        cur_type = resolve_slot_overload_return_type(type, name, index, &cur_optional);
+        cur_type = resolve_slot_overload_return_type(
+            type, name, index, &cur_optional, &cur_coroutine);
     }
 
     /* we make no attempts to keep things efficient when types start getting
@@ -668,8 +893,13 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         Py_XDECREF(vtable->vt_entries[index].vte_state);
         vtable->vt_entries[index].vte_state = missing_state;
         vtable->vt_entries[index].vte_entry = (vectorcallfunc)type_vtable_func_missing;
-    } else if (type_vtable_setslot_typecheck(
-                   cur_type, cur_optional, name, vtable, index, new_value)) {
+    } else if (type_vtable_setslot_typecheck(cur_type,
+                                             cur_optional,
+                                             cur_coroutine,
+                                             name,
+                                             vtable,
+                                             index,
+                                             new_value)) {
         Py_DECREF(cur_type);
         return -1;
     }
@@ -715,21 +945,21 @@ type_vtable_setslot(PyTypeObject *tp,
         }
     }
 
-    int optional = 0;
+    int optional = 0, coroutine = 0;
     PyObject *ret_type;
     if (_PyClassLoader_IsStaticFunction(value)) {
         ret_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
-            (PyFunctionObject *)value, &optional);
+            (PyFunctionObject *)value, &optional, &coroutine);
     } else {
-        ret_type =
-            resolve_slot_overload_return_type(tp, name, slot, &optional);
+        ret_type = resolve_slot_overload_return_type(
+            tp, name, slot, &optional, &coroutine);
     }
     if (ret_type == NULL) {
         return -1;
     }
 
     int res = type_vtable_setslot_typecheck(
-        ret_type, optional, name, vtable, slot, value);
+        ret_type, optional, coroutine, name, vtable, slot, value);
     Py_DECREF(ret_type);
     return res;
 }
