@@ -282,11 +282,6 @@ typedef struct _typeobject {
 #endif
 } PyTypeObject;
 
-typedef struct {
-    PyTypeObject gen_type;
-    PyGenNextMethods tp_gennext;
-} PyGenTypeObject;
-
 /* The *real* layout of a type object when allocated on the heap */
 typedef struct _heaptypeobject {
     /* Note: there's a dependency on the order of these members
