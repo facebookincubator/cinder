@@ -11,6 +11,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <fmt/format.h>
