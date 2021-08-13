@@ -1,4 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# pyre-unsafe
 from __future__ import annotations
 
 import ast
@@ -9,10 +10,12 @@ from ast import (
     AsyncFunctionDef,
     ClassDef,
     DictComp,
+    ExceptHandler,
     FunctionDef,
     GeneratorExp,
     Lambda,
     ListComp,
+    Module,
     NodeVisitor,
     SetComp,
     Try,
@@ -24,6 +27,7 @@ from ast import (
 from collections import deque
 from symtable import Class, SymbolTable
 from typing import (
+    TYPE_CHECKING,
     Callable,
     Dict,
     Generic,
@@ -453,7 +457,6 @@ class AstRewriter(NodeVisitor):
                     setattr(ret_node, field, new_values)
             elif isinstance(old_value, AST):
                 new_node = self.visit(old_value)
-                # lint-fixme: NoAssertsRule
                 assert (
                     new_node is not None
                 ), "can't remove AST nodes that aren't part of a list"
