@@ -524,6 +524,9 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
     analyzedModule->setAstToResults(analyzer.passAstToResultsMap());
   }
 
+  if (hasAllowListedParent(name)) {
+    publishOnParent(name);
+  }
   return analyzedModule;
 }
 
@@ -586,4 +589,43 @@ bool ModuleLoader::loadStrictModuleModule() {
 bool ModuleLoader::isModuleLoaded(const std::string& modName) {
   return modules_.find(modName) != modules_.end();
 }
+
+static std::optional<std::string> getParentModuleName(const std::string& modName) {
+  size_t pos = modName.rfind('.');
+  if (pos == std::string::npos) {
+    return std::nullopt;
+  }
+  return modName.substr(0, pos);
+}
+
+/**
+ * Replicates python behavior by publishing child modules onto
+ * the parent module
+ */
+void ModuleLoader::publishOnParent(const std::string& childName) {
+  size_t pos = childName.rfind('.');
+  if (pos == std::string::npos) {
+    return;
+  }
+  std::string parentName = childName.substr(0, pos);
+  std::string childAttrName = childName.substr(pos + 1);
+  auto childMod = tryGetModuleValue(childName);
+  if (!childMod) {
+    return;
+  }
+  auto parentMod = tryGetModuleValue(parentName);
+  if (!parentMod) {
+    return;
+  }
+  parentMod->setAttr(childAttrName, childMod);
+}
+
+bool ModuleLoader::hasAllowListedParent(const std::string& modName) {
+  std::optional<std::string> parent = getParentModuleName(modName);
+  if (!parent.has_value()) {
+    return false;
+  }
+  return isAllowListed(parent.value());
+}
+
 } // namespace strictmod::compiler

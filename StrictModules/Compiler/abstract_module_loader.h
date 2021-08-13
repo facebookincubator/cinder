@@ -185,6 +185,8 @@ class ModuleLoader {
   AnalyzedModule* analyze(std::unique_ptr<ModuleInfo> modInfo);
   bool isAllowListed(const std::string& modName);
   bool isForcedStrict(const std::string& modName, const std::string& fileName);
+  bool hasAllowListedParent(const std::string& modName);
+  void publishOnParent(const std::string& childName);
 };
 
 } // namespace strictmod::compiler
