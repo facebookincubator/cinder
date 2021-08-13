@@ -16,6 +16,7 @@ from compiler.strict.loader import (
     StrictSourceFileLoader,
     install,
 )
+from compiler.strict.runtime import set_freeze_enabled
 from compiler.strict.track_import_call import TrackImportCall
 from contextlib import contextmanager
 from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
@@ -36,10 +37,8 @@ from typing import (
     cast,
     final,
 )
-from unittest import skip
 from unittest.mock import patch
 
-from __strict__ import set_freeze_enabled
 from cinder import freeze_type, warn_on_inst_dict, cinder_set_warn_handler
 from cinder import get_warn_handler
 
@@ -1192,7 +1191,6 @@ class StrictLoaderTest(StrictTestBase):
         mod = self.sbx.strict_from_code(code)
         self.assertEqual(mod.__annotations__, {"x": int, "y": 100})
 
-    @skip("did not port class def conflict checker yet")
     def test_class_ann_assigned_and_inited(self) -> None:
         code = """
             import __strict__
@@ -1203,7 +1201,9 @@ class StrictLoaderTest(StrictTestBase):
         """
         with self.assertRaises(StrictModuleError) as cm:
             self.sbx.strict_from_code(code)
-        self.assertEqual(cm.exception.names, ["x"])
+        self.assertEqual(
+            cm.exception.msg, "Class member conflicts with instance member: ['x']"
+        )
         self.assertTrue(cm.exception.filename.endswith("testmodule.py"))
 
     def test_class_instance_field_ok(self) -> None:
@@ -1214,7 +1214,6 @@ class StrictLoaderTest(StrictTestBase):
         """
         self.sbx.strict_from_code(code)
 
-    @skip("did not port class def conflict checker yet")
     def test_class_annotations_global(self) -> None:
         code = """
             import __strict__
@@ -1226,7 +1225,10 @@ class StrictLoaderTest(StrictTestBase):
         """
         with self.assertRaises(StrictModuleError) as cm:
             self.sbx.strict_from_code(code)
-        self.assertEqual(cm.exception.names, ["__annotations__"])
+        self.assertEqual(
+            cm.exception.msg,
+            "Class member conflicts with instance member: ['__annotations__']",
+        )
         self.assertTrue(cm.exception.filename.endswith("testmodule.py"))
 
     def test_class_try_except_else(self) -> None:

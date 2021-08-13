@@ -8,10 +8,10 @@ from compiler.static import StaticCodeGenerator
 from compiler.static.symbol_table import SymbolTable
 from compiler.static.types import TypedSyntaxError
 from compiler.strict.common import FIXED_MODULES
+from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 
 import cinder
-from __strict__ import set_freeze_enabled
 from cinder import StrictModule
 from test.support import maybe_get_event_loop_policy
 

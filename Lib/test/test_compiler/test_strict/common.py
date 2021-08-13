@@ -11,12 +11,12 @@ from compiler.strict import StrictCodeGenerator, strict_compile
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import StaticCompiler
 from compiler.strict.loader import StrictModule
+from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
 from typing import Mapping, Tuple, Type, Callable
 
 import cinder
-from __strict__ import set_freeze_enabled
 from cinder import cached_property
 from test.test_compiler.common import CompilerTest
 

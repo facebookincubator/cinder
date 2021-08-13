@@ -109,6 +109,7 @@ from compiler.static.types import (
     InlinedCall,
 )
 from compiler.strict.common import FIXED_MODULES
+from compiler.strict.runtime import set_freeze_enabled
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -135,7 +136,6 @@ from __static__ import (
     is_type_static,
     RAND_MAX,
 )
-from __strict__ import set_freeze_enabled
 from cinder import StrictModule
 
 from .common import StaticTestBase, add_fixed_module

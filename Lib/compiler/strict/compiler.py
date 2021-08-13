@@ -30,8 +30,9 @@ from _strictmodule import (
 
 from ..static import ModuleTable, SymbolTable, StaticCodeGenerator
 from ..static.errors import TypedSyntaxError
+from .class_conflict_checker import check_class_conflict
+from .common import StrictModuleError
 from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
-
 
 # pyre-fixme[11]: Annotation `StrictAnalysisResult` is not defined as a type.
 def getSymbolTable(mod: StrictAnalysisResult, filename: str) -> PythonSymbolTable:
@@ -43,17 +44,6 @@ def getSymbolTable(mod: StrictAnalysisResult, filename: str) -> PythonSymbolTabl
 
 
 TIMING_LOGGER_TYPE = Callable[[str, str, str], ContextManager[None]]
-
-
-class StrictModuleError(Exception):
-    def __init__(
-        self, msg: str, filename: str, lineno: int, col: int, metadata: str = ""
-    ) -> None:
-        self.msg = msg
-        self.filename = filename
-        self.lineno = lineno
-        self.col = col
-        self.metadata = metadata
 
 
 class Compiler:
@@ -101,6 +91,15 @@ class Compiler:
             # if raise on error, just raise the first error
             error = errors[0]
             raise StrictModuleError(error[0], error[1], error[2], error[3])
+        elif is_valid_strict:
+            symbols = getSymbolTable(mod, filename)
+            try:
+                check_class_conflict(mod.ast, filename, symbols)
+            except StrictModuleError as e:
+                if self.raise_on_error:
+                    raise
+                mod.errors.append((e.msg, e.filename, e.lineno, e.col))
+
         return self._rewrite(
             mod, is_valid_strict, filename, name, optimize, track_import_call
         )
@@ -113,9 +112,10 @@ class Compiler:
         name: str,
         optimize: int,
         track_import_call: bool,
+        symbols: Optional[PythonSymbolTable] = None,
     ) -> Tuple[object, StrictAnalysisResult]:
         if is_valid_strict:
-            symbols = getSymbolTable(mod, filename)
+            symbols = symbols or getSymbolTable(mod, filename)
             code = rewrite(
                 mod.ast_preprocessed,
                 symbols,
@@ -236,14 +236,27 @@ class StaticCompiler(Compiler):
         name: str,
         optimize: int,
         track_import_call: bool,
+        symbols: Optional[PythonSymbolTable] = None,
     ) -> Tuple[object, StrictAnalysisResult]:
         modKind = mod.module_kind
         if not is_valid_strict or modKind != STATIC_MODULE_KIND:
             return super()._rewrite(
-                mod, is_valid_strict, filename, name, optimize, track_import_call
+                mod,
+                is_valid_strict,
+                filename,
+                name,
+                optimize,
+                track_import_call,
+                symbols=symbols,
             )
         return self._rewrite_as_static(
-            mod, is_valid_strict, filename, name, optimize, track_import_call
+            mod,
+            is_valid_strict,
+            filename,
+            name,
+            optimize,
+            track_import_call,
+            symbols=symbols,
         )
 
     def _rewrite_as_static(
@@ -254,6 +267,7 @@ class StaticCompiler(Compiler):
         name: str,
         optimize: int,
         track_import_call: bool,
+        symbols: Optional[PythonSymbolTable] = None,
     ) -> Tuple[object, StrictAnalysisResult]:
         # pyre-fixme [16]: no attribute optimize
         self.symtable.optimize = optimize
@@ -262,7 +276,7 @@ class StaticCompiler(Compiler):
         # pyre-fixme [16]: no attribute ast_cache
         root = self.symtable.ast_cache.get(name)
         if root is None:
-            symbols = getSymbolTable(mod, filename)
+            symbols = symbols or getSymbolTable(mod, filename)
             if symbols is None:
                 raise TypeError("expected SymbolTable, got None")
             # Perform the normal strict modules re-write, minus slotification

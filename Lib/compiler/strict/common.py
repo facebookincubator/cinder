@@ -40,8 +40,7 @@ from typing import (
     final,
 )
 
-# pyre-ignore[21]: unknown module
-from __strict__ import (
+from .runtime import (
     freeze_type,
     loose_slots,
     strict_slots,
@@ -84,6 +83,17 @@ TVar = TypeVar("TScope")
 TScopeData = TypeVar("TData", covariant=True)
 
 SymbolMap = Dict[AST, SymbolTable]
+
+
+class StrictModuleError(Exception):
+    def __init__(
+        self, msg: str, filename: str, lineno: int, col: int, metadata: str = ""
+    ) -> None:
+        self.msg = msg
+        self.filename = filename
+        self.lineno = lineno
+        self.col = col
+        self.metadata = metadata
 
 
 @final
