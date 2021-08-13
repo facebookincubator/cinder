@@ -2,13 +2,14 @@
 #ifndef __JIT_DATAFLOW_H__
 #define __JIT_DATAFLOW_H__
 
+#include "Jit/bitvector.h"
+
 #include <algorithm>
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include "bitvector.h"
 
 namespace jit {
 namespace optimizer {

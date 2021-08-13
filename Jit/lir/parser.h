@@ -2,14 +2,13 @@
 #ifndef __LIR_PARSER_H__
 #define __LIR_PARSER_H__
 
+#include "Jit/containers.h"
 #include "Jit/lir/lir.h"
+#include "Jit/lir/operand.h"
 
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#include "Jit/containers.h"
-#include "Jit/lir/operand.h"
 
 namespace jit {
 namespace lir {

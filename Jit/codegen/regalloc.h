@@ -5,6 +5,7 @@
 #include "Jit/bitvector.h"
 #include "Jit/codegen/copy_graph.h"
 #include "Jit/codegen/x86_64.h"
+#include "Jit/containers.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/operand.h"
 #include "Jit/log.h"
@@ -16,8 +17,6 @@
 #include <queue>
 #include <set>
 #include <utility>
-
-#include "Jit/containers.h"
 
 namespace jit {
 namespace codegen {

@@ -2,11 +2,11 @@
 #ifndef JIT_ILIST_H
 #define JIT_ILIST_H
 
-#include <cstddef>
-#include <iterator>
-
 #include "Jit/log.h"
 #include "Jit/util.h"
+
+#include <cstddef>
+#include <iterator>
 
 /*
  * This file defines a simple, intrusive doubly-linked circular list.

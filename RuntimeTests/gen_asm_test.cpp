@@ -1,13 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include <string>
-#include <utility>
-
-#include "gtest/gtest.h"
-
-#include "fixtures.h"
-#include "testutil.h"
-
-#include "asmjit/asmjit.h"
+#include <gtest/gtest.h>
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/compiler.h"
@@ -15,7 +7,14 @@
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
 
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
+
+#include <asmjit/asmjit.h>
+
 #include <iostream>
+#include <string>
+#include <utility>
 
 using namespace asmjit;
 using namespace jit;

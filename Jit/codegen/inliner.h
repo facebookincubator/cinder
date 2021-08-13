@@ -5,7 +5,6 @@
 #include "Jit/lir/function.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/operand.h"
-
 #include "Jit/util.h"
 
 namespace jit {

@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/compiler.h"
 
+#include "Python.h"
+
 #include "Jit/disassembler.h"
 #include "Jit/hir/builder.h"
 #include "Jit/hir/optimization.h"
@@ -8,8 +10,6 @@
 #include "Jit/hir/ssa.h"
 #include "Jit/jit_x_options.h"
 #include "Jit/log.h"
-
-#include "Python.h"
 
 namespace jit {
 

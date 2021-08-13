@@ -4,7 +4,6 @@
 
 #include "Jit/lir/x86_64.h"
 #include "Jit/log.h"
-#include "object.h"
 
 #include <cstdint>
 #include <memory>

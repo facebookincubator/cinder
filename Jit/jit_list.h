@@ -2,12 +2,12 @@
 #ifndef JIT_JIT_LIST_H
 #define JIT_JIT_LIST_H
 
-#include <memory>
-
 #include "Python.h"
 
 #include "Jit/ref.h"
 #include "Jit/util.h"
+
+#include <memory>
 
 namespace jit {
 

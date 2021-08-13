@@ -2,6 +2,8 @@
 #ifndef __JIT_BIT_VECTOR_H__
 #define __JIT_BIT_VECTOR_H__
 
+#include "Jit/log.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -9,7 +11,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "log.h"
 
 namespace jit {
 namespace util {

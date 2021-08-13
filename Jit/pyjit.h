@@ -2,11 +2,12 @@
 #ifndef Py_JIT_H
 #define Py_JIT_H
 
-#include "Jit/pyjit_result.h"
-#include "Jit/pyjit_typeslots.h"
 #include "Python.h"
 #include "frameobject.h"
 #include "genobject.h"
+
+#include "Jit/pyjit_result.h"
+#include "Jit/pyjit_typeslots.h"
 
 // Offset of the state field in jit::GenFooterData for fast access from C code.
 // This value is verified by static_assert in runtime.h.

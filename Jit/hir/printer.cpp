@@ -1,17 +1,17 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/printer.h"
 
-#include <algorithm>
-#include <sstream>
-#include <vector>
-
-#include <fmt/format.h>
+#include "Python.h"
 
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
 #include "Jit/util.h"
 
-#include "Python.h"
+#include <fmt/format.h>
+
+#include <algorithm>
+#include <sstream>
+#include <vector>
 
 namespace jit {
 namespace hir {

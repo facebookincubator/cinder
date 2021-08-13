@@ -1,14 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include <gtest/gtest.h>
+
+#include "Jit/pyjit.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
+
 #include <cstdlib>
 #include <memory>
 #include <string>
-
-#include "gtest/gtest.h"
-
-#include "fixtures.h"
-#include "testutil.h"
-
-#include "Jit/pyjit.h"
 
 static const char* PYTHONJIT = "PYTHONJIT";
 

@@ -1,10 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/printer.h"
+
 #include "Jit/lir/operand.h"
 #include "Jit/lir/printer.h"
 #include "Jit/lir/x86_64.h"
 
 #include <fmt/ostream.h>
+
 #include <iomanip>
 
 namespace jit {

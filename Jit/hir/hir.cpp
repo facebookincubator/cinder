@@ -1,15 +1,15 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/hir.h"
 
-#include <algorithm>
-#include <unordered_map>
-
-#include <fmt/format.h>
-
 #include "Jit/hir/printer.h"
 #include "Jit/log.h"
 #include "Jit/ref.h"
 #include "Jit/threaded_compile.h"
+
+#include <fmt/format.h>
+
+#include <algorithm>
+#include <unordered_map>
 
 namespace jit {
 namespace hir {

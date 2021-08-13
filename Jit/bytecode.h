@@ -2,10 +2,11 @@
 #ifndef JIT_BYTECODE_H
 #define JIT_BYTECODE_H
 
-#include <iterator>
-#include <unordered_set>
 #include "Python.h"
 #include "opcode.h"
+
+#include <iterator>
+#include <unordered_set>
 
 namespace jit {
 

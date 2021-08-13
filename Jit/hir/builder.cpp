@@ -1,13 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/builder.h"
 
-#include <algorithm>
-#include <deque>
-#include <memory>
-#include <set>
-#include <unordered_set>
-#include <utility>
-#include <vector>
+#include "Python.h"
+#include "ceval.h"
+#include "classloader.h"
+#include "opcode.h"
+#include "structmember.h"
 
 #include "Jit/bitvector.h"
 #include "Jit/bytecode.h"
@@ -17,11 +15,13 @@
 #include "Jit/ref.h"
 #include "Jit/threaded_compile.h"
 
-#include "Python.h"
-#include "ceval.h"
-#include "classloader.h"
-#include "opcode.h"
-#include "structmember.h"
+#include <algorithm>
+#include <deque>
+#include <memory>
+#include <set>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 namespace jit {
 namespace hir {

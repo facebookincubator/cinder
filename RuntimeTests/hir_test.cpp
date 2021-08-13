@@ -1,16 +1,17 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Python.h"
-#include "gtest/gtest.h"
-#include "opcode.h"
+#include <gtest/gtest.h>
 
-#include "fixtures.h"
-#include "testutil.h"
+#include "Python.h"
+#include "opcode.h"
 
 #include "Jit/hir/hir.h"
 #include "Jit/hir/parser.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/ref.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
 
 using namespace jit::hir;
 

@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/rewrite.h"
-#include "Jit/codegen/x86_64.h"
 
+#include "Jit/codegen/x86_64.h"
 #include "Jit/lir/block.h"
 #include "Jit/lir/operand.h"
 #include "Jit/log.h"

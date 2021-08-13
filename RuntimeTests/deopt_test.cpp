@@ -1,11 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include <algorithm>
+#include <gtest/gtest.h>
 
 #include "Python.h"
-#include "gtest/gtest.h"
 #include "opcode.h"
-
-#include "asmjit/asmjit.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/x86_64.h"
@@ -18,7 +15,12 @@
 #include "Jit/log.h"
 #include "Jit/ref.h"
 #include "Jit/util.h"
-#include "fixtures.h"
+
+#include "RuntimeTests/fixtures.h"
+
+#include <asmjit/asmjit.h>
+
+#include <algorithm>
 
 using namespace jit;
 using namespace jit::hir;

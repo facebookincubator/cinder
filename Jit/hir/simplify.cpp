@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/optimization.h"
-
 #include "Jit/hir/ssa.h"
 
 namespace jit {

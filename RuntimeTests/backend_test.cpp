@@ -1,25 +1,27 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/codegen/environ.h"
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/jit_rt.h"
-#include "Jit/lir/instruction.h"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
+#include "Python.h"
 
 #include "Jit/codegen/autogen.h"
+#include "Jit/codegen/environ.h"
+#include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/inliner.h"
 #include "Jit/codegen/postalloc.h"
 #include "Jit/codegen/postgen.h"
 #include "Jit/codegen/regalloc.h"
+#include "Jit/codegen/x86_64.h"
+#include "Jit/jit_rt.h"
+#include "Jit/lir/instruction.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/parser.h"
 #include "Jit/ref.h"
-#include "fixtures.h"
-#include "testutil.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
 
 #include <fstream>
 #include <regex>
-#include "Python.h"
 
 using namespace jit;
 using namespace jit::lir;

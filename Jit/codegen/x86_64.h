@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Jit/log.h"
+#include "Jit/util.h"
+
 #include <iosfwd>
 #include <set>
 #include <string>
 #include <unordered_map>
-
-#include "Jit/log.h"
-#include "Jit/util.h"
 
 namespace jit {
 namespace codegen {

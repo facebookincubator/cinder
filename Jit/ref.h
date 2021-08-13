@@ -2,10 +2,10 @@
 #ifndef JIT_REF_H
 #define JIT_REF_H
 
+#include "Python.h"
+
 #include <functional>
 #include <type_traits>
-
-#include "Python.h"
 
 template <typename T>
 class RefBase {

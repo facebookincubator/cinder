@@ -3,17 +3,11 @@
 // number of libc headers define it if it hasn't yet been defined, so including
 // Python.h first ensures we get the desired version with no warnings about
 // redefinitions.
-#include "Python.h"
-
 #include "Jit/slot_gen.h"
 
-#include <stdint.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <functional>
-#include <iostream>
-
-#include "asmjit/asmjit.h"
+#include "Python.h"
+#include "frameobject.h"
+#include "opcode.h"
 
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_rt.h"
@@ -21,8 +15,13 @@
 #include "Jit/patternmatch.h"
 #include "Jit/perf_jitdump.h"
 
-#include "frameobject.h"
-#include "opcode.h"
+#include <asmjit/asmjit.h>
+#include <unistd.h>
+
+#include <cstdint>
+#include <cstdio>
+#include <functional>
+#include <iostream>
 
 using asmjit::Error;
 using asmjit::ErrorHandler;

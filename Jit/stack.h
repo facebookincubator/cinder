@@ -2,11 +2,11 @@
 #ifndef JIT_STACK_H
 #define JIT_STACK_H
 
-#include <initializer_list>
-#include <vector>
-
 #include "Jit/log.h"
 #include "Jit/util.h"
+
+#include <initializer_list>
+#include <vector>
 
 namespace jit {
 

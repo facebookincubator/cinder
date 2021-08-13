@@ -2,13 +2,9 @@
 #ifndef JIT_HIR_H
 #define JIT_HIR_H
 
-#include <array>
-#include <functional>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
+#include "Python.h"
+#include "code.h"
+#include "opcode.h"
 
 #include "Jit/bytecode.h"
 #include "Jit/hir/type.h"
@@ -17,9 +13,14 @@
 #include "Jit/ref.h"
 #include "Jit/stack.h"
 #include "Jit/util.h"
-#include "Python.h"
-#include "code.h"
-#include "opcode.h"
+
+#include <array>
+#include <functional>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace jit {
 namespace hir {

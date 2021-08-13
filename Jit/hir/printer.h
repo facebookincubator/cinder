@@ -2,11 +2,11 @@
 #ifndef HIR_PRINTER_H
 #define HIR_PRINTER_H
 
+#include "Jit/hir/hir.h"
+
 #include <iostream>
 #include <sstream>
 #include <string>
-
-#include "Jit/hir/hir.h"
 
 namespace jit {
 namespace hir {

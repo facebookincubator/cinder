@@ -44,13 +44,20 @@ Cpp11BracedListStyle: true
 DerivePointerAlignment: false
 DisableFormat:   false
 ForEachMacros:   [ FOR_EACH, FOR_EACH_ENUMERATE, FOR_EACH_KV, FOR_EACH_R, FOR_EACH_RANGE, ]
+IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex:           '^<.*\.h(pp)?>'
-    Priority:        1
-  - Regex:           '^<.*'
-    Priority:        2
-  - Regex:           '.*'
-    Priority:        3
+  - Regex:     '<gtest/.*>'
+    Priority:  1
+  - Regex:     '"Jit/.*"'
+    Priority:  3
+  - Regex:     '"RuntimeTests/.*"'
+    Priority:  4
+  - Regex:     '".*"'
+    Priority:  2
+  - Regex:     '^<.*\.h(pp)?>'
+    Priority:  5
+  - Regex:     '^<.*'
+    Priority:  6
 IndentCaseLabels: true
 IndentWidth:     2
 IndentWrappedFunctionNames: false

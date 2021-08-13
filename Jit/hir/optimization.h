@@ -2,14 +2,14 @@
 #ifndef HIR_OPTIMIZATION_H
 #define HIR_OPTIMIZATION_H
 
+#include "Jit/hir/hir.h"
+#include "Jit/hir/type.h"
+#include "Jit/util.h"
+
 #include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#include "Jit/hir/hir.h"
-#include "Jit/hir/type.h"
-#include "Jit/util.h"
 
 namespace jit {
 namespace hir {

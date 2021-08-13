@@ -2,6 +2,13 @@
 #ifndef JIT_HIR_GEN_H
 #define JIT_HIR_GEN_H
 
+#include "Python.h"
+
+#include "Jit/bytecode.h"
+#include "Jit/hir/hir.h"
+#include "Jit/stack.h"
+#include "Jit/util.h"
+
 #include <deque>
 #include <functional>
 #include <memory>
@@ -9,13 +16,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include "Jit/bytecode.h"
-#include "Jit/hir/hir.h"
-#include "Jit/stack.h"
-#include "Jit/util.h"
-
-#include "Python.h"
 
 namespace jit {
 

@@ -1,18 +1,17 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "gtest/gtest.h"
-
-#include <algorithm>
-#include <sstream>
-#include <vector>
-
-#include <fmt/ostream.h>
+#include <gtest/gtest.h>
 
 #include "Jit/codegen/regalloc.h"
+#include "Jit/compiler.h"
 #include "Jit/lir/operand.h"
 #include "Jit/lir/parser.h"
 #include "Jit/lir/printer.h"
 
-#include "Jit/compiler.h"
+#include <fmt/ostream.h>
+
+#include <algorithm>
+#include <sstream>
+#include <vector>
 
 using namespace jit;
 using namespace jit::lir;

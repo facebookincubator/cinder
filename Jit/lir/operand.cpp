@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include "Jit/lir/operand.h"
+
 #include "Jit/lir/block.h"
 #include "Jit/lir/instruction.h"
-
-#include "Jit/lir/operand.h"
 #include "Jit/lir/x86_64.h"
 
 namespace jit {

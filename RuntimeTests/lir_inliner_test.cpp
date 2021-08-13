@@ -1,14 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/jit_rt.h"
-#include "Jit/lir/instruction.h"
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "Jit/codegen/inliner.h"
+#include "Jit/jit_rt.h"
+#include "Jit/lir/instruction.h"
 #include "Jit/lir/lir.h"
-
 #include "Jit/ref.h"
-#include "fixtures.h"
-#include "testutil.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
 
 using namespace jit;
 using namespace jit::lir;

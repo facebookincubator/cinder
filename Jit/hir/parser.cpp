@@ -1,6 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/parser.h"
 
+#include "classloader.h"
+#include "pycore_tupleobject.h"
+
+#include "Jit/hir/hir.h"
+#include "Jit/log.h"
+#include "Jit/ref.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -10,12 +17,6 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-
-#include "Jit/hir/hir.h"
-#include "Jit/log.h"
-#include "Jit/ref.h"
-#include "classloader.h"
-#include "pycore_tupleobject.h"
 
 namespace jit {
 namespace hir {

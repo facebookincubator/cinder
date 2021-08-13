@@ -2,12 +2,12 @@
 #ifndef __LIR_BLOCK_H__
 #define __LIR_BLOCK_H__
 
+#include "Jit/lir/instruction.h"
+
 #include <algorithm>
 #include <list>
 #include <memory>
 #include <vector>
-
-#include "Jit/lir/instruction.h"
 
 namespace jit {
 namespace hir {

@@ -1,14 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "gtest/gtest.h"
-
-#include "fixtures.h"
-#include "testutil.h"
+#include <gtest/gtest.h>
 
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/parser.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
 
 class GuardTest : public RuntimeTest {};
 

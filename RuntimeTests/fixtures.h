@@ -2,6 +2,11 @@
 #ifndef RUNTIME_TEST_FIXTURES_H
 #define RUNTIME_TEST_FIXTURES_H
 
+#include <gtest/gtest.h>
+
+#include "Python.h"
+#include "internal/pycore_pystate.h"
+
 #include "Jit/hir/builder.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
@@ -9,11 +14,8 @@
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/ref.h"
-#include "gtest/gtest.h"
-#include "testutil.h"
 
-#include "Python.h"
-#include "internal/pycore_pystate.h"
+#include "RuntimeTests/testutil.h"
 
 #define JIT_TEST_MOD_NAME "jittestmodule"
 

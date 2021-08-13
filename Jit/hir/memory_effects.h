@@ -2,9 +2,8 @@
 #ifndef __JIT_HIR_MEMORY_EFFECTS_H__
 #define __JIT_HIR_MEMORY_EFFECTS_H__
 
-#include "Jit/hir/alias_class.h"
-
 #include "Jit/bitvector.h"
+#include "Jit/hir/alias_class.h"
 
 #include <iosfwd>
 

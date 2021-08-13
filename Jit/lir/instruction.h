@@ -2,13 +2,13 @@
 #ifndef __LIR_INSTR_H__
 #define __LIR_INSTR_H__
 
+#include "Jit/lir/operand.h"
+#include "Jit/util.h"
+
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include "Jit/lir/operand.h"
-#include "Jit/util.h"
 
 namespace jit {
 namespace hir {

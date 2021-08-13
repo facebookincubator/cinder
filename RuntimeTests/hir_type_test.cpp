@@ -5,7 +5,7 @@
 #include "Jit/hir/type.h"
 #include "Jit/ref.h"
 
-#include "fixtures.h"
+#include "RuntimeTests/fixtures.h"
 
 using namespace jit::hir;
 

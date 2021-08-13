@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/util.h"
 
+#include "Jit/log.h"
+#include "Jit/ref.h"
+
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#include "Jit/log.h"
-#include "Jit/ref.h"
 
 static constexpr size_t INITIAL_SIZE = 104;
 

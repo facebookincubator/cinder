@@ -2,13 +2,13 @@
 #ifndef __JIT_DEOPT_H__
 #define __JIT_DEOPT_H__
 
-#include <cstdint>
-#include <vector>
+#include "Python.h"
 
 #include "Jit/codegen/x86_64.h"
 #include "Jit/hir/hir.h"
 
-#include "Python.h"
+#include <cstdint>
+#include <vector>
 
 namespace jit {
 

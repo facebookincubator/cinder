@@ -2,17 +2,17 @@
 #ifndef JIT_LOG_H
 #define JIT_LOG_H
 
-#include "Jit/ref.h"
 #include "Python.h"
 #include "internal/pycore_pystate.h"
+
+#include "Jit/ref.h"
+#include "Jit/threaded_compile.h"
 
 #include <fmt/format.h>
 #include <fmt/printf.h>
 
-#include <stdio.h>
+#include <cstdio>
 #include <iterator>
-
-#include "Jit/threaded_compile.h"
 
 namespace jit {
 

@@ -1,12 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
-#include "fixtures.h"
-#include "testutil.h"
+#include "switchboard.h"
 
 #include "Jit/jit_context.h"
 #include "Jit/ref.h"
-#include "switchboard.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
 
 #include <memory>
 

@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include <cstring>
-
 #include "Jit/jit_list.h"
+
 #include "Jit/util.h"
 
+#include <cstring>
 #include <fstream>
 #include <string>
 

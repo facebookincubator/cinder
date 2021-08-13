@@ -6,18 +6,18 @@
 #include "Jit/threaded_compile.h"
 #include "Jit/util.h"
 
-#include <fmt/format.h>
-
 #include <elf.h>
 #include <fcntl.h>
-#include <string.h>
+#include <fmt/format.h>
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
-#include <time.h>
 #include <unistd.h>
+
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <ctime>
 
 #ifdef __x86_64__
 // Use the cheaper rdtsc by default. If you disable this for some reason, or

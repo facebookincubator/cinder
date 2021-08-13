@@ -2,13 +2,14 @@
 #ifndef __HIR_PARSER_H__
 #define __HIR_PARSER_H__
 
+#include "Jit/hir/hir.h"
+
 #include <cstdlib>
 #include <iterator>
 #include <list>
 #include <memory>
 #include <unordered_map>
 #include <vector>
-#include "Jit/hir/hir.h"
 
 namespace jit {
 namespace hir {

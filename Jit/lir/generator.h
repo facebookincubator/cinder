@@ -2,16 +2,14 @@
 #ifndef __LIR_GEN_H__
 #define __LIR_GEN_H__
 
+#include "Jit/codegen/environ.h"
+#include "Jit/hir/hir.h"
+#include "Jit/jit_rt.h"
+#include "Jit/lir/lir.h"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#include "Jit/jit_rt.h"
-
-#include "Jit/codegen/environ.h"
-
-#include "Jit/hir/hir.h"
-#include "Jit/lir/lir.h"
 
 namespace jit {
 namespace lir {

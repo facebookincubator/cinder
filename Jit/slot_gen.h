@@ -4,10 +4,10 @@
 
 #include "Python.h"
 
-#include "asmjit/asmjit.h"
-
 #include "Jit/runtime.h"
 #include "Jit/util.h"
+
+#include <asmjit/asmjit.h>
 
 namespace jit {
 

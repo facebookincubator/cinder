@@ -2,10 +2,11 @@
 #ifndef JIT_UTIL_H
 #define JIT_UTIL_H
 
+#include "Python.h"
+
 #include <cstdint>
 #include <limits>
 #include <type_traits>
-#include "Python.h"
 
 #ifdef __cplusplus
 #include "Jit/log.h"

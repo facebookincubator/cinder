@@ -1,10 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/hir/optimization.h"
-
 #include "Jit/bitvector.h"
 #include "Jit/deopt.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/hir/memory_effects.h"
+#include "Jit/hir/optimization.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/log.h"

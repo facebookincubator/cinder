@@ -2,9 +2,10 @@
 #ifndef JIT_WATCHER_H
 #define JIT_WATCHER_H
 
-#include "Jit/util.h"
 #include "Python.h"
 #include "switchboard.h"
+
+#include "Jit/util.h"
 
 #include <functional>
 #include <unordered_set>

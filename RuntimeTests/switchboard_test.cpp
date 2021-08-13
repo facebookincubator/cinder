@@ -1,12 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "gtest/gtest.h"
-
-#include "Jit/ref.h"
-#include "fixtures.h"
-#include "testutil.h"
+#include <gtest/gtest.h>
 
 #include "Python.h"
 #include "switchboard.h"
+
+#include "Jit/ref.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
 
 class SwitchboardTest : public RuntimeTest {
  public:

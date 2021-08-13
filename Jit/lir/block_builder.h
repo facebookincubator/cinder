@@ -2,19 +2,18 @@
 #ifndef __LIR_BBBUILDER_H__
 #define __LIR_BBBUILDER_H__
 
+#include "Jit/codegen/environ.h"
+#include "Jit/hir/hir.h"
+#include "Jit/lir/lir.h"
+
+#include <fmt/format.h>
+
 #include <cctype>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "fmt/format.h"
-
-#include "Jit/codegen/environ.h"
-
-#include "Jit/hir/hir.h"
-#include "Jit/lir/lir.h"
 
 // XXX: this file needs to be revisited when we optimize HIR-to-LIR translation
 // in codegen.cpp/h. Currently, this file is almost an identical copy from

@@ -1,7 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/inline_cache.h"
 
-#include <Python.h>
+#include "Objects/dict-common.h"
+#include "Python.h"
+#include "switchboard.h"
+
+#include "Jit/codegen/gen_asm.h"
+#include "Jit/dict_watch.h"
+
 #include <algorithm>
 
 // clang-format off
@@ -9,12 +15,6 @@
 #include "internal/pycore_object.h"
 #include "structmember.h"
 // clang-format on
-
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/dict_watch.h"
-
-#include "Objects/dict-common.h"
-#include "switchboard.h"
 
 namespace jit {
 

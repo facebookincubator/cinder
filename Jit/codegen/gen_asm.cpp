@@ -1,23 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/gen_asm.h"
 
-#include <algorithm>
-#include <cstdint>
-#include <iterator>
-#include <list>
-#include <map>
-#include <unordered_map>
-#include <vector>
-
-#include <fmt/format.h>
-
 #include "Python.h"
 #include "classloader.h"
 #include "frameobject.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
-
-#include "Jit/lir/generator.h"
 
 #include "Jit/codegen/autogen.h"
 #include "Jit/codegen/gen_asm_utils.h"
@@ -29,10 +17,21 @@
 #include "Jit/hir/printer.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_rt.h"
+#include "Jit/lir/generator.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
 #include "Jit/pyjit.h"
 #include "Jit/util.h"
+
+#include <fmt/format.h>
+
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <list>
+#include <map>
+#include <unordered_map>
+#include <vector>
 
 using namespace asmjit;
 using namespace jit::hir;

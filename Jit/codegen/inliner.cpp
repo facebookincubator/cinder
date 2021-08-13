@@ -1,10 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/inliner.h"
-#include <string_view>
-#include <unordered_map>
+
 #include "Jit/lir/c_helper_translations.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/parser.h"
+
+#include <string_view>
+#include <unordered_map>
 
 using namespace jit::lir;
 

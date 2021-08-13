@@ -1,16 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/jit_rt.h"
 
-#include <Python.h>
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/frame.h"
-#include "Jit/log.h"
-#include "Jit/pyjit.h"
-#include "Jit/ref.h"
-#include "Jit/runtime.h"
-#include "Jit/util.h"
-
 #include "Objects/dict-common.h"
+#include "Python.h"
 #include "classloader.h"
 #include "frameobject.h"
 #include "listobject.h"
@@ -18,6 +10,14 @@
 #include "pycore_shadow_frame.h"
 #include "pystate.h"
 #include "switchboard.h"
+
+#include "Jit/codegen/gen_asm.h"
+#include "Jit/frame.h"
+#include "Jit/log.h"
+#include "Jit/pyjit.h"
+#include "Jit/ref.h"
+#include "Jit/runtime.h"
+#include "Jit/util.h"
 
 // clang-format off
 #include "internal/pycore_pyerrors.h"

@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "gtest/gtest.h"
-
-#include <unordered_set>
+#include <gtest/gtest.h>
 
 #include "Jit/ref.h"
 
-#include "fixtures.h"
+#include "RuntimeTests/fixtures.h"
+
+#include <unordered_set>
 
 using BorrowedRefTest = RuntimeTest;
 using RefTest = RuntimeTest;

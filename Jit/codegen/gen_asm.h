@@ -2,28 +2,26 @@
 #ifndef __JIT_GEN_ASM_H__
 #define __JIT_GEN_ASM_H__
 
+#include "Python.h"
+#include "opcode.h"
+
+#include "Jit/bitvector.h"
+#include "Jit/codegen/environ.h"
+#include "Jit/codegen/x86_64.h"
+#include "Jit/hir/hir.h"
+#include "Jit/jit_rt.h"
+#include "Jit/lir/lir.h"
+#include "Jit/pyjit.h"
+#include "Jit/util.h"
+
+#include <asmjit/asmjit.h>
+
 #include <algorithm>
 #include <list>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include "asmjit/asmjit.h"
-
-#include "Jit/bitvector.h"
-#include "Jit/hir/hir.h"
-#include "Jit/jit_rt.h"
-#include "Jit/pyjit.h"
-#include "Jit/util.h"
-
-#include "Jit/lir/lir.h"
-
-#include "Jit/codegen/environ.h"
-#include "Jit/codegen/x86_64.h"
-
-#include "Python.h"
-#include "opcode.h"
 
 namespace jit {
 namespace codegen {

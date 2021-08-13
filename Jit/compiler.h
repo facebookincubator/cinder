@@ -2,12 +2,12 @@
 #ifndef JIT_COMPILER_H
 #define JIT_COMPILER_H
 
+#include "Python.h"
+
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/hir/hir.h"
 #include "Jit/runtime.h"
 #include "Jit/util.h"
-
-#include "Python.h"
 
 namespace jit {
 

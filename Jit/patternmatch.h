@@ -2,8 +2,9 @@
 #ifndef PATTERN_MATCH_H_
 #define PATTERN_MATCH_H_
 
-#include <stdarg.h>
 #include "Python.h"
+
+#include <stdarg.h>
 
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus

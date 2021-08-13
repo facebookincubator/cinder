@@ -1,12 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
-#include "fixtures.h"
-#include "testutil.h"
+#include "Python.h"
 
 #include "Jit/ref.h"
 #include "Jit/slot_gen.h"
-#include "Python.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
 
 class SlotGenTest : public RuntimeTest {
  public:

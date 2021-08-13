@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/analysis.h"
 
-#include <memory>
-
 #include "Jit/dataflow.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/memory_effects.h"
+
+#include <memory>
 
 namespace jit {
 namespace hir {

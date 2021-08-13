@@ -2,16 +2,17 @@
 #ifndef JIT_INLINE_CACHE_H
 #define JIT_INLINE_CACHE_H
 
-#include <array>
-#include <memory>
-#include <unordered_map>
+#include "Python.h"
+#include "classloader.h"
 
 #include "Jit/log.h"
 #include "Jit/ref.h"
 #include "Jit/util.h"
 #include "Jit/watcher.h"
-#include "Python.h"
-#include "classloader.h"
+
+#include <array>
+#include <memory>
+#include <unordered_map>
 
 namespace jit {
 

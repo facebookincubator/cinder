@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 #include "Jit/jit_list.h"
 
-#include "fixtures.h"
+#include "RuntimeTests/fixtures.h"
 
 using JITListTest = RuntimeTest;
 using WildcardJITListTest = RuntimeTest;

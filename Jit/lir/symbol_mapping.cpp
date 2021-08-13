@@ -1,5 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/symbol_mapping.h"
+
 #include "Python.h"
 
 namespace jit {

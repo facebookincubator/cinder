@@ -1,21 +1,21 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include "Jit/codegen/regalloc.h"
+
 #include "internal/pycore_shadow_frame.h"
 
 #include "Jit/codegen/copy_graph.h"
-#include "Jit/codegen/regalloc.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/operand.h"
 
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <queue>
 #include <stack>
 #include <type_traits>
 #include <utility>
-
-#include <iostream>
 
 using namespace jit::lir;
 

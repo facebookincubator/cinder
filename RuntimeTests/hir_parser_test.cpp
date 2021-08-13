@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include <memory>
-
-#include "gtest/gtest.h"
-
-#include "fixtures.h"
-#include "testutil.h"
+#include <gtest/gtest.h>
 
 #include "Jit/hir/parser.h"
 #include "Jit/hir/printer.h"
+
+#include "RuntimeTests/fixtures.h"
+#include "RuntimeTests/testutil.h"
+
+#include <memory>
 
 using namespace jit::hir;
 

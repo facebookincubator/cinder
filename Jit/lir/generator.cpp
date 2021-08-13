@@ -1,21 +1,20 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/generator.h"
-#include "Jit/hir/analysis.h"
-#include "Jit/jit_rt.h"
-#include "Jit/lir/block_builder.h"
-
-#include "Jit/deopt.h"
-#include "Jit/log.h"
-#include "Jit/pyjit.h"
-#include "Jit/runtime_support.h"
-#include "Jit/threaded_compile.h"
-
-#include "Jit/codegen/x86_64.h"
 
 #include "Python.h"
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
 #include "listobject.h"
+
+#include "Jit/codegen/x86_64.h"
+#include "Jit/deopt.h"
+#include "Jit/hir/analysis.h"
+#include "Jit/jit_rt.h"
+#include "Jit/lir/block_builder.h"
+#include "Jit/log.h"
+#include "Jit/pyjit.h"
+#include "Jit/runtime_support.h"
+#include "Jit/threaded_compile.h"
 
 #include <functional>
 #include <sstream>

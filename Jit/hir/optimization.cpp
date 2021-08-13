@@ -1,12 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/optimization.h"
 
-#include <fmt/format.h>
-#include <list>
-#include <memory>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
+#include "Python.h"
+#include "code.h"
+#include "pycore_pystate.h"
 
 #include "Jit/hir/analysis.h"
 #include "Jit/hir/hir.h"
@@ -16,9 +13,13 @@
 #include "Jit/jit_rt.h"
 #include "Jit/util.h"
 
-#include "Python.h"
-#include "code.h"
-#include "pycore_pystate.h"
+#include <fmt/format.h>
+
+#include <list>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace jit {
 namespace hir {
