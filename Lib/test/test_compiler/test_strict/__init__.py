@@ -1,0 +1,1 @@
+from .test_strict_codegen import StrictCompilationTests

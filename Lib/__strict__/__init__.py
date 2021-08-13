@@ -1,3 +1,4 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
 from typing import Type
@@ -23,6 +24,14 @@ __all__ = [
 ]
 
 TYPE_FREEZE_ENABLED = True
+
+
+def set_freeze_enabled(flag: bool) -> bool:
+    "returns old value"
+    global TYPE_FREEZE_ENABLED
+    old = TYPE_FREEZE_ENABLED
+    TYPE_FREEZE_ENABLED = flag
+    return old
 
 
 def freeze_type(obj: Type[object]) -> Type[object]:

@@ -1,14 +1,17 @@
 import ast
 import asyncio
+import compiler.strict
 import gc
 import inspect
 import sys
 from compiler.static import StaticCodeGenerator
 from compiler.static.symbol_table import SymbolTable
 from compiler.static.types import TypedSyntaxError
+from compiler.strict.common import FIXED_MODULES
 from contextlib import contextmanager
 
 import cinder
+from __strict__ import set_freeze_enabled
 from cinder import StrictModule
 from test.support import maybe_get_event_loop_policy
 
@@ -18,6 +21,10 @@ try:
     import cinderjit
 except ImportError:
     cinderjit = None
+
+
+def add_fixed_module(d) -> None:
+    d["<fixed-modules>"] = FIXED_MODULES
 
 
 class StaticTestBase(CompilerTest):
@@ -72,20 +79,33 @@ class StaticTestBase(CompilerTest):
         compiled = self.compile(code, code_gen, name, optimize)
         m = type(sys)(name)
         d = m.__dict__
+        add_fixed_module(d)
         sys.modules[name] = m
         exec(compiled, d)
         d["__name__"] = name
         return d
 
     @contextmanager
-    def in_module(self, code, name=None, code_gen=StaticCodeGenerator, optimize=0):
+    def with_freeze_type_setting(self, freeze: bool):
+        old_setting = set_freeze_enabled(freeze)
+        try:
+            yield
+        finally:
+            set_freeze_enabled(old_setting)
+
+    @contextmanager
+    def in_module(
+        self, code, name=None, code_gen=StaticCodeGenerator, optimize=0, freeze=False
+    ):
         d = None
         if name is None:
             name = self._temp_mod_name()
+        old_setting = set_freeze_enabled(freeze)
         try:
             d = self._in_module(code, name, code_gen, optimize)
             yield d
         finally:
+            set_freeze_enabled(old_setting)
             self._finalize_module(name, d)
 
     def _in_strict_module(
@@ -98,6 +118,7 @@ class StaticTestBase(CompilerTest):
     ):
         compiled = self.compile(code, code_gen, name, optimize)
         d = {"__name__": name}
+        add_fixed_module(d)
         m = StrictModule(d, enable_patching)
         sys.modules[name] = m
         exec(compiled, d)
@@ -111,22 +132,31 @@ class StaticTestBase(CompilerTest):
         code_gen=StaticCodeGenerator,
         optimize=0,
         enable_patching=False,
+        freeze=False,
     ):
         d = None
         if name is None:
             name = self._temp_mod_name()
+        old_setting = set_freeze_enabled(freeze)
         try:
             d, m = self._in_strict_module(
                 code, name, code_gen, optimize, enable_patching
             )
             yield m
         finally:
+            set_freeze_enabled(old_setting)
             self._finalize_module(name, d)
 
     def _run_code(self, code, generator, modname, peephole_enabled):
         if modname is None:
             modname = self._temp_mod_name()
-        return modname, super().run_code(code, generator, modname, peephole_enabled)
+        compiled = self.compile(
+            code, generator, modname, peephole_enabled=peephole_enabled
+        )
+        d = {}
+        add_fixed_module(d)
+        exec(compiled, d)
+        return modname, d
 
     def run_code(self, code, generator=None, modname=None, peephole_enabled=True):
         _, r = self._run_code(code, generator, modname, peephole_enabled)
@@ -178,3 +208,12 @@ class StaticTestBase(CompilerTest):
                 await func()
 
         asyncio.run(make_hot())
+
+    @classmethod
+    def setUpClass(cls):
+        cls.strict_features = compiler.strict.enable_strict_features
+        compiler.strict.enable_strict_features = True
+
+    @classmethod
+    def tearDownClass(cls):
+        compiler.strict.enable_strict_features = cls.strict_features

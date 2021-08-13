@@ -108,6 +108,7 @@ from compiler.static.types import (
     TYPED_DOUBLE,
     InlinedCall,
 )
+from compiler.strict.common import FIXED_MODULES
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
 from copy import deepcopy
@@ -115,7 +116,7 @@ from io import StringIO
 from os import path
 from textwrap import dedent
 from types import CodeType, MemberDescriptorType, ModuleType
-from typing import Generic, Optional, Tuple, TypeVar
+from typing import Generic, Optional, Tuple, TypeVar, Dict
 from unittest import TestCase, skip, skipIf
 from unittest.mock import Mock, patch
 
@@ -134,9 +135,10 @@ from __static__ import (
     is_type_static,
     RAND_MAX,
 )
+from __strict__ import set_freeze_enabled
 from cinder import StrictModule
 
-from .common import StaticTestBase
+from .common import StaticTestBase, add_fixed_module
 
 try:
     import cinderjit
@@ -216,12 +218,10 @@ def init_xxclassloader():
         modname="xxclassloader",
     ).getCode()
     d = {}
+    add_fixed_module(d)
     exec(code, d, d)
 
     xxclassloader.XXGeneric = d["XXGeneric"]
-
-
-
 
 
 class StaticCompilationTests(StaticTestBase):
@@ -10225,9 +10225,6 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_invoke_frozen_type(self):
         codestr = """
-            from cinder import freeze_type
-
-            @freeze_type
             class C:
                 @staticmethod
                 def f():
@@ -10236,7 +10233,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return C.f()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr, code_gen=StaticCodeGenerator, freeze=True) as mod:
             g = mod["g"]
             for i in range(100):
                 self.assertEqual(g(), 42)

@@ -13,6 +13,7 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
 )
 
 from ..optimizer import AstOptimizer
+from ..strict import enable_strict_features
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
 from .errors import ErrorSink
@@ -48,6 +49,7 @@ from .types import (
     FLOAT_EXACT_TYPE,
     FUNCTION_TYPE,
     GenericTypesDict,
+    IDENTITY_DECORATOR_TYPE,
     INLINE_TYPE,
     INT16_TYPE,
     INT32_TYPE,
@@ -163,6 +165,7 @@ class SymbolTable:
             "staticmethod": STATIC_METHOD_TYPE,
             "reveal_type": RevealTypeFunction(),
             "property": PROPERTY_TYPE,
+            "<mutable>": IDENTITY_DECORATOR_TYPE,
         }
         strict_builtins = StrictBuiltins(builtins_children)
         typing_children = {
@@ -179,11 +182,27 @@ class SymbolTable:
             "Tuple": TUPLE_TYPE,
             "TYPE_CHECKING": BOOL_TYPE.instance,
         }
+        strict_modules_children: Dict[str, Value] = {
+            "mutable": IDENTITY_DECORATOR_TYPE,
+            "strict_slots": IDENTITY_DECORATOR_TYPE,
+            "loose_slots": IDENTITY_DECORATOR_TYPE,
+            "freeze_type": IDENTITY_DECORATOR_TYPE,
+        }
 
         builtins_children["<builtins>"] = strict_builtins
-        builtins_children["<fixed-modules>"] = StrictBuiltins(
-            {"typing": StrictBuiltins(typing_children)}
-        )
+        fixed_modules: Dict[str, Value] = {
+            "typing": StrictBuiltins(typing_children),
+        }
+        if enable_strict_features:
+            fixed_modules.update(
+                {
+                    "typing": StrictBuiltins(typing_children),
+                    "__strict__": StrictBuiltins(strict_modules_children),
+                    "strict_modules": StrictBuiltins(dict(strict_modules_children)),
+                }
+            )
+
+        builtins_children["<fixed-modules>"] = StrictBuiltins(fixed_modules)
 
         self.builtins = self.modules["builtins"] = ModuleTable(
             "builtins",

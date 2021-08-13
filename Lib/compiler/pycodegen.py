@@ -376,6 +376,7 @@ class CodeGenerator(ASTVisitor):
         if doc is not None:
             self.emit("LOAD_CONST", doc)
             self.storeName("__doc__")
+        self.startModule()
         self.visit(self.skip_docstring(node.body))
 
         # See if the was a live statement, to later set its line number as
@@ -384,6 +385,9 @@ class CodeGenerator(ASTVisitor):
             self.graph.first_inst_lineno = 1
 
         self.emit_module_return(node)
+
+    def startModule(self) -> None:
+        pass
 
     def emit_module_return(self, node: ast.Module) -> None:
         self.emit("LOAD_CONST", None)
@@ -519,6 +523,7 @@ class CodeGenerator(ASTVisitor):
     def visitClassDef(self, node):
         self.set_lineno(node)
         first_lineno = None
+        immutability_flag = self.find_immutability_flag(node)
         for decorator in node.decorator_list:
             if first_lineno is None:
                 first_lineno = decorator.lineno
@@ -559,7 +564,17 @@ class CodeGenerator(ASTVisitor):
         for _ in range(len(node.decorator_list)):
             self.emit("CALL_FUNCTION", 1)
 
+        self.register_immutability(node, immutability_flag)
         self.store_type_name_and_flags(node)
+
+    def find_immutability_flag(self, node: ClassDef) -> bool:
+        return False
+
+    def register_immutability(self, node: ClassDef, flag: bool) -> None:
+        """
+        Note: make sure this do not have side effect on the
+        stack, assumes class is on the stack
+        """
 
     def store_type_name_and_flags(self, node: ClassDef) -> None:
         self.storeName(node.name)

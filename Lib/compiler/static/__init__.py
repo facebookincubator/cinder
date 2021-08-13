@@ -62,6 +62,7 @@ from ..pycodegen import (
     FOR_LOOP,
     wrap_aug,
 )
+from ..strict import StrictCodeGenerator, FIXED_MODULES, enable_strict_features
 from ..symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
 from ..unparse import to_expr
 from .declaration_visitor import GenericVisitor, DeclarationVisitor
@@ -114,6 +115,8 @@ def exec_static(
     code = compile(
         source, "<module>", "exec", compiler=StaticCodeGenerator, modname=modname
     )
+    if enable_strict_features and "<fixed-modules>" not in globals:
+        globals["<fixed-modules>"] = FIXED_MODULES
     exec(code, locals, globals)  # noqa: P204
 
 
@@ -121,7 +124,7 @@ class PyFlowGraph38Static(PyFlowGraphCinder):
     opcode: Opcode = opcode38static.opcode
 
 
-class Static38CodeGenerator(CinderCodeGenerator):
+class Static38CodeGenerator(StrictCodeGenerator):
     flow_graph = PyFlowGraph38Static
     _default_cache: Dict[Type[ast.AST], typingCallable[[...], None]] = {}
 
@@ -180,7 +183,7 @@ class Static38CodeGenerator(CinderCodeGenerator):
     ) -> CodeGenerator:
         if self._is_static_compiler_disabled(tree):
             return super().make_child_codegen(
-                tree, graph, codegen_type=CinderCodeGenerator
+                tree, graph, codegen_type=StrictCodeGenerator
             )
         graph.setFlag(self.consts.CO_STATICALLY_COMPILED)
         if ModuleFlag.SHADOW_FRAME in self.cur_mod.flags:

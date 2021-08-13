@@ -152,7 +152,6 @@ cinder_warn_on_inst_dict(PyObject *self, PyObject *o)
             "can't call warn_on_inst_dict on a frozen type");
         return NULL;
     }
-    assert(((PyHeapTypeObject *)o)->ht_cached_keys != NULL);
     ((PyTypeObject *)o)->tp_flags |= Py_TPFLAGS_WARN_ON_SETATTR;
     Py_INCREF(o);
     return o;

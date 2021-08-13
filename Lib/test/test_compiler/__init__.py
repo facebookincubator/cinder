@@ -24,6 +24,7 @@ try:
     import cinder
 
     from .test_static import *
+    from .test_strict import *
 except ImportError:
     pass
 

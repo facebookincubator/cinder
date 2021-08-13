@@ -2718,6 +2718,16 @@ class PropertyDecorator(Class):
         raise TypedSyntaxError(f"Cannot decorate a class with @property")
 
 
+class IdentityDecorator(Class):
+    def bind_decorate_function(
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
+    ) -> Optional[Value]:
+        return fn
+
+    def bind_decorate_class(self, klass: Class) -> Class:
+        return klass
+
+
 class BuiltinFunction(Callable[Class]):
     def __init__(
         self,
@@ -4094,6 +4104,9 @@ DYNAMIC_RETURN_TYPE = DynamicReturnDecorator(TypeName("__static__", "dynamic_ret
 INLINE_TYPE = InlineFunctionDecorator(TypeName("__static__", "inline"))
 DONOTCOMPILE_TYPE = DoNotCompileDecorator(TypeName("__static__", "_donotcompile"))
 PROPERTY_TYPE = PropertyDecorator(TypeName("builtins", "property"))
+IDENTITY_DECORATOR_TYPE = IdentityDecorator(
+    TypeName("__strict__", "<identity-decorator>")
+)
 
 RESOLVED_INT_TYPE = ResolvedTypeRef(INT_TYPE)
 RESOLVED_STR_TYPE = ResolvedTypeRef(STR_TYPE)
