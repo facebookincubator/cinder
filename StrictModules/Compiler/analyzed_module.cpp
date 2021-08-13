@@ -21,6 +21,10 @@ const BaseErrorSink& AnalyzedModule::getErrorSink() const {
   return *errorSink_;
 }
 
+BaseErrorSink& AnalyzedModule::getErrorSink() {
+  return *errorSink_;
+}
+
 std::shared_ptr<StrictModuleObject> AnalyzedModule::getModuleValue() {
   return std::shared_ptr(module_);
 }

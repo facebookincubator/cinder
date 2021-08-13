@@ -476,8 +476,28 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   const ModuleInfo& moduleInfo = analyzedModule->getModuleInfo();
   const std::string& name = moduleInfo.getModName();
   const std::string& filename = moduleInfo.getFilename();
-  modules_[name] = std::unique_ptr<AnalyzedModule>(analyzedModule);
-  lazy_modules_.erase(name);
+
+  // if `name` already exist in `modules_`, do not override the existing one
+  // but if there were no AST or filename is different, update the AST
+  auto existingModIt = modules_.find(name);
+  if (existingModIt == modules_.end()) {
+    modules_[name] = std::unique_ptr<AnalyzedModule>(analyzedModule);
+    lazy_modules_.erase(name);
+  } else {
+    AnalyzedModule* existingMod = existingModIt->second.get();
+    // If file kind is different, report an error
+
+    if (existingMod->getStubKindAsInt() != analyzedModule->getStubKindAsInt()) {
+      const std::string& existingName =
+          existingMod->getModuleInfo().getFilename();
+      const std::string& analyzedName =
+          analyzedModule->getModuleInfo().getFilename();
+      existingMod->getErrorSink().error<ConflictingSourceException>(
+          0, 0, analyzedName, "", name, existingName, analyzedName);
+    }
+    return existingMod;
+  }
+
   if (analyzedModule->isStrict() || isForcedStrict(name, filename)) {
     assert(ast != nullptr);
     // Run ast visits

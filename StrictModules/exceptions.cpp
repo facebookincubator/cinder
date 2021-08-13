@@ -294,4 +294,14 @@ BadStrictFlagExceptionHelper::BadStrictFlagExceptionHelper(std::string err)
 void BadStrictFlagException::raise() {
   throw *this;
 }
+// ConflictingSourceException
+ConflictingSourceExceptionHelper::ConflictingSourceExceptionHelper(
+    std::string mod,
+    std::string first,
+    std::string second)
+    : modName(std::move(mod)), firstName(first), secondName(second) {}
+
+void ConflictingSourceException::raise() {
+  throw *this;
+}
 } // namespace strictmod

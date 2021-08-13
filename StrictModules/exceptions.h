@@ -605,6 +605,35 @@ class BadStrictFlagException : public StructuredStrictModuleException<
   [[noreturn]] virtual void raise() override;
 };
 
+// ConflictingSourceException
+class ConflictingSourceExceptionHelper {
+ public:
+  ConflictingSourceExceptionHelper(
+      std::string modName,
+      std::string firstName,
+      std::string secondName);
+  std::string modName;
+  std::string firstName;
+  std::string secondName;
+  static constexpr const char* excName = "ConflictingSourceException";
+  static constexpr const char* fmt =
+      "Got conflicting source files for module {}, first seen: {}, second "
+      "seen: {}";
+  static constexpr const char* wiki = "";
+};
+
+class ConflictingSourceException
+    : public StructuredStrictModuleException<
+          ConflictingSourceExceptionHelper,
+          ConflictingSourceException,
+          &ConflictingSourceExceptionHelper::modName,
+          &ConflictingSourceExceptionHelper::firstName,
+          &ConflictingSourceExceptionHelper::secondName> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ------------------Out of line implementations---------------
 
 // StrictModuleException

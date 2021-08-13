@@ -49,6 +49,7 @@ class AnalyzedModule {
   bool isStatic() const;
   bool getError() const;
   const BaseErrorSink& getErrorSink() const;
+  BaseErrorSink& getErrorSink();
   std::shared_ptr<StrictModuleObject> getModuleValue();
 
   void setModuleValue(std::shared_ptr<StrictModuleObject> module);

@@ -2374,3 +2374,42 @@ class StrictLoaderTest(StrictTestBase):
         ):
             __import__("b")
             self.assertEqual(len(tracker.tracked_modules), 0)
+
+    def test_cross_module_first_analysis_wins(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __strict__
+                class C:
+                    def f(self):
+                        return 1
+                X = C()
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __strict__
+                from a import X
+                x = X.f()
+            """,
+        )
+        self.sbx.write_file(
+            "c.py",
+            """
+                import __strict__
+                from a import X as Xa
+                from b import X as Xb
+
+                if Xa is not Xb:
+                    raise Exception('no way')
+            """,
+        )
+        # These should pass strict module analysis and
+        # load successfully, we shouldn't end up with any
+        # weird identity with our analysis objects between
+        # analysis and execution.
+        with self.sbx.begin_loader(STRICT_LOADER):
+            __import__("b")
+            __import__("a")
+            __import__("c")
