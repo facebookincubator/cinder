@@ -41,8 +41,12 @@ class B:
   strictmod::Symtable table(std::move(result.value().symbols));
   SymtableEntry entry = table.entryFromAst(ast);
   auto map = std::make_shared<sequence_map<std::string, int>>();
+  // not used but scopestack always expect a builtin scope
+  auto builtinScope = std::shared_ptr(factory(entry, map));
   auto topScope = std::shared_ptr(factory(entry, map));
+
   std::vector<std::shared_ptr<Scope<int, std::nullptr_t>>> scopeVector;
+  scopeVector.emplace_back(builtinScope);
   scopeVector.emplace_back(topScope);
   ScopeStack<int, std::nullptr_t> scopes(
       std::move(scopeVector), table, factory);

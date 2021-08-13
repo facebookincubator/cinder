@@ -140,6 +140,7 @@ Analyzer::Analyzer(
       stack_(
           table,
           scopeFactory,
+          scopeFactory(table.entryFromAst(root_), getBuiltinsDict()),
           scopeFactory(
               table.entryFromAst(root_),
               std::make_shared<DictType>())),
@@ -172,6 +173,7 @@ Analyzer::Analyzer(
       stack_(
           table,
           scopeFactory,
+          scopeFactory(table.entryFromAst(root_), getBuiltinsDict()),
           scopeFactory(table.entryFromAst(root_), std::move(toplevelNS))),
       futureAnnotations_(futureAnnotations),
       currentExceptionContext_(),

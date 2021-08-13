@@ -426,7 +426,7 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   if (analyzedModule->isStrict() || isForcedStrict(name, filename)) {
     assert(ast != nullptr);
     // Run ast visits
-    auto globalScope = std::shared_ptr(objects::getBuiltinsDict());
+    auto globalScope = std::make_shared<objects::DictType>();
     // create module object. Analysis result will be the __dict__ of this object
     auto mod =
         StrictModuleObject::makeStrictModule(ModuleType(), name, globalScope);

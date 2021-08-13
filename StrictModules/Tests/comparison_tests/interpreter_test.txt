@@ -9716,3 +9716,13 @@ def f(self):
 ---
 ---
 ---
+test_del_builtin
+---
+int = 1
+x = int
+del int
+y = int(2.0)
+---
+x y
+---
+---

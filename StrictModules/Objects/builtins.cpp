@@ -222,7 +222,6 @@ std::shared_ptr<BaseStrictObject> execImpl(
       modinfo->getAst(),
       nullptr,
       std::move(table),
-      std::shared_ptr<DictType>(getBuiltinsDict()),
       caller.errorSink,
       "<exec>",
       "<exec>",

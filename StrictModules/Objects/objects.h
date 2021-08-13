@@ -105,8 +105,8 @@ std::shared_ptr<BaseStrictObject> StrictTryImport();
 
 /* Create a dictionary containing all values in the builtins module
  */
-static inline std::unique_ptr<DictType> getBuiltinsDict() {
-  return BuiltinsModule()->copyDict();
+static inline std::shared_ptr<DictType> getBuiltinsDict() {
+  return BuiltinsModule()->getDict();
 }
 
 /** return `def` if `excName` cannot be resolved

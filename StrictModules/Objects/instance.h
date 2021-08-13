@@ -30,6 +30,10 @@ class StrictInstance : public BaseStrictObject {
     return std::make_unique<DictType>(*dict_);
   }
 
+  std::shared_ptr<DictType> getDict() {
+    return dict_;
+  }
+
   // implemented in dict_object.cpp
   std::shared_ptr<BaseStrictObject> getDunderDict();
 

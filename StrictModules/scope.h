@@ -113,21 +113,25 @@ class ScopeStack {
   ScopeStack(
       Symtable symbols,
       ScopeFactory factory,
+      std::shared_ptr<Scope<TVar, TScopeData>> builtinScope,
       std::shared_ptr<Scope<TVar, TScopeData>> topScope)
       : scopes_(),
         symbols_(std::move(symbols)),
         scopeFactory_(factory),
         currentClass_() {
+    scopes_.push_back(builtinScope);
     scopes_.push_back(topScope);
   }
 
   ScopeStack(
       Symtable symbols,
       ScopeFactory factory,
+      std::shared_ptr<Scope<TVar, TScopeData>> builtinScope,
       std::unique_ptr<Scope<TVar, TScopeData>> topScope)
       : ScopeStack(
             std::move(symbols),
             factory,
+            std::move(builtinScope),
             std::shared_ptr(std::move(topScope))) {}
 
   explicit ScopeStack(const ScopeStack<TVar, TScopeData>& rhs)
@@ -190,7 +194,8 @@ class ScopeStack {
    */
   std::string getQualifiedScopeName() const {
     std::ostringstream ss;
-    for (auto it = std::next(scopes_.begin()); it != scopes_.end(); ++it) {
+    auto start = std::next(std::next(scopes_.begin()));
+    for (auto it = start; it != scopes_.end(); ++it) {
       ss << (*it)->getScopeName();
       if (std::next(it) != scopes_.end()) {
         ss << ".";
@@ -201,6 +206,14 @@ class ScopeStack {
 
   const Symtable& getSymtable() const {
     return symbols_;
+  }
+
+  typename std::shared_ptr<Scope<TVar, TScopeData>> getGlobalScope() {
+    return *(std::next(scopes_.begin()));
+  }
+
+  typename ScopeVector::reverse_iterator getBuiltinScopeRevIt() {
+    return std::prev(scopes_.rend());
   }
 
   const Scope<TVar, TScopeData>& getCurrentScope() const {

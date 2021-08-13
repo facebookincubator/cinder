@@ -30,10 +30,10 @@ void ScopeStack<TVar, TScopeData>::set(const std::string& key, TVar value) {
   const std::string mangledKey = mangleName(key);
   const Symbol& symbol = scopes_.back()->getSTEntry().getSymbol(mangledKey);
   if (symbol.is_global()) {
-    scopes_.front()->set(key, std::move(value));
+    getGlobalScope()->set(key, std::move(value));
     return;
   } else if (symbol.is_nonlocal()) {
-    for (auto it = std::next(scopes_.rbegin()); it != scopes_.rend(); ++it) {
+    for (auto it = std::next(scopes_.rbegin()); it != getBuiltinScopeRevIt(); ++it) {
       auto scope = *it;
       if (!scope->isClassScope() && scope->contains(key)) {
         scope->set(key, std::move(value));
@@ -87,9 +87,9 @@ bool ScopeStack<TVar, TScopeData>::erase(const std::string& key) {
   const std::string mangledKey = mangleName(key);
   const Symbol& symbol = scopes_.back()->getSTEntry().getSymbol(mangledKey);
   if (symbol.is_global()) {
-    return scopes_.front()->erase(key);
+    return getGlobalScope()->erase(key);
   } else if (symbol.is_nonlocal()) {
-    for (auto it = std::next(scopes_.rbegin()); it != scopes_.rend(); ++it) {
+    for (auto it = std::next(scopes_.rbegin()); it != getBuiltinScopeRevIt(); ++it) {
       auto scope = *it;
       if (!scope->isClassScope() && scope->contains(key)) {
         return scope->erase(key);
@@ -106,7 +106,7 @@ void ScopeStack<TVar, TScopeData>::clear() {
 
 template <typename TVar, typename TScopeData>
 bool ScopeStack<TVar, TScopeData>::isGlobal(const std::string& key) const {
-  if (scopes_.size() == 1) {
+  if (scopes_.size() <= 2) {
     return true;
   }
   const std::string mangledKey = mangleName(key);
@@ -203,7 +203,7 @@ inline bool ScopeStack<TVar, TScopeData>::isClassScope() const {
 
 template <typename TVar, typename TScopeData>
 inline bool ScopeStack<TVar, TScopeData>::isGlobalScope() const {
-  return scopes_.size() == 1;
+  return scopes_.size() <= 2;
 }
 
 template <typename TVar, typename TScopeData>
