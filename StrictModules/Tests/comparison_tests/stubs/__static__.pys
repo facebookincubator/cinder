@@ -1,0 +1,43 @@
+from typing import Dict, Generic, TypeVar
+
+RAND_MAX = (1 << 31) - 1
+
+def box(x):
+    return x
+
+def unbox(x):
+    return x
+
+def cast(typ, x):
+    return x
+
+T = TypeVar("T")
+
+class Vector(Generic[T]):
+    pass
+
+
+CheckedDict = Dict
+
+class uint8(int): pass
+class int8(int): pass
+
+class uint16(int): pass
+class int16(int): pass
+
+class uint32(int): pass
+class int32(int): pass
+
+class uint64(int): pass
+class int64(int): pass
+
+def dynamic_return(func):
+    return func
+
+def allow_weakrefs(klass):
+    return klass
+
+def inline(f): return f
+
+def rand():
+    return 42

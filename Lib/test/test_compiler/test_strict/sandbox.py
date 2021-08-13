@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from compiler.strict.compiler import StaticCompiler
 from contextlib import contextmanager
 from importlib.machinery import FileFinder
 from pathlib import Path
@@ -9,9 +10,18 @@ from textwrap import dedent
 from typing import Callable, ContextManager, Generator, Type, TypeVar
 from unittest import TestCase
 
-import __strict__
-from strict_modules.compiler.static import StaticCompiler
-from strict_modules.loader import StrictSourceFileLoader
+# These are import roots used in tests and can be patched
+STUB_ROOT = ""
+ALLOW_LIST = []
+EXACT_ALLOW_LIST = []
+# XXX: put the stubs in a more sharable place?
+TESTING_STUB = str(
+    Path(__file__).parent.parent.parent.parent.parent
+    / "StrictModules"
+    / "Tests"
+    / "comparison_tests"
+    / "stubs"
+)
 
 
 class Sandbox:
@@ -55,32 +65,6 @@ def restore_sys_modules() -> Generator[None, None, None]:
     finally:
         sys.modules.clear()
         sys.modules.update(orig_modules)
-
-
-@contextmanager
-def restore_strict_modules() -> Generator[None, None, None]:
-    orig_modules = StrictSourceFileLoader.ensure_compiler()._modules.copy()
-    try:
-        yield
-    finally:
-        StrictSourceFileLoader.ensure_compiler()._modules.clear()
-        StrictSourceFileLoader.ensure_compiler()._modules.update(orig_modules)
-
-
-@contextmanager
-def restore_static_symtable() -> Generator[None, None, None]:
-    compiler = StrictSourceFileLoader.ensure_compiler()
-    if isinstance(compiler, StaticCompiler):
-        modules = compiler.symtable.modules.copy()
-    else:
-        modules = None
-
-    try:
-        yield
-    finally:
-        if modules is not None and isinstance(compiler, StaticCompiler):
-            compiler.symtable.modules.clear()
-            compiler.symtable.modules.update(modules)
 
 
 @contextmanager

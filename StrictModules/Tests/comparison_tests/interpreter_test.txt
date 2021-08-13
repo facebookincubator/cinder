@@ -9784,3 +9784,78 @@ import __strict__ as foo
 ---
 1 0 BadStrictFlagException strict flag may not be aliased
 ---
+test_abc
+---
+from abc import ABC, abstractmethod, abstractclassmethod, abstractstaticmethod, abstractproperty
+
+class A(ABC):
+    @abstractclassmethod
+    def cm(self):
+        pass
+    @abstractmethod
+    def f(self):
+        pass
+    @abstractstaticmethod
+    def sm():
+        pass
+    @abstractproperty
+    def prop(self):
+        pass
+
+
+a  = A.f.__isabstractmethod__
+b = A.cm.__isabstractmethod__
+c = A.sm.__isabstractmethod__
+d = A.prop.__isabstractmethod__
+---
+a b c d
+---
+---
+test_abc_override
+---
+from abc import ABC, abstractmethod
+
+class Abstract(ABC):
+    @abstractmethod
+    def f(self):
+        ...
+
+class Concrete(Abstract):
+    def f(self):
+        return 42
+
+a = Concrete().f()
+---
+a
+---
+---
+test_enum
+---
+from enum import IntEnum
+
+class C(IntEnum):
+    X = 1
+    Y = 2
+
+xn = C.X.name
+yn = C.Y.name
+xv = C.X.value
+yv = C.Y.value
+---
+xn yn xv yv
+---
+---
+test_inspect
+---
+import inspect
+
+def f(a, b, c):
+    pass
+
+isfunc = inspect.isfunction(f)
+isnotfunc = inspect.isfunction(42)
+params = list(inspect.signature(f).parameters)
+---
+isfunc isnotfunc params
+---
+---
