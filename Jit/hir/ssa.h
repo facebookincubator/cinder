@@ -76,7 +76,6 @@ class SSAify : public Pass {
   std::unordered_map<BasicBlock*, SSABasicBlock*> InitSSABasicBlocks(
       std::vector<BasicBlock*>& blocks);
 
-  void rewriteFrameState(Instr& instr);
   Register* getReplacement(Register* reg);
   void maybeAddPhi(SSABasicBlock* ssa_block, Register* reg, Register* out);
   void removeTrivialPhi(
