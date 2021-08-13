@@ -20,6 +20,7 @@ __all__ = [
     "loose_slots",
     "strict_slots",
     "mutable",
+    "extra_slot",
     "_mark_cached_property",
 ]
 
@@ -60,6 +61,11 @@ def mutable(obj: Type[object]) -> Type[object]:
 def strict_slots(obj: Type[object]) -> Type[object]:
     """Marks a type defined in a strict module to get slots automatically
     and no __dict__ is created"""
+    return obj
+
+
+def extra_slot(obj: Type[object], _name: str) -> Type[object]:
+    """mark `name` to be part of __slots__ in obj"""
     return obj
 
 

@@ -5,3 +5,5 @@ test_functools
 test_pyice
 test_sys
 test_tools
+test.test_compiler.test_strict.test_loader.*
+test.test_compiler.test_strict.test_strict_codegen.StrictCheckedCompilationTests.*

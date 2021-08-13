@@ -5,8 +5,22 @@ import gc
 import io
 import os
 import sys
+from compiler.strict.common import FIXED_MODULES
+from compiler.strict.compiler import StrictModuleError
+from compiler.strict.loader import (
+    _MAGIC_LEN,
+    _MAGIC_NONSTRICT,
+    _MAGIC_STRICT,
+    StrictModule,
+    StrictModuleTestingPatchProxy,
+    StrictSourceFileLoader,
+    install,
+)
+from compiler.strict.track_import_call import TrackImportCall
+from contextlib import contextmanager
 from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
 from os import path
+from pathlib import Path
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
@@ -22,56 +36,23 @@ from typing import (
     cast,
     final,
 )
-from unittest import skipIf
+from unittest import skip
+from unittest.mock import patch
 
-import strict_modules
-from strict_modules.abstract import AbstractException
-from strict_modules.common import FIXED_MODULES
-from strict_modules.exceptions import (
-    ClassAttributesConflictException,
-    ProhibitedBuiltinException,
-    StrictModuleTypeError,
-    StrictModuleUnhandledException,
-    UnknownValueAttributeException,
-    UnknownValueCallException,
-    UnsafeCallException,
-    UserException,
-)
-from strict_modules.loader import (
-    _MAGIC_LEN,
-    _MAGIC_NONSTRICT,
-    _MAGIC_STRICT,
-    StrictModule,
-    StrictModuleTestingPatchProxy,
-    StrictSourceFileLoader,
-    install,
-)
-from strict_modules.tests import sandbox as base_sandbox
-from strict_modules.tests.base import StrictModuleTest
-from strict_modules.tests.sandbox import (
+from __strict__ import set_freeze_enabled
+from cinder import freeze_type, warn_on_inst_dict, cinder_set_warn_handler
+from cinder import get_warn_handler
+
+from . import sandbox as base_sandbox
+from .common import StrictTestBase, init_cached_properties
+from .sandbox import (
     file_loader,
     on_sys_path,
     restore_static_symtable,
     restore_strict_modules,
     restore_sys_modules,
+    TESTING_STUB,
 )
-from strict_modules.track_import_call import TrackImportCall
-from testing.unittest import UnitTest
-from testing.utils import data_provider, patch
-from util.etc import cached_property, contextmanager_or_xync_decorator as contextmanager
-
-
-try:
-    from cinder import freeze_type, warn_on_inst_dict, cinder_set_warn_handler
-except ImportError:
-    freeze_type = warn_on_inst_dict = cinder_set_warn_handler = None
-
-try:
-    # pyre-fixme[21]: Could not find name `get_warn_handler` in `cinder`.
-    from cinder import get_warn_handler
-except ImportError:
-    get_warn_handler: Optional[Callable[[], None]] = None
-
 
 if TYPE_CHECKING:
     # Code that dynamically passes around module objects is hard to type, since
@@ -90,42 +71,20 @@ NORMAL_LOADER: Tuple[Type[SourceFileLoader], List[str]] = (
 )
 
 
-def init_cached_properties(
-    cached_props: Mapping[str, str | Tuple[str, bool]]
-) -> Callable[[Type[object]], Type[object]]:
-    """replace the slots in a class with a cached property which uses the slot
-    storage"""
-
-    def f(cls: Type[object]) -> Type[object]:
-        for name, mangled in cached_props.items():
-            assert (
-                isinstance(mangled, tuple)
-                and len(mangled) == 2
-                and isinstance(mangled[0], str)
-            )
-            if mangled[1] is not False:
-                raise ValueError("wrong expected constant!", mangled[1])
-            setattr(
-                cls,
-                name,
-                cached_property(cls.__dict__[mangled[0]], cls.__dict__[name]),
-            )
-        return cls
-
-    return f
-
-
 STRICT_LOADER: Tuple[Callable[[str, str], object], List[str]] = (
     lambda fullname, path: StrictSourceFileLoader(
         fullname,
         path,
+        sys.path,
         init_cached_properties=init_cached_properties,
     ),
     SOURCE_SUFFIXES,
 )
 
 STRICT_LOADER_ENABLE_PATCHING: Tuple[Callable[[str, str], object], List[str]] = (
-    lambda fullname, path: StrictSourceFileLoader(fullname, path, True),
+    lambda fullname, path: StrictSourceFileLoader(
+        fullname, path, sys.path, enable_patching=True
+    ),
     SOURCE_SUFFIXES,
 )
 
@@ -136,16 +95,14 @@ STRICT_LOADER_ENABLE_IMPORT_CALL_TRACKING: Tuple[
     lambda fullname, path: StrictSourceFileLoader(
         fullname,
         path,
-        False,
+        sys.path,
         track_import_call=True,
     ),
     SOURCE_SUFFIXES,
 )
 
-if get_warn_handler is None:
 
-    def get_warn_handler() -> None:
-        return None
+ALLOW_LIST = ["_collections_abc"]
 
 
 @contextmanager
@@ -160,12 +117,11 @@ def write_bytecode() -> Generator[None, None, None]:
 
 @contextmanager
 def ensure_type_patch(enabled: bool = True) -> Generator[None, None, None]:
-    prev = strict_modules.TYPE_FREEZE_ENABLED
-    strict_modules.TYPE_FREEZE_ENABLED = enabled
+    prev = set_freeze_enabled(enabled)
     try:
         yield
     finally:
-        strict_modules.TYPE_FREEZE_ENABLED = prev
+        set_freeze_enabled(prev)
 
 
 @contextmanager
@@ -183,26 +139,8 @@ def with_warn_handler() -> Generator[Sequence[Tuple[object, ...]], None, None]:
         cinder_set_warn_handler(prev)
 
 
-@contextmanager
-def disable_compiler_caching() -> Generator[None, None, None]:
-    compiler = StrictSourceFileLoader.ensure_compiler()
-    caching = compiler.support_cache
-    compiler.support_cache = False
-    try:
-        yield
-    finally:
-        compiler.support_cache = caching
-
-
 # pyre-fixme[24]: Generic type `Callable` expects 2 type parameters.
 TCallable = TypeVar("TCallable", bound=Callable)
-
-
-def skipIfOldCinder(test_func: TCallable) -> TCallable:
-    return skipIf(
-        freeze_type is None or warn_on_inst_dict is None,
-        "running on an older version of Cinder or vanilla Python",
-    )(test_func)
 
 
 class Sandbox(base_sandbox.Sandbox):
@@ -234,16 +172,13 @@ class Sandbox(base_sandbox.Sandbox):
             return self.import_modules(*module_names)
 
     def import_modules(self, *module_names: str) -> TModule | List[TModule]:
-        with disable_compiler_caching():
-            for mod_name in module_names:
-                __import__(mod_name)
+        for mod_name in module_names:
+            __import__(mod_name)
 
-            mods = [sys.modules[mod_name] for mod_name in module_names]
-            return (
-                cast("TModule", mods[0])
-                if len(mods) == 1
-                else cast("List[TModule]", mods)
-            )
+        mods = [sys.modules[mod_name] for mod_name in module_names]
+        return (
+            cast("TModule", mods[0]) if len(mods) == 1 else cast("List[TModule]", mods)
+        )
 
     @contextmanager
     def in_strict_module(
@@ -284,9 +219,7 @@ def sandbox() -> Generator[Sandbox, None, None]:
 
 
 @final
-class StrictLoaderInstallTest(UnitTest):
-    ONCALL_SHORTNAME = "strictmod"
-
+class StrictLoaderInstallTest(StrictTestBase):
     def test_install(self) -> None:
         with file_loader(NORMAL_LOADER):
             orig_hooks_len = len(sys.path_hooks)
@@ -295,14 +228,14 @@ class StrictLoaderInstallTest(UnitTest):
 
 
 @final
-class StrictLoaderTest(StrictModuleTest):
+class StrictLoaderTest(StrictTestBase):
     ONCALL_SHORTNAME = "strictmod"
 
     def setUp(self) -> None:
         self.sbx = base_sandbox.use_cm(sandbox, self)
 
     def test_bad_strict(self) -> None:
-        with self.assertRaises(ProhibitedBuiltinException):
+        with self.assertRaises(StrictModuleError):
             self.sbx.strict_from_code('import __strict__\neval("2")')
 
     def test_ok_strict(self) -> None:
@@ -354,16 +287,13 @@ class StrictLoaderTest(StrictModuleTest):
         self.assertEqual(mod3.__cached__, mod3.__spec__.cached)
         self.assertTrue(os.path.exists(mod3.__cached__))
 
-    @data_provider(
-        [("x = 2", _MAGIC_NONSTRICT), ("import __strict__\nx = 2", _MAGIC_STRICT)]
-    )
-    def test_magic_number(self, code_str: str, magic: bytes) -> None:
+    def test_magic_number(self) -> None:
         """Extra magic number is written to pycs, and validated."""
-        self.sbx.write_file("a.py", code_str)
+        self.sbx.write_file("a.py", "import __strict__\nx = 2")
         mod = self.sbx.strict_import("a")
 
         with open(mod.__cached__, "rb") as fh:
-            self.assertEqual(fh.read(_MAGIC_LEN), magic)
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_STRICT)
 
         BAD_MAGIC = (65535).to_bytes(2, "little") + b"\r\n"
 
@@ -374,7 +304,26 @@ class StrictLoaderTest(StrictModuleTest):
         mod2 = self.sbx.strict_import("a")
 
         with open(mod2.__cached__, "rb") as fh:
-            self.assertEqual(fh.read(_MAGIC_LEN), magic)
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_STRICT)
+
+    def test_magic_number_non_strict(self) -> None:
+        """Extra magic number is written to pycs, and validated."""
+        self.sbx.write_file("a.py", "x=2")
+        mod = self.sbx.strict_import("a")
+
+        with open(mod.__cached__, "rb") as fh:
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_NONSTRICT)
+
+        BAD_MAGIC = (65535).to_bytes(2, "little") + b"\r\n"
+
+        with open(mod.__cached__, "r+b") as fh:
+            fh.write(BAD_MAGIC)
+
+        # with bad magic number, file can still import and correct pyc is written
+        mod2 = self.sbx.strict_import("a")
+
+        with open(mod2.__cached__, "rb") as fh:
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_NONSTRICT)
 
     def test_strict_loader_toggle(self) -> None:
         """Repeat imports with strict module loader toggled off/on/off work correctly."""
@@ -653,8 +602,11 @@ class StrictLoaderTest(StrictModuleTest):
             D = C()
 
         """
-        self.sbx.write_file("foo.py", test_case)
-        self.sbx.strict_import("foo")
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
+            base_sandbox, "ALLOW_LIST", ALLOW_LIST
+        ):
+            self.sbx.write_file("foo.py", test_case)
+            self.sbx.strict_import("foo")
 
     def test_import_child_module(self) -> None:
         self.sbx.write_file(
@@ -733,7 +685,7 @@ class StrictLoaderTest(StrictModuleTest):
                 x = b.C
             """,
         )
-        with self.assertRaises(UnknownValueAttributeException):
+        with self.assertRaises(StrictModuleError):
             self.sbx.strict_import("b")
 
     def test_import_child_module_side_effects(self) -> None:
@@ -884,7 +836,7 @@ class StrictLoaderTest(StrictModuleTest):
         )
 
         # The import should fail since __path__ is deleted
-        with self.assertRaises(UnknownValueAttributeException):
+        with self.assertRaises(StrictModuleError):
             self.sbx.strict_import("b")
 
     def test_import_child_module_changes_name(self) -> None:
@@ -944,7 +896,7 @@ class StrictLoaderTest(StrictModuleTest):
                 x = C()
             """,
         )
-        with self.assertRaises(UnknownValueCallException):
+        with self.assertRaises(StrictModuleError):
             self.sbx.strict_import("b")
 
     def test_cross_module_circular(self) -> None:
@@ -996,7 +948,7 @@ class StrictLoaderTest(StrictModuleTest):
 
             """,
         )
-        with self.assertRaises(UnsafeCallException):
+        with self.assertRaises(StrictModuleError):
             self.sbx.strict_import("b")
 
     def test_cross_module_package_import_from_strict_package(self) -> None:
@@ -1044,7 +996,7 @@ class StrictLoaderTest(StrictModuleTest):
             """,
         )
 
-        with self.assertRaises(UnknownValueAttributeException):
+        with self.assertRaises(StrictModuleError):
             self.sbx.strict_import("a.b")
 
     def test_cross_module_package_import_from_nonstrict_package_direct_import(
@@ -1207,8 +1159,11 @@ class StrictLoaderTest(StrictModuleTest):
         # break in requestcontext, causing SomeType to be unknown. But if we
         # start from jkbase, the cycle breaks in other, causing JustKnobBoolean
         # to be unknown
-        jkbase, other = self.sbx.strict_import("jkbase", "other")
-        self.assertEqual(type(other.x), jkbase.JustKnobBoolean)
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
+            base_sandbox, "ALLOW_LIST", ALLOW_LIST
+        ):
+            jkbase, other = self.sbx.strict_import("jkbase", "other")
+            self.assertEqual(type(other.x), jkbase.JustKnobBoolean)
 
     def test_annotations_present(self) -> None:
         code = """
@@ -1237,6 +1192,7 @@ class StrictLoaderTest(StrictModuleTest):
         mod = self.sbx.strict_from_code(code)
         self.assertEqual(mod.__annotations__, {"x": int, "y": 100})
 
+    @skip("did not port class def conflict checker yet")
     def test_class_ann_assigned_and_inited(self) -> None:
         code = """
             import __strict__
@@ -1245,7 +1201,7 @@ class StrictLoaderTest(StrictModuleTest):
                 def __init__(self):
                     self.x = 20
         """
-        with self.assertRaises(ClassAttributesConflictException) as cm:
+        with self.assertRaises(StrictModuleError) as cm:
             self.sbx.strict_from_code(code)
         self.assertEqual(cm.exception.names, ["x"])
         self.assertTrue(cm.exception.filename.endswith("testmodule.py"))
@@ -1258,6 +1214,7 @@ class StrictLoaderTest(StrictModuleTest):
         """
         self.sbx.strict_from_code(code)
 
+    @skip("did not port class def conflict checker yet")
     def test_class_annotations_global(self) -> None:
         code = """
             import __strict__
@@ -1267,7 +1224,7 @@ class StrictLoaderTest(StrictModuleTest):
                 y: bool
                 z = __annotations__
         """
-        with self.assertRaises(ClassAttributesConflictException) as cm:
+        with self.assertRaises(StrictModuleError) as cm:
             self.sbx.strict_from_code(code)
         self.assertEqual(cm.exception.names, ["__annotations__"])
         self.assertTrue(cm.exception.filename.endswith("testmodule.py"))
@@ -1288,48 +1245,6 @@ class StrictLoaderTest(StrictModuleTest):
         """
         self.sbx.strict_from_code(code)
 
-    def test_ig_patch(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __strict__
-                x = 2
-                def f():
-                    return x
-            """,
-        )
-        self.sbx.write_file(
-            "b.py",
-            """
-                import __strict__
-                import a
-                from testing.utils import patch
-
-                def fake_test(cb):
-                    with patch('a.x', 100):
-                        cb(a)
-                        return a.x
-            """,
-        )
-
-        with self.sbx.with_strict_patching():
-            a: TModule = cast("TModule", __import__("a"))
-            b: TModule = cast("TModule", __import__("b"))
-
-            def cb(mod: object) -> None:
-                self.assertIs(a, mod)
-                # we see the update
-                self.assertEqual(a.x, 100)
-                # the module sees the update
-                # pyre-fixme[29]: `int` is not a function.
-                # pyre-fixme[29]: `int` is not a function.
-                self.assertEqual(a.f(), 100)
-
-            # the importing mod sees the update
-            # pyre-fixme[29]: `int` is not a function.
-            # pyre-fixme[29]: `int` is not a function.
-            self.assertEqual(b.fake_test(cb), 100)
-
     def test_source_callback(self) -> None:
         calls: List[str] = []
 
@@ -1342,7 +1257,9 @@ class StrictLoaderTest(StrictModuleTest):
             self.assertTrue(bytecode_path.endswith(".pyc"))
 
         logging_loader = (
-            lambda fullname, path: StrictSourceFileLoader(fullname, path, False, log),
+            lambda fullname, path: StrictSourceFileLoader(
+                fullname, path, sys.path, log_source_load=log
+            ),
             SOURCE_SUFFIXES,
         )
 
@@ -1572,10 +1489,11 @@ class StrictLoaderTest(StrictModuleTest):
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
         self.sbx.write_file("b.py", "import __strict__\nimport a\na.foo = 42")
 
-        with self.assertRaisesRegex(
-            StrictModuleTypeError, "Cannot set attribute 'foo' on module 'a'"
-        ):
+        with self.assertRaises(StrictModuleError) as cm:
             self.sbx.strict_import("b")
+        self.assertEqual(
+            cm.exception.msg, "can't set attribute foo of immutable module 'a'"
+        )
 
     def test_generic_namedtuple(self) -> None:
         code = """
@@ -1589,24 +1507,28 @@ class StrictLoaderTest(StrictModuleTest):
 
             a = C(42, 'foo')
         """
-
-        mod = self.sbx.strict_from_code(code)
-        self.assertEqual(mod.a, (42, "foo"))
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
+            base_sandbox, "ALLOW_LIST", ALLOW_LIST
+        ):
+            mod = self.sbx.strict_from_code(code)
+            self.assertEqual(mod.a, (42, "foo"))
 
     def test_generic_slots(self) -> None:
         code = """
             import __strict__
 
-            from strict_modules import strict_slots
+            from __strict__ import strict_slots
             from typing import Generic, TypeVar
 
             @strict_slots
             class C(Generic[TypeVar('T')]):
                 pass
         """
-
-        mod = self.sbx.strict_from_code(code)
-        self.assertEqual(mod.C.__slots__, ("__orig_class__",))
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
+            base_sandbox, "ALLOW_LIST", ALLOW_LIST
+        ):
+            mod = self.sbx.strict_from_code(code)
+            self.assertEqual(mod.C.__slots__, ("__orig_class__",))
 
     def test_ordered_keys(self) -> None:
         code = """
@@ -1622,7 +1544,6 @@ class StrictLoaderTest(StrictModuleTest):
             [k for k in mod.__dict__.keys() if not k.startswith("__")], ["x", "y", "z"]
         )
 
-    @skipIfOldCinder
     def test_type_freeze(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nclass C: pass")
         with ensure_type_patch():
@@ -1630,7 +1551,6 @@ class StrictLoaderTest(StrictModuleTest):
             with self.assertRaises(TypeError):
                 C.foo = 42
 
-    @skipIfOldCinder
     def test_type_freeze_mutate_after(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nclass C: pass\nC.foo = 42")
         with ensure_type_patch():
@@ -1639,7 +1559,6 @@ class StrictLoaderTest(StrictModuleTest):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
-    @skipIfOldCinder
     def test_type_freeze_func(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1655,7 +1574,6 @@ class StrictLoaderTest(StrictModuleTest):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
-    @skipIfOldCinder
     def test_type_freeze_func_loop(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1674,7 +1592,6 @@ class StrictLoaderTest(StrictModuleTest):
                 with self.assertRaises(TypeError):
                     C.foo = 100
 
-    @skipIfOldCinder
     def test_type_freeze_func_mutate_after(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1692,7 +1609,6 @@ class StrictLoaderTest(StrictModuleTest):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
-    @skipIfOldCinder
     def test_type_freeze_nested(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1707,13 +1623,12 @@ class StrictLoaderTest(StrictModuleTest):
             with self.assertRaises(TypeError):
                 D.foo = 100
 
-    @skipIfOldCinder
     def test_type_mutable(self) -> None:
         self.sbx.write_file(
             "a.py",
             """
                 import __strict__
-                from strict_modules import mutable
+                from __strict__ import mutable
 
                 @mutable
                 class C:
@@ -1725,7 +1640,6 @@ class StrictLoaderTest(StrictModuleTest):
             C.foo = 42
             self.assertEqual(C.foo, 42)
 
-    @skipIfOldCinder
     def test_type_freeze_disabled(self) -> None:
         with ensure_type_patch(False):
             self.sbx.write_file("a.py", "import __strict__\nclass C: pass")
@@ -1733,13 +1647,12 @@ class StrictLoaderTest(StrictModuleTest):
             C.foo = 42
             self.assertEqual(C.foo, 42)
 
-    @skipIfOldCinder
     def test_loose_slots(self) -> None:
         self.sbx.write_file(
             "a.py",
             """
                 import __strict__
-                from strict_modules import loose_slots
+                from __strict__ import loose_slots
 
                 @loose_slots
                 class C:
@@ -1791,7 +1704,6 @@ class StrictLoaderTest(StrictModuleTest):
                 ],
             )
 
-    @skipIfOldCinder
     def test_loose_slots_with_unknown_bases(self) -> None:
         self.sbx.write_file(
             "b.py",
@@ -1808,7 +1720,7 @@ class StrictLoaderTest(StrictModuleTest):
             "a.py",
             """
                 import __strict__
-                from strict_modules import loose_slots
+                from __strict__ import loose_slots
                 from b import C1, C2
 
                 # __dict__ not included
@@ -1895,7 +1807,6 @@ class StrictLoaderTest(StrictModuleTest):
                 warnings,
             )
 
-    @skipIfOldCinder
     def test_class_explicit_dict_no_warning(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1912,13 +1823,12 @@ class StrictLoaderTest(StrictModuleTest):
             a.foo = 42
             self.assertEqual(warnings, [])
 
-    @skipIfOldCinder
     def test_cached_property_x(self) -> None:
         self.sbx.write_file(
             "a.py",
             """
                 import __strict__
-                from strict_modules import _mark_cached_property, strict_slots
+                from __strict__ import _mark_cached_property, strict_slots
                 called = 0
                 def dec(x):
                     _mark_cached_property(x, False, dec)
@@ -1942,13 +1852,12 @@ class StrictLoaderTest(StrictModuleTest):
 
         self.assertFalse(hasattr(a, "__dict__"))
 
-    @skipIfOldCinder
     def test_cached_property_mark_async(self) -> None:
         self.sbx.write_file(
             "a.py",
             """
                 import __strict__
-                from strict_modules import _mark_cached_property, strict_slots
+                from __strict__ import _mark_cached_property, strict_slots
                 called = 0
                 def dec(x):
                     _mark_cached_property(x, True, dec)
@@ -1966,13 +1875,12 @@ class StrictLoaderTest(StrictModuleTest):
         with self.assertRaises(ValueError):
             self.sbx.strict_import("a")
 
-    @skipIfOldCinder
     def test_cached_property_private(self) -> None:
         self.sbx.write_file(
             "a.py",
             """
                 import __strict__
-                from strict_modules import _mark_cached_property, strict_slots
+                from __strict__ import _mark_cached_property, strict_slots
                 called = 0
                 def dec(x):
                     _mark_cached_property(x, False, dec)
@@ -1996,13 +1904,12 @@ class StrictLoaderTest(StrictModuleTest):
 
         self.assertFalse(hasattr(a, "__dict__"))
 
-    @skipIfOldCinder
     def test_cached_property_ownership(self) -> None:
         self.sbx.write_file(
             "a.py",
             """
                 import __strict__
-                from strict_modules import _mark_cached_property, strict_slots
+                from __strict__ import _mark_cached_property, strict_slots
                 called = 0
                 def dec(x):
                     _mark_cached_property(x, False, dec)
@@ -2030,7 +1937,7 @@ class StrictLoaderTest(StrictModuleTest):
                 c.l
             """,
         )
-        with self.assertRaises(UnsafeCallException):
+        with self.assertRaises(StrictModuleError):
             self.sbx.strict_import("b")
 
     def test_attribute_error(self) -> None:
@@ -2053,18 +1960,11 @@ class StrictLoaderTest(StrictModuleTest):
         )
         self.sbx.write_file("b.py", "import __strict__\nimport a\nx = a.f()")
 
-        with self.assertExceptionMatch(
-            UnsafeCallException,
-            callable_name="f",
-            filename=self.matchEndswith("b.py"),
-            cause=self.Match(
-                UnknownValueAttributeException,
-                unknown_name="does_not_exist",
-                attribute="x",
-                filename=self.matchEndswith("a.py"),
-            ),
-        ):
+        with self.assertRaises(StrictModuleError) as cm:
             self.sbx.strict_import("b")
+        e = cm.exception
+        self.assertTrue(e.filename.endswith("b.py"))
+        self.assertTrue(e.msg.startswith("StrictModuleUnhandledException(NameError)"))
 
     def test_cross_module_raise(self) -> None:
         self.sbx.write_file(
@@ -2077,18 +1977,11 @@ class StrictLoaderTest(StrictModuleTest):
         )
         self.sbx.write_file("b.py", "import __strict__\nimport a\nx = a.f()")
 
-        with self.assertExceptionMatch(
-            StrictModuleUnhandledException,
-            exception_name="ValueError",
-            exception_args=[],
-            filename=self.matchEndswith("b.py"),
-            cause=self.Match(
-                UserException,
-                filename=self.matchEndswith("a.py"),
-                wrapped=self.matchIsInstance(AbstractException),
-            ),
-        ):
+        with self.assertRaises(StrictModuleError) as cm:
             self.sbx.strict_import("b")
+        e = cm.exception
+        self.assertTrue(e.filename.endswith("b.py"))
+        self.assertTrue(e.msg.startswith("StrictModuleUnhandledException(ValueError)"))
 
     def test_cross_module_raise_handled(self) -> None:
         self.sbx.write_file(
@@ -2132,11 +2025,12 @@ class StrictLoaderTest(StrictModuleTest):
                     return 42
         """,
         )
-        a = self.sbx.strict_import("a")
-        x = a.C()
-        self.assertEqual(x.f(), 42)
-        self.assertEqual(x.f(), 42)
-        self.assertEqual(x.calls, 1)
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB):
+            a = self.sbx.strict_import("a")
+            x = a.C()
+            self.assertEqual(x.f(), 42)
+            self.assertEqual(x.f(), 42)
+            self.assertEqual(x.calls, 1)
 
     def test_lru_cache_top_level(self) -> None:
         # lru cache exists and can be used normally
@@ -2153,8 +2047,9 @@ class StrictLoaderTest(StrictModuleTest):
             C().f()
         """,
         )
-        with self.assertRaises(StrictModuleUnhandledException):
-            self.sbx.strict_import("a")
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB):
+            with self.assertRaises(StrictModuleError):
+                self.sbx.strict_import("a")
 
     def test_is_module(self) -> None:
         self.sbx.write_file(
@@ -2203,7 +2098,9 @@ class StrictLoaderTest(StrictModuleTest):
                 from typing import List
             """,
         )
-        with self.sbx.in_strict_module("a") as mod:
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
+            base_sandbox, "ALLOW_LIST", ALLOW_LIST
+        ), self.sbx.in_strict_module("a") as mod:
             self.assertIs(mod.List, List)
 
     def test_static_python_try_aliases_builtin(self) -> None:
@@ -2235,7 +2132,9 @@ class StrictLoaderTest(StrictModuleTest):
                     return a
             """,
         )
-        with self.sbx.with_strict_patching():
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
+            base_sandbox, "ALLOW_LIST", ALLOW_LIST
+        ), self.sbx.with_strict_patching():
             a = __import__("a")
             self.assertEqual(a.__final_constants__, ("a",))
 
@@ -2272,11 +2171,14 @@ class StrictLoaderTest(StrictModuleTest):
                 pass
             """,
         )
-        a, b = self.sbx.strict_import("a", "b")
-        self.assertEqual(a.D.x, [])
+        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
+            base_sandbox, "ALLOW_LIST", ALLOW_LIST
+        ):
+            a, b = self.sbx.strict_import("a", "b")
+            self.assertEqual(a.D.x, [])
 
     def test_loading_allowlisted_dependencies(self) -> None:
-        with patch("strict_modules.compiler.compiler.ALLOW_LIST", ["dir_a.a"]):
+        with patch.object(base_sandbox, "ALLOW_LIST", ["dir_a.a"]):
             self.sbx.write_file(
                 "dir_a/a.py",
                 """
@@ -2289,7 +2191,7 @@ class StrictLoaderTest(StrictModuleTest):
                 "b.py",
                 """
                 import __strict__
-                from strict_modules import strict_slots
+                from __strict__ import strict_slots
                 from dir_a.a import A
                 a = A()
                 if a.x:
@@ -2360,7 +2262,7 @@ class StrictLoaderTest(StrictModuleTest):
             "a.py",
             """
             import __strict__
-            from strict_modules import strict_slots
+            from __strict__ import strict_slots
             @strict_slots
             class A(int):
                 x = 1
@@ -2411,9 +2313,13 @@ class StrictLoaderTest(StrictModuleTest):
             """,
         )
         tracker = TrackImportCall()
-        with patch("strict_modules.loader.tracker", tracker), patch.dict(
+        with patch("compiler.strict.loader.tracker", tracker), patch.dict(
+            FIXED_MODULES["__strict__"], {"track_import_call": tracker.register}
+        ), patch.dict(
             FIXED_MODULES["strict_modules"], {"track_import_call": tracker.register}
-        ), self.sbx.with_import_call_tracking(True):
+        ), self.sbx.with_import_call_tracking(
+            True
+        ):
             __import__("b")
             self.assertIn("a", tracker.tracked_modules)
             self.assertEqual(len(tracker.tracked_modules), 1)
@@ -2428,9 +2334,13 @@ class StrictLoaderTest(StrictModuleTest):
             """,
         )
         tracker = TrackImportCall()
-        with patch("strict_modules.loader.tracker", tracker), patch.dict(
+        with patch("compiler.strict.loader.tracker", tracker), patch.dict(
             FIXED_MODULES["strict_modules"], {"track_import_call": tracker.register}
-        ), self.sbx.with_import_call_tracking(True):
+        ), patch.dict(
+            FIXED_MODULES["__strict__"], {"track_import_call": tracker.register}
+        ), self.sbx.with_import_call_tracking(
+            True
+        ):
             a = __import__("a")
             self.assertEqual(a.f(1), 1)
             self.assertEqual(len(tracker.tracked_modules), 0)
@@ -2455,8 +2365,12 @@ class StrictLoaderTest(StrictModuleTest):
             """,
         )
         tracker = TrackImportCall()
-        with patch("strict_modules.loader.tracker", tracker), patch.dict(
+        with patch("compiler.strict.loader.tracker", tracker), patch.dict(
             FIXED_MODULES["strict_modules"], {"track_import_call": tracker.register}
-        ), self.sbx.with_import_call_tracking(False):
+        ), patch.dict(
+            FIXED_MODULES["__strict__"], {"track_import_call": tracker.register}
+        ), self.sbx.with_import_call_tracking(
+            False
+        ):
             __import__("b")
             self.assertEqual(len(tracker.tracked_modules), 0)

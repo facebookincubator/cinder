@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import ast
+import asyncio
+import builtins
 import compiler.strict
 import gc
 import inspect
 import sys
 from compiler.strict import StrictCodeGenerator, strict_compile
 from compiler.strict.common import FIXED_MODULES
+from compiler.strict.compiler import StaticCompiler
+from compiler.strict.loader import StrictModule
 from contextlib import contextmanager
 from types import CodeType
-from typing import Type
+from typing import Mapping, Tuple, Type, Callable
 
 import cinder
 from __strict__ import set_freeze_enabled
+from cinder import cached_property
 from test.test_compiler.common import CompilerTest
 
 
@@ -116,3 +121,82 @@ class StrictTestBase(CompilerTest):
     @classmethod
     def tearDownClass(cls):
         compiler.strict.enable_strict_features = cls.strict_features
+
+
+def init_cached_properties(
+    cached_props: Mapping[str, str | Tuple[str, bool]]
+) -> Callable[[Type[object]], Type[object]]:
+    """replace the slots in a class with a cached property which uses the slot
+    storage"""
+
+    def f(cls: Type[object]) -> Type[object]:
+        for name, mangled in cached_props.items():
+            assert (
+                isinstance(mangled, tuple)
+                and len(mangled) == 2
+                and isinstance(mangled[0], str)
+            )
+            if mangled[1] is not False:
+                raise ValueError("wrong expected constant!", mangled[1])
+            setattr(
+                cls,
+                name,
+                cached_property(cls.__dict__[mangled[0]], cls.__dict__[name]),
+            )
+        return cls
+
+    return f
+
+
+class StrictTestWithCheckerBase(StrictTestBase):
+    def check_and_compile(
+        self,
+        source,
+        modname="<module>",
+        optimize=0,
+    ):
+        compiler = StaticCompiler([], "", [], [])
+        source = inspect.cleandoc("\n" + source)
+        code, _ = compiler.load_compiled_module_from_source(
+            source, f"{modname}.py", modname, optimize
+        )
+        return code
+
+    def _exec_strict_code(
+        self,
+        compiled: CodeType,
+        name: str,
+        enable_patching=False,
+        additional_dicts=None,
+    ):
+        d = {"__name__": name, "<fixed-modules>": FIXED_MODULES}
+        d.update(additional_dicts or {})
+        m = StrictModule(d, enable_patching)
+        d["<strict_module>"] = m
+        sys.modules[name] = m
+        exec(compiled, d)
+        return d, m
+
+    def _check_and_exec(
+        self,
+        source,
+        modname="<module>",
+        optimize=0,
+    ):
+        code = self.check_and_compile(source, modname, optimize)
+        dict_for_rewriter = {
+            "<builtins>": builtins.__dict__,
+            "<init-cached-properties>": init_cached_properties,
+        }
+        return self._exec_strict_code(code, modname, additional_dicts=dict_for_rewriter)
+
+    @contextmanager
+    def in_checked_module(self, code, name=None, optimize=0):
+        d = None
+        if name is None:
+            name = self._temp_mod_name()
+        try:
+            d, m = self._check_and_exec(code, name, optimize)
+            yield m
+        finally:
+            self._finalize_module(name, d)

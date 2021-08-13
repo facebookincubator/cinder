@@ -1,4 +1,4 @@
-# pyre-unsafe
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
 import builtins
@@ -24,6 +24,7 @@ from typing import (
     Collection,
     Dict,
     Generic,
+    Iterable,
     List,
     Mapping,
     NoReturn,
@@ -35,25 +36,9 @@ from typing import (
     final,
 )
 
-# pyre-fixme[21]: Could not find module `strict_modules.common`.
-from strict_modules.common import FIXED_MODULES, MAGIC_NUMBER, ErrorSink
-
-# pyre-fixme[21]: Could not find module `strict_modules.compiler`.
-from strict_modules.compiler import Compiler
-
-# pyre-fixme[21]: Could not find module `strict_modules.compiler.modules`.
-from strict_modules.compiler.modules import ModuleKind
-
-# pyre-fixme[21]: Could not find module `strict_modules.track_import_call`.
-from strict_modules.track_import_call import tracker
-
-
-StaticCompiler = Compiler
-try:
-    # pyre-fixme[21]: Could not find module `strict_modules.compiler.static`.
-    from strict_modules.compiler.static import StaticCompiler
-except ImportError:
-    pass
+from .common import FIXED_MODULES, MAGIC_NUMBER
+from .compiler import NONSTRICT_MODULE_KIND, StaticCompiler, TIMING_LOGGER_TYPE
+from .track_import_call import tracker
 
 
 if TYPE_CHECKING:
@@ -64,6 +49,7 @@ if TYPE_CHECKING:
     @final
     class Descriptor(ABC, Generic[TVar]):
         def __get__(self, inst: object, ctx: object = None) -> TVar:
+            # pyre-fixme[7]: Expected `TVar` but got implicit return value of `None`.
             pass
 
         def __set__(self, inst: object, value: TVar) -> None:
@@ -102,6 +88,7 @@ class StrictModule(ModuleType):
             if not k.startswith("<") and d.get("<assigned:" + k + ">") is not False
         }
 
+    # pyre-fixme[3]
     def __getattr__(self, name: str) -> Any:
         glbs = _globals_slot.__get__(self)
         try:
@@ -166,7 +153,7 @@ del StrictModule.__global_setter__
 
 
 try:
-    # pyre-fixme[21]: Could not find module `cinder`.
+    # pyre-fixme[21]
     from cinder import StrictModule
 
     # noqa F811 redefinition to use cinder implementation
@@ -296,14 +283,17 @@ __builtins__: ModuleType
 # pyre-fixme[13]: Attribute `path` is never initialized.
 class StrictSourceFileLoader(SourceFileLoader):
     strict: bool = False
-    # pyre-fixme[11]: Annotation `Compiler` is not defined as a type.
-    compiler: Optional[Compiler] = None
+    compiler: Optional[StaticCompiler] = None
     module: Optional[ModuleType] = None
 
     def __init__(
         self,
         fullname: str,
         path: str,
+        import_path: Optional[Iterable[str]] = None,
+        stub_path: str = "",
+        allow_list_prefix: Optional[Iterable[str]] = None,
+        allow_list_exact: Optional[Iterable[str]] = None,
         enable_patching: bool = False,
         log_source_load: Optional[Callable[[str, Optional[str], bool], None]] = None,
         track_import_call: bool = False,
@@ -313,8 +303,13 @@ class StrictSourceFileLoader(SourceFileLoader):
                 Callable[[Type[object]], Type[object]],
             ]
         ] = None,
+        log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
     ) -> None:
         super().__init__(fullname, path)
+        self.import_path: Iterable[str] = import_path or []
+        self.stub_path: str = stub_path
+        self.allow_list_prefix: Iterable[str] = allow_list_prefix or []
+        self.allow_list_exact: Iterable[str] = allow_list_exact or []
         self.enable_patching = enable_patching
         self.log_source_load: Optional[
             Callable[[str, Optional[str], bool], None]
@@ -323,15 +318,27 @@ class StrictSourceFileLoader(SourceFileLoader):
         self.bytecode_path: Optional[str] = None
         self.track_import_call = track_import_call
         self.init_cached_properties = init_cached_properties
+        self.log_time_func = log_time_func
 
     @classmethod
-    def ensure_compiler(cls) -> Compiler:
+    def ensure_compiler(
+        cls,
+        path: Iterable[str],
+        stub_path: str,
+        allow_list_prefix: Iterable[str],
+        allow_list_exact: Iterable[str],
+        log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]],
+    ) -> StaticCompiler:
         if cls.compiler is None:
             cls.compiler = StaticCompiler(
-                sys.path,
-                ErrorSink,
-                support_cache=bool(os.getenv("IG_DEVSERVER_OWNER")),
+                path,
+                stub_path,
+                allow_list_prefix,
+                allow_list_exact,
+                raise_on_error=True,
+                log_time_func=log_time_func,
             )
+        # pyre-fixme[7]: Expected `StaticCompiler` but got `Optional[StaticCompiler]`.
         return cls.compiler
 
     def get_data(self, path: bytes | str) -> bytes:
@@ -353,7 +360,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 # This is a bit ugly: OSError is the only kind of error that
                 # get_code() ignores from get_data(). But this is way better
                 # than the alternative of copying and modifying everything.
-                raise OSError(f"Bad magic number {data[:4]} in {path}")
+                raise OSError(f"Bad magic number {data[:4]!r} in {path}")
             data = data[_MAGIC_LEN:]
         return data
 
@@ -397,7 +404,13 @@ class StrictSourceFileLoader(SourceFileLoader):
             # Let the ast transform attempt to validate the strict module.  This
             # will return an unmodified module if import __strict__ isn't
             # actually at the top-level
-            mod = self.ensure_compiler().load_compiled_module_from_source(
+            code, mod = self.ensure_compiler(
+                self.import_path,
+                self.stub_path,
+                self.allow_list_prefix,
+                self.allow_list_exact,
+                self.log_time_func,
+            ).load_compiled_module_from_source(
                 data,
                 path,
                 self.name,
@@ -405,8 +418,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 submodule_search_locations,
                 self.track_import_call,
             )
-            self.strict = mod.module_kind != ModuleKind.Normal
-            code = mod.code
+            self.strict = mod.module_kind != NONSTRICT_MODULE_KIND
             return code
         self.strict = False
 
@@ -500,7 +512,7 @@ if __name__ == "__main__":
     mod: object = __import__(sys.argv[0])
     if not isinstance(mod, StrictModule):
         raise TypeError(
-            "strict_modules.loader should be used to run strict modules: "
+            "compiler.strict.loader should be used to run strict modules: "
             + type(mod).__name__
         )
     mod.__main__()  # pyre-ignore[16]: `object` has no attribute `__main__`.

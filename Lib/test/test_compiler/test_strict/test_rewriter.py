@@ -4,37 +4,27 @@ import ast
 import symtable
 import sys
 import unittest
+from compiler.strict.common import FIXED_MODULES
+from compiler.strict.loader import StrictModule
+from compiler.strict.rewriter import rewrite
+from compiler.strict.rewriter.preprocessor import ENABLE_SLOTS_DECORATOR
 from textwrap import dedent
 from types import CoroutineType, FunctionType, ModuleType
 from typing import Any, Dict, List, Optional, Set, Type, TypeVar, final
 from weakref import ref
 
-from igcinder.jit import skipIfJITCompiled
-from strict_modules.abstract import NodeAttributes
-from strict_modules.common import FIXED_MODULES
-from strict_modules.loader import StrictModule
-from strict_modules.rewriter import rewrite
-from testing.unittest import UnitTest
+from .common import StrictTestWithCheckerBase
 
 
-class MockNodeAttrsDict(Dict[ast.AST, NodeAttributes]):
-    def __getitem__(self, _name: ast.AST) -> NodeAttributes:
-        node_attr = NodeAttributes()
-        node_attr.slots_disabled = False
-        return node_attr
-
-    def get(
-        self, name: ast.AST, _default: Optional[NodeAttributes] = None
-    ) -> NodeAttributes:
-        return self.__getitem__(name)
-
-    def __bool__(self) -> bool:
-        return True
+class RewriterTestPreprocessor(ast.NodeVisitor):
+    def visit_ClassDef(self, node: ast.ClassDef):
+        name = ast.Name(ENABLE_SLOTS_DECORATOR, ast.Load())
+        name.lineno = node.lineno
+        name.col_offset = node.col_offset
+        node.decorator_list.append(name)
 
 
-class RewriterTestCase(UnitTest):
-    ONCALL_SHORTNAME = "strictmod"
-
+class RewriterTestCase(StrictTestWithCheckerBase):
     def compile_to_strict(
         self,
         code: str,
@@ -46,21 +36,19 @@ class RewriterTestCase(UnitTest):
     ) -> StrictModule:
         code = dedent(code)
         root = ast.parse(code)
-        symbols = symtable.symtable(code, "foo.py", "exec")
+        name = "foo"
+        filename = "foo.py"
+        symbols = symtable.symtable(code, filename, "exec")
+        RewriterTestPreprocessor().visit(root)
         c = rewrite(
             root,
             symbols,
-            "foo.py",
-            "foo",
+            filename,
+            name,
             "exec",
             builtins=builtins,
             track_import_call=track_import_call,
-            node_attrs=MockNodeAttrsDict(),
         )
-
-        d = {} if globals is None else dict(globals)
-        d["__name__"] = "foo"
-        mod = StrictModule(d, False)
 
         def freeze_type(freeze: Type[object]) -> None:
             pass
@@ -75,21 +63,21 @@ class RewriterTestCase(UnitTest):
             if import_call_tracker is not None:
                 import_call_tracker.add(mod)
 
-        if modules is None:
-            modules = dict(FIXED_MODULES)
-        d["<fixed-modules>"] = modules
-        d["<builtins>"] = builtins
-        d["<strict_module>"] = mod
-        modules.update(
-            strict_modules={
+        fixed_modules = modules or dict(FIXED_MODULES)
+        fixed_modules.update(
+            __strict__={
                 "freeze_type": freeze_type,
                 "loose_slots": loose_slots,
                 "track_import_call": track_import_call,
                 "strict_slots": strict_slots,
             }
         )
-        exec(c, d)
-        return mod
+        additional_dicts = globals or {}
+        additional_dicts.update(
+            {"<fixed-modules>": fixed_modules, "<builtins>": builtins}
+        )
+        d, m = self._exec_strict_code(c, name, additional_dicts=additional_dicts)
+        return m
 
 
 @final
@@ -108,10 +96,12 @@ def f():
 
     def test_decorators(self) -> None:
         code = """
+from __strict__ import strict_slots
 def dec(x):
     return x
 
 @dec
+@strict_slots
 def f():
     return 1
 """
@@ -121,10 +111,12 @@ def f():
         self.assertEqual(type(mod.f()), int)
 
         code = """
+from __strict__ import strict_slots
 def dec(x):
     return x
 
 @dec
+@strict_slots
 class C:
     x = 1
 """
@@ -136,7 +128,9 @@ class C:
     def test_visit_method_global(self) -> None:
         """test visiting an explicit global decl inside of a nested scope"""
         code = """
+from __strict__ import strict_slots
 X = 1
+@strict_slots
 class C:
     def f(self):
         global X
@@ -345,10 +339,13 @@ a = x()()() # should be 100
 
     def test_nonlocal_alias_prop(self) -> None:
         code = """
+from __strict__ import strict_slots
+@strict_slots
 class C:
     x = 1
 
 def x():
+    @strict_slots
     class C:
         x = 2
     def inner():
@@ -431,7 +428,9 @@ def f():
 
     def test_class_def(self) -> None:
         code = """
+from __strict__ import strict_slots
 x = 42
+@strict_slots
 class C:
     def f(self):
         return x
@@ -442,10 +441,13 @@ class C:
 
     def test_nested_class_def(self) -> None:
         code = """
+from __strict__ import strict_slots
 x = 42
+@strict_slots
 class C:
     def f(self):
         return x
+    @strict_slots
     class D:
         def g(self):
             return x
@@ -462,7 +464,6 @@ class C:
         self.assertEqual(mod.C().f(), 42)
         self.assertEqual(mod.C.D().g(), 42)
 
-    @skipIfJITCompiled(None, "JIT does not support exec()")
     def test_exec(self) -> None:
         code = """
 y = []
@@ -494,7 +495,6 @@ f()
         mod = self.compile_to_strict(code)
         self.assertEqual(mod.x, 1)
 
-    @skipIfJITCompiled(None, "JIT does not support eval()")
     def test_eval(self) -> None:
         code = """
 y = 42
@@ -524,12 +524,11 @@ __globals__ = 42
 
 @final
 class SlotificationTestCase(RewriterTestCase):
-    ONCALL_SHORTNAME = "strictmod"
 
     def test_init(self) -> None:
         """__init__ assignemnts are initialized"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(self):
@@ -544,7 +543,7 @@ class C:
     def test_init_seq_tuple(self) -> None:
         """__init__ assignemnts are initialized"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(self):
@@ -560,7 +559,7 @@ class C:
     def test_init_seq_list(self) -> None:
         """__init__ assignemnts are initialized"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(self):
@@ -576,7 +575,7 @@ class C:
     def test_init_seq_nested(self) -> None:
         """__init__ assignemnts are initialized"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(self):
@@ -593,7 +592,7 @@ class C:
     def test_init_self_renamed(self) -> None:
         """self doesn't need to be called self..."""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(weirdo):
@@ -608,7 +607,7 @@ class C:
     def test_init_ann(self) -> None:
         """__init__ annotated assignemnts are initialized"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(self):
@@ -627,7 +626,7 @@ class C:
     def test_init_ann_self_renamed(self) -> None:
         """self doesn't need to be called self..."""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(weirdo):
@@ -640,7 +639,7 @@ class C:
     def test_class_ann(self) -> None:
         """class annotations w/o assignments get promoted to instance vars"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     x: int
@@ -659,7 +658,7 @@ class C:
     def test_class_ann_assigned(self) -> None:
         """class annotations w/ assignments aren't promoted"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     x: int = 42
@@ -673,7 +672,7 @@ class C:
     def test_no_class_ann(self) -> None:
         """only __init__ assignments count"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__(self):
@@ -689,7 +688,7 @@ class C:
     def test_bad_init(self) -> None:
         """__init__ is missing self"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__():
@@ -702,7 +701,7 @@ class C:
     def test_bad_init_ann(self) -> None:
         """__init__ is missing self"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     def __init__():
@@ -903,6 +902,8 @@ x = TypeVar('foo')
 
     def test_private_members(self) -> None:
         code = """
+from __strict__ import strict_slots
+@strict_slots
 class C:
     def __x(self):
         return 42
@@ -929,11 +930,6 @@ import xml.dom
         mod = self.compile_to_strict(code)
         self.assertEqual(type(mod.xml), ModuleType)
 
-    # pyre-fixme[56]: Argument `sys.version_info < (3, 7)` to decorator factory
-    #  `unittest.skipIf` could not be resolved in a global scope.
-    @unittest.skipIf(
-        sys.version_info < (3, 7), "This __future__ doesn't exist until 3.7"
-    )
     def test_future_imports(self) -> None:
         code = """
 from __future__ import annotations
@@ -1025,6 +1021,8 @@ async def min():
 
     def test_class_shadowed(self) -> None:
         code = """
+from __strict__ import strict_slots
+@strict_slots
 class min:
     pass
 """
@@ -1098,7 +1096,7 @@ def g():
         """declaring __dict__ at the class level allows arbitrary attributes to be added"""
         code = """
 from typing import Dict, Any
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     __dict__: Dict[str, Any]
@@ -1113,7 +1111,7 @@ class C:
         """declaring __weakref__ at the class level allows weak references"""
         code = """
 from typing import Any
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     __weakref__: Any
@@ -1126,7 +1124,7 @@ class C:
     def test_weakref(self) -> None:
         """lack of __weakref__ disallows weak references to instances"""
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     pass
@@ -1153,7 +1151,7 @@ raise Exception('no way')
 
     def test_lazy_load_exception_2(self) -> None:
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class MyException(Exception):
     pass
@@ -1358,7 +1356,7 @@ del x
         """forward dependencies cause all values to be initialized"""
 
         code = """
-from strict_modules import strict_slots
+from __strict__ import strict_slots
 @strict_slots
 class C:
     pass

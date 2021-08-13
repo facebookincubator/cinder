@@ -1564,7 +1564,7 @@ ifneq ($(strip $(ASAN_TEST_ENV)),)
 endif
 
 TESTCINDEROPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(ASAN_SKIP_TESTS))
-TESTCINDER_REFLEAK_OPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(REFLEAK_SKIP_TESTS)) -R :
+TESTCINDER_REFLEAK_OPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS)) --ignorefile $(REFLEAK_SKIP_TESTS) -R :
 ifneq ($(strip $(USE_RR)),)
 	JIT_TEST_RR_ARGS=--use-rr
 endif

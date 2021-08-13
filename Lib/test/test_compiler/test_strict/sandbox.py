@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from compiler.strict.compiler import StaticCompiler
+from compiler.strict.loader import StrictSourceFileLoader
 from contextlib import contextmanager
 from importlib.machinery import FileFinder
 from pathlib import Path
@@ -65,6 +66,36 @@ def restore_sys_modules() -> Generator[None, None, None]:
     finally:
         sys.modules.clear()
         sys.modules.update(orig_modules)
+
+
+@contextmanager
+def restore_strict_modules() -> Generator[None, None, None]:
+    try:
+        StrictSourceFileLoader.compiler = None
+        StrictSourceFileLoader.ensure_compiler(
+            sys.path, STUB_ROOT, ALLOW_LIST, EXACT_ALLOW_LIST, None
+        )
+        yield
+    finally:
+        StrictSourceFileLoader.compiler = None
+
+
+@contextmanager
+def restore_static_symtable() -> Generator[None, None, None]:
+    compiler = StrictSourceFileLoader.ensure_compiler(
+        sys.path, STUB_ROOT, ALLOW_LIST, EXACT_ALLOW_LIST, None
+    )
+    if isinstance(compiler, StaticCompiler):
+        modules = compiler.symtable.modules.copy()
+    else:
+        modules = None
+
+    try:
+        yield
+    finally:
+        if modules is not None and isinstance(compiler, StaticCompiler):
+            compiler.symtable.modules.clear()
+            compiler.symtable.modules.update(modules)
 
 
 @contextmanager
