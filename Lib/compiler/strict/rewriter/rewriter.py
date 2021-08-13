@@ -1,4 +1,4 @@
-# pyre-unsafe
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
 import ast
@@ -55,11 +55,8 @@ from typing import (
     final,
 )
 
-# pyre-fixme[21]: Could not find module `strict_modules.abstract`.
-from strict_modules.abstract import NodeAttributes
-
-# pyre-fixme[21]: Could not find module `strict_modules.common`.
-from strict_modules.common import (
+from .. import strict_compile
+from ..common import (
     FIXED_MODULES,
     AstRewriter,
     ScopeStack,
@@ -68,6 +65,15 @@ from strict_modules.common import (
     get_symbol_map,
     imported_name,
     mangle_priv_name,
+)
+from .preprocessor import (
+    ALL_INDICATORS,
+    get_cached_prop_value,
+    get_extra_slots,
+    is_indicator_dec,
+    is_mutable,
+    is_loose_slots,
+    is_strict_slots,
 )
 
 
@@ -95,19 +101,11 @@ from strict_modules.common import (
 #
 # # We want some helper methods to be available to us:
 # <strict-modules> = <fixed-modules>["strict_modules"]
-# <freeze-type> = <strict-modules>["freeze_type"]
-#
-# # To freeze types we collect all of the classes in a list, and freeze
-# # them at the end of a scope to allow mutation after creation.
-# <classes> = []
-# def <register-immutable>(cls):
-#     <classes>.append(cls)
 #
 # x = 1
 # def f():
 #     return min(x, 20)
 #
-# @<register-immutable>
 # @<init-cached-properties>({'f': '_f_impl'})
 # class C:
 #     __slots__ = ('f', )
@@ -119,21 +117,11 @@ from strict_modules.common import (
 # C.foo = 42
 #
 # def g():
+#     class C: pass
+#     return C
 #     <classes> = []
-#     def <register-immutable>(cls):
-#         <classes>.append(cls)
-#     try:
-#         class C: pass
-#         return C
-#     finally:
-#         for <cls> in <classes>:
-#             <freeze-type>(cls)
-#         <classes>.clear()
 #
 #
-# for <cls> in <classes>:
-#     <freeze-type>(cls)
-# <classes>.clear()
 #
 # # Top-level assigned names
 #
@@ -252,8 +240,6 @@ class StrictModuleRewriter:
         mode: str,
         optimize: int,
         builtins: ModuleType | Mapping[str, object] = __builtins__,
-        # pyre-fixme[11]: Annotation `NodeAttributes` is not defined as a type.
-        node_attrs: Optional[Mapping[AST, NodeAttributes]] = None,
         is_static: bool = False,
         track_import_call: bool = False,
     ) -> None:
@@ -266,13 +252,12 @@ class StrictModuleRewriter:
         self.modname = modname
         self.mode = mode
         self.optimize = optimize
-        self.node_attrs: Mapping[AST, NodeAttributes] = node_attrs or {}
         self.builtins: Mapping[str, object] = builtins
-        # pyre-fixme[11]: Annotation `SymbolMap` is not defined as a type.
         self.symbol_map: SymbolMap = get_symbol_map(root, table)
-        # pyre-fixme[11]: Annotation `SymbolScope` is not defined as a type.
         scope: SymbolScope[None, None] = SymbolScope(table, None)
-        self.visitor = ImmutableVisitor(ScopeStack(scope, symbol_map=self.symbol_map))
+        self.visitor = ImmutableVisitor(
+            ScopeStack(scope, symbol_map=self.symbol_map), ALL_INDICATORS
+        )
         # Top-level statements in the returned code object...
         self.code_stmts: List[stmt] = []
         self.is_static = is_static
@@ -297,39 +282,30 @@ class StrictModuleRewriter:
         return mod
 
     def rewrite(self) -> CodeType:
+        """Entry point for strict module compilation
+        Note that static python modules should not use this
+        """
         mod = self.transform()
-        return compile(
-            mod, self.filename, self.mode, dont_inherit=True, optimize=self.optimize
-        )
+        # rewritten AST
+        return strict_compile(self.modname, self.filename, mod, optimize=self.optimize)
 
     def load_helpers(self) -> Iterable[stmt]:
-        helpers = [
-            lineinfo(
-                make_assign(
-                    [lineinfo(ast.Name("<strict-modules>", ast.Store()))],
-                    lineinfo(
-                        ast.Subscript(
-                            lineinfo(ast.Name("<fixed-modules>", ast.Load())),
-                            lineinfo(ast.Index(lineinfo(Constant("strict_modules")))),
-                            ast.Load(),
-                        )
-                    ),
-                )
-            ),
-            lineinfo(
-                make_assign(
-                    [lineinfo(ast.Name("<freeze-type>", ast.Store()))],
-                    lineinfo(
-                        ast.Subscript(
-                            lineinfo(ast.Name("<strict-modules>", ast.Load())),
-                            lineinfo(ast.Index(lineinfo(Constant("freeze_type")))),
-                            ast.Load(),
-                        )
-                    ),
-                )
-            ),
-        ]
+        helpers = []
         if self.track_import_call:
+            helpers.append(
+                lineinfo(
+                    make_assign(
+                        [lineinfo(ast.Name("<strict-modules>", ast.Store()))],
+                        lineinfo(
+                            ast.Subscript(
+                                lineinfo(ast.Name("<fixed-modules>", ast.Load())),
+                                lineinfo(ast.Index(lineinfo(Constant("__strict__")))),
+                                ast.Load(),
+                            )
+                        ),
+                    )
+                )
+            )
             helpers.append(
                 lineinfo(
                     make_assign(
@@ -368,7 +344,6 @@ class StrictModuleRewriter:
 
     def make_transformer(
         self,
-        # pyre-fixme[11]: Annotation `ScopeStack` is not defined as a type.
         scopes: ScopeStack[None, ScopeData],
     ) -> ImmutableTransformer:
         return ImmutableTransformer(
@@ -379,7 +354,6 @@ class StrictModuleRewriter:
             self.visitor.global_sets,
             self.visitor.global_dels,
             self.visitor.future_imports,
-            self.node_attrs,
             self.is_static,
             self.track_import_call,
         )
@@ -391,7 +365,6 @@ class StrictModuleRewriter:
         transformer = self.make_transformer(scopes)
         body = transformer.visit(self.root).body
 
-        transformer.post_process_classes(body)
         return body
 
     def init_globals(self) -> Iterable[stmt]:
@@ -454,7 +427,6 @@ def rewrite(
     mode: str,
     optimize: int = -1,
     builtins: ModuleType | Mapping[str, object] = __builtins__,
-    node_attrs: Optional[Mapping[AST, NodeAttributes]] = None,
     track_import_call: bool = False,
 ) -> CodeType:
     return StrictModuleRewriter(
@@ -465,7 +437,6 @@ def rewrite(
         mode,
         optimize,
         builtins,
-        node_attrs,
         track_import_call=track_import_call,
     ).rewrite()
 
@@ -476,11 +447,14 @@ TScopeData = TypeVar("TData")
 
 
 class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
-    def __init__(self, scopes: ScopeStack[TVar, TScopeData]) -> None:
+    def __init__(
+        self, scopes: ScopeStack[TVar, TScopeData], ignore_names: Iterable[str]
+    ) -> None:
         self.scopes = scopes
+        self.ignore_names: Set[str] = set(ignore_names)
 
     def is_global(self, name: str) -> bool:
-        return self.scopes.is_global(name)
+        return name not in self.ignore_names and self.scopes.is_global(name)
 
     def scope_for(self, name: str) -> SymbolScope[TVar, TScopeData]:
         return self.scopes.scope_for(name)
@@ -570,6 +544,7 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
     ) -> SymbolScope[TVar, TScopeData]:
         scope_node = scope_node or node
         with self.scopes.with_node_scope(scope_node) as next:
+            # lint-fixme: NoAssertsRule
             assert isinstance(node, Lambda) or node.name == next.symbols.get_name()
 
             # visit body in function scope
@@ -595,8 +570,9 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
     ) -> SymbolScope[TVar, TScopeData]:
         scope_node = scope_node or node
         with self.scopes.with_node_scope(scope_node) as next:
+            # lint-fixme: NoAssertsRule
             assert node.name == next.symbols.get_name()
-
+            # visit body in class scope
             self.walk_many(node.body, update)
 
             return next
@@ -645,8 +621,10 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
 
 @final
 class ImmutableVisitor(SymbolVisitor[None, None]):
-    def __init__(self, scopes: ScopeStack[None, None]) -> None:
-        super().__init__(scopes)
+    def __init__(
+        self, scopes: ScopeStack[None, None], ignore_names: Iterable[str]
+    ) -> None:
+        super().__init__(scopes, ignore_names)
         self.globals: Set[str] = set()
         self.global_sets: Set[str] = set()
         self.global_dels: Set[str] = set()
@@ -743,6 +721,10 @@ class ScopeData:
     def visit_AnnAssign(self, node: AnnAssign) -> None:
         pass
 
+    def visit_decorators(self, node: ClassDef | FunctionDef | AsyncFunctionDef) -> None:
+        # visit the current node held by the scope data
+        pass
+
 
 @final
 class ClassScope(ScopeData):
@@ -751,11 +733,28 @@ class ClassScope(ScopeData):
         self.node = node
         self.instance_fields: Set[str] = set()
         self.cached_props: Dict[str, object] = {}
+        self.slots_enabled: bool = False
+        self.loose_slots: bool = False
+        self.extra_slots: Optional[List[str]] = None
 
     def visit_AnnAssign(self, node: AnnAssign) -> None:
         target = node.target
         if node.value is None and isinstance(target, Name):
             self.instance_fields.add(target.id)
+
+    def visit_decorators(self, node: ClassDef | FunctionDef | AsyncFunctionDef) -> None:
+        for dec in node.decorator_list:
+            if is_indicator_dec(dec):
+                if is_strict_slots(dec):
+                    self.slots_enabled = True
+                elif is_loose_slots(dec):
+                    self.loose_slots = True
+                elif (extra_slots := get_extra_slots(dec)) is not None:
+                    self.extra_slots = extra_slots
+
+        node.decorator_list = [
+            d for d in node.decorator_list if (is_mutable(d) or not is_indicator_dec(d))
+        ]
 
 
 @final
@@ -764,6 +763,8 @@ class FunctionScope(ScopeData):
         super().__init__()
         self.node = node
         self.parent = parent
+        self.is_cached_prop: bool = False
+        self.cached_prop_value: object = None
 
     def visit_AnnAssign(self, node: AnnAssign) -> None:
         parent = self.parent
@@ -799,9 +800,20 @@ class FunctionScope(ScopeData):
         ):
             self.assign_worker(node.targets, parent)
 
+    def visit_decorators(self, node: ClassDef | FunctionDef | AsyncFunctionDef) -> None:
+        for dec in node.decorator_list:
+            if is_indicator_dec(dec):
+                cached_prop_value = get_cached_prop_value(dec)
+                if cached_prop_value is not None:
+                    self.is_cached_prop = True
+                    self.cached_prop_value = cached_prop_value
+                    break
+        node.decorator_list = [
+            d for d in node.decorator_list if not is_indicator_dec(d)
+        ]
+
 
 @final
-# pyre-fixme[11]: Annotation `AstRewriter` is not defined as a type.
 class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
     def __init__(
         self,
@@ -812,11 +824,10 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         global_sets: Set[str],
         global_dels: Set[str],
         future_imports: Set[alias],
-        node_attrs: Mapping[AST, NodeAttributes],
         is_static: bool,
         track_import_call: bool,
     ) -> None:
-        super().__init__(symbols)
+        super().__init__(symbols, ALL_INDICATORS)
         symbols.scope_factory = self.make_scope
         self.modname = modname
         self.builtins = builtins
@@ -824,7 +835,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         self.global_sets = global_sets
         self.global_dels = global_dels
         self.future_imports = future_imports
-        self.node_attrs = node_attrs
         self.is_static = is_static
         self.track_import_call = track_import_call
 
@@ -861,8 +871,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
                 # exec and eval don't take keyword args, so we only need to
                 # inspect the normal arguments
                 if len(node.args) < 2:
-                    # pyre-fixme[16]: `ImmutableTransformer` has no attribute
-                    #  `clone_node`.
                     node = self.clone_node(node)
                     # we're implicitly capturing globals, make it explicit so
                     # that we get our globals dictionary.  exec/eval won't be
@@ -898,13 +906,11 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
 
         target = self.visit(node.target)
         iter = self.visit(node.iter)
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `walk_list`.
         body = self.walk_list(node.body)
         orelse = self.walk_list(node.orelse)
         if extras:
             body = body + extras
 
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `update_node`.
         return self.update_node(
             node, target=target, iter=iter, body=body, orelse=orelse
         )
@@ -954,7 +960,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
 
         Because except blocks clear the name after leaving them this also registers
         it as a global delete."""
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `walk_list`.
         body = self.walk_list(node.body)
         orelse = self.walk_list(node.orelse)
         handlers = self.walk_list(node.handlers)
@@ -990,7 +995,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
                 if handlers is node.handlers:
                     handlers = list(node.handlers)
 
-                # pyre-fixme[16]: `ImmutableTransformer` has no attribute `clone_node`.
                 handlers[i] = handler = self.clone_node(old_handler)
 
             if old_handler.body is handler.body:
@@ -1022,17 +1026,14 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
                 lineinfo(Delete([lineinfo(Name(tracker, ast.Del()))])),
             ]
 
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `update_node`.
         return self.update_node(
             node, body=body, orelse=orelse, handlers=handlers, finalbody=finalbody
         )
 
     def visit_Assign(self, node: Assign) -> TTransformedStmt:
         self.scopes.scopes[-1].scope_data.visit_Assign(node)
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `update_node`.
         node = self.update_node(
             node,
-            # pyre-fixme[16]: `ImmutableTransformer` has no attribute `walk_list`.
             targets=self.walk_list(node.targets),
             value=self.visit(node.value),
         )
@@ -1072,8 +1073,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
                 break
         else:
             # no global deletes
-            # pyre-fixme[16]: `ImmutableTransformer` has no attribute `update_node`.
-            # pyre-fixme[16]: `ImmutableTransformer` has no attribute `walk_list`.
             return self.update_node(node, targets=self.walk_list(node.targets))
 
         stmts: List[AST] = []
@@ -1099,104 +1098,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
             stmts.append(ast.Delete([self.visit(target)]))
 
         return stmts
-
-    def post_process_classes(self, body: List[stmt], mark_now: bool = True) -> None:
-        body[0:0] = [
-            make_assign_empty_list("<classes>"),
-            self.make_immutable_register(),
-        ]
-
-        if mark_now:
-            # Immediately clear at the end of the function
-            body.extend(self.make_immutable_marker_stmts())
-
-    def make_immutable_register(self) -> FunctionDef:
-        """Create a decorator which is used to capture the class so that we can
-        add it to a list so we can mark it as immutable later"""
-
-        register = make_function("<register-immutable>", [make_arg("cls")])
-        register.body = [
-            lineinfo(
-                ast.Expr(
-                    lineinfo(
-                        ast.Call(
-                            lineinfo(
-                                ast.Attribute(
-                                    lineinfo(ast.Name("<classes>", ast.Load())),
-                                    "append",
-                                    ast.Load(),
-                                )
-                            ),
-                            [lineinfo(ast.Name("cls", ast.Load()))],
-                            [],
-                        )
-                    )
-                )
-            ),
-            lineinfo(ast.Return(lineinfo(ast.Name("cls", ast.Load())))),
-        ]
-        return register
-
-    def make_immutable_marker(self, has_classdefs: bool) -> List[FunctionDef]:
-        """Produces a function which can be used to support lazy initialization
-        combined with marking types as frozen"""
-
-        if not has_classdefs:
-            return []
-
-        marker = make_function("<mark-immutable>", [])
-        marker.body = self.make_immutable_marker_stmts()
-        return [marker]
-
-    def make_immutable_marker_stmts(self) -> List[stmt]:
-        # Generates the logic to mark types as frozen.  This is just a loop over
-        # the classes which have been produced.
-        #
-        # for <cls> in <classes>:
-        #     <freeze-type>(<cls>)
-        # <cls>.clear()
-        for_loop = lineinfo(
-            ast.For(
-                lineinfo(ast.Name("<cls>", ast.Store())),
-                lineinfo(ast.Name("<classes>", ast.Load())),
-                [
-                    lineinfo(
-                        ast.Expr(
-                            lineinfo(
-                                ast.Call(
-                                    lineinfo(ast.Name("<freeze-type>", ast.Load())),
-                                    [lineinfo(ast.Name("<cls>", ast.Load()))],
-                                    [],
-                                )
-                            )
-                        )
-                    )
-                ],
-                [],
-            )
-        )
-        for_loop.type_comment = ""
-
-        return [
-            for_loop,
-            lineinfo(
-                ast.Expr(
-                    lineinfo(
-                        ast.Call(
-                            lineinfo(
-                                ast.Attribute(
-                                    lineinfo(ast.Name("<classes>", ast.Load())),
-                                    "clear",
-                                    ast.Load(),
-                                )
-                            ),
-                            [],
-                            [],
-                        )
-                    )
-                )
-            ),
-        ]
 
     def make_base_class_dict_test_stmts(
         self, bases: List[TAst], instance_fields: Set[str]
@@ -1300,30 +1201,22 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         outer_scope_data = self.scopes.scopes[-1].scope_data
         outer_scope_data.has_classdefs = True
         orig_node = node
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `clone_node`.
         node = self.clone_node(node)
         self.visit_Class_Outer(node, True)
         class_scope = self.visit_Class_Inner(node, True, scope_node=orig_node)
         scope_data = class_scope.scope_data
         # lint-fixme: NoAssertsRule
         assert isinstance(scope_data, ClassScope), type(class_scope).__name__
+        scope_data.visit_decorators(node)
 
-        attrs = self.node_attrs.get(orig_node)
-        if attrs is None or not attrs.mutable:
-            node.decorator_list.append(
-                lineinfo(ast.Name("<register-immutable>", ast.Load()))
-            )
-
-        slots_enabled = (
-            attrs is not None and not attrs.slots_disabled
-        ) and not self.is_static
+        slots_enabled = scope_data.slots_enabled and not self.is_static
         if slots_enabled:
-            if attrs is not None:
-                if attrs.loose_slots:
-                    scope_data.instance_fields.add("__dict__")
-                    scope_data.instance_fields.add("__loose_slots__")
-                if attrs.extra_slots:
-                    scope_data.instance_fields.update(attrs.extra_slots)
+            if scope_data.loose_slots:
+                scope_data.instance_fields.add("__dict__")
+                scope_data.instance_fields.add("__loose_slots__")
+            extra_slots = scope_data.extra_slots
+            if extra_slots:
+                scope_data.instance_fields.update(extra_slots)
 
             node.body.append(
                 self.make_base_class_dict_test_stmts(
@@ -1348,7 +1241,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
     def make_cached_property_init_decorator(
         self,
         scope_data: ClassScope,
-        # pyre-fixme[34]
         class_scope: SymbolScope[TVar, TScopeData],
     ) -> expr:
         return lineinfo(
@@ -1408,28 +1300,18 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
     def visit_FunctionDef(self, node: FunctionDef) -> TTransformedStmt:
         outer_scope = self.scopes.scopes[-1].scope_data
         orig_node = node
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `clone_node`.
         node = self.clone_node(node)
         self.visit_Func_Outer(node, True)
 
         scope_data = self.visit_Func_Inner(node, True, scope_node=orig_node).scope_data
+        scope_data.visit_decorators(node)
 
         res: TTransformedStmt = node
         if self.is_global(node.name):
             res = [cast(AST, node), self.update_del_state(node.name, True)]
 
-        self.check_cached_prop(orig_node, node, outer_scope)
+        self.check_cached_prop(node, scope_data, outer_scope)
 
-        if scope_data.has_classdefs:
-            # We have children class defs, we need to mark them as immutable
-            # when leaving the scope.
-            self.post_process_classes(node.body)
-            node.body = [
-                copyline(
-                    orig_node.body[0],
-                    ast.Try(node.body, [], [], [*self.make_immutable_marker_stmts()]),
-                )
-            ]
         if self.track_import_call:
             node.body.insert(0, self._create_track_import_call())
 
@@ -1438,14 +1320,14 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
     def visit_AsyncFunctionDef(self, node: AsyncFunctionDef) -> TTransformedStmt:
         outer_scope = self.scopes.scopes[-1].scope_data
         orig_node = node
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `clone_node`.
         node = self.clone_node(node)
         self.visit_Func_Outer(node, True)
 
-        self.visit_Func_Inner(node, True, scope_node=orig_node)
+        scope_data = self.visit_Func_Inner(node, True, scope_node=orig_node).scope_data
+        scope_data.visit_decorators(node)
 
         orig_name = node.name
-        self.check_cached_prop(orig_node, node, outer_scope)
+        self.check_cached_prop(node, scope_data, outer_scope)
 
         if self.track_import_call:
             node.body.insert(0, self._create_track_import_call())
@@ -1457,42 +1339,21 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
 
     def check_cached_prop(
         self,
-        orig_node: AsyncFunctionDef | FunctionDef,
         node: AsyncFunctionDef | FunctionDef,
+        func_scope: ScopeData,
         outer_scope: ScopeData,
     ) -> None:
-        func_attrs = self.node_attrs.get(orig_node)
-
-        if isinstance(outer_scope, ClassScope):
-            cls_attrs = self.node_attrs.get(outer_scope.node)
-            if (
-                cls_attrs is not None
-                and not cls_attrs.slots_disabled
-                and func_attrs is not None
-                and func_attrs.cached_props
-            ):
-                for dec in node.decorator_list:
-                    dec_attrs = self.node_attrs.get(dec)
-                    if dec_attrs is None:
-                        continue
-
-                    if dec_attrs.abs_value in func_attrs.cached_props:
-                        # @cached_property decorator, we transform this into a
-                        # slot entry and the cached property reads/writes to
-                        # the slot
-                        outer_scope.instance_fields.add(node.name)
-                        outer_scope.cached_props[node.name] = func_attrs.cached_props[
-                            dec_attrs.abs_value
-                        ]
-                        node.name = self.mangle_cached_prop(node.name)
-                        node.decorator_list = [
-                            d for d in node.decorator_list if d is not dec
-                        ]
-                        break
+        if isinstance(func_scope, FunctionScope) and isinstance(
+            outer_scope, ClassScope
+        ):
+            if func_scope.is_cached_prop:
+                # preprocessor already checked that outer scope is slotified
+                outer_scope.instance_fields.add(node.name)
+                outer_scope.cached_props[node.name] = func_scope.cached_prop_value
+                node.name = self.mangle_cached_prop(node.name)
 
     def visit_Lambda(self, node: Lambda) -> TTransformedStmt:
         orig_node = node
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `clone_node`.
         node = self.clone_node(node)
         self.visit_Func_Outer(node, True)
 
@@ -1504,100 +1365,12 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         if node.module == "__future__":
             # We push these to the top of the module where they're required to be
             return None
-
-        if node.level == 0 and node.module is not None:
-            mod_name = node.module
-            mod = None
-            if mod_name is not None:
-                mod = FIXED_MODULES.get(mod_name)
-            if mod is None:
-                return node
-
-            assigns: List[AST] = []
-            # Load the module into a temporary...
-            assigns.append(
-                copy_location(
-                    make_assign(
-                        [copy_location(ast.Name("<tmp-module>", ast.Store()), node)],
-                        copy_location(
-                            ast.Subscript(
-                                copy_location(
-                                    ast.Name("<fixed-modules>", ast.Load()), node
-                                ),
-                                copy_location(
-                                    ast.Index(
-                                        copy_location(Constant(node.module), node)
-                                    ),
-                                    node,
-                                ),
-                                ast.Load(),
-                            ),
-                            node,
-                        ),
-                    ),
-                    node,
-                )
-            )
-
-            # Store all of the imported names from the module
-            new_names = []
-            for _i, name in enumerate(node.names):
-                value = mod.get(name.name)
-                if value is not None:
-                    assigns.append(
-                        copy_location(
-                            make_assign(
-                                [
-                                    copy_location(
-                                        ast.Name(name.asname or name.name, ast.Store()),
-                                        node,
-                                    )
-                                ],
-                                copy_location(
-                                    ast.Subscript(
-                                        copy_location(
-                                            ast.Name("<tmp-module>", ast.Load()), node
-                                        ),
-                                        copy_location(
-                                            ast.Index(
-                                                copy_location(Constant(name.name), node)
-                                            ),
-                                            node,
-                                        ),
-                                        ast.Load(),
-                                    ),
-                                    node,
-                                ),
-                            ),
-                            node,
-                        )
-                    )
-                else:
-                    new_names.append(name)
-
-            # And then delete the temporary
-            assigns.append(
-                copy_location(
-                    ast.Delete(
-                        [copy_location(ast.Name("<tmp-module>", ast.Del()), node)]
-                    ),
-                    node,
-                )
-            )
-            if new_names:
-                # We have names we don't know about, keep them around...
-                # pyre-fixme[16]: `ImmutableTransformer` has no attribute `clone_node`.
-                node = self.clone_node(node)
-                node.names = new_names
-                assigns.insert(0, node)
-            return assigns
         return node
 
     def visit_comp(
         self, node: ListComp | SetComp | DictComp | GeneratorExp
     ) -> Optional[expr]:
         orig_node = node
-        # pyre-fixme[16]: `ImmutableTransformer` has no attribute `clone_node`.
         node = self.clone_node(node)
         self.visit_Comp_Outer(node, True)
 

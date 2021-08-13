@@ -77,9 +77,6 @@ class StrictTestBase(CompilerTest):
         self, code, name, code_gen, optimize, is_strict=False, enable_patching=False
     ):
         compiled = self.compile(code, code_gen, name, optimize)
-        # if is_strict:
-        #     return self._exec_strict_code(compiled, name, enable_patching)
-        # else:
         return self._exec_code(compiled, name)
 
     @contextmanager

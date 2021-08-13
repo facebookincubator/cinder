@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import ast
+from compiler.strict.rewriter import AnnotationRemover, remove_annotations
 from textwrap import dedent
 from typing import cast, final
 
-from strict_modules.remove_annotations import AnnotationRemover, remove_annotations
-from testing.unittest import UnitTest
+from .common import StrictTestBase
 
 
 @final
-class AnnotationRemoverTests(UnitTest):
-    ONCALL_SHORTNAME = "ig_plr"
-
+class AnnotationRemoverTests(StrictTestBase):
     def test_annotation_remover(self) -> None:
         code = """
         import __static__

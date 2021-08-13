@@ -1,45 +1,39 @@
 from __future__ import annotations
 
 from textwrap import dedent
-from typing import Sequence, Tuple, Type, final
+from typing import Sequence, Tuple, List, final
 
-from pyre_extensions import none_throws
-from strict_modules.abstract import AbstractModule
-from strict_modules.common import ErrorSink
-from strict_modules.compiler import Compiler
-from strict_modules.exceptions import (
-    StrictModuleException,
-    StrictModuleModifyImportedValueException,
-    UnsafeCallException,
-)
-from strict_modules.tests.base import ExceptionMatch, StrictModuleTest
+from _strictmodule import StrictModuleLoader
+
+from .common import StrictTestBase
 
 
 @final
-class OwnershipTests(StrictModuleTest):
-    ONCALL_SHORTNAME = "strictmod"
-
+class OwnershipTests(StrictTestBase):
     def check_multiple_modules(
         self, modules: Sequence[Tuple[str, str]]
-    ) -> Sequence[AbstractModule]:
-        comp = Compiler([], ErrorSink, lambda name: True, [], support_cache=False)
-        mods = []
+    ) -> Sequence[List[Tuple[str, str, int, int]]]:
+        checker = StrictModuleLoader([], "", [], [], True)
+        checker.set_force_strict(True)
+        errors = []
         for code, name in modules:
-            mods.append(
-                none_throws(comp.load_from_source(dedent(code), "<test>", name).value)
-            )
-        return mods
+            m = checker.check_source(dedent(code), f"{name}.py", name, [])
+            errors.append(list(m.errors))
+        return errors
 
     def assertError(
         self,
         modules: Sequence[Tuple[str, str]],
-        expected: ExceptionMatch | Type[StrictModuleException],
+        expected: str,
         **kwargs: object,
     ) -> None:
-        # pyre-fixme[6]: Expected `Optional[ExceptionMatch]` for 2nd param but got
-        #  `object`.
-        with self.assertExceptionMatch(expected, **kwargs):
-            self.check_multiple_modules(modules)
+        errors = self.check_multiple_modules(modules)
+        for mod_errors in errors:
+            for error in mod_errors:
+                if expected in error[0]:  # match substring
+                    return
+        err_strings = [[e[0] for e in errs] for errs in errors]
+        self.assertFalse(True, f"Expected: {expected}\nActual: {err_strings}")
 
     def test_list_modify(self) -> None:
         code1 = """
@@ -50,11 +44,7 @@ class OwnershipTests(StrictModuleTest):
             l1[0] = 2
         """
         self.assertError(
-            [(code1, "m1"), (code2, "m2")],
-            StrictModuleModifyImportedValueException,
-            modified_obj="[1, 2, 3]",
-            owner_module="m1",
-            caller_module="m2",
+            [(code1, "m1"), (code2, "m2")], "[1,2,3] from module m1 is modified by m2"
         )
 
     def test_list_append(self) -> None:
@@ -66,11 +56,7 @@ class OwnershipTests(StrictModuleTest):
             l1.append(4)
         """
         self.assertError(
-            [(code1, "m1"), (code2, "m2")],
-            StrictModuleModifyImportedValueException,
-            modified_obj="[1, 2, 3]",
-            owner_module="m1",
-            caller_module="m2",
+            [(code1, "m1"), (code2, "m2")], "[1,2,3] from module m1 is modified by m2"
         )
 
     def test_dict_modify(self) -> None:
@@ -83,10 +69,7 @@ class OwnershipTests(StrictModuleTest):
         """
         self.assertError(
             [(code1, "m1"), (code2, "m2")],
-            StrictModuleModifyImportedValueException,
-            modified_obj="<dict>",
-            owner_module="m1",
-            caller_module="m2",
+            "{1: 2, 3: 4} from module m1 is modified by m2",
         )
 
     def test_func_modify(self) -> None:
@@ -104,14 +87,7 @@ class OwnershipTests(StrictModuleTest):
         """
         self.assertError(
             [(code1, "m1"), (code2, "m2"), (code3, "m3")],
-            UnsafeCallException,
-            callable_name="f",
-            cause=self.Match(
-                StrictModuleModifyImportedValueException,
-                modified_obj="<dict>",
-                owner_module="m1",
-                caller_module="m3",
-            ),
+            "{1: 2, 3: 4} from module m1 is modified by m3",
         )
 
     def test_decorator_modify(self) -> None:
@@ -128,15 +104,7 @@ class OwnershipTests(StrictModuleTest):
                 pass
         """
         self.assertError(
-            [(code1, "m1"), (code2, "m2")],
-            UnsafeCallException,
-            callable_name="dec",
-            cause=self.Match(
-                StrictModuleModifyImportedValueException,
-                modified_obj="[0]",
-                owner_module="m1",
-                caller_module="m2",
-            ),
+            [(code1, "m1"), (code2, "m2")], "[0] from module m1 is modified by m2"
         )
 
     def test_decorator_ok(self) -> None:
@@ -180,44 +148,8 @@ class OwnershipTests(StrictModuleTest):
             c.l
         """
         self.assertError(
-            [(code1, "m1"), (code2, "m2")],
-            UnsafeCallException,
-            callable_name="C.l",
-            cause=self.Match(
-                StrictModuleModifyImportedValueException,
-                modified_obj="[]",
-                owner_module="m1",
-                caller_module="m2",
-            ),
+            [(code1, "m1"), (code2, "m2")], "[] from module m1 is modified by m2"
         )
-
-    def test_bound_method_ownership(self) -> None:
-        code1 = """
-            class C:
-                def f(cls) -> None:
-                    pass
-        """
-        code2 = """
-            from m1 import C
-            c = C()
-            x = c.f
-        """
-        m1, m2 = self.check_multiple_modules([(code1, "m1"), (code2, "m2")])
-        self.assertIs(m2.dict["x"].creator, m2)
-
-    def test_bound_classmethod_ownership(self) -> None:
-        code1 = """
-            class C:
-                @classmethod
-                def f(cls) -> None:
-                    pass
-        """
-        code2 = """
-            from m1 import C
-            x = C.f
-        """
-        m1, m2 = self.check_multiple_modules([(code1, "m1"), (code2, "m2")])
-        self.assertIs(m2.dict["x"].creator, m2)
 
     def test_func_dunder_dict_modification(self) -> None:
         code1 = """
@@ -231,10 +163,7 @@ class OwnershipTests(StrictModuleTest):
         """
         self.assertError(
             [(code1, "m1"), (code2, "m2")],
-            StrictModuleModifyImportedValueException,
-            modified_obj="__dict__",
-            owner_module="m1",
-            caller_module="m2",
+            "function.__dict__ from module m1 is modified by m2",
         )
 
     def test_func_dunder_dict_keys(self) -> None:
@@ -245,7 +174,11 @@ class OwnershipTests(StrictModuleTest):
         """
         code2 = """
             from m1 import f
-            x, = f.__dict__
+            x = f.__dict__
+            x["foo"] = "baz"
+
         """
-        m1, m2 = self.check_multiple_modules([(code1, "m1"), (code2, "m2")])
-        self.assertIs(m2.dict["x"].creator, m1)
+        self.assertError(
+            [(code1, "m1"), (code2, "m2")],
+            "function.__dict__ from module m1 is modified by m2",
+        )
