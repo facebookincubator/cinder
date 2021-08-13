@@ -11,6 +11,8 @@
 
 #include "StrictModules/symbol_table.h"
 
+#include "StrictModules/error_sink.h"
+#include "StrictModules/exceptions.h"
 namespace strictmod::compiler {
 
 class ModuleInfo;
@@ -45,6 +47,23 @@ class StubKind {
   }
 };
 
+class FlagError {
+ public:
+  FlagError(int lineno, int col, std::string filename, std::string msg)
+      : lineno_(lineno), col_(col), filename_(filename), msg_(std::move(msg)) {}
+
+  void raise(BaseErrorSink* errorSink) {
+    errorSink->error<BadStrictFlagException>(
+        lineno_, col_, filename_, "", msg_);
+  }
+
+ private:
+  int lineno_;
+  int col_;
+  std::string filename_;
+  std::string msg_;
+};
+
 class ModuleInfo {
  public:
   ModuleInfo(
@@ -61,7 +80,8 @@ class ModuleInfo {
         futureAnnotations_(futureAnnotations),
         st_(std::move(st)),
         submoduleSearchLocations_(std::move(submoduleSearchLocations)),
-        stubKind_(stubKind) {}
+        stubKind_(stubKind),
+        flagError_() {}
 
   const std::string& getModName() const {
     return modName_;
@@ -95,6 +115,16 @@ class ModuleInfo {
     return submoduleSearchLocations_;
   }
 
+  void setFlagError(int line, int col, const std::string& msg) {
+    flagError_ = std::make_unique<FlagError>(line, col, filename_, msg);
+  }
+
+  void raiseAnyFlagError(BaseErrorSink* errorSink) {
+    if (flagError_) {
+      flagError_->raise(errorSink);
+    }
+  }
+
  private:
   std::string modName_;
   std::string filename_;
@@ -103,6 +133,7 @@ class ModuleInfo {
   std::shared_ptr<PySymtable> st_;
   std::vector<std::string> submoduleSearchLocations_;
   StubKind stubKind_;
+  std::unique_ptr<FlagError> flagError_;
 };
 
 } // namespace strictmod::compiler

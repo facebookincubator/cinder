@@ -286,4 +286,12 @@ ImportDisallowedExceptionHelper::ImportDisallowedExceptionHelper(
 void ImportDisallowedException::raise() {
   throw *this;
 }
+
+// BadStrictFlagException
+BadStrictFlagExceptionHelper::BadStrictFlagExceptionHelper(std::string err)
+    : err(std::move(err)) {}
+
+void BadStrictFlagException::raise() {
+  throw *this;
+}
 } // namespace strictmod

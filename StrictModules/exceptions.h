@@ -586,6 +586,25 @@ class ImportDisallowedException
   [[noreturn]] virtual void raise() override;
 };
 
+// BadStrictFlagException
+struct BadStrictFlagExceptionHelper {
+  BadStrictFlagExceptionHelper(std::string err);
+
+  std::string err;
+
+  static constexpr const char* excName = "BadStrictFlagException";
+  static constexpr const char* fmt = "bad strict flag: {}";
+  static constexpr const char* wiki = "";
+};
+class BadStrictFlagException : public StructuredStrictModuleException<
+                                   BadStrictFlagExceptionHelper,
+                                   BadStrictFlagException,
+                                   &BadStrictFlagExceptionHelper::err> {
+ public:
+  using StructuredStrictModuleException::StructuredStrictModuleException;
+  [[noreturn]] virtual void raise() override;
+};
+
 // ------------------Out of line implementations---------------
 
 // StrictModuleException

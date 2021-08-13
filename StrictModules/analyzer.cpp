@@ -318,7 +318,7 @@ void Analyzer::visitImportFrom(const stmt_ty stmt) {
     int level = importFrom.level;
     std::size_t endPos = std::string::npos;
     for (int i = 0; i < level; ++i) {
-      endPos = modName_.rfind('.', endPos);
+      endPos = modName_.rfind('.', endPos - 1);
     }
     std::string relativeName = modName_.substr(0, endPos);
     if (hasFromName) {

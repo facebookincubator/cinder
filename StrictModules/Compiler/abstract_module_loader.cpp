@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Compiler/abstract_module_loader.h"
 
+#include "StrictModules/Compiler/analyzed_module.h"
+#include "StrictModules/Compiler/module_info.h"
 #include "StrictModules/Compiler/stub.h"
 
 #include "StrictModules/Objects/objects.h"
@@ -11,6 +13,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <optional>
 
 namespace strictmod::compiler {
 
@@ -26,29 +29,77 @@ const char* getFileSuffixKindName(FileSuffixKind kind) {
 const std::string ModuleLoader::kArenaNewErrorMsg =
     "failed to allocate memory in PyArena";
 
-ModuleKind getModuleKindFromStmts(const asdl_seq* seq) {
+std::optional<ModuleKind> getModuleKindFromAlias(
+    alias_ty alias,
+    const char* strictFlag,
+    const char* staticFlag) {
+  const char* aliasNameStr = PyUnicode_AsUTF8(alias->name);
+  if (strncmp(aliasNameStr, staticFlag, strlen(staticFlag)) == 0) {
+    return ModuleKind::kStatic;
+  } else if (strncmp(aliasNameStr, strictFlag, strlen(strictFlag)) == 0) {
+    return ModuleKind::kStrict;
+  }
+  return std::nullopt;
+}
+
+std::optional<ModuleKind> getModuleKindFromImportNames(
+    asdl_seq* importNames,
+    const char* strictFlag,
+    const char* staticFlag) {
+  size_t len = asdl_seq_LEN(importNames);
+  // check if this is import __strict__/__static__
+  for (size_t i = 0; i < len; ++i) {
+    alias_ty alias = reinterpret_cast<alias_ty>(asdl_seq_GET(importNames, i));
+    std::optional<ModuleKind> kind =
+        getModuleKindFromAlias(alias, strictFlag, staticFlag);
+    if (kind != std::nullopt) {
+      return kind;
+    }
+  }
+  return std::nullopt;
+}
+
+ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
   Py_ssize_t n = asdl_seq_LEN(seq);
   bool seenDocStr = false;
+  std::optional<ModuleKind> modKind = std::nullopt;
+  const char* strictFlag = "__strict__";
+  const char* staticFlag = "__static__";
   for (int _i = 0; _i < n; _i++) {
     stmt_ty stmt = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, _i));
     switch (stmt->kind) {
       case Import_kind: {
         auto importNames = stmt->v.Import.names;
-        if (asdl_seq_LEN(importNames) == 1) {
+        size_t len = asdl_seq_LEN(importNames);
+        // check if this is import __strict__/__static__
+        std::optional<ModuleKind> tempModKind =
+            getModuleKindFromImportNames(importNames, strictFlag, staticFlag);
+        if (tempModKind != std::nullopt) {
+          if (len > 1) {
+            modInfo->setFlagError(
+                stmt->lineno,
+                stmt->col_offset,
+                "strict flag may not be combined with other imports");
+            return ModuleKind::kNonStrict;
+          }
+          // only one import, which should be the flag
           alias_ty alias =
               reinterpret_cast<alias_ty>(asdl_seq_GET(importNames, 0));
           if (alias->asname) {
+            modInfo->setFlagError(
+                stmt->lineno,
+                stmt->col_offset,
+                "strict flag may not be aliased");
             return ModuleKind::kNonStrict;
           }
-          const char* aliasNameStr = PyUnicode_AsUTF8(alias->name);
-          const char* strictFlag = "__strict__";
-          const char* staticFlag = "__static__";
-          if (strncmp(aliasNameStr, staticFlag, strlen(staticFlag)) == 0) {
-            return ModuleKind::kStatic;
-          } else if (
-              strncmp(aliasNameStr, strictFlag, strlen(strictFlag)) == 0) {
-            return ModuleKind::kStrict;
+          if (modKind == std::nullopt) {
+            modKind = tempModKind;
+            goto loop_continue;
           } else {
+            modInfo->setFlagError(
+                stmt->lineno,
+                stmt->col_offset,
+                "strict flag must be at top of module");
             return ModuleKind::kNonStrict;
           }
         }
@@ -59,36 +110,46 @@ ModuleKind getModuleKindFromStmts(const asdl_seq* seq) {
           if (expr->kind == Constant_kind &&
               PyUnicode_Check(expr->v.Constant.value)) {
             seenDocStr = true;
-            continue;
+            goto loop_continue;
           }
         }
-        return ModuleKind::kNonStrict;
+        if (!modKind) {
+          modKind = ModuleKind::kNonStrict;
+        }
+        goto loop_continue;
       }
       case ImportFrom_kind: {
         auto importFromStmt = stmt->v.ImportFrom;
-        if (importFromStmt.module == nullptr) {
-          return ModuleKind::kNonStrict;
+        if (importFromStmt.module != nullptr) {
+          const char* modName = PyUnicode_AsUTF8(importFromStmt.module);
+          const char* futureFlag = "__future__";
+          // skip future imports
+          if (strncmp(modName, futureFlag, strlen(futureFlag)) == 0) {
+            goto loop_continue;
+          }
         }
-        const char* modName = PyUnicode_AsUTF8(importFromStmt.module);
-        const char* futureFlag = "__future__";
-        // skip future imports
-        if (strncmp(modName, futureFlag, strlen(futureFlag)) == 0) {
-          continue;
+        if (!modKind) {
+          modKind = ModuleKind::kNonStrict;
         }
-        // encountered an import, not strict
-        return ModuleKind::kNonStrict;
+        goto loop_continue;
       }
-      default:
-        return ModuleKind::kNonStrict;
+      default: {
+        return modKind.value_or(ModuleKind::kNonStrict);
+      }
     }
+  loop_continue:;
   }
-  return ModuleKind::kNonStrict;
+  return modKind.value_or(ModuleKind::kNonStrict);
 }
 
-ModuleKind getModuleKind(const mod_ty ast) {
+ModuleKind getModuleKind(ModuleInfo* modInfo) {
+  mod_ty ast = modInfo->getAst();
+  if (ast == nullptr) {
+    return ModuleKind::kNonStrict;
+  }
   switch (ast->kind) {
     case Module_kind:
-      return getModuleKindFromStmts(ast->v.Module.body);
+      return getModuleKindFromStmts(ast->v.Module.body, modInfo);
     case Interactive_kind:
     case Expression_kind:
     case FunctionType_kind:
@@ -197,8 +258,7 @@ AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
       return analyze(std::move(typingModInfo));
     }
     if (typingModInfo->getStubKind().isTyping() &&
-        getModuleKind(typingModInfo->getAst()) == ModuleKind::kStatic) {
-      // TODO: remove annotations
+        getModuleKind(typingModInfo.get()) == ModuleKind::kStatic) {
       return analyze(std::move(typingModInfo));
     }
   }
@@ -409,13 +469,8 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   // Following python semantics, publish the module before ast visits
   auto errorSink = errorSinkFactory_();
   BaseErrorSink* errorSinkBorrowed = errorSink.get();
-  ModuleKind kind;
-  if (ast != nullptr) {
-    kind = getModuleKind(ast);
-  } else {
-    kind = ModuleKind::kNonStrict;
-  }
-
+  ModuleKind kind = getModuleKind(modInfo.get());
+  modInfo->raiseAnyFlagError(errorSinkBorrowed);
   AnalyzedModule* analyzedModule =
       new AnalyzedModule(kind, std::move(errorSink), std::move(modInfo));
   const ModuleInfo& moduleInfo = analyzedModule->getModuleInfo();
