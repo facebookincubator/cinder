@@ -1,32 +1,70 @@
 from __future__ import annotations
 
-from typing import final
+from textwrap import dedent
+from typing import final, Optional, Sequence
 
-from strict_modules.exceptions import (
-    StrictModuleTypeError,
-    UnknownValueBinaryOpException,
-    UnknownValueCallException,
-)
-from strict_modules.tests.test_interpreter import InterpreterTestBase
+from _strictmodule import StrictAnalysisResult, StrictModuleLoader
+
+from .common import StrictTestBase
 
 
 @final
-class DefiniteAssignmentTests(InterpreterTestBase):
-    ONCALL_SHORTNAME = "strictmod"
+class DefiniteAssignmentTests(StrictTestBase):
+    def analyze(
+        self,
+        code: str,
+        mod_name: str = "mod",
+        import_path: Optional[Sequence[str]] = None,
+        allow_list_prefix: Optional[Sequence[str]] = None,
+        stub_root: str = "",
+    ) -> StrictAnalysisResult:
+        code = dedent(code)
+        compiler = StrictModuleLoader(
+            import_path or [], stub_root, allow_list_prefix or [], [], True
+        )
+
+        module = compiler.check_source(code, f"{mod_name}.py", mod_name, [])
+        return module
+
+    def assertNoError(
+        self,
+        code: str,
+        mod_name: str = "mod",
+        import_path: Optional[Sequence[str]] = None,
+        allow_list_prefix: Optional[Sequence[str]] = None,
+        stub_root: str = "",
+    ):
+        m = self.analyze(code, mod_name, import_path, allow_list_prefix, stub_root)
+        self.assertEqual(m.is_valid, True)
+        self.assertEqual(m.errors, [])
+
+    def assertError(
+        self,
+        code: str,
+        err: str,
+        mod_name: str = "mod",
+        import_path: Optional[Sequence[str]] = None,
+        allow_list_prefix: Optional[Sequence[str]] = None,
+        stub_root: str = "",
+    ):
+        m = self.analyze(code, mod_name, import_path, allow_list_prefix, stub_root)
+        self.assertEqual(m.is_valid, True)
+        self.assertTrue(len(m.errors) > 0)
+        self.assertTrue(err in m.errors[0][0])
 
     def test_simple_not_assigned(self) -> None:
         test_exec = """
 import __strict__
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_simple_del_not_assigned(self) -> None:
         test_exec = """
 import __strict__
 del abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_simple_assign_del_ok(self) -> None:
         test_exec = """
@@ -34,7 +72,7 @@ import __strict__
 abc = 1
 del abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_simple_assign_double_del(self) -> None:
         test_exec = """
@@ -43,7 +81,7 @@ abc = 1
 del abc
 del abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_simple_if(self) -> None:
         test_exec = """
@@ -52,7 +90,7 @@ if False:
     abc = 1
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_simple_if_del(self) -> None:
         test_exec = """
@@ -62,7 +100,7 @@ if True:
     del abc
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_simple_if_else(self) -> None:
         test_exec = """
@@ -73,7 +111,7 @@ else:
     abc = 2
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_simple_if_else_del(self) -> None:
         test_exec = """
@@ -85,7 +123,7 @@ else:
     del abc
 abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_simple_if_ok(self) -> None:
         test_exec = """
@@ -96,21 +134,7 @@ else:
     abc = 2
 abc
 """
-        self.analyze(test_exec)
-
-    def test_func_ann(self) -> None:
-        test_exec = """
-import __strict__
-def f(x: abc): pass
-"""
-        self.analyze(test_exec)
-
-    def test_func_ret_ann(self) -> None:
-        test_exec = """
-import __strict__
-def f(x) -> abc: pass
-"""
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_func_dec(self) -> None:
         test_exec = """
@@ -118,28 +142,14 @@ import __strict__
 @abc
 def f(x): pass
 """
-        self.assertError(test_exec, UnknownValueCallException)
-
-    def test_func_default(self) -> None:
-        test_exec = """
-import __strict__
-def f(x = abc): pass
-"""
-        self.analyze(test_exec)
+        self.assertError(test_exec, "NameError")
 
     def test_func_self_default(self) -> None:
         test_exec = """
 import __strict__
 def f(x = f()): pass
 """
-        self.assertError(test_exec, UnknownValueCallException)
-
-    def test_async_func_ret_ann(self) -> None:
-        test_exec = """
-import __strict__
-async def f(x) -> abc: pass
-"""
-        self.analyze(test_exec)
+        self.assertError(test_exec, "NameError")
 
     def test_async_func_dec(self) -> None:
         test_exec = """
@@ -147,21 +157,14 @@ import __strict__
 @abc
 async def f(x): pass
 """
-        self.assertError(test_exec, UnknownValueCallException)
-
-    def test_async_func_default(self) -> None:
-        test_exec = """
-import __strict__
-async def f(x = abc): pass
-"""
-        self.analyze(test_exec)
+        self.assertError(test_exec, "NameError")
 
     def test_async_func_self_default(self) -> None:
         test_exec = """
 import __strict__
 async def f(x = f()): pass
 """
-        self.assertError(test_exec, UnknownValueCallException)
+        self.assertError(test_exec, "NameError")
 
     def test_while(self) -> None:
         test_exec = """
@@ -170,7 +173,7 @@ while False:
     abc = 1
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_while_else(self) -> None:
         test_exec = """
@@ -181,7 +184,7 @@ else:
     abc = 1
 abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_while_del(self) -> None:
         test_exec = """
@@ -192,7 +195,7 @@ while str:
     break
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_while_else_del(self) -> None:
         test_exec = """
@@ -204,7 +207,7 @@ else:
     del abc
 x = abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_while_del_else(self) -> None:
         test_exec = """
@@ -217,7 +220,7 @@ while x > 0:
 else:
     abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_class_defined(self) -> None:
         test_exec = """
@@ -227,7 +230,7 @@ class C:
 
 C
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_class_defined_with_func(self) -> None:
         test_exec = """
@@ -238,7 +241,7 @@ class C:
 
 C
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_class_scoping(self) -> None:
         test_exec = """
@@ -248,7 +251,7 @@ class C:
 
 x = abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_class_uninit_global_read(self) -> None:
         test_exec = """
@@ -257,7 +260,7 @@ class C:
     x = abc + 1
 
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_class_uninit_class_read(self) -> None:
         test_exec = """
@@ -267,7 +270,7 @@ class C:
         abc = 42
     abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_nested_class_uninit_read(self) -> None:
         test_exec = """
@@ -277,7 +280,7 @@ class C:
     class D:
         x = abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_class_undef_dec(self) -> None:
         test_exec = """
@@ -286,30 +289,14 @@ import __strict__
 class C:
     pass
 """
-        self.assertError(test_exec, UnknownValueCallException)
-
-    def test_class_undef_base(self) -> None:
-        test_exec = """
-import __strict__
-class C(abc):
-    pass
-"""
-        self.analyze(test_exec)
-
-    def test_class_undef_kw(self) -> None:
-        test_exec = """
-import __strict__
-class C(x=abc):
-    pass
-"""
-        self.assertError(test_exec, StrictModuleTypeError)
+        self.assertError(test_exec, "NameError")
 
     def test_uninit_aug_assign(self) -> None:
         test_exec = """
 import __strict__
 abc += 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_aug_assign(self) -> None:
         test_exec = """
@@ -318,7 +305,7 @@ abc = 0
 abc += 1
     """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_with_no_assign(self) -> None:
         test_exec = """
@@ -333,7 +320,7 @@ with A():
 abc + 1
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_with_var(self) -> None:
         test_exec = """
@@ -348,7 +335,7 @@ with A() as abc:
 abc
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_with_var_destructured(self) -> None:
         test_exec = """
@@ -364,7 +351,7 @@ abc
 foo
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_import(self) -> None:
         test_exec = """
@@ -373,7 +360,7 @@ import abc
 abc
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_import_as(self) -> None:
         test_exec = """
@@ -382,7 +369,7 @@ import foo as abc
 abc
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_import_from(self) -> None:
         test_exec = """
@@ -391,7 +378,7 @@ from foo import abc
 abc
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_import_from_as(self) -> None:
         test_exec = """
@@ -400,7 +387,7 @@ from foo import bar as abc
 abc
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_del_in_finally(self) -> None:
         test_exec = """
@@ -410,7 +397,7 @@ try:
 finally:
     del abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_del_in_finally_2(self) -> None:
         test_exec = """
@@ -422,7 +409,7 @@ finally:
     del abc
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_finally_no_del(self) -> None:
         test_exec = """
@@ -433,7 +420,7 @@ finally:
     pass
 abc
     """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_finally_not_defined(self) -> None:
         test_exec = """
@@ -443,7 +430,7 @@ try:
 finally:
     abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_finally_deletes_apply(self) -> None:
         test_exec = """
@@ -455,7 +442,7 @@ finally:
     pass
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_try_except_var_defined(self) -> None:
         test_exec = """
@@ -465,7 +452,7 @@ try:
 except Exception as abc:
     abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_var_not_defined_after(self) -> None:
         test_exec = """
@@ -476,7 +463,7 @@ except Exception as abc:
     pass
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_try_except_no_try_define(self) -> None:
         test_exec = """
@@ -487,7 +474,7 @@ except Exception:
     pass
 abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_no_except_define(self) -> None:
         test_exec = """
@@ -498,7 +485,7 @@ except Exception:
     abc = 1
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_try_except_dels_assumed(self) -> None:
         test_exec = """
@@ -510,7 +497,7 @@ except Exception:
     pass
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_try_except_dels_assumed_in_except(self) -> None:
         test_exec = """
@@ -521,7 +508,7 @@ try:
 except Exception:
     abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_except_dels_assumed(self) -> None:
         test_exec = """
@@ -533,7 +520,7 @@ except Exception:
     del abc
 abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_finally(self) -> None:
         test_exec = """
@@ -546,7 +533,7 @@ finally:
     abc = 1
 abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_finally_try_not_assumed(self) -> None:
         test_exec = """
@@ -558,7 +545,7 @@ except Exception:
 finally:
     abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_finally_except_not_assumed(self) -> None:
         test_exec = """
@@ -570,7 +557,7 @@ except Exception:
 finally:
     abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_try_except_else_try_assumed(self) -> None:
         test_exec = """
@@ -583,7 +570,7 @@ else:
     abc
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_else_try_assumed_del(self) -> None:
         test_exec = """
@@ -596,7 +583,7 @@ else:
     del abc
 """
 
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_else_except_not_assumed(self) -> None:
         test_exec = """
@@ -608,7 +595,7 @@ except Exception:
 else:
     x = abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_try_except_else_except_del_not_assumed(self) -> None:
         test_exec = """
@@ -621,7 +608,7 @@ except Exception:
 else:
     x = abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_else_assign_not_assumed_for_finally(self) -> None:
         test_exec = """
@@ -635,7 +622,7 @@ else:
 finally:
     x = abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_try_except_finally_del_assumed(self) -> None:
         test_exec = """
@@ -648,21 +635,21 @@ except Exception:
 finally:
     x = abc + 1
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_lambda_not_assigned(self) -> None:
         test_exec = """
 import __strict__
 x = (lambda x=abc + 1: 42)
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_lambda_ok(self) -> None:
         test_exec = """
 import __strict__
 x = lambda x: abc
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_list_comp(self) -> None:
         test_exec = """
@@ -670,14 +657,14 @@ import __strict__
 foo = [1, 2, 3]
 bar = [x for x in foo]
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_list_comp_undef(self) -> None:
         test_exec = """
 import __strict__
 bar = [x for x in abc]
 """
-        self.assertError(test_exec, StrictModuleTypeError)
+        self.assertError(test_exec, "NameError")
 
     def test_list_comp_if(self) -> None:
         test_exec = """
@@ -685,7 +672,7 @@ import __strict__
 foo = [1, 2, 3]
 bar = [x for x in foo if x]
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_set_comp(self) -> None:
         test_exec = """
@@ -693,14 +680,14 @@ import __strict__
 foo = [1, 2, 3]
 bar = {x for x in foo}
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_set_comp_undef(self) -> None:
         test_exec = """
 import __strict__
 bar = {x for x in abc}
 """
-        self.assertError(test_exec, StrictModuleTypeError)
+        self.assertError(test_exec, "NameError")
 
     def test_set_comp_undef_value(self) -> None:
         test_exec = """
@@ -708,7 +695,7 @@ import __strict__
 foo = [1, 2, 3]
 bar = {(x, abc) for x in foo}
 """
-        self.analyze(test_exec)
+        self.assertError(test_exec, "NameError")
 
     def test_set_comp_if(self) -> None:
         test_exec = """
@@ -716,7 +703,7 @@ import __strict__
 foo = [1, 2, 3]
 bar = {x for x in foo if x}
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_gen_comp(self) -> None:
         test_exec = """
@@ -724,14 +711,14 @@ import __strict__
 foo = [1, 2, 3]
 bar = (x for x in foo)
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_gen_comp_undef(self) -> None:
         test_exec = """
 import __strict__
 bar = (x for x in abc)
 """
-        self.assertError(test_exec, StrictModuleTypeError)
+        self.assertError(test_exec, "NameError")
 
     def test_gen_comp_undef_value(self) -> None:
         test_exec = """
@@ -739,7 +726,7 @@ import __strict__
 foo = [1, 2, 3]
 bar = ((x, abc) for x in foo)
 """
-        self.analyze(test_exec)
+        self.assertError(test_exec, "NameError")
 
     def test_gen_comp_if(self) -> None:
         test_exec = """
@@ -747,7 +734,7 @@ import __strict__
 foo = [1, 2, 3]
 bar = (x for x in foo if x)
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_dict_comp(self) -> None:
         test_exec = """
@@ -755,22 +742,14 @@ import __strict__
 foo = [1, 2, 3]
 bar = {x:x for x in foo}
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_dict_comp_undef(self) -> None:
         test_exec = """
 import __strict__
 bar = {x:x for x in abc}
 """
-        self.assertError(test_exec, StrictModuleTypeError)
-
-    def test_dict_comp_undef_value(self) -> None:
-        test_exec = """
-import __strict__
-foo = [1, 2, 3]
-bar = {x:abc for x in foo}
-"""
-        self.analyze(test_exec)
+        self.assertError(test_exec, "NameError")
 
     def test_dict_comp_if(self) -> None:
         test_exec = """
@@ -778,14 +757,14 @@ import __strict__
 foo = [1, 2, 3]
 bar = {x:x for x in foo if x}
 """
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_self_assign(self) -> None:
         test_exec = """
 import __strict__
 abc = abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_ann_assign_not_defined(self) -> None:
         test_exec = """
@@ -793,35 +772,14 @@ import __strict__
 abc: int
 abc + 1
 """
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertError(test_exec, "NameError")
 
     def test_expected_globals_name(self) -> None:
         test_exec = """
 import __strict__
 x = __name__
 """
-        self.analyze(test_exec)
-
-    def test_expected_globals_loader(self) -> None:
-        test_exec = """
-import __strict__
-x = __loader__
-"""
-        self.analyze(test_exec)
-
-    def test_expected_globals_package(self) -> None:
-        test_exec = """
-import __strict__
-x = __package__
-"""
-        self.analyze(test_exec)
-
-    def test_expected_globals_spec(self) -> None:
-        test_exec = """
-import __strict__
-x = __spec__
-"""
-        self.analyze(test_exec)
+        self.assertNoError(test_exec)
 
     def test_raise_unreachable(self) -> None:
         test_exec = """
@@ -835,17 +793,4 @@ else:
 
 abc + 1
 """
-        self.analyze(test_exec)
-
-    def test_type_checking(self) -> None:
-        test_exec = """
-import __strict__
-from typing import TYPE_CHECKING
-abc = 0
-if TYPE_CHECKING:
-    pass
-else:
-    del abc
-abc + 1
-"""
-        self.assertError(test_exec, UnknownValueBinaryOpException)
+        self.assertNoError(test_exec)

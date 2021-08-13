@@ -1086,20 +1086,27 @@ bool Analyzer::visitExceptionHandlerHelper(
 void Analyzer::visitTry(const stmt_ty stmt) {
   auto tryStmt = stmt->v.Try;
   bool caughtException = false;
-  auto _ = TryFinallyManager(*this, tryStmt.finalbody);
+
   try {
-    visitStmtSeq(tryStmt.body);
-  } catch (StrictModuleUserException<BaseStrictObject>& e) {
-    caughtException = true;
-    bool handledException =
-        visitExceptionHandlerHelper(tryStmt.handlers, e.getWrapped());
-    if (!handledException) {
-      throw;
+    try {
+      visitStmtSeq(tryStmt.body);
+    } catch (StrictModuleUserException<BaseStrictObject>& e) {
+      caughtException = true;
+      bool handledException =
+          visitExceptionHandlerHelper(tryStmt.handlers, e.getWrapped());
+      if (!handledException) {
+        throw;
+      }
     }
+    if (!caughtException) {
+      visitStmtSeq(tryStmt.orelse);
+    }
+  } catch (StrictModuleUserException<BaseStrictObject>& e) {
+    visitStmtSeq(tryStmt.finalbody);
+    throw;
   }
-  if (!caughtException) {
-    visitStmtSeq(tryStmt.orelse);
-  }
+
+  visitStmtSeq(tryStmt.finalbody);
 }
 
 void Analyzer::visitAssert(const stmt_ty) {}

@@ -7,3 +7,4 @@ test_sys
 test_tools
 test.test_compiler.test_strict.test_loader.*
 test.test_compiler.test_strict.test_strict_codegen.StrictCheckedCompilationTests.*
+test.test_compiler.test_strict.test_definite_assignment.*
