@@ -130,6 +130,20 @@ class sequence_map {
       (*this)[std::move(item.first)] = std::move(item.second);
     }
   }
+  sequence_map(sequence_map<Key, T>&& other) : sequence_map<Key, T>() {
+    map.reserve(other.size());
+    for (auto& item : other) {
+      (*this)[std::move(item.first)] = std::move(item.second.first);
+    }
+  }
+  sequence_map(const sequence_map<Key, T>& other) : sequence_map<Key, T>() {
+    map.reserve(other.size());
+    for (auto& item : other) {
+      T val(item.second.first);
+      Key key(item.first);
+      (*this)[std::move(key)] = std::move(val);
+    }
+  }
 
   MapItT find(const Key& key) {
     return map.find(key);
@@ -152,21 +166,6 @@ class sequence_map {
   }
 
   T& operator[](const Key& key) {
-    auto map_it = map.find(key);
-    if (map_it == map.end()) {
-      auto& resPair = map[key];
-      // XXX: not sure how to avoid a second find here
-      auto inserted_it = map.find(key);
-      // store pointer to avoid copying
-      order.push_back(&(inserted_it->first));
-      resPair.second = std::prev(order.end());
-      return resPair.first;
-    }
-
-    return map_it->second.first;
-  }
-
-  T& operator[](Key&& key) {
     auto map_it = map.find(key);
     if (map_it == map.end()) {
       auto& resPair = map[key];
