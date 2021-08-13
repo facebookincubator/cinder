@@ -13,16 +13,12 @@
 
 #include "StrictModules/error_sink.h"
 #include "StrictModules/exceptions.h"
+#include "StrictModules/pystrictmodule.h"
 namespace strictmod::compiler {
 
 class ModuleInfo;
 
 class StubKind {
-  static const int kNone = 0b000;
-  static const int kAllowList = 0b011;
-  static const int kTyping = 0b100;
-  static const int kStrict = 0b001;
-
   int kind_;
 
  public:
@@ -39,7 +35,7 @@ class StubKind {
   }
 
   bool isTyping() const {
-    return kind_ == kTyping;
+    return kind_ == STUB_KIND_MASK_TYPING;
   }
 
   int getValue() const {

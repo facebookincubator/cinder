@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Compiler/analyzed_module.h"
+
 #include "StrictModules/ast_preprocessor.h"
+#include "StrictModules/pystrictmodule.h"
 
 namespace strictmod::compiler {
 bool AnalyzedModule::isStrict() const {
@@ -32,6 +34,18 @@ void AnalyzedModule::cleanModuleContent() {
   if (module_) {
     module_->cleanContent(module_.get());
   }
+}
+
+int AnalyzedModule::getModKindAsInt() const {
+  switch (moduleKind_) {
+    case ModuleKind::kStrict:
+      return STRICT_MODULE_KIND;
+    case ModuleKind::kStatic:
+      return STATIC_MODULE_KIND;
+    case ModuleKind::kNonStrict:
+      return NONSTRICT_MODULE_KIND;
+  }
+  Py_UNREACHABLE();
 }
 
 static mod_ty copyAST(mod_ty ast, PyArena* arena) {

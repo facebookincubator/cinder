@@ -141,28 +141,27 @@ static void AnalysisResult_dealloc(StrictModuleAnalysisResult* self) {
   }
 }
 
-static int
-AnalysisResult_traverse(StrictModuleAnalysisResult *self, visitproc visit, void *arg)
-{
-    Py_VISIT(self->module_name);
-    Py_VISIT(self->file_name);
-    Py_VISIT(self->ast);
-    Py_VISIT(self->ast_preprocessed);
-    Py_VISIT(self->symtable);
-    Py_VISIT(self->errors);
-    return 0;
+static int AnalysisResult_traverse(
+    StrictModuleAnalysisResult* self,
+    visitproc visit,
+    void* arg) {
+  Py_VISIT(self->module_name);
+  Py_VISIT(self->file_name);
+  Py_VISIT(self->ast);
+  Py_VISIT(self->ast_preprocessed);
+  Py_VISIT(self->symtable);
+  Py_VISIT(self->errors);
+  return 0;
 }
 
-static int
-AnalysisResult_clear(StrictModuleAnalysisResult *self)
-{
-    Py_CLEAR(self->module_name);
-    Py_CLEAR(self->file_name);
-    Py_CLEAR(self->ast);
-    Py_CLEAR(self->ast_preprocessed);
-    Py_CLEAR(self->symtable);
-    Py_CLEAR(self->errors);
-    return 0;
+static int AnalysisResult_clear(StrictModuleAnalysisResult* self) {
+  Py_CLEAR(self->module_name);
+  Py_CLEAR(self->file_name);
+  Py_CLEAR(self->ast);
+  Py_CLEAR(self->ast_preprocessed);
+  Py_CLEAR(self->symtable);
+  Py_CLEAR(self->errors);
+  return 0;
 }
 
 static PyMemberDef AnalysisResult_members[] = {
@@ -555,6 +554,7 @@ static PyObject* StrictModuleLoader_check_source(
   arena = StrictModuleChecker_GetArena(self->checker);
   result = create_AnalysisResult(mod, mod_name, errors, arena);
   Py_XDECREF(errors);
+  Py_XDECREF(source_copy);
   return result;
 err_cleanup:
   for (int i = 0; i < error_count; ++i) {
@@ -604,24 +604,23 @@ static PyMethodDef StrictModuleLoader_methods[] = {
     {"check",
      (PyCFunction)StrictModuleLoader_check,
      METH_VARARGS,
-     PyDoc_STR("check(mod_name: str) -> Tuple[int, List[Tuple[str, str, int, "
-               "int]]]")},
+     PyDoc_STR("check(mod_name: str) -> StrictAnalysisResult")},
     {"check_source",
      (PyCFunction)StrictModuleLoader_check_source,
      METH_VARARGS,
      PyDoc_STR("check_source("
                "source:str | bytes, file_name: str, mod_name: str, "
                "submodule_search_locations:List[str])"
-               " -> Tuple[int, List[Tuple[str, str, int, int]]]")},
+               " -> StrictAnalysisResult")},
     {"set_force_strict",
      (PyCFunction)StrictModuleLoader_set_force_strict,
      METH_VARARGS,
-     PyDoc_STR("force_strict(force: bool) -> bool")},
+     PyDoc_STR("set_force_strict(force: bool) -> bool")},
     {"get_analyzed_count",
      (PyCFunction)StrictModuleLoader_get_analyzed_count,
      METH_NOARGS,
      PyDoc_STR("get_analyzed_count() -> int")},
-     {"delete_module",
+    {"delete_module",
      (PyCFunction)StrictModuleLoader_delete_module,
      METH_VARARGS,
      PyDoc_STR("delete_module(name: str) -> bool")},
@@ -642,11 +641,22 @@ PyTypeObject StrictModuleLoader_Type = {
 };
 #pragma GCC diagnostic pop
 
-const char* MUTABLE_DEC = "<mutable>";
-const char* LOOSE_SLOTS_DEC = "<loose_slots>";
-const char* EXTRA_SLOTS_DEC = "<extra_slots>";
-const char* ENABLE_SLOTS_DEC = "<enable_slots>";
-const char* CACHED_PROP_DEC = "<cached_property>";
+const char* MUTABLE_DECORATOR = "<mutable>";
+const char* LOOSE_SLOTS_DECORATOR = "<loose_slots>";
+const char* EXTRA_SLOTS_DECORATOR = "<extra_slots>";
+const char* ENABLE_SLOTS_DECORATOR = "<enable_slots>";
+const char* CACHED_PROP_DECORATOR = "<cached_property>";
+
+// module kind
+int NONSTRICT_MODULE_KIND = 0;
+int STRICT_MODULE_KIND = 1;
+int STATIC_MODULE_KIND = 2;
+
+// stub kind
+int STUB_KIND_MASK_NONE = 0b000;
+int STUB_KIND_MASK_ALLOWLIST = 0b011;
+int STUB_KIND_MASK_TYPING = 0b100;
+int STUB_KIND_MASK_STRICT = 0b001;
 
 #ifdef __cplusplus
 }

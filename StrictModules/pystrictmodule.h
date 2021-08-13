@@ -28,11 +28,22 @@ typedef struct {
 
 PyAPI_DATA(PyTypeObject) StrictModuleLoader_Type;
 PyAPI_DATA(PyTypeObject) StrictModuleAnalysisResult_Type;
-PyAPI_DATA(const char*) MUTABLE_DEC;
-PyAPI_DATA(const char*) LOOSE_SLOTS_DEC;
-PyAPI_DATA(const char*) EXTRA_SLOTS_DEC;
-PyAPI_DATA(const char*) ENABLE_SLOTS_DEC;
-PyAPI_DATA(const char*) CACHED_PROP_DEC;
+PyAPI_DATA(const char*) MUTABLE_DECORATOR;
+PyAPI_DATA(const char*) LOOSE_SLOTS_DECORATOR;
+PyAPI_DATA(const char*) EXTRA_SLOTS_DECORATOR;
+PyAPI_DATA(const char*) ENABLE_SLOTS_DECORATOR;
+PyAPI_DATA(const char*) CACHED_PROP_DECORATOR;
+
+// module kind
+PyAPI_DATA(int) STRICT_MODULE_KIND;
+PyAPI_DATA(int) STATIC_MODULE_KIND;
+PyAPI_DATA(int) NONSTRICT_MODULE_KIND;
+
+// stub kind
+PyAPI_DATA(int) STUB_KIND_MASK_NONE;
+PyAPI_DATA(int) STUB_KIND_MASK_ALLOWLIST;
+PyAPI_DATA(int) STUB_KIND_MASK_TYPING;
+PyAPI_DATA(int) STUB_KIND_MASK_STRICT;
 
 #define StrictModuleLoaderObject_Check(v) \
   (Py_TYPE(v) == &StrictModuleLoader_Type)

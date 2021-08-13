@@ -39,17 +39,17 @@ void Preprocessor::visitClassDef(const stmt_ty stmt) {
   std::vector<expr_ty> newDecorators;
   auto& attr = it->second->getRewriterAttrs();
   if (attr.isMutable()) {
-    newDecorators.emplace_back(makeName(MUTABLE_DEC));
+    newDecorators.emplace_back(makeName(MUTABLE_DECORATOR));
   }
   const auto& extra_slots = attr.getExtraSlots();
   if (!extra_slots.empty()) {
-    newDecorators.emplace_back(makeNameCall(EXTRA_SLOTS_DEC, extra_slots));
+    newDecorators.emplace_back(makeNameCall(EXTRA_SLOTS_DECORATOR, extra_slots));
   }
   if (attr.isLooseSlots()) {
-    newDecorators.emplace_back(makeName(LOOSE_SLOTS_DEC));
+    newDecorators.emplace_back(makeName(LOOSE_SLOTS_DECORATOR));
   }
   if (hasSlots) {
-    newDecorators.emplace_back(makeName(ENABLE_SLOTS_DEC));
+    newDecorators.emplace_back(makeName(ENABLE_SLOTS_DECORATOR));
   }
   auto& classDef = stmt->v.ClassDef;
   asdl_seq* decorators = classDef.decorator_list;
@@ -94,7 +94,7 @@ void Preprocessor::visitFunctionLikeHelper(
       // add a new one. Just replace the old one with new one
       Ref<> isAsyncObj = Ref<>(isAsync ? Py_True : Py_False);
       asdl_seq* args = makeCallArgs({isAsyncObj.release()});
-      expr_ty call = makeCall(CACHED_PROP_DEC, args);
+      expr_ty call = makeCall(CACHED_PROP_DECORATOR, args);
       asdl_seq_SET(decs, toRemove, call);
     }
   }
@@ -111,11 +111,32 @@ void Preprocessor::visitAsyncFunctionDef(const stmt_ty stmt) {
 }
 
 // helpers
+/** obj2ast_object copied from Python-ast.c */
+static int obj2ast_object(PyObject* obj, PyObject** out, PyArena* arena) {
+  if (obj == Py_None)
+    obj = NULL;
+  if (obj) {
+    if (PyArena_AddPyObject(arena, obj) < 0) {
+      *out = NULL;
+      return -1;
+    }
+    Py_INCREF(obj);
+  }
+  *out = obj;
+  return 0;
+}
+
 expr_ty Preprocessor::makeName(const char* name) {
   PyObject* nameObj = PyUnicode_FromString(name);
   // need to transfer ownership to the arena
-  PyArena_AddPyObject(arena_, nameObj);
-  return _Py_Name(nameObj, Load, 0, 0, 0, 0, arena_);
+  PyObject* nameAst;
+  int res = obj2ast_object(nameObj, &nameAst, arena_);
+  if (res != 0) {
+    Py_CLEAR(nameObj);
+    throw std::runtime_error("error obtaining AST from node");
+  }
+  Py_CLEAR(nameObj);
+  return _Py_Name(nameAst, Load, 0, 0, 0, 0, arena_);
 }
 
 expr_ty Preprocessor::makeNameCall(
@@ -141,8 +162,14 @@ asdl_seq* Preprocessor::makeCallArgs(const std::vector<PyObject*>& args) {
   size_t size = args.size();
   asdl_seq* argsSeq = _Py_asdl_seq_new(size, arena_);
   for (size_t i = 0; i < size; ++i) {
-    PyArena_AddPyObject(arena_, args[i]);
-    expr_ty arg = _Py_Constant(args[i], NULL, 0, 0, 0, 0, arena_);
+    PyObject* argAst;
+    int res = obj2ast_object(args[i], &argAst, arena_);
+    if (res != 0) {
+      Py_XDECREF(args[i]);
+      throw std::runtime_error("error obtaining AST from node");
+    }
+    Py_XDECREF(args[i]);
+    expr_ty arg = _Py_Constant(argAst, NULL, 0, 0, 0, 0, arena_);
     asdl_seq_SET(argsSeq, i, arg);
   }
   return argsSeq;

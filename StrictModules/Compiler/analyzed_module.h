@@ -71,18 +71,7 @@ class AnalyzedModule {
   int getStubKindAsInt() const {
     return modInfo_->getStubKind().getValue();
   }
-  int getModKindAsInt() const {
-    switch (moduleKind_) {
-      case ModuleKind::kStrict:
-        return 1;
-      case ModuleKind::kStatic:
-        return 2;
-      case ModuleKind::kNonStrict:
-        return 0;
-    }
-    Py_UNREACHABLE();
-    return -1;
-  }
+  int getModKindAsInt() const;
 
  private:
   std::shared_ptr<StrictModuleObject> module_;

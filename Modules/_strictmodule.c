@@ -19,6 +19,39 @@ static int strictmodule_exec(PyObject *m) {
                      (PyObject *)&StrictModuleLoader_Type);
   PyModule_AddObject(m, "StrictAnalysisResult",
                      (PyObject *)&StrictModuleAnalysisResult_Type);
+  PyObject *val;
+#define SET_STR(name)                                                          \
+  val = PyUnicode_FromString(name);                                            \
+  if (val == NULL) {                                                           \
+    return -1;                                                                 \
+  }                                                                            \
+  if (PyModule_AddObject(m, #name, val) < 0) {                                 \
+    Py_DECREF(val);                                                            \
+    return -1;                                                                 \
+  }
+  SET_STR(MUTABLE_DECORATOR)
+  SET_STR(LOOSE_SLOTS_DECORATOR)
+  SET_STR(EXTRA_SLOTS_DECORATOR)
+  SET_STR(ENABLE_SLOTS_DECORATOR)
+  SET_STR(CACHED_PROP_DECORATOR)
+#undef SET_STR
+#define SET_LONG(name)                                                         \
+  val = PyLong_FromLong(name);                                                 \
+  if (val == NULL) {                                                           \
+    return -1;                                                                 \
+  }                                                                            \
+  if (PyModule_AddObject(m, #name, val) < 0) {                                 \
+    Py_DECREF(val);                                                            \
+    return -1;                                                                 \
+  }
+  SET_LONG(STRICT_MODULE_KIND)
+  SET_LONG(STATIC_MODULE_KIND)
+  SET_LONG(NONSTRICT_MODULE_KIND)
+  SET_LONG(STUB_KIND_MASK_NONE)
+  SET_LONG(STUB_KIND_MASK_ALLOWLIST)
+  SET_LONG(STUB_KIND_MASK_TYPING)
+  SET_LONG(STUB_KIND_MASK_STRICT)
+#undef SET_LONG
   return 0;
 fail:
   Py_XDECREF(m);
