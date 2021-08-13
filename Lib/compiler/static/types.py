@@ -437,7 +437,11 @@ class Value:
         elif isinstance(node.ctx, ast.Del):
             code_gen.emit("DELETE_ATTR", code_gen.mangle(node.attr))
         else:
-            code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
+            member = self.klass.members.get(node.attr)
+            if isinstance(member, PropertyMethod) and member.function.is_final:
+                code_gen.emit("INVOKE_FUNCTION", (member.getter_type_descr, 1))
+            else:
+                code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
 
     def bind_compare(
         self,
@@ -1022,7 +1026,7 @@ class Class(Object["Class"]):
                     if value.func_name not in NON_VIRTUAL_METHODS:
                         assert isinstance(my_value, Function)
                         value.validate_compat_signature(my_value, module)
-                elif isinstance(value, DecoratedMethod):
+                elif isinstance(value, StaticMethod):
                     if value.is_final:
                         raise TypedSyntaxError(
                             f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
@@ -1031,6 +1035,14 @@ class Class(Object["Class"]):
                     value.function.validate_compat_signature(
                         my_value.function, module, first_arg_is_implicit=False
                     )
+                elif isinstance(value, PropertyMethod):
+                    if value.is_final:
+                        raise TypedSyntaxError(
+                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                        )
+                    assert isinstance(my_value, PropertyMethod)
+                    value.function.validate_compat_signature(my_value.function, module)
+
             if (
                 isinstance(my_value, Slot)
                 and my_value.is_final
@@ -2599,6 +2611,32 @@ class StaticMethod(DecoratedMethod):
             visitor.set_type(node, StaticMethodInstanceBound(self.function, node))
 
 
+class PropertyMethod(DecoratedMethod):
+    def __init__(self, function: Function) -> None:
+        super().__init__(PROPERTY_TYPE, function)
+
+    @property
+    def name(self) -> str:
+        return self.function.qualname
+
+    def bind_descr_get(
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> None:
+        if inst is None:
+            visitor.set_type(node, DYNAMIC_TYPE)
+        else:
+            visitor.set_type(node, self.function.return_type.resolved().instance)
+
+    @property
+    def getter_type_descr(self) -> TypeDescr:
+        return self.function.type_descr + ("fget",)
+
+
 class TypingFinalDecorator(Class):
     def bind_decorate_function(
         self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
@@ -2666,6 +2704,18 @@ class DoNotCompileDecorator(Class):
     def bind_decorate_class(self, klass: Class) -> Class:
         klass.donotcompile = True
         return klass
+
+
+class PropertyDecorator(Class):
+    def bind_decorate_function(
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
+    ) -> Optional[Value]:
+        if isinstance(fn, DecoratedMethod):
+            return None
+        return PropertyMethod(fn)
+
+    def bind_decorate_class(self, klass: Class) -> Class:
+        raise TypedSyntaxError(f"Cannot decorate a class with @property")
 
 
 class BuiltinFunction(Callable[Class]):
@@ -4043,6 +4093,7 @@ ALLOW_WEAKREFS_TYPE = AllowWeakrefsDecorator(TypeName("__static__", "allow_weakr
 DYNAMIC_RETURN_TYPE = DynamicReturnDecorator(TypeName("__static__", "dynamic_return"))
 INLINE_TYPE = InlineFunctionDecorator(TypeName("__static__", "inline"))
 DONOTCOMPILE_TYPE = DoNotCompileDecorator(TypeName("__static__", "_donotcompile"))
+PROPERTY_TYPE = PropertyDecorator(TypeName("builtins", "property"))
 
 RESOLVED_INT_TYPE = ResolvedTypeRef(INT_TYPE)
 RESOLVED_STR_TYPE = ResolvedTypeRef(STR_TYPE)

@@ -1177,6 +1177,26 @@ static int classloader_verify_type(PyObject *type, PyObject *path) {
 }
 
 static PyObject *
+classloader_get_property_member(PyObject *current, PyObject *name)
+{
+    if (Py_TYPE(current) != &PyProperty_Type) {
+        return NULL;
+    }
+    if (!PyUnicode_Check(name)) {
+        return NULL;
+    }
+    Py_ssize_t name_size;
+    const char *name_string = PyUnicode_AsUTF8AndSize(name, &name_size);
+    if (name_string == NULL) {
+        return NULL;
+    }
+    if (name_size != 4 || strncmp(name_string, "fget", 4)) {
+        return NULL;
+    }
+    return PyObject_GetAttr(current, name);
+}
+
+static PyObject *
 classloader_get_member(PyObject *path,
                        Py_ssize_t items,
                        PyObject **container)
@@ -1200,6 +1220,17 @@ classloader_get_member(PyObject *path,
         PyObject *d = NULL;
         PyObject *name = PyTuple_GET_ITEM(path, i);
 
+        // Special case: If we're dealing with a property of the form
+        // `(module, Class, prop, __get__)`, keep the class as the proper container.
+        if (i + 1 == items) {
+            PyObject *property_result = classloader_get_property_member(cur, name);
+            // Bubble up exceptions that might've arose when attempting to fetch a property
+            // type descriptor.
+            if (property_result != NULL || PyErr_Occurred()) {
+                Py_DECREF(cur);
+                return property_result;
+            }
+        }
         if (container != NULL) {
             Py_CLEAR(*container);
             Py_INCREF(cur);

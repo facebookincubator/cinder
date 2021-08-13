@@ -66,6 +66,7 @@ from .types import (
     OPTIONAL_TYPE,
     Object,
     PROTOCOL_TYPE,
+    PROPERTY_TYPE,
     ProdAssertFunction,
     ResolvedTypeRef,
     RevealTypeFunction,
@@ -161,6 +162,7 @@ class SymbolTable:
             "issubclass": IsSubclassFunction(),
             "staticmethod": STATIC_METHOD_TYPE,
             "reveal_type": RevealTypeFunction(),
+            "property": PROPERTY_TYPE,
         }
         strict_builtins = StrictBuiltins(builtins_children)
         typing_children = {
