@@ -49,7 +49,7 @@ struct SSABasicBlock {
 
 class SSAify : public Pass {
  public:
-  SSAify() : Pass("SSAify"), irfunc_(nullptr), next_variable_index_(0) {}
+  SSAify() : Pass("SSAify"), irfunc_(nullptr) {}
 
   void Run(Function& irfunc) override;
 
@@ -84,7 +84,6 @@ class SSAify : public Pass {
       Register* from,
       Register* to);
   Function* irfunc_;
-  int next_variable_index_;
   std::unordered_map<Register*, Register*> reg_replacements_;
   std::unordered_map<Register*, std::unordered_map<Phi*, SSABasicBlock*>>
       phi_uses_;
