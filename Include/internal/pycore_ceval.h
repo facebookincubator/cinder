@@ -13,30 +13,30 @@ extern "C" {
 #include "pythread.h"
 
 /* facebook begin T57511654 */
-PyAPI_DATA(int64_t) __strobe_PyObject_type;
-PyAPI_DATA(int64_t) __strobe_PyTypeObject_name;
-PyAPI_DATA(int64_t) __strobe_PyThreadState_frame;
-PyAPI_DATA(int64_t) __strobe_PyThreadState_thread;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_back;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_code;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_lineno;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_localsplus;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_gen;
+PyAPI_DATA(int32_t) __strobe_PyVersion_major;
+PyAPI_DATA(int32_t) __strobe_PyVersion_micro;
+PyAPI_DATA(int32_t) __strobe_PyVersion_minor;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_co_flags;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_filename;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_name;
-PyAPI_DATA(int64_t) __strobe_PyCodeObject_varnames;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_qualname;
-PyAPI_DATA(int64_t) __strobe_PyTupleObject_item;
+PyAPI_DATA(int64_t) __strobe_PyCodeObject_varnames;
 PyAPI_DATA(int64_t) __strobe_PyCoroObject_creator;
+PyAPI_DATA(int64_t) __strobe_PyFrameObject_back;
+PyAPI_DATA(int64_t) __strobe_PyFrameObject_code;
+PyAPI_DATA(int64_t) __strobe_PyFrameObject_gen;
+PyAPI_DATA(int64_t) __strobe_PyFrameObject_lineno;
+PyAPI_DATA(int64_t) __strobe_PyFrameObject_localsplus;
+PyAPI_DATA(int64_t) __strobe_PyGenObject_code;
+PyAPI_DATA(int64_t) __strobe_PyObject_type;
+PyAPI_DATA(int64_t) __strobe_PyThreadState_frame;
+PyAPI_DATA(int64_t) __strobe_PyThreadState_thread;
+PyAPI_DATA(int64_t) __strobe_PyTupleObject_item;
+PyAPI_DATA(int64_t) __strobe_PyTypeObject_name;
 PyAPI_DATA(int64_t) __strobe_String_data;
 PyAPI_DATA(int64_t) __strobe_String_size;
-PyAPI_DATA(int64_t) __strobe_TLSKey_offset;
 PyAPI_DATA(int64_t) __strobe_TCurrentState_offset;
-PyAPI_DATA(int32_t) __strobe_PyVersion_major;
-PyAPI_DATA(int32_t) __strobe_PyVersion_minor;
-PyAPI_DATA(int32_t) __strobe_PyVersion_micro;
-PyAPI_DATA(int64_t) __strobe_PyGenObject_code;
+PyAPI_DATA(int64_t) __strobe_TLSKey_offset;
 /* facebook end T57511654 */
 
 PyAPI_FUNC(void) _Py_FinishPendingCalls(_PyRuntimeState *runtime);
