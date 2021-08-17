@@ -2639,11 +2639,12 @@ PyIter_Send(void *tstate, PyObject *iter, PyObject *arg, PyObject **result)
     _Py_IDENTIFIER(send);
     assert(arg != NULL);
     assert(result != NULL);
-    if (PyType_HasFeature(Py_TYPE(iter), Py_TPFLAGS_HAVE_AM_SEND)) {
-        assert (Py_TYPE(iter)->tp_as_async != NULL);
-        assert (((PyAsyncMethodsWithSend*)Py_TYPE(iter)->tp_as_async)->ams_send != NULL);
-        PySendResult res = ((PyAsyncMethodsWithSend*)Py_TYPE(iter)->tp_as_async)->ams_send(tstate, iter, arg, result);
-        return res;
+    if (PyType_HasFeature(Py_TYPE(iter), Py_TPFLAGS_HAVE_AM_EXTRA)) {
+        PyAsyncMethodsWithExtra *am = (PyAsyncMethodsWithExtra *)Py_TYPE(iter)->tp_as_async;
+        assert(am != NULL);
+        if (am->ame_send != NULL) {
+            return am->ame_send(tstate, iter, arg, result);
+        }
     }
     if (arg == Py_None && PyIter_Check(iter)) {
         *result = Py_TYPE(iter)->tp_iternext(iter);

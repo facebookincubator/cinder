@@ -61,6 +61,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    SetCurrentAwaiter v4
     v3 = YieldFrom v5 v4
     v3 = CheckExc v3 {
       NextInstrOffset 8
@@ -97,6 +98,7 @@ fun jittestmodule:test {
 
   bb 8 (preds 2, 7) {
     v8 = LoadConst<NoneType>
+    SetCurrentAwaiter v6
     v3 = YieldFrom v8 v6
     v3 = CheckExc v3 {
       NextInstrOffset 8
@@ -976,6 +978,7 @@ fun jittestmodule:test {
 
   bb 3 (preds 0, 2) {
     v7 = LoadConst<NoneType>
+    SetCurrentAwaiter v5
     v8 = YieldFrom v7 v5
     v8 = CheckExc v8 {
       NextInstrOffset 16

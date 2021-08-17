@@ -227,10 +227,14 @@ int _PyEval_LazyImportsEnabled = 1; /* facebook */
 #define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
 #define DISPATCH_EAGER_CORO_RESULT(r, X)                                    \
         assert(_PyWaitHandle_CheckExact(r));                                \
-        X(((PyWaitHandleObject*)r)->wh_coro_or_result);                     \
+        PyObject *coro_or_result = ((PyWaitHandleObject*)r)->wh_coro_or_result; \
+        X(coro_or_result);                                                  \
         assert(_Py_OPCODE(*next_instr) == GET_AWAITABLE);                   \
         assert(_Py_OPCODE(*(next_instr + 1)) == LOAD_CONST);                \
         if (((PyWaitHandleObject*)r)->wh_waiter) {                          \
+            if (f->f_gen != NULL && (co->co_flags & CO_COROUTINE)) {        \
+                _PyAwaitable_SetAwaiter(coro_or_result, f->f_gen);          \
+            }                                                               \
             f->f_stacktop = stack_pointer;                                  \
             retval = ((PyWaitHandleObject*)r)->wh_waiter;                   \
             _PyWaitHandle_Release(r);                                       \
@@ -2244,6 +2248,9 @@ main_loop:
             PyObject *v = POP();
             PyObject *receiver = TOP();
             PySendResult gen_status;
+            if (f->f_gen && (co->co_flags & CO_COROUTINE)) {
+                _PyAwaitable_SetAwaiter(receiver, f->f_gen);
+            }
             if (_Py_LIKELY(tstate->c_tracefunc == NULL)) {
                 gen_status = PyIter_Send(tstate, receiver, v, &retval);
             } else {
@@ -6305,14 +6312,20 @@ _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, P
         return NULL;
     }
     if (f->f_stacktop != NULL) {
-        PyObject *coro = _PyCoro_ForFrame(tstate, f, name, qualname);
+        PyCoroObject *coro =
+            (PyCoroObject*)_PyCoro_ForFrame(tstate, f, name, qualname);
         if (coro == NULL) {
             RELEASE_EXC_INFO(exc_info);
             RELEASE_FRAME(tstate, f);
             return NULL;
         }
-        ((PyCoroObject *)coro)->cr_exc_state = exc_info;
-        return _PyWaitHandle_New(coro, retval);
+        coro->cr_exc_state = exc_info;
+        PyObject *yf = _PyGen_yf((PyGenObject *)coro);
+        if (yf) {
+            _PyAwaitable_SetAwaiter(yf, (PyObject *)coro);
+            Py_DECREF(yf);
+        }
+        return _PyWaitHandle_New((PyObject *)coro, retval);
     }
     RELEASE_EXC_INFO(exc_info);
     RELEASE_FRAME(tstate, f);

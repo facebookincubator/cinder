@@ -93,6 +93,16 @@ _PyGen_Finalize(PyObject *self)
         return;
     }
 
+    if (PyCoro_CheckExact(self)) {
+        /* If we're suspended in an `await`, remove us as the awaiter of the
+         * target awaitable. */
+        PyObject *yf = _PyGen_yf(gen);
+        if (yf) {
+            _PyAwaitable_SetAwaiter(yf, NULL);
+            Py_DECREF(yf);
+        }
+    }
+
     if (PyAsyncGen_CheckExact(self)) {
         PyAsyncGenObject *agen = (PyAsyncGenObject*)self;
         PyObject *finalizer = agen->ag_finalizer;
@@ -118,9 +128,7 @@ _PyGen_Finalize(PyObject *self)
 
     /* If `gen` is a coroutine, and if it was never awaited on,
        issue a RuntimeWarning. */
-    if (gen->gi_code != NULL &&
-        ((PyCodeObject *)gen->gi_code)->co_flags & CO_COROUTINE &&
-        gen_is_just_started(gen))
+    if (PyCoro_CheckExact(gen) && gen_is_just_started(gen))
     {
         _PyErr_WarnUnawaitedCoroutine((PyObject *)gen);
     }
@@ -499,7 +507,10 @@ _PyGen_DoSend(PyThreadState *tstate,
         gen_status = PYGEN_ERROR;
     }
 
-    if (!result || gen_is_completed(gen)) {
+    if (gen_status != PYGEN_NEXT) {
+        if (PyCoro_CheckExact(gen)) {
+            ((PyCoroObject *)gen)->cr_awaiter = NULL;
+        }
         /* generator can't be rerun, so release the frame */
         /* first clean reference cycle through stored exception traceback */
         exc_state_clear(&gen->gi_exc_state);
@@ -1012,13 +1023,13 @@ static PyMethodDef gen_methods[] = {
     {NULL, NULL}        /* Sentinel */
 };
 
-static PyAsyncMethodsWithSend PyGen_Type_as_async = {
-    .ams_async_methods = {
+static PyAsyncMethodsWithExtra PyGen_Type_as_async = {
+    .ame_async_methods = {
         0,                               /* am_await */
         0,                               /* am_aiter */
         0,                               /* am_anext */
     },
-    .ams_send = (sendfunc)_PyGen_DoSend
+    .ame_send = (sendfunc)_PyGen_DoSend
 };
 
 PyTypeObject PyGen_Type = {
@@ -1042,7 +1053,7 @@ PyTypeObject PyGen_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_SEND,    /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_EXTRA,    /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)gen_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */
@@ -1295,6 +1306,14 @@ coro_is_creator(PyCoroObject *coro, PyObject *frame) {
   Py_RETURN_FALSE;
 }
 
+static void
+coro_set_awaiter(PyCoroObject *coro, PyCoroObject *awaiter) {
+    assert(awaiter == NULL || PyCoro_CheckExact(awaiter));
+    if (!gen_is_completed((PyGenObject *)coro)) {
+        coro->cr_awaiter = awaiter;
+    }
+}
+
 static PyGetSetDef coro_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
      PyDoc_STR("name of the coroutine")},
@@ -1337,13 +1356,14 @@ static PyMethodDef coro_methods[] = {
     {NULL, NULL}        /* Sentinel */
 };
 
-static PyAsyncMethodsWithSend coro_as_async = {
-    .ams_async_methods = {
+static PyAsyncMethodsWithExtra coro_as_async = {
+    .ame_async_methods = {
         (unaryfunc)coro_await,                      /* am_await */
         0,                                          /* am_aiter */
         0,                                          /* am_anext */
     },
-    .ams_send = (sendfunc)_PyGen_DoSend
+    .ame_send = (sendfunc)_PyGen_DoSend,
+    .ame_setawaiter = (setawaiterfunc)coro_set_awaiter,
 };
 
 PyTypeObject PyCoro_Type = {
@@ -1367,7 +1387,7 @@ PyTypeObject PyCoro_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_SEND,    /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_EXTRA,    /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)gen_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */
@@ -1535,6 +1555,7 @@ coro_new(
 
     int origin_depth = tstate->coroutine_origin_tracking_depth;
     ((PyCoroObject *)coro)->creator = NULL;
+    ((PyCoroObject *)coro)->cr_awaiter = NULL;
 
     if (origin_depth == 0) {
         ((PyCoroObject *)coro)->cr_origin = NULL;

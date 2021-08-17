@@ -13,14 +13,17 @@
 #include <unordered_set>
 
 static bool is_shadow_frame_for_gen(_PyShadowFrame* shadow_frame) {
+  // TODO(bsimmers): This condition will need to change when we support eager
+  // coroutine execution in the JIT, since there is no PyGenObject* for the
+  // frame while executing eagerly (but isGen() will still return true).
   bool is_jit_gen = _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT &&
       static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame))
           ->isGen();
+
   // Note this may be JIT or interpreted.
   bool is_gen_with_frame =
       _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME &&
-      (_PyShadowFrame_GetPyFrame(shadow_frame)->f_code->co_flags &
-       jit::kCoFlagsAnyGenerator);
+      _PyShadowFrame_GetPyFrame(shadow_frame)->f_gen != nullptr;
   return is_jit_gen || is_gen_with_frame;
 }
 
@@ -219,6 +222,10 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
 }
 
 } // namespace jit
+
+int _PyShadowFrame_HasGen(_PyShadowFrame* shadow_frame) {
+  return is_shadow_frame_for_gen(shadow_frame);
+}
 
 PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
   JIT_DCHECK(

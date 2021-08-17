@@ -90,6 +90,12 @@ typedef struct {
       Py_TYPE(etype)->tp_basicsize + \
       Py_SIZE(etype) * sizeof(PyMemberDef)))
 
+#define PyHeapType_CINDER_AM_EXTRA(etype) \
+  ((PyAsyncMethodsWithExtra*)( \
+      (char*)PyHeapType_CINDER_EXTRA(etype) + \
+      sizeof(_PyType_CinderExtra) \
+  ))
+
 
 
 #ifdef __cplusplus

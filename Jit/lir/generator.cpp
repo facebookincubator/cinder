@@ -1062,6 +1062,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Return {}:{}", reg->name(), reg->type().unspecialized());
         break;
       }
+      case Opcode::kSetCurrentAwaiter: {
+        bbb.AppendCode(
+            "Invoke {:#x}, {}, __asm_tstate",
+            reinterpret_cast<int64_t>(JITRT_SetCurrentAwaiter),
+            i.GetOperand(0));
+        break;
+      }
       case Opcode::kYieldValue: {
         auto instr = static_cast<const YieldValue*>(&i);
         std::stringstream ss;

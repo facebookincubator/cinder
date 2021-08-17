@@ -143,13 +143,13 @@ awaitable_itersend(PyThreadState* tstate,
     return status;
 }
 
-static PyAsyncMethodsWithSend awaitable_as_async = {
-    .ams_async_methods = {
+static PyAsyncMethodsWithExtra awaitable_as_async = {
+    .ame_async_methods = {
         (unaryfunc)awaitable_await,
         NULL,
         NULL,
     },
-    .ams_send = (sendfunc)awaitable_itersend,
+    .ame_send = (sendfunc)awaitable_itersend,
 };
 
 static PyObject *
@@ -229,7 +229,7 @@ static PyTypeObject _PyClassLoader_AwaitableType = {
     .tp_dealloc = (destructor)awaitable_dealloc,
     .tp_as_async = (PyAsyncMethods *)&awaitable_as_async,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_AM_SEND,
+                Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_traverse = (traverseproc)awaitable_traverse,
     .tp_clear = (inquiry)awaitable_clear,
     .tp_iter = PyObject_SelfIter,

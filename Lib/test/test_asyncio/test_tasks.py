@@ -1,6 +1,7 @@
 """Tests for tasks.py."""
 
 import _testcapi
+import cinder
 import collections
 import contextlib
 import contextvars
@@ -2462,6 +2463,25 @@ class BaseTaskTests:
         finally:
             loop.close()
 
+    def test_cr_awaiter(self):
+        ctask = getattr(tasks, '_CTask', None)
+        if ctask is None or not issubclass(self.Task, ctask):
+            self.skipTest("Only subclasses of _CTask set cr_awaiter on wrapped coroutines")
+
+        async def coro():
+            self.assertIs(cinder._get_coro_awaiter(coro_obj), awaiter_obj)
+            return "ok"
+
+        async def awaiter(coro):
+            task = self.loop.create_task(coro)
+            return await task
+
+        coro_obj = coro()
+        awaiter_obj = awaiter(coro_obj)
+        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
+        self.assertEqual(self.loop.run_until_complete(awaiter_obj), "ok")
+        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
+
 
 def add_subclass_tests(cls):
     BaseTask = cls.Task
@@ -2995,6 +3015,49 @@ class GatherTestsBase:
         sts, stdout, stderr = assert_python_ok('-E', '-X', 'dev',
                                                '-c', code)
         self.assertEqual(stdout.rstrip(), b'True')
+
+    def _test_cr_awaiter_impl(self, awaiter):
+        async def add(a, b):
+            self_coro = cinder._get_frame_gen(sys._getframe())
+            self.assertIsInstance(self_coro, types.CoroutineType)
+            self.assertIs(cinder._get_coro_awaiter(self_coro), awaiter_obj)
+            return a + b
+
+        a12 = add(1, 2)
+        a34 = add(3, 4)
+        a56 = add(5, 6)
+        self.assertIsNone(cinder._get_coro_awaiter(a12))
+        self.assertIsNone(cinder._get_coro_awaiter(a34))
+        self.assertIsNone(cinder._get_coro_awaiter(a56))
+
+        awaiter_obj = awaiter(a12, a34, a56)
+        gather_obj = None
+        result = self.one_loop.run_until_complete(awaiter_obj)
+        self.assertEqual(result, [3, 7, 11])
+
+        self.assertIsNone(cinder._get_coro_awaiter(a12))
+        self.assertIsNone(cinder._get_coro_awaiter(a34))
+        self.assertIsNone(cinder._get_coro_awaiter(a56))
+
+        del awaiter_obj
+        self.assertIsNone(cinder._get_coro_awaiter(a12))
+        self.assertIsNone(cinder._get_coro_awaiter(a34))
+        self.assertIsNone(cinder._get_coro_awaiter(a56))
+
+    def test_gather_cr_awaiter_eager(self):
+        async def eager_awaiter(o1, o2, o3):
+            t3 = self.one_loop.create_task(o3)
+            return await self.gather(o1, o2, t3)
+
+        self._test_cr_awaiter_impl(eager_awaiter)
+
+    def test_gather_cr_awaiter(self):
+        async def awaiter(o1, o2, o3):
+            t3 = self.one_loop.create_task(o3)
+            gatherer = self.gather(o1, o2, t3)
+            return await gatherer
+
+        self._test_cr_awaiter_impl(awaiter)
 
 
 class FutureGatherTests(GatherTestsBase):

@@ -6,7 +6,6 @@
 #include "frameobject.h"
 #include "internal/pycore_shadow_frame_struct.h"
 
-#include <stdbool.h>
 #include <stdint.h>
 
 #ifndef Py_LIMITED_API
@@ -36,6 +35,7 @@ _PyShadowFrame_GetPyFrame(_PyShadowFrame *shadow_frame) {
   return (PyFrameObject *)_PyShadowFrame_GetPtr(shadow_frame);
 }
 
+int _PyShadowFrame_HasGen(_PyShadowFrame *shadow_frame);
 PyGenObject *_PyShadowFrame_GetGen(_PyShadowFrame *shadow_frame);
 
 static inline uintptr_t

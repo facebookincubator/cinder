@@ -243,6 +243,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:
     case Opcode::kRunPeriodicTasks:
+    case Opcode::kSetCurrentAwaiter:
     case Opcode::kSetCellItem:
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:

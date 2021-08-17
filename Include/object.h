@@ -347,14 +347,6 @@ given type object has a specified feature.
 #define Py_TPFLAGS_IS_ABSTRACT (1UL << 20)
 
 #define Py_TPFLAGS_FROZEN (1UL << 21)
-/* set if C extension type supports PyGenNextMethods  */
-#define Py_TPFLAGS_HAVE_AM_SEND (1UL << 23)
-
-typedef enum {
-    PYGEN_RETURN = 0,
-    PYGEN_ERROR = -1,
-    PYGEN_NEXT = 1,
-} PySendResult;
 
 /*
   No instances of this class have attributes that shadow a method.  When this
@@ -406,6 +398,9 @@ typedef enum {
      does not need to be handled efficiently. This is handled by (5).
 */
 #define Py_TPFLAGS_NO_SHADOWING_INSTANCES (1UL << 22)
+
+/* Set if type's tp_as_async slot points to PyAsyncMethodsWithExtra */
+#define Py_TPFLAGS_HAVE_AM_EXTRA (1UL << 23)
 
 /* These flags are used to determine if a type is a subclass. */
 #define Py_TPFLAGS_LONG_SUBCLASS        (1UL << 24)

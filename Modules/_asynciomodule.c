@@ -4,6 +4,8 @@
 #include "weakrefobject.h"
 #include "pycore_pyerrors.h"
 
+#include "internal/pycore_shadow_frame.h"
+
 /** facebook: USDT import */
 #include "Include/folly/tracing/StaticTracepoint.h"
 
@@ -3068,6 +3070,13 @@ FutureIter_itersend(PyThreadState* Py_UNUSED(tstate),
     return gen_status;
 }
 
+static void
+FutureIter_setawaiter(futureiterobject *it, PyObject *awaiter) {
+    if (it->future != NULL) {
+        _PyAwaitable_SetAwaiter((PyObject *)it->future, awaiter);
+    }
+}
+
 static inline PyObject*
 gen_status_to_iter(PySendResult gen_status, PyObject *result)
 {
@@ -3174,13 +3183,14 @@ static PyMethodDef FutureIter_methods[] = {
     {NULL, NULL}        /* Sentinel */
 };
 
-static PyAsyncMethodsWithSend FutureIterType_as_async = {
-    .ams_async_methods = {
+static PyAsyncMethodsWithExtra FutureIterType_as_async = {
+    .ame_async_methods = {
         0,                                   /* am_await */
         0,                                   /* am_aiter */
         0,                                   /* am_anext */
     },
-    .ams_send = (sendfunc)FutureIter_itersend
+    .ame_send = (sendfunc)FutureIter_itersend,
+    .ame_setawaiter = (setawaiterfunc)FutureIter_setawaiter,
 };
 
 static PyTypeObject FutureIterType = {
@@ -3190,7 +3200,7 @@ static PyTypeObject FutureIterType = {
     .tp_itemsize = 0,
     .tp_dealloc = (destructor)FutureIter_dealloc,
     .tp_getattro = PyObject_GenericGetAttr,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_SEND,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_traverse = (traverseproc)FutureIter_traverse,
     .tp_iter = PyObject_SelfIter,
     .tp_iternext = (iternextfunc)FutureIter_iternext,
@@ -4093,6 +4103,10 @@ done:
 
 static void TaskObj_dealloc(PyObject *);  /* Needs Task_CheckExact */
 
+static void TaskObj_set_awaiter(TaskObj *self, PyObject *awaiter) {
+    _PyAwaitable_SetAwaiter(self->task_coro, awaiter);
+}
+
 // clang-format off
 #define TASK_COMMON_METHODS                         \
     _ASYNCIO_FUTURE_RESULT_METHODDEF                \
@@ -4132,6 +4146,13 @@ static PyGetSetDef TaskType_getsetlist[] = {
     TASK_COMMON_GETSETLIST
     {NULL} /* Sentinel */
 };
+
+static PyAsyncMethodsWithExtra TaskType_as_async = {
+    .ame_async_methods = {
+        .am_await = (unaryfunc)future_new_iter,
+    },
+    .ame_setawaiter = (setawaiterfunc)TaskObj_set_awaiter,
+};
 // clang-format on
 
 static PyTypeObject TaskType = {
@@ -4140,9 +4161,10 @@ static PyTypeObject TaskType = {
     sizeof(TaskObj),                       /* tp_basicsize */
     .tp_base = &FutureType,
     .tp_dealloc = TaskObj_dealloc,
-    .tp_as_async = &FutureType_as_async,
+    .tp_as_async = (PyAsyncMethods *)&TaskType_as_async,
     .tp_repr = (reprfunc)FutureObj_repr,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
+                Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_doc = _asyncio_Task___init____doc__,
     .tp_traverse = (traverseproc)TaskObj_traverse,
     .tp_clear = (inquiry)TaskObj_clear,
@@ -5214,9 +5236,9 @@ static PyTypeObject ContextAwareTaskType = {
     .tp_doc = _asyncio_ContextAwareTask___init____doc__,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor)ContextAwareTaskObj_dealloc,
-    .tp_as_async = &FutureType_as_async,
+    .tp_as_async = (PyAsyncMethods *)&TaskType_as_async,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
-                Py_TPFLAGS_HAVE_FINALIZE,
+                Py_TPFLAGS_HAVE_FINALIZE | Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_traverse = (traverseproc)ContextAwareTaskObj_traverse,
     .tp_clear = (inquiry)ContextAwareTaskObj_clear,
     .tp_iter = (getiterfunc)future_new_iter,
@@ -5561,13 +5583,13 @@ AsyncLazyValue_get_awaiting_tasks(AsyncLazyValueObj *self,
     return PyLong_FromSsize_t(n);
 }
 
-static PyAsyncMethodsWithSend _AsyncLazyValue_Type_as_async = {
-    .ams_async_methods = {
+static PyAsyncMethodsWithExtra _AsyncLazyValue_Type_as_async = {
+    .ame_async_methods = {
         (unaryfunc)AsyncLazyValue_await,         /* am_await */
         0,                                       /* am_aiter */
         0,                                       /* am_anext */
     },
-    .ams_send = (sendfunc)AsyncLazyValue_itersend
+    .ame_send = (sendfunc)AsyncLazyValue_itersend
 };
 
 static PyMethodDef AsyncLazyValue_methods[] = {
@@ -5584,7 +5606,7 @@ static PyTypeObject _AsyncLazyValue_Type = {
     PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValue",
     .tp_basicsize = sizeof(AsyncLazyValueObj),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                Py_TPFLAGS_HAVE_AM_SEND,
+                Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_traverse = (traverseproc)AsyncLazyValue_traverse,
     .tp_clear = (inquiry)AsyncLazyValue_clear,
     .tp_iter = PyObject_SelfIter,
@@ -5981,20 +6003,20 @@ static PyMethodDef AsyncLazyValueCompute_methods[] = {
     {NULL, NULL} /* Sentinel */
 };
 
-static PyAsyncMethodsWithSend _AsyncLazyValueCompute_Type_as_async = {
-    .ams_async_methods = {
+static PyAsyncMethodsWithExtra _AsyncLazyValueCompute_Type_as_async = {
+    .ame_async_methods = {
         (unaryfunc)PyObject_SelfIter,                   /* am_await */
         0,                                              /* am_aiter */
         0,                                              /* am_anext */
     },
-    .ams_send = (sendfunc)AsyncLazyValueCompute_itersend
+    .ame_send = (sendfunc)AsyncLazyValueCompute_itersend
 };
 
 static PyTypeObject _AsyncLazyValueCompute_Type = {
     PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValueCompute",
     .tp_basicsize = sizeof(AsyncLazyValueComputeObj),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                Py_TPFLAGS_HAVE_AM_SEND,
+                Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_traverse = (traverseproc)AsyncLazyValueCompute_traverse,
     .tp_clear = (inquiry)AsyncLazyValueCompute_clear,
     .tp_methods = AsyncLazyValueCompute_methods,
@@ -6052,13 +6074,13 @@ AwaitableValueObj_itersend(PyThreadState *Py_UNUSED(tstate),
                           PyObject *Py_UNUSED(sentValue),
                           PyObject **pResult);
 
-static PyAsyncMethodsWithSend AwaitableValue_Type_as_async = {
-    .ams_async_methods = {
+static PyAsyncMethodsWithExtra AwaitableValue_Type_as_async = {
+    .ame_async_methods = {
         (unaryfunc)PyObject_SelfIter,                   /* am_await */
         0,                                              /* am_aiter */
         0,                                              /* am_anext */
     },
-    .ams_send = (sendfunc)AwaitableValueObj_itersend
+    .ame_send = (sendfunc)AwaitableValueObj_itersend
 };
 
 static PyObject *
@@ -6121,7 +6143,7 @@ static PyTypeObject AwaitableValue_Type = {
     PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AwaitableValue",
     .tp_basicsize = sizeof(AwaitableValueObj),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                Py_TPFLAGS_HAVE_AM_SEND,
+                Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_new = PyType_GenericNew,
     .tp_traverse = (traverseproc)AwaitableValueObj_traverse,
     .tp_clear = (inquiry)AwaitableValueObj_clear,
@@ -6507,15 +6529,36 @@ _GatheringFutureObj_new(PyObject *data, PyObject *loop, int return_exceptions)
     return gfut;
 }
 
+static void
+_GatheringFutureObj_set_awaiter(_GatheringFutureObj *self, PyObject *awaiter) {
+    PyObject *list = self->gf_data;
+    if (list == NULL) {
+        return;
+    }
+
+    FOREACH_INDEX(self->gf_datamap, i) {
+        PyObject* fut = PyList_GET_ITEM(list, i);
+        _PyAwaitable_SetAwaiter(fut, awaiter);
+    }
+    FOREACH_INDEX_END()
+}
+
+static PyAsyncMethodsWithExtra _GatheringFutureType_as_async = {
+    .ame_async_methods = {
+        .am_await = (unaryfunc)future_new_iter,
+    },
+    .ame_setawaiter = (setawaiterfunc)_GatheringFutureObj_set_awaiter,
+};
+
 static PyTypeObject _GatheringFutureType = {
     PyVarObject_HEAD_INIT(NULL, 0) "_asyncio._GatheringFuture",
     sizeof(_GatheringFutureObj), /* tp_basicsize */
     .tp_base = &FutureType,
     .tp_dealloc = _GatheringFutureObj_dealloc,
-    .tp_as_async = &FutureType_as_async,
+    .tp_as_async = (PyAsyncMethods*)&_GatheringFutureType_as_async,
     .tp_repr = (reprfunc)FutureObj_repr,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
-                Py_TPFLAGS_HAVE_FINALIZE,
+                Py_TPFLAGS_HAVE_FINALIZE | Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_doc = _asyncio_Future___init____doc__,
     .tp_traverse = (traverseproc)_GatheringFutureObj_traverse,
     .tp_clear = (inquiry)_GatheringFutureObj_clear,
@@ -6968,11 +7011,24 @@ _gather_multiple(PyObject *const*items,
 
     DECLARE_METHODTABLE(t)
 
-    PyObject *current_task = NULL, *current_context = NULL;
+    PyObject *current_task = NULL, *current_context = NULL, *awaiter = NULL;
     context_aware_task_set_ctx_f context_setter = NULL;
+
+    if (awaited) {
+        _PyShadowFrame* sf = tstate->shadow_frame;
+        // If our caller is executing eagerly, it won't have a coroutine to set
+        // as our awaiter yet. This will be fixed up if and when the caller
+        // does suspend.
+        if (_PyShadowFrame_HasGen(sf)) {
+            awaiter = (PyObject *)_PyShadowFrame_GetGen(sf);
+        }
+    }
 
     for (Py_ssize_t i = 0; i < nitems; ++i) {
         PyObject *arg = items[i];
+        if (awaiter) {
+            _PyAwaitable_SetAwaiter(arg, awaiter);
+        }
 
         Py_hash_t arg_hash = -1;
         if (arg_to_fut != NULL) {

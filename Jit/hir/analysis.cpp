@@ -117,6 +117,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:
     case Opcode::kRunPeriodicTasks:
+    case Opcode::kSetCurrentAwaiter:
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
     case Opcode::kStealCellItem:

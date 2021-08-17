@@ -537,13 +537,12 @@ Type outputType(const Instr& instr) {
     }
 
     // Finally, some opcodes have no destination.
-    case Opcode::kStoreField:
     case Opcode::kBranch:
     case Opcode::kCallStaticRetVoid:
     case Opcode::kClearError:
     case Opcode::kCondBranch:
-    case Opcode::kCondBranchIterNotDone:
     case Opcode::kCondBranchCheckType:
+    case Opcode::kCondBranchIterNotDone:
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
@@ -551,17 +550,19 @@ Type outputType(const Instr& instr) {
     case Opcode::kIncref:
     case Opcode::kInitFunction:
     case Opcode::kInitListTuple:
+    case Opcode::kRaise:
+    case Opcode::kRaiseAwaitableError:
+    case Opcode::kRaiseStatic:
     case Opcode::kReturn:
+    case Opcode::kSetCurrentAwaiter:
     case Opcode::kSetCellItem:
     case Opcode::kSetFunctionAttr:
     case Opcode::kSnapshot:
     case Opcode::kStoreArrayItem:
+    case Opcode::kStoreField:
+    case Opcode::kWaitHandleRelease:
     case Opcode::kXDecref:
     case Opcode::kXIncref:
-    case Opcode::kRaiseAwaitableError:
-    case Opcode::kRaise:
-    case Opcode::kRaiseStatic:
-    case Opcode::kWaitHandleRelease:
       JIT_CHECK(false, "Opcode %s has no output", instr.opname());
   }
   JIT_CHECK(false, "Bad opcode %d", static_cast<int>(instr.opcode()));

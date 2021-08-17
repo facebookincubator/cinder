@@ -3195,6 +3195,9 @@ void HIRBuilder::emitAsyncForHeaderYieldFrom(
   Register* send_value = tc.frame.stack.pop();
   Register* awaitable = tc.frame.stack.pop();
   Register* out = temps_.AllocateStack();
+  if (code_->co_flags & CO_COROUTINE) {
+    tc.emit<SetCurrentAwaiter>(awaitable);
+  }
   // Unlike emitYieldFrom() we do not use tc.emitChecked() here.
   tc.emit<YieldFrom>(out, send_value, awaitable, false);
   tc.frame.stack.push(out);
@@ -3534,6 +3537,9 @@ void HIRBuilder::emitYieldFrom(TranslationContext& tc, Register* out) {
   auto& stack = tc.frame.stack;
   auto send_value = stack.pop();
   auto iter = stack.pop();
+  if (code_->co_flags & CO_COROUTINE) {
+    tc.emit<SetCurrentAwaiter>(iter);
+  }
   tc.emitChecked<YieldFrom>(out, send_value, iter, false);
   stack.push(out);
 }
@@ -3685,6 +3691,9 @@ void HIRBuilder::emitDispatchEagerCoroResult(
   TranslationContext res_block{cfg.AllocateBlock(), tc.frame};
   has_wh_block.emit<CondBranch>(wh_waiter, coro_block.block, res_block.block);
 
+  if (code_->co_flags & CO_COROUTINE) {
+    coro_block.emit<SetCurrentAwaiter>(wh_coro_or_result);
+  }
   coro_block.emitChecked<YieldFrom>(out, wh_waiter, wh_coro_or_result, true);
   coro_block.emit<Branch>(post_await_block);
 

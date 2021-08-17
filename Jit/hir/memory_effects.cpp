@@ -60,8 +60,9 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kWaitHandleLoadWaiter:
       return commonEffects(inst, AEmpty);
 
-    // Can write to fields of its operands
+    // Can write to fields of its operands.
     case Opcode::kWaitHandleRelease:
+    case Opcode::kSetCurrentAwaiter:
       return commonEffects(inst, AOther);
 
     // These can deopt but don't write to any memory locations when they fall

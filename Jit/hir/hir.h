@@ -322,6 +322,7 @@ struct FrameState {
   V(Return)                     \
   V(RunPeriodicTasks)           \
   V(SetCellItem)                \
+  V(SetCurrentAwaiter)          \
   V(SetDictItem)                \
   V(SetFunctionAttr)            \
   V(SetSetItem)                 \
@@ -3028,6 +3029,8 @@ class INSTR_CLASS(RaiseStatic, Operands<>, DeoptBase) {
   const char* fmt_;
   PyObject* exc_type_;
 };
+
+DEFINE_SIMPLE_INSTR(SetCurrentAwaiter, Operands<1>);
 
 class YieldBase : public Instr {
  public:

@@ -218,6 +218,7 @@ bool Instr::isReplayable() const {
     case Opcode::kReturn:
     case Opcode::kRunPeriodicTasks:
     case Opcode::kSetCellItem:
+    case Opcode::kSetCurrentAwaiter:
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
     case Opcode::kSetFunctionAttr:

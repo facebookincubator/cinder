@@ -159,7 +159,15 @@ typedef struct {
     objobjargproc mp_ass_subscript;
 } PyMappingMethods;
 
+typedef enum {
+    PYGEN_RETURN = 0,
+    PYGEN_ERROR = -1,
+    PYGEN_NEXT = 1,
+} PySendResult;
+
 typedef PySendResult (*sendfunc)(void* tstate, PyObject *iter, PyObject *value, PyObject **result);
+
+typedef void (*setawaiterfunc)(PyObject *receiver, PyObject *awaiter);
 
 typedef struct {
     unaryfunc am_await;
@@ -168,20 +176,15 @@ typedef struct {
 } PyAsyncMethods;
 
 typedef struct {
-    PyAsyncMethods ams_async_methods;
-    sendfunc ams_send;
-} PyAsyncMethodsWithSend;
+    PyAsyncMethods ame_async_methods;
+    sendfunc ame_send;
+    setawaiterfunc ame_setawaiter;
+} PyAsyncMethodsWithExtra;
 
 typedef struct {
      getbufferproc bf_getbuffer;
      releasebufferproc bf_releasebuffer;
 } PyBufferProcs;
-
-typedef PyObject *(*gennextfunc)(PyObject *self, PyObject *v, int *is_return);
-
-typedef struct {
-    gennextfunc g_gennext;
-} PyGenNextMethods;
 
 /* Allow printfunc in the tp_vectorcall_offset slot for
  * backwards-compatibility */

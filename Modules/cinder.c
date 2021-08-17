@@ -1,6 +1,8 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
 
+#include "frameobject.h"
+
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 
 extern int _PyShadow_PolymorphicCacheEnabled;
@@ -330,6 +332,37 @@ get_and_clear_code_interp_cost(PyObject *self, PyObject *obj) {
     return _PyJIT_GetAndClearCodeInterpCost();
 }
 
+static PyObject*
+get_frame_gen(PyObject *self, PyObject *frame) {
+    if (!PyFrame_Check(frame)) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected frame object, got %.200s",
+                     Py_TYPE(frame)->tp_name);
+        return NULL;
+    }
+    PyObject *gen = ((PyFrameObject *)frame)->f_gen;
+    if (!gen) {
+        Py_RETURN_NONE;
+    }
+    Py_INCREF(gen);
+    return gen;
+}
+
+static PyObject*
+get_coro_awaiter(PyObject *self, PyObject *coro) {
+    if (!PyCoro_CheckExact(coro)) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected coroutine object, got %.200s",
+                     Py_TYPE(coro)->tp_name);
+    }
+    PyCoroObject *awaiter = ((PyCoroObject *)coro)->cr_awaiter;
+    if (!awaiter) {
+        Py_RETURN_NONE;
+    }
+    Py_INCREF(awaiter);
+    return (PyObject *)awaiter;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
@@ -386,6 +419,15 @@ static struct PyMethodDef cinder_module_methods[] = {
      get_and_clear_code_interp_cost,
      METH_NOARGS,
      "Get and clear accumulated interpreter cost for code objects."},
+    {"_get_frame_gen",
+     get_frame_gen,
+     METH_O,
+     "Get the generator associated with the given frame, or None if one "
+     "doesn't exist."},
+    {"_get_coro_awaiter",
+     get_coro_awaiter,
+     METH_O,
+     "Get the awaiter of the given coroutine, or None if one is not set."},
 
     {NULL, NULL} /* sentinel */
 };

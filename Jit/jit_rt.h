@@ -436,6 +436,10 @@ PyObject* JITRT_MakeGenObjectCoro(
     size_t spill_words,
     jit::CodeRuntime* code_rt);
 
+// Set the awaiter of the given awaitable to be the coroutine at the top of
+// `ts`.
+void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts);
+
 // Mostly the same implementation as YIELD_FROM in ceval.c with slight tweaks to
 // make it stand alone. The argument 'v' is stolen.
 //
