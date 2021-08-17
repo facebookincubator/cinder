@@ -447,6 +447,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             assert not isinstance(dest, CType)
             self.emit("CAST", dest.type_descr)
         else:
+
             assert dest.can_assign_from(src)
 
     def visitAssignTarget(
@@ -544,7 +545,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             ltype = self.get_type(left)
             if ltype != optype:
                 optype.emit_convert(ltype, self)
-            self.emitChainedCompareStep(op, optype, code, cleanup)
+            self.emitChainedCompareStep(op, code, cleanup)
             left = code
         # now do the last comparison
         if node.ops:
@@ -568,13 +569,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
             self.nextBlock(end)
 
     def emitChainedCompareStep(
-        self,
-        op: cmpop,
-        optype: Value,
-        value: AST,
-        cleanup: Block,
-        jump: str = "JUMP_IF_ZERO_OR_POP",
+        self, op: cmpop, value: AST, cleanup: Block, always_pop: bool = False
     ) -> None:
+        optype = self.get_type(op)
         self.visit(value)
         rtype = self.get_type(value)
         if rtype != optype:
@@ -582,7 +579,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.emit("DUP_TOP")
         self.emit("ROT_THREE")
         optype.emit_compare(op, self)
-        self.emit(jump, cleanup)
+        method = optype.emit_jumpif_only if always_pop else optype.emit_jumpif_pop_only
+        method(cleanup, False, self)
         self.nextBlock(label="compare_or_cleanup")
 
     def visitBoolOp(self, node: BoolOp) -> None:
@@ -822,7 +820,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
         return meth(self, node, *args)
 
     def compileJumpIf(self, test: AST, next: Block, is_if_true: bool) -> None:
-        self.get_type(test).emit_jumpif(test, next, is_if_true, self)
+        if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
+            self.get_type(test).emit_jumpif(test.operand, next, not is_if_true, self)
+        else:
+            self.get_type(test).emit_jumpif(test, next, is_if_true, self)
 
     def _calculate_idx(
         self, arg_name: str, non_cellvar_pos: int, cellvars: IndexedSet

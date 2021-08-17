@@ -12124,6 +12124,81 @@ class StaticCompilationTests(StaticTestBase):
             self.assertTrue(hasattr(replacement, "end_lineno"))
             self.assertTrue(hasattr(replacement, "end_col_offset"))
 
+    def test_compare_with_attr(self):
+        codestr = """
+        from __static__ import cbool
+        
+        class C:
+            def __init__(self) -> None:
+                self.running: cbool = False
+        
+            def f(self) -> int:
+                return 2 if not self.running else 1
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            c = C()
+            self.assertEqual(c.f(), 2)
+
+    def test_chained_compare(self):
+        for jumpif in [False, True]:
+            with self.subTest(jumpif=jumpif):
+                if jumpif:
+                    pre = ""
+                    test = "0 < x < 10"
+                else:
+                    pre = "y = 0 < x < 10"
+                    test = "y"
+                codestr = f"""
+                    def f(x):
+                        {pre}
+                        if {test}:
+                            return 1
+                        return 0
+                """
+                with self.in_module(codestr) as mod:
+                    f = mod["f"]
+                    self.assertEqual(f(0), 0)
+                    self.assertEqual(f(1), 1)
+                    self.assertEqual(f(9), 1)
+                    self.assertEqual(f(10), 0)
+
+    def test_chained_compare_primitive_mixed(self):
+        for jumpif in [False, True]:
+            with self.subTest(jumpif=jumpif):
+                if jumpif:
+                    pre = ""
+                    test = "a < x < b"
+                else:
+                    pre = "y = a < x < b"
+                    test = "y"
+                codestr = f"""
+                    from __static__ import int16, int32, int64
+
+                    def f(x: int16):
+                        a: int32 = 1
+                        b: int64 = 5
+                        if x:
+                            a += 1
+                            b += 1
+                        {pre}
+                        if {test}:
+                            return 1
+                        return 0
+                """
+                with self.in_module(codestr) as mod:
+                    f = mod["f"]
+                    self.assertInBytecode(
+                        f, "CONVERT_PRIMITIVE", TYPED_INT16 | (TYPED_INT32 << 4)
+                    )
+                    self.assertInBytecode(
+                        f, "CONVERT_PRIMITIVE", TYPED_INT16 | (TYPED_INT64 << 4)
+                    )
+                    self.assertEqual(f(2), 0)
+                    self.assertEqual(f(3), 1)
+                    self.assertEqual(f(5), 1)
+                    self.assertEqual(f(6), 0)
+
     def test_compile_nested_class(self):
         codestr = """
             class Outer:
