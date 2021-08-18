@@ -2669,9 +2669,13 @@ class DynamicReturnDecorator(Class):
     def bind_decorate_function(
         self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
     ) -> Value:
-        real_fn = fn.function if isinstance(fn, DecoratedMethod) else fn
-        real_fn.return_type = ResolvedTypeRef(DYNAMIC_TYPE)
-        real_fn.module.dynamic_returns.add(real_fn.node.args)
+        if isinstance(fn, StaticMethod):
+            real_fn = fn.function
+            real_fn.return_type = ResolvedTypeRef(DYNAMIC_TYPE)
+            real_fn.module.dynamic_returns.add(real_fn.node.args)
+        if isinstance(fn, Function):
+            fn.return_type = ResolvedTypeRef(DYNAMIC_TYPE)
+            fn.module.dynamic_returns.add(fn.node.args)
         return fn
 
 
