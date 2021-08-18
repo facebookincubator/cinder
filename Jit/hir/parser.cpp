@@ -258,7 +258,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     int name_idx = GetNextNameIdx();
     expect(">");
-    instruction = LoadGlobalCached::create(dst, name_idx);
+    instruction = LoadGlobalCached::create(dst, /*code=*/nullptr, name_idx);
   } else if (strcmp(opcode, "StoreAttr") == 0) {
     expect("<");
     int idx = GetNextNameIdx();

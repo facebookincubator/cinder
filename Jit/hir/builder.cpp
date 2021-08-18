@@ -651,7 +651,7 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
 
   // Insert LoadArg, LoadClosureCell, and MakeCell/MakeNullCell instructions
   // for the entry block
-  TranslationContext entry_tc{entry_block, FrameState{}};
+  TranslationContext entry_tc{entry_block, FrameState{code}};
   AllocateRegistersForLocals(&irfunc->env, entry_tc.frame);
   AllocateRegistersForCells(&irfunc->env, entry_tc.frame);
 
@@ -2631,7 +2631,7 @@ void HIRBuilder::emitLoadGlobal(
     if (value == nullptr) {
       return false;
     }
-    tc.emit<LoadGlobalCached>(result, name_idx);
+    tc.emit<LoadGlobalCached>(result, code_, name_idx);
     auto guard_is = tc.emit<GuardIs>(result, value, result);
     BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
     guard_is->setDescr(fmt::format("LOAD_GLOBAL: {}", PyUnicode_AsUTF8(name)));

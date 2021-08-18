@@ -136,19 +136,31 @@ static void print_reg_states(
 }
 
 static PyCodeObject* get_code(const Instr& instr) {
-  auto block = instr.block();
-  if (block == nullptr) {
-    return nullptr;
+  if (instr.IsLoadGlobalCached()) {
+    return static_cast<const LoadGlobalCached&>(instr).code();
   }
-  auto cfg = block->cfg;
-  if (cfg == nullptr) {
-    return nullptr;
+  if (auto deopt = dynamic_cast<const DeoptBase*>(&instr)) {
+    return deopt->frameState()->code;
   }
-  auto func = cfg->func;
-  if (func == nullptr) {
-    return nullptr;
+  if (instr.IsLoadArg()) {
+    // LoadArg does not have a FrameState because there are no snapshots, but
+    // there will only ever be LoadArgs in the current (top-level) function,
+    // even with an HIR inliner.
+    auto block = instr.block();
+    if (block == nullptr) {
+      return nullptr;
+    }
+    auto cfg = block->cfg;
+    if (cfg == nullptr) {
+      return nullptr;
+    }
+    auto func = cfg->func;
+    if (func == nullptr) {
+      return nullptr;
+    }
+    return func->code;
   }
-  return func->code;
+  return nullptr;
 }
 
 static std::string format_name_impl(int idx, PyObject* names) {

@@ -163,6 +163,19 @@ using OperandStack = jit::Stack<Register*>;
 // The abstract state of the python frame
 struct FrameState {
   FrameState() = default;
+  FrameState(const FrameState& other) {
+    *this = other;
+  }
+  FrameState& operator=(const FrameState& other) {
+    next_instr_offset = other.next_instr_offset;
+    locals = other.locals;
+    cells = other.cells;
+    stack = other.stack;
+    block_stack = other.block_stack;
+    code.reset(other.code.get());
+    return *this;
+  }
+  FrameState(BorrowedRef<PyCodeObject> code) : code(code) {}
   explicit FrameState(int bc_off) : next_instr_offset(bc_off) {}
   FrameState(int bc_off, const OperandStack& os, const BlockStack& bs)
       : next_instr_offset(bc_off), stack(os), block_stack(bs) {}
@@ -182,6 +195,7 @@ struct FrameState {
 
   OperandStack stack;
   BlockStack block_stack;
+  Ref<PyCodeObject> code;
 
   int instr_offset() const {
     return next_instr_offset - sizeof(_Py_CODEUNIT);
@@ -209,7 +223,8 @@ struct FrameState {
   bool operator==(const FrameState& other) const {
     return (next_instr_offset == other.next_instr_offset) &&
         (stack == other.stack) && (block_stack == other.block_stack) &&
-        (locals == other.locals) && (cells == other.cells);
+        (locals == other.locals) && (cells == other.cells) &&
+        (code == other.code);
   }
 
   bool operator!=(const FrameState& other) const {
@@ -2388,14 +2403,19 @@ class INSTR_CLASS(LoadFunctionIndirect, HasOutput, Operands<0>, DeoptBase) {
 // object.
 class INSTR_CLASS(LoadGlobalCached, HasOutput, Operands<0>) {
  public:
-  LoadGlobalCached(Register* dst, int name_idx)
-      : InstrT(dst), name_idx_(name_idx) {}
+  LoadGlobalCached(Register* dst, BorrowedRef<PyCodeObject> code, int name_idx)
+      : InstrT(dst), code_(code), name_idx_(name_idx) {}
+
+  BorrowedRef<PyCodeObject> code() const {
+    return code_;
+  }
 
   int name_idx() const {
     return name_idx_;
   }
 
  private:
+  Ref<PyCodeObject> code_;
   int name_idx_;
 };
 
