@@ -4049,7 +4049,7 @@ class DictInstance(Object[DictClass]):
 class BoolClass(Class):
     def __init__(self) -> None:
         super().__init__(
-            TypeName("builtins", "bool"), [OBJECT_TYPE], pytype=bool, is_exact=True
+            TypeName("builtins", "bool"), [INT_TYPE], pytype=bool, is_exact=True
         )
         self.members["__new__"] = BuiltinNewFunction(
             "__new__",

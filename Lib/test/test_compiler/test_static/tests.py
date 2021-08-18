@@ -8735,6 +8735,14 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f("abc", "abc"), True)
             self.assertInBytecode(f, "CAST", ("builtins", "bool"))
 
+    def test_bool_int(self):
+        codestr = """
+            def f():
+                x: int = True
+                return x
+        """
+        self.compile(codestr)
+
     def test_bind_boolop_type(self):
         codestr = """
             from typing import Any
@@ -12127,11 +12135,11 @@ class StaticCompilationTests(StaticTestBase):
     def test_compare_with_attr(self):
         codestr = """
         from __static__ import cbool
-        
+
         class C:
             def __init__(self) -> None:
                 self.running: cbool = False
-        
+
             def f(self) -> int:
                 return 2 if not self.running else 1
         """
