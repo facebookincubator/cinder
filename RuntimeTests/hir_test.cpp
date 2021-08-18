@@ -39,6 +39,21 @@ TEST(BasicBlockTest, CanIterateInstrs) {
   ASSERT_TRUE(it == block.end());
 }
 
+TEST(BasicBlockTest, SplitAfterSplitsBlockAfterInstruction) {
+  Environment env;
+  CFG cfg;
+  BasicBlock* head = cfg.AllocateBlock();
+  auto v0 = env.AllocateRegister();
+  head->append<LoadConst>(v0, TNoneType);
+  Instr* load_const = head->GetTerminator();
+  head->append<Return>(v0);
+  BasicBlock* tail = head->splitAfter(*load_const);
+  ASSERT_NE(nullptr, head->GetTerminator());
+  EXPECT_TRUE(head->GetTerminator()->IsLoadConst());
+  ASSERT_NE(nullptr, tail->GetTerminator());
+  EXPECT_TRUE(tail->GetTerminator()->IsReturn());
+}
+
 TEST(CFGIterTest, IteratingEmptyCFGReturnsEmptyTraversal) {
   CFG cfg;
   std::vector<BasicBlock*> traversal = cfg.GetRPOTraversal();

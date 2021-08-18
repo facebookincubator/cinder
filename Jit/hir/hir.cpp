@@ -346,7 +346,7 @@ bool BasicBlock::IsTrampoline() {
 BasicBlock* BasicBlock::splitAfter(Instr& instr) {
   JIT_CHECK(cfg != nullptr, "cannot split unlinked block");
   auto tail = cfg->AllocateBlock();
-  for (auto it = instrs_.iterator_to(instr); it != instrs_.end();) {
+  for (auto it = std::next(instrs_.iterator_to(instr)); it != instrs_.end();) {
     auto& instr = *it;
     ++it;
     instr.unlink();
