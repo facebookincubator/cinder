@@ -2108,8 +2108,13 @@ class AwaitableType(GenericClass):
 
     @property
     def type_descr(self) -> TypeDescr:
-        # This is not a real type, so we should not emit it.
-        raise NotImplementedError("Awaitables shouldn't have a type descr")
+        # This is a hack until we can support covariance
+        return self.type_args[0].type_descr
+
+    @property
+    def mro_type_descrs(self) -> Collection[TypeDescr]:
+        # This is a hack until we can support covariance
+        return self.type_args[0].mro_type_descrs
 
     def make_generic_type(
         self, index: Tuple[Class, ...], generic_types: GenericTypesDict
