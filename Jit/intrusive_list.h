@@ -211,6 +211,10 @@ class IntrusiveList {
     return iterator(this, &(r.*node_member));
   }
 
+  const_iterator const_iterator_to(const_reference r) const {
+    return const_iterator(this, &(r.*node_member));
+  }
+
   iterator begin() {
     return iterator(this, root_.next());
   }
@@ -224,6 +228,10 @@ class IntrusiveList {
     // For a reverse iterator r constructed from an iterator i, the
     // relationship &*r == &*(i-1)
     return reverse_iterator(++iterator_to(r));
+  }
+
+  const_reverse_iterator const_reverse_iterator_to(const_reference r) const {
+    return const_reverse_iterator(++const_iterator_to(r));
   }
 
   reverse_iterator rbegin() {
@@ -248,6 +256,10 @@ class IntrusiveList {
 
   const_reverse_iterator rend() const {
     return const_reverse_iterator(begin());
+  }
+
+  const_reverse_iterator crend() const {
+    return rend();
   }
 
  private:

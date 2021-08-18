@@ -264,12 +264,12 @@ void Instr::unlink() {
   set_block(nullptr);
 }
 
-FrameState* Instr::getDominatingFrameState() {
+const FrameState* Instr::getDominatingFrameState() const {
   if (block_ == nullptr) {
     return nullptr;
   }
-  auto rend = block()->rend();
-  auto it = block()->reverse_iterator_to(*this);
+  auto rend = block()->crend();
+  auto it = block()->const_reverse_iterator_to(*this);
   for (it++; it != rend; it++) {
     if (it->IsSnapshot()) {
       auto snapshot = static_cast<const Snapshot*>(&*it);

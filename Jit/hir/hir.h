@@ -571,7 +571,7 @@ class Instr {
   // Returns the `FrameState` that dominates this instruction, if one exists
   // and there are no non-replayable instructions between it and the
   // instruction.
-  FrameState* getDominatingFrameState();
+  const FrameState* getDominatingFrameState() const;
 
   // Returns whether or not this instruction can be safely re-executed.
   bool isReplayable() const;
@@ -3264,6 +3264,9 @@ class BasicBlock {
   auto reverse_iterator_to(Instr& instr) {
     return instrs_.reverse_iterator_to(instr);
   }
+  auto const_reverse_iterator_to(const Instr& instr) const {
+    return instrs_.const_reverse_iterator_to(instr);
+  }
   auto rbegin() {
     return instrs_.rbegin();
   }
@@ -3275,6 +3278,9 @@ class BasicBlock {
   }
   auto rend() const {
     return instrs_.rend();
+  }
+  auto crend() const {
+    return instrs_.crend();
   }
 
   // Return the snapshot on entry to this block
