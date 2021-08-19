@@ -121,6 +121,19 @@ class CheckedListTests(StaticTestBase):
         with self.assertRaises(IndexError):
             x.pop()
 
+    def test_checked_list_pop_compile(self):
+        codestr = """
+            from __static__ import CheckedList
+            def foo(cl: CheckedList[int]) -> int:
+                return cl.pop()
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["foo"]
+            self.assertInBytecode(f, "INVOKE_METHOD")
+            self.assertNotInBytecode(f, "CAST")
+            cl = CheckedList[int]([1, 2, 3])
+            self.assertEqual(f(cl), 3)
+
     def test_checked_list_remove(self):
         x = CheckedList[int]()
         x.extend([1, 2, 3, 1, 2, 3])

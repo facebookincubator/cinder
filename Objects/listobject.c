@@ -3720,6 +3720,18 @@ chklist_extend(PyListObject *self, PyObject *iterable)
     return -1;
 }
 
+static PyObject * chklist_pop(PyListObject* self, PyObject* index)
+{
+    Py_ssize_t index_ssize = -1;
+    if (PyLong_Check(index)) {
+        index_ssize = PyLong_AsLong(index);
+        if (PyErr_Occurred()) {
+            return NULL;
+        }
+    }
+    return list_pop_impl(self, index_ssize);
+}
+
 _Py_TYPED_SIGNATURE(chklist_extend, _Py_SIG_ERROR, &_Py_Sig_Object, NULL);
 
 static const _Py_SigElement *const getitem_sig[] = {&_Py_Sig_Object, NULL};
@@ -3729,6 +3741,9 @@ _PyTypedMethodDef chklist_getitem_def = {
 static const _Py_SigElement *const setitem_sig[] = {&_Py_Sig_Object, &_Py_Sig_Object, NULL};
 _PyTypedMethodDef chklist_setitem_def = {
     list_ass_subscript, setitem_sig, _Py_SIG_ERROR};
+
+static const _Py_SigElement *const pop_sig[] = {&_Py_Sig_Object_Opt, NULL};
+_PyTypedMethodDef chklist_pop_def = {chklist_pop, pop_sig, _Py_SIG_TYPE_PARAM_IDX(0)};
 
 static PyMethodDef chklist_methods[] = {
     {"__getitem__",
@@ -3747,7 +3762,7 @@ static PyMethodDef chklist_methods[] = {
     {"append", (PyCFunction)&chklist_append_def, METH_TYPED, list_append__doc__},
     {"insert", (PyCFunction)&chklist_insert_def, METH_TYPED, list_insert__doc__},
     {"extend", (PyCFunction)&chklist_extend_def, METH_TYPED, list_extend__doc__},
-    LIST_POP_METHODDEF
+    {"pop", (PyCFunction)&chklist_pop_def, METH_TYPED, list_pop__doc__},
     LIST_REMOVE_METHODDEF
     LIST_INDEX_METHODDEF
     LIST_COUNT_METHODDEF

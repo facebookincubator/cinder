@@ -294,6 +294,7 @@ PyAPI_DATA(const _Py_SigElement) _Py_Sig_T1;
 PyAPI_DATA(const _Py_SigElement) _Py_Sig_T0_Opt;
 PyAPI_DATA(const _Py_SigElement) _Py_Sig_T1_Opt;
 PyAPI_DATA(const _Py_SigElement) _Py_Sig_Object;
+PyAPI_DATA(const _Py_SigElement) _Py_Sig_Object_Opt;
 PyAPI_DATA(const _Py_SigElement) _Py_Sig_String;
 PyAPI_DATA(const _Py_SigElement) _Py_Sig_String_Opt;
 
