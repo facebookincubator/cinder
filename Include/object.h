@@ -402,6 +402,12 @@ given type object has a specified feature.
 /* Set if type's tp_as_async slot points to PyAsyncMethodsWithExtra */
 #define Py_TPFLAGS_HAVE_AM_EXTRA (1UL << 23)
 
+typedef enum {
+    PYGEN_RETURN = 0,
+    PYGEN_ERROR = -1,
+    PYGEN_NEXT = 1,
+} PySendResult;
+
 /* These flags are used to determine if a type is a subclass. */
 #define Py_TPFLAGS_LONG_SUBCLASS        (1UL << 24)
 #define Py_TPFLAGS_LIST_SUBCLASS        (1UL << 25)
