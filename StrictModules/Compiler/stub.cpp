@@ -1,11 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Compiler/stub.h"
+
 #include "StrictModules/Compiler/abstract_module_loader.h"
 
 #include <unordered_map>
 
 namespace strictmod::compiler {
 const std::string kImplicitMarker = "implicit";
+const std::string kFullImplicitMarker = "__implicit__";
 
 class CannotDecideSourceException {};
 
@@ -212,11 +214,57 @@ void updateStubHelper(
   }
 }
 
+std::unique_ptr<ModuleInfo> getSourceModuleInfo(
+    const std::string& modName,
+    FileSuffixKind fileKind,
+    ModuleLoader* loader) {
+  return loader->findModule(modName, fileKind);
+}
+
+bool checkFullImplicitHelper(mod_ty m) {
+  switch (m->kind) {
+    case Module_kind: {
+      auto mod = m->v.Module;
+      int bodySize = asdl_seq_LEN(mod.body);
+      if (bodySize == 0) {
+        return false;
+      }
+      stmt_ty firstStmt = reinterpret_cast<stmt_ty>(asdl_seq_GET(mod.body, 0));
+      if (firstStmt->kind == Expr_kind) {
+        auto stmtExpr = firstStmt->v.Expr;
+        expr_ty expr = stmtExpr.value;
+        if (expr->kind == Name_kind) {
+          auto name = expr->v.Name;
+          return _PyUnicode_EqualToASCIIString(
+              name.id, kFullImplicitMarker.c_str());
+        }
+      }
+      return false;
+    }
+
+    default:
+      return false;
+  }
+}
+
 std::unique_ptr<ModuleInfo> getStubModuleInfo(
     std::unique_ptr<ModuleInfo> info,
     ModuleLoader* loader) {
   // analyze AST to check if any @implicit is used
   mod_ty mod = info->getAst();
+  bool isFullImplicit = checkFullImplicitHelper(mod);
+  if (isFullImplicit) {
+    // In the case of fullly implicit stubs, use the original source AST
+    std::unique_ptr<ModuleInfo> sourceInfo = getSourceModuleInfo(
+        info->getModName(), FileSuffixKind::kPythonFile, loader);
+    sourceInfo->setModName(info->getModName());
+    sourceInfo->setFilename(info->getFilename());
+    sourceInfo->setStubKind(StubKind::getStubKind(info->getFilename(), false));
+    sourceInfo->setSubmoduleSearchLocations(
+        info->getSubmoduleSearchLocations());
+    return sourceInfo;
+  }
+
   std::unordered_map<std::string, int> implicitMapping =
       getImplicitToLocHelper(mod);
   // if not, return original info
@@ -225,8 +273,8 @@ std::unique_ptr<ModuleInfo> getStubModuleInfo(
   }
   // locate original source code of stubbed file
   // Looking for source in the loader's import path
-  std::unique_ptr<ModuleInfo> sourceInfo =
-      loader->findModule(info->getModName(), FileSuffixKind::kPythonFile);
+  std::unique_ptr<ModuleInfo> sourceInfo = getSourceModuleInfo(
+      info->getModName(), FileSuffixKind::kPythonFile, loader);
   if (!sourceInfo) {
     return nullptr;
   }

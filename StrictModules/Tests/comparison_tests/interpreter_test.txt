@@ -200,6 +200,15 @@ y = f()
 y
 ---
 ---
+StubFullImplicit
+---
+from full_implicit_test import f
+
+y = f()
+---
+y
+---
+---
 InitNoStub
 ---
 from no_stub import g

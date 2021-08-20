@@ -2,18 +2,16 @@
 #ifndef __STRICTM_MODULE_INFO_H__
 #define __STRICTM_MODULE_INFO_H__
 
+#include "StrictModules/error_sink.h"
+#include "StrictModules/exceptions.h"
+#include "StrictModules/py_headers.h"
+#include "StrictModules/pystrictmodule.h"
+#include "StrictModules/symbol_table.h"
+
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "StrictModules/py_headers.h"
-
-#include "StrictModules/symbol_table.h"
-
-#include "StrictModules/error_sink.h"
-#include "StrictModules/exceptions.h"
-#include "StrictModules/pystrictmodule.h"
 namespace strictmod::compiler {
 
 class ModuleInfo;
@@ -82,9 +80,15 @@ class ModuleInfo {
   const std::string& getModName() const {
     return modName_;
   }
+  void setModName(std::string name) {
+    modName_ = std::move(name);
+  }
 
   const std::string& getFilename() const {
     return filename_;
+  }
+  void setFilename(std::string name) {
+    filename_ = std::move(name);
   }
 
   mod_ty getAst() const {
@@ -102,6 +106,9 @@ class ModuleInfo {
   const StubKind& getStubKind() const {
     return stubKind_;
   }
+  void setStubKind(StubKind kind) {
+    stubKind_ = std::move(kind);
+  }
 
   std::shared_ptr<PySymtable> getSymtable() const {
     return st_;
@@ -109,6 +116,9 @@ class ModuleInfo {
 
   const std::vector<std::string>& getSubmoduleSearchLocations() const {
     return submoduleSearchLocations_;
+  }
+  void setSubmoduleSearchLocations(std::vector<std::string> locations) {
+    submoduleSearchLocations_ = std::move(locations);
   }
 
   void setFlagError(int line, int col, const std::string& msg) {
