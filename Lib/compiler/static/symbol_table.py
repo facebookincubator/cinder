@@ -21,7 +21,7 @@ from .module_table import ModuleTable
 from .type_binder import TypeBinder
 from .types import (
     ALLOW_WEAKREFS_TYPE,
-    ARRAY_EXACT_TYPE,
+    ARRAY_TYPE,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
     BUILTIN_GENERICS,
@@ -31,8 +31,8 @@ from .types import (
     BuiltinFunctionType,
     CBOOL_TYPE,
     CHAR_TYPE,
-    CHECKED_DICT_EXACT_TYPE,
-    CHECKED_LIST_EXACT_TYPE,
+    CHECKED_DICT_TYPE,
+    CHECKED_LIST_TYPE,
     CLASSVAR_TYPE,
     COMPLEX_EXACT_TYPE,
     CastFunction,
@@ -218,9 +218,9 @@ class SymbolTable:
             "<__static__>",
             self,
             {
-                "Array": ARRAY_EXACT_TYPE,
-                "CheckedDict": CHECKED_DICT_EXACT_TYPE,
-                "CheckedList": CHECKED_LIST_EXACT_TYPE,
+                "Array": ARRAY_TYPE,
+                "CheckedDict": CHECKED_DICT_TYPE,
+                "CheckedList": CHECKED_LIST_TYPE,
                 "allow_weakrefs": ALLOW_WEAKREFS_TYPE,
                 "box": BoxFunction(FUNCTION_TYPE),
                 "cast": CastFunction(FUNCTION_TYPE),

@@ -76,9 +76,7 @@ from .types import (
     AWAITABLE_TYPE,
     AwaitableType,
     BOOL_TYPE,
-    CHECKED_DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE,
-    CHECKED_LIST_EXACT_TYPE,
     CHECKED_LIST_TYPE,
     CInstance,
     CONSTANT_TYPES,
@@ -884,10 +882,7 @@ class TypeBinder(GenericVisitor):
             else:
                 self.visitExpectedType(v, DYNAMIC, "dict splat cannot be a primitive")
                 d_type = self.get_type(v).klass
-                if (
-                    d_type.generic_type_def is CHECKED_DICT_TYPE
-                    or d_type.generic_type_def is CHECKED_DICT_EXACT_TYPE
-                ):
+                if d_type.generic_type_def is CHECKED_DICT_TYPE:
                     assert isinstance(d_type, GenericClass)
                     key_type = self.widen(key_type, d_type.type_args[0].instance)
                     value_type = self.widen(value_type, d_type.type_args[1].instance)
@@ -911,7 +906,7 @@ class TypeBinder(GenericVisitor):
                 and key_type is not None
                 and value_type is not None
             ):
-                typ = CHECKED_DICT_EXACT_TYPE.make_generic_type(
+                typ = CHECKED_DICT_TYPE.make_generic_type(
                     (key_type.klass.inexact_type(), value_type.klass.inexact_type()),
                     self.symtable.generic_types,
                 ).instance
@@ -923,10 +918,7 @@ class TypeBinder(GenericVisitor):
         # Calculate the type that is inferred by the keys and values
         assert type_ctx is not None
         type_class = type_ctx.klass
-        assert type_class.generic_type_def in (
-            CHECKED_DICT_EXACT_TYPE,
-            CHECKED_DICT_TYPE,
-        ), type_class
+        assert type_class.generic_type_def is CHECKED_DICT_TYPE, type_class
         assert isinstance(type_class, GenericClass)
         if key_type is None:
             key_type = type_class.type_args[0].instance
@@ -934,7 +926,7 @@ class TypeBinder(GenericVisitor):
         if value_type is None:
             value_type = type_class.type_args[1].instance
 
-        gen_type = CHECKED_DICT_EXACT_TYPE.make_generic_type(
+        gen_type = CHECKED_DICT_TYPE.make_generic_type(
             (key_type.klass, value_type.klass), self.symtable.generic_types
         )
 
@@ -957,7 +949,7 @@ class TypeBinder(GenericVisitor):
     ) -> Value:
         if not isinstance(type_ctx, CheckedListInstance):
             if ModuleFlag.CHECKED_LISTS in self.cur_mod.flags and item_type is not None:
-                typ = CHECKED_LIST_EXACT_TYPE.make_generic_type(
+                typ = CHECKED_LIST_TYPE.make_generic_type(
                     (item_type.klass.inexact_type(),),
                     self.symtable.generic_types,
                 ).instance
@@ -970,15 +962,12 @@ class TypeBinder(GenericVisitor):
         # Calculate the type that is inferred by the item.
         assert type_ctx is not None
         type_class = type_ctx.klass
-        assert type_class.generic_type_def in (
-            CHECKED_LIST_EXACT_TYPE,
-            CHECKED_LIST_TYPE,
-        ), type_class
+        assert type_class.generic_type_def is CHECKED_LIST_TYPE, type_class
         assert isinstance(type_class, GenericClass)
         if item_type is None:
             item_type = type_class.type_args[0].instance
 
-        gen_type = CHECKED_LIST_EXACT_TYPE.make_generic_type(
+        gen_type = CHECKED_LIST_TYPE.make_generic_type(
             (item_type.klass.inexact_type(),), self.symtable.generic_types
         )
 

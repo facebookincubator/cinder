@@ -73,9 +73,7 @@ from .symbol_table import SymbolTable
 from .type_binder import BindingScope, TypeBinder
 from .types import (
     AwaitableType,
-    CHECKED_DICT_EXACT_TYPE,
     CHECKED_DICT_TYPE,
-    CHECKED_LIST_EXACT_TYPE,
     CHECKED_LIST_TYPE,
     CInstance,
     CType,
@@ -643,9 +641,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return super().visitDictComp(node)
         klass = dict_type.klass
 
-        assert isinstance(klass, GenericClass) and (
-            klass.type_def is CHECKED_DICT_TYPE
-            or klass.type_def is CHECKED_DICT_EXACT_TYPE
+        assert (
+            isinstance(klass, GenericClass) and klass.type_def is CHECKED_DICT_TYPE
         ), dict_type
         self.compile_comprehension(
             node,
@@ -674,9 +671,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return super().visitDict(node)
         klass = dict_type.klass
 
-        assert isinstance(klass, GenericClass) and (
-            klass.type_def is CHECKED_DICT_TYPE
-            or klass.type_def is CHECKED_DICT_EXACT_TYPE
+        assert (
+            isinstance(klass, GenericClass) and klass.type_def is CHECKED_DICT_TYPE
         ), dict_type
 
         self.update_lineno(node)
@@ -738,9 +734,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return super().visitListComp(node)
         klass = list_type.klass
 
-        assert isinstance(klass, GenericClass) and (
-            klass.type_def is CHECKED_LIST_TYPE
-            or klass.type_def is CHECKED_LIST_EXACT_TYPE
+        assert (
+            isinstance(klass, GenericClass) and klass.type_def is CHECKED_LIST_TYPE
         ), list_type
         self.compile_comprehension(
             node,
@@ -757,9 +752,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return super().visitList(node)
         klass = list_type.klass
 
-        assert isinstance(klass, GenericClass) and (
-            klass.type_def is CHECKED_LIST_TYPE
-            or klass.type_def is CHECKED_LIST_EXACT_TYPE
+        assert (
+            isinstance(klass, GenericClass) and klass.type_def is CHECKED_LIST_TYPE
         ), list_type
 
         self.update_lineno(node)

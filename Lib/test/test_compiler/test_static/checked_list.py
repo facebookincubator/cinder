@@ -129,7 +129,7 @@ class CheckedListTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod["foo"]
-            self.assertInBytecode(f, "INVOKE_METHOD")
+            self.assertInBytecode(f, "INVOKE_FUNCTION")
             self.assertNotInBytecode(f, "CAST")
             cl = CheckedList[int]([1, 2, 3])
             self.assertEqual(f(cl), 3)
@@ -236,7 +236,7 @@ class CheckedListTests(StaticTestBase):
             def testfunc(x: CheckedList[int]) -> CheckedList[int]:
                 return x[1]
         """
-        self.type_error(codestr, bad_ret_type("int", "chklist[int]"))
+        self.type_error(codestr, bad_ret_type("int", "Exact[chklist[int]]"))
 
     def test_checked_list_getitem_slice_bad_return_type(self):
         codestr = """
@@ -244,7 +244,7 @@ class CheckedListTests(StaticTestBase):
             def testfunc(x: CheckedList[int]) -> int:
                 return x[1:2]
         """
-        self.type_error(codestr, bad_ret_type("chklist[int]", "int"))
+        self.type_error(codestr, bad_ret_type("Exact[chklist[int]]", "int"))
 
     def test_checked_list_compile_getitem(self):
         codestr = """
@@ -384,7 +384,8 @@ class CheckedListTests(StaticTestBase):
                 return a
         """
         self.type_error(
-            codestr, type_mismatch("Exact[chklist[Union[int, str]]]", "chklist[int]")
+            codestr,
+            type_mismatch("Exact[chklist[Union[int, str]]]", "Exact[chklist[int]]"),
         )
 
     def test_checked_list_literal_basic_unpack(self):
@@ -438,7 +439,9 @@ class CheckedListTests(StaticTestBase):
                 a: CheckedList[int] = [str(x + 1) for x in [1, 2, 3, 4]]
                 return a
         """
-        self.type_error(codestr, type_mismatch("Exact[chklist[str]]", "chklist[int]"))
+        self.type_error(
+            codestr, type_mismatch("Exact[chklist[str]]", "Exact[chklist[int]]")
+        )
 
     def test_checked_list_literal_opt_in(self):
         codestr = """

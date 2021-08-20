@@ -4548,12 +4548,6 @@ class ArrayInstance(Object["ArrayClass"]):
             signed = True
             code_gen.emit("PRIMITIVE_BOX", int(signed))
 
-    def exact(self) -> Value:
-        return self.klass.exact_type().instance
-
-    def inexact(self) -> Value:
-        return self.klass.inexact_type().instance
-
 
 class ArrayClass(GenericClass):
     def __init__(
@@ -4606,16 +4600,6 @@ class ArrayClass(GenericClass):
                 )
         return super().make_generic_type(index, generic_types)
 
-    def exact_type(self) -> Class:
-        if self.contains_generic_parameters:
-            return ARRAY_EXACT_TYPE
-        return self
-
-    def inexact_type(self) -> Class:
-        if self.contains_generic_parameters:
-            return ARRAY_TYPE
-        return self
-
 
 class VectorClass(ArrayClass):
     def __init__(
@@ -4654,12 +4638,6 @@ class VectorClass(ArrayClass):
                 ),
             ),
         )
-
-    def exact_type(self) -> Class:
-        return self
-
-    def inexact_type(self) -> Class:
-        return self
 
 
 BUILTIN_GENERICS: Dict[Class, Dict[GenericTypeIndex, Class]] = {}
@@ -4719,16 +4697,6 @@ class CheckedDict(GenericClass):
             ),
             ResolvedTypeRef(self),
         )
-
-    def exact_type(self) -> Class:
-        if self.contains_generic_parameters:
-            return CHECKED_DICT_EXACT_TYPE
-        return self
-
-    def inexact_type(self) -> Class:
-        if self.contains_generic_parameters:
-            return CHECKED_DICT_TYPE
-        return self
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -4829,16 +4797,6 @@ class CheckedDictInstance(Object[CheckedDict]):
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
 
-    def exact(self) -> Value:
-        if self.klass.contains_generic_parameters:
-            return CHECKED_DICT_EXACT_TYPE.instance
-        return self
-
-    def inexact(self) -> Value:
-        if self.klass.contains_generic_parameters:
-            return CHECKED_DICT_TYPE.instance
-        return self
-
 
 class CheckedList(GenericClass):
     def __init__(
@@ -4864,16 +4822,6 @@ class CheckedList(GenericClass):
             is_exact,
             pytype,
         )
-
-    def exact_type(self) -> Class:
-        if self.contains_generic_parameters:
-            return CHECKED_LIST_EXACT_TYPE
-        return self
-
-    def inexact_type(self) -> Class:
-        if self.contains_generic_parameters:
-            return CHECKED_LIST_TYPE
-        return self
 
 
 class CheckedListInstance(Object[CheckedList]):
@@ -4947,16 +4895,6 @@ class CheckedListInstance(Object[CheckedList]):
         code_gen.visit(test)
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
-
-    def exact(self) -> Value:
-        if self.klass.contains_generic_parameters:
-            return CHECKED_LIST_EXACT_TYPE.instance
-        return self
-
-    def inexact(self) -> Value:
-        if self.klass.contains_generic_parameters:
-            return CHECKED_LIST_TYPE.instance
-        return self
 
 
 class CastFunction(Object[Class]):
@@ -5647,9 +5585,6 @@ INT64_VALUE = INT64_TYPE.instance
 CHAR_TYPE = CIntType(TYPED_INT8, name_override="char")
 DOUBLE_TYPE = CDoubleType()
 ARRAY_TYPE = ArrayClass(
-    GenericTypeName("__static__", "Array", (GenericParameter("T", 0),))
-)
-ARRAY_EXACT_TYPE = ArrayClass(
     GenericTypeName("__static__", "Array", (GenericParameter("T", 0),)), is_exact=True
 )
 
@@ -5699,15 +5634,11 @@ NAME_TO_TYPE: Mapping[object, Class] = {
 }
 
 
-CHECKED_DICT_TYPE = CheckedDict(CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=chkdict)
-
-CHECKED_DICT_EXACT_TYPE = CheckedDict(
+CHECKED_DICT_TYPE = CheckedDict(
     CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=chkdict, is_exact=True
 )
 
-CHECKED_LIST_TYPE = CheckedList(CHECKED_LIST_TYPE_NAME, [OBJECT_TYPE], pytype=chklist)
-
-CHECKED_LIST_EXACT_TYPE = CheckedList(
+CHECKED_LIST_TYPE = CheckedList(
     CHECKED_LIST_TYPE_NAME, [OBJECT_TYPE], pytype=chklist, is_exact=True
 )
 

@@ -5156,7 +5156,7 @@ class StaticCompilationTests(StaticTestBase):
 
             self.assertInBytecode(
                 f,
-                "INVOKE_METHOD",
+                "INVOKE_FUNCTION",
                 (
                     (
                         "__static__",
@@ -5164,7 +5164,7 @@ class StaticCompilationTests(StaticTestBase):
                         (("builtins", "int"), ("builtins", "int")),
                         "keys",
                     ),
-                    0,
+                    1,
                 ),
             )
             self.assertEqual(list(f()), [2])
@@ -6033,7 +6033,7 @@ class StaticCompilationTests(StaticTestBase):
             f = mod["f"]
             self.assertInBytecode(
                 f,
-                "INVOKE_METHOD",
+                "INVOKE_FUNCTION",
                 (
                     (
                         "__static__",
@@ -6041,7 +6041,7 @@ class StaticCompilationTests(StaticTestBase):
                         (("builtins", "str"), ("builtins", "str", "?")),
                         "get",
                     ),
-                    2,
+                    3,
                 ),
             )
             self.assertEqual(f("abc"), "foo")
@@ -7692,7 +7692,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[Array[char]]",
-                "Array[int64]",
+                "Exact[Array[int64]]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -7845,7 +7845,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[Array[char]]",
-                "Array[int64]",
+                "Exact[Array[int64]]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -7863,7 +7863,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[Array[char]]",
-                "Array[int64]",
+                "Exact[Array[int64]]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -9504,7 +9504,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[chkdict[str, str]]",
-                "chkdict[int, int]",
+                "Exact[chkdict[int, int]]",
             ),
         ):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
@@ -9639,7 +9639,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[chkdict[foo.B, Exact[str]]]",
-                "chkdict[foo.B, int]",
+                "Exact[chkdict[foo.B, int]]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -9658,7 +9658,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch(
                 "Exact[chkdict[object, Literal[42]]]",
-                "chkdict[foo.B, int]",
+                "Exact[chkdict[foo.B, int]]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -10089,7 +10089,6 @@ class StaticCompilationTests(StaticTestBase):
                 coro.send(None)
             except StopIteration as e:
                 self.assertEqual(e.args, ())
-
 
     def test_patch_parentclass_slot(self):
         codestr = """
@@ -13524,30 +13523,6 @@ class StaticRuntimeTests(StaticTestBase):
             a = Array[int64]([1, 2, 3, 4])
             self.assertEqual(f(a), 10)
             self.assertEqual(f(None), 42)
-
-    def test_array_len_subclass(self):
-        codestr = """
-            from __static__ import int64, Array
-
-            def y(ar: Array[int64]):
-                return len(ar)
-        """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
-        self.assertInBytecode(y, "FAST_LEN", FAST_LEN_ARRAY | FAST_LEN_INEXACT)
-
-        # TODO the below requires Array to be a generic type in C, or else
-        # support for generic annotations for not-generic-in-C types. For now
-        # it's sufficient to validate we emitted FAST_LEN_INEXACT flag.
-
-        # class MyArray(Array):
-        #    def __len__(self):
-        #        return 123
-
-        # with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
-        #    y = mod["y"]
-        #    self.assertEqual(y(MyArray[int64]([1])), 123)
 
     def test_nonarray_len(self):
         codestr = """
