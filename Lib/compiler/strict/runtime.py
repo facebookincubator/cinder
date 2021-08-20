@@ -23,6 +23,7 @@ __all__ = [
     "mutable",
     "extra_slot",
     "_mark_cached_property",
+    "set_freeze_enabled",
 ]
 
 TYPE_FREEZE_ENABLED = True
