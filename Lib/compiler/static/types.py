@@ -426,7 +426,15 @@ class Value:
         self, node: Union[ast.Attribute, AugAttribute], code_gen: Static38CodeGenerator
     ) -> None:
         if isinstance(node.ctx, ast.Store):
-            code_gen.emit("STORE_ATTR", code_gen.mangle(node.attr))
+            member = self.klass.members.get(node.attr)
+            if isinstance(member, PropertyMethod):
+                code_gen.emit("ROT_TWO")
+                if member.function.is_final or self.klass.is_final:
+                    code_gen.emit("INVOKE_FUNCTION", (member.setter_type_descr, 2))
+                else:
+                    code_gen.emit_invoke_method(member.setter_type_descr, 1)
+            else:
+                code_gen.emit("STORE_ATTR", code_gen.mangle(node.attr))
         elif isinstance(node.ctx, ast.Del):
             code_gen.emit("DELETE_ATTR", code_gen.mangle(node.attr))
         else:
@@ -2648,12 +2656,19 @@ class PropertyMethod(DecoratedMethod):
             visitor.set_type(node, self.function.return_type.resolved().instance)
 
     @property
-    def getter_type_descr(self) -> TypeDescr:
-        container_descr = (self.function.module_name,)
+    def container_descr(self) -> TypeDescr:
         container_type = self.function.container_type
         if container_type:
-            container_descr = container_type.type_descr
-        return container_descr + ((self.function.func_name, "fget"),)
+            return container_type.type_descr
+        return (self.function.module_name,)
+
+    @property
+    def getter_type_descr(self) -> TypeDescr:
+        return self.container_descr + ((self.function.func_name, "fget"),)
+
+    @property
+    def setter_type_descr(self) -> TypeDescr:
+        return self.container_descr + ((self.function.func_name, "fset"),)
 
 
 class TypingFinalDecorator(Class):

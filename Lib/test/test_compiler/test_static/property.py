@@ -60,32 +60,6 @@ class PropertyTests(StaticTestBase):
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(C()), 42)
 
-    def test_property_setter(self):
-        codestr = """
-            from typing import final
-            class C:
-                def __init__(self, x: int) -> None:
-                    self.x = x
-
-                @final
-                @property
-                def foo(self) -> int:
-                    return 42 + self.x
-
-                @foo.setter
-                def foo(self, x: int) -> None:
-                    self.x = x
-
-            def bar(c: C) -> int:
-                c.foo = 3
-                return c.foo
-        """
-        with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
-            self.assertInBytecode(f, "INVOKE_FUNCTION")
-            self.assertEqual(f(C(2)), 45)
-
     def test_property_getter_inheritance(self):
         codestr = """
             class C:
@@ -218,3 +192,102 @@ class PropertyTests(StaticTestBase):
 
         """
         self.type_error(codestr, "Cannot decorate a class with @property")
+
+    def test_property_setter(self):
+        codestr = """
+            from typing import final
+            class C:
+                def __init__(self, x: int) -> None:
+                    self.x = x
+
+                @final
+                @property
+                def foo(self) -> int:
+                    return -self.x
+
+                @foo.setter
+                def foo(self, x: int) -> None:
+                    self.x = x
+
+            def bar(c: C) -> None:
+                c.foo = 3
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["bar"]
+            C = mod["C"]
+            self.assertInBytecode(f, "INVOKE_FUNCTION")
+            c = C(2)
+            self.assertEqual(f(c), None)
+            self.assertEqual(c.foo, -3)
+
+    def test_property_setter_inheritance(self):
+        codestr = """
+            from typing import final
+            class C:
+                def __init__(self, x: int) -> None:
+                    self.x = x
+
+                @property
+                def foo(self) -> int:
+                    return self.x
+
+                @foo.setter
+                def foo(self, x: int) -> None:
+                    self.x = x
+
+            class D(C):
+                @property
+                def foo(self) -> int:
+                    return self.x
+
+                @foo.setter
+                def foo(self, x: int) -> None:
+                    self.x = x + 1
+
+
+            def bar(c: C) -> None:
+                c.foo = 3
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["bar"]
+            D = mod["D"]
+            self.assertInBytecode(f, "INVOKE_METHOD")
+            d = D(2)
+            self.assertEqual(f(d), None)
+            self.assertEqual(d.foo, 4)
+
+    def test_property_setter_non_static_inheritance(self):
+        codestr = """
+            from typing import final
+            class C:
+                def __init__(self, x: int) -> None:
+                    self.x = x
+
+                @property
+                def foo(self) -> int:
+                    return self.x
+
+                @foo.setter
+                def foo(self, x: int) -> None:
+                    self.x = x
+
+            def bar(c: C) -> None:
+                c.foo = 3
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["bar"]
+            C = mod["C"]
+            self.assertInBytecode(f, "INVOKE_METHOD")
+
+            class D(C):
+                @property
+                def foo(self) -> int:
+                    return self.x
+
+                @foo.setter
+                def foo(self, x: int) -> None:
+                    self.x = x + 10
+
+            d = D(2)
+            self.assertEqual(f(d), None)
+            self.assertEqual(d.x, 13)

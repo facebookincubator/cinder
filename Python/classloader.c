@@ -557,6 +557,9 @@ classloader_get_property_method(propertyobject *property, PyTupleObject *name)
     if (_PyUnicode_EqualToASCIIString(PyTuple_GET_ITEM(name, 1), "fget")) {
         return property->prop_get;
     }
+    if (_PyUnicode_EqualToASCIIString(PyTuple_GET_ITEM(name, 1), "fset")) {
+        return property->prop_set;
+    }
     return NULL;
 }
 
@@ -570,7 +573,8 @@ classloader_is_property_tuple(PyTupleObject *name)
     if (!PyUnicode_Check(property_method_name)) {
         return 0;
     }
-    return _PyUnicode_EqualToASCIIString(property_method_name, "fget");
+    return _PyUnicode_EqualToASCIIString(property_method_name, "fget")
+      || _PyUnicode_EqualToASCIIString(property_method_name, "fset");
 }
 
 PyTypeObject *
@@ -1120,6 +1124,7 @@ used_in_vtable(PyObject *value)
 }
 
 static PyObject *fget = NULL;
+static PyObject *fset = NULL;
 
 _PyType_VTable *
 _PyClassLoader_EnsureVtable(PyTypeObject *self)
@@ -1203,6 +1208,23 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self)
                 return NULL;
             }
             Py_DECREF(getter_tuple);
+            PyObject *setter_index = PyLong_FromLong(slot_index++);
+            if (fset == NULL) {
+                fset = PyUnicode_FromStringAndSize("fset", 4);
+            }
+            PyObject *setter_tuple = PyTuple_New(2);
+            Py_INCREF(key);
+            PyTuple_SET_ITEM(setter_tuple, 0, key);
+            Py_INCREF(fset);
+            PyTuple_SET_ITEM(setter_tuple, 1, fset);
+            err = PyDict_SetItem(slotmap, setter_tuple, setter_index);
+            Py_DECREF(setter_index);
+            if (err) {
+                Py_DECREF(setter_tuple);
+                Py_DECREF(slotmap);
+                return NULL;
+            }
+            Py_DECREF(setter_tuple);
         }
     }
     /* finally allocate the vtable, which will have empty slots initially */
