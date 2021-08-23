@@ -551,6 +551,28 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
     return 0;
 }
 
+static PyObject *
+classloader_get_property_method(propertyobject *property, PyTupleObject *name)
+{
+    if (_PyUnicode_EqualToASCIIString(PyTuple_GET_ITEM(name, 1), "fget")) {
+        return property->prop_get;
+    }
+    return NULL;
+}
+
+static int
+classloader_is_property_tuple(PyTupleObject *name)
+{
+    if (PyTuple_GET_SIZE(name) != 2) {
+        return 0;
+    }
+    PyObject *property_method_name = PyTuple_GET_ITEM(name, 1);
+    if (!PyUnicode_Check(property_method_name)) {
+        return 0;
+    }
+    return _PyUnicode_EqualToASCIIString(property_method_name, "fget");
+}
+
 PyTypeObject *
 _PyClassLoader_ResolveExpectedReturnType(PyFunctionObject *func,
                                          int *optional,
@@ -691,7 +713,22 @@ resolve_slot_overload_return_type(PyTypeObject *tp,
 
     for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
         PyTypeObject *cur_type = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
-        PyObject *value = PyDict_GetItem(cur_type->tp_dict, name);
+        PyObject *value = NULL;
+        if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
+            PyObject *property = PyDict_GetItem(cur_type->tp_dict, PyTuple_GET_ITEM(name, 0));
+            if (Py_TYPE(property) != &PyProperty_Type) {
+                PyErr_Format(PyExc_RuntimeError,
+                             "The slot of type %s at %U is not a property.",
+                             tp->tp_name,
+                             PyTuple_GET_ITEM(name, 0));
+                return NULL;
+            }
+            value = classloader_get_property_method((propertyobject *) property,
+                                                    (PyTupleObject *) name);
+        }
+        else {
+            value = PyDict_GetItem(cur_type->tp_dict, name);
+        }
 
         if (value != NULL) {
             assert(cur_type->tp_cache != NULL);
@@ -843,7 +880,17 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
             if (dict == NULL) {
                 continue;
             }
-            base = PyDict_GetItem(dict, name);
+
+            if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
+                PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
+                if (Py_TYPE(property) == &PyProperty_Type) {
+                    base = classloader_get_property_method((propertyobject *) property,
+                                                           (PyTupleObject *) name);
+                }
+            }
+            else {
+                base = PyDict_GetItem(dict, name);
+            }
             if (base != NULL) {
                 break;
             }
@@ -868,6 +915,9 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         // let's check the MRO.
         cur_type = resolve_slot_overload_return_type(
             type, name, index, &cur_optional, &cur_coroutine);
+        if (cur_type == NULL) {
+          return -1;
+        }
     }
 
     /* we make no attempts to keep things efficient when types start getting
@@ -935,7 +985,6 @@ type_vtable_setslot(PyTypeObject *tp,
             vtable->vt_entries[slot].vte_entry = type_vtable_staticmethod;
             Py_INCREF(value);
             return 0;
-
         } else if (Py_TYPE(value) == &PyMethodDescr_Type) {
             Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
             vtable->vt_entries[slot].vte_entry =
@@ -981,6 +1030,33 @@ type_vtable_lazyinit(PyObject *name,
 
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(mro); i++) {
         PyTypeObject *cur_type = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
+        if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
+            PyObject *property = PyDict_GetItem(cur_type->tp_dict, PyTuple_GET_ITEM(name, 0));
+            if (property != NULL) {
+              if (Py_TYPE(property) == &PyProperty_Type) {
+                  PyObject *property_method =
+                    classloader_get_property_method((propertyobject *) property, (PyTupleObject *) name);
+                  if (property_method != NULL) {
+                      if (type_vtable_setslot(type, name, vtable, slot, property_method)) {
+                          return NULL;
+                      }
+                      return vtable->vt_entries[slot].vte_entry(vtable->vt_entries[slot].vte_state,
+                                                                args,
+                                                                nargsf,
+                                                                kwnames);
+                  }
+              }
+              PyErr_Clear();
+              PyErr_Format(PyExc_TypeError,
+                           "Attribute %R in static class %s overrides the base class' property"
+                           " with a non-property.",
+                           name,
+                           type->tp_name);
+              return NULL;
+            }
+            continue;
+        }
+
         PyObject *value = PyDict_GetItem(cur_type->tp_dict, name);
         if (value != NULL) {
             if (type_vtable_setslot(type, name, vtable, slot, value)) {
@@ -1036,9 +1112,14 @@ used_in_vtable(PyObject *value)
     } else if (Py_TYPE(value) == &PyStaticMethod_Type &&
                used_in_vtable_worker(_PyStaticMethod_GetFunc(value))) {
         return 1;
+    } else if (Py_TYPE(value) == &PyProperty_Type) {
+        propertyobject *property = (propertyobject *) value;
+        return property->prop_get != NULL && used_in_vtable_worker(property->prop_get);
     }
     return 0;
 }
+
+static PyObject *fget = NULL;
 
 _PyType_VTable *
 _PyClassLoader_EnsureVtable(PyTypeObject *self)
@@ -1100,10 +1181,28 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self)
         PyObject *index = PyLong_FromLong(slot_index++);
         int err = PyDict_SetItem(slotmap, key, index);
         Py_DECREF(index);
-
         if (err) {
             Py_DECREF(slotmap);
             return NULL;
+        }
+        if (Py_TYPE(value) == &PyProperty_Type) {
+            PyObject *getter_index = PyLong_FromLong(slot_index++);
+            if (fget == NULL) {
+                fget = PyUnicode_FromStringAndSize("fget", 4);
+            }
+            PyObject *getter_tuple = PyTuple_New(2);
+            Py_INCREF(key);
+            PyTuple_SET_ITEM(getter_tuple, 0, key);
+            Py_INCREF(fget);
+            PyTuple_SET_ITEM(getter_tuple, 1, fget);
+            err = PyDict_SetItem(slotmap, getter_tuple, getter_index);
+            Py_DECREF(getter_index);
+            if (err) {
+                Py_DECREF(getter_tuple);
+                Py_DECREF(slotmap);
+                return NULL;
+            }
+            Py_DECREF(getter_tuple);
         }
     }
     /* finally allocate the vtable, which will have empty slots initially */
@@ -1237,7 +1336,8 @@ classloader_get_member(PyObject *path,
             *container = cur;
         }
 
-        if (PyTuple_CheckExact(name)) {
+
+        if (PyTuple_CheckExact(name) && !classloader_is_property_tuple((PyTupleObject *) name)) {
             if (!PyType_Check(cur)) {
                 PyErr_Format(PyExc_TypeError,
                              "generic type instantiation without type: %R on "
@@ -1317,7 +1417,21 @@ classloader_get_member(PyObject *path,
         }
 
         PyObject *et = NULL, *ev = NULL, *tb = NULL;
-        PyObject *next = _PyDict_GetItem_Unicode(d, name);
+        PyObject *next;
+        if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
+            // We're dealing with a property.
+            PyObject *property = PyDict_GetItem(d, PyTuple_GET_ITEM(name, 0));
+            if (property == NULL || Py_TYPE(property) != &PyProperty_Type) {
+              goto error;
+            }
+            next = classloader_get_property_method((propertyobject *) property,
+                                                   (PyTupleObject *) name);
+            if (next == NULL) {
+                goto error;
+            }
+        } else {
+            next = _PyDict_GetItem_Unicode(d, name);
+        }
         if (next == NULL && d == tstate->interp->modules) {
             /* import module in case it's not available in sys.modules */
             if (PyImport_ImportModuleLevelObject(name, NULL, NULL, NULL, 0) == NULL) {

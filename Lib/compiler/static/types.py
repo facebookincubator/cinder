@@ -431,8 +431,11 @@ class Value:
             code_gen.emit("DELETE_ATTR", code_gen.mangle(node.attr))
         else:
             member = self.klass.members.get(node.attr)
-            if isinstance(member, PropertyMethod) and member.function.is_final:
-                code_gen.emit("INVOKE_FUNCTION", (member.getter_type_descr, 1))
+            if isinstance(member, PropertyMethod):
+                if member.function.is_final or self.klass.is_final:
+                    code_gen.emit("INVOKE_FUNCTION", (member.getter_type_descr, 1))
+                else:
+                    code_gen.emit_invoke_method(member.getter_type_descr, 0)
             else:
                 code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
 
@@ -2646,7 +2649,11 @@ class PropertyMethod(DecoratedMethod):
 
     @property
     def getter_type_descr(self) -> TypeDescr:
-        return self.function.type_descr + ("fget",)
+        container_descr = (self.function.module_name,)
+        container_type = self.function.container_type
+        if container_type:
+            container_descr = container_type.type_descr
+        return container_descr + ((self.function.func_name, "fget"),)
 
 
 class TypingFinalDecorator(Class):

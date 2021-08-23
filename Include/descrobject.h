@@ -100,6 +100,15 @@ typedef struct {
     PyObject *value;            /* value or NULL when uninitialized */
 } PyAsyncCachedClassPropertyDescrObject;
 /* end fb T82701047 */
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *prop_get;
+    PyObject *prop_set;
+    PyObject *prop_del;
+    PyObject *prop_doc;
+    int getter_doc;
+} propertyobject;
 #endif /* Py_LIMITED_API */
 
 PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
