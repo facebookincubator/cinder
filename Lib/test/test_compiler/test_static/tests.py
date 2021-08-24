@@ -23,6 +23,7 @@ from compiler.static.symbol_table import SymbolTable
 from compiler.static.type_binder import TypeBinder
 from compiler.static.types import (
     prim_name_to_type,
+    AWAITABLE_TYPE,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
     BUILTIN_METHOD_DESC_TYPE,
@@ -68,6 +69,7 @@ from compiler.static.types import (
     Value,
     TUPLE_EXACT_TYPE,
     TUPLE_TYPE,
+    UNION_TYPE,
     INT_EXACT_TYPE,
     FLOAT_EXACT_TYPE,
     SET_EXACT_TYPE,
@@ -2239,6 +2241,69 @@ class StaticCompilationTests(StaticTestBase):
         self.assertFalse(EXCEPTION_TYPE.is_exact)
         self.assertFalse(STATIC_METHOD_TYPE.is_exact)
         self.assertFalse(NAMED_TUPLE_TYPE.is_exact)
+
+    def test_issubclass_builtin_types(self):
+        self.assertTrue(INT_TYPE.issubclass(INT_TYPE))
+        self.assertTrue(INT_TYPE.issubclass(BOOL_TYPE))
+        self.assertFalse(INT_TYPE.issubclass(STR_TYPE))
+
+        self.assertFalse(BOOL_TYPE.issubclass(INT_TYPE))
+        self.assertTrue(BOOL_TYPE.issubclass(BOOL_TYPE))
+        self.assertFalse(BOOL_TYPE.issubclass(STR_TYPE))
+
+        self.assertFalse(STR_TYPE.issubclass(INT_TYPE))
+        self.assertFalse(STR_TYPE.issubclass(BOOL_TYPE))
+        self.assertTrue(STR_TYPE.issubclass(STR_TYPE))
+
+    def test_issubclass_with_awaitable_covariant(self):
+        mod, syms, typebinder = self.bind_module("class Num(int): pass", 0)
+        num = syms.modules["foo"].children["Num"]
+        awaitable_bool = AWAITABLE_TYPE.make_generic_type(
+            (BOOL_TYPE,), syms.generic_types
+        )
+        awaitable_int = AWAITABLE_TYPE.make_generic_type(
+            (INT_TYPE,), syms.generic_types
+        )
+        awaitable_num = AWAITABLE_TYPE.make_generic_type((num,), syms.generic_types)
+
+        self.assertTrue(awaitable_bool.issubclass(awaitable_bool))
+        self.assertFalse(awaitable_bool.issubclass(awaitable_int))
+        self.assertFalse(awaitable_bool.issubclass(awaitable_num))
+
+        self.assertTrue(awaitable_int.issubclass(awaitable_bool))
+        self.assertTrue(awaitable_int.issubclass(awaitable_int))
+        self.assertTrue(awaitable_int.issubclass(awaitable_num))
+
+        self.assertFalse(awaitable_num.issubclass(awaitable_bool))
+        self.assertFalse(awaitable_num.issubclass(awaitable_int))
+        self.assertTrue(awaitable_num.issubclass(awaitable_num))
+
+    def test_issubclass_with_union_self(self):
+        int_or_str = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), {})
+        self.assertTrue(int_or_str.issubclass(INT_TYPE))
+        self.assertTrue(int_or_str.issubclass(STR_TYPE))
+        self.assertFalse(INT_TYPE.issubclass(int_or_str))
+        self.assertFalse(STR_TYPE.issubclass(int_or_str))
+
+    def test_issubclass_with_union_self_and_source(self):
+        generic_types = {}
+        int_or_str = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), generic_types)
+        str_or_tuple = UNION_TYPE.make_generic_type(
+            (STR_TYPE, TUPLE_TYPE), generic_types
+        )
+        int_or_str_or_tuple = UNION_TYPE.make_generic_type(
+            (INT_TYPE, STR_TYPE, TUPLE_TYPE), generic_types
+        )
+        self.assertTrue(int_or_str_or_tuple.issubclass(int_or_str))
+        self.assertTrue(int_or_str_or_tuple.issubclass(str_or_tuple))
+        self.assertFalse(int_or_str.issubclass(str_or_tuple))
+        self.assertFalse(int_or_str.issubclass(int_or_str_or_tuple))
+        self.assertFalse(str_or_tuple.issubclass(int_or_str))
+        self.assertFalse(str_or_tuple.issubclass(int_or_str_or_tuple))
+
+    def test_union_with_subclass_returns_superclass(self):
+        bool_or_int = UNION_TYPE.make_generic_type((BOOL_TYPE, INT_TYPE), {})
+        self.assertIs(bool_or_int, INT_TYPE)
 
     def test_if_exp(self) -> None:
         mod, syms, _ = self.bind_module(

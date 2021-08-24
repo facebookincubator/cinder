@@ -56,6 +56,7 @@ from ast import (
     expr,
     copy_location,
 )
+from enum import Enum
 from types import (
     BuiltinFunctionType,
     CodeType,
@@ -770,7 +771,7 @@ class Class(Object["Class"]):
         self.instance: Value = instance or Object(self)
         self.bases: List[Class] = bases or []
         self._mro: Optional[List[Class]] = None
-        self._mro_type_descrs: Optional[Set[TypeDescr]] = None
+        self._mro_inexact: Optional[Set[Class]] = None
         # members are attributes or methods
         self.members: Dict[str, Value] = members or {}
         self.is_exact = is_exact
@@ -1003,7 +1004,7 @@ class Class(Object["Class"]):
         return self.issubclass(src.klass)
 
     def issubclass(self, src: Class) -> bool:
-        return self.type_descr in src.mro_type_descrs
+        return self.inexact_type() in src.mro_inexact
 
     def incompatible_override(self, override: Value, inherited: Value) -> bool:
         # TODO: There's more checking we should be doing to ensure
@@ -1124,10 +1125,10 @@ class Class(Object["Class"]):
         return mro
 
     @property
-    def mro_type_descrs(self) -> Collection[TypeDescr]:
-        cached = self._mro_type_descrs
+    def mro_inexact(self) -> Collection[Class]:
+        cached = self._mro_inexact
         if cached is None:
-            self._mro_type_descrs = cached = {b.type_descr for b in self.mro}
+            self._mro_inexact = cached = {b.inexact_type() for b in self.mro}
         return cached
 
     def bind_generics(
@@ -1152,6 +1153,12 @@ class Class(Object["Class"]):
         if member:
             return member
         return self.get_parent_member(name)
+
+
+class Variance(Enum):
+    INVARIANT = 0
+    COVARIANT = 1
+    CONTRAVARIANT = 2
 
 
 class GenericClass(Class):
@@ -1247,6 +1254,31 @@ class GenericClass(Class):
         """Gets the generic type definition that defined this class"""
         return self.type_def
 
+    def issubclass(self, src: Class) -> bool:
+        type_def = self.generic_type_def
+        if src.generic_type_def is not type_def:
+            return False
+
+        assert isinstance(type_def, GenericClass)
+        assert isinstance(src, GenericClass)
+        assert len(self.type_args) == len(src.type_args)
+        for def_arg, self_arg, src_arg in zip(
+            type_def.type_args, self.type_args, src.type_args
+        ):
+            variance = def_arg.variance
+            if variance is Variance.INVARIANT:
+                if self_arg.issubclass(src_arg) and src_arg.issubclass(self_arg):
+                    continue
+            elif variance is Variance.COVARIANT:
+                if self_arg.issubclass(src_arg):
+                    continue
+            else:
+                if src_arg.issubclass(self_arg):
+                    continue
+            return False
+
+        return True
+
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
@@ -1318,9 +1350,12 @@ class GenericClass(Class):
 
 
 class GenericParameter(Class):
-    def __init__(self, name: str, index: int) -> None:
+    def __init__(
+        self, name: str, index: int, variance: Variance = Variance.INVARIANT
+    ) -> None:
         super().__init__(TypeName("", name), [], None, None, {})
         self.index = index
+        self.variance = variance
 
     @property
     def name(self) -> str:
@@ -2111,7 +2146,9 @@ class AwaitableType(GenericClass):
         super().__init__(
             type_name
             or GenericTypeName(
-                "static", "InferredAwaitable", (GenericParameter("T", 0),)
+                "static",
+                "InferredAwaitable",
+                (GenericParameter("T", 0, Variance.COVARIANT),),
             ),
             instance=AwaitableInstance(self),
             type_def=type_def,
@@ -2119,13 +2156,8 @@ class AwaitableType(GenericClass):
 
     @property
     def type_descr(self) -> TypeDescr:
-        # This is a hack until we can support covariance
-        return self.type_args[0].type_descr
-
-    @property
-    def mro_type_descrs(self) -> Collection[TypeDescr]:
-        # This is a hack until we can support covariance
-        return self.type_args[0].mro_type_descrs
+        # This is not a real type, so we should not emit it.
+        raise NotImplementedError("Awaitables shouldn't have a type descr")
 
     def make_generic_type(
         self, index: Tuple[Class, ...], generic_types: GenericTypesDict
@@ -3001,7 +3033,7 @@ TYPE_TYPE.is_final = False
 TYPE_TYPE.allow_weakrefs = False
 TYPE_TYPE.donotcompile = False
 TYPE_TYPE._mro = None
-TYPE_TYPE._mro_type_descrs = None
+TYPE_TYPE._mro_inexact = None
 TYPE_TYPE.pytype = type
 TYPE_TYPE._slot_redefs = {}
 
