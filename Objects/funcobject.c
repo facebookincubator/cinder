@@ -858,6 +858,12 @@ cm_init(PyObject *self, PyObject *args, PyObject *kwds)
     return 0;
 }
 
+PyObject *
+_PyClassMethod_GetFunc(PyObject *method) {
+    classmethod *class_method = (classmethod *) method;
+    return class_method->cm_callable;
+}
+
 static PyMemberDef cm_memberlist[] = {
     {"__func__", T_OBJECT, offsetof(classmethod, cm_callable), READONLY},
     {NULL}  /* Sentinel */
