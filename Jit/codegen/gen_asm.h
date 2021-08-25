@@ -102,7 +102,10 @@ class NativeGenerator {
   void generatePrologue(
       asmjit::Label correct_arg_count,
       asmjit::Label native_entry_point);
-  void generateLinkFrame(asmjit::x86::Gp tstate_reg);
+  void loadOrGenerateLinkFrame(
+      asmjit::x86::Gp tstate_reg,
+      const std::vector<std::pair<asmjit::x86::Gp, asmjit::x86::Gp>>&
+          save_regs);
   void generateEpilogue(asmjit::BaseNode* epilogue_cursor);
   void generateDeoptExits();
   void generateResumeEntry();

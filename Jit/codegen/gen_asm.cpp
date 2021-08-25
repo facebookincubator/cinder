@@ -435,21 +435,51 @@ x86::Gp get_arg_location(int arg) {
   JIT_CHECK(false, "should only be used with first six args");
 }
 
-void NativeGenerator::generateLinkFrame(asmjit::x86::Gp tstate_reg) {
-  auto load_args = [&] {
-    as_->mov(x86::rdi, reinterpret_cast<intptr_t>(GetFunction()->code.get()));
-    as_->mov(
-        x86::rsi, reinterpret_cast<intptr_t>(GetFunction()->globals.get()));
+void NativeGenerator::loadOrGenerateLinkFrame(
+    asmjit::x86::Gp tstate_reg,
+    const std::vector<std::pair<asmjit::x86::Gp, asmjit::x86::Gp>>& save_regs) {
+  auto load_tstate_and_move = [&]() {
+    loadTState(tstate_reg);
+    for (const auto& pair : save_regs) {
+      if (pair.first != pair.second) {
+        as_->mov(pair.second, pair.first);
+      }
+    }
   };
+
+  if (isGen()) {
+    load_tstate_and_move();
+    return;
+  }
+
   switch (GetFunction()->frameMode) {
     case FrameMode::kShadow:
-      loadTState(tstate_reg);
+      load_tstate_and_move();
       break;
-    case FrameMode::kNormal:
-      load_args();
+    case FrameMode::kNormal: {
+      bool align_stack = save_regs.size() % 2;
+      for (const auto& pair : save_regs) {
+        as_->push(pair.first);
+      }
+      if (align_stack) {
+        as_->push(x86::rax);
+      }
+
+      as_->mov(x86::rdi, reinterpret_cast<intptr_t>(GetFunction()->code.get()));
+      as_->mov(
+          x86::rsi, reinterpret_cast<intptr_t>(GetFunction()->globals.get()));
+
       as_->call(reinterpret_cast<uint64_t>(JITRT_AllocateAndLinkFrame));
       as_->mov(tstate_reg, x86::rax);
+
+      if (align_stack) {
+        as_->pop(x86::rax);
+      }
+      for (auto iter = save_regs.rbegin(); iter != save_regs.rend(); ++iter) {
+        as_->pop(iter->second);
+      }
       break;
+    }
   }
 }
 
@@ -562,8 +592,6 @@ void NativeGenerator::generatePrologue(
   Label setup_frame = as_->newLabel();
   Label argCheck = as_->newLabel();
 
-  const auto args_past_six_reg = x86::r10;
-
   _PyTypedArgsInfo* typed_arg_checks = nullptr;
   bool has_primitive_args = false;
   if (code->co_flags & CO_STATICALLY_COMPILED) {
@@ -658,32 +686,27 @@ void NativeGenerator::generatePrologue(
   auto frame_cursor = as_->cursor();
   as_->bind(setup_frame);
 
-  // Save and restore incoming args across the call.
-  as_->push(x86::rdi); // func
-  as_->push(x86::rsi); // args
-  // Allocate a Python frame.
-  if (isGen()) {
-    // Generators do not have a frame linked when the generator is allocated
-    // during the initial yield. Instead, frames are linked when the generator
-    // is resumed.
-    loadTState(x86::r11);
-  } else {
-    generateLinkFrame(x86::r11);
-  }
-  as_->pop(x86::r10); // args (moved to r10 so we can replace rsi)
-  as_->pop(x86::rax); // func
+  constexpr auto kFuncPtrReg = x86::rax;
+  constexpr auto kArgsReg = x86::r10;
+  constexpr auto kArgsPastSixReg = kArgsReg;
+
+  loadOrGenerateLinkFrame(
+      x86::r11,
+      {
+          {x86::rdi, kFuncPtrReg}, // func
+          {x86::rsi, kArgsReg} // args
+      });
 
   // Move arguments into their expected registers and then
   // use r10 as the base for additional args.
   int total_args = GetFunction()->numArgs();
   for (int i = 0; i < total_args && i < NUM_REG_ARGS; i++) {
-    as_->mov(get_arg_location(i), x86::ptr(x86::r10, i * sizeof(void*)));
+    as_->mov(get_arg_location(i), x86::ptr(kArgsReg, i * sizeof(void*)));
   }
   if (total_args >= NUM_REG_ARGS) {
     // load the location of the remaining args, the backend will
     // deal with loading them from here...
-    as_->lea(
-        args_past_six_reg, x86::ptr(x86::r10, NUM_REG_ARGS * sizeof(void*)));
+    as_->lea(kArgsPastSixReg, x86::ptr(kArgsReg, NUM_REG_ARGS * sizeof(void*)));
   }
 
   // Finally allocate the saved space required for the actual function
@@ -1026,27 +1049,18 @@ void NativeGenerator::generateStaticEntryPoint(
   // Save incoming args across link call...
   int total_args = GetFunction()->numArgs();
 
+  std::vector<std::pair<x86::Gp, x86::Gp>> save_regs;
   if (!isGen()) {
     int pushed_args = std::min(total_args, NUM_REG_ARGS);
-    // save native args across frame linkage call
-    if (pushed_args % 2 != 0) {
-      as_->push(x86::rax);
-    }
-    for (int i = 0; i < pushed_args; i++) {
-      as_->push(get_arg_location(i));
-    }
+    save_regs.reserve(pushed_args);
 
-    generateLinkFrame(x86::r11);
-    // restore native args across frame linkage
-    for (int i = pushed_args - 1; i >= 0; i--) {
-      as_->pop(get_arg_location(i));
+    for (int i = 0; i < pushed_args; i++) {
+      auto loc = get_arg_location(i);
+      save_regs.emplace_back(loc, loc);
     }
-    if (pushed_args % 2 != 0) {
-      as_->pop(x86::rax);
-    }
-  } else {
-    loadTState(x86::r11);
   }
+
+  loadOrGenerateLinkFrame(x86::r11, save_regs);
 
   if (total_args > NUM_REG_ARGS) {
     as_->lea(x86::r10, x86::ptr(x86::rbp, 16));
