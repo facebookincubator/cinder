@@ -2415,3 +2415,31 @@ class StrictLoaderTest(StrictTestBase):
             __import__("b")
             __import__("a")
             __import__("c")
+
+    def test_syntax_error_source(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                aa bb
+            """,
+        )
+        with self.assertRaises(SyntaxError):
+            self.sbx.strict_import("a")
+
+    def test_syntax_error_import(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                aa bb
+            """,
+        )
+
+        self.sbx.write_file(
+            "b.py",
+            """
+                import a
+                a.x
+            """,
+        )
+        with self.assertRaises(SyntaxError):
+            self.sbx.strict_import("b")

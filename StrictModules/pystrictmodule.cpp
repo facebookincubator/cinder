@@ -455,6 +455,9 @@ static PyObject* StrictModuleLoader_check(
       PyList_SET_ITEM(errors, i, py_err_tuple);
     }
   }
+  if (PyErr_Occurred()) {
+    goto err_cleanup;
+  }
   for (int i = 0; i < error_count; ++i) {
     ErrorInfo_Clean(&(error_infos[i]));
   }
@@ -547,6 +550,9 @@ static PyObject* StrictModuleLoader_check_source(
       }
       PyList_SET_ITEM(errors, i, py_err_tuple);
     }
+  }
+  if (PyErr_Occurred()) {
+    goto err_cleanup;
   }
   for (int i = 0; i < error_count; ++i) {
     ErrorInfo_Clean(&(error_infos[i]));
