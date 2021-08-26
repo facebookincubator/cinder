@@ -4,3 +4,4 @@ from .obj_creation import StaticObjCreationTests
 from .property import PropertyTests
 from .tests import StaticCompilationTests, StaticRuntimeTests
 from .walrus_operator import WalrusOperatorTests
+from .fields import StaticFieldTests
