@@ -1080,15 +1080,22 @@ class Class(Object["Class"]):
         name: str,
         type_ref: Optional[TypeRef] = None,
         assignment: Optional[AST] = None,
+        is_class_slot: bool = False,
     ) -> None:
         existing = self.members.get(name)
         if existing is None:
             self.members[name] = Slot(
-                type_ref or ResolvedTypeRef(DYNAMIC_TYPE), name, self, assignment
+                type_ref or ResolvedTypeRef(DYNAMIC_TYPE),
+                name,
+                self,
+                assignment,
+                is_class_slot,
             )
         elif isinstance(existing, Slot):
             if not existing.assignment:
                 existing.assignment = assignment
+            if is_class_slot != existing.is_class_slot:
+                raise TypedSyntaxError("Conflicting class vs instance variable")
             if type_ref is not None:
                 self._slot_redefs.setdefault(name, []).append(type_ref)
         else:
@@ -3045,12 +3052,14 @@ class Slot(Object[TClassInv]):
         name: str,
         container_type: Class,
         assignment: Optional[AST] = None,
+        is_class_slot: bool = False,
     ) -> None:
         super().__init__(MEMBER_TYPE)
         self.container_type = container_type
         self.slot_name = name
         self._type_ref = type_ref
         self.assignment = assignment
+        self.is_class_slot = is_class_slot
 
     def bind_descr_get(
         self,

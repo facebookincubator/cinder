@@ -343,3 +343,45 @@ class StaticFieldTests(StaticTestBase):
             C = mod["C"]
             a = C()
             self.assertEqual(a.f(), 42)
+
+    def test_class_ann_assign_with_value(self):
+        codestr = """
+            class C:
+                X: int = 42
+        """
+        code = self.compile(codestr, modname="foo")
+
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertEqual(C().X, 42)
+
+    def test_class_ann_assign_with_value_conflict_init(self):
+        self.type_error(
+            """
+            class C:
+                X: int = 42
+                def __init__(self):
+                    self.X = 42
+            """,
+            r"Conflicting class vs instance variable",
+        )
+
+    def test_class_ann_assign_with_value_conflict(self):
+        self.type_error(
+            """
+            class C:
+                X: int = 42
+                X: int
+            """,
+            r"Conflicting class vs instance variable",
+        )
+
+    def test_class_ann_assign_with_value_conflict_2(self):
+        self.type_error(
+            """
+            class C:
+                X: int
+                X: int = 42
+            """,
+            r"Conflicting class vs instance variable",
+        )

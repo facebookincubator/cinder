@@ -349,7 +349,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
         class_mems = [
             name
             for name, value in klass.members.items()
-            if isinstance(value, Slot) and not value.is_classvar
+            if isinstance(value, Slot)
+            and not value.is_classvar
+            and not value.is_class_slot
         ]
         if klass.allow_weakrefs:
             class_mems.append("__weakref__")

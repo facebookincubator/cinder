@@ -158,6 +158,7 @@ class DeclarationVisitor(GenericVisitor):
                             TypeRef(self.module, item.annotation),
                             # Note down whether the slot has been assigned a value.
                             assignment=item if item.value else None,
+                            is_class_slot=item.value is not None,
                         )
                 elif isinstance(item, ClassDef):
                     self.visit(item)
