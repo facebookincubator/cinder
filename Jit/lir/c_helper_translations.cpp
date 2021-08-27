@@ -2,12 +2,16 @@
 #include "Jit/lir/c_helper_translations.h"
 
 #include "Jit/jit_rt.h"
+#include "Jit/lir/c_helper_translations_auto.h"
+
+#include <initializer_list>
 
 namespace jit {
 namespace lir {
 
-const std::unordered_map<uint64_t, std::string> kCHelperMapping = {
-    {reinterpret_cast<uint64_t>(JITRT_Cast), R"(Function:
+static const std::initializer_list<std::pair<const uint64_t, std::string>>
+    kCHelpersManual = {
+        {reinterpret_cast<uint64_t>(JITRT_Cast), R"(Function:
 BB %0 - succs: %2 %1
        %5:Object = LoadArg 0(0x0):Object
        %6:Object = LoadArg 1(0x1):Object
@@ -31,7 +35,7 @@ BB %3 - preds: %1 - succs: %4
 
 BB %4 - preds: %2 %3
 )"},
-    {reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray), R"(Function:
+        {reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray), R"(Function:
 BB %0 - succs: %7
        %1:Object = LoadArg 0(0x0):Object
         %2:64bit = LoadArg 1(0x1):Object
@@ -42,6 +46,14 @@ BB %0 - succs: %7
 
 BB %7 - preds: %0
 )"}};
+
+const std::unordered_map<uint64_t, std::string> kCHelperMapping = [] {
+  // Create map from the manual translations.
+  std::unordered_map<uint64_t, std::string> map(kCHelpersManual);
+  // Add the automatically generated translations.
+  map.insert(kCHelperMappingAuto.begin(), kCHelperMappingAuto.end());
+  return map;
+}();
 
 } // namespace lir
 } // namespace jit
