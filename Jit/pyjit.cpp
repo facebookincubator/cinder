@@ -33,7 +33,6 @@
 
 using namespace jit;
 
-int64_t __strobe_PyThreadState_shadow_frame = -1;
 int64_t __strobe_CodeRuntime_py_code = CodeRuntime::kPyCodeOffset;
 
 enum InitState { JIT_NOT_INITIALIZED, JIT_INITIALIZED, JIT_FINALIZED };
@@ -923,7 +922,6 @@ int _PyJIT_Initialize() {
     jit_config.frame_mode = SHADOW_FRAME;
     _PyThreadState_GetFrame =
         reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
-    __strobe_PyThreadState_shadow_frame = offsetof(PyThreadState, shadow_frame);
   }
   jit_config.are_type_slots_enabled = !PyJIT_IsXOptionSet("jit-no-type-slots");
   jit_config.batch_compile_workers =

@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-static const unsigned int _PyShadowFrame_NumPtrKindBits = 1;
+static const unsigned int _PyShadowFrame_NumPtrKindBits = 2;
 static const uintptr_t _PyShadowFrame_PtrKindMask =
     (1 << _PyShadowFrame_NumPtrKindBits) - 1;
 static const uintptr_t _PyShadowFrame_PtrMask = ~_PyShadowFrame_PtrKindMask;

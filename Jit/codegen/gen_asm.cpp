@@ -110,7 +110,7 @@ void EmitEpilogueUnlinkFrame(
         // Check bit 0 of _PyShadowFrame::data to see if a frame needs
         // unlinking. This bit will be set (pointer kind == PYSF_PYFRAME) if so.
         static_assert(
-            PYSF_PYFRAME == 1 && _PyShadowFrame_PtrKindMask == 1,
+            PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
             "Unexpected constants");
         as->bt(x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)), 0);
         as->jnc(done);
@@ -359,7 +359,7 @@ void NativeGenerator::linkOnStackShadowFrame(x86::Gp tstate_reg) {
   if (frame_mode == jit::hir::FrameMode::kNormal) {
     as_->mov(scratch_reg, x86::ptr(tstate_reg, offsetof(PyThreadState, frame)));
     static_assert(
-        PYSF_PYFRAME == 1 && _PyShadowFrame_PtrKindMask == 1,
+        PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
         "Unexpected constant");
     as_->bts(scratch_reg, 0);
   } else {

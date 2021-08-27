@@ -45,7 +45,7 @@ typedef struct _PyShadowFrame {
    * lower bits. The format is as follows:
    *
    *   [pointer: void*][pointer_kind: _PyShadowFrame_PtrKind]
-   *    63 bits         1 bit
+   *    62 bits         2 bits
    *
    * The contents of `pointer` depends on the value of `pointer_kind`. See below
    * in the definition of _PyShadowFrame_PtrKind for details. A full 64 bit
@@ -55,12 +55,21 @@ typedef struct _PyShadowFrame {
 } _PyShadowFrame;
 
 typedef enum {
-  PYSF_CODE_RT, /* Pointer holds jit::CodeRuntime*. The frame refers to a JIT
-                   function which is sufficient to reify a PyFrameObject,
-                   access a PyCodeObject, or tell if the function is a
-                   generator. */
+  /* Pointer holds jit::CodeRuntime*. The frame refers to a JIT function which
+   * is sufficient to reify a PyFrameObject, access a PyCodeObject, or tell if
+   * the function is a generator. */
+  PYSF_CODE_RT = 0b00,
 
-  PYSF_PYFRAME, /* Pointer holds PyFrameObject*. */
+  /* Pointer holds PyFrameObject*. */
+  PYSF_PYFRAME = 0b01,
+
+  /* Pointer holds PyCodeObject*. */
+  PYSF_PYCODE = 0b10,
+
+  /* Dummy value. The JIT assumes that a PtrKind has bit 0 set if any only if
+   * data is a PyFrameObject*, so this value should be skipped if we add more
+   * kinds. */
+  PYSF_DUMMY = 0b11,
 } _PyShadowFrame_PtrKind;
 
 #endif /* !Py_SHADOW_FRAME_STRUCT_H */
