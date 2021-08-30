@@ -151,12 +151,16 @@ class Worklist {
 };
 
 template <typename T>
-bool fitsInt32(T val) {
-  static_assert(std::is_integral<T>::value, "Integral input only.");
+std::enable_if_t<std::is_integral_v<T>, bool> fitsInt32(T val) {
   int64_t v = val;
   return (
       v <= std::numeric_limits<int32_t>::max() &&
       v >= std::numeric_limits<int32_t>::min());
+}
+
+template <typename T>
+std::enable_if_t<std::is_pointer_v<T>, bool> fitsInt32(T val) {
+  return fitsInt32(reinterpret_cast<intptr_t>(val));
 }
 
 // std::unique_ptr for objects created with std::malloc() rather than new.

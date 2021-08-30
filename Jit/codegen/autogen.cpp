@@ -151,9 +151,13 @@ namespace {
 // Translate GUARD instruction
 void TranslateGuard(Environ* env, const Instruction* instr) {
   auto as = env->as;
-#ifdef __ASM_DEBUG
-  as->nop();
-#endif
+
+  // the first four operands of the guard instruction are:
+  //   * kind
+  //   * deopt meta id
+  //   * guard var (physical register) (0 for AlwaysFail)
+  //   * target (for GuardIs/GuardNotNone, and 0 for all others)
+
   auto deopt_label = as->newLabel();
   auto kind = instr->getInput(0)->getConstant();
   auto reg = x86::rax;
@@ -161,21 +165,21 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
     reg = AutoTranslator::getGp(instr->getInput(2));
   }
 
-  auto emit_cmp = [&](intptr_t target) {
-    if (!fitsInt32(target)) {
-      // TODO(tiansi): add a rewrite pass to do this in the future, so we can
-      // save a pair of push and pop.
-      auto tmp_reg = reg == x86::rax ? x86::rcx : x86::rax;
-      as->push(tmp_reg);
-      as->mov(tmp_reg, target);
-      as->cmp(reg, tmp_reg);
-      as->pop(tmp_reg);
-    } else {
+  auto emit_cmp = [&]() {
+    constexpr size_t kTargetIndex = 3;
+    auto target_opnd = instr->getInput(kTargetIndex);
+    if (target_opnd->isImm()) {
+      auto target = target_opnd->getConstant();
+      JIT_DCHECK(
+          fitsInt32(target),
+          "The constant operand should fit in a 32-bit register.");
       as->cmp(reg, target);
+    } else {
+      auto target_reg = AutoTranslator::getGp(instr->getInput(kTargetIndex));
+      as->cmp(reg, target_reg);
     }
   };
 
-  size_t start_input = 3;
   switch (kind) {
     case kNotNull: {
       as->test(reg, reg);
@@ -188,31 +192,27 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
       break;
     }
     case kNotNone: {
-      auto none = reinterpret_cast<intptr_t>(Py_None);
-      emit_cmp(none);
+      emit_cmp();
       as->jz(deopt_label);
       break;
     }
     case kAlwaysFail:
       as->jmp(deopt_label);
-      start_input = 2;
       break;
     case kIs:
-      auto target = instr->getInput(3)->getConstant();
-      env->code_rt->addReference(reinterpret_cast<PyObject*>(target));
-      emit_cmp(target);
+      emit_cmp();
       as->jne(deopt_label);
-      start_input = 4;
       break;
   }
 
   auto index = instr->getInput(1)->getConstant();
   auto& deopt_meta = env->rt->getDeoptMetadata(index);
-  // skip the first a few inputs in Guard, which are
-  // condition, kind, index
-  for (size_t i = start_input; i < instr->getNumInputs(); i++) {
+  // skip the first four inputs in Guard, which are
+  // kind, deopt_meta id, guard var, and target.
+  constexpr size_t kStartInput = 4;
+  for (size_t i = kStartInput; i < instr->getNumInputs(); i++) {
     auto loc = instr->getInput(i)->getPhyRegOrStackSlot();
-    deopt_meta.live_values[i - start_input].location = loc;
+    deopt_meta.live_values[i - kStartInput].location = loc;
   }
   env->deopt_exits.emplace_back(index, deopt_label);
 }

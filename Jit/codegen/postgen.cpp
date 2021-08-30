@@ -134,6 +134,35 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpLargeConstant(
   return kChanged;
 }
 
+Rewrite::RewriteResult PostGenerationRewrite::rewriteGuardLargeConstant(
+    instr_iter_t instr_iter) {
+  auto instr = instr_iter->get();
+  if (!instr->isGuard()) {
+    return kUnchanged;
+  }
+
+  constexpr size_t kTargetIndex = 3;
+  auto target_opnd = instr->getInput(kTargetIndex);
+  if (!target_opnd->isImm()) {
+    return kUnchanged;
+  }
+
+  auto target_imm = target_opnd->getConstant();
+  if (fitsInt32(target_imm)) {
+    return kUnchanged;
+  }
+
+  auto block = instr->basicblock();
+  auto move = block->allocateInstrBefore(
+      instr_iter,
+      Instruction::kMove,
+      OutVReg(),
+      Imm(target_imm, OperandBase::k64bit));
+  auto instr_in = std::make_unique<LinkedOperand>(instr, move);
+  instr->replaceInputOperand(kTargetIndex, std::move(instr_in));
+  return kChanged;
+}
+
 Rewrite::RewriteResult PostGenerationRewrite::rewriteCondBranch(
     instr_iter_t instr_iter) {
   // find the pattern like

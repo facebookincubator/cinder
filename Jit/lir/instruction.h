@@ -35,7 +35,7 @@ enum class FlagEffects {
   X(Nop)                                                                     \
   X(Call, false, FlagEffects::kInvalidate, kAlways64)                        \
   X(VectorCall, true, FlagEffects::kInvalidate, kAlways64, 1, {1})           \
-  X(Guard, true, FlagEffects::kInvalidate, kDefault, 1, {0, 0, 1})           \
+  X(Guard, true, FlagEffects::kInvalidate, kDefault, 1, {0, 0, 1, 1})        \
   X(Sext)                                                                    \
   X(Zext)                                                                    \
   X(Negate, false, FlagEffects::kSet, kOut)                                  \

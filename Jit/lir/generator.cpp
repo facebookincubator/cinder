@@ -258,11 +258,21 @@ std::string LIRGenerator::MakeGuard(
       "AlwaysFail");
   if (!guard_var.empty()) {
     ss << ", " << guard_var;
+  } else {
+    ss << ", 0";
   }
+
   if (instr.IsGuardIs()) {
     const auto& guard = static_cast<const GuardIs&>(instr);
-    ss << ", " << static_cast<void*>(guard.target());
+    auto guard_ptr = static_cast<void*>(guard.target());
+    env_->code_rt->addReference(static_cast<PyObject*>(guard_ptr));
+    ss << ", " << guard_ptr;
+  } else if (instr.IsCheckNone()) {
+    ss << ", " << static_cast<void*>(Py_None);
+  } else {
+    ss << ", 0";
   }
+
   auto& regstates = instr.live_regs();
   for (const auto& reg_state : regstates) {
     ss << ", " << *reg_state.reg;

@@ -14,6 +14,7 @@ class PostGenerationRewrite : public Rewrite {
     registerOneRewriteFunction(rewriteInlineHelper, 0);
     registerOneRewriteFunction(rewriteBinaryOpConstantPosition, 1);
     registerOneRewriteFunction(rewriteBinaryOpLargeConstant, 1);
+    registerOneRewriteFunction(rewriteGuardLargeConstant, 1);
     registerOneRewriteFunction(rewriteCondBranch, 1);
     registerOneRewriteFunction(rewriteLoadArg, 1);
   }
@@ -29,6 +30,9 @@ class PostGenerationRewrite : public Rewrite {
 
   // Rewrite binary instructions with > 32-bit constant.
   static RewriteResult rewriteBinaryOpLargeConstant(instr_iter_t instr_iter);
+
+  // Rewrite Guard instructions with > 32-bit constant.
+  static RewriteResult rewriteGuardLargeConstant(instr_iter_t instr_iter);
 
   // Rewrite CondBranch instruction so that in some cases, we don't have
   // to allocate a register for it.

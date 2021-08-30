@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/block_builder.h"
 
+#include "Jit/lir/generator.h"
 #include "Jit/lir/instruction.h"
 #include "Jit/lir/lir.h"
 #include "Jit/util.h"
@@ -455,8 +456,7 @@ Instruction* BasicBlockBuilder::getDefInstr(const std::string& name) {
 void BasicBlockBuilder::CreateInstrInput(
     Instruction* instr,
     const std::string& name_size) {
-  auto name = GetId(name_size);
-
+  std::string name = GetId(name_size);
   auto def_instr = getDefInstr(name);
   auto operand = instr->allocateLinkedInput(def_instr);
 
