@@ -423,28 +423,44 @@ class Value:
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultVisit(node)
 
-    def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
-        if isinstance(node.ctx, ast.Store):
-            member = self.klass.members.get(node.attr)
-            if isinstance(member, PropertyMethod):
-                code_gen.emit("ROT_TWO")
-                if member.function.is_final or self.klass.is_final:
-                    code_gen.emit("INVOKE_FUNCTION", (member.setter_type_descr, 2))
-                else:
-                    code_gen.emit_invoke_method(member.setter_type_descr, 1)
+    def emit_delete_attr(
+        self, node: ast.Attribute, code_gen: Static38CodeGenerator
+    ) -> None:
+        code_gen.emit("DELETE_ATTR", code_gen.mangle(node.attr))
+
+    def emit_load_attr(
+        self, node: ast.Attribute, code_gen: Static38CodeGenerator
+    ) -> None:
+        member = self.klass.members.get(node.attr)
+        if isinstance(member, PropertyMethod):
+            if member.function.is_final or self.klass.is_final:
+                code_gen.emit("INVOKE_FUNCTION", (member.getter_type_descr, 1))
             else:
-                code_gen.emit("STORE_ATTR", code_gen.mangle(node.attr))
-        elif isinstance(node.ctx, ast.Del):
-            code_gen.emit("DELETE_ATTR", code_gen.mangle(node.attr))
+                code_gen.emit_invoke_method(member.getter_type_descr, 0)
         else:
-            member = self.klass.members.get(node.attr)
-            if isinstance(member, PropertyMethod):
-                if member.function.is_final or self.klass.is_final:
-                    code_gen.emit("INVOKE_FUNCTION", (member.getter_type_descr, 1))
-                else:
-                    code_gen.emit_invoke_method(member.getter_type_descr, 0)
+            code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
+
+    def emit_store_attr(
+        self, node: ast.Attribute, code_gen: Static38CodeGenerator
+    ) -> None:
+        member = self.klass.members.get(node.attr)
+        if isinstance(member, PropertyMethod):
+            code_gen.emit("ROT_TWO")
+            if member.function.is_final or self.klass.is_final:
+                code_gen.emit("INVOKE_FUNCTION", (member.setter_type_descr, 2))
             else:
-                code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
+                code_gen.emit_invoke_method(member.setter_type_descr, 1)
+        else:
+            code_gen.emit("STORE_ATTR", code_gen.mangle(node.attr))
+
+    def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
+        code_gen.visit(node.value)
+        if isinstance(node.ctx, ast.Store):
+            self.emit_store_attr(node, code_gen)
+        elif isinstance(node.ctx, ast.Del):
+            self.emit_delete_attr(node, code_gen)
+        else:
+            self.emit_load_attr(node, code_gen)
 
     def bind_compare(
         self,
@@ -637,25 +653,36 @@ class Object(Value, Generic[TClass]):
         else:
             visitor.set_type(node, DYNAMIC)
 
-    def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
-        for base in self.klass.mro:
-            member = base.members.get(node.attr)
-            if (
-                member is not None
-                and isinstance(member, Slot)
-                and not member.is_classvar
-            ):
-                type_descr = member.container_type.type_descr
-                type_descr += (member.slot_name,)
-                if isinstance(node.ctx, ast.Store):
-                    code_gen.emit("STORE_FIELD", type_descr)
-                elif isinstance(node.ctx, ast.Del):
-                    code_gen.emit("DELETE_ATTR", node.attr)
-                else:
-                    code_gen.emit("LOAD_FIELD", type_descr)
-                return
+    def emit_delete_attr(
+        self, node: ast.Attribute, code_gen: Static38CodeGenerator
+    ) -> None:
+        if self.klass.find_slot(node):
+            code_gen.emit("DELETE_ATTR", node.attr)
+            return
 
-        super().emit_attr(node, code_gen)
+        super().emit_delete_attr(node, code_gen)
+
+    def emit_load_attr(
+        self, node: ast.Attribute, code_gen: Static38CodeGenerator
+    ) -> None:
+        if member := self.klass.find_slot(node):
+            type_descr = member.container_type.type_descr
+            type_descr += (member.slot_name,)
+            code_gen.emit("LOAD_FIELD", type_descr)
+            return
+
+        super().emit_load_attr(node, code_gen)
+
+    def emit_store_attr(
+        self, node: ast.Attribute, code_gen: Static38CodeGenerator
+    ) -> None:
+        if member := self.klass.find_slot(node):
+            type_descr = member.container_type.type_descr
+            type_descr += (member.slot_name,)
+            code_gen.emit("STORE_FIELD", type_descr)
+            return
+
+        super().emit_store_attr(node, code_gen)
 
     def bind_descr_get(
         self,
@@ -1145,6 +1172,17 @@ class Class(Object["Class"]):
         generic_types: Dict[Class, Dict[Tuple[Class, ...], Class]],
     ) -> Class:
         return self
+
+    def find_slot(self, node: ast.Attribute) -> Optional[Slot[Class]]:
+        for base in self.mro:
+            member = base.members.get(node.attr)
+            if (
+                member is not None
+                and isinstance(member, Slot)
+                and not member.is_classvar
+            ):
+                return member
+        return None
 
     def get_own_member(self, name: str) -> Optional[Value]:
         return self.members.get(name)

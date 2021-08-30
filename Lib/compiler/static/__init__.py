@@ -412,7 +412,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
             load_arg = self._emit_args_for_super(node.value, node.attr)
             self.emit("LOAD_ATTR_SUPER", load_arg)
         else:
-            self.visit(node.value)
             self.get_type(node.value).emit_attr(node, self)
 
     def emit_type_check(self, dest: Class, src: Class, node: AST) -> None:
@@ -510,13 +509,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
         assert isinstance(target, ast.Attribute)
         self.visit(target.value)
         self.emit("DUP_TOP")
-        load = ast.Attribute(target.value, target.attr, ast.Load())
-        load.lineno = target.lineno
-        load.col_offset = target.col_offset
-        self.get_type(target.value).emit_attr(load, self)
+        self.get_type(target.value).emit_load_attr(target, self)
         self.emitAugRHS(node)
         self.emit("ROT_TWO")
-        self.get_type(target.value).emit_attr(target, self)
+        self.get_type(target.value).emit_store_attr(target, self)
 
     def emitAugName(self, node: ast.AugAssign) -> None:
         self.get_type(node.target).emit_augname(node, self)
