@@ -1530,11 +1530,12 @@ class CodeGenerator(ASTVisitor):
 
     def visitAugAssign(self, node):
         self.set_lineno(node)
-        aug_node = wrap_aug(node.target)
-        self.visit(aug_node, "load")
-        self.visit(node.value)
-        self.emit(self._augmented_opcode[type(node.op)])
-        self.visit(aug_node, "store")
+        if isinstance(node.target, ast.Attribute):
+            self.emitAugAttribute(node)
+        elif isinstance(node.target, ast.Name):
+            self.emitAugName(node)
+        else:
+            self.emitAugSubscript(node)
 
     _augmented_opcode = {
         ast.Add: "INPLACE_ADD",
@@ -1552,27 +1553,30 @@ class CodeGenerator(ASTVisitor):
         ast.BitOr: "INPLACE_OR",
     }
 
-    def visitAugName(self, node, mode):
-        if mode == "load":
-            self.loadName(node.id)
-        elif mode == "store":
-            self.storeName(node.id)
+    def emitAugRHS(self, node):
+        self.visit(node.value)
+        self.emit(self._augmented_opcode[type(node.op)])
 
-    def visitAugAttribute(self, node, mode):
-        if mode == "load":
-            self.visit(node.value)
-            self.emit("DUP_TOP")
-            self.emit("LOAD_ATTR", self.mangle(node.attr))
-        elif mode == "store":
-            self.emit("ROT_TWO")
-            self.emit("STORE_ATTR", self.mangle(node.attr))
+    def emitAugName(self, node):
+        target = node.target
+        self.loadName(target.id)
+        self.emitAugRHS(node)
+        self.storeName(target.id)
 
-    def visitAugSubscript(self, node, mode):
-        if mode == "load":
-            self.visitSubscript(node, 1)
-        elif mode == "store":
-            self.emit("ROT_THREE")
-            self.emit("STORE_SUBSCR")
+    def emitAugAttribute(self, node):
+        target = node.target
+        self.visit(target.value)
+        self.emit("DUP_TOP")
+        self.emit("LOAD_ATTR", self.mangle(target.attr))
+        self.emitAugRHS(node)
+        self.emit("ROT_TWO")
+        self.emit("STORE_ATTR", self.mangle(target.attr))
+
+    def emitAugSubscript(self, node):
+        self.visitSubscript(node.target, 1)
+        self.emitAugRHS(node)
+        self.emit("ROT_THREE")
+        self.emit("STORE_SUBSCR")
 
     def visitExec(self, node):
         self.visit(node.expr)
@@ -2979,63 +2983,6 @@ class OpFinder:
 
     visitAssAttr = visitAssName
     visitSubscript = visitAssName
-
-
-class Delegator:
-    """Base class to support delegation for augmented assignment nodes
-
-    To generator code for augmented assignments, we use the following
-    wrapper classes.  In visitAugAssign, the left-hand expression node
-    is visited twice.  The first time the visit uses the normal method
-    for that node .  The second time the visit uses a different method
-    that generates the appropriate code to perform the assignment.
-    These delegator classes wrap the original AST nodes in order to
-    support the variant visit methods.
-    """
-
-    def __init__(self, obj):
-        self.obj = obj
-
-    def __getattr__(self, attr):
-        return getattr(self.obj, attr)
-
-    def __eq__(self, other):
-        return other == self.obj
-
-    def __hash__(self):
-        return hash(self.obj)
-
-
-class AugAttribute(Delegator):
-    pass
-
-
-class AugName(Delegator):
-    pass
-
-
-class AugSubscript(Delegator):
-    pass
-
-
-class CompInner(Delegator):
-    def __init__(self, obj, nested_scope, init_inst, elt_nodes, elt_insts):
-        Delegator.__init__(self, obj)
-        self.nested_scope = nested_scope
-        self.init_inst = init_inst
-        self.elt_nodes = elt_nodes
-        self.elt_insts = elt_insts
-
-
-wrapper = {
-    ast.Attribute: AugAttribute,
-    ast.Name: AugName,
-    ast.Subscript: AugSubscript,
-}
-
-
-def wrap_aug(node):
-    return wrapper[node.__class__](node)
 
 
 PythonCodeGenerator = get_default_generator()

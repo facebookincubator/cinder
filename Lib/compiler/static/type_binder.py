@@ -67,7 +67,6 @@ from typing import (
 )
 
 from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL
-from ..pycodegen import Delegator
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
@@ -524,14 +523,10 @@ class TypeBinder(GenericVisitor):
         assert node in self.cur_mod.types, f"node not found: {node}, {node.lineno}"
         return self.cur_mod.types[node]
 
-    def get_node_data(
-        self, key: Union[AST, Delegator], data_type: Type[TType]
-    ) -> TType:
+    def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
         return cast(TType, self.cur_mod.node_data[key, data_type])
 
-    def set_node_data(
-        self, key: Union[AST, Delegator], data_type: Type[TType], value: TType
-    ) -> None:
+    def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
         self.cur_mod.node_data[key, data_type] = value
 
     def check_primitive_scope(self, node: Name) -> None:

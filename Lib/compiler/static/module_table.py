@@ -16,7 +16,6 @@ from typing import (
     Union,
 )
 
-from ..pycodegen import Delegator
 from ..symbols import Scope, ModuleScope
 from .errors import TypedSyntaxError
 from .types import (
@@ -57,8 +56,8 @@ class ModuleTable:
         self.filename = filename
         self.children: Dict[str, Value] = members or {}
         self.symtable = symtable
-        self.types: Dict[Union[AST, Delegator], Value] = {}
-        self.node_data: Dict[Tuple[Union[AST, Delegator], object], object] = {}
+        self.types: Dict[AST, Value] = {}
+        self.node_data: Dict[Tuple[AST, object], object] = {}
         self.flags: Set[ModuleFlag] = set()
         self.decls: List[Tuple[AST, Optional[Value]]] = []
         # TODO: final constants should be typed to literals, and

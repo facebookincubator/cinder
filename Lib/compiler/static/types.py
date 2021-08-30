@@ -169,7 +169,7 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
 
 from ..optimizer import AstOptimizer
 from ..pyassem import Block
-from ..pycodegen import FOR_LOOP, Delegator, AugName, AugAttribute, wrap_aug
+from ..pycodegen import FOR_LOOP
 from ..symbols import SymbolVisitor
 from ..symbols import Scope, ModuleScope
 from ..unparse import to_expr
@@ -423,9 +423,7 @@ class Value:
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultVisit(node)
 
-    def emit_attr(
-        self, node: Union[ast.Attribute, AugAttribute], code_gen: Static38CodeGenerator
-    ) -> None:
+    def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
         if isinstance(node.ctx, ast.Store):
             member = self.klass.members.get(node.attr)
             if isinstance(member, PropertyMethod):
@@ -526,9 +524,14 @@ class Value:
         code_gen.defaultVisit(node)
 
     def emit_augname(
-        self, node: AugName, code_gen: Static38CodeGenerator, mode: str
+        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.defaultVisit(node, mode)
+        code_gen.defaultCall(node, "emitAugName")
+
+    def emit_aug_rhs(
+        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
+    ) -> None:
+        code_gen.defaultCall(node, "emitAugRHS")
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         visitor.syntax_error(f"cannot constant with {self.name}", node)
@@ -634,9 +637,7 @@ class Object(Value, Generic[TClass]):
         else:
             visitor.set_type(node, DYNAMIC)
 
-    def emit_attr(
-        self, node: Union[ast.Attribute, AugAttribute], code_gen: Static38CodeGenerator
-    ) -> None:
+    def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
         for base in self.klass.mro:
             member = base.members.get(node.attr)
             if (
@@ -5044,15 +5045,11 @@ class CInstance(Value, Generic[TClass]):
         op = self.get_op_id(node.op)
         code_gen.emit("PRIMITIVE_BINARY_OP", op)
 
-    def emit_augassign(
+    def emit_aug_rhs(
         self, node: ast.AugAssign, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.set_lineno(node)
-        aug_node = wrap_aug(node.target)
-        code_gen.visit(aug_node, "load")
         code_gen.visit(node.value)
         code_gen.emit("PRIMITIVE_BINARY_OP", self.get_op_id(node.op))
-        code_gen.visit(aug_node, "store")
 
 
 class CIntInstance(CInstance["CIntType"]):
@@ -5201,12 +5198,13 @@ class CIntInstance(CInstance["CIntType"]):
         code_gen.emit("PRIMITIVE_COMPARE_OP", self.get_op_id(op))
 
     def emit_augname(
-        self, node: AugName, code_gen: Static38CodeGenerator, mode: str
+        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
     ) -> None:
-        if mode == "load":
-            code_gen.emit("LOAD_LOCAL", (node.id, self.klass.type_descr))
-        elif mode == "store":
-            code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
+        target = node.target
+        assert isinstance(target, ast.Name)
+        code_gen.emit("LOAD_LOCAL", (target.id, self.klass.type_descr))
+        code_gen.emitAugRHS(node)
+        code_gen.emit("STORE_LOCAL", (target.id, self.klass.type_descr))
 
     def get_int_range(self) -> Tuple[int, int]:
         bits = 8 << self.size

@@ -52,15 +52,10 @@ from ..opcodebase import Opcode
 from ..optimizer import AstOptimizer
 from ..pyassem import Block, PyFlowGraph, PyFlowGraphCinder, IndexedSet
 from ..pycodegen import (
-    AugAttribute,
-    AugName,
-    AugSubscript,
     CodeGenerator,
     CinderCodeGenerator,
     compile,
-    Delegator,
     FOR_LOOP,
-    wrap_aug,
 )
 from ..strict import StrictCodeGenerator, FIXED_MODULES, enable_strict_features
 from ..symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
@@ -242,17 +237,13 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
         gen.emit("CHECK_ARGS", tuple(arg_checks))
 
-    def get_type(self, node: Union[AST, Delegator]) -> Value:
+    def get_type(self, node: AST) -> Value:
         return self.cur_mod.types[node]
 
-    def get_node_data(
-        self, key: Union[AST, Delegator], data_type: Type[TType]
-    ) -> TType:
+    def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
         return cast(TType, self.cur_mod.node_data[key, data_type])
 
-    def set_node_data(
-        self, key: Union[AST, Delegator], data_type: Type[TType], value: TType
-    ) -> None:
+    def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
         self.cur_mod.node_data[key, data_type] = value
 
     @classmethod
@@ -414,24 +405,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 self.emit("CAST", value.klass.type_descr)
                 self.emit("POP_TOP")
 
-    def visitAugAttribute(self, node: AugAttribute, mode: str) -> None:
-        if mode == "load":
-            self.visit(node.value)
-            self.emit("DUP_TOP")
-            load = ast.Attribute(node.value, node.attr, ast.Load())
-            load.lineno = node.lineno
-            load.col_offset = node.col_offset
-            self.get_type(node.value).emit_attr(load, self)
-        elif mode == "store":
-            self.emit("ROT_TWO")
-            self.get_type(node.value).emit_attr(node, self)
-
-    def visitAugSubscript(self, node: AugSubscript, mode: str) -> None:
-        if mode == "load":
-            self.get_type(node.value).emit_subscr(node.obj, 1, self)
-        elif mode == "store":
-            self.get_type(node.value).emit_store_subscr(node.obj, self)
-
     def visitAttribute(self, node: Attribute) -> None:
         self.update_lineno(node)
         if isinstance(node.ctx, ast.Load) and self._is_super_call(node.value):
@@ -532,8 +505,31 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def visitAugAssign(self, node: AugAssign) -> None:
         self.get_type(node.target).emit_augassign(node, self)
 
-    def visitAugName(self, node: AugName, mode: str) -> None:
-        self.get_type(node).emit_augname(node, self, mode)
+    def emitAugAttribute(self, node: ast.AugAssign) -> None:
+        target = node.target
+        assert isinstance(target, ast.Attribute)
+        self.visit(target.value)
+        self.emit("DUP_TOP")
+        load = ast.Attribute(target.value, target.attr, ast.Load())
+        load.lineno = target.lineno
+        load.col_offset = target.col_offset
+        self.get_type(target.value).emit_attr(load, self)
+        self.emitAugRHS(node)
+        self.emit("ROT_TWO")
+        self.get_type(target.value).emit_attr(target, self)
+
+    def emitAugName(self, node: ast.AugAssign) -> None:
+        self.get_type(node.target).emit_augname(node, self)
+
+    def emitAugRHS(self, node: ast.AugAssign) -> None:
+        self.get_type(node.target).emit_aug_rhs(node, self)
+
+    def emitAugSubscript(self, node: ast.AugAssign) -> None:
+        target = node.target
+        assert isinstance(target, ast.Subscript)
+        self.get_type(target.value).emit_subscr(target, True, self)
+        self.emitAugRHS(node)
+        self.get_type(target.value).emit_store_subscr(target, self)
 
     def visitCompare(self, node: Compare) -> None:
         self.update_lineno(node)
@@ -801,8 +797,11 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.emit("EXTENDED_ARG", 0)
         self.emit("INVOKE_METHOD", (descr, arg_count))
 
+    def defaultCall(self, node: object, name: str, *args: object) -> None:
+        meth = getattr(super(Static38CodeGenerator, Static38CodeGenerator), name)
+        return meth(self, node, *args)
+
     def defaultVisit(self, node: object, *args: object) -> None:
-        self.node = node
         klass = node.__class__
         meth = self._default_cache.get(klass, None)
         if meth is None:
