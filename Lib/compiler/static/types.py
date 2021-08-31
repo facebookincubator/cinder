@@ -1896,6 +1896,7 @@ class ArgMapping:
 
         num_star_args = [isinstance(a, ast.Starred) for a in self.call.args].count(True)
         num_dstar_args = [(a.arg is None) for a in self.call.keywords].count(True)
+        num_kwonly = len([arg for arg in func_args if arg.is_kwonly])
 
         start = 1 if self.self_arg is not None else 0
         for arg in func_args[start + len(self.call.args) :]:
@@ -1910,6 +1911,7 @@ class ArgMapping:
             num_dstar_args > 1
             # We don't support f(1, 2, *a) if f has any default arg values
             or (has_default_args and has_star_args)
+            or num_kwonly
         ):
             return False
 

@@ -5084,7 +5084,8 @@ class StaticCompilationTests(StaticTestBase):
             a = x()
         """
         module = self.compile(codestr, StaticCodeGenerator)
-        self.assertInBytecode(module, "INVOKE_FUNCTION")
+        # we don't yet support optimized dispatch to kw-only functions
+        self.assertInBytecode(module, "CALL_FUNCTION")
         with self.in_module(codestr) as mod:
             self.assertEqual(mod["a"], "hunter2")
 
@@ -5095,7 +5096,8 @@ class StaticCompilationTests(StaticTestBase):
             a = x(b="hunter3")
         """
         module = self.compile(codestr, StaticCodeGenerator)
-        self.assertInBytecode(module, "INVOKE_FUNCTION")
+        # TODO(T87420170): Support invokes here.
+        self.assertNotInBytecode(module, "INVOKE_FUNCTION")
         with self.in_module(codestr) as mod:
             self.assertEqual(mod["a"], "hunter3")
 
@@ -5200,10 +5202,8 @@ class StaticCompilationTests(StaticTestBase):
                 return
             x('abc')
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, "x takes 0 positional args but 1 was given"
-        ):
-            self.compile(codestr, StaticCodeGenerator)
+        # We do not verify types for calls that we can't do direct invokes.
+        self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_kwdefaults_too_many_class(self):
         codestr = """
@@ -5212,10 +5212,8 @@ class StaticCompilationTests(StaticTestBase):
                     return
             C().x('abc')
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, "x takes 1 positional args but 2 were given"
-        ):
-            self.compile(codestr, StaticCodeGenerator)
+        # We do not verify types for calls that we can't do direct invokes.
+        self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_kwonly_failure(self):
         codestr = """
@@ -5223,10 +5221,8 @@ class StaticCompilationTests(StaticTestBase):
                 return
             x(a="hi", b="lol")
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, r"Exact\[str\] received for keyword arg 'a', expected int"
-        ):
-            self.compile(codestr, StaticCodeGenerator)
+        # We do not verify types for calls that we can't do direct invokes.
+        self.compile(codestr, StaticCodeGenerator)
 
     def test_verify_kwonly_self_loaded_once(self):
         codestr = """
