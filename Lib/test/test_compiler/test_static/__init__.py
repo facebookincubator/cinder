@@ -1,4 +1,5 @@
 from .checked_list import CheckedListTests
+from .classmethod import ClassMethodTests
 from .elide_type_checks import ElideTypeChecksTests
 from .obj_creation import StaticObjCreationTests
 from .patch import StaticPatchTests

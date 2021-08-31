@@ -1938,6 +1938,22 @@ class ArgMapping:
             code_gen.emit("INVOKE_FUNCTION", (self.callable.type_descr, len(func_args)))
 
 
+class ClassMethodArgMapping(ArgMapping):
+    def __init__(
+        self,
+        callable: Callable[TClass],
+        call: ast.Call,
+        self_arg: Optional[ast.expr] = None,
+        args_override: Optional[List[ast.expr]] = None,
+        is_instance_call: bool = False,
+    ) -> None:
+        super().__init__(callable, call, self_arg, args_override)
+        self.is_instance_call = is_instance_call
+
+    def needs_virtual_invoke(self, code_gen: Static38CodeGenerator) -> bool:
+        return self.is_instance_call
+
+
 class ArgEmitter:
     def __init__(self, argument: expr, type: Class) -> None:
         self.argument = argument
@@ -2712,6 +2728,65 @@ class StaticMethod(DecoratedMethod):
             visitor.set_type(node, StaticMethodInstanceBound(self.function, node))
 
 
+class BoundClassMethod(Object[Class]):
+    def __init__(
+        self,
+        function: Function,
+        klass: Class,
+        self_expr: ast.expr,
+        is_instance_call: bool,
+    ) -> None:
+        super().__init__(CLASS_METHOD_TYPE)
+        self.function = function
+        self.klass = klass
+        self.self_expr = self_expr
+        self.is_instance_call = is_instance_call
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        arg_mapping = ClassMethodArgMapping(
+            self.function, node, self.self_expr, is_instance_call=self.is_instance_call
+        )
+        arg_mapping.bind_args(visitor, skip_self=True)
+
+        visitor.set_type(node, self.function.return_type.resolved().instance)
+        visitor.set_node_data(node, ArgMapping, arg_mapping)
+        return NO_EFFECT
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if self.function.func_name in NON_VIRTUAL_METHODS:
+            return super().emit_call(node, code_gen)
+
+        arg_mapping: ArgMapping = code_gen.get_node_data(node, ArgMapping)
+        code_gen.visit(self.self_expr)
+        arg_mapping.emit(code_gen)
+
+
+class ClassMethod(DecoratedMethod):
+    def __init__(self, function: Function) -> None:
+        super().__init__(CLASS_METHOD_TYPE, function)
+
+    @property
+    def name(self) -> str:
+        return "classmethod " + self.function.qualname
+
+    def bind_descr_get(
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> None:
+        visitor.set_type(
+            node,
+            BoundClassMethod(
+                self.function, ctx, node.value, is_instance_call=inst is not None
+            ),
+        )
+
+
 class PropertyMethod(DecoratedMethod):
     def __init__(self, function: Function) -> None:
         super().__init__(PROPERTY_TYPE, function)
@@ -2768,6 +2843,15 @@ class AllowWeakrefsDecorator(Class):
     def bind_decorate_class(self, klass: Class) -> Class:
         klass.allow_weakrefs = True
         return klass
+
+
+class ClassMethodDecorator(Class):
+    def bind_decorate_function(
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
+    ) -> Optional[Value]:
+        if isinstance(fn, DecoratedMethod):
+            return None
+        return ClassMethod(fn)
 
 
 class DynamicReturnDecorator(Class):
@@ -4215,6 +4299,11 @@ STATIC_METHOD_TYPE = StaticMethodDecorator(
     TypeName("builtins", "staticmethod"),
     bases=[OBJECT_TYPE],
     pytype=staticmethod,
+)
+CLASS_METHOD_TYPE = ClassMethodDecorator(
+    TypeName("builtins", "classmethod"),
+    bases=[OBJECT_TYPE],
+    pytype=classmethod,
 )
 FINAL_METHOD_TYPE = TypingFinalDecorator(TypeName("typing", "final"))
 ALLOW_WEAKREFS_TYPE = AllowWeakrefsDecorator(TypeName("__static__", "allow_weakrefs"))

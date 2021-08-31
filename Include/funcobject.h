@@ -105,6 +105,7 @@ PyAPI_FUNC(PyObject *) _PyFunction_GetSwitchboard(void);
 PyAPI_FUNC(void) _PyFunction_ClearSwitchboard(void);
 
 PyAPI_FUNC(PyObject *) _PyStaticMethod_GetFunc(PyObject *method);
+PyAPI_FUNC(PyObject *) _PyClassMethod_GetFunc(PyObject *method);
 
 int _PyFunction_ClearFreeList(void);
 

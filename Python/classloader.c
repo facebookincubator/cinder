@@ -494,6 +494,27 @@ type_vtable_staticmethod(PyObject *state,
     return _PyObject_Vectorcall(func, stack + 1, nargsf - 1, kwnames);
 }
 
+/* A classmethod being called by INVOKE_METHOD means that it has been invoked on
+   an instance, as we don't support invoking Type[C].classmethod yet. Therefore,
+   we replace the self arg with its type.
+ */
+static PyObject *
+type_vtable_classmethod(PyObject *state,
+                        PyObject *const *stack,
+                        size_t nargsf,
+                        PyObject *kwnames)
+{
+    PyObject *func = _PyClassMethod_GetFunc(state);
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    assert(nargs > 0);
+    PyObject *args[nargs];
+    args[0] = (PyObject *) Py_TYPE(stack[0]);
+    for (Py_ssize_t i = 1; i < nargs; ++i) {
+      args[i] = stack[i];
+    }
+    return _PyObject_Vectorcall(func, args, nargsf, kwnames);
+}
+
 static PyObject *
 type_vtable_func_missing(PyObject *state, PyObject **args, Py_ssize_t nargs)
 {
@@ -686,6 +707,12 @@ resolve_slot_local_return_type(PyObject *name,
             (PyFunctionObject *)func, optional, coroutine);
     } else if (Py_TYPE(func) == &PyStaticMethod_Type) {
         PyObject *static_func = _PyStaticMethod_GetFunc(func);
+        if (_PyClassLoader_IsStaticFunction(static_func)) {
+            cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
+                (PyFunctionObject*)static_func, optional, coroutine);
+        }
+    } else if (Py_TYPE(func) == &PyClassMethod_Type) {
+        PyObject *static_func = _PyClassMethod_GetFunc(func);
         if (_PyClassLoader_IsStaticFunction(static_func)) {
             cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
                 (PyFunctionObject*)static_func, optional, coroutine);
@@ -989,6 +1016,12 @@ type_vtable_setslot(PyTypeObject *tp,
             vtable->vt_entries[slot].vte_entry = type_vtable_staticmethod;
             Py_INCREF(value);
             return 0;
+        } else if (Py_TYPE(value) == &PyClassMethod_Type &&
+                   _PyClassLoader_IsStaticFunction(_PyClassMethod_GetFunc(value))) {
+            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+            vtable->vt_entries[slot].vte_entry = type_vtable_classmethod;
+            Py_INCREF(value);
+            return 0;
         } else if (Py_TYPE(value) == &PyMethodDescr_Type) {
             Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
             vtable->vt_entries[slot].vte_entry =
@@ -1119,6 +1152,9 @@ used_in_vtable(PyObject *value)
     } else if (Py_TYPE(value) == &PyProperty_Type) {
         propertyobject *property = (propertyobject *) value;
         return property->prop_get != NULL && used_in_vtable_worker(property->prop_get);
+    } else if (Py_TYPE(value) == &PyClassMethod_Type &&
+               used_in_vtable_worker(_PyClassMethod_GetFunc(value))) {
+        return 1;
     }
     return 0;
 }
@@ -1637,13 +1673,20 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
     PyObject *func =
         classloader_get_member(path, PyTuple_GET_SIZE(path), container);
 
-    if (func != NULL && Py_TYPE(func) == &PyStaticMethod_Type) {
-        PyObject *res = _PyStaticMethod_GetFunc(func);
-        Py_INCREF(res);
-        Py_DECREF(func);
-        func = res;
+    if (func != NULL) {
+        if (Py_TYPE(func) == &PyStaticMethod_Type) {
+            PyObject *res = _PyStaticMethod_GetFunc(func);
+            Py_INCREF(res);
+            Py_DECREF(func);
+            func = res;
+        }
+        else if (Py_TYPE(func) == &PyClassMethod_Type) {
+            PyObject *res = _PyClassMethod_GetFunc(func);
+            Py_INCREF(res);
+            Py_DECREF(func);
+            func = res;
+        }
     }
-
     return func;
 }
 
