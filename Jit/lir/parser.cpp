@@ -63,6 +63,7 @@ Parser::Token Parser::getNextToken(const char* str) {
   return {kError};
 }
 
+// Throw exception if condition is false.
 static void expect(bool cond, const char* cur, const char* msg = "") {
   if (cond) {
     return;
@@ -76,7 +77,18 @@ static void expect(bool cond, const char* cur, const char* msg = "") {
   } else {
     JIT_LOG("Starting from %s", cur);
   }
-  JIT_CHECK(false, "Parsing terminated.");
+
+  throw ParserException(fmt::format("Unable to parse - %s", msg));
+}
+
+// Look up an item in the given map. Throw exception if doesn't exist.
+template <typename Exc, typename M, typename K>
+static auto& map_get_throw(M& map, const K& key) {
+  auto it = map.find(key);
+  if (it == map.end()) {
+    throw Exc("Unable to parse - key not in map");
+  }
+  return it->second;
 }
 
 std::unique_ptr<Function> Parser::parse(const std::string& code) {
@@ -328,7 +340,7 @@ OperandBase::DataType Parser::getOperandDataType(
 #undef TYPE_NAME_TO_DATA_TYPE
       };
 
-  return map_get_strict(type_name_to_data_type, name);
+  return map_get_throw<ParserException>(type_name_to_data_type, name);
 }
 
 Instruction::Opcode Parser::getInstrOpcode(const std::string& name) const {
@@ -339,7 +351,7 @@ Instruction::Opcode Parser::getInstrOpcode(const std::string& name) const {
 #undef INSTR_NAME_TO_OPCODE
       };
 
-  return map_get_strict(instr_name_to_opcode, name);
+  return map_get_throw<ParserException>(instr_name_to_opcode, name);
 }
 
 void Parser::parseInput(const Token& token, const char* code) {
@@ -385,8 +397,8 @@ void Parser::parseInput(const Token& token, const char* code) {
       break;
     }
     case kId: {
-      uint64_t imm_addr =
-          map_get_strict(kSymbolMapping, std::string(code, token.length));
+      uint64_t imm_addr = map_get_throw<ParserException>(
+          kSymbolMapping, std::string(code, token.length));
       instr_->allocateImmediateInput(
           reinterpret_cast<uint64_t>(imm_addr), OperandBase::kObject);
       break;
@@ -426,7 +438,7 @@ void Parser::parseIndirect(
   std::regex base_phys = std::regex("\\[(R[0-9A-Z]+):Object");
   if (std::regex_search(token.begin(), token.end(), m, base_reg)) {
     auto base_id = std::stoll(m.str(1).c_str(), nullptr, 0);
-    base = map_get(output_index_map_, base_id);
+    base = map_get_throw<ParserException>(output_index_map_, base_id);
     expected_length += m.length();
   } else if (std::regex_search(token.begin(), token.end(), m, base_phys)) {
     base = jit::codegen::PhyLocation::parse(m.str(1));
@@ -441,7 +453,7 @@ void Parser::parseIndirect(
   bool index_re_success = false;
   if (std::regex_search(token.begin(), token.end(), m, index_reg)) {
     auto index_id = std::stoll(m.str(1).c_str(), nullptr, 0);
-    index = map_get(output_index_map_, index_id);
+    index = map_get_throw<ParserException>(output_index_map_, index_id);
     index_re_success = true;
     // add 1 for space between base and index operands
     expected_length += m.length() + 1;
@@ -479,14 +491,15 @@ void Parser::fixOperands() {
     auto operand = pair.first;
     int block_index = pair.second;
 
-    operand->setBasicBlock(map_get_strict(block_index_map_, block_index));
+    operand->setBasicBlock(
+        map_get_throw<ParserException>(block_index_map_, block_index));
   }
 
   for (auto& pair : instr_refs_) {
     auto operand = pair.first;
     int instr_index = pair.second;
 
-    auto instr = map_get_strict(output_index_map_, instr_index);
+    auto instr = map_get_throw<ParserException>(output_index_map_, instr_index);
     instr->output()->addUse(operand);
   }
 }
@@ -497,7 +510,8 @@ void Parser::connectBasicBlocks() {
   for (auto& succ_pair : basic_block_succs_) {
     BasicBlock* source_block = succ_pair.first;
     int dest_block_id = succ_pair.second;
-    source_block->addSuccessor(map_get(block_index_map_, dest_block_id));
+    source_block->addSuccessor(
+        map_get_throw<ParserException>(block_index_map_, dest_block_id));
   }
 }
 

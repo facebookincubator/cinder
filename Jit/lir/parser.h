@@ -15,6 +15,18 @@ namespace lir {
 
 std::unordered_set<std::string>& GetStringLiterals();
 
+class ParserException : public std::exception {
+ public:
+  ParserException(const std::string& message) noexcept : message(message) {}
+
+  const char* what() const noexcept override {
+    return message.c_str();
+  }
+
+ private:
+  std::string const message;
+};
+
 class Parser {
  public:
   // Parse the code and generate a Function object.
@@ -24,6 +36,7 @@ class Parser {
   // are not required in the code but generated automatically.
   // The returned basic blocks are in the same order as they apppear in the
   // code.
+  // Throws an exception if parsing error occurs.
   std::unique_ptr<Function> parse(const std::string& code);
 
   const UnorderedMap<int, Instruction*> getOutputInstrMap() const {

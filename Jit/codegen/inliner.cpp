@@ -209,11 +209,24 @@ lir::Function* LIRInliner::parseFunction(uint64_t addr) {
   // Using function addr, try to get LIR text from kCHelperMapping.
   auto lir_text_iter = kCHelperMapping.find(addr);
   if (lir_text_iter == kCHelperMapping.end()) {
+    // Guard usage of addr_to_function
+    ThreadedCompileSerialize guard;
+    // Add nullptr to map in case same addr is used again.
+    addr_to_function.emplace(addr, nullptr);
     return nullptr; // No LIR text for that address.
   }
 
   Parser parser;
-  std::unique_ptr<Function> parsed_func = parser.parse(lir_text_iter->second);
+  std::unique_ptr<Function> parsed_func;
+  try {
+    parsed_func = parser.parse(lir_text_iter->second);
+  } catch (const ParserException&) {
+    // Guard usage of addr_to_function
+    ThreadedCompileSerialize guard;
+    // Add nullptr to map in case same addr is used again.
+    addr_to_function.emplace(addr, nullptr);
+    return nullptr;
+  }
 
   // Guard usage of addr_to_function
   ThreadedCompileSerialize guard;

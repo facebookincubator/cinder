@@ -1159,4 +1159,55 @@ BB %5 - preds: %6
   ASSERT_EQ(expected_caller, caller_str);
 }
 
+TEST_F(BackendTest, ParserErrorFromExpectTest) {
+  // Test throw from expect
+  Parser parser;
+  parser.parse(R"(Function:
+BB %0
+)");
+  try {
+    // Bad basic block header
+    parser.parse(R"(Function:
+BB %0 %3
+)");
+    FAIL();
+  } catch (ParserException&) {
+  }
+
+  try {
+    // Dupicate ID
+    parser.parse(R"(Function:
+BB %0
+%1:Object = Bind RDI:Object
+%1:Object
+)");
+    FAIL();
+  } catch (ParserException&) {
+  }
+}
+
+TEST_F(BackendTest, ParserErrorFromMapGetTest) {
+  // Test throw from map_get_throw
+  Parser parser;
+  try {
+    // Invalid opcode
+    parser.parse(R"(Function:
+BB %0
+%1:Object = InvalidInstruction
+)");
+    FAIL();
+  } catch (ParserException&) {
+  }
+  try {
+    // Missing basic block
+    parser.parse(R"(Function:
+BB %0 - succs: %2
+Return 0(0x0):Object
+BB %1
+)");
+    FAIL();
+  } catch (ParserException&) {
+  }
+}
+
 } // namespace jit::codegen
