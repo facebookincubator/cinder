@@ -2662,6 +2662,47 @@ def f(x):
 
         self.assertEqual(f(C()), 'abc')
 
+    def test_loadattr_descr_changed_to_data_descr(self):
+        class NonDataDescr:
+            def __init__(self):
+                self.invoked_count = 0
+
+            def __get__(self, obj, typ):
+                self.invoked_count += 1
+                obj.__dict__["foo"] = "testing 123"
+                return "testing 123"
+
+        descr = NonDataDescr()
+        class TestObj:
+            foo = descr
+
+        def get_foo(obj):
+            return obj.foo
+
+        # non-data descriptor should be invoked the first time we look up the
+        # attribute; there is nothing in the instance dictionary
+        obj = TestObj()
+        self.assertEqual(get_foo(obj), "testing 123")
+        self.assertEqual(descr.invoked_count, 1)
+
+        # non-data descriptor should no longer be invoked; there is an entry
+        # in the instance dictionary that shadows it
+        for _ in range(REPETITION):
+            self.assertEqual(get_foo(obj), "testing 123")
+            self.assertEqual(descr.invoked_count, 1)
+
+        # Convert non-data descr into a data descr
+        def setter(self, obj, val):
+            pass
+
+        descr.__class__.__set__ = setter
+
+        # data descriptors take priority over entries in the instance's
+        # __dict__
+        self.assertEqual(get_foo(obj), "testing 123")
+        self.assertEqual(descr.invoked_count, 2)
+
+
 
 if __name__ == "__main__":
     unittest.main()

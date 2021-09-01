@@ -488,7 +488,8 @@ _PyShadow_LoadAttrDictDescrHit(_PyShadow_InstanceAttrEntry *entry,
     PyObject **dictptr = (PyObject **)((char *)owner + dictoffset);
     PyObject *dict = *dictptr;
     INLINE_CACHE_RECORD_STAT(LOAD_ATTR_DICT_DESCR, hits);
-    if (dict != NULL &&
+    if (!PyDescr_IsData(descr) &&
+        dict != NULL &&
         (res = _PyDict_GetItem_UnicodeExact(dict, entry->name)) != NULL) {
         Py_INCREF(res); /* got a borrowed ref */
         Py_DECREF(descr);
@@ -701,8 +702,9 @@ _PyShadow_LoadAttrSplitDictDescrHit(_PyShadow_InstanceAttrEntry *entry,
     res =
         _PyShadow_TrySplitDictLookup(entry, dict, LOAD_ATTR_SPLIT_DICT_DESCR);
 
-    if (res == NULL) {
+    if (res == NULL || PyDescr_IsData(value)) {
         INLINE_CACHE_RECORD_STAT(LOAD_ATTR_SPLIT_DICT_DESCR, hits);
+        Py_XDECREF(res);
         res = value;
         if (Py_TYPE(res)->tp_descr_get != NULL) {
             PyTypeObject *tp = Py_TYPE(owner);
