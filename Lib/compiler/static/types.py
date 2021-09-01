@@ -1123,7 +1123,9 @@ class Class(Object["Class"]):
             if not existing.assignment:
                 existing.assignment = assignment
             if is_class_slot != existing.is_class_slot:
-                raise TypedSyntaxError("Conflicting class vs instance variable")
+                raise TypedSyntaxError(
+                    f"Conflicting class vs instance variable: {name}"
+                )
             if type_ref is not None:
                 self._slot_redefs.setdefault(name, []).append(type_ref)
         else:
