@@ -357,43 +357,22 @@ class Optimizer:
             # checks that we are still in the same basic block
             block_end < len(self.codestr) // self.CODEUNIT_SIZE
             and self.blocks[block_end] == block_id
+            and self.codestr[block_end * self.CODEUNIT_SIZE] != self.opcode.END_FINALLY
         ):
+            if (
+                self.codestr[block_end * self.CODEUNIT_SIZE]
+                == self.opcode.SETUP_FINALLY
+            ):
+                while (
+                    block_end > instr_index + 1
+                    and self.codestr[(block_end - 1) * self.CODEUNIT_SIZE]
+                    == self.EXTENDED_ARG
+                ):
+                    block_end -= 1
+                break
             block_end += 1
         if block_end > instr_index + 1:
             self.fill_nops(instr_index + 1, block_end)
-
-    @ophandler(*UNARY_OPS)
-    def op_unary_constants(self, instr_index, opcode, op_start, nextop, nexti):
-        # Fold unary ops on constants.
-        #  LOAD_CONST c1  UNARY_OP --> LOAD_CONST unary_op(c)
-        if not self.const_stack:
-            return
-        unary_ops_start = self.lastn_const_start(op_start, 1)
-        if self.is_basic_block(unary_ops_start, op_start):
-            last_instr = self.fold_unaryops_on_constants(
-                unary_ops_start, instr_index + 1, opcode
-            )
-            if last_instr >= 0:
-                self.const_stack[-1] = self.consts[
-                    self.get_arg(self.codestr, instr_index)
-                ]
-                self.in_consts = True
-
-    @ophandler(*BINARY_OPS)
-    def op_binary_constants(self, instr_index, opcode, op_start, nextop, nexti):
-        if len(self.const_stack) < 2:
-            return
-        bin_ops_start = self.lastn_const_start(op_start, 2)
-        if self.is_basic_block(bin_ops_start, op_start):
-            last_instr = self.fold_binops_on_constants(
-                bin_ops_start, instr_index + 1, opcode
-            )
-            if last_instr >= 0:
-                del self.const_stack[-1]
-                self.const_stack[-1] = self.consts[
-                    self.get_arg(self.codestr, instr_index)
-                ]
-                self.in_consts = True
 
     @ophandler("BUILD_TUPLE", "BUILD_LIST", "BUILD_SET")
     def op_fold_sequences(self, instr_index, opcode, op_start, nextop, nexti):
@@ -501,15 +480,8 @@ class Optimizer:
     @ophandler(
         "POP_JUMP_IF_FALSE",
         "POP_JUMP_IF_TRUE",
-        "FOR_ITER",
         "JUMP_FORWARD",
         "JUMP_ABSOLUTE",
-        "CONTINUE_LOOP",
-        "SETUP_LOOP",
-        "SETUP_EXCEPT",
-        "SETUP_FINALLY",
-        "SETUP_WITH",
-        "SETUP_ASYNC_WITH",
     )
     def op_fold_jumps_to_uncond_jumps(
         self, instr_index, opcode, op_start, nextop, nexti

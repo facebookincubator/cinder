@@ -1,5 +1,4 @@
 import ast
-import sys
 from compiler.unparse import to_expr
 from unittest import TestCase
 
@@ -30,8 +29,8 @@ class UnparseTests(TestCase):
             "b'abc'",
             "foo.bar",
             "42 .bar",
-            "42.0.bar" if sys.version_info >= (3, 8) else "42.0 .bar",
-            "42j.bar" if sys.version_info >= (3, 8) else "42j .bar",
+            "42.0.bar",
+            "42j.bar",
             "()",
             "(1,)",
             "(1, 2)",
@@ -112,13 +111,12 @@ class UnparseTests(TestCase):
             tree = ast.parse(example)
             self.assertEqual(expected, to_expr(tree.body[0].value))
 
-            if sys.version_info >= (3, 7):
-                # Make sure we match CPython's compilation too
-                l = {}
-                exec(
-                    f"from __future__ import annotations\ndef f() -> {example}:\n    pass",
-                    l,
-                    l,
-                )
-                f = l["f"]
-                self.assertEqual(expected, f.__annotations__["return"])
+            # Make sure we match CPython's compilation too
+            l = {}
+            exec(
+                f"from __future__ import annotations\ndef f() -> {example}:\n    pass",
+                l,
+                l,
+            )
+            f = l["f"]
+            self.assertEqual(expected, f.__annotations__["return"])

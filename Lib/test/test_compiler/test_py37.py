@@ -11,22 +11,14 @@ from compiler.consts import (
 )
 from compiler.optimizer import AstOptimizer
 from compiler.pyassem import PyFlowGraph
-from compiler.pycodegen import CodeGenerator, Python37CodeGenerator
+from compiler.pycodegen import CodeGenerator
 from compiler.unparse import to_expr
 
 from .common import CompilerTest
 
 
 LOAD_METHOD = "LOAD_METHOD"
-if LOAD_METHOD not in dis.opmap:
-    LOAD_METHOD = "<160>"
-
 CALL_METHOD = "CALL_METHOD"
-if CALL_METHOD not in dis.opmap:
-    CALL_METHOD = "<161>"
-STORE_ANNOTATION = "STORE_ANNOTATION"
-if STORE_ANNOTATION not in dis.opmap:
-    STORE_ANNOTATION = "<127>"
 
 
 class Python37Tests(CompilerTest):
@@ -114,13 +106,7 @@ class Python37Tests(CompilerTest):
             """
 
         code = self.find_code(self.compile(test_code))
-        if sys.version_info >= (3, 8):
-            expected = b"\x00\x02"
-        elif sys.version_info >= (3, 7):
-            expected = b"\x00\x04"
-        else:
-            expected = b""
-        self.assertEqual(code.co_lnotab, expected)
+        self.assertEqual(code.co_lnotab, b"\x00\x02")
 
     def test_future_annotations(self):
         annotations = ["42"]
@@ -141,11 +127,6 @@ class Python37Tests(CompilerTest):
         code = self.compile(f"import x.y as b")
         self.assertInBytecode(code, "IMPORT_FROM")
         self.assertNotInBytecode(code, "LOAD_ATTR")
-
-    def test_store_annotation_removed(self):
-        code = self.compile(f"class C:\n    x: int = 42")
-        class_code = self.find_code(code)
-        self.assertNotInBytecode(class_code, STORE_ANNOTATION)
 
     def test_compile_opt_unary_jump(self):
         graph = self.to_graph("if not abc: foo")

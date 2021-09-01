@@ -2,9 +2,8 @@ import ast
 import compiler.pycodegen
 import dis
 import opcode
-import sys
 import unittest
-from compiler.opcode37 import opcode as opcode37
+from compiler.opcodes import opcode as opcodes
 from compiler.peephole import Optimizer
 from dis import opmap, opname
 from types import CodeType
@@ -103,48 +102,6 @@ class PeepHoleTests(CompilerTest):
             self, self.compile(code), self.compile(code, peephole_enabled=False)
         )
 
-    @unittest.skipIf(sys.version_info >= (3, 7), "3.7+ compiler does this in codegen")
-    def test_unot(self):
-        source = """
-        def unot(x):
-            if not x == 2:
-                del x"""
-        unot = self.peephole_run(source, "unot")
-
-        unot.assert_removed("UNARY_NOT")
-        unot.assert_removed("POP_JUMP_IF_FALSE")
-        unot.assert_added("POP_JUMP_IF_TRUE")
-
-    @unittest.skipIf(sys.version_info >= (3, 7), "3.7+ compiler does this in codegen")
-    def test_elim_inversion_of_is_or_in(self):
-        for line, cmp_op in (
-            ("not a is b", "is not"),
-            ("not a in b", "not in"),
-            ("not a is not b", "is"),
-            ("not a not in b", "in"),
-        ):
-            code = self.peephole_compile(line)
-            code.assert_added("COMPARE_OP", cmp_op)
-
-    @unittest.skipIf(sys.version_info >= (3, 7), "3.7+ compiler does this in codegen")
-    def test_unary_op_no_fold_across_block(self):
-        code = self.peephole_compile("~(- (1 if x else 2))")
-        code.assert_both("UNARY_NEGATIVE")
-        code.assert_both("UNARY_INVERT")
-
-    @unittest.skipIf(sys.version_info >= (3, 7), "3.7+ compiler does this in codegen")
-    def test_unary_op_unfoldable(self):
-        lines = [
-            "-'abc'",
-            "-()",
-            "-None",
-            "-...",
-            "-b''",
-        ]
-        for line in lines:
-            code = self.peephole_compile(line)
-            code.assert_both("UNARY_NEGATIVE")
-
     def test_global_as_constant(self):
         # LOAD_GLOBAL None/True/False  -->  LOAD_CONST None/True/False
         source = """
@@ -220,28 +177,9 @@ class PeepHoleTests(CompilerTest):
         freevars=(),
         cellvars=(),
     ):
-        if sys.version_info >= (3, 8):
-            return CodeType(
-                argcount,
-                posonlyargcount,
-                kwonlyargcount,
-                nlocals,
-                stacksize,
-                flags,
-                code,
-                constants,
-                names,
-                varnames,
-                filename,
-                name,
-                firstlineno,
-                lnotab,
-                freevars,
-                cellvars,
-            )
-        assert not posonlyargcount
         return CodeType(
             argcount,
+            posonlyargcount,
             kwonlyargcount,
             nlocals,
             stacksize,
@@ -262,7 +200,7 @@ class PeepHoleTests(CompilerTest):
         byte_code = self.make_byte_code(
             (opmap["LOAD_CONST"], 0), (opmap["RETURN_VALUE"], 0), constants=(None,)
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         self.assertEqual(opt.blocks, [0, 0])
 
     def test_mark_blocks_one_block(self):
@@ -274,7 +212,7 @@ class PeepHoleTests(CompilerTest):
             (opmap["LOAD_CONST"], 0),
             (opmap["RETURN_VALUE"], 0),
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         self.assertEqual(opt.blocks, [0, 0, 0, 0, 1, 1])
 
     def test_mark_blocks_abs_jump_2(self):
@@ -287,7 +225,7 @@ class PeepHoleTests(CompilerTest):
             (opmap["LOAD_CONST"], 0),
             (opmap["RETURN_VALUE"], 0),
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         self.assertEqual(opt.blocks, [0, 0, 0, 0, 0, 1, 1])
 
     def test_mark_blocks_abs_jump(self):
@@ -299,7 +237,7 @@ class PeepHoleTests(CompilerTest):
             (opmap["LOAD_CONST"], 0),
             (opmap["RETURN_VALUE"], 0),
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         self.assertEqual(opt.blocks, [0, 0, 0, 0, 1, 1])
 
     def test_mark_blocks_rel_jump(self):
@@ -310,7 +248,7 @@ class PeepHoleTests(CompilerTest):
             (opmap["LOAD_CONST"], 0),
             (opmap["RETURN_VALUE"], 0),
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         self.assertEqual(opt.blocks, [0, 0, 0, 0, 1])
 
     def test_mark_blocks_rel_jump_2(self):
@@ -322,7 +260,7 @@ class PeepHoleTests(CompilerTest):
             (opmap["LOAD_CONST"], 0),
             (opmap["RETURN_VALUE"], 0),
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         self.assertEqual(opt.blocks, [0, 0, 0, 0, 0, 1])
 
     def test_fix_blocks(self):
@@ -335,7 +273,7 @@ class PeepHoleTests(CompilerTest):
             (opmap["LOAD_CONST"], 0),
             (opmap["RETURN_VALUE"], 0),
         )
-        opt = Optimizer(byte_code, (None,), b"\x01\x01", opcode37)
+        opt = Optimizer(byte_code, (None,), b"\x01\x01", opcodes)
         opt.fix_blocks()
         self.assertEqual(opt.blocks, [0, 0, 1, 2, 3, 4])
 
@@ -349,7 +287,7 @@ class PeepHoleTests(CompilerTest):
             (opmap["LOAD_CONST"], 0),
             (opmap["RETURN_VALUE"], 0),
         )
-        opt = Optimizer(byte_code, (None,), b"\x02\x01", opcode37)
+        opt = Optimizer(byte_code, (None,), b"\x02\x01", opcodes)
         opt.fix_blocks()
         lnotab = bytes(opt.fix_lnotab())
 
@@ -368,7 +306,7 @@ class PeepHoleTests(CompilerTest):
         self.assertInBytecode(
             self.new_code(byte_code, constants=(None,)), "JUMP_FORWARD", 8
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         opt.fix_blocks()
         code = self.new_code(bytes(opt.fix_jumps()), constants=(None,))
         self.assertInBytecode(code, "JUMP_FORWARD", 6)
@@ -387,7 +325,7 @@ class PeepHoleTests(CompilerTest):
         self.assertInBytecode(
             self.new_code(byte_code, constants=(None,)), "POP_JUMP_IF_TRUE", 10
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         opt.fix_blocks()
         code = self.new_code(bytes(opt.fix_jumps()), constants=(None,))
         self.assertInBytecode(code, "POP_JUMP_IF_TRUE", 8)
@@ -408,7 +346,7 @@ class PeepHoleTests(CompilerTest):
         self.assertInBytecode(
             self.new_code(byte_code, constants=(None,)), "POP_JUMP_IF_TRUE", 259
         )
-        opt = Optimizer(byte_code, (None,), b"", opcode37)
+        opt = Optimizer(byte_code, (None,), b"", opcodes)
         opt.fix_blocks()
         code = self.new_code(bytes(opt.fix_jumps()), constants=(None,))
         self.assertInBytecode(code, "EXTENDED_ARG", 0)
@@ -429,283 +367,6 @@ class PeepHoleTests(CompilerTest):
             code.assert_in_opt(elem)
             code.assert_removed("BUILD_TUPLE")
             code.assert_removed("UNPACK_SEQUENCE")
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_folding_of_tuples_of_constants(self):
-        for line, elem in (
-            ("a = 1,2,3", (1, 2, 3)),
-            ('a = ("a","b","c")', ("a", "b", "c")),
-            ("a,b,c = 1,2,3", (1, 2, 3)),
-            ("a = (None, 1, None)", (None, 1, None)),
-            ("a = ((1, 2), 3, 4)", ((1, 2), 3, 4)),
-        ):
-            code = self.peephole_compile(line)
-            code.assert_added("LOAD_CONST", elem)
-            code.assert_removed("BUILD_TUPLE")
-
-        # Long tuples should be folded too.
-        code = self.peephole_compile("x=" + repr(tuple(range(10000))))
-        code.assert_removed("BUILD_TUPLE")
-        # One LOAD_CONST for the tuple, one for the None return value
-        code.assert_instr_count("LOAD_CONST", 10001, 2)
-
-        # Bug 1053819:  Tuple of constants misidentified when presented with:
-        # . . . opcode_with_arg 100   unary_opcode   BUILD_TUPLE 1  . . .
-        # The following would segfault upon compilation
-        def crater():
-            (
-                ~[
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                ],
-            )
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_folding_of_lists_of_constants(self):
-        for line, elem in (
-            # in/not in constants with BUILD_LIST should be folded to a tuple:
-            ("a in [1,2,3]", (1, 2, 3)),
-            ('a not in ["a","b","c"]', ("a", "b", "c")),
-            ("a in [None, 1, None]", (None, 1, None)),
-            ("a not in [(1, 2), 3, 4]", ((1, 2), 3, 4)),
-        ):
-            code = self.peephole_compile(line)
-            code.assert_added("LOAD_CONST", elem)
-            code.assert_removed("BUILD_LIST")
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_folding_of_sets_of_constants(self):
-        for line, elem in (
-            # in/not in constants with BUILD_SET should be folded to a frozenset:
-            ("a in {1,2,3}", frozenset({1, 2, 3})),
-            ('a not in {"a","b","c"}', frozenset({"a", "c", "b"})),
-            ("a in {None, 1, None}", frozenset({1, None})),
-            ("a not in {(1, 2), 3, 4}", frozenset({(1, 2), 3, 4})),
-            ("a in {1, 2, 3, 3, 2, 1}", frozenset({1, 2, 3})),
-        ):
-            code = self.peephole_compile(line)
-            code.assert_removed("BUILD_SET")
-            code.assert_added("LOAD_CONST", elem)
-
-        # Ensure that the resulting code actually works:
-        d = self.run_code(
-            """
-        def f(a):
-            return a in {1, 2, 3}
-
-        def g(a):
-            return a not in {1, 2, 3}"""
-        )
-        f, g = d["f"], d["g"]
-        self.assertTrue(f(3))
-        self.assertTrue(not f(4))
-
-        self.assertTrue(not g(3))
-        self.assertTrue(g(4))
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_folding_of_binops_on_constants(self):
-        for line, elem in (
-            ("a = 2+3+4", 9),  # chained fold
-            ('a = "@"*4', "@@@@"),  # check string ops
-            ('a="abc" + "def"', "abcdef"),  # check string ops
-            ("a = 3**4", 81),  # binary power
-            ("a = 3*4", 12),  # binary multiply
-            ("a = 13//4", 3),  # binary floor divide
-            ("a = 14%4", 2),  # binary modulo
-            ("a = 2+3", 5),  # binary add
-            ("a = 13-4", 9),  # binary subtract
-            # ('a = (12,13)[1]', 13),             # binary subscr
-            ("a = 13 << 2", 52),  # binary lshift
-            ("a = 13 >> 2", 3),  # binary rshift
-            ("a = 13 & 7", 5),  # binary and
-            ("a = 13 ^ 7", 10),  # binary xor
-            ("a = 13 | 7", 15),  # binary or
-            ("a = 2 ** -14", 6.103515625e-05),  # binary power neg rhs
-        ):
-            code = self.peephole_compile(line)
-            code.assert_added("LOAD_CONST", elem)
-            code.assert_all_removed("BINARY_")
-
-        # Verify that unfoldables are skipped
-        code = self.peephole_compile('a=2+"b"')
-        code.assert_both("LOAD_CONST", 2)
-        code.assert_both("LOAD_CONST", "b")
-
-        # Verify that large sequences do not result from folding
-        code = self.peephole_compile('a="x"*10000')
-        code.assert_both("LOAD_CONST", 10000)
-        self.assertNotIn("x" * 10000, code.opt.co_consts)
-        code = self.peephole_compile("a=1<<1000")
-        code.assert_both("LOAD_CONST", 1000)
-        self.assertNotIn(1 << 1000, code.opt.co_consts)
-        code = self.peephole_compile("a=2**1000")
-        code.assert_both("LOAD_CONST", 1000)
-        self.assertNotIn(2 ** 1000, code.opt.co_consts)
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_binary_subscr_on_unicode(self):
-        # valid code get optimized
-        code = self.peephole_compile('x = "foo"[0]')
-        code.assert_added("LOAD_CONST", "f")
-        code.assert_removed("BINARY_SUBSCR")
-        code = self.peephole_compile('x = "\u0061\uffff"[1]')
-        code.assert_added("LOAD_CONST", "\uffff")
-        code.assert_removed("BINARY_SUBSCR")
-
-        # With PEP 393, non-BMP char get optimized
-        code = self.peephole_compile('x = "\U00012345"[0]')
-        code.assert_both("LOAD_CONST", "\U00012345")
-        code.assert_removed("BINARY_SUBSCR")
-
-        # invalid code doesn't get optimized
-        # out of range
-        code = self.peephole_compile('x = "fuu"[10]')
-        code.assert_both("BINARY_SUBSCR")
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_folding_of_unaryops_on_constants(self):
-        for line, elem in (
-            ("x = -0.5", -0.5),  # unary negative
-            ("x = -0.0", -0.0),  # -0.0
-            ("x = -(1.0-1.0)", -0.0),  # -0.0 after folding
-            ("x = -0", 0),  # -0
-            ("x = ~-2", 1),  # unary invert
-            ("x = +1", 1),  # unary positive
-        ):
-            code = self.peephole_compile(line)
-            # can't assert added here because -0/0 compares equal
-            code.assert_in_opt("LOAD_CONST", elem)
-            code.assert_all_removed("UNARY_")
-
-        # Check that -0.0 works after marshaling
-        negzero = self.peephole_run(
-            """
-        def negzero():
-            return -(1.0 - 1.0)""",
-            "negzero",
-        )
-
-        negzero.assert_all_removed("UNARY_")
-
-        # Verify that unfoldables are skipped
-        for line, elem, opname in (
-            ('-"abc"', "abc", "UNARY_NEGATIVE"),
-            ('~"abc"', "abc", "UNARY_INVERT"),
-        ):
-            code = self.peephole_compile(line)
-            code.assert_both("LOAD_CONST", elem)
-            code.assert_both(opname)
 
     def test_return(self):
         code = "def f():\n    return 42\n    x = 1"
@@ -748,68 +409,6 @@ class PeepHoleTests(CompilerTest):
             return 6"""
         f = self.peephole_run(source, "f")
         f.assert_removed("JUMP_ABSOLUTE")
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_make_function_doesnt_bail(self):
-        source = """
-        def f():
-            def g()->1+1:
-                pass
-            return g"""
-        f = self.peephole_run(source, "f")
-        f.assert_removed("BINARY_ADD")
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this in AST optimizer"
-    )
-    def test_constant_folding(self):
-        # Issue #11244: aggressive constant folding.
-        exprs = [
-            "3 * -5",
-            "-3 * 5",
-            "2 * (3 * 4)",
-            "(2 * 3) * 4",
-            "(-1, 2, 3)",
-            "(1, -2, 3)",
-            "(1, 2, -3)",
-            "(1, 2, -3) * 6",
-            "x in {(3 * -5) + (-1 - 6), (1, -2, 3) * 2, None}",
-        ]
-        for e in exprs:
-            code = self.peephole_compile(e)
-            code.assert_all_removed("UNARY_", "BINARY_", "BUILD")
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this optimization natively"
-    )
-    def test_fold_cond_jumps(self):
-        source = """
-        def f(l, r):
-            if a and b:
-                return 42"""
-        f = self.peephole_run(source, "f")
-        f.assert_removed("JUMP_IF_FALSE_OR_POP")
-
-        source = """
-        def f(l, r):
-            if a or b:
-                return 42"""
-        f = self.peephole_run(source, "f")
-        f.assert_removed("JUMP_IF_TRUE_OR_POP")
-
-    @unittest.skipIf(
-        sys.version_info >= (3, 7), "3.7+ compiler does this optimization natively"
-    )
-    def test_fold_cond_jumps_2(self):
-        source = """
-        def f():
-            if  (a or b) or c:
-                pass
-        """
-        f = self.peephole_run(source, "f")
-        f.assert_removed("JUMP_IF_TRUE_OR_POP")
 
     def test_bug_11510(self):
         self.run_code(

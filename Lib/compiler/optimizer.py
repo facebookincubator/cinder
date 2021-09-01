@@ -27,7 +27,7 @@ def get_const_value(node):
     raise TypeError("Bad constant value")
 
 
-class Py37Limits:
+class PyLimits:
     MAX_INT_SIZE = 128
     MAX_COLLECTION_SIZE = 256
     MAX_STR_SIZE = 4096
@@ -50,19 +50,17 @@ INVERSE_OPS: Dict[Type[cmpop], Type[cmpop]] = {
 BIN_OPS = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
-    ast.Mult: lambda l, r: safe_multiply(l, r, Py37Limits),
+    ast.Mult: lambda l, r: safe_multiply(l, r, PyLimits),
     ast.Div: operator.truediv,
     ast.FloorDiv: operator.floordiv,
-    ast.Mod: lambda l, r: safe_mod(l, r, Py37Limits),
-    ast.Pow: lambda l, r: safe_power(l, r, Py37Limits),
-    ast.LShift: lambda l, r: safe_lshift(l, r, Py37Limits),
+    ast.Mod: lambda l, r: safe_mod(l, r, PyLimits),
+    ast.Pow: lambda l, r: safe_power(l, r, PyLimits),
+    ast.LShift: lambda l, r: safe_lshift(l, r, PyLimits),
     ast.RShift: operator.rshift,
     ast.BitOr: operator.or_,
     ast.BitXor: operator.xor,
     ast.BitAnd: operator.and_,
 }
-
-IS_PY38_ABOVE = sys.version_info >= (3, 8)
 
 
 class AstOptimizer(ASTRewriter):
@@ -154,7 +152,7 @@ class AstOptimizer(ASTRewriter):
             res = self.makeConstTuple(elts)
             if res is not None:
                 return copy_location(res, node)
-            if IS_PY38_ABOVE and not any(isinstance(e, ast.Starred) for e in elts):
+            if not any(isinstance(e, ast.Starred) for e in elts):
                 return self.update_node(ast.Tuple(elts=elts, ctx=node.ctx))
             return self.update_node(node, elts=elts)
         elif isinstance(node, ast.Set):
@@ -208,4 +206,7 @@ class AstOptimizer(ASTRewriter):
         if self.optimize:
             # Skip asserts if we're optimizing
             return None
+        return self.generic_visit(node)
+
+    def visitNamedExpr(self, node: ast.NamedExpr) -> ast.NamedExpr:
         return self.generic_visit(node)

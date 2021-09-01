@@ -34,14 +34,7 @@ class FlagTests(CompilerTest):
         from __future__ import generator_stop
         def f(): pass"""
         )["f"]
-        expected = (
-            __future__.CO_FUTURE_GENERATOR_STOP
-            | CO_NOFREE
-            | CO_OPTIMIZED
-            | CO_NEWLOCALS
-        )
-        if sys.version_info >= (3, 7):
-            expected &= ~__future__.CO_FUTURE_GENERATOR_STOP
+        expected = CO_NOFREE | CO_OPTIMIZED | CO_NEWLOCALS
         self.assertEqual(f.__code__.co_flags, expected)
 
     def test_future_barry_as_bdfl(self):

@@ -126,43 +126,24 @@ class Disassembler:
         consts = tuple(
             [self.co_repr(x) if hasattr(x, "co_code") else x for x in co.co_consts]
         )
-        if sys.version_info >= (3, 8):
-            codeobj = CodeType(
-                co.co_argcount,
-                co.co_posonlyargcount,
-                co.co_kwonlyargcount,
-                co.co_nlocals,
-                co.co_stacksize,
-                co.co_flags,
-                co.co_code,
-                consts,
-                co.co_names,
-                co.co_varnames,
-                co.co_filename,
-                co.co_name,
-                co.co_firstlineno,
-                co.co_lnotab,
-                co.co_freevars,
-                co.co_cellvars,
-            )
-        else:
-            codeobj = CodeType(
-                co.co_argcount,
-                co.co_kwonlyargcount,
-                co.co_nlocals,
-                co.co_stacksize,
-                co.co_flags,
-                co.co_code,
-                consts,
-                co.co_names,
-                co.co_varnames,
-                co.co_filename,
-                co.co_name,
-                co.co_firstlineno,
-                co.co_lnotab,
-                co.co_freevars,
-                co.co_cellvars,
-            )
+        codeobj = CodeType(
+            co.co_argcount,
+            co.co_posonlyargcount,
+            co.co_kwonlyargcount,
+            co.co_nlocals,
+            co.co_stacksize,
+            co.co_flags,
+            co.co_code,
+            consts,
+            co.co_names,
+            co.co_varnames,
+            co.co_filename,
+            co.co_name,
+            co.co_firstlineno,
+            co.co_lnotab,
+            co.co_freevars,
+            co.co_cellvars,
+        )
         disassemble(codeobj, file=file, skip_line_nos=skip_line_nos)
 
     def dump_code(self, co, file):

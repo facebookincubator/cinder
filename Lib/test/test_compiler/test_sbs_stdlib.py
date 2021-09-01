@@ -18,15 +18,9 @@ IGNORE_PATTERNS = (
     "lib2to3/tests/data",
     "test/badsyntax_",
     "test/bad_coding",
-    # These are syntax errors in Py3.8, so disable them
-    "test/test_compiler/sbs_code_tests/3.6/58_yield_from_gen_comp.py",
-    "test/test_compiler/sbs_code_tests/3.6/58_yield_gen_comp.py",
     # run separately via test_corpus.py
     "test/test_compiler/testcorpus",
 )
-
-if sys.version_info < (3, 8):
-    IGNORE_PATTERNS += ("test/test_compiler/sbs_code_tests/3.8",)
 
 
 class SbsCompileTests(TestCase):

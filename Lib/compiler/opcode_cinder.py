@@ -1,7 +1,7 @@
-from .opcode38 import opcode as opcode38
 from .opcodebase import Opcode
+from .opcodes import opcode as base_opcode
 
-opcode: Opcode = opcode38.copy()
+opcode: Opcode = base_opcode.copy()
 opcode.def_op("LOAD_METHOD_SUPER", 198)
 opcode.hasconst.add(198)
 opcode.def_op("LOAD_ATTR_SUPER", 199)

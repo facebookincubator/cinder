@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ast
-import sys
 from ast import (
     AST,
     AnnAssign,
@@ -146,8 +145,7 @@ def lineinfo(node: TAst) -> TAst:
 
 def make_assign(*a: object, **kw: object) -> Assign:
     node = Assign(*a, **kw)
-    if sys.version_info >= (3, 8):
-        node.type_comment = None
+    node.type_comment = None
     return node
 
 

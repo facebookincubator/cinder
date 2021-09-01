@@ -1,8 +1,8 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-from .opcode38cinder import opcode as opcode38cinder
+from .opcode_cinder import opcode as opcode_cinder
 from .opcodebase import Opcode
 
-opcode: Opcode = opcode38cinder.copy()
+opcode: Opcode = opcode_cinder.copy()
 opcode.def_op("INVOKE_METHOD", 164)
 opcode.hasconst.add(164)
 opcode.def_op("LOAD_FIELD", 165)

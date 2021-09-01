@@ -10,7 +10,7 @@ import types
 import unittest
 import warnings
 import weakref
-from compiler.consts38 import CO_SUPPRESS_JIT, CO_NORMAL_FRAME
+from compiler.consts import CO_SUPPRESS_JIT, CO_NORMAL_FRAME
 from compiler.static import StaticCodeGenerator
 
 try:

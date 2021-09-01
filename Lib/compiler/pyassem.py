@@ -8,11 +8,9 @@ from contextlib import contextmanager
 from types import CodeType
 from typing import Generator, List, Optional
 
-from . import opcode36, opcode37, opcode38, opcode38cinder
-from .consts import CO_NEWLOCALS, CO_OPTIMIZED
-from .consts38 import CO_SUPPRESS_JIT
+from . import opcodes, opcode_cinder
+from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
 from .peephole import Optimizer
-from .py38.peephole import Optimizer38
 
 try:
     import cinder  # pyre-ignore # noqa: F401
@@ -408,7 +406,7 @@ class IndexedSet:
 class PyFlowGraph(FlowGraph):
 
     super_init = FlowGraph.__init__
-    opcode = opcode36.opcode
+    opcode = opcodes.opcode
 
     def __init__(
         self,
@@ -424,6 +422,7 @@ class PyFlowGraph(FlowGraph):
         docstring: Optional[str] = None,
         firstline: int = 0,
         peephole_enabled: bool = True,
+        posonlyargs: int = 0,
     ) -> None:
         self.super_init()
         self.name = name
@@ -432,6 +431,7 @@ class PyFlowGraph(FlowGraph):
         self.docstring = None
         self.args = args
         self.kwonlyargs = kwonlyargs
+        self.posonlyargs = posonlyargs
         self.starargs = starargs
         self.klass = klass
         self.stacksize = 0
@@ -536,41 +536,76 @@ class PyFlowGraph(FlowGraph):
         if io:
             sys.stdout = save
 
-    def stackdepth_walk(self, block, depth=0, maxdepth=0):
-        assert block is not None
-        if block.seen or block.startdepth >= depth:
-            return maxdepth
-        block.seen = True
-        block.startdepth = depth
-        for instr in block.getInstructions():
-            effect = self.opcode.stack_effect_Raw(instr.opname, instr.oparg)
-            depth += effect
+    def push_block(self, worklist: List[Block], block: Block, depth: int):
+        assert (
+            block.startdepth < 0 or block.startdepth >= depth
+        ), f"{block!r}: {block.startdepth} vs {depth}"
+        if block.startdepth < depth:
+            block.startdepth = depth
+            worklist.append(block)
 
+    def stackdepth_walk(self, block):
+        maxdepth = 0
+        worklist = []
+        self.push_block(worklist, block, 0)
+        while worklist:
+            block = worklist.pop()
+            next = block.next
+            depth = block.startdepth
             assert depth >= 0
 
-            if depth > maxdepth:
-                maxdepth = depth
+            for instr in block.getInstructions():
+                if instr.opname == "SET_LINENO":
+                    continue
 
-            if instr.target:
-                target_depth = depth
-                if instr.opname == "FOR_ITER":
-                    target_depth = depth - 2
-                elif instr.opname in ("SETUP_FINALLY", "SETUP_EXCEPT"):
-                    target_depth = depth + 3
+                delta = self.opcode.stack_effect_raw(instr.opname, instr.oparg, False)
+                new_depth = depth + delta
+                if new_depth > maxdepth:
+                    maxdepth = new_depth
+
+                assert depth >= 0
+
+                op = self.opcode.opmap[instr.opname]
+                if self.opcode.has_jump(op):
+                    delta = self.opcode.stack_effect_raw(
+                        instr.opname, instr.oparg, True
+                    )
+
+                    target_depth = depth + delta
                     if target_depth > maxdepth:
                         maxdepth = target_depth
-                elif instr.opname in ("JUMP_IF_TRUE_OR_POP", "JUMP_IF_FALSE_OR_POP"):
-                    depth -= 1
-                maxdepth = self.stackdepth_walk(instr.target, target_depth, maxdepth)
-                if instr.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
+
+                    assert target_depth >= 0
+                    if instr.opname == "CONTINUE_LOOP":
+                        # Pops a variable number of values from the stack,
+                        # but the target should be already proceeding.
+                        assert instr.target.startdepth >= 0
+                        assert instr.target.startdepth <= depth
+                        # remaining code is dead
+                        next = None
+                        break
+
+                    self.push_block(worklist, instr.target, target_depth)
+
+                depth = new_depth
+
+                if instr.opname in (
+                    "JUMP_ABSOLUTE",
+                    "JUMP_FORWARD",
+                    "RETURN_VALUE",
+                    "RAISE_VARARGS",
+                    "BREAK_LOOP",
+                ):
                     # Remaining code is dead
-                    block.seen = False
-                    return maxdepth
+                    next = None
+                    break
 
-        if block.next:
-            maxdepth = self.stackdepth_walk(block.next, depth, maxdepth)
+            # TODO(dinoviehland): we could save the delta we came up with here and
+            # reapply it on subsequent walks rather than having to walk all of the
+            # instructions again.
+            if next:
+                self.push_block(worklist, next, depth)
 
-        block.seen = False
         return maxdepth
 
     def computeStackDepth(self):
@@ -798,9 +833,10 @@ class PyFlowGraph(FlowGraph):
     def make_optimizer(self, code, consts, lnotab) -> Optimizer:
         return Optimizer(code, consts, lnotab, self.opcode)
 
-    def make_code(self, nlocals, code, consts, firstline, lnotab):
+    def make_code(self, nlocals, code, consts, firstline, lnotab) -> CodeType:
         return CodeType(
             len(self.args),
+            self.posonlyargs,
             len(self.kwonlyargs),
             nlocals,
             self.stacksize,
@@ -825,143 +861,8 @@ class PyFlowGraph(FlowGraph):
         )
 
 
-class PyFlowGraph37(PyFlowGraph):
-    opcode = opcode37.opcode
-
-    def push_block(self, worklist: List[Block], block: Block, depth: int):
-        assert (
-            block.startdepth < 0 or block.startdepth >= depth
-        ), f"{block!r}: {block.startdepth} vs {depth}"
-        if block.startdepth < depth:
-            block.startdepth = depth
-            worklist.append(block)
-
-    def stackdepth_walk(self, block):
-        maxdepth = 0
-        worklist = []
-        self.push_block(worklist, block, 0)
-        while worklist:
-            block = worklist.pop()
-            next = block.next
-            depth = block.startdepth
-            assert depth >= 0
-
-            for instr in block.getInstructions():
-                if instr.opname == "SET_LINENO":
-                    continue
-
-                delta = self.opcode.stack_effect_raw(instr.opname, instr.oparg, False)
-                new_depth = depth + delta
-                if new_depth > maxdepth:
-                    maxdepth = new_depth
-
-                assert depth >= 0
-
-                op = self.opcode.opmap[instr.opname]
-                if self.opcode.has_jump(op):
-                    delta = self.opcode.stack_effect_raw(
-                        instr.opname, instr.oparg, True
-                    )
-
-                    target_depth = depth + delta
-                    if target_depth > maxdepth:
-                        maxdepth = target_depth
-
-                    assert target_depth >= 0
-                    if instr.opname == "CONTINUE_LOOP":
-                        # Pops a variable number of values from the stack,
-                        # but the target should be already proceeding.
-                        assert instr.target.startdepth >= 0
-                        assert instr.target.startdepth <= depth
-                        # remaining code is dead
-                        next = None
-                        break
-
-                    self.push_block(worklist, instr.target, target_depth)
-
-                depth = new_depth
-
-                if instr.opname in (
-                    "JUMP_ABSOLUTE",
-                    "JUMP_FORWARD",
-                    "RETURN_VALUE",
-                    "RAISE_VARARGS",
-                    "BREAK_LOOP",
-                ):
-                    # Remaining code is dead
-                    next = None
-                    break
-
-            # TODO(dinoviehland): we could save the delta we came up with here and
-            # reapply it on subsequent walks rather than having to walk all of the
-            # instructions again.
-            if next:
-                self.push_block(worklist, next, depth)
-
-        return maxdepth
-
-
-class PyFlowGraph38(PyFlowGraph37):
-    opcode = opcode38.opcode
-
-    def __init__(
-        self,
-        name: str,
-        filename: str,
-        scope,
-        flags: int = 0,
-        args=(),
-        kwonlyargs=(),
-        starargs=(),
-        optimized: int = 0,
-        klass: bool = False,
-        docstring: Optional[str] = None,
-        firstline: int = 0,
-        peephole_enabled: bool = True,
-        posonlyargs: int = 0,
-    ):
-        super().__init__(
-            name,
-            filename,
-            scope,
-            flags=flags,
-            args=args,
-            kwonlyargs=kwonlyargs,
-            starargs=starargs,
-            optimized=optimized,
-            klass=klass,
-            docstring=docstring,
-            firstline=firstline,
-            peephole_enabled=peephole_enabled,
-        )
-        self.posonlyargs = posonlyargs
-
-    def make_optimizer(self, code, consts, lnotab) -> Optimizer:
-        return Optimizer38(code, consts, lnotab, self.opcode)
-
-    def make_code(self, nlocals, code, consts, firstline, lnotab) -> CodeType:
-        return CodeType(
-            len(self.args),
-            self.posonlyargs,
-            len(self.kwonlyargs),
-            nlocals,
-            self.stacksize,
-            self.flags,
-            code,
-            consts,
-            tuple(self.names),
-            tuple(self.varnames),
-            self.filename,
-            self.name,
-            firstline,
-            lnotab,
-            tuple(self.freevars),
-            tuple(self.cellvars),
-        )
-
-
-class PyFlowGraphCinder(PyFlowGraph38):
-    opcode = opcode38cinder.opcode
+class PyFlowGraphCinder(PyFlowGraph):
+    opcode = opcode_cinder.opcode
 
     def make_code(self, nlocals, code, consts, firstline, lnotab) -> CodeType:
         flags = self.flags | CO_SUPPRESS_JIT if self.scope.suppress_jit else self.flags

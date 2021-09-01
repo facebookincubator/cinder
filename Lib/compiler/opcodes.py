@@ -7,6 +7,7 @@ opcode.def_op("ROT_TWO", 2)
 opcode.def_op("ROT_THREE", 3)
 opcode.def_op("DUP_TOP", 4)
 opcode.def_op("DUP_TOP_TWO", 5)
+opcode.def_op("ROT_FOUR", 6)
 opcode.def_op("NOP", 9)
 opcode.def_op("UNARY_POSITIVE", 10)
 opcode.def_op("UNARY_NEGATIVE", 11)
@@ -27,6 +28,8 @@ opcode.def_op("INPLACE_TRUE_DIVIDE", 29)
 opcode.def_op("GET_AITER", 50)
 opcode.def_op("GET_ANEXT", 51)
 opcode.def_op("BEFORE_ASYNC_WITH", 52)
+opcode.def_op("BEGIN_FINALLY", 53)
+opcode.def_op("END_ASYNC_FOR", 54)
 opcode.def_op("INPLACE_ADD", 55)
 opcode.def_op("INPLACE_SUBTRACT", 56)
 opcode.def_op("INPLACE_MULTIPLY", 57)
@@ -50,7 +53,6 @@ opcode.def_op("INPLACE_RSHIFT", 76)
 opcode.def_op("INPLACE_AND", 77)
 opcode.def_op("INPLACE_XOR", 78)
 opcode.def_op("INPLACE_OR", 79)
-opcode.def_op("BREAK_LOOP", 80)
 opcode.def_op("WITH_CLEANUP_START", 81)
 opcode.def_op("WITH_CLEANUP_FINISH", 82)
 opcode.def_op("RETURN_VALUE", 83)
@@ -89,9 +91,6 @@ opcode.jabs_op("JUMP_ABSOLUTE", 113)  # ""
 opcode.jabs_op("POP_JUMP_IF_FALSE", 114)  # ""
 opcode.jabs_op("POP_JUMP_IF_TRUE", 115)  # ""
 opcode.name_op("LOAD_GLOBAL", 116)  # Index in name list
-opcode.jabs_op("CONTINUE_LOOP", 119)  # Target address
-opcode.jrel_op("SETUP_LOOP", 120)  # Distance to target address
-opcode.jrel_op("SETUP_EXCEPT", 121)  # ""
 opcode.jrel_op("SETUP_FINALLY", 122)  # ""
 opcode.def_op("LOAD_FAST", 124)  # Local variable number
 opcode.haslocal.add(124)
@@ -99,7 +98,6 @@ opcode.def_op("STORE_FAST", 125)  # Local variable number
 opcode.haslocal.add(125)
 opcode.def_op("DELETE_FAST", 126)  # Local variable number
 opcode.haslocal.add(126)
-opcode.name_op("STORE_ANNOTATION", 127)  # Index in name list
 opcode.def_op("RAISE_VARARGS", 130)  # Number of raise arguments (1, 2, or 3)
 opcode.def_op("CALL_FUNCTION", 131)  # #args
 opcode.def_op("MAKE_FUNCTION", 132)  # Flags
@@ -131,6 +129,10 @@ opcode.def_op("FORMAT_VALUE", 155)
 opcode.def_op("BUILD_CONST_KEY_MAP", 156)
 opcode.def_op("BUILD_STRING", 157)
 opcode.def_op("BUILD_TUPLE_UNPACK_WITH_CALL", 158)
+opcode.name_op("LOAD_METHOD", 160)
+opcode.def_op("CALL_METHOD", 161)
+opcode.jrel_op("CALL_FINALLY", 162)
+opcode.def_op("POP_FINALLY", 163)
 
 FVC_MASK = 0x3
 FVC_NONE = 0x0
@@ -186,23 +188,16 @@ opcode.stack_effects.update(
     INPLACE_AND=-1,
     INPLACE_XOR=-1,
     INPLACE_OR=-1,
-    BREAK_LOOP=0,
-    SETUP_WITH=7,
-    WITH_CLEANUP_START=1,
-    WITH_CLEANUP_FINISH=-1,  # XXX Sometimes more
     RETURN_VALUE=-1,
     IMPORT_STAR=-1,
     SETUP_ANNOTATIONS=0,
     YIELD_VALUE=0,
     YIELD_FROM=-1,
     POP_BLOCK=0,
-    POP_EXCEPT=0,  # -3 except if bad bytecode
-    END_FINALLY=-1,  # or -2 or -3 if exception occurred
     STORE_NAME=-1,
     DELETE_NAME=0,
     UNPACK_SEQUENCE=lambda oparg, jmp=0: oparg - 1,
     UNPACK_EX=lambda oparg, jmp=0: (oparg & 0xFF) + (oparg >> 8),
-    FOR_ITER=1,  # or -1, at end of iterator
     STORE_ATTR=-2,
     DELETE_ATTR=-1,
     STORE_GLOBAL=-1,
@@ -226,22 +221,13 @@ opcode.stack_effects.update(
     IMPORT_NAME=-1,
     IMPORT_FROM=1,
     JUMP_FORWARD=0,
-    JUMP_IF_TRUE_OR_POP=0,  # -1 if jump not taken
-    JUMP_IF_FALSE_OR_POP=0,  # ""
     JUMP_ABSOLUTE=0,
     POP_JUMP_IF_FALSE=-1,
     POP_JUMP_IF_TRUE=-1,
     LOAD_GLOBAL=1,
-    CONTINUE_LOOP=0,
-    SETUP_LOOP=0,
-    # close enough...
-    SETUP_EXCEPT=6,
-    SETUP_FINALLY=6,  # can push 3 values for the new exception
-    # + 3 others for the previous exception state
     LOAD_FAST=1,
     STORE_FAST=-1,
     DELETE_FAST=0,
-    STORE_ANNOTATION=-1,
     RAISE_VARARGS=lambda oparg, jmp=0: -oparg,
     CALL_FUNCTION=lambda oparg, jmp=0: -oparg,
     CALL_FUNCTION_KW=lambda oparg, jmp=0: -oparg - 1,
@@ -258,7 +244,6 @@ opcode.stack_effects.update(
     STORE_DEREF=-1,
     DELETE_DEREF=0,
     GET_AWAITABLE=0,
-    SETUP_ASYNC_WITH=6,
     BEFORE_ASYNC_WITH=1,
     GET_AITER=0,
     GET_ANEXT=1,
@@ -268,4 +253,21 @@ opcode.stack_effects.update(
     FORMAT_VALUE=lambda oparg, jmp=0: -1 if (oparg & FVS_MASK) == FVS_HAVE_SPEC else 0,
     SET_LINENO=0,
     EXTENDED_ARG=0,
+    SETUP_WITH=lambda oparg, jmp=0: 6 if jmp else 1,
+    WITH_CLEANUP_START=2,  # or 1, depending on TOS
+    WITH_CLEANUP_FINISH=-3,
+    POP_EXCEPT=-3,
+    END_FINALLY=-6,
+    FOR_ITER=lambda oparg, jmp=0: -1 if jmp > 0 else 1,
+    JUMP_IF_TRUE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
+    JUMP_IF_FALSE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
+    SETUP_FINALLY=lambda oparg, jmp: 6 if jmp else 0,
+    SETUP_ASYNC_WITH=lambda oparg, jmp: (-1 + 6) if jmp else 0,
+    CALL_METHOD=lambda oparg, jmp: -oparg - 1,
+    LOAD_METHOD=1,
+    ROT_FOUR=0,
+    END_ASYNC_FOR=-7,
+    POP_FINALLY=-6,
+    CALL_FINALLY=lambda oparg, jmp: 1 if jmp else 0,
+    BEGIN_FINALLY=6,
 )

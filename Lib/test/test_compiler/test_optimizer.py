@@ -10,14 +10,12 @@ from compiler.consts import (
 )
 from compiler.optimizer import AstOptimizer
 from compiler.pyassem import PyFlowGraph
-from compiler.pycodegen import CodeGenerator, Python37CodeGenerator
+from compiler.pycodegen import CodeGenerator
 from compiler.unparse import to_expr
-from unittest import skipIf
 
 from .common import CompilerTest
 
 
-@unittest.skipIf(sys.version_info < (3, 7), "AST optimizer introduced in 3.7")
 class AstOptimizerTests(CompilerTest):
     class _Comparer:
         def __init__(self, code, test):
@@ -211,7 +209,6 @@ class AstOptimizerTests(CompilerTest):
         optimized = optimizer.visit(tree).body[0]
         self.assertEqual(to_expr(optimized.iter), "(1, 2, 3)")
 
-    @skipIf(sys.version_info < (3, 8), "This optimization is only for Python 3.8+")
     def test_fold_nonconst_list_to_tuple_in_comparisons(self):
         optimizer = AstOptimizer()
         tree = ast.parse("[a for a in b if a.c in [e, f]]")
@@ -234,7 +231,6 @@ class AstOptimizerTests(CompilerTest):
         # Function body should contain the assert
         self.assertIsInstance(unoptimized.body[0].body[0], ast.Assert)
 
-    @unittest.skipIf(sys.version_info < (3, 7), "3.6 does this in peephole")
     def test_folding_of_tuples_of_constants(self):
         for line, elem in (
             ("a = 1,2,3", (1, 2, 3)),
@@ -362,7 +358,6 @@ class AstOptimizerTests(CompilerTest):
                 ],
             )
 
-    @unittest.skipIf(sys.version_info < (3, 7), "3.6 does this in peephole")
     def test_folding_of_lists_of_constants(self):
         for line, elem in (
             # in/not in constants with BUILD_LIST should be folded to a tuple:
@@ -375,7 +370,6 @@ class AstOptimizerTests(CompilerTest):
             code.assert_added("LOAD_CONST", elem)
             code.assert_removed("BUILD_LIST")
 
-    @unittest.skipIf(sys.version_info < (3, 7), "3.6 does this in peephole")
     def test_folding_of_sets_of_constants(self):
         for line, elem in (
             # in/not in constants with BUILD_SET should be folded to a frozenset:
@@ -405,7 +399,6 @@ class AstOptimizerTests(CompilerTest):
         self.assertTrue(not g(3))
         self.assertTrue(g(4))
 
-    @unittest.skipIf(sys.version_info < (3, 7), "3.6 does this in peephole")
     def test_folding_of_binops_on_constants(self):
         for line, elem in (
             ("a = 2+3+4", 9),  # chained fold
@@ -446,7 +439,6 @@ class AstOptimizerTests(CompilerTest):
         code.assert_both("LOAD_CONST", 1000)
         self.assertNotIn(2 ** 1000, consts)
 
-    @unittest.skipIf(sys.version_info < (3, 7), "3.6 does this in peephole")
     def test_binary_subscr_on_unicode(self):
         # valid code get optimized
         code = self.compare_graph('x = "foo"[0]')
@@ -466,7 +458,6 @@ class AstOptimizerTests(CompilerTest):
         code = self.compare_graph('x = "fuu"[10]')
         code.assert_both("BINARY_SUBSCR")
 
-    @unittest.skipIf(sys.version_info < (3, 7), "3.6 does this in peephole")
     def test_folding_of_unaryops_on_constants(self):
         for line, elem in (
             ("x = -0.5", -0.5),  # unary negative

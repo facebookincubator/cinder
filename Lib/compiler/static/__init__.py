@@ -46,7 +46,7 @@ from typing import (
 
 from __static__ import chkdict  # pyre-ignore[21]: unknown module
 
-from .. import symbols, opcode38static
+from .. import consts, symbols, opcode_static
 from ..consts import SC_LOCAL, SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT
 from ..opcodebase import Opcode
 from ..optimizer import AstOptimizer
@@ -114,7 +114,7 @@ def exec_static(
 
 
 class PyFlowGraph38Static(PyFlowGraphCinder):
-    opcode: Opcode = opcode38static.opcode
+    opcode: Opcode = opcode_static.opcode
 
 
 class Static38CodeGenerator(StrictCodeGenerator):
@@ -172,15 +172,15 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self,
         tree: AST,
         graph: PyFlowGraph,
-        codegen_type: Optional[Type[CinderCodeGenerator]] = None,
+        codegen_type: Optional[Type[CodeGenerator]] = None,
     ) -> CodeGenerator:
         if self._is_static_compiler_disabled(tree):
             return super().make_child_codegen(
                 tree, graph, codegen_type=StrictCodeGenerator
             )
-        graph.setFlag(self.consts.CO_STATICALLY_COMPILED)
+        graph.setFlag(consts.CO_STATICALLY_COMPILED)
         if ModuleFlag.SHADOW_FRAME in self.cur_mod.flags:
-            graph.setFlag(self.consts.CO_SHADOW_FRAME)
+            graph.setFlag(consts.CO_SHADOW_FRAME)
         gen = StaticCodeGenerator(
             self,
             tree,
@@ -247,8 +247,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.cur_mod.node_data[key, data_type] = value
 
     @classmethod
-    # pyre-fixme[14]: `make_code_gen` overrides method defined in
-    #  `Python37CodeGenerator` inconsistently.
     def make_code_gen(
         cls,
         module_name: str,
@@ -278,7 +276,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         graph = cls.flow_graph(
             module_name, filename, s.scopes[tree], peephole_enabled=peephole_enabled
         )
-        graph.setFlag(cls.consts.CO_STATICALLY_COMPILED)
+        graph.setFlag(consts.CO_STATICALLY_COMPILED)
 
         type_binder = TypeBinder(s, filename, symtable, module_name, optimize)
         type_binder.visit(tree)

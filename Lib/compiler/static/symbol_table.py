@@ -12,6 +12,7 @@ from _static import (  # pyre-fixme[21]: Could not find module `_static`.
     rand,
 )
 
+from .. import consts
 from ..optimizer import AstOptimizer
 from ..strict import enable_strict_features
 from ..symbols import SymbolVisitor
@@ -331,7 +332,7 @@ class SymbolTable:
         graph = self.code_generator.flow_graph(
             name, filename, s.scopes[tree], peephole_enabled=True
         )
-        graph.setFlag(self.code_generator.consts.CO_STATICALLY_COMPILED)
+        graph.setFlag(consts.CO_STATICALLY_COMPILED)
 
         code_gen = self.code_generator(
             None, tree, s, graph, self, name, flags=0, optimization_lvl=optimize

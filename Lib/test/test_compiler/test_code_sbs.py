@@ -252,12 +252,6 @@ class CodeTests(CompilerTest):
 def add_test(modname, fname):
     if "/cinder/" in fname and "cinder" not in sys.version:
         return
-    if "/3.6/" in fname and sys.version_info[:2] != (3, 6):
-        return
-    elif "/3.7/" in fname and sys.version_info[:2] != (3, 7):
-        return
-    elif "/3.8/" in fname and sys.version_info[:2] != (3, 8):
-        return
 
     def test_code(self):
         with open(fname) as f:

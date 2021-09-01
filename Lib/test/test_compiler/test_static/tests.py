@@ -13,7 +13,7 @@ import warnings
 from array import array
 from collections import UserDict
 from compiler import consts, walk
-from compiler.consts38 import CO_SHADOW_FRAME, CO_STATICALLY_COMPILED
+from compiler.consts import CO_SHADOW_FRAME, CO_STATICALLY_COMPILED
 from compiler.optimizer import AstOptimizer
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
 from compiler.static import StaticCodeGenerator

@@ -1,6 +1,5 @@
 import ast
 import dis
-import sys
 import unittest
 from compiler.pycodegen import CodeGenerator
 from dis import opmap, opname
@@ -86,28 +85,19 @@ class GraphTests(CompilerTest):
             pass"""
         )
 
-        if sys.version_info >= (3, 8):
-            expected = Block(
-                "entry",
+        expected = Block(
+            "entry",
+            Block(
+                "try_body",
                 Block(
-                    "try_body",
+                    "try_handlers",
                     Block(
-                        "try_handlers",
-                        Block(
-                            "try_cleanup_body0",
-                            Block("try_except_0", Block("try_else", Block("try_end"))),
-                        ),
+                        "try_cleanup_body0",
+                        Block("try_except_0", Block("try_else", Block("try_end"))),
                     ),
                 ),
-            )
-        else:
-            expected = Block(
-                "entry",
-                Block(
-                    "try_body",
-                    Block("try_handlers", Block("handler_end", Block("try_end"))),
-                ),
-            )
+            ),
+        )
         self.assert_graph_equal(graph, expected)
 
     def test_chained_comparison(self):
@@ -126,28 +116,10 @@ class GraphTests(CompilerTest):
         )
         # graph the graph for f so we can check the async for
         graph = self.get_child_graph(graph, "f")
-        if sys.version_info >= (3, 8):
-            expected = Block(
-                "entry",
-                Block("async_for_try", Block("except", Block("end", Block("exit")))),
-            )
-        else:
-            expected = Block(
-                "entry",
-                Block(
-                    "async_for_try",
-                    Block(
-                        "except",
-                        Block(
-                            "after_try",
-                            Block(
-                                "try_cleanup",
-                                Block("after_loop_else", Block("end", Block("exit"))),
-                            ),
-                        ),
-                    ),
-                ),
-            )
+        expected = Block(
+            "entry",
+            Block("async_for_try", Block("except", Block("end", Block("exit")))),
+        )
         self.assert_graph_equal(graph, expected)
 
 

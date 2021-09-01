@@ -569,6 +569,9 @@ astfold_expr(expr_ty node_, PyArena *ctx_, int optimize_)
             return make_const(node_, PyBool_FromLong(!optimize_), ctx_);
         }
         break;
+    case NamedExpr_kind:
+        CALL(astfold_expr, expr_ty, node_->v.NamedExpr.value);
+        break;
     default:
         break;
     }
