@@ -1955,6 +1955,13 @@ class ClassMethodArgMapping(ArgMapping):
     def needs_virtual_invoke(self, code_gen: Static38CodeGenerator) -> bool:
         return self.is_instance_call
 
+    def emit(self, code_gen: Static38CodeGenerator, extra_self: bool = False) -> None:
+        if not self.dynamic_call:
+            self_arg = self.self_arg
+            assert self_arg is not None
+            code_gen.visit(self_arg)
+        super().emit(code_gen, extra_self=extra_self)
+
 
 class ArgEmitter:
     def __init__(self, argument: expr, type: Class) -> None:
@@ -2761,7 +2768,6 @@ class BoundClassMethod(Object[Class]):
             return super().emit_call(node, code_gen)
 
         arg_mapping: ArgMapping = code_gen.get_node_data(node, ArgMapping)
-        code_gen.visit(self.self_expr)
         arg_mapping.emit(code_gen)
 
 

@@ -91,3 +91,19 @@ class ClassMethodTests(StaticTestBase):
                 return c.foo(0)
         """
         self.type_error(codestr, "class cannot hide inherited member")
+
+    def test_classmethod_dynamic_call(self):
+        codestr = """
+            class C:
+                def __init__(self, x: int) -> None:
+                    self.x = x
+
+                @classmethod
+                def foo(cls, *, x: int) -> int:
+                    return x
+
+            d = C.foo(x=1)
+        """
+        with self.in_module(codestr) as mod:
+            d = mod["d"]
+            self.assertEqual(d, 1)
