@@ -89,6 +89,8 @@ from .types import (
     TypeDescr,
     Value,
     _TMP_VAR_PREFIX,
+    CachedPropertyDecorator,
+    CachedPropertyMethod,
 )
 
 
@@ -115,6 +117,9 @@ def exec_static(
 
 class PyFlowGraph38Static(PyFlowGraphCinder):
     opcode: Opcode = opcode_static.opcode
+
+
+CACHED_PROPERTY_IMPL_PREFIX = "_pystatic_cprop."
 
 
 class Static38CodeGenerator(StrictCodeGenerator):
@@ -322,12 +327,43 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return
         return klass
 
-    def store_type_name_and_flags(self, node: ClassDef) -> None:
+    def post_process_and_store_name(self, node: ClassDef) -> None:
         klass = self._resolve_class(node)
         if klass:
             method = "set_type_static_final" if klass.is_final else "set_type_static"
             self.emit("INVOKE_FUNCTION", (("_static", method), 1))
+
+            for name, value in klass.members.items():
+                if isinstance(value, CachedPropertyMethod):
+                    impl_name = CACHED_PROPERTY_IMPL_PREFIX + name
+                    self.emit("DUP_TOP")  # used for delete attr
+                    self.emit("DUP_TOP")  # used for store attr
+                    self.emit("DUP_TOP")  # used to load descriptor
+                    self.emit("DUP_TOP")  # used to load method implementation
+                    self.emit(
+                        "LOAD_ATTR", impl_name
+                    )  # Loads implemented method on the stack
+                    self.emit("ROT_TWO")
+                    self.emit("LOAD_ATTR", name)
+                    self.emit("INVOKE_FUNCTION", (("cinder", "cached_property"), 2))
+                    self.emit("ROT_TWO")
+                    self.emit("STORE_ATTR", name)
+                    self.emit("DELETE_ATTR", impl_name)
+
         self.storeName(node.name)
+
+    def _process_decorators(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> Tuple[str, int, int]:
+        if len(node.decorator_list) == 1 and isinstance(
+            self.get_type(node.decorator_list[0]), CachedPropertyDecorator
+        ):
+            return (
+                CACHED_PROPERTY_IMPL_PREFIX + node.name,
+                0,
+                node.decorator_list[0].lineno,
+            )
+        return super()._process_decorators(node)
 
     def walkClassBody(self, node: ClassDef, gen: CodeGenerator) -> None:
         super().walkClassBody(node, gen)
@@ -338,10 +374,14 @@ class Static38CodeGenerator(StrictCodeGenerator):
         class_mems = [
             name
             for name, value in klass.members.items()
-            if isinstance(value, Slot)
-            and not value.is_classvar
-            and not value.is_class_slot
+            if (
+                isinstance(value, Slot)
+                and not value.is_classvar
+                and not value.is_class_slot
+            )
+            or isinstance(value, CachedPropertyMethod)
         ]
+
         if klass.allow_weakrefs:
             class_mems.append("__weakref__")
 

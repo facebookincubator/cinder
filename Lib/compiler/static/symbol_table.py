@@ -94,6 +94,7 @@ from .types import (
     XX_GENERIC_TYPE,
     parse_typed_signature,
     reflect_builtin_function,
+    CACHED_PROPERTY_TYPE,
 )
 
 if TYPE_CHECKING:
@@ -263,6 +264,10 @@ class SymbolTable:
                 ),
                 "rand": reflect_builtin_function(rand),
             },
+        )
+
+        self.modules["cinder"] = ModuleTable(
+            "cinder", "<cinder>", self, {"cached_property": CACHED_PROPERTY_TYPE}
         )
 
         if xxclassloader is not None:

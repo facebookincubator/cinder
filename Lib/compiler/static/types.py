@@ -1082,7 +1082,7 @@ class Class(Object["Class"]):
                     value.function.validate_compat_signature(
                         my_value.function, module, first_arg_is_implicit=False
                     )
-                elif isinstance(value, PropertyMethod):
+                elif isinstance(value, (PropertyMethod, CachedPropertyMethod)):
                     if value.is_final:
                         raise TypedSyntaxError(
                             f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
@@ -2834,6 +2834,28 @@ class PropertyMethod(DecoratedMethod):
         return self.container_descr + ((self.function.func_name, "fset"),)
 
 
+class CachedPropertyMethod(DecoratedMethod):
+    def __init__(self, function: Function) -> None:
+        super().__init__(CACHED_PROPERTY_TYPE, function)
+
+    @property
+    def name(self) -> str:
+        return self.function.qualname
+
+    def bind_descr_get(
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> None:
+        if inst is None:
+            visitor.set_type(node, DYNAMIC_TYPE)
+        else:
+            visitor.set_type(node, self.function.return_type.resolved().instance)
+
+
 class TypingFinalDecorator(Class):
     def bind_decorate_function(
         self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
@@ -2926,6 +2948,18 @@ class PropertyDecorator(Class):
 
     def bind_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property")
+
+
+class CachedPropertyDecorator(Class):
+    def bind_decorate_function(
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
+    ) -> Optional[Value]:
+        if isinstance(fn, DecoratedMethod):
+            return None
+        return CachedPropertyMethod(fn)
+
+    def bind_decorate_class(self, klass: Class) -> Class:
+        raise TypedSyntaxError(f"Cannot decorate a class with @cached_property")
 
 
 class IdentityDecorator(Class):
@@ -4321,6 +4355,7 @@ DYNAMIC_RETURN_TYPE = DynamicReturnDecorator(TypeName("__static__", "dynamic_ret
 INLINE_TYPE = InlineFunctionDecorator(TypeName("__static__", "inline"))
 DONOTCOMPILE_TYPE = DoNotCompileDecorator(TypeName("__static__", "_donotcompile"))
 PROPERTY_TYPE = PropertyDecorator(TypeName("builtins", "property"))
+CACHED_PROPERTY_TYPE = CachedPropertyDecorator(TypeName("cinder", "cached_property"))
 IDENTITY_DECORATOR_TYPE = IdentityDecorator(
     TypeName("__strict__", "<identity-decorator>")
 )

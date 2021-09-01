@@ -37,7 +37,7 @@ from .visitor import ASTVisitor, walk
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
-    from typing import List, Optional, Sequence, Union, Type
+    from typing import List, Optional, Sequence, Union, Type, Tuple
 
 try:
     import _parser  # pyre-ignore[21]
@@ -392,7 +392,6 @@ class CodeGenerator(ASTVisitor):
     def visitFunctionDef(self, node):
         self.set_lineno(node)
         self._visitFuncOrLambda(node, isLambda=0)
-        self.storeName(node.name)
 
     visitAsyncFunctionDef = visitFunctionDef
 
@@ -439,8 +438,10 @@ class CodeGenerator(ASTVisitor):
         else:
             self.visit(node)
 
-    def _visitFuncOrLambda(self, node, isLambda=0):
-        if not isLambda and node.decorator_list:
+    def _process_decorators(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> Tuple[str, int, int]:
+        if node.decorator_list:
             for decorator in node.decorator_list:
                 self.visit(decorator)
             ndecorators = len(node.decorator_list)
@@ -448,8 +449,21 @@ class CodeGenerator(ASTVisitor):
         else:
             ndecorators = 0
             first_lineno = node.lineno
+        return node.name, ndecorators, first_lineno
+
+    def _visitFuncOrLambda(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+        isLambda: int = 0,
+    ) -> None:
         flags = 0
-        name = sys.intern("<lambda>") if isLambda else node.name
+
+        if isLambda:
+            name = sys.intern("<lambda>")
+            ndecorators, first_lineno = 0, node.lineno
+        else:
+            assert not isinstance(node, ast.Lambda)
+            name, ndecorators, first_lineno = self._process_decorators(node)
 
         gen = self.make_func_codegen(node, name, first_lineno)
         body = node.body
@@ -488,6 +502,9 @@ class CodeGenerator(ASTVisitor):
 
         for _ in range(ndecorators):
             self.emit("CALL_FUNCTION", 1)
+
+        if not isLambda:
+            self.storeName(name)
 
     def visitDefault(self, node: ast.expr) -> None:
         self.visit(node)
@@ -556,7 +573,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("CALL_FUNCTION", 1)
 
         self.register_immutability(node, immutability_flag)
-        self.store_type_name_and_flags(node)
+        self.post_process_and_store_name(node)
 
     def find_immutability_flag(self, node: ClassDef) -> bool:
         return False
@@ -567,7 +584,7 @@ class CodeGenerator(ASTVisitor):
         stack, assumes class is on the stack
         """
 
-    def store_type_name_and_flags(self, node: ClassDef) -> None:
+    def post_process_and_store_name(self, node: ClassDef) -> None:
         self.storeName(node.name)
 
     def walkClassBody(self, node: ClassDef, gen: "CodeGenerator"):
@@ -2306,6 +2323,7 @@ class CinderCodeGenerator(CodeGenerator):
         from cinder import _set_qualname
 
         _set_qualname(code, self._qual_name)
+
         return code
 
     def _nameOp(self, prefix, name) -> None:
