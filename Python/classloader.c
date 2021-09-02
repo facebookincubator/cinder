@@ -17,6 +17,7 @@ vtabledealloc(_PyType_VTable *op)
     PyObject_GC_UnTrack((PyObject *)op);
     Py_XDECREF(op->vt_slotmap);
     Py_XDECREF(op->vt_funcdict);
+    Py_XDECREF(op->vt_original);
 
     for (Py_ssize_t i = 0; i < op->vt_size; i++) {
         Py_XDECREF(op->vt_entries[i].vte_state);
@@ -30,6 +31,7 @@ vtabletraverse(_PyType_VTable *op, visitproc visit, void *arg)
     for (Py_ssize_t i = 0; i < op->vt_size; i++) {
         Py_VISIT(op->vt_entries[i].vte_state);
     }
+    Py_VISIT(op->vt_original);
     return 0;
 }
 
@@ -39,6 +41,7 @@ vtableclear(_PyType_VTable *op)
     for (Py_ssize_t i = 0; i < op->vt_size; i++) {
         Py_CLEAR(op->vt_entries[i].vte_state);
     }
+    Py_CLEAR(op->vt_original);
     return 0;
 }
 
@@ -599,9 +602,11 @@ classloader_is_property_tuple(PyTupleObject *name)
 }
 
 PyTypeObject *
-_PyClassLoader_ResolveExpectedReturnType(PyFunctionObject *func,
-                                         int *optional,
-                                         int *coroutine) {
+resolve_function_rettype(PyObject *funcobj,
+                         int *optional,
+                         int *coroutine) {
+    assert(PyFunction_Check(funcobj));
+    PyFunctionObject *func = (PyFunctionObject *)funcobj;
     if (((PyCodeObject *)func->func_code)->co_flags & CO_COROUTINE) {
         *coroutine = 1;
     }
@@ -662,122 +667,6 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     }
     return 0;
 }
-
-/* Figure out our existing enforced return type for a given func/vtable/index.
- * If we're still the original entry then we get it from the function, but if we've
- * replaced it with a non-vtable helper then we'll grab the type from there. If the
- * function is an untyped builtin method, we just fall back to `object`; if it's any
- * other kind of untyped function, we return NULL and the caller needs to look up the
- * MRO further.
- *
- * Returns a new reference or NULL.
- */
-static PyObject *
-resolve_slot_local_return_type(PyObject *name,
-                               PyObject *func,
-                               _PyType_VTable *vtable,
-                               Py_ssize_t index,
-                               int *optional,
-                               int *coroutine)
-{
-    PyObject *cur_type = NULL;
-    *optional = 0;
-    *coroutine = 0;
-    if (func == NULL) {
-        /* someone removed the method, and now is adding a method back */
-        assert(vtable->vt_entries[index].vte_entry ==
-               (vectorcallfunc)type_vtable_func_missing);
-        PyObject *state = vtable->vt_entries[index].vte_state;
-        cur_type = PyTuple_GET_ITEM(state, 1);
-        Py_INCREF(cur_type);
-        *optional = PyTuple_GET_ITEM(state, 2) == Py_True;
-    } else if (vtable->vt_entries[index].vte_entry ==
-                   (vectorcallfunc)type_vtable_func_overridable ||
-               vtable->vt_entries[index].vte_entry ==
-                    (vectorcallfunc)type_vtable_nonfunc ||
-               vtable->vt_entries[index].vte_entry ==
-                    (vectorcallfunc)type_vtable_coroutine) {
-        PyObject *state = vtable->vt_entries[index].vte_state;
-        assert(PyTuple_Check(state));
-        cur_type = PyTuple_GET_ITEM(state, 2);
-        Py_INCREF(cur_type);
-        *optional = PyTuple_GET_ITEM(state, 3) == Py_True;
-    } else if (PyFunction_Check(func) && _PyClassLoader_IsStaticFunction(func)) {
-        cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
-            (PyFunctionObject *)func, optional, coroutine);
-    } else if (Py_TYPE(func) == &PyStaticMethod_Type) {
-        PyObject *static_func = _PyStaticMethod_GetFunc(func);
-        if (_PyClassLoader_IsStaticFunction(static_func)) {
-            cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
-                (PyFunctionObject*)static_func, optional, coroutine);
-        }
-    } else if (Py_TYPE(func) == &PyClassMethod_Type) {
-        PyObject *static_func = _PyClassMethod_GetFunc(func);
-        if (_PyClassLoader_IsStaticFunction(static_func)) {
-            cur_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
-                (PyFunctionObject*)static_func, optional, coroutine);
-        }
-    } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
-        // builtin methods for now assumed to return object
-        cur_type = (PyObject *)&PyBaseObject_Type;
-        Py_INCREF(cur_type);
-        *optional = 1;
-    }
-    return cur_type;
-}
-
-/* Figure out what the proper return type is for this slot by finding the
- * base class definition which is statically compiled.  Returns NULL with
- * an error or a new reference
- *
- * Returns a new reference
- */
-static PyObject *
-resolve_slot_overload_return_type(PyTypeObject *tp,
-                                  PyObject *name,
-                                  Py_ssize_t index,
-                                  int *optional,
-                                  int *coroutine)
-{
-    PyObject *mro = tp->tp_mro;
-    PyObject *found_type = NULL;
-
-    for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
-        PyTypeObject *cur_type = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
-        PyObject *value = NULL;
-        if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
-            PyObject *property = PyDict_GetItem(cur_type->tp_dict, PyTuple_GET_ITEM(name, 0));
-            if (Py_TYPE(property) != &PyProperty_Type) {
-                PyErr_Format(PyExc_RuntimeError,
-                             "The slot of type %s at %U is not a property.",
-                             tp->tp_name,
-                             PyTuple_GET_ITEM(name, 0));
-                return NULL;
-            }
-            value = classloader_get_property_method((propertyobject *) property,
-                                                    (PyTupleObject *) name);
-        }
-        else {
-            value = PyDict_GetItem(cur_type->tp_dict, name);
-        }
-
-        if (value != NULL) {
-            assert(cur_type->tp_cache != NULL);
-            found_type = resolve_slot_local_return_type(
-                name, value, (_PyType_VTable *)cur_type->tp_cache,
-                index, optional, coroutine);
-            if (found_type != NULL) {
-                return found_type;
-            }
-        }
-    }
-
-    PyErr_Format(PyExc_RuntimeError,
-                "missing type annotation on static compiled method %s.%U",
-                 tp->tp_name, name);
-    return NULL;
-}
-
 
 static int
 type_init_subclass_vtables(PyTypeObject *target_type)
@@ -878,10 +767,115 @@ PyTypeObject _PyFuncRef_Type = {
     .tp_dealloc = (destructor)funcref_dealloc,
 };
 
+int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
+    _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
+    if (vtable != NULL && vtable->vt_original != NULL) {
+        return 0;
+    }
+    if (_PyClassLoader_EnsureVtable(type) == NULL) {
+        return -1;
+    }
+    vtable = (_PyType_VTable *)type->tp_cache;
+
+    PyObject *name, *slot;
+    PyObject *slotmap = vtable->vt_slotmap;
+    PyObject *origitems = vtable->vt_original = PyDict_New();
+
+    Py_ssize_t i = 0;
+    while (PyDict_Next(slotmap, &i, &name, &slot)) {
+        PyObject *clsitem = PyDict_GetItem(type->tp_dict, name);
+        if (clsitem != NULL) {
+            if (PyDict_SetItem(origitems, name, clsitem)) {
+                goto error;
+            }
+        }
+    }
+    return 0;
+error:
+    vtable->vt_original = NULL;
+    Py_DECREF(origitems);
+    return -1;
+}
+
+PyObject *
+_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine) {
+    *coroutine = *optional = 0;
+    PyTypeObject *res = NULL;
+    if (PyFunction_Check(func) && _PyClassLoader_IsStaticFunction(func)) {
+        res = resolve_function_rettype(func, optional, coroutine);
+    } else if (Py_TYPE(func) == &PyStaticMethod_Type) {
+        PyObject *static_func = _PyStaticMethod_GetFunc(func);
+        if (_PyClassLoader_IsStaticFunction(static_func)) {
+            res = resolve_function_rettype(static_func, optional, coroutine);
+        }
+    } else if (Py_TYPE(func) == &PyClassMethod_Type) {
+        PyObject *static_func = _PyClassMethod_GetFunc(func);
+        if (_PyClassLoader_IsStaticFunction(static_func)) {
+            res = resolve_function_rettype(static_func, optional, coroutine);
+        }
+    } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
+        // builtin methods for now assumed to return object
+        res = &PyBaseObject_Type;
+        Py_INCREF(res);
+        *optional = 1;
+    } else if (Py_TYPE(func) == &PyProperty_Type) {
+        propertyobject *property = (propertyobject *)func;
+        PyObject *fget = property->prop_get;
+        if (_PyClassLoader_IsStaticFunction(fget)) {
+            res = resolve_function_rettype(fget, optional, coroutine);
+        }
+    }
+    return (PyObject *)res;
+}
+
+PyObject *
+get_func_or_prop_method(PyObject *dict, PyObject *name) {
+    PyObject *res;
+    if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
+        PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
+        if (property == NULL || Py_TYPE(property) != &PyProperty_Type) {
+            PyErr_Format(PyExc_RuntimeError,
+                            "The slot of type %s at %U is not a property.",
+                            property != NULL ? Py_TYPE(property)->tp_name : "NULL",
+                            PyTuple_GET_ITEM(name, 0));
+            return NULL;
+        }
+        res = classloader_get_property_method((propertyobject *) property,
+                                                (PyTupleObject *) name);
+    } else {
+        res = PyDict_GetItem(dict, name);
+    }
+    return res;
+}
+
+PyObject *
+_PyClassLoader_GetInheritedFunction(PyTypeObject *type, PyObject *name) {
+    PyObject *mro = type->tp_mro;
+
+    for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
+        PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(type->tp_mro, i);
+        PyObject *dict;
+        if (next->tp_cache != NULL &&
+                ((_PyType_VTable *)next->tp_cache)->vt_original != NULL) {
+            dict = ((_PyType_VTable *)next->tp_cache)->vt_original;
+        } else {
+            dict = next->tp_dict;
+        }
+        if (dict == NULL) {
+            continue;
+        }
+
+        PyObject *base = get_func_or_prop_method(dict, name);
+        if (base != NULL) {
+            return base;
+        }
+    }
+    return NULL;
+}
+
 int
 _PyClassLoader_UpdateSlot(PyTypeObject *type,
                           PyObject *name,
-                          PyObject *previous,
                           PyObject *new_value)
 {
     assert(type->tp_cache != NULL);
@@ -900,56 +894,39 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         return 0;
     }
 
+    PyObject *previous;
+    if (vtable->vt_original != NULL) {
+        assert(type->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
+        previous = PyDict_GetItem(vtable->vt_original, name);
+    } else {
+        /* non-static type can't influence our original static return type */
+        assert(!(type->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED));
+        previous = NULL;
+    }
+
+    /* we need to search in the MRO if we don't contain the
+     * item directly or we're currently deleting the current value */
     if (previous == NULL || new_value == NULL) {
-        /* we're overriding something that we inherited */
-        PyObject *mro = type->tp_mro;
+        PyObject *base = _PyClassLoader_GetInheritedFunction(type, name);
 
-        PyObject *base = NULL;
-        for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
-            PyObject *next = PyTuple_GET_ITEM(type->tp_mro, i);
-            PyObject *dict = ((PyTypeObject *)next)->tp_dict;
-            if (dict == NULL) {
-                continue;
-            }
-
-            if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
-                PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
-                if (Py_TYPE(property) == &PyProperty_Type) {
-                    base = classloader_get_property_method((propertyobject *) property,
-                                                           (PyTupleObject *) name);
-                }
-            }
-            else {
-                base = PyDict_GetItem(dict, name);
-            }
-            if (base != NULL) {
-                break;
-            }
-        }
-        /* What if base is null? */
+        assert(base != NULL || previous != NULL);
         if (base != NULL) {
             if (previous == NULL) {
+                /* we use the inherited member as the current member for this class */
                 previous = base;
             }
             if (new_value == NULL) {
+                /* after deletion we pick up the inherited member as our current value */
                 new_value = base;
             }
         }
     }
+    assert(previous != NULL);
 
     Py_ssize_t index = PyLong_AsSsize_t(slot);
     int cur_optional, cur_coroutine;
-    PyObject* cur_type = resolve_slot_local_return_type(
-        name, previous, vtable, index, &cur_optional, &cur_coroutine);
-    if (cur_type == NULL) {
-        // Can't resolve slot type on this type (might have a patched-in non-static function),
-        // let's check the MRO.
-        cur_type = resolve_slot_overload_return_type(
-            type, name, index, &cur_optional, &cur_coroutine);
-        if (cur_type == NULL) {
-          return -1;
-        }
-    }
+    PyObject* cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional, &cur_coroutine);
+    assert(cur_type != NULL);
 
     /* we make no attempts to keep things efficient when types start getting
      * mutated.  We always install the less efficient type checked functions,
@@ -1034,11 +1011,21 @@ type_vtable_setslot(PyTypeObject *tp,
     int optional = 0, coroutine = 0;
     PyObject *ret_type;
     if (_PyClassLoader_IsStaticFunction(value)) {
-        ret_type = (PyObject *)_PyClassLoader_ResolveExpectedReturnType(
-            (PyFunctionObject *)value, &optional, &coroutine);
+        ret_type = (PyObject *)resolve_function_rettype(
+                value, &optional, &coroutine);
     } else {
-        ret_type = resolve_slot_overload_return_type(
-            tp, name, slot, &optional, &coroutine);
+        PyObject *base = _PyClassLoader_GetInheritedFunction(tp, name);
+        if (base == NULL) {
+            PyErr_Format(PyExc_RuntimeError,
+                        "unable to resolve base method for %s.%U",
+                        tp->tp_name, name);
+        }
+        ret_type = _PyClassLoader_ResolveReturnType(base, &optional, &coroutine);
+        if (ret_type == NULL) {
+            PyErr_Format(PyExc_RuntimeError,
+                        "missing type annotation on static compiled method %s.%U",
+                        tp->tp_name, name);
+        }
     }
     if (ret_type == NULL) {
         return -1;
@@ -1273,6 +1260,7 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self)
     }
     vtable->vt_size = slot_index;
     vtable->vt_funcdict = NULL;
+    vtable->vt_original = NULL;
     vtable->vt_slotmap = slotmap;
     self->tp_cache = (PyObject *)vtable;
 
@@ -1476,20 +1464,8 @@ classloader_get_member(PyObject *path,
 
         PyObject *et = NULL, *ev = NULL, *tb = NULL;
         PyObject *next;
-        if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
-            // We're dealing with a property.
-            PyObject *property = PyDict_GetItem(d, PyTuple_GET_ITEM(name, 0));
-            if (property == NULL || Py_TYPE(property) != &PyProperty_Type) {
-              goto error;
-            }
-            next = classloader_get_property_method((propertyobject *) property,
-                                                   (PyTupleObject *) name);
-            if (next == NULL) {
-                goto error;
-            }
-        } else {
-            next = _PyDict_GetItem_Unicode(d, name);
-        }
+        next = get_func_or_prop_method(d, name);
+
         if (next == NULL && d == tstate->interp->modules) {
             /* import module in case it's not available in sys.modules */
             if (PyImport_ImportModuleLevelObject(name, NULL, NULL, NULL, 0) == NULL) {

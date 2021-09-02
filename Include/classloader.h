@@ -18,6 +18,7 @@ typedef struct {
 
 typedef struct {
     PyObject_VAR_HEAD PyObject *vt_slotmap;
+    PyObject *vt_original;
     PyObject *vt_funcdict;
     Py_ssize_t vt_size;
     _PyType_VTableEntry vt_entries[1];
@@ -221,8 +222,9 @@ _PyTypedDescriptor_New(PyObject *name, PyObject *type, Py_ssize_t offset);
 
 int _PyClassLoader_UpdateSlot(PyTypeObject *type,
                               PyObject *name,
-                              PyObject *previous,
                               PyObject *new_value);
+
+int _PyClassLoader_InitTypeForPatching(PyTypeObject *type);
 
 static inline
 int _PyObject_TypeCheckOptional(PyObject *val, PyTypeObject *type, int optional) {

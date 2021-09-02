@@ -3870,11 +3870,10 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         existing = PyDict_GetItem(type->tp_dict, name);
         Py_XINCREF(existing);
     }
-    if (type->tp_cache == NULL && (_PyClassLoader_IsStaticFunction(existing) || _PyClassLoader_IsStaticFunction(value))) {
-        /* Replacing a static function on a type before any invokes have happened
-         * on it.  We need to initialize the v-table so we know what was there
-         * initially */
-        if (_PyClassLoader_EnsureVtable(type) == NULL) {
+    if (type->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+        /* We're running in an environment where we're patching types.  Prepare
+         * the type for tracking patches if it hasn't already been prepared */
+        if (_PyClassLoader_InitTypeForPatching(type)) {
             return -1;
         }
     }
@@ -3894,7 +3893,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         assert(_PyType_CheckConsistency(type));
         if (existing != value && type->tp_cache != NULL) {
             res =
-                _PyClassLoader_UpdateSlot(type, name, existing, value) || res;
+                _PyClassLoader_UpdateSlot(type, name, value) || res;
         }
     }
     Py_XDECREF(existing);
