@@ -1322,23 +1322,54 @@ static int classloader_verify_type(PyObject *type, PyObject *path) {
 }
 
 static PyObject *
-classloader_get_property_member(PyObject *current, PyObject *name)
-{
-    if (Py_TYPE(current) != &PyProperty_Type) {
+classloader_instantiate_generic(PyObject *gtd, PyObject *name, PyObject *path) {
+    if (!PyType_Check(gtd)) {
+        PyErr_Format(PyExc_TypeError,
+                        "generic type instantiation without type: %R on "
+                        "%U from %s",
+                        path,
+                        name,
+                        gtd->ob_type->tp_name);
         return NULL;
     }
-    if (!PyUnicode_Check(name)) {
-        return NULL;
+    PyObject *tmp_tuple = PyTuple_New(PyTuple_GET_SIZE(name));
+    for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(name); i++) {
+        int optional;
+        PyObject *param = (PyObject *)_PyClassLoader_ResolveType(
+            PyTuple_GET_ITEM(name, i), &optional);
+        if (param == NULL) {
+            Py_DECREF(tmp_tuple);
+            return NULL;
+        }
+        if (optional) {
+            PyObject *union_args = PyTuple_New(2);
+            if (union_args == NULL) {
+                Py_DECREF(tmp_tuple);
+                return NULL;
+            }
+            /* taking ref from _PyClassLoader_ResolveType */
+            PyTuple_SET_ITEM(union_args, 0, param);
+            PyTuple_SET_ITEM(union_args, 1, Py_None);
+            Py_INCREF(Py_None);
+
+            PyObject *union_obj = _Py_Union(union_args);
+            if (union_obj == NULL) {
+                Py_DECREF(union_args);
+                Py_DECREF(tmp_tuple);
+                return NULL;
+            }
+            Py_DECREF(union_args);
+            param = union_obj;
+        }
+        PyTuple_SET_ITEM(tmp_tuple, i, param);
     }
-    Py_ssize_t name_size;
-    const char *name_string = PyUnicode_AsUTF8AndSize(name, &name_size);
-    if (name_string == NULL) {
-        return NULL;
-    }
-    if (name_size != 4 || strncmp(name_string, "fget", 4)) {
-        return NULL;
-    }
-    return PyObject_GetAttr(current, name);
+
+    PyObject *next = _PyClassLoader_GetGenericInst(
+        gtd,
+        ((PyTupleObject *)tmp_tuple)->ob_item,
+        PyTuple_GET_SIZE(tmp_tuple));
+    Py_DECREF(tmp_tuple);
+    return next;
 }
 
 static PyObject *
@@ -1365,71 +1396,14 @@ classloader_get_member(PyObject *path,
         PyObject *d = NULL;
         PyObject *name = PyTuple_GET_ITEM(path, i);
 
-        // Special case: If we're dealing with a property of the form
-        // `(module, Class, prop, __get__)`, keep the class as the proper container.
-        if (i + 1 == items) {
-            PyObject *property_result = classloader_get_property_member(cur, name);
-            // Bubble up exceptions that might've arose when attempting to fetch a property
-            // type descriptor.
-            if (property_result != NULL || PyErr_Occurred()) {
-                Py_DECREF(cur);
-                return property_result;
-            }
-        }
         if (container != NULL) {
             Py_CLEAR(*container);
             Py_INCREF(cur);
             *container = cur;
         }
 
-
         if (PyTuple_CheckExact(name) && !classloader_is_property_tuple((PyTupleObject *) name)) {
-            if (!PyType_Check(cur)) {
-                PyErr_Format(PyExc_TypeError,
-                             "generic type instantiation without type: %R on "
-                             "%U from %s",
-                             path,
-                             name,
-                             cur->ob_type->tp_name);
-                goto error;
-            }
-            PyObject *tmp_tuple = PyTuple_New(PyTuple_GET_SIZE(name));
-            for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(name); i++) {
-                int optional;
-                PyObject *param = (PyObject *)_PyClassLoader_ResolveType(
-                    PyTuple_GET_ITEM(name, i), &optional);
-                if (param == NULL) {
-                    Py_DECREF(tmp_tuple);
-                    goto error;
-                }
-                if (optional) {
-                    PyObject *union_args = PyTuple_New(2);
-                    if (union_args == NULL) {
-                        Py_DECREF(tmp_tuple);
-                        goto error;
-                    }
-                    /* taking ref from _PyClassLoader_ResolveType */
-                    PyTuple_SET_ITEM(union_args, 0, param);
-                    PyTuple_SET_ITEM(union_args, 1, Py_None);
-                    Py_INCREF(Py_None);
-
-                    PyObject *union_obj = _Py_Union(union_args);
-                    if (union_obj == NULL) {
-                        Py_DECREF(union_args);
-                        Py_DECREF(tmp_tuple);
-                        goto error;
-                    }
-                    Py_DECREF(union_args);
-                    param = union_obj;
-                }
-                PyTuple_SET_ITEM(tmp_tuple, i, param);
-            }
-
-            PyObject *next = _PyClassLoader_GetGenericInst(
-                cur,
-                ((PyTupleObject *)tmp_tuple)->ob_item,
-                PyTuple_GET_SIZE(tmp_tuple));
-            Py_DECREF(tmp_tuple);
+            PyObject *next = classloader_instantiate_generic(cur, name, path);
             if (next == NULL) {
                 goto error;
             }
@@ -1473,8 +1447,7 @@ classloader_get_member(PyObject *path,
             } else {
                 next = _PyDict_GetItem_Unicode(d, name);
             }
-        } else
-        if (next == Py_None && d == tstate->interp->builtins) {
+        } else if (next == Py_None && d == tstate->interp->builtins) {
             /* special case builtins.None, it's used to represent NoneType */
             next = (PyObject *)&_PyNone_Type;
             Py_INCREF(next);
