@@ -1220,6 +1220,8 @@ class TypeBinder(GenericVisitor):
         self.visitExpectedType(
             node.value, DYNAMIC, "cannot use primitive in formatted value"
         )
+        if fs := node.format_spec:
+            self.visit(fs)
         self.set_type(node, DYNAMIC)
         return NO_EFFECT
 
