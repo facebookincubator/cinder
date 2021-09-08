@@ -568,15 +568,15 @@ Type outputType(const Instr& instr) {
   JIT_CHECK(false, "Bad opcode %d", static_cast<int>(instr.opcode()));
 }
 
-void reflowTypes(Function& func) {
+void reflowTypes(Environment* env, BasicBlock* start) {
   // First, reset all types to Bottom so Phi inputs from back edges don't
   // contribute to the output type of the Phi until they've been processed.
-  for (auto& pair : func.env.GetRegisters()) {
+  for (auto& pair : env->GetRegisters()) {
     pair.second->set_type(TBottom);
   }
 
   // Next, flow types forward, iterating to a fixed point.
-  auto rpo_blocks = func.cfg.GetRPOTraversal();
+  auto rpo_blocks = CFG::GetRPOTraversal(start);
   for (bool changed = true; changed;) {
     changed = false;
     for (auto block : rpo_blocks) {
@@ -607,13 +607,21 @@ void reflowTypes(Function& func) {
   }
 }
 
+void reflowTypes(Function& func) {
+  reflowTypes(&func.env, func.cfg.entry_block);
+}
+
+void SSAify::Run(Function& irfunc) {
+  Run(irfunc.cfg.entry_block, &irfunc.env);
+}
+
 // This implements the algorithm outlined in "Simple and Efficient Construction
 // of Static Single Assignment Form"
 // https://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
-void SSAify::Run(Function& irfunc) {
-  irfunc_ = &irfunc;
+void SSAify::Run(BasicBlock* start, Environment* env) {
+  env_ = env;
 
-  auto blocks = irfunc.cfg.GetRPOTraversal();
+  auto blocks = CFG::GetRPOTraversal(start);
   auto ssa_basic_blocks = InitSSABasicBlocks(blocks);
   reg_replacements_.clear();
   phi_uses_.clear();
@@ -632,7 +640,7 @@ void SSAify::Run(Function& irfunc) {
       auto out_reg = instr.GetOutput();
 
       if (out_reg != nullptr) {
-        auto new_reg = irfunc_->env.AllocateRegister();
+        auto new_reg = env_->AllocateRegister();
         instr.SetOutput(new_reg);
         ssablock->local_defs[out_reg] = new_reg;
       }
@@ -661,7 +669,7 @@ void SSAify::Run(Function& irfunc) {
     delete ssablock;
   }
 
-  reflowTypes(irfunc);
+  reflowTypes(env, start);
 }
 
 Register* SSAify::GetDefine(SSABasicBlock* ssablock, Register* reg) {
@@ -681,7 +689,7 @@ Register* SSAify::GetDefine(SSABasicBlock* ssablock, Register* reg) {
              (it->IsLoadArg() || it->IsLoadCurrentFunc())) {
         ++it;
       }
-      null_reg_ = irfunc_->env.AllocateRegister();
+      null_reg_ = env_->AllocateRegister();
       auto loadnull = LoadConst::create(null_reg_, TNullptr);
       loadnull->copyBytecodeOffset(*it);
       loadnull->InsertBefore(*it);
@@ -694,7 +702,7 @@ Register* SSAify::GetDefine(SSABasicBlock* ssablock, Register* reg) {
     // If we haven't visited all our predecessors, they can't provide
     // definitions for us to look up. We'll place an incomplete phi that will
     // be resolved once we've visited all predecessors.
-    auto phi_output = irfunc_->env.AllocateRegister();
+    auto phi_output = env_->AllocateRegister();
     ssablock->incomplete_phis.emplace_back(reg, phi_output);
     ssablock->local_defs.emplace(reg, phi_output);
     return phi_output;
@@ -708,7 +716,7 @@ Register* SSAify::GetDefine(SSABasicBlock* ssablock, Register* reg) {
   }
 
   // We have multiple predecessors and may need to create a phi.
-  auto new_reg = irfunc_->env.AllocateRegister();
+  auto new_reg = env_->AllocateRegister();
   // Adding a phi may loop back to our block if there is a loop in the CFG.  We
   // update our local_defs before adding the phi to terminate the recursion
   // rather than looping infinitely.
