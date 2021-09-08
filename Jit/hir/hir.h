@@ -3397,6 +3397,10 @@ class CFG {
   // entry_block.
   std::vector<BasicBlock*> GetRPOTraversal() const;
 
+  // Return the RPO traversal of the reachable basic blocks in the CFG starting
+  // from the given block.
+  static std::vector<BasicBlock*> GetRPOTraversal(BasicBlock* start);
+
   // Entry point into the CFG; may be null
   BasicBlock* entry_block{nullptr};
 

@@ -608,12 +608,16 @@ static void postorder_traverse(
 }
 
 std::vector<BasicBlock*> CFG::GetRPOTraversal() const {
+  return GetRPOTraversal(entry_block);
+}
+
+std::vector<BasicBlock*> CFG::GetRPOTraversal(BasicBlock* start) {
   std::vector<BasicBlock*> traversal;
-  if (entry_block == nullptr) {
+  if (start == nullptr) {
     return traversal;
   }
   std::unordered_set<BasicBlock*> visited;
-  postorder_traverse(entry_block, &traversal, &visited);
+  postorder_traverse(start, &traversal, &visited);
   std::reverse(traversal.begin(), traversal.end());
   return traversal;
 }
