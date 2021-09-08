@@ -9388,6 +9388,91 @@ class StaticCompilationTests(StaticTestBase):
                 d.g().send(None)
             loop.close()
 
+    def test_async_method_immediate_await(self):
+        codestr = """
+            class C:
+                async def f(self) -> bool:
+                    return True
+
+            async def f(x: C):
+                if await x.f():
+                    return 0
+                return 1
+        """
+        with self.in_strict_module(codestr) as mod:
+
+            class D(mod.C):
+                async def f(self):
+                    return False
+
+            d = D()
+            self.assertEqual(asyncio.run(mod.f(d)), 1)
+
+    def test_async_method_immediate_await_incorrect_type(self):
+        codestr = """
+            class C:
+                async def f(self) -> bool:
+                    return True
+
+            async def f(x: C):
+                if await x.f():
+                    return 0
+                return 1
+        """
+        with self.in_strict_module(codestr) as mod:
+
+            class D(mod.C):
+                async def f(self):
+                    return "not an int"
+
+            d = D()
+            with self.assertRaises(TypeError):
+                asyncio.run(mod.f(d))
+
+    def test_async_method_incorrect_type(self):
+        codestr = """
+            class C:
+                async def f(self) -> int:
+                    return 1
+
+            async def f(x: C):
+                a = x.f()
+                b = 2
+                c = await a
+                return b + c
+        """
+        with self.in_strict_module(codestr) as mod:
+
+            class D(mod.C):
+                async def f(self):
+                    return "not an int"
+
+            d = D()
+            with self.assertRaises(TypeError):
+                asyncio.run(mod.f(d))
+
+    def test_async_method_incorrect_type_suspended(self):
+        codestr = """
+            import asyncio
+
+            class C:
+                async def f(self) -> int:
+                    return 1
+
+            async def f(x: C):
+                return await x.f()
+        """
+        with self.in_strict_module(codestr) as mod:
+
+            class D(mod.C):
+                async def f(self):
+                    await asyncio.sleep(0)
+                    return "not an int"
+
+            d = D()
+            with self.assertRaises(TypeError):
+                asyncio.run(mod.f(d))
+
     def test_async_method_throw_exception(self):
         codestr = """
             class C:

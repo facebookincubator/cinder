@@ -320,6 +320,24 @@ type_vtable_coroutine(PyObject *state,
                       size_t nargsf,
                       PyObject *kwnames)
 {
+    PyObject *callable = PyTuple_GET_ITEM(state, 0);
+    PyObject *coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    if (coro == NULL) {
+        return NULL;
+    }
+
+    int eager = _PyWaitHandle_CheckExact(coro);
+    if (eager) {
+        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
+        if (handle->wh_waiter == NULL) {
+            if (rettype_check(callable, handle->wh_coro_or_result, state)) {
+                return coro;
+            }
+            _PyWaitHandle_Release(coro);
+            return NULL;
+        }
+    }
+
     if (PyType_Ready(&_PyClassLoader_AwaitableType) < 0) {
         return NULL;
     }
@@ -332,13 +350,18 @@ type_vtable_coroutine(PyObject *state,
 
     Py_INCREF(state);
     awaitable->state = state;
-    PyObject *callable = PyTuple_GET_ITEM(state, 0);
-    awaitable->coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
-    awaitable->iter = NULL;
-    if (awaitable->coro == NULL) {
-        Py_DECREF(awaitable);
-        return NULL;
+
+    if (eager) {
+        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
+        Py_INCREF(handle->wh_coro_or_result);
+        awaitable->coro = handle->wh_coro_or_result;
+        awaitable->iter = handle->wh_coro_or_result;
+        handle->wh_coro_or_result = (PyObject *)awaitable;
+        return coro;
     }
+
+    awaitable->coro = coro;
+    awaitable->iter = NULL;
     return (PyObject *)awaitable;
 }
 
