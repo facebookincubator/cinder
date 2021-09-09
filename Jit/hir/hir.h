@@ -3252,6 +3252,9 @@ class BasicBlock {
     GetTerminator()->set_successor(i, succ);
   }
 
+  // Remove and delete all contained instructions, leaving the block empty.
+  void clear();
+
   // BasicBlock holds a list of instructions, delegating most operations
   // directly to its IntrusiveList.
   auto empty() const {

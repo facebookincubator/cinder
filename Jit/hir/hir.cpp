@@ -293,12 +293,17 @@ void BasicBlock::push_front(Instr* instr) {
   instr->link(this);
 }
 
-BasicBlock::~BasicBlock() {
-  JIT_DCHECK(in_edges_.empty(), "Attempt to destroy a reachable block, %d", id);
+void BasicBlock::clear() {
   while (!instrs_.IsEmpty()) {
     Instr* instr = &(instrs_.ExtractFront());
     delete instr;
   }
+}
+
+BasicBlock::~BasicBlock() {
+  JIT_DCHECK(
+      in_edges_.empty(), "Attempt to destroy a block with in-edges, %d", id);
+  clear();
   JIT_DCHECK(
       out_edges_.empty(), "out_edges not empty after deleting all instrs");
 }
@@ -450,13 +455,19 @@ void CFG::removeUnreachableBlocks() {
     }
   }
 
+  std::vector<BasicBlock*> unreachable;
   for (auto it = blocks.begin(); it != blocks.end();) {
     BasicBlock* block = &*it;
     ++it;
     if (!visited.count(block)) {
       RemoveBlock(block);
-      delete block;
+      block->clear();
+      unreachable.emplace_back(block);
     }
+  }
+
+  for (BasicBlock* block : unreachable) {
+    delete block;
   }
 }
 

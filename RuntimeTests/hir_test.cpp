@@ -388,6 +388,64 @@ bb 0 (preds 5) {
   ASSERT_EQ(after, expected);
 }
 
+TEST(RemoveUnreachableBlocks, RemovesTransitivelyUnreachableBlocks) {
+  const char* hir = R"(
+fun foo {
+  bb 0 {
+    Branch<1>
+  }
+
+  bb 2 {
+    Branch<2>
+  }
+
+  bb 3 {
+    Branch<2>
+  }
+
+  bb 1 {
+    v0 = LoadConst<NoneType>
+    Return v0
+  }
+
+  bb 12 {
+    Branch<11>
+  }
+
+  bb 11 {
+    v1 = LoadConst<NoneType>
+    Return v1
+  }
+
+  bb 4 {
+    Branch<2>
+  }
+
+  bb 10 {
+    Branch<1>
+  }
+}
+)";
+
+  std::unique_ptr<Function> func = HIRParser{}.ParseHIR(hir);
+  ASSERT_NE(func, nullptr);
+
+  func->cfg.removeUnreachableBlocks();
+
+  const char* expected = R"(fun foo {
+  bb 0 {
+    Branch<1>
+  }
+
+  bb 1 (preds 0) {
+    v0 = LoadConst<NoneType>
+    Return v0
+  }
+}
+)";
+  EXPECT_EQ(HIRPrinter{}.ToString(*func), expected);
+}
+
 class EdgeCaseTest : public RuntimeTest {};
 
 TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
