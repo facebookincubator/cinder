@@ -802,3 +802,87 @@ class StaticPatchTests(StaticTestBase):
             B.f = lambda self: None
             self.assertEqual(f(b), None)
             self.assertEqual(f(d), None)
+
+    def test_patch_final_bad_ret_heap_type(self):
+        codestr = """
+            from typing import final
+
+            class A:
+                def __init__(self):
+                    self.x: int = 42
+            class B:
+                def __init__(self):
+                    self.y = 'abc'
+
+            @final
+            class C:
+                def f(self) -> A:
+                    return A()
+                def g(self) -> int:
+                    return self.f().x
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            B = mod["B"]
+            c = C()
+            C.f = lambda self: B()
+
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from C.f, expected A, got B"
+            ):
+                c.g()
+
+    def test_patch_final_bad_ret(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                def f(self) -> int:
+                    return 42
+                def g(self) -> int:
+                    return self.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            c = C()
+            C.f = lambda self: "abc"
+
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from C.f, expected int, got str"
+            ):
+                c.g()
+
+            C.f = lambda self: 1.0
+
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from C.f, expected int, got float"
+            ):
+                c.g()
+
+    def test_patch_final_bad_ret_del(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                def f(self) -> int:
+                    return 42
+                def g(self) -> int:
+                    return self.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            c = C()
+            C.f = lambda self: "abc"
+
+            for i in range(100):
+                with self.assertRaisesRegex(
+                    TypeError, "unexpected return type from C.f, expected int, got str"
+                ):
+                    c.g()
+
+            del C.f
+
+            with self.assertRaisesRegex(TypeError, "C.f has been deleted"):
+                c.g()

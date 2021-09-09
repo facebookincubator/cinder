@@ -16,7 +16,7 @@ vtabledealloc(_PyType_VTable *op)
 {
     PyObject_GC_UnTrack((PyObject *)op);
     Py_XDECREF(op->vt_slotmap);
-    Py_XDECREF(op->vt_funcdict);
+    Py_XDECREF(op->vt_thunks);
     Py_XDECREF(op->vt_original);
 
     for (Py_ssize_t i = 0; i < op->vt_size; i++) {
@@ -32,6 +32,7 @@ vtabletraverse(_PyType_VTable *op, visitproc visit, void *arg)
         Py_VISIT(op->vt_entries[i].vte_state);
     }
     Py_VISIT(op->vt_original);
+    Py_VISIT(op->vt_thunks);
     return 0;
 }
 
@@ -42,6 +43,7 @@ vtableclear(_PyType_VTable *op)
         Py_CLEAR(op->vt_entries[i].vte_state);
     }
     Py_CLEAR(op->vt_original);
+    Py_CLEAR(op->vt_thunks);
     return 0;
 }
 
@@ -55,6 +57,26 @@ PyTypeObject _PyType_VTableType = {
     .tp_traverse = (traverseproc)vtabletraverse,
     .tp_clear = (inquiry)vtableclear,
 };
+
+typedef struct {
+    PyObject_VAR_HEAD
+    /* the target function we'll thunk to, or NULL if the function has been deleted */
+    PyObject *thunk_target;
+    /* the class that the thunk exists for */
+    PyTypeObject *thunk_cls;
+    /* the return type which will enforce on call to the target (used for error reporting) */
+    PyObject *thunk_rettype;
+    /* 1 if the the return_type is Optional[T] */
+    int thunk_optional;
+    /* the name of the function within the class that we're thunking for (used
+     * for error reporting) */
+    PyObject *thunk_name;
+    /* a pointer which can be used for an indirection in *PyClassLoader_GetIndirectPtr.
+     * This will be the current value of the function whether it's patched or not */
+    PyObject *thunk_funcref; /* borrowed */
+    /* the vectorcall entry point for the thunk */
+    vectorcallfunc thunk_vectorcall;
+} _Py_StaticThunk;
 
 static int
 awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
@@ -243,15 +265,8 @@ static PyTypeObject _PyClassLoader_AwaitableType = {
 };
 
 static PyObject *
-rettype_check(PyObject *self, PyObject *ret, PyObject *state)
+rettype_check_worker(PyTypeObject *cls, PyObject *ret, PyObject *name, PyObject *expected, int optional)
 {
-    if (ret == NULL) {
-        return NULL;
-    }
-
-    PyObject *expected = PyTuple_GET_ITEM(state, 2);
-    int optional = PyTuple_GET_ITEM(state, 3) == Py_True;
-
     int type_code = _PyClassLoader_GetTypeCode((PyTypeObject *)expected);
     int overflow = 0;
     if (type_code != TYPED_OBJECT) {
@@ -286,7 +301,6 @@ rettype_check(PyObject *self, PyObject *ret, PyObject *state)
 
     if (overflow || !((optional && ret == Py_None) ||
                          _PyObject_RealIsInstance(ret, expected))) {
-        PyObject *name = PyTuple_GET_ITEM(state, 1);
         /* The override returned an incompatible value, report error */
         const char *msg;
         PyObject *exc_type = PyExc_TypeError;
@@ -302,7 +316,7 @@ rettype_check(PyObject *self, PyObject *ret, PyObject *state)
 
         PyErr_Format(exc_type,
                      msg,
-                     Py_TYPE(self)->tp_name,
+                     cls->tp_name,
                      name,
                      ((PyTypeObject *)expected)->tp_name,
                      Py_TYPE(ret)->tp_name,
@@ -312,6 +326,20 @@ rettype_check(PyObject *self, PyObject *ret, PyObject *state)
         return NULL;
     }
     return ret;
+}
+
+static PyObject *
+rettype_check(PyObject *self, PyObject *ret, PyObject *state)
+{
+    if (ret == NULL) {
+        return NULL;
+    }
+
+    PyObject *expected = PyTuple_GET_ITEM(state, 2);
+    int optional = PyTuple_GET_ITEM(state, 3) == Py_True;
+    PyObject *name = PyTuple_GET_ITEM(state, 1);
+
+    return rettype_check_worker(Py_TYPE(self), ret, name, expected, optional);
 }
 
 static PyObject *
@@ -769,25 +797,64 @@ _PyClassLoader_UpdateDerivedSlot(PyTypeObject *type,
     }
 }
 
-typedef struct {
-    PyObject_HEAD
-    PyObject *fr_func; /* borrowed ref */
-} funcref;
-
-
-static void
-funcref_dealloc(funcref *self)
+static int
+thunktraverse(_Py_StaticThunk *op, visitproc visit, void *arg)
 {
-    Py_TYPE(self)->tp_free(self);
+    visit(op->thunk_target, arg);
+    visit(op->thunk_rettype, arg);
+    visit((PyObject *)op->thunk_cls, arg);
+    return 0;
 }
 
-PyTypeObject _PyFuncRef_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0).tp_name = "funcref",
-    .tp_basicsize = sizeof(funcref),
-    .tp_flags = Py_TPFLAGS_DEFAULT | _Py_TPFLAGS_HAVE_VECTORCALL,
-    .tp_alloc = PyType_GenericAlloc,
-    .tp_free = PyObject_Del,
-    .tp_dealloc = (destructor)funcref_dealloc,
+static int
+thunkclear(_Py_StaticThunk *op)
+{
+    Py_CLEAR(op->thunk_target);
+    Py_CLEAR(op->thunk_rettype);
+    Py_CLEAR(op->thunk_cls);
+    return 0;
+}
+
+static void
+thunkdealloc(_Py_StaticThunk *op)
+{
+    PyObject_GC_UnTrack((PyObject *)op);
+    Py_XDECREF(op->thunk_target);
+    Py_XDECREF(op->thunk_rettype);
+    Py_XDECREF(op->thunk_name);
+    Py_XDECREF(op->thunk_cls);
+    PyObject_GC_Del((PyObject *)op);
+}
+
+PyObject *
+thunk_vectorcall(PyObject *callable, PyObject *const *args,
+                                    size_t nargsf, PyObject *kwnames) {
+    _Py_StaticThunk *thunk = (_Py_StaticThunk *)callable;
+    if (thunk->thunk_target == NULL) {
+        PyErr_Format(PyExc_TypeError, "%s.%U has been deleted", thunk->thunk_cls->tp_name, thunk->thunk_name);
+        return NULL;
+    }
+    PyObject *res = _PyObject_Vectorcall(thunk->thunk_target, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+    return rettype_check_worker(thunk->thunk_cls, res, thunk->thunk_name, thunk->thunk_rettype, thunk->thunk_optional);
+}
+
+static PyObject *
+thunk_call(_Py_StaticThunk *thunk, PyObject *args, PyObject *kwds)
+{
+    PyErr_SetString(PyExc_RuntimeError, "thunk_call shouldn't be invokable");
+    return NULL;
+}
+
+PyTypeObject _PyType_StaticThunk = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) "static_thunk",
+    sizeof(_Py_StaticThunk),
+    .tp_dealloc = (destructor)thunkdealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
+        _Py_TPFLAGS_HAVE_VECTORCALL,
+    .tp_traverse = (traverseproc)thunktraverse,
+    .tp_clear = (inquiry)thunkclear,
+    .tp_vectorcall_offset = offsetof(_Py_StaticThunk, thunk_vectorcall),
+    .tp_call = (ternaryfunc)thunk_call,
 };
 
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
@@ -905,12 +972,6 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
     PyObject *slotmap = vtable->vt_slotmap;
-    if (vtable->vt_funcdict != NULL) {
-        funcref *fr = (funcref *)PyDict_GetItem(vtable->vt_funcdict, name);
-        if (fr != NULL) {
-            fr->fr_func = new_value;
-        }
-    }
 
     PyObject *slot = PyDict_GetItem(slotmap, name);
     if (slot == NULL) {
@@ -925,6 +986,25 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         /* non-static type can't influence our original static return type */
         assert(!(type->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED));
         previous = NULL;
+    }
+
+    /* update the value that exists in our thunks for performing indirections
+     * necessary for patched INVOKE_FUNCTION calls */
+    _Py_StaticThunk *thunk = NULL;
+    if (vtable->vt_thunks != NULL) {
+        thunk = (_Py_StaticThunk *)PyDict_GetItem(vtable->vt_thunks, name);
+        if (thunk != NULL) {
+            Py_CLEAR(thunk->thunk_target);
+            if (new_value != NULL) {
+                thunk->thunk_target = new_value;
+                Py_INCREF(new_value);
+            }
+            if (new_value == previous) {
+                thunk->thunk_funcref = previous;
+            } else {
+                thunk->thunk_funcref = (PyObject *)thunk;
+            }
+        }
     }
 
     /* we need to search in the MRO if we don't contain the
@@ -944,6 +1024,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
             }
         }
     }
+
     assert(previous != NULL);
 
     Py_ssize_t index = PyLong_AsSsize_t(slot);
@@ -1282,7 +1363,7 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self)
         return NULL;
     }
     vtable->vt_size = slot_index;
-    vtable->vt_funcdict = NULL;
+    vtable->vt_thunks = NULL;
     vtable->vt_original = NULL;
     vtable->vt_slotmap = slotmap;
     self->tp_cache = (PyObject *)vtable;
@@ -1398,7 +1479,8 @@ classloader_instantiate_generic(PyObject *gtd, PyObject *name, PyObject *path) {
 static PyObject *
 classloader_get_member(PyObject *path,
                        Py_ssize_t items,
-                       PyObject **container)
+                       PyObject **container,
+                       PyObject **containerkey)
 {
     PyThreadState *tstate = PyThreadState_GET();
     PyObject *cur = tstate->interp->modules;
@@ -1414,6 +1496,9 @@ classloader_get_member(PyObject *path,
 
     if (container) {
         *container = NULL;
+    }
+    if (containerkey) {
+        *containerkey = NULL;
     }
     for (Py_ssize_t i = 0; i < items; i++) {
         PyObject *d = NULL;
@@ -1461,6 +1546,9 @@ classloader_get_member(PyObject *path,
 
         PyObject *et = NULL, *ev = NULL, *tb = NULL;
         PyObject *next;
+        if (containerkey != NULL) {
+            *containerkey = name;
+        }
         next = get_func_or_prop_method(d, name);
 
         if (next == NULL && d == tstate->interp->modules) {
@@ -1552,7 +1640,7 @@ _PyClassLoader_ResolveType(PyObject *descr, int *optional)
         }
     }
 
-    PyObject *res = classloader_get_member(descr, items, NULL);
+    PyObject *res = classloader_get_member(descr, items, NULL, NULL);
     if (classloader_verify_type(res, descr)) {
         Py_XDECREF(res);
         return NULL;
@@ -1581,7 +1669,7 @@ classloader_init_slot(PyObject *path)
      * sys.modules */
     PyTypeObject *target_type;
     PyObject *cur =
-        classloader_get_member(path, PyTuple_GET_SIZE(path), (PyObject **)&target_type);
+        classloader_get_member(path, PyTuple_GET_SIZE(path), (PyObject **)&target_type, NULL);
     if (cur == NULL) {
         assert(target_type == NULL);
         return -1;
@@ -1639,11 +1727,72 @@ _PyClassLoader_ResolveMethod(PyObject *path)
     return PyLong_AS_LONG(slot_index_obj);
 }
 
+_Py_StaticThunk *
+get_or_make_thunk(PyObject *func, PyObject *original, PyTypeObject* type, PyObject *name) {
+    _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
+    if (vtable->vt_thunks == NULL) {
+        vtable->vt_thunks = PyDict_New();
+        if (vtable->vt_thunks == NULL) {
+            return NULL;
+        }
+    }
+    _Py_StaticThunk *thunk = (_Py_StaticThunk *)PyDict_GetItem(vtable->vt_thunks, name);
+    if (thunk != NULL) {
+        Py_INCREF(thunk);
+        return thunk;
+    }
+    thunk = PyObject_GC_New(_Py_StaticThunk, &_PyType_StaticThunk);
+    if (thunk == NULL) {
+        return NULL;
+    }
+    thunk->thunk_target = func;
+    Py_INCREF(func);
+    thunk->thunk_name = name;
+    Py_INCREF(name);
+    thunk->thunk_cls = type;
+    Py_INCREF(type);
+    thunk->thunk_vectorcall = &thunk_vectorcall;
+    if (func == original) {
+        thunk->thunk_funcref = original;
+    } else {
+        thunk->thunk_funcref = (PyObject *)thunk;
+    }
+    int coroutine;
+    thunk->thunk_rettype = _PyClassLoader_ResolveReturnType(
+                                original, &thunk->thunk_optional, &coroutine);
+    if (thunk->thunk_rettype == NULL) {
+        Py_DECREF(thunk);
+        return NULL;
+    }
+    if (PyDict_SetItem(vtable->vt_thunks, name, (PyObject *)thunk)) {
+        Py_DECREF(thunk);
+        return NULL;
+    }
+    return thunk;
+}
+
 PyObject *
 _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
 {
+    PyObject *containerkey;
     PyObject *func =
-        classloader_get_member(path, PyTuple_GET_SIZE(path), container);
+        classloader_get_member(path, PyTuple_GET_SIZE(path), container, &containerkey);
+
+    PyObject *original = NULL;
+    if (container != NULL && *container != NULL && PyType_Check(*container)) {
+        assert(containerkey != NULL);
+
+        PyTypeObject *type = (PyTypeObject *)*container;
+        if (type->tp_cache != NULL) {
+            PyObject *originals = ((_PyType_VTable *)type->tp_cache)->vt_original;
+            if (originals != NULL) {
+                original = PyDict_GetItem(originals, containerkey);
+                if (original == func) {
+                    original = NULL;
+                }
+            }
+        }
+    }
 
     if (func != NULL) {
         if (Py_TYPE(func) == &PyStaticMethod_Type) {
@@ -1658,6 +1807,12 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
             Py_DECREF(func);
             func = res;
         }
+    }
+
+    if (original != NULL) {
+        PyObject *res = (PyObject *)get_or_make_thunk(func, original, (PyTypeObject*)*container, containerkey);
+        Py_DECREF(func);
+        return res;
     }
     return func;
 }
@@ -1682,31 +1837,17 @@ _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *containe
         if (vtable == NULL) {
             goto done;
         }
-        if (vtable->vt_funcdict == NULL) {
-            vtable->vt_funcdict = PyDict_New();
-            if (vtable->vt_funcdict == NULL) {
-                goto done;
-            }
-        }
-        funcref *fr = (funcref *)PyDict_GetItem(vtable->vt_funcdict, name);
-        if (fr != NULL) {
-            assert(fr->fr_func == func);
-            cache = &fr->fr_func;
-            goto done;
+
+        /* we pass func in for original here.  Either the thunk will already exist
+         * in which case the value has been patched, or it won't yet exist in which
+         * case func is the original function in the type. */
+        _Py_StaticThunk *thunk = get_or_make_thunk(func, func, (PyTypeObject *)container, name);
+        if (thunk == NULL) {
+            return NULL;
         }
 
-        fr = PyObject_New(funcref, &_PyFuncRef_Type);
-        if (fr == NULL) {
-            goto done;
-        }
-
-        fr->fr_func = func; /* borrowed */
-        cache = &fr->fr_func;
-        if (PyDict_SetItem(vtable->vt_funcdict, name, (PyObject *)fr)) {
-            cache = NULL;
-            goto done;
-        }
-        Py_DECREF(fr);
+        cache = &thunk->thunk_funcref;
+        Py_DECREF(thunk);
     }
 done:
 
@@ -1735,7 +1876,7 @@ _PyClassLoader_ResolveMethodDef(PyObject *path)
 {
     PyTypeObject *target_type;
     PyObject *cur =
-        classloader_get_member(path, PyTuple_GET_SIZE(path), (PyObject **)&target_type);
+        classloader_get_member(path, PyTuple_GET_SIZE(path), (PyObject **)&target_type, NULL);
 
     if (cur == NULL) {
         assert(target_type == NULL);
@@ -1852,7 +1993,7 @@ classloader_init_field(PyObject *path, int *field_type)
     /* path is "mod.submod.Class.func", start search from
      * sys.modules */
     PyObject *cur =
-        classloader_get_member(path, PyTuple_GET_SIZE(path), NULL);
+        classloader_get_member(path, PyTuple_GET_SIZE(path), NULL, NULL);
     if (cur == NULL) {
         return -1;
     }

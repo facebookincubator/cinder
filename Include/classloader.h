@@ -19,7 +19,7 @@ typedef struct {
 typedef struct {
     PyObject_VAR_HEAD PyObject *vt_slotmap;
     PyObject *vt_original;
-    PyObject *vt_funcdict;
+    PyObject *vt_thunks;
     Py_ssize_t vt_size;
     _PyType_VTableEntry vt_entries[1];
 } _PyType_VTable;
