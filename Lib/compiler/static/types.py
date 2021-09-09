@@ -2856,6 +2856,28 @@ class CachedPropertyMethod(DecoratedMethod):
             visitor.set_type(node, self.function.return_type.resolved().instance)
 
 
+class AsyncCachedPropertyMethod(DecoratedMethod):
+    def __init__(self, function: Function) -> None:
+        super().__init__(ASYNC_CACHED_PROPERTY_TYPE, function)
+
+    @property
+    def name(self) -> str:
+        return self.function.qualname
+
+    def bind_descr_get(
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> None:
+        if inst is None:
+            visitor.set_type(node, DYNAMIC_TYPE)
+        else:
+            visitor.set_type(node, self.function.return_type.resolved().instance)
+
+
 class TypingFinalDecorator(Class):
     def bind_decorate_function(
         self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
@@ -2960,6 +2982,18 @@ class CachedPropertyDecorator(Class):
 
     def bind_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @cached_property")
+
+
+class AsyncCachedPropertyDecorator(Class):
+    def bind_decorate_function(
+        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
+    ) -> Optional[Value]:
+        if isinstance(fn, DecoratedMethod):
+            return None
+        return AsyncCachedPropertyMethod(fn)
+
+    def bind_decorate_class(self, klass: Class) -> Class:
+        raise TypedSyntaxError(f"Cannot decorate a class with @async_cached_property")
 
 
 class IdentityDecorator(Class):
@@ -4356,6 +4390,9 @@ INLINE_TYPE = InlineFunctionDecorator(TypeName("__static__", "inline"))
 DONOTCOMPILE_TYPE = DoNotCompileDecorator(TypeName("__static__", "_donotcompile"))
 PROPERTY_TYPE = PropertyDecorator(TypeName("builtins", "property"))
 CACHED_PROPERTY_TYPE = CachedPropertyDecorator(TypeName("cinder", "cached_property"))
+ASYNC_CACHED_PROPERTY_TYPE = AsyncCachedPropertyDecorator(
+    TypeName("cinder", "async_cached_property")
+)
 IDENTITY_DECORATOR_TYPE = IdentityDecorator(
     TypeName("__strict__", "<identity-decorator>")
 )

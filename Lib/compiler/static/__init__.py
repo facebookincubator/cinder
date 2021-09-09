@@ -67,6 +67,8 @@ from .module_table import ModuleTable, ModuleFlag
 from .symbol_table import SymbolTable
 from .type_binder import BindingScope, TypeBinder
 from .types import (
+    AsyncCachedPropertyDecorator,
+    AsyncCachedPropertyMethod,
     AwaitableType,
     CHECKED_DICT_TYPE,
     CHECKED_LIST_TYPE,
@@ -120,6 +122,7 @@ class PyFlowGraph38Static(PyFlowGraphCinder):
 
 
 CACHED_PROPERTY_IMPL_PREFIX = "_pystatic_cprop."
+ASYNC_CACHED_PROPERTY_IMPL_PREFIX = "_pystatic_async_cprop."
 
 
 class Static38CodeGenerator(StrictCodeGenerator):
@@ -327,6 +330,29 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return
         return klass
 
+    def _emit_cached_property(self, name: str, is_async: bool) -> None:
+        if is_async:
+            cached_property_prefix = ASYNC_CACHED_PROPERTY_IMPL_PREFIX
+            cached_property_function_name = "async_cached_property"
+        else:
+            cached_property_prefix = CACHED_PROPERTY_IMPL_PREFIX
+            cached_property_function_name = "cached_property"
+        impl_name = cached_property_prefix + name
+        self.emit("DUP_TOP")  # used for delete attr
+        self.emit("DUP_TOP")  # used for store attr
+        self.emit("DUP_TOP")  # used to load descriptor
+        self.emit("DUP_TOP")  # used to load method implementation
+        self.emit("LOAD_ATTR", impl_name)  # Loads implemented method on the stack
+        self.emit("ROT_TWO")
+        self.emit("LOAD_ATTR", name)
+        self.emit(
+            "INVOKE_FUNCTION",
+            (("cinder", cached_property_function_name), 2),
+        )
+        self.emit("ROT_TWO")
+        self.emit("STORE_ATTR", name)
+        self.emit("DELETE_ATTR", impl_name)
+
     def post_process_and_store_name(self, node: ClassDef) -> None:
         klass = self._resolve_class(node)
         if klass:
@@ -335,34 +361,30 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
             for name, value in klass.members.items():
                 if isinstance(value, CachedPropertyMethod):
-                    impl_name = CACHED_PROPERTY_IMPL_PREFIX + name
-                    self.emit("DUP_TOP")  # used for delete attr
-                    self.emit("DUP_TOP")  # used for store attr
-                    self.emit("DUP_TOP")  # used to load descriptor
-                    self.emit("DUP_TOP")  # used to load method implementation
-                    self.emit(
-                        "LOAD_ATTR", impl_name
-                    )  # Loads implemented method on the stack
-                    self.emit("ROT_TWO")
-                    self.emit("LOAD_ATTR", name)
-                    self.emit("INVOKE_FUNCTION", (("cinder", "cached_property"), 2))
-                    self.emit("ROT_TWO")
-                    self.emit("STORE_ATTR", name)
-                    self.emit("DELETE_ATTR", impl_name)
+                    self._emit_cached_property(name, is_async=False)
+                elif isinstance(value, AsyncCachedPropertyMethod):
+                    self._emit_cached_property(name, is_async=True)
 
         self.storeName(node.name)
 
     def _process_decorators(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
     ) -> Tuple[str, int, int]:
-        if len(node.decorator_list) == 1 and isinstance(
-            self.get_type(node.decorator_list[0]), CachedPropertyDecorator
-        ):
-            return (
-                CACHED_PROPERTY_IMPL_PREFIX + node.name,
-                0,
-                node.decorator_list[0].lineno,
-            )
+        if len(node.decorator_list) == 1:
+            decorator_type = self.get_type(node.decorator_list[0])
+            if isinstance(decorator_type, CachedPropertyDecorator):
+                return (
+                    CACHED_PROPERTY_IMPL_PREFIX + node.name,
+                    0,
+                    node.decorator_list[0].lineno,
+                )
+            elif isinstance(decorator_type, AsyncCachedPropertyDecorator):
+                return (
+                    ASYNC_CACHED_PROPERTY_IMPL_PREFIX + node.name,
+                    0,
+                    node.decorator_list[0].lineno,
+                )
+
         return super()._process_decorators(node)
 
     def walkClassBody(self, node: ClassDef, gen: CodeGenerator) -> None:
@@ -380,6 +402,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 and not value.is_class_slot
             )
             or isinstance(value, CachedPropertyMethod)
+            or isinstance(value, AsyncCachedPropertyMethod)
         ]
 
         if klass.allow_weakrefs:

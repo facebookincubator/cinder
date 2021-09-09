@@ -23,6 +23,7 @@ from .type_binder import TypeBinder
 from .types import (
     ALLOW_WEAKREFS_TYPE,
     ARRAY_TYPE,
+    ASYNC_CACHED_PROPERTY_TYPE,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
     BUILTIN_GENERICS,
@@ -267,7 +268,13 @@ class SymbolTable:
         )
 
         self.modules["cinder"] = ModuleTable(
-            "cinder", "<cinder>", self, {"cached_property": CACHED_PROPERTY_TYPE}
+            "cinder",
+            "<cinder>",
+            self,
+            {
+                "cached_property": CACHED_PROPERTY_TYPE,
+                "async_cached_property": ASYNC_CACHED_PROPERTY_TYPE,
+            },
         )
 
         if xxclassloader is not None:
