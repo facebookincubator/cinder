@@ -273,6 +273,9 @@ rettype_check_clear(_PyClassLoader_RetTypeInfo *op)
     return 0;
 }
 
+PyObject *
+classloader_get_func_name(PyObject *name);
+
 static PyObject *
 rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_info)
 {
@@ -330,7 +333,7 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
         PyErr_Format(exc_type,
                      msg,
                      cls->tp_name,
-                     rt_info->rt_name,
+                     classloader_get_func_name(rt_info->rt_name),
                      rt_info->rt_expected->tp_name,
                      Py_TYPE(ret)->tp_name,
                      ret);
@@ -652,6 +655,14 @@ classloader_is_property_tuple(PyTupleObject *name)
       || _PyUnicode_EqualToASCIIString(property_method_name, "fset");
 }
 
+PyObject *
+classloader_get_func_name(PyObject *name) {
+    if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
+        return PyTuple_GET_ITEM(name, 0);
+    }
+    return name;
+}
+
 PyTypeObject *
 resolve_function_rettype(PyObject *funcobj,
                          int *optional,
@@ -893,6 +904,9 @@ PyTypeObject _PyType_StaticThunk = {
     .tp_call = (ternaryfunc)thunk_call,
 };
 
+PyObject *
+get_func_or_prop_method(PyObject *dict, PyObject *name);
+
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
     if (vtable != NULL && vtable->vt_original != NULL) {
@@ -909,7 +923,7 @@ int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
 
     Py_ssize_t i = 0;
     while (PyDict_Next(slotmap, &i, &name, &slot)) {
-        PyObject *clsitem = PyDict_GetItem(type->tp_dict, name);
+        PyObject *clsitem = get_func_or_prop_method(type->tp_dict, name);
         if (clsitem != NULL) {
             if (PyDict_SetItem(origitems, name, clsitem)) {
                 goto error;
@@ -1148,26 +1162,28 @@ type_vtable_setslot(PyTypeObject *tp,
         }
     }
 
-    int optional = 0, coroutine = 0;
-    PyObject *ret_type;
-    if (_PyClassLoader_IsStaticFunction(value)) {
-        ret_type = (PyObject *)resolve_function_rettype(
-                value, &optional, &coroutine);
+    PyObject *original;
+    if (vtable->vt_original != NULL) {
+        assert(tp->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
+        original = PyDict_GetItem(vtable->vt_original, name);
+    } else if (_PyClassLoader_IsStaticFunction(value)) {
+        /* non-static type can't influence our original static return type */
+        original = value;
     } else {
-        PyObject *base = _PyClassLoader_GetInheritedFunction(tp, name);
-        if (base == NULL) {
+        original = _PyClassLoader_GetInheritedFunction(tp, name);
+        if (original == NULL) {
             PyErr_Format(PyExc_RuntimeError,
                         "unable to resolve base method for %s.%U",
                         tp->tp_name, name);
         }
-        ret_type = _PyClassLoader_ResolveReturnType(base, &optional, &coroutine);
-        if (ret_type == NULL) {
-            PyErr_Format(PyExc_RuntimeError,
-                        "missing type annotation on static compiled method %s.%U",
-                        tp->tp_name, name);
-        }
     }
+
+    int optional = 0, coroutine = 0;
+    PyObject *ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine);
     if (ret_type == NULL) {
+        PyErr_Format(PyExc_RuntimeError,
+                    "missing type annotation on static compiled method %s.%U",
+                    tp->tp_name, name);
         return -1;
     }
 

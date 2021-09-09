@@ -940,3 +940,43 @@ class StaticPatchTests(StaticTestBase):
             ):
                 with self.assertRaises(TypeError):
                     c.g().send(None)
+
+    def test_patch_property_bad_ret(self):
+        codestr = """
+            class C:
+                @property
+                def f(self) -> int:
+                    return 42
+                def g(self) -> int:
+                    return self.f
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            c = C()
+            C.f = property(lambda self: "abc")
+
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from C.f, expected int, got str"
+            ):
+                c.g()
+
+    def test_patch_property_bad_ret_final(self):
+        codestr = """
+            from typing import final
+            @final
+            class C:
+                @property
+                def f(self) -> int:
+                    return 42
+                def g(self) -> int:
+                    return self.f
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            c = C()
+            C.f = property(lambda self: "abc")
+
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from C.f, expected int, got str"
+            ):
+                c.g()
