@@ -25,11 +25,23 @@ typedef struct {
 } _PyType_VTable;
 
 typedef struct {
+    PyObject_HEAD;
+    PyTypeObject *rt_expected;
+    PyObject *rt_name;
+    int rt_optional;
+} _PyClassLoader_RetTypeInfo;
+
+typedef struct {
     PyObject_HEAD
-    PyObject *state;
+    _PyClassLoader_RetTypeInfo *retinfo;
     PyObject *coro;
     PyObject *iter;
 } _PyClassLoader_Awaitable;
+
+typedef struct {
+    _PyClassLoader_RetTypeInfo tcs_rt;
+    PyObject *tcs_value;
+} _PyClassLoader_TypeCheckState;
 
 Py_ssize_t _PyClassLoader_ResolveMethod(PyObject *path);
 Py_ssize_t _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);

@@ -59,20 +59,14 @@ PyTypeObject _PyType_VTableType = {
 };
 
 typedef struct {
-    PyObject_VAR_HEAD
-    /* the target function we'll thunk to, or NULL if the function has been deleted */
-    PyObject *thunk_target;
-    /* the class that the thunk exists for */
+    _PyClassLoader_TypeCheckState thunk_tcs;
+    /* the class that the thunk exists for (used for error reporting) */
     PyTypeObject *thunk_cls;
-    /* the return type which will enforce on call to the target (used for error reporting) */
-    PyObject *thunk_rettype;
-    /* 1 if the the return_type is Optional[T] */
-    int thunk_optional;
-    /* the name of the function within the class that we're thunking for (used
-     * for error reporting) */
-    PyObject *thunk_name;
+    /* 1 if the the original function is an async function */
+    int thunk_coroutine;
     /* a pointer which can be used for an indirection in *PyClassLoader_GetIndirectPtr.
-     * This will be the current value of the function whether it's patched or not */
+     * This will be the current value of the function when it's not patched and will
+     * be the thunk when it is. */
     PyObject *thunk_funcref; /* borrowed */
     /* the vectorcall entry point for the thunk */
     vectorcallfunc thunk_vectorcall;
@@ -81,7 +75,7 @@ typedef struct {
 static int
 awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
 {
-    Py_VISIT(self->state);
+    Py_VISIT(self->retinfo);
     Py_VISIT(self->coro);
     Py_VISIT(self->iter);
     return 0;
@@ -90,7 +84,7 @@ awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
 static int
 awaitable_clear(_PyClassLoader_Awaitable *self)
 {
-    Py_CLEAR(self->state);
+    Py_CLEAR(self->retinfo);
     Py_CLEAR(self->coro);
     Py_CLEAR(self->iter);
     return 0;
@@ -136,7 +130,7 @@ awaitable_await(_PyClassLoader_Awaitable *self)
 }
 
 static PyObject *
-rettype_check(PyObject *self, PyObject *ret, PyObject *state);
+rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_info);
 
 static PySendResult
 awaitable_itersend(PyThreadState* tstate,
@@ -158,7 +152,7 @@ awaitable_itersend(PyThreadState* tstate,
     PyObject *result;
     PySendResult status = PyIter_Send(tstate, iter, value, &result);
     if (status == PYGEN_RETURN) {
-        result = rettype_check((PyObject *)self, result, self->state);
+        result = rettype_check(Py_TYPE(self), result, self->retinfo);
         if (result == NULL) {
             status = PYGEN_ERROR;
         }
@@ -220,7 +214,7 @@ awaitable_throw(_PyClassLoader_Awaitable *self, PyObject *args)
     if (ret != NULL || _PyGen_FetchStopIterationValue(&ret) < 0) {
         return ret;
     }
-    return rettype_check((PyObject *)self, ret, self->state);
+    return rettype_check(Py_TYPE(self), ret, self->retinfo);
 }
 
 static PyObject *
@@ -264,10 +258,29 @@ static PyTypeObject _PyClassLoader_AwaitableType = {
     .tp_free = PyObject_GC_Del,
 };
 
-static PyObject *
-rettype_check_worker(PyTypeObject *cls, PyObject *ret, PyObject *name, PyObject *expected, int optional)
+static int
+rettype_check_traverse(_PyClassLoader_RetTypeInfo *op, visitproc visit, void *arg)
 {
-    int type_code = _PyClassLoader_GetTypeCode((PyTypeObject *)expected);
+    visit((PyObject *)op->rt_expected, arg);
+    return 0;
+}
+
+static int
+rettype_check_clear(_PyClassLoader_RetTypeInfo *op)
+{
+    Py_CLEAR(op->rt_expected);
+    Py_CLEAR(op->rt_name);
+    return 0;
+}
+
+static PyObject *
+rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_info)
+{
+    if (ret == NULL) {
+        return NULL;
+    }
+
+    int type_code = _PyClassLoader_GetTypeCode(rt_info->rt_expected);
     int overflow = 0;
     if (type_code != TYPED_OBJECT) {
         size_t int_val;
@@ -299,15 +312,15 @@ rettype_check_worker(PyTypeObject *cls, PyObject *ret, PyObject *name, PyObject 
         }
     }
 
-    if (overflow || !((optional && ret == Py_None) ||
-                         _PyObject_RealIsInstance(ret, expected))) {
+    if (overflow || !((rt_info->rt_optional && ret == Py_None) ||
+                         _PyObject_RealIsInstance(ret, (PyObject *)rt_info->rt_expected))) {
         /* The override returned an incompatible value, report error */
         const char *msg;
         PyObject *exc_type = PyExc_TypeError;
         if (overflow) {
             exc_type = PyExc_OverflowError;
             msg = "unexpected return type from %s.%U, expected %s, got out-of-range %s (%R)";
-        } else if (optional) {
+        } else if (rt_info->rt_optional) {
             msg = "unexpected return type from %s.%U, expected  Optional[%s], "
                   "got %s";
         } else {
@@ -317,8 +330,8 @@ rettype_check_worker(PyTypeObject *cls, PyObject *ret, PyObject *name, PyObject 
         PyErr_Format(exc_type,
                      msg,
                      cls->tp_name,
-                     name,
-                     ((PyTypeObject *)expected)->tp_name,
+                     rt_info->rt_name,
+                     rt_info->rt_expected->tp_name,
                      Py_TYPE(ret)->tp_name,
                      ret);
 
@@ -329,26 +342,12 @@ rettype_check_worker(PyTypeObject *cls, PyObject *ret, PyObject *name, PyObject 
 }
 
 static PyObject *
-rettype_check(PyObject *self, PyObject *ret, PyObject *state)
+type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
+                       PyObject *const *args,
+                       size_t nargsf,
+                       PyObject *kwnames)
 {
-    if (ret == NULL) {
-        return NULL;
-    }
-
-    PyObject *expected = PyTuple_GET_ITEM(state, 2);
-    int optional = PyTuple_GET_ITEM(state, 3) == Py_True;
-    PyObject *name = PyTuple_GET_ITEM(state, 1);
-
-    return rettype_check_worker(Py_TYPE(self), ret, name, expected, optional);
-}
-
-static PyObject *
-type_vtable_coroutine(PyObject *state,
-                      PyObject **args,
-                      size_t nargsf,
-                      PyObject *kwnames)
-{
-    PyObject *callable = PyTuple_GET_ITEM(state, 0);
+    PyObject *callable = state->tcs_value;
     PyObject *coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
     if (coro == NULL) {
         return NULL;
@@ -358,7 +357,8 @@ type_vtable_coroutine(PyObject *state,
     if (eager) {
         PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
         if (handle->wh_waiter == NULL) {
-            if (rettype_check(callable, handle->wh_coro_or_result, state)) {
+            if (rettype_check(Py_TYPE(callable),
+                    handle->wh_coro_or_result, (_PyClassLoader_RetTypeInfo *)state)) {
                 return coro;
             }
             _PyWaitHandle_Release(coro);
@@ -377,7 +377,7 @@ type_vtable_coroutine(PyObject *state,
     }
 
     Py_INCREF(state);
-    awaitable->state = state;
+    awaitable->retinfo = (_PyClassLoader_RetTypeInfo *)state;
 
     if (eager) {
         PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
@@ -394,15 +394,15 @@ type_vtable_coroutine(PyObject *state,
 }
 
 static PyObject *
-type_vtable_nonfunc(PyObject *state,
+type_vtable_nonfunc(_PyClassLoader_TypeCheckState *state,
                     PyObject **args,
                     size_t nargsf,
                     PyObject *kwnames)
 {
 
     PyObject *self = args[0];
-    PyObject *descr = PyTuple_GET_ITEM(state, 0);
-    PyObject *name = PyTuple_GET_ITEM(state, 1);
+    PyObject *descr = state->tcs_value;
+    PyObject *name = state->tcs_rt.rt_name;
     PyObject *res;
     /* we have to perform the descriptor checks at runtime because the
      * descriptor type can be modified preventing us from being able to have
@@ -443,11 +443,11 @@ type_vtable_nonfunc(PyObject *state,
 
     res = _PyObject_Vectorcall(descr, args, nargsf, kwnames);
 done:
-    return rettype_check(self, res, state);
+    return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
 }
 
 static PyObject *
-type_vtable_func_overridable(PyObject *state,
+type_vtable_func_overridable(_PyClassLoader_TypeCheckState *state,
                              PyObject **args,
                              size_t nargsf,
                              PyObject *kwnames)
@@ -460,7 +460,7 @@ type_vtable_func_overridable(PyObject *state,
         /* ideally types using INVOKE_METHOD are defined w/o out dictionaries,
          * which allows us to avoid this lookup.  If they're not then we'll
          * fallback to supporting looking in the dictionary */
-        PyObject *name = PyTuple_GET_ITEM(state, 1);
+        PyObject *name = state->tcs_rt.rt_name;
         PyObject *callable = PyDict_GetItem(dict, name);
         Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
         if (callable != NULL) {
@@ -473,11 +473,11 @@ type_vtable_func_overridable(PyObject *state,
         }
     }
 
-    PyFunctionObject *func = (PyFunctionObject *)PyTuple_GET_ITEM(state, 0);
+    PyFunctionObject *func = (PyFunctionObject *)state->tcs_value;
     res = func->vectorcall((PyObject *)func, args, nargsf, kwnames);
 
 done:
-    return rettype_check(self, res, state);
+    return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
 }
 
 PyObject *_PyFunction_CallStatic(PyFunctionObject *func,
@@ -679,6 +679,40 @@ _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject* code)
         code->co_consts, PyTuple_GET_SIZE(code->co_consts) - 1);
 }
 
+static int
+_PyClassLoader_TypeCheckState_traverse(_PyClassLoader_TypeCheckState *op, visitproc visit, void *arg)
+{
+    rettype_check_traverse((_PyClassLoader_RetTypeInfo *)op, visit, arg);
+    visit(op->tcs_value, arg);
+    return 0;
+}
+
+static int
+_PyClassLoader_TypeCheckState_clear(_PyClassLoader_TypeCheckState *op)
+{
+    rettype_check_clear((_PyClassLoader_RetTypeInfo *)op);
+    Py_CLEAR(op->tcs_value);
+    return 0;
+}
+
+static void
+_PyClassLoader_TypeCheckState_dealloc(_PyClassLoader_TypeCheckState *op)
+{
+    PyObject_GC_UnTrack((PyObject *)op);
+    rettype_check_clear((_PyClassLoader_RetTypeInfo *)op);
+    Py_XDECREF(op->tcs_value);
+    PyObject_GC_Del((PyObject *)op);
+}
+
+PyTypeObject _PyType_TypeCheckState = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) "vtable_state_obj",
+    sizeof(_PyClassLoader_TypeCheckState),
+    .tp_dealloc = (destructor)_PyClassLoader_TypeCheckState_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
+        _Py_TPFLAGS_HAVE_VECTORCALL,
+    .tp_traverse = (traverseproc)_PyClassLoader_TypeCheckState_traverse,
+    .tp_clear = (inquiry)_PyClassLoader_TypeCheckState_clear,
+};
 
 static int
 type_vtable_setslot_typecheck(PyObject *ret_type,
@@ -689,23 +723,22 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
                               Py_ssize_t slot,
                               PyObject *value)
 {
-    PyObject *state = PyTuple_New(4);
+    _PyClassLoader_TypeCheckState *state = PyObject_GC_New(
+        _PyClassLoader_TypeCheckState, &_PyType_TypeCheckState);
     if (state == NULL) {
         Py_XDECREF(ret_type);
         return -1;
     }
-    PyTuple_SET_ITEM(state, 0, value);
+    state->tcs_value = value;
     Py_INCREF(value);
-    PyTuple_SET_ITEM(state, 1, name);
+    state->tcs_rt.rt_name = name;
     Py_INCREF(name);
-    PyTuple_SET_ITEM(state, 2, ret_type);
+    state->tcs_rt.rt_expected = (PyTypeObject *)ret_type;
     Py_INCREF(ret_type);
-    PyObject *opt_val = optional ? Py_True : Py_False;
-    Py_INCREF(opt_val);
-    PyTuple_SET_ITEM(state, 3, opt_val);
+    state->tcs_rt.rt_optional = optional;
 
     Py_XDECREF(vtable->vt_entries[slot].vte_state);
-    vtable->vt_entries[slot].vte_state = state;
+    vtable->vt_entries[slot].vte_state = (PyObject *)state;
     if (coroutine) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_coroutine;
@@ -800,8 +833,8 @@ _PyClassLoader_UpdateDerivedSlot(PyTypeObject *type,
 static int
 thunktraverse(_Py_StaticThunk *op, visitproc visit, void *arg)
 {
-    visit(op->thunk_target, arg);
-    visit(op->thunk_rettype, arg);
+    rettype_check_traverse((_PyClassLoader_RetTypeInfo *)op, visit, arg);
+    visit(op->thunk_tcs.tcs_value, arg);
     visit((PyObject *)op->thunk_cls, arg);
     return 0;
 }
@@ -809,8 +842,8 @@ thunktraverse(_Py_StaticThunk *op, visitproc visit, void *arg)
 static int
 thunkclear(_Py_StaticThunk *op)
 {
-    Py_CLEAR(op->thunk_target);
-    Py_CLEAR(op->thunk_rettype);
+    rettype_check_clear((_PyClassLoader_RetTypeInfo *)op);
+    Py_CLEAR(op->thunk_tcs.tcs_value);
     Py_CLEAR(op->thunk_cls);
     return 0;
 }
@@ -819,23 +852,26 @@ static void
 thunkdealloc(_Py_StaticThunk *op)
 {
     PyObject_GC_UnTrack((PyObject *)op);
-    Py_XDECREF(op->thunk_target);
-    Py_XDECREF(op->thunk_rettype);
-    Py_XDECREF(op->thunk_name);
+    rettype_check_clear((_PyClassLoader_RetTypeInfo *)op);
+    Py_XDECREF(op->thunk_tcs.tcs_value);
     Py_XDECREF(op->thunk_cls);
     PyObject_GC_Del((PyObject *)op);
 }
 
 PyObject *
-thunk_vectorcall(PyObject *callable, PyObject *const *args,
+thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
                                     size_t nargsf, PyObject *kwnames) {
-    _Py_StaticThunk *thunk = (_Py_StaticThunk *)callable;
-    if (thunk->thunk_target == NULL) {
-        PyErr_Format(PyExc_TypeError, "%s.%U has been deleted", thunk->thunk_cls->tp_name, thunk->thunk_name);
+    if (thunk->thunk_tcs.tcs_value == NULL) {
+        PyErr_Format(PyExc_TypeError, "%s.%U has been deleted", thunk->thunk_cls->tp_name, thunk->thunk_tcs.tcs_rt.rt_name);
         return NULL;
     }
-    PyObject *res = _PyObject_Vectorcall(thunk->thunk_target, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
-    return rettype_check_worker(thunk->thunk_cls, res, thunk->thunk_name, thunk->thunk_rettype, thunk->thunk_optional);
+    if (thunk->thunk_coroutine) {
+        return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args,
+            nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+    }
+
+    PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+    return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
 }
 
 static PyObject *
@@ -994,9 +1030,9 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     if (vtable->vt_thunks != NULL) {
         thunk = (_Py_StaticThunk *)PyDict_GetItem(vtable->vt_thunks, name);
         if (thunk != NULL) {
-            Py_CLEAR(thunk->thunk_target);
+            Py_CLEAR(thunk->thunk_tcs.tcs_value);
             if (new_value != NULL) {
-                thunk->thunk_target = new_value;
+                thunk->thunk_tcs.tcs_value = new_value;
                 Py_INCREF(new_value);
             }
             if (new_value == previous) {
@@ -1745,22 +1781,21 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyTypeObject* type, PyObje
     if (thunk == NULL) {
         return NULL;
     }
-    thunk->thunk_target = func;
+    thunk->thunk_tcs.tcs_value = func;
     Py_INCREF(func);
-    thunk->thunk_name = name;
+    thunk->thunk_tcs.tcs_rt.rt_name = name;
     Py_INCREF(name);
     thunk->thunk_cls = type;
     Py_INCREF(type);
-    thunk->thunk_vectorcall = &thunk_vectorcall;
+    thunk->thunk_vectorcall = (vectorcallfunc)&thunk_vectorcall;
     if (func == original) {
         thunk->thunk_funcref = original;
     } else {
         thunk->thunk_funcref = (PyObject *)thunk;
     }
-    int coroutine;
-    thunk->thunk_rettype = _PyClassLoader_ResolveReturnType(
-                                original, &thunk->thunk_optional, &coroutine);
-    if (thunk->thunk_rettype == NULL) {
+    thunk->thunk_tcs.tcs_rt.rt_expected = (PyTypeObject *)_PyClassLoader_ResolveReturnType(
+                                original, &thunk->thunk_tcs.tcs_rt.rt_optional, &thunk->thunk_coroutine);
+    if (thunk->thunk_tcs.tcs_rt.rt_expected == NULL) {
         Py_DECREF(thunk);
         return NULL;
     }
@@ -2222,7 +2257,8 @@ typed_descriptor_set(PyObject *self, PyObject *obj, PyObject *value)
 }
 
 PyTypeObject _PyTypedDescriptor_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0).tp_name = "typed_descriptor",
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    .tp_name = "typed_descriptor",
     .tp_basicsize = sizeof(_PyTypedDescriptor),
     .tp_dealloc = (destructor)typed_descriptor_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,

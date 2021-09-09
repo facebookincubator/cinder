@@ -886,3 +886,57 @@ class StaticPatchTests(StaticTestBase):
 
             with self.assertRaisesRegex(TypeError, "C.f has been deleted"):
                 c.g()
+
+    def test_patch_final_async_function(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            c = C()
+            for i in range(100):
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 42)
+
+            with patch(f"{mod['__name__']}.C.f", autospec=True, return_value=100) as p:
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 100)
+
+    def test_patch_final_async_method_incorrect_type(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+                def g(self):
+                    return self.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            c = C()
+            for i in range(100):
+                try:
+                    c.g().send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 42)
+
+            with patch(
+                f"{mod['__name__']}.C.f", autospec=True, return_value="not an int"
+            ):
+                with self.assertRaises(TypeError):
+                    c.g().send(None)
