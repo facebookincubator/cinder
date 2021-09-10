@@ -101,7 +101,7 @@ class ModuleTable:
                         if (
                             value is not None
                             and isinstance(typ, FinalClass)
-                            and isinstance(typ.inner_type(), DynamicClass)
+                            and isinstance(typ.unwrap(), DynamicClass)
                         ):
                             instance = self._get_inferred_type(value) or instance
 
@@ -186,7 +186,8 @@ class ModuleTable:
                     )
                 if isinstance(klass, ClassVar):
                     raise TypedSyntaxError(
-                        "ClassVar is allowed only in class attribute annotations."
+                        "ClassVar is allowed only in class attribute annotations. "
+                        "Class Finals are inferred ClassVar; do not nest with Final."
                     )
 
             # Even if we know that e.g. `builtins.str` is the exact `str` type and

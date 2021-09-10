@@ -4,6 +4,7 @@ from compiler.static.errors import TypedSyntaxError
 from types import MemberDescriptorType
 
 from .common import StaticTestBase
+from .tests import type_mismatch
 
 
 class StaticFieldTests(StaticTestBase):
@@ -12,9 +13,9 @@ class StaticFieldTests(StaticTestBase):
             class C:
                 x: "unknown_type"
         """
-        code = self.compile(codestr, modname="foo")
-        C = self.run_code(codestr, StaticCodeGenerator)["C"]
-        self.assertEqual(type(C.x), MemberDescriptorType)
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertEqual(type(C.x), MemberDescriptorType)
 
     def test_slotification_init(self):
         codestr = """
@@ -23,28 +24,29 @@ class StaticFieldTests(StaticTestBase):
                 def __init__(self):
                     self.x = 42
         """
-        code = self.compile(codestr, modname="foo")
-        C = self.run_code(codestr, StaticCodeGenerator)["C"]
-        self.assertEqual(type(C.x), MemberDescriptorType)
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertEqual(type(C.x), MemberDescriptorType)
 
-    def test_slotification_ann_init(self):
-        codestr = """
+    def test_slotification_init_redeclared(self):
+        self.type_error(
+            """
             class C:
                 x: "unknown_type"
                 def __init__(self):
                     self.x: "unknown_type" = 42
-        """
-        code = self.compile(codestr, modname="foo")
-        C = self.run_code(codestr, StaticCodeGenerator)["C"]
-        self.assertEqual(type(C.x), MemberDescriptorType)
+            """,
+            r"Cannot re-declare member 'x' in '<module>.C'",
+        )
 
     def test_slotification_typed(self):
         codestr = """
             class C:
                 x: int
         """
-        C = self.run_code(codestr, StaticCodeGenerator)["C"]
-        self.assertNotEqual(type(C.x), MemberDescriptorType)
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertNotEqual(type(C.x), MemberDescriptorType)
 
     def test_slotification_init_typed(self):
         codestr = """
@@ -63,28 +65,27 @@ class StaticFieldTests(StaticTestBase):
             ) as e:
                 x.x = "abc"
 
-    def test_slotification_ann_init_typed(self):
-        codestr = """
+    def test_slotification_init_typed_redeclared(self):
+        self.type_error(
+            """
             class C:
                 x: int
                 def __init__(self):
                     self.x: int = 42
-        """
-        C = self.run_code(codestr, StaticCodeGenerator)["C"]
-        self.assertNotEqual(type(C.x), MemberDescriptorType)
+            """,
+            r"Cannot re-declare member 'x' in '<module>\.C'",
+        )
 
     def test_slotification_conflicting_types(self):
-        codestr = """
+        self.type_error(
+            """
             class C:
                 x: object
                 def __init__(self):
                     self.x: int = 42
-        """
-        with self.assertRaisesRegex(
-            TypedSyntaxError,
-            r"conflicting type definitions for slot x in Type\[foo.C\]",
-        ):
-            self.compile(codestr, modname="foo")
+            """,
+            r"Cannot re-declare member 'x' in '<module>\.C'",
+        )
 
     def test_slotification_conflicting_types_imported(self):
         self.type_error(
@@ -96,30 +97,28 @@ class StaticFieldTests(StaticTestBase):
                 def __init__(self):
                     self.x: Optional[str] = "foo"
             """,
-            r"conflicting type definitions for slot x in Type\[<module>.C\]",
+            r"Cannot re-declare member 'x' in '<module>\.C'",
         )
 
     def test_slotification_conflicting_members(self):
-        codestr = """
+        self.type_error(
+            """
             class C:
                 def x(self): pass
                 x: object
-        """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, r"slot conflicts with other member x in Type\[foo.C\]"
-        ):
-            self.compile(codestr, modname="foo")
+            """,
+            r"slot conflicts with other member x in Type\[<module>.C\]",
+        )
 
     def test_slotification_conflicting_function(self):
-        codestr = """
+        self.type_error(
+            """
             class C:
                 x: object
                 def x(self): pass
-        """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, r"function conflicts with other member x in Type\[foo.C\]"
-        ):
-            self.compile(codestr, modname="foo")
+            """,
+            r"function conflicts with other member x in Type\[<module>.C\]",
+        )
 
     def test_slot_inheritance(self):
         codestr = """
@@ -134,7 +133,6 @@ class StaticFieldTests(StaticTestBase):
                 def __init__(self):
                     self.x = 100
         """
-        code = self.compile(codestr, modname="foo")
         with self.in_module(codestr) as mod:
             D = mod["D"]
             inst = D()
@@ -160,8 +158,6 @@ class StaticFieldTests(StaticTestBase):
         def f(a: C):
             return a.x
         """
-        code = self.compile(codestr, modname="foo")
-        code = self.find_code(code, name="f")
         with self.in_module(codestr) as mod:
             with self.assertRaises(AttributeError) as e:
                 f, C = mod["f"], mod["C"]
@@ -345,43 +341,324 @@ class StaticFieldTests(StaticTestBase):
             self.assertEqual(a.f(), 42)
 
     def test_class_ann_assign_with_value(self):
-        codestr = """
-            class C:
-                X: int = 42
-        """
-        code = self.compile(codestr, modname="foo")
-
-        with self.in_module(codestr) as mod:
-            C = mod["C"]
-            self.assertEqual(C().X, 42)
-
-    def test_class_ann_assign_with_value_conflict_init(self):
         self.type_error(
             """
             class C:
                 X: int = 42
+            """,
+            r"Class attribute requires ClassVar\[...\] annotation",
+        )
+
+    def test_class_ann_assign_after_init(self):
+        self.type_error(
+            """
+            class C:
+                def __init__(self):
+                    self.X = 1
+                X: int = 3
+            """,
+            r"Class attribute requires ClassVar\[...\] annotation",
+        )
+
+    def test_classvar_after_init(self):
+        self.type_error(
+            """
+            from typing import ClassVar
+
+            class C:
+                def __init__(self):
+                    self.X = 1
+                X: ClassVar[int] = 3
+            """,
+            r"Cannot assign to classvar 'X' on '<module>.C' instance",
+        )
+
+    def test_class_ann_assign_with_value_conflict_init(self):
+        self.type_error(
+            """
+            from typing import ClassVar
+
+            class C:
+                X: ClassVar[int] = 42
                 def __init__(self):
                     self.X = 42
             """,
-            r"Conflicting class vs instance variable",
+            r"Cannot assign to classvar 'X' on '<module>\.C' instance",
         )
 
     def test_class_ann_assign_with_value_conflict(self):
         self.type_error(
             """
+            from typing import ClassVar
+
             class C:
-                X: int = 42
+                X: ClassVar[int] = 42
                 X: int
             """,
-            r"Conflicting class vs instance variable",
+            r"Cannot re-declare member 'X' in '<module>\.C'",
         )
 
     def test_class_ann_assign_with_value_conflict_2(self):
         self.type_error(
             """
+            from typing import ClassVar
+
             class C:
                 X: int
-                X: int = 42
+                X: ClassVar[int] = 42
             """,
-            r"Conflicting class vs instance variable",
+            r"Cannot re-declare member 'X' in '<module>\.C'",
+        )
+
+    def test_annotated_classvar(self):
+        codestr = """
+            from typing import ClassVar
+
+            class C:
+                x: ClassVar[int] = 3
+
+            def f() -> int:
+                return C.x
+
+            def g(c: C) -> int:
+                return c.x
+        """
+        with self.in_module(codestr) as mod:
+            f, g, C = mod["f"], mod["g"], mod["C"]
+            self.assertEqual(f(), 3)
+            self.assertEqual(g(C()), 3)
+            self.assertNotInBytecode(f, "CAST")
+            self.assertNotInBytecode(g, "CAST")
+
+    def test_classvar_no_assign_from_instance(self):
+        self.type_error(
+            """
+            from typing import ClassVar
+
+            class C:
+                x: ClassVar[int] = 3
+
+            def f(c: C):
+                c.x = 4
+            """,
+            r"Cannot assign to classvar 'x' on '<module>.C' instance",
+        )
+
+    def test_bad_classvar_arg(self):
+        self.type_error(
+            """
+            from typing import ClassVar
+
+            def f(x: ClassVar[int]):
+                pass
+            """,
+            r"ClassVar is allowed only in class attribute annotations.",
+        )
+
+    def test_bad_classvar_local(self):
+        self.type_error(
+            """
+            from typing import ClassVar
+
+            def f():
+                x: ClassVar[int] = 3
+            """,
+            r"ClassVar is allowed only in class attribute annotations.",
+        )
+
+    def test_final_attr(self):
+        codestr = """
+        from typing import Final
+
+        class C:
+            x: Final[int]
+
+            def __init__(self):
+                self.x = 3
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod["C"]().x, 3)
+
+    def test_final_attr_decl_uninitialized(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final
+            """,
+            r"Final attribute not initialized: <module>\.C:x",
+        )
+
+    def test_final_classvar_reinitialized(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+                x = 4
+            """,
+            r"Cannot assign to a Final variable",
+        )
+
+    def test_final_classvar_reinitialized_externally(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+
+            C.x = 4
+            """,
+            r"Cannot assign to a Final attribute of <module>\.C:x",
+        )
+
+    def test_final_attr_reinitialized_externally_on_class(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int]
+
+                def __init__(self):
+                    self.x = 3
+
+            C.x = 4
+            """,
+            type_mismatch("Literal[4]", "Exact[types.MemberDescriptorType]"),
+        )
+
+    def test_final_attr_reinitialized_externally_on_instance(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int]
+
+                def __init__(self):
+                    self.x = 3
+
+            c: C = C()
+            c.x = 4
+            """,
+            r"Cannot assign to a Final attribute of <module>\.C:x",
+        )
+
+    def test_final_classvar_reinitialized_in_instance(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+
+            C().x = 4
+            """,
+            r"Cannot assign to classvar 'x' on '<module>\.C' instance",
+        )
+
+    def test_final_classvar_reinitialized_in_method(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+
+                def something(self) -> None:
+                    self.x = 4
+            """,
+            r"Cannot assign to classvar 'x' on '<module>\.C' instance",
+        )
+
+    def test_final_classvar_reinitialized_in_subclass_without_annotation(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+
+            class D(C):
+                x = 4
+            """,
+            r"Cannot assign to a Final attribute of <module>\.D:x",
+        )
+
+    def test_final_classvar_reinitialized_in_subclass_with_annotation(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+
+            class D(C):
+                x: Final[int] = 4
+            """,
+            r"Cannot assign to a Final attribute of <module>\.D:x",
+        )
+
+    def test_final_classvar_reinitialized_in_subclass_init(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+
+            class D(C):
+                def __init__(self):
+                    self.x = 4
+            """,
+            r"Cannot assign to classvar 'x' on '<module>\.D' instance",
+        )
+
+    def test_final_classvar_reinitialized_in_subclass_init_with_annotation(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int] = 3
+
+            class D(C):
+                def __init__(self):
+                    self.x: Final[int] = 4
+            """,
+            r"Cannot assign to classvar 'x' on '<module>\.D' instance",
+        )
+
+    def test_final_attr_reinitialized_in_subclass_init(self):
+        self.type_error(
+            """
+            from typing import Final
+
+            class C:
+                x: Final[int]
+
+                def __init__(self) -> None:
+                    self.x = 3
+
+            class D(C):
+                def __init__(self) -> None:
+                    self.x = 4
+            """,
+            r"Cannot assign to a Final attribute of <module>\.D:x",
+        )
+
+    def test_nested_classvar_and_final(self):
+        """Per PEP 591, class-level final assignments are always ClassVar."""
+        self.type_error(
+            f"""
+            from typing import ClassVar, Final
+
+            class C:
+                x: Final[ClassVar[int]] = 3
+            """,
+            r"Class Finals are inferred ClassVar; do not nest with Final",
         )

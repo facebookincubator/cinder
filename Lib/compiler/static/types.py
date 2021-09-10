@@ -809,8 +809,6 @@ class Class(Object["Class"]):
         if pytype:
             self.members.update(make_type_dict(self, pytype))
         self.pytype = pytype
-        # store attempted slot redefinitions during type declaration, for resolution in finish_bind
-        self._slot_redefs: Dict[str, List[TypeRef]] = {}
 
     @property
     def name(self) -> str:
@@ -1043,18 +1041,18 @@ class Class(Object["Class"]):
         )
 
     def finish_bind(self, module: ModuleTable) -> None:
-        for name, new_type_refs in self._slot_redefs.items():
-            cur_slot = self.members[name]
-            assert isinstance(cur_slot, Slot)
-            cur_type = cur_slot.decl_type
-            if any(tr.resolved() != cur_type for tr in new_type_refs):
-                raise TypedSyntaxError(
-                    f"conflicting type definitions for slot {name} in {self.name}"
-                )
-        self._slot_redefs = {}
-
         inherited = set()
         for name, my_value in self.members.items():
+            if isinstance(my_value, Slot):
+                if my_value.is_final and not my_value.assignment:
+                    raise TypedSyntaxError(
+                        f"Final attribute not initialized: {self.instance.name}:{name}"
+                    )
+                elif my_value.assigned_on_class and not my_value.is_classvar:
+                    raise TypedSyntaxError(
+                        f"Class attribute requires ClassVar[...] annotation: {name}"
+                    )
+
             for base in self.mro[1:]:
                 value = base.members.get(name)
                 if value is not None and self.incompatible_override(my_value, value):
@@ -1090,15 +1088,6 @@ class Class(Object["Class"]):
                     assert isinstance(my_value, PropertyMethod)
                     value.function.validate_compat_signature(my_value.function, module)
 
-            if (
-                isinstance(my_value, Slot)
-                and my_value.is_final
-                and not my_value.assignment
-            ):
-                raise TypedSyntaxError(
-                    f"Final attribute not initialized: {self.instance.name}:{name}"
-                )
-
         for name in inherited:
             assert type(self.members[name]) is Slot
             del self.members[name]
@@ -1108,26 +1097,29 @@ class Class(Object["Class"]):
         name: str,
         type_ref: Optional[TypeRef] = None,
         assignment: Optional[AST] = None,
-        is_class_slot: bool = False,
+        declared_on_class: bool = False,
     ) -> None:
+        assigned_on_class = declared_on_class and bool(assignment)
         existing = self.members.get(name)
         if existing is None:
             self.members[name] = Slot(
-                type_ref or ResolvedTypeRef(DYNAMIC_TYPE),
+                type_ref,
                 name,
                 self,
                 assignment,
-                is_class_slot,
+                assigned_on_class=assigned_on_class,
             )
         elif isinstance(existing, Slot):
+            if not existing.type_ref:
+                existing.type_ref = type_ref
+            elif type_ref:
+                raise TypedSyntaxError(
+                    f"Cannot re-declare member '{name}' in '{self.instance.name}'"
+                )
             if not existing.assignment:
                 existing.assignment = assignment
-            if is_class_slot != existing.is_class_slot:
-                raise TypedSyntaxError(
-                    f"Conflicting class vs instance variable: {name}"
-                )
-            if type_ref is not None:
-                self._slot_redefs.setdefault(name, []).append(type_ref)
+            if not existing.assigned_on_class:
+                existing.assigned_on_class = assigned_on_class
         else:
             raise TypedSyntaxError(
                 f"slot conflicts with other member {name} in {self.name}"
@@ -1201,6 +1193,9 @@ class Class(Object["Class"]):
         if member:
             return member
         return self.get_parent_member(name)
+
+    def unwrap(self) -> Class:
+        return self
 
 
 class Variance(Enum):
@@ -3243,24 +3238,23 @@ TYPE_TYPE.donotcompile = False
 TYPE_TYPE._mro = None
 TYPE_TYPE._mro_inexact = None
 TYPE_TYPE.pytype = type
-TYPE_TYPE._slot_redefs = {}
 
 
 class Slot(Object[TClassInv]):
     def __init__(
         self,
-        type_ref: TypeRef,
+        type_ref: Optional[TypeRef],
         name: str,
         container_type: Class,
         assignment: Optional[AST] = None,
-        is_class_slot: bool = False,
+        assigned_on_class: bool = False,
     ) -> None:
         super().__init__(MEMBER_TYPE)
         self.container_type = container_type
         self.slot_name = name
-        self._type_ref = type_ref
+        self.type_ref = type_ref
         self.assignment = assignment
-        self.is_class_slot = is_class_slot
+        self.assigned_on_class = assigned_on_class
 
     def bind_descr_get(
         self,
@@ -3282,10 +3276,7 @@ class Slot(Object[TClassInv]):
 
     @property
     def decl_type(self) -> Class:
-        typ = self._resolved_type
-        if isinstance(typ, (FinalClass, ClassVar)):
-            return typ.inner_type()
-        return typ
+        return self._resolved_type.unwrap()
 
     @property
     def is_final(self) -> bool:
@@ -3293,11 +3284,16 @@ class Slot(Object[TClassInv]):
 
     @property
     def is_classvar(self) -> bool:
+        # Per PEP 591, class-level Final are implicitly ClassVar
+        if self.assigned_on_class and self.is_final:
+            return True
         return isinstance(self._resolved_type, ClassVar)
 
     @property
     def _resolved_type(self) -> Class:
-        return self._type_ref.resolved(is_declaration=True)
+        if tr := self.type_ref:
+            return tr.resolved(is_declaration=True)
+        return DYNAMIC_TYPE
 
     @property
     def type_descr(self) -> TypeDescr:
@@ -4422,14 +4418,17 @@ NAMED_TUPLE_TYPE = Class(TypeName("typing", "NamedTuple"))
 PROTOCOL_TYPE = Class(TypeName("typing", "Protocol"))
 
 
-class FinalClass(GenericClass):
-    def inner_type(self) -> Class:
+class TypeWrapper(GenericClass):
+    def unwrap(self) -> Class:
         return self.type_args[0]
 
 
-class ClassVar(GenericClass):
-    def inner_type(self) -> Class:
-        return self.type_args[0]
+class FinalClass(TypeWrapper):
+    pass
+
+
+class ClassVar(TypeWrapper):
+    pass
 
 
 class UnionTypeName(GenericTypeName):

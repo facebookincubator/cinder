@@ -557,8 +557,13 @@ class TypeBinder(GenericVisitor):
             member_name = target.id
             member = klass.get_member(member_name)
         elif isinstance(target, ast.Attribute):
-            klass = self.get_type(target.value).klass
+            val = self.get_type(target.value)
             member_name = target.attr
+            # TODO this logic will be inadequate if we support metaclasses
+            if isinstance(val, Class):
+                klass = val
+            else:
+                klass = val.klass
             member = klass.get_member(member_name)
 
         # Ensure we don't reassign to Finals
@@ -590,15 +595,13 @@ class TypeBinder(GenericVisitor):
             or DYNAMIC_TYPE
         )
         is_final = False
-        if isinstance(comp_type, ClassVar):
-            if not isinstance(self.scope, ClassDef):
-                self.syntax_error(
-                    "ClassVar is allowed only in class attribute annotations.", node
-                )
-            comp_type = comp_type.inner_type()
-        if isinstance(comp_type, FinalClass):
+        comp_type, wrapper = comp_type.unwrap(), type(comp_type)
+        if wrapper is ClassVar and not isinstance(self.scope, ClassDef):
+            self.syntax_error(
+                "ClassVar is allowed only in class attribute annotations.", node
+            )
+        if wrapper is FinalClass:
             is_final = True
-            comp_type = comp_type.inner_type()
 
         declared_type = comp_type.instance
         is_dynamic_final = is_final and declared_type is DYNAMIC

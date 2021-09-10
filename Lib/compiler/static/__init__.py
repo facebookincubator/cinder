@@ -399,7 +399,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
             if (
                 isinstance(value, Slot)
                 and not value.is_classvar
-                and not value.is_class_slot
             )
             or isinstance(value, CachedPropertyMethod)
             or isinstance(value, AsyncCachedPropertyMethod)
