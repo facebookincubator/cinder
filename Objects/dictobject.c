@@ -6281,18 +6281,6 @@ static PyObject *chkdict_cls_getitem(_PyGenericTypeDef *type, PyObject *args) {
     if (item == NULL) {
         return NULL;
     }
-    _Py_IDENTIFIER(__module__);
-    PyTypeObject *new_type = (PyTypeObject *)item;
-    PyObject *module_name = PyUnicode_FromString("__static__");
-    if (module_name == NULL) {
-        Py_DECREF(item);
-        return NULL;
-    }
-    if (_PyDict_SetItemId(new_type->tp_dict, &PyId___module__, module_name) == -1) {
-        Py_DECREF(item);
-        item = NULL;  // return NULL on errors
-    }
-    Py_DECREF(module_name);
     return item;
 }
 
@@ -6459,7 +6447,7 @@ _PyCheckedDict_NewPresized(PyTypeObject *type, Py_ssize_t minused)
 _PyGenericTypeDef _PyCheckedDict_Type = {
     .gtd_type =
         {
-            PyVarObject_HEAD_INIT(&PyType_Type, 0) "chkdict[K, V]",
+            PyVarObject_HEAD_INIT(&PyType_Type, 0) "__static__.chkdict[K, V]",
             sizeof(PyDictObject),
             0,
             (destructor)chkdict_dealloc, /* tp_dealloc */

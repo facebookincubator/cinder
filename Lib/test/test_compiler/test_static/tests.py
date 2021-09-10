@@ -9204,7 +9204,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
         with self.assertRaisesRegex(
-            TypeError, "cannot create 'chkdict\\[K, V\\]' instances"
+            TypeError, "cannot create '__static__.chkdict\\[K, V\\]' instances"
         ):
             with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
                 test = mod["testfunc"]

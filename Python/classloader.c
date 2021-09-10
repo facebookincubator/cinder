@@ -2310,6 +2310,10 @@ gti_calc_name(PyObject *type, _PyGenericTypeInst *new_inst)
 {
     Py_ssize_t nargs = new_inst->gti_size;
     const char *orig_name = ((PyTypeObject *)type)->tp_name;
+    const char *dot;
+    if ((dot = strchr(orig_name, '.')) != NULL) {
+        orig_name = dot + 1;
+    }
     char *start = strchr(orig_name, '[');
     assert(start != NULL);
 
@@ -2647,13 +2651,45 @@ _PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args)
         return NULL;
     }
     args = PyTuple_GET_ITEM(args, 0);
+    PyObject *res;
     if (PyTuple_Check(args)) {
-        return _PyClassLoader_GetGenericInst((PyObject *)type,
+        res = _PyClassLoader_GetGenericInst((PyObject *)type,
                                              ((PyTupleObject *)args)->ob_item,
                                              PyTuple_GET_SIZE(args));
     } else {
-        return _PyClassLoader_GetGenericInst((PyObject *)type, &args, 1);
+        res = _PyClassLoader_GetGenericInst((PyObject *)type, &args, 1);
     }
+    if (res == NULL) {
+        return NULL;
+    }
+    PyObject *mod;
+    const char *base_name = ((PyTypeObject *)type)->tp_name;
+    const char *s = strrchr(base_name, '.');
+    _Py_IDENTIFIER(__module__);
+    _Py_IDENTIFIER(builtins);
+
+    if (s != NULL) {
+        mod = PyUnicode_FromStringAndSize(
+            base_name, (Py_ssize_t)(s - base_name));
+        if (mod != NULL)
+            PyUnicode_InternInPlace(&mod);
+    }
+    else {
+        mod = _PyUnicode_FromId(&PyId_builtins);
+        Py_XINCREF(mod);
+    }
+    if (mod == NULL) {
+        Py_DECREF(res);
+        return NULL;
+    }
+    if (_PyDict_SetItemId(((PyTypeObject *)res)->tp_dict, &PyId___module__, mod) == -1) {
+        Py_DECREF(mod);
+        Py_DECREF(res);
+        return NULL;  // return NULL on errors
+    }
+    Py_DECREF(mod);
+
+    return res;
 }
 
 #define GENINST_GET_PARAM(self, i)                                            \
