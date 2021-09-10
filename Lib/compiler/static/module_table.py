@@ -24,7 +24,9 @@ from .types import (
     CType,
     Class,
     ClassVar,
+    DecoratedMethod,
     DynamicClass,
+    Function,
     DYNAMIC_TYPE,
     FLOAT_TYPE,
     FinalClass,
@@ -86,6 +88,9 @@ class ModuleTable:
     def declare_class(self, node: ClassDef, klass: Class) -> None:
         self.decls.append((node, klass))
         self.children[node.name] = klass
+
+    def declare_function(self, func: Function | DecoratedMethod) -> None:
+        self.children[func.func_name] = func
 
     def _get_inferred_type(self, value: ast.expr) -> Optional[Value]:
         if not isinstance(value, ast.Name):
@@ -281,3 +286,6 @@ class ModuleTable:
             )
         ):
             return final_val
+
+    def declare_variable(self, node: ast.AnnAssign, module: ModuleTable) -> None:
+        self.decls.append((node, None))

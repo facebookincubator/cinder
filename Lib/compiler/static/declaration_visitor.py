@@ -40,90 +40,42 @@ from .types import (
     TypeName,
     TypeRef,
 )
+from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
     from . import SymbolTable
 
 
-class GenericVisitor(ASTVisitor):
-    def __init__(self, module: ModuleTable) -> None:
-        super().__init__()
-        self.module = module
-        self.module_name: str = module.name
-        self.filename: str = module.filename
-        self.symtable: SymbolTable = module.symtable
+class NestedScope:
+    def declare_class(self, node: AST, klass: Class) -> None:
+        pass
 
-    def visit(self, node: Union[AST, Sequence[AST]], *args: object) -> Optional[object]:
-        # if we have a sequence of nodes, don't catch TypedSyntaxError here;
-        # walk_list will call us back with each individual node in turn and we
-        # can catch errors and add node info then.
-        ctx = (
-            self.module.error_context(node) if isinstance(node, AST) else nullcontext()
-        )
-        with ctx:
-            return super().visit(node, *args)
+    def declare_function(self, func: Function | DecoratedMethod) -> None:
+        pass
 
-    def syntax_error(self, msg: str, node: AST) -> None:
-        return self.symtable.error_sink.syntax_error(msg, self.filename, node)
+    def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
+        pass
 
 
-class InitVisitor(GenericVisitor):
-    def __init__(
-        self,
-        module: ModuleTable,
-        klass: Class,
-        init_func: FunctionDef,
-    ) -> None:
-        super().__init__(module)
-        self.module = module
-        self.klass = klass
-        self.init_func = init_func
-
-    def visitAnnAssign(self, node: AnnAssign) -> None:
-        target = node.target
-        if isinstance(target, Attribute):
-            value = target.value
-            if (
-                isinstance(value, ast.Name)
-                and value.id == self.init_func.args.args[0].arg
-            ):
-                attr = target.attr
-                self.klass.define_slot(
-                    attr,
-                    target,
-                    TypeRef(self.module, node.annotation),
-                    assignment=node,
-                )
-
-    def visitAssign(self, node: Assign) -> None:
-        for target in node.targets:
-            if not isinstance(target, Attribute):
-                continue
-            value = target.value
-            if (
-                isinstance(value, ast.Name)
-                and value.id == self.init_func.args.args[0].arg
-            ):
-                attr = target.attr
-                self.klass.define_slot(attr, target, assignment=node)
+TScopeTypes = Union[ModuleTable, Class, Function, NestedScope]
 
 
 class DeclarationVisitor(GenericVisitor):
     def __init__(self, mod_name: str, filename: str, symbols: SymbolTable) -> None:
         module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
         super().__init__(module)
-        self.scopes: List[ModuleTable | Class | Function] = [self.module]
+        self.scopes: List[TScopeTypes] = [self.module]
 
     def finish_bind(self) -> None:
         self.module.finish_bind()
 
     def visitAnnAssign(self, node: AnnAssign) -> None:
-        self.module.decls.append((node, None))
+        self.parent_scope().declare_variable(node, self.module)
 
-    def parent_scope(self) -> ModuleTable | Class | Function:
+    def parent_scope(self) -> TScopeTypes:
         return self.scopes[-1]
 
-    def enter_scope(self, scope: ModuleTable | Class | Function) -> None:
+    def enter_scope(self, scope: TScopeTypes) -> None:
         self.scopes.append(scope)
 
     def exit_scope(self) -> None:
@@ -138,34 +90,7 @@ class DeclarationVisitor(GenericVisitor):
         self.enter_scope(klass)
         for item in node.body:
             with self.symtable.error_sink.error_context(self.filename, item):
-                if isinstance(item, (AsyncFunctionDef, FunctionDef)):
-                    function = self._make_function(item)
-                    if not function:
-                        continue
-                    klass.define_function(item, function)
-                    if (
-                        item.name != "__init__"
-                        or not item.args.args
-                        or not isinstance(item, FunctionDef)
-                    ):
-                        continue
-
-                    InitVisitor(self.module, klass, item).visit(item.body)
-                elif isinstance(item, AnnAssign):
-                    # class C:
-                    #    x: foo
-                    target = item.target
-                    if isinstance(target, ast.Name):
-                        klass.define_slot(
-                            target.id,
-                            target,
-                            TypeRef(self.module, item.annotation),
-                            # Note down whether the slot has been assigned a value.
-                            assignment=item if item.value else None,
-                            declared_on_class=True,
-                        )
-                elif isinstance(item, ClassDef):
-                    self.visit(item)
+                self.visit(item)
 
         for base in bases:
             if base is NAMED_TUPLE_TYPE:
@@ -194,17 +119,22 @@ class DeclarationVisitor(GenericVisitor):
                 klass = decorator.bind_decorate_class(klass)
 
         parent_scope.declare_class(node, klass)
+        self.module.types[node] = klass
         self.exit_scope()
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         function = self._make_function(node)
         if function:
-            self.module.children[function.func_name] = function
+            self.parent_scope().declare_function(function)
 
     def _make_function(
         self, node: Union[FunctionDef, AsyncFunctionDef]
     ) -> Function | DecoratedMethod | None:
         func = Function(node, self.module, self.type_ref(node))
+        self.enter_scope(func)
+        for item in node.body:
+            self.visit(item)
+        self.exit_scope()
         for decorator in node.decorator_list:
             decorator_type = self.module.resolve_type(decorator) or DYNAMIC_TYPE
             func = decorator_type.bind_decorate_function(self, func)
@@ -245,24 +175,40 @@ class DeclarationVisitor(GenericVisitor):
 
     # We don't pick up declarations in nested statements
     def visitFor(self, node: For) -> None:
-        pass
+        self.enter_scope(NestedScope())
+        self.generic_visit(node)
+        self.exit_scope()
 
     def visitAsyncFor(self, node: AsyncFor) -> None:
-        pass
+        self.enter_scope(NestedScope())
+        self.generic_visit(node)
+        self.exit_scope()
 
     def visitWhile(self, node: While) -> None:
-        pass
+        self.enter_scope(NestedScope())
+        self.generic_visit(node)
+        self.exit_scope()
 
     def visitIf(self, node: If) -> None:
         test = node.test
         if isinstance(test, Name) and test.id == "TYPE_CHECKING":
             self.visit(node.body)
+        else:
+            self.enter_scope(NestedScope())
+            self.visit(node.body)
+            self.exit_scope()
 
     def visitWith(self, node: With) -> None:
-        pass
+        self.enter_scope(NestedScope())
+        self.generic_visit(node)
+        self.exit_scope()
 
     def visitAsyncWith(self, node: AsyncWith) -> None:
-        pass
+        self.enter_scope(NestedScope())
+        self.generic_visit(node)
+        self.exit_scope()
 
     def visitTry(self, node: Try) -> None:
-        pass
+        self.enter_scope(NestedScope())
+        self.generic_visit(node)
+        self.exit_scope()

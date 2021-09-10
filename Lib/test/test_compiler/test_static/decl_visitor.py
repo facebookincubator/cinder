@@ -31,6 +31,35 @@ class DeclarationVisitorTests(StaticTestBase):
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
+    def test_cross_module_nested(self) -> None:
+        for parent, close in [
+            ("if FOO:", ""),
+            ("for x in []:", ""),
+            ("while True:", ""),
+            ("with foo:", ""),
+            ("try:", "except: pass"),
+        ]:
+            with self.subTest(parent=parent, close=close):
+                acode = f"""
+                    {parent}
+                        class C:
+                            def f(self):
+                                return 42
+                    {close}
+                """
+                bcode = """
+                    from a import C
+
+                    def f():
+                        x = C()
+                        return x.f()
+                """
+                symtable = SymbolTable(StaticCodeGenerator)
+                acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)))
+                bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+                x = self.find_code(bcomp, "f")
+                self.assertNotInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
+
     def test_cross_module_inst_decl_visit_only(self) -> None:
         acode = """
             class C:

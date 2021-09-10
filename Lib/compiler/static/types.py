@@ -173,9 +173,11 @@ from ..pycodegen import FOR_LOOP
 from ..symbols import SymbolVisitor
 from ..symbols import Scope, ModuleScope
 from ..unparse import to_expr
+from ..visitor import ASTVisitor
 from ..visitor import ASTRewriter, TAst
 from .effects import NarrowingEffect, NO_EFFECT
 from .errors import TypedSyntaxError
+from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
     from . import Static38CodeGenerator
@@ -777,6 +779,47 @@ class ClassCallInfo:
         self.dynamic_call = dynamic_call
 
 
+class InitVisitor(GenericVisitor):
+    def __init__(
+        self,
+        module: ModuleTable,
+        klass: Class,
+        init_func: FunctionDef,
+    ) -> None:
+        super().__init__(module)
+        self.module = module
+        self.klass = klass
+        self.init_func = init_func
+
+    def visitAnnAssign(self, node: AnnAssign) -> None:
+        target = node.target
+        if isinstance(target, Attribute):
+            value = target.value
+            if (
+                isinstance(value, ast.Name)
+                and value.id == self.init_func.args.args[0].arg
+            ):
+                attr = target.attr
+                self.klass.define_slot(
+                    attr,
+                    target,
+                    TypeRef(self.module, node.annotation),
+                    assignment=node,
+                )
+
+    def visitAssign(self, node: Assign) -> None:
+        for target in node.targets:
+            if not isinstance(target, Attribute):
+                continue
+            value = target.value
+            if (
+                isinstance(value, ast.Name)
+                and value.id == self.init_func.args.args[0].arg
+            ):
+                attr = target.attr
+                self.klass.define_slot(attr, target, assignment=node)
+
+
 class Class(Object["Class"]):
     """Represents a type object at compile time"""
 
@@ -826,6 +869,20 @@ class Class(Object["Class"]):
     def declare_class(self, node: ClassDef, klass: Class) -> None:
         self._member_nodes[node.name] = node
         self.members[node.name] = klass
+
+    def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
+        # class C:
+        #    x: foo
+        target = node.target
+        if isinstance(target, ast.Name):
+            self.define_slot(
+                target.id,
+                target,
+                TypeRef(module, node.annotation),
+                # Note down whether the slot has been assigned a value.
+                assignment=node if node.value else None,
+                declared_on_class=True,
+            )
 
     def resolve_name(self, name: str) -> Optional[Value]:
         return self.members.get(name)
@@ -1140,20 +1197,26 @@ class Class(Object["Class"]):
                 f"slot conflicts with other member {name} in {self.name}"
             )
 
-    def define_function(
-        self,
-        node: ast.FunctionDef | ast.AsyncFunctionDef,
-        func: Function | DecoratedMethod,
-    ) -> None:
-        if node.name in self.members:
+    def declare_function(self, func: Function | DecoratedMethod) -> None:
+        if func.func_name in self.members:
             raise TypedSyntaxError(
-                f"function conflicts with other member {node.name} in {self.name}"
+                f"function conflicts with other member {func.func_name} in {self.name}"
             )
 
         func.set_container_type(self)
 
-        self._member_nodes[node.name] = node
-        self.members[node.name] = func
+        if isinstance(func, Function):
+            self._member_nodes[func.func_name] = func.node
+        self.members[func.func_name] = func
+
+        if (
+            func.func_name == "__init__"
+            and isinstance(func, Function)
+            and func.node.args.args
+        ):
+            node = func.node
+            if isinstance(node, FunctionDef):
+                InitVisitor(func.module, self, node).visit(node.body)
 
     @property
     def mro(self) -> Sequence[Class]:
@@ -2376,7 +2439,13 @@ class Function(Callable[Class]):
 
     def declare_class(self, node: AST, klass: Class) -> None:
         # currently, we don't allow declaring classes within functions
-        raise NotImplementedError("Unsupported")
+        pass
+
+    def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
+        pass
+
+    def declare_function(self, func: Function | DecoratedMethod) -> None:
+        pass
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
