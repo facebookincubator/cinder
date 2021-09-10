@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 
 class TypedSyntaxError(SyntaxError):
-
     pass
 
 

@@ -46,20 +46,19 @@ if TYPE_CHECKING:
 
 
 class GenericVisitor(ASTVisitor):
-    def __init__(self, module_name: str, filename: str, symtable: SymbolTable) -> None:
+    def __init__(self, module: ModuleTable) -> None:
         super().__init__()
-        self.module_name = module_name
-        self.filename = filename
-        self.symtable = symtable
+        self.module = module
+        self.module_name: str = module.name
+        self.filename: str = module.filename
+        self.symtable: SymbolTable = module.symtable
 
     def visit(self, node: Union[AST, Sequence[AST]], *args: object) -> Optional[object]:
         # if we have a sequence of nodes, don't catch TypedSyntaxError here;
         # walk_list will call us back with each individual node in turn and we
         # can catch errors and add node info then.
         ctx = (
-            self.symtable.error_sink.error_context(self.filename, node)
-            if isinstance(node, AST)
-            else nullcontext()
+            self.module.error_context(node) if isinstance(node, AST) else nullcontext()
         )
         with ctx:
             return super().visit(node, *args)
@@ -68,11 +67,14 @@ class GenericVisitor(ASTVisitor):
         return self.symtable.error_sink.syntax_error(msg, self.filename, node)
 
 
-class InitVisitor(ASTVisitor):
+class InitVisitor(GenericVisitor):
     def __init__(
-        self, module: ModuleTable, klass: Class, init_func: FunctionDef
+        self,
+        module: ModuleTable,
+        klass: Class,
+        init_func: FunctionDef,
     ) -> None:
-        super().__init__()
+        super().__init__(module)
         self.module = module
         self.klass = klass
         self.init_func = init_func
@@ -88,6 +90,7 @@ class InitVisitor(ASTVisitor):
                 attr = target.attr
                 self.klass.define_slot(
                     attr,
+                    target,
                     TypeRef(self.module, node.annotation),
                     assignment=node,
                 )
@@ -102,13 +105,13 @@ class InitVisitor(ASTVisitor):
                 and value.id == self.init_func.args.args[0].arg
             ):
                 attr = target.attr
-                self.klass.define_slot(attr, assignment=node)
+                self.klass.define_slot(attr, target, assignment=node)
 
 
 class DeclarationVisitor(GenericVisitor):
     def __init__(self, mod_name: str, filename: str, symbols: SymbolTable) -> None:
-        super().__init__(mod_name, filename, symbols)
-        self.module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
+        module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
+        super().__init__(module)
         self.scopes: List[ModuleTable | Class | Function] = [self.module]
 
     def finish_bind(self) -> None:
@@ -139,7 +142,7 @@ class DeclarationVisitor(GenericVisitor):
                     function = self._make_function(item)
                     if not function:
                         continue
-                    klass.define_function(item.name, function, self)
+                    klass.define_function(item, function)
                     if (
                         item.name != "__init__"
                         or not item.args.args
@@ -155,6 +158,7 @@ class DeclarationVisitor(GenericVisitor):
                     if isinstance(target, ast.Name):
                         klass.define_slot(
                             target.id,
+                            target,
                             TypeRef(self.module, item.annotation),
                             # Note down whether the slot has been assigned a value.
                             assignment=item if item.value else None,

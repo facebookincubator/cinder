@@ -37,6 +37,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x: "unknown_type" = 42
             """,
             r"Cannot re-declare member 'x' in '<module>.C'",
+            at="self.x:",
         )
 
     def test_slotification_typed(self):
@@ -74,6 +75,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x: int = 42
             """,
             r"Cannot re-declare member 'x' in '<module>\.C'",
+            at="self.x",
         )
 
     def test_slotification_conflicting_types(self):
@@ -85,6 +87,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x: int = 42
             """,
             r"Cannot re-declare member 'x' in '<module>\.C'",
+            at="self.x",
         )
 
     def test_slotification_conflicting_types_imported(self):
@@ -98,6 +101,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x: Optional[str] = "foo"
             """,
             r"Cannot re-declare member 'x' in '<module>\.C'",
+            at="self.x",
         )
 
     def test_slotification_conflicting_members(self):
@@ -108,6 +112,7 @@ class StaticFieldTests(StaticTestBase):
                 x: object
             """,
             r"slot conflicts with other member x in Type\[<module>.C\]",
+            at="x: object",
         )
 
     def test_slotification_conflicting_function(self):
@@ -118,6 +123,7 @@ class StaticFieldTests(StaticTestBase):
                 def x(self): pass
             """,
             r"function conflicts with other member x in Type\[<module>.C\]",
+            at="def x(self):",
         )
 
     def test_slot_inheritance(self):
@@ -201,13 +207,15 @@ class StaticFieldTests(StaticTestBase):
                 C().f()
 
     def test_error_incompat_field_non_dynamic(self):
-        codestr = """
+        self.type_error(
+            """
             class C:
                 def __init__(self):
                     self.x: int = 'abc'
-        """
-        with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr)
+            """,
+            type_mismatch("Exact[str]", "int"),
+            at="'abc'",
+        )
 
     def test_error_incompat_field(self):
         codestr = """
@@ -225,15 +233,16 @@ class StaticFieldTests(StaticTestBase):
                 C().f("abc")
 
     def test_error_incompat_assign_dynamic(self):
-        with self.assertRaises(TypedSyntaxError):
-            code = self.compile(
-                """
+        self.type_error(
+            """
             class C:
                 x: "C"
                 def __init__(self):
                     self.x = None
-            """
-            )
+            """,
+            type_mismatch("None", "<module>.C"),
+            at="self.x",
+        )
 
     def test_instance_var_annotated_on_class(self):
         codestr = """
@@ -314,8 +323,6 @@ class StaticFieldTests(StaticTestBase):
                 def f(self):
                     return self.x.g()
         """
-        code = self.compile(codestr, modname="foo")
-
         with self.in_module(codestr) as mod:
             C = mod["C"]
             a = C()
@@ -333,8 +340,6 @@ class StaticFieldTests(StaticTestBase):
                 def f(self):
                     return self.x.g()
         """
-        code = self.compile(codestr, modname="foo")
-
         with self.in_module(codestr) as mod:
             C = mod["C"]
             a = C()
@@ -347,6 +352,7 @@ class StaticFieldTests(StaticTestBase):
                 X: int = 42
             """,
             r"Class attribute requires ClassVar\[...\] annotation",
+            at="X: int",
         )
 
     def test_class_ann_assign_after_init(self):
@@ -358,6 +364,7 @@ class StaticFieldTests(StaticTestBase):
                 X: int = 3
             """,
             r"Class attribute requires ClassVar\[...\] annotation",
+            at="X: int",
         )
 
     def test_classvar_after_init(self):
@@ -371,6 +378,7 @@ class StaticFieldTests(StaticTestBase):
                 X: ClassVar[int] = 3
             """,
             r"Cannot assign to classvar 'X' on '<module>.C' instance",
+            at="self.X = 1",
         )
 
     def test_class_ann_assign_with_value_conflict_init(self):
@@ -384,6 +392,7 @@ class StaticFieldTests(StaticTestBase):
                     self.X = 42
             """,
             r"Cannot assign to classvar 'X' on '<module>\.C' instance",
+            at="self.X =",
         )
 
     def test_class_ann_assign_with_value_conflict(self):
@@ -396,6 +405,7 @@ class StaticFieldTests(StaticTestBase):
                 X: int
             """,
             r"Cannot re-declare member 'X' in '<module>\.C'",
+            at="X: int",
         )
 
     def test_class_ann_assign_with_value_conflict_2(self):
@@ -408,6 +418,7 @@ class StaticFieldTests(StaticTestBase):
                 X: ClassVar[int] = 42
             """,
             r"Cannot re-declare member 'X' in '<module>\.C'",
+            at="X: ClassVar[int]",
         )
 
     def test_annotated_classvar(self):
@@ -442,6 +453,7 @@ class StaticFieldTests(StaticTestBase):
                 c.x = 4
             """,
             r"Cannot assign to classvar 'x' on '<module>.C' instance",
+            at="c.x = 4",
         )
 
     def test_bad_classvar_arg(self):
@@ -453,6 +465,7 @@ class StaticFieldTests(StaticTestBase):
                 pass
             """,
             r"ClassVar is allowed only in class attribute annotations.",
+            at="ClassVar[int]",
         )
 
     def test_bad_classvar_local(self):
@@ -464,6 +477,7 @@ class StaticFieldTests(StaticTestBase):
                 x: ClassVar[int] = 3
             """,
             r"ClassVar is allowed only in class attribute annotations.",
+            at="x: ClassVar[int]",
         )
 
     def test_final_attr(self):
@@ -488,6 +502,7 @@ class StaticFieldTests(StaticTestBase):
                 x: Final
             """,
             r"Final attribute not initialized: <module>\.C:x",
+            at="x: Final",
         )
 
     def test_final_classvar_reinitialized(self):
@@ -500,6 +515,7 @@ class StaticFieldTests(StaticTestBase):
                 x = 4
             """,
             r"Cannot assign to a Final variable",
+            at="x = 4",
         )
 
     def test_final_classvar_reinitialized_externally(self):
@@ -513,6 +529,7 @@ class StaticFieldTests(StaticTestBase):
             C.x = 4
             """,
             r"Cannot assign to a Final attribute of <module>\.C:x",
+            at="C.x = 4",
         )
 
     def test_final_attr_reinitialized_externally_on_class(self):
@@ -529,6 +546,7 @@ class StaticFieldTests(StaticTestBase):
             C.x = 4
             """,
             type_mismatch("Literal[4]", "Exact[types.MemberDescriptorType]"),
+            at="C.x = 4",
         )
 
     def test_final_attr_reinitialized_externally_on_instance(self):
@@ -546,6 +564,7 @@ class StaticFieldTests(StaticTestBase):
             c.x = 4
             """,
             r"Cannot assign to a Final attribute of <module>\.C:x",
+            at="c.x = 4",
         )
 
     def test_final_classvar_reinitialized_in_instance(self):
@@ -559,6 +578,7 @@ class StaticFieldTests(StaticTestBase):
             C().x = 4
             """,
             r"Cannot assign to classvar 'x' on '<module>\.C' instance",
+            at="C().x = 4",
         )
 
     def test_final_classvar_reinitialized_in_method(self):
@@ -573,6 +593,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x = 4
             """,
             r"Cannot assign to classvar 'x' on '<module>\.C' instance",
+            at="self.x = 4",
         )
 
     def test_final_classvar_reinitialized_in_subclass_without_annotation(self):
@@ -587,6 +608,7 @@ class StaticFieldTests(StaticTestBase):
                 x = 4
             """,
             r"Cannot assign to a Final attribute of <module>\.D:x",
+            at="x = 4",
         )
 
     def test_final_classvar_reinitialized_in_subclass_with_annotation(self):
@@ -601,6 +623,7 @@ class StaticFieldTests(StaticTestBase):
                 x: Final[int] = 4
             """,
             r"Cannot assign to a Final attribute of <module>\.D:x",
+            at="x: Final[int] = 4",
         )
 
     def test_final_classvar_reinitialized_in_subclass_init(self):
@@ -616,6 +639,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x = 4
             """,
             r"Cannot assign to classvar 'x' on '<module>\.D' instance",
+            at="self.x = 4",
         )
 
     def test_final_classvar_reinitialized_in_subclass_init_with_annotation(self):
@@ -631,6 +655,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x: Final[int] = 4
             """,
             r"Cannot assign to classvar 'x' on '<module>\.D' instance",
+            at="self.x: Final[int] = 4",
         )
 
     def test_final_attr_reinitialized_in_subclass_init(self):
@@ -649,6 +674,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x = 4
             """,
             r"Cannot assign to a Final attribute of <module>\.D:x",
+            at="self.x = 4",
         )
 
     def test_nested_classvar_and_final(self):
@@ -661,4 +687,5 @@ class StaticFieldTests(StaticTestBase):
                 x: Final[ClassVar[int]] = 3
             """,
             r"Class Finals are inferred ClassVar; do not nest with Final",
+            at="ClassVar[int]",
         )

@@ -809,6 +809,8 @@ class Class(Object["Class"]):
         if pytype:
             self.members.update(make_type_dict(self, pytype))
         self.pytype = pytype
+        # track AST node of each member until finish_bind, for error reporting
+        self._member_nodes: Dict[str, AST] = {}
 
     @property
     def name(self) -> str:
@@ -822,6 +824,7 @@ class Class(Object["Class"]):
         return name
 
     def declare_class(self, node: ClassDef, klass: Class) -> None:
+        self._member_nodes[node.name] = node
         self.members[node.name] = klass
 
     def resolve_name(self, name: str) -> Optional[Value]:
@@ -1043,58 +1046,68 @@ class Class(Object["Class"]):
     def finish_bind(self, module: ModuleTable) -> None:
         inherited = set()
         for name, my_value in self.members.items():
-            if isinstance(my_value, Slot):
-                if my_value.is_final and not my_value.assignment:
-                    raise TypedSyntaxError(
-                        f"Final attribute not initialized: {self.instance.name}:{name}"
-                    )
-                elif my_value.assigned_on_class and not my_value.is_classvar:
-                    raise TypedSyntaxError(
-                        f"Class attribute requires ClassVar[...] annotation: {name}"
-                    )
+            node = self._member_nodes.get(name, None)
+            with module.error_context(node):
+                if isinstance(my_value, Slot):
+                    if my_value.is_final and not my_value.assignment:
+                        raise TypedSyntaxError(
+                            f"Final attribute not initialized: {self.instance.name}:{name}"
+                        )
+                    elif my_value.assigned_on_class and not my_value.is_classvar:
+                        raise TypedSyntaxError(
+                            f"Class attribute requires ClassVar[...] annotation: {name}"
+                        )
 
-            for base in self.mro[1:]:
-                value = base.members.get(name)
-                if value is not None and self.incompatible_override(my_value, value):
-                    raise TypedSyntaxError(
-                        f"class cannot hide inherited member: {value!r}"
-                    )
-                elif isinstance(value, Class):
-                    value.finish_bind(module)
-                elif isinstance(value, Slot):
-                    inherited.add(name)
-                elif isinstance(value, Function):
-                    if value.is_final:
+                for base in self.mro[1:]:
+                    value = base.members.get(name)
+                    if value is not None and self.incompatible_override(
+                        my_value, value
+                    ):
                         raise TypedSyntaxError(
-                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                            f"class cannot hide inherited member: {value!r}"
                         )
-                    if value.func_name not in NON_VIRTUAL_METHODS:
-                        assert isinstance(my_value, Function)
-                        value.validate_compat_signature(my_value, module)
-                elif isinstance(value, StaticMethod):
-                    if value.is_final:
-                        raise TypedSyntaxError(
-                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                    elif isinstance(value, Class):
+                        value.finish_bind(module)
+                    elif isinstance(value, Slot):
+                        inherited.add(name)
+                    elif isinstance(value, Function):
+                        if value.is_final:
+                            raise TypedSyntaxError(
+                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                            )
+                        if value.func_name not in NON_VIRTUAL_METHODS:
+                            assert isinstance(my_value, Function)
+                            value.validate_compat_signature(my_value, module)
+                    elif isinstance(value, StaticMethod):
+                        if value.is_final:
+                            raise TypedSyntaxError(
+                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                            )
+                        assert isinstance(my_value, DecoratedMethod)
+                        value.function.validate_compat_signature(
+                            my_value.function, module, first_arg_is_implicit=False
                         )
-                    assert isinstance(my_value, DecoratedMethod)
-                    value.function.validate_compat_signature(
-                        my_value.function, module, first_arg_is_implicit=False
-                    )
-                elif isinstance(value, (PropertyMethod, CachedPropertyMethod)):
-                    if value.is_final:
-                        raise TypedSyntaxError(
-                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                    elif isinstance(value, (PropertyMethod, CachedPropertyMethod)):
+                        if value.is_final:
+                            raise TypedSyntaxError(
+                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                            )
+                        assert isinstance(my_value, PropertyMethod)
+                        value.function.validate_compat_signature(
+                            my_value.function, module
                         )
-                    assert isinstance(my_value, PropertyMethod)
-                    value.function.validate_compat_signature(my_value.function, module)
 
         for name in inherited:
             assert type(self.members[name]) is Slot
             del self.members[name]
 
+        # These were just for error reporting here, don't need them anymore
+        self._member_nodes = {}
+
     def define_slot(
         self,
         name: str,
+        node: AST,
         type_ref: Optional[TypeRef] = None,
         assignment: Optional[AST] = None,
         declared_on_class: bool = False,
@@ -1102,6 +1115,7 @@ class Class(Object["Class"]):
         assigned_on_class = declared_on_class and bool(assignment)
         existing = self.members.get(name)
         if existing is None:
+            self._member_nodes[name] = node
             self.members[name] = Slot(
                 type_ref,
                 name,
@@ -1112,6 +1126,7 @@ class Class(Object["Class"]):
         elif isinstance(existing, Slot):
             if not existing.type_ref:
                 existing.type_ref = type_ref
+                self._member_nodes[name] = node
             elif type_ref:
                 raise TypedSyntaxError(
                     f"Cannot re-declare member '{name}' in '{self.instance.name}'"
@@ -1127,18 +1142,18 @@ class Class(Object["Class"]):
 
     def define_function(
         self,
-        name: str,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
         func: Function | DecoratedMethod,
-        visitor: DeclarationVisitor,
     ) -> None:
-        if name in self.members:
+        if node.name in self.members:
             raise TypedSyntaxError(
-                f"function conflicts with other member {name} in {self.name}"
+                f"function conflicts with other member {node.name} in {self.name}"
             )
 
         func.set_container_type(self)
 
-        self.members[name] = func
+        self._member_nodes[node.name] = node
+        self.members[node.name] = func
 
     @property
     def mro(self) -> Sequence[Class]:
@@ -1253,14 +1268,14 @@ class GenericClass(Class):
         if isinstance(val, ast.Tuple):
             multiple: List[Class] = []
             for elt in val.elts:
-                klass = visitor.cur_mod.resolve_annotation(elt) or DYNAMIC_TYPE
+                klass = visitor.module.resolve_annotation(elt) or DYNAMIC_TYPE
                 multiple.append(klass)
 
             index = tuple(multiple)
             actual_argnum = len(val.elts)
         else:
             actual_argnum = 1
-            single = visitor.cur_mod.resolve_annotation(val) or DYNAMIC_TYPE
+            single = visitor.module.resolve_annotation(val) or DYNAMIC_TYPE
             index = (single,)
 
         if (not self.is_variadic) and actual_argnum != expected_argnum:
@@ -3238,6 +3253,7 @@ TYPE_TYPE.donotcompile = False
 TYPE_TYPE._mro = None
 TYPE_TYPE._mro_inexact = None
 TYPE_TYPE.pytype = type
+TYPE_TYPE._member_nodes = {}
 
 
 class Slot(Object[TClassInv]):
@@ -5179,7 +5195,7 @@ class CastFunction(Object[Class]):
         for arg in node.args:
             visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
 
-        cast_type = visitor.cur_mod.resolve_annotation(node.args[0])
+        cast_type = visitor.module.resolve_annotation(node.args[0])
         if cast_type is None:
             visitor.syntax_error("cast to unknown type", node)
             cast_type = DYNAMIC_TYPE

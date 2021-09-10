@@ -11118,7 +11118,7 @@ class StaticCompilationTests(StaticTestBase):
             return x(i)
         """
         mod, syms, tb = self.bind_module(codestr, optimize=2)
-        node_data = tb.cur_mod.node_data
+        node_data = tb.module.node_data
         call_node = mod.body[2].body[0].value
         inlined_call = node_data[call_node, Optional[InlinedCall]]
         self.assertGreater(len(inlined_call.replacements), 0)

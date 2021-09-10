@@ -52,13 +52,29 @@ class StaticTestBase(CompilerTest):
             )
 
         symtable = SymbolTable(StaticCodeGenerator)
-        code = inspect.cleandoc("\n" + code)
-        tree = ast.parse(code)
+        tree = ast.parse(self.clean_code(code))
         return symtable.compile(modname, f"{modname}.py", tree, optimize)
 
-    def type_error(self, code, pattern):
-        with self.assertRaisesRegex(TypedSyntaxError, pattern):
+    def type_error(
+        self,
+        code: str,
+        pattern: str,
+        at: str | None = None,
+        lineno: int | None = None,
+        offset: int | None = None,
+    ) -> None:
+        with self.assertRaisesRegex(TypedSyntaxError, pattern) as ctx:
             self.compile(code)
+        exc = ctx.exception
+        if at is not None:
+            actual = self.clean_code(code).split("\n")[exc.lineno - 1][exc.offset :]
+            if not actual.startswith(at):
+                self.fail(f"Expected error at '{at}', occurred at '{actual}'")
+        if lineno is not None:
+            self.assertEqual(exc.lineno, lineno)
+        if offset is not None:
+            self.assertEqual(exc.offset, offset)
+
 
     _temp_mod_num = 0
 

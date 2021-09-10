@@ -62,6 +62,9 @@ class CompilerTest(TestCase):
                     msg = f"({opname},{argval!r}) occurs in bytecode:\n{disassembly}"
                     self.fail(msg)
 
+    def clean_code(self, code: str) -> str:
+        return inspect.cleandoc("\n" + code)
+
     def compile(
         self,
         code,
@@ -71,9 +74,8 @@ class CompilerTest(TestCase):
         peephole_enabled=True,
         ast_optimizer_enabled=True,
     ):
-        code = inspect.cleandoc("\n" + code)
         gen = make_compiler(
-            code,
+            self.clean_code(code),
             "",
             "exec",
             generator=generator,

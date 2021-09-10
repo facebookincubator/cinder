@@ -217,11 +217,10 @@ class TypeBinder(GenericVisitor):
         module_name: str,
         optimize: int = 0,
     ) -> None:
-        super().__init__(module_name, filename, symtable)
+        module = symtable[module_name]
+        super().__init__(module)
         self.symbols = symbols
         self.scopes: List[BindingScope] = []
-        self.symtable = symtable
-        self.cur_mod: ModuleTable = symtable[module_name]
         self.optimize = optimize
         self.terminals: Dict[AST, TerminalKind] = {}
         self.inline_depth = 0
@@ -253,7 +252,7 @@ class TypeBinder(GenericVisitor):
         return local_type
 
     def maybe_get_current_class(self) -> Optional[Class]:
-        current: ModuleTable | Class = self.cur_mod
+        current: ModuleTable | Class = self.module
         result = None
         for scope in self.scopes:
             node = scope.node
@@ -275,7 +274,7 @@ class TypeBinder(GenericVisitor):
         return None
 
     def get_final_literal(self, node: AST) -> Optional[ast.Constant]:
-        return self.cur_mod.get_final_literal(node, self.symbols.scopes[self.scope])
+        return self.module.get_final_literal(node, self.symbols.scopes[self.scope])
 
     def declare_local(
         self,
@@ -309,16 +308,16 @@ class TypeBinder(GenericVisitor):
                 if stmt.module == "__static__.compiler_flags":
                     for name in stmt.names:
                         if name.name == "checked_dicts":
-                            self.cur_mod.flags.add(ModuleFlag.CHECKED_DICTS)
+                            self.module.flags.add(ModuleFlag.CHECKED_DICTS)
                         elif name.name == "checked_lists":
-                            self.cur_mod.flags.add(ModuleFlag.CHECKED_LISTS)
+                            self.module.flags.add(ModuleFlag.CHECKED_LISTS)
                         elif name.name in ("noframe", "shadow_frame"):
-                            self.cur_mod.flags.add(ModuleFlag.SHADOW_FRAME)
+                            self.module.flags.add(ModuleFlag.SHADOW_FRAME)
 
     def visitModule(self, node: Module) -> None:
         self.scopes.append(
             ModuleBindingScope(
-                node, self.cur_mod, generic_types=self.symtable.generic_types
+                node, self.module, generic_types=self.symtable.generic_types
             )
         )
 
@@ -343,7 +342,7 @@ class TypeBinder(GenericVisitor):
                 self.visitExpectedType(
                     ann, DYNAMIC, "argument annotation cannot be a primitive"
                 )
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+                arg_type = self.module.resolve_annotation(ann) or DYNAMIC_TYPE
             elif arg.arg in scope.decl_types:
                 # Already handled self
                 default_index += 1
@@ -366,7 +365,7 @@ class TypeBinder(GenericVisitor):
                 self.visitExpectedType(
                     ann, DYNAMIC, "argument annotation cannot be a primitive"
                 )
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+                arg_type = self.module.resolve_annotation(ann) or DYNAMIC_TYPE
             elif arg.arg in scope.decl_types:
                 # Already handled self
                 default_index += 1
@@ -401,7 +400,7 @@ class TypeBinder(GenericVisitor):
                 self.visitExpectedType(
                     ann, DYNAMIC, "argument annotation cannot be a primitive"
                 )
-                arg_type = self.cur_mod.resolve_annotation(ann) or DYNAMIC_TYPE
+                arg_type = self.module.resolve_annotation(ann) or DYNAMIC_TYPE
             else:
                 arg_type = DYNAMIC_TYPE
 
@@ -453,11 +452,11 @@ class TypeBinder(GenericVisitor):
 
         self._visitParameters(node.args, scope)
 
-        returns = None if node.args in self.cur_mod.dynamic_returns else node.returns
+        returns = None if node.args in self.module.dynamic_returns else node.returns
         if returns:
             # We store the return type on the node for the function as we otherwise
             # don't need to store type information for it
-            expected = self.cur_mod.resolve_annotation(returns) or DYNAMIC_TYPE
+            expected = self.module.resolve_annotation(returns) or DYNAMIC_TYPE
             if isinstance(node, AsyncFunctionDef):
                 expected = AWAITABLE_TYPE.make_generic_type(
                     (expected,), self.symtable.generic_types
@@ -517,17 +516,17 @@ class TypeBinder(GenericVisitor):
         node: AST,
         type: Value,
     ) -> None:
-        self.cur_mod.types[node] = type
+        self.module.types[node] = type
 
     def get_type(self, node: AST) -> Value:
-        assert node in self.cur_mod.types, f"node not found: {node}, {node.lineno}"
-        return self.cur_mod.types[node]
+        assert node in self.module.types, f"node not found: {node}, {node.lineno}"
+        return self.module.types[node]
 
     def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
-        return cast(TType, self.cur_mod.node_data[key, data_type])
+        return cast(TType, self.module.node_data[key, data_type])
 
     def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
-        self.cur_mod.node_data[key, data_type] = value
+        self.module.node_data[key, data_type] = value
 
     def check_primitive_scope(self, node: Name) -> None:
         cur_scope = self.symbols.scopes[self.scope]
@@ -591,7 +590,7 @@ class TypeBinder(GenericVisitor):
 
         target = node.target
         comp_type = (
-            self.cur_mod.resolve_annotation(node.annotation, is_declaration=True)
+            self.module.resolve_annotation(node.annotation, is_declaration=True)
             or DYNAMIC_TYPE
         )
         is_final = False
@@ -900,7 +899,7 @@ class TypeBinder(GenericVisitor):
     ) -> Value:
         if not isinstance(type_ctx, CheckedDictInstance):
             if (
-                ModuleFlag.CHECKED_DICTS in self.cur_mod.flags
+                ModuleFlag.CHECKED_DICTS in self.module.flags
                 and key_type is not None
                 and value_type is not None
             ):
@@ -946,7 +945,7 @@ class TypeBinder(GenericVisitor):
         type_ctx: Optional[Class],
     ) -> Value:
         if not isinstance(type_ctx, CheckedListInstance):
-            if ModuleFlag.CHECKED_LISTS in self.cur_mod.flags and item_type is not None:
+            if ModuleFlag.CHECKED_LISTS in self.module.flags and item_type is not None:
                 typ = CHECKED_LIST_TYPE.make_generic_type(
                     (item_type.klass.inexact_type(),),
                     self.symtable.generic_types,
@@ -1280,7 +1279,7 @@ class TypeBinder(GenericVisitor):
             var_type = self.local_types.get(node.id, DYNAMIC)
             self.set_type(node, var_type)
         else:
-            self.set_type(node, self.cur_mod.resolve_name(node.id) or DYNAMIC)
+            self.set_type(node, self.module.resolve_name(node.id) or DYNAMIC)
 
         type = self.get_type(node)
         if (
@@ -1353,7 +1352,7 @@ class TypeBinder(GenericVisitor):
                 func_returns = func.returns
                 if func_returns:
                     expected = (
-                        self.cur_mod.resolve_annotation(func_returns) or DYNAMIC_TYPE
+                        self.module.resolve_annotation(func_returns) or DYNAMIC_TYPE
                     ).instance
 
             self.visit(value, expected)

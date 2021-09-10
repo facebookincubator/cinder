@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import ast
 from ast import AST, ClassDef, Subscript, Index, Name, NameConstant
+from contextlib import nullcontext
 from enum import Enum
 from functools import partial
 from typing import (
     Callable as typingCallable,
+    ContextManager,
     Dict,
     List,
     Optional,
@@ -76,6 +78,11 @@ class ModuleTable:
     def syntax_error(self, msg: str, node: AST) -> None:
         return self.symtable.error_sink.syntax_error(msg, self.filename, node)
 
+    def error_context(self, node: Optional[AST]) -> ContextManager[None]:
+        if node is None:
+            return nullcontext()
+        return self.symtable.error_sink.error_context(self.filename, node)
+
     def declare_class(self, node: ClassDef, klass: Class) -> None:
         self.decls.append((node, klass))
         self.children[node.name] = klass
@@ -88,7 +95,7 @@ class ModuleTable:
     def finish_bind(self) -> None:
         self.first_pass_done = True
         for node, value in self.decls:
-            with self.symtable.error_sink.error_context(self.filename, node):
+            with self.error_context(node):
                 if value is not None:
                     value.finish_bind(self)
                 elif isinstance(node, ast.AnnAssign):
@@ -175,7 +182,7 @@ class ModuleTable:
             "so that all imports and types are available."
         )
 
-        with self.symtable.error_sink.error_context(self.filename, node):
+        with self.error_context(node):
             klass = self._resolve_annotation(node)
 
             if not is_declaration:
