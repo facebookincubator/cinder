@@ -1112,6 +1112,8 @@ class TypeBinder(GenericVisitor):
             self.visit(gen.iter)
             iter_type = self.get_type(gen.iter).get_iter_type(gen.iter, self)
             self.assign_value(gen.target, iter_type)
+            for if_ in gen.ifs:
+                self.visit(if_)
 
         for elt in elts:
             self.visitExpectedType(

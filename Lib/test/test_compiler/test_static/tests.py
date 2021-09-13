@@ -3624,7 +3624,6 @@ class StaticCompilationTests(StaticTestBase):
             f = mod["f"]
             self.assertEqual(list(f(42)), [42])
 
-
     def test_unknown_annotation(self):
         codestr = """
             def f(a):
@@ -15139,6 +15138,31 @@ class StaticRuntimeTests(StaticTestBase):
                                 f(val)
                         else:
                             self.assertEqual(f(val), val)
+
+    def test_list_comprehension_with_if(self):
+        codestr = """
+        from typing import List
+        def foo() -> List[int]:
+             a = [1, 2, 3, 4]
+             return [x for x in a if x > 2]
+
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["foo"]
+            self.assertEqual(f(), [3, 4])
+
+    def test_nested_list_comprehensions_with_if(self):
+        codestr = """
+        from typing import List
+        def foo() -> List[int]:
+             a = [1, 2, 3, 4]
+             b = [1, 2]
+             return [x * y for x in a for y in b if x > 2]
+
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["foo"]
+            self.assertEqual(f(), [3, 6, 4, 8])
 
 
 if __name__ == "__main__":
