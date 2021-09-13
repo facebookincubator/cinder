@@ -164,7 +164,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     POP_TOP,
     RAISE_VARARGS,
     REFINE_TYPE,
-    RETURN_INT,
+    RETURN_PRIMITIVE,
     RETURN_VALUE,
     ROT_FOUR,
     ROT_THREE,
@@ -471,7 +471,7 @@ static bool should_snapshot(
     case POP_JUMP_IF_TRUE:
     case POP_JUMP_IF_ZERO:
     case POP_JUMP_IF_NONZERO:
-    case RETURN_INT:
+    case RETURN_PRIMITIVE:
     case RETURN_VALUE:
     case RAISE_VARARGS:
     // These instructions only modify frame state and are always safe to
@@ -948,7 +948,7 @@ void HIRBuilder::translate(
           tc.frame.stack.pop();
           break;
         }
-        case RETURN_INT: {
+        case RETURN_PRIMITIVE: {
           Type type = prim_type_to_type(bc_instr.oparg());
           JIT_CHECK(
               type <= irfunc.return_type,

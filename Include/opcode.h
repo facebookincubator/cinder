@@ -157,7 +157,7 @@ extern "C" {
 #define LIST_DEL                194
 #define REFINE_TYPE             195
 #define PRIMITIVE_LOAD_CONST    196
-#define RETURN_INT              197
+#define RETURN_PRIMITIVE        197
 #define LOAD_METHOD_SUPER       198
 #define LOAD_ATTR_SUPER         199
 #define TP_ALLOC                200

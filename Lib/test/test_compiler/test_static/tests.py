@@ -9894,11 +9894,11 @@ class StaticCompilationTests(StaticTestBase):
                 with ctx(codestr) as mod:
                     f = mod.f if strict else mod["f"]
                     g = mod.g if strict else mod["g"]
-                    self.assertInBytecode(f, "RETURN_INT", oparg)
+                    self.assertInBytecode(f, "RETURN_PRIMITIVE", oparg)
                     if box:
-                        self.assertNotInBytecode(g, "RETURN_INT")
+                        self.assertNotInBytecode(g, "RETURN_PRIMITIVE")
                     else:
-                        self.assertInBytecode(g, "RETURN_INT", oparg)
+                        self.assertInBytecode(g, "RETURN_PRIMITIVE", oparg)
                     if error:
                         with self.assertRaisesRegex(RuntimeError, "boom"):
                             g()

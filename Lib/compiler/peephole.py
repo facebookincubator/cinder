@@ -349,7 +349,7 @@ class Optimizer:
             return
         self.fill_nops(op_start, nexti + 1)
 
-    @ophandler("RETURN_VALUE", "RETURN_INT")
+    @ophandler("RETURN_VALUE", "RETURN_PRIMITIVE")
     def opt_return_value(self, instr_index, opcode, op_start, nextop, nexti):
         block_end = instr_index + 1
         block_id = self.blocks[instr_index]

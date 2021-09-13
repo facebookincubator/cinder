@@ -2179,7 +2179,7 @@ main_loop:
             goto exit_returning;
         }
 
-        case TARGET(RETURN_INT): {
+        case TARGET(RETURN_PRIMITIVE): {
             retval = POP();
 
             /* In the interpreter, we always return a boxed int. We have a boxed

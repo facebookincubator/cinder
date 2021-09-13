@@ -294,7 +294,7 @@ class Block:
         block.prev = self
 
     _uncond_transfer = (
-        "RETURN_INT",
+        "RETURN_PRIMITIVE",
         "RETURN_VALUE",
         "RAISE_VARARGS",
         "JUMP_ABSOLUTE",
