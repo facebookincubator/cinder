@@ -107,6 +107,7 @@ from .types import (
     Value,
     OptionalType,
     OptionalInstance,
+    ClassMethodDecorator,
 )
 
 if TYPE_CHECKING:
@@ -328,9 +329,16 @@ class TypeBinder(GenericVisitor):
 
         self.scopes.pop()
 
-    def set_param(self, arg: ast.arg, arg_type: Class, scope: BindingScope) -> None:
-        scope.declare(arg.arg, arg_type.instance)
-        self.set_type(arg, arg_type.instance)
+    def set_param(
+        self,
+        arg: ast.arg,
+        arg_type: Class,
+        scope: BindingScope,
+        is_cls_param: bool = False,
+    ) -> None:
+        typ = arg_type if is_cls_param else arg_type.instance
+        scope.declare(arg.arg, typ)
+        self.set_type(arg, typ)
 
     def _visitParameters(self, args: ast.arguments, scope: BindingScope) -> None:
         default_index = len(args.defaults or []) - (
@@ -449,6 +457,19 @@ class TypeBinder(GenericVisitor):
                     self.set_param(node.args.args[0], klass, scope)
                 else:
                     self.set_param(node.args.args[0], DYNAMIC_TYPE, scope)
+
+        if (
+            len(node.decorator_list) == 1
+            and isinstance(self.get_type(node.decorator_list[0]), ClassMethodDecorator)
+            and isinstance(cur_scope, ClassDef)
+            and node.args.args
+        ):
+            # If we have a classmethod, the first arg is the class itself
+            klass = self.maybe_get_current_class()
+            if klass is not None:
+                self.set_param(node.args.args[0], klass, scope, is_cls_param=True)
+            else:
+                self.set_param(node.args.args[0], DYNAMIC_TYPE, scope)
 
         self._visitParameters(node.args, scope)
 
