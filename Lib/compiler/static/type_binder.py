@@ -332,13 +332,11 @@ class TypeBinder(GenericVisitor):
     def set_param(
         self,
         arg: ast.arg,
-        arg_type: Class,
+        arg_type: Value,
         scope: BindingScope,
-        is_cls_param: bool = False,
     ) -> None:
-        typ = arg_type if is_cls_param else arg_type.instance
-        scope.declare(arg.arg, typ)
-        self.set_type(arg, typ)
+        scope.declare(arg.arg, arg_type)
+        self.set_type(arg, arg_type)
 
     def _visitParameters(self, args: ast.arguments, scope: BindingScope) -> None:
         default_index = len(args.defaults or []) - (
@@ -365,7 +363,7 @@ class TypeBinder(GenericVisitor):
                     args.defaults[default_index],
                 )
             default_index += 1
-            self.set_param(arg, arg_type, scope)
+            self.set_param(arg, arg_type.instance, scope)
 
         for arg in args.args:
             ann = arg.annotation
@@ -389,7 +387,7 @@ class TypeBinder(GenericVisitor):
                     args.defaults[default_index],
                 )
             default_index += 1
-            self.set_param(arg, arg_type, scope)
+            self.set_param(arg, arg_type.instance, scope)
 
         vararg = args.vararg
         if vararg:
@@ -399,7 +397,7 @@ class TypeBinder(GenericVisitor):
                     ann, DYNAMIC, "argument annotation cannot be a primitive"
                 )
 
-            self.set_param(vararg, TUPLE_EXACT_TYPE, scope)
+            self.set_param(vararg, TUPLE_EXACT_TYPE.instance, scope)
 
         default_index = len(args.kw_defaults or []) - len(args.kwonlyargs)
         for arg in args.kwonlyargs:
@@ -422,7 +420,7 @@ class TypeBinder(GenericVisitor):
                         default,
                     )
             default_index += 1
-            self.set_param(arg, arg_type, scope)
+            self.set_param(arg, arg_type.instance, scope)
 
         kwarg = args.kwarg
         if kwarg:
@@ -431,7 +429,7 @@ class TypeBinder(GenericVisitor):
                 self.visitExpectedType(
                     ann, DYNAMIC, "argument annotation cannot be a primitive"
                 )
-            self.set_param(kwarg, DICT_EXACT_TYPE, scope)
+            self.set_param(kwarg, DICT_EXACT_TYPE.instance, scope)
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         scope = BindingScope(node, generic_types=self.symtable.generic_types)
@@ -454,9 +452,9 @@ class TypeBinder(GenericVisitor):
             else:
                 klass = self.maybe_get_current_class()
                 if klass is not None:
-                    self.set_param(node.args.args[0], klass, scope)
+                    self.set_param(node.args.args[0], klass.instance, scope)
                 else:
-                    self.set_param(node.args.args[0], DYNAMIC_TYPE, scope)
+                    self.set_param(node.args.args[0], DYNAMIC, scope)
 
         if (
             len(node.decorator_list) == 1
@@ -467,9 +465,9 @@ class TypeBinder(GenericVisitor):
             # If we have a classmethod, the first arg is the class itself
             klass = self.maybe_get_current_class()
             if klass is not None:
-                self.set_param(node.args.args[0], klass, scope, is_cls_param=True)
+                self.set_param(node.args.args[0], klass, scope)
             else:
-                self.set_param(node.args.args[0], DYNAMIC_TYPE, scope)
+                self.set_param(node.args.args[0], DYNAMIC, scope)
 
         self._visitParameters(node.args, scope)
 
