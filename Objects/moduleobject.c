@@ -1299,6 +1299,10 @@ strictmodule_lookupattro(PyStrictModuleObject *m, PyObject *name, int suppress)
         /* This is a data descriptor, it always takes precedence over
          * an entry in __dict__ */
         return strict_module_name_get((PyObject *) m, NULL);
+    } else if (PyUnicode_GET_LENGTH(name) == 17 &&
+               PyUnicode_READ_CHAR(name, 0) == '_' &&
+               _PyUnicode_EqualToASCIIString(name, "__patch_enabled__")) {
+        return strict_module_patch_enabled((PyObject *)m, NULL);
     } else {
         /* Otherwise we have no other data descriptors, just look in the
          * dictionary  and elide the _PyType_Lookup */
