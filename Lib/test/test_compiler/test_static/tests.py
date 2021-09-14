@@ -12,15 +12,11 @@ import unittest
 import warnings
 from array import array
 from collections import UserDict
-from compiler import consts, walk
 from compiler.consts import CO_SHADOW_FRAME, CO_STATICALLY_COMPILED
-from compiler.optimizer import AstOptimizer
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
 from compiler.static import StaticCodeGenerator
-from compiler.static.declaration_visitor import DeclarationVisitor
 from compiler.static.errors import CollectingErrorSink
 from compiler.static.symbol_table import SymbolTable
-from compiler.static.type_binder import TypeBinder
 from compiler.static.types import (
     prim_name_to_type,
     AWAITABLE_TYPE,
@@ -112,7 +108,6 @@ from compiler.static.types import (
 )
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.runtime import set_freeze_enabled
-from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
 from copy import deepcopy
 from io import StringIO
@@ -2242,69 +2237,6 @@ class StaticCompilationTests(StaticTestBase):
         self.assertFalse(STATIC_METHOD_TYPE.is_exact)
         self.assertFalse(NAMED_TUPLE_TYPE.is_exact)
 
-    def test_issubclass_builtin_types(self):
-        self.assertTrue(INT_TYPE.issubclass(INT_TYPE))
-        self.assertTrue(INT_TYPE.issubclass(BOOL_TYPE))
-        self.assertFalse(INT_TYPE.issubclass(STR_TYPE))
-
-        self.assertFalse(BOOL_TYPE.issubclass(INT_TYPE))
-        self.assertTrue(BOOL_TYPE.issubclass(BOOL_TYPE))
-        self.assertFalse(BOOL_TYPE.issubclass(STR_TYPE))
-
-        self.assertFalse(STR_TYPE.issubclass(INT_TYPE))
-        self.assertFalse(STR_TYPE.issubclass(BOOL_TYPE))
-        self.assertTrue(STR_TYPE.issubclass(STR_TYPE))
-
-    def test_issubclass_with_awaitable_covariant(self):
-        mod, syms, typebinder = self.bind_module("class Num(int): pass", 0)
-        num = syms.modules["foo"].children["Num"]
-        awaitable_bool = AWAITABLE_TYPE.make_generic_type(
-            (BOOL_TYPE,), syms.generic_types
-        )
-        awaitable_int = AWAITABLE_TYPE.make_generic_type(
-            (INT_TYPE,), syms.generic_types
-        )
-        awaitable_num = AWAITABLE_TYPE.make_generic_type((num,), syms.generic_types)
-
-        self.assertTrue(awaitable_bool.issubclass(awaitable_bool))
-        self.assertFalse(awaitable_bool.issubclass(awaitable_int))
-        self.assertFalse(awaitable_bool.issubclass(awaitable_num))
-
-        self.assertTrue(awaitable_int.issubclass(awaitable_bool))
-        self.assertTrue(awaitable_int.issubclass(awaitable_int))
-        self.assertTrue(awaitable_int.issubclass(awaitable_num))
-
-        self.assertFalse(awaitable_num.issubclass(awaitable_bool))
-        self.assertFalse(awaitable_num.issubclass(awaitable_int))
-        self.assertTrue(awaitable_num.issubclass(awaitable_num))
-
-    def test_issubclass_with_union_self(self):
-        int_or_str = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), {})
-        self.assertTrue(int_or_str.issubclass(INT_TYPE))
-        self.assertTrue(int_or_str.issubclass(STR_TYPE))
-        self.assertFalse(INT_TYPE.issubclass(int_or_str))
-        self.assertFalse(STR_TYPE.issubclass(int_or_str))
-
-    def test_issubclass_with_union_self_and_source(self):
-        generic_types = {}
-        int_or_str = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), generic_types)
-        str_or_tuple = UNION_TYPE.make_generic_type(
-            (STR_TYPE, TUPLE_TYPE), generic_types
-        )
-        int_or_str_or_tuple = UNION_TYPE.make_generic_type(
-            (INT_TYPE, STR_TYPE, TUPLE_TYPE), generic_types
-        )
-        self.assertTrue(int_or_str_or_tuple.issubclass(int_or_str))
-        self.assertTrue(int_or_str_or_tuple.issubclass(str_or_tuple))
-        self.assertFalse(int_or_str.issubclass(str_or_tuple))
-        self.assertFalse(int_or_str.issubclass(int_or_str_or_tuple))
-        self.assertFalse(str_or_tuple.issubclass(int_or_str))
-        self.assertFalse(str_or_tuple.issubclass(int_or_str_or_tuple))
-
-    def test_union_with_subclass_returns_superclass(self):
-        bool_or_int = UNION_TYPE.make_generic_type((BOOL_TYPE, INT_TYPE), {})
-        self.assertIs(bool_or_int, INT_TYPE)
-
     def test_if_exp(self) -> None:
         mod, syms, _ = self.bind_module(
             """
@@ -2362,56 +2294,6 @@ class StaticCompilationTests(StaticTestBase):
         )
         modtable = syms.modules["foo"]
         self.assertTrue(isinstance(modtable.children["f"], Function))
-
-    def assertReturns(self, code: str, typename: str) -> None:
-        actual = self.bind_final_return(code).name
-        self.assertEqual(actual, typename)
-
-    def bind_final_return(self, code: str) -> Value:
-        mod, syms, _ = self.bind_module(code)
-        types = syms.modules["foo"].types
-        node = mod.body[-1].body[-1].value
-        return types[node]
-
-    def bind_stmt(
-        self, code: str, optimize: bool = False, getter=lambda stmt: stmt
-    ) -> ast.stmt:
-        mod, syms, _ = self.bind_module(code, optimize)
-        assert len(mod.body) == 1
-        types = syms.modules["foo"].types
-        return types[getter(mod.body[0])]
-
-    def bind_expr(self, code: str, optimize: bool = False) -> Value:
-        mod, syms, _ = self.bind_module(code, optimize)
-        assert len(mod.body) == 1
-        types = syms.modules["foo"].types
-        return types[mod.body[0].value]
-
-    def bind_module(
-        self, code: str, optimize: int = 0
-    ) -> Tuple[ast.Module, SymbolTable, TypeBinder]:
-        tree = ast.parse(dedent(code))
-        if optimize:
-            tree = AstOptimizer().visit(tree)
-
-        symtable = SymbolTable(StaticCodeGenerator)
-        decl_visit = DeclarationVisitor("foo", "foo.py", symtable)
-        decl_visit.visit(tree)
-        decl_visit.module.finish_bind()
-
-        s = SymbolVisitor()
-        walk(tree, s)
-
-        type_binder = TypeBinder(s, "foo.py", symtable, "foo", optimize=optimize)
-        type_binder.visit(tree)
-
-        # Make sure we can compile the code, just verifying all nodes are
-        # visited.
-        graph = StaticCodeGenerator.flow_graph("foo", "foo.py", s.scopes[tree])
-        code_gen = StaticCodeGenerator(None, tree, s, graph, symtable, "foo", optimize)
-        code_gen.visit(tree)
-
-        return tree, symtable, type_binder
 
     def assertMatch(self, error: Exception, pattern: str):
         self.assertTrue(isinstance(error, TypedSyntaxError))
@@ -4375,22 +4257,6 @@ class StaticCompilationTests(StaticTestBase):
                 return o
             """,
             "int",
-        )
-
-    def test_union_isinstance_tuple(self):
-        self.assertReturns(
-            """
-            class A: pass
-            class B: pass
-            class C: pass
-
-            def f(x: A, y: B, z: C):
-                o = x or y or z
-                if isinstance(o, (A, B)):
-                    return 1
-                return o
-            """,
-            "foo.C",
         )
 
     def test_union_no_arg_check(self):

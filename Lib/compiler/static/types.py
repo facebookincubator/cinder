@@ -1074,7 +1074,9 @@ class Class(Object["Class"]):
         implement a more efficient form of interface dispatch than doing the dictionary
         lookup for the member."""
         return src is self or (
-            not self.is_exact and not isinstance(src, CType) and self.issubclass(src)
+            not self.is_exact
+            and not isinstance(src, CType)
+            and src.is_subclass_of(self)
         )
 
     def __repr__(self) -> str:
@@ -1087,12 +1089,15 @@ class Class(Object["Class"]):
         return self
 
     def isinstance(self, src: Value) -> bool:
-        return self.issubclass(src.klass)
+        return src.klass.is_subclass_of(self)
 
-    def issubclass(self, src: Class) -> bool:
+    def is_subclass_of(self, src: Class) -> bool:
         if isinstance(src, UnionType):
-            return all(self.issubclass(t) for t in src.type_args)
-        return self.inexact_type() in src.mro_inexact
+            # This is an important subtlety - we want the subtyping relation to satisfy
+            # self < A | B if either self < A or self < B. Requiring both wouldn't be correct,
+            # as we want to allow assignments of A into A | B.
+            return any(self.is_subclass_of(t) for t in src.type_args)
+        return src.inexact_type() in self.mro_inexact
 
     def incompatible_override(self, override: Value, inherited: Value) -> bool:
         # TODO: There's more checking we should be doing to ensure
@@ -1377,7 +1382,7 @@ class GenericClass(Class):
         """Gets the generic type definition that defined this class"""
         return self.type_def
 
-    def issubclass(self, src: Class) -> bool:
+    def is_subclass_of(self, src: Class) -> bool:
         type_def = self.generic_type_def
         if src.generic_type_def is not type_def:
             return False
@@ -1390,13 +1395,15 @@ class GenericClass(Class):
         ):
             variance = def_arg.variance
             if variance is Variance.INVARIANT:
-                if self_arg.issubclass(src_arg) and src_arg.issubclass(self_arg):
+                if self_arg.is_subclass_of(src_arg) and src_arg.is_subclass_of(
+                    self_arg
+                ):
                     continue
             elif variance is Variance.COVARIANT:
-                if self_arg.issubclass(src_arg):
+                if self_arg.is_subclass_of(src_arg):
                     continue
             else:
-                if src_arg.issubclass(self_arg):
+                if src_arg.is_subclass_of(self_arg):
                     continue
             return False
 
@@ -4603,11 +4610,12 @@ class UnionType(GenericClass):
             )
         return self
 
-    def issubclass(self, src: Class) -> bool:
-        if isinstance(src, UnionType):
-            return all(self.issubclass(t) for t in src.type_args)
-
-        return any(t.issubclass(src) for t in self.type_args)
+    def is_subclass_of(self, src: Class) -> bool:
+        # The intuitive argument for why we require each element of the union
+        # to be a subclass of src is that we only want to allow assigning a union into a wider
+        # union - using `any()` here would allow you to assign a wide union into one of its
+        # elements.
+        return all(t.is_subclass_of(src) for t in self.type_args)
 
     def make_generic_type(
         self,

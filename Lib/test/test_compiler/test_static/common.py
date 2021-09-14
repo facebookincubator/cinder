@@ -4,12 +4,19 @@ import compiler.strict
 import gc
 import inspect
 import sys
+from compiler import consts, walk
+from compiler.optimizer import AstOptimizer
 from compiler.static import StaticCodeGenerator
+from compiler.static.declaration_visitor import DeclarationVisitor
 from compiler.static.symbol_table import SymbolTable
-from compiler.static.types import TypedSyntaxError
+from compiler.static.type_binder import TypeBinder
+from compiler.static.types import TypedSyntaxError, Value
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.runtime import set_freeze_enabled
+from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
+from textwrap import dedent
+from typing import Tuple
 
 import cinder
 from cinder import StrictModule
@@ -74,7 +81,6 @@ class StaticTestBase(CompilerTest):
             self.assertEqual(exc.lineno, lineno)
         if offset is not None:
             self.assertEqual(exc.offset, offset)
-
 
     _temp_mod_num = 0
 
@@ -224,6 +230,56 @@ class StaticTestBase(CompilerTest):
                 await func()
 
         asyncio.run(make_hot())
+
+    def assertReturns(self, code: str, typename: str) -> None:
+        actual = self.bind_final_return(code).name
+        self.assertEqual(actual, typename)
+
+    def bind_final_return(self, code: str) -> Value:
+        mod, syms, _ = self.bind_module(code)
+        types = syms.modules["foo"].types
+        node = mod.body[-1].body[-1].value
+        return types[node]
+
+    def bind_stmt(
+        self, code: str, optimize: bool = False, getter=lambda stmt: stmt
+    ) -> ast.stmt:
+        mod, syms, _ = self.bind_module(code, optimize)
+        assert len(mod.body) == 1
+        types = syms.modules["foo"].types
+        return types[getter(mod.body[0])]
+
+    def bind_expr(self, code: str, optimize: bool = False) -> Value:
+        mod, syms, _ = self.bind_module(code, optimize)
+        assert len(mod.body) == 1
+        types = syms.modules["foo"].types
+        return types[mod.body[0].value]
+
+    def bind_module(
+        self, code: str, optimize: int = 0
+    ) -> Tuple[ast.Module, SymbolTable, TypeBinder]:
+        tree = ast.parse(dedent(code))
+        if optimize:
+            tree = AstOptimizer().visit(tree)
+
+        symtable = SymbolTable(StaticCodeGenerator)
+        decl_visit = DeclarationVisitor("foo", "foo.py", symtable)
+        decl_visit.visit(tree)
+        decl_visit.module.finish_bind()
+
+        s = SymbolVisitor()
+        walk(tree, s)
+
+        type_binder = TypeBinder(s, "foo.py", symtable, "foo", optimize=optimize)
+        type_binder.visit(tree)
+
+        # Make sure we can compile the code, just verifying all nodes are
+        # visited.
+        graph = StaticCodeGenerator.flow_graph("foo", "foo.py", s.scopes[tree])
+        code_gen = StaticCodeGenerator(None, tree, s, graph, symtable, "foo", optimize)
+        code_gen.visit(tree)
+
+        return tree, symtable, type_binder
 
     @classmethod
     def setUpClass(cls):
