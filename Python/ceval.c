@@ -4390,10 +4390,11 @@ main_loop:
             if (field_type == TYPED_OBJECT) {
                 value = *FIELD_OFFSET(self, offset);
                 if (shadow.shadow != NULL) {
+                    assert(offset % sizeof(PyObject *) == 0);
                     _PyShadow_PatchByteCode(&shadow,
                                             next_instr,
                                             LOAD_OBJ_FIELD,
-                                            offset / sizeof(Py_ssize_t));
+                                            offset / sizeof(PyObject *));
                 }
 
                 if (value == NULL) {
@@ -4426,7 +4427,7 @@ main_loop:
         }
 
         case TARGET(LOAD_OBJ_FIELD): {
-            PyObject **addr = FIELD_OFFSET(TOP(), oparg * sizeof(Py_ssize_t));
+            PyObject **addr = FIELD_OFFSET(TOP(), oparg * sizeof(PyObject *));
             PyObject *value = *addr;
             if (value == NULL) {
                 PyErr_SetString(PyExc_AttributeError, "no attribute");
@@ -4469,10 +4470,11 @@ main_loop:
                 Py_XDECREF(*addr);
                 *addr = value;
                 if (shadow.shadow != NULL) {
+                    assert(offset % sizeof(PyObject *) == 0);
                     _PyShadow_PatchByteCode(&shadow,
                                            next_instr,
                                            STORE_OBJ_FIELD,
-                                           offset / sizeof(Py_ssize_t));
+                                           offset / sizeof(PyObject *));
                 }
             } else {
                 if (shadow.shadow != NULL) {
@@ -4490,7 +4492,7 @@ main_loop:
         }
 
         case TARGET(STORE_OBJ_FIELD): {
-            Py_ssize_t offset = oparg * sizeof(Py_ssize_t);
+            Py_ssize_t offset = oparg * sizeof(PyObject *);
             PyObject *self = POP();
             PyObject *value = POP();
             PyObject **addr = FIELD_OFFSET(self, offset);

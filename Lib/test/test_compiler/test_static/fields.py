@@ -7,6 +7,9 @@ from .common import StaticTestBase
 from .tests import type_mismatch
 
 
+SHADOWCODE_REPETITIONS = 100
+
+
 class StaticFieldTests(StaticTestBase):
     def test_slotification(self):
         codestr = """
@@ -191,6 +194,29 @@ class StaticFieldTests(StaticTestBase):
             x = C(False)
             self.assertEqual(x.f(), 0)
             self.assertInBytecode(C.f, "LOAD_FIELD", (mod["__name__"], "C", "value"))
+
+    def test_aligned_subclass_field(self):
+        codestr = """
+            from __static__ import cbool
+
+            class Parent:
+                def __init__(self):
+                    self.running: cbool = False
+
+            class Child(Parent):
+                def __init__(self):
+                    Parent.__init__(self)
+                    self.end = "bloop"
+        """
+
+        with self.in_module(codestr) as mod:
+            Child = mod["Child"]
+            self.assertInBytecode(
+                Child.__init__, "STORE_FIELD", (mod["__name__"], "Child", "end")
+            )
+            for i in range(SHADOWCODE_REPETITIONS):
+                c = Child()
+                self.assertEqual(c.end, "bloop")
 
     def test_error_incompat_assign_local(self):
         codestr = """

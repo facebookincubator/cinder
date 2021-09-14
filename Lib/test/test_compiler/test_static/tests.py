@@ -11496,7 +11496,7 @@ class StaticRuntimeTests(StaticTestBase):
             (("__static__", "cbool"), False, 1, [True], [], ["abc", 1]),
         ]
 
-        base_size = self.base_size
+        target_size = self.base_size + 8
         for type_spec, default, size, test_vals, warn_vals, err_vals in slot_types:
             with self.subTest(
                 type_spec=type_spec,
@@ -11507,27 +11507,32 @@ class StaticRuntimeTests(StaticTestBase):
                 err_vals=err_vals,
             ):
 
+                # Since object sizes are aligned to 8 bytes, figure out how
+                # many slots of each type we need to get to 8 bytes.
+                self.assertEqual(8 % size, 0)
+                num_slots = 8 // size
+
                 class C:
-                    __slots__ = ("a",)
-                    __slot_types__ = {"a": type_spec}
+                    __slots__ = tuple(f"a{i}" for i in range(num_slots))
+                    __slot_types__ = {f"a{i}": type_spec for i in range(num_slots)}
 
                 a = C()
-                self.assertEqual(sys.getsizeof(a), base_size + size, type)
-                self.assertEqual(a.a, default)
-                self.assertEqual(type(a.a), type(default))
+                self.assertEqual(sys.getsizeof(a), target_size, type_spec)
+                self.assertEqual(a.a0, default)
+                self.assertEqual(type(a.a0), type(default))
                 for val in test_vals:
-                    a.a = val
-                    self.assertEqual(a.a, val)
+                    a.a0 = val
+                    self.assertEqual(a.a0, val)
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("error", category=RuntimeWarning)
                     for val in warn_vals:
                         with self.assertRaises(RuntimeWarning):
-                            a.a = val
+                            a.a0 = val
 
                 for val in err_vals:
                     with self.assertRaises((TypeError, OverflowError)):
-                        a.a = val
+                        a.a0 = val
 
     def test_invoke_function(self):
         my_int = "12345"

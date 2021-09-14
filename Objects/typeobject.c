@@ -3093,6 +3093,10 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
             slotoffset += slotsize;
         }
     }
+
+    /* Round slotoffset up so any child class layouts start properly aligned. */
+    slotoffset = _Py_SIZE_ROUND_UP(slotoffset, sizeof(PyObject *));
+
     if (add_dict) {
         if (base->tp_itemsize)
             type->tp_dictoffset = -(long)sizeof(PyObject *);
