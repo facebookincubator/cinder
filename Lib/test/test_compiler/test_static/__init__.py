@@ -10,3 +10,4 @@ from .walrus_operator import WalrusOperatorTests  # usort:skip
 from .fields import StaticFieldTests  # usort:skip
 from .cached_property import CachedPropertyTests  # usort:skip
 from .decl_visitor import DeclarationVisitorTests  # usort:skip
+from .union import UnionCompilationTests  # usort:skip

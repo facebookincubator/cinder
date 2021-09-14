@@ -1090,6 +1090,8 @@ class Class(Object["Class"]):
         return self.issubclass(src.klass)
 
     def issubclass(self, src: Class) -> bool:
+        if isinstance(src, UnionType):
+            return all(self.issubclass(t) for t in src.type_args)
         return self.inexact_type() in src.mro_inexact
 
     def incompatible_override(self, override: Value, inherited: Value) -> bool:
@@ -4604,6 +4606,7 @@ class UnionType(GenericClass):
     def issubclass(self, src: Class) -> bool:
         if isinstance(src, UnionType):
             return all(self.issubclass(t) for t in src.type_args)
+
         return any(t.issubclass(src) for t in self.type_args)
 
     def make_generic_type(
