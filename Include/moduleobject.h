@@ -91,9 +91,10 @@ typedef struct {
     PyObject *df_level;
     PyObject *df_obj;
     PyObject *df_next;
+    int df_resolving;
 } PyDeferredObject;
 
-int PyDeferred_Compare(PyObject* deferred, PyObject *mod_dict, PyObject *name);
+int PyDeferred_Compare(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name);
 
 typedef struct {
     PyObject_HEAD

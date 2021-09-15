@@ -8117,10 +8117,6 @@ import_all_from(PyThreadState *tstate, PyFrameObject *f, PyObject *v)
             value = PyDict_GetUnresolvedItem(dict, name);
             if (value != NULL) {
                 if (PyDeferred_CheckExact(value)) {
-                    if (PyDeferred_Compare(value, f->f_globals, name) == 0) {
-                        /* avoid importing deferred objects that point to themselves */
-                        continue;
-                    }
                     _PyDict_SetHasDeferredObjects(f->f_globals);
                 }
                 Py_INCREF(value);

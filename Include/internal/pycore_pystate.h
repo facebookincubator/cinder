@@ -83,6 +83,7 @@ struct _is {
     PyObject *sysdict;
     PyObject *builtins;
     PyObject *importlib;
+    PyObject *lazy_loaded;
 
     /* Used in Python/sysmodule.c. */
     int check_interval;

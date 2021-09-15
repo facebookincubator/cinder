@@ -5762,8 +5762,11 @@ top:
     if (UNLIKELY(DICT_HAS_DEFERRED(mp))) {
         if (new_value || PyDeferred_CheckExact(value)) {
             if (new_value == NULL) {
-                if (PyDeferred_Compare(value, op, key) == 0) {
-                    return NULL;
+                if (PyDeferred_Compare((PyDeferredObject *)value, op, key)) {
+                    if (((PyDeferredObject *)value)->df_resolving) {
+                        return NULL;
+                    }
+                    ((PyDeferredObject *)value)->df_resolving = 1;
                 }
                 PyObject *startkey = ep->me_key;
                 Py_INCREF(startkey);

@@ -276,6 +276,7 @@ _PyInterpreterState_Clear(_PyRuntimeState *runtime, PyInterpreterState *interp)
     Py_CLEAR(interp->builtins);
     Py_CLEAR(interp->builtins_copy);
     Py_CLEAR(interp->importlib);
+    Py_CLEAR(interp->lazy_loaded);
     Py_CLEAR(interp->import_func);
     Py_CLEAR(interp->dict);
 #ifdef HAVE_FORK
