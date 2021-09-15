@@ -16,7 +16,6 @@ from ast import (
 from types import CodeType
 from typing import Optional, List, Mapping
 
-# pyre-fixme [21]
 from _strictmodule import MUTABLE_DECORATOR
 
 from .. import symbols

@@ -1,20 +1,20 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-# pyre-unsafe
+from __future__ import annotations
 import ast
 import operator
 import sys
 from ast import Bytes, Constant, Ellipsis, NameConstant, Num, Str, cmpop, copy_location
-from typing import Dict, Iterable, Optional, Type
+from typing import Callable, Dict, Iterable, Mapping, Optional, Type
 
 from .peephole import safe_lshift, safe_mod, safe_multiply, safe_power
 from .visitor import ASTRewriter
 
 
-def is_const(node):
+def is_const(node: ast.AST) -> bool:
     return isinstance(node, (Constant, Num, Str, Bytes, Ellipsis, NameConstant))
 
 
-def get_const_value(node):
+def get_const_value(node: ast.AST) -> object:
     if isinstance(node, (Constant, NameConstant)):
         return node.value
     elif isinstance(node, Num):
@@ -34,20 +34,20 @@ class PyLimits:
     MAX_TOTAL_ITEMS = 1024
 
 
-UNARY_OPS = {
+UNARY_OPS: Mapping[Type[ast.unaryop], Callable[[object], object]] = {
     ast.Invert: operator.invert,
     ast.Not: operator.not_,
     ast.UAdd: operator.pos,
     ast.USub: operator.neg,
 }
-INVERSE_OPS: Dict[Type[cmpop], Type[cmpop]] = {
+INVERSE_OPS: Mapping[Type[cmpop], Type[cmpop]] = {
     ast.Is: ast.IsNot,
     ast.IsNot: ast.Is,
     ast.In: ast.NotIn,
     ast.NotIn: ast.In,
 }
 
-BIN_OPS = {
+BIN_OPS: Mapping[Type[ast.operator], Callable[[object, object], object]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: lambda l, r: safe_multiply(l, r, PyLimits),
@@ -64,15 +64,13 @@ BIN_OPS = {
 
 
 class AstOptimizer(ASTRewriter):
-    def __init__(self, optimize: bool = False):
+    def __init__(self, optimize: bool = False) -> None:
         super().__init__()
         self.optimize = optimize
 
     def visitUnaryOp(self, node: ast.UnaryOp) -> ast.expr:
         op = self.visit(node.operand)
         if is_const(op):
-            # pyre-fixme[6]: Expected `Type[typing.Union[_ast.Invert, _ast.Not,
-            #  _ast.UAdd, _ast.USub]]` for 1st param but got `Type[_ast.unaryop]`.
             conv = UNARY_OPS[type(node.op)]
             val = get_const_value(op)
             try:
@@ -96,10 +94,6 @@ class AstOptimizer(ASTRewriter):
         right = self.visit(node.right)
 
         if is_const(left) and is_const(right):
-            # pyre-fixme[6]: Expected `Type[typing.Union[_ast.Add, _ast.BitAnd,
-            #  _ast.BitOr, _ast.BitXor, _ast.Div, _ast.FloorDiv, _ast.LShift, _ast.Mod,
-            #  _ast.Mult, _ast.Pow, _ast.RShift, _ast.Sub]]` for 1st param but got
-            #  `Type[_ast.operator]`.
             handler = BIN_OPS.get(type(node.op))
             if handler is not None:
                 lval = get_const_value(left)
@@ -139,6 +133,7 @@ class AstOptimizer(ASTRewriter):
         ):
             try:
                 return copy_location(
+                    # pyre-ignore[16] we know this is unsafe, so it's wrapped in try/except
                     Constant(get_const_value(value)[get_const_value(slice.value)]), node
                 )
             except Exception:
@@ -196,13 +191,13 @@ class AstOptimizer(ASTRewriter):
 
         return self.update_node(node, left=left, comparators=comparators)
 
-    def visitName(self, node: ast.Name):
+    def visitName(self, node: ast.Name) -> ast.Name | ast.Constant:
         if node.id == "__debug__":
             return copy_location(Constant(not self.optimize), node)
 
         return self.generic_visit(node)
 
-    def visitAssert(self, node: ast.Assert):
+    def visitAssert(self, node: ast.Assert) -> ast.Assert | None:
         if self.optimize:
             # Skip asserts if we're optimizing
             return None

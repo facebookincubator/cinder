@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Type
 
 try:
-    # pyre-fixme [21]: no module cinder found
     from cinder import freeze_type as cinder_freeze
 except ImportError:
     cinder_freeze = None

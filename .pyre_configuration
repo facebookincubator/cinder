@@ -6,6 +6,9 @@
     "Tools/scripts/facebook/perf",
     "Tools/scripts/facebook/workflow"
   ],
+  "search_path": [
+    "Lib/cinder_stubs"
+  ],
   "unstable_client": "Tools/scripts/pyre/pyre_client",
   "stable_client": "Tools/scripts/pyre/stable/pyre_client",
   "use_command_v2": true,

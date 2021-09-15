@@ -60,6 +60,7 @@ from enum import Enum
 from types import (
     BuiltinFunctionType,
     CodeType,
+    FunctionType,
     MethodDescriptorType,
     WrapperDescriptorType,
 )
@@ -82,8 +83,8 @@ from typing import (
     Callable as typingCallable,
 )
 
-from __static__ import chkdict, chklist  # pyre-ignore[21]: unknown module
-from _static import (  # pyre-fixme[21]: Could not find module `_static`.
+from __static__ import chkdict, chklist
+from _static import (
     TYPED_BOOL,
     TYPED_INT_8BIT,
     TYPED_INT_16BIT,

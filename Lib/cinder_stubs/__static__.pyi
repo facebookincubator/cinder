@@ -1,0 +1,2 @@
+chkdict = dict
+chklist = list

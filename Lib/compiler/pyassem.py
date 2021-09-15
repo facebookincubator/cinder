@@ -13,7 +13,7 @@ from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
 from .peephole import Optimizer
 
 try:
-    import cinder  # pyre-ignore # noqa: F401
+    import cinder
 
     MAX_BYTECODE_OPT_ITERS = 5
 except ImportError:

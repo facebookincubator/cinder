@@ -44,7 +44,7 @@ from typing import (
     cast,
 )
 
-from __static__ import chkdict  # pyre-ignore[21]: unknown module
+from __static__ import chkdict
 
 from .. import consts, symbols, opcode_static
 from ..consts import SC_LOCAL, SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT
@@ -56,6 +56,8 @@ from ..pycodegen import (
     CinderCodeGenerator,
     compile,
     FOR_LOOP,
+    FuncOrLambda,
+    CompNode,
 )
 from ..strict import StrictCodeGenerator, FIXED_MODULES, enable_strict_features
 from ..symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
@@ -178,7 +180,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
     def make_child_codegen(
         self,
-        tree: AST,
+        tree: FuncOrLambda | CompNode | ast.ClassDef,
         graph: PyFlowGraph,
         codegen_type: Optional[Type[CodeGenerator]] = None,
     ) -> CodeGenerator:
@@ -189,7 +191,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
         if ModuleFlag.SHADOW_FRAME in self.cur_mod.flags:
             graph.setFlag(consts.CO_SHADOW_FRAME)
-        gen = StaticCodeGenerator(
+        return StaticCodeGenerator(
             self,
             tree,
             self.symbols,
@@ -198,18 +200,28 @@ class Static38CodeGenerator(StrictCodeGenerator):
             modname=self.modname,
             optimization_lvl=self.optimization_lvl,
         )
-        if not isinstance(tree, ast.ClassDef):
-            self._processArgTypes(tree, gen)
+
+    def make_func_codegen(
+        self,
+        func: FuncOrLambda | CompNode,
+        func_args: ast.arguments,
+        name: str,
+        first_lineno: int,
+    ) -> CodeGenerator:
+        gen = super().make_func_codegen(func, func_args, name, first_lineno)
+        self._processArgTypes(func, func_args, gen)
         return gen
 
-    def _processArgTypes(self, node: AST, gen: Static38CodeGenerator) -> None:
+    def _processArgTypes(
+        self,
+        func: FuncOrLambda | CompNode,
+        args: ast.arguments,
+        gen: CodeGenerator,
+    ) -> None:
         arg_checks = []
         cellvars = gen.graph.cellvars
-        # pyre-fixme[16]: When node is a comprehension (i.e., not a FunctionDef
-        # or Lambda), our caller manually adds an args attribute.
-        args: ast.arguments = node.args
         is_comprehension = not isinstance(
-            node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
+            func, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
         )
 
         for i, arg in enumerate(args.posonlyargs):
@@ -295,7 +307,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
     def make_function_graph(
         self,
-        func: FunctionDef,
+        func: FuncOrLambda | CompNode,
+        func_args: ast.arguments,
         filename: str,
         scopes: Dict[AST, Scope],
         class_name: str,
@@ -303,7 +316,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         first_lineno: int,
     ) -> PyFlowGraph:
         graph = super().make_function_graph(
-            func, filename, scopes, class_name, name, first_lineno
+            func, func_args, filename, scopes, class_name, name, first_lineno
         )
 
         # we tagged the graph as CO_STATICALLY_COMPILED, and the last co_const entry

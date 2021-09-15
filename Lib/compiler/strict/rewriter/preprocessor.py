@@ -10,7 +10,6 @@ from ast import (
 )
 from typing import List, Optional, Tuple, TypeVar
 
-# pyre-fixme[21]
 from _strictmodule import (
     MUTABLE_DECORATOR,
     LOOSE_SLOTS_DECORATOR,

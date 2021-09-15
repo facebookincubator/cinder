@@ -6,7 +6,7 @@ from ast import AST
 from types import CodeType
 from typing import Optional, Dict, Tuple, Type, TYPE_CHECKING
 
-from _static import (  # pyre-fixme[21]: Could not find module `_static`.
+from _static import (
     posix_clock_gettime_ns,
     RAND_MAX,
     rand,
@@ -261,8 +261,10 @@ class SymbolTable:
                     is_final=True,
                 ).instance,
                 "posix_clock_gettime_ns": reflect_builtin_function(
+                    # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
                     posix_clock_gettime_ns
                 ),
+                # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
                 "rand": reflect_builtin_function(rand),
             },
         )
@@ -353,5 +355,5 @@ class SymbolTable:
 
         return code_gen.getCode()
 
-    def import_module(self, name: str) -> None:
+    def import_module(self, name: str) -> Optional[ModuleTable]:
         pass

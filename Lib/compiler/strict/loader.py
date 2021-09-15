@@ -36,27 +36,10 @@ from typing import (
     final,
 )
 
+from cinder import StrictModule
 from .common import FIXED_MODULES, MAGIC_NUMBER
 from .compiler import NONSTRICT_MODULE_KIND, StaticCompiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
-
-
-if TYPE_CHECKING:
-    from abc import ABC
-
-    TVar = TypeVar("TVar")
-
-    @final
-    class Descriptor(ABC, Generic[TVar]):
-        def __get__(self, inst: object, ctx: object = None) -> TVar:
-            # pyre-fixme[7]: Expected `TVar` but got implicit return value of `None`.
-            pass
-
-        def __set__(self, inst: object, value: TVar) -> None:
-            pass
-
-    _globals_slot: Descriptor[MappingProxyType[str, object]]
-    _global_set_slot: Descriptor[Dict[str, object]]
 
 
 _MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2 ** 15).to_bytes(2, "little") + b"\r\n"
@@ -69,124 +52,24 @@ _MAGIC_LEN: int = len(_MAGIC_STRICT)
 
 
 @final
-class StrictModule(ModuleType):
-    __slots__ = ("__globals__", "__global_setter__")
-
-    def __init__(self, d: Dict[str, object], enable_patching: bool) -> None:
-        proxy = MappingProxyType(d)
-
-        _globals_slot.__set__(self, proxy)
-        if enable_patching:
-            _global_set_slot.__set__(self, d)
-
-    @property
-    def __dict__(self) -> Dict[str, Any]:
-        d = _globals_slot.__get__(self)
-        return {
-            k: v
-            for k, v in d.items()
-            if not k.startswith("<") and d.get("<assigned:" + k + ">") is not False
-        }
-
-    # pyre-fixme[3]
-    def __getattr__(self, name: str) -> Any:
-        glbs = _globals_slot.__get__(self)
-        try:
-            try:
-                assigned = glbs.get("<assigned:" + name + ">")
-                if assigned is False:
-                    return object.__getattribute__(self, name)
-                return glbs[name]
-            except KeyError:
-                return object.__getattribute__(self, name)
-        except AttributeError:
-            raise AttributeError(
-                f"strict module '{self.__name__}' has no attribute '{name}'"
-            ) from None
-
-    @property
-    def __name__(self) -> object:
-        glbs = _globals_slot.__get__(self)
-        return glbs.get("__name__", "?")
-
-    def __setattr__(self, name: str, value: object) -> NoReturn:
-        raise AttributeError(
-            f"cannot modify attribute '{name}' of strict module '{self.__name__}'"
-        )
-
-    # pyre-fixme[15]: `__delattr__` overrides method defined in `object` inconsistently.
-    def __delattr__(self, name: str) -> NoReturn:
-        raise AttributeError(
-            f"cannot delete attribute '{name}' of strict module '{self.__name__}'"
-        )
-
-    def __repr__(self) -> str:
-        return f"<module '{self.__name__}' from '{self.__file__}'>"
-
-    def __dir__(self) -> List[str]:
-        return list(self.__dict__)
-
-
-@final
 class _PatchState(Enum):
     """Singleton used for tracking values which have not yet been patched."""
-
     Patched = 1
     Deleted = 2
     Unpatched = 3
 
 
-# Remove the __globals__ slot from the StrictModule type and save the
-# descriptor.  This lets modules still define __globals__ if they want to and
-# makes it more difficult to get
-_globals_slot = cast(
-    "Descriptor[MappingProxyType[str, object]]",
-    # pyre-fixme[16]: `StrictModule` has no attribute `__globals__`.
-    StrictModule.__globals__,
-)
-del StrictModule.__globals__
+# Unfortunately module passed in could be a mock object,
+# which also has a `patch` method that clashes with the StrictModule method.
+# Directly get the function to avoid name clash.
 
 
-# pyre-fixme[16]: `StrictModule` has no attribute `__global_setter__`.
-_global_set_slot = cast("Descriptor[Dict[str, object]]", StrictModule.__global_setter__)
-del StrictModule.__global_setter__
+def _set_patch(module: StrictModule, name: str, value: object) -> None:
+    type(module).patch(module, name, value)
 
 
-try:
-    # pyre-fixme[21]
-    from cinder import StrictModule
-
-    # noqa F811 redefinition to use cinder implementation
-    def _get_global_set(module: StrictModule) -> None:
-        if type(module).__patch_enabled__.__get__(module, type(module)) is not True:
-            raise AttributeError(f"strict module {module} does not allow patching")
-
-    # noqa F811 redefinition to use cinder implementation
-    def _set_patch(module: StrictModule, name: str, value: object) -> None:
-        # Unfortunately module passed in could be a mock object,
-        # which also has a `patch` method that clashes with the StrictModule method
-        # directly get the function to avoid name clash
-        type(module).patch(module, name, value)
-
-    # noqa F811 redefinition to use cinder implementation
-    def _del_patch(module: StrictModule, name: str) -> None:
-        type(module).patch_delete(module, name)
-
-
-except ImportError:
-
-    def _get_global_set(module: StrictModule) -> None:
-        _global_set_slot.__get__(module)
-
-    def _set_patch(module: StrictModule, name: str, value: object) -> None:
-        d = _global_set_slot.__get__(module)
-        d[name] = value
-
-    def _del_patch(module: StrictModule, name: str) -> None:
-        d = _global_set_slot.__get__(module)
-        if name not in d:
-            raise AttributeError(name)
-        del d[name]
+def _del_patch(module: StrictModule, name: str) -> None:
+    type(module).patch_delete(module, name)
 
 
 @final
@@ -204,10 +87,8 @@ class StrictModuleTestingPatchProxy:
         object.__setattr__(
             self, "_final_constants", getattr(module, "__final_constants__", ())
         )
-        try:
-            _get_global_set(module)
-        except AttributeError:
-            raise ValueError("patching of strict modules is disabled")
+        if not type(module).__patch_enabled__.__get__(module, type(module)):
+            raise ValueError(f"strict module {module} does not allow patching")
 
     def __setattr__(self, name: str, value: object) -> None:
         patches = object.__getattribute__(self, "_patches")
@@ -280,7 +161,6 @@ class StrictModuleTestingPatchProxy:
 __builtins__: ModuleType
 
 
-# pyre-fixme[13]: Attribute `path` is never initialized.
 class StrictSourceFileLoader(SourceFileLoader):
     strict: bool = False
     compiler: Optional[StaticCompiler] = None
@@ -305,7 +185,8 @@ class StrictSourceFileLoader(SourceFileLoader):
         ] = None,
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
     ) -> None:
-        super().__init__(fullname, path)
+        self.name = fullname
+        self.path = path
         self.import_path: Iterable[str] = import_path or []
         self.stub_path: str = stub_path
         self.allow_list_prefix: Iterable[str] = allow_list_prefix or []
@@ -329,8 +210,8 @@ class StrictSourceFileLoader(SourceFileLoader):
         allow_list_exact: Iterable[str],
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]],
     ) -> StaticCompiler:
-        if cls.compiler is None:
-            cls.compiler = StaticCompiler(
+        if (comp := cls.compiler) is None:
+            comp = cls.compiler = StaticCompiler(
                 path,
                 stub_path,
                 allow_list_prefix,
@@ -338,8 +219,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 raise_on_error=True,
                 log_time_func=log_time_func,
             )
-        # pyre-fixme[7]: Expected `StaticCompiler` but got `Optional[StaticCompiler]`.
-        return cls.compiler
+        return comp
 
     def get_data(self, path: bytes | str) -> bytes:
         assert isinstance(path, str)
@@ -364,17 +244,15 @@ class StrictSourceFileLoader(SourceFileLoader):
             data = data[_MAGIC_LEN:]
         return data
 
-    # pyre-fixme[14]: `set_data` overrides method defined in `SourceFileLoader` inconsistently.
-    def set_data(self, path: bytes | str, data: bytes, **kwargs: object) -> None:
+    def set_data(self, path: bytes | str, data: bytes, *, _mode=0o666) -> None:
         assert isinstance(path, str)
         if path.endswith(tuple(BYTECODE_SUFFIXES)):
             path = add_strict_tag(path)
             magic = _MAGIC_STRICT if self.strict else _MAGIC_NONSTRICT
             data = magic + data
-        # pyre-fixme[6]: Expected `int` for 3rd param but got `object`.
-        return super().set_data(path, data, **kwargs)
+        return super().set_data(path, data, _mode=_mode)
 
-    # pyre-fixme[40]: Non-static method `source_to_code` cannot override a static
+    # pyre-ignore[40]: Non-static method `source_to_code` cannot override a static
     #  method defined in `importlib.abc.InspectLoader`.
     def source_to_code(
         self, data: bytes | str, path: str, *, _optimize: int = -1
@@ -419,6 +297,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 self.track_import_call,
             )
             self.strict = mod.module_kind != NONSTRICT_MODULE_KIND
+            assert code is not None
             return code
         self.strict = False
 
@@ -443,7 +322,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         # fix up the pyc path
         cached = getattr(module, "__cached__", None)
         if cached:
-            # pyre-fixme[16]: `ModuleType` has no attribute `__cached__`.
+            # pyre-ignore[16]: `ModuleType` has no attribute `__cached__`.
             module.__cached__ = cached = add_strict_tag(cached)
         spec: Optional[ModuleSpec] = module.__spec__
         if cached and spec and spec.cached:

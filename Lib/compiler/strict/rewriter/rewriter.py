@@ -542,7 +542,6 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
     ) -> SymbolScope[TVar, TScopeData]:
         scope_node = scope_node or node
         with self.scopes.with_node_scope(scope_node) as next:
-            # lint-fixme: NoAssertsRule
             assert isinstance(node, Lambda) or node.name == next.symbols.get_name()
 
             # visit body in function scope
@@ -568,7 +567,6 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
     ) -> SymbolScope[TVar, TScopeData]:
         scope_node = scope_node or node
         with self.scopes.with_node_scope(scope_node) as next:
-            # lint-fixme: NoAssertsRule
             assert node.name == next.symbols.get_name()
             # visit body in class scope
             self.walk_many(node.body, update)
@@ -1203,7 +1201,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         self.visit_Class_Outer(node, True)
         class_scope = self.visit_Class_Inner(node, True, scope_node=orig_node)
         scope_data = class_scope.scope_data
-        # lint-fixme: NoAssertsRule
         assert isinstance(scope_data, ClassScope), type(class_scope).__name__
         scope_data.visit_decorators(node)
 

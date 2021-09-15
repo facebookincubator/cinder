@@ -11,6 +11,7 @@ import sys
 from ast import AST, ClassDef
 from builtins import compile as builtin_compile
 from contextlib import contextmanager
+from typing import Union
 
 from . import consts, future, misc, pyassem, symbols
 from .consts import (
@@ -31,7 +32,7 @@ from .consts import (
 )
 from .optimizer import AstOptimizer
 from .pyassem import PyFlowGraph
-from .symbols import SymbolVisitor
+from .symbols import Scope, SymbolVisitor
 from .unparse import to_expr
 from .visitor import ASTVisitor, walk
 
@@ -70,6 +71,10 @@ HANDLER_CLEANUP = 10
 _ZERO = (0).to_bytes(4, "little")
 
 _DEFAULT_MODNAME = sys.intern("<module>")
+
+
+FuncOrLambda = Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda]
+CompNode = Union[ast.SetComp, ast.DictComp, ast.ListComp]
 
 
 def make_header(mtime, size):
@@ -350,7 +355,7 @@ class CodeGenerator(ASTVisitor):
                 future_flags |= consts.CO_FUTURE_ANNOTATIONS
         return future_flags
 
-    def visitModule(self, node):
+    def visitModule(self, node: ast.Module) -> None:
         self.future_flags = self.findFutures(node)
         self.graph.setFlag(self.future_flags)
 
@@ -453,7 +458,7 @@ class CodeGenerator(ASTVisitor):
 
     def _visitFuncOrLambda(
         self,
-        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+        node: FuncOrLambda,
         isLambda: int = 0,
     ) -> None:
         flags = 0
@@ -465,7 +470,7 @@ class CodeGenerator(ASTVisitor):
             assert not isinstance(node, ast.Lambda)
             name, ndecorators, first_lineno = self._process_decorators(node)
 
-        gen = self.make_func_codegen(node, name, first_lineno)
+        gen = self.make_func_codegen(node, node.args, name, first_lineno)
         body = node.body
 
         self.processBody(node, body, gen)
@@ -528,7 +533,7 @@ class CodeGenerator(ASTVisitor):
             self._visitAnnotation(arg.annotation)
             ann_args.append(self.mangle(arg.arg))
 
-    def visitClassDef(self, node):
+    def visitClassDef(self, node: ast.ClassDef) -> None:
         self.set_lineno(node)
         first_lineno = None
         immutability_flag = self.find_immutability_flag(node)
@@ -931,11 +936,18 @@ class CodeGenerator(ASTVisitor):
     def conjure_arguments(self, args: List[ast.arg]) -> ast.arguments:
         return ast.arguments([], args, None, [], [], None, [])
 
-    def compile_comprehension(self, node, name, elt, val, opcode, oparg=0):
-        node.args = self.conjure_arguments([ast.arg(".0", None)])
-        node.body = []
+    def compile_comprehension(
+        self,
+        node: CompNode,
+        name: str,
+        elt: ast.expr,
+        val: ast.expr | None,
+        opcode: str,
+        oparg: object = 0,
+    ) -> None:
+        args = self.conjure_arguments([ast.arg(".0", None)])
         self.update_lineno(node)
-        gen = self.make_func_codegen(node, name, node.lineno)
+        gen = self.make_func_codegen(node, args, name, node.lineno)
 
         if opcode:
             gen.emit(opcode, oparg)
@@ -2155,7 +2167,7 @@ class CodeGenerator(ASTVisitor):
 
     def make_child_codegen(
         self,
-        tree: AST,
+        tree: FuncOrLambda | CompNode | ast.ClassDef,
         graph: PyFlowGraph,
         codegen_type: Optional[Type[CodeGenerator]] = None,
     ) -> CodeGenerator:
@@ -2164,14 +2176,18 @@ class CodeGenerator(ASTVisitor):
         return codegen_type(self, tree, self.symbols, graph, self.optimization_lvl)
 
     def make_func_codegen(
-        self, func: AST, name: str, first_lineno: int
+        self,
+        func: FuncOrLambda | CompNode,
+        func_args: ast.arguments,
+        name: str,
+        first_lineno: int,
     ) -> CodeGenerator:
         filename = self.graph.filename
         symbols = self.symbols
         class_name = self.class_name
 
         graph = self.make_function_graph(
-            func, filename, symbols.scopes, class_name, name, first_lineno
+            func, func_args, filename, symbols.scopes, class_name, name, first_lineno
         )
         res = self.make_child_codegen(func, graph)
         res.optimized = 1
@@ -2201,26 +2217,33 @@ class CodeGenerator(ASTVisitor):
         return res
 
     def make_function_graph(
-        self, func, filename: str, scopes, class_name: str, name: str, first_lineno: int
+        self,
+        func: FuncOrLambda | CompNode,
+        func_args: ast.arguments,
+        filename: str,
+        scopes,
+        class_name: str,
+        name: str,
+        first_lineno: int,
     ) -> PyFlowGraph:
         args = [
             misc.mangle(elt.arg, class_name)
-            for elt in itertools.chain(func.args.posonlyargs, func.args.args)
+            for elt in itertools.chain(func_args.posonlyargs, func_args.args)
         ]
-        kwonlyargs = [misc.mangle(elt.arg, class_name) for elt in func.args.kwonlyargs]
+        kwonlyargs = [misc.mangle(elt.arg, class_name) for elt in func_args.kwonlyargs]
 
         starargs = []
-        if func.args.vararg:
-            starargs.append(func.args.vararg.arg)
-        if func.args.kwarg:
-            starargs.append(func.args.kwarg.arg)
+        if va := func_args.vararg:
+            starargs.append(va.arg)
+        if kw := func_args.kwarg:
+            starargs.append(kw.arg)
 
         scope = scopes[func]
         graph = self.flow_graph(
             name,
             filename,
             scope,
-            flags=self.get_graph_flags(func, scope),
+            flags=self.get_graph_flags(func, func_args, scope),
             args=args,
             kwonlyargs=kwonlyargs,
             starargs=starargs,
@@ -2228,24 +2251,33 @@ class CodeGenerator(ASTVisitor):
             docstring=self.get_docstring(func),
             firstline=first_lineno,
             peephole_enabled=self.graph.peephole_enabled,
-            posonlyargs=len(func.args.posonlyargs),
+            posonlyargs=len(func_args.posonlyargs),
         )
 
         return graph
 
-    def get_docstring(self, func) -> Optional[str]:
+    def get_docstring(
+        self, func: ast.Module | ast.ClassDef | FuncOrLambda | CompNode
+    ) -> Optional[str]:
         doc = None
-        isLambda = isinstance(func, ast.Lambda)
-        if not isLambda and not self.strip_docstrings:
+        if (
+            not isinstance(
+                func,
+                (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp),
+            )
+            and not self.strip_docstrings
+        ):
             doc = get_docstring(func)
         return doc
 
-    def get_graph_flags(self, func, scope):
+    def get_graph_flags(
+        self, func: FuncOrLambda | CompNode, func_args: ast.arguments, scope: Scope
+    ) -> int:
         flags = 0
 
-        if func.args.vararg:
+        if func_args.vararg:
             flags = flags | CO_VARARGS
-        if func.args.kwarg:
+        if func_args.kwarg:
             flags = flags | CO_VARKEYWORDS
         if scope.nested:
             flags = flags | CO_NESTED
@@ -2319,7 +2351,6 @@ class CinderCodeGenerator(CodeGenerator):
 
     def getCode(self):
         code = super().getCode()
-        # pyre-fixme [21]: cinder
         from cinder import _set_qualname
 
         _set_qualname(code, self._qual_name)
@@ -2416,13 +2447,17 @@ def get_default_generator():
     return CodeGenerator
 
 
-def get_docstring(node):
+def get_docstring(
+    node: ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
+) -> str | None:
     if (
         node.body
-        and isinstance(node.body[0], ast.Expr)
-        and isinstance(node.body[0].value, ast.Str)
+        and (b0 := node.body[0])
+        and isinstance(b0, ast.Expr)
+        and (b0v := b0.value)
+        and isinstance(b0v, ast.Str)
     ):
-        return node.body[0].value.s
+        return b0v.s
 
 
 def findOp(node):

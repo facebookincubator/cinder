@@ -5,9 +5,9 @@ import ast
 from ast import NodeVisitor
 from functools import cached_property
 from os import path
-
 # pyre-fixme[21]: Could not find name `SymbolTableFactory` in `symtable` (stubbed).
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
+from types import CodeType
 from typing import (
     Callable,
     ContextManager,
@@ -19,7 +19,6 @@ from typing import (
     Dict,
 )
 
-# pyre-fixme[21]: Could not find module `_strictmodule`.
 from _strictmodule import (
     StrictAnalysisResult,
     StrictModuleLoader,
@@ -34,7 +33,6 @@ from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
 from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
 
-# pyre-fixme[11]: Annotation `StrictAnalysisResult` is not defined as a type.
 def getSymbolTable(mod: StrictAnalysisResult, filename: str) -> PythonSymbolTable:
     """
     Construct a symtable object from analysis result
@@ -59,7 +57,6 @@ class Compiler:
         self.stub_root = stub_root
         self.allow_list_prefix = allow_list_prefix
         self.allow_list_exact = allow_list_exact
-        # pyre-fixme[11]: Annotation `StrictModuleLoader` is not defined as a type.
         self.loader: StrictModuleLoader = StrictModuleLoader(
             self.import_path,
             str(stub_root),
@@ -77,7 +74,7 @@ class Compiler:
         optimize: int,
         submodule_search_locations: Optional[List[str]] = None,
         track_import_call: bool = False,
-    ) -> Tuple[object, StrictAnalysisResult]:
+    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
         mod = self.loader.check_source(
             source, filename, name, submodule_search_locations or []
         )
@@ -113,7 +110,7 @@ class Compiler:
         optimize: int,
         track_import_call: bool,
         symbols: Optional[PythonSymbolTable] = None,
-    ) -> Tuple[object, StrictAnalysisResult]:
+    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
         if is_valid_strict:
             symbols = symbols or getSymbolTable(mod, filename)
             code = rewrite(
@@ -173,7 +170,6 @@ class StrictSymbolTable(SymbolTable):
         self.track_import_call: Optional[bool] = None
         self.log_time_func = log_time_func
 
-    # pyre-fixme[15]: inconsistent override of return type
     def import_module(self, name: str) -> Optional[ModuleTable]:
         loader = self.compiler.loader
         mod = loader.check(name)
@@ -225,7 +221,7 @@ class StaticCompiler(Compiler):
             allow_list_exact,
             raise_on_error,
         )
-        self.symtable: SymbolTable = StrictSymbolTable(self)
+        self.symtable: StrictSymbolTable = StrictSymbolTable(self)
         self.log_time_func = log_time_func
 
     def _rewrite(
@@ -237,7 +233,7 @@ class StaticCompiler(Compiler):
         optimize: int,
         track_import_call: bool,
         symbols: Optional[PythonSymbolTable] = None,
-    ) -> Tuple[object, StrictAnalysisResult]:
+    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
         modKind = mod.module_kind
         if not is_valid_strict or modKind != STATIC_MODULE_KIND:
             return super()._rewrite(
@@ -268,12 +264,9 @@ class StaticCompiler(Compiler):
         optimize: int,
         track_import_call: bool,
         symbols: Optional[PythonSymbolTable] = None,
-    ) -> Tuple[object, StrictAnalysisResult]:
-        # pyre-fixme [16]: no attribute optimize
+    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
         self.symtable.optimize = optimize
-        # pyre-fixme [16]: no attribute track_import_call
         self.symtable.track_import_call = track_import_call
-        # pyre-fixme [16]: no attribute ast_cache
         root = self.symtable.ast_cache.get(name)
         if root is None:
             symbols = symbols or getSymbolTable(mod, filename)
