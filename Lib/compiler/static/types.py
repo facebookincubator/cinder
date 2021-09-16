@@ -5490,14 +5490,12 @@ class CIntInstance(CInstance["CIntType"]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> bool:
-        if not isinstance(visitor.get_type(left), CIntInstance):
-            visitor.visitExpectedType(left, self)
+        assert not isinstance(visitor.get_type(left), CIntInstance)
+        visitor.visitExpectedType(left, self)
 
-            visitor.set_type(op, self)
-            visitor.set_type(node, CBOOL_TYPE.instance)
-            return True
-
-        return False
+        visitor.set_type(op, self)
+        visitor.set_type(node, CBOOL_TYPE.instance)
+        return True
 
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
         code_gen.emit("PRIMITIVE_COMPARE_OP", self.get_op_id(op))
