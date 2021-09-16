@@ -8119,7 +8119,7 @@ static struct PyModuleDef _asynciomodule = {
 
 #if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
 void
-reset_pid()
+reset_pid(void)
 {
     current_pid = getpid();
 }
