@@ -359,6 +359,19 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertEqual(f(42), True)
             self.assertEqual(f(0), False)
 
+    def test_bool_accepts_union_types(self):
+
+        codestr = """
+            from typing import Optional
+    
+            def f(x: Optional[int]) -> bool:
+                return bool(x)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod["f"]
+            self.assertFalse(f(None))
+            self.assertTrue(f(12))
+
     def test_list_subclass(self):
         codestr = """
             class C(list):
