@@ -280,6 +280,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
         # TODO: Parsing here should really be that we run declaration visitor over all nodes,
         # and then perform post processing on the symbol table, and then proceed to analysis
         # and compilation
+        if ast_optimizer_enabled:
+            tree = AstOptimizer(optimize=optimize > 0).visit(tree)
+
         symtable = SymbolTable(cls)
         decl_visit = DeclarationVisitor(module_name, filename, symtable)
         decl_visit.visit(tree)
@@ -287,8 +290,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
         for module in symtable.modules.values():
             module.finish_bind()
 
-        if ast_optimizer_enabled:
-            tree = AstOptimizer(optimize=optimize > 0).visit(tree)
 
         s = symbols.SymbolVisitor()
         s.visit(tree)

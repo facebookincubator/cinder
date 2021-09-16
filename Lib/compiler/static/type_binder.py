@@ -254,15 +254,11 @@ class TypeBinder(GenericVisitor):
 
     def maybe_get_current_class(self) -> Optional[Class]:
         current: ModuleTable | Class = self.module
-        result = None
-        for scope in self.scopes:
-            node = scope.node
-            if isinstance(node, ClassDef):
-                result = current.resolve_name(node.name)
-                if not isinstance(result, Class):
-                    return None
-                current = result
-        return result
+        node = self.scope
+        if isinstance(node, ClassDef):
+            res = self.get_type(node)
+            assert isinstance(res, Class)
+            return res
 
     def visit(
         self, node: Union[AST, Sequence[AST]], *args: object
@@ -502,12 +498,6 @@ class TypeBinder(GenericVisitor):
 
     def visitClassDef(self, node: ClassDef) -> None:
         parent_scope = self.scope
-        if isinstance(parent_scope, (FunctionDef, AsyncFunctionDef)):
-            self.syntax_error(
-                f"Cannot declare class `{node.name}` inside a function, `{parent_scope.name}`",
-                node,
-            )
-
         for decorator in node.decorator_list:
             self.visitExpectedType(
                 decorator, DYNAMIC, "decorator cannot be a primitive"
