@@ -321,10 +321,10 @@ class SymbolTable:
     def _bind(
         self, name: str, filename: str, tree: AST, optimize: int = 0
     ) -> Tuple[AST, SymbolVisitor]:
-        tree = AstOptimizer(optimize=optimize > 0).visit(tree)
-
         if name not in self.modules:
             self.add_module(name, filename, tree)
+
+        tree = AstOptimizer(optimize=optimize > 0).visit(tree)
 
         # Analyze variable scopes
         s = SymbolVisitor()

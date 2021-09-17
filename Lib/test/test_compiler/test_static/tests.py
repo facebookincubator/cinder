@@ -3108,12 +3108,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
         symtable = SymbolTable(StaticCodeGenerator)
-        acode = ast.parse(dedent(acode))
-        bcode = ast.parse(dedent(bcode))
-        symtable.add_module("a", "a.py", acode)
-        symtable.add_module("b", "b.py", bcode)
-        acomp = symtable.compile("a", "a.py", acode)
-        bcomp = symtable.compile("b", "b.py", bcode)
+        symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        symtable.add_module("b", "b.py", ast.parse(dedent(bcode)))
+        acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -10903,11 +10901,12 @@ class StaticCompilationTests(StaticTestBase):
         def fn():
             class C:
                 c: int = 1
-            return C()
         """
-        with self.in_module(codestr) as mod:
-            f = mod["fn"]
-            self.assertInBytecode(f, "CALL_FUNCTION")
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "Cannot declare class `C` inside a function, `fn`"
+        ):
+            self.compile(codestr)
+
 
 class StaticRuntimeTests(StaticTestBase):
     def test_bad_slots_qualname_conflict(self):
