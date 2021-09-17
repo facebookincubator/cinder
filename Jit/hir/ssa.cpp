@@ -757,14 +757,11 @@ void SSAify::removeTrivialPhi(
     Register* reg,
     Register* from,
     Register* to) {
+  // Update our local definition for reg if it was provided by the phi.
   auto it = ssa_block->local_defs.find(reg);
-  JIT_CHECK(
-      it->second == from,
-      "local def for %s is %s, which is not trivial phi %s",
-      reg->name(),
-      it->second->name(),
-      from->name());
-  it->second = to;
+  if (it->second == from) {
+    it->second = to;
+  }
 
   // If we're removing a phi that was realized, delete the corresponding
   // instruction

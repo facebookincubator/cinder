@@ -554,6 +554,78 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(testSSAify(hir_source, expected));
 }
 
+TEST_F(SSAifyTest, HandlesLocalDefOfTrivialPhi) {
+  // Make sure we correctly handle the case where the register corresponding to
+  // the output of a trivial phi is redefined later in the same block.
+  //
+  // In the CFG below, bb1 uses v0 and later redefines it. When converting this
+  // to SSA, an incomplete phi will be placed in bb1 for v0. After processing
+  // bb3 we'll realize that the phi would have been trivial and never place
+  // it. Since v0 was redefined in the same block, subsequent uses of v0 should
+  // use the value produced by the redefinition, not whatever replaced the
+  // trivial phi's output.
+  const char* hir_source = R"(
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadConst<NoneType>
+    CondBranch<1, 2> v1
+  }
+
+  bb 1 {
+    CheckVar<-1> v0
+    v0 = LoadConst<NoneType>
+    Branch<4>
+  }
+
+  bb 2 {
+    CondBranch<1, 3> v0
+  }
+
+  bb 3 {
+    CheckVar<-1> v0
+    Branch<2>
+  }
+
+  bb 4 {
+    Return v0
+  }
+}
+)";
+  const char* expected = R"(fun test {
+  bb 0 {
+    v2:Object = LoadArg<0>
+    v3:NoneType = LoadConst<NoneType>
+    CondBranch<1, 2> v3
+  }
+
+  bb 2 (preds 0, 3) {
+    CondBranch<1, 3> v2
+  }
+
+  bb 1 (preds 0, 2) {
+    CheckVar<-1> v2 {
+      NextInstrOffset 0
+    }
+    v6:NoneType = LoadConst<NoneType>
+    Branch<4>
+  }
+
+  bb 4 (preds 1) {
+    Return v6
+  }
+
+  bb 3 (preds 2) {
+    CheckVar<-1> v2 {
+      NextInstrOffset 0
+    }
+    Branch<2>
+  }
+}
+)";
+  EXPECT_NO_FATAL_FAILURE(testSSAify(hir_source, expected));
+}
+
 TEST_F(SSAifyTest, PropagatesRegisterReplacements) {
   // This tests that we correctly handle chains of replaced registers.
   // (e.g. when $v3 has been replaced by $v2, which has been replaced by $v1.
