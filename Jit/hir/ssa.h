@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __HIR_SSA_H__
-#define __HIR_SSA_H__
+#pragma once
 
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
@@ -61,20 +60,20 @@ class SSAify : public Pass {
  private:
   DISALLOW_COPY_AND_ASSIGN(SSAify);
 
-  Register* GetDefine(SSABasicBlock* ssa_block, Register* reg);
+  Register* getDefine(SSABasicBlock* ssa_block, Register* reg);
 
   // check if the defs going to phi function is trivial
   // return a replacement register if it is trivial
   // return nullptr otherwise.
-  Register* GetCommonPredValue(
+  Register* getCommonPredValue(
       const Register* out_reg,
       const std::unordered_map<BasicBlock*, Register*>& defs);
 
-  void FixIncompletePhis(SSABasicBlock* ssa_block);
+  void fixIncompletePhis(SSABasicBlock* ssa_block);
 
-  void FixRegisters(
+  void fixRegisters(
       std::unordered_map<BasicBlock*, SSABasicBlock*>& ssa_basic_blocks);
-  std::unordered_map<BasicBlock*, SSABasicBlock*> InitSSABasicBlocks(
+  std::unordered_map<BasicBlock*, SSABasicBlock*> initSSABasicBlocks(
       std::vector<BasicBlock*>& blocks);
 
   Register* getReplacement(Register* reg);
@@ -93,5 +92,3 @@ class SSAify : public Pass {
 
 } // namespace hir
 } // namespace jit
-
-#endif

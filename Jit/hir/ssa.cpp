@@ -622,7 +622,7 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
   env_ = env;
 
   auto blocks = CFG::GetRPOTraversal(start);
-  auto ssa_basic_blocks = InitSSABasicBlocks(blocks);
+  auto ssa_basic_blocks = initSSABasicBlocks(blocks);
   reg_replacements_.clear();
   phi_uses_.clear();
 
@@ -633,7 +633,7 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
       instr.visitUses([&](Register*& reg) {
         JIT_CHECK(
             reg != nullptr, "Instructions should not have nullptr operands.")
-        reg = GetDefine(ssablock, reg);
+        reg = getDefine(ssablock, reg);
         return true;
       });
 
@@ -651,11 +651,11 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
       if (succ->unsealed_preds > 0) {
         continue;
       }
-      FixIncompletePhis(succ);
+      fixIncompletePhis(succ);
     }
   }
 
-  FixRegisters(ssa_basic_blocks);
+  fixRegisters(ssa_basic_blocks);
 
   // realize phi functions
   for (auto& bb : ssa_basic_blocks) {
@@ -672,7 +672,7 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
   reflowTypes(env, start);
 }
 
-Register* SSAify::GetDefine(SSABasicBlock* ssablock, Register* reg) {
+Register* SSAify::getDefine(SSABasicBlock* ssablock, Register* reg) {
   auto iter = ssablock->local_defs.find(reg);
   if (iter != ssablock->local_defs.end()) {
     // If defined locally, just return
@@ -710,7 +710,7 @@ Register* SSAify::GetDefine(SSABasicBlock* ssablock, Register* reg) {
 
   if (ssablock->preds.size() == 1) {
     // If we only have a single predecessor, use its value
-    auto new_reg = GetDefine(*ssablock->preds.begin(), reg);
+    auto new_reg = getDefine(*ssablock->preds.begin(), reg);
     ssablock->local_defs.emplace(reg, new_reg);
     return new_reg;
   }
@@ -732,13 +732,13 @@ void SSAify::maybeAddPhi(
     Register* out) {
   std::unordered_map<BasicBlock*, Register*> pred_defs;
   for (auto& pred : ssa_block->preds) {
-    auto pred_reg = GetDefine(pred, reg);
+    auto pred_reg = getDefine(pred, reg);
     if (auto replacement = getReplacement(pred_reg)) {
       pred_reg = replacement;
     }
     pred_defs.emplace(pred->block, pred_reg);
   }
-  Register* replacement = GetCommonPredValue(out, pred_defs);
+  Register* replacement = getCommonPredValue(out, pred_defs);
   if (replacement != nullptr) {
     removeTrivialPhi(ssa_block, reg, out, replacement);
   } else {
@@ -801,7 +801,7 @@ void SSAify::removeTrivialPhi(
   phi_uses_.erase(from);
 }
 
-Register* SSAify::GetCommonPredValue(
+Register* SSAify::getCommonPredValue(
     const Register* out_reg,
     const std::unordered_map<BasicBlock*, Register*>& defs) {
   Register* other_reg = nullptr;
@@ -823,13 +823,13 @@ Register* SSAify::GetCommonPredValue(
   return other_reg;
 }
 
-void SSAify::FixIncompletePhis(SSABasicBlock* ssa_block) {
+void SSAify::fixIncompletePhis(SSABasicBlock* ssa_block) {
   for (auto& pi : ssa_block->incomplete_phis) {
     maybeAddPhi(ssa_block, pi.first, pi.second);
   }
 }
 
-std::unordered_map<BasicBlock*, SSABasicBlock*> SSAify::InitSSABasicBlocks(
+std::unordered_map<BasicBlock*, SSABasicBlock*> SSAify::initSSABasicBlocks(
     std::vector<BasicBlock*>& blocks) {
   std::unordered_map<BasicBlock*, SSABasicBlock*> ssa_basic_blocks;
 
@@ -864,7 +864,7 @@ std::unordered_map<BasicBlock*, SSABasicBlock*> SSAify::InitSSABasicBlocks(
   return ssa_basic_blocks;
 }
 
-void SSAify::FixRegisters(
+void SSAify::fixRegisters(
     std::unordered_map<BasicBlock*, SSABasicBlock*>& ssa_basic_blocks) {
   for (auto& bb : ssa_basic_blocks) {
     auto ssa_block = bb.second;
