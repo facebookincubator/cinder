@@ -3589,8 +3589,14 @@ class IsInstanceEffect(NarrowingEffect):
     def undo(self, local_types: Dict[str, Value]) -> None:
         local_types[self.var] = self.prev
 
-    def reverse(self, local_types: Dict[str, Value]) -> None:
+    def reverse(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
         local_types[self.var] = self.rev
+        if local_name_nodes is not None:
+            local_name_nodes[self.var] = self.name
 
 
 class IsInstanceFunction(Object[Class]):

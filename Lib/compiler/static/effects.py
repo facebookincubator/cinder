@@ -40,7 +40,11 @@ class NarrowingEffect:
         """restores the type to its original value"""
         pass
 
-    def reverse(self, local_types: Dict[str, Value]) -> None:
+    def reverse(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
         """applies the reverse of the scope or reverts it if
         there is no reverse"""
         self.undo(local_types)
@@ -84,9 +88,13 @@ class OrEffect(NarrowingEffect):
 
         return OrEffect(*self.effects, other)
 
-    def reverse(self, local_types: Dict[str, Value]) -> None:
+    def reverse(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
         for effect in self.effects:
-            effect.reverse(local_types)
+            effect.reverse(local_types, local_name_nodes)
 
     def undo(self, local_types: Dict[str, Value]) -> None:
         """restores the type to its original value"""
@@ -115,10 +123,14 @@ class NegationEffect(NarrowingEffect):
         local_types: Dict[str, Value],
         local_name_nodes: Optional[Dict[str, ast.Name]] = None,
     ) -> None:
-        self.negated.reverse(local_types)
+        self.negated.reverse(local_types, local_name_nodes)
 
     def undo(self, local_types: Dict[str, Value]) -> None:
         self.negated.undo(local_types)
 
-    def reverse(self, local_types: Dict[str, Value]) -> None:
-        self.negated.apply(local_types)
+    def reverse(
+        self,
+        local_types: Dict[str, Value],
+        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+    ) -> None:
+        self.negated.apply(local_types, local_name_nodes)
