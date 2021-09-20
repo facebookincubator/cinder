@@ -10985,6 +10985,59 @@ class StaticRuntimeTests(StaticTestBase):
 
             inst.a = D()
 
+    def test_builtin_object_setattr(self):
+        codestr = """
+        class C:
+            a: int
+            def fn(self):
+                object.__setattr__(self, "a", 1)
+        """
+        with self.in_module(codestr, name="t1") as mod:
+            C = mod["C"]
+            self.assertInBytecode(C.fn, "LOAD_METHOD", "__setattr__")
+
+            c = C()
+            c.fn()
+            self.assertEqual(c.a, 1)
+
+    def test_user_defined_class_setattr_defined(self):
+        codestr = """
+        class E:
+
+            hihello: str
+
+            def __setattr__(self, key: str, val: object):
+                object.__setattr__(self, key + "hello", val)
+
+        def fn():
+            e = E()
+            E.__setattr__(e, "hi", "itsme")
+            return e
+        """
+        with self.in_module(codestr, name="t2") as mod:
+            fn = mod["fn"]
+            self.assertInBytecode(
+                fn, "INVOKE_FUNCTION", (("t2", "E", "__setattr__"), 3)
+            )
+            res = fn()
+            self.assertEqual(res.hihello, "itsme")
+
+    def test_user_defined_class_setattr_undefined(self):
+        codestr = """
+        class F:
+            hihello: str
+
+        def fn():
+            f = F()
+            F.__setattr__(f, "hihello", "itsme")
+            return f
+        """
+        with self.in_module(codestr, name="t3") as mod:
+            fn = mod["fn"]
+            self.assertInBytecode(fn, "LOAD_METHOD", "__setattr__")
+            res = fn()
+            self.assertEqual(res.hihello, "itsme")
+
     def test_allow_weakrefs(self):
         codestr = """
             from __static__ import allow_weakrefs

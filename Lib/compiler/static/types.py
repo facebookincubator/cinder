@@ -193,7 +193,6 @@ try:
 except ImportError:
     spamobj = None
 
-
 CBOOL_TYPE: CIntType
 INT8_TYPE: CIntType
 INT16_TYPE: CIntType
@@ -231,7 +230,6 @@ DOUBLE_TYPE: CDoubleType
 # Python, so there's no chance it will ever clash with a
 # user defined name.
 _TMP_VAR_PREFIX = "_pystatic_.0._tmp__"
-
 
 CMPOP_SIGILS: Mapping[Type[cmpop], str] = {
     ast.Lt: "<",
@@ -324,7 +322,6 @@ class GenericTypeName(TypeName):
 
 GenericTypeIndex = Tuple["Class", ...]
 GenericTypesDict = Dict["Class", Dict[GenericTypeIndex, "Class"]]
-
 
 TType = TypeVar("TType")
 TClass = TypeVar("TClass", bound="Class", covariant=True)
@@ -850,11 +847,28 @@ class Class(Object["Class"]):
         self.is_final = is_final
         self.allow_weakrefs = False
         self.donotcompile = False
+        # This will cause all built-in method calls on the type to be done dynamically
+        self.dynamic_builtinmethod_dispatch = False
         if pytype:
-            self.members.update(make_type_dict(self, pytype))
+            self.make_type_dict(pytype)
         self.pytype = pytype
         # track AST node of each member until finish_bind, for error reporting
         self._member_nodes: Dict[str, AST] = {}
+
+    def make_type_dict(self, t: Type[object]) -> None:
+        result: Dict[str, Value] = {}
+        for k in t.__dict__.keys():
+            try:
+                obj = getattr(t, k)
+            except AttributeError:
+                continue
+
+            if isinstance(obj, (MethodDescriptorType, WrapperDescriptorType)):
+                result[k] = reflect_method_desc(obj, self)
+            elif isinstance(obj, BuiltinFunctionType):
+                result[k] = reflect_builtin_function(obj, self)
+
+        self.members.update(result)
 
     @property
     def name(self) -> str:
@@ -1282,6 +1296,24 @@ class Class(Object["Class"]):
 
     def unwrap(self) -> Class:
         return self
+
+
+class BuiltinObject(Class):
+    def __init__(
+        self,
+        type_name: TypeName,
+        bases: Optional[List[Class]] = None,
+        instance: Optional[Value] = None,
+        klass: Optional[Class] = None,
+        members: Optional[Dict[str, Value]] = None,
+        is_exact: bool = False,
+        pytype: Optional[Type[object]] = None,
+        is_final: bool = False,
+    ) -> None:
+        super().__init__(
+            type_name, bases, instance, klass, members, is_exact, pytype, is_final
+        )
+        self.dynamic_builtinmethod_dispatch = True
 
 
 class Variance(Enum):
@@ -3176,6 +3208,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
         container_type: Class,
         args: Optional[Tuple[Parameter, ...]] = None,
         return_type: Optional[TypeRef] = None,
+        dynamic_dispatch: bool = False,
     ) -> None:
         assert isinstance(return_type, (TypeRef, type(None)))
         super().__init__(
@@ -3189,6 +3222,9 @@ class BuiltinMethodDescriptor(Callable[Class]):
             None,
             return_type or ResolvedTypeRef(DYNAMIC_TYPE),
         )
+        # When `dynamic_dispatch` is True, we will not emit INVOKE_* on this
+        # method.
+        self.dynamic_dispatch = dynamic_dispatch
         self.set_container_type(container_type)
 
     def bind_call_self(
@@ -3220,7 +3256,8 @@ class BuiltinMethodDescriptor(Callable[Class]):
         if inst is None:
             visitor.set_type(node, self)
         else:
-            visitor.set_type(node, BuiltinMethod(self, node))
+            typ = DYNAMIC if self.dynamic_dispatch else BuiltinMethod(self, node)
+            visitor.set_type(node, typ)
 
     def make_generic(
         self, new_type: Class, name: GenericTypeName, generic_types: GenericTypesDict
@@ -3333,6 +3370,7 @@ TYPE_TYPE._mro = None
 TYPE_TYPE._mro_inexact = None
 TYPE_TYPE.pytype = type
 TYPE_TYPE._member_nodes = {}
+TYPE_TYPE.dynamic_builtinmethod_dispatch = False
 
 
 class Slot(Object[TClassInv]):
@@ -3396,7 +3434,7 @@ class Slot(Object[TClassInv]):
 
 
 # TODO (aniketpanse): move these to a better place
-OBJECT_TYPE = Class(TypeName("builtins", "object"))
+OBJECT_TYPE = BuiltinObject(TypeName("builtins", "object"))
 OBJECT = OBJECT_TYPE.instance
 
 DYNAMIC_TYPE = DynamicClass()
@@ -3871,7 +3909,8 @@ def parse_type(info: Dict[str, object]) -> Class:
 
 
 def reflect_method_desc(
-    obj: MethodDescriptorType | WrapperDescriptorType, klass: Class
+    obj: MethodDescriptorType | WrapperDescriptorType,
+    klass: Class,
 ) -> BuiltinMethodDescriptor:
     sig = getattr(obj, "__typed_signature__", None)
     if sig is not None:
@@ -3882,9 +3921,12 @@ def reflect_method_desc(
             klass,
             signature,
             ResolvedTypeRef(return_type),
+            dynamic_dispatch=klass.dynamic_builtinmethod_dispatch,
         )
     else:
-        method = BuiltinMethodDescriptor(obj.__name__, klass)
+        method = BuiltinMethodDescriptor(
+            obj.__name__, klass, dynamic_dispatch=klass.dynamic_builtinmethod_dispatch
+        )
     return method
 
 
@@ -3907,22 +3949,6 @@ def reflect_builtin_function(
         else:
             method = BuiltinFunction(obj.__name__, obj.__module__, klass)
     return method
-
-
-def make_type_dict(klass: Class, t: Type[object]) -> Dict[str, Value]:
-    ret: Dict[str, Value] = {}
-    for k in t.__dict__.keys():
-        try:
-            obj = getattr(t, k)
-        except AttributeError:
-            continue
-
-        if isinstance(obj, (MethodDescriptorType, WrapperDescriptorType)):
-            ret[k] = reflect_method_desc(obj, klass)
-        elif isinstance(obj, BuiltinFunctionType):
-            ret[k] = reflect_builtin_function(obj, klass)
-
-    return ret
 
 
 def common_sequence_emit_len(
@@ -4438,6 +4464,11 @@ BUILTIN_METHOD_DESC_TYPE = Class(
 BUILTIN_METHOD_TYPE = Class(TypeName("types", "BuiltinMethodType"), is_exact=True)
 SLICE_TYPE = Class(TypeName("builtins", "slice"), is_exact=True)
 
+# This is a special case. Normally, we populate type members by providing a `pytype` to the
+# type constructor. However that relies on BUILTIN_METHOD_DESC_TYPE being defined, so we
+# populate the members here, after BUILTIN_METHOD_DESC_TYPE is created.
+OBJECT_TYPE.make_type_dict(object)
+
 # builtin types
 NONE_TYPE = NoneType()
 STR_TYPE = StrClass()
@@ -4499,8 +4530,7 @@ RESOLVED_STR_TYPE = ResolvedTypeRef(STR_TYPE)
 RESOLVED_NONE_TYPE = ResolvedTypeRef(NONE_TYPE)
 
 TYPE_TYPE.bases = [OBJECT_TYPE]
-TYPE_TYPE.members.update(make_type_dict(TYPE_TYPE, type))
-
+TYPE_TYPE.make_type_dict(type)
 
 CONSTANT_TYPES: Mapping[Type[object], Value] = {
     str: STR_EXACT_TYPE.instance,
@@ -5308,7 +5338,6 @@ prim_name_to_type: Mapping[str, int] = {
 
 
 class CInstance(Value, Generic[TClass]):
-
     _op_name: Dict[Type[ast.operator], str] = {
         ast.Add: "add",
         ast.Sub: "subtract",
@@ -5764,7 +5793,6 @@ class CIntType(CType):
 
 
 class CDoubleInstance(CInstance["CDoubleType"]):
-
     _double_binary_opcode_signed: Mapping[Type[ast.AST], int] = {
         ast.Add: PRIM_OP_ADD_DBL,
         ast.Sub: PRIM_OP_SUB_DBL,
@@ -5965,7 +5993,6 @@ VECTOR_TYPE_NAME = GenericTypeName("__static__", "Vector", (VECTOR_TYPE_PARAM,))
 
 VECTOR_TYPE = VectorClass(VECTOR_TYPE_NAME, is_exact=True)
 
-
 ALLOWED_ARRAY_TYPES: List[Class] = [
     INT8_TYPE,
     INT16_TYPE,
@@ -6002,7 +6029,6 @@ NAME_TO_TYPE: Mapping[object, Class] = {
     "__static__.uint32": UINT32_TYPE,
     "__static__.uint64": UINT64_TYPE,
 }
-
 
 CHECKED_DICT_TYPE = CheckedDict(
     CHECKED_DICT_TYPE_NAME, [OBJECT_TYPE], pytype=chkdict, is_exact=True
