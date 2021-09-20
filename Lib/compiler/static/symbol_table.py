@@ -311,7 +311,7 @@ class SymbolTable:
         self.modules[name] = value
 
     def add_module(self, name: str, filename: str, tree: AST, optimize: int = 0) -> AST:
-        tree = AstOptimizer(optimize=optimize > 0).visit(tree)
+        tree = AstOptimizer(optimize=optimize > 0, force_asserts=True).visit(tree)
 
         decl_visit = DeclarationVisitor(name, filename, self)
         decl_visit.visit(tree)

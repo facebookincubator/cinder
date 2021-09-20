@@ -64,9 +64,10 @@ BIN_OPS: Mapping[Type[ast.operator], Callable[[object, object], object]] = {
 
 
 class AstOptimizer(ASTRewriter):
-    def __init__(self, optimize: bool = False) -> None:
+    def __init__(self, optimize: bool = False, force_asserts: bool = False) -> None:
         super().__init__()
         self.optimize = optimize
+        self.force_asserts = force_asserts
 
     def visitUnaryOp(self, node: ast.UnaryOp) -> ast.expr:
         op = self.visit(node.operand)
@@ -198,7 +199,7 @@ class AstOptimizer(ASTRewriter):
         return self.generic_visit(node)
 
     def visitAssert(self, node: ast.Assert) -> ast.Assert | None:
-        if self.optimize:
+        if self.optimize and not self.force_asserts:
             # Skip asserts if we're optimizing
             return None
         return self.generic_visit(node)
