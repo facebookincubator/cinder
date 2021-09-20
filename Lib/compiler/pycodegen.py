@@ -2438,6 +2438,14 @@ class CinderCodeGenerator(CodeGenerator):
 
         self.emit("CALL_METHOD", len(node.args))
 
+    def findFutures(self, node):
+        future_flags = super().findFutures(node)
+        for feature in future.find_futures(node):
+            if feature == "eager_imports":
+                future_flags |= consts.CO_FUTURE_EAGER_IMPORTS
+            elif feature == "lazy_imports":
+                future_flags |= consts.CO_FUTURE_LAZY_IMPORTS
+        return future_flags
 
 def get_default_generator():
 
