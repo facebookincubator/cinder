@@ -2854,10 +2854,10 @@ _PyDict_LoadDeferred(PyDictObject *dp)
             /* import failed, check if we want to just ignore... */
             PyObject *et, *ev, *tb;
             _PyErr_Fetch(tstate, &et, &ev, &tb);
-            if (PyExceptionInstance_Check(ev)) {
-                PyObject *evt = PyExceptionInstance_Class(ev);
-                if (PyExceptionClass_Check(evt) && PyExceptionClass_Check(PyExc_ImportError)
-                    && PyType_IsSubtype((PyTypeObject *)evt, (PyTypeObject *)PyExc_ImportError)) {
+            int is_import_error = PyErr_GivenExceptionMatches(ev, PyExc_ImportError);
+            int is_attribute_error = !is_import_error && PyErr_GivenExceptionMatches(ev, PyExc_AttributeError);
+            if (is_import_error || is_attribute_error) {
+                if (is_import_error) {
                     PyObject *mod = PyImport_GetModule(((PyImportErrorObject *)ev)->name);
                     if (mod != NULL) {
                         _Py_IDENTIFIER(__spec__);
@@ -2870,6 +2870,13 @@ _PyDict_LoadDeferred(PyDictObject *dp)
                         }
                     }
                 }
+                PyObject *es = PyObject_Str(ev);
+                if (strstr(PyUnicode_AsUTF8(es), "(most likely due to a circular import)") != NULL) {
+                    /* skip circular-import related errors */
+                    Py_DECREF(es);
+                    continue;
+                }
+                Py_DECREF(es);
             }
             _PyErr_Restore(tstate, et, ev, tb);
             return -1;
