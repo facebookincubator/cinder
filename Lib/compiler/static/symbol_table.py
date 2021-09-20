@@ -310,10 +310,14 @@ class SymbolTable:
     def __setitem__(self, name: str, value: ModuleTable) -> None:
         self.modules[name] = value
 
-    def add_module(self, name: str, filename: str, tree: AST) -> None:
+    def add_module(self, name: str, filename: str, tree: AST, optimize: int = 0) -> AST:
+        tree = AstOptimizer(optimize=optimize > 0).visit(tree)
+
         decl_visit = DeclarationVisitor(name, filename, self)
         decl_visit.visit(tree)
         decl_visit.finish_bind()
+
+        return tree
 
     def bind(self, name: str, filename: str, tree: AST, optimize: int = 0) -> None:
         self._bind(name, filename, tree, optimize)
@@ -322,9 +326,7 @@ class SymbolTable:
         self, name: str, filename: str, tree: AST, optimize: int = 0
     ) -> Tuple[AST, SymbolVisitor]:
         if name not in self.modules:
-            self.add_module(name, filename, tree)
-
-        tree = AstOptimizer(optimize=optimize > 0).visit(tree)
+            tree = self.add_module(name, filename, tree, optimize)
 
         # Analyze variable scopes
         s = SymbolVisitor()

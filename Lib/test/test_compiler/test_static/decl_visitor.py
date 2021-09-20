@@ -3,6 +3,7 @@ import inspect
 import re
 from compiler.static import StaticCodeGenerator
 from compiler.static.errors import TypedSyntaxError
+from compiler.static.module_table import ModuleTable
 from compiler.static.symbol_table import SymbolTable
 from textwrap import dedent
 from types import MemberDescriptorType
@@ -232,3 +233,34 @@ class DeclarationVisitorTests(StaticTestBase):
         bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
+
+    def test_cross_module_rewrite(self) -> None:
+        acode = """
+            from b import B
+            class C(B):
+                def f(self):
+                    return self.g()
+        """
+        bcode = """
+            class B:
+                def g(self):
+                    return 1 + 2
+        """
+        testcase = self
+
+        class CustomSymbolTable(SymbolTable):
+            def __init__(self):
+                super().__init__(StaticCodeGenerator)
+                self.tree: ast.AST = None
+
+            def import_module(self, name: str) -> ModuleTable:
+                if name == "b":
+                    btree = ast.parse(dedent(bcode))
+                    self.btree = self.add_module("b", "b.py", btree, optimize=1)
+                    testcase.assertFalse(self.btree is btree)
+
+        symtable = CustomSymbolTable()
+        acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)), optimize=1)
+        bcomp = symtable.compile("b", "b.py", symtable.btree, optimize=1)
+        x = self.find_code(self.find_code(acomp, "C"), "f")
+        self.assertInBytecode(x, "INVOKE_METHOD", (("b", "B", "g"), 0))

@@ -192,13 +192,13 @@ class StrictSymbolTable(SymbolTable):
                     True,
                     self.track_import_call,
                 )
-                self.ast_cache[name] = root
                 log_func = self.log_time_func
                 if log_func:
                     with log_func()(name, filename, "declaration_visit"):
-                        self.add_module(name, filename, root)
+                        root = self.add_module(name, filename, root)
                 else:
-                    self.add_module(name, filename, root)
+                    root = self.add_module(name, filename, root)
+                self.ast_cache[name] = root
 
         return self.modules.get(name)
 
