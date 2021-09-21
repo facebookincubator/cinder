@@ -1,3 +1,4 @@
+import asyncio
 from .common import StaticTestBase
 
 
@@ -123,3 +124,25 @@ class ClassMethodTests(StaticTestBase):
             C = mod["C"]
             self.assertInBytecode(C.bar, "INVOKE_FUNCTION", (("mymod", "C", "foo"), 1))
             self.assertEqual(C.bar(6), 9)
+
+    def test_classmethod_dynamic_subclass(self):
+        codestr = """
+            class C:
+                @classmethod
+                async def foo(cls) -> int:
+                    return 3
+
+                async def bar(self) -> int:
+                    return await self.foo()
+
+                def return_foo_typ(self):
+                    return self.foo()
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod["C"]
+
+            class D(C):
+                pass
+
+            d = D()
+            asyncio.run(d.bar())

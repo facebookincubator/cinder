@@ -350,8 +350,23 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
                        size_t nargsf,
                        PyObject *kwnames)
 {
+    PyObject *coro;
     PyObject *callable = state->tcs_value;
-    PyObject *coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    if (Py_TYPE(callable) == &PyClassMethod_Type) {
+        // We need to do some special set up for class methods when invoking.
+        callable = _PyClassMethod_GetFunc(state->tcs_value);
+        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+        assert(nargs > 0);
+        PyObject *classmethod_args[nargs];
+        classmethod_args[0] = (PyObject *) Py_TYPE(args[0]);
+        for (Py_ssize_t i = 1; i < nargs; ++i) {
+          classmethod_args[i] = args[i];
+        }
+        args = classmethod_args;
+        coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    } else {
+        coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    }
     if (coro == NULL) {
         return NULL;
     }
