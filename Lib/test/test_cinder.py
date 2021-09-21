@@ -1407,5 +1407,126 @@ class CodeObjectQualnameTest(unittest.TestCase):
         self.assertEqual(g["modname"], "<module>")
         self.assertEqual(g["clsname"], "C")
 
+
+class TestNoShadowingInstances(unittest.TestCase):
+    def check_no_shadowing(self, typ, expected):
+        got = cinder._has_no_shadowing_instances(typ)
+        self.assertEqual(got, expected)
+
+    def test_dict_retrieved(self):
+        class Foo:
+            def test(self):
+                return 1234
+
+        obj = Foo()
+        self.check_no_shadowing(Foo, True)
+        obj.__dict__
+        self.check_no_shadowing(Foo, False)
+
+    def test_dict_set(self):
+        class Foo:
+            def test(self):
+                return 1234
+
+        obj = Foo()
+        self.check_no_shadowing(Foo, True)
+        obj.__dict__ = {"testing": "123"}
+        self.check_no_shadowing(Foo, False)
+
+    def test_shadowing_method(self):
+        class Foo:
+            def test(self):
+                return 1234
+
+        obj = Foo()
+        self.check_no_shadowing(Foo, True)
+        obj.test = 1234
+        self.check_no_shadowing(Foo, False)
+
+    def test_shadowing_classvar(self):
+        class Foo:
+            test = 1234
+
+        obj = Foo()
+        self.check_no_shadowing(Foo, True)
+        obj.test = 1234
+        self.check_no_shadowing(Foo, True)
+
+    def test_method_added_on_class(self):
+        class Foo:
+            pass
+
+        self.check_no_shadowing(Foo, True)
+
+        def test(self):
+            return 1234
+
+        Foo.test = test
+        self.check_no_shadowing(Foo, False)
+
+    def test_method_added_on_base(self):
+        class Foo:
+            pass
+
+        class Bar(Foo):
+            pass
+
+        class Baz(Bar):
+            pass
+
+        self.check_no_shadowing(Foo, True)
+        self.check_no_shadowing(Bar, True)
+        self.check_no_shadowing(Baz, True)
+
+        def test(self):
+            return 1234
+
+        Foo.test = test
+        self.check_no_shadowing(Foo, False)
+        self.check_no_shadowing(Bar, False)
+        self.check_no_shadowing(Baz, False)
+
+    def test_custom_metaclass(self):
+        class MyMeta(type):
+            pass
+
+        class Foo(metaclass=MyMeta):
+            pass
+
+        self.check_no_shadowing(Foo, False)
+
+    def test_init_subclass(self):
+        class Base:
+            def amethod(self):
+                return 1234
+
+            def __init_subclass__(cls, /, **kwargs):
+                cls.new_meth = Base.amethod
+
+        class Derived(Base):
+            pass
+
+        self.check_no_shadowing(Derived, True)
+
+    def test_init_subclass_that_creates_instance(self):
+        import sys
+
+        outer = None
+
+        class Base:
+            def amethod(self):
+                return 1234
+
+            def __init_subclass__(cls, /, **kwargs):
+                nonlocal outer
+                cls.new_meth = Base.amethod
+                outer = cls()
+
+        class Derived(Base):
+            pass
+
+        self.check_no_shadowing(Derived, False)
+
+
 if __name__ == "__main__":
     unittest.main()

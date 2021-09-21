@@ -363,6 +363,20 @@ get_coro_awaiter(PyObject *self, PyObject *coro) {
     return (PyObject *)awaiter;
 }
 
+static PyObject*
+has_no_shadowing_instances(PyObject *self, PyObject *type) {
+    if (!PyType_Check(type)) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected type object, got %.200s",
+                     Py_TYPE(type)->tp_name);
+        return NULL;
+    }
+    if (PyType_HasFeature((PyTypeObject *) type, Py_TPFLAGS_NO_SHADOWING_INSTANCES)) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
@@ -428,6 +442,10 @@ static struct PyMethodDef cinder_module_methods[] = {
      get_coro_awaiter,
      METH_O,
      "Get the awaiter of the given coroutine, or None if one is not set."},
+    {"_has_no_shadowing_instances",
+     has_no_shadowing_instances,
+     METH_O,
+     "Return whether or not the given type has TP_FLAGS_NO_SHADOWING_INSTACES set."},
 
     {NULL, NULL} /* sentinel */
 };

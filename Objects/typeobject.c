@@ -3193,8 +3193,17 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     if (set_names(type) < 0)
         goto error;
 
+    Py_ssize_t orig_refcount = Py_REFCNT(type);
     if (init_subclass(type, kwds) < 0)
         goto error;
+
+    if (orig_refcount == Py_REFCNT(type)) {
+        /* Instances of heap types hold a strong reference to their type.
+         * The refcount of type hasn't changed, therefore no instances of
+         * it are live, and thus no shadowing can occur.
+         */
+        _PyType_SetNoShadowingInstances(type);
+    }
 
     Py_DECREF(dict);
     return (PyObject *)type;
