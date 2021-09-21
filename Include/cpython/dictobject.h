@@ -147,6 +147,11 @@ int _PyDict_SetItem(PyObject *op, PyObject *key, PyObject *value);
 
 int _PyCheckedDict_Check(PyObject *x);
 
+/* Force the dictionary to use a combined layout.
+ * Returns 0 on success or -1 on error.
+ */
+int _PyDict_ForceCombined(PyObject *);
+
 #ifdef __cplusplus
 }
 #endif

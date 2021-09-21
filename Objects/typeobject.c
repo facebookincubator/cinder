@@ -2324,6 +2324,16 @@ subtype_setdict(PyObject *obj, PyObject *value, void *context)
 
     _PyType_ClearNoShadowingInstances(tp, NULL);
 
+    /* Inline caches assume that all instances of a type that use split
+     * dictionaries for attribute storage share the same dict keys object. We
+     * could verify that for the new dictionary (if it's split), however, dict
+     * assignment should happen so rarely that it's easier to just force the
+     * dictionary to be combined.
+     */
+    if (_PyDict_ForceCombined(value) < 0) {
+        return -1;
+    }
+
     base = get_builtin_base_with_dict(tp);
     if (base != NULL) {
         descrsetfunc func;
@@ -4982,6 +4992,19 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
         if (oldto->tp_flags & Py_TPFLAGS_HEAPTYPE)
             Py_DECREF(oldto);
         _PyType_ClearNoShadowingInstances(newto, NULL);
+
+        /* Inline caches assume that all instances of a type that use split
+         * dictionaries for attribute storage share the same dict keys object.
+         * Force the instance dictionary, if it exists, to use combined storage.
+         */
+        PyObject **dictptr = _PyObject_GetDictPtr(self);
+        if (dictptr != NULL) {
+            PyObject *dict = *dictptr;
+            if (_PyDict_ForceCombined(dict) < 0) {
+                return -1;
+            }
+        }
+
         return 0;
     }
     else {

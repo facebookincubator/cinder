@@ -63,13 +63,6 @@ _PyShadow_FindCache(PyObject *from)
     return NULL;
 }
 
-/* Poison the dict keys for equality comparison by setting the low bit on them.
- * These are used to see if we have the same dict with a simple comparison.
- * At the same time, it makes it possible to have a dict lookup failure without
- * going through _PyDictKeys_GetSplitIndex again.
- */
-#define POISONED_DICT_KEYS(keys) ((PyDictKeysObject *)(((size_t)keys) | 0x01))
-
 #define INITIAL_POLYMORPHIC_CACHE_ARRAY_SIZE 4
 #define POLYMORPHIC_CACHE_SIZE 4
 
@@ -111,7 +104,6 @@ typedef struct {
     size_t dictoffset;
     Py_ssize_t splitoffset;
     Py_ssize_t nentries;
-    PyDictKeysObject *keys;
 } _PyShadow_InstanceAttrEntry;
 
 /* Code level cache - mutiple of these exist for different cache targets,
@@ -444,15 +436,18 @@ _PyShadow_TrySplitDictLookup(_PyShadow_InstanceAttrEntry *entry,
 {
     PyDictObject *dictobj = (PyDictObject *)dict;
     if (_Py_LIKELY(dictobj != NULL)) {
-        if (entry->keys == dictobj->ma_keys) {
+        if (!_PyDict_HasSplitTable(dictobj)) {
+          PyObject* res = _PyDict_GetItem_UnicodeExact((PyObject *)dictobj, entry->name);
+          Py_XINCREF(res);
+          return res;
+        } else if (entry->splitoffset != -1) {
             /* Hit - we have a matching split dictionary and the offset
              * is initialized */
             INLINE_CACHE_RECORD_STAT(opcode, hits);
             PyObject *res = dictobj->ma_values[entry->splitoffset];
             Py_XINCREF(res);
             return res;
-        } else if (entry->keys != POISONED_DICT_KEYS(dictobj->ma_keys) ||
-                   entry->nentries != dictobj->ma_keys->dk_nentries) {
+        } else if (entry->nentries != dictobj->ma_keys->dk_nentries) {
             INLINE_CACHE_RECORD_STAT(opcode, slightmisses);
             return _PyShadow_UpdateFastCache(entry, dictobj);
         }
@@ -1387,7 +1382,7 @@ _PyShadow_StoreAttrSplitDictSet(_PyShadow_EvalState *shadow,
     INLINE_CACHE_TYPE_STAT(Py_TYPE(owner), "fastdict_store");
 
     dictobj = (PyDictObject *)dict;
-    if (_PyDict_HasSplitTable(dictobj) && entry->keys == dictobj->ma_keys &&
+    if (_PyDict_HasSplitTable(dictobj) &&
         entry->splitoffset != -1 &&
         (dictobj->ma_used == entry->splitoffset ||
          dictobj->ma_values[entry->splitoffset] != NULL)) {

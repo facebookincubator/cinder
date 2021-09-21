@@ -70,7 +70,6 @@ invalidate_instance_attr_entry(_PyShadow_InstanceAttrEntry *entry)
            Py_TYPE(entry)->tp_base == &_PyShadow_BaseCache.type);
     entry->type = NULL;
     entry->value = NULL;
-    entry->keys = NULL;
 }
 
 int
@@ -1261,7 +1260,6 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
     Py_ssize_t dictoffset = 0;
     int nentries = 0;
     Py_ssize_t splitoffset = 0;
-    PyDictKeysObject *keys = NULL;
     _PyCacheType *cache_type;
     _PyShadow_InstanceAttrEntry *entry;
     PyObject *descr = _PyType_Lookup(tp, name);
@@ -1329,10 +1327,6 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
             (cached = CACHED_KEYS(tp))) {
             /* we have a split dict, we can access the slot directly */
             splitoffset = _PyDictKeys_GetSplitIndex(cached, name);
-            keys = cached;
-            if (splitoffset == -1) {
-                keys = POISONED_DICT_KEYS(keys);
-            }
             nentries = cached->dk_nentries;
 
             if (descr == NULL) {
@@ -1367,7 +1361,6 @@ done:
     }
     entry->dictoffset = dictoffset;
     entry->splitoffset = splitoffset;
-    entry->keys = keys;
     entry->nentries = nentries;
 
     if (_PyShadow_AddCacheForAttr(cache, name, (PyObject *)entry)) {
@@ -2028,9 +2021,7 @@ _PyShadow_UpdateFastCache(_PyShadow_InstanceAttrEntry *entry,
         if (entry->splitoffset != -1) {
             res = dictobj->ma_values[entry->splitoffset];
             Py_XINCREF(res);
-            entry->keys = dictobj->ma_keys;
         } else {
-            entry->keys = POISONED_DICT_KEYS(dictobj->ma_keys);
             res = NULL;
         }
     } else {

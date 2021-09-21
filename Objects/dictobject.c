@@ -327,6 +327,18 @@ static int numfreekeys = 0;
 
 #include "clinic/dictobject.c.h"
 
+int
+_PyDict_ForceCombined(PyObject *dict) {
+    if ((dict == NULL) || !PyDict_Check(dict)) {
+        return 0;
+    }
+    PyDictObject *dictobj = (PyDictObject *) dict;
+    if (!_PyDict_HasSplitTable(dictobj)) {
+        return 0;
+    }
+    return dictresize(dictobj, dictobj->ma_keys->dk_size);
+}
+
 void
 _PyDict_IncVersionForSet(PyDictObject *d, PyObject *key, PyObject *value)
 {

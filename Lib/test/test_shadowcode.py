@@ -2702,6 +2702,57 @@ def f(x):
         self.assertEqual(get_foo(obj), "testing 123")
         self.assertEqual(descr.invoked_count, 2)
 
+    def test_reassign_split_dict(self):
+        class Foo:
+            def __init__(self):
+                self.attr = 100
+
+        class Bar:
+            def __init__(self):
+                self.a0 = 0
+                self.attr = 200
+
+
+        def f(x):
+            return x.attr
+
+        # Prime the cache
+        obj = Foo()
+        for _ in range(REPETITION):
+            self.assertEqual(f(obj), 100)
+
+        # Update obj using a split dictionary with a different location
+        # for attr.
+        obj2 = Bar()
+        obj.__dict__ = obj2.__dict__
+        self.assertEqual(f(obj), 200)
+
+    def test_reassign_class_with_different_split_dict(self):
+        class Foo:
+            def __init__(self):
+                self.attr = 100
+
+        class Bar:
+            def __init__(self):
+                self.a0 = 0
+                self.attr = 200
+
+
+        def f(x):
+            return x.attr
+
+        # Prime the cache
+        obj = Foo()
+        for _ in range(REPETITION):
+            self.assertEqual(f(obj), 100)
+
+        # obj2 has type Foo, but if it uses a split dictionary for attribute
+        # storage the dict keys object will be shared across instances of Bar,
+        # not Foo.
+        obj2 = Bar()
+        obj2.__class__ = Foo
+        self.assertEqual(f(obj2), 200)
+
 
 
 if __name__ == "__main__":
