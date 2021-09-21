@@ -290,7 +290,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
         for module in symtable.modules.values():
             module.finish_bind()
 
-
         s = symbols.SymbolVisitor()
         s.visit(tree)
 

@@ -29,8 +29,10 @@ from ..visitor import ASTVisitor
 from .module_table import ModuleTable
 from .types import (
     AwaitableTypeRef,
+    CEnumType,
     Class,
     DYNAMIC_TYPE,
+    ENUM_TYPE,
     Function,
     NAMED_TUPLE_TYPE,
     OBJECT_TYPE,
@@ -56,6 +58,9 @@ class NestedScope:
     def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
         pass
 
+    def declare_variables(self, node: Assign, module: ModuleTable) -> None:
+        pass
+
 
 TScopeTypes = Union[ModuleTable, Class, Function, NestedScope]
 
@@ -69,9 +74,6 @@ class DeclarationVisitor(GenericVisitor):
     def finish_bind(self) -> None:
         self.module.finish_bind()
 
-    def visitAnnAssign(self, node: AnnAssign) -> None:
-        self.parent_scope().declare_variable(node, self.module)
-
     def parent_scope(self) -> TScopeTypes:
         return self.scopes[-1]
 
@@ -81,11 +83,30 @@ class DeclarationVisitor(GenericVisitor):
     def exit_scope(self) -> None:
         self.scopes.pop()
 
+    def visitAnnAssign(self, node: AnnAssign) -> None:
+        self.parent_scope().declare_variable(node, self.module)
+
+    def visitAssign(self, node: Assign) -> None:
+        self.parent_scope().declare_variables(node, self.module)
+
     def visitClassDef(self, node: ClassDef) -> None:
         bases = [self.module.resolve_type(base) or DYNAMIC_TYPE for base in node.bases]
         if not bases:
             bases.append(OBJECT_TYPE)
-        klass = Class(TypeName(self.module_name, node.name), bases)
+
+        type_name = TypeName(self.module_name, node.name)
+        if any(isinstance(base, CEnumType) for base in bases):
+            # TODO(wmeehan): handle enum subclassing and mix-ins
+            if len(bases) > 1:
+                self.syntax_error(
+                    f"Static Enum types cannot support multiple bases: {bases}",
+                    node,
+                )
+            if bases[0] != ENUM_TYPE:
+                self.syntax_error("Static Enum types do not allow subclassing", node)
+            klass = CEnumType(type_name, bases)
+        else:
+            klass = Class(type_name, bases)
         parent_scope = self.parent_scope()
         self.enter_scope(klass)
         for item in node.body:

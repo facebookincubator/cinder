@@ -289,3 +289,6 @@ class ModuleTable:
 
     def declare_variable(self, node: ast.AnnAssign, module: ModuleTable) -> None:
         self.decls.append((node, None))
+
+    def declare_variables(self, node: ast.Assign, module: ModuleTable) -> None:
+        pass

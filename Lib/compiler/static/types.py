@@ -194,6 +194,7 @@ except ImportError:
     spamobj = None
 
 CBOOL_TYPE: CIntType
+ENUM_TYPE: CEnumType
 INT8_TYPE: CIntType
 INT16_TYPE: CIntType
 INT32_TYPE: CIntType
@@ -898,6 +899,9 @@ class Class(Object["Class"]):
                 assignment=node if node.value else None,
                 declared_on_class=True,
             )
+
+    def declare_variables(self, node: Assign, module: ModuleTable) -> None:
+        pass
 
     def resolve_name(self, name: str) -> Optional[Value]:
         return self.members.get(name)
@@ -2487,6 +2491,9 @@ class Function(Callable[Class]):
         pass
 
     def declare_function(self, func: Function | DecoratedMethod) -> None:
+        pass
+
+    def declare_variables(self, node: Assign, module: ModuleTable) -> None:
         pass
 
     def bind_call(
@@ -5392,6 +5399,170 @@ class CInstance(Value, Generic[TClass]):
         code_gen.emit("PRIMITIVE_BINARY_OP", self.get_op_id(node.op))
 
 
+class CEnumInstance(CInstance["CEnumType"]):
+    def __init__(
+        self, klass: CEnumType, name: Optional[str] = None, value: Optional[int] = None
+    ) -> None:
+        super().__init__(klass)
+        self.klass = klass
+        self.attr_name = name
+        self.value = value
+
+    @property
+    def name(self) -> str:
+        class_name = super().name
+        if self.attr_name is not None:
+            return f"<{class_name}.{self.attr_name}: {self.value}>"
+        return class_name
+
+    def as_oparg(self) -> int:
+        return TYPED_INT64
+
+    def bind_compare(
+        self,
+        node: ast.Compare,
+        left: expr,
+        op: cmpop,
+        right: expr,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> bool:
+        rtype = visitor.get_type(right)
+        if not isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+            visitor.syntax_error(
+                f"'{CMPOP_SIGILS[type(op)]}' not supported between '{self.name}' and '{rtype.name}'",
+                node,
+            )
+            return False
+
+        if rtype != self and (
+            not isinstance(rtype, CEnumInstance) or self.klass != rtype.klass
+        ):
+            visitor.syntax_error(f"can't compare {self.name} to {rtype.name}", node)
+            return False
+
+        visitor.set_type(op, self)
+        visitor.set_type(node, CBOOL_TYPE.instance)
+        return True
+
+    def bind_reverse_compare(
+        self,
+        node: ast.Compare,
+        left: expr,
+        op: cmpop,
+        right: expr,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> bool:
+        ltype = visitor.get_type(left)
+        if not isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
+            visitor.syntax_error(
+                f"'{CMPOP_SIGILS[type(op)]}' not supported between '{ltype.name}' and '{self.name}'",
+                node,
+            )
+            return False
+
+        if ltype != self and (
+            not isinstance(ltype, CEnumInstance) or self.klass != ltype.klass
+        ):
+            visitor.syntax_error(f"can't compare {ltype.name} to {self.name}", node)
+            return False
+
+        visitor.set_type(op, self)
+        visitor.set_type(node, CBOOL_TYPE.instance)
+        return True
+
+    def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("PRIMITIVE_COMPARE_OP", INT64_VALUE.get_op_id(op))
+
+    def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        if isinstance(node.ctx, ast.Load):
+            code_gen.emit("LOAD_LOCAL", (node.id, self.klass.type_descr))
+        elif isinstance(node.ctx, ast.Store):
+            code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
+        else:
+            raise TypedSyntaxError("unsupported op")
+
+
+class CEnumType(CType):
+    instance: CEnumInstance
+
+    def __init__(
+        self,
+        type_name: Optional[TypeName] = None,
+        bases: Optional[List[Class]] = None,
+    ) -> None:
+        super().__init__(
+            type_name or TypeName("__static__", "Enum"),
+            bases,
+            CEnumInstance(self),
+        )
+
+        self.values: Dict[str, CEnumInstance] = {}
+
+    @property
+    # TODO(wmeehan): remove once we can handle (un)boxing enums
+    def type_descr(self) -> TypeDescr:
+        return INT64_TYPE.type_descr
+
+    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
+        if not isinstance(const, ast.Constant):
+            raise TypedSyntaxError(f"cannot resolve enum value {const} at compile time")
+
+        value = const.value
+        if not isinstance(value, int):
+            raise TypedSyntaxError(f"Static enums only support ints, not {type(value)}")
+
+        self.values[name.id] = CEnumInstance(self, name.id, value)
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            visitor.syntax_error("Enum values cannot be modified or deleted", node)
+
+        if inst := self.values.get(node.attr):
+            visitor.set_type(node, inst)
+            return
+
+        super().bind_attr(node, visitor, type_ctx)
+
+    def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
+        target = node.target
+        if isinstance(target, ast.Name):
+            self.add_enum_value(target, node)
+
+    def declare_variables(self, node: Assign, module: ModuleTable) -> None:
+        value = node.value
+        for target in node.targets:
+            if isinstance(target, ast.Tuple):
+                if not isinstance(value, ast.Tuple):
+                    raise TypedSyntaxError(
+                        f"cannot assign non-tuple enum value {value} "
+                        f"to multiple variables: {target}"
+                    )
+                if len(target.elts) != len(value.elts):
+                    raise TypedSyntaxError(
+                        f"arity mismatch for enum assignment {target} = {value}"
+                    )
+                for name, val in zip(target.elts, value.elts):
+                    assert isinstance(name, ast.Name)
+                    self.add_enum_value(name, val)
+            elif isinstance(target, ast.Name):
+                self.add_enum_value(target, value)
+
+    def emit_attr(
+        self,
+        node: ast.Attribute,
+        code_gen: Static38CodeGenerator,
+    ) -> None:
+        if inst := self.values.get(node.attr):
+            code_gen.emit("PRIMITIVE_LOAD_CONST", (inst.value, TYPED_INT64))
+            return
+
+        super().emit_attr(node, code_gen)
+
+
 class CIntInstance(CInstance["CIntType"]):
     def __init__(self, klass: CIntType, constant: int, size: int, signed: bool) -> None:
         super().__init__(klass)
@@ -5967,6 +6138,8 @@ class CDoubleType(CType):
 
 
 CBOOL_TYPE = CIntType(TYPED_BOOL, name_override="cbool")
+
+ENUM_TYPE = CEnumType()
 
 INT8_TYPE = CIntType(TYPED_INT8)
 INT16_TYPE = CIntType(TYPED_INT16)

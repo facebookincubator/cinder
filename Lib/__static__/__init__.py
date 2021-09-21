@@ -19,6 +19,8 @@ from typing import (
 )
 from weakref import WeakValueDictionary
 
+from .enum import Enum
+
 try:
     import _static
 except ImportError:

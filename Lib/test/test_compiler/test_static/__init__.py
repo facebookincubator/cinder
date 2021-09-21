@@ -1,6 +1,7 @@
 from .checked_list import CheckedListTests  # usort:skip
 from .classmethod import ClassMethodTests  # usort:skip
 from .elide_type_checks import ElideTypeChecksTests  # usort:skip
+from .enum import StaticEnumTests  # usort:skip
 from .fstring import FStringTests  # usort:skip
 from .obj_creation import StaticObjCreationTests  # usort:skip
 from .patch import StaticPatchTests  # usort:skip
