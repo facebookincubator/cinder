@@ -305,7 +305,7 @@ _PyType_SetNoShadowingInstances(PyTypeObject *type)
     PyObject *bases = type->tp_bases;
     Py_ssize_t nbases = PyTuple_GET_SIZE(bases);
 
-    if ((Py_TYPE(type) != &PyType_Type) ||
+    if (!PyType_Check(Py_TYPE(type)) ||
         (type->tp_setattro != PyObject_GenericSetAttr)) {
         return;
     }

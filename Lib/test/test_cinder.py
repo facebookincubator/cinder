@@ -1493,6 +1493,25 @@ class TestNoShadowingInstances(unittest.TestCase):
         class Foo(metaclass=MyMeta):
             pass
 
+        self.check_no_shadowing(Foo, True)
+
+    def test_custom_metaclass_with_setattr(self):
+        class MyMeta(type):
+            def __setattr__(cls, name, value):
+                return super().__setattr__(name, value)
+
+        class Foo(metaclass=MyMeta):
+            pass
+
+        self.check_no_shadowing(Foo, True)
+
+        Foo.notamethod = 1
+        self.check_no_shadowing(Foo, True)
+
+        def amethod(self):
+            return 1234
+
+        Foo.amethod = amethod
         self.check_no_shadowing(Foo, False)
 
     def test_init_subclass(self):
