@@ -335,6 +335,20 @@ static PyObject* get_jit_list(PyObject* /* self */, PyObject*) {
   }
 }
 
+static PyObject* jit_list_append(PyObject* /* self */, PyObject* line) {
+  if (g_jit_list == nullptr) {
+    g_jit_list = JITList::create().release();
+  }
+  Py_ssize_t line_len;
+  const char* line_str = PyUnicode_AsUTF8AndSize(line, &line_len);
+  if (line_str == NULL) {
+    return NULL;
+  }
+  g_jit_list->parseLine(
+      {line_str, static_cast<std::string::size_type>(line_len)});
+  Py_RETURN_NONE;
+}
+
 static PyObject* get_compiled_functions(PyObject* /* self */, PyObject*) {
   return _PyJITContext_GetCompiledFunctions(jit_ctx);
 }
@@ -587,6 +601,7 @@ static PyMethodDef jit_methods[] = {
      METH_NOARGS,
      "Get JIT frame mode (0 = normal frames, 1 = no frames, 2 = shadow frames"},
     {"get_jit_list", get_jit_list, METH_NOARGS, "Get the JIT-list"},
+    {"jit_list_append", jit_list_append, METH_O, "Parse a JIT-list line"},
     {"print_hir",
      print_hir,
      METH_O,
@@ -660,7 +675,7 @@ static PyModuleDef jit_module = {
 
 static int onJitListImpl(
     BorrowedRef<PyCodeObject> code,
-    BorrowedRef<> module,
+    BorrowedRef<> mod,
     BorrowedRef<> qualname) {
   bool is_static = code->co_flags & CO_STATICALLY_COMPILED;
   if (g_jit_list == nullptr ||
@@ -668,7 +683,10 @@ static int onJitListImpl(
     // There's no jit list or the function is static.
     return 1;
   }
-  return g_jit_list->lookup(module, qualname);
+  if (g_jit_list->lookupCO(code) != 1) {
+    return g_jit_list->lookupFO(mod, qualname);
+  }
+  return 1;
 }
 
 int _PyJIT_OnJitList(PyFunctionObject* func) {
@@ -930,6 +948,10 @@ int _PyJIT_Initialize() {
           "jit-multithreaded-compile-test",
           "PYTHONJITMULTITHREADEDCOMPILETEST")) {
     jit_config.multithreaded_compile_test = 1;
+  }
+  if (_is_flag_set(
+          "jit-list-match-line-numbers", "PYTHONJITLISTMATCHLINENUMBERS")) {
+    jitlist_match_line_numbers(true);
   }
 
   total_compliation_time = 0.0;

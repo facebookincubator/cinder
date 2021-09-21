@@ -11,6 +11,10 @@
 
 namespace jit {
 
+// Control global setting to use line numbers or not when checking if a function
+// is on a JIT list.
+void jitlist_match_line_numbers(bool v);
+
 // The JIT list is a file that specifies which functions should be compiled.
 //
 // The file consists of one function per line in the following format
@@ -32,30 +36,45 @@ class JITList {
   // Parse a single entry on the JIT list.
   //
   // Returns true on success or false on error.
-  bool parseLine(const char* line);
+  bool parseLine(const std::string& line);
 
   // Check if function is on the list.
   //
   // Returns 1, 0, -1 if the function was found, not found, or an error
   // occurred, respectively.
   int lookup(BorrowedRef<PyFunctionObject> function);
-  virtual int lookup(BorrowedRef<> module, BorrowedRef<> qualname);
+  virtual int lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname);
+  virtual int lookupCO(BorrowedRef<PyCodeObject> code);
 
   // Return a new reference to the dictionary used for matching elements in the
   // JIT list.
   Ref<> getList() const;
 
  protected:
-  JITList(Ref<> qualnames) : qualnames_(std::move(qualnames)) {}
+  JITList(Ref<> qualnames, Ref<> name_file_line_no)
+      : qualnames_(std::move(qualnames)),
+        name_file_line_no_(std::move(name_file_line_no)) {}
 
-  virtual bool addEntry(const char* module_name, const char* qualname);
-  bool addEntry(BorrowedRef<> module_name, BorrowedRef<> qualname);
+  virtual bool addEntryFO(const char* module_name, const char* qualname);
+  bool addEntryFO(BorrowedRef<> module_name, BorrowedRef<> qualname);
+
+  virtual bool
+  addEntryCO(const char* name, const char* file, const char* line_no);
+  bool
+  addEntryCO(BorrowedRef<> name, BorrowedRef<> file, BorrowedRef<> line_no);
 
   // Dict of module name to set of qualnames
   Ref<> qualnames_;
 
+  // Dict of name/qualname -> dict of file basename -> set of line numbers
+  Ref<> name_file_line_no_;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(JITList);
+
+  Ref<> pathBasename(BorrowedRef<> path);
+
+  Ref<> path_sep_;
 };
 
 // A wildcard JIT list allows one to match multiple functions with a single
@@ -90,13 +109,14 @@ class WildcardJITList : public JITList {
  public:
   static std::unique_ptr<WildcardJITList> create();
 
-  int lookup(BorrowedRef<> module, BorrowedRef<> qualname) override;
+  int lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname) override;
 
  protected:
   WildcardJITList(Ref<> wildcard, Ref<> qualnames)
-      : JITList(std::move(qualnames)), wildcard_(std::move(wildcard)) {}
+      : JITList(std::move(qualnames), Ref<>::steal(PyDict_New())),
+        wildcard_(std::move(wildcard)) {}
 
-  bool addEntry(const char* module_name, const char* qualname) override;
+  bool addEntryFO(const char* module_name, const char* qualname) override;
 
   Ref<> wildcard_;
 };

@@ -73,6 +73,7 @@ TESTS_TO_SERIALIZE = {
     "test_urllib2_localnet",
     "test_docxmlrpc",
     "test_filecmp",
+    "test_jitlist",
 }
 
 # Use the fdb debugging tool to invoke rr
