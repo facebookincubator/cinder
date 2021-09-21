@@ -283,6 +283,7 @@ def_op("BUILD_CHECKED_LIST", 201)
 hasconst.append(201)
 
 # facebook begin - shadow byte codes
+shadow_op("LOAD_METHOD_UNSHADOWED_METHOD", 207)
 shadow_op("LOAD_METHOD_TYPE_METHODLIKE", 208)
 shadow_op("BUILD_CHECKED_LIST_CACHED", 209)
 shadow_op("TP_ALLOC_CACHED", 210)

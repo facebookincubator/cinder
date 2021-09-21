@@ -2877,6 +2877,136 @@ def f(x):
         rc, out, err = assert_python_ok('-c', code)
         self.assertEqual(out.strip(), b"True")
 
+    def test_load_unshadowed_immortal_method_split_dict(self):
+        code = f"""if 1:
+            class Oracle:
+                def __init__(self):
+                    self.answer = 42
+
+                def speak(self):
+                    return self.answer
+
+            import gc
+            gc.immortalize_heap()
+
+            def f(x):
+                return x.speak()
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f(Oracle())
+
+            print(f(Oracle()))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'42')
+    def test_load_shadowed_immortal_method_split_dict(self):
+        code = f"""if 1:
+            class Oracle:
+                def __init__(self):
+                    self.answer = 42
+
+                def speak(self):
+                    return self.answer
+
+            import gc
+            gc.immortalize_heap()
+
+            def f(x):
+                return x.speak()
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f(Oracle())
+
+            # Shadow the method
+            obj = Oracle()
+            obj.speak = 12345
+
+            print(f(Oracle()))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'42')
+
+    def test_load_unshadowed_immortal_method_combineddict(self):
+        code = f"""if 1:
+            class Oracle:
+                def __init__(self):
+                    self.answer = 42
+
+                def speak(self):
+                    return self.answer
+
+            import gc
+            gc.immortalize_heap()
+
+            obj = Oracle()
+            obj.foo = 1
+            # Force the class to use combined dictionaries
+            del obj.foo
+
+            def f(x):
+                return x.speak()
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f(Oracle())
+
+            print(f(Oracle()))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'42')
+
+    def test_load_shadowed_immortal_method_combineddict(self):
+        code = f"""if 1:
+            class Oracle:
+                def __init__(self):
+                    self.answer = 42
+
+                def speak(self):
+                    return self.answer
+
+            import gc
+            gc.immortalize_heap()
+
+            obj = Oracle()
+            obj.foo = 1
+            # Force the class to use combined dictionaries
+            del obj.foo
+
+            def f(x):
+                return x.speak()
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f(Oracle())
+
+            # Shadow the method
+            obj = Oracle()
+            obj.speak = 12345
+
+            print(f(Oracle()))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'42')
+
+    def test_load_unshadowed_immortal_method_no_dict(self):
+        code = f"""if 1:
+            import gc
+            gc.immortalize_heap()
+
+            def f(x):
+                return x.count(1)
+
+            l = [1, 2, 3, 1]
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f(l)
+
+            print(f(l))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'2')
 
 if __name__ == "__main__":
     unittest.main()

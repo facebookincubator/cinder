@@ -206,7 +206,7 @@ static void *opcode_targets[256] = {
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
-    &&_unknown_opcode,
+    &&TARGET_LOAD_METHOD_UNSHADOWED_METHOD,
     &&TARGET_LOAD_METHOD_TYPE_METHODLIKE,
     &&TARGET_BUILD_CHECKED_LIST_CACHED,
     &&TARGET_TP_ALLOC_CACHED,

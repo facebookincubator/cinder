@@ -1176,6 +1176,31 @@ _PyShadow_LoadMethodTypeMethodLike(_PyShadow_EvalState *shadow,
 }
 
 static inline int
+_PyShadow_LoadMethodUnshadowedMethod(_PyShadow_EvalState *shadow,
+                                             const _Py_CODEUNIT *next_instr,
+                                             _PyShadow_InstanceAttrEntry *entry,
+                                             PyObject *obj,
+                                             PyObject **meth)
+{
+    PyTypeObject *tp = Py_TYPE(obj);
+
+    assert(((PyObject *)entry)->ob_type == &_PyShadow_InstanceCacheSplitDictMethod.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheDictMethod.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheNoDictMethod.type);
+
+    if (entry->type == tp) {
+        /* Cache hit */
+        INLINE_CACHE_TYPE_STAT(tp, "loadmethod_unshadowed_immortal_method");
+        INLINE_CACHE_RECORD_STAT(LOAD_METHOD_UNSHADOWED_METHOD, hits);
+        *meth = entry->value;
+        return 1;
+    }
+    LOAD_METHOD_CACHE_MISS(LOAD_METHOD_UNSHADOWED_METHOD, entry->type)
+}
+
+static inline int
 _PyShadow_LoadMethodDictMethod(_PyShadow_EvalState *shadow,
                                const _Py_CODEUNIT *next_instr,
                                _PyShadow_InstanceAttrEntry *entry,

@@ -5449,6 +5449,12 @@ main_loop:
                                _PyShadow_GetInstanceAttr);
         }
 
+        case TARGET(LOAD_METHOD_UNSHADOWED_METHOD): {
+            SHADOW_LOAD_METHOD(_PyShadow_LoadMethodUnshadowedMethod,
+                               _PyShadow_InstanceAttrEntry,
+                               _PyShadow_GetInstanceAttr);
+        }
+
         case TARGET(LOAD_METHOD_UNCACHABLE): {
             /* Designed to work in tandem with CALL_METHOD. */
             PyObject *name = GETITEM(names, oparg);

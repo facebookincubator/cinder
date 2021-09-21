@@ -1707,6 +1707,25 @@ _PyShadow_LoadMethodRunCacheEntry(_PyShadow_EvalState *state,
     _PyCacheType *cache_type = (_PyCacheType *)((PyObject *)entry)->ob_type;
     int opcode = cache_type->load_method_opcode;
 
+    // We can use a specialized opcode that immediately returns the cached
+    // method without any reference counting if:
+    //   1. The method is immortal.
+    //   2. There are no instances of the type with attributes that shadow
+    //      methods. Caches are invalidated if shadowing occurs and
+    //      the bytecode is replaced with one of the other specialized
+    //      versions (e.g. LOAD_METHOD_{SPLIT,NO,COMBINED}_DICT_METHOD)
+    PyObject *descr = ((_PyShadow_InstanceAttrEntry *) entry)->value;
+    if ((descr != NULL) && Py_IS_IMMORTAL(descr)) {
+        if (cache_type == &_PyShadow_InstanceCacheNoDictMethod) {
+            // No instance dictionary so shadowing cannot occur
+            opcode = LOAD_METHOD_UNSHADOWED_METHOD;
+        } else if (PyType_HasFeature(Py_TYPE(owner), Py_TPFLAGS_NO_SHADOWING_INSTANCES) &&
+                   ((cache_type == &_PyShadow_InstanceCacheDictMethod) ||
+                    (cache_type == &_PyShadow_InstanceCacheSplitDictMethod))) {
+            opcode = LOAD_METHOD_UNSHADOWED_METHOD;
+        }
+    }
+
     _PyShadow_PatchOrMiss(
         state, next_instr, opcode, entry, name, &_PyShadow_LoadMethodMiss);
 
