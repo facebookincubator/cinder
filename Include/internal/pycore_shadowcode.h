@@ -11,6 +11,8 @@
 #include "pystate.h"
 #include "pycore_object.h"
 
+#include <stdint.h>
+
 #ifndef Py_SHADOWCODE_H
 #define Py_SHADOWCODE_H
 
@@ -104,7 +106,51 @@ typedef struct {
     size_t dictoffset;
     Py_ssize_t splitoffset;
     Py_ssize_t nentries;
+
+    /*
+     * If `value` points to either a classmethod, staticmethod, or
+     * wrapper_descriptor then this contains information to optimize
+     * method calls against a type receiver.
+     *
+     * The upper bits contain the callable object in `value`.
+     *
+     * The low bit indicates if the interpreter should treat calling
+     * the callable as an unbound method (1) or not (0) when performing
+     * CALL_METHOD.
+     *
+     * This contains 0 if it is unset.
+     */
+     uintptr_t load_method_type_data;
 } _PyShadow_InstanceAttrEntry;
+
+typedef enum {
+    PYSHADOW_CALL_NOT_UNBOUND = 0,
+    PYSHADOW_CALL_UNBOUND = 1,
+} _PyShadow_MethCallKind;
+
+static const unsigned int _PyShadow_MethCallKindBits = 1;
+static const uintptr_t _PyShadow_MethCallKindMask =
+    (1 << _PyShadow_MethCallKindBits) - 1;
+static const uintptr_t _PyShadow_MethodLikeMask =
+    ~_PyShadow_MethCallKindMask;
+static const uintptr_t _PyShadow_LoadMethodTypeDataUnset = 0;
+
+static inline PyObject *
+_PyShadow_GetMethodLike(uintptr_t data) {
+    return (PyObject *) (data & _PyShadow_MethodLikeMask);
+}
+
+static inline _PyShadow_MethCallKind
+_PyShadow_GetMethCallKind(uintptr_t data) {
+    return (_PyShadow_MethCallKind) (data & _PyShadow_MethCallKindMask);
+}
+
+static inline uintptr_t
+_PyShadow_MakeLoadMethodTypeData(PyObject *obj,
+                                 _PyShadow_MethCallKind kind)
+{
+    return (uintptr_t) obj | kind;
+}
 
 /* Code level cache - mutiple of these exist for different cache targets,
  * allowing > 256 caches per method w/o needing to expand and re-map they
@@ -1089,6 +1135,44 @@ _PyShadow_LoadMethodType(_PyShadow_EvalState *shadow,
         return 0;
     }
     LOAD_METHOD_CACHE_MISS(LOAD_METHOD_TYPE, entry->type)
+}
+
+static inline int
+_PyShadow_LoadMethodTypeMethodLike(_PyShadow_EvalState *shadow,
+                                   const _Py_CODEUNIT *next_instr,
+                                   _PyShadow_InstanceAttrEntry *entry,
+                                   PyObject *obj,
+                                   PyObject **meth)
+{
+    assert(((PyObject *)entry)->ob_type == &_PyShadow_InstanceCacheSlot.type ||
+           /* this "NoDescr" case is because of our special handling of
+            * cached_property backed by dict */
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheDictNoDescr.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheNoDictDescr.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheSplitDictMethod.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheSplitDictDescr.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheDictMethod.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheDictDescr.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheNoDictMethod.type ||
+           ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheNoDictDescr.type);
+
+    if ((PyObject *)entry->type == obj) {
+        /* Cache hit */
+        INLINE_CACHE_TYPE_STAT(tp, "loadmethod_type_methodlike");
+        INLINE_CACHE_RECORD_STAT(LOAD_METHOD_TYPE_METHODLIKE, hits);
+        uintptr_t data = entry->load_method_type_data;
+        *meth = _PyShadow_GetMethodLike(data);
+        return _PyShadow_GetMethCallKind(data);
+    }
+    LOAD_METHOD_CACHE_MISS(LOAD_METHOD_TYPE_METHODLIKE, entry->type)
 }
 
 static inline int

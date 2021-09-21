@@ -7,6 +7,7 @@ import sys
 import unittest
 import weakref
 from collections import UserDict
+from test.support.script_helper import assert_python_ok
 from unittest import skipIf
 try:
     import cinder
@@ -2753,6 +2754,128 @@ def f(x):
         obj2.__class__ = Foo
         self.assertEqual(f(obj2), 200)
 
+    def test_load_immortal_classmethod(self):
+        code = f"""if 1:
+            class Foo:
+                @classmethod
+                def identity(cls, x):
+                    return x
+
+            import gc
+            gc.immortalize_heap()
+
+            def f(x):
+                return Foo.identity(x)
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f(100)
+
+            print(f(100))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'100')
+
+    def test_load_immortal_staticmethod(self):
+        code = f"""if 1:
+            class Foo:
+                @staticmethod
+                def identity(x):
+                    return x
+
+            import gc
+            gc.immortalize_heap()
+
+            def f(x):
+                return Foo.identity(x)
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f(100)
+
+            print(f(100))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'100')
+
+    def test_load_immortal_wrapper_descr(self):
+        code = f"""if 1:
+            class Foo:
+                def __repr__(self):
+                    return 12345
+
+            import gc
+            gc.immortalize_heap()
+
+            def f():
+                return str.__repr__('hello')
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f()
+
+            print(f())
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b"'hello'")
+
+    def test_load_immortal_function(self):
+        code = f"""if 1:
+            class Oracle:
+                def speak():
+                    return 42
+
+            import gc
+            gc.immortalize_heap()
+
+            def f():
+                return Oracle.speak()
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f()
+
+            print(f())
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b"42")
+
+    def test_load_immortal_method_descriptor(self):
+        code = f"""if 1:
+            import gc
+            gc.immortalize_heap()
+
+            def f(l):
+                return list.pop(l)
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f([42])
+
+            print(f([42]))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b"42")
+
+    def test_load_immortal_builtin_function(self):
+        code = f"""if 1:
+            class Foo:
+                pass
+
+            import gc
+            gc.immortalize_heap()
+
+            def f():
+                return object.__new__(Foo)
+
+            # Prime the cache
+            for _ in range({REPETITION}):
+                f()
+
+            print(isinstance(f(), Foo))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b"True")
 
 
 if __name__ == "__main__":

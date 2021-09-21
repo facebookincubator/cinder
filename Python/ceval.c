@@ -5425,6 +5425,12 @@ main_loop:
                                _PyShadow_GetInstanceAttr);
         }
 
+        case TARGET(LOAD_METHOD_TYPE_METHODLIKE): {
+            SHADOW_LOAD_METHOD(_PyShadow_LoadMethodTypeMethodLike,
+                               _PyShadow_InstanceAttrEntry,
+                               _PyShadow_GetInstanceAttr);
+        }
+
         case TARGET(LOAD_METHOD_DICT_METHOD): {
             SHADOW_LOAD_METHOD(_PyShadow_LoadMethodDictMethod,
                                _PyShadow_InstanceAttrEntry,

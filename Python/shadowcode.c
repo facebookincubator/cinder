@@ -1184,6 +1184,37 @@ _PyShadow_NewCacheEntry(_PyCacheType *cache_type)
     return cache_type->type.tp_alloc(&cache_type->type, 0);
 }
 
+static uintptr_t
+get_load_method_type_data(PyObject *descr)
+{
+    if (descr == NULL) {
+        return _PyShadow_LoadMethodTypeDataUnset;
+    }
+
+    PyObject *obj = NULL;
+    _PyShadow_MethCallKind kind;
+    if (PyClassMethod_Check(descr)) {
+        obj = _PyClassMethod_GetFunc(descr);
+        kind = PYSHADOW_CALL_UNBOUND;
+    } else if (PyStaticMethod_Check(descr)) {
+        obj = _PyStaticMethod_GetFunc(descr);
+        kind = PYSHADOW_CALL_NOT_UNBOUND;
+    } else if (PyWrapperDescr_Check(descr) ||
+               _PyShadow_IsMethod(descr) ||
+               PyCFunction_Check(descr)) {
+        obj = descr;
+        kind = PYSHADOW_CALL_NOT_UNBOUND;
+    } else {
+        return _PyShadow_LoadMethodTypeDataUnset;
+    }
+
+    if ((obj == NULL) || !Py_IS_IMMORTAL(obj)) {
+        return _PyShadow_LoadMethodTypeDataUnset;
+    }
+
+    return _PyShadow_MakeLoadMethodTypeData(obj, kind);
+}
+
 static _PyShadow_InstanceAttrEntry *
 _PyShadow_NewInstanceCache(_PyCacheType *cache_type,
                            PyObject *name,
@@ -1201,6 +1232,7 @@ _PyShadow_NewInstanceCache(_PyCacheType *cache_type,
         PyObject_Hash(res->name);
         res->type = type;
         res->value = value;
+        res->load_method_type_data = get_load_method_type_data(value);
     }
     return res;
 }
@@ -1755,9 +1787,17 @@ run_entry:
         Py_DECREF(entry);
         return 0;
     }
+
+    int opcode;
+    _PyShadow_InstanceAttrEntry *iae = (_PyShadow_InstanceAttrEntry *) entry;
+    if (iae->load_method_type_data == _PyShadow_LoadMethodTypeDataUnset) {
+        opcode = LOAD_METHOD_TYPE;
+    } else {
+        opcode = LOAD_METHOD_TYPE_METHODLIKE;
+    }
     _PyShadow_PatchOrMiss(state,
                           next_instr,
-                          LOAD_METHOD_TYPE,
+                          opcode,
                           entry,
                           name,
                           &_PyShadow_LoadMethodMiss);
