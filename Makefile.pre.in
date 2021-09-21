@@ -546,6 +546,7 @@ OBJECT_OBJS=	\
 		Objects/classobject.o \
 		Objects/codeobject.o \
 		Objects/complexobject.o \
+		Objects/constobject.o \
 		Objects/descrobject.o \
 		Objects/enumobject.o \
 		Objects/exceptions.o \
@@ -1361,6 +1362,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/codecs.h \
 		$(srcdir)/Include/compile.h \
 		$(srcdir)/Include/complexobject.h \
+		$(srcdir)/Include/constobject.h \
 		$(srcdir)/Include/context.h \
 		$(srcdir)/Include/descrobject.h \
 		$(srcdir)/Include/dictobject.h \

@@ -962,6 +962,21 @@ class CinderTest(unittest.TestCase):
         foo = StrictModule(d, False)
         self.assertNotIn("x", foo.__dict__)
 
+    def test_const_object(self):
+        class MyObj:
+            magic = [42]
+
+        a = MyObj
+        b = const(a)
+        c = [b]
+        self.assertEqual(c[0], b)
+        self.assertEqual(b.magic, const([42]))
+
+        d = c[0]
+        e = d.magic
+        with self.assertRaises(AttributeError):
+            e.magic = 33
+
 
 def async_test(f):
     assert inspect.iscoroutinefunction(f)
@@ -1319,7 +1334,6 @@ class AsyncCinderTest(unittest.TestCase):
         self.assertEqual(C.__dict__["f"].__doc__, "hi")
         self.assertEqual(C.__dict__["f"].name, "f")
         self.assertEqual(type(C.__dict__["f"].func), FunctionType)
-
 
 def f():
     pass

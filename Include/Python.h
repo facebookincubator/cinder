@@ -100,6 +100,7 @@
 #include "boolobject.h"
 #include "floatobject.h"
 #include "complexobject.h"
+#include "constobject.h"
 #include "rangeobject.h"
 #include "memoryobject.h"
 #include "tupleobject.h"

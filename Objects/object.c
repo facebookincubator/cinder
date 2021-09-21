@@ -1975,6 +1975,7 @@ _PyTypes_Init(void)
     /* fb T46346203 */
     INIT_TYPE(&PyCachedProperty_Type, "cached property");
     /* end fb T46346203 */
+    INIT_TYPE(&PyConst_Type, "const object");
     return _PyStatus_OK();
 
 #undef INIT_TYPE
