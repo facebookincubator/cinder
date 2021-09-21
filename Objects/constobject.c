@@ -10,10 +10,9 @@ static int numfree = 0;
 
 static void
 const_dealloc(PyConstObject *co) {
-  PyConst_CheckExact(co);
   Py_XDECREF(co->ob_item);
 
-  if (numfree < PyConstObject_MAXFREELIST) {
+  if (numfree < PyConstObject_MAXFREELIST && PyConst_CheckExact(co)) {
     PyObject_GC_UnTrack(co);
     free_list[numfree++] = co;
   } else {
@@ -23,8 +22,6 @@ const_dealloc(PyConstObject *co) {
 
 static PyObject *
 const_repr(PyConstObject *co) {
-  PyConst_CheckExact(co);
-
   if (co->ob_item == NULL) {
     return PyUnicode_FromString("NULL");
   }
@@ -37,7 +34,6 @@ const_repr(PyConstObject *co) {
 
 static int
 const_init(PyConstObject *self, PyObject *args, PyObject *kwargs) {
-  PyConst_CheckExact(self);
   if (self->ob_item != NULL) {
     Py_XDECREF(self->ob_item);
     self->ob_item = NULL;
@@ -63,7 +59,6 @@ const_traverse(PyConstObject *self, visitproc visit, void *arg) {
 }
 
 PyObject *const_getattr(PyObject *self, PyObject *name) {
-  PyConst_CheckExact(self);
   PyConstObject *co = (PyConstObject *)self;
   // XXX: for now, we assume ob_item's tp_getattro is well behaved
   // need to revisit after the semantic for const object is done.
@@ -78,7 +73,9 @@ PyObject *const_getattr(PyObject *self, PyObject *name) {
 
 static PyObject *
 const_richcompare(PyObject *v, PyObject *w, int op) {
-  PyConst_CheckExact(v);
+  if (!PyConst_CheckExact(v)) {
+    Py_RETURN_NOTIMPLEMENTED;
+  }
 
   PyConstObject *lhs = (PyConstObject *)v;
   if (Py_TYPE(lhs->ob_item)->tp_richcompare == NULL) {
@@ -96,7 +93,7 @@ const_richcompare(PyObject *v, PyObject *w, int op) {
 }
 
 static PyObject *
-const_new() {
+const_new(void) {
   PyConstObject *co = NULL;
 
   if (numfree == 0) {
@@ -152,7 +149,7 @@ PyTypeObject PyConst_Type = {
     0,                            /* tp_dictoffset */
     (initproc)const_init,         /* tp_init */
     PyType_GenericAlloc,          /* tp_alloc */
-    const_new,                    /* tp_new */
+    (newfunc)const_new,           /* tp_new */
     PyObject_GC_Del,              /* tp_free */
 };
 
@@ -163,14 +160,21 @@ PyConst_New() {
 
 PyObject *
 PyConst_GetItem(PyObject *ob) {
-  PyConst_CheckExact(ob);
+  if (!PyConst_CheckExact(ob)) {
+    PyErr_BadInternalCall();
+    return NULL;
+  }
   PyConstObject *co = (PyConstObject *)ob;
   return co->ob_item;
 }
 
 int
 PyConst_SetItem(PyObject *ob, PyObject *item_ob) {
-  PyConst_CheckExact(ob);
+  if (!PyConst_CheckExact(ob)) {
+    PyErr_BadInternalCall();
+    return -1;
+  }
+
   if (Py_TYPE(item_ob) == &PyConst_Type) {
     Py_XDECREF(item_ob);
     PyErr_BadInternalCall();
