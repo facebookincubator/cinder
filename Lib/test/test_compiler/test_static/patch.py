@@ -980,3 +980,19 @@ class StaticPatchTests(StaticTestBase):
                 TypeError, "unexpected return type from C.f, expected int, got str"
             ):
                 c.g()
+
+    def test_primitive_boxing_with_patching_leaves_original_values_intact(self):
+        codestr = """
+            from __static__ import int64
+            def takes_int64(x: int64) -> None:
+                pass
+            def foo(b: bool) -> int64:
+                x: int64 = 42
+                if b:
+                    takes_int64(x)
+                x = 43  # Ensure that we don't hit the assert of x having type Long|CInt64
+                return x
+        """
+        with self.in_strict_module(codestr, enable_patching=True) as mod:
+            f = mod.foo
+            self.assertEqual(f(True), 43)

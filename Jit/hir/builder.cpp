@@ -1885,8 +1885,12 @@ bool HIRBuilder::emitInvokeFunction(
       for (Py_ssize_t i = 0; i < Py_SIZE(prim_args_info.get()); i++) {
         int argnum = prim_args_info->tai_args[i].tai_argnum;
         Register* reg = arg_regs.at(argnum);
+        auto boxed_primitive_tmp = temps_.AllocateStack();
         tc.emit<PrimitiveBox>(
-            reg, reg, prim_args_info->tai_args[i].tai_primitive_type);
+            boxed_primitive_tmp,
+            reg,
+            prim_args_info->tai_args[i].tai_primitive_type);
+        arg_regs[argnum] = boxed_primitive_tmp;
       }
     } else {
       PyMethodDef* method = get_methoddef(func);
