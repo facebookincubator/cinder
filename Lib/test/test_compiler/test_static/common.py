@@ -43,6 +43,7 @@ class StaticTestBase(CompilerTest):
         optimize=0,
         peephole_enabled=True,
         ast_optimizer_enabled=True,
+        enable_patching=False,
     ):
         if (
             not peephole_enabled
@@ -60,7 +61,9 @@ class StaticTestBase(CompilerTest):
 
         symtable = SymbolTable(StaticCodeGenerator)
         tree = ast.parse(self.clean_code(code))
-        return symtable.compile(modname, f"{modname}.py", tree, optimize)
+        return symtable.compile(
+            modname, f"{modname}.py", tree, optimize, enable_patching=enable_patching
+        )
 
     def type_error(
         self,
@@ -97,8 +100,10 @@ class StaticTestBase(CompilerTest):
             mod_dict.clear()
         gc.collect()
 
-    def _in_module(self, code, name, code_gen, optimize):
-        compiled = self.compile(code, code_gen, name, optimize)
+    def _in_module(self, code, name, code_gen, optimize, enable_patching):
+        compiled = self.compile(
+            code, code_gen, name, optimize, enable_patching=enable_patching
+        )
         m = type(sys)(name)
         d = m.__dict__
         add_fixed_module(d)
@@ -117,14 +122,22 @@ class StaticTestBase(CompilerTest):
 
     @contextmanager
     def in_module(
-        self, code, name=None, code_gen=StaticCodeGenerator, optimize=0, freeze=False
+        self,
+        code,
+        name=None,
+        code_gen=StaticCodeGenerator,
+        optimize=0,
+        freeze=False,
+        enable_patching=False,
     ):
         d = None
         if name is None:
             name = self._temp_mod_name()
         old_setting = set_freeze_enabled(freeze)
         try:
-            d = self._in_module(code, name, code_gen, optimize)
+            d = self._in_module(
+                code, name, code_gen, optimize, enable_patching=enable_patching
+            )
             yield d
         finally:
             set_freeze_enabled(old_setting)
@@ -138,7 +151,9 @@ class StaticTestBase(CompilerTest):
         optimize,
         enable_patching,
     ):
-        compiled = self.compile(code, code_gen, name, optimize)
+        compiled = self.compile(
+            code, code_gen, name, optimize, enable_patching=enable_patching
+        )
         d = {"__name__": name}
         add_fixed_module(d)
         m = StrictModule(d, enable_patching)
@@ -162,7 +177,7 @@ class StaticTestBase(CompilerTest):
         old_setting = set_freeze_enabled(freeze)
         try:
             d, m = self._in_strict_module(
-                code, name, code_gen, optimize, enable_patching
+                code, name, code_gen, optimize, enable_patching=enable_patching
             )
             yield m
         finally:

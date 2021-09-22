@@ -141,6 +141,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         modname: str,
         flags: int = 0,
         optimization_lvl: int = 0,
+        enable_patching: bool = False,
     ) -> None:
         super().__init__(parent, node, symbols, graph, flags, optimization_lvl)
         self.symtable = symtable
@@ -148,6 +149,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         # Use this counter to allocate temporaries for loop indices
         self._tmpvar_loopidx_count = 0
         self.cur_mod: ModuleTable = self.symtable.modules[modname]
+        self.enable_patching = enable_patching
 
     def _is_static_compiler_disabled(self, node: AST) -> bool:
         if not isinstance(node, (AsyncFunctionDef, FunctionDef, ClassDef)):
@@ -199,6 +201,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             symtable=self.symtable,
             modname=self.modname,
             optimization_lvl=self.optimization_lvl,
+            enable_patching=self.enable_patching,
         )
 
     def make_func_codegen(
@@ -276,6 +279,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         optimize: int,
         peephole_enabled: bool = True,
         ast_optimizer_enabled: bool = True,
+        enable_patching: bool = False,
     ) -> Static38CodeGenerator:
         # TODO: Parsing here should really be that we run declaration visitor over all nodes,
         # and then perform post processing on the symbol table, and then proceed to analysis
@@ -298,10 +302,22 @@ class Static38CodeGenerator(StrictCodeGenerator):
         )
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
 
-        type_binder = TypeBinder(s, filename, symtable, module_name, optimize)
+        type_binder = TypeBinder(
+            s, filename, symtable, module_name, optimize, enable_patching
+        )
         type_binder.visit(tree)
 
-        code_gen = cls(None, tree, s, graph, symtable, module_name, flags, optimize)
+        code_gen = cls(
+            None,
+            tree,
+            s,
+            graph,
+            symtable,
+            module_name,
+            flags,
+            optimize,
+            enable_patching,
+        )
         code_gen.visit(tree)
         return code_gen
 
@@ -409,10 +425,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         class_mems = [
             name
             for name, value in klass.members.items()
-            if (
-                isinstance(value, Slot)
-                and not value.is_classvar
-            )
+            if (isinstance(value, Slot) and not value.is_classvar)
             or isinstance(value, CachedPropertyMethod)
             or isinstance(value, AsyncCachedPropertyMethod)
         ]

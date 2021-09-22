@@ -996,3 +996,22 @@ class StaticPatchTests(StaticTestBase):
         with self.in_strict_module(codestr, enable_patching=True) as mod:
             f = mod.foo
             self.assertEqual(f(True), 43)
+
+    def test_no_inline_with_patching(self):
+        codestr = """
+            from __static__ import int64, cbool, inline
+
+            @inline
+            def x(i: int64) -> cbool:
+                return i == 1
+
+            def foo(i: int64) -> cbool:
+                return x(i)
+        """
+        with self.in_module(codestr, optimize=2, enable_patching=True) as mod:
+            foo = mod["foo"]
+            self.assertEqual(foo(0), False)
+            self.assertEqual(foo(1), True)
+            self.assertEqual(foo(2), False)
+            self.assertNotInBytecode(foo, "STORE_LOCAL")
+            self.assertInBytecode(foo, "INVOKE_FUNCTION")

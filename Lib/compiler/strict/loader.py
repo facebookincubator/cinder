@@ -209,6 +209,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         allow_list_prefix: Iterable[str],
         allow_list_exact: Iterable[str],
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]],
+        enable_patching: bool,
     ) -> StaticCompiler:
         if (comp := cls.compiler) is None:
             comp = cls.compiler = StaticCompiler(
@@ -218,6 +219,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 allow_list_exact,
                 raise_on_error=True,
                 log_time_func=log_time_func,
+                enable_patching=enable_patching,
             )
         return comp
 
@@ -226,7 +228,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         is_pyc = False
         if path.endswith(tuple(BYTECODE_SUFFIXES)):
             is_pyc = True
-            path = add_strict_tag(path)
+            path = add_strict_tag(path, enable_patching=self.enable_patching)
             self.bytecode_path = path
         data = super().get_data(path)
         if is_pyc:
@@ -288,6 +290,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 self.allow_list_prefix,
                 self.allow_list_exact,
                 self.log_time_func,
+                self.enable_patching,
             ).load_compiled_module_from_source(
                 data,
                 path,
@@ -353,9 +356,11 @@ class StrictSourceFileLoader(SourceFileLoader):
             tracker.exit_import()
 
 
-def add_strict_tag(path: str) -> str:
+def add_strict_tag(path: str, enable_patching: bool = False) -> str:
     base, __, ext = path.rpartition(".")
-    return f"{base}.strict.{ext}"
+    enable_patching_marker = ".patch" if enable_patching else ""
+
+    return f"{base}.strict{enable_patching_marker}.{ext}"
 
 
 def _get_supported_file_loaders() -> List[Tuple[Loader, List[str]]]:

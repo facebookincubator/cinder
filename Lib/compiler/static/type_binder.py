@@ -217,6 +217,7 @@ class TypeBinder(GenericVisitor):
         symtable: SymbolTable,
         module_name: str,
         optimize: int = 0,
+        enable_patching: bool = False,
     ) -> None:
         module = symtable[module_name]
         super().__init__(module)
@@ -226,6 +227,7 @@ class TypeBinder(GenericVisitor):
         self.terminals: Dict[AST, TerminalKind] = {}
         self.inline_depth = 0
         self.inline_calls = 0
+        self.enable_patching = enable_patching
 
     @property
     def local_types(self) -> Dict[str, Value]:

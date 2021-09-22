@@ -73,7 +73,12 @@ def restore_strict_modules() -> Generator[None, None, None]:
     try:
         StrictSourceFileLoader.compiler = None
         StrictSourceFileLoader.ensure_compiler(
-            sys.path, STUB_ROOT, ALLOW_LIST, EXACT_ALLOW_LIST, None
+            sys.path,
+            STUB_ROOT,
+            ALLOW_LIST,
+            EXACT_ALLOW_LIST,
+            None,
+            enable_patching=False,
         )
         yield
     finally:
@@ -83,7 +88,12 @@ def restore_strict_modules() -> Generator[None, None, None]:
 @contextmanager
 def restore_static_symtable() -> Generator[None, None, None]:
     compiler = StrictSourceFileLoader.ensure_compiler(
-        sys.path, STUB_ROOT, ALLOW_LIST, EXACT_ALLOW_LIST, None
+        sys.path,
+        STUB_ROOT,
+        ALLOW_LIST,
+        EXACT_ALLOW_LIST,
+        None,
+        enable_patching=False,
     )
     if isinstance(compiler, StaticCompiler):
         modules = compiler.symtable.modules.copy()

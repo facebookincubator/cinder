@@ -213,6 +213,7 @@ class StaticCompiler(Compiler):
         allow_list_exact: Iterable[str],
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
         raise_on_error: bool = False,
+        enable_patching: bool = False,
     ) -> None:
         super().__init__(
             import_path,
@@ -223,6 +224,7 @@ class StaticCompiler(Compiler):
         )
         self.symtable: StrictSymbolTable = StrictSymbolTable(self)
         self.log_time_func = log_time_func
+        self.enable_patching = enable_patching
 
     def _rewrite(
         self,
@@ -288,9 +290,17 @@ class StaticCompiler(Compiler):
             log_func = self.log_time_func
             if log_func:
                 with log_func()(name, filename, "compile"):
-                    code = self.symtable.compile(name, filename, root, optimize)
+                    code = self.symtable.compile(
+                        name,
+                        filename,
+                        root,
+                        optimize,
+                        enable_patching=self.enable_patching,
+                    )
             else:
-                code = self.symtable.compile(name, filename, root, optimize)
+                code = self.symtable.compile(
+                    name, filename, root, optimize, enable_patching=self.enable_patching
+                )
         except TypedSyntaxError as e:
             err = StrictModuleError(
                 e.msg or "unknown error during static compilation",

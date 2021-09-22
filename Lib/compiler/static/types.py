@@ -2500,7 +2500,7 @@ class Function(Callable[Class]):
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
         res = super().bind_call(node, visitor, type_ctx)
-        if self.inline and visitor.optimize == 2:
+        if self.inline and not visitor.enable_patching:
             assert isinstance(self.node.body[0], ast.Return)
 
             return self.bind_inline_call(node, visitor, type_ctx) or res
@@ -2508,7 +2508,7 @@ class Function(Callable[Class]):
         return res
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if self.inline and code_gen.optimization_lvl == 2:
+        if self.inline and not code_gen.enable_patching:
             return self.emit_inline_call(node, code_gen)
 
         return self.emit_call_self(node, code_gen)

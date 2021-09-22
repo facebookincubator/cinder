@@ -318,31 +318,48 @@ class SymbolTable:
         decl_visit = DeclarationVisitor(name, filename, self)
         decl_visit.visit(tree)
         decl_visit.finish_bind()
-
         return tree
 
-    def bind(self, name: str, filename: str, tree: AST, optimize: int = 0) -> None:
-        self._bind(name, filename, tree, optimize)
+    def bind(
+        self,
+        name: str,
+        filename: str,
+        tree: AST,
+        optimize: int = 0,
+        enable_patching: bool = False,
+    ) -> None:
+        self._bind(name, filename, tree, optimize, enable_patching)
 
     def _bind(
-        self, name: str, filename: str, tree: AST, optimize: int = 0
+        self,
+        name: str,
+        filename: str,
+        tree: AST,
+        optimize: int = 0,
+        enable_patching: bool = False,
     ) -> Tuple[AST, SymbolVisitor]:
         if name not in self.modules:
             tree = self.add_module(name, filename, tree, optimize)
-
         # Analyze variable scopes
         s = SymbolVisitor()
         s.visit(tree)
 
         # Analyze the types of objects within local scopes
-        type_binder = TypeBinder(s, filename, self, name, optimize)
+        type_binder = TypeBinder(
+            s, filename, self, name, optimize, enable_patching=enable_patching
+        )
         type_binder.visit(tree)
         return tree, s
 
     def compile(
-        self, name: str, filename: str, tree: AST, optimize: int = 0
+        self,
+        name: str,
+        filename: str,
+        tree: AST,
+        optimize: int = 0,
+        enable_patching: bool = False,
     ) -> CodeType:
-        tree, s = self._bind(name, filename, tree, optimize)
+        tree, s = self._bind(name, filename, tree, optimize, enable_patching)
         if self.error_sink.has_errors:
             raise self.error_sink.errors[0]
 
@@ -353,7 +370,15 @@ class SymbolTable:
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
 
         code_gen = self.code_generator(
-            None, tree, s, graph, self, name, flags=0, optimization_lvl=optimize
+            None,
+            tree,
+            s,
+            graph,
+            self,
+            name,
+            flags=0,
+            optimization_lvl=optimize,
+            enable_patching=enable_patching,
         )
         code_gen.visit(tree)
 

@@ -10560,11 +10560,11 @@ class StaticCompilationTests(StaticTestBase):
         # TODO longer term we might need something better here (e.g. emit both
         # inlined code and call and a guard to choose); assuming
         # non-patchability at opt 2 works for IG but isn't generally valid
-        for opt in [0, 1, 2]:
-            with self.subTest(opt=opt):
-                with self.in_module(codestr, optimize=opt) as mod:
+        for enable_patching in [False, True]:
+            with self.subTest(enable_patching=enable_patching):
+                with self.in_module(codestr, enable_patching=enable_patching) as mod:
                     g = mod["g"]
-                    if opt == 2:
+                    if not enable_patching:
                         self.assertInBytecode(g, "LOAD_CONST", 3)
                     else:
                         self.assertInBytecode(
