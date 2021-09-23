@@ -54,6 +54,7 @@ _MAGIC_LEN: int = len(_MAGIC_STRICT)
 @final
 class _PatchState(Enum):
     """Singleton used for tracking values which have not yet been patched."""
+
     Patched = 1
     Deleted = 2
     Unpatched = 3
@@ -209,7 +210,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         allow_list_prefix: Iterable[str],
         allow_list_exact: Iterable[str],
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]],
-        enable_patching: bool,
+        enable_patching: bool = False,
     ) -> StaticCompiler:
         if (comp := cls.compiler) is None:
             comp = cls.compiler = StaticCompiler(
