@@ -17,11 +17,15 @@ class CompilerTests(StrictTestBase):
         import_path: Optional[Sequence[str]] = None,
         allow_list_prefix: Optional[Sequence[str]] = None,
         stub_root: str = "",
+        forced_strict_name: Optional[str] = None,
     ) -> StrictAnalysisResult:
         code = dedent(code)
         compiler = StrictModuleLoader(
             import_path or [], stub_root, allow_list_prefix or [], [], True
         )
+
+        if forced_strict_name is not None:
+            compiler.set_force_strict_by_name(forced_strict_name)
 
         module = compiler.check_source(code, f"{mod_name}.py", mod_name, [])
         return module
@@ -145,6 +149,52 @@ class CompilerTests(StrictTestBase):
         m = self.analyze(code, stub_root=TESTING_STUB)
         self.assertTrue(m.is_valid)
         self.assertEqual(m.errors, [])
+
+    def test_forced_strict(self) -> None:
+        with sandbox() as sbx:
+            sbx.write_file(
+                "a.py",
+                """
+                class C:
+                    x = 1
+                """,
+            )
+            code = """
+            import __strict__
+            import a
+            x = a.C.x
+            """
+            m = self.analyze(code, import_path=[str(sbx.root)], forced_strict_name="a")
+            self.assertTrue(m.is_valid)
+            self.assertEqual(m.errors, [])
+
+    def test_forced_strict_only_by_name(self) -> None:
+        with sandbox() as sbx:
+            sbx.write_file(
+                "a.py",
+                """
+                class C:
+                    x = 1
+                """,
+            )
+            sbx.write_file(
+                "b.py",
+                """
+                class C:
+                    x = 1
+                """,
+            )
+            code = """
+            import __strict__
+            import a
+            import b
+            x = a.C.x
+            y = b.C
+            """
+            m = self.analyze(code, import_path=[str(sbx.root)], forced_strict_name="a")
+            err = "Module-level attribute access on non-strict value '<imported module b>.C' is prohibited."
+            self.assertTrue(m.is_valid)
+            self.assertEqual(m.errors[0][0], err)
 
 
 @final

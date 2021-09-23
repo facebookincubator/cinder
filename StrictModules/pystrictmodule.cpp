@@ -585,6 +585,20 @@ static PyObject* StrictModuleLoader_set_force_strict(
   Py_RETURN_FALSE;
 }
 
+static PyObject* StrictModuleLoader_set_force_strict_by_name(
+    StrictModuleLoaderObject* self,
+    PyObject* args) {
+  const char* forced_strict_module;
+  if (!PyArg_ParseTuple(args, "s", &forced_strict_module)) {
+    return NULL;
+  }
+  int ok = StrictModuleChecker_SetForceStrictByName(self->checker, forced_strict_module);
+  if (ok == 0) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
 static PyObject* StrictModuleLoader_get_analyzed_count(
     StrictModuleLoaderObject* self) {
   int count = StrictModuleChecker_GetAnalyzedModuleCount(self->checker);
@@ -622,6 +636,10 @@ static PyMethodDef StrictModuleLoader_methods[] = {
      (PyCFunction)StrictModuleLoader_set_force_strict,
      METH_VARARGS,
      PyDoc_STR("set_force_strict(force: bool) -> bool")},
+    {"set_force_strict_by_name",
+     (PyCFunction)StrictModuleLoader_set_force_strict_by_name,
+     METH_VARARGS,
+     PyDoc_STR("set_force_strict(modname: str) -> bool")},
     {"get_analyzed_count",
      (PyCFunction)StrictModuleLoader_get_analyzed_count,
      METH_NOARGS,

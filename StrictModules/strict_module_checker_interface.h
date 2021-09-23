@@ -105,6 +105,9 @@ int StrictModuleChecker_GetAnalyzedModuleCount(StrictModuleChecker* checker);
 int StrictModuleChecker_SetForceStrict(
     StrictModuleChecker* checker,
     PyObject* force_strict);
+int StrictModuleChecker_SetForceStrictByName(
+    StrictModuleChecker* checker,
+    const char* forced_module_name);
 
 // Delete the module named `mod` from the analyzed modules
 int StrictModuleChecker_DeleteModule(

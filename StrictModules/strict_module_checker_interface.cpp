@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "strict_module_checker_interface.h"
 
-#include <string>
-#include <utility>
-#include <vector>
-
 #include "StrictModules/Compiler/abstract_module_loader.h"
 #include "StrictModules/Compiler/analyzed_module.h"
 #include "StrictModules/ast_preprocessor.h"
+
+#include <string>
+#include <utility>
+#include <vector>
 
 void ErrorInfo_Clean(ErrorInfo* info) {
   Py_XDECREF(info->filename);
@@ -170,6 +170,19 @@ int StrictModuleChecker_SetForceStrict(
       reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
   bool forceStrictBool = force_strict == Py_True;
   loader->setForceStrict(forceStrictBool);
+  return 0;
+}
+
+int StrictModuleChecker_SetForceStrictByName(
+    StrictModuleChecker* checker,
+    const char* forced_module_name) {
+  strictmod::compiler::ModuleLoader* loader =
+      reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  std::string modName(forced_module_name);
+  loader->setForceStrictFunc(
+      [forced_module_name](const std::string& modName, const std::string&) {
+        return modName == forced_module_name;
+      });
   return 0;
 }
 

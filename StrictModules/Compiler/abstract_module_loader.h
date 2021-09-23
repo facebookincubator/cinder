@@ -149,6 +149,7 @@ class ModuleLoader {
   bool setStubImportPath(std::string importPath);
   bool setStubImportPath(std::vector<std::string> importPath);
   void setForceStrict(bool force);
+  void setForceStrictFunc(ForceStrictFunc forceFunc);
   bool clearAllowList();
   bool setAllowListPrefix(std::vector<std::string> allowList);
   bool setAllowListExact(std::vector<std::string> allowList);

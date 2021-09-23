@@ -286,6 +286,10 @@ void ModuleLoader::setForceStrict(bool force) {
   };
 }
 
+void ModuleLoader::setForceStrictFunc(ForceStrictFunc forceFunc) {
+  forceStrict_.emplace(std::move(forceFunc));
+}
+
 bool ModuleLoader::clearAllowList() {
   allowList_.clear();
   return true;
