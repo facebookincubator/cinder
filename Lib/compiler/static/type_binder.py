@@ -474,16 +474,17 @@ class TypeBinder(GenericVisitor):
             # We store the return type on the node for the function as we otherwise
             # don't need to store type information for it
             expected = self.module.resolve_annotation(returns) or DYNAMIC_TYPE
-            if isinstance(node, AsyncFunctionDef):
-                expected = AWAITABLE_TYPE.make_generic_type(
-                    (expected,), self.symtable.generic_types
-                )
-            self.set_type(node, expected.instance)
             self.visitExpectedType(
                 returns, DYNAMIC, "return annotation cannot be a primitive"
             )
         else:
-            self.set_type(node, DYNAMIC)
+            expected = DYNAMIC_TYPE
+
+        if isinstance(node, AsyncFunctionDef):
+            expected = AWAITABLE_TYPE.make_generic_type(
+                (expected,), self.symtable.generic_types
+            )
+        self.set_type(node, expected.instance)
 
         self.scopes.append(scope)
 

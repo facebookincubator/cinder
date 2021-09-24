@@ -685,15 +685,18 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
     def _visitReturnValue(self, value: ast.AST, expected: Class) -> None:
         self.visit(value)
-        if expected is not DYNAMIC_TYPE and self.get_type(value) is DYNAMIC:
-            if isinstance(self.tree, AsyncFunctionDef):
-                assert isinstance(expected, AwaitableType)
-                expected = expected.type_args[0]
+        if (
+            expected not in (DYNAMIC_TYPE, OBJECT_TYPE)
+            and self.get_type(value) is DYNAMIC
+        ):
             self.emit("CAST", expected.type_descr)
 
     def visitReturn(self, node: ast.Return) -> None:
         self.checkReturn(node)
         expected = self.get_type(self.tree).klass
+        if isinstance(self.tree, AsyncFunctionDef):
+            assert isinstance(expected, AwaitableType)
+            expected = expected.type_args[0]
         self.set_lineno(node)
         value = node.value
         is_return_constant = isinstance(value, ast.Constant)
