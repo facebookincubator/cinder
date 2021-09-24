@@ -59,6 +59,10 @@ struct CodeData {
   Ref<> module;
   Ref<PyDictObject> globals;
 };
+
+// Amount of time taken to batch compile everything when disable_jit is called
+long g_batch_compilation_time_ms = 0;
+
 } // namespace
 
 static _PyJITContext* jit_ctx;
@@ -230,6 +234,7 @@ disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
 
   if (nargs == 0 || args[0] == Py_True) {
     // Compile all of the pending functions/codes before shutting down
+    std::chrono::time_point start = std::chrono::steady_clock::now();
     if (jit_config.batch_compile_workers > 0) {
       multithread_compile_all({jit_reg_units.begin(), jit_reg_units.end()});
       jit_reg_units.clear();
@@ -240,11 +245,20 @@ disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
         compileUnit(unit);
       }
     }
+    std::chrono::time_point end = std::chrono::steady_clock::now();
+    g_batch_compilation_time_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+            .count();
+
     jit_code_data.clear();
   }
 
   _PyJIT_Disable();
   Py_RETURN_NONE;
+}
+
+static PyObject* get_batch_compilation_time_ms(PyObject*, PyObject*) {
+  return PyLong_FromLong(g_batch_compilation_time_ms);
 }
 
 static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
@@ -660,6 +674,11 @@ static PyMethodDef jit_methods[] = {
      is_multithreaded_compile_test_enabled,
      METH_NOARGS,
      "Return True if multithreaded_compile_test mode is enabled"},
+    {"get_batch_compilation_time_ms",
+     get_batch_compilation_time_ms,
+     METH_NOARGS,
+     "Return the number of milliseconds spent in batch compilation when "
+     "disabling the JIT."},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {
