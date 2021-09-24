@@ -1737,7 +1737,7 @@ AnalysisResult Analyzer::visitJoinedStr(const expr_ty expr) {
     }
   }
   if (isUnknown) {
-    return makeUnknown(context_, std::move(result));
+    return makeUnknown(context_, "{}", std::move(result));
   }
   return context_.makeStr(std::move(result));
 }
