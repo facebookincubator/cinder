@@ -193,6 +193,9 @@ int JITList::lookup(BorrowedRef<PyFunctionObject> func) {
 }
 
 int JITList::lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname) {
+  if (mod == nullptr) {
+    return 0;
+  }
   // Check for an exact module:qualname match
   BorrowedRef<> name_set = PyDict_GetItemWithError(qualnames_, mod);
   if (name_set == nullptr) {
