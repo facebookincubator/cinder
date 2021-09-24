@@ -1118,13 +1118,22 @@ class Class(Object["Class"]):
             return any(self.is_subclass_of(t) for t in src.type_args)
         return src.inexact_type() in self.mro_inexact
 
-    def incompatible_override(self, override: Value, inherited: Value) -> bool:
+    def check_incompatible_override(self, override: Value, inherited: Value) -> None:
         # TODO: There's more checking we should be doing to ensure
         # this is a compatible override
-        return type(override) != type(inherited) and (
+        if type(override) != type(inherited) and (
             type(override) is not Function
             or not isinstance(inherited, (BuiltinFunction, BuiltinMethodDescriptor))
-        )
+        ):
+            raise TypedSyntaxError(f"class cannot hide inherited member: {inherited!r}")
+        if isinstance(override, Slot) and isinstance(inherited, Slot):
+            # TODO we could allow covariant type overrides for Final attributes
+            ot = override.type_ref
+            it = inherited.type_ref
+            if ot and it and ot.resolved(True) != (itr := it.resolved(True)):
+                raise TypedSyntaxError(
+                    f"Cannot change type of inherited attribute (inherited type '{itr.instance.name}')"
+                )
 
     def finish_bind(self, module: ModuleTable) -> None:
         inherited = set()
@@ -1143,13 +1152,9 @@ class Class(Object["Class"]):
 
                 for base in self.mro[1:]:
                     value = base.members.get(name)
-                    if value is not None and self.incompatible_override(
-                        my_value, value
-                    ):
-                        raise TypedSyntaxError(
-                            f"class cannot hide inherited member: {value!r}"
-                        )
-                    elif isinstance(value, Class):
+                    if value is not None:
+                        self.check_incompatible_override(my_value, value)
+                    if isinstance(value, Class):
                         value.finish_bind(module)
                     elif isinstance(value, Slot):
                         inherited.add(name)

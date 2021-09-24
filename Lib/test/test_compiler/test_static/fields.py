@@ -715,3 +715,29 @@ class StaticFieldTests(StaticTestBase):
             r"Class Finals are inferred ClassVar; do not nest with Final",
             at="ClassVar[int]",
         )
+
+    def test_incompatible_attr_override(self):
+        self.type_error(
+            """
+            class A:
+                x: int
+
+            class B(A):
+                x: str
+            """,
+            r"Cannot change type of inherited attribute \(inherited type 'int'\)",
+            at="x: str",
+        )
+
+    def test_mutable_attr_invariant(self):
+        self.type_error(
+            """
+            class A:
+                x: object
+
+            class B(A):
+                x: int
+            """,
+            r"Cannot change type of inherited attribute \(inherited type 'object'\)",
+            at="x: int",
+        )
