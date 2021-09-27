@@ -16,3 +16,4 @@ from .union import UnionCompilationTests  # usort:skip
 from .walrus_operator import WalrusOperatorTests  # usort:skip
 from .subclass import SubclassTests  # usort:skip
 from .module import ModuleTests  # usort:skip
+from .non_static_inheritance import NonStaticInheritanceTests  # usort:skip

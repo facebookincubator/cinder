@@ -132,6 +132,10 @@ awaitable_await(_PyClassLoader_Awaitable *self)
 static PyObject *
 rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_info);
 
+
+int
+used_in_vtable(PyObject *value);
+
 static PySendResult
 awaitable_itersend(PyThreadState* tstate,
                    _PyClassLoader_Awaitable *self,
@@ -1004,7 +1008,7 @@ get_func_or_prop_method(PyObject *dict, PyObject *name) {
 }
 
 PyObject *
-_PyClassLoader_GetInheritedFunction(PyTypeObject *type, PyObject *name) {
+_PyClassLoader_GetInheritedFunction(PyTypeObject *type, PyObject *name, int only_static) {
     PyObject *mro = type->tp_mro;
 
     for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
@@ -1022,6 +1026,9 @@ _PyClassLoader_GetInheritedFunction(PyTypeObject *type, PyObject *name) {
 
         PyObject *base = get_func_or_prop_method(dict, name);
         if (base != NULL) {
+            if (only_static && !used_in_vtable(base)) {
+                continue;
+            }
             return base;
         }
     }
@@ -1075,7 +1082,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     /* we need to search in the MRO if we don't contain the
      * item directly or we're currently deleting the current value */
     if (previous == NULL || new_value == NULL) {
-        PyObject *base = _PyClassLoader_GetInheritedFunction(type, name);
+        PyObject *base = _PyClassLoader_GetInheritedFunction(type, name, /* only_static */ 0);
 
         assert(base != NULL || previous != NULL);
         if (base != NULL) {
@@ -1091,7 +1098,6 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     }
 
     assert(previous != NULL);
-
     Py_ssize_t index = PyLong_AsSsize_t(slot);
     int cur_optional, cur_coroutine;
     PyObject* cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional, &cur_coroutine);
@@ -1185,7 +1191,7 @@ type_vtable_setslot(PyTypeObject *tp,
         /* non-static type can't influence our original static return type */
         original = value;
     } else {
-        original = _PyClassLoader_GetInheritedFunction(tp, name);
+        original = _PyClassLoader_GetInheritedFunction(tp, name, /* only_static */ 1);
         if (original == NULL) {
             PyErr_Format(PyExc_RuntimeError,
                         "unable to resolve base method for %s.%U",
