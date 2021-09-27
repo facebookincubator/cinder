@@ -14,3 +14,5 @@ from .subclass import SubclassTests  # usort:skip
 from .tests import StaticCompilationTests, StaticRuntimeTests  # usort:skip
 from .union import UnionCompilationTests  # usort:skip
 from .walrus_operator import WalrusOperatorTests  # usort:skip
+from .subclass import SubclassTests  # usort:skip
+from .module import ModuleTests  # usort:skip

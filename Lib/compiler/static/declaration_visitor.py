@@ -34,6 +34,7 @@ from .types import (
     DYNAMIC_TYPE,
     ENUM_TYPE,
     Function,
+    ModuleInstance,
     NAMED_TUPLE_TYPE,
     OBJECT_TYPE,
     PROTOCOL_TYPE,
@@ -181,6 +182,14 @@ class DeclarationVisitor(GenericVisitor):
     def visitImport(self, node: Import) -> None:
         for name in node.names:
             self.symtable.import_module(name.name)
+            asname = name.asname
+            if asname is None:
+                top_level_module = name.name.split(".")[0]
+                self.module.children[top_level_module] = ModuleInstance(
+                    top_level_module
+                )
+            else:
+                self.module.children[asname] = ModuleInstance(name.name)
 
     def visitImportFrom(self, node: ImportFrom) -> None:
         mod_name = node.module
@@ -191,8 +200,17 @@ class DeclarationVisitor(GenericVisitor):
         if mod is not None:
             for name in node.names:
                 val = mod.children.get(name.name)
+                child_name = name.asname or name.name
                 if val is not None:
-                    self.module.children[name.asname or name.name] = val
+                    self.module.children[child_name] = val
+                else:
+                    # We might be facing a module imported as an attribute.
+                    module_as_attribute = f"{mod_name}.{name.name}"
+                    self.symtable.import_module(module_as_attribute)
+                    if module_as_attribute in self.symtable.modules:
+                        self.module.children[child_name] = ModuleInstance(
+                            module_name=module_as_attribute
+                        )
 
     # We don't pick up declarations in nested statements
     def visitFor(self, node: For) -> None:

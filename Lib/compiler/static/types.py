@@ -65,22 +65,23 @@ from types import (
     WrapperDescriptorType,
 )
 from typing import (
-    TypeVar,
-    Generic,
-    Type,
-    Optional,
-    List,
+    Callable as typingCallable,
+    ClassVar as typingClassVar,
+    Collection,
     Dict,
-    Sequence,
+    Generic,
     Iterable,
+    List,
     Mapping,
-    Tuple,
+    Optional,
+    Sequence,
+    Set,
     TYPE_CHECKING,
+    Tuple,
+    Type,
+    TypeVar,
     Union,
     cast,
-    Set,
-    Collection,
-    Callable as typingCallable,
 )
 
 from __static__ import chkdict, chklist
@@ -6141,6 +6142,37 @@ class CDoubleType(CType):
             # must be a `float`.
             self.instance.emit_unbox(arg, code_gen)
 
+
+class ModuleType(Class):
+    def __init__(self) -> None:
+        super().__init__(TypeName("types", "ModuleType"))
+
+
+class ModuleInstance(Object["ModuleType"]):
+    SPECIAL_NAMES: typingClassVar[Set[str]] = {
+        "__dict__",
+        "__class__",
+        "__name__",
+        "__patch_enabled__",
+    }
+
+    def __init__(self, module_name: str) -> None:
+        self.module_name = module_name
+        super().__init__(klass=MODULE_TYPE)
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if node.attr in self.SPECIAL_NAMES:
+            return super().bind_attr(node, visitor, type_ctx)
+        module_table = visitor.symtable.modules.get(self.module_name)
+        if module_table is None:
+            visitor.set_type(node, DYNAMIC)
+            return
+        visitor.set_type(node, module_table.children.get(node.attr, DYNAMIC))
+
+
+MODULE_TYPE = ModuleType()
 
 CBOOL_TYPE = CIntType(TYPED_BOOL, name_override="cbool")
 
