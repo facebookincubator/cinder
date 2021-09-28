@@ -42,6 +42,10 @@ from .compiler import NONSTRICT_MODULE_KIND, StaticCompiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
 
 
+# Force immediate resolution of StaticCompiler in case it's deferred from Lazy Imports
+StaticCompiler = StaticCompiler
+
+
 _MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2 ** 15).to_bytes(2, "little") + b"\r\n"
 # We don't actually need to increment anything here, because the strict modules
 # AST rewrite has no impact on pycs for non-strict modules. So we just always
