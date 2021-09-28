@@ -849,6 +849,7 @@ class TypeBinder(GenericVisitor):
                 f"if expression has incompatible types: {body_t.name} and {else_t.name}",
                 node,
             )
+            self.set_type(node, DYNAMIC)
         return NO_EFFECT
 
     def visitSlice(
