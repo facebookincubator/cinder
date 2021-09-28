@@ -109,6 +109,24 @@ class ClassMethodTests(StaticTestBase):
             d = mod["d"]
             self.assertEqual(d, 1)
 
+    def test_final_classmethod_calls_another(self):
+        codestr = """
+            from typing import final
+            @final
+            class C:
+                @classmethod
+                def foo(cls) -> int:
+                    return 3
+
+                @classmethod
+                def bar(cls, i: int) -> int:
+                    return cls.foo() + i
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod["C"]
+            self.assertInBytecode(C.bar, "INVOKE_FUNCTION", (("mymod", "C", "foo"), 1))
+            self.assertEqual(C.bar(6), 9)
+
     def test_classmethod_calls_another(self):
         codestr = """
             class C:
@@ -122,7 +140,8 @@ class ClassMethodTests(StaticTestBase):
         """
         with self.in_module(codestr, name="mymod") as mod:
             C = mod["C"]
-            self.assertInBytecode(C.bar, "INVOKE_FUNCTION", (("mymod", "C", "foo"), 1))
+            self.assertNotInBytecode(C.bar, "INVOKE_FUNCTION")
+            self.assertNotInBytecode(C.bar, "INVOKE_METHOD")
             self.assertEqual(C.bar(6), 9)
 
     def test_classmethod_dynamic_subclass(self):

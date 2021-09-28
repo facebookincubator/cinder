@@ -462,7 +462,7 @@ class TypeBinder(GenericVisitor):
         ):
             # If we have a classmethod, the first arg is the class itself
             klass = self.maybe_get_current_class()
-            if klass is not None:
+            if klass is not None and klass.is_final:
                 self.set_param(node.args.args[0], klass, scope)
             else:
                 self.set_param(node.args.args[0], DYNAMIC, scope)
