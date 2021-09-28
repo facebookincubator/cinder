@@ -1446,6 +1446,7 @@ class GenericClass(Class):
 
         assert isinstance(type_def, GenericClass)
         assert isinstance(src, GenericClass)
+        # pyre-fixme[16]: `Class` has no attribute `type_args`.
         assert len(self.type_args) == len(src.type_args)
         for def_arg, self_arg, src_arg in zip(
             type_def.type_args, self.type_args, src.type_args
@@ -1498,6 +1499,8 @@ class GenericClass(Class):
         concrete = type(self)(
             type_name,
             bases,
+            # pyre-fixme[6]: Expected `Optional[Object[Class]]` for 3rd param but
+            #  got `Value`.
             instance,
             self.klass,
             {},
@@ -3168,6 +3171,8 @@ class BuiltinFunction(Callable[Class]):
             BUILTIN_METHOD_DESC_TYPE,
             func_name,
             module_name,
+            # pyre-fixme[6]: Expected `Optional[List[Parameter]]` for 4th param but
+            #  got `Optional[typing.Tuple[Parameter, ...]]`.
             args,
             {},
             0,
@@ -3242,6 +3247,8 @@ class BuiltinMethodDescriptor(Callable[Class]):
             BUILTIN_METHOD_DESC_TYPE,
             func_name,
             container_type.type_name.module,
+            # pyre-fixme[6]: Expected `Optional[List[Parameter]]` for 4th param but
+            #  got `Optional[typing.Tuple[Parameter, ...]]`.
             args,
             {},
             0,

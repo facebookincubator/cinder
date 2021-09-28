@@ -894,6 +894,7 @@ class TypeBinder(GenericVisitor):
                 d_type = self.get_type(v).klass
                 if d_type.generic_type_def is CHECKED_DICT_TYPE:
                     assert isinstance(d_type, GenericClass)
+                    # pyre-fixme[16]: `Class` has no attribute `type_args`.
                     key_type = self.widen(key_type, d_type.type_args[0].instance)
                     value_type = self.widen(value_type, d_type.type_args[1].instance)
                 elif d_type in (DICT_TYPE, DICT_EXACT_TYPE, DYNAMIC_TYPE):

@@ -1,6 +1,6 @@
 {
   "logger": "/usr/local/bin/scribe_cat",
-  "version": "e07673bb19f15865bf5810910224f3f37a759db7",
+  "version": "8245c2cd20448ec919a006fba25bb74766be8103",
   "source_directories": [
     "Lib/compiler",
     "Tools/scripts/facebook/perf",

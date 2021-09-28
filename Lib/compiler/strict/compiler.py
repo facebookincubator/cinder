@@ -188,8 +188,12 @@ class StrictSymbolTable(SymbolTable):
                     symbols,
                     filename,
                     name,
+                    # pyre-fixme[6]: Expected `int` for 5th param but got
+                    #  `Optional[int]`.
                     self.optimize,
                     True,
+                    # pyre-fixme[6]: Expected `bool` for 7th param but got
+                    #  `Optional[bool]`.
                     self.track_import_call,
                 )
                 log_func = self.log_time_func
