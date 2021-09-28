@@ -827,9 +827,9 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         effect = self.visit(node.test) or NO_EFFECT
         effect.apply(self.local_types)
-        self.visit(node.body)
+        self.visit(node.body, type_ctx)
         effect.reverse(self.local_types)
-        self.visit(node.orelse)
+        self.visit(node.orelse, type_ctx)
         effect.undo(self.local_types)
 
         # Select the most compatible types that we can, or fallback to

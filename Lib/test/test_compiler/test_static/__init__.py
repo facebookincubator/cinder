@@ -11,6 +11,7 @@ from .module import ModuleTests
 from .non_static_inheritance import NonStaticInheritanceTests
 from .obj_creation import StaticObjCreationTests
 from .patch import StaticPatchTests
+from .primitives import PrimitivesTests
 from .property import PropertyTests
 from .return_cast_insertion import ReturnCastInsertionTests
 from .subclass import SubclassTests
