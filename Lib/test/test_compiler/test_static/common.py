@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import asyncio
 import compiler.strict
@@ -8,6 +10,7 @@ from compiler import consts, walk
 from compiler.optimizer import AstOptimizer
 from compiler.static import StaticCodeGenerator
 from compiler.static.declaration_visitor import DeclarationVisitor
+from compiler.static.errors import CollectingErrorSink
 from compiler.static.symbol_table import SymbolTable
 from compiler.static.type_binder import TypeBinder
 from compiler.static.types import TypedSyntaxError, Value
@@ -16,7 +19,7 @@ from compiler.strict.runtime import set_freeze_enabled
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
 from textwrap import dedent
-from typing import Tuple
+from typing import List, Tuple
 
 import cinder
 from cinder import StrictModule
@@ -32,6 +35,39 @@ except ImportError:
 
 def add_fixed_module(d) -> None:
     d["<fixed-modules>"] = FIXED_MODULES
+
+
+class ErrorMatcher:
+    def __init__(self, msg: str, at: str | None = None) -> None:
+        self.msg = msg
+        self.at = at
+
+
+class TestErrors:
+    def __init__(
+        self, case: StaticTestBase, code: str, errors: List[TypedSyntaxError]
+    ) -> None:
+        self.case = case
+        self.code = code
+        self.errors = errors
+
+    def check(self, *matchers: List[ErrorMatcher]) -> None:
+        self.case.assertEqual(
+            len(matchers),
+            len(self.errors),
+            f"Expected {len(matchers)} errors, got {self.errors}",
+        )
+        for exc, matcher in zip(self.errors, matchers):
+            self.case.assertIn(matcher.msg, str(exc))
+            if (at := matcher.at) is not None:
+                actual = self.code.split("\n")[exc.lineno - 1][exc.offset :]
+                if not actual.startswith(at):
+                    self.case.fail(
+                        f"Expected error '{matcher.msg}' at '{at}', occurred at '{actual}'"
+                    )
+
+    def match(self, msg: str, at: str | None = None) -> ErrorMatcher:
+        return ErrorMatcher(msg, at)
 
 
 class StaticTestBase(CompilerTest):
@@ -65,6 +101,14 @@ class StaticTestBase(CompilerTest):
             modname, f"{modname}.py", tree, optimize, enable_patching=enable_patching
         )
 
+    def lint(self, code: str) -> TestErrors:
+        errors = CollectingErrorSink()
+        code = self.clean_code(code)
+        tree = ast.parse(code)
+        symtable = SymbolTable(StaticCodeGenerator, errors)
+        symtable.bind("<module>", "<module>.py", tree)
+        return TestErrors(self, code, errors.errors)
+
     def type_error(
         self,
         code: str,
@@ -76,10 +120,9 @@ class StaticTestBase(CompilerTest):
         with self.assertRaisesRegex(TypedSyntaxError, pattern) as ctx:
             self.compile(code)
         exc = ctx.exception
+        errors = TestErrors(self, self.clean_code(code), [ctx.exception])
         if at is not None:
-            actual = self.clean_code(code).split("\n")[exc.lineno - 1][exc.offset :]
-            if not actual.startswith(at):
-                self.fail(f"Expected error at '{at}', occurred at '{actual}'")
+            errors.check(ErrorMatcher("", at))
         if lineno is not None:
             self.assertEqual(exc.lineno, lineno)
         if offset is not None:
