@@ -840,7 +840,7 @@ class Class(Object["Class"]):
         assert isinstance(bases, (type(None), list))
         self.type_name = type_name
         self.instance: Value = instance or Object(self)
-        self.bases: List[Class] = bases or []
+        self.bases: List[Class] = self._get_bases(bases)
         self._mro: Optional[List[Class]] = None
         self._mro_inexact: Optional[Set[Class]] = None
         # members are attributes or methods
@@ -856,6 +856,20 @@ class Class(Object["Class"]):
         self.pytype = pytype
         # track AST node of each member until finish_bind, for error reporting
         self._member_nodes: Dict[str, AST] = {}
+
+    def _get_bases(self, bases: Optional[List[Class]]) -> List[Class]:
+        ret = []
+        if bases is None:
+            return ret
+        for b in bases:
+            ret.append(b)
+            # Can't check for DYNAMIC_TYPE because that'd be a cyclic dependency
+            if isinstance(b, DynamicClass):
+                # If any of the defined bases is dynamic,
+                # stop processing, because it doesn't matter
+                # what the rest of them are.
+                break
+        return ret
 
     def make_type_dict(self, t: Type[object]) -> None:
         result: Dict[str, Value] = {}

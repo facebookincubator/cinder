@@ -318,6 +318,15 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("foo.D", "foo.C")):
             self.compile(codestr, StaticCodeGenerator, modname="foo")
 
+    def test_multiple_dynamic_base_class(self) -> None:
+        codestr = """
+        from something import A, B
+        class C(A, B): 
+            def __init__(self):
+                pass
+        """
+        self.compile(codestr, StaticCodeGenerator)
+
     def test_bool_cast(self) -> None:
         codestr = """
             from __static__ import cast
