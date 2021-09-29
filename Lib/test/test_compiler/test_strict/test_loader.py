@@ -158,6 +158,13 @@ class Sandbox(base_sandbox.Sandbox):
         with file_loader(STRICT_LOADER):
             return self._import(*module_names)
 
+    def strict_import_patching_enabled(
+        self, *module_names: str
+    ) -> TModule | List[TModule]:
+        """Same as strict_import but with patching enabled."""
+        with file_loader(STRICT_LOADER_ENABLE_PATCHING):
+            return self._import(*module_names)
+
     def normal_import(self, *module_names: str) -> TModule | List[TModule]:
         """Import and return module(s) from sandbox (without strict module loader).
 
@@ -263,6 +270,7 @@ class StrictLoaderTest(StrictTestBase):
         mod1 = self.sbx.strict_import("strict")
         mod2 = self.sbx.strict_import("nonstrict")
         mod3 = self.sbx.normal_import("nonstrict")
+        mod4 = self.sbx.strict_import_patching_enabled("strict")
 
         # Strict module imported by strict loader should be .strict.pyc
         self.assertTrue(
@@ -271,6 +279,7 @@ class StrictLoaderTest(StrictTestBase):
         )
         self.assertEqual(mod1.__cached__, mod1.__spec__.cached)
         self.assertTrue(os.path.exists(mod1.__cached__))
+
         # Non-strict module imported by strict loader should also have .strict!
         self.assertTrue(
             mod2.__cached__.endswith(".strict.pyc"),
@@ -278,6 +287,7 @@ class StrictLoaderTest(StrictTestBase):
         )
         self.assertEqual(mod2.__cached__, mod2.__spec__.cached)
         self.assertTrue(os.path.exists(mod2.__cached__))
+
         # Module imported by non-strict loader should not have -strict
         self.assertFalse(
             mod3.__cached__.endswith(".strict.pyc"),
@@ -285,6 +295,14 @@ class StrictLoaderTest(StrictTestBase):
         )
         self.assertEqual(mod3.__cached__, mod3.__spec__.cached)
         self.assertTrue(os.path.exists(mod3.__cached__))
+
+        # Strict module imported by strict loader with patching enabled
+        self.assertTrue(
+            mod4.__cached__.endswith(".strict.patch.pyc"),
+            f"'{mod4.__cached__}' should end with .strict.patch.pyc",
+        )
+        self.assertEqual(mod4.__cached__, mod4.__spec__.cached)
+        self.assertTrue(os.path.exists(mod4.__cached__))
 
     def test_magic_number(self) -> None:
         """Extra magic number is written to pycs, and validated."""

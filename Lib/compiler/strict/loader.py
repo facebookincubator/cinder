@@ -233,7 +233,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         is_pyc = False
         if path.endswith(tuple(BYTECODE_SUFFIXES)):
             is_pyc = True
-            path = add_strict_tag(path, enable_patching=self.enable_patching)
+            path = add_strict_tag(path, self.enable_patching)
             self.bytecode_path = path
         data = super().get_data(path)
         if is_pyc:
@@ -254,7 +254,7 @@ class StrictSourceFileLoader(SourceFileLoader):
     def set_data(self, path: bytes | str, data: bytes, *, _mode=0o666) -> None:
         assert isinstance(path, str)
         if path.endswith(tuple(BYTECODE_SUFFIXES)):
-            path = add_strict_tag(path)
+            path = add_strict_tag(path, self.enable_patching)
             magic = _MAGIC_STRICT if self.strict else _MAGIC_NONSTRICT
             data = magic + data
         return super().set_data(path, data, _mode=_mode)
@@ -331,7 +331,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         cached = getattr(module, "__cached__", None)
         if cached:
             # pyre-ignore[16]: `ModuleType` has no attribute `__cached__`.
-            module.__cached__ = cached = add_strict_tag(cached)
+            module.__cached__ = cached = add_strict_tag(cached, self.enable_patching)
         spec: Optional[ModuleSpec] = module.__spec__
         if cached and spec and spec.cached:
             spec.cached = cached
@@ -361,7 +361,7 @@ class StrictSourceFileLoader(SourceFileLoader):
             tracker.exit_import()
 
 
-def add_strict_tag(path: str, enable_patching: bool = False) -> str:
+def add_strict_tag(path: str, enable_patching: bool) -> str:
     base, __, ext = path.rpartition(".")
     enable_patching_marker = ".patch" if enable_patching else ""
 
