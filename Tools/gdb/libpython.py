@@ -45,6 +45,7 @@ The module also extends gdb with some python-specific commands.
 # compatible (2.6+ and 3.0+).  See #19308.
 
 from __future__ import print_function
+import contextlib
 import gdb
 import os
 import locale
@@ -1968,6 +1969,32 @@ def realize(obj):
     return obj
 
 
+@contextlib.contextmanager
+def restore_original_frame():
+    orig_frame = gdb.selected_frame()
+    try:
+        yield
+    finally:
+        orig_frame.select()
+
+
+@contextlib.contextmanager
+def restore_original_thread():
+    orig_thread = gdb.selected_thread()
+    try:
+        yield
+    finally:
+        orig_thread.switch()
+
+
+@contextlib.contextmanager
+def restore_original_state():
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(restore_original_frame())
+        stack.enter_context(restore_original_thread())
+        yield
+
+
 class PyFrameObjectNotFoundError(gdb.GdbError):
     pass
 
@@ -1989,6 +2016,43 @@ def find_pyframeobject_in_registers(frame=gdb.selected_frame, registers=PYFRAME_
             continue
 
     raise PyFrameObjectNotFoundError("No PyFrameObject found in any registers.")
+
+
+def find_and_walk_pyframeobject_stack():
+    pyfo_type = PyFrameObjectPtr.get_gdb_type()
+
+    gdb.execute('frame 0', to_string=True)
+
+    frame = gdb.selected_frame()
+    pyfo = None
+    while not pyfo:
+        try:
+            register, root_pyfo = find_pyframeobject_in_registers(frame=frame)
+        except PyFrameObjectNotFoundError:
+            frame = frame.older()
+            if not frame:
+                raise
+            frame.select()
+            continue
+        pyfo = root_pyfo.cast(pyfo_type)
+
+    cont = True
+    while cont:
+        yield pyfo
+
+        try:
+            pyfo = pyfo['f_back'].cast(pyfo_type)
+        except gdb.MemoryError:
+            cont = False
+
+
+def format_pyframeobject_stack(frames):
+    for pyfo in frames:
+        line = pyfo.format_string()
+        # Print out all but the root (last) frame object
+        # It looks like "0x0" when formatted, which isn't very helpful.
+        if line not in ['0x0']:
+            yield line
 
 
 class LocatePyFrameObject(gdb.Command):
@@ -2059,43 +2123,60 @@ class WalkPyFrameObjectStack(gdb.Command):
         )
 
     def invoke(self, args, from_tty):
-        orig_frame = gdb.selected_frame()
-        try:
-            return self.walk()
-        finally:
-            orig_frame.select()
-
-    def walk(self):
-        pyfo_type = PyFrameObjectPtr.get_gdb_type()
-
-        gdb.execute('f 0', to_string=True)
-
-        frame = gdb.selected_frame()
-        pyfo = None
-        while not pyfo:
+        with restore_original_frame():
+            printed_info = False
             try:
-                register, root_pyfo = find_pyframeobject_in_registers(frame=frame)
-            except PyFrameObjectNotFoundError:
-                frame = frame.older()
-                if not frame:
-                    raise
-                frame.select()
-                continue
-            gdb.execute('f')
-            pyfo = root_pyfo.cast(pyfo_type)
-
-        cont = True
-        while cont:
-            line = pyfo.format_string()
-            # Print out all but the root (last) frame object
-            # It looks like "0x0" when formatted, which isn't very helpful.
-            if line not in ['0x0']:
-                print(line)
-
-            try:
-                pyfo = pyfo['f_back'].cast(pyfo_type)
-            except gdb.MemoryError:
-                cont = False
+                pyfos = list(find_and_walk_pyframeobject_stack())
+                for line in format_pyframeobject_stack(pyfos):
+                    if not printed_info:
+                        gdb.execute('frame')
+                        printed_info = True
+                    print(line)
+            except PyFrameObjectNotFoundError as exc:
+                # If you raise it prevents `thread apply all py-walk-frame` from continuing
+                print(exc)
 
 WalkPyFrameObjectStack()
+
+
+class PyWalkThreads(gdb.Command):
+    """
+    Runs py-walk-frame on every thread. Similar to `t a a py-walk-frame` but with cleaner output.
+    """
+    gdb_command_name = 'py-walk-threads'
+
+    def __init__(self):
+        super().__init__(
+            self.gdb_command_name,
+            gdb.COMMAND_DATA,
+            gdb.COMPLETE_NONE
+        )
+
+    def invoke(self, args, from_tty):
+        with restore_original_state():
+            inf = gdb.selected_inferior()
+            threads = inf.threads()
+            thread_ids_with_pyframes = []
+            for thread in threads:
+                thread.switch()
+                printed_info = False
+                try:
+                    pyfos = list(find_and_walk_pyframeobject_stack())
+                    for line in format_pyframeobject_stack(pyfos):
+                        if not printed_info:
+                            gdb.execute('thread')
+                            gdb.execute('frame')
+                            thread_ids_with_pyframes.append(thread.num)
+                            printed_info = True
+                        print(line)
+                    if printed_info:
+                        print()
+                except PyFrameObjectNotFoundError as exc:
+                    pass
+            print(
+                f'Found {len(thread_ids_with_pyframes)} threads containing python frames: '
+                f'{thread_ids_with_pyframes}'
+            )
+
+PyWalkThreads()
 
