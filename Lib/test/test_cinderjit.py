@@ -12,6 +12,7 @@ import warnings
 import weakref
 from compiler.consts import CO_SUPPRESS_JIT, CO_NORMAL_FRAME
 from compiler.static import StaticCodeGenerator
+from functools import cmp_to_key
 
 try:
     with warnings.catch_warnings():
@@ -2661,6 +2662,16 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.getframe_in_dtor_after_deopt)[0]
         stack = ["__del__", "f3", "f2", "f1", "test_getframe_in_dtor_after_deopt"]
         self.assert_frames(frame, stack)
+
+
+_cmp_key = cmp_to_key(lambda x, y: 0)
+
+
+class OtherTests(unittest.TestCase):
+    def test_type_ready(self):
+        # T100786119: type(_cmp_key) should have been initialized, or JIT
+        # will fail during compilation.
+        self.cmp_key = _cmp_key
 
 
 if __name__ == "__main__":

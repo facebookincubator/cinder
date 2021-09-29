@@ -398,6 +398,18 @@ Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {
     return exact ? it->second & TBuiltinExact : it->second;
   }
 
+  {
+    ThreadedCompileSerialize guard;
+    if (type->tp_mro == nullptr && !(type->tp_flags & Py_TPFLAGS_READY)) {
+      PyType_Ready(type);
+    }
+  }
+  JIT_CHECK(
+      type->tp_mro != nullptr,
+      "Type %s(%p) has a null mro",
+      type->tp_name,
+      type);
+
   PyObject* mro = type->tp_mro;
   for (ssize_t i = 0; i < PyTuple_GET_SIZE(mro); ++i) {
     auto ty = reinterpret_cast<PyTypeObject*>(PyTuple_GET_ITEM(mro, i));
