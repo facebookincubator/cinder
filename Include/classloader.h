@@ -54,7 +54,7 @@ Py_ssize_t _PyClassLoader_PrimitiveTypeToSize(int primitive_type);
 
 int _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type);
 
-_PyType_VTable *_PyClassLoader_EnsureVtable(PyTypeObject *self);
+_PyType_VTable *_PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses);
 int _PyClassLoader_ClearVtables(void);
 
 /* Gets an indirect pointer for a function.  This should be used if

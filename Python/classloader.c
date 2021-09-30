@@ -809,11 +809,8 @@ type_init_subclass_vtables(PyTypeObject *target_type)
                 continue;
             }
 
-            _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(subtype);
+            _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(subtype, 1);
             if (vtable == NULL) {
-                return -1;
-            }
-            if (type_init_subclass_vtables((PyTypeObject *) ref)) {
                 return -1;
             }
         }
@@ -931,7 +928,7 @@ int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
     if (vtable != NULL && vtable->vt_original != NULL) {
         return 0;
     }
-    if (_PyClassLoader_EnsureVtable(type) == NULL) {
+    if (_PyClassLoader_EnsureVtable(type, 0) == NULL) {
         return -1;
     }
     vtable = (_PyType_VTable *)type->tp_cache;
@@ -1041,7 +1038,6 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
                           PyObject *new_value)
 {
     assert(type->tp_cache != NULL);
-
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
     PyObject *slotmap = vtable->vt_slotmap;
 
@@ -1148,7 +1144,6 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
                                      index,
                                      vtable->vt_entries[index].vte_state,
                                      vtable->vt_entries[index].vte_entry);
-
     return 0;
 }
 
@@ -1327,7 +1322,7 @@ static PyObject *fget = NULL;
 static PyObject *fset = NULL;
 
 _PyType_VTable *
-_PyClassLoader_EnsureVtable(PyTypeObject *self)
+_PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
 {
     _PyType_VTable *vtable = (_PyType_VTable *)self->tp_cache;
     PyObject *slotmap = NULL;
@@ -1348,20 +1343,36 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self)
         /* TODO: Multiple inheritance */
 
         /* Get the size of the next element in our mro, we'll build on it */
-        PyObject *next = PyTuple_GET_ITEM(self->tp_mro, 1);
+        PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(self->tp_mro, 1);
         assert(PyType_Check(next));
-        if ((PyTypeObject *)next != &PyBaseObject_Type) {
-            _PyType_VTable *base_vtable =
-                _PyClassLoader_EnsureVtable((PyTypeObject *)next);
-
+        if (next != &PyBaseObject_Type) {
+            _PyType_VTable *base_vtable = (_PyType_VTable *)next->tp_cache;
             if (base_vtable == NULL) {
-                return NULL;
+                base_vtable = _PyClassLoader_EnsureVtable(next, 0);
+
+                if (base_vtable == NULL) {
+                    return NULL;
+                }
+
+                if (init_subclasses &&
+                    type_init_subclass_vtables(next)) {
+                    return NULL;
+                }
+
+                if (self->tp_cache != NULL) {
+                    /* we have recursively initialized the current v-table,
+                     * no need to continue with initialization now */
+                    return (_PyType_VTable *)self->tp_cache;
+                }
             }
 
             PyObject *next_slotmap = base_vtable->vt_slotmap;
             assert(next_slotmap != NULL);
 
             slotmap = PyDict_Copy(next_slotmap);
+            if (slotmap == NULL) {
+                return NULL;
+            }
         }
     }
 
@@ -1444,6 +1455,10 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self)
     _PyClassLoader_ReinitVtable(vtable);
 
     PyObject_GC_Track(vtable);
+
+    if (init_subclasses && type_init_subclass_vtables(self)) {
+        return NULL;
+    }
 
     return vtable;
 }
@@ -1754,7 +1769,7 @@ classloader_init_slot(PyObject *path)
 
 
     /* Now we need to update or make the v-table for this type */
-    _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(target_type);
+    _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(target_type, 0);
     if (vtable == NULL) {
         Py_XDECREF(target_type);
         Py_DECREF(cur);
@@ -1905,7 +1920,7 @@ _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *containe
             goto done;
         }
 
-        _PyType_VTable *vtable = _PyClassLoader_EnsureVtable((PyTypeObject *)container);
+        _PyType_VTable *vtable = _PyClassLoader_EnsureVtable((PyTypeObject *)container, 0);
         if (vtable == NULL) {
             goto done;
         }
@@ -1978,7 +1993,7 @@ _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type)
         return 0;
     }
 
-    _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(type);
+    _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(type, 0);
     if (vtable == NULL) {
         return -1;
     }
