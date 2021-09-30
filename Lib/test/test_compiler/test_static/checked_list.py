@@ -469,3 +469,15 @@ class CheckedListTests(StaticTestBase):
                 return a
         """
         self.type_error(codestr, type_mismatch("Exact[chklist[int]]", "list"))
+
+    def test_checked_list_iter(self) -> None:
+        codestr = """
+            from __static__ import CheckedList
+
+            def testfunc() -> int:
+                a: CheckedList[int] = [0, 1, 2]
+                for x in a:
+                    reveal_type(x)
+                return 0
+        """
+        self.type_error(codestr, r"reveal_type\(x\): 'int'", at="reveal_type")

@@ -5264,6 +5264,10 @@ class CheckedList(GenericClass):
 
 
 class CheckedListInstance(Object[CheckedList]):
+    @property
+    def elem_type(self) -> Value:
+        return self.klass.gen_name.args[0].instance
+
     def bind_subscr(
         self,
         node: ast.Subscript,
@@ -5276,7 +5280,10 @@ class CheckedListInstance(Object[CheckedList]):
         else:
             if type.klass not in SIGNED_CINT_TYPES:
                 visitor.visitExpectedType(node.slice, INT_TYPE.instance, blame=node)
-            visitor.set_type(node, self.klass.gen_name.args[0].instance)
+            visitor.set_type(node, self.elem_type)
+
+    def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
+        return self.elem_type
 
     def emit_subscr(
         self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
