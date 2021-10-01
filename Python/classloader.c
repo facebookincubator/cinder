@@ -1612,7 +1612,7 @@ classloader_get_member(PyObject *path,
             d = cur;
         } else if (PyModule_CheckExact(cur)) {
             d = PyModule_GetDict(cur);
-        } else if (PyType_CheckExact(cur)) {
+        } else if (PyType_Check(cur)) {
             d = ((PyTypeObject *)cur)->tp_dict;
         }
 
@@ -1621,7 +1621,7 @@ classloader_get_member(PyObject *path,
             if (next == NULL) {
                 PyErr_Format(
                     PyExc_TypeError,
-                    "bad name provided for class loader: %R on %U from %s",
+                    "bad name provided for class loader: %R on %R from %s",
                     path,
                     name,
                     cur->ob_type->tp_name);

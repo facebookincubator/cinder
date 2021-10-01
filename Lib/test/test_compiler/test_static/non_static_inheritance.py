@@ -112,6 +112,23 @@ class NonStaticInheritanceTests(StaticTestBase):
             self.assertEqual(f(D()), 30)
             self.assertEqual(f(DM()), 20)
 
+    def test_inherit_abc(self):
+        codestr = """
+            from abc import ABC
+
+            class C(ABC):
+                @property
+                def f(self) -> int:
+                    return 42
+
+                def g(self) -> int:
+                    return self.f
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            a = C()
+            self.assertEqual(a.g(), 42)
+
 
 if __name__ == "__main__":
 
