@@ -17,8 +17,6 @@ from ast import (
     Constant,
     DictComp,
     FunctionDef,
-    GeneratorExp,
-    ListComp,
     Module,
     Name,
     UnaryOp,
@@ -28,51 +26,32 @@ from ast import (
 from contextlib import contextmanager
 from typing import (
     Callable as typingCallable,
-    Collection,
     Dict,
     Generator,
-    Generic,
-    Iterable,
-    List,
-    Mapping,
-    NoReturn,
     Optional,
-    Sequence,
-    Set,
-    Tuple,
     Type,
-    TypeVar,
-    Union,
     cast,
 )
 
-from __static__ import chkdict
-
 from .. import consts, symbols, opcode_static
-from ..consts import SC_LOCAL, SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT
 from ..opcodebase import Opcode
 from ..optimizer import AstOptimizer
 from ..pyassem import Block, PyFlowGraph, PyFlowGraphCinder, IndexedSet
 from ..pycodegen import (
     CodeGenerator,
-    CinderCodeGenerator,
     compile,
-    FOR_LOOP,
     FuncOrLambda,
     CompNode,
 )
 from ..strict import StrictCodeGenerator, FIXED_MODULES, enable_strict_features
-from ..symbols import Scope, SymbolVisitor, ModuleScope, ClassScope
-from ..unparse import to_expr
-from .declaration_visitor import GenericVisitor, DeclarationVisitor
+from ..symbols import Scope, SymbolVisitor, ClassScope
+from .declaration_visitor import DeclarationVisitor
 from .effects import NarrowingEffect
-from .errors import ErrorSink
 from .module_table import ModuleTable, ModuleFlag
 from .symbol_table import SymbolTable
-from .type_binder import BindingScope, TypeBinder
+from .type_binder import TypeBinder
 from .types import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
-    AsyncCachedPropertyDecorator,
     AsyncCachedPropertyMethod,
     AwaitableType,
     CACHED_PROPERTY_IMPL_PREFIX,
@@ -98,14 +77,12 @@ from .types import (
     TypeDescr,
     Value,
     _TMP_VAR_PREFIX,
-    CachedPropertyDecorator,
     CachedPropertyMethod,
-    ContextDecoratedMethod,
 )
 
 
 try:
-    import xxclassloader  # pyre-ignore[21]: unknown module
+    # pyre-ignore[21]: unknown module
     from xxclassloader import spamobj
 except ImportError:
     spamobj = None
