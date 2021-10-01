@@ -21,6 +21,8 @@ def error_location(filename: str, node: AST) -> Tuple[int, int, Optional[str]]:
 
 
 class ErrorSink:
+    throwing = True
+
     def __init__(self) -> None:
         self.errors: List[TypedSyntaxError] = []
 
@@ -49,5 +51,7 @@ class ErrorSink:
 
 
 class CollectingErrorSink(ErrorSink):
+    throwing = False
+
     def error(self, exception: TypedSyntaxError) -> None:
         self.errors.append(exception)

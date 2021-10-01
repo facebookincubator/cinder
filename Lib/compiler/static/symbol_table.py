@@ -348,7 +348,13 @@ class SymbolTable:
 
         # Analyze the types of objects within local scopes
         type_binder = TypeBinder(
-            s, filename, self, name, optimize, enable_patching=enable_patching
+            s,
+            filename,
+            self,
+            name,
+            optimize,
+            enable_patching=enable_patching,
+            nodes_default_dynamic=not self.error_sink.throwing,
         )
         type_binder.visit(tree)
         return tree, s

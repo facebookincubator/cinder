@@ -220,6 +220,7 @@ class TypeBinder(GenericVisitor):
         module_name: str,
         optimize: int = 0,
         enable_patching: bool = False,
+        nodes_default_dynamic: bool = False,
     ) -> None:
         module = symtable[module_name]
         super().__init__(module)
@@ -230,6 +231,7 @@ class TypeBinder(GenericVisitor):
         self.inline_depth = 0
         self.inline_calls = 0
         self.enable_patching = enable_patching
+        self.nodes_default_dynamic = nodes_default_dynamic
 
     @property
     def local_types(self) -> Dict[str, Value]:
@@ -483,6 +485,8 @@ class TypeBinder(GenericVisitor):
         self.module.types[node] = type
 
     def get_type(self, node: AST) -> Value:
+        if self.nodes_default_dynamic:
+            return self.module.types.get(node, DYNAMIC)
         assert node in self.module.types, f"node not found: {node}, {node.lineno}"
         return self.module.types[node]
 
@@ -793,9 +797,6 @@ class TypeBinder(GenericVisitor):
         # dynamic if we can coerce to dynamic, otherwise report an error.
         body_t = self.get_type(node.body)
         else_t = self.get_type(node.orelse)
-        # Construction of the union could fail with a type error, so first
-        # set the node to dynamic type for linting use case
-        self.set_type(node, DYNAMIC)
         self.set_type(
             node,
             UNION_TYPE.make_generic_type(
