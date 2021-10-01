@@ -70,6 +70,224 @@ class ContextDecoratorTests(StaticTestBase):
                 self.assertEqual(e.args[0], 42)
                 self.assertEqual(mod["calls"], 1)
 
+    def test_property(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            class MyDecorator(ContextDecorator):
+                pass
+
+            class C:
+                @property
+                @MyDecorator()
+                def f(self):
+                    return 42
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertInBytecode(
+                C.f.fget,
+                "INVOKE_METHOD",
+                ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            )
+            self.assertEqual(C().f, 42)
+
+    def test_cached_property(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            from cinder import cached_property
+
+            class MyDecorator(ContextDecorator):
+                def __enter__(self) -> MyDecorator:
+                    return self
+
+                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                    return False
+
+            X = 42
+            class C:
+                @cached_property
+                @MyDecorator()
+                def f(self):
+                    global X
+                    X += 1
+                    return X
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertInBytecode(
+                C.f.func,
+                "INVOKE_METHOD",
+                ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            )
+            c = C()
+            self.assertEqual(c.f, 43)
+            self.assertEqual(c.f, 43)
+
+    def test_async_cached_property(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            from cinder import async_cached_property
+
+            class MyDecorator(ContextDecorator):
+                def __enter__(self) -> MyDecorator:
+                    return self
+
+                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                    return False
+
+            X = 42
+            class C:
+                @async_cached_property
+                @MyDecorator()
+                async def f(self):
+                    global X
+                    X += 1
+                    return X
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertInBytecode(
+                C.f.func,
+                "INVOKE_METHOD",
+                ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            )
+            c = C()
+            x = c.f.__await__()
+            try:
+                x.__next__()
+            except StopIteration as e:
+                self.assertEqual(e.args[0], 43)
+            x = c.f.__await__()
+            try:
+                x.__next__()
+            except StopIteration as e:
+                self.assertEqual(e.args[0], 43)
+
+    def test_static_method(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            class MyDecorator(ContextDecorator):
+                def __enter__(self) -> MyDecorator:
+                    return self
+
+                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                    return False
+
+            class C:
+                @staticmethod
+                @MyDecorator()
+                def f():
+                    return 42
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertEqual(C().f(), 42)
+            self.assertInBytecode(
+                C.__dict__["f"].__func__,
+                "INVOKE_METHOD",
+                ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            )
+            self.assertEqual(C().f(), 42)
+            self.assertEqual(C.f(), 42)
+
+    def test_static_method_with_arg(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            class MyDecorator(ContextDecorator):
+                def __enter__(self) -> MyDecorator:
+                    return self
+
+                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                    return False
+
+            class C:
+                @staticmethod
+                @MyDecorator()
+                def f(x):
+                    return x
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertEqual(C().f(42), 42)
+            self.assertEqual(C.f(42), 42)
+            self.assertInBytecode(
+                C.__dict__["f"].__func__,
+                "INVOKE_METHOD",
+                ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            )
+
+    def test_static_method_compat_with_arg(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            class MyDecorator(ContextDecorator):
+                def __enter__(self) -> MyDecorator:
+                    return self
+
+                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                    return False
+
+            class C:
+                @staticmethod
+                @MyDecorator()
+                def f(x: C):
+                    return 42
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertEqual(C().f(C()), 42)
+            self.assertInBytecode(C.__dict__["f"].__func__, "LOAD_FAST", "x")
+            self.assertInBytecode(
+                C.__dict__["f"].__func__,
+                "INVOKE_METHOD",
+                ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            )
+            self.assertEqual(C().f(C()), 42)
+            self.assertEqual(C.f(C()), 42)
+
+    def test_class_method(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            from typing import final
+            calls = 0
+            class MyDecorator(ContextDecorator):
+                def __enter__(self) -> MyDecorator:
+                    global calls
+                    calls += 1
+                    return self
+
+                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                    return False
+
+            @final
+            class C:
+                @classmethod
+                @MyDecorator()
+                def f(cls):
+                    return 42
+
+            def f(c: C):
+                return c.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod["C"]
+            self.assertEqual(C().f(), 42)
+            self.assertEqual(mod["calls"], 1)
+            self.assertInBytecode(
+                C.__dict__["f"].__func__,
+                "INVOKE_METHOD",
+                ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            )
+            f = mod["f"]
+            self.assertEqual(f(C()), 42)
+            self.assertEqual(mod["calls"], 2)
+
     def test_top_level(self):
         codestr = """
             from __static__ import ContextDecorator
@@ -177,6 +395,7 @@ class ContextDecoratorTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             C = mod["C"]
+            self.assertEqual(C().f(), 42)
             self.assertInBytecode(
                 C.f,
                 "INVOKE_METHOD",
@@ -187,7 +406,6 @@ class ContextDecoratorTests(StaticTestBase):
                 "INVOKE_METHOD",
                 (((mod["__name__"], "MyDecorator2", "_recreate_cm"), 0)),
             )
-            self.assertEqual(C().f(), 42)
             self.assertEqual(
                 mod["calls"],
                 [

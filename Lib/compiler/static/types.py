@@ -438,27 +438,24 @@ class Value:
     def emit_load_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
-        member = self.klass.members.get(node.attr)
-        if isinstance(member, PropertyMethod):
-            if member.function.is_final or self.klass.is_final:
-                code_gen.emit("INVOKE_FUNCTION", (member.getter_type_descr, 1))
-            else:
-                code_gen.emit_invoke_method(member.getter_type_descr, 0)
-        else:
-            code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
+        member = self.klass.members.get(node.attr, DYNAMIC)
+        member.emit_load_attr_from(node, code_gen, self.klass)
+
+    def emit_load_attr_from(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
 
     def emit_store_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
-        member = self.klass.members.get(node.attr)
-        if isinstance(member, PropertyMethod):
-            code_gen.emit("ROT_TWO")
-            if member.function.is_final or self.klass.is_final:
-                code_gen.emit("INVOKE_FUNCTION", (member.setter_type_descr, 2))
-            else:
-                code_gen.emit_invoke_method(member.setter_type_descr, 1)
-        else:
-            code_gen.emit("STORE_ATTR", code_gen.mangle(node.attr))
+        member = self.klass.members.get(node.attr, DYNAMIC)
+        member.emit_store_attr_to(node, code_gen, self.klass)
+
+    def emit_store_attr_to(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        code_gen.emit("STORE_ATTR", code_gen.mangle(node.attr))
 
     def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node.value)
@@ -1173,6 +1170,12 @@ class Class(Object["Class"]):
     def check_incompatible_override(self, override: Value, inherited: Value) -> None:
         # TODO: There's more checking we should be doing to ensure
         # this is a compatible override
+        if isinstance(override, TransparentDecoratedMethod):
+            override = override.function
+
+        if isinstance(inherited, TransparentDecoratedMethod):
+            inherited = inherited.function
+
         if type(override) != type(inherited) and (
             type(override) is not Function
             or not isinstance(inherited, (BuiltinFunction, BuiltinMethodDescriptor))
@@ -1206,13 +1209,14 @@ class Class(Object["Class"]):
                     if isinstance(value, Slot):
                         to_remove.add(name)
                     elif isinstance(value, Function):
-                        if value.is_final:
-                            raise TypedSyntaxError(
-                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
-                            )
                         if value.func_name not in NON_VIRTUAL_METHODS:
                             assert isinstance(my_value, Function)
                             value.validate_compat_signature(my_value, module)
+                    elif isinstance(value, TransparentDecoratedMethod):
+                        if value.function.is_final:
+                            raise TypedSyntaxError(
+                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                            )
                     elif isinstance(value, StaticMethod):
                         if value.is_final:
                             raise TypedSyntaxError(
@@ -2275,10 +2279,6 @@ class UnreachableArg(ArgEmitter):
 
 
 class FunctionContainer(Object[Class]):
-    def __init__(self, klass: Class) -> None:
-        super().__init__(klass)
-        self.body: List[ast.stmt] = []
-
     def bind_function(
         self, node: Union[FunctionDef, AsyncFunctionDef], visitor: TypeBinder
     ) -> None:
@@ -2298,19 +2298,35 @@ class FunctionContainer(Object[Class]):
                 returns, DYNAMIC, "return annotation cannot be a primitive"
             )
 
-        self.body[:] = self.get_function_body(node, visitor)
+        self.bind_function_inner(node, visitor)
 
         visitor.scopes.append(scope)
 
-        for stmt in self.body:
+        for stmt in self.get_function_body():
             visitor.visit(stmt)
 
         visitor.scopes.pop()
 
-    def get_function_body(
+    def bind_function_inner(
         self, node: Union[FunctionDef, AsyncFunctionDef], visitor: TypeBinder
-    ) -> List[ast.stmt]:
-        return node.body
+    ) -> None:
+        """provides decorator specific binding pass, decorators should call
+        do whatever binding is necessary and forward the call to their
+        contained function"""
+        pass
+
+    def get_function_body(self) -> List[ast.stmt]:
+        raise NotImplementedError(type(self))
+
+    def replace_function(self, func: Function) -> Function | DecoratedMethod:
+        """Provides the ability to replace the function through a chain of decorators.
+        The outer decorator will pass the function into inner decorators, until
+        we hit the original function which will return func.  The decorators
+        then replace their function with the returned function.  This provides a
+        feedback mechanism for when the outer decorator alters things like typing of
+        the Function (e.g. classmethod which will change the type of the first
+        argument)."""
+        raise NotImplementedError()
 
     def bind_function_self(
         self,
@@ -2338,20 +2354,7 @@ class FunctionContainer(Object[Class]):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        name = node.name
-        if node.decorator_list:
-            for decorator in node.decorator_list:
-                code_gen.visit(decorator)
-            first_lineno = node.decorator_list[0].lineno
-        else:
-            first_lineno = node.lineno
-
-        self.emit_function_body(node, code_gen, first_lineno, node.body)
-
-        for _ in range(len(node.decorator_list)):
-            code_gen.emit("CALL_FUNCTION", 1)
-
-        return node.name
+        raise NotImplementedError()
 
     def emit_function_body(
         self,
@@ -2651,6 +2654,32 @@ class Function(Callable[Class], FunctionContainer):
         self.donotcompile = False
         self._inner_classes: Dict[str, Value] = {}
 
+    def emit_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+    ) -> str:
+        name = node.name
+        # For decorated functions we should either have a known decorator or
+        # a UnknownDecoratedFunction.  The known decorators will handle emitting
+        # themselves appropriately if necessary, and UnknownDecoratedFunction
+        # will handle emitting all the present decorators normally.  Therefore
+        # we shouldn't have any decorators for a simple function.
+        assert not node.decorator_list
+        first_lineno = node.lineno
+
+        self.emit_function_body(node, code_gen, first_lineno, node.body)
+
+        return node.name
+
+    def get_function_body(self) -> List[ast.stmt]:
+        return self.node.body
+
+    def replace_function(
+        self, func: Function | DecoratedMethod
+    ) -> Function | DecoratedMethod:
+        return func
+
     def finish_bind(self, module: ModuleTable) -> Optional[Value]:
         func = module.finish_decorator(self.node, self)
         if func is not None:
@@ -2933,6 +2962,9 @@ class UnknownDecoratedMethod(FunctionContainer):
         super().__init__(DYNAMIC_TYPE)
         self.func = func
 
+    def get_function_body(self) -> List[ast.stmt]:
+        return self.func.get_function_body()
+
     def bind_function_self(
         self,
         node: Union[FunctionDef, AsyncFunctionDef],
@@ -2948,7 +2980,22 @@ class UnknownDecoratedMethod(FunctionContainer):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        return self.func.emit_function(node, code_gen)
+        name = node.name
+        if node.decorator_list:
+            for decorator in node.decorator_list:
+                code_gen.visit(decorator)
+            first_lineno = node.decorator_list[0].lineno
+        else:
+            first_lineno = node.lineno
+
+        self.func.emit_function_body(
+            node, code_gen, first_lineno, self.func.get_function_body()
+        )
+
+        for _ in range(len(node.decorator_list)):
+            code_gen.emit("CALL_FUNCTION", 1)
+
+        return node.name
 
     @property
     def return_type(self) -> TypeRef:
@@ -3040,9 +3087,44 @@ class StaticMethodInstanceBound(Object[Class]):
 
 
 class DecoratedMethod(FunctionContainer):
-    def __init__(self, klass: Class, function: Function | DecoratedMethod) -> None:
+    def __init__(
+        self, klass: Class, function: Function | DecoratedMethod, decorator: expr
+    ) -> None:
         super().__init__(klass)
         self.function = function
+        self.decorator = decorator
+
+    def emit_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+    ) -> str:
+        self.emit_function_body(
+            node, code_gen, self.decorator.lineno, self.get_function_body()
+        )
+        return node.name
+
+    def emit_function_body(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+        first_lineno: int,
+        body: List[ast.stmt],
+    ) -> CodeGenerator:
+        code_gen.visit(self.decorator)
+        self.function.emit_function_body(
+            node, code_gen, first_lineno, self.get_function_body()
+        )
+        code_gen.emit("CALL_FUNCTION", 1)
+        return code_gen
+
+    def get_function_body(self) -> List[ast.stmt]:
+        return self.function.get_function_body()
+
+    def bind_function_inner(
+        self, node: Union[FunctionDef, AsyncFunctionDef], visitor: TypeBinder
+    ) -> None:
+        self.function.bind_function_inner(node, visitor)
 
     @property
     def real_function(self) -> Function:
@@ -3071,13 +3153,51 @@ class DecoratedMethod(FunctionContainer):
         self.function.set_container_type(container_type)
 
 
+class TransparentDecoratedMethod(DecoratedMethod):
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        return self.function.bind_call(node, visitor, type_ctx)
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        return self.function.emit_call(node, code_gen)
+
+    def emit_load_attr_from(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        self.function.emit_load_attr_from(node, code_gen, klass)
+
+    def emit_store_attr_to(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        self.function.emit_store_attr_to(node, code_gen, klass)
+
+    def bind_descr_get(
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+    ) -> None:
+        return self.function.bind_descr_get(node, inst, ctx, visitor, type_ctx)
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        return self.function.bind_attr(node, visitor, type_ctx)
+
+
 class StaticMethod(DecoratedMethod):
-    def __init__(self, function: Function) -> None:
-        super().__init__(STATIC_METHOD_TYPE, function)
+    def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
+        super().__init__(STATIC_METHOD_TYPE, function, decorator)
 
     @property
     def name(self) -> str:
         return "staticmethod " + self.real_function.qualname
+
+    def replace_function(self, func: Function) -> Function | DecoratedMethod:
+        return StaticMethod(self.function.replace_function(func), self.decorator)
 
     def bind_function_self(
         self,
@@ -3138,12 +3258,15 @@ class BoundClassMethod(Object[Class]):
 
 
 class ClassMethod(DecoratedMethod):
-    def __init__(self, function: Function) -> None:
-        super().__init__(CLASS_METHOD_TYPE, function)
+    def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
+        super().__init__(CLASS_METHOD_TYPE, function, decorator)
 
     @property
     def name(self) -> str:
         return "classmethod " + self.real_function.qualname
+
+    def replace_function(self, func: Function) -> Function | DecoratedMethod:
+        return ClassMethod(self.function.replace_function(func), self.decorator)
 
     def bind_function_self(
         self,
@@ -3177,8 +3300,11 @@ class ClassMethod(DecoratedMethod):
 
 
 class PropertyMethod(DecoratedMethod):
-    def __init__(self, function: Function) -> None:
-        super().__init__(PROPERTY_TYPE, function)
+    def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
+        super().__init__(PROPERTY_TYPE, function, decorator)
+
+    def replace_function(self, func: Function) -> Function | DecoratedMethod:
+        return PropertyMethod(self.function.replace_function(func), self.decorator)
 
     @property
     def name(self) -> str:
@@ -3196,6 +3322,25 @@ class PropertyMethod(DecoratedMethod):
             visitor.set_type(node, DYNAMIC_TYPE)
         else:
             visitor.set_type(node, self.function.return_type.resolved().instance)
+
+    def emit_load_attr_from(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        if self.function.is_final or klass.is_final:
+            code_gen.emit("EXTENDED_ARG", 0)
+            code_gen.emit("INVOKE_FUNCTION", (self.getter_type_descr, 1))
+        else:
+            code_gen.emit_invoke_method(self.getter_type_descr, 0)
+
+    def emit_store_attr_to(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        code_gen.emit("ROT_TWO")
+        if self.function.is_final or klass.is_final:
+            code_gen.emit("EXTENDED_ARG", 0)
+            code_gen.emit("INVOKE_FUNCTION", (self.setter_type_descr, 2))
+        else:
+            code_gen.emit_invoke_method(self.setter_type_descr, 1)
 
     @property
     def container_descr(self) -> TypeDescr:
@@ -3214,8 +3359,13 @@ class PropertyMethod(DecoratedMethod):
 
 
 class CachedPropertyMethod(DecoratedMethod):
-    def __init__(self, function: Function) -> None:
-        super().__init__(CACHED_PROPERTY_TYPE, function)
+    def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
+        super().__init__(CACHED_PROPERTY_TYPE, function, decorator)
+
+    def replace_function(self, func: Function) -> Function | DecoratedMethod:
+        return CachedPropertyMethod(
+            self.function.replace_function(func), self.decorator
+        )
 
     @property
     def name(self) -> str:
@@ -3239,18 +3389,21 @@ class CachedPropertyMethod(DecoratedMethod):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        first_lineno = node.decorator_list[0].lineno
-
-        gen = code_gen.generate_function(node, node.name, first_lineno)
-
-        code_gen.build_function(node, gen)
+        self.function.emit_function_body(
+            node, code_gen, self.decorator.lineno, self.get_function_body()
+        )
 
         return CACHED_PROPERTY_IMPL_PREFIX + node.name
 
 
 class AsyncCachedPropertyMethod(DecoratedMethod):
-    def __init__(self, function: Function) -> None:
-        super().__init__(ASYNC_CACHED_PROPERTY_TYPE, function)
+    def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
+        super().__init__(ASYNC_CACHED_PROPERTY_TYPE, function, decorator)
+
+    def replace_function(self, func: Function) -> Function | DecoratedMethod:
+        return AsyncCachedPropertyMethod(
+            self.function.replace_function(func), self.decorator
+        )
 
     @property
     def name(self) -> str:
@@ -3274,11 +3427,9 @@ class AsyncCachedPropertyMethod(DecoratedMethod):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        first_lineno = node.decorator_list[0].lineno
-
-        gen = code_gen.generate_function(node, node.name, first_lineno)
-
-        code_gen.build_function(node, gen)
+        self.function.emit_function_body(
+            node, code_gen, self.decorator.lineno, self.get_function_body()
+        )
 
         return ASYNC_CACHED_PROPERTY_IMPL_PREFIX + node.name
 
@@ -3291,7 +3442,7 @@ class TypingFinalDecorator(Class):
             fn.real_function.is_final = True
         else:
             fn.is_final = True
-        return fn
+        return TransparentDecoratedMethod(FUNCTION_TYPE, fn, decorator)
 
     def bind_decorate_class(self, klass: Class) -> Class:
         klass.is_final = True
@@ -3308,9 +3459,16 @@ class ClassMethodDecorator(Class):
     def bind_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if isinstance(fn, DecoratedMethod):
-            return None
-        return ClassMethod(fn)
+        if fn.klass is FUNCTION_TYPE:
+            func = fn.real_function if isinstance(fn, DecoratedMethod) else fn
+            args = func.args
+            if args:
+                klass = func.container_type
+                if klass is not None:
+                    args[0].type_ref = ResolvedTypeRef(TYPE_TYPE)
+                else:
+                    args[0].type_ref = ResolvedTypeRef(DYNAMIC_TYPE)
+            return ClassMethod(fn, decorator)
 
 
 class DynamicReturnDecorator(Class):
@@ -3329,11 +3487,17 @@ class StaticMethodDecorator(Class):
     def bind_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if isinstance(fn, StaticMethod):
-            return fn
-        elif isinstance(fn, DecoratedMethod):
+        if fn.klass is not FUNCTION_TYPE:
             return None
-        return StaticMethod(fn)
+
+        func = fn.real_function if isinstance(fn, DecoratedMethod) else fn
+        args = func.args
+        if args:
+            if not func.node.args.args[0].annotation:
+                func.args[0].type_ref = ResolvedTypeRef(DYNAMIC_TYPE)
+                fn = fn.replace_function(func)
+
+        return StaticMethod(fn, decorator)
 
 
 class InlineFunctionDecorator(Class):
@@ -3347,7 +3511,7 @@ class InlineFunctionDecorator(Class):
             )
 
         real_fn.inline = True
-        return fn
+        return TransparentDecoratedMethod(FUNCTION_TYPE, fn, decorator)
 
 
 class DoNotCompileDecorator(Class):
@@ -3356,7 +3520,7 @@ class DoNotCompileDecorator(Class):
     ) -> Optional[Function | DecoratedMethod]:
         real_fn = fn.real_function if isinstance(fn, DecoratedMethod) else fn
         real_fn.donotcompile = True
-        return fn
+        return TransparentDecoratedMethod(FUNCTION_TYPE, fn, decorator)
 
     def bind_decorate_class(self, klass: Class) -> Class:
         klass.donotcompile = True
@@ -3367,9 +3531,9 @@ class PropertyDecorator(Class):
     def bind_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if isinstance(fn, DecoratedMethod):
+        if fn.klass is not FUNCTION_TYPE:
             return None
-        return PropertyMethod(fn)
+        return PropertyMethod(fn, decorator)
 
     def bind_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property")
@@ -3379,9 +3543,9 @@ class CachedPropertyDecorator(Class):
     def bind_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if isinstance(fn, DecoratedMethod):
+        if fn.klass is not FUNCTION_TYPE:
             return None
-        return CachedPropertyMethod(fn)
+        return CachedPropertyMethod(fn, decorator)
 
     def bind_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @cached_property")
@@ -3391,9 +3555,9 @@ class AsyncCachedPropertyDecorator(Class):
     def bind_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if isinstance(fn, DecoratedMethod):
+        if fn.klass is not FUNCTION_TYPE:
             return None
-        return AsyncCachedPropertyMethod(fn)
+        return AsyncCachedPropertyMethod(fn, decorator)
 
     def bind_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @async_cached_property")
@@ -6672,7 +6836,6 @@ class ContextDecoratorInstance(Object[ContextDecoratorClass]):
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is FUNCTION_TYPE:
             return ContextDecoratedMethod(FUNCTION_TYPE, fn, decorator, self)
-
         return None
 
 
@@ -6684,41 +6847,46 @@ class ContextDecoratedMethod(DecoratedMethod):
         decorator: expr,
         ctx_dec: ContextDecoratorInstance,
     ) -> None:
-        super().__init__(klass, function)
-        self.decorator = decorator
+        super().__init__(klass, function, decorator)
         self.ctx_dec = ctx_dec
+        self.body: List[ast.stmt] = self.make_function_body(
+            function.get_function_body(), function, decorator
+        )
 
-    def get_temp_name(self, node: FunctionDef | AsyncFunctionDef) -> str:
-        klass = self.real_function.container_type
-        dec_index = node.decorator_list.index(self.decorator)
+    @staticmethod
+    def get_temp_name(function: Function, decorator: expr) -> str:
+        klass = function.container_type
+        dec_index = function.node.decorator_list.index(decorator)
+
         if klass is not None:
             klass_name = klass.type_name.name
-            return f"<{klass_name}.{node.name}_decorator_{dec_index}>"
+            return f"<{klass_name}.{function.func_name}_decorator_{dec_index}>"
 
-        return f"<{node.name}_decorator_{dec_index}>"
+        return f"<{function.func_name}_decorator_{dec_index}>"
 
-    def get_function_body(
-        self, node: Union[FunctionDef, AsyncFunctionDef], visitor: TypeBinder
+    def get_function_body(self) -> List[ast.stmt]:
+        return self.body
+
+    @staticmethod
+    def make_function_body(
+        body: List[ast.stmt], fn: Function | DecoratedMethod, decorator: expr
     ) -> List[ast.stmt]:
-        body = self.function.get_function_body(node, visitor)
-        klass = self.real_function.container_type
-        dec_name = self.get_temp_name(node)
+        if isinstance(fn, DecoratedMethod):
+            real_func = fn.real_function
+        else:
+            real_func = fn
+
+        node = real_func.node
+        klass = real_func.container_type
+        dec_name = ContextDecoratedMethod.get_temp_name(real_func, decorator)
 
         if klass is not None:
-            klass.define_slot(
-                dec_name,
-                self.decorator,
-                ResolvedTypeRef(
-                    CLASSVAR_TYPE.make_generic_type(
-                        (self.ctx_dec.klass,), visitor.symtable.generic_types
-                    )
-                ),
-                assignment=node,
-            )
-            load_name = ast.Name(node.args.args[0].arg, ast.Load())
+            if ContextDecoratedMethod.can_load_from_class(klass, real_func):
+                load_name = ast.Name(node.args.args[0].arg, ast.Load())
+            else:
+                load_name = ast.Name(klass.type_name.name, ast.Load())
             decorator_var = ast.Attribute(load_name, dec_name, ast.Load())
         else:
-            visitor.binding_scope.declare(dec_name, self.ctx_dec, is_final=True)
             decorator_var = ast.Name(dec_name, ast.Load())
 
         load_recreate = ast.Attribute(
@@ -6728,20 +6896,48 @@ class ContextDecoratedMethod(DecoratedMethod):
         )
         call_recreate = ast.Call(load_recreate, [], [])
 
-        with_item = ast.copy_location(ast.withitem(call_recreate, []), node.body[0])
+        with_item = ast.copy_location(ast.withitem(call_recreate, []), body[0])
 
         ast.fix_missing_locations(with_item)
 
-        self.body[:] = [cast(ast.stmt, ast.With([with_item], body))]
-        return self.body
+        return [cast(ast.stmt, ast.With([with_item], body))]
 
-    def emit_function(
-        self,
-        node: ast.FunctionDef | ast.AsyncFunctionDef,
-        code_gen: Static38CodeGenerator,
-    ) -> str:
-        self.emit_function_body(node, code_gen, self.decorator.lineno, self.body)
-        return node.name
+    def replace_function(self, func: Function) -> Function | DecoratedMethod:
+        return ContextDecoratedMethod(
+            self.klass,
+            self.function.replace_function(func),
+            self.decorator,
+            self.ctx_dec,
+        )
+
+    @staticmethod
+    def can_load_from_class(klass: Class, func: Function) -> bool:
+        if not func.args:
+            return False
+
+        arg_type = func.args[0].type_ref.resolved(False)
+        return klass.can_assign_from(arg_type)
+
+    def bind_function_inner(
+        self, node: Union[FunctionDef, AsyncFunctionDef], visitor: TypeBinder
+    ) -> None:
+        klass = self.real_function.container_type
+        dec_name = self.get_temp_name(self.real_function, self.decorator)
+        if klass is not None:
+            klass.define_slot(
+                dec_name,
+                self.decorator,
+                ResolvedTypeRef(
+                    CLASSVAR_TYPE.make_generic_type(
+                        (self.ctx_dec.klass,),
+                        self.real_function.module.symtable.generic_types,
+                    )
+                ),
+                assignment=node,
+            )
+        else:
+            visitor.binding_scope.declare(dec_name, self.ctx_dec, is_final=True)
+        self.function.bind_function_inner(node, visitor)
 
     def emit_function_body(
         self,
@@ -6750,7 +6946,7 @@ class ContextDecoratedMethod(DecoratedMethod):
         first_lineno: int,
         body: List[ast.stmt],
     ) -> CodeGenerator:
-        dec_name = self.get_temp_name(node)
+        dec_name = self.get_temp_name(self.real_function, self.decorator)
         code_gen.visit(self.decorator)
         code_gen.storeName(dec_name)
 

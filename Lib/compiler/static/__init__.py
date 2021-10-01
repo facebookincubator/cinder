@@ -174,11 +174,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             fn = self.cur_mod.resolve_name(node.name)
 
         if isinstance(fn, (Function, DecoratedMethod)):
-            return (
-                fn.donotcompile
-                if isinstance(fn, Function)
-                else fn.function.donotcompile
-            )
+            return fn.donotcompile
 
         return False
 

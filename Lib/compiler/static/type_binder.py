@@ -109,6 +109,7 @@ from .types import (
     OptionalType,
     OptionalInstance,
     ClassMethodDecorator,
+    TransparentDecoratedMethod,
 )
 
 if TYPE_CHECKING:
@@ -539,6 +540,11 @@ class TypeBinder(GenericVisitor):
                     and member.assignment != assignment
                 )
                 or (isinstance(member, Function) and member.is_final)
+                or (
+                    isinstance(member, TransparentDecoratedMethod)
+                    and isinstance(member.function, Function)
+                    and member.function.is_final
+                )
             )
         ):
             self.syntax_error(

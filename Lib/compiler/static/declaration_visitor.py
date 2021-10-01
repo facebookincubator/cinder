@@ -42,6 +42,7 @@ from .types import (
     DecoratedMethod,
     TypeName,
     TypeRef,
+    UnknownDecoratedMethod,
 )
 from .visitor import GenericVisitor
 
@@ -107,10 +108,6 @@ class DeclarationVisitor(GenericVisitor):
             klass = klasses[0]
 
         parent_scope = self.parent_scope()
-        self.enter_scope(klass)
-        for item in node.body:
-            with self.symtable.error_sink.error_context(self.filename, item):
-                self.visit(item)
 
         for base in bases:
             if base is NAMED_TUPLE_TYPE:
@@ -138,6 +135,12 @@ class DeclarationVisitor(GenericVisitor):
                 decorator = self.module.resolve_type(d) or DYNAMIC_TYPE
                 klass = decorator.bind_decorate_class(klass)
 
+        self.enter_scope(NestedScope() if klass is DYNAMIC_TYPE else klass)
+
+        for item in node.body:
+            with self.symtable.error_sink.error_context(self.filename, item):
+                self.visit(item)
+
         parent_scope.declare_class(node, klass)
         self.module.types[node] = klass
         self.exit_scope()
@@ -152,7 +155,19 @@ class DeclarationVisitor(GenericVisitor):
         for item in node.body:
             self.visit(item)
         self.exit_scope()
-        self.module.types[node] = func
+        func_type = func
+        if (
+            isinstance(self.parent_scope(), (NestedScope, Function))
+            and node.decorator_list
+        ):
+            # If this is a scope we don't perform any extra binding in we need
+            # to treat decorated functions as unknown decorated to emit their
+            # decorators as we won't do the transform later in finish_bind
+            # and we don't care about optimizing calls to them.
+            func_type = UnknownDecoratedMethod(func)
+
+        self.module.types[node] = func_type
+
         return func
 
     def visitFunctionDef(self, node: FunctionDef) -> None:
