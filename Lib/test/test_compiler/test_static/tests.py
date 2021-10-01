@@ -356,6 +356,44 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.assertReturns(codestr, "Optional[int]")
 
+    def test_typing_overload_toplevel(self) -> None:
+        """Typing overloads are ignored, don't cause member name conflict."""
+        codestr = """
+            from typing import Optional, overload
+
+            @overload
+            def bar(x: int) -> int:
+                ...
+
+            def bar(x: Optional[int]) -> Optional[int]:
+                return x
+
+            def f(x: int) -> Optional[int]:
+                return bar(x)
+        """
+        self.assertReturns(codestr, "Optional[int]")
+
+    def test_duplicate_function_replaces_class(self) -> None:
+        codestr = """
+            class X: pass
+            def X(): pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, "function conflicts with other member X in <module>"
+        ):
+            self.compile(codestr)
+
+    def test_duplicate_function_replaces_function(self) -> None:
+        codestr = """
+            def f(): pass
+            def f(): pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "function 'function <module>.f' conflicts with other member",
+        ):
+            self.compile(codestr)
+
     def test_mixed_binop(self):
         with self.assertRaisesRegex(
             TypedSyntaxError, "cannot add int64 and Literal\\[1\\]"
@@ -10889,20 +10927,22 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_compile_nested_class(self):
         codestr = """
+            from typing import ClassVar
             class Outer:
                 class Inner:
-                    c: int = 1
+                    c: ClassVar[int] = 1
         """
         self.compile(codestr)
 
         codestr = """
+            from typing import ClassVar
             class Outer:
                 class Inner1:
-                    c: int = 1
+                    c: ClassVar[int] = 1
                     class Inner2:
-                        c: int = 2
+                        c: ClassVar[int] = 2
                         class Inner3:
-                            c: int = 3
+                            c: ClassVar[int] = 3
         """
         self.compile(codestr)
 

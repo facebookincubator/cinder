@@ -165,3 +165,23 @@ class ClassMethodTests(StaticTestBase):
 
             d = D()
             asyncio.run(d.bar())
+
+    def test_classmethod_other_dec(self):
+        codestr = """
+            from typing import final
+
+            def mydec(f):
+                return f
+            @final
+            class C:
+                @classmethod
+                @mydec
+                def foo(cls) -> int:
+                    return 3
+
+                def f(self):
+                    return self.foo()
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod["C"]
+            self.assertEqual(C().f(), 3)

@@ -146,28 +146,14 @@ class DeclarationVisitor(GenericVisitor):
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         function = self._make_function(node)
-        if function:
-            self.parent_scope().declare_function(function)
+        self.parent_scope().declare_function(function)
 
-    def _make_function(
-        self, node: Union[FunctionDef, AsyncFunctionDef]
-    ) -> Function | DecoratedMethod | None:
+    def _make_function(self, node: Union[FunctionDef, AsyncFunctionDef]) -> Function:
         func = orig_func = Function(node, self.module, self.type_ref(node))
         self.enter_scope(func)
         for item in node.body:
             self.visit(item)
         self.exit_scope()
-        for decorator in reversed(node.decorator_list):
-            decorator_type = self.module.resolve_type(decorator) or DYNAMIC_TYPE
-            new_func = decorator_type.bind_decorate_function(self, func)
-            if not isinstance(new_func, (Function, DecoratedMethod)):
-                # With an un-analyzable decorator we  still publish the function
-                # type so that we can recover the function when visiting it, but
-                # we return None so that the function is not published in the symbol
-                # table, forcing late binding to it.
-                self.module.types[node] = orig_func
-                return None
-            func = new_func
         self.module.types[node] = func
         return func
 

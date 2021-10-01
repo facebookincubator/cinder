@@ -2,7 +2,16 @@
 from __future__ import annotations
 
 import ast
-from ast import AST, ClassDef, Subscript, Index, Name, NameConstant
+from ast import (
+    AST,
+    AsyncFunctionDef,
+    ClassDef,
+    FunctionDef,
+    Subscript,
+    Index,
+    Name,
+    NameConstant,
+)
 from contextlib import nullcontext
 from enum import Enum
 from functools import partial
@@ -22,11 +31,13 @@ from ..symbols import Scope, ModuleScope
 from .errors import TypedSyntaxError
 from .types import (
     CType,
+    Callable,
     Class,
     ClassVar,
     DecoratedMethod,
     DynamicClass,
     Function,
+    FunctionGroup,
     DYNAMIC_TYPE,
     FLOAT_TYPE,
     FinalClass,
@@ -35,6 +46,7 @@ from .types import (
     OPTIONAL_TYPE,
     UNION_TYPE,
     UnionType,
+    UnknownDecoratedMethod,
     Value,
 )
 
@@ -63,7 +75,7 @@ class ModuleTable:
         self.types: Dict[AST, Value] = {}
         self.node_data: Dict[Tuple[AST, object], object] = {}
         self.flags: Set[ModuleFlag] = set()
-        self.decls: List[Tuple[AST, Optional[Value]]] = []
+        self.decls: List[Tuple[AST, Optional[str], Optional[Value]]] = []
         # TODO: final constants should be typed to literals, and
         # this should be removed in the future
         self.named_finals: Dict[str, ast.Constant] = {}
@@ -81,11 +93,25 @@ class ModuleTable:
         return self.symtable.error_sink.error_context(self.filename, node)
 
     def declare_class(self, node: ClassDef, klass: Class) -> None:
-        self.decls.append((node, klass))
+        self.decls.append((node, node.name, klass))
         self.children[node.name] = klass
 
-    def declare_function(self, func: Function | DecoratedMethod) -> None:
-        self.children[func.func_name] = func
+    def declare_function(self, func: Function) -> None:
+        existing = self.children.get(func.func_name)
+        new_member = func
+        if existing is not None:
+            if isinstance(existing, Function):
+                new_member = FunctionGroup([existing, new_member])
+            elif isinstance(existing, FunctionGroup):
+                existing.functions.append(new_member)
+                new_member = existing
+            else:
+                raise TypedSyntaxError(
+                    f"function conflicts with other member {func.func_name} in {self.name}"
+                )
+
+        self.decls.append((func.node, func.func_name, new_member))
+        self.children[func.func_name] = new_member
 
     def _get_inferred_type(self, value: ast.expr) -> Optional[Value]:
         if not isinstance(value, ast.Name):
@@ -94,11 +120,17 @@ class ModuleTable:
 
     def finish_bind(self) -> None:
         self.first_pass_done = True
-        for node, value in self.decls:
+        for node, name, value in self.decls:
             with self.error_context(node):
                 if value is not None:
-                    value.finish_bind(self)
-                elif isinstance(node, ast.AnnAssign):
+                    assert name is not None
+                    new_value = value.finish_bind(self)
+                    if new_value is None:
+                        del self.children[name]
+                    elif new_value is not value:
+                        self.children[name] = new_value
+
+                if isinstance(node, ast.AnnAssign):
                     typ = self.resolve_annotation(node.annotation, is_declaration=True)
                     if typ is not None:
                         # Special case Final[dynamic] to use inferred type.
@@ -132,6 +164,20 @@ class ModuleTable:
         # We don't need these anymore...
 
         self.decls.clear()
+
+    def finish_decorator(
+        self, node: FunctionDef | AsyncFunctionDef, func: Function
+    ) -> Optional[Value]:
+        res: Optional[Value] = func
+        for decorator in reversed(node.decorator_list):
+            decorator_type = self.resolve_type(decorator) or DYNAMIC_TYPE
+            res = decorator_type.bind_decorate_function(res)
+            if res is None:
+                self.types[node] = UnknownDecoratedMethod(func)
+                return None
+
+        self.types[node] = res
+        return res
 
     def resolve_type(self, node: ast.AST) -> Optional[Class]:
         # TODO handle Call
@@ -283,7 +329,7 @@ class ModuleTable:
             return final_val
 
     def declare_variable(self, node: ast.AnnAssign, module: ModuleTable) -> None:
-        self.decls.append((node, None))
+        self.decls.append((node, None, None))
 
     def declare_variables(self, node: ast.Assign, module: ModuleTable) -> None:
         pass

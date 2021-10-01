@@ -356,8 +356,8 @@ class Value:
     def inexact(self) -> Value:
         return self
 
-    def finish_bind(self, module: ModuleTable) -> None:
-        pass
+    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+        return self
 
     def make_generic_type(
         self, index: GenericTypeIndex, generic_types: GenericTypesDict
@@ -400,8 +400,8 @@ class Value:
         visitor.syntax_error(f"cannot get descriptor {self.name}", node)
 
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         return None
 
     def bind_decorate_class(self, klass: Class) -> Class:
@@ -825,6 +825,35 @@ class InitVisitor(GenericVisitor):
                 self.klass.define_slot(attr, target, assignment=node)
 
 
+class FunctionGroup(Value):
+    """Represents a group of functions defined in a function with
+    the same name.  This object is ephemeral and is removed when we
+    finish the bind of a class.  Common scenarios where this occur are the
+    usage of the the ".setter" syntax for properties, or the @overload
+    decorator"""
+
+    def __init__(self, functions: List[Function]) -> None:
+        super().__init__(FUNCTION_TYPE)
+        self.functions = functions
+
+    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+        known_funcs = []
+        for func in self.functions:
+            new_func = module.finish_decorator(func.node, func)
+            if new_func is not None:
+                known_funcs.append(new_func)
+
+        if known_funcs and len(known_funcs) > 1:
+            with module.error_context(known_funcs[1].node):
+                raise TypedSyntaxError(
+                    f"function '{known_funcs[1].name}' conflicts with other member"
+                )
+        elif not known_funcs:
+            return None
+
+        return known_funcs[0]
+
+
 class Class(Object["Class"]):
     """Represents a type object at compile time"""
 
@@ -1155,29 +1184,24 @@ class Class(Object["Class"]):
                     f"Cannot change type of inherited attribute (inherited type '{itr.instance.name}')"
                 )
 
-    def finish_bind(self, module: ModuleTable) -> None:
-        inherited = set()
+    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+        to_remove = set()
         for name, my_value in self.members.items():
             node = self._member_nodes.get(name, None)
             with module.error_context(node):
-                if isinstance(my_value, Slot):
-                    if my_value.is_final and not my_value.assignment:
-                        raise TypedSyntaxError(
-                            f"Final attribute not initialized: {self.instance.name}:{name}"
-                        )
-                    elif my_value.assigned_on_class and not my_value.is_classvar:
-                        raise TypedSyntaxError(
-                            f"Class attribute requires ClassVar[...] annotation: {name}"
-                        )
+                new_value = my_value.finish_bind(module)
+                if new_value is None:
+                    to_remove.add(name)
+                    continue
+                elif my_value is not new_value:
+                    my_value = self.members[name] = new_value
 
                 for base in self.mro[1:]:
                     value = base.members.get(name)
                     if value is not None:
                         self.check_incompatible_override(my_value, value)
-                    if isinstance(value, Class):
-                        value.finish_bind(module)
-                    elif isinstance(value, Slot):
-                        inherited.add(name)
+                    if isinstance(value, Slot):
+                        to_remove.add(name)
                     elif isinstance(value, Function):
                         if value.is_final:
                             raise TypedSyntaxError(
@@ -1205,12 +1229,12 @@ class Class(Object["Class"]):
                             my_value.function, module
                         )
 
-        for name in inherited:
-            assert type(self.members[name]) is Slot
+        for name in to_remove:
             del self.members[name]
 
         # These were just for error reporting here, don't need them anymore
         self._member_nodes = {}
+        return self
 
     def define_slot(
         self,
@@ -1248,17 +1272,24 @@ class Class(Object["Class"]):
                 f"slot conflicts with other member {name} in {self.name}"
             )
 
-    def declare_function(self, func: Function | DecoratedMethod) -> None:
-        if func.func_name in self.members:
-            raise TypedSyntaxError(
-                f"function conflicts with other member {func.func_name} in {self.name}"
-            )
+    def declare_function(self, func: Function) -> None:
+        existing = self.members.get(func.func_name)
+        new_member = func
+        if existing is not None:
+            if isinstance(existing, Function):
+                new_member = FunctionGroup([existing, new_member])
+            elif isinstance(existing, FunctionGroup):
+                existing.functions.append(new_member)
+                new_member = existing
+            else:
+                raise TypedSyntaxError(
+                    f"function conflicts with other member {func.func_name} in {self.name}"
+                )
 
         func.set_container_type(self)
 
-        if isinstance(func, Function):
-            self._member_nodes[func.func_name] = func.node
-        self.members[func.func_name] = func
+        self._member_nodes[func.func_name] = func.node
+        self.members[func.func_name] = new_member
 
         if (
             func.func_name == "__init__"
@@ -2590,6 +2621,14 @@ class Function(Callable[Class], FunctionContainer):
         self.donotcompile = False
         self._inner_classes: Dict[str, Value] = {}
 
+    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+        func = module.finish_decorator(self.node, self)
+        if func is not None:
+            return func
+
+        # With an un-analyzable decorator we want to force late binding
+        # to it because we don't know what the decorator does
+
     @property
     def name(self) -> str:
         return f"function {self.qualname}"
@@ -2601,7 +2640,7 @@ class Function(Callable[Class], FunctionContainer):
     def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
         pass
 
-    def declare_function(self, func: Function | DecoratedMethod) -> None:
+    def declare_function(self, func: Function) -> None:
         pass
 
     def declare_variables(self, node: Assign, module: ModuleTable) -> None:
@@ -2857,6 +2896,36 @@ class Function(Callable[Class], FunctionContainer):
 
     def __repr__(self) -> str:
         return f"<{self.name} '{self.name}' instance, args={self.args}>"
+
+
+class UnknownDecoratedMethod(FunctionContainer):
+    """Wrapper around functions where we are unable to analyze the effect
+    of the decorators"""
+
+    def __init__(self, func: Function) -> None:
+        super().__init__(DYNAMIC_TYPE)
+        self.func = func
+
+    def bind_function_self(
+        self,
+        node: Union[FunctionDef, AsyncFunctionDef],
+        scope: BindingScope,
+        visitor: TypeBinder,
+    ) -> None:
+        if node.args.args:
+            klass = visitor.maybe_get_current_class()
+            visitor.set_param(node.args.args[0], DYNAMIC, scope)
+
+    def emit_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+    ) -> str:
+        return self.func.emit_function(node, code_gen)
+
+    @property
+    def return_type(self) -> TypeRef:
+        return ResolvedTypeRef(DYNAMIC_TYPE)
 
 
 class MethodType(Object[Class]):
@@ -3170,8 +3239,8 @@ class AsyncCachedPropertyMethod(DecoratedMethod):
 
 class TypingFinalDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Value:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         if isinstance(fn, DecoratedMethod):
             fn.function.is_final = True
         else:
@@ -3191,8 +3260,8 @@ class AllowWeakrefsDecorator(Class):
 
 class ClassMethodDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         if isinstance(fn, DecoratedMethod):
             return None
         return ClassMethod(fn)
@@ -3200,8 +3269,8 @@ class ClassMethodDecorator(Class):
 
 class DynamicReturnDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Value:
+        self, fn: Function | DecoratedMethod
+    ) -> Function | DecoratedMethod:
         if isinstance(fn, StaticMethod):
             real_fn = fn.function
             real_fn.return_type = ResolvedTypeRef(DYNAMIC_TYPE)
@@ -3212,8 +3281,8 @@ class DynamicReturnDecorator(Class):
 
 class StaticMethodDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         if isinstance(fn, StaticMethod):
             return fn
         elif isinstance(fn, DecoratedMethod):
@@ -3223,11 +3292,11 @@ class StaticMethodDecorator(Class):
 
 class InlineFunctionDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Value:
+        self, fn: Function | DecoratedMethod
+    ) -> Function | DecoratedMethod:
         real_fn = fn.function if isinstance(fn, DecoratedMethod) else fn
         if not isinstance(real_fn.node.body[0], ast.Return):
-            visitor.syntax_error(
+            raise TypedSyntaxError(
                 "@inline only supported on functions with simple return", real_fn.node
             )
 
@@ -3237,8 +3306,8 @@ class InlineFunctionDecorator(Class):
 
 class DoNotCompileDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         real_fn = fn.function if isinstance(fn, DecoratedMethod) else fn
         real_fn.donotcompile = True
         return fn
@@ -3250,8 +3319,8 @@ class DoNotCompileDecorator(Class):
 
 class PropertyDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         if isinstance(fn, DecoratedMethod):
             return None
         return PropertyMethod(fn)
@@ -3262,8 +3331,8 @@ class PropertyDecorator(Class):
 
 class CachedPropertyDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         if isinstance(fn, DecoratedMethod):
             return None
         return CachedPropertyMethod(fn)
@@ -3274,8 +3343,8 @@ class CachedPropertyDecorator(Class):
 
 class AsyncCachedPropertyDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         if isinstance(fn, DecoratedMethod):
             return None
         return AsyncCachedPropertyMethod(fn)
@@ -3286,8 +3355,8 @@ class AsyncCachedPropertyDecorator(Class):
 
 class IdentityDecorator(Class):
     def bind_decorate_function(
-        self, visitor: DeclarationVisitor, fn: Function | DecoratedMethod
-    ) -> Optional[Value]:
+        self, fn: Function | DecoratedMethod
+    ) -> Optional[Function | DecoratedMethod]:
         return fn
 
     def bind_decorate_class(self, klass: Class) -> Class:
@@ -3559,6 +3628,18 @@ class Slot(Object[TClassInv]):
         self.type_ref = type_ref
         self.assignment = assignment
         self.assigned_on_class = assigned_on_class
+
+    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+        if self.is_final and not self.assignment:
+            raise TypedSyntaxError(
+                f"Final attribute not initialized: {self.container_type.instance.name}:{self.slot_name}"
+            )
+        elif self.assigned_on_class and not self.is_classvar:
+            raise TypedSyntaxError(
+                f"Class attribute requires ClassVar[...] annotation: {self.slot_name}"
+            )
+
+        return self
 
     def bind_descr_get(
         self,
