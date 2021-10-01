@@ -2284,30 +2284,6 @@ class StaticCompilationTests(StaticTestBase):
         self.assertFalse(STATIC_METHOD_TYPE.is_exact)
         self.assertFalse(NAMED_TUPLE_TYPE.is_exact)
 
-    def test_if_exp(self) -> None:
-        mod, syms, _ = self.bind_module(
-            """
-            class C: pass
-            class D: pass
-
-            x = C() if a else D()
-        """
-        )
-        node = mod.body[-1]
-        types = syms.modules["foo"].types
-        self.assertEqual(types[node], DYNAMIC)
-
-        mod, syms, _ = self.bind_module(
-            """
-            class C: pass
-
-            x = C() if a else C()
-        """
-        )
-        node = mod.body[-1]
-        types = syms.modules["foo"].types
-        self.assertEqual(types[node.value].name, "foo.C")
-
     def test_cmpop(self):
         codestr = """
             from __static__ import int32

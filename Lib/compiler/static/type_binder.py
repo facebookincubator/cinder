@@ -793,20 +793,15 @@ class TypeBinder(GenericVisitor):
         # dynamic if we can coerce to dynamic, otherwise report an error.
         body_t = self.get_type(node.body)
         else_t = self.get_type(node.orelse)
-        if body_t.klass.can_assign_from(else_t.klass):
-            self.set_type(node, body_t)
-        elif else_t.klass.can_assign_from(body_t.klass):
-            self.set_type(node, else_t)
-        elif DYNAMIC_TYPE.can_assign_from(
-            body_t.klass
-        ) and DYNAMIC_TYPE.can_assign_from(else_t.klass):
-            self.set_type(node, DYNAMIC)
-        else:
-            self.syntax_error(
-                f"if expression has incompatible types: {body_t.name} and {else_t.name}",
-                node,
-            )
-            self.set_type(node, DYNAMIC)
+        # Construction of the union could fail with a type error, so first
+        # set the node to dynamic type for linting use case
+        self.set_type(node, DYNAMIC)
+        self.set_type(
+            node,
+            UNION_TYPE.make_generic_type(
+                (body_t.klass, else_t.klass), self.symtable.generic_types
+            ).instance,
+        )
         return NO_EFFECT
 
     def visitSlice(

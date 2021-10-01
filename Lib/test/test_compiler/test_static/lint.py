@@ -13,7 +13,7 @@ class LintTests(StaticTestBase):
         errors = self.lint(codestr)
         errors.check(
             errors.match(
-                "if expression has incompatible types: Exact[str] and Literal[0]",
+                "invalid union type Union[Exact[str], Literal[0]]",
                 at='"foo"',
             ),
         )

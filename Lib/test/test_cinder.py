@@ -5,11 +5,8 @@ import sys
 import unittest
 import weakref
 from functools import wraps
-from test.support import gc_collect, requires_type_collecting, temp_dir, unlink, TESTFN
-from test.support.cinder import get_await_stack
-from test.support.script_helper import assert_python_ok, make_script
-from types import FunctionType, GeneratorType, ModuleType, CodeType
 from textwrap import dedent
+from types import FunctionType, GeneratorType, ModuleType, CodeType
 
 import cinder
 from cinder import (
@@ -20,6 +17,9 @@ from cinder import (
     StrictModule,
     strict_module_patch,
 )
+from test.support import gc_collect, requires_type_collecting, temp_dir, unlink, TESTFN
+from test.support.cinder import get_await_stack
+from test.support.script_helper import assert_python_ok, make_script
 
 
 class NoWayError(Exception):
