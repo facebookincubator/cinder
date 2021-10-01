@@ -30,6 +30,7 @@ from typing import (
 from ..symbols import Scope, ModuleScope
 from .errors import TypedSyntaxError
 from .types import (
+    Callable,
     CType,
     Callable,
     Class,
@@ -170,8 +171,8 @@ class ModuleTable:
     ) -> Optional[Value]:
         res: Optional[Value] = func
         for decorator in reversed(node.decorator_list):
-            decorator_type = self.resolve_type(decorator) or DYNAMIC_TYPE
-            res = decorator_type.bind_decorate_function(res)
+            decorator_type = self.resolve_decorator(decorator) or DYNAMIC_TYPE
+            res = decorator_type.bind_decorate_function(res, decorator)
             if res is None:
                 self.types[node] = UnknownDecoratedMethod(func)
                 return None
@@ -181,20 +182,30 @@ class ModuleTable:
 
     def resolve_type(self, node: ast.AST) -> Optional[Class]:
         # TODO handle Call
-        return self._resolve(node, self.resolve_type)
+        typ = self._resolve(node, self.resolve_type)
+        if isinstance(typ, Class):
+            return typ
+
+    def resolve_decorator(self, node: ast.AST) -> Optional[Value]:
+        if isinstance(node, ast.Call):
+            func = self.resolve_decorator(node.func)
+            if isinstance(func, Class):
+                return func.instance
+            elif isinstance(func, Callable):
+                return func.return_type.resolved().instance
+
+        return self._resolve(node, self.resolve_decorator)
 
     def _resolve(
         self,
         node: ast.AST,
-        _resolve: typingCallable[[ast.AST], Optional[Class]],
+        _resolve: typingCallable[[ast.AST], Optional[Value]],
         _resolve_subscr_target: Optional[
             typingCallable[[ast.AST], Optional[Class]]
         ] = None,
-    ) -> Optional[Class]:
+    ) -> Optional[Value]:
         if isinstance(node, ast.Name):
-            res = self.resolve_name(node.id)
-            if isinstance(res, Class):
-                return res
+            return self.resolve_name(node.id)
         elif isinstance(node, Subscript):
             slice = node.slice
             if isinstance(slice, Index):
@@ -211,6 +222,8 @@ class ModuleTable:
                         return gen or val
                     else:
                         index = _resolve(value) or DYNAMIC_TYPE
+                        if not isinstance(index, Class):
+                            return None
                         gen = val.make_generic_type(
                             (index,), self.symtable.generic_types
                         )
@@ -287,7 +300,7 @@ class ModuleTable:
                 self.resolve_annotation, is_declaration=True
             ),
         )
-        if typ:
+        if isinstance(typ, Class):
             return typ
         elif isinstance(node, ast.Str):
             # pyre-ignore[16]: `AST` has no attribute `body`.

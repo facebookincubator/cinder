@@ -182,7 +182,9 @@ class StrictCodeGenerator(CinderCodeGenerator):
             self.emit_append_class_list()
         super().register_immutability(node, flag)
 
-    def processBody(self, node: AST, body: List[AST] | AST, gen: CodeGenerator) -> None:
+    def processBody(
+        self, node: AST, body: List[ast.stmt] | AST, gen: CodeGenerator
+    ) -> None:
         if not enable_strict_features:
             return super().processBody(node, body, gen)
         if (

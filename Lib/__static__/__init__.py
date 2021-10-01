@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import array
+import functools
 import random
 import time
+from asyncio import iscoroutinefunction
+from functools import wraps
 from types import FunctionType, Union as typesUnion
 from typing import (
     _GenericAlias,
@@ -15,6 +18,7 @@ from typing import (
     TypeVar,
     Tuple,
     Union,
+    final,
     _tp_cache,
 )
 from weakref import WeakValueDictionary
@@ -38,6 +42,12 @@ except ImportError:
     chkdict = dict
     chklist = list
 
+    def make_recreate_cm():
+        def _recreate_cm(self):
+            return self
+
+        return _recreate_cm
+
 else:
     chkdict = _static.chkdict
     chklist = _static.chklist
@@ -45,6 +55,7 @@ else:
     is_type_static = _static.is_type_static
     set_type_static = _static.set_type_static
     set_type_static_final = _static.set_type_static_final
+    make_recreate_cm = _static.make_recreate_cm
 
 try:
     from _static import (
@@ -509,3 +520,33 @@ def prod_assert(value: bool, message: Optional[str] = None):
 
 CheckedDict = chkdict
 CheckedList = chklist
+
+
+class ContextDecorator:
+    def __enter__(self) -> None:
+        return self
+
+    def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> bool:
+        return False
+
+    @final
+    def __call__(self, func):
+        if not iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            def _no_profile_inner(*args, **kwds):
+                with self._recreate_cm():
+                    return func(*args, **kwds)
+
+            return _no_profile_inner
+        else:
+
+            @functools.wraps(func)
+            async def _no_profile_inner(*args, **kwds):
+                with self._recreate_cm():
+                    return await func(*args, **kwds)
+
+            return _no_profile_inner
+
+
+ContextDecorator._recreate_cm = make_recreate_cm(ContextDecorator)

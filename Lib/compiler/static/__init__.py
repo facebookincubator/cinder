@@ -100,6 +100,7 @@ from .types import (
     _TMP_VAR_PREFIX,
     CachedPropertyDecorator,
     CachedPropertyMethod,
+    ContextDecoratedMethod,
 )
 
 

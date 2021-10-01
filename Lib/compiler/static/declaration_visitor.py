@@ -95,19 +95,17 @@ class DeclarationVisitor(GenericVisitor):
         if not bases:
             bases.append(OBJECT_TYPE)
 
-        type_name = TypeName(self.module_name, node.name)
-        if any(isinstance(base, CEnumType) for base in bases):
-            # TODO(wmeehan): handle enum subclassing and mix-ins
-            if len(bases) > 1:
-                self.syntax_error(
-                    f"Static Enum types cannot support multiple bases: {bases}",
-                    node,
+        with self.symtable.error_sink.error_context(self.filename, node):
+            klasses = []
+            for base in bases:
+                klasses.append(
+                    base.make_subclass(TypeName(self.module_name, node.name), bases)
                 )
-            if bases[0] != ENUM_TYPE:
-                self.syntax_error("Static Enum types do not allow subclassing", node)
-            klass = CEnumType(type_name, bases)
-        else:
-            klass = Class(type_name, bases)
+            for cur_type in klasses:
+                if type(cur_type) != type(klasses[0]):
+                    self.syntax_error("Incompatible subtypes", node)
+            klass = klasses[0]
+
         parent_scope = self.parent_scope()
         self.enter_scope(klass)
         for item in node.body:

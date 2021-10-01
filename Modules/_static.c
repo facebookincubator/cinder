@@ -238,6 +238,27 @@ PyObject *set_type_static_final(PyObject *mod, PyObject *type) {
     return _set_type_static_impl(type, 1);
 }
 
+static PyObject *
+_recreate_cm(PyObject *self) {
+    Py_INCREF(self);
+    return self;
+}
+
+PyObject *make_recreate_cm(PyObject *mod, PyObject *type) {
+    static PyMethodDef def = {"_recreate_cm",
+        (PyCFunction)&_recreate_cm,
+        METH_NOARGS};
+
+     if (!PyType_Check(type)) {
+        PyErr_Format(PyExc_TypeError, "Expected a type object, not %.100s",
+                    Py_TYPE(type)->tp_name);
+         return NULL;
+     }
+
+
+    return PyDescr_NewMethod((PyTypeObject *)type, &def);
+}
+
 #define VECTOR_APPEND(size, sig_type, append)                                           \
     int vector_append_##size(PyObject *self, size##_t value) {                          \
         return append(self, value);                                                     \
@@ -331,6 +352,7 @@ static PyMethodDef static_methods[] = {
     {"is_type_static", (PyCFunction)(void(*)(void))is_type_static, METH_O, ""},
     {"set_type_static", (PyCFunction)(void(*)(void))set_type_static, METH_O, ""},
     {"set_type_static_final", (PyCFunction)(void(*)(void))set_type_static_final, METH_O, ""},
+    {"make_recreate_cm", (PyCFunction)(void(*)(void))make_recreate_cm, METH_O, ""},
     {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, METH_TYPED,
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
     {}
