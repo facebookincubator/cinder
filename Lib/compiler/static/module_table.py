@@ -67,11 +67,6 @@ class ModuleTable:
         # TODO: final constants should be typed to literals, and
         # this should be removed in the future
         self.named_finals: Dict[str, ast.Constant] = {}
-        # Functions in this module that have been decorated with
-        # `dynamic_return`. We actually store their `.args` node in here, not
-        # the `FunctionDef` node itself, since strict modules rewriter will
-        # replace the latter in between decls visit and type binding / codegen.
-        self.dynamic_returns: Set[ast.AST] = set()
         # Have we completed our first pass through the module, populating
         # imports and types defined in the module? Until we have, resolving
         # type annotations is not safe.

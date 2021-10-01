@@ -133,7 +133,7 @@ class DeclarationVisitor(GenericVisitor):
                     node,
                 )
 
-        for d in node.decorator_list:
+        for d in reversed(node.decorator_list):
             if klass is DYNAMIC_TYPE:
                 break
             with self.symtable.error_sink.error_context(self.filename, d):
@@ -152,16 +152,23 @@ class DeclarationVisitor(GenericVisitor):
     def _make_function(
         self, node: Union[FunctionDef, AsyncFunctionDef]
     ) -> Function | DecoratedMethod | None:
-        func = Function(node, self.module, self.type_ref(node))
+        func = orig_func = Function(node, self.module, self.type_ref(node))
         self.enter_scope(func)
         for item in node.body:
             self.visit(item)
         self.exit_scope()
-        for decorator in node.decorator_list:
+        for decorator in reversed(node.decorator_list):
             decorator_type = self.module.resolve_type(decorator) or DYNAMIC_TYPE
-            func = decorator_type.bind_decorate_function(self, func)
-            if not isinstance(func, (Function, DecoratedMethod)):
+            new_func = decorator_type.bind_decorate_function(self, func)
+            if not isinstance(new_func, (Function, DecoratedMethod)):
+                # With an un-analyzable decorator we  still publish the function
+                # type so that we can recover the function when visiting it, but
+                # we return None so that the function is not published in the symbol
+                # table, forcing late binding to it.
+                self.module.types[node] = orig_func
                 return None
+            func = new_func
+        self.module.types[node] = func
         return func
 
     def visitFunctionDef(self, node: FunctionDef) -> None:
@@ -173,8 +180,9 @@ class DeclarationVisitor(GenericVisitor):
     def type_ref(self, node: Union[FunctionDef, AsyncFunctionDef]) -> TypeRef:
         ann = node.returns
         if not ann:
-            return ResolvedTypeRef(DYNAMIC_TYPE)
-        res = TypeRef(self.module, ann)
+            res = ResolvedTypeRef(DYNAMIC_TYPE)
+        else:
+            res = TypeRef(self.module, ann)
         if isinstance(node, AsyncFunctionDef):
             res = AwaitableTypeRef(res, self.module.symtable)
         return res

@@ -396,7 +396,7 @@ class CodeGenerator(ASTVisitor):
 
     def visitFunctionDef(self, node):
         self.set_lineno(node)
-        self._visitFuncOrLambda(node, isLambda=0)
+        self.visitFunctionOrLambda(node)
 
     visitAsyncFunctionDef = visitFunctionDef
 
@@ -428,7 +428,7 @@ class CodeGenerator(ASTVisitor):
 
     def visitLambda(self, node):
         self.update_lineno(node)
-        self._visitFuncOrLambda(node, isLambda=1)
+        self.visitFunctionOrLambda(node)
 
     def processBody(self, node, body, gen):
         if isinstance(body, list):
@@ -443,39 +443,27 @@ class CodeGenerator(ASTVisitor):
         else:
             self.visit(node)
 
-    def _process_decorators(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> Tuple[str, int, int]:
-        if node.decorator_list:
-            for decorator in node.decorator_list:
-                self.visit(decorator)
-            ndecorators = len(node.decorator_list)
-            first_lineno = node.decorator_list[0].lineno
-        else:
-            ndecorators = 0
-            first_lineno = node.lineno
-        return node.name, ndecorators, first_lineno
-
-    def _visitFuncOrLambda(
+    def generate_function(
         self,
         node: FuncOrLambda,
-        isLambda: int = 0,
-    ) -> None:
-        flags = 0
-
-        if isLambda:
-            name = sys.intern("<lambda>")
-            ndecorators, first_lineno = 0, node.lineno
-        else:
-            assert not isinstance(node, ast.Lambda)
-            name, ndecorators, first_lineno = self._process_decorators(node)
-
+        name: str,
+        first_lineno: int,
+    ) -> CodeGenerator:
         gen = self.make_func_codegen(node, node.args, name, first_lineno)
         body = node.body
 
         self.processBody(node, body, gen)
 
         gen.finishFunction()
+
+        return gen
+
+    def build_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+        gen: CodeGenerator,
+    ) -> None:
+        flags = 0
         if node.args.defaults:
             for default in node.args.defaults:
                 self.visitDefault(default)
@@ -505,11 +493,32 @@ class CodeGenerator(ASTVisitor):
 
         self._makeClosure(gen, flags)
 
+    def visitFunctionOrLambda(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+    ) -> None:
+        if isinstance(node, ast.Lambda):
+            name = sys.intern("<lambda>")
+            ndecorators, first_lineno = 0, node.lineno
+        else:
+            name = node.name
+            if node.decorator_list:
+                for decorator in node.decorator_list:
+                    self.visit(decorator)
+                ndecorators = len(node.decorator_list)
+                first_lineno = node.decorator_list[0].lineno
+            else:
+                ndecorators = 0
+                first_lineno = node.lineno
+
+        gen = self.generate_function(node, name, first_lineno)
+
+        self.build_function(node, gen)
+
         for _ in range(ndecorators):
             self.emit("CALL_FUNCTION", 1)
 
-        if not isLambda:
-            self.storeName(name)
+        if not isinstance(node, ast.Lambda):
+            self.storeName(gen.graph.name)
 
     def visitDefault(self, node: ast.expr) -> None:
         self.visit(node)

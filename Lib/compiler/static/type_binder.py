@@ -90,6 +90,7 @@ from .types import (
     DYNAMIC_TYPE,
     FinalClass,
     Function,
+    FunctionContainer,
     GenericClass,
     GenericTypesDict,
     IsInstanceEffect,
@@ -255,7 +256,6 @@ class TypeBinder(GenericVisitor):
         return local_type
 
     def maybe_get_current_class(self) -> Optional[Class]:
-        current: ModuleTable | Class = self.module
         node = self.scope
         if isinstance(node, ClassDef):
             res = self.get_type(node)
@@ -429,69 +429,21 @@ class TypeBinder(GenericVisitor):
                 )
             self.set_param(kwarg, DICT_EXACT_TYPE.instance, scope)
 
+    def new_scope(self, node: AST) -> BindingScope:
+        return BindingScope(node, generic_types=self.symtable.generic_types)
+
+    def get_func_container(
+        self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
+    ) -> FunctionContainer:
+        function = self.get_type(node)
+        if not isinstance(function, FunctionContainer):
+            raise RuntimeError("bad value for function")
+
+        return function
+
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
-        scope = BindingScope(node, generic_types=self.symtable.generic_types)
-        for decorator in node.decorator_list:
-            self.visitExpectedType(
-                decorator, DYNAMIC, "decorator cannot be a primitive"
-            )
-        cur_scope = self.scope
-
-        if (
-            not node.decorator_list
-            and isinstance(cur_scope, ClassDef)
-            and node.args.args
-        ):
-            # Handle type of "self"
-            if node.name == "__new__":
-                # __new__ is special and isn't a normal method, so we expect a
-                # type for cls
-                self.set_param(node.args.args[0], TYPE_TYPE, scope)
-            else:
-                klass = self.maybe_get_current_class()
-                if klass is not None:
-                    self.set_param(node.args.args[0], klass.instance, scope)
-                else:
-                    self.set_param(node.args.args[0], DYNAMIC, scope)
-
-        if (
-            len(node.decorator_list) == 1
-            and isinstance(self.get_type(node.decorator_list[0]), ClassMethodDecorator)
-            and isinstance(cur_scope, ClassDef)
-            and node.args.args
-        ):
-            # If we have a classmethod, the first arg is the class itself
-            klass = self.maybe_get_current_class()
-            if klass is not None and klass.is_final:
-                self.set_param(node.args.args[0], klass, scope)
-            else:
-                self.set_param(node.args.args[0], DYNAMIC, scope)
-
-        self._visitParameters(node.args, scope)
-
-        returns = None if node.args in self.module.dynamic_returns else node.returns
-        if returns:
-            # We store the return type on the node for the function as we otherwise
-            # don't need to store type information for it
-            expected = self.module.resolve_annotation(returns) or DYNAMIC_TYPE
-            self.visitExpectedType(
-                returns, DYNAMIC, "return annotation cannot be a primitive"
-            )
-        else:
-            expected = DYNAMIC_TYPE
-
-        if isinstance(node, AsyncFunctionDef):
-            expected = AWAITABLE_TYPE.make_generic_type(
-                (expected,), self.symtable.generic_types
-            )
-        self.set_type(node, expected.instance)
-
-        self.scopes.append(scope)
-
-        for stmt in node.body:
-            self.visit(stmt)
-
-        self.scopes.pop()
+        func_node = self.get_func_container(node)
+        func_node.bind_function(node, self)
 
     def visitFunctionDef(self, node: FunctionDef) -> None:
         self._visitFunc(node)
@@ -500,7 +452,6 @@ class TypeBinder(GenericVisitor):
         self._visitFunc(node)
 
     def visitClassDef(self, node: ClassDef) -> None:
-        parent_scope = self.scope
         for decorator in node.decorator_list:
             self.visitExpectedType(
                 decorator, DYNAMIC, "decorator cannot be a primitive"
@@ -1364,12 +1315,13 @@ class TypeBinder(GenericVisitor):
             cur_scope = self.binding_scope
             func = cur_scope.node
             expected = DYNAMIC
+
             if isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                func_returns = func.returns
-                if func_returns:
-                    expected = (
-                        self.module.resolve_annotation(func_returns) or DYNAMIC_TYPE
-                    ).instance
+                function = self.get_func_container(func)
+                func_returns = function.return_type.resolved()
+                if isinstance(func_returns, AwaitableType):
+                    func_returns = func_returns.type_args[0]
+                expected = func_returns.instance
 
             self.visit(value, expected)
             returned = self.get_type(value).klass

@@ -17,6 +17,8 @@ from ast import (
     Constant,
     DictComp,
     FunctionDef,
+    GeneratorExp,
+    ListComp,
     Module,
     Name,
     UnaryOp,
@@ -69,9 +71,11 @@ from .module_table import ModuleTable, ModuleFlag
 from .symbol_table import SymbolTable
 from .type_binder import BindingScope, TypeBinder
 from .types import (
+    ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     AsyncCachedPropertyDecorator,
     AsyncCachedPropertyMethod,
     AwaitableType,
+    CACHED_PROPERTY_IMPL_PREFIX,
     CHECKED_DICT_TYPE,
     CHECKED_LIST_TYPE,
     CInstance,
@@ -83,6 +87,7 @@ from .types import (
     DYNAMIC,
     DYNAMIC_TYPE,
     Function,
+    FunctionContainer,
     GenericClass,
     LIST_EXACT_TYPE,
     LIST_TYPE,
@@ -121,10 +126,6 @@ def exec_static(
 
 class PyFlowGraph38Static(PyFlowGraphCinder):
     opcode: Opcode = opcode_static.opcode
-
-
-CACHED_PROPERTY_IMPL_PREFIX = "_pystatic_cprop."
-ASYNC_CACHED_PROPERTY_IMPL_PREFIX = "_pystatic_async_cprop."
 
 
 class Static38CodeGenerator(StrictCodeGenerator):
@@ -337,7 +338,11 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
         # we tagged the graph as CO_STATICALLY_COMPILED, and the last co_const entry
         # will inform the runtime of the return type for the code object.
-        klass = self.get_type(func).klass
+        if isinstance(func, (FunctionDef, AsyncFunctionDef)):
+            function = self.get_func_container(func)
+            klass = function.return_type.resolved()
+        else:
+            klass = self.get_type(func).klass
         if isinstance(klass, AwaitableType):
             klass = klass.type_args[0]
         type_descr = klass.type_descr
@@ -396,25 +401,22 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
         self.storeName(node.name)
 
-    def _process_decorators(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef
-    ) -> Tuple[str, int, int]:
-        if len(node.decorator_list) == 1:
-            decorator_type = self.get_type(node.decorator_list[0])
-            if isinstance(decorator_type, CachedPropertyDecorator):
-                return (
-                    CACHED_PROPERTY_IMPL_PREFIX + node.name,
-                    0,
-                    node.decorator_list[0].lineno,
-                )
-            elif isinstance(decorator_type, AsyncCachedPropertyDecorator):
-                return (
-                    ASYNC_CACHED_PROPERTY_IMPL_PREFIX + node.name,
-                    0,
-                    node.decorator_list[0].lineno,
-                )
+    def visitFunctionOrLambda(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+    ) -> None:
+        if isinstance(node, ast.Lambda):
+            return super().visitFunctionOrLambda(node)
 
-        return super()._process_decorators(node)
+        function = self.get_func_container(node)
+        name = function.emit_function(node, self)
+        self.storeName(name)
+
+    def get_func_container(self, node: ast.AST) -> FunctionContainer:
+        function = self.get_type(node)
+        if not isinstance(function, FunctionContainer):
+            raise RuntimeError("bad value for function")
+
+        return function
 
     def walkClassBody(self, node: ClassDef, gen: CodeGenerator) -> None:
         super().walkClassBody(node, gen)
@@ -693,7 +695,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
     def visitReturn(self, node: ast.Return) -> None:
         self.checkReturn(node)
-        expected = self.get_type(self.tree).klass
+        function = self.get_func_container(self.tree)
+
+        expected = function.return_type.resolved()
         if isinstance(self.tree, AsyncFunctionDef):
             assert isinstance(expected, AwaitableType)
             expected = expected.type_args[0]
