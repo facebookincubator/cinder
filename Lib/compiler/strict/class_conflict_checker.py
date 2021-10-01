@@ -29,7 +29,7 @@ from .common import (
     get_symbol_map,
     imported_name,
 )
-from .rewriter.preprocessor import ALL_INDICATORS
+from .preprocessor import ALL_INDICATORS
 from .rewriter.rewriter import SymbolVisitor
 
 CLASS_ATTR_CONFLICT_EXCEPTION = "ClassAttributesConflictException"

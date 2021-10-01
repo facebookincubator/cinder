@@ -6,8 +6,8 @@ import sys
 import unittest
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.loader import StrictModule
+from compiler.strict.preprocessor import ENABLE_SLOTS_DECORATOR
 from compiler.strict.rewriter import rewrite
-from compiler.strict.rewriter.preprocessor import ENABLE_SLOTS_DECORATOR
 from textwrap import dedent
 from types import CoroutineType, FunctionType, ModuleType
 from typing import Any, Dict, List, Optional, Set, Type, TypeVar, final

@@ -65,7 +65,7 @@ from ..common import (
     imported_name,
     mangle_priv_name,
 )
-from .preprocessor import (
+from ..preprocessor import (
     ALL_INDICATORS,
     get_cached_prop_value,
     get_extra_slots,
