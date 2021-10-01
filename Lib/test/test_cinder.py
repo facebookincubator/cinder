@@ -6,6 +6,7 @@ import unittest
 import weakref
 from functools import wraps
 from test.support import gc_collect, requires_type_collecting, temp_dir, unlink, TESTFN
+from test.support.cinder import get_await_stack
 from test.support.script_helper import assert_python_ok, make_script
 from types import FunctionType, GeneratorType, ModuleType, CodeType
 from textwrap import dedent
@@ -1334,6 +1335,79 @@ class AsyncCinderTest(unittest.TestCase):
         self.assertEqual(C.__dict__["f"].__doc__, "hi")
         self.assertEqual(C.__dict__["f"].name, "f")
         self.assertEqual(type(C.__dict__["f"].func), FunctionType)
+
+    @async_test
+    async def test_cached_property_awaiter(self):
+        class C:
+            def __init__(self, coro):
+                self.coro = coro
+
+            @async_cached_property
+            async def f(self):
+                return await self.coro
+
+        coro = None
+        await_stack = None
+
+        async def g():
+            nonlocal coro, await_stack
+            # Force suspension. Otherwise the entire execution is eager and
+            # awaiter is never set.
+            await asyncio.sleep(0)
+            await_stack = get_await_stack(coro)
+            return 100
+
+        async def h(c):
+            return await c.f
+
+        coro = g()
+        h_coro = h(C(coro))
+        res = await h_coro
+        self.assertEqual(res, 100)
+        # awaiter of g is the coroutine running C.f. That's created by the
+        # AsyncLazyValue machinery, so we can't check the awaiter's identity
+        # directly, only that it corresponds to C.f.
+        self.assertIs(await_stack[0].cr_code, C.f.func.__code__)
+        self.assertIs(await_stack[1], h_coro)
+
+    @async_test
+    async def test_cached_property_gathered_awaiter(self):
+        class C:
+            def __init__(self, coro):
+                self.coro = coro
+
+            @async_cached_property
+            async def f(self):
+                return await self.coro
+
+        coros = [None, None]
+        await_stacks = [None, None]
+
+        async def g(res, idx):
+            nonlocal coros, await_stacks
+            # Force suspension. Otherwise the entire execution is eager and
+            # awaiter is never set.
+            await asyncio.sleep(0)
+            await_stacks[idx] = get_await_stack(coros[idx])
+            return res
+
+        async def gatherer(c0, c1):
+            return await asyncio.gather(c0.f, c1.f)
+
+        coros[0] = g(10, 0)
+        coros[1] = g(20, 1)
+        gatherer_coro = gatherer(C(coros[0]), C(coros[1]))
+        results = await gatherer_coro
+        self.assertEqual(results[0], 10)
+        self.assertEqual(results[1], 20)
+        # awaiter of g is the coroutine running C.f. That's created by the
+        # AsyncLazyValue machinery, so we can't check the awaiter's identity
+        # directly, only that it corresponds to C.f.
+        self.assertIs(await_stacks[0][0].cr_code, C.f.func.__code__)
+        self.assertIs(await_stacks[0][1], gatherer_coro)
+        self.assertIs(await_stacks[1][0].cr_code, C.f.func.__code__)
+        self.assertIs(await_stacks[1][1], gatherer_coro)
+
 
 def f():
     pass

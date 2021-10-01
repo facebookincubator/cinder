@@ -384,6 +384,16 @@ typedef struct {
     _PyErr_StackItem alvc_exc_state;
     PyObject *alvc_coroobj; // actual coroutine object computing the value of
                             // 'alvc_target'
+
+    // This may be set if someone tries to set the awaiter before we've started
+    // running the computation. This happens during non-eager execution because
+    // we call _PyAwaitable_SetAwaiter in both the JIT/interpreter before
+    // starting the compute object. We'll check for this when we start the computation
+    // and call _PyAwaitable_SetAwaiter with the stored value on the awaitable
+    // that is created.
+    //
+    // Stores a borrowed reference.
+    PyObject *alvc_pending_awaiter;
 } AsyncLazyValueComputeObj;
 
 typedef struct {
@@ -5334,6 +5344,7 @@ AsyncLazyValue_new_computeobj(AsyncLazyValueObj *self)
     obj->alvc_exc_state.exc_type = NULL;
     obj->alvc_exc_state.exc_value = NULL;
     obj->alvc_exc_state.exc_traceback = NULL;
+    obj->alvc_pending_awaiter = NULL;
 
     PyObject_GC_Track(obj);
     return (PyObject *)obj;
@@ -5645,6 +5656,8 @@ AsyncLazyValueCompute_clear(AsyncLazyValueComputeObj *self)
     Py_CLEAR(self->alvc_exc_state.exc_type);
     Py_CLEAR(self->alvc_exc_state.exc_value);
     Py_CLEAR(self->alvc_exc_state.exc_traceback);
+    // awaiter is borrowed
+    self->alvc_pending_awaiter = NULL;
     return 0;
 }
 
@@ -5671,6 +5684,17 @@ do_awaited_call(PyObject *func,
     }
     return _PyObject_FastCallDict(
         func, args, nargs | _Py_AWAITED_CALL_MARKER, kwargs);
+}
+
+static void
+forward_and_clear_pending_awaiter(AsyncLazyValueComputeObj *self)
+{
+    assert(self->alvc_coroobj != NULL);
+    if (self->alvc_pending_awaiter == NULL) {
+        return;
+    }
+    _PyAwaitable_SetAwaiter(self->alvc_coroobj, self->alvc_pending_awaiter);
+    self->alvc_pending_awaiter = NULL;
 }
 
 /**
@@ -5704,6 +5728,7 @@ AsyncLazyValueCompute_create_and_set_subcoro(AsyncLazyValueComputeObj *self,
             return NULL;
         }
         self->alvc_coroobj = iter;
+        forward_and_clear_pending_awaiter(self);
 
         Py_RETURN_NONE;
     }
@@ -5716,6 +5741,7 @@ AsyncLazyValueCompute_create_and_set_subcoro(AsyncLazyValueComputeObj *self,
     }
 
     self->alvc_coroobj = ((PyWaitHandleObject *)result)->wh_coro_or_result;
+    forward_and_clear_pending_awaiter(self);
     PyObject *waiter = ((PyWaitHandleObject *)result)->wh_waiter;
     _PyWaitHandle_Release(result);
     return waiter;
@@ -5784,6 +5810,15 @@ AsyncLazyValueCompute_handle_error(AsyncLazyValueComputeObj *self,
         return NULL;
     }
     Py_RETURN_NONE;
+}
+
+static void
+AsyncLazyValueCompute_set_awaiter(AsyncLazyValueComputeObj *self, PyObject *awaiter) {
+    if (self->alvc_coroobj != NULL) {
+        _PyAwaitable_SetAwaiter(self->alvc_coroobj, awaiter);
+    } else {
+        self->alvc_pending_awaiter = awaiter;
+    }
 }
 
 /**
@@ -6009,7 +6044,8 @@ static PyAsyncMethodsWithExtra _AsyncLazyValueCompute_Type_as_async = {
         0,                                              /* am_aiter */
         0,                                              /* am_anext */
     },
-    .ame_send = (sendfunc)AsyncLazyValueCompute_itersend
+    .ame_send = (sendfunc)AsyncLazyValueCompute_itersend,
+    .ame_setawaiter = (setawaiterfunc)AsyncLazyValueCompute_set_awaiter,
 };
 
 static PyTypeObject _AsyncLazyValueCompute_Type = {

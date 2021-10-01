@@ -1,9 +1,11 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import asyncio
+import cinder
 import inspect
 import unittest
 from _asyncio import AsyncLazyValue
 from functools import wraps
+from test.support.cinder import get_await_stack
 from time import time
 
 
@@ -148,6 +150,73 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
             next(c1)
         except IndexError as e:
             self.assertTrue(type(e.__context__) is Exc)
+
+    @async_test
+    async def test_get_awaiter(self) -> None:
+        async def g(f):
+            return await f
+
+        async def h(f):
+            return await AsyncLazyValue(g, f)
+
+        coro = None
+        await_stack = None
+        async def f():
+            nonlocal coro, await_stack
+            # Force suspension. Otherwise the entire execution is eager and
+            # awaiter is never set.
+            await asyncio.sleep(0)
+            await_stack = get_await_stack(coro)
+            return 100
+
+        coro = f()
+        h_coro = h(coro)
+        res = await h_coro
+        self.assertEqual(res, 100)
+        # awaiter of f is the coroutine running g. That's created by the
+        # AsyncLazyValue machinery, so we can't check the awaiter's identity
+        # directly, only that it corresponds to g
+        self.assertIs(await_stack[0].cr_code, g.__code__)
+        self.assertIs(await_stack[1], h_coro)
+
+    @async_test
+    async def test_get_awaiter_from_gathered(self) -> None:
+        async def g(f):
+            return await f
+
+        async def h(f):
+            return await AsyncLazyValue(g, f)
+
+        async def gatherer(c0, c1):
+            return await asyncio.gather(c0, c1)
+
+        coros = [None, None]
+        await_stacks = [None, None]
+        async def f(idx, res):
+            nonlocal coros, await_stacks
+            # Force suspension. Otherwise the entire execution is eager and
+            # awaiter is never set.
+            await asyncio.sleep(0)
+            await_stacks[idx] = get_await_stack(coros[idx])
+            return res
+
+        coros[0] = f(0, 10)
+        coros[1] = f(1, 20)
+        h0_coro = h(coros[0])
+        h1_coro = h(coros[1])
+        gatherer_coro = gatherer(h0_coro, h1_coro)
+        results = await gatherer_coro
+        self.assertEqual(results[0], 10)
+        self.assertEqual(results[1], 20)
+        # awaiter of f is the coroutine running g. That's created by the
+        # AsyncLazyValue machinery, so we can't check the awaiter's identity
+        # directly, only that it corresponds to g
+        self.assertIs(await_stacks[0][0].cr_code, g.__code__)
+        self.assertIs(await_stacks[0][1], h0_coro)
+        self.assertIs(await_stacks[0][2], gatherer_coro)
+        self.assertIs(await_stacks[1][0].cr_code, g.__code__)
+        self.assertIs(await_stacks[1][1], h1_coro)
+        self.assertIs(await_stacks[1][2], gatherer_coro)
 
 
 class AsyncLazyValueTest(unittest.TestCase):
