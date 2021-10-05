@@ -2659,7 +2659,6 @@ class Function(Callable[Class], FunctionContainer):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        name = node.name
         # For decorated functions we should either have a known decorator or
         # a UnknownDecoratedFunction.  The known decorators will handle emitting
         # themselves appropriately if necessary, and UnknownDecoratedFunction
@@ -3477,10 +3476,17 @@ class DynamicReturnDecorator(Class):
     ) -> Function | DecoratedMethod:
         if isinstance(fn, DecoratedMethod):
             real_fn = fn.real_function
-            real_fn.return_type = ResolvedTypeRef(DYNAMIC_TYPE)
+            self._set_dynamic_return_type(real_fn)
         if isinstance(fn, Function):
-            fn.return_type = ResolvedTypeRef(DYNAMIC_TYPE)
-        return fn
+            self._set_dynamic_return_type(fn)
+        return TransparentDecoratedMethod(FUNCTION_TYPE, fn, decorator)
+
+    def _set_dynamic_return_type(self, fn: Function) -> None:
+        dynamic_typeref = ResolvedTypeRef(DYNAMIC_TYPE)
+        if isinstance(fn.node, AsyncFunctionDef):
+            fn.return_type = AwaitableTypeRef(dynamic_typeref, fn.module.symtable)
+        else:
+            fn.return_type = dynamic_typeref
 
 
 class StaticMethodDecorator(Class):
