@@ -1,5 +1,6 @@
 # This script generates the opcode.h header file.
 
+import functools
 import sys
 import tokenize
 
@@ -13,9 +14,14 @@ extern "C" {
 
 
     /* Instruction opcodes for compiled code */
-""".lstrip()
+#define PY_OPCODES(X)""".lstrip()
 
 footer = """
+
+#define OP(op, value) static const int op = value;
+PY_OPCODES(OP)
+#undef OP
+
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here
    as we want it to be available to both frameobject.c and ceval.c, while
@@ -46,14 +52,22 @@ def main(opcode_py, outfile='Include/opcode.h'):
         code = fp.read()
     exec(code, opcode)
     opmap = opcode['opmap']
+
+    max_op_len = functools.reduce(
+        lambda m, elem: max(m, len(elem)), opcode['opname'], 0
+    ) + 3 # 3-digit opcode length
+
+    def write_line(opname, opnum):
+        padding = max_op_len - len(opname)
+        fobj.write(" \\\n  X(%s, %*d)" % (opname, padding, opnum))
+
     with open(outfile, 'w') as fobj:
         fobj.write(header)
         for name in opcode['opname']:
             if name in opmap:
-                fobj.write("#define %-23s %3s\n" % (name, opmap[name]))
+                write_line(name, opmap[name])
             if name == 'POP_EXCEPT': # Special entry for HAVE_ARGUMENT
-                fobj.write("#define %-23s %3d\n" %
-                            ('HAVE_ARGUMENT', opcode['HAVE_ARGUMENT']))
+                write_line('HAVE_ARGUMENT', opcode['HAVE_ARGUMENT'])
         fobj.write(footer)
 
     print("%s regenerated from %s" % (outfile, opcode_py))

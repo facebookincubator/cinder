@@ -7,210 +7,215 @@ extern "C" {
 
 
     /* Instruction opcodes for compiled code */
-#define POP_TOP                   1
-#define ROT_TWO                   2
-#define ROT_THREE                 3
-#define DUP_TOP                   4
-#define DUP_TOP_TWO               5
-#define ROT_FOUR                  6
-#define NOP                       9
-#define UNARY_POSITIVE           10
-#define UNARY_NEGATIVE           11
-#define UNARY_NOT                12
-#define UNARY_INVERT             15
-#define BINARY_MATRIX_MULTIPLY   16
-#define INPLACE_MATRIX_MULTIPLY  17
-#define BINARY_POWER             19
-#define BINARY_MULTIPLY          20
-#define BINARY_MODULO            22
-#define BINARY_ADD               23
-#define BINARY_SUBTRACT          24
-#define BINARY_SUBSCR            25
-#define BINARY_FLOOR_DIVIDE      26
-#define BINARY_TRUE_DIVIDE       27
-#define INPLACE_FLOOR_DIVIDE     28
-#define INPLACE_TRUE_DIVIDE      29
-#define GET_AITER                50
-#define GET_ANEXT                51
-#define BEFORE_ASYNC_WITH        52
-#define BEGIN_FINALLY            53
-#define END_ASYNC_FOR            54
-#define INPLACE_ADD              55
-#define INPLACE_SUBTRACT         56
-#define INPLACE_MULTIPLY         57
-#define INPLACE_MODULO           59
-#define STORE_SUBSCR             60
-#define DELETE_SUBSCR            61
-#define BINARY_LSHIFT            62
-#define BINARY_RSHIFT            63
-#define BINARY_AND               64
-#define BINARY_XOR               65
-#define BINARY_OR                66
-#define INPLACE_POWER            67
-#define GET_ITER                 68
-#define GET_YIELD_FROM_ITER      69
-#define PRINT_EXPR               70
-#define LOAD_BUILD_CLASS         71
-#define YIELD_FROM               72
-#define GET_AWAITABLE            73
-#define INPLACE_LSHIFT           75
-#define INPLACE_RSHIFT           76
-#define INPLACE_AND              77
-#define INPLACE_XOR              78
-#define INPLACE_OR               79
-#define WITH_CLEANUP_START       81
-#define WITH_CLEANUP_FINISH      82
-#define RETURN_VALUE             83
-#define IMPORT_STAR              84
-#define SETUP_ANNOTATIONS        85
-#define YIELD_VALUE              86
-#define POP_BLOCK                87
-#define END_FINALLY              88
-#define POP_EXCEPT               89
-#define HAVE_ARGUMENT            90
-#define STORE_NAME               90
-#define DELETE_NAME              91
-#define UNPACK_SEQUENCE          92
-#define FOR_ITER                 93
-#define UNPACK_EX                94
-#define STORE_ATTR               95
-#define DELETE_ATTR              96
-#define STORE_GLOBAL             97
-#define DELETE_GLOBAL            98
-#define LOAD_CONST              100
-#define LOAD_NAME               101
-#define BUILD_TUPLE             102
-#define BUILD_LIST              103
-#define BUILD_SET               104
-#define BUILD_MAP               105
-#define LOAD_ATTR               106
-#define COMPARE_OP              107
-#define IMPORT_NAME             108
-#define IMPORT_FROM             109
-#define JUMP_FORWARD            110
-#define JUMP_IF_FALSE_OR_POP    111
-#define JUMP_IF_TRUE_OR_POP     112
-#define JUMP_ABSOLUTE           113
-#define POP_JUMP_IF_FALSE       114
-#define POP_JUMP_IF_TRUE        115
-#define LOAD_GLOBAL             116
-#define SETUP_FINALLY           122
-#define LOAD_FAST               124
-#define STORE_FAST              125
-#define DELETE_FAST             126
-#define RAISE_VARARGS           130
-#define CALL_FUNCTION           131
-#define MAKE_FUNCTION           132
-#define BUILD_SLICE             133
-#define LOAD_CLOSURE            135
-#define LOAD_DEREF              136
-#define STORE_DEREF             137
-#define DELETE_DEREF            138
-#define CALL_FUNCTION_KW        141
-#define CALL_FUNCTION_EX        142
-#define SETUP_WITH              143
-#define EXTENDED_ARG            144
-#define LIST_APPEND             145
-#define SET_ADD                 146
-#define MAP_ADD                 147
-#define LOAD_CLASSDEREF         148
-#define BUILD_LIST_UNPACK       149
-#define BUILD_MAP_UNPACK        150
-#define BUILD_MAP_UNPACK_WITH_CALL 151
-#define BUILD_TUPLE_UNPACK      152
-#define BUILD_SET_UNPACK        153
-#define SETUP_ASYNC_WITH        154
-#define FORMAT_VALUE            155
-#define BUILD_CONST_KEY_MAP     156
-#define BUILD_STRING            157
-#define BUILD_TUPLE_UNPACK_WITH_CALL 158
-#define LOAD_METHOD             160
-#define CALL_METHOD             161
-#define CALL_FINALLY            162
-#define POP_FINALLY             163
-#define INVOKE_METHOD           164
-#define LOAD_FIELD              165
-#define STORE_FIELD             166
-#define SEQUENCE_REPEAT         167
-#define CAST                    170
-#define LOAD_LOCAL              171
-#define STORE_LOCAL             172
-#define INT_LOAD_CONST_OLD      173
-#define PRIMITIVE_BOX           174
-#define POP_JUMP_IF_ZERO        175
-#define POP_JUMP_IF_NONZERO     176
-#define PRIMITIVE_UNBOX         177
-#define PRIMITIVE_BINARY_OP     178
-#define PRIMITIVE_UNARY_OP      179
-#define PRIMITIVE_COMPARE_OP    180
-#define LOAD_ITERABLE_ARG       181
-#define LOAD_MAPPING_ARG        182
-#define INVOKE_FUNCTION         183
-#define JUMP_IF_ZERO_OR_POP     184
-#define JUMP_IF_NONZERO_OR_POP  185
-#define FAST_LEN                186
-#define CONVERT_PRIMITIVE       187
-#define CHECK_ARGS              188
-#define BUILD_CHECKED_MAP       191
-#define SEQUENCE_GET            192
-#define SEQUENCE_SET            193
-#define LIST_DEL                194
-#define REFINE_TYPE             195
-#define PRIMITIVE_LOAD_CONST    196
-#define RETURN_PRIMITIVE        197
-#define LOAD_METHOD_SUPER       198
-#define LOAD_ATTR_SUPER         199
-#define TP_ALLOC                200
-#define BUILD_CHECKED_LIST      201
-#define LOAD_METHOD_UNSHADOWED_METHOD 207
-#define LOAD_METHOD_TYPE_METHODLIKE 208
-#define BUILD_CHECKED_LIST_CACHED 209
-#define TP_ALLOC_CACHED         210
-#define LOAD_ATTR_S_MODULE      211
-#define LOAD_METHOD_S_MODULE    212
-#define INVOKE_FUNCTION_CACHED  213
-#define INVOKE_FUNCTION_INDIRECT_CACHED 214
-#define BUILD_CHECKED_MAP_CACHED 215
-#define CHECK_ARGS_CACHED       216
-#define PRIMITIVE_STORE_FAST    217
-#define CAST_CACHED_OPTIONAL    218
-#define CAST_CACHED             219
-#define LOAD_PRIMITIVE_FIELD    220
-#define STORE_PRIMITIVE_FIELD   221
-#define LOAD_OBJ_FIELD          222
-#define STORE_OBJ_FIELD         223
-#define INVOKE_METHOD_CACHED    224
-#define BINARY_SUBSCR_TUPLE_CONST_INT 225
-#define BINARY_SUBSCR_DICT_STR  226
-#define BINARY_SUBSCR_LIST      227
-#define BINARY_SUBSCR_TUPLE     228
-#define BINARY_SUBSCR_DICT      229
-#define LOAD_METHOD_UNCACHABLE  230
-#define LOAD_METHOD_MODULE      231
-#define LOAD_METHOD_TYPE        232
-#define LOAD_METHOD_SPLIT_DICT_DESCR 233
-#define LOAD_METHOD_SPLIT_DICT_METHOD 234
-#define LOAD_METHOD_DICT_DESCR  235
-#define LOAD_METHOD_DICT_METHOD 236
-#define LOAD_METHOD_NO_DICT_METHOD 237
-#define LOAD_METHOD_NO_DICT_DESCR 238
-#define STORE_ATTR_SLOT         239
-#define STORE_ATTR_SPLIT_DICT   240
-#define STORE_ATTR_DESCR        241
-#define STORE_ATTR_UNCACHABLE   242
-#define STORE_ATTR_DICT         243
-#define LOAD_ATTR_POLYMORPHIC   244
-#define LOAD_ATTR_SLOT          245
-#define LOAD_ATTR_MODULE        246
-#define LOAD_ATTR_TYPE          247
-#define LOAD_ATTR_SPLIT_DICT_DESCR 248
-#define LOAD_ATTR_SPLIT_DICT    249
-#define LOAD_ATTR_DICT_NO_DESCR 250
-#define LOAD_ATTR_NO_DICT_DESCR 251
-#define LOAD_ATTR_DICT_DESCR    252
-#define LOAD_ATTR_UNCACHABLE    253
-#define LOAD_GLOBAL_CACHED      254
-#define SHADOW_NOP              255
+#define PY_OPCODES(X) \
+  X(POP_TOP,                           1) \
+  X(ROT_TWO,                           2) \
+  X(ROT_THREE,                         3) \
+  X(DUP_TOP,                           4) \
+  X(DUP_TOP_TWO,                       5) \
+  X(ROT_FOUR,                          6) \
+  X(NOP,                               9) \
+  X(UNARY_POSITIVE,                   10) \
+  X(UNARY_NEGATIVE,                   11) \
+  X(UNARY_NOT,                        12) \
+  X(UNARY_INVERT,                     15) \
+  X(BINARY_MATRIX_MULTIPLY,           16) \
+  X(INPLACE_MATRIX_MULTIPLY,          17) \
+  X(BINARY_POWER,                     19) \
+  X(BINARY_MULTIPLY,                  20) \
+  X(BINARY_MODULO,                    22) \
+  X(BINARY_ADD,                       23) \
+  X(BINARY_SUBTRACT,                  24) \
+  X(BINARY_SUBSCR,                    25) \
+  X(BINARY_FLOOR_DIVIDE,              26) \
+  X(BINARY_TRUE_DIVIDE,               27) \
+  X(INPLACE_FLOOR_DIVIDE,             28) \
+  X(INPLACE_TRUE_DIVIDE,              29) \
+  X(GET_AITER,                        50) \
+  X(GET_ANEXT,                        51) \
+  X(BEFORE_ASYNC_WITH,                52) \
+  X(BEGIN_FINALLY,                    53) \
+  X(END_ASYNC_FOR,                    54) \
+  X(INPLACE_ADD,                      55) \
+  X(INPLACE_SUBTRACT,                 56) \
+  X(INPLACE_MULTIPLY,                 57) \
+  X(INPLACE_MODULO,                   59) \
+  X(STORE_SUBSCR,                     60) \
+  X(DELETE_SUBSCR,                    61) \
+  X(BINARY_LSHIFT,                    62) \
+  X(BINARY_RSHIFT,                    63) \
+  X(BINARY_AND,                       64) \
+  X(BINARY_XOR,                       65) \
+  X(BINARY_OR,                        66) \
+  X(INPLACE_POWER,                    67) \
+  X(GET_ITER,                         68) \
+  X(GET_YIELD_FROM_ITER,              69) \
+  X(PRINT_EXPR,                       70) \
+  X(LOAD_BUILD_CLASS,                 71) \
+  X(YIELD_FROM,                       72) \
+  X(GET_AWAITABLE,                    73) \
+  X(INPLACE_LSHIFT,                   75) \
+  X(INPLACE_RSHIFT,                   76) \
+  X(INPLACE_AND,                      77) \
+  X(INPLACE_XOR,                      78) \
+  X(INPLACE_OR,                       79) \
+  X(WITH_CLEANUP_START,               81) \
+  X(WITH_CLEANUP_FINISH,              82) \
+  X(RETURN_VALUE,                     83) \
+  X(IMPORT_STAR,                      84) \
+  X(SETUP_ANNOTATIONS,                85) \
+  X(YIELD_VALUE,                      86) \
+  X(POP_BLOCK,                        87) \
+  X(END_FINALLY,                      88) \
+  X(POP_EXCEPT,                       89) \
+  X(HAVE_ARGUMENT,                    90) \
+  X(STORE_NAME,                       90) \
+  X(DELETE_NAME,                      91) \
+  X(UNPACK_SEQUENCE,                  92) \
+  X(FOR_ITER,                         93) \
+  X(UNPACK_EX,                        94) \
+  X(STORE_ATTR,                       95) \
+  X(DELETE_ATTR,                      96) \
+  X(STORE_GLOBAL,                     97) \
+  X(DELETE_GLOBAL,                    98) \
+  X(LOAD_CONST,                      100) \
+  X(LOAD_NAME,                       101) \
+  X(BUILD_TUPLE,                     102) \
+  X(BUILD_LIST,                      103) \
+  X(BUILD_SET,                       104) \
+  X(BUILD_MAP,                       105) \
+  X(LOAD_ATTR,                       106) \
+  X(COMPARE_OP,                      107) \
+  X(IMPORT_NAME,                     108) \
+  X(IMPORT_FROM,                     109) \
+  X(JUMP_FORWARD,                    110) \
+  X(JUMP_IF_FALSE_OR_POP,            111) \
+  X(JUMP_IF_TRUE_OR_POP,             112) \
+  X(JUMP_ABSOLUTE,                   113) \
+  X(POP_JUMP_IF_FALSE,               114) \
+  X(POP_JUMP_IF_TRUE,                115) \
+  X(LOAD_GLOBAL,                     116) \
+  X(SETUP_FINALLY,                   122) \
+  X(LOAD_FAST,                       124) \
+  X(STORE_FAST,                      125) \
+  X(DELETE_FAST,                     126) \
+  X(RAISE_VARARGS,                   130) \
+  X(CALL_FUNCTION,                   131) \
+  X(MAKE_FUNCTION,                   132) \
+  X(BUILD_SLICE,                     133) \
+  X(LOAD_CLOSURE,                    135) \
+  X(LOAD_DEREF,                      136) \
+  X(STORE_DEREF,                     137) \
+  X(DELETE_DEREF,                    138) \
+  X(CALL_FUNCTION_KW,                141) \
+  X(CALL_FUNCTION_EX,                142) \
+  X(SETUP_WITH,                      143) \
+  X(EXTENDED_ARG,                    144) \
+  X(LIST_APPEND,                     145) \
+  X(SET_ADD,                         146) \
+  X(MAP_ADD,                         147) \
+  X(LOAD_CLASSDEREF,                 148) \
+  X(BUILD_LIST_UNPACK,               149) \
+  X(BUILD_MAP_UNPACK,                150) \
+  X(BUILD_MAP_UNPACK_WITH_CALL,      151) \
+  X(BUILD_TUPLE_UNPACK,              152) \
+  X(BUILD_SET_UNPACK,                153) \
+  X(SETUP_ASYNC_WITH,                154) \
+  X(FORMAT_VALUE,                    155) \
+  X(BUILD_CONST_KEY_MAP,             156) \
+  X(BUILD_STRING,                    157) \
+  X(BUILD_TUPLE_UNPACK_WITH_CALL,    158) \
+  X(LOAD_METHOD,                     160) \
+  X(CALL_METHOD,                     161) \
+  X(CALL_FINALLY,                    162) \
+  X(POP_FINALLY,                     163) \
+  X(INVOKE_METHOD,                   164) \
+  X(LOAD_FIELD,                      165) \
+  X(STORE_FIELD,                     166) \
+  X(SEQUENCE_REPEAT,                 167) \
+  X(CAST,                            170) \
+  X(LOAD_LOCAL,                      171) \
+  X(STORE_LOCAL,                     172) \
+  X(INT_LOAD_CONST_OLD,              173) \
+  X(PRIMITIVE_BOX,                   174) \
+  X(POP_JUMP_IF_ZERO,                175) \
+  X(POP_JUMP_IF_NONZERO,             176) \
+  X(PRIMITIVE_UNBOX,                 177) \
+  X(PRIMITIVE_BINARY_OP,             178) \
+  X(PRIMITIVE_UNARY_OP,              179) \
+  X(PRIMITIVE_COMPARE_OP,            180) \
+  X(LOAD_ITERABLE_ARG,               181) \
+  X(LOAD_MAPPING_ARG,                182) \
+  X(INVOKE_FUNCTION,                 183) \
+  X(JUMP_IF_ZERO_OR_POP,             184) \
+  X(JUMP_IF_NONZERO_OR_POP,          185) \
+  X(FAST_LEN,                        186) \
+  X(CONVERT_PRIMITIVE,               187) \
+  X(CHECK_ARGS,                      188) \
+  X(BUILD_CHECKED_MAP,               191) \
+  X(SEQUENCE_GET,                    192) \
+  X(SEQUENCE_SET,                    193) \
+  X(LIST_DEL,                        194) \
+  X(REFINE_TYPE,                     195) \
+  X(PRIMITIVE_LOAD_CONST,            196) \
+  X(RETURN_PRIMITIVE,                197) \
+  X(LOAD_METHOD_SUPER,               198) \
+  X(LOAD_ATTR_SUPER,                 199) \
+  X(TP_ALLOC,                        200) \
+  X(BUILD_CHECKED_LIST,              201) \
+  X(LOAD_METHOD_UNSHADOWED_METHOD,   207) \
+  X(LOAD_METHOD_TYPE_METHODLIKE,     208) \
+  X(BUILD_CHECKED_LIST_CACHED,       209) \
+  X(TP_ALLOC_CACHED,                 210) \
+  X(LOAD_ATTR_S_MODULE,              211) \
+  X(LOAD_METHOD_S_MODULE,            212) \
+  X(INVOKE_FUNCTION_CACHED,          213) \
+  X(INVOKE_FUNCTION_INDIRECT_CACHED, 214) \
+  X(BUILD_CHECKED_MAP_CACHED,        215) \
+  X(CHECK_ARGS_CACHED,               216) \
+  X(PRIMITIVE_STORE_FAST,            217) \
+  X(CAST_CACHED_OPTIONAL,            218) \
+  X(CAST_CACHED,                     219) \
+  X(LOAD_PRIMITIVE_FIELD,            220) \
+  X(STORE_PRIMITIVE_FIELD,           221) \
+  X(LOAD_OBJ_FIELD,                  222) \
+  X(STORE_OBJ_FIELD,                 223) \
+  X(INVOKE_METHOD_CACHED,            224) \
+  X(BINARY_SUBSCR_TUPLE_CONST_INT,   225) \
+  X(BINARY_SUBSCR_DICT_STR,          226) \
+  X(BINARY_SUBSCR_LIST,              227) \
+  X(BINARY_SUBSCR_TUPLE,             228) \
+  X(BINARY_SUBSCR_DICT,              229) \
+  X(LOAD_METHOD_UNCACHABLE,          230) \
+  X(LOAD_METHOD_MODULE,              231) \
+  X(LOAD_METHOD_TYPE,                232) \
+  X(LOAD_METHOD_SPLIT_DICT_DESCR,    233) \
+  X(LOAD_METHOD_SPLIT_DICT_METHOD,   234) \
+  X(LOAD_METHOD_DICT_DESCR,          235) \
+  X(LOAD_METHOD_DICT_METHOD,         236) \
+  X(LOAD_METHOD_NO_DICT_METHOD,      237) \
+  X(LOAD_METHOD_NO_DICT_DESCR,       238) \
+  X(STORE_ATTR_SLOT,                 239) \
+  X(STORE_ATTR_SPLIT_DICT,           240) \
+  X(STORE_ATTR_DESCR,                241) \
+  X(STORE_ATTR_UNCACHABLE,           242) \
+  X(STORE_ATTR_DICT,                 243) \
+  X(LOAD_ATTR_POLYMORPHIC,           244) \
+  X(LOAD_ATTR_SLOT,                  245) \
+  X(LOAD_ATTR_MODULE,                246) \
+  X(LOAD_ATTR_TYPE,                  247) \
+  X(LOAD_ATTR_SPLIT_DICT_DESCR,      248) \
+  X(LOAD_ATTR_SPLIT_DICT,            249) \
+  X(LOAD_ATTR_DICT_NO_DESCR,         250) \
+  X(LOAD_ATTR_NO_DICT_DESCR,         251) \
+  X(LOAD_ATTR_DICT_DESCR,            252) \
+  X(LOAD_ATTR_UNCACHABLE,            253) \
+  X(LOAD_GLOBAL_CACHED,              254) \
+  X(SHADOW_NOP,                      255)
+
+#define OP(op, value) static const int op = value;
+PY_OPCODES(OP)
+#undef OP
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here
