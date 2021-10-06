@@ -238,7 +238,9 @@ class StaticTestBase(CompilerTest):
         exec(compiled, d)
         return modname, d
 
-    def run_code(self, code, generator=None, modname=None, peephole_enabled=True):
+    def run_code(
+        self, code, generator=StaticCodeGenerator, modname=None, peephole_enabled=True
+    ):
         _, r = self._run_code(code, generator, modname, peephole_enabled)
         return r
 

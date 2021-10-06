@@ -1,5 +1,4 @@
 import inspect
-from compiler.static import StaticCodeGenerator
 from compiler.static.errors import TypedSyntaxError
 from types import MemberDescriptorType
 

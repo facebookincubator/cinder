@@ -235,14 +235,14 @@ class StaticCompilationTests(StaticTestBase):
             from __static__ import does_not_exist
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_static_import_star(self) -> None:
         codestr = """
             from __static__ import *
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_reveal_type(self) -> None:
         codestr = """
@@ -277,7 +277,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: D = D()
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_unannotated_assign_does_not_declare_type(self) -> None:
         codestr = """
@@ -316,7 +316,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y = D()
         """
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("foo.D", "foo.C")):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_multiple_dynamic_base_class(self) -> None:
         codestr = """
@@ -325,7 +325,7 @@ class StaticCompilationTests(StaticTestBase):
             def __init__(self):
                 pass
         """
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_bool_cast(self) -> None:
         codestr = """
@@ -336,7 +336,7 @@ class StaticCompilationTests(StaticTestBase):
                 y: bool = cast(bool, x)
                 return y
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_typing_overload(self) -> None:
         """Typing overloads are ignored, don't cause member name conflict."""
@@ -530,7 +530,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: C, y: D):
                 return x + y
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "f")
         self.assertInBytecode(f, "BINARY_ADD")
 
@@ -590,8 +590,8 @@ class StaticCompilationTests(StaticTestBase):
                 y: int64 = x
                 return box(y)
             """
-        code = self.compile(codestr, StaticCodeGenerator)
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        code = self.compile(codestr)
+        f = self.run_code(codestr)["testfunc"]
         self.assertEqual(f(), -40)
 
     def test_field_size(self):
@@ -755,7 +755,7 @@ class StaticCompilationTests(StaticTestBase):
                 y: int8 = 2
                 return box(x / y)
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_DIV_INT)
         with self.in_module(codestr) as mod:
@@ -769,7 +769,7 @@ class StaticCompilationTests(StaticTestBase):
                 y: uint8 = 2
                 return box(x / y)
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_DIV_INT)
         with self.in_module(codestr) as mod:
@@ -792,7 +792,7 @@ class StaticCompilationTests(StaticTestBase):
                     return True
                 return False
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         with self.in_module(codestr) as mod:
@@ -812,7 +812,7 @@ class StaticCompilationTests(StaticTestBase):
                     return True
                 return False
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         with self.in_module(codestr) as mod:
@@ -831,7 +831,7 @@ class StaticCompilationTests(StaticTestBase):
 
                 return box(y + x)
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         with self.in_module(codestr) as mod:
@@ -851,7 +851,7 @@ class StaticCompilationTests(StaticTestBase):
 
                 return box(x + y + z)
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         with self.in_module(codestr) as mod:
@@ -872,7 +872,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaisesRegex(TypedSyntaxError, "cannot add int16 and uint64"):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_store_signed_to_unsigned(self):
 
@@ -884,7 +884,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y
         """
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("int8", "uint8")):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_store_unsigned_to_signed(self):
         """promote int/uint to int, can't add to uint64"""
@@ -897,7 +897,7 @@ class StaticCompilationTests(StaticTestBase):
                 y = x
         """
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("uint8", "int8")):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_mixed_assign_larger(self):
         """promote int/uint to int16"""
@@ -911,7 +911,7 @@ class StaticCompilationTests(StaticTestBase):
 
                 return box(z)
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         with self.in_module(codestr) as mod:
@@ -931,7 +931,7 @@ class StaticCompilationTests(StaticTestBase):
 
                 return box(z)
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         with self.in_module(codestr) as mod:
@@ -985,7 +985,7 @@ class StaticCompilationTests(StaticTestBase):
                     TypedSyntaxError,
                     f"type mismatch: Literal\\[{val}\\] cannot be assigned to {type}",
                 ):
-                    self.compile(codestr, StaticCodeGenerator)
+                    self.compile(codestr)
 
     def test_int_assign_float(self):
         codestr = """
@@ -996,7 +996,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Exact[float]", "int")
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_int_assign_str_constant(self):
         codestr = """
@@ -1007,7 +1007,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Exact[str]", "int8")
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_int_large_int_constant(self):
         codestr = """
@@ -1015,7 +1015,7 @@ class StaticCompilationTests(StaticTestBase):
             def testfunc(tst):
                 x: int64 = 0x7FFFFFFF + 1
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0x80000000, TYPED_INT64))
 
@@ -1025,7 +1025,7 @@ class StaticCompilationTests(StaticTestBase):
             def testfunc(tst):
                 x: int64 = 0x7FFFFFFE + 1
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0x7FFFFFFF, TYPED_INT64))
 
@@ -1042,7 +1042,7 @@ class StaticCompilationTests(StaticTestBase):
                 return box(x + y)
         """
         with self.assertRaisesRegex(TypedSyntaxError, "cannot add uint64 and int64"):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_int_overflow_add(self):
         tests = [
@@ -1088,8 +1088,8 @@ class StaticCompilationTests(StaticTestBase):
                 return box(z)
             """
             with self.subTest(type=type, x=x, y=y, res=res):
-                code = self.compile(codestr, StaticCodeGenerator)
-                f = self.run_code(codestr, StaticCodeGenerator)["f"]
+                code = self.compile(codestr)
+                f = self.run_code(codestr)["f"]
                 self.assertEqual(f(), res, f"{type} {x} {y} {res}")
 
     def test_int_unary(self):
@@ -1125,8 +1125,8 @@ class StaticCompilationTests(StaticTestBase):
                 return box(x)
             """
             with self.subTest(type=type, op=op, x=x, res=res):
-                code = self.compile(codestr, StaticCodeGenerator)
-                f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+                code = self.compile(codestr)
+                f = self.run_code(codestr)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {op} {x} {res}")
 
     def test_double_unary(self):
@@ -1146,7 +1146,7 @@ class StaticCompilationTests(StaticTestBase):
                 return box(x)
             """
             with self.subTest(type=type, op=op, x=x, res=res):
-                f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+                f = self.run_code(codestr)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {op} {x} {res}")
 
     def test_double_unary_unsupported(self):
@@ -1277,8 +1277,8 @@ class StaticCompilationTests(StaticTestBase):
                 return False
             """
             with self.subTest(type=type, x=x, y=y, op=op, res=res):
-                code = self.compile(codestr, StaticCodeGenerator)
-                f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+                code = self.compile(codestr)
+                f = self.run_code(codestr)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
     def test_int_compare_unboxed(self):
@@ -1292,8 +1292,8 @@ class StaticCompilationTests(StaticTestBase):
                 return True
             return False
         """
-        code = self.compile(codestr, StaticCodeGenerator)
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        code = self.compile(codestr)
+        f = self.run_code(codestr)["testfunc"]
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
         self.assertEqual(f(1, 2), False)
 
@@ -1311,8 +1311,8 @@ class StaticCompilationTests(StaticTestBase):
             return j
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        code = self.compile(codestr)
+        f = self.run_code(codestr)["testfunc"]
         self.assertEqual(f(), 100)
         self.assert_jitted(f)
 
@@ -1326,7 +1326,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(j)
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.testfunc
             self.assertInBytecode(f, "JUMP_IF_NONZERO_OR_POP")
             self.assertIs(f(), False)
@@ -1341,7 +1341,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(j)
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.testfunc
             self.assertInBytecode(f, "JUMP_IF_ZERO_OR_POP")
             self.assertIs(f(), False)
@@ -1370,7 +1370,7 @@ class StaticCompilationTests(StaticTestBase):
                 return False
             """
             with self.subTest(type=type, x=x, y=y, op=op, res=res):
-                f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+                f = self.run_code(codestr)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
     def test_double_compare_with_literal(self):
@@ -1382,7 +1382,7 @@ class StaticCompilationTests(StaticTestBase):
                 return True
             return False
         """
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        f = self.run_code(codestr)["testfunc"]
         self.assertTrue(f(4.1))
         self.assertFalse(f(1.1))
 
@@ -1398,7 +1398,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, re.escape("can't compare double to Literal[3]")
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_double_mixed_compare(self):
         codestr = """
@@ -1411,7 +1411,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "can't compare double to dynamic"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_double_mixed_compare_reverse(self):
         codestr = """
@@ -1424,7 +1424,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "can't compare double to dynamic"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_disallow_prim_nonprim_union(self):
         codestr = """
@@ -1689,8 +1689,8 @@ class StaticCompilationTests(StaticTestBase):
                 return False
             """
             with self.subTest(type1=type1, x=x, type2=type2, y=y, op=op, res=res):
-                code = self.compile(codestr, StaticCodeGenerator)
-                f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+                code = self.compile(codestr)
+                f = self.run_code(codestr)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
     def test_int_compare64_mixed_sign(self):
@@ -1708,16 +1708,15 @@ class StaticCompilationTests(StaticTestBase):
                 return False
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_compile_method(self):
         code = self.compile(
             """
-        from __static__ import ssize_t
-        def f():
-            x: ssize_t = 42
-        """,
-            StaticCodeGenerator,
+            from __static__ import ssize_t
+            def f():
+                x: ssize_t = 42
+            """
         )
 
         f = self.find_code(code)
@@ -1732,7 +1731,7 @@ class StaticCompilationTests(StaticTestBase):
                 pass
         """
         with self.assertRaisesRegex(TypedSyntaxError, "can't compare int64 to dynamic"):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_unbox(self):
         for size, val in [
@@ -1757,9 +1756,9 @@ class StaticCompilationTests(StaticTestBase):
                 return box(y)
             """
 
-            code = self.compile(codestr, StaticCodeGenerator)
+            code = self.compile(codestr)
             f = self.find_code(code)
-            f = self.run_code(codestr, StaticCodeGenerator)["f"]
+            f = self.run_code(codestr)["f"]
             self.assertEqual(f(val), val + 1)
 
     def test_double_unbox(self):
@@ -1771,7 +1770,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(a + b)
         """
 
-        f = self.run_code(codestr, StaticCodeGenerator)["fn"]
+        f = self.run_code(codestr)["fn"]
         x = 3.14
         y = 1.732
         self.assertEqual(f(x, y), x + y)
@@ -1785,7 +1784,7 @@ class StaticCompilationTests(StaticTestBase):
                 y = double(x)
                 return box(y + 1.0)
         """
-        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 2.2)
 
     def test_int_loop_inplace(self):
@@ -1798,9 +1797,9 @@ class StaticCompilationTests(StaticTestBase):
             return box(i)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
-        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 100)
 
     def test_int_loop(self):
@@ -1813,10 +1812,10 @@ class StaticCompilationTests(StaticTestBase):
             return box(i)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
 
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        f = self.run_code(codestr)["testfunc"]
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
@@ -1833,11 +1832,11 @@ class StaticCompilationTests(StaticTestBase):
             assert i == 0, "hello there"
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "POP_JUMP_IF_NONZERO")
 
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        f = self.run_code(codestr)["testfunc"]
         self.assertEqual(f(), None)
 
     def test_int_assert_raises(self):
@@ -1848,12 +1847,12 @@ class StaticCompilationTests(StaticTestBase):
             assert i != 0, "hello there"
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "POP_JUMP_IF_NONZERO")
 
         with self.assertRaises(AssertionError):
-            f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+            f = self.run_code(codestr)["testfunc"]
             self.assertEqual(f(), None)
 
     def test_int_loop_reversed(self):
@@ -1866,9 +1865,9 @@ class StaticCompilationTests(StaticTestBase):
             return box(i)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        f = self.run_code(codestr)["testfunc"]
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
@@ -1887,9 +1886,9 @@ class StaticCompilationTests(StaticTestBase):
             return box(i)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        f = self.run_code(codestr)["testfunc"]
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
@@ -1905,7 +1904,7 @@ class StaticCompilationTests(StaticTestBase):
 
         x = C() > D()
         """
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         self.assertInBytecode(code, "COMPARE_OP")
 
     def test_compat_int_math(self):
@@ -1917,12 +1916,12 @@ class StaticCompilationTests(StaticTestBase):
             return box(z)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (42, TYPED_INT64))
         self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
-        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 43)
 
     def test_unbox_long(self):
@@ -1932,7 +1931,7 @@ class StaticCompilationTests(StaticTestBase):
             x:int64 = unbox(1)
         """
 
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_unbox_str(self):
         codestr = """
@@ -2043,7 +2042,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(x)
             x = 0
         """
-        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 0)
 
     def test_uninit_value_2(self):
@@ -2054,7 +2053,7 @@ class StaticCompilationTests(StaticTestBase):
                 y:int64 = 42
             return box(y)
         """
-        f = self.run_code(codestr, StaticCodeGenerator)["testfunc"]
+        f = self.run_code(codestr)["testfunc"]
         self.assertEqual(f(False), 0)
 
     def test_bad_box(self):
@@ -2066,7 +2065,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "can't box non-primitive: Exact\\[str\\]"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_bad_unbox(self):
         codestr = """
@@ -2079,7 +2078,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Call argument cannot be a primitive"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_bad_box_2(self):
         codestr = """
@@ -2090,7 +2089,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "box only accepts a single argument"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_bad_unbox_2(self):
         codestr = """
@@ -2103,7 +2102,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "unbox only accepts a single argument"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_int_reassign(self):
         codestr = """
@@ -2116,12 +2115,12 @@ class StaticCompilationTests(StaticTestBase):
             return box(z)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator)
+        code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (42, TYPED_INT64))
         self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
-        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 43)
 
     def test_assign_to_object(self):
@@ -2144,7 +2143,7 @@ class StaticCompilationTests(StaticTestBase):
             x = ...
         """
 
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_global_call_add(self) -> None:
         codestr = """
@@ -2152,7 +2151,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 y = X + 1
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_type_binder(self) -> None:
         self.assertEqual(repr(self.bind_expr("42")), "<Literal[42]>")
@@ -2296,7 +2295,7 @@ class StaticCompilationTests(StaticTestBase):
                 if j == 0:
                     return 1
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "f")
         self.assertInBytecode(x, "PRIMITIVE_COMPARE_OP", 0)
         self.assertInBytecode(x, "COMPARE_OP", "==")
@@ -2990,7 +2989,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "cannot load attribute from int8"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_primitive_call(self) -> None:
         codestr = """
@@ -3000,7 +2999,7 @@ class StaticCompilationTests(StaticTestBase):
                 print(x())
         """
         with self.assertRaisesRegex(TypedSyntaxError, "cannot call int8"):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_primitive_subscr(self) -> None:
         codestr = """
@@ -3010,7 +3009,7 @@ class StaticCompilationTests(StaticTestBase):
                 print(x[42])
         """
         with self.assertRaisesRegex(TypedSyntaxError, "cannot index int8"):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_primitive_iter(self) -> None:
         codestr = """
@@ -3021,7 +3020,7 @@ class StaticCompilationTests(StaticTestBase):
                     pass
         """
         with self.assertRaisesRegex(TypedSyntaxError, "cannot iterate over int8"):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_pseudo_strict_module(self) -> None:
         # simulate strict modules where the builtins come from <builtins>
@@ -3152,7 +3151,7 @@ class StaticCompilationTests(StaticTestBase):
             return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3181,7 +3180,7 @@ class StaticCompilationTests(StaticTestBase):
             b = x(D())
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3219,7 +3218,7 @@ class StaticCompilationTests(StaticTestBase):
             a = x(C())
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3239,7 +3238,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3270,7 +3269,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3302,7 +3301,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3336,7 +3335,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3373,7 +3372,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3409,7 +3408,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3448,7 +3447,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3475,7 +3474,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -3504,9 +3503,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(
-            codestr, StaticCodeGenerator, modname="test_annotated_function_derived"
-        )
+        code = self.compile(codestr, modname="test_annotated_function_derived")
         x = self.find_code(code, "x")
         self.assertInBytecode(
             x, "INVOKE_METHOD", (("test_annotated_function_derived", "C", "f"), 0)
@@ -3537,12 +3534,12 @@ class StaticCompilationTests(StaticTestBase):
                 x: foo = a
                 return x.bar
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
         class C:
             bar = 42
 
-        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f = self.run_code(codestr)["f"]
         self.assertEqual(f(C()), 42)
 
     def test_class_method_invoke(self):
@@ -3558,7 +3555,7 @@ class StaticCompilationTests(StaticTestBase):
                 def f(self):
                     return self.value
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
         b_init = self.find_code(self.find_code(code, "B"), "__init__")
         self.assertInBytecode(b_init, "STORE_FIELD", ("foo", "B", "value"))
@@ -3580,7 +3577,7 @@ class StaticCompilationTests(StaticTestBase):
         def f(a: C):
             a.x += 1
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         code = self.find_code(code, name="f")
         self.assertInBytecode(code, "LOAD_FIELD", ("foo", "C", "x"))
         self.assertInBytecode(code, "STORE_FIELD", ("foo", "C", "x"))
@@ -3591,7 +3588,7 @@ class StaticCompilationTests(StaticTestBase):
         x.store = 42
         del x.delete
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         self.assertInBytecode(code, "LOAD_ATTR", "load")
         self.assertInBytecode(code, "STORE_ATTR", "store")
         self.assertInBytecode(code, "DELETE_ATTR", "delete")
@@ -3785,7 +3782,7 @@ class StaticCompilationTests(StaticTestBase):
             def x(self): pass
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_redefine_type(self):
         codestr = """
@@ -3797,7 +3794,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: D = D()
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_optional_error(self):
         codestr = """
@@ -3817,7 +3814,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             re.escape("Optional[foo.C]: 'NoneType' object has no attribute 'x'"),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_optional_subscript_error(self) -> None:
         codestr = """
@@ -3830,7 +3827,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             re.escape("Optional[int]: 'NoneType' object is not subscriptable"),
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_optional_unary_error(self) -> None:
         codestr = """
@@ -3843,7 +3840,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             re.escape("Optional[int]: bad operand type for unary -: 'NoneType'"),
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_optional_assign(self):
         codestr = """
@@ -3855,7 +3852,7 @@ class StaticCompilationTests(StaticTestBase):
                     else:
                         p: Optional["C"] = x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_nonoptional_load(self):
         codestr = """
@@ -3866,7 +3863,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(c: C) -> int:
                 return c.y
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "f")
         self.assertInBytecode(f, "LOAD_FIELD", ("foo", "C", "y"))
 
@@ -3879,7 +3876,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: D):
                 a: Optional[B] = x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_optional_assign_subclass_opt(self):
         codestr = """
@@ -3890,7 +3887,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Optional[D]):
                 a: Optional[B] = x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_optional_assign_none(self):
         codestr = """
@@ -3900,7 +3897,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x: Optional[B]):
                 a: Optional[B] = None
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_optional_union_syntax(self):
         self.assertReturns(
@@ -4074,7 +4071,6 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return 2
             """,
-            StaticCodeGenerator,
             modname="foo.py",
         )
 
@@ -4098,7 +4094,6 @@ class StaticCompilationTests(StaticTestBase):
             def d() -> int:
                 return a(True) or a(False) or b()
             """,
-            StaticCodeGenerator,
             modname="foo",
         )
 
@@ -4303,39 +4298,36 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int64", "dynamic")):
             code = self.compile(
                 """
-            from __static__ import ssize_t
-            def f():
-                y: ssize_t = 1
-                return y
-            """,
-                StaticCodeGenerator,
+                from __static__ import ssize_t
+                def f():
+                    y: ssize_t = 1
+                    return y
+                """
             )
 
     def test_error_mixed_math(self):
         with self.assertRaises(TypedSyntaxError):
             code = self.compile(
                 """
-            from __static__ import ssize_t
-            def f():
-                y = 1
-                x: ssize_t = 42 + y
-            """,
-                StaticCodeGenerator,
+                from __static__ import ssize_t
+                def f():
+                    y = 1
+                    x: ssize_t = 42 + y
+                """
             )
 
     def test_error_incompat_return(self):
         with self.assertRaises(TypedSyntaxError):
             code = self.compile(
                 """
-            class D: pass
-            class C:
-                def __init__(self):
-                    self.x = None
+                class D: pass
+                class C:
+                    def __init__(self):
+                        self.x = None
 
-                def f(self) -> "C":
-                    return D()
-            """,
-                StaticCodeGenerator,
+                    def f(self) -> "C":
+                        return D()
+                """
             )
 
     def test_cast(self):
@@ -4387,7 +4379,7 @@ class StaticCompilationTests(StaticTestBase):
                 cast(42)
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_cast_unknown_type(self):
         codestr = """
@@ -4396,7 +4388,7 @@ class StaticCompilationTests(StaticTestBase):
                 cast(abc, 42)
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_cast_optional(self):
         for code_gen in (StaticCodeGenerator, PythonCodeGenerator):
@@ -4428,7 +4420,7 @@ class StaticCompilationTests(StaticTestBase):
 
         func()
         """
-        module = self.compile(codestr, StaticCodeGenerator)
+        module = self.compile(codestr)
         self.assertTrue(module.co_flags & CO_STATICALLY_COMPILED)
         self.assertTrue(
             self.find_code(module, name="func").co_flags & CO_STATICALLY_COMPILED
@@ -4445,7 +4437,7 @@ class StaticCompilationTests(StaticTestBase):
             return a.f(a=2)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertEqual(f(), 2)
 
@@ -4456,7 +4448,7 @@ class StaticCompilationTests(StaticTestBase):
             return a.split()
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertInBytecode(
                 f, "INVOKE_FUNCTION", (("builtins", "str", "split"), 1)
@@ -4470,7 +4462,7 @@ class StaticCompilationTests(StaticTestBase):
             return a.split('a')
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertInBytecode(
                 f, "INVOKE_FUNCTION", (("builtins", "str", "split"), 2)
@@ -4484,7 +4476,7 @@ class StaticCompilationTests(StaticTestBase):
             return a.split(sep='a')
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertNotInBytecode(f, "INVOKE_FUNCTION")
             self.assertNotInBytecode(f, "INVOKE_METHOD")
@@ -4497,7 +4489,7 @@ class StaticCompilationTests(StaticTestBase):
             return a.bit_length()
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertInBytecode(
                 f, "INVOKE_FUNCTION", (("builtins", "int", "bit_length"), 1)
@@ -4514,7 +4506,7 @@ class StaticCompilationTests(StaticTestBase):
             return a.keys()
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
 
             self.assertInBytecode(
@@ -4557,7 +4549,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(a)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertInBytecode(f, "INVOKE_FUNCTION", ((("xxclassloader", "foo"), 0)))
             self.assertEqual(f(), 42)
@@ -4577,7 +4569,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: int64 = neg()
                 return box(x)
             """
-            with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            with self.in_module(codestr) as mod:
                 test = mod.test
                 self.assertEqual(test(), -1)
         finally:
@@ -4593,7 +4585,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(a)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertInBytecode(f, "INVOKE_FUNCTION", ((("xxclassloader", "bar"), 1)))
             self.assertEqual(f(), 42)
@@ -4609,7 +4601,7 @@ class StaticCompilationTests(StaticTestBase):
             return box(a)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             # remove xxclassloader from sys.modules during this test
             xxclassloader = sys.modules["xxclassloader"]
             del sys.modules["xxclassloader"]
@@ -4633,7 +4625,7 @@ class StaticCompilationTests(StaticTestBase):
             return a.getstate()
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
 
             self.assertInBytecode(
@@ -4660,7 +4652,7 @@ class StaticCompilationTests(StaticTestBase):
             a = XXGeneric[int, str]()
             return a.foo(42, 'abc')
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.func
             self.assertEqual(f(), "42abc")
 
@@ -4674,7 +4666,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Exact\[str\] received for positional arg 'a', expected int",
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_verify_too_many_args(self):
         codestr = """
@@ -4687,7 +4679,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Mismatched number of args for function <module>.x. Expected 0, got 1",
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_verify_positional_args_unordered(self):
         codestr = """
@@ -4696,7 +4688,7 @@ class StaticCompilationTests(StaticTestBase):
             def y(a: int, b: str) -> None:
                 pass
         """
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_verify_kwargs(self):
         codestr = """
@@ -4704,7 +4696,7 @@ class StaticCompilationTests(StaticTestBase):
                 return
             x(b="lol", a=23)
         """
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_verify_kwdefaults(self):
         codestr = """
@@ -4712,7 +4704,7 @@ class StaticCompilationTests(StaticTestBase):
                 return b
             z = x(b="lol")
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             self.assertEqual(mod.z, "lol")
 
     def test_verify_kwdefaults_no_value(self):
@@ -4721,7 +4713,7 @@ class StaticCompilationTests(StaticTestBase):
                 return b
             a = x()
         """
-        module = self.compile(codestr, StaticCodeGenerator)
+        module = self.compile(codestr)
         # we don't yet support optimized dispatch to kw-only functions
         self.assertInBytecode(module, "CALL_FUNCTION")
         with self.in_module(codestr) as mod:
@@ -4733,7 +4725,7 @@ class StaticCompilationTests(StaticTestBase):
                 return b
             a = x(b="hunter3")
         """
-        module = self.compile(codestr, StaticCodeGenerator)
+        module = self.compile(codestr)
         # TODO(T87420170): Support invokes here.
         self.assertNotInBytecode(module, "INVOKE_FUNCTION")
         with self.in_module(codestr) as mod:
@@ -4778,8 +4770,8 @@ class StaticCompilationTests(StaticTestBase):
             def y(v):
                 return x(v)
         """
-        module = self.compile(codestr, StaticCodeGenerator)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        module = self.compile(codestr)
+        with self.in_module(codestr) as mod:
             y = mod.y
             with self.assertRaises(TypeError):
                 y(42)
@@ -4791,7 +4783,7 @@ class StaticCompilationTests(StaticTestBase):
                 return b
             x('abc')
         """
-        module = self.compile(codestr, StaticCodeGenerator)
+        module = self.compile(codestr)
         self.assertInBytecode(module, "INVOKE_FUNCTION")
         x = self.find_code(module)
         self.assertInBytecode(x, "CHECK_ARGS", ())
@@ -4829,7 +4821,7 @@ class StaticCompilationTests(StaticTestBase):
                 return b
             x(x='abc')
         """
-        module = self.compile(codestr, StaticCodeGenerator)
+        module = self.compile(codestr)
         self.assertInBytecode(module, "INVOKE_FUNCTION")
         x = self.find_code(module)
         self.assertInBytecode(x, "CHECK_ARGS", ())
@@ -4841,7 +4833,7 @@ class StaticCompilationTests(StaticTestBase):
             x('abc')
         """
         # We do not verify types for calls that we can't do direct invokes.
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_verify_kwdefaults_too_many_class(self):
         codestr = """
@@ -4851,7 +4843,7 @@ class StaticCompilationTests(StaticTestBase):
             C().x('abc')
         """
         # We do not verify types for calls that we can't do direct invokes.
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_verify_kwonly_failure(self):
         codestr = """
@@ -4860,7 +4852,7 @@ class StaticCompilationTests(StaticTestBase):
             x(a="hi", b="lol")
         """
         # We do not verify types for calls that we can't do direct invokes.
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_verify_kwonly_self_loaded_once(self):
         codestr = """
@@ -4871,7 +4863,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 return C().x(a=1)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             io = StringIO()
             dis.dis(f, file=io)
@@ -4886,7 +4878,7 @@ class StaticCompilationTests(StaticTestBase):
             def testfunc():
                 return g()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.testfunc
             self.assertEqual(f(), 42)
 
@@ -4899,7 +4891,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, r"Exact\[str\] received for keyword arg 'a', expected int"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_verify_mixed_args(self):
         codestr = """
@@ -4907,7 +4899,7 @@ class StaticCompilationTests(StaticTestBase):
                 return
             x(12, c=56, b="lol")
         """
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_kwarg_cast(self):
         codestr = """
@@ -4917,7 +4909,7 @@ class StaticCompilationTests(StaticTestBase):
             def g(a):
                 x(b=a)
         """
-        code = self.find_code(self.compile(codestr, StaticCodeGenerator), "g")
+        code = self.find_code(self.compile(codestr), "g")
         self.assertInBytecode(code, "CAST", ("builtins", "str"))
 
     def test_kwarg_nocast(self):
@@ -4928,7 +4920,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 x(b='abc')
         """
-        code = self.find_code(self.compile(codestr, StaticCodeGenerator), "g")
+        code = self.find_code(self.compile(codestr), "g")
         self.assertNotInBytecode(code, "CAST", ("builtins", "str"))
 
     def test_verify_mixed_args_kw_failure(self):
@@ -4940,7 +4932,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, r"Exact\[str\] received for keyword arg 'c', expected int"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_verify_mixed_args_positional_failure(self):
         codestr = """
@@ -4952,7 +4944,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Exact\[str\] received for positional arg 'a', expected int",
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     # Same tests as above, but for methods.
     def test_verify_positional_args_method(self):
@@ -4962,7 +4954,7 @@ class StaticCompilationTests(StaticTestBase):
                     pass
             C().x(2, "hi")
         """
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_verify_positional_args_failure_method(self):
         codestr = """
@@ -4975,7 +4967,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Exact\[str\] received for positional arg 'a', expected int",
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_verify_mixed_args_method(self):
         codestr = """
@@ -4984,7 +4976,7 @@ class StaticCompilationTests(StaticTestBase):
                     return
             C().x(12, c=56, b="lol")
         """
-        self.compile(codestr, StaticCodeGenerator)
+        self.compile(codestr)
 
     def test_starargs_invoked_once(self):
         codestr = """
@@ -5043,7 +5035,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, r"bytes received for keyword arg 'c', expected int"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_verify_mixed_args_positional_failure_method(self):
         codestr = """
@@ -5056,7 +5048,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Exact\[str\] received for positional arg 'a', expected int",
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_generic_kwargs_unsupported(self):
         # definition is allowed, we just don't do an optimal invoke
@@ -5118,7 +5110,7 @@ class StaticCompilationTests(StaticTestBase):
                 print(foo.get('bar'))
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             self.assertInBytecode(
                 test, "INVOKE_FUNCTION", (("builtins", "dict", "get"), 2)
@@ -5130,7 +5122,7 @@ class StaticCompilationTests(StaticTestBase):
                 print(foo.count('bar'))
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             self.assertInBytecode(
                 test, "INVOKE_FUNCTION", (("builtins", "tuple", "count"), 2)
@@ -5145,7 +5137,7 @@ class StaticCompilationTests(StaticTestBase):
                 return g(2)
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), (2,))
 
@@ -5158,7 +5150,7 @@ class StaticCompilationTests(StaticTestBase):
                 return g(x=2)
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), {"x": 2})
 
@@ -5170,7 +5162,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x[i]
         """
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_pydict_arg_annotation(self):
         codestr = """
@@ -5257,7 +5249,7 @@ class StaticCompilationTests(StaticTestBase):
             def x(y):
                 z = -y
         """
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "UNARY_NEGATIVE")
 
     def test_unknown_type_binary(self):
@@ -5265,7 +5257,7 @@ class StaticCompilationTests(StaticTestBase):
             def x(a, b):
                 z = a + b
         """
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "BINARY_ADD")
 
     def test_unknown_type_compare(self):
@@ -5273,7 +5265,7 @@ class StaticCompilationTests(StaticTestBase):
             def x(a, b):
                 z = a > b
         """
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "COMPARE_OP")
 
     def test_async_func_ret_type(self):
@@ -5281,7 +5273,7 @@ class StaticCompilationTests(StaticTestBase):
             async def x(a) -> int:
                 return a
         """
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "CAST")
 
     def test_async_func_arg_types(self):
@@ -5303,7 +5295,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y
         """
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("int64", "foo.C")):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_field_refcount(self):
         codestr = """
@@ -5416,7 +5408,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "cannot access attribute from unbound Union"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_assign_generic_optional(self):
         codestr = """
@@ -5428,7 +5420,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Literal[42]", "Optional[T]")
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_assign_generic_optional_2(self):
         codestr = """
@@ -5438,7 +5430,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         with self.assertRaises(TypedSyntaxError):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_assign_from_generic_optional(self):
         codestr = """
@@ -5452,7 +5444,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Optional[T]", optional("foo.C"))
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_list_of_dynamic(self):
         codestr = """
@@ -5479,7 +5471,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("int64", "dynamic")
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_typed_swap(self):
         codestr = """
@@ -5489,7 +5481,7 @@ class StaticCompilationTests(StaticTestBase):
                 x, y = 1, a
         """
 
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "CAST", ("builtins", "str"))
         self.assertNotInBytecode(f, "CAST", ("builtins", "int"))
 
@@ -5502,7 +5494,7 @@ class StaticCompilationTests(StaticTestBase):
 
         """
 
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "CAST", ("builtins", "int"))
         self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
 
@@ -5519,9 +5511,7 @@ class StaticCompilationTests(StaticTestBase):
 
         """
 
-        f = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), "test"
-        )
+        f = self.find_code(self.compile(codestr, modname="foo"), "test")
         self.assertInBytecode(f, "CAST", ("builtins", "int"))
         self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
 
@@ -5533,7 +5523,7 @@ class StaticCompilationTests(StaticTestBase):
                 [x, y] = a, 'abc'
         """
 
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "CAST", ("builtins", "int"))
         self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
 
@@ -5546,7 +5536,7 @@ class StaticCompilationTests(StaticTestBase):
                 ((x, y), z) = (a, 'abc'), 'foo'
         """
 
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "CAST", ("builtins", "int"))
         self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
 
@@ -5560,7 +5550,7 @@ class StaticCompilationTests(StaticTestBase):
 
         """
 
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "CAST", ("builtins", "str"))
         self.assertNotInBytecode(f, "CAST", ("builtins", "int"))
 
@@ -5574,7 +5564,7 @@ class StaticCompilationTests(StaticTestBase):
 
         """
 
-        f = self.find_code(self.compile(codestr, StaticCodeGenerator, modname="foo"))
+        f = self.find_code(self.compile(codestr, modname="foo"))
         self.assertInBytecode(f, "CAST", ("builtins", "str"))
         # Currently because the tuple gets turned into a constant this is less than
         # ideal:
@@ -5594,14 +5584,14 @@ class StaticCompilationTests(StaticTestBase):
                 return None
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_return_outside_func(self):
         codestr = """
             return 42
         """
         with self.assertRaisesRegex(SyntaxError, "'return' outside function"):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_double_decl(self):
         codestr = """
@@ -5612,7 +5602,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot redefine local variable x"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
         codestr = """
             def f():
@@ -5622,7 +5612,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot redefine local variable x"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
         codestr = """
             def f():
@@ -5632,7 +5622,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot redefine local variable x"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_if_else_optional(self):
         codestr = """
@@ -5658,7 +5648,7 @@ class StaticCompilationTests(StaticTestBase):
                 return None
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_if_else_optional_return(self):
         codestr = """
@@ -5673,7 +5663,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x.field
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_if_else_optional_return_two_branches(self):
         codestr = """
@@ -5691,7 +5681,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x.field
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_if_else_optional_return_in_else(self):
         codestr = """
@@ -5705,7 +5695,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_if_else_optional_return_in_else_assignment_in_if(self):
         codestr = """
@@ -5719,7 +5709,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_if_else_optional_return_in_if_assignment_in_else(self):
         codestr = """
@@ -5733,7 +5723,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_narrow_conditional(self):
         codestr = """
@@ -5751,10 +5741,10 @@ class StaticCompilationTests(StaticTestBase):
                     return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "D", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(True), "abc")
             self.assertEqual(test(False), None)
@@ -5770,7 +5760,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x.bit_length()
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             g = mod.g
             self.assertInBytecode(g, "CAST", ("builtins", "int"))
             self.assertInBytecode(
@@ -5830,10 +5820,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(True), "abc")
             self.assertEqual(test(False), 42)
@@ -5867,10 +5857,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "D", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(True), "abc")
 
@@ -5891,10 +5881,10 @@ class StaticCompilationTests(StaticTestBase):
                     return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(True), None)
 
@@ -5915,10 +5905,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), 42)
 
@@ -5932,7 +5922,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_assign_while(self):
         codestr = """
@@ -5950,10 +5940,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), 42)
 
@@ -5966,7 +5956,7 @@ class StaticCompilationTests(StaticTestBase):
                     x = 1
                 return x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_assign_while_returns(self):
         codestr = """
@@ -5977,7 +5967,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_assign_while_returns_but_assigns_first(self):
         codestr = """
@@ -5990,7 +5980,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 1
                 return y
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_while_else_reverses_condition(self):
         codestr = """
@@ -6003,7 +5993,7 @@ class StaticCompilationTests(StaticTestBase):
                     return x
                 return 1
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_continue_condition(self):
         codestr = """
@@ -6015,7 +6005,7 @@ class StaticCompilationTests(StaticTestBase):
                         continue
                     return x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_break_condition(self):
         codestr = """
@@ -6027,7 +6017,7 @@ class StaticCompilationTests(StaticTestBase):
                         break
                     return x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_assign_but_annotated(self):
         codestr = """
@@ -6043,10 +6033,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "D", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), "abc")
 
@@ -6066,10 +6056,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), "abc")
 
@@ -6091,10 +6081,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), "abc")
 
@@ -6116,10 +6106,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), 42)
 
@@ -6140,10 +6130,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), "abc")
 
@@ -6174,7 +6164,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             bad_ret_type("Optional[int]", "None"),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_none_compare(self):
         codestr = """
@@ -6218,8 +6208,8 @@ class StaticCompilationTests(StaticTestBase):
             X: int =  60 * 60 * 24
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        code = self.compile(codestr, modname="foo")
+        with self.in_module(codestr) as mod:
             X = mod.X
             self.assertEqual(X, 60 * 60 * 24)
 
@@ -6230,8 +6220,8 @@ class StaticCompilationTests(StaticTestBase):
                 return x.with_traceback(None)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        code = self.compile(codestr, modname="foo")
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(type(f()), Exception)
             self.assertInBytecode(
@@ -6244,8 +6234,8 @@ class StaticCompilationTests(StaticTestBase):
                 x: object = 42
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        code = self.compile(codestr, modname="foo")
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
 
@@ -6255,8 +6245,8 @@ class StaticCompilationTests(StaticTestBase):
                 x: foo = 42
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        code = self.compile(codestr, modname="foo")
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
 
@@ -6266,8 +6256,8 @@ class StaticCompilationTests(StaticTestBase):
                 x: object = C()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        code = self.compile(codestr, modname="foo")
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
 
@@ -6277,8 +6267,8 @@ class StaticCompilationTests(StaticTestBase):
                 x: unknown = C()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        code = self.compile(codestr, modname="foo")
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
 
@@ -6288,8 +6278,8 @@ class StaticCompilationTests(StaticTestBase):
                 x: object = 42 + 1
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        code = self.compile(codestr, modname="foo")
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
 
@@ -6304,7 +6294,7 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         # We don't do anything special w/ Exception type yet, but it should compile
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_assign_try_except_typing_predeclared(self):
         codestr = """
@@ -6317,7 +6307,7 @@ class StaticCompilationTests(StaticTestBase):
                 return 42
         """
         # We don't do anything special w/ Exception type yet, but it should compile
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_assign_try_except_typing_narrowed(self):
         codestr = """
@@ -6333,7 +6323,7 @@ class StaticCompilationTests(StaticTestBase):
                 return 42
         """
         # We don't do anything special w/ Exception type yet, but it should compile
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_assign_try_except_typing_redeclared_after(self):
         codestr = """
@@ -6346,7 +6336,7 @@ class StaticCompilationTests(StaticTestBase):
                 return 42
         """
         # We don't do anything special w/ Exception type yet, but it should compile
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_assign_try_except_redeclare(self):
         codestr = """
@@ -6359,7 +6349,7 @@ class StaticCompilationTests(StaticTestBase):
                 return 42
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_assign_try_except_redeclare_unknown_type(self):
         codestr = """
@@ -6372,7 +6362,7 @@ class StaticCompilationTests(StaticTestBase):
                 return 42
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_assign_try_assign_in_except(self):
         codestr = """
@@ -6392,10 +6382,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), "abc")
 
@@ -6419,10 +6409,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), "abc")
 
@@ -6444,10 +6434,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), "abc")
 
@@ -6471,10 +6461,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
 
@@ -6496,10 +6486,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
 
@@ -6521,10 +6511,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
 
@@ -6548,10 +6538,10 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
 
@@ -6563,7 +6553,7 @@ class StaticCompilationTests(StaticTestBase):
             if abc is not None:
                 abc = None
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_widening_assign(self):
         codestr = """
@@ -6575,7 +6565,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y = 42
                 return box(x), box(y)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), (42, 42))
 
@@ -6587,7 +6577,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: foo = 42
                 return x
         """
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_widening_assign_reassign(self):
         codestr = """
@@ -6600,7 +6590,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = 257
                 return box(x), box(y)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), (257, 42))
 
@@ -6619,7 +6609,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             "type mismatch: Literal\\[128\\] cannot be assigned to int8",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_narrowing_assign_literal(self):
         codestr = """
@@ -6631,7 +6621,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y = 42
                 return box(x), box(y)
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_narrowing_assign_out_of_range(self):
         codestr = """
@@ -6647,7 +6637,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             "type mismatch: Literal\\[300\\] cannot be assigned to int8",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_module_primitive(self):
         codestr = """
@@ -6657,7 +6647,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "cannot use primitives in global or closure scope"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_implicit_module_primitive(self):
         codestr = """
@@ -6667,7 +6657,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "cannot use primitives in global or closure scope"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_chained_primitive_to_non_primitive(self):
         codestr = """
@@ -6680,7 +6670,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Literal\\[42\\] cannot be assigned to object"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_closure_primitive(self):
         codestr = """
@@ -6693,7 +6683,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "cannot use primitives in global or closure scope"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_nonlocal_primitive(self):
         codestr = """
@@ -6707,7 +6697,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "cannot use primitives in global or closure scope"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_dynamic_chained_assign_param(self):
         codestr = """
@@ -6720,7 +6710,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Literal[42]", "int16")
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_dynamic_chained_assign_param_2(self):
         codestr = """
@@ -6732,7 +6722,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Literal[42]", "dynamic")
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_dynamic_chained_assign_1(self):
         codestr = """
@@ -6742,7 +6732,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y = 42
                 return box(x)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
 
@@ -6754,7 +6744,7 @@ class StaticCompilationTests(StaticTestBase):
                 y = x = 42
                 return box(y)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
 
@@ -6767,7 +6757,7 @@ class StaticCompilationTests(StaticTestBase):
                 x, y = [a, b]
         """
         with self.assertRaisesRegex(TypedSyntaxError, "int cannot be assigned to str"):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_tuple_assign_tuple(self):
         codestr = """
@@ -6778,7 +6768,7 @@ class StaticCompilationTests(StaticTestBase):
                 x, y = a, b
         """
         with self.assertRaisesRegex(TypedSyntaxError, "int cannot be assigned to str"):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_tuple_assign_constant(self):
         codestr = """
@@ -6792,7 +6782,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"type mismatch: Exact\[int\] cannot be assigned to str",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_if_optional_cond(self):
         codestr = """
@@ -6805,7 +6795,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x.field if x is not None else None
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_while_optional_cond(self):
         codestr = """
@@ -6821,7 +6811,7 @@ class StaticCompilationTests(StaticTestBase):
                         x = val
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_if_optional_dependent_conditions(self):
         codestr = """
@@ -6840,7 +6830,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_none_attribute_error(self):
         codestr = """
@@ -6852,7 +6842,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "'NoneType' object has no attribute 'foo'"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_none_call(self):
         codestr = """
@@ -6864,7 +6854,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "'NoneType' object is not callable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_none_subscript(self):
         codestr = """
@@ -6876,7 +6866,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "'NoneType' object is not subscriptable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_none_unaryop(self):
         codestr = """
@@ -6888,7 +6878,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "bad operand type for unary -: 'NoneType'"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_vector_import(self):
         codestr = """
@@ -6900,7 +6890,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             self.assertEqual(test(), array("L", [1]))
 
@@ -6934,7 +6924,7 @@ class StaticCompilationTests(StaticTestBase):
                             return x
                     """
 
-                    with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                    with self.in_module(codestr) as mod:
                         test = mod.test
                         res = test()
                         self.assertEqual(list(res), [1])
@@ -6995,7 +6985,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             self.assertEqual(test(), array("L", [1]))
 
@@ -7008,7 +6998,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             self.assertEqual(test(), array("l", [1, 3, 5]))
 
@@ -7025,7 +7015,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Invalid Array element type: foo.C"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_array_call_unbound(self):
         codestr = """
@@ -7038,7 +7028,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"create instances of a generic Type\[Exact\[Array\[T\]\]\]",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_array_assign_wrong_type(self):
         codestr = """
@@ -7054,7 +7044,7 @@ class StaticCompilationTests(StaticTestBase):
                 "Exact[Array[int64]]",
             ),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_array_types(self):
         codestr = """
@@ -7103,7 +7093,7 @@ class StaticCompilationTests(StaticTestBase):
                 return (arrays, first_elements)
         """
 
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             arrays, first_elements = test()
             exp_arrays = [
@@ -7134,7 +7124,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = 5
                 return x
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_assign_subtype_handling(self):
         codestr = """
@@ -7146,7 +7136,7 @@ class StaticCompilationTests(StaticTestBase):
                 b = D()
                 b = B()
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_assign_subtype_handling_fail(self):
         codestr = """
@@ -7158,7 +7148,7 @@ class StaticCompilationTests(StaticTestBase):
                 d = B()
         """
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("foo.B", "foo.D")):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_assign_chained(self):
         codestr = """
@@ -7167,7 +7157,7 @@ class StaticCompilationTests(StaticTestBase):
                 y = x = "hello"
                 return y
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_assign_chained_failure_wrong_target_type(self):
         codestr = """
@@ -7179,7 +7169,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Exact[str]", "int")
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_chained_assign_type_propagation(self):
         codestr = """
@@ -7189,7 +7179,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = y = Array[char]([48])
                 return y
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_chained_assign_type_propagation_failure_redefine(self):
         codestr = """
@@ -7207,7 +7197,7 @@ class StaticCompilationTests(StaticTestBase):
                 "Exact[Array[int64]]",
             ),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_chained_assign_type_propagation_failure_redefine_2(self):
         codestr = """
@@ -7225,7 +7215,7 @@ class StaticCompilationTests(StaticTestBase):
                 "Exact[Array[int64]]",
             ),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_chained_assign_type_inference(self):
         codestr = """
@@ -7239,7 +7229,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"'x' has declared type 'dynamic' and local type 'Literal\[4\]'",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_chained_assign_type_inference_2(self):
         codestr = """
@@ -7253,7 +7243,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"'y' has declared type 'dynamic' and local type 'Literal\[4\]'",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_array_inplace_assign(self):
         codestr = """
@@ -7276,7 +7266,7 @@ class StaticCompilationTests(StaticTestBase):
                 a = Array[int8]([1, 3, -5, -1, 7, 22])
                 return a[1:3]
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     @skipIf(cinderjit is not None, "can't report error from JIT")
     def test_load_uninit_module(self):
@@ -7612,9 +7602,7 @@ class StaticCompilationTests(StaticTestBase):
                 def f(self):
                     return 42
         """
-        with self.in_module(
-            codestr, code_gen=StaticCodeGenerator, name="package_no_parent.child"
-        ) as mod:
+        with self.in_module(codestr, name="package_no_parent.child") as mod:
             C = mod.C
             self.assertInBytecode(
                 C.f, "CHECK_ARGS", (0, ("package_no_parent.child", "C"))
@@ -7640,7 +7628,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"None received for positional arg 'self', expected foo.C",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_class_unknown_attr(self):
         value = 42
@@ -7712,7 +7700,7 @@ class StaticCompilationTests(StaticTestBase):
                     return isinstance(other, C)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             x = C("abc")
             y = C("foo")
@@ -7730,7 +7718,7 @@ class StaticCompilationTests(StaticTestBase):
                     return issubclass(type(other), C)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             x = C("abc")
             y = C("foo")
@@ -7748,7 +7736,7 @@ class StaticCompilationTests(StaticTestBase):
                 if isinstance(x, C):
                     return x.x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             testfunc = mod.testfunc
             self.assertInBytecode(testfunc, "LOAD_FIELD", (mod.__name__, "C", "x"))
 
@@ -7765,7 +7753,7 @@ class StaticCompilationTests(StaticTestBase):
                         return other.x
                     return ''
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             self.assertInBytecode(
                 C.f,
@@ -7786,7 +7774,7 @@ class StaticCompilationTests(StaticTestBase):
                         return other.x
                     return ''
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             self.assertInBytecode(C.f, "LOAD_ATTR", "x")
 
@@ -7804,7 +7792,7 @@ class StaticCompilationTests(StaticTestBase):
                 else:
                     return x.x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             testfunc = mod.testfunc
             self.assertNotInBytecode(testfunc, "LOAD_FIELD", (mod.__name__, "C", "x"))
 
@@ -7873,7 +7861,7 @@ class StaticCompilationTests(StaticTestBase):
                     return False
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             x = C("abc")
             self.assertInBytecode(C.__eq__, "CHECK_ARGS", (0, (mod.__name__, "C")))
@@ -7886,7 +7874,7 @@ class StaticCompilationTests(StaticTestBase):
             def testfunc(x: str, y: str) -> bool:
                 return x == y
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.testfunc
             self.assertEqual(f("abc", "abc"), True)
             self.assertInBytecode(f, "CAST", ("builtins", "bool"))
@@ -7916,7 +7904,7 @@ class StaticCompilationTests(StaticTestBase):
                 def y(self) -> bool:
                     return self.f() or self.g()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             c = C()
             self.assertEqual(c.x(), False)
@@ -7932,7 +7920,7 @@ class StaticCompilationTests(StaticTestBase):
             def has_no_none(x) -> bool:
                 return None not in x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             has_none = mod.has_none
             self.assertFalse(has_none([]))
             self.assertTrue(has_none([None]))
@@ -7956,7 +7944,7 @@ class StaticCompilationTests(StaticTestBase):
                     return self.x()
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             self.assertNotInBytecode(C.y, "INVOKE_METHOD")
             self.assertEqual(C().y(), 42)
@@ -7976,7 +7964,7 @@ class StaticCompilationTests(StaticTestBase):
                 return f()
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             g = mod.g
             self.assertNotInBytecode(g, "INVOKE_FUNCTION")
@@ -7992,7 +7980,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 return C.f()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "INVOKE_FUNCTION", ((mod.__name__, "C", "f"), 0))
             self.assertEqual(f(), 42)
@@ -8007,7 +7995,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 return C().f()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(
                 f,
@@ -8109,7 +8097,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"cannot create instances of a generic Type\[xxclassloader.spamobj\[T\]\]",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_spamobj_error(self):
         codestr = """
@@ -8119,7 +8107,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = spamobj[int]()
                 return x.error(1)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             with self.assertRaisesRegex(TypeError, "no way!"):
                 f()
@@ -8132,7 +8120,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = spamobj[int]()
                 return x.error(0)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.testfunc
             self.assertEqual(f(), None)
 
@@ -8148,7 +8136,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("int64", "dynamic")
         ):
-            code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+            code = self.compile(codestr, modname="foo")
 
     def test_generic_type(self):
         codestr = """
@@ -8162,14 +8150,14 @@ class StaticCompilationTests(StaticTestBase):
                 return (x.getstate(), box(x.getint()))
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(
             f,
             "INVOKE_METHOD",
             ((("xxclassloader", "spamobj", (("builtins", "str"),), "setstate"), 1)),
         )
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), ("abc", 42))
 
@@ -8184,14 +8172,14 @@ class StaticCompilationTests(StaticTestBase):
                 return y
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(
             f,
             "INVOKE_METHOD",
             ((("xxclassloader", "spamobj", (("builtins", "str"),), "setstate"), 1)),
         )
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), None)
 
@@ -8208,7 +8196,7 @@ class StaticCompilationTests(StaticTestBase):
                     i += 1
                 return res
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "SEQUENCE_GET", SEQ_LIST_INEXACT)
             res = f([1, 2, 3])
@@ -8230,7 +8218,7 @@ class StaticCompilationTests(StaticTestBase):
                     i += 1
                 return res
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "SEQUENCE_GET", SEQ_LIST_INEXACT)
             res = f(mylist([1, 2, 3]))
@@ -8253,7 +8241,7 @@ class StaticCompilationTests(StaticTestBase):
                     i += 1
                 return res
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "SEQUENCE_GET", SEQ_LIST_INEXACT)
             res = f(mylist([1, 2, 3]))
@@ -8271,7 +8259,7 @@ class StaticCompilationTests(StaticTestBase):
                 i: int64 = 0
                 x[i] = 42
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "SEQUENCE_SET", SEQ_LIST_INEXACT)
             l = mylist([0])
@@ -8286,7 +8274,7 @@ class StaticCompilationTests(StaticTestBase):
                 i: int64 = 1
                 return x[-i]
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "SEQUENCE_GET", SEQ_LIST_INEXACT)
             res = f([1, 2, 3])
@@ -8300,7 +8288,7 @@ class StaticCompilationTests(StaticTestBase):
                 i: int8 = 1
                 return x[-i]
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             res = f([1, 2, 3])
             self.assertEqual(res, 3)
@@ -8360,7 +8348,7 @@ class StaticCompilationTests(StaticTestBase):
             def myfunc(x: C):
                 return x.x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.myfunc
             self.assertNotInBytecode(f, "LOAD_FIELD")
 
@@ -8377,7 +8365,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Literal\[42\] received for positional arg 1, expected str",
         ):
-            code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+            code = self.compile(codestr, modname="foo")
 
     def test_generic_optional_type_param(self):
         codestr = """
@@ -8388,7 +8376,7 @@ class StaticCompilationTests(StaticTestBase):
                 x.setstateoptional(None)
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_generic_optional_type_param_2(self):
         codestr = """
@@ -8399,7 +8387,7 @@ class StaticCompilationTests(StaticTestBase):
                 x.setstateoptional('abc')
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
 
     def test_generic_optional_type_param_error(self):
         codestr = """
@@ -8414,7 +8402,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Literal\[42\] received for positional arg 1, expected Optional\[str\]",
         ):
-            code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+            code = self.compile(codestr, modname="foo")
 
     def test_compile_nested_dict(self):
         codestr = """
@@ -8428,7 +8416,7 @@ class StaticCompilationTests(StaticTestBase):
                 y = CheckedDict[int, CheckedDict[B, int]]({42: x})
                 return y
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             self.assertEqual(type(test()), chkdict[int, chkdict[B, int]])
@@ -8444,7 +8432,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Literal\[43\] received for positional arg 2, expected Optional\[str\]",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_compile_dict_get(self):
         codestr = """
@@ -8457,7 +8445,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Literal\[42\] received for positional arg 2, expected Optional\[str\]",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
         codestr = """
             from __static__ import CheckedDict
@@ -8469,7 +8457,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = CheckedDict[B, int]({B():42, D():42})
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             self.assertEqual(type(test()), chkdict[B, int])
@@ -8512,7 +8500,7 @@ class StaticCompilationTests(StaticTestBase):
                 x.__setitem__(2, 'def')
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             x = test()
             self.assertInBytecode(
@@ -8539,7 +8527,7 @@ class StaticCompilationTests(StaticTestBase):
                 x[2] = 'def'
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             x = test()
             self.assertInBytecode(
@@ -8569,7 +8557,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch("Literal[42]", "str"),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_compile_generic_dict_setitem_bad_type(self):
         codestr = """
@@ -8583,7 +8571,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch("Literal[42]", "str"),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_compile_generic_dict_setitem_bad_type_2(self):
         codestr = """
@@ -8597,7 +8585,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch("Exact[str]", "int"),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_compile_checked_dict_shadowcode(self):
         codestr = """
@@ -8610,7 +8598,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = CheckedDict[B, int]({B():42, D():42})
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             for i in range(200):
@@ -8628,7 +8616,7 @@ class StaticCompilationTests(StaticTestBase):
                 })
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.testfunc
             x = f()
             x["z"] = None
@@ -8642,7 +8630,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: 42 = CheckedDict[str, str]({'abc':'abc'})
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(type(test()), chkdict[str, str])
 
@@ -8661,7 +8649,7 @@ class StaticCompilationTests(StaticTestBase):
                 "Exact[chkdict[int, int]]",
             ),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_compile_checked_dict_ann_differs_2(self):
         codestr = """
@@ -8675,7 +8663,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             type_mismatch("Exact[chkdict[str, str]]", "int"),
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_compile_checked_dict_opt_out_by_default(self):
         codestr = """
@@ -8686,7 +8674,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = {B():42, D():42}
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             self.assertEqual(type(test()), dict)
@@ -8701,7 +8689,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = {B():42, D():42}
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             self.assertEqual(type(test()), chkdict[B, int])
@@ -8716,7 +8704,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: pydict = {B():42, D():42}
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(type(test()), dict)
 
@@ -8731,7 +8719,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = CheckedDict[B, int]({D():42, B():42})
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             self.assertEqual(type(test()), chkdict[B, int])
@@ -8747,7 +8735,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: CheckedDict[B, int] = CheckedDict[B, int]({D():42})
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             self.assertEqual(type(test()), chkdict[B, int])
@@ -8760,7 +8748,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: CheckedDict[int, object] = {int(i): object() for i in range(1, 5)}
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(type(test()), chkdict[int, object])
 
@@ -8774,7 +8762,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: CheckedDict[B, int] = {B():42}
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
             self.assertEqual(type(test()), chkdict[B, int])
@@ -8830,7 +8818,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"Exact\[dict\] received for positional arg 'x', expected int",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_compile_checked_dict_explicit_dict_as_dict(self):
         codestr = """
@@ -8842,7 +8830,7 @@ class StaticCompilationTests(StaticTestBase):
                 x: dict = {B():42, D():42}
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(type(test()), dict)
 
@@ -8857,7 +8845,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypeError, "cannot create '__static__.chkdict\\[K, V\\]' instances"
         ):
-            with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+            with self.in_module(codestr) as mod:
                 test = mod.testfunc
                 test()
 
@@ -8869,7 +8857,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = dict[str, int](x=42)
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(type(test()), chkdict[str, int])
 
@@ -8884,7 +8872,7 @@ class StaticCompilationTests(StaticTestBase):
                 x = dict[str, int](x=42)
                 return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(type(test()), chkdict[str, int])
 
@@ -8988,7 +8976,7 @@ class StaticCompilationTests(StaticTestBase):
             r"Returned type `static.InferredAwaitable\[Optional\[int\]\]` is not "
             r"a subtype of the overridden return `static.InferredAwaitable\[int\]`",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_async_method_override_future_correct_type(self):
         codestr = """
@@ -9025,7 +9013,7 @@ class StaticCompilationTests(StaticTestBase):
                 def g(self):
                     return self.f()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             loop = asyncio.new_event_loop()
 
             class D(mod.C):
@@ -9134,7 +9122,7 @@ class StaticCompilationTests(StaticTestBase):
                     coro = self.f()
                     return coro.throw(IndexError("ERROR"))
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
 
             class D(mod.C):
                 async def f(self):
@@ -9154,7 +9142,7 @@ class StaticCompilationTests(StaticTestBase):
                     coro = self.f()
                     return coro.throw(StopIteration(100))
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             loop = asyncio.new_event_loop()
 
             class D(mod.C):
@@ -9178,7 +9166,7 @@ class StaticCompilationTests(StaticTestBase):
                     coro = self.f()
                     return coro.throw(StopIteration("not an int"))
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             loop = asyncio.new_event_loop()
 
             class D(mod.C):
@@ -9200,7 +9188,7 @@ class StaticCompilationTests(StaticTestBase):
                     coro = self.f()
                     return coro.close()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
 
             class D(mod.C):
                 async def f(self):
@@ -9222,7 +9210,7 @@ class StaticCompilationTests(StaticTestBase):
             def g():
                 return C.f()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator, freeze=True) as mod:
+        with self.in_module(codestr, freeze=True) as mod:
             g = mod.g
             for i in range(100):
                 self.assertEqual(g(), 42)
@@ -9627,7 +9615,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"int8 received for positional arg 'foo', expected dynamic",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+            self.compile(codestr, modname="foo.py")
 
     def test_primitive_args_funccall_int(self):
         codestr = """
@@ -9644,7 +9632,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"int8 received for positional arg 'foo', expected int",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+            self.compile(codestr, modname="foo.py")
 
     def test_primitive_args_typecall(self):
         codestr = """
@@ -9657,7 +9645,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Call argument cannot be a primitive"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+            self.compile(codestr, modname="foo.py")
 
     def test_primitive_args_typecall_kwarg(self):
         codestr = """
@@ -9670,7 +9658,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Call argument cannot be a primitive"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+            self.compile(codestr, modname="foo.py")
 
     def test_primitive_args_nonstrict(self):
         codestr = """
@@ -9941,7 +9929,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Must assign a value when declaring a Final"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_int_unbox_with_conversion(self):
         codestr = """
@@ -9950,7 +9938,7 @@ class StaticCompilationTests(StaticTestBase):
             def f(x) -> int64:
                 return int64(int(x))
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(42.0), 42)
 
@@ -9960,7 +9948,7 @@ class StaticCompilationTests(StaticTestBase):
             def foo(i: int64) -> cbool:
                 return i  == 0
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             foo = mod.foo
             self.assertEqual(foo(0), True)
             self.assertEqual(foo(1), False)
@@ -9971,7 +9959,7 @@ class StaticCompilationTests(StaticTestBase):
             def foo(i: int64) -> cbool:
                 return 0 == i
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             foo = mod.foo
             self.assertEqual(foo(0), True)
             self.assertEqual(foo(1), False)
@@ -9995,7 +9983,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 2
             """
             with self.subTest(a=a, b=b):
-                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                with self.in_module(codestr) as mod:
                     f = mod.f
                     if a == "True":
                         self.assertEqual(f(), 2)
@@ -10068,7 +10056,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             r"incorrect number of generic arguments for Final\[T\], expected 1, got 2",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_annotation_nesting(self):
         with self.assertRaisesRegex(
@@ -10080,7 +10068,6 @@ class StaticCompilationTests(StaticTestBase):
 
                 x: List[Final[str]] = []
                 """,
-                StaticCodeGenerator,
                 modname="foo",
             )
 
@@ -10092,7 +10079,6 @@ class StaticCompilationTests(StaticTestBase):
                 from typing import Final, List
                 x: List[int | Final] = []
                 """,
-                StaticCodeGenerator,
                 modname="foo",
             )
 
@@ -10107,7 +10093,7 @@ class StaticCompilationTests(StaticTestBase):
         def t() -> bool:
             return i("p")
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_final(self):
         codestr = """
@@ -10115,7 +10101,7 @@ class StaticCompilationTests(StaticTestBase):
 
         x: Final[int] = 0xdeadbeef
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_final_generic(self):
         codestr = """
@@ -10123,7 +10109,7 @@ class StaticCompilationTests(StaticTestBase):
 
         x: Final[int] = 0xdeadbeef
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_final_generic_types(self):
         codestr = """
@@ -10136,7 +10122,7 @@ class StaticCompilationTests(StaticTestBase):
             x: Final[int] = 0xdeadbeef
             return g(x)
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_final_uninitialized(self):
         codestr = """
@@ -10147,7 +10133,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Must assign a value when declaring a Final"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassign(self):
         codestr = """
@@ -10159,7 +10145,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassign_explicit_global(self):
         codestr = """
@@ -10175,7 +10161,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassign_explicit_global_shadowed(self):
         codestr = """
@@ -10192,7 +10178,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassign_nonlocal(self):
         codestr = """
@@ -10208,7 +10194,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassign_nonlocal_shadowed(self):
         codestr = """
@@ -10224,7 +10210,7 @@ class StaticCompilationTests(StaticTestBase):
                     # value
                     a = 0
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_final_reassigned_in_tuple(self):
         codestr = """
@@ -10237,7 +10223,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassigned_in_loop(self):
         codestr = """
@@ -10251,7 +10237,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassigned_in_except(self):
         codestr = """
@@ -10267,7 +10253,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassigned_in_loop_target_tuple(self):
         codestr = """
@@ -10281,7 +10267,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_reassigned_in_ctxmgr(self):
         codestr = """
@@ -10295,7 +10281,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_generic_reassign(self):
         codestr = """
@@ -10307,7 +10293,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final variable"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_callable_protocol_retains_inferred_type(self):
         codestr = """
@@ -10340,7 +10326,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             "Final annotation is only valid in initial declaration",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_returns(self):
         codestr = """
@@ -10353,7 +10339,7 @@ class StaticCompilationTests(StaticTestBase):
             TypedSyntaxError,
             "Final annotation is only valid in initial declaration",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_decorator(self):
         codestr = """
@@ -10364,7 +10350,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 pass
         """
-        self.compile(codestr, StaticCodeGenerator, modname="foo")
+        self.compile(codestr, modname="foo")
 
     def test_final_decorator_override(self):
         codestr = """
@@ -10382,7 +10368,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final attribute of foo.D:f"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_decorator_override_with_assignment(self):
         codestr = """
@@ -10399,7 +10385,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final attribute of foo.D:f"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_decorator_override_transitivity(self):
         codestr = """
@@ -10420,7 +10406,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Cannot assign to a Final attribute of foo.E:f"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_decorator_class(self):
         codestr = """
@@ -10434,7 +10420,7 @@ class StaticCompilationTests(StaticTestBase):
         def f():
             return C().f()
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        c = self.compile(codestr, modname="foo")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "INVOKE_FUNCTION")
 
@@ -10452,7 +10438,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Class `foo.D` cannot subclass a Final class: `foo.C`"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_final_decorator_class_nonstatic_subclass(self):
         codestr = """
@@ -10576,7 +10562,7 @@ class StaticCompilationTests(StaticTestBase):
             def f():
                 return C().f()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "INVOKE_FUNCTION")
             self.assertNotInBytecode(f, "INVOKE_METHOD")
@@ -10787,7 +10773,7 @@ class StaticCompilationTests(StaticTestBase):
             j += 2
             return box(j)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             a = mod.a
             self.assertInBytecode(a, "PRIMITIVE_BINARY_OP", 0)
             self.assertEqual(a(3), 5)
@@ -10942,6 +10928,7 @@ class StaticCompilationTests(StaticTestBase):
             class C:
                 c: int = 1
             return C()
+
         """
 
         with self.in_module(codestr) as mod:
@@ -11465,7 +11452,7 @@ class StaticRuntimeTests(StaticTestBase):
         def test() -> str:
             return x("hello", {my_int})
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         test = self.find_code(c, "test")
         self.assertInBytecode(test, "INVOKE_FUNCTION", (("foo.py", "x"), 2))
         with self.in_module(codestr) as mod:
@@ -11645,9 +11632,7 @@ class StaticRuntimeTests(StaticTestBase):
             p = ("hi", 0.1, 0.2)
             return x(1, 3, *p)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 0)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 1)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 2)
@@ -11671,9 +11656,7 @@ class StaticRuntimeTests(StaticTestBase):
                 p = ("hi", 0.1, 0.2)
                 return x(1, 3, *p)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertNotInBytecode(y, "LOAD_ITERABLE_ARG", 3)
         self.assertNotInBytecode(y, "LOAD_MAPPING_ARG", 3)
         with self.in_module(codestr) as mod:
@@ -11690,9 +11673,7 @@ class StaticRuntimeTests(StaticTestBase):
             q = ("hi", 0.1, 0.2)
             return x(*p, *q)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         # we should fallback to the normal Python compiler for this
         self.assertNotInBytecode(y, "LOAD_ITERABLE_ARG")
         with self.in_module(codestr) as mod:
@@ -11708,9 +11689,7 @@ class StaticRuntimeTests(StaticTestBase):
             p = (1, 3, 'abc', 0.1)
             return x(*p, 1.0)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         # we should fallback to the normal Python compiler for this
         self.assertNotInBytecode(y, "LOAD_ITERABLE_ARG")
         with self.in_module(codestr) as mod:
@@ -11726,9 +11705,7 @@ class StaticRuntimeTests(StaticTestBase):
             p = ("hi", 0.1)
             return x(1, 3, *p)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 0)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 1)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 2)
@@ -11747,9 +11724,7 @@ class StaticRuntimeTests(StaticTestBase):
             p = ["hi", 0.1, 0.2]
             return x(1, 3, *p)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 0)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 1)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 2)
@@ -11771,9 +11746,7 @@ class StaticRuntimeTests(StaticTestBase):
             g = gen()
             return x(1, 3, *g)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 0)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 1)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 2)
@@ -11791,9 +11764,7 @@ class StaticRuntimeTests(StaticTestBase):
             p = ["hi", 0.1]
             return x(1, 3, *p)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 0)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 1)
         self.assertInBytecode(y, "LOAD_ITERABLE_ARG", 2)
@@ -11812,9 +11783,7 @@ class StaticRuntimeTests(StaticTestBase):
             d = {"d": 1.0}
             return x(1, 3, "hi", f="yo", **d)
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "LOAD_MAPPING_ARG", 3)
         with self.in_module(codestr) as mod:
             y_callable = mod.y
@@ -11835,7 +11804,7 @@ class StaticRuntimeTests(StaticTestBase):
         with self.assertRaisesRegex(
             SyntaxError, "Function foo.x expects a value for argument c"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_load_mapping_arg_failure(self):
         """
@@ -11852,7 +11821,7 @@ class StaticRuntimeTests(StaticTestBase):
             TypedSyntaxError,
             "Given argument g does not exist in the definition of foo.x",
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_load_mapping_arg_custom_class(self):
         """
@@ -11889,9 +11858,7 @@ class StaticRuntimeTests(StaticTestBase):
             d = {"d": 1.0}
             return x(1, 3, "hi", f="yo")
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "LOAD_CONST", 1.1)
         with self.in_module(codestr) as mod:
             y_callable = mod.y
@@ -11952,9 +11919,7 @@ class StaticRuntimeTests(StaticTestBase):
         def y() -> bool:
             return x(1, 3, "hi", f=s(), d=q(), e=r())
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "STORE_FAST", "_pystatic_.0._tmp__d")
         self.assertInBytecode(y, "LOAD_FAST", "_pystatic_.0._tmp__d")
         with self.in_module(codestr) as mod:
@@ -11992,9 +11957,7 @@ class StaticRuntimeTests(StaticTestBase):
             kw = {"g": "overridden"}
             return x(1, 3, "hi", f=s(), **kw, d=q(), e=r())
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "STORE_FAST", "_pystatic_.0._tmp__d")
         self.assertInBytecode(y, "LOAD_FAST", "_pystatic_.0._tmp__d")
         with self.in_module(codestr) as mod:
@@ -12033,9 +11996,7 @@ class StaticRuntimeTests(StaticTestBase):
             kw = {"g": "overridden"}
             return x(1, 3, "hi", 1.1, f=s(), **kw, e=r())
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertNotInBytecode(y, "STORE_FAST", "_pystatic_.0._tmp__d")
         self.assertNotInBytecode(y, "LOAD_FAST", "_pystatic_.0._tmp__d")
         with self.in_module(codestr) as mod:
@@ -12138,11 +12099,9 @@ class StaticRuntimeTests(StaticTestBase):
             def y():
                 return len(Array[int64]([1, 3, 5]))
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertInBytecode(y, "FAST_LEN", FAST_LEN_ARRAY)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             y = mod.y
             self.assertEqual(y(), 3)
 
@@ -12185,7 +12144,7 @@ class StaticRuntimeTests(StaticTestBase):
                     i+=1
                 return box(j)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             a = Array[int64]([1, 2, 3, 4])
             self.assertEqual(f(a), 10)
@@ -12208,7 +12167,7 @@ class StaticRuntimeTests(StaticTestBase):
                     i+=1
                 return box(j)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             a = Array[int64]([1, 2, 3, 4])
             self.assertEqual(f(a), 10)
@@ -12223,11 +12182,9 @@ class StaticRuntimeTests(StaticTestBase):
             def y():
                 return len(Lol())
         """
-        y = self.find_code(
-            self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-        )
+        y = self.find_code(self.compile(codestr, modname="foo"), name="y")
         self.assertNotInBytecode(y, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             y = mod.y
             self.assertEqual(y(), 421)
 
@@ -12472,11 +12429,9 @@ class StaticRuntimeTests(StaticTestBase):
                     return box(x)
             """
             with self.subTest(type=type, sign=sign, value=value):
-                y = self.find_code(
-                    self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-                )
+                y = self.find_code(self.compile(codestr, modname="foo"), name="y")
                 self.assertInBytecode(y, "PRIMITIVE_LOAD_CONST")
-                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                with self.in_module(codestr) as mod:
                     y = mod.y
                     self.assertEqual(y(), expected)
 
@@ -12498,11 +12453,9 @@ class StaticRuntimeTests(StaticTestBase):
                     return box({type}({value}))
             """
             with self.subTest(type=type, value=value):
-                y = self.find_code(
-                    self.compile(codestr, StaticCodeGenerator, modname="foo"), name="y"
-                )
+                y = self.find_code(self.compile(codestr, modname="foo"), name="y")
                 self.assertInBytecode(y, "PRIMITIVE_LOAD_CONST")
-                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                with self.in_module(codestr) as mod:
                     y = mod.y
                     self.assertEqual(y(), expected)
 
@@ -12642,7 +12595,7 @@ class StaticRuntimeTests(StaticTestBase):
                     return box(x)
             """
             with self.subTest(src=src, dest=dest, val=val, expected=expected):
-                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                with self.in_module(codestr) as mod:
                     y = mod.y
                     actual = y()
                     self.assertEqual(
@@ -12673,7 +12626,7 @@ class StaticRuntimeTests(StaticTestBase):
             x: int64 = rand()
             return box(x)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             self.assertEqual(type(test()), int)
 
@@ -12712,7 +12665,7 @@ class StaticRuntimeTests(StaticTestBase):
             x = posix_clock_gettime_ns()
             return box(x)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             expected = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
             res = test()
@@ -12732,11 +12685,11 @@ class StaticRuntimeTests(StaticTestBase):
                 a = Array[int8](content)
                 return box(a[int8(111)])
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         m = self.find_code(c, "m")
         self.assertInBytecode(m, "PRIMITIVE_LOAD_CONST", (111, TYPED_INT8))
         self.assertInBytecode(m, "SEQUENCE_GET", SEQ_ARRAY_INT8)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             m = mod.m
             actual = m()
             self.assertEqual(actual, 111)
@@ -12750,13 +12703,13 @@ class StaticRuntimeTests(StaticTestBase):
                 a = Array[int8](content)
                 return box(a[111])
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         m = self.find_code(c, "m")
         self.assertInBytecode(m, "LOAD_CONST", 111)
         self.assertNotInBytecode(m, "PRIMITIVE_LOAD_CONST")
         self.assertInBytecode(m, "PRIMITIVE_UNBOX")
         self.assertInBytecode(m, "SEQUENCE_GET", SEQ_ARRAY_INT8)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             m = mod.m
             actual = m()
             self.assertEqual(actual, 111)
@@ -12769,7 +12722,7 @@ class StaticRuntimeTests(StaticTestBase):
                 a = Array[int8]([1, 3, -5])
                 return box(a[20])
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             m = mod.m
             with self.assertRaisesRegex(IndexError, "index out of range"):
                 m()
@@ -12782,7 +12735,7 @@ class StaticRuntimeTests(StaticTestBase):
                 a = Array[int8]([1, 3, -5])
                 return box(a[-1])
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             m = mod.m
             self.assertEqual(m(), -5)
 
@@ -12813,14 +12766,14 @@ class StaticRuntimeTests(StaticTestBase):
             """
             with self.subTest(type=type, sign=sign):
                 val = -value if sign else value
-                c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+                c = self.compile(codestr, modname="foo.py")
                 m = self.find_code(c, "m")
                 self.assertInBytecode(
                     m, "PRIMITIVE_LOAD_CONST", (val, prim_name_to_type[type])
                 )
                 self.assertInBytecode(m, "LOAD_CONST", 1)
                 self.assertInBytecode(m, "SEQUENCE_SET", seq_types[type])
-                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                with self.in_module(codestr) as mod:
                     m = mod.m
                     if sign:
                         expected = -value
@@ -12857,14 +12810,14 @@ class StaticRuntimeTests(StaticTestBase):
                     return a
             """
             with self.subTest(type=type):
-                c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+                c = self.compile(codestr, modname="foo.py")
                 m = self.find_code(c, "m")
                 self.assertInBytecode(
                     m, "PRIMITIVE_LOAD_CONST", (value, prim_name_to_type[type])
                 )
                 self.assertInBytecode(m, "LOAD_CONST", 1)
                 self.assertInBytecode(m, "SEQUENCE_SET", seq_types[type])
-                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                with self.in_module(codestr) as mod:
                     m = mod.m
                     expected = value
                     result = m()
@@ -12881,12 +12834,12 @@ class StaticRuntimeTests(StaticTestBase):
                 a[-2] = 7
                 return a
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         m = self.find_code(c, "m")
         self.assertInBytecode(m, "PRIMITIVE_LOAD_CONST", (7, TYPED_INT8))
         self.assertInBytecode(m, "LOAD_CONST", -2)
         self.assertInBytecode(m, "SEQUENCE_SET", SEQ_ARRAY_INT8)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             m = mod.m
             self.assertEqual(m(), array("h", [1, 7, -5]))
 
@@ -12899,11 +12852,11 @@ class StaticRuntimeTests(StaticTestBase):
                 a[-100] = 7
                 return a
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         m = self.find_code(c, "m")
         self.assertInBytecode(m, "PRIMITIVE_LOAD_CONST", (7, TYPED_INT8))
         self.assertInBytecode(m, "SEQUENCE_SET", SEQ_ARRAY_INT8)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             m = mod.m
             with self.assertRaisesRegex(IndexError, "index out of range"):
                 m()
@@ -12920,10 +12873,10 @@ class StaticRuntimeTests(StaticTestBase):
                 a[x()] = 7
                 return a
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         m = self.find_code(c, "m")
         self.assertInBytecode(m, "PRIMITIVE_LOAD_CONST", (7, TYPED_INT8))
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             m = mod.m
             with self.assertRaisesRegex(TypeError, "array indices must be integers"):
                 m()
@@ -12934,10 +12887,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = [1, 2, 3, 4, 5, 6, 7]
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_LIST)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 7)
 
@@ -12947,10 +12900,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = "my str!"
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_STR)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 7)
 
@@ -12960,10 +12913,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = "\U0001F923"  # ROFL emoji
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_STR)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 1)
 
@@ -12973,10 +12926,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = (a, b)
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_TUPLE)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f("a", "b"), 2)
 
@@ -12986,10 +12939,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = {a, b}
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_SET)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f("a", "b"), 2)
 
@@ -12999,10 +12952,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = {1: 'a', 2: 'b', 3: 'c', 4: 'd'}
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_DICT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 4)
 
@@ -13014,10 +12967,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_LIST)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13030,10 +12983,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_STR)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13046,10 +12999,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_LIST)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13062,10 +13015,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_STR)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13078,10 +13031,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_TUPLE)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13094,10 +13047,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_SET)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13110,10 +13063,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_TUPLE)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13126,10 +13079,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_SET)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13142,10 +13095,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_DICT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13166,10 +13119,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_LIST | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for boolean, length in itertools.product((True, False), [0, 7]):
                 self.assertEqual(
@@ -13192,10 +13145,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_STR | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for boolean, length in itertools.product((True, False), [0, 7]):
                 self.assertEqual(
@@ -13218,10 +13171,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_TUPLE | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for boolean, length in itertools.product((True, False), [0, 7]):
                 self.assertEqual(
@@ -13244,10 +13197,10 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_SET | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for boolean, length in itertools.product((True, False), [0, 7]):
                 self.assertEqual(
@@ -13267,12 +13220,12 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         # Since the list is given to z(), do not optimize the check
         # with FAST_LEN
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13288,12 +13241,12 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         # Since the list is given to z(), do not optimize the check
         # with FAST_LEN
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13309,12 +13262,12 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         # Since the tuple is given to z(), do not optimize the check
         # with FAST_LEN
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13330,12 +13283,12 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         # Since the set is given to z(), do not optimize the check
         # with FAST_LEN
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13351,12 +13304,12 @@ class StaticRuntimeTests(StaticTestBase):
                     return True
                 return False
             """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         # Since the dict is given to z(), do not optimize the check
         # with FAST_LEN
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             for length in [0, 7]:
                 self.assertEqual(f(length), length > 0)
@@ -13371,10 +13324,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = mylist([1, 2])
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 1111)
 
@@ -13388,10 +13341,10 @@ class StaticRuntimeTests(StaticTestBase):
             s = mystr("a")
             return len(s)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 1111)
 
@@ -13405,10 +13358,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = mytuple([1, 2])
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 1111)
 
@@ -13422,10 +13375,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = myset([1, 2])
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 1111)
 
@@ -13441,10 +13394,10 @@ class StaticRuntimeTests(StaticTestBase):
             l = mydict(a=1, b=2)
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertNotInBytecode(f, "FAST_LEN")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(), 1111)
 
@@ -13460,10 +13413,10 @@ class StaticRuntimeTests(StaticTestBase):
                 l = mylist([1, 2])
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_LIST | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(True), 1111)
 
@@ -13479,10 +13432,10 @@ class StaticRuntimeTests(StaticTestBase):
                 s = mystr("pqr")
             return len(s)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_STR | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(True), 1111)
             self.assertEqual(f(False), 3)
@@ -13499,10 +13452,10 @@ class StaticRuntimeTests(StaticTestBase):
                 l = mytuple([a, b])
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_TUPLE | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(True, 1, 2), 1111)
 
@@ -13520,10 +13473,10 @@ class StaticRuntimeTests(StaticTestBase):
                 l = mydict(a=1, b=2)
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_DICT | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(True, 1, 2), 1111)
 
@@ -13539,10 +13492,10 @@ class StaticRuntimeTests(StaticTestBase):
                 l = myset([a, b])
             return len(l)
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         f = self.find_code(c, "f")
         self.assertInBytecode(f, "FAST_LEN", FAST_LEN_SET | FAST_LEN_INEXACT)
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(True, 1, 2), 1111)
 
@@ -13770,7 +13723,7 @@ class StaticRuntimeTests(StaticTestBase):
 
                 return use(x)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             outer = mod.outer
             self.assertEqual(outer(1), 1)
 
@@ -13793,7 +13746,7 @@ class StaticRuntimeTests(StaticTestBase):
                 use(x)
                 return use(y)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             outer = mod.outer
             self.assertEqual(outer(1, "yo"), "yo")
             # Force JIT-compiled code to go through argument checks after
@@ -13818,7 +13771,7 @@ class StaticRuntimeTests(StaticTestBase):
                 use(x)
                 return use(y)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             outer = mod.outer
             self.assertEqual(outer(1, "yo"), "yo")
             # Force JIT-compiled code to go through argument checks after
@@ -13842,7 +13795,7 @@ class StaticRuntimeTests(StaticTestBase):
 
                 return use(x)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             outer = mod.outer
             self.assertEqual(outer(1), 1)
 
@@ -13863,7 +13816,7 @@ class StaticRuntimeTests(StaticTestBase):
                 return use(y)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             outer = mod.outer
             self.assertEqual(outer(1, y="hi"), "hi")
 
@@ -13884,7 +13837,7 @@ class StaticRuntimeTests(StaticTestBase):
                 return use(y)
 
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             outer = mod.outer
             self.assertEqual(outer(1, "hi"), "hi")
 
@@ -13907,7 +13860,7 @@ class StaticRuntimeTests(StaticTestBase):
 
                 return use(x), use(y), use(z)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             outer = mod.outer
             self.assertEqual(outer(3, 2, z="hi"), (3, 2, "hi"))
 
@@ -13920,7 +13873,7 @@ class StaticRuntimeTests(StaticTestBase):
                 a, b = get_str().split(None, 1)
                 return b
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             test = mod.test
             self.assertEqual(test(), "here")
 
@@ -13935,7 +13888,7 @@ class StaticRuntimeTests(StaticTestBase):
                     acc.append(i + 1)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(4), [i + 1 for i in range(4)])
@@ -13951,7 +13904,7 @@ class StaticRuntimeTests(StaticTestBase):
                     acc.append(i + 1)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(4), [i + 1 for i in range(4)])
@@ -13980,7 +13933,7 @@ class StaticRuntimeTests(StaticTestBase):
                     acc.append(999)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(4), [i + 1 for i in range(4)] + [999])
@@ -13998,7 +13951,7 @@ class StaticRuntimeTests(StaticTestBase):
                     acc.append(i + 1)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(5), [1, 2, 3])
@@ -14018,7 +13971,7 @@ class StaticRuntimeTests(StaticTestBase):
                     acc.append(999)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(4), [1, 2])
@@ -14036,7 +13989,7 @@ class StaticRuntimeTests(StaticTestBase):
                     acc.append(i + 1)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(6), [1, 2, 3])
@@ -14053,7 +14006,7 @@ class StaticRuntimeTests(StaticTestBase):
                         acc.append(i + j)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(3), [0, 1, 2, 1, 2, 3, 2, 3, 4])
@@ -14072,7 +14025,7 @@ class StaticRuntimeTests(StaticTestBase):
                         acc.append(i + j)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(3), [0, 1, 1, 2, 2, 3])
@@ -14091,7 +14044,7 @@ class StaticRuntimeTests(StaticTestBase):
                         acc.append(i + j)
                 return acc
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
             self.assertEqual(f(3), [0])
@@ -14145,7 +14098,7 @@ class StaticRuntimeTests(StaticTestBase):
             def f(a: int, b: int) -> int:
                 return min(a, b)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "COMPARE_OP", "<=")
             self.assertInBytecode(f, "POP_JUMP_IF_FALSE")
@@ -14157,7 +14110,7 @@ class StaticRuntimeTests(StaticTestBase):
             def f(a: int, b: int) -> int:
                 return min(a, b)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "COMPARE_OP", "<=")
             self.assertInBytecode(f, "POP_JUMP_IF_FALSE")
@@ -14174,7 +14127,7 @@ class StaticRuntimeTests(StaticTestBase):
             def f(a: int, b: int) -> int:
                 return max(a, b)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "COMPARE_OP", ">=")
             self.assertInBytecode(f, "POP_JUMP_IF_FALSE")
@@ -14186,7 +14139,7 @@ class StaticRuntimeTests(StaticTestBase):
             def f(a: int, b: int) -> int:
                 return max(a, b)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "COMPARE_OP", ">=")
             self.assertInBytecode(f, "POP_JUMP_IF_FALSE")
@@ -14210,7 +14163,7 @@ class StaticRuntimeTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Call argument cannot be a primitive"
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo.py")
+            self.compile(codestr, modname="foo.py")
 
     def test_extremum_non_specialization_kwarg(self):
         codestr = """
@@ -14219,7 +14172,7 @@ class StaticRuntimeTests(StaticTestBase):
                 b = "5"
                 min(a, b, key=int)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "COMPARE_OP")
             self.assertNotInBytecode(f, "POP_JUMP_IF_FALSE")
@@ -14230,7 +14183,7 @@ class StaticRuntimeTests(StaticTestBase):
                 a = [3, 4]
                 min(*a)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "COMPARE_OP")
             self.assertNotInBytecode(f, "POP_JUMP_IF_FALSE")
@@ -14243,7 +14196,7 @@ class StaticRuntimeTests(StaticTestBase):
                 }
                 min(3, 4, **k)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "COMPARE_OP")
             self.assertNotInBytecode(f, "POP_JUMP_IF_FALSE")
@@ -14258,7 +14211,7 @@ class StaticRuntimeTests(StaticTestBase):
             finally:
                 x.append("hi")
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f1 = mod.f1
             l = []
             f1(l)
@@ -14277,7 +14230,7 @@ class StaticRuntimeTests(StaticTestBase):
                     return 2
             """
             with self.subTest(b=b):
-                with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+                with self.in_module(codestr) as mod:
                     f = mod.f
                     self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST")
                     self.assertInBytecode(
@@ -14322,7 +14275,7 @@ class StaticRuntimeTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, type_mismatch("Exact[bool]", "cbool")
         ):
-            self.compile(codestr, StaticCodeGenerator, modname="foo")
+            self.compile(codestr, modname="foo")
 
     def test_primitive_compare_returns_cbool(self):
         codestr = """
@@ -14357,7 +14310,7 @@ class StaticRuntimeTests(StaticTestBase):
             del x[1]
             return x
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             ret = f()
             self.assertNotIn(1, ret)
@@ -14372,7 +14325,7 @@ class StaticRuntimeTests(StaticTestBase):
         def plus_1337(i: int) -> int:
             return i + X
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             plus_1337 = mod.plus_1337
             self.assertInBytecode(plus_1337, "LOAD_CONST", 1337)
             self.assertNotInBytecode(plus_1337, "LOAD_GLOBAL")
@@ -14387,7 +14340,7 @@ class StaticRuntimeTests(StaticTestBase):
         def f() -> bool:
             return not X
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "LOAD_CONST", True)
             self.assertNotInBytecode(f, "LOAD_GLOBAL")
@@ -14402,7 +14355,7 @@ class StaticRuntimeTests(StaticTestBase):
         def f() -> str:
             return X[1]
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "LOAD_CONST", "omg")
             self.assertNotInBytecode(f, "LOAD_GLOBAL")
@@ -14417,7 +14370,7 @@ class StaticRuntimeTests(StaticTestBase):
         def f() -> str:
             return X[1]
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "LOAD_CONST", "omg")
             self.assertInBytecode(f, "LOAD_GLOBAL", "X")
@@ -14435,7 +14388,7 @@ class StaticRuntimeTests(StaticTestBase):
         def f() -> str:
             return X[1]
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "LOAD_CONST", "omg")
             self.assertInBytecode(f, "LOAD_GLOBAL", "X")
@@ -14451,7 +14404,7 @@ class StaticRuntimeTests(StaticTestBase):
             X = "lol"
             return X[1]
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "LOAD_CONST", "lol")
             self.assertNotInBytecode(f, "LOAD_GLOBAL", "omg")
@@ -14464,9 +14417,9 @@ class StaticRuntimeTests(StaticTestBase):
         X: Final[int] = 21
         y = X + 3
         """
-        c = self.compile(codestr, generator=StaticCodeGenerator, modname="foo.py")
+        c = self.compile(codestr, modname="foo.py")
         self.assertNotInBytecode(c, "LOAD_NAME", "X")
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             self.assertEqual(mod.y, 24)
 
     def test_final_constant_in_module_scope(self):
@@ -14475,7 +14428,7 @@ class StaticRuntimeTests(StaticTestBase):
 
         X: Final[int] = 21
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             self.assertEqual(mod.__final_constants__, ("X",))
 
     def test_final_nonconstant_in_module_scope(self):
@@ -14487,7 +14440,7 @@ class StaticRuntimeTests(StaticTestBase):
 
         X: Final[str] = p()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             self.assertEqual(mod.__final_constants__, ())
 
     def test_double_load_const(self):
@@ -14497,7 +14450,7 @@ class StaticRuntimeTests(StaticTestBase):
         def t():
             pi: double = 3.14159
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             t = mod.t
             self.assertInBytecode(t, "PRIMITIVE_LOAD_CONST", (3.14159, TYPED_DOUBLE))
             t()
@@ -14511,7 +14464,7 @@ class StaticRuntimeTests(StaticTestBase):
             pi: double = 3.14159
             return box(pi)
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             t = mod.t
             self.assertInBytecode(t, "PRIMITIVE_LOAD_CONST", (3.14159, TYPED_DOUBLE))
             self.assertNotInBytecode(t, "CAST")
@@ -14527,7 +14480,7 @@ class StaticRuntimeTests(StaticTestBase):
             else:
                 return False
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             t = mod.t
             self.assertInBytecode(t, "POP_JUMP_IF_TRUE")
             self.assertTrue(t())
@@ -14544,7 +14497,7 @@ class StaticRuntimeTests(StaticTestBase):
             b += a
             return b
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             t = mod.t
             self.assertInBytecode(t, "INPLACE_ADD")
             self.assertEqual(t(), 3)
@@ -14567,7 +14520,7 @@ class StaticRuntimeTests(StaticTestBase):
             def cm():
                 pass
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             C = mod.C
             self.assertEqual(cinder._get_qualname(f.__code__), "f")
@@ -14583,7 +14536,7 @@ class StaticRuntimeTests(StaticTestBase):
         def f(s: Optional[str]) -> bytes:
             return s.encode("utf-8") if s else b""
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f("A"), b"A")
             self.assertEqual(f(None), b"")
@@ -14637,7 +14590,7 @@ class StaticRuntimeTests(StaticTestBase):
         def fn2() -> None:
             a() + 2
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             fn = mod.fn
             self.assertInBytecode(fn, "CALL_FUNCTION")
             self.assertNotInBytecode(fn, "INVOKE_FUNCTION")
@@ -14667,7 +14620,7 @@ class StaticRuntimeTests(StaticTestBase):
 
         c = C()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
 
             fn2 = C.fn2
@@ -14694,7 +14647,7 @@ class StaticRuntimeTests(StaticTestBase):
 
         c = C()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             fn = C.fn
             self.assertInBytecode(fn, "CALL_FUNCTION")
@@ -14723,7 +14676,7 @@ class StaticRuntimeTests(StaticTestBase):
 
         c = C()
         """
-        with self.in_module(codestr, code_gen=StaticCodeGenerator) as mod:
+        with self.in_module(codestr) as mod:
             C = mod.C
             fn = C.fn
             lambda_code = self.find_code(fn.__code__)
@@ -14773,7 +14726,7 @@ class StaticRuntimeTests(StaticTestBase):
                 y: double = 1.2
                 y + 1.0
         """
-        f = self.run_code(codestr, StaticCodeGenerator)["f"]
+        f = self.run_code(codestr)["f"]
         f()
 
     def test_primitive_stack_spill(self):

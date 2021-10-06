@@ -1,7 +1,6 @@
 import asyncio
 import re
 from compiler.pycodegen import PythonCodeGenerator
-from compiler.static import StaticCodeGenerator
 from unittest.mock import Mock, patch
 
 from .common import StaticTestBase
@@ -595,7 +594,7 @@ class StaticPatchTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
@@ -617,7 +616,7 @@ class StaticPatchTests(StaticTestBase):
                 return x
         """
 
-        code = self.compile(codestr, StaticCodeGenerator, modname="foo")
+        code = self.compile(codestr, modname="foo")
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 

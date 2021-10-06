@@ -1,4 +1,3 @@
-from compiler.static import StaticCodeGenerator
 from compiler.static.types import TypedSyntaxError
 
 from _static import PRIM_OP_EQ_INT, TYPED_INT64
@@ -18,7 +17,7 @@ class StaticEnumTests(StaticTestBase):
             TypedSyntaxError,
             "Static Enum types cannot support multiple bases:",
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_subclassing_unsupported(self):
         codestr = """
@@ -34,7 +33,7 @@ class StaticEnumTests(StaticTestBase):
             TypedSyntaxError,
             "Static Enum types do not allow subclassing",
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_compare_with_int_disallowed(self):
         codestr = """
@@ -50,7 +49,7 @@ class StaticEnumTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, r"can't compare foo\.Bit to Literal\[1\]"
         ):
-            self.compile(codestr, StaticCodeGenerator, "foo")
+            self.compile(codestr, modname="foo")
 
     def test_compare_different_enums_disallowed(self):
         codestr = """
@@ -72,7 +71,7 @@ class StaticEnumTests(StaticTestBase):
             TypedSyntaxError,
             r"can't compare <foo\.Bit\.ZERO: 0> to <foo\.Color\.RED: 0>",
         ):
-            self.compile(codestr, StaticCodeGenerator, "foo")
+            self.compile(codestr, modname="foo")
 
     def test_reverse_compare_with_int_disallowed(self):
         codestr = """
@@ -88,7 +87,7 @@ class StaticEnumTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, r"can't compare Literal\[1\] to foo\.Bit"
         ):
-            self.compile(codestr, StaticCodeGenerator, "foo")
+            self.compile(codestr, modname="foo")
 
     def test_delattr_disallowed(self):
         codestr = """
@@ -107,7 +106,7 @@ class StaticEnumTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Enum values cannot be modified or deleted"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_setattr_disallowed(self):
         codestr = """
@@ -124,7 +123,7 @@ class StaticEnumTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError, "Enum values cannot be modified or deleted"
         ):
-            self.compile(codestr, StaticCodeGenerator)
+            self.compile(codestr)
 
     def test_enum_function_arg_and_return_type(self):
         codestr = """
