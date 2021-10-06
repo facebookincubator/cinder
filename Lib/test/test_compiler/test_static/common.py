@@ -153,7 +153,7 @@ class StaticTestBase(CompilerTest):
         sys.modules[name] = m
         exec(compiled, d)
         d["__name__"] = name
-        return d
+        return d, m
 
     @contextmanager
     def with_freeze_type_setting(self, freeze: bool):
@@ -178,10 +178,10 @@ class StaticTestBase(CompilerTest):
             name = self._temp_mod_name()
         old_setting = set_freeze_enabled(freeze)
         try:
-            d = self._in_module(
+            d, m = self._in_module(
                 code, name, code_gen, optimize, enable_patching=enable_patching
             )
-            yield d
+            yield m
         finally:
             set_freeze_enabled(old_setting)
             self._finalize_module(name, d)

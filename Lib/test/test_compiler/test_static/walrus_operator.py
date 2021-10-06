@@ -12,7 +12,7 @@ class WalrusOperatorTests(StaticTestBase):
             return False
         """
         with self.in_module(codestr) as mod:
-            fn = mod["fn"]
+            fn = mod.fn
             self.assertEqual(fn(2), True)
             self.assertEqual(fn(1), False)
 
@@ -25,7 +25,7 @@ class WalrusOperatorTests(StaticTestBase):
             return False
         """
         with self.in_module(codestr) as mod:
-            fn = mod["fn"]
+            fn = mod.fn
             self.assertEqual(fn(2), True)
             self.assertEqual(fn(1), False)
 

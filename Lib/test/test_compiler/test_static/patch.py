@@ -17,10 +17,10 @@ class StaticPatchTests(StaticTestBase):
                 return f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
+            g = mod.g
             for i in range(100):
                 g()
-            with patch(f"{mod['__name__']}.f", autospec=True, return_value=100) as p:
+            with patch(f"{mod.__name__}.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
     def test_patch_async_function(self):
@@ -33,7 +33,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             for i in range(100):
                 try:
@@ -41,7 +41,7 @@ class StaticPatchTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 42)
 
-            with patch(f"{mod['__name__']}.C.f", autospec=True, return_value=100) as p:
+            with patch(f"{mod.__name__}.C.f", autospec=True, return_value=100) as p:
                 try:
                     c.g().send(None)
                 except StopIteration as e:
@@ -57,7 +57,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             for i in range(100):
                 try:
@@ -65,9 +65,7 @@ class StaticPatchTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 42)
 
-            with patch(
-                f"{mod['__name__']}.C.f", autospec=True, return_value="not an int"
-            ):
+            with patch(f"{mod.__name__}.C.f", autospec=True, return_value="not an int"):
                 with self.assertRaises(TypeError):
                     c.g().send(None)
 
@@ -85,7 +83,7 @@ class StaticPatchTests(StaticTestBase):
             raise IndexError("failure!")
 
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             for i in range(100):
                 try:
@@ -93,7 +91,7 @@ class StaticPatchTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 42)
 
-            with patch(f"{mod['__name__']}.C.f", raise_error):
+            with patch(f"{mod.__name__}.C.f", raise_error):
                 with self.assertRaises(IndexError):
                     c.g().send(None)
 
@@ -115,7 +113,7 @@ class StaticPatchTests(StaticTestBase):
             return fut
 
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             for i in range(100):
                 try:
@@ -123,7 +121,7 @@ class StaticPatchTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 42)
 
-            with patch(f"{mod['__name__']}.C.f", future_return):
+            with patch(f"{mod.__name__}.C.f", future_return):
                 asyncio.run(c.g())
 
         loop.close()
@@ -144,9 +142,9 @@ class StaticPatchTests(StaticTestBase):
             return B().f()
         """
         with self.in_module(codestr) as mod:
-            A = mod["A"]
-            a_f_invoker = mod["a_f_invoker"]
-            b_f_invoker = mod["b_f_invoker"]
+            A = mod.A
+            a_f_invoker = mod.a_f_invoker
+            b_f_invoker = mod.b_f_invoker
             setattr(A, "f", lambda _: 7)
 
             self.assertEqual(a_f_invoker(), 7)
@@ -168,8 +166,8 @@ class StaticPatchTests(StaticTestBase):
                 return f(d)
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
-            f = mod["f"]
+            g = mod.g
+            f = mod.f
             import weakref
 
             wr = weakref.ref(f, lambda *args: self.assertEqual(i, -1))
@@ -190,15 +188,15 @@ class StaticPatchTests(StaticTestBase):
                 return f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
+            g = mod.g
             for i in range(100):
                 g()
             with patch(
-                f"{mod['__name__']}.f",
+                f"{mod.__name__}.f",
                 autospec=True,
                 return_value=100,
             ) as p:
-                mod[42] = 1
+                mod.__dict__[42] = 1
                 self.assertEqual(g(), 100)
 
     def test_patch_function_deleted_func(self):
@@ -210,15 +208,15 @@ class StaticPatchTests(StaticTestBase):
                 return f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
+            g = mod.g
             for i in range(100):
                 g()
-            del mod["f"]
+            del mod.f
             with self.assertRaisesRegex(
                 TypeError,
                 re.escape(
                     "bad name provided for class loader, "
-                    + f"'f' doesn't exist in ('{mod['__name__']}', 'f')"
+                    + f"'f' doesn't exist in ('{mod.__name__}', 'f')"
                 ),
             ):
                 g()
@@ -234,10 +232,10 @@ class StaticPatchTests(StaticTestBase):
                 return C.f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
+            g = mod.g
             for i in range(100):
                 self.assertEqual(g(), 42)
-            with patch(f"{mod['__name__']}.C.f", autospec=True, return_value=100) as p:
+            with patch(f"{mod.__name__}.C.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
     def test_patch_static_function_non_autospec(self):
@@ -251,10 +249,10 @@ class StaticPatchTests(StaticTestBase):
                 return C.f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
+            g = mod.g
             for i in range(100):
                 g()
-            with patch(f"{mod['__name__']}.C.f", return_value=100) as p:
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
                 self.assertEqual(g(), 100)
 
     def test_patch_primitive_ret_type(self):
@@ -281,10 +279,10 @@ class StaticPatchTests(StaticTestBase):
                         return box(C().f())
                 """
                 with self.in_module(codestr) as mod:
-                    g = mod["g"]
+                    g = mod.g
                     for i in range(100):
                         self.assertEqual(g(), value)
-                    with patch(f"{mod['__name__']}.C.f", return_value=patched) as p:
+                    with patch(f"{mod.__name__}.C.f", return_value=patched) as p:
                         self.assertEqual(g(), patched)
 
     def test_patch_primitive_ret_type_overflow(self):
@@ -298,10 +296,10 @@ class StaticPatchTests(StaticTestBase):
                 return box(C().f())
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
+            g = mod.g
             for i in range(100):
                 self.assertEqual(g(), 1)
-            with patch(f"{mod['__name__']}.C.f", return_value=256) as p:
+            with patch(f"{mod.__name__}.C.f", return_value=256) as p:
                 with self.assertRaisesRegex(
                     OverflowError,
                     "unexpected return type from C.f, expected "
@@ -350,8 +348,8 @@ class StaticPatchTests(StaticTestBase):
                 return C().f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
-            C = mod["C"]
+            g = mod.g
+            C = mod.C
             orig = C.f
             C.f = lambda *args: args
             for i in range(100):
@@ -371,8 +369,8 @@ class StaticPatchTests(StaticTestBase):
                 return C().f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
-            C = mod["C"]
+            g = mod.g
+            C = mod.C
             C.f = lambda *args: args
             with self.assertRaisesRegex(
                 TypeError,
@@ -390,8 +388,8 @@ class StaticPatchTests(StaticTestBase):
                 return C().f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
-            C = mod["C"]
+            g = mod.g
+            C = mod.C
             C.f = lambda *args: None
             self.assertEqual(g(), None)
 
@@ -405,8 +403,8 @@ class StaticPatchTests(StaticTestBase):
                 return C().f()
         """
         with self.in_module(codestr) as mod:
-            g = mod["g"]
-            C = mod["C"]
+            g = mod.g
+            C = mod.C
             C.f = lambda *args: "abc"
             with self.assertRaisesRegex(
                 TypeError, "unexpected return type from C.f, expected int, got str"
@@ -433,7 +431,7 @@ class StaticPatchTests(StaticTestBase):
         )
         with self.in_module(codestr) as mod:
             # Now cause vtables to be inited
-            self.assertEqual(mod["f"]([1, 2]), [2, 1])
+            self.assertEqual(mod.f([1, 2]), [2, 1])
 
             # And now patch
             MyList.reverse = myreverse
@@ -464,7 +462,7 @@ class StaticPatchTests(StaticTestBase):
         )
         with self.in_module(codestr) as mod:
             # Now cause vtables to be inited
-            self.assertEqual(mod["f"]([1, 2]), [2, 1])
+            self.assertEqual(mod.f([1, 2]), [2, 1])
 
         # ... and this should not blow up when we remove the override.
         del MyList.reverse
@@ -495,9 +493,9 @@ class StaticPatchTests(StaticTestBase):
             f, "INVOKE_METHOD", ((("<module>", "StaticType", "foo"), 0))
         )
         with self.in_module(codestr) as mod:
-            SubType = mod["SubType"]
+            SubType = mod.SubType
             # Now invoke:
-            self.assertEqual(mod["f"](SubType()), 2)
+            self.assertEqual(mod.f(SubType()), 2)
 
             # And replace the function again, forcing us to find the right slot type:
             def badfoo(self):
@@ -506,7 +504,7 @@ class StaticPatchTests(StaticTestBase):
             SubType.foo = badfoo
 
             with self.assertRaisesRegex(TypeError, "expected int, got str"):
-                mod["f"](SubType())
+                mod.f(SubType())
 
     def test_vtable_shadow_static_subclass_nonstatic_patch(self):
         """Shadowing methods of a static type before its inited should not bypass typechecks."""
@@ -542,14 +540,14 @@ class StaticPatchTests(StaticTestBase):
                 f, "INVOKE_METHOD", ((("<module>", "StaticType", "foo"), 0))
             )
             with self.in_module(codestr) as mod:
-                SubType = mod["SubType"]
-                badfoo = mod["badfoo"]
+                SubType = mod.SubType
+                badfoo = mod.badfoo
 
                 # And replace the function again, forcing us to find the right slot type:
                 SubType.foo = badfoo
 
                 with self.assertRaisesRegex(TypeError, "expected int, got str"):
-                    mod["f"](SubType())
+                    mod.f(SubType())
 
     def test_vtable_shadow_grandparent(self):
         codestr = """
@@ -572,9 +570,9 @@ class StaticPatchTests(StaticTestBase):
         f = self.find_code(self.compile(codestr), "f")
         self.assertInBytecode(f, "INVOKE_METHOD", ((("<module>", "Base", "foo"), 0)))
         with self.in_module(codestr) as mod:
-            Grand = mod["Grand"]
-            grandfoo = mod["grandfoo"]
-            f = mod["f"]
+            Grand = mod.Grand
+            grandfoo = mod.grandfoo
+            f = mod.f
 
             # init vtables
             self.assertEqual(f(Grand()), 1)
@@ -602,7 +600,7 @@ class StaticPatchTests(StaticTestBase):
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
         with self.in_module(codestr) as mod:
-            x, C = mod["x"], mod["C"]
+            x, C = mod.x, mod.C
             self.assertEqual(x(C()), 2)
             C.f = lambda self: 42
             self.assertEqual(x(C()), 84)
@@ -624,7 +622,7 @@ class StaticPatchTests(StaticTestBase):
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
         with self.in_module(codestr) as mod:
-            x, C = mod["x"], mod["C"]
+            x, C = mod.x, mod.C
             C.f = lambda self: 42
             self.assertEqual(x(C()), 84)
 
@@ -638,8 +636,8 @@ class StaticPatchTests(StaticTestBase):
             return x.f()
         """
         with self.in_module(codestr) as mod:
-            B = mod["B"]
-            f = mod["f"]
+            B = mod.B
+            f = mod.f
             B.f = lambda self: 2
 
             class D(B):
@@ -662,9 +660,9 @@ class StaticPatchTests(StaticTestBase):
             return x.f()
         """
         with self.in_module(codestr) as mod:
-            B = mod["B"]
-            D = mod["D"]
-            f = mod["f"]
+            B = mod.B
+            D = mod.D
+            f = mod.f
             b = B()
             d = D()
             self.assertEqual(f(b), b)
@@ -691,9 +689,9 @@ class StaticPatchTests(StaticTestBase):
             return x.f()
         """
         with self.in_module(codestr) as mod:
-            B = mod["B"]
-            D = mod["D"]
-            f = mod["f"]
+            B = mod.B
+            D = mod.D
+            f = mod.f
             b = B()
             d = D()
             self.assertEqual(f(b), b)
@@ -714,8 +712,8 @@ class StaticPatchTests(StaticTestBase):
             return x.f()
         """
         with self.in_module(codestr) as mod:
-            B = mod["B"]
-            f = mod["f"]
+            B = mod.B
+            f = mod.f
             b = B()
             self.assertEqual(f(b), b)
             del B.f
@@ -734,8 +732,8 @@ class StaticPatchTests(StaticTestBase):
             return x.f()
         """
         with self.in_module(codestr) as mod:
-            B = mod["B"]
-            f = mod["f"]
+            B = mod.B
+            f = mod.f
             b = B()
             self.assertEqual(f(b), b)
             del B.f
@@ -761,9 +759,9 @@ class StaticPatchTests(StaticTestBase):
             return x.f()
         """
         with self.in_module(codestr) as mod:
-            B = mod["B"]
-            D = mod["D"]
-            f = mod["f"]
+            B = mod.B
+            D = mod.D
+            f = mod.f
 
             b = B()
             d = D()
@@ -790,9 +788,9 @@ class StaticPatchTests(StaticTestBase):
             return x.f()
         """
         with self.in_module(codestr) as mod:
-            B = mod["B"]
-            D = mod["D"]
-            f = mod["f"]
+            B = mod.B
+            D = mod.D
+            f = mod.f
 
             b = B()
             d = D()
@@ -822,8 +820,8 @@ class StaticPatchTests(StaticTestBase):
                     return self.f().x
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
-            B = mod["B"]
+            C = mod.C
+            B = mod.B
             c = C()
             C.f = lambda self: B()
 
@@ -844,7 +842,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             C.f = lambda self: "abc"
 
@@ -872,7 +870,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             C.f = lambda self: "abc"
 
@@ -900,7 +898,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             for i in range(100):
                 try:
@@ -908,7 +906,7 @@ class StaticPatchTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 42)
 
-            with patch(f"{mod['__name__']}.C.f", autospec=True, return_value=100) as p:
+            with patch(f"{mod.__name__}.C.f", autospec=True, return_value=100) as p:
                 try:
                     c.g().send(None)
                 except StopIteration as e:
@@ -927,7 +925,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             for i in range(100):
                 try:
@@ -935,9 +933,7 @@ class StaticPatchTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 42)
 
-            with patch(
-                f"{mod['__name__']}.C.f", autospec=True, return_value="not an int"
-            ):
+            with patch(f"{mod.__name__}.C.f", autospec=True, return_value="not an int"):
                 with self.assertRaises(TypeError):
                     c.g().send(None)
 
@@ -951,7 +947,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             C.f = property(lambda self: "abc")
 
@@ -972,7 +968,7 @@ class StaticPatchTests(StaticTestBase):
                     return self.f
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             c = C()
             C.f = property(lambda self: "abc")
 
@@ -1009,7 +1005,7 @@ class StaticPatchTests(StaticTestBase):
                 return x(i)
         """
         with self.in_module(codestr, optimize=2, enable_patching=True) as mod:
-            foo = mod["foo"]
+            foo = mod.foo
             self.assertEqual(foo(0), False)
             self.assertEqual(foo(1), True)
             self.assertEqual(foo(2), False)

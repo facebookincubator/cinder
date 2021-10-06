@@ -17,7 +17,7 @@ class StaticFieldTests(StaticTestBase):
                 x: "unknown_type"
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(type(C.x), MemberDescriptorType)
 
     def test_slotification_init(self):
@@ -28,7 +28,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x = 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(type(C.x), MemberDescriptorType)
 
     def test_slotification_init_redeclared(self):
@@ -49,7 +49,7 @@ class StaticFieldTests(StaticTestBase):
                 x: int
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertNotEqual(type(C.x), MemberDescriptorType)
 
     def test_slotification_init_typed(self):
@@ -60,7 +60,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x = 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertNotEqual(type(C.x), MemberDescriptorType)
             x = C()
             self.assertEqual(x.x, 42)
@@ -143,7 +143,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x = 100
         """
         with self.in_module(codestr) as mod:
-            D = mod["D"]
+            D = mod.D
             inst = D()
             self.assertEqual(inst.f(), 100)
 
@@ -169,7 +169,7 @@ class StaticFieldTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             with self.assertRaises(AttributeError) as e:
-                f, C = mod["f"], mod["C"]
+                f, C = mod.f, mod.C
                 f(C())
 
         self.assertEqual(e.exception.args[0], "x")
@@ -188,12 +188,12 @@ class StaticFieldTests(StaticTestBase):
         """
 
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             x = C()
             self.assertEqual(x.f(), 1)
             x = C(False)
             self.assertEqual(x.f(), 0)
-            self.assertInBytecode(C.f, "LOAD_FIELD", (mod["__name__"], "C", "value"))
+            self.assertInBytecode(C.f, "LOAD_FIELD", (mod.__name__, "C", "value"))
 
     def test_aligned_subclass_field(self):
         codestr = """
@@ -210,9 +210,9 @@ class StaticFieldTests(StaticTestBase):
         """
 
         with self.in_module(codestr) as mod:
-            Child = mod["Child"]
+            Child = mod.Child
             self.assertInBytecode(
-                Child.__init__, "STORE_FIELD", (mod["__name__"], "Child", "end")
+                Child.__init__, "STORE_FIELD", (mod.__name__, "Child", "end")
             )
             for i in range(SHADOWCODE_REPETITIONS):
                 c = Child()
@@ -228,7 +228,7 @@ class StaticFieldTests(StaticTestBase):
                     x: "C" = self.x
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             with self.assertRaisesRegex(TypeError, "expected 'C', got 'NoneType'"):
                 C().f()
 
@@ -253,7 +253,7 @@ class StaticFieldTests(StaticTestBase):
                     self.x = x
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             C().f(42)
             with self.assertRaises(TypeError):
                 C().f("abc")
@@ -282,9 +282,9 @@ class StaticFieldTests(StaticTestBase):
                 return c.x
         """
         with self.in_module(codestr) as mod:
-            f, C = mod["f"], mod["C"]
+            f, C = mod.f, mod.C
             self.assertEqual(f(C(3)), 3)
-            self.assertInBytecode(f, "LOAD_FIELD", ((mod["__name__"], "C", "x")))
+            self.assertInBytecode(f, "LOAD_FIELD", ((mod.__name__, "C", "x")))
 
     def test_annotated_instance_var(self):
         codestr = """
@@ -314,7 +314,7 @@ class StaticFieldTests(StaticTestBase):
         f = self.find_code(self.find_code(code), "f")
         self.assertInBytecode(f, "LOAD_FIELD")
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             a = C(42)
             self.assertEqual(a.f(), 42)
 
@@ -333,7 +333,7 @@ class StaticFieldTests(StaticTestBase):
                     return self.x.g()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             a = C()
             self.assertEqual(a.f(), 42)
 
@@ -350,7 +350,7 @@ class StaticFieldTests(StaticTestBase):
                     return self.x.g()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             a = C()
             self.assertEqual(a.f(), 42)
 
@@ -367,7 +367,7 @@ class StaticFieldTests(StaticTestBase):
                     return self.x.g()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             a = C()
             self.assertEqual(a.f(), 42)
 
@@ -461,7 +461,7 @@ class StaticFieldTests(StaticTestBase):
                 return c.x
         """
         with self.in_module(codestr) as mod:
-            f, g, C = mod["f"], mod["g"], mod["C"]
+            f, g, C = mod.f, mod.g, mod.C
             self.assertEqual(f(), 3)
             self.assertEqual(g(C()), 3)
             self.assertNotInBytecode(f, "CAST")
@@ -517,7 +517,7 @@ class StaticFieldTests(StaticTestBase):
                 self.x = 3
         """
         with self.in_module(codestr) as mod:
-            self.assertEqual(mod["C"]().x, 3)
+            self.assertEqual(mod.C().x, 3)
 
     def test_final_attr_decl_uninitialized(self):
         self.type_error(

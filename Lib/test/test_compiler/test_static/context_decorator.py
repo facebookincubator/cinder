@@ -24,7 +24,7 @@ class ContextDecoratorTests(StaticTestBase):
                 return c.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(
                 C.f,
                 "INVOKE_METHOD",
@@ -32,11 +32,11 @@ class ContextDecoratorTests(StaticTestBase):
             )
             self.assertEqual(C().f(), 42)
 
-            f = mod["f"]
+            f = mod.f
             self.assertInBytecode(
                 f,
                 "INVOKE_METHOD",
-                (((mod["__name__"], "C", "f"), 0)),
+                (((mod.__name__, "C", "f"), 0)),
             )
 
     def test_simple_async(self):
@@ -56,19 +56,19 @@ class ContextDecoratorTests(StaticTestBase):
                     return 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(
                 C.f,
                 "INVOKE_METHOD",
                 ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
             )
             a = C().f()
-            self.assertEqual(mod["calls"], 0)
+            self.assertEqual(mod.calls, 0)
             try:
                 a.send(None)
             except StopIteration as e:
                 self.assertEqual(e.args[0], 42)
-                self.assertEqual(mod["calls"], 1)
+                self.assertEqual(mod.calls, 1)
 
     def test_property(self):
         codestr = """
@@ -84,7 +84,7 @@ class ContextDecoratorTests(StaticTestBase):
                     return 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(
                 C.f.fget,
                 "INVOKE_METHOD",
@@ -115,7 +115,7 @@ class ContextDecoratorTests(StaticTestBase):
                     return X
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(
                 C.f.func,
                 "INVOKE_METHOD",
@@ -148,7 +148,7 @@ class ContextDecoratorTests(StaticTestBase):
                     return X
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(
                 C.f.func,
                 "INVOKE_METHOD",
@@ -184,7 +184,7 @@ class ContextDecoratorTests(StaticTestBase):
                     return 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(C().f(), 42)
             self.assertInBytecode(
                 C.__dict__["f"].__func__,
@@ -212,7 +212,7 @@ class ContextDecoratorTests(StaticTestBase):
                     return x
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(C().f(42), 42)
             self.assertEqual(C.f(42), 42)
             self.assertInBytecode(
@@ -239,7 +239,7 @@ class ContextDecoratorTests(StaticTestBase):
                     return 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(C().f(C()), 42)
             self.assertInBytecode(C.__dict__["f"].__func__, "LOAD_FAST", "x")
             self.assertInBytecode(
@@ -276,17 +276,17 @@ class ContextDecoratorTests(StaticTestBase):
                 return c.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(C().f(), 42)
-            self.assertEqual(mod["calls"], 1)
+            self.assertEqual(mod.calls, 1)
             self.assertInBytecode(
                 C.__dict__["f"].__func__,
                 "INVOKE_METHOD",
                 ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
             )
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(C()), 42)
-            self.assertEqual(mod["calls"], 2)
+            self.assertEqual(mod.calls, 2)
 
     def test_top_level(self):
         codestr = """
@@ -302,7 +302,7 @@ class ContextDecoratorTests(StaticTestBase):
                 return f()
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertInBytecode(
                 f,
                 "INVOKE_METHOD",
@@ -310,8 +310,8 @@ class ContextDecoratorTests(StaticTestBase):
             )
             self.assertEqual(f(), 42)
 
-            g = mod["g"]
-            self.assertInBytecode(g, "INVOKE_FUNCTION", (((mod["__name__"], "f"), 0)))
+            g = mod.g
+            self.assertInBytecode(g, "INVOKE_FUNCTION", (((mod.__name__, "f"), 0)))
 
     def test_recreate_cm(self):
         codestr = """
@@ -327,11 +327,11 @@ class ContextDecoratorTests(StaticTestBase):
                     return 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(
                 C.f,
                 "INVOKE_METHOD",
-                (((mod["__name__"], "MyDecorator", "_recreate_cm"), 0)),
+                (((mod.__name__, "MyDecorator", "_recreate_cm"), 0)),
             )
             self.assertEqual(C().f(), 42)
 
@@ -352,11 +352,11 @@ class ContextDecoratorTests(StaticTestBase):
                     return 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(
                 C.f,
                 "INVOKE_FUNCTION",
-                (((mod["__name__"], "MyDecorator", "_recreate_cm"), 1)),
+                (((mod.__name__, "MyDecorator", "_recreate_cm"), 1)),
             )
             self.assertEqual(C().f(), 42)
 
@@ -394,20 +394,20 @@ class ContextDecoratorTests(StaticTestBase):
                     return 42
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(C().f(), 42)
             self.assertInBytecode(
                 C.f,
                 "INVOKE_METHOD",
-                (((mod["__name__"], "MyDecorator1", "_recreate_cm"), 0)),
+                (((mod.__name__, "MyDecorator1", "_recreate_cm"), 0)),
             )
             self.assertInBytecode(
                 C.f,
                 "INVOKE_METHOD",
-                (((mod["__name__"], "MyDecorator2", "_recreate_cm"), 0)),
+                (((mod.__name__, "MyDecorator2", "_recreate_cm"), 0)),
             )
             self.assertEqual(
-                mod["calls"],
+                mod.calls,
                 [
                     "MyDecorator1.__enter__",
                     "MyDecorator2.__enter__",
@@ -439,14 +439,14 @@ class ContextDecoratorTests(StaticTestBase):
                     return self.f()
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             a = C()
             self.assertEqual(a.f(), 42)
-            self.assertEqual(mod["calls"], 1)
+            self.assertEqual(mod.calls, 1)
             self.assertInBytecode(
                 C.x,
                 "INVOKE_METHOD",
-                (((mod["__name__"], "C", "f"), 0)),
+                (((mod.__name__, "C", "f"), 0)),
             )
 
     def test_cross_module(self) -> None:

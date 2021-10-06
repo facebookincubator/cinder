@@ -1732,25 +1732,25 @@ class EagerCoroutineDispatch(StaticTestBase):
             call_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
         )
         with self.in_module(codestr) as mod:
-            mod["x"] = _testcapi.TestAwaitedCall()
-            self.assertIsInstance(mod["x"], _testcapi.TestAwaitedCall)
-            self.assertIsNone(mod["x"].last_awaited())
-            coro = mod["await_x"]()
+            mod.x = _testcapi.TestAwaitedCall()
+            self.assertIsInstance(mod.x, _testcapi.TestAwaitedCall)
+            self.assertIsNone(mod.x.last_awaited())
+            coro = mod.await_x()
             with self.assertRaisesRegex(
                 TypeError, r".*can't be used in 'await' expression"
             ):
                 coro.send(None)
             coro.close()
-            self.assertTrue(mod["x"].last_awaited())
-            self.assertIsNone(mod["x"].last_awaited())
-            coro = mod["call_x"]()
+            self.assertTrue(mod.x.last_awaited())
+            self.assertIsNone(mod.x.last_awaited())
+            coro = mod.call_x()
             with self.assertRaises(StopIteration):
                 coro.send(None)
             coro.close()
-            self.assertFalse(mod["x"].last_awaited())
+            self.assertFalse(mod.x.last_awaited())
             if cinderjit:
-                self.assertTrue(cinderjit.is_jit_compiled(mod["await_x"]))
-                self.assertTrue(cinderjit.is_jit_compiled(mod["call_x"]))
+                self.assertTrue(cinderjit.is_jit_compiled(mod.await_x))
+                self.assertTrue(cinderjit.is_jit_compiled(mod.call_x))
 
     def test_invoke_method(self):
         codestr = f"""
@@ -1774,9 +1774,9 @@ class EagerCoroutineDispatch(StaticTestBase):
             call_x, "INVOKE_METHOD", (("test_invoke_method", "X", "x"), 0)
         )
         with self.in_module(codestr) as mod:
-            awaited_capturer = mod["X"].x = _testcapi.TestAwaitedCall()
+            awaited_capturer = mod.X.x = _testcapi.TestAwaitedCall()
             self.assertIsNone(awaited_capturer.last_awaited())
-            coro = mod["await_x"]()
+            coro = mod.await_x()
             with self.assertRaisesRegex(
                 TypeError, r".*can't be used in 'await' expression"
             ):
@@ -1784,14 +1784,14 @@ class EagerCoroutineDispatch(StaticTestBase):
             coro.close()
             self.assertTrue(awaited_capturer.last_awaited())
             self.assertIsNone(awaited_capturer.last_awaited())
-            coro = mod["call_x"]()
+            coro = mod.call_x()
             with self.assertRaises(StopIteration):
                 coro.send(None)
             coro.close()
             self.assertFalse(awaited_capturer.last_awaited())
             if cinderjit:
-                self.assertTrue(cinderjit.is_jit_compiled(mod["await_x"]))
-                self.assertTrue(cinderjit.is_jit_compiled(mod["call_x"]))
+                self.assertTrue(cinderjit.is_jit_compiled(mod.await_x))
+                self.assertTrue(cinderjit.is_jit_compiled(mod.call_x))
 
         async def y():
             await DummyAwaitable()
@@ -2499,7 +2499,7 @@ class RegressionTests(StaticTestBase):
                 return box(c.a) == 2
         """
         with self.in_module(codestr) as mod:
-            testfunc = mod["testfunc"]
+            testfunc = mod.testfunc
             self.assertTrue(testfunc())
 
             if cinderjit:
@@ -2548,8 +2548,8 @@ class CinderJitModuleTests(StaticTestBase):
                 return True
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            g = mod["g"]
+            f = mod.f
+            g = mod.g
             self.assertTrue(f())
             self.assertTrue(g())
 

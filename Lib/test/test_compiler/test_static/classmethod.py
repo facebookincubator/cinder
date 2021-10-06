@@ -13,8 +13,8 @@ class ClassMethodTests(StaticTestBase):
                 return C.foo()
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            C = mod["C"]
+            f = mod.f
+            C = mod.C
             self.assertInBytecode(f, "INVOKE_FUNCTION")
             self.assertEqual(f(), C)
 
@@ -28,8 +28,8 @@ class ClassMethodTests(StaticTestBase):
                 return c.foo()
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            C = mod["C"]
+            f = mod.f
+            C = mod.C
             c = C()
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(c), C)
@@ -49,8 +49,8 @@ class ClassMethodTests(StaticTestBase):
                 return c.foo(0)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            D = mod["D"]
+            f = mod.f
+            D = mod.D
             d = D()
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(d), 2)
@@ -66,8 +66,8 @@ class ClassMethodTests(StaticTestBase):
                 return c.foo(0)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            C = mod["C"]
+            f = mod.f
+            C = mod.C
 
             class D(C):
                 @classmethod
@@ -106,7 +106,7 @@ class ClassMethodTests(StaticTestBase):
             d = C.foo(x=1)
         """
         with self.in_module(codestr) as mod:
-            d = mod["d"]
+            d = mod.d
             self.assertEqual(d, 1)
 
     def test_final_classmethod_calls_another(self):
@@ -123,7 +123,7 @@ class ClassMethodTests(StaticTestBase):
                     return cls.foo() + i
         """
         with self.in_module(codestr, name="mymod") as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertInBytecode(C.bar, "INVOKE_FUNCTION", (("mymod", "C", "foo"), 1))
             self.assertEqual(C.bar(6), 9)
 
@@ -139,7 +139,7 @@ class ClassMethodTests(StaticTestBase):
                     return cls.foo() + i
         """
         with self.in_module(codestr, name="mymod") as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertNotInBytecode(C.bar, "INVOKE_FUNCTION")
             self.assertNotInBytecode(C.bar, "INVOKE_METHOD")
             self.assertEqual(C.bar(6), 9)
@@ -158,7 +158,7 @@ class ClassMethodTests(StaticTestBase):
                     return self.foo()
         """
         with self.in_module(codestr, name="mymod") as mod:
-            C = mod["C"]
+            C = mod.C
 
             class D(C):
                 pass
@@ -183,5 +183,5 @@ class ClassMethodTests(StaticTestBase):
                     return self.foo()
         """
         with self.in_module(codestr, name="mymod") as mod:
-            C = mod["C"]
+            C = mod.C
             self.assertEqual(C().f(), 3)

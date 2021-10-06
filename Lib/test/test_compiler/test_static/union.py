@@ -29,7 +29,7 @@ class UnionCompilationTests(StaticTestBase):
             expects_object(x)
         """
         with self.in_module(codestr) as mod:
-            foo = mod["foo"]
+            foo = mod.foo
             self.assertEqual(foo(True), None)
             self.assertEqual(foo(None), None)
 
@@ -47,7 +47,7 @@ class UnionCompilationTests(StaticTestBase):
             expects_object(d_or_e)
         """
         with self.in_module(codestr) as mod:
-            foo = mod["foo"]
+            foo = mod.foo
 
 
 if __name__ == "__main__":

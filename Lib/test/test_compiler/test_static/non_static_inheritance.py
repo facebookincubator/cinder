@@ -125,7 +125,7 @@ class NonStaticInheritanceTests(StaticTestBase):
                     return self.f
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             a = C()
             self.assertEqual(a.g(), 42)
 

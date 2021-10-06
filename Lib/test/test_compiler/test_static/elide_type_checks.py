@@ -11,5 +11,5 @@ class ElideTypeChecksTests(StaticTestBase):
                 return bar()
         """
         with self.in_module(codestr) as mod:
-            f = mod["foo"]
+            f = mod.foo
             self.assertEqual(f(), 42)

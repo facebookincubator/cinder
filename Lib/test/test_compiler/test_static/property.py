@@ -18,8 +18,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
             self.assertEqual(f(C()), 42)
             self.assertInBytecode(f, "INVOKE_FUNCTION")
 
@@ -38,8 +38,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
             self.assertEqual(f(C()), 42)
             self.assertInBytecode(f, "INVOKE_FUNCTION")
 
@@ -54,8 +54,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
             self.assertNotInBytecode(f, "INVOKE_FUNCTION")
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(C()), 42)
@@ -76,8 +76,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            D = mod["D"]
+            f = mod.bar
+            D = mod.D
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(D()), 43)
 
@@ -95,8 +95,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            D = mod["D"]
+            f = mod.bar
+            D = mod.D
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(D()), 42)
 
@@ -111,8 +111,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
 
             class D(C):
                 @property
@@ -133,8 +133,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
 
             class D(C):
                 def foo(self) -> int:
@@ -155,8 +155,8 @@ class PropertyTests(StaticTestBase):
                 return c.foo
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
 
             class MyDesc:
                 def __get__(self, inst, ctx):
@@ -213,8 +213,8 @@ class PropertyTests(StaticTestBase):
                 c.foo = 3
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
             self.assertInBytecode(f, "INVOKE_FUNCTION")
             c = C(2)
             self.assertEqual(f(c), None)
@@ -249,8 +249,8 @@ class PropertyTests(StaticTestBase):
                 c.foo = 3
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            D = mod["D"]
+            f = mod.bar
+            D = mod.D
             self.assertInBytecode(f, "INVOKE_METHOD")
             d = D(2)
             self.assertEqual(f(d), None)
@@ -275,8 +275,8 @@ class PropertyTests(StaticTestBase):
                 c.foo = 3
         """
         with self.in_module(codestr) as mod:
-            f = mod["bar"]
-            C = mod["C"]
+            f = mod.bar
+            C = mod.C
             self.assertInBytecode(f, "INVOKE_METHOD")
 
             class D(C):

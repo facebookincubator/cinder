@@ -8,5 +8,5 @@ class FStringTests(StaticTestBase):
                 return f"{x:.2f}"
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(2.134), "2.13")

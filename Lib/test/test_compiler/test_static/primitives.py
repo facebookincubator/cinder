@@ -10,6 +10,6 @@ class PrimitivesTests(StaticTestBase):
                 return int64(x) if x is not None else 0
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(), 0)
             self.assertEqual(f(1), 1)

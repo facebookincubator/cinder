@@ -28,9 +28,9 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(g())
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             f()
-            self.assertEqual(mod["X"], 1)
+            self.assertEqual(mod.X, 1)
 
     def test_object_init_and_new(self):
         codestr = """
@@ -57,7 +57,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(42).value, 42)
 
     def test_init_primitive(self):
@@ -72,8 +72,8 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            init = mod["C"].__init__
+            f = mod.f
+            init = mod.C.__init__
             self.assertInBytecode(init, "LOAD_LOCAL")
             self.assertInBytecode(init, "STORE_FIELD")
             self.assertEqual(f(42).value, 42)
@@ -92,8 +92,8 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            init = mod["C"].__new__
+            f = mod.f
+            init = mod.C.__new__
             self.assertInBytecode(init, "LOAD_LOCAL")
             self.assertInBytecode(init, "STORE_FIELD")
             self.assertEqual(f(42).value, 42)
@@ -109,9 +109,9 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            C = mod["C"]
+            C = mod.C
             freeze_type(C)
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(42).value, 42)
 
     def test_init_unknown_base(self):
@@ -124,7 +124,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             # Unknown base class w/ no overrides should always be CALL_FUNCTION
             self.assertInBytecode(f, "CALL_FUNCTION")
 
@@ -175,7 +175,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(42).value, 42)
 
     def test_new_wrong_type(self):
@@ -211,7 +211,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(42).value, 100)
 
     def test_new_dynamic(self):
@@ -229,7 +229,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(42).value, 100)
 
     def test_new_odd_ret_type(self):
@@ -243,7 +243,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(42), 42)
 
     def test_new_odd_ret_type_no_init(self):
@@ -259,7 +259,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(42), 42)
 
     def test_new_odd_ret_type_error(self):
@@ -285,7 +285,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return Array[int64].__new__(Array[int64])
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(), Array[int64](()))
 
     def test_class_init_kw(self):
@@ -299,7 +299,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return x
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertNotInBytecode(f, "CALL_FUNCTION_KW", 1)
             self.assertInBytecode(f, "TP_ALLOC")
             self.assertInBytecode(f, "INVOKE_FUNCTION")
@@ -315,8 +315,8 @@ class StaticObjCreationTests(StaticTestBase):
                 return C('foo', (), {})
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            C = mod["C"]
+            f = mod.f
+            C = mod.C
             self.assertEqual(type(f()), C)
 
     def test_object_new(self):
@@ -328,8 +328,8 @@ class StaticObjCreationTests(StaticTestBase):
                 return object.__new__(C)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            C = mod["C"]
+            f = mod.f
+            C = mod.C
             self.assertEqual(type(f()), C)
 
     def test_object_new_wrong_type(self):
@@ -352,7 +352,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return bool(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertInBytecode(
                 f, "INVOKE_FUNCTION", ((("builtins", "bool", "__new__"), 2))
             )
@@ -363,12 +363,12 @@ class StaticObjCreationTests(StaticTestBase):
 
         codestr = """
             from typing import Optional
-    
+
             def f(x: Optional[int]) -> bool:
                 return bool(x)
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertFalse(f(None))
             self.assertTrue(f(12))
 
@@ -381,7 +381,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C()
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(), [])
             self.assertInBytecode(f, "TP_ALLOC")
 
@@ -394,7 +394,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C('abc')
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(), ["a", "b", "c"])
             self.assertInBytecode(f, "TP_ALLOC")
 
@@ -406,7 +406,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return CheckedDict[str, int]()
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(), {})
             self.assertInBytecode(
                 f,
@@ -447,7 +447,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return CheckedDict[str, int]({})
         """
         with self.in_module(codestr) as mod:
-            f = mod["f"]
+            f = mod.f
             self.assertEqual(f(), {})
             self.assertInBytecode(
                 f,
@@ -487,7 +487,7 @@ class StaticObjCreationTests(StaticTestBase):
                     super().__init__()
         """
         with self.in_module(codestr) as mod:
-            f = mod["C"].__init__
+            f = mod.C.__init__
             self.assertNotInBytecode(f, "INVOKE_METHOD")
 
     def test_super_init_no_load_attr_super(self):
@@ -515,8 +515,8 @@ class StaticObjCreationTests(StaticTestBase):
         """
         code = self.compile(codestr)
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            D = mod["D"]
+            f = mod.f
+            D = mod.D
             # super call suppresses jit
             self.assertTrue(D.__init__.__code__.co_flags & CO_SUPPRESS_JIT)
             self.assertTrue(isinstance(f(), D))
@@ -533,8 +533,8 @@ class StaticObjCreationTests(StaticTestBase):
         """
         code = self.compile(codestr)
         with self.in_module(codestr) as mod:
-            f = mod["f"]
-            C = mod["C"]
+            f = mod.f
+            C = mod.C
             freeze_type(C)
             self.assertInBytecode(f, "INVOKE_FUNCTION")
             self.assertTrue(isinstance(f(), C))
@@ -548,7 +548,7 @@ class StaticObjCreationTests(StaticTestBase):
                     super().__init__()
         """
         with self.in_module(codestr) as mod:
-            init = mod["C"].__init__
+            init = mod.C.__init__
             self.assertInBytecode(init, "LOAD_METHOD_SUPER")
 
         code = compile(inspect.cleandoc(codestr), "exec", "exec")
