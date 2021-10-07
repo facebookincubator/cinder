@@ -419,7 +419,7 @@ def rewrite(
     builtins: ModuleType | Mapping[str, object] = __builtins__,
     is_static: bool = False,
     track_import_call: bool = False,
-) -> AST:
+) -> Module:
     return StrictModuleRewriter(
         root,
         table,

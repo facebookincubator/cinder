@@ -303,7 +303,9 @@ class Compiler:
     def __setitem__(self, name: str, value: ModuleTable) -> None:
         self.modules[name] = value
 
-    def add_module(self, name: str, filename: str, tree: AST, optimize: int) -> AST:
+    def add_module(
+        self, name: str, filename: str, tree: AST, optimize: int
+    ) -> ast.Module:
         tree = AstOptimizer(optimize=optimize > 0, force_asserts=True).visit(tree)
 
         decl_visit = DeclarationVisitor(name, filename, self, optimize)

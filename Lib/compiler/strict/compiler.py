@@ -35,12 +35,12 @@ from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
 from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
 
-def getSymbolTable(mod: StrictAnalysisResult, filename: str) -> PythonSymbolTable:
+def getSymbolTable(mod: StrictAnalysisResult) -> PythonSymbolTable:
     """
     Construct a symtable object from analysis result
     """
     # pyre-fixme[16]: symtable has no attribute SymbolTableFactory
-    return SymbolTableFactory()(mod.symtable, filename)
+    return SymbolTableFactory()(mod.symtable, mod.file_name)
 
 
 TIMING_LOGGER_TYPE = Callable[[str, str, str], ContextManager[None]]
@@ -50,48 +50,53 @@ TIMING_LOGGER_TYPE = Callable[[str, str, str], ContextManager[None]]
 class StrictStaticCompiler(StaticCompiler):
     def __init__(
         self,
-        compiler: Compiler,
+        loader: StrictModuleLoader,
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
     ) -> None:
         super().__init__(StaticCodeGenerator)
-        self.compiler = compiler
-        self.ast_cache: Dict[str, ast.AST] = {}
-        self.track_import_call: Optional[bool] = None
+        self.loader = loader
+        self.ast_cache: Dict[str, ast.Module] = {}
+        self.track_import_call: bool = False
         self.log_time_func = log_time_func
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
-        loader = self.compiler.loader
-        mod = loader.check(name)
+        mod = self.loader.check(name)
         if mod.is_valid and name not in self.modules and len(mod.errors) == 0:
             modKind = mod.module_kind
             if modKind == STATIC_MODULE_KIND:
                 root = mod.ast_preprocessed
-                filename = mod.file_name
-                symbols = getSymbolTable(mod, filename)
                 stubKind = mod.stub_kind
-
                 if STUB_KIND_MASK_TYPING & stubKind:
                     root = remove_annotations(root)
-                root = rewrite(
-                    root,
-                    symbols,
-                    filename,
-                    name,
-                    optimize=optimize,
-                    is_static=True,
-                    # pyre-fixme[6]: Expected `bool` for 7th param but got
-                    #  `Optional[bool]`.
-                    track_import_call=self.track_import_call,
-                )
+                root = self._get_rewritten_ast(name, mod, root, optimize)
                 log = self.log_time_func
                 ctx = (
-                    log()(name, filename, "declaration_visit") if log else nullcontext()
+                    log()(name, mod.file_name, "declaration_visit")
+                    if log
+                    else nullcontext()
                 )
                 with ctx:
-                    root = self.add_module(name, filename, root, optimize)
+                    root = self.add_module(name, mod.file_name, root, optimize)
                 self.ast_cache[name] = root
 
         return self.modules.get(name)
+
+    def _get_rewritten_ast(
+        self, name: str, mod: StrictAnalysisResult, root: ast.Module, optimize: int
+    ) -> ast.Module:
+        cached_ast = self.ast_cache.get(name)
+        if cached_ast is None:
+            symbols = getSymbolTable(mod)
+            cached_ast = rewrite(
+                root,
+                symbols,
+                mod.file_name,
+                name,
+                optimize=optimize,
+                is_static=True,
+                track_import_call=self.track_import_call,
+            )
+        return cached_ast
 
 
 @final
@@ -118,7 +123,7 @@ class Compiler:
             True,
         )
         self.raise_on_error = raise_on_error
-        self.static_compiler: StrictStaticCompiler = StrictStaticCompiler(self)
+        self.static_compiler: StrictStaticCompiler = StrictStaticCompiler(self.loader)
         self.log_time_func = log_time_func
         self.enable_patching = enable_patching
 
@@ -145,7 +150,7 @@ class Compiler:
             error = errors[0]
             raise StrictModuleError(error[0], error[1], error[2], error[3])
         elif is_valid_strict:
-            symbols = getSymbolTable(mod, filename)
+            symbols = getSymbolTable(mod)
             try:
                 check_class_conflict(mod.ast, filename, symbols)
             except StrictModuleError as e:
@@ -185,7 +190,7 @@ class Compiler:
         optimize: int,
         track_import_call: bool,
     ) -> CodeType:
-        symbols = getSymbolTable(mod, filename)
+        symbols = getSymbolTable(mod)
         tree = rewrite(
             mod.ast_preprocessed,
             symbols,
@@ -207,16 +212,8 @@ class Compiler:
         self.static_compiler.track_import_call = track_import_call
         root = self.static_compiler.ast_cache.get(name)
         if root is None:
-            symbols = getSymbolTable(mod, filename)
-            # Perform the normal strict modules re-write, minus slotification
-            root = rewrite(
-                mod.ast_preprocessed,
-                symbols,
-                filename,
-                name,
-                optimize=optimize,
-                is_static=True,
-                track_import_call=track_import_call,
+            root = self.static_compiler._get_rewritten_ast(
+                name, mod, mod.ast_preprocessed, optimize
             )
         code = None
 
