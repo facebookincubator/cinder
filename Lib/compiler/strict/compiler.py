@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 from ast import NodeVisitor
+from contextlib import nullcontext
 from functools import cached_property
 from os import path
 # pyre-fixme[21]: Could not find name `SymbolTableFactory` in `symtable` (stubbed).
@@ -106,11 +107,11 @@ class StrictStaticCompiler(StaticCompiler):
                     #  `Optional[bool]`.
                     self.track_import_call,
                 )
-                log_func = self.log_time_func
-                if log_func:
-                    with log_func()(name, filename, "declaration_visit"):
-                        root = self.add_module(name, filename, root)
-                else:
+                log = self.log_time_func
+                ctx = (
+                    log()(name, filename, "declaration_visit") if log else nullcontext()
+                )
+                with ctx:
                     root = self.add_module(name, filename, root)
                 self.ast_cache[name] = root
 
@@ -248,17 +249,9 @@ class Compiler:
         code = None
 
         try:
-            log_func = self.log_time_func
-            if log_func:
-                with log_func()(name, filename, "compile"):
-                    code = self.static_compiler.compile(
-                        name,
-                        filename,
-                        root,
-                        optimize,
-                        enable_patching=self.enable_patching,
-                    )
-            else:
+            log = self.log_time_func
+            ctx = log()(name, filename, "compile") if log else nullcontext()
+            with ctx:
                 code = self.static_compiler.compile(
                     name, filename, root, optimize, enable_patching=self.enable_patching
                 )
