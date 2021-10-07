@@ -279,14 +279,6 @@ class StrictModuleRewriter:
         mod.type_ignores = []
         return mod
 
-    def rewrite(self) -> CodeType:
-        """Entry point for strict module compilation
-        Note that static python modules should not use this
-        """
-        mod = self.transform()
-        # rewritten AST
-        return strict_compile(self.modname, self.filename, mod, optimize=self.optimize)
-
     def load_helpers(self) -> Iterable[stmt]:
         helpers = []
         if self.track_import_call:
@@ -422,11 +414,12 @@ def rewrite(
     table: SymbolTable,
     filename: str,
     modname: str,
-    mode: str,
+    mode: str = "exec",
     optimize: int = -1,
     builtins: ModuleType | Mapping[str, object] = __builtins__,
+    is_static: bool = False,
     track_import_call: bool = False,
-) -> CodeType:
+) -> AST:
     return StrictModuleRewriter(
         root,
         table,
@@ -435,8 +428,9 @@ def rewrite(
         mode,
         optimize,
         builtins,
+        is_static=is_static,
         track_import_call=track_import_call,
-    ).rewrite()
+    ).transform()
 
 
 TTransformedStmt = Union[Optional[AST], List[AST]]

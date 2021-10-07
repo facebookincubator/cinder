@@ -4,6 +4,7 @@ import ast
 import symtable
 import sys
 import unittest
+from compiler.strict import strict_compile
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.loader import StrictModule
 from compiler.strict.preprocessor import ENABLE_SLOTS_DECORATOR
@@ -40,15 +41,15 @@ class RewriterTestCase(StrictTestWithCheckerBase):
         filename = "foo.py"
         symbols = symtable.symtable(code, filename, "exec")
         RewriterTestPreprocessor().visit(root)
-        c = rewrite(
+        root = rewrite(
             root,
             symbols,
             filename,
             name,
-            "exec",
             builtins=builtins,
             track_import_call=track_import_call,
         )
+        c = strict_compile(name, filename, root)
 
         def freeze_type(freeze: Type[object]) -> None:
             pass

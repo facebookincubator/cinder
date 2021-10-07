@@ -30,6 +30,7 @@ from _strictmodule import (
 
 from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
 from ..static.errors import TypedSyntaxError
+from . import strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
 from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
@@ -43,28 +44,6 @@ def getSymbolTable(mod: StrictAnalysisResult, filename: str) -> PythonSymbolTabl
 
 
 TIMING_LOGGER_TYPE = Callable[[str, str, str], ContextManager[None]]
-
-
-def rewrite_ast(
-    root: ast.Module,
-    symbols: PythonSymbolTable,
-    filename: str,
-    name: str,
-    optimize: int,
-    is_static: bool,
-    track_import_call: bool,
-) -> ast.Module:
-    rewriter = StrictModuleRewriter(
-        root,
-        symbols,
-        filename,
-        name,
-        "exec",
-        optimize,
-        is_static=is_static,
-        track_import_call=track_import_call,
-    )
-    return rewriter.transform()
 
 
 @final
@@ -94,18 +73,18 @@ class StrictStaticCompiler(StaticCompiler):
 
                 if STUB_KIND_MASK_TYPING & stubKind:
                     root = remove_annotations(root)
-                root = rewrite_ast(
+                root = rewrite(
                     root,
                     symbols,
                     filename,
                     name,
                     # pyre-fixme[6]: Expected `int` for 5th param but got
                     #  `Optional[int]`.
-                    self.optimize,
-                    True,
+                    optimize=self.optimize,
+                    is_static=True,
                     # pyre-fixme[6]: Expected `bool` for 7th param but got
                     #  `Optional[bool]`.
-                    self.track_import_call,
+                    track_import_call=self.track_import_call,
                 )
                 log = self.log_time_func
                 ctx = (
@@ -210,15 +189,15 @@ class Compiler:
         track_import_call: bool,
     ) -> CodeType:
         symbols = getSymbolTable(mod, filename)
-        return rewrite(
+        tree = rewrite(
             mod.ast_preprocessed,
             symbols,
             filename,
             name,
-            "exec",
-            optimize,
+            optimize=optimize,
             track_import_call=track_import_call,
         )
+        return strict_compile(name, filename, tree, optimize)
 
     def _compile_static(
         self,
@@ -234,14 +213,14 @@ class Compiler:
         if root is None:
             symbols = getSymbolTable(mod, filename)
             # Perform the normal strict modules re-write, minus slotification
-            root = rewrite_ast(
+            root = rewrite(
                 mod.ast_preprocessed,
                 symbols,
                 filename,
                 name,
-                optimize,
-                True,
-                track_import_call,
+                optimize=optimize,
+                is_static=True,
+                track_import_call=track_import_call,
             )
         code = None
 
