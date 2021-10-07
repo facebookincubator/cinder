@@ -7538,6 +7538,17 @@ class StaticCompilationTests(StaticTestBase):
             self.assertTrue(has_no_none([1, 2, 3]))
             self.assertNotInBytecode(has_no_none, "CAST")
 
+    def test_visit_if_else(self):
+        codestr = """
+            x = 0
+            if x:
+                pass
+            else:
+                def f(): return 42
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), 42)
+
     def test_decorated_function_ignored_class(self):
         codestr = """
             class C:

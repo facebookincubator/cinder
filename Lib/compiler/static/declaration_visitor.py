@@ -244,6 +244,11 @@ class DeclarationVisitor(GenericVisitor):
             self.visit(node.body)
             self.exit_scope()
 
+        if node.orelse:
+            self.enter_scope(NestedScope())
+            self.visit(node.orelse)
+            self.exit_scope()
+
     def visitWith(self, node: With) -> None:
         self.enter_scope(NestedScope())
         self.generic_visit(node)
