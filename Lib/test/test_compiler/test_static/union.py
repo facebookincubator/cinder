@@ -1,7 +1,7 @@
 import re
 import unittest
 from compiler.static import StaticCodeGenerator
-from compiler.static.symbol_table import SymbolTable
+from compiler.static.compiler import Compiler
 from compiler.static.types import UNION_TYPE, INT_TYPE, STR_TYPE, NONE_TYPE
 
 from .common import StaticTestBase
@@ -86,10 +86,10 @@ class UnionCompilationTests(StaticTestBase):
         )
 
     def test_union_can_assign_from(self):
-        st = SymbolTable(StaticCodeGenerator)
-        u1 = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), st.generic_types)
+        compiler = Compiler(StaticCodeGenerator)
+        u1 = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), compiler.generic_types)
         u2 = UNION_TYPE.make_generic_type(
-            (INT_TYPE, STR_TYPE, NONE_TYPE), st.generic_types
+            (INT_TYPE, STR_TYPE, NONE_TYPE), compiler.generic_types
         )
         self.assertTrue(u2.can_assign_from(u1))
         self.assertFalse(u1.can_assign_from(u2))

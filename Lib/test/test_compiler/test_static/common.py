@@ -10,9 +10,9 @@ import sys
 from compiler import consts, walk
 from compiler.optimizer import AstOptimizer
 from compiler.static import StaticCodeGenerator
+from compiler.static.compiler import Compiler
 from compiler.static.declaration_visitor import DeclarationVisitor
 from compiler.static.errors import CollectingErrorSink
-from compiler.static.symbol_table import SymbolTable
 from compiler.static.type_binder import TypeBinder
 from compiler.static.types import TypedSyntaxError, Value
 from compiler.strict.common import FIXED_MODULES
@@ -96,9 +96,9 @@ class StaticTestBase(CompilerTest):
                 ast_optimizer_enabled,
             )
 
-        symtable = SymbolTable(StaticCodeGenerator)
+        compiler = Compiler(StaticCodeGenerator)
         tree = ast.parse(self.clean_code(code))
-        return symtable.compile(
+        return compiler.compile(
             modname, f"{modname}.py", tree, optimize, enable_patching=enable_patching
         )
 
@@ -106,8 +106,8 @@ class StaticTestBase(CompilerTest):
         errors = CollectingErrorSink()
         code = self.clean_code(code)
         tree = ast.parse(code)
-        symtable = SymbolTable(StaticCodeGenerator, errors)
-        symtable.bind("<module>", "<module>.py", tree)
+        compiler = Compiler(StaticCodeGenerator, errors)
+        compiler.bind("<module>", "<module>.py", tree)
         return TestErrors(self, code, errors.errors)
 
     def type_error(
@@ -323,29 +323,29 @@ class StaticTestBase(CompilerTest):
 
     def bind_module(
         self, code: str, optimize: int = 0
-    ) -> Tuple[ast.Module, SymbolTable, TypeBinder]:
+    ) -> Tuple[ast.Module, Compiler, TypeBinder]:
         tree = ast.parse(dedent(code))
         if optimize:
             tree = AstOptimizer().visit(tree)
 
-        symtable = SymbolTable(StaticCodeGenerator)
-        decl_visit = DeclarationVisitor("foo", "foo.py", symtable)
+        compiler = Compiler(StaticCodeGenerator)
+        decl_visit = DeclarationVisitor("foo", "foo.py", compiler)
         decl_visit.visit(tree)
         decl_visit.module.finish_bind()
 
         s = SymbolVisitor()
         walk(tree, s)
 
-        type_binder = TypeBinder(s, "foo.py", symtable, "foo", optimize=optimize)
+        type_binder = TypeBinder(s, "foo.py", compiler, "foo", optimize=optimize)
         type_binder.visit(tree)
 
         # Make sure we can compile the code, just verifying all nodes are
         # visited.
         graph = StaticCodeGenerator.flow_graph("foo", "foo.py", s.scopes[tree])
-        code_gen = StaticCodeGenerator(None, tree, s, graph, symtable, "foo", optimize)
+        code_gen = StaticCodeGenerator(None, tree, s, graph, compiler, "foo", optimize)
         code_gen.visit(tree)
 
-        return tree, symtable, type_binder
+        return tree, compiler, type_binder
 
     @classmethod
     def setUpClass(cls):

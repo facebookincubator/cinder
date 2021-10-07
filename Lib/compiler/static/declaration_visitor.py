@@ -47,7 +47,7 @@ from .types import (
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
-    from . import SymbolTable
+    from .compiler import Compiler
 
 
 class NestedScope:
@@ -68,7 +68,7 @@ TScopeTypes = Union[ModuleTable, Class, Function, NestedScope]
 
 
 class DeclarationVisitor(GenericVisitor):
-    def __init__(self, mod_name: str, filename: str, symbols: SymbolTable) -> None:
+    def __init__(self, mod_name: str, filename: str, symbols: Compiler) -> None:
         module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
         super().__init__(module)
         self.scopes: List[TScopeTypes] = [self.module]
@@ -96,7 +96,7 @@ class DeclarationVisitor(GenericVisitor):
         if not bases:
             bases.append(OBJECT_TYPE)
 
-        with self.symtable.error_sink.error_context(self.filename, node):
+        with self.compiler.error_sink.error_context(self.filename, node):
             klasses = []
             for base in bases:
                 klasses.append(
@@ -131,14 +131,14 @@ class DeclarationVisitor(GenericVisitor):
         for d in reversed(node.decorator_list):
             if klass is DYNAMIC_TYPE:
                 break
-            with self.symtable.error_sink.error_context(self.filename, d):
+            with self.compiler.error_sink.error_context(self.filename, d):
                 decorator = self.module.resolve_type(d) or DYNAMIC_TYPE
                 klass = decorator.bind_decorate_class(klass)
 
         self.enter_scope(NestedScope() if klass is DYNAMIC_TYPE else klass)
 
         for item in node.body:
-            with self.symtable.error_sink.error_context(self.filename, item):
+            with self.compiler.error_sink.error_context(self.filename, item):
                 self.visit(item)
 
         parent_scope.declare_class(node, klass)
@@ -183,12 +183,12 @@ class DeclarationVisitor(GenericVisitor):
         else:
             res = TypeRef(self.module, ann)
         if isinstance(node, AsyncFunctionDef):
-            res = AwaitableTypeRef(res, self.module.symtable)
+            res = AwaitableTypeRef(res, self.module.compiler)
         return res
 
     def visitImport(self, node: Import) -> None:
         for name in node.names:
-            self.symtable.import_module(name.name)
+            self.compiler.import_module(name.name)
             asname = name.asname
             if asname is None:
                 top_level_module = name.name.split(".")[0]
@@ -202,8 +202,8 @@ class DeclarationVisitor(GenericVisitor):
         mod_name = node.module
         if not mod_name or node.level:
             raise NotImplementedError("relative imports aren't supported")
-        self.symtable.import_module(mod_name)
-        mod = self.symtable.modules.get(mod_name)
+        self.compiler.import_module(mod_name)
+        mod = self.compiler.modules.get(mod_name)
         if mod is not None:
             for name in node.names:
                 val = mod.children.get(name.name)
@@ -213,8 +213,8 @@ class DeclarationVisitor(GenericVisitor):
                 else:
                     # We might be facing a module imported as an attribute.
                     module_as_attribute = f"{mod_name}.{name.name}"
-                    self.symtable.import_module(module_as_attribute)
-                    if module_as_attribute in self.symtable.modules:
+                    self.compiler.import_module(module_as_attribute)
+                    if module_as_attribute in self.compiler.modules:
                         self.module.children[child_name] = ModuleInstance(
                             module_name=module_as_attribute
                         )

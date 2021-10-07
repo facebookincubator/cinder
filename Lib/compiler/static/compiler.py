@@ -135,7 +135,7 @@ class StrictBuiltins(Object[Class]):
         visitor.set_type(node, type)
 
 
-class SymbolTable:
+class Compiler:
     def __init__(
         self,
         code_generator: Type[Static38CodeGenerator],

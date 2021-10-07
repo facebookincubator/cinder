@@ -45,10 +45,10 @@ from ..pycodegen import (
 )
 from ..strict import StrictCodeGenerator, FIXED_MODULES, enable_strict_features
 from ..symbols import Scope, SymbolVisitor, ClassScope
+from .compiler import Compiler
 from .declaration_visitor import DeclarationVisitor
 from .effects import NarrowingEffect
 from .module_table import ModuleTable, ModuleFlag
-from .symbol_table import SymbolTable
 from .type_binder import TypeBinder
 from .types import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
@@ -81,13 +81,6 @@ from .types import (
 )
 
 
-try:
-    # pyre-ignore[21]: unknown module
-    from xxclassloader import spamobj
-except ImportError:
-    spamobj = None
-
-
 def exec_static(
     source: str,
     locals: Dict[str, object],
@@ -99,7 +92,7 @@ def exec_static(
     )
     if enable_strict_features and "<fixed-modules>" not in globals:
         globals["<fixed-modules>"] = FIXED_MODULES
-    exec(code, locals, globals)  # noqa: P204
+    exec(code, locals, globals)
 
 
 class PyFlowGraph38Static(PyFlowGraphCinder):
@@ -116,18 +109,18 @@ class Static38CodeGenerator(StrictCodeGenerator):
         node: AST,
         symbols: SymbolVisitor,
         graph: PyFlowGraph,
-        symtable: SymbolTable,
+        compiler: Compiler,
         modname: str,
         flags: int = 0,
         optimization_lvl: int = 0,
         enable_patching: bool = False,
     ) -> None:
         super().__init__(parent, node, symbols, graph, flags, optimization_lvl)
-        self.symtable = symtable
+        self.compiler = compiler
         self.modname = modname
         # Use this counter to allocate temporaries for loop indices
         self._tmpvar_loopidx_count = 0
-        self.cur_mod: ModuleTable = self.symtable.modules[modname]
+        self.cur_mod: ModuleTable = self.compiler.modules[modname]
         self.enable_patching = enable_patching
 
     def _is_static_compiler_disabled(self, node: AST) -> bool:
@@ -173,7 +166,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             tree,
             self.symbols,
             graph,
-            symtable=self.symtable,
+            compiler=self.compiler,
             modname=self.modname,
             optimization_lvl=self.optimization_lvl,
             enable_patching=self.enable_patching,
@@ -262,11 +255,11 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if ast_optimizer_enabled:
             tree = AstOptimizer(optimize=optimize > 0).visit(tree)
 
-        symtable = SymbolTable(cls)
-        decl_visit = DeclarationVisitor(module_name, filename, symtable)
+        compiler = Compiler(cls)
+        decl_visit = DeclarationVisitor(module_name, filename, compiler)
         decl_visit.visit(tree)
 
-        for module in symtable.modules.values():
+        for module in compiler.modules.values():
             module.finish_bind()
 
         s = symbols.SymbolVisitor()
@@ -278,7 +271,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
 
         type_binder = TypeBinder(
-            s, filename, symtable, module_name, optimize, enable_patching
+            s, filename, compiler, module_name, optimize, enable_patching
         )
         type_binder.visit(tree)
 
@@ -287,7 +280,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             tree,
             s,
             graph,
-            symtable,
+            compiler,
             module_name,
             flags,
             optimize,
@@ -332,7 +325,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             self._tmpvar_loopidx_count -= 1
 
     def _resolve_class(self, node: ClassDef) -> Optional[Class]:
-        cur_mod = self.symtable.modules[self.modname]
+        cur_mod = self.compiler.modules[self.modname]
         klass = cur_mod.resolve_name(node.name)
         if not isinstance(klass, Class) or klass is DYNAMIC_TYPE:
             return

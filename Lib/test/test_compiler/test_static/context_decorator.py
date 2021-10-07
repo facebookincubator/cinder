@@ -1,8 +1,8 @@
 import ast
 import dis
 from compiler.static import StaticCodeGenerator
+from compiler.static.compiler import Compiler
 from compiler.static.declaration_visitor import DeclarationVisitor
-from compiler.static.symbol_table import SymbolTable
 from textwrap import dedent
 
 from .common import StaticTestBase
@@ -479,20 +479,20 @@ class ContextDecoratorTests(StaticTestBase):
                     return self.f()
 
         """
-        symtable = SymbolTable(StaticCodeGenerator)
+        compiler = Compiler(StaticCodeGenerator)
         aast = ast.parse(dedent(acode))
         bast = ast.parse(dedent(bcode))
 
-        decl_visita = DeclarationVisitor("a", "a.py", symtable)
+        decl_visita = DeclarationVisitor("a", "a.py", compiler)
         decl_visita.visit(aast)
 
-        decl_visitb = DeclarationVisitor("b", "b.py", symtable)
+        decl_visitb = DeclarationVisitor("b", "b.py", compiler)
         decl_visitb.visit(bast)
 
         decl_visita.finish_bind()
         decl_visitb.finish_bind()
 
-        bcomp = symtable.compile("b", "b.py", bast)
+        bcomp = compiler.compile("b", "b.py", bast)
         f = self.find_code(self.find_code(bcomp, "C"), "f")
         self.assertInBytecode(
             f,

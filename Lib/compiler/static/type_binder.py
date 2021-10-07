@@ -101,7 +101,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from . import SymbolTable
+    from .compiler import Compiler
 
 
 class BindingScope:
@@ -204,13 +204,13 @@ class TypeBinder(GenericVisitor):
         self,
         symbols: SymbolVisitor,
         filename: str,
-        symtable: SymbolTable,
+        compiler: Compiler,
         module_name: str,
         optimize: int = 0,
         enable_patching: bool = False,
         nodes_default_dynamic: bool = False,
     ) -> None:
-        module = symtable[module_name]
+        module = compiler[module_name]
         super().__init__(module)
         self.symbols = symbols
         self.scopes: List[BindingScope] = []
@@ -307,7 +307,7 @@ class TypeBinder(GenericVisitor):
     def visitModule(self, node: Module) -> None:
         self.scopes.append(
             ModuleBindingScope(
-                node, self.module, generic_types=self.symtable.generic_types
+                node, self.module, generic_types=self.compiler.generic_types
             )
         )
 
@@ -421,7 +421,7 @@ class TypeBinder(GenericVisitor):
             self.set_param(kwarg, DICT_EXACT_TYPE.instance, scope)
 
     def new_scope(self, node: AST) -> BindingScope:
-        return BindingScope(node, generic_types=self.symtable.generic_types)
+        return BindingScope(node, generic_types=self.compiler.generic_types)
 
     def get_func_container(
         self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
@@ -457,7 +457,7 @@ class TypeBinder(GenericVisitor):
             self.visitExpectedType(base, DYNAMIC, "class base cannot be a primitive")
 
         self.scopes.append(
-            BindingScope(node, generic_types=self.symtable.generic_types)
+            BindingScope(node, generic_types=self.compiler.generic_types)
         )
 
         for stmt in node.body:
@@ -759,7 +759,7 @@ class TypeBinder(GenericVisitor):
     def visitLambda(
         self, node: Lambda, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        scope = BindingScope(node, generic_types=self.symtable.generic_types)
+        scope = BindingScope(node, generic_types=self.compiler.generic_types)
         self._visitParameters(node.args, scope)
 
         self.scopes.append(scope)
@@ -788,7 +788,7 @@ class TypeBinder(GenericVisitor):
         self.set_type(
             node,
             UNION_TYPE.make_generic_type(
-                (body_t.klass, else_t.klass), self.symtable.generic_types
+                (body_t.klass, else_t.klass), self.compiler.generic_types
             ).instance,
         )
         return NO_EFFECT
@@ -815,7 +815,7 @@ class TypeBinder(GenericVisitor):
             return existing
 
         res = UNION_TYPE.make_generic_type(
-            (existing.klass, new.klass), self.symtable.generic_types
+            (existing.klass, new.klass), self.compiler.generic_types
         ).instance
         return res
 
@@ -860,7 +860,7 @@ class TypeBinder(GenericVisitor):
             ):
                 typ = CHECKED_DICT_TYPE.make_generic_type(
                     (key_type.klass.inexact_type(), value_type.klass.inexact_type()),
-                    self.symtable.generic_types,
+                    self.compiler.generic_types,
                 ).instance
             else:
                 typ = DICT_EXACT_TYPE.instance
@@ -879,7 +879,7 @@ class TypeBinder(GenericVisitor):
             value_type = type_class.type_args[1].instance
 
         gen_type = CHECKED_DICT_TYPE.make_generic_type(
-            (key_type.klass, value_type.klass), self.symtable.generic_types
+            (key_type.klass, value_type.klass), self.compiler.generic_types
         )
 
         self.set_type(node, type_ctx)
@@ -903,7 +903,7 @@ class TypeBinder(GenericVisitor):
             if ModuleFlag.CHECKED_LISTS in self.module.flags and item_type is not None:
                 typ = CHECKED_LIST_TYPE.make_generic_type(
                     (item_type.klass.inexact_type(),),
-                    self.symtable.generic_types,
+                    self.compiler.generic_types,
                 ).instance
             else:
                 typ = LIST_EXACT_TYPE.instance
@@ -920,7 +920,7 @@ class TypeBinder(GenericVisitor):
             item_type = type_class.type_args[0].instance
 
         gen_type = CHECKED_LIST_TYPE.make_generic_type(
-            (item_type.klass.inexact_type(),), self.symtable.generic_types
+            (item_type.klass.inexact_type(),), self.compiler.generic_types
         )
 
         self.set_type(node, type_ctx)
@@ -1016,7 +1016,7 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         self.visit(node.generators[0].iter)
 
-        scope = BindingScope(node, generic_types=self.symtable.generic_types)
+        scope = BindingScope(node, generic_types=self.compiler.generic_types)
         self.scopes.append(scope)
 
         iter_type = self.get_type(node.generators[0].iter).get_iter_type(
@@ -1052,7 +1052,7 @@ class TypeBinder(GenericVisitor):
     ) -> None:
         self.visit(generators[0].iter)
 
-        scope = BindingScope(node, generic_types=self.symtable.generic_types)
+        scope = BindingScope(node, generic_types=self.compiler.generic_types)
         self.scopes.append(scope)
 
         iter_type = self.get_type(generators[0].iter).get_iter_type(
@@ -1334,7 +1334,7 @@ class TypeBinder(GenericVisitor):
                 name = alias.name
                 if name == "*":
                     self.syntax_error("from __static__ import * is disallowed", node)
-                elif name not in self.symtable.statics.children:
+                elif name not in self.compiler.statics.children:
                     self.syntax_error(f"unsupported static import {name}", node)
 
     def visit_until_terminates(self, nodes: List[ast.stmt]) -> TerminalKind:

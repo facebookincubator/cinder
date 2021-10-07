@@ -96,7 +96,7 @@ def restore_static_symtable() -> Generator[None, None, None]:
         enable_patching=False,
     )
     if isinstance(compiler, StaticCompiler):
-        modules = compiler.symtable.modules.copy()
+        modules = compiler.compiler.modules.copy()
     else:
         modules = None
 
@@ -104,8 +104,8 @@ def restore_static_symtable() -> Generator[None, None, None]:
         yield
     finally:
         if modules is not None and isinstance(compiler, StaticCompiler):
-            compiler.symtable.modules.clear()
-            compiler.symtable.modules.update(modules)
+            compiler.compiler.modules.clear()
+            compiler.compiler.modules.update(modules)
 
 
 @contextmanager

@@ -183,9 +183,9 @@ from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
     from . import Static38CodeGenerator
+    from .compiler import Compiler
     from .declaration_visitor import DeclarationVisitor
     from .module_table import ModuleTable
-    from .symbol_table import SymbolTable
     from .type_binder import BindingScope, TypeBinder
 
 try:
@@ -1020,7 +1020,7 @@ class Class(Object["Class"]):
                     node,
                 )
             union = UNION_TYPE.make_generic_type(
-                (self, rtype), visitor.symtable.generic_types
+                (self, rtype), visitor.compiler.generic_types
             )
             visitor.set_type(node, union)
             return True
@@ -1455,7 +1455,7 @@ class GenericClass(Class):
                 node,
             )
 
-        klass = self.make_generic_type(index, visitor.symtable.generic_types)
+        klass = self.make_generic_type(index, visitor.compiler.generic_types)
         visitor.set_type(node, klass)
 
     @property
@@ -2558,13 +2558,13 @@ class AwaitableInstance(Object[AwaitableType]):
 
 
 class AwaitableTypeRef(TypeRef):
-    def __init__(self, ref: TypeRef, symtable: SymbolTable) -> None:
+    def __init__(self, ref: TypeRef, compiler: Compiler) -> None:
         self.ref = ref
-        self.symtable = symtable
+        self.compiler = compiler
 
     def resolved(self, is_declaration: bool = False) -> Class:
         res = self.ref.resolved(is_declaration)
-        return AWAITABLE_TYPE.make_generic_type((res,), self.symtable.generic_types)
+        return AWAITABLE_TYPE.make_generic_type((res,), self.compiler.generic_types)
 
     def __repr__(self) -> str:
         return f"AwaitableTypeRef({self.ref!r})"
@@ -3000,7 +3000,7 @@ class UnknownDecoratedMethod(FunctionContainer):
     def return_type(self) -> TypeRef:
         if isinstance(self.func.node, AsyncFunctionDef):
             return AwaitableTypeRef(
-                ResolvedTypeRef(DYNAMIC_TYPE), self.func.module.symtable
+                ResolvedTypeRef(DYNAMIC_TYPE), self.func.module.compiler
             )
         return ResolvedTypeRef(DYNAMIC_TYPE)
 
@@ -3484,7 +3484,7 @@ class DynamicReturnDecorator(Class):
     def _set_dynamic_return_type(self, fn: Function) -> None:
         dynamic_typeref = ResolvedTypeRef(DYNAMIC_TYPE)
         if isinstance(fn.node, AsyncFunctionDef):
-            fn.return_type = AwaitableTypeRef(dynamic_typeref, fn.module.symtable)
+            fn.return_type = AwaitableTypeRef(dynamic_typeref, fn.module.compiler)
         else:
             fn.return_type = dynamic_typeref
 
@@ -4079,7 +4079,7 @@ class IsInstanceEffect(NarrowingEffect):
                 ta for ta in prev.klass.type_args if not inst.klass.can_assign_from(ta)
             )
             reverse = UNION_TYPE.make_generic_type(
-                type_args, visitor.symtable.generic_types
+                type_args, visitor.compiler.generic_types
             ).instance
         self.rev: Value = reverse
 
@@ -4133,7 +4133,7 @@ class IsInstanceFunction(Object[Class]):
                 types = tuple(visitor.get_type(el) for el in arg1.elts)
                 if all(isinstance(t, Class) for t in types):
                     klass_type = UNION_TYPE.make_generic_type(
-                        types, visitor.symtable.generic_types
+                        types, visitor.compiler.generic_types
                     )
             else:
                 arg1_type = visitor.get_type(node.args[1])
@@ -5195,7 +5195,7 @@ class UnionInstance(Object[UnionType]):
             visitor.syntax_error(f"{self.name}: {e.msg}", node)
 
         union = UNION_TYPE.make_generic_type(
-            tuple(result_types), visitor.symtable.generic_types
+            tuple(result_types), visitor.compiler.generic_types
         )
         visitor.set_type(node, union.instance)
         return ret_types
@@ -6637,7 +6637,7 @@ class ModuleInstance(Object["ModuleType"]):
     ) -> None:
         if node.attr in self.SPECIAL_NAMES:
             return super().bind_attr(node, visitor, type_ctx)
-        module_table = visitor.symtable.modules.get(self.module_name)
+        module_table = visitor.compiler.modules.get(self.module_name)
         if module_table is None:
             visitor.set_type(node, DYNAMIC)
             return
@@ -6936,7 +6936,7 @@ class ContextDecoratedMethod(DecoratedMethod):
                 ResolvedTypeRef(
                     CLASSVAR_TYPE.make_generic_type(
                         (self.ctx_dec.klass,),
-                        self.real_function.module.symtable.generic_types,
+                        self.real_function.module.compiler.generic_types,
                     )
                 ),
                 assignment=node,

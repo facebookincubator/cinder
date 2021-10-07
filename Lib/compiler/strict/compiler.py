@@ -27,7 +27,7 @@ from _strictmodule import (
     STUB_KIND_MASK_TYPING,
 )
 
-from ..static import ModuleTable, SymbolTable, StaticCodeGenerator
+from ..static import Compiler as BaseStaticCompiler, ModuleTable, StaticCodeGenerator
 from ..static.errors import TypedSyntaxError
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
@@ -157,7 +157,7 @@ def rewrite_ast(
 
 
 @final
-class StrictSymbolTable(SymbolTable):
+class StrictStaticCompiler(BaseStaticCompiler):
     def __init__(
         self,
         compiler: StaticCompiler,
@@ -226,7 +226,7 @@ class StaticCompiler(Compiler):
             allow_list_exact,
             raise_on_error,
         )
-        self.symtable: StrictSymbolTable = StrictSymbolTable(self)
+        self.compiler: StrictStaticCompiler = StrictStaticCompiler(self)
         self.log_time_func = log_time_func
         self.enable_patching = enable_patching
 
@@ -271,9 +271,9 @@ class StaticCompiler(Compiler):
         track_import_call: bool,
         symbols: Optional[PythonSymbolTable] = None,
     ) -> Tuple[CodeType | None, StrictAnalysisResult]:
-        self.symtable.optimize = optimize
-        self.symtable.track_import_call = track_import_call
-        root = self.symtable.ast_cache.get(name)
+        self.compiler.optimize = optimize
+        self.compiler.track_import_call = track_import_call
+        root = self.compiler.ast_cache.get(name)
         if root is None:
             symbols = symbols or getSymbolTable(mod, filename)
             if symbols is None:
@@ -294,7 +294,7 @@ class StaticCompiler(Compiler):
             log_func = self.log_time_func
             if log_func:
                 with log_func()(name, filename, "compile"):
-                    code = self.symtable.compile(
+                    code = self.compiler.compile(
                         name,
                         filename,
                         root,
@@ -302,7 +302,7 @@ class StaticCompiler(Compiler):
                         enable_patching=self.enable_patching,
                     )
             else:
-                code = self.symtable.compile(
+                code = self.compiler.compile(
                     name, filename, root, optimize, enable_patching=self.enable_patching
                 )
         except TypedSyntaxError as e:

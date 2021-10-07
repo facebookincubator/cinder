@@ -52,7 +52,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from . import SymbolTable
+    from .compiler import Compiler
 
 
 class ModuleFlag(Enum):
@@ -66,13 +66,13 @@ class ModuleTable:
         self,
         name: str,
         filename: str,
-        symtable: SymbolTable,
+        compiler: Compiler,
         members: Optional[Dict[str, Value]] = None,
     ) -> None:
         self.name = name
         self.filename = filename
         self.children: Dict[str, Value] = members or {}
-        self.symtable = symtable
+        self.compiler = compiler
         self.types: Dict[AST, Value] = {}
         self.node_data: Dict[Tuple[AST, object], object] = {}
         self.flags: Set[ModuleFlag] = set()
@@ -86,12 +86,12 @@ class ModuleTable:
         self.first_pass_done = False
 
     def syntax_error(self, msg: str, node: AST) -> None:
-        return self.symtable.error_sink.syntax_error(msg, self.filename, node)
+        return self.compiler.error_sink.syntax_error(msg, self.filename, node)
 
     def error_context(self, node: Optional[AST]) -> ContextManager[None]:
         if node is None:
             return nullcontext()
-        return self.symtable.error_sink.error_context(self.filename, node)
+        return self.compiler.error_sink.error_context(self.filename, node)
 
     def declare_class(self, node: ClassDef, klass: Class) -> None:
         self.decls.append((node, node.name, klass))
@@ -218,14 +218,14 @@ class ModuleTable:
                             ann = _resolve(elt) or DYNAMIC_TYPE
                             anns.append(ann)
                         values = tuple(anns)
-                        gen = val.make_generic_type(values, self.symtable.generic_types)
+                        gen = val.make_generic_type(values, self.compiler.generic_types)
                         return gen or val
                     else:
                         index = _resolve(value) or DYNAMIC_TYPE
                         if not isinstance(index, Class):
                             return None
                         gen = val.make_generic_type(
-                            (index,), self.symtable.generic_types
+                            (index,), self.compiler.generic_types
                         )
                         return gen or val
         # TODO handle Attribute
@@ -270,7 +270,7 @@ class ModuleTable:
 
                 if klass is FLOAT_TYPE:
                     klass = UNION_TYPE.make_generic_type(
-                        (FLOAT_TYPE, INT_TYPE), self.symtable.generic_types
+                        (FLOAT_TYPE, INT_TYPE), self.compiler.generic_types
                     )
 
             # TODO until we support runtime checking of unions, we must for
@@ -319,11 +319,11 @@ class ModuleTable:
             if ltype is None or rtype is None:
                 return None
             return UNION_TYPE.make_generic_type(
-                (ltype, rtype), self.symtable.generic_types
+                (ltype, rtype), self.compiler.generic_types
             )
 
     def resolve_name(self, name: str) -> Optional[Value]:
-        return self.children.get(name) or self.symtable.builtins.children.get(name)
+        return self.children.get(name) or self.compiler.builtins.children.get(name)
 
     def get_final_literal(self, node: AST, scope: Scope) -> Optional[ast.Constant]:
         if not isinstance(node, Name):

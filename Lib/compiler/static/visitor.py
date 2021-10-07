@@ -7,7 +7,7 @@ from typing import Optional, Sequence, Union, TYPE_CHECKING
 from ..visitor import ASTVisitor
 
 if TYPE_CHECKING:
-    from . import SymbolTable
+    from .compiler import Compiler
     from .module_table import ModuleTable
 
 
@@ -17,7 +17,7 @@ class GenericVisitor(ASTVisitor):
         self.module = module
         self.module_name: str = module.name
         self.filename: str = module.filename
-        self.symtable: SymbolTable = module.symtable
+        self.compiler: Compiler = module.compiler
 
     def visit(self, node: Union[AST, Sequence[AST]], *args: object) -> Optional[object]:
         # if we have a sequence of nodes, don't catch TypedSyntaxError here;
@@ -30,4 +30,4 @@ class GenericVisitor(ASTVisitor):
             return super().visit(node, *args)
 
     def syntax_error(self, msg: str, node: AST) -> None:
-        return self.symtable.error_sink.syntax_error(msg, self.filename, node)
+        return self.compiler.error_sink.syntax_error(msg, self.filename, node)

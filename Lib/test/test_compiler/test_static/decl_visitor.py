@@ -2,9 +2,9 @@ import ast
 import inspect
 import re
 from compiler.static import StaticCodeGenerator
+from compiler.static.compiler import Compiler
 from compiler.static.errors import TypedSyntaxError
 from compiler.static.module_table import ModuleTable
-from compiler.static.symbol_table import SymbolTable
 from textwrap import dedent
 from types import MemberDescriptorType
 
@@ -26,9 +26,9 @@ class DeclarationVisitorTests(StaticTestBase):
                 x = C()
                 return x.f()
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.compile("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -55,9 +55,9 @@ class DeclarationVisitorTests(StaticTestBase):
                         x = C()
                         return x.f()
                 """
-                symtable = SymbolTable(StaticCodeGenerator)
-                acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)))
-                bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+                compiler = Compiler(StaticCodeGenerator)
+                acomp = compiler.compile("a", "a.py", ast.parse(dedent(acode)))
+                bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
                 x = self.find_code(bcomp, "f")
                 self.assertNotInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -75,9 +75,9 @@ class DeclarationVisitorTests(StaticTestBase):
             def f():
                 return x.f()
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -99,9 +99,9 @@ class DeclarationVisitorTests(StaticTestBase):
             def g():
                 return f(1)
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "g")
         self.assertInBytecode(x, "INVOKE_FUNCTION")
 
@@ -118,9 +118,9 @@ class DeclarationVisitorTests(StaticTestBase):
             def g():
                 return f(1)
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "g")
         self.assertNotInBytecode(x, "INVOKE_FUNCTION")
 
@@ -136,15 +136,15 @@ class DeclarationVisitorTests(StaticTestBase):
             def f():
                 return C().f('abc')
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(
             TypedSyntaxError,
             re.escape(
                 "type mismatch: Exact[str] received for positional arg 'x', expected int"
             ),
         ):
-            symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
 
         bcode = """
             from a import C
@@ -152,10 +152,10 @@ class DeclarationVisitorTests(StaticTestBase):
             def f() -> str:
                 return C().f(42)
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
-            symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
 
     def test_cross_module_decl_visit_type_check_fields(self) -> None:
         acode = """
@@ -169,13 +169,13 @@ class DeclarationVisitorTests(StaticTestBase):
             def f():
                 C().x = 'abc'
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(
             TypedSyntaxError,
             re.escape("type mismatch: Exact[str] cannot be assigned to int"),
         ):
-            symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
 
         bcode = """
             from a import C
@@ -183,16 +183,16 @@ class DeclarationVisitorTests(StaticTestBase):
             def f() -> str:
                 return C().x
         """
-        symtable = SymbolTable(StaticCodeGenerator)
-        acomp = symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+        compiler = Compiler(StaticCodeGenerator)
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
-            symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
 
     def test_cross_module_import_time_resolution(self) -> None:
-        class TestSymbolTable(SymbolTable):
+        class TestCompiler(Compiler):
             def import_module(self, name):
                 if name == "a":
-                    symtable.add_module("a", "a.py", ast.parse(dedent(acode)))
+                    compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
 
         acode = """
             class C:
@@ -206,8 +206,8 @@ class DeclarationVisitorTests(StaticTestBase):
                 x = C()
                 return x.f()
         """
-        symtable = TestSymbolTable(StaticCodeGenerator)
-        bcomp = symtable.compile("b", "b.py", ast.parse(dedent(bcode)))
+        compiler = TestCompiler(StaticCodeGenerator)
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -226,13 +226,13 @@ class DeclarationVisitorTests(StaticTestBase):
             def f(x: C):
                 return x.f()
         """
-        symtable = SymbolTable(StaticCodeGenerator)
+        compiler = Compiler(StaticCodeGenerator)
         acode = ast.parse(dedent(acode))
         bcode = ast.parse(dedent(bcode))
-        symtable.add_module("a", "a.py", acode)
-        symtable.add_module("b", "b.py", bcode)
-        acomp = symtable.compile("a", "a.py", acode)
-        bcomp = symtable.compile("b", "b.py", bcode)
+        compiler.add_module("a", "a.py", acode)
+        compiler.add_module("b", "b.py", bcode)
+        acomp = compiler.compile("a", "a.py", acode)
+        bcomp = compiler.compile("b", "b.py", bcode)
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -250,7 +250,7 @@ class DeclarationVisitorTests(StaticTestBase):
         """
         testcase = self
 
-        class CustomSymbolTable(SymbolTable):
+        class CustomCompiler(Compiler):
             def __init__(self):
                 super().__init__(StaticCodeGenerator)
                 self.tree: ast.AST = None
@@ -261,8 +261,8 @@ class DeclarationVisitorTests(StaticTestBase):
                     self.btree = self.add_module("b", "b.py", btree, optimize=1)
                     testcase.assertFalse(self.btree is btree)
 
-        symtable = CustomSymbolTable()
-        acomp = symtable.compile("a", "a.py", ast.parse(dedent(acode)), optimize=1)
-        bcomp = symtable.compile("b", "b.py", symtable.btree, optimize=1)
+        compiler = CustomCompiler()
+        acomp = compiler.compile("a", "a.py", ast.parse(dedent(acode)), optimize=1)
+        bcomp = compiler.compile("b", "b.py", compiler.btree, optimize=1)
         x = self.find_code(self.find_code(acomp, "C"), "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("b", "B", "g"), 0))
