@@ -9,7 +9,7 @@ import inspect
 import sys
 from compiler.strict import StrictCodeGenerator, strict_compile
 from compiler.strict.common import FIXED_MODULES
-from compiler.strict.compiler import StaticCompiler
+from compiler.strict.compiler import Compiler
 from compiler.strict.loader import StrictModule
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
@@ -155,7 +155,7 @@ class StrictTestWithCheckerBase(StrictTestBase):
         modname="<module>",
         optimize=0,
     ):
-        compiler = StaticCompiler([], "", [], [])
+        compiler = Compiler([], "", [], [])
         source = inspect.cleandoc("\n" + source)
         code, _ = compiler.load_compiled_module_from_source(
             source, f"{modname}.py", modname, optimize

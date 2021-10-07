@@ -37,13 +37,14 @@ from typing import (
 )
 
 from cinder import StrictModule
+
 from .common import FIXED_MODULES, MAGIC_NUMBER
-from .compiler import NONSTRICT_MODULE_KIND, StaticCompiler, TIMING_LOGGER_TYPE
+from .compiler import NONSTRICT_MODULE_KIND, Compiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
 
 
-# Force immediate resolution of StaticCompiler in case it's deferred from Lazy Imports
-StaticCompiler = StaticCompiler
+# Force immediate resolution of Compiler in case it's deferred from Lazy Imports
+Compiler = Compiler
 
 
 _MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2 ** 15).to_bytes(2, "little") + b"\r\n"
@@ -168,7 +169,7 @@ __builtins__: ModuleType
 
 class StrictSourceFileLoader(SourceFileLoader):
     strict: bool = False
-    compiler: Optional[StaticCompiler] = None
+    compiler: Optional[Compiler] = None
     module: Optional[ModuleType] = None
 
     def __init__(
@@ -215,9 +216,9 @@ class StrictSourceFileLoader(SourceFileLoader):
         allow_list_exact: Iterable[str],
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]],
         enable_patching: bool = False,
-    ) -> StaticCompiler:
+    ) -> Compiler:
         if (comp := cls.compiler) is None:
-            comp = cls.compiler = StaticCompiler(
+            comp = cls.compiler = Compiler(
                 path,
                 stub_path,
                 allow_list_prefix,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from compiler.strict.compiler import StaticCompiler
+from compiler.strict.compiler import Compiler
 from compiler.strict.loader import StrictSourceFileLoader
 from contextlib import contextmanager
 from importlib.machinery import FileFinder
@@ -95,17 +95,13 @@ def restore_static_symtable() -> Generator[None, None, None]:
         None,
         enable_patching=False,
     )
-    if isinstance(compiler, StaticCompiler):
-        modules = compiler.compiler.modules.copy()
-    else:
-        modules = None
+    modules = compiler.static_compiler.modules.copy()
 
     try:
         yield
     finally:
-        if modules is not None and isinstance(compiler, StaticCompiler):
-            compiler.compiler.modules.clear()
-            compiler.compiler.modules.update(modules)
+        compiler.static_compiler.modules.clear()
+        compiler.static_compiler.modules.update(modules)
 
 
 @contextmanager

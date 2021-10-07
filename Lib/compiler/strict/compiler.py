@@ -27,7 +27,7 @@ from _strictmodule import (
     STUB_KIND_MASK_TYPING,
 )
 
-from ..static import Compiler as BaseStaticCompiler, ModuleTable, StaticCodeGenerator
+from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
 from ..static.errors import TypedSyntaxError
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
@@ -42,96 +42,6 @@ def getSymbolTable(mod: StrictAnalysisResult, filename: str) -> PythonSymbolTabl
 
 
 TIMING_LOGGER_TYPE = Callable[[str, str, str], ContextManager[None]]
-
-
-class Compiler:
-    def __init__(
-        self,
-        import_path: Iterable[str],
-        stub_root: str,
-        allow_list_prefix: Iterable[str],
-        allow_list_exact: Iterable[str],
-        raise_on_error: bool = False,
-    ) -> None:
-        self.import_path: List[str] = list(import_path)
-        self.stub_root = stub_root
-        self.allow_list_prefix = allow_list_prefix
-        self.allow_list_exact = allow_list_exact
-        self.loader: StrictModuleLoader = StrictModuleLoader(
-            self.import_path,
-            str(stub_root),
-            list(allow_list_prefix),
-            list(allow_list_exact),
-            True,
-        )
-        self.raise_on_error = raise_on_error
-
-    def load_compiled_module_from_source(
-        self,
-        source: str | bytes,
-        filename: str,
-        name: str,
-        optimize: int,
-        submodule_search_locations: Optional[List[str]] = None,
-        track_import_call: bool = False,
-    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
-        mod = self.loader.check_source(
-            source, filename, name, submodule_search_locations or []
-        )
-        errors = mod.errors
-        is_valid_strict = (
-            mod.is_valid
-            and len(errors) == 0
-            and mod.module_kind != NONSTRICT_MODULE_KIND
-        )
-        if errors and self.raise_on_error:
-            # if raise on error, just raise the first error
-            error = errors[0]
-            raise StrictModuleError(error[0], error[1], error[2], error[3])
-        elif is_valid_strict:
-            symbols = getSymbolTable(mod, filename)
-            try:
-                check_class_conflict(mod.ast, filename, symbols)
-            except StrictModuleError as e:
-                if self.raise_on_error:
-                    raise
-                mod.errors.append((e.msg, e.filename, e.lineno, e.col))
-
-        return self._rewrite(
-            mod, is_valid_strict, filename, name, optimize, track_import_call
-        )
-
-    def _rewrite(
-        self,
-        mod: StrictAnalysisResult,
-        is_valid_strict: bool,
-        filename: str,
-        name: str,
-        optimize: int,
-        track_import_call: bool,
-        symbols: Optional[PythonSymbolTable] = None,
-    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
-        if is_valid_strict:
-            symbols = symbols or getSymbolTable(mod, filename)
-            code = rewrite(
-                mod.ast_preprocessed,
-                symbols,
-                filename,
-                name,
-                "exec",
-                optimize,
-                track_import_call=track_import_call,
-            )
-        else:
-            # no rewrite or preprocessing
-            code = compile(
-                mod.ast,
-                filename,
-                "exec",
-                dont_inherit=True,
-                optimize=optimize,
-            )
-        return code, mod
 
 
 def rewrite_ast(
@@ -157,10 +67,10 @@ def rewrite_ast(
 
 
 @final
-class StrictStaticCompiler(BaseStaticCompiler):
+class StrictStaticCompiler(StaticCompiler):
     def __init__(
         self,
-        compiler: StaticCompiler,
+        compiler: Compiler,
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
     ) -> None:
         super().__init__(StaticCodeGenerator)
@@ -208,7 +118,7 @@ class StrictStaticCompiler(BaseStaticCompiler):
 
 
 @final
-class StaticCompiler(Compiler):
+class Compiler:
     def __init__(
         self,
         import_path: Iterable[str],
@@ -219,61 +129,108 @@ class StaticCompiler(Compiler):
         raise_on_error: bool = False,
         enable_patching: bool = False,
     ) -> None:
-        super().__init__(
-            import_path,
-            stub_root,
-            allow_list_prefix,
-            allow_list_exact,
-            raise_on_error,
+        self.import_path: List[str] = list(import_path)
+        self.stub_root = stub_root
+        self.allow_list_prefix = allow_list_prefix
+        self.allow_list_exact = allow_list_exact
+        self.loader: StrictModuleLoader = StrictModuleLoader(
+            self.import_path,
+            str(stub_root),
+            list(allow_list_prefix),
+            list(allow_list_exact),
+            True,
         )
-        self.compiler: StrictStaticCompiler = StrictStaticCompiler(self)
+        self.raise_on_error = raise_on_error
+        self.static_compiler: StrictStaticCompiler = StrictStaticCompiler(self)
         self.log_time_func = log_time_func
         self.enable_patching = enable_patching
 
-    def _rewrite(
+    def load_compiled_module_from_source(
         self,
-        mod: StrictAnalysisResult,
-        is_valid_strict: bool,
+        source: str | bytes,
         filename: str,
         name: str,
         optimize: int,
-        track_import_call: bool,
-        symbols: Optional[PythonSymbolTable] = None,
+        submodule_search_locations: Optional[List[str]] = None,
+        track_import_call: bool = False,
     ) -> Tuple[CodeType | None, StrictAnalysisResult]:
-        modKind = mod.module_kind
-        if not is_valid_strict or modKind != STATIC_MODULE_KIND:
-            return super()._rewrite(
-                mod,
-                is_valid_strict,
-                filename,
-                name,
-                optimize,
-                track_import_call,
-                symbols=symbols,
+        mod = self.loader.check_source(
+            source, filename, name, submodule_search_locations or []
+        )
+        errors = mod.errors
+        is_valid_strict = (
+            mod.is_valid
+            and len(errors) == 0
+            and mod.module_kind != NONSTRICT_MODULE_KIND
+        )
+        if errors and self.raise_on_error:
+            # if raise on error, just raise the first error
+            error = errors[0]
+            raise StrictModuleError(error[0], error[1], error[2], error[3])
+        elif is_valid_strict:
+            symbols = getSymbolTable(mod, filename)
+            try:
+                check_class_conflict(mod.ast, filename, symbols)
+            except StrictModuleError as e:
+                if self.raise_on_error:
+                    raise
+                mod.errors.append((e.msg, e.filename, e.lineno, e.col))
+
+        if not is_valid_strict:
+            code = self._compile_basic(mod, filename, optimize)
+        elif mod.module_kind == STATIC_MODULE_KIND:
+            code = self._compile_static(
+                mod, filename, name, optimize, track_import_call
             )
-        return self._rewrite_as_static(
-            mod,
-            is_valid_strict,
+        else:
+            code = self._compile_strict(
+                mod, filename, name, optimize, track_import_call
+            )
+
+        return code, mod
+
+    def _compile_basic(
+        self, mod: StrictAnalysisResult, filename: str, optimize: int
+    ) -> CodeType:
+        return compile(
+            mod.ast,
             filename,
-            name,
-            optimize,
-            track_import_call,
-            symbols=symbols,
+            "exec",
+            dont_inherit=True,
+            optimize=optimize,
         )
 
-    def _rewrite_as_static(
+    def _compile_strict(
         self,
         mod: StrictAnalysisResult,
-        is_valid_strict: bool,
+        filename: str,
+        name: str,
+        optimize: int,
+        track_import_call: bool,
+    ) -> CodeType:
+        symbols = getSymbolTable(mod, filename)
+        return rewrite(
+            mod.ast_preprocessed,
+            symbols,
+            filename,
+            name,
+            "exec",
+            optimize,
+            track_import_call=track_import_call,
+        )
+
+    def _compile_static(
+        self,
+        mod: StrictAnalysisResult,
         filename: str,
         name: str,
         optimize: int,
         track_import_call: bool,
         symbols: Optional[PythonSymbolTable] = None,
-    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
-        self.compiler.optimize = optimize
-        self.compiler.track_import_call = track_import_call
-        root = self.compiler.ast_cache.get(name)
+    ) -> CodeType | None:
+        self.static_compiler.optimize = optimize
+        self.static_compiler.track_import_call = track_import_call
+        root = self.static_compiler.ast_cache.get(name)
         if root is None:
             symbols = symbols or getSymbolTable(mod, filename)
             if symbols is None:
@@ -294,7 +251,7 @@ class StaticCompiler(Compiler):
             log_func = self.log_time_func
             if log_func:
                 with log_func()(name, filename, "compile"):
-                    code = self.compiler.compile(
+                    code = self.static_compiler.compile(
                         name,
                         filename,
                         root,
@@ -302,7 +259,7 @@ class StaticCompiler(Compiler):
                         enable_patching=self.enable_patching,
                     )
             else:
-                code = self.compiler.compile(
+                code = self.static_compiler.compile(
                     name, filename, root, optimize, enable_patching=self.enable_patching
                 )
         except TypedSyntaxError as e:
@@ -316,4 +273,4 @@ class StaticCompiler(Compiler):
             if self.raise_on_error:
                 raise err
 
-        return code, mod
+        return code
