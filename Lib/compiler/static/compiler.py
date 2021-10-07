@@ -356,6 +356,17 @@ class Compiler:
         optimize: int,
         enable_patching: bool = False,
     ) -> CodeType:
+        code_gen = self.code_gen(name, filename, tree, optimize, enable_patching)
+        return code_gen.getCode()
+
+    def code_gen(
+        self,
+        name: str,
+        filename: str,
+        tree: AST,
+        optimize: int,
+        enable_patching: bool = False,
+    ) -> Static38CodeGenerator:
         tree, s = self._bind(name, filename, tree, optimize, enable_patching)
         if self.error_sink.has_errors:
             raise self.error_sink.errors[0]
@@ -378,8 +389,7 @@ class Compiler:
             enable_patching=enable_patching,
         )
         code_gen.visit(tree)
-
-        return code_gen.getCode()
+        return code_gen
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         pass

@@ -82,11 +82,10 @@ class StaticTestBase(CompilerTest):
         ast_optimizer_enabled=True,
         enable_patching=False,
     ):
-        if (
-            not peephole_enabled
-            or not ast_optimizer_enabled
-            or generator is not StaticCodeGenerator
-        ):
+        assert peephole_enabled
+        assert ast_optimizer_enabled
+
+        if generator is not StaticCodeGenerator:
             return super().compile(
                 code,
                 generator,

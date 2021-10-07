@@ -249,44 +249,13 @@ class Static38CodeGenerator(StrictCodeGenerator):
         ast_optimizer_enabled: bool = True,
         enable_patching: bool = False,
     ) -> Static38CodeGenerator:
-        # TODO: Parsing here should really be that we run declaration visitor over all nodes,
-        # and then perform post processing on the symbol table, and then proceed to analysis
-        # and compilation
-        if ast_optimizer_enabled:
-            tree = AstOptimizer(optimize=optimize > 0).visit(tree)
+        assert peephole_enabled
+        assert ast_optimizer_enabled
 
         compiler = Compiler(cls)
-        decl_visit = DeclarationVisitor(module_name, filename, compiler, optimize)
-        decl_visit.visit(tree)
-
-        for module in compiler.modules.values():
-            module.finish_bind()
-
-        s = symbols.SymbolVisitor()
-        s.visit(tree)
-
-        graph = cls.flow_graph(
-            module_name, filename, s.scopes[tree], peephole_enabled=peephole_enabled
+        code_gen = compiler.code_gen(
+            module_name, filename, tree, optimize, enable_patching
         )
-        graph.setFlag(consts.CO_STATICALLY_COMPILED)
-
-        type_binder = TypeBinder(
-            s, filename, compiler, module_name, optimize, enable_patching
-        )
-        type_binder.visit(tree)
-
-        code_gen = cls(
-            None,
-            tree,
-            s,
-            graph,
-            compiler,
-            module_name,
-            flags,
-            optimize,
-            enable_patching,
-        )
-        code_gen.visit(tree)
         return code_gen
 
     def make_function_graph(
