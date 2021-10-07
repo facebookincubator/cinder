@@ -43,7 +43,7 @@ from ..pycodegen import (
     FuncOrLambda,
     CompNode,
 )
-from ..strict import StrictCodeGenerator, FIXED_MODULES, enable_strict_features
+from ..strict import StrictCodeGenerator, FIXED_MODULES
 from ..symbols import Scope, SymbolVisitor, ClassScope
 from .compiler import Compiler
 from .declaration_visitor import DeclarationVisitor
@@ -90,7 +90,7 @@ def exec_static(
     code = compile(
         source, "<module>", "exec", compiler=StaticCodeGenerator, modname=modname
     )
-    if enable_strict_features and "<fixed-modules>" not in globals:
+    if "<fixed-modules>" not in globals:
         globals["<fixed-modules>"] = FIXED_MODULES
     exec(code, locals, globals)
 

@@ -34,9 +34,8 @@ from ..pycodegen import (
 from ..symbols import SymbolVisitor
 from .common import FIXED_MODULES
 
-# We need to gate the immutability codegen for
-# migration reasons
-enable_strict_features: bool = False
+# Unused but still present until we remove it from IGSRV
+enable_strict_features: bool = True
 
 
 def is_mutable(node: AST) -> bool:
@@ -167,15 +166,11 @@ class StrictCodeGenerator(CinderCodeGenerator):
         self.emit(op, self.class_list_name)
 
     def find_immutability_flag(self, node: ClassDef) -> bool:
-        if not enable_strict_features:
-            return super().find_immutability_flag(node)
         old_size = len(node.decorator_list)
         node.decorator_list = [d for d in node.decorator_list if not is_mutable(d)]
         return old_size == len(node.decorator_list)
 
     def register_immutability(self, node: ClassDef, flag: bool) -> None:
-        if not enable_strict_features:
-            return super().register_immutability(node, flag)
         if self.has_class and flag:
             self.emit("DUP_TOP")
             self.emit_load_class_list()
@@ -185,8 +180,6 @@ class StrictCodeGenerator(CinderCodeGenerator):
     def processBody(
         self, node: AST, body: List[ast.stmt] | AST, gen: CodeGenerator
     ) -> None:
-        if not enable_strict_features:
-            return super().processBody(node, body, gen)
         if (
             isinstance(node, (FunctionDef, AsyncFunctionDef))
             and isinstance(gen, StrictCodeGenerator)
@@ -232,16 +225,12 @@ class StrictCodeGenerator(CinderCodeGenerator):
             super().processBody(node, body, gen)
 
     def startModule(self) -> None:
-        if not enable_strict_features:
-            return super().startModule()
         self.emit_load_fixed_methods()
         if self.has_class and not self.made_class_list:
             self.emit_create_class_list()
         super().startModule()
 
     def emit_module_return(self, node: ast.Module) -> None:
-        if not enable_strict_features:
-            return super().emit_module_return(node)
         if self.has_class:
             self.emit_freeze_class_list()
         super().emit_module_return(node)
@@ -276,8 +265,6 @@ class StrictCodeGenerator(CinderCodeGenerator):
         self.emit("POP_TOP")
 
     def visitImportFrom(self, node: ImportFrom) -> None:
-        if not enable_strict_features:
-            return super().visitImportFrom(node)
         if node.level == 0 and node.module is not None and node.module in FIXED_MODULES:
             module_name = node.module
             assert module_name is not None

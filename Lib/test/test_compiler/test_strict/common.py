@@ -113,15 +113,6 @@ class StrictTestBase(CompilerTest):
         cinder.clear_classloader_caches()
         return super().subTest(**kwargs)
 
-    @classmethod
-    def setUpClass(cls):
-        cls.strict_features = compiler.strict.enable_strict_features
-        compiler.strict.enable_strict_features = True
-
-    @classmethod
-    def tearDownClass(cls):
-        compiler.strict.enable_strict_features = cls.strict_features
-
 
 def init_cached_properties(
     cached_props: Mapping[str, str | Tuple[str, bool]]

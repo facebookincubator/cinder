@@ -14,7 +14,6 @@ from _static import (
 
 from .. import consts
 from ..optimizer import AstOptimizer
-from ..strict import enable_strict_features
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
 from .errors import ErrorSink
@@ -195,15 +194,9 @@ class Compiler:
         builtins_children["<builtins>"] = strict_builtins
         fixed_modules: Dict[str, Value] = {
             "typing": StrictBuiltins(typing_children),
+            "__strict__": StrictBuiltins(strict_modules_children),
+            "strict_modules": StrictBuiltins(dict(strict_modules_children)),
         }
-        if enable_strict_features:
-            fixed_modules.update(
-                {
-                    "typing": StrictBuiltins(typing_children),
-                    "__strict__": StrictBuiltins(strict_modules_children),
-                    "strict_modules": StrictBuiltins(dict(strict_modules_children)),
-                }
-            )
 
         builtins_children["<fixed-modules>"] = StrictBuiltins(fixed_modules)
 

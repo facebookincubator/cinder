@@ -346,12 +346,3 @@ class StaticTestBase(CompilerTest):
         code_gen.visit(tree)
 
         return tree, compiler, type_binder
-
-    @classmethod
-    def setUpClass(cls):
-        cls.strict_features = compiler.strict.enable_strict_features
-        compiler.strict.enable_strict_features = True
-
-    @classmethod
-    def tearDownClass(cls):
-        compiler.strict.enable_strict_features = cls.strict_features
