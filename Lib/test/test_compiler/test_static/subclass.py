@@ -42,15 +42,15 @@ class SubclassTests(StaticTestBase):
         self.assertTrue(STR_TYPE.is_subclass_of(STR_TYPE))
 
     def test_issubclass_with_awaitable_covariant(self):
-        mod, syms, typebinder = self.bind_module("class Num(int): pass", 0)
-        num = syms.modules["foo"].children["Num"]
+        mod, comp = self.bind_module("class Num(int): pass", 0)
+        num = comp.modules["foo"].children["Num"]
         awaitable_bool = AWAITABLE_TYPE.make_generic_type(
-            (BOOL_TYPE,), syms.generic_types
+            (BOOL_TYPE,), comp.generic_types
         )
         awaitable_int = AWAITABLE_TYPE.make_generic_type(
-            (INT_TYPE,), syms.generic_types
+            (INT_TYPE,), comp.generic_types
         )
-        awaitable_num = AWAITABLE_TYPE.make_generic_type((num,), syms.generic_types)
+        awaitable_num = AWAITABLE_TYPE.make_generic_type((num,), comp.generic_types)
 
         self.assertTrue(awaitable_bool.is_subclass_of(awaitable_bool))
         self.assertTrue(awaitable_bool.is_subclass_of(awaitable_int))

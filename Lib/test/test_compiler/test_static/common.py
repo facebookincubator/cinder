@@ -302,42 +302,30 @@ class StaticTestBase(CompilerTest):
         self.assertEqual(actual, typename)
 
     def bind_final_return(self, code: str) -> Value:
-        mod, syms, _ = self.bind_module(code)
-        types = syms.modules["foo"].types
+        mod, comp = self.bind_module(code)
+        types = comp.modules["foo"].types
         node = mod.body[-1].body[-1].value
         return types[node]
 
     def bind_stmt(
         self, code: str, optimize: bool = False, getter=lambda stmt: stmt
     ) -> ast.stmt:
-        mod, syms, _ = self.bind_module(code, optimize)
+        mod, comp = self.bind_module(code, optimize)
         assert len(mod.body) == 1
-        types = syms.modules["foo"].types
+        types = comp.modules["foo"].types
         return types[getter(mod.body[0])]
 
     def bind_expr(self, code: str, optimize: bool = False) -> Value:
-        mod, syms, _ = self.bind_module(code, optimize)
+        mod, comp = self.bind_module(code, optimize)
         assert len(mod.body) == 1
-        types = syms.modules["foo"].types
+        types = comp.modules["foo"].types
         return types[mod.body[0].value]
 
-    def bind_module(
-        self, code: str, optimize: int = 0
-    ) -> Tuple[ast.Module, Compiler, TypeBinder]:
-        tree = ast.parse(dedent(code))
-        if optimize:
-            tree = AstOptimizer().visit(tree)
+    def bind_module(self, code: str, optimize: int = 0) -> Tuple[ast.Module, Compiler]:
+        tree = ast.parse(self.clean_code(code))
 
         compiler = Compiler(StaticCodeGenerator)
-        decl_visit = DeclarationVisitor("foo", "foo.py", compiler, optimize)
-        decl_visit.visit(tree)
-        decl_visit.module.finish_bind()
-
-        s = SymbolVisitor()
-        walk(tree, s)
-
-        type_binder = TypeBinder(s, "foo.py", compiler, "foo", optimize=optimize)
-        type_binder.visit(tree)
+        tree, s = compiler._bind("foo", "foo.py", tree, optimize=optimize)
 
         # Make sure we can compile the code, just verifying all nodes are
         # visited.
@@ -345,4 +333,4 @@ class StaticTestBase(CompilerTest):
         code_gen = StaticCodeGenerator(None, tree, s, graph, compiler, "foo", optimize)
         code_gen.visit(tree)
 
-        return tree, compiler, type_binder
+        return tree, compiler

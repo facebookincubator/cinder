@@ -2170,17 +2170,17 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(self.bind_expr("a.b"), DYNAMIC)
         self.assertEqual(self.bind_expr("a + b"), DYNAMIC)
 
-        self.assertEqual(self.bind_expr("1 + 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 - 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 // 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 * 2"), INT_EXACT_TYPE.instance)
+        self.assertEqual(repr(self.bind_expr("1 + 2")), "<Literal[3]>")
+        self.assertEqual(repr(self.bind_expr("1 - 2")), "<Literal[-1]>")
+        self.assertEqual(repr(self.bind_expr("1 // 2")), "<Literal[0]>")
+        self.assertEqual(repr(self.bind_expr("1 * 2")), "<Literal[2]>")
         self.assertEqual(self.bind_expr("1 / 2"), FLOAT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 % 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 & 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 | 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 ^ 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("1 << 2"), INT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("100 >> 2"), INT_EXACT_TYPE.instance)
+        self.assertEqual(repr(self.bind_expr("1 % 2")), "<Literal[1]>")
+        self.assertEqual(repr(self.bind_expr("1 & 2")), "<Literal[0]>")
+        self.assertEqual(repr(self.bind_expr("1 | 2")), "<Literal[3]>")
+        self.assertEqual(repr(self.bind_expr("1 ^ 2")), "<Literal[3]>")
+        self.assertEqual(repr(self.bind_expr("1 << 2")), "<Literal[4]>")
+        self.assertEqual(repr(self.bind_expr("100 >> 2")), "<Literal[25]>")
 
         self.assertEqual(repr(self.bind_stmt("x = 1")), "<Literal[1]>")
         # self.assertEqual(self.bind_stmt("x: foo = 1").target.comp_type, DYNAMIC)
@@ -2301,20 +2301,20 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(x, "COMPARE_OP", "==")
 
     def test_bind_instance(self) -> None:
-        mod, syms, _ = self.bind_module("class C: pass\na: C = C()")
+        mod, comp = self.bind_module("class C: pass\na: C = C()")
         assign = mod.body[1]
-        types = syms.modules["foo"].types
+        types = comp.modules["foo"].types
         self.assertEqual(types[assign.target].name, "foo.C")
         self.assertEqual(repr(types[assign.target]), "<foo.C>")
 
     def test_bind_func_def(self) -> None:
-        mod, syms, _ = self.bind_module(
+        mod, comp = self.bind_module(
             """
             def f(x: object = None, y: object = None):
                 pass
         """
         )
-        modtable = syms.modules["foo"]
+        modtable = comp.modules["foo"]
         self.assertTrue(isinstance(modtable.children["f"], Function))
 
     def assertMatch(self, error: Exception, pattern: str):
@@ -10420,26 +10420,20 @@ class StaticCompilationTests(StaticTestBase):
         self.compile(codestr)
 
     def test_inlined_nodes_have_line_info(self):
-        codestr = """
-        from __static__ import int64, cbool, inline
+        self.type_error(
+            """
+            from __static__ import int64, cbool, inline
 
-        @inline
-        def x(i: int64) -> cbool:
-            return i == 1
+            @inline
+            def x(i: int64) -> cbool:
+                return i == "foo"
 
-        def foo(i: int64) -> cbool:
-            return x(i)
-        """
-        mod, syms, tb = self.bind_module(codestr, optimize=2)
-        node_data = tb.module.node_data
-        call_node = mod.body[2].body[0].value
-        inlined_call = node_data[call_node, Optional[InlinedCall]]
-        self.assertGreater(len(inlined_call.replacements), 0)
-        for replacement in inlined_call.replacements.values():
-            self.assertTrue(hasattr(replacement, "lineno"))
-            self.assertTrue(hasattr(replacement, "col_offset"))
-            self.assertTrue(hasattr(replacement, "end_lineno"))
-            self.assertTrue(hasattr(replacement, "end_col_offset"))
+            def foo(i: int64) -> cbool:
+                return x(i)
+            """,
+            "",
+            at="i ==",
+        )
 
     def test_compare_with_attr(self):
         codestr = """
