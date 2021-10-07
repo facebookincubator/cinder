@@ -5,6 +5,7 @@ import asyncio
 import compiler.strict
 import gc
 import inspect
+import re
 import sys
 from compiler import consts, walk
 from compiler.optimizer import AstOptimizer
@@ -127,6 +128,11 @@ class StaticTestBase(CompilerTest):
             self.assertEqual(exc.lineno, lineno)
         if offset is not None:
             self.assertEqual(exc.offset, offset)
+
+    def revealed_type(self, code: str, type: str) -> None:
+        self.type_error(
+            code, f"reveal_type\(.+\): '{re.escape(type)}'", at="reveal_type("
+        )
 
     _temp_mod_num = 0
 

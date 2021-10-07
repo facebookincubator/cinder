@@ -54,7 +54,7 @@ class UnionCompilationTests(StaticTestBase):
             foo = mod.foo
 
     def test_optional_union_syntax(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             from typing import Union
             class B: pass
@@ -68,6 +68,7 @@ class UnionCompilationTests(StaticTestBase):
                 # can narrow
                 if x is None:
                     return 1
+                reveal_type(x)
                 return x
             """,
             "int",
@@ -97,62 +98,59 @@ class UnionCompilationTests(StaticTestBase):
         self.assertTrue(u1.can_assign_from(INT_TYPE))
 
     def test_union_simplify_to_single_type(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             from typing import Union
 
             def f(x: int, y: int) -> int:
-                return x or y
+                reveal_type(x or y)
             """,
             "int",
         )
 
     def test_union_simplify_related(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             from typing import Union
             class B: pass
             class C(B): pass
 
             def f(x: B, y: C) -> B:
-                return x or y
+                reveal_type(x or y)
             """,
-            "foo.B",
+            "<module>.B",
         )
 
     def test_union_flatten_nested(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             from typing import Union
             class B: pass
 
             def f(x: int, y: str, z: B):
-                return x or (y or z)
+                reveal_type(x or (y or z))
             """,
-            "Union[int, str, foo.B]",
+            "Union[int, str, <module>.B]",
         )
 
     def test_union_deep_simplify(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             from typing import Union
 
-            def f(x: int, y: None) -> int:
-                z = (x or x) or (y or y) or (x or x)
-                if z is None:
-                    return 1
-                return z
+            def f(x: int, y: None):
+                reveal_type((x or x) or (y or y) or (x or x))
             """,
-            "int",
+            "Optional[int]",
         )
 
     def test_union_dynamic_element(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             from somewhere import unknown
 
             def f(x: int, y: unknown):
-                return x or y
+                reveal_type(x or y)
             """,
             "dynamic",
         )
@@ -188,7 +186,6 @@ class UnionCompilationTests(StaticTestBase):
                     return 1
                 return 2
             """,
-            modname="foo.py",
         )
 
     def test_optional_refine_boolop(self):
@@ -211,7 +208,6 @@ class UnionCompilationTests(StaticTestBase):
             def d() -> int:
                 return a(True) or a(False) or b()
             """,
-            modname="foo",
         )
 
     def test_optional_refine_boolop_fail(self):
@@ -270,16 +266,16 @@ class UnionCompilationTests(StaticTestBase):
         # error. But the current form of `resolve_annotations` doesn't let us
         # distinguish between unknown/dynamic and bad type. So for now we just
         # let this go as dynamic.
-        self.assertReturns(
+        self.revealed_type(
             """
-            def f(x: len | int) -> int:
-                return x
+            def f(x: len | int):
+                reveal_type(x)
             """,
             "dynamic",
         )
 
     def test_union_attr(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             class A:
                 attr: int
@@ -289,7 +285,7 @@ class UnionCompilationTests(StaticTestBase):
 
             def f(x: A, y: B):
                 z = x or y
-                return z.attr
+                reveal_type(z.attr)
             """,
             "Union[int, str]",
         )
@@ -322,39 +318,39 @@ class UnionCompilationTests(StaticTestBase):
         )
 
     def test_union_subscr(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             from __static__ import CheckedDict
 
             def f(x: CheckedDict[int, int], y: CheckedDict[int, str]):
-                return (x or y)[0]
+                reveal_type((x or y)[0])
             """,
             "Union[int, str]",
         )
 
     def test_union_unaryop(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             def f(x: int, y: complex):
-                return -(x or y)
+                reveal_type(-(x or y))
             """,
             "Union[int, complex]",
         )
 
     def test_union_isinstance_reverse_narrow(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             def f(x: int, y: str):
                 z = x or y
                 if isinstance(z, str):
                     return 1
-                return z
+                reveal_type(z)
             """,
             "int",
         )
 
     def test_union_isinstance_reverse_narrow_supertype(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             class A: pass
             class B(A): pass
@@ -363,13 +359,13 @@ class UnionCompilationTests(StaticTestBase):
                 o = x or y
                 if isinstance(o, A):
                     return 1
-                return o
+                reveal_type(o)
             """,
             "int",
         )
 
     def test_union_isinstance_reverse_narrow_other_union(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             class A: pass
             class B: pass
@@ -379,19 +375,19 @@ class UnionCompilationTests(StaticTestBase):
                 o = x or y or z
                 if isinstance(o, A | B):
                     return 1
-                return o
+                reveal_type(o)
             """,
-            "foo.C",
+            "<module>.C",
         )
 
     def test_union_not_isinstance_narrow(self):
-        self.assertReturns(
+        self.revealed_type(
             """
             def f(x: int, y: str):
                 o = x or y
                 if not isinstance(o, int):
                     return 1
-                return o
+                reveal_type(o)
             """,
             "int",
         )
