@@ -1,4 +1,8 @@
 import re
+import unittest
+from compiler.static import StaticCodeGenerator
+from compiler.static.symbol_table import SymbolTable
+from compiler.static.types import UNION_TYPE, INT_TYPE, STR_TYPE, NONE_TYPE
 
 from .common import StaticTestBase
 from .tests import bad_ret_type, type_mismatch
@@ -80,54 +84,17 @@ class UnionCompilationTests(StaticTestBase):
             bad_ret_type("Optional[int]", "int"),
         )
 
-    def test_union_can_assign_to_broader_union(self):
-        self.assertReturns(
-            """
-            from typing import Union
-            class B:
-                pass
-
-            def f(x: int, y: str) -> Union[int, str, B]:
-                return x or y
-            """,
-            "Union[int, str]",
+    def test_union_can_assign_from(self):
+        st = SymbolTable(StaticCodeGenerator)
+        u1 = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), st.generic_types)
+        u2 = UNION_TYPE.make_generic_type(
+            (INT_TYPE, STR_TYPE, NONE_TYPE), st.generic_types
         )
-
-    def test_union_can_assign_to_same_union(self):
-        self.assertReturns(
-            """
-            from typing import Union
-
-            def f(x: int, y: str) -> Union[int, str]:
-                return x or y
-            """,
-            "Union[int, str]",
-        )
-
-    def test_union_can_assign_from_individual_element(self):
-        self.assertReturns(
-            """
-            from typing import Union
-
-            def f(x: int) -> Union[int, str]:
-                return x
-            """,
-            "int",
-        )
-
-    def test_union_cannot_assign_from_broader_union(self):
-        # TODO this should be a type error, but can't be safely
-        # until we have runtime checking for unions
-        self.assertReturns(
-            """
-            from typing import Union
-            class B: pass
-
-            def f(x: int, y: str, z: B) -> Union[int, str]:
-                return x or y or z
-            """,
-            "Union[int, str, foo.B]",
-        )
+        self.assertTrue(u2.can_assign_from(u1))
+        self.assertFalse(u1.can_assign_from(u2))
+        self.assertTrue(u1.can_assign_from(u1))
+        self.assertTrue(u2.can_assign_from(u2))
+        self.assertTrue(u1.can_assign_from(INT_TYPE))
 
     def test_union_simplify_to_single_type(self):
         self.assertReturns(
