@@ -227,15 +227,12 @@ class Compiler:
         name: str,
         optimize: int,
         track_import_call: bool,
-        symbols: Optional[PythonSymbolTable] = None,
     ) -> CodeType | None:
         self.static_compiler.optimize = optimize
         self.static_compiler.track_import_call = track_import_call
         root = self.static_compiler.ast_cache.get(name)
         if root is None:
-            symbols = symbols or getSymbolTable(mod, filename)
-            if symbols is None:
-                raise TypeError("expected SymbolTable, got None")
+            symbols = getSymbolTable(mod, filename)
             # Perform the normal strict modules re-write, minus slotification
             root = rewrite_ast(
                 mod.ast_preprocessed,
