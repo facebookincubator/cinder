@@ -183,9 +183,7 @@ class StaticTestBase(CompilerTest):
             name = self._temp_mod_name()
         old_setting = set_freeze_enabled(freeze)
         try:
-            d, m = self._in_module(
-                code, name, code_gen, optimize, enable_patching=enable_patching
-            )
+            d, m = self._in_module(code, name, code_gen, optimize, enable_patching)
             yield m
         finally:
             set_freeze_enabled(old_setting)
@@ -225,7 +223,7 @@ class StaticTestBase(CompilerTest):
         old_setting = set_freeze_enabled(freeze)
         try:
             d, m = self._in_strict_module(
-                code, name, code_gen, optimize, enable_patching=enable_patching
+                code, name, code_gen, optimize, enable_patching
             )
             yield m
         finally:

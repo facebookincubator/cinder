@@ -32,11 +32,11 @@ def run_static_tests():
             pass
 
         def _in_module(self, *args):
-            d = super()._in_module(*args)
+            d, m = super()._in_module(*args)
             args = list(args)
             args[1] = d["__name__"]
             CODE_SAMPLES_IN_MODULE.append(args)
-            return d
+            return d, m
 
         def _in_strict_module(self, *args):
             d, m = super()._in_strict_module(*args)
