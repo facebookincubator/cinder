@@ -2602,6 +2602,21 @@ class GetFrameTests(unittest.TestCase):
             frame2 = frame2.f_back
 
     @unittest.failUnlessJITCompiled
+    def getframe_then_deopt(self):
+        f = sys._getframe()
+        try:
+            raise Exception("testing 123")
+        except:
+            return f
+
+    def test_getframe_then_deopt(self):
+        # Make sure we correctly unlink a materialized frame after its function
+        # deopts into the interpreter
+        stack = ["getframe_then_deopt", "f3", "f2", "f1", "test_getframe_then_deopt"]
+        frame = self.f1(self.getframe_then_deopt)
+        self.assert_frames(frame, stack)
+
+    @unittest.failUnlessJITCompiled
     def getframe_in_except(self):
         try:
             raise Exception("testing 123")
