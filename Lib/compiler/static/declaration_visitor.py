@@ -68,10 +68,13 @@ TScopeTypes = Union[ModuleTable, Class, Function, NestedScope]
 
 
 class DeclarationVisitor(GenericVisitor):
-    def __init__(self, mod_name: str, filename: str, symbols: Compiler) -> None:
+    def __init__(
+        self, mod_name: str, filename: str, symbols: Compiler, optimize: int
+    ) -> None:
         module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
         super().__init__(module)
         self.scopes: List[TScopeTypes] = [self.module]
+        self.optimize = optimize
 
     def finish_bind(self) -> None:
         self.module.finish_bind()
@@ -188,7 +191,7 @@ class DeclarationVisitor(GenericVisitor):
 
     def visitImport(self, node: Import) -> None:
         for name in node.names:
-            self.compiler.import_module(name.name)
+            self.compiler.import_module(name.name, self.optimize)
             asname = name.asname
             if asname is None:
                 top_level_module = name.name.split(".")[0]
@@ -202,7 +205,7 @@ class DeclarationVisitor(GenericVisitor):
         mod_name = node.module
         if not mod_name or node.level:
             raise NotImplementedError("relative imports aren't supported")
-        self.compiler.import_module(mod_name)
+        self.compiler.import_module(mod_name, self.optimize)
         mod = self.compiler.modules.get(mod_name)
         if mod is not None:
             for name in node.names:
@@ -213,7 +216,7 @@ class DeclarationVisitor(GenericVisitor):
                 else:
                     # We might be facing a module imported as an attribute.
                     module_as_attribute = f"{mod_name}.{name.name}"
-                    self.compiler.import_module(module_as_attribute)
+                    self.compiler.import_module(module_as_attribute, self.optimize)
                     if module_as_attribute in self.compiler.modules:
                         self.module.children[child_name] = ModuleInstance(
                             module_name=module_as_attribute

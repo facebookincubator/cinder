@@ -256,7 +256,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             tree = AstOptimizer(optimize=optimize > 0).visit(tree)
 
         compiler = Compiler(cls)
-        decl_visit = DeclarationVisitor(module_name, filename, compiler)
+        decl_visit = DeclarationVisitor(module_name, filename, compiler, optimize)
         decl_visit.visit(tree)
 
         for module in compiler.modules.values():

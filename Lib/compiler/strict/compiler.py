@@ -56,11 +56,10 @@ class StrictStaticCompiler(StaticCompiler):
         super().__init__(StaticCodeGenerator)
         self.compiler = compiler
         self.ast_cache: Dict[str, ast.AST] = {}
-        self.optimize: Optional[int] = None
         self.track_import_call: Optional[bool] = None
         self.log_time_func = log_time_func
 
-    def import_module(self, name: str) -> Optional[ModuleTable]:
+    def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         loader = self.compiler.loader
         mod = loader.check(name)
         if mod.is_valid and name not in self.modules and len(mod.errors) == 0:
@@ -78,9 +77,7 @@ class StrictStaticCompiler(StaticCompiler):
                     symbols,
                     filename,
                     name,
-                    # pyre-fixme[6]: Expected `int` for 5th param but got
-                    #  `Optional[int]`.
-                    optimize=self.optimize,
+                    optimize=optimize,
                     is_static=True,
                     # pyre-fixme[6]: Expected `bool` for 7th param but got
                     #  `Optional[bool]`.
@@ -91,7 +88,7 @@ class StrictStaticCompiler(StaticCompiler):
                     log()(name, filename, "declaration_visit") if log else nullcontext()
                 )
                 with ctx:
-                    root = self.add_module(name, filename, root)
+                    root = self.add_module(name, filename, root, optimize)
                 self.ast_cache[name] = root
 
         return self.modules.get(name)
@@ -207,7 +204,6 @@ class Compiler:
         optimize: int,
         track_import_call: bool,
     ) -> CodeType | None:
-        self.static_compiler.optimize = optimize
         self.static_compiler.track_import_call = track_import_call
         root = self.static_compiler.ast_cache.get(name)
         if root is None:

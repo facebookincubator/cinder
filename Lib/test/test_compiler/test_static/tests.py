@@ -2333,7 +2333,7 @@ class StaticCompilationTests(StaticTestBase):
                 b: str = 42
         """
         compiler = Compiler(StaticCodeGenerator, CollectingErrorSink())
-        compiler.bind("a", "a.py", ast.parse(dedent(code)))
+        compiler.bind("a", "a.py", ast.parse(dedent(code)), optimize=0)
         self.assertErrors(
             compiler,
             type_mismatch("Exact[str]", "int"),
@@ -2348,7 +2348,7 @@ class StaticCompilationTests(StaticTestBase):
             f('abc')
         """
         compiler = Compiler(StaticCodeGenerator, CollectingErrorSink())
-        compiler.bind("a", "a.py", ast.parse(dedent(code)))
+        compiler.bind("a", "a.py", ast.parse(dedent(code)), optimize=0)
         self.assertErrors(
             compiler,
             re.escape(
@@ -2363,7 +2363,7 @@ class StaticCompilationTests(StaticTestBase):
                 y: str = a
         """
         compiler = Compiler(StaticCodeGenerator, CollectingErrorSink())
-        compiler.bind("a", "a.py", ast.parse(dedent(code)))
+        compiler.bind("a", "a.py", ast.parse(dedent(code)), optimize=0)
         self.assertErrors(
             compiler, type_mismatch("str", "int"), type_mismatch("int", "str")
         )
@@ -2379,7 +2379,7 @@ class StaticCompilationTests(StaticTestBase):
             f('abc')
         """
         compiler = Compiler(StaticCodeGenerator, CollectingErrorSink())
-        compiler.bind("a", "a.py", ast.parse(dedent(code)))
+        compiler.bind("a", "a.py", ast.parse(dedent(code)), optimize=0)
         self.assertErrors(compiler, "cannot add int64 and str")
 
     def test_collecting_error_sink_double(self) -> None:
@@ -2391,7 +2391,7 @@ class StaticCompilationTests(StaticTestBase):
             f('abc')
         """
         compiler = Compiler(StaticCodeGenerator, CollectingErrorSink())
-        compiler.bind("a", "a.py", ast.parse(dedent(code)))
+        compiler.bind("a", "a.py", ast.parse(dedent(code)), optimize=0)
         self.assertErrors(compiler, "type mismatch: double cannot be created from str")
 
     def test_error_starred_primitive(self):
@@ -3041,8 +3041,8 @@ class StaticCompilationTests(StaticTestBase):
         tree.body.insert(0, builtins)
 
         compiler = Compiler(StaticCodeGenerator)
-        compiler.add_module("a", "a.py", tree)
-        acomp = compiler.compile("a", "a.py", tree)
+        compiler.add_module("a", "a.py", tree, optimize=0)
+        acomp = compiler.compile("a", "a.py", tree, optimize=0)
         x = self.find_code(acomp, "f")
         self.assertInBytecode(x, "CAST", ("builtins", "bool"))
 
@@ -3076,8 +3076,8 @@ class StaticCompilationTests(StaticTestBase):
         tree.body.insert(0, builtins)
 
         compiler = Compiler(StaticCodeGenerator)
-        compiler.add_module("a", "a.py", tree)
-        acomp = compiler.compile("a", "a.py", tree)
+        compiler.add_module("a", "a.py", tree, optimize=0)
+        acomp = compiler.compile("a", "a.py", tree, optimize=0)
         x = self.find_code(acomp, "f")
         self.assertInBytecode(x, "CAST", ("builtins", "bool"))
 
@@ -3105,8 +3105,8 @@ class StaticCompilationTests(StaticTestBase):
         )
         tree.body.insert(0, builtins)
         compiler = Compiler(StaticCodeGenerator)
-        compiler.add_module("a", "a.py", tree)
-        acomp = compiler.compile("a", "a.py", tree)
+        compiler.add_module("a", "a.py", tree, optimize=0)
+        acomp = compiler.compile("a", "a.py", tree, optimize=0)
 
     def test_cross_module_inheritance(self) -> None:
         acode = """
@@ -3132,10 +3132,10 @@ class StaticCompilationTests(StaticTestBase):
         compiler = Compiler(StaticCodeGenerator)
         acode = ast.parse(dedent(acode))
         bcode = ast.parse(dedent(bcode))
-        compiler.add_module("a", "a.py", acode)
-        compiler.add_module("b", "b.py", bcode)
-        acomp = compiler.compile("a", "a.py", acode)
-        bcomp = compiler.compile("b", "b.py", bcode)
+        compiler.add_module("a", "a.py", acode, optimize=0)
+        compiler.add_module("b", "b.py", bcode, optimize=0)
+        acomp = compiler.compile("a", "a.py", acode, optimize=0)
+        bcomp = compiler.compile("b", "b.py", bcode, optimize=0)
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 

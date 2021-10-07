@@ -27,8 +27,8 @@ class DeclarationVisitorTests(StaticTestBase):
                 return x.f()
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.compile("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+        acomp = compiler.compile("a", "a.py", ast.parse(dedent(acode)), optimize=0)
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -56,8 +56,12 @@ class DeclarationVisitorTests(StaticTestBase):
                         return x.f()
                 """
                 compiler = Compiler(StaticCodeGenerator)
-                acomp = compiler.compile("a", "a.py", ast.parse(dedent(acode)))
-                bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+                acomp = compiler.compile(
+                    "a", "a.py", ast.parse(dedent(acode)), optimize=0
+                )
+                bcomp = compiler.compile(
+                    "b", "b.py", ast.parse(dedent(bcode)), optimize=0
+                )
                 x = self.find_code(bcomp, "f")
                 self.assertNotInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -76,8 +80,8 @@ class DeclarationVisitorTests(StaticTestBase):
                 return x.f()
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)), optimize=0)
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -100,8 +104,8 @@ class DeclarationVisitorTests(StaticTestBase):
                 return f(1)
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)), optimize=0)
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
         x = self.find_code(bcomp, "g")
         self.assertInBytecode(x, "INVOKE_FUNCTION")
 
@@ -119,8 +123,8 @@ class DeclarationVisitorTests(StaticTestBase):
                 return f(1)
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
-        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)), optimize=0)
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
         x = self.find_code(bcomp, "g")
         self.assertNotInBytecode(x, "INVOKE_FUNCTION")
 
@@ -137,14 +141,14 @@ class DeclarationVisitorTests(StaticTestBase):
                 return C().f('abc')
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)), optimize=0)
         with self.assertRaisesRegex(
             TypedSyntaxError,
             re.escape(
                 "type mismatch: Exact[str] received for positional arg 'x', expected int"
             ),
         ):
-            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
 
         bcode = """
             from a import C
@@ -153,9 +157,9 @@ class DeclarationVisitorTests(StaticTestBase):
                 return C().f(42)
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)), optimize=0)
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
-            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
 
     def test_cross_module_decl_visit_type_check_fields(self) -> None:
         acode = """
@@ -170,12 +174,12 @@ class DeclarationVisitorTests(StaticTestBase):
                 C().x = 'abc'
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)), optimize=0)
         with self.assertRaisesRegex(
             TypedSyntaxError,
             re.escape("type mismatch: Exact[str] cannot be assigned to int"),
         ):
-            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
 
         bcode = """
             from a import C
@@ -184,15 +188,17 @@ class DeclarationVisitorTests(StaticTestBase):
                 return C().x
         """
         compiler = Compiler(StaticCodeGenerator)
-        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+        acomp = compiler.add_module("a", "a.py", ast.parse(dedent(acode)), optimize=0)
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
-            compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+            compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
 
     def test_cross_module_import_time_resolution(self) -> None:
         class TestCompiler(Compiler):
-            def import_module(self, name):
+            def import_module(self, name, optimize):
                 if name == "a":
-                    compiler.add_module("a", "a.py", ast.parse(dedent(acode)))
+                    compiler.add_module(
+                        "a", "a.py", ast.parse(dedent(acode)), optimize=optimize
+                    )
 
         acode = """
             class C:
@@ -207,7 +213,7 @@ class DeclarationVisitorTests(StaticTestBase):
                 return x.f()
         """
         compiler = TestCompiler(StaticCodeGenerator)
-        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)))
+        bcomp = compiler.compile("b", "b.py", ast.parse(dedent(bcode)), optimize=0)
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -229,10 +235,10 @@ class DeclarationVisitorTests(StaticTestBase):
         compiler = Compiler(StaticCodeGenerator)
         acode = ast.parse(dedent(acode))
         bcode = ast.parse(dedent(bcode))
-        compiler.add_module("a", "a.py", acode)
-        compiler.add_module("b", "b.py", bcode)
-        acomp = compiler.compile("a", "a.py", acode)
-        bcomp = compiler.compile("b", "b.py", bcode)
+        compiler.add_module("a", "a.py", acode, optimize=0)
+        compiler.add_module("b", "b.py", bcode, optimize=0)
+        acomp = compiler.compile("a", "a.py", acode, optimize=0)
+        bcomp = compiler.compile("b", "b.py", bcode, optimize=0)
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 
@@ -255,10 +261,10 @@ class DeclarationVisitorTests(StaticTestBase):
                 super().__init__(StaticCodeGenerator)
                 self.tree: ast.AST = None
 
-            def import_module(self, name: str) -> ModuleTable:
+            def import_module(self, name: str, optimize: int) -> ModuleTable:
                 if name == "b":
                     btree = ast.parse(dedent(bcode))
-                    self.btree = self.add_module("b", "b.py", btree, optimize=1)
+                    self.btree = self.add_module("b", "b.py", btree, optimize=optimize)
                     testcase.assertFalse(self.btree is btree)
 
         compiler = CustomCompiler()

@@ -13,7 +13,9 @@ class ModuleTests(StaticTestBase):
     def build_symbol_table(self, modules: List[Tuple[str, str, str]]) -> Compiler:
         compiler = Compiler(StaticCodeGenerator)
         for module_name, module_path, module_code in modules:
-            module_visit = DeclarationVisitor(module_name, module_path, compiler)
+            module_visit = DeclarationVisitor(
+                module_name, module_path, compiler, optimize=0
+            )
             module_visit.visit(ast.parse(dedent(module_code)))
             module_visit.module.finish_bind()
         return compiler
@@ -209,7 +211,7 @@ class ModuleTests(StaticTestBase):
                 ("b", "b.py", bcode),
             ]
         )
-        ccomp = compiler.compile("c", "c.py", ast.parse(dedent(ccode)))
+        ccomp = compiler.compile("c", "c.py", ast.parse(dedent(ccode)), optimize=0)
         f = self.find_code(ccomp, "f")
         self.assertInBytecode(f, "INVOKE_FUNCTION", (("a", "foo"), 1))
 
@@ -233,4 +235,4 @@ class ModuleTests(StaticTestBase):
             ]
         )
         with self.assertRaisesRegex(TypedSyntaxError, "types.ModuleType"):
-            ccomp = compiler.compile("c", "c.py", ast.parse(dedent(ccode)))
+            ccomp = compiler.compile("c", "c.py", ast.parse(dedent(ccode)), optimize=0)

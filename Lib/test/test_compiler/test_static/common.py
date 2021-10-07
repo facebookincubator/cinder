@@ -107,7 +107,7 @@ class StaticTestBase(CompilerTest):
         code = self.clean_code(code)
         tree = ast.parse(code)
         compiler = Compiler(StaticCodeGenerator, errors)
-        compiler.bind("<module>", "<module>.py", tree)
+        compiler.bind("<module>", "<module>.py", tree, optimize=0)
         return TestErrors(self, code, errors.errors)
 
     def type_error(
@@ -329,7 +329,7 @@ class StaticTestBase(CompilerTest):
             tree = AstOptimizer().visit(tree)
 
         compiler = Compiler(StaticCodeGenerator)
-        decl_visit = DeclarationVisitor("foo", "foo.py", compiler)
+        decl_visit = DeclarationVisitor("foo", "foo.py", compiler, optimize)
         decl_visit.visit(tree)
         decl_visit.module.finish_bind()
 

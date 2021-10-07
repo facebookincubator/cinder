@@ -206,7 +206,7 @@ class TypeBinder(GenericVisitor):
         filename: str,
         compiler: Compiler,
         module_name: str,
-        optimize: int = 0,
+        optimize: int,
         enable_patching: bool = False,
         nodes_default_dynamic: bool = False,
     ) -> None:

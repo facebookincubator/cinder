@@ -310,10 +310,10 @@ class Compiler:
     def __setitem__(self, name: str, value: ModuleTable) -> None:
         self.modules[name] = value
 
-    def add_module(self, name: str, filename: str, tree: AST, optimize: int = 0) -> AST:
+    def add_module(self, name: str, filename: str, tree: AST, optimize: int) -> AST:
         tree = AstOptimizer(optimize=optimize > 0, force_asserts=True).visit(tree)
 
-        decl_visit = DeclarationVisitor(name, filename, self)
+        decl_visit = DeclarationVisitor(name, filename, self, optimize)
         decl_visit.visit(tree)
         decl_visit.finish_bind()
         return tree
@@ -323,7 +323,7 @@ class Compiler:
         name: str,
         filename: str,
         tree: AST,
-        optimize: int = 0,
+        optimize: int,
         enable_patching: bool = False,
     ) -> None:
         self._bind(name, filename, tree, optimize, enable_patching)
@@ -333,7 +333,7 @@ class Compiler:
         name: str,
         filename: str,
         tree: AST,
-        optimize: int = 0,
+        optimize: int,
         enable_patching: bool = False,
     ) -> Tuple[AST, SymbolVisitor]:
         if name not in self.modules:
@@ -360,7 +360,7 @@ class Compiler:
         name: str,
         filename: str,
         tree: AST,
-        optimize: int = 0,
+        optimize: int,
         enable_patching: bool = False,
     ) -> CodeType:
         tree, s = self._bind(name, filename, tree, optimize, enable_patching)
@@ -388,5 +388,5 @@ class Compiler:
 
         return code_gen.getCode()
 
-    def import_module(self, name: str) -> Optional[ModuleTable]:
+    def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         pass
