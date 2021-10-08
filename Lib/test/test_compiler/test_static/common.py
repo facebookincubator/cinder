@@ -4,15 +4,15 @@ import ast
 import asyncio
 import compiler.strict
 import gc
-import inspect
 import re
 import sys
-from compiler import consts, walk
+from compiler import walk
 from compiler.optimizer import AstOptimizer
-from compiler.static import StaticCodeGenerator
+from compiler.static import Static38CodeGenerator, StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.declaration_visitor import DeclarationVisitor
-from compiler.static.errors import CollectingErrorSink
+from compiler.static.errors import CollectingErrorSink, ErrorSink
+from compiler.static.module_table import ModuleTable
 from compiler.static.type_binder import TypeBinder
 from compiler.static.types import TypedSyntaxError, Value
 from compiler.strict.common import FIXED_MODULES
@@ -20,7 +20,8 @@ from compiler.strict.runtime import set_freeze_enabled
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
 from textwrap import dedent
-from typing import List, Tuple
+from types import CodeType
+from typing import ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
 import cinder
 from cinder import StrictModule
@@ -32,6 +33,49 @@ try:
     import cinderjit
 except ImportError:
     cinderjit = None
+
+
+class TestCompiler(Compiler):
+    def __init__(
+        self,
+        source_by_name: Mapping[str, str],
+        test_case: StaticTestBase,
+        code_generator: Type[Static38CodeGenerator] = StaticCodeGenerator,
+        error_sink: ErrorSink | None = None,
+    ) -> None:
+        self.source_by_name = source_by_name
+        self.test_case = test_case
+        super().__init__(code_generator, error_sink)
+
+    def import_module(self, name: str, optimize: int = 0) -> ModuleTable | None:
+        source = self.source_by_name.get(name, None)
+        if source is not None:
+            tree = ast.parse(source)
+            self.add_module(name, self._get_filename(name), tree, optimize)
+        return self.modules.get(name)
+
+    def compile_module(self, name: str, optimize: int = 0) -> CodeType:
+        source = self.source_by_name[name]
+        return self.compile(
+            name, self._get_filename(name), ast.parse(source), optimize=optimize
+        )
+
+    def type_error(
+        self, name: str, pattern: str, at: str | None = None
+    ) -> TestCompiler:
+        source = self.source_by_name[name]
+        with self.test_case.type_error_ctx(source, pattern, at):
+            self.compile_module(name)
+        return self
+
+    def revealed_type(self, name: str, type: str) -> TestCompiler:
+        source = self.source_by_name[name]
+        with self.test_case.revealed_type_ctx(source, type):
+            self.compile_module(name)
+        return self
+
+    def _get_filename(self, name: str) -> str:
+        return name.split(".")[-1] + ".py"
 
 
 def add_fixed_module(d) -> None:
@@ -52,14 +96,15 @@ class TestErrors:
         self.code = code
         self.errors = errors
 
-    def check(self, *matchers: List[ErrorMatcher]) -> None:
+    def check(self, *matchers: List[ErrorMatcher], loc_only: bool = False) -> None:
         self.case.assertEqual(
             len(matchers),
             len(self.errors),
             f"Expected {len(matchers)} errors, got {self.errors}",
         )
         for exc, matcher in zip(self.errors, matchers):
-            self.case.assertIn(matcher.msg, str(exc))
+            if not loc_only:
+                self.case.assertIn(matcher.msg, str(exc))
             if (at := matcher.at) is not None:
                 actual = self.code.split("\n")[exc.lineno - 1][exc.offset :]
                 if not actual.startswith(at):
@@ -109,6 +154,31 @@ class StaticTestBase(CompilerTest):
         compiler.bind("<module>", "<module>.py", tree, optimize=0)
         return TestErrors(self, code, errors.errors)
 
+    @contextmanager
+    def type_error_ctx(
+        self,
+        code: str,
+        pattern: str,
+        at: str | None = None,
+        lineno: int | None = None,
+        offset: int | None = None,
+    ) -> Generator[None, None, None]:
+        with self.assertRaisesRegex(TypedSyntaxError, pattern) as ctx:
+            yield
+        exc = ctx.exception
+        errors = TestErrors(self, self.clean_code(code), [ctx.exception])
+        if at is not None:
+            errors.check(ErrorMatcher(pattern, at), loc_only=True)
+        if lineno is not None:
+            self.assertEqual(exc.lineno, lineno)
+        if offset is not None:
+            self.assertEqual(exc.offset, offset)
+
+    def revealed_type_ctx(self, code: str, type: str) -> ContextManager[None]:
+        return self.type_error_ctx(
+            code, fr"reveal_type\(.+\): '{re.escape(type)}'", at="reveal_type("
+        )
+
     def type_error(
         self,
         code: str,
@@ -117,20 +187,16 @@ class StaticTestBase(CompilerTest):
         lineno: int | None = None,
         offset: int | None = None,
     ) -> None:
-        with self.assertRaisesRegex(TypedSyntaxError, pattern) as ctx:
+        with self.type_error_ctx(code, pattern, at, lineno, offset):
             self.compile(code)
-        exc = ctx.exception
-        errors = TestErrors(self, self.clean_code(code), [ctx.exception])
-        if at is not None:
-            errors.check(ErrorMatcher("", at))
-        if lineno is not None:
-            self.assertEqual(exc.lineno, lineno)
-        if offset is not None:
-            self.assertEqual(exc.offset, offset)
 
     def revealed_type(self, code: str, type: str) -> None:
-        self.type_error(
-            code, f"reveal_type\(.+\): '{re.escape(type)}'", at="reveal_type("
+        with self.revealed_type_ctx(code, type):
+            self.compile(code)
+
+    def compiler(self, **sources: str) -> TestCompiler:
+        return TestCompiler(
+            {name: self.clean_code(code) for name, code in sources.items()}, self
         )
 
     _temp_mod_num = 0

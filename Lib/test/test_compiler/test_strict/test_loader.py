@@ -21,14 +21,12 @@ from compiler.strict.track_import_call import TrackImportCall
 from contextlib import contextmanager
 from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
 from os import path
-from pathlib import Path
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Callable,
     Generator,
     List,
-    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -39,7 +37,7 @@ from typing import (
 )
 from unittest.mock import patch
 
-from cinder import freeze_type, warn_on_inst_dict, cinder_set_warn_handler
+from cinder import cinder_set_warn_handler
 from cinder import get_warn_handler
 
 from . import sandbox as base_sandbox

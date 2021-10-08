@@ -3052,13 +3052,7 @@ class StaticCompilationTests(StaticTestBase):
                     x = C()
                 return x.f()
         """
-        compiler = Compiler(StaticCodeGenerator)
-        acode = ast.parse(dedent(acode))
-        bcode = ast.parse(dedent(bcode))
-        compiler.add_module("a", "a.py", acode, optimize=0)
-        compiler.add_module("b", "b.py", bcode, optimize=0)
-        acomp = compiler.compile("a", "a.py", acode, optimize=0)
-        bcomp = compiler.compile("b", "b.py", bcode, optimize=0)
+        bcomp = self.compiler(a=acode, b=bcode).compile_module("b")
         x = self.find_code(bcomp, "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
 

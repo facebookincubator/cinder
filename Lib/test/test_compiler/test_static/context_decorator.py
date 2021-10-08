@@ -479,20 +479,7 @@ class ContextDecoratorTests(StaticTestBase):
                     return self.f()
 
         """
-        compiler = Compiler(StaticCodeGenerator)
-        aast = ast.parse(dedent(acode))
-        bast = ast.parse(dedent(bcode))
-
-        decl_visita = DeclarationVisitor("a", "a.py", compiler, optimize=0)
-        decl_visita.visit(aast)
-
-        decl_visitb = DeclarationVisitor("b", "b.py", compiler, optimize=0)
-        decl_visitb.visit(bast)
-
-        decl_visita.finish_bind()
-        decl_visitb.finish_bind()
-
-        bcomp = compiler.compile("b", "b.py", bast, optimize=0)
+        bcomp = self.compiler(a=acode, b=bcode).compile_module("b")
         f = self.find_code(self.find_code(bcomp, "C"), "f")
         self.assertInBytecode(
             f,
