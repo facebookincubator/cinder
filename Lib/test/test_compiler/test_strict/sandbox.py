@@ -95,13 +95,13 @@ def restore_static_symtable() -> Generator[None, None, None]:
         None,
         enable_patching=False,
     )
-    modules = compiler.static_compiler.modules.copy()
+    modules = compiler.modules.copy()
 
     try:
         yield
     finally:
-        compiler.static_compiler.modules.clear()
-        compiler.static_compiler.modules.update(modules)
+        compiler.modules.clear()
+        compiler.modules.update(modules)
 
 
 @contextmanager

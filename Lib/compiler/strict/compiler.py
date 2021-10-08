@@ -47,17 +47,34 @@ TIMING_LOGGER_TYPE = Callable[[str, str, str], ContextManager[None]]
 
 
 @final
-class StrictStaticCompiler(StaticCompiler):
+class Compiler(StaticCompiler):
     def __init__(
         self,
-        loader: StrictModuleLoader,
+        import_path: Iterable[str],
+        stub_root: str,
+        allow_list_prefix: Iterable[str],
+        allow_list_exact: Iterable[str],
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
+        raise_on_error: bool = False,
+        enable_patching: bool = False,
     ) -> None:
         super().__init__(StaticCodeGenerator)
-        self.loader = loader
+        self.import_path: List[str] = list(import_path)
+        self.stub_root = stub_root
+        self.allow_list_prefix = allow_list_prefix
+        self.allow_list_exact = allow_list_exact
+        self.loader: StrictModuleLoader = StrictModuleLoader(
+            self.import_path,
+            str(stub_root),
+            list(allow_list_prefix),
+            list(allow_list_exact),
+            True,
+        )
+        self.raise_on_error = raise_on_error
+        self.log_time_func = log_time_func
+        self.enable_patching = enable_patching
         self.ast_cache: Dict[str, ast.Module] = {}
         self.track_import_call: bool = False
-        self.log_time_func = log_time_func
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         mod = self.loader.check(name)
@@ -97,35 +114,6 @@ class StrictStaticCompiler(StaticCompiler):
                 track_import_call=self.track_import_call,
             )
         return cached_ast
-
-
-@final
-class Compiler:
-    def __init__(
-        self,
-        import_path: Iterable[str],
-        stub_root: str,
-        allow_list_prefix: Iterable[str],
-        allow_list_exact: Iterable[str],
-        log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
-        raise_on_error: bool = False,
-        enable_patching: bool = False,
-    ) -> None:
-        self.import_path: List[str] = list(import_path)
-        self.stub_root = stub_root
-        self.allow_list_prefix = allow_list_prefix
-        self.allow_list_exact = allow_list_exact
-        self.loader: StrictModuleLoader = StrictModuleLoader(
-            self.import_path,
-            str(stub_root),
-            list(allow_list_prefix),
-            list(allow_list_exact),
-            True,
-        )
-        self.raise_on_error = raise_on_error
-        self.static_compiler: StrictStaticCompiler = StrictStaticCompiler(self.loader)
-        self.log_time_func = log_time_func
-        self.enable_patching = enable_patching
 
     def load_compiled_module_from_source(
         self,
@@ -209,19 +197,17 @@ class Compiler:
         optimize: int,
         track_import_call: bool,
     ) -> CodeType | None:
-        self.static_compiler.track_import_call = track_import_call
-        root = self.static_compiler.ast_cache.get(name)
+        self.track_import_call = track_import_call
+        root = self.ast_cache.get(name)
         if root is None:
-            root = self.static_compiler._get_rewritten_ast(
-                name, mod, mod.ast_preprocessed, optimize
-            )
+            root = self._get_rewritten_ast(name, mod, mod.ast_preprocessed, optimize)
         code = None
 
         try:
             log = self.log_time_func
             ctx = log()(name, filename, "compile") if log else nullcontext()
             with ctx:
-                code = self.static_compiler.compile(
+                code = self.compile(
                     name, filename, root, optimize, enable_patching=self.enable_patching
                 )
         except TypedSyntaxError as e:
