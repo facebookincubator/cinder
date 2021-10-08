@@ -473,6 +473,15 @@ PyInit_cinder(void)
     if (m == NULL) {
         return NULL;
     }
+    PyObject* data_version = PyLong_FromLong(1);
+    if (data_version == NULL) {
+        return NULL;
+    }
+    if (PyObject_SetAttrString(
+            m, "STRUCTURED_DATA_VERSION", data_version) < 0) {
+        return NULL;
+    }
+
 
     if (PyType_Ready(&PyCachedProperty_Type) < 0) {
         return NULL;

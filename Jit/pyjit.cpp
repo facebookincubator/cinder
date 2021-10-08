@@ -81,13 +81,15 @@ static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
 
 // Frequently-used strings that we intern at JIT startup and hold references to.
 #define INTERNED_STRINGS(X) \
-  X(func_fullname)          \
-  X(filename)               \
-  X(lineno)                 \
   X(count)                  \
-  X(reason)                 \
+  X(description)            \
+  X(filename)               \
+  X(func_qualname)          \
   X(guilty_type)            \
-  X(description)
+  X(int)                    \
+  X(lineno)                 \
+  X(normal)                 \
+  X(reason)
 
 #define DECLARE_STR(s) static PyObject* s_str_##s{nullptr};
 INTERNED_STRINGS(DECLARE_STR)
@@ -386,71 +388,65 @@ static PyObject* get_function_compilation_time(
   return res;
 }
 
-static Ref<> make_deopt_stats() {
-  Runtime* runtime = codegen::NativeGeneratorFactory::runtime();
-  auto stats = Ref<>::steal(PyList_New(0));
-  if (stats == nullptr) {
-    return nullptr;
+namespace {
+
+// Simple wrapper functions to turn NULL or -1 return values from C-API
+// functions into a thrown exception. Meant for repetitive runs of C-API calls
+// and not intended for use in public APIs.
+class CAPIError : public std::exception {};
+
+PyObject* check(PyObject* obj) {
+  if (obj == nullptr) {
+    throw CAPIError();
   }
+  return obj;
+}
+
+int check(int ret) {
+  if (ret < 0) {
+    throw CAPIError();
+  }
+  return ret;
+}
+
+Ref<> make_deopt_stats() {
+  Runtime* runtime = codegen::NativeGeneratorFactory::runtime();
+  auto stats = Ref<>::steal(check(PyList_New(0)));
+
   for (auto& pair : runtime->deoptStats()) {
     const DeoptMetadata& meta = runtime->getDeoptMetadata(pair.first);
     const DeoptStat& stat = pair.second;
     CodeRuntime& code_rt = *meta.code_rt;
     BorrowedRef<PyCodeObject> code = code_rt.GetCode();
 
-    auto event = Ref<>::steal(PyDict_New());
-    if (event == nullptr) {
-      return nullptr;
-    }
-
-    auto func_fullname = code->co_qualname;
+    auto func_qualname = code->co_qualname;
     int lineno_raw = code->co_lnotab != nullptr
         ? PyCode_Addr2Line(code, meta.next_instr_offset)
         : -1;
-    auto lineno = Ref<>::steal(PyLong_FromLong(lineno_raw));
-    if (lineno == nullptr) {
-      return nullptr;
-    }
+    auto lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
     auto reason =
-        Ref<>::steal(PyUnicode_FromString(deoptReasonName(meta.reason)));
-    if (reason == nullptr) {
-      return nullptr;
-    }
-    auto description = Ref<>::steal(PyUnicode_FromString(meta.descr));
-    if (description == nullptr) {
-      return nullptr;
-    }
-    if (PyDict_SetItem(event, s_str_func_fullname, func_fullname) < 0 ||
-        PyDict_SetItem(event, s_str_filename, code->co_filename) < 0 ||
-        PyDict_SetItem(event, s_str_lineno, lineno) < 0 ||
-        PyDict_SetItem(event, s_str_reason, reason) < 0 ||
-        PyDict_SetItem(event, s_str_description, description) < 0) {
-      return nullptr;
-    }
+        Ref<>::steal(check(PyUnicode_FromString(deoptReasonName(meta.reason))));
+    auto description = Ref<>::steal(check(PyUnicode_FromString(meta.descr)));
 
-    Ref<> event_copy;
-    // Helper to copy the event dict and stick in a new count value, reusing
-    // the original for the first "copy".
-    auto append_copy = [&](size_t count_raw, const char* type) {
-      if (event_copy == nullptr) {
-        event_copy = std::move(event);
-      } else {
-        event_copy = Ref<>::steal(PyDict_Copy(event_copy));
-        if (event_copy == nullptr) {
-          return false;
-        }
-      }
-      auto count = Ref<>::steal(PyLong_FromSize_t(count_raw));
-      if (count == nullptr ||
-          PyDict_SetItem(event_copy, s_str_count, count) < 0) {
-        return false;
-      }
-      auto type_str = Ref<>::steal(PyUnicode_InternFromString(type));
-      if (type_str == nullptr ||
-          PyDict_SetItem(event_copy, s_str_guilty_type, type_str) < 0) {
-        return false;
-      }
-      return PyList_Append(stats, event_copy) == 0;
+    // Helper to create an event dict with a given count value.
+    auto append_event = [&](size_t count_raw, const char* type) {
+      auto event = Ref<>::steal(check(PyDict_New()));
+      auto normals = Ref<>::steal(check(PyDict_New()));
+      auto ints = Ref<>::steal(check(PyDict_New()));
+
+      check(PyDict_SetItem(event, s_str_normal, normals));
+      check(PyDict_SetItem(event, s_str_int, ints));
+      check(PyDict_SetItem(normals, s_str_func_qualname, func_qualname));
+      check(PyDict_SetItem(normals, s_str_filename, code->co_filename));
+      check(PyDict_SetItem(ints, s_str_lineno, lineno));
+      check(PyDict_SetItem(normals, s_str_reason, reason));
+      check(PyDict_SetItem(normals, s_str_description, description));
+
+      auto count = Ref<>::steal(check(PyLong_FromSize_t(count_raw)));
+      check(PyDict_SetItem(ints, s_str_count, count));
+      auto type_str = Ref<>::steal(check(PyUnicode_InternFromString(type)));
+      check(PyDict_SetItem(normals, s_str_guilty_type, type_str) < 0);
+      check(PyList_Append(stats, event));
     };
 
     // For deopts with type profiles, add a copy of the dict with counts for
@@ -458,15 +454,13 @@ static Ref<> make_deopt_stats() {
     if (!stat.types.empty()) {
       for (size_t i = 0; i < stat.types.size && stat.types.types[i] != nullptr;
            ++i) {
-        if (!append_copy(stat.types.counts[i], stat.types.types[i]->tp_name)) {
-          return nullptr;
-        }
+        append_event(stat.types.counts[i], stat.types.types[i]->tp_name);
       }
-      if (stat.types.other > 0 && !append_copy(stat.types.other, "other")) {
-        return nullptr;
+      if (stat.types.other > 0) {
+        append_event(stat.types.other, "<other>");
       }
-    } else if (!append_copy(stat.count, "<none>")) {
-      return nullptr;
+    } else {
+      append_event(stat.count, "<none>");
     }
   }
 
@@ -475,17 +469,18 @@ static Ref<> make_deopt_stats() {
   return stats;
 }
 
+} // namespace
+
 static PyObject* get_and_clear_runtime_stats(PyObject* /* self */, PyObject*) {
   auto stats = Ref<>::steal(PyDict_New());
   if (stats == nullptr) {
     return nullptr;
   }
 
-  Ref<> deopt_stats = make_deopt_stats();
-  if (deopt_stats == nullptr) {
-    return nullptr;
-  }
-  if (PyDict_SetItemString(stats, "deopt", deopt_stats) < 0) {
+  try {
+    Ref<> deopt_stats = make_deopt_stats();
+    check(PyDict_SetItemString(stats, "deopt", deopt_stats));
+  } catch (const CAPIError&) {
     return nullptr;
   }
 
