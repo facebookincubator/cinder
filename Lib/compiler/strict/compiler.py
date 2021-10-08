@@ -6,7 +6,6 @@ from ast import NodeVisitor
 from contextlib import nullcontext
 from functools import cached_property
 from os import path
-# pyre-fixme[21]: Could not find name `SymbolTableFactory` in `symtable` (stubbed).
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
 from types import CodeType
 from typing import (
