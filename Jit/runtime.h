@@ -3,6 +3,7 @@
 #define __JIT_RUNTIME_H__
 
 #include "Jit/deopt.h"
+#include "Jit/fixed_type_profiler.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
 #include "Jit/pyjit.h"
@@ -240,7 +241,7 @@ class CodeRuntime {
 // it's been hit, and the frequency of guilty types, if applicable.
 struct DeoptStat {
   std::size_t count;
-  TypeProfiler<4> types;
+  FixedTypeProfiler<4> types;
 };
 
 // Map from DeoptMetadata index to stats about that deopt point.
