@@ -1608,6 +1608,11 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
             return 0;
         }
 
+        if (PyErr_Occurred()) {
+            *res = NULL;
+            return 0;
+        }
+
         _Py_IDENTIFIER(__getattr__);
         getattr = _PyDict_GetItemId(dict, &PyId___getattr__);
         if (getattr) {

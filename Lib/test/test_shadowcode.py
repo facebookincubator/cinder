@@ -2191,7 +2191,7 @@ def f(x):
 
         for i in range(200):
             runcount = 0
-            self.assertEqual(f(m), 42)
+            self.assertRaises(NotImplementedError, f, m)
             self.assertEqual(runcount, 1)
 
     def test_module_error_getattr(self):
@@ -2213,7 +2213,7 @@ def f(x):
 
         for i in range(200):
             runcount = 0
-            self.assertEqual(f(m), 42)
+            self.assertRaises(NotImplementedError, f, m)
             self.assertEqual(runcount, 1)
 
     def test_dict_subscr(self):
@@ -2283,7 +2283,6 @@ def f(x):
             self.assertEqual(f(d, key), value)
         for __ in range(REPETITION):
             self.assertEqual(f(t, key), value2)
-
 
     def test_list_subscr_to_non_list(self):
         l = [1, 2, 3, 4]

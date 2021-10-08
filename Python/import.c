@@ -1711,7 +1711,7 @@ import_find_and_load(PyObject *abs_name, PyObject *lazy_loaded)
                                         &PyId__find_and_load, abs_name,
                                         interp->import_func,
                                         lazy_loaded ? lazy_loaded : Py_None,
-                                         NULL);
+                                        NULL);
 
     if (PyDTrace_IMPORT_FIND_LOAD_DONE_ENABLED())
         PyDTrace_IMPORT_FIND_LOAD_DONE(PyUnicode_AsUTF8(abs_name),
@@ -1832,28 +1832,35 @@ PyImport_DeferredImportModuleLevelObject(
                 PyObject *existing = PyImport_GetModule(parent);
                 if (existing != NULL) {
                     // Set the deferred module as an attribute on its parent.
-                    PyObject *child = PyUnicode_Substring(abs_name, dot + 1, PyUnicode_GET_LENGTH(abs_name));
                     _Py_IDENTIFIER(__dict__);
                     PyObject *dict = _PyObject_GetAttrId(existing, &PyId___dict__);
                     if (dict != NULL && PyDict_Check(dict)) {
                         PyObject *frmlst = PyList_New(0);
-                        PyList_Append(frmlst, child);
-                        PyObject *frm = PyDeferredModule_NewObject(
-                            parent, globals, locals, frmlst, olevel);
-                        Py_DECREF(frmlst);
-                        PyDeferredObject *v = (PyDeferredObject *)PyDeferred_NewObject(frm, child);
-                        PyObject *d = PyDict_GetUnresolvedItem(dict, child);
-                        if (d != NULL && PyDeferred_CheckExact(d)) {
-                            assert(v->df_next == NULL);
-                            Py_INCREF(d);
-                            v->df_next = d;
+                        if (frmlst != NULL) {
+                            PyObject *child = PyUnicode_Substring(abs_name, dot + 1, PyUnicode_GET_LENGTH(abs_name));
+                            PyList_Append(frmlst, child);
+                            PyObject *frm = PyDeferredModule_NewObject(
+                                parent, globals, locals, frmlst, olevel);
+                            Py_DECREF(frmlst);
+                            if (frm != NULL) {
+                                PyDeferredObject *v = (PyDeferredObject *)PyDeferred_NewObject(frm, child);
+                                Py_DECREF(frm);
+                                if (v != NULL) {
+                                    PyObject *d = PyDict_GetUnresolvedItem(dict, child);
+                                    if (d != NULL && PyDeferred_CheckExact(d)) {
+                                        assert(v->df_next == NULL);
+                                        Py_INCREF(d);
+                                        v->df_next = d;
+                                    }
+                                    _PyDict_SetHasDeferredObjects(dict);
+                                    PyDict_SetItem(dict, child, (PyObject *)v);
+                                    PySet_Add(interp->lazy_loaded, abs_name);
+                                    Py_DECREF(v);
+                                }
+                            }
+                            Py_DECREF(child);
                         }
-                        _PyDict_SetHasDeferredObjects(dict);
-                        PyDict_SetItem(dict, child, (PyObject *)v);
-                        PySet_Add(interp->lazy_loaded, abs_name);
-                        Py_DECREF(v);
                     }
-                    Py_DECREF(child);
                 }
                 Py_DECREF(parent);
             }
@@ -2054,8 +2061,7 @@ PyImport_ImportModuleLevelObject(
         locals,
         fromlist,
         level,
-        NULL
-    );
+        NULL);
 }
 
 PyObject *
@@ -2089,14 +2095,14 @@ PyImport_ImportDeferred(PyObject *deferred)
         if (d->df_deferred == NULL) {
             PyInterpreterState *interp = _PyInterpreterState_GET_UNSAFE();
             PyObject *lazy_loaded = interp->lazy_loaded;
-            Py_INCREF(lazy_loaded);
+            Py_XINCREF(lazy_loaded);
             obj = _PyImport_ImportName(d->df_name,
                                        d->df_globals,
                                        d->df_locals,
                                        d->df_fromlist,
                                        d->df_level,
                                        lazy_loaded);
-            Py_DECREF(lazy_loaded);
+            Py_XDECREF(lazy_loaded);
             if (obj == NULL) {
                 return NULL;
             }

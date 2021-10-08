@@ -780,6 +780,11 @@ module_lookupattro(PyModuleObject *m, PyObject *name, int suppress)
         if (attr != NULL) {
             Py_INCREF(attr);
             return attr;
+        } else if (PyErr_Occurred()) {
+            if (suppress && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+            }
+            return NULL;
         }
 
         /* see if we're accessing a descriptor defined on the module type */
@@ -1315,6 +1320,11 @@ strictmodule_lookupattro(PyStrictModuleObject *m, PyObject *name, int suppress)
                 if (attr != NULL) {
                     Py_INCREF(attr);
                     return attr;
+                } else if (PyErr_Occurred()) {
+                    if (suppress && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                        PyErr_Clear();
+                    }
+                    return NULL;
                 }
             }
         }

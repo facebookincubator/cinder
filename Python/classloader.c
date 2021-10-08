@@ -1641,10 +1641,13 @@ classloader_get_member(PyObject *path,
 
         if (next == NULL && d == tstate->interp->modules) {
             /* import module in case it's not available in sys.modules */
-            if (PyImport_ImportModuleLevelObject(name, NULL, NULL, NULL, 0) == NULL) {
+            PyObject *mod = PyImport_ImportModuleLevelObject(name, NULL, NULL, NULL, 0);
+            if (mod == NULL) {
                 PyErr_Fetch(&et, &ev, &tb);
             } else {
                 next = _PyDict_GetItem_Unicode(d, name);
+                Py_INCREF(next);
+                Py_DECREF(mod);
             }
         } else if (next == Py_None && d == tstate->interp->builtins) {
             /* special case builtins.None, it's used to represent NoneType */

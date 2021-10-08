@@ -5753,25 +5753,7 @@ _PyDict_GetAttrItem_Unicode(PyObject *op, PyObject *key)
 top:
     dk = mp->ma_keys;
 
-    if (dk->dk_lookup == lookdict) {
-        /* preserve the existing exception */
-        PyObject *err_type, *err_value, *err_tb;
-        PyErr_Fetch(&err_type, &err_value, &err_tb);
-        ix = dk->dk_lookup(mp, key, hash, &value, 0);
-        if (ix == DKIX_VALUE_ERROR) {
-            /* propagate value errors */
-            Py_XDECREF(err_type);
-            Py_XDECREF(err_value);
-            Py_XDECREF(err_tb);
-        } else {
-            /* ignore errors */
-            PyErr_Restore(err_type, err_value, err_tb);
-        }
-    } else {
-        /* other shouldn't throw exceptions, except for import errors */
-        ix = dk->dk_lookup(mp, key, hash, &value, 0);
-    }
-
+    ix = dk->dk_lookup(mp, key, hash, &value, 0);
     if (ix < 0) {
         return NULL;
     }

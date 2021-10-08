@@ -1315,7 +1315,7 @@ _PyObject_GenericGetAttrWithDict(PyObject *obj, PyObject *name,
     }
     if (dict != NULL) {
         Py_INCREF(dict);
-        res = PyDict_GetItemWithError(dict, name);
+        res = _PyDict_GetAttrItem_Unicode(dict, name);
         if (res != NULL) {
             Py_INCREF(res);
             Py_DECREF(dict);
