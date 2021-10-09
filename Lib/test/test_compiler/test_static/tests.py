@@ -180,6 +180,7 @@ def optional(type: str) -> str:
 def init_xxclassloader():
     codestr = """
         from typing import Generic, TypeVar, _tp_cache
+        from __static__ import set_type_static
         # Setup a test for typing
         T = TypeVar('T')
         U = TypeVar('U')
@@ -204,6 +205,7 @@ def init_xxclassloader():
                         "__slots__":(),
                     }
                 )
+                set_type_static(XXGeneric.d[elem_type])
                 return XXGeneric.d[elem_type]
     """
 

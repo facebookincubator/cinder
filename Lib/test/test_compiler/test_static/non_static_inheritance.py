@@ -129,6 +129,38 @@ class NonStaticInheritanceTests(StaticTestBase):
             a = C()
             self.assertEqual(a.g(), 42)
 
+    def test_static_decorator_non_static_class(self):
+        codestr = """
+            def mydec(f):
+                def wrapper(*args, **kwargs):
+                    return f(*args, **kwargs)
+                return wrapper
+
+            class B:
+                def g(self): pass
+
+            def f(x: B):
+                return x.g()
+        """
+        with self.in_module(codestr) as mod:
+            mydec = mod.mydec
+            B = mod.B
+            f = mod.f
+
+            # force v-table initialization on base
+            f(B())
+
+            class D(B):
+                @mydec
+                def f(self):
+                    pass
+
+            self.assertEqual(D().f(), None)
+            D.f = lambda self: 42
+            self.assertEqual(f(B()), None)
+            self.assertEqual(f(D()), None)
+            self.assertEqual(D().f(), 42)
+
 
 if __name__ == "__main__":
 

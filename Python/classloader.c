@@ -1081,6 +1081,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         PyObject *base = _PyClassLoader_GetInheritedFunction(type, name, /* only_static */ 0);
 
         assert(base != NULL || previous != NULL);
+
         if (base != NULL) {
             if (previous == NULL) {
                 /* we use the inherited member as the current member for this class */
@@ -1321,13 +1322,71 @@ used_in_vtable(PyObject *value)
 static PyObject *fget = NULL;
 static PyObject *fset = NULL;
 
+int
+_PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
+    PyObject *key, *value;
+    Py_ssize_t i;
+
+    /* Now add indexes for anything that is new in our class */
+    int slot_index = PyDict_Size(slotmap);
+    i = 0;
+    while (PyDict_Next(self->tp_dict, &i, &key, &value)) {
+        if (PyDict_GetItem(slotmap, key) || !used_in_vtable(value)) {
+            /* we either share the same slot, or this isn't a static function,
+             * so it doesn't need a slot */
+            continue;
+        }
+
+        PyObject *index = PyLong_FromLong(slot_index++);
+        int err = PyDict_SetItem(slotmap, key, index);
+        Py_DECREF(index);
+        if (err) {
+            return -1;
+        }
+        if (Py_TYPE(value) == &PyProperty_Type) {
+            PyObject *getter_index = PyLong_FromLong(slot_index++);
+            if (fget == NULL) {
+                fget = PyUnicode_FromStringAndSize("fget", 4);
+            }
+            PyObject *getter_tuple = PyTuple_New(2);
+            Py_INCREF(key);
+            PyTuple_SET_ITEM(getter_tuple, 0, key);
+            Py_INCREF(fget);
+            PyTuple_SET_ITEM(getter_tuple, 1, fget);
+            err = PyDict_SetItem(slotmap, getter_tuple, getter_index);
+            Py_DECREF(getter_index);
+            if (err) {
+                Py_DECREF(getter_tuple);
+                return -1;
+            }
+            Py_DECREF(getter_tuple);
+            PyObject *setter_index = PyLong_FromLong(slot_index++);
+            if (fset == NULL) {
+                fset = PyUnicode_FromStringAndSize("fset", 4);
+            }
+            PyObject *setter_tuple = PyTuple_New(2);
+            Py_INCREF(key);
+            PyTuple_SET_ITEM(setter_tuple, 0, key);
+            Py_INCREF(fset);
+            PyTuple_SET_ITEM(setter_tuple, 1, fset);
+            err = PyDict_SetItem(slotmap, setter_tuple, setter_index);
+            Py_DECREF(setter_index);
+            if (err) {
+                Py_DECREF(setter_tuple);
+                return -1;
+            }
+            Py_DECREF(setter_tuple);
+        }
+    }
+    return 0;
+}
+
 _PyType_VTable *
 _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
 {
     _PyType_VTable *vtable = (_PyType_VTable *)self->tp_cache;
     PyObject *slotmap = NULL;
-    PyObject *key, *mro, *value;
-    Py_ssize_t i;
+    PyObject *mro;
 
     if (self == &PyBaseObject_Type) {
         PyErr_SetString(PyExc_RuntimeError, "cannot initialize vtable for builtins.object");
@@ -1384,69 +1443,24 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
         return NULL;
     }
 
-    /* Now add indexes for anything that is new in our class */
-    int slot_index = PyDict_Size(slotmap);
-    i = 0;
-    while (PyDict_Next(self->tp_dict, &i, &key, &value)) {
-        if (PyDict_GetItem(slotmap, key) || !used_in_vtable(value)) {
-            /* we either share the same slot, or this isn't a static function,
-             * so it doesn't need a slot */
-            continue;
-        }
-
-        PyObject *index = PyLong_FromLong(slot_index++);
-        int err = PyDict_SetItem(slotmap, key, index);
-        Py_DECREF(index);
-        if (err) {
+    if ((self->tp_flags & (Py_TPFLAGS_IS_STATICALLY_DEFINED|Py_TPFLAGS_GENERIC_TYPE_INST)) ||
+        !(self->tp_flags & Py_TPFLAGS_HEAPTYPE)) {
+        if (_PyClassLoader_UpdateSlotMap(self, slotmap)) {
             Py_DECREF(slotmap);
             return NULL;
         }
-        if (Py_TYPE(value) == &PyProperty_Type) {
-            PyObject *getter_index = PyLong_FromLong(slot_index++);
-            if (fget == NULL) {
-                fget = PyUnicode_FromStringAndSize("fget", 4);
-            }
-            PyObject *getter_tuple = PyTuple_New(2);
-            Py_INCREF(key);
-            PyTuple_SET_ITEM(getter_tuple, 0, key);
-            Py_INCREF(fget);
-            PyTuple_SET_ITEM(getter_tuple, 1, fget);
-            err = PyDict_SetItem(slotmap, getter_tuple, getter_index);
-            Py_DECREF(getter_index);
-            if (err) {
-                Py_DECREF(getter_tuple);
-                Py_DECREF(slotmap);
-                return NULL;
-            }
-            Py_DECREF(getter_tuple);
-            PyObject *setter_index = PyLong_FromLong(slot_index++);
-            if (fset == NULL) {
-                fset = PyUnicode_FromStringAndSize("fset", 4);
-            }
-            PyObject *setter_tuple = PyTuple_New(2);
-            Py_INCREF(key);
-            PyTuple_SET_ITEM(setter_tuple, 0, key);
-            Py_INCREF(fset);
-            PyTuple_SET_ITEM(setter_tuple, 1, fset);
-            err = PyDict_SetItem(slotmap, setter_tuple, setter_index);
-            Py_DECREF(setter_index);
-            if (err) {
-                Py_DECREF(setter_tuple);
-                Py_DECREF(slotmap);
-                return NULL;
-            }
-            Py_DECREF(setter_tuple);
-        }
     }
+
     /* finally allocate the vtable, which will have empty slots initially */
+    Py_ssize_t slot_count = PyDict_Size(slotmap);
     vtable =
-        PyObject_GC_NewVar(_PyType_VTable, &_PyType_VTableType, slot_index);
+        PyObject_GC_NewVar(_PyType_VTable, &_PyType_VTableType, slot_count);
 
     if (vtable == NULL) {
         Py_DECREF(slotmap);
         return NULL;
     }
-    vtable->vt_size = slot_index;
+    vtable->vt_size = slot_count;
     vtable->vt_thunks = NULL;
     vtable->vt_original = NULL;
     vtable->vt_slotmap = slotmap;

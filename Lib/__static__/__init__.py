@@ -550,3 +550,4 @@ class ContextDecorator:
 
 
 ContextDecorator._recreate_cm = make_recreate_cm(ContextDecorator)
+set_type_static(ContextDecorator)

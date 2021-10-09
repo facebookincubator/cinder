@@ -259,6 +259,7 @@ class Compiler:
                 ),
                 # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
                 "rand": reflect_builtin_function(rand),
+                "set_type_static": DYNAMIC,
             },
         )
 
