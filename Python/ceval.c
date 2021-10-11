@@ -4667,7 +4667,9 @@ main_loop:
                         "%U expected '%s' for argument %U, got '%s'",
                         co->co_name,
                         type->tp_name,
-                        PyTuple_GetItem(co->co_varnames, PyLong_AsLong(local)),
+                        idx < 0 ?
+                            PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
+                            PyTuple_GetItem(co->co_varnames, idx),
                         Py_TYPE(val)->tp_name);
                     Py_DECREF(type);
                     goto error;
@@ -4709,8 +4711,8 @@ main_loop:
                         "%U expected '%s' for argument %U, got '%s'",
                         co->co_name,
                         check->tai_type->tp_name,
-                        idx <  0 ?
-                            PyTuple_GetItem(co->co_freevars, -(idx + 1)) :
+                        idx < 0 ?
+                            PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
                             PyTuple_GetItem(co->co_varnames, idx),
                         Py_TYPE(val)->tp_name);
                     goto error;

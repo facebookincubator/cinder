@@ -10464,6 +10464,7 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.fn
             self.assertInBytecode(f, "CALL_FUNCTION")
 
+
 class StaticRuntimeTests(StaticTestBase):
     def test_bad_slots_qualname_conflict(self):
         with self.assertRaises(ValueError):
@@ -14584,6 +14585,48 @@ class StaticRuntimeTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.foo
             self.assertEqual(f(), [3, 6, 4, 8])
+
+    def test_nested_fn_type_error(self):
+        codestr = """
+        def f(i: int, j: str, l: int, m: int, n: int, o: int) -> bool:
+            def g(k: int) -> bool:
+                return k > 0 if j == "gt" else k <= 0
+            return g(i)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            with self.assertRaisesRegex(
+                TypeError, r"f expected 'int' for argument n, got 'str'"
+            ):
+                f(1, "a", 2, 3, "4", 5)
+
+    def test_nested_fn_type_error_2(self):
+        codestr = """
+        def f(i: int, j: str, k: int) -> bool:
+            def g(k: int) -> bool:
+                return k > 0 if j == "gt" else k <= 0
+            return g(i)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            with self.assertRaisesRegex(
+                TypeError, r"f expected 'str' for argument j, got 'int'"
+            ):
+                f(1, 2, 3)
+
+    def test_nested_fn_type_error_kwarg(self):
+        codestr = """
+        def f(i: int, j: str = "yo") -> bool:
+            def g(k: int) -> bool:
+                return k > 0 if j == "gt" else k <= 0
+            return g(i)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            with self.assertRaisesRegex(
+                TypeError, r"f expected 'str' for argument j, got 'int'"
+            ):
+                f(1, j=2)
 
 
 if __name__ == "__main__":
