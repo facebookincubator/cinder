@@ -3,10 +3,8 @@
 #define __STRICTM_CALLABLE_WRAPPER_H__
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
-
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
-
 #include "StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
@@ -259,14 +257,23 @@ class PythonWrappedCallableByName {
       pyArgs[i] = std::move(val);
     }
 
-    Ref<> self = obj->getPyObject();
-    if (self.get() == nullptr) {
-      caller.error<UnsupportedException>(name_, obj->getDisplayName());
-      return makeUnknown(caller, "{}({})", name_, formatArgs(args, {}));
+    Ref<> result;
+
+    if (obj == nullptr) {
+      // calling static method
+      result = Ref<>::steal(PyObject_CallFunctionObjArgs(
+          callable_, (pyArgs[Is].get())..., nullptr));
+    } else {
+      Ref<> self = obj->getPyObject();
+      if (self.get() == nullptr) {
+        caller.error<UnsupportedException>(name_, obj->getDisplayName());
+        return makeUnknown(caller, "{}({})", name_, formatArgs(args, {}));
+      }
+
+      result = Ref<>::steal(PyObject_CallFunctionObjArgs(
+          callable_, self.get(), (pyArgs[Is].get())..., nullptr));
     }
 
-    Ref<> result = Ref<>::steal(PyObject_CallFunctionObjArgs(
-        callable_, self.get(), (pyArgs[Is].get())..., nullptr));
     if (result == nullptr) {
       PyObject *type, *value, *traceback;
       PyErr_Fetch(&type, &value, &traceback);

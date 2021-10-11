@@ -273,6 +273,10 @@ class StrictType : public StrictInstance {
   void
   addPyWrappedMethodObj(const std::string& name, PyObject* obj, U convertFunc);
 
+  template <int n = 0, typename U>
+  void
+  addPyWrappedStaticMethodObj(const std::string& name, PyObject* obj, U convertFunc);
+
   template <typename U>
   void addPyWrappedMethodDefaultObj(
       const std::string& name,

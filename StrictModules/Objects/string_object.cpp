@@ -1,11 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/string_object.h"
 
+#include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
-
-#include "StrictModules/Objects/callable_wrapper.h"
 
 #include <sstream>
 
@@ -427,6 +426,8 @@ void StrictBytesType::addMethods() {
   addPyWrappedMethodObj<>("lower", bytesType, StrictBytes::bytesFromPyObj);
   addPyWrappedMethodObj<>("upper", bytesType, StrictBytes::bytesFromPyObj);
   addPyWrappedMethodObj<1>("__add__", bytesType, StrictBytes::bytesFromPyObj);
+  addPyWrappedStaticMethodObj<2>(
+      "maketrans", bytesType, StrictBytes::bytesFromPyObj);
 }
 
 std::vector<std::type_index> StrictBytesType::getBaseTypeinfos() const {

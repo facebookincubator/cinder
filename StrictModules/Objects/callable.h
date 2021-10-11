@@ -388,6 +388,19 @@ void StrictType::addPyWrappedMethodObj(
   setAttr(name, method);
 }
 
+template <int n, typename U>
+void StrictType::addPyWrappedStaticMethodObj(
+    const std::string& name,
+    PyObject* obj,
+    U convertFunc) {
+  auto method = std::make_shared<StrictBuiltinFunctionOrMethod>(
+      creator_,
+      InstCallType(PythonWrappedCallableByName<n>(obj, convertFunc, name)),
+      nullptr,
+      name);
+  setAttr(name, method);
+}
+
 template <typename U>
 void StrictType::addPyWrappedMethodDefaultObj(
     const std::string& name,

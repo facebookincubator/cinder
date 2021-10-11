@@ -9868,3 +9868,12 @@ params = list(inspect.signature(f).parameters)
 isfunc isnotfunc params
 ---
 ---
+test_bytes_maketrans
+---
+i = b"abc"
+j = b"def"
+x = bytes.maketrans(i, j)
+---
+x
+---
+---
