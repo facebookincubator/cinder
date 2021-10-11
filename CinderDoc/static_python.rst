@@ -231,6 +231,18 @@ function directly into its (statically compiled) callers for efficiency.
 Currently the function body must consist only of a single ``return``
 statement.
 
+``from __static__ import dynamic_return``
+---------------------------------
+
+The ``@dynamic_return`` decorator causes the static compiler to not trust the annotated
+return type of a function. It is useful in cases where we intentionally lie about the return
+type.
+
+For example, if we return a weakref, or a lazily evaluated string translation. In these scenarios,
+Static Python will try to ensure the returned object matches the annotation, but that'll fail. Using
+`dynamic_return` is a workaround for such scenarios.
+
+
 ``from __static__ import cast``
 -------------------------------
 
