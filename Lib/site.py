@@ -583,7 +583,7 @@ def _install_strict_loader():
 # site is imported later.
 if not sys.flags.no_site:
     main()
-    if os.getenv("PYTHONINSTALLSTRICTLOADER"):
+    if os.getenv("PYTHONINSTALLSTRICTLOADER") or sys._xoptions.get('install-strict-loader') is True:
         _install_strict_loader()
 
 def _script():

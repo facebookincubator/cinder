@@ -4,6 +4,7 @@ import dis
 import gc
 import io
 import os
+import subprocess
 import sys
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import StrictModuleError
@@ -2459,3 +2460,78 @@ class StrictLoaderTest(StrictTestBase):
         )
         with self.assertRaises(SyntaxError):
             self.sbx.strict_import("b")
+
+    def test_strict_loader_installation(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+            import b
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+            import __strict__
+            from c import f
+            
+            f()
+            """,
+        )
+        self.sbx.write_file(
+            "c.py",
+            """
+            def f():
+                print("hi")
+            """,
+        )
+        res = subprocess.run(
+            [sys.executable, "-X", "install-strict-loader", "a.py"],
+            cwd=str(self.sbx.root),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        self.assertEqual(res.returncode, 1)
+        output = res.stdout.decode()
+        self.assertIn(
+            "Module-level call of non-strict value '<f imported from c>()' is prohibited.",
+            output,
+        )
+        self.assertIn("StrictModuleError", output)
+
+    def test_strict_loader_installation_envvar(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+            import b
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+            import __strict__
+            from c import f
+            
+            f()
+            """,
+        )
+        self.sbx.write_file(
+            "c.py",
+            """
+            def f():
+                print("hi")
+            """,
+        )
+        res = subprocess.run(
+            [sys.executable, "a.py"],
+            cwd=str(self.sbx.root),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env={"PYTHONINSTALLSTRICTLOADER": "1"},
+        )
+        self.assertEqual(res.returncode, 1)
+        output = res.stdout.decode()
+        self.assertIn(
+            "Module-level call of non-strict value '<f imported from c>()' is prohibited.",
+            output,
+        )
+        self.assertIn("StrictModuleError", output)
