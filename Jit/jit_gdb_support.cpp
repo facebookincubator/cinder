@@ -12,6 +12,7 @@
 
 int g_gdb_support = 0;
 int g_gdb_write_elf_objects = 0;
+int g_gdb_stubs_support = 0;
 
 /* Begin GDB hook */
 

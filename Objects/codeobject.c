@@ -503,7 +503,7 @@ code_new(PyTypeObject *type, PyObject *args, PyObject *kw)
 static void
 code_dealloc(PyCodeObject *co)
 {
-    _PyJIT_UnregisterCode(co);
+    _PyJIT_CodeDestroyed(co);
     if (co->co_extra != NULL) {
         PyInterpreterState *interp = _PyInterpreterState_GET_UNSAFE();
         _PyCodeObjectExtra *co_extra = co->co_extra;

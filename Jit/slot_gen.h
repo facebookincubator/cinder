@@ -42,6 +42,4 @@ class SlotGen {
 
 } // namespace jit
 
-extern int g_gdb_stubs_support;
-
 #endif /* JIT_CODE_GEN_H */

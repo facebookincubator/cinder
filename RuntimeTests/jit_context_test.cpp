@@ -15,13 +15,13 @@ class PyJITContextTest : public RuntimeTest {
  public:
   void SetUp() override {
     RuntimeTest::SetUp();
-    _PyJITContext_Init();
-    jit_ctx_ = _PyJITContext_New(std::make_unique<jit::Compiler>());
+    jit_ctx_ = new _PyJITContext();
     ASSERT_NE(jit_ctx_, nullptr) << "Failed creating jit context";
   }
 
   void TearDown() override {
-    Py_CLEAR(jit_ctx_);
+    delete jit_ctx_;
+    jit_ctx_ = nullptr;
     RuntimeTest::TearDown();
   }
 

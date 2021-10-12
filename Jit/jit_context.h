@@ -5,8 +5,10 @@
 #include "Python.h"
 
 #include "Jit/compiler.h"
+#include "Jit/containers.h"
 #include "Jit/pyjit_result.h"
 #include "Jit/pyjit_typeslots.h"
+#include "Jit/ref.h"
 #include "Jit/slot_gen.h"
 #include "Jit/util.h"
 
@@ -38,31 +40,51 @@ struct std::hash<CompilationKey> {
   }
 };
 
+/* Deoptimization information for a compiled type. */
+struct TypeDeoptInfo {
+  explicit TypeDeoptInfo(PyTypeObject* type)
+      : orig_tp_call{type->tp_call},
+        orig_tp_init{type->tp_init},
+        orig_tp_repr{type->tp_repr},
+        orig_tp_str{type->tp_str},
+        orig_tp_getattro{type->tp_getattro},
+        orig_tp_descr_get{type->tp_descr_get} {}
+
+  // Original values for compiled type objects.
+  ternaryfunc orig_tp_call;
+  initproc orig_tp_init;
+  reprfunc orig_tp_repr;
+  reprfunc orig_tp_str;
+  getattrofunc orig_tp_getattro;
+  descrgetfunc orig_tp_descr_get;
+};
+
 /*
- * A JIT context encapsulates all the state managed by an instance of the
- * JIT.
+ * A JIT context encapsulates all the state managed by an instance of the JIT.
  */
 struct _PyJITContext {
-  PyObject_HEAD;
+  ~_PyJITContext();
 
-  std::unique_ptr<jit::SlotGen> slot_gen;
+  jit::SlotGen slot_gen;
 
   /* General purpose jit compiler */
-  std::unique_ptr<jit::Compiler> jit_compiler;
+  jit::Compiler jit_compiler;
 
   /*
-   * A dictionary containing deoptimization information for compiled objects.
-   *
-   * Keys are weak references to either function or type objects.
-   * Values are instances of DeoptInfo.
+   * Map from compiled types to deoptimization information.
    */
-  PyObject* deopt_info;
+  jit::UnorderedMap<BorrowedRef<PyTypeObject>, TypeDeoptInfo> type_deopt;
+
+  /*
+   * Set of which functions have JIT-compiled entrypoints.
+   */
+  jit::UnorderedSet<BorrowedRef<PyFunctionObject>> compiled_funcs;
 
   /*
    * Compiled code objects, keyed by PyCodeObject* and the globals dict they
    * were compiled with.
    */
-  std::unordered_map<CompilationKey, std::unique_ptr<jit::CompiledFunction>>
+  jit::UnorderedMap<CompilationKey, std::unique_ptr<jit::CompiledFunction>>
       compiled_codes;
 
   /*
@@ -71,33 +93,14 @@ struct _PyJITContext {
    * multithreaded_compile_test.
    */
   std::vector<std::unique_ptr<jit::CompiledFunction>> orphaned_compiled_codes;
-
-  PyObject* weakreflist;
 };
-
-/*
- * Register the _PyJITContext type with the runtime. This needs to be called
- * before using the type.
- */
-int _PyJITContext_Init(void);
-
-/*
- * Allocate a new JIT context.
- *
- * compiler is a handle to a general purpose JIT compiler.
- *
- * Returns a new reference. Any compiled objects will be deoptimized when the
- * _PyJITContext is destroyed; callers must ensure it is kept alive as long as
- * necessary.
- */
-_PyJITContext* _PyJITContext_New(std::unique_ptr<jit::Compiler> compiler);
 
 /*
  * Clear cache of compiled code such that subsequent compilations are always
  * full rather than just re-binding pre-compiled code. Only intended to be used
  * during multithreaded_compile_test.
  */
-void _PyJITContext_ClearCache(BorrowedRef<_PyJITContext> ctx);
+void _PyJITContext_ClearCache(_PyJITContext* ctx);
 
 /*
  * Generate specialized functions for type object slots. Calls the other
@@ -107,8 +110,8 @@ void _PyJITContext_ClearCache(BorrowedRef<_PyJITContext> ctx);
  * Returns PYJIT_RESULT_OK on success.
  */
 _PyJIT_Result _PyJITContext_SpecializeType(
-    BorrowedRef<_PyJITContext> ctx,
-    PyTypeObject* type,
+    _PyJITContext* ctx,
+    BorrowedRef<PyTypeObject> type,
     _PyJIT_TypeSlots* slots);
 
 /*
@@ -149,6 +152,28 @@ _PyJIT_Result _PyJITContext_CompileCode(
 _PyJIT_Result _PyJITContext_AttachCompiledCode(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func);
+
+/*
+ * Callbacks invoked by the runtime when a PyFunctionObject is modified or
+ * destroyed.
+ */
+void _PyJITContext_FuncModified(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
+void _PyJITContext_FuncDestroyed(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
+
+/*
+ * Callbacks invoked by the runtime when a PyTypeObject is modified or
+ * destroyed.
+ */
+void _PyJITContext_TypeModified(
+    _PyJITContext* ctx,
+    BorrowedRef<PyTypeObject> type);
+void _PyJITContext_TypeDestroyed(
+    _PyJITContext* ctx,
+    BorrowedRef<PyTypeObject> type);
 
 /*
  * Return whether or not this context compiled the supplied function.

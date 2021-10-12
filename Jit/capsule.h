@@ -4,6 +4,7 @@
 
 #include "Python.h"
 
+#include "Jit/log.h"
 #include "Jit/ref.h"
 
 namespace jit {

@@ -29,8 +29,6 @@ using asmjit::JitRuntime;
 using asmjit::Label;
 namespace x86 = asmjit::x86;
 
-int g_gdb_stubs_support;
-
 namespace jit {
 
 SlotGen::SlotGen() {

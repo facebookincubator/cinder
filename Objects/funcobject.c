@@ -55,7 +55,7 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
     op->func_defaults = NULL; /* No default arguments */
     op->func_kwdefaults = NULL; /* No keyword only defaults */
     op->func_closure = NULL;
-    op->vectorcall = _PyFunction_Vectorcall;
+    op->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
 
     consts = ((PyCodeObject *)code)->co_consts;
     if (PyTuple_Size(consts) >= 1) {
@@ -90,8 +90,6 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
     Py_INCREF(op->func_qualname);
 
     _PyObject_GC_TRACK(op);
-
-    PyEntry_init(op);
 
     return (PyObject *)op;
 }
@@ -362,6 +360,8 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
     Py_INCREF(value);
     Py_XSETREF(op->func_code, value);
     Switchboard_Notify(g_switchboard, (PyObject *) op);
+    _PyJIT_FuncModified(op);
+    PyEntry_init(op);
     return 0;
 }
 
@@ -450,7 +450,11 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
     Switchboard_Notify(g_switchboard, (PyObject *)op);
-    PyEntry_init(op); // reset entry point
+    // JIT-compiled functions load their defaults at runtime if needed. Others
+    // need their entrypoint recomputed.
+    if (!_PyJIT_IsCompiled((PyObject *)op)) {
+      PyEntry_init(op);
+    }
     return 0;
 }
 
@@ -645,7 +649,6 @@ func_new_impl(PyTypeObject *type, PyCodeObject *code, PyObject *globals,
         newfunc->func_closure = closure;
     }
 
-    /* FB_entry */
     PyEntry_init(newfunc);
 
     return (PyObject *)newfunc;
@@ -671,7 +674,7 @@ func_clear(PyFunctionObject *op)
 static void
 func_dealloc(PyFunctionObject *op)
 {
-    _PyJIT_UnregisterFunction(op);
+    _PyJIT_FuncDestroyed(op);
     _PyObject_GC_UNTRACK(op);
     if (op->func_weakreflist != NULL) {
         PyObject_ClearWeakRefs((PyObject *) op);

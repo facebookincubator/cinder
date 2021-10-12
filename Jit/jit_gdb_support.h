@@ -10,6 +10,7 @@ class CompiledFunction;
 
 extern int g_gdb_support;
 extern int g_gdb_write_elf_objects;
+extern int g_gdb_stubs_support;
 
 int gdb_support_enabled(void);
 

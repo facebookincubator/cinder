@@ -281,9 +281,10 @@ int _PyJIT_IsCompiled(PyObject* func) {
   if (jit_ctx == nullptr) {
     return 0;
   }
-  if (!PyFunction_Check(func)) {
-    return 0;
-  }
+  JIT_DCHECK(
+      PyFunction_Check(func),
+      "Expected PyFunctionObject, got '%.200s'",
+      Py_TYPE(func)->tp_name);
 
   return _PyJITContext_DidCompile(jit_ctx, func);
 }
@@ -911,16 +912,7 @@ int _PyJIT_Initialize() {
     return 0;
   }
 
-  if (_PyJITContext_Init() == -1) {
-    JIT_LOG("failed initializing jit context");
-    return -1;
-  }
-
-  jit_ctx = _PyJITContext_New(std::make_unique<jit::Compiler>());
-  if (jit_ctx == NULL) {
-    JIT_LOG("failed creating global jit context");
-    return -1;
-  }
+  jit_ctx = new _PyJITContext();
 
   PyObject* mod = PyModule_Create(&jit_module);
   if (mod == NULL) {
@@ -1100,6 +1092,13 @@ static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
 }
 
 int _PyJIT_RegisterFunction(PyFunctionObject* func) {
+  // Attempt to attach already-compiled code even if the JIT is disabled, as
+  // long as it hasn't been finalized.
+  if (jit_ctx != nullptr &&
+      _PyJITContext_AttachCompiledCode(jit_ctx, func) == PYJIT_RESULT_OK) {
+    return 1;
+  }
+
   if (!_PyJIT_IsEnabled()) {
     return 0;
   }
@@ -1139,13 +1138,34 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
   return result;
 }
 
-void _PyJIT_UnregisterFunction(PyFunctionObject* func) {
-  if (_PyJIT_IsEnabled()) {
-    jit_reg_units.erase(reinterpret_cast<PyObject*>(func));
+void _PyJIT_TypeModified(PyTypeObject* type) {
+  if (jit_ctx) {
+    _PyJITContext_TypeModified(jit_ctx, type);
   }
 }
 
-void _PyJIT_UnregisterCode(PyCodeObject* code) {
+void _PyJIT_TypeDestroyed(PyTypeObject* type) {
+  if (jit_ctx) {
+    _PyJITContext_TypeDestroyed(jit_ctx, type);
+  }
+}
+
+void _PyJIT_FuncModified(PyFunctionObject* func) {
+  if (jit_ctx) {
+    _PyJITContext_FuncModified(jit_ctx, func);
+  }
+}
+
+void _PyJIT_FuncDestroyed(PyFunctionObject* func) {
+  if (_PyJIT_IsEnabled()) {
+    jit_reg_units.erase(reinterpret_cast<PyObject*>(func));
+  }
+  if (jit_ctx) {
+    _PyJITContext_FuncDestroyed(jit_ctx, func);
+  }
+}
+
+void _PyJIT_CodeDestroyed(PyCodeObject* code) {
   if (_PyJIT_IsEnabled()) {
     jit_reg_units.erase(reinterpret_cast<PyObject*>(code));
     jit_code_data.erase(code);
@@ -1184,8 +1204,9 @@ int _PyJIT_Finalize() {
 
   jit_config.init_state = JIT_FINALIZED;
 
-  JIT_CHECK(jit_ctx != NULL, "jit_ctx not initialized");
-  Py_CLEAR(jit_ctx);
+  JIT_CHECK(jit_ctx != nullptr, "jit_ctx not initialized");
+  delete jit_ctx;
+  jit_ctx = nullptr;
 
 #define CLEAR_STR(s) Py_CLEAR(s_str_##s);
   INTERNED_STRINGS(CLEAR_STR)

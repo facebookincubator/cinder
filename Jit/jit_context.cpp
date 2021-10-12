@@ -1,297 +1,60 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/jit_context.h"
 
-#include "switchboard.h"
-
-#include "Jit/capsule.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/log.h"
 #include "Jit/pyjit.h"
 
-typedef enum { DEOPT_INFO_KIND_FUNC, DEOPT_INFO_KIND_TYPE } DeoptInfoKind;
+static void deopt_func(_PyJITContext* ctx, BorrowedRef<PyFunctionObject> func) {
+  if (ctx->compiled_funcs.erase(func) == 0) {
+    return;
+  }
 
-/* Deoptimization information for a compiled object. */
-typedef struct {
-  PyObject_HEAD;
-
-  /* Specifies whether this is for a function or a type object */
-  DeoptInfoKind kind;
-
-  /* Subscriptions for function dependencies */
-  PyObject* func_subscrs;
-
-  /* Subscriptions for type dependencies */
-  PyObject* type_subscrs;
-
-  /*
-   * Original values for compiled type objects. Only valid when kind is
-   * DEOPT_INFO_KIND_TYPE
-   */
-  ternaryfunc orig_tp_call;
-  initproc orig_tp_init;
-  reprfunc orig_tp_repr;
-  reprfunc orig_tp_str;
-  getattrofunc orig_tp_getattro;
-  descrgetfunc orig_tp_descr_get;
-} DeoptInfo;
-
-static void DeoptInfo_Free(PyObject* deopt_info);
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-PyTypeObject DeoptInfo_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "DeoptInfo",
-    .tp_basicsize = sizeof(DeoptInfo),
-    .tp_itemsize = 0,
-    .tp_dealloc = DeoptInfo_Free,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-};
-#pragma GCC diagnostic pop
-
-static inline int DeoptInfo_Check(PyObject* obj) {
-  return Py_TYPE(obj) == &DeoptInfo_Type;
+  // Reset the entry point.
+  func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
 }
 
-static PyObject* DeoptInfo_New() {
-  DeoptInfo* info = PyObject_New(DeoptInfo, &DeoptInfo_Type);
-  if (info == NULL) {
-    return NULL;
+static void deopt_type(_PyJITContext* ctx, BorrowedRef<PyTypeObject> type) {
+  auto it = ctx->type_deopt.find(type);
+  if (it == ctx->type_deopt.end()) {
+    return;
   }
 
-  info->func_subscrs = PyList_New(0);
-  if (info->func_subscrs == NULL) {
-    Py_DECREF(info);
-    return NULL;
-  }
+  JIT_DLOG("Deoptimizing type name=%s type=%p", type->tp_name, type);
+  TypeDeoptInfo& deopt_info = it->second;
 
-  info->type_subscrs = PyList_New(0);
-  if (info->type_subscrs == NULL) {
-    Py_DECREF(info);
-    return NULL;
-  }
+  /* Reset slots back to their original values */
+  PyTypeObject* tp = (PyTypeObject*)type;
+  tp->tp_call = deopt_info.orig_tp_call;
+  tp->tp_init = deopt_info.orig_tp_init;
+  tp->tp_repr = deopt_info.orig_tp_repr;
+  tp->tp_str = deopt_info.orig_tp_str;
+  tp->tp_getattro = deopt_info.orig_tp_getattro;
+  tp->tp_descr_get = deopt_info.orig_tp_descr_get;
 
-  return (PyObject*)info;
+  ctx->type_deopt.erase(it);
 }
 
-static PyObject* DeoptInfo_NewForType(PyTypeObject* type) {
-  DeoptInfo* info = (DeoptInfo*)DeoptInfo_New();
-  if (info == NULL) {
-    return NULL;
+_PyJITContext::~_PyJITContext() {
+  /* De-optimize any remaining compiled functions or types. */
+  for (auto it = type_deopt.begin(); it != type_deopt.end();) {
+    PyTypeObject* type = it->first;
+    ++it;
+    deopt_type(this, type);
   }
-  info->orig_tp_call = type->tp_call;
-  info->orig_tp_init = type->tp_init;
-  info->orig_tp_repr = type->tp_repr;
-  info->orig_tp_str = type->tp_str;
-  info->orig_tp_getattro = type->tp_getattro;
-  info->orig_tp_descr_get = type->tp_descr_get;
-  return (PyObject*)info;
+  for (auto it = compiled_funcs.begin(); it != compiled_funcs.end();) {
+    PyFunctionObject* func = *it;
+    ++it;
+    deopt_func(this, func);
+  }
 }
 
-static int DeoptInfo_AddFuncSubscr(
-    PyObject* deopt_info,
-    PyObject* func,
-    Switchboard_Callback cb,
-    PyObject* arg) {
-  Switchboard* sb = (Switchboard*)_PyFunction_GetSwitchboard();
-  JIT_DCHECK(sb != NULL, "function switchboard not initialized");
-  auto subscr = Ref<>::steal(Switchboard_Subscribe(sb, func, cb, arg));
-  if (subscr == NULL) {
-    return -1;
-  }
-  JIT_DCHECK(DeoptInfo_Check(deopt_info), "got incorrect type for deopt_info");
-  return PyList_Append(((DeoptInfo*)deopt_info)->func_subscrs, subscr);
-}
-
-static int DeoptInfo_AddTypeSubscr(
-    PyObject* deopt_info,
-    PyObject* type,
-    Switchboard_Callback cb,
-    PyObject* arg) {
-  Switchboard* sb = (Switchboard*)_PyType_GetSwitchboard();
-  JIT_DCHECK(sb != NULL, "type switchboard not initialized");
-  auto subscr = Ref<>::steal(Switchboard_Subscribe(sb, type, cb, arg));
-  if (subscr == NULL) {
-    return -1;
-  }
-  JIT_DCHECK(DeoptInfo_Check(deopt_info), "got incorrect type for deopt_info");
-  return PyList_Append(((DeoptInfo*)deopt_info)->type_subscrs, subscr);
-}
-
-static void DeoptInfo_Free(PyObject* deopt_info) {
-  JIT_DCHECK(DeoptInfo_Check(deopt_info), "got incorrect type for deopt_info");
-  DeoptInfo* info = (DeoptInfo*)deopt_info;
-
-  if (info->func_subscrs != NULL) {
-    Switchboard* func_sb = (Switchboard*)_PyFunction_GetSwitchboard();
-    JIT_CHECK(func_sb != NULL, "function switchboard not set");
-    Switchboard_UnsubscribeAll(func_sb, info->func_subscrs);
-    Py_CLEAR(info->func_subscrs);
-  }
-
-  if (info->type_subscrs != NULL) {
-    Switchboard* type_sb = (Switchboard*)_PyType_GetSwitchboard();
-    JIT_CHECK(type_sb != NULL, "type switchboard not set");
-    Switchboard_UnsubscribeAll(type_sb, info->type_subscrs);
-    Py_CLEAR(info->type_subscrs);
-  }
-
-  PyObject_Del(deopt_info);
-}
-
-static void deopt_func(BorrowedRef<_PyJITContext> ctx, BorrowedRef<> func_ref);
-static void deopt_type(BorrowedRef<_PyJITContext> ctx, BorrowedRef<> type_ref);
-
-static void _PyJITContext_Free(_PyJITContext* ctx);
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-PyTypeObject _PyJITContext_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "JITContext",
-    .tp_basicsize = sizeof(_PyJITContext),
-    .tp_itemsize = 0,
-    .tp_dealloc = (destructor)_PyJITContext_Free,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_weaklistoffset = offsetof(_PyJITContext, weakreflist),
-};
-#pragma GCC diagnostic pop
-
-int _PyJITContext_Init() {
-  if (PyType_Ready(&DeoptInfo_Type) < 0) {
-    return -1;
-  }
-
-  return PyType_Ready(&_PyJITContext_Type);
-}
-
-_PyJITContext* _PyJITContext_New(std::unique_ptr<jit::Compiler> compiler) {
-  auto ctx_raw = new _PyJITContext();
-  auto ctx =
-      Ref<_PyJITContext>::steal(PyObject_INIT(ctx_raw, &_PyJITContext_Type));
-  ctx->slot_gen = std::make_unique<jit::SlotGen>();
-  ctx->jit_compiler = std::move(compiler);
-  ctx->deopt_info = PyDict_New();
-  if (ctx->deopt_info == nullptr) {
-    return nullptr;
-  }
-  ctx->weakreflist = nullptr;
-  return ctx.release();
-}
-
-void _PyJITContext_ClearCache(BorrowedRef<_PyJITContext> ctx) {
+void _PyJITContext_ClearCache(_PyJITContext* ctx) {
   for (auto& entry : ctx->compiled_codes) {
     ctx->orphaned_compiled_codes.emplace_back(std::move(entry.second));
   }
   ctx->compiled_codes.clear();
-}
-
-void _PyJITContext_Free(_PyJITContext* ctx) {
-  JIT_DLOG("Finalizing _PyJITContext");
-
-  if (ctx->weakreflist != nullptr) {
-    PyObject_ClearWeakRefs(reinterpret_cast<PyObject*>(ctx));
-  }
-
-  /* De-optimize any remaining compiled functions or types. */
-  auto objs = Ref<>::steal(PyDict_Keys(ctx->deopt_info));
-  if (objs != nullptr) {
-    Py_ssize_t num_objs = PyList_Size(objs);
-    JIT_DLOG("De-optimizing %ld remaining objects", num_objs);
-    for (Py_ssize_t i = 0; i < num_objs; i++) {
-      PyObject* obj_ref = PyList_GetItem(objs, i);
-      PyObject* obj = PyWeakref_GetObject(obj_ref);
-      if (obj == Py_None) {
-        JIT_LOG("Referent of %p unexpectedly disappeared", obj_ref);
-        continue;
-      }
-      if (PyFunction_Check(obj)) {
-        deopt_func(ctx, obj_ref);
-      } else {
-        JIT_CHECK(
-            PyType_Check(obj), "Object of unknown type '%.200s' in deopt_info");
-        deopt_type(ctx, obj_ref);
-      }
-    }
-  }
-
-  Py_ssize_t remaining = PyDict_Size(ctx->deopt_info);
-  JIT_CHECK(
-      remaining == 0,
-      "%d live compiled objects remain after attempting to deopt everything",
-      remaining);
-
-  Py_CLEAR(ctx->deopt_info);
-
-  delete ctx;
-}
-
-static void deopt_func_on_func_change(
-    PyObject* /* handle */,
-    PyObject* arg,
-    PyObject* watched) {
-  Ref<_PyJITContext> ctx(PyWeakref_GetObject(arg));
-  if (ctx == Py_None) {
-    JIT_LOG("_PyJITContext unexpectedly disappeared");
-    return;
-  }
-  deopt_func(ctx, watched);
-}
-
-static void deopt_func(BorrowedRef<_PyJITContext> ctx, BorrowedRef<> func_ref) {
-  // Unsubscribe from changes to dependencies.
-  int result = PyDict_DelItem(ctx->deopt_info, func_ref);
-  JIT_CHECK(result == 0, "failed unsubscribing function");
-
-  PyObject* func = PyWeakref_GetObject(func_ref);
-  if (func != Py_None) {
-    JIT_CHECK(PyFunction_Check(func), "Expected function");
-
-    // Reset the entry point back to the interpreter.
-    PyEntry_init((PyFunctionObject*)func);
-  }
-}
-
-static void deopt_type_on_type_change(
-    PyObject* /* handle */,
-    PyObject* arg,
-    PyObject* watched) {
-  Ref<_PyJITContext> ctx(PyWeakref_GetObject(arg));
-  if (ctx == Py_None) {
-    JIT_LOG("_PyJITContext unexpectedly disappeared");
-    return;
-  }
-  deopt_type(ctx, watched);
-}
-
-static void deopt_type(BorrowedRef<_PyJITContext> ctx, BorrowedRef<> type_ref) {
-  PyObject* type = PyWeakref_GetObject(type_ref);
-  const char* name = "<gone>";
-  if (type != Py_None) {
-    JIT_DCHECK(PyType_Check(type), "can only deoptimize types");
-    name = ((PyTypeObject*)type)->tp_name;
-  }
-
-  JIT_DLOG("Deoptimizing type name=%s type=%p ref=%p", name, type, type_ref);
-
-  DeoptInfo* deopt_info = (DeoptInfo*)PyDict_GetItem(ctx->deopt_info, type_ref);
-  if (deopt_info == NULL) {
-    return;
-  }
-
-  /* Reset slots back to their original values */
-  if (type != Py_None) {
-    PyTypeObject* tp = (PyTypeObject*)type;
-    tp->tp_call = deopt_info->orig_tp_call;
-    tp->tp_init = deopt_info->orig_tp_init;
-    tp->tp_repr = deopt_info->orig_tp_repr;
-    tp->tp_str = deopt_info->orig_tp_str;
-    tp->tp_getattro = deopt_info->orig_tp_getattro;
-    tp->tp_descr_get = deopt_info->orig_tp_descr_get;
-  }
-
-  /* Unsubscribe from dependencies */
-  int result = PyDict_DelItem(ctx->deopt_info, type_ref);
-  JIT_CHECK(result == 0, "failed unsubscribing type %p (%s)", type, name);
 }
 
 static inline int check_result(int* ok_count, _PyJIT_Result res) {
@@ -329,7 +92,7 @@ static _PyJIT_Result specialize_tp_reprfunc(
   if (lookup_type_function(type, id, &fn) < 0) {
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
-  reprfunc specialized = ctx->slot_gen->genReprFuncSlot(type, fn);
+  reprfunc specialized = ctx->slot_gen.genReprFuncSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -359,7 +122,7 @@ static _PyJIT_Result specialize_generic_tp_call(
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
-  ternaryfunc specialized = ctx->slot_gen->genCallSlot(type, fn);
+  ternaryfunc specialized = ctx->slot_gen.genCallSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -387,7 +150,7 @@ static _PyJIT_Result specialize_tp_descr_get(
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
-  descrgetfunc specialized = ctx->slot_gen->genGetDescrSlot(type, fn);
+  descrgetfunc specialized = ctx->slot_gen.genGetDescrSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -422,7 +185,7 @@ _PyJIT_Result specialize_tp_getattr(
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
-  getattrofunc specialized = ctx->slot_gen->genGetAttrSlot(type, fn);
+  getattrofunc specialized = ctx->slot_gen.genGetAttrSlot(type, fn);
   if (specialized == NULL) {
     return PYJIT_RESULT_UNKNOWN_ERROR;
   }
@@ -438,20 +201,9 @@ _PyJIT_Result specialize_tp_getattr(
 }
 
 _PyJIT_Result _PyJITContext_SpecializeType(
-    BorrowedRef<_PyJITContext> ctx,
-    PyTypeObject* type,
+    _PyJITContext* ctx,
+    BorrowedRef<PyTypeObject> type,
     _PyJIT_TypeSlots* slots) {
-  auto type_ref = Ref<>::steal(PyWeakref_NewRef((PyObject*)type, NULL));
-  if (type_ref == NULL) {
-    return PYJIT_RESULT_UNKNOWN_ERROR;
-  }
-
-  /* Set up dependency tracking for deoptimization */
-  auto deopt_info = Ref<>::steal(DeoptInfo_NewForType(type));
-  if (deopt_info == NULL) {
-    return PYJIT_RESULT_UNKNOWN_ERROR;
-  }
-
   int ok_count = 0;
   _PyJIT_Result res;
 
@@ -490,19 +242,10 @@ _PyJIT_Result _PyJITContext_SpecializeType(
   }
 
   if (ok_count > 0) {
-    auto ctx_ref = Ref<>::steal(PyWeakref_NewRef(ctx, nullptr));
-    if (ctx_ref == nullptr) {
-      return PYJIT_RESULT_UNKNOWN_ERROR;
-    }
-    /* Subscribe to changes to the type */
-    if (DeoptInfo_AddTypeSubscr(
-            deopt_info, (PyObject*)type, deopt_type_on_type_change, ctx_ref) <
-        0) {
-      return PYJIT_RESULT_UNKNOWN_ERROR;
-    }
-
     /* Mark the type as jit compiled */
-    if (PyDict_SetItem(ctx->deopt_info, type_ref, deopt_info) < 0) {
+    bool inserted = ctx->type_deopt.emplace(type, type).second;
+    if (!inserted) {
+      // The type was already registered.
       return PYJIT_RESULT_UNKNOWN_ERROR;
     }
   }
@@ -512,26 +255,14 @@ _PyJIT_Result _PyJITContext_SpecializeType(
 
 // Record per-function metadata and set the function's entrypoint.
 static _PyJIT_Result finalizeCompiledFunc(
-    BorrowedRef<_PyJITContext> ctx,
+    _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func,
     const jit::CompiledFunction& compiled) {
   jit::ThreadedCompileSerialize guard;
-  /* Subscribe to changes in the function to deopt it when needed. */
-  auto func_ref = Ref<>::steal(PyWeakref_NewRef(func, nullptr));
-  auto deopt_info = Ref<>::steal(DeoptInfo_New());
-  auto ctx_ref = Ref<>::steal(PyWeakref_NewRef(ctx, nullptr));
-  if (func_ref == nullptr || deopt_info == nullptr || ctx_ref == nullptr) {
-    return PYJIT_RESULT_UNKNOWN_ERROR;
-  }
-  if (PyDict_GetItem(ctx->deopt_info, func_ref) != nullptr) {
+  if (!ctx->compiled_funcs.emplace(func).second) {
     // Someone else compiled the function between when our caller checked and
     // called us.
     return PYJIT_RESULT_OK;
-  }
-  if (DeoptInfo_AddFuncSubscr(
-          deopt_info, func, deopt_func_on_func_change, ctx_ref) < 0 ||
-      PyDict_SetItem(ctx->deopt_info, func_ref, deopt_info) < 0) {
-    return PYJIT_RESULT_UNKNOWN_ERROR;
   }
 
   func->vectorcall = compiled.entry_point();
@@ -558,7 +289,7 @@ jit::CompiledFunction* lookupCompiledCode(
 // Returns the CompiledFunction* and PYJIT_RESULT_OK if successful, or nullptr
 // and a failure reason if not.
 CompilationResult compileCode(
-    BorrowedRef<_PyJITContext> ctx,
+    _PyJITContext* ctx,
     BorrowedRef<PyCodeObject> code,
     BorrowedRef<PyDictObject> globals,
     const std::string& fullname) {
@@ -598,7 +329,7 @@ CompilationResult compileCode(
 
   compile_depth++;
   std::unique_ptr<jit::CompiledFunction> compiled =
-      ctx->jit_compiler->Compile(code, globals, fullname);
+      ctx->jit_compiler.Compile(code, globals, fullname);
   compile_depth--;
 
   jit::ThreadedCompileSerialize guard;
@@ -647,9 +378,9 @@ _PyJIT_Result _PyJITContext_CompileCode(
 _PyJIT_Result _PyJITContext_AttachCompiledCode(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  if (_PyJITContext_DidCompile(ctx, func) == 1) {
-    return PYJIT_RESULT_OK;
-  }
+  JIT_DCHECK(
+      _PyJITContext_DidCompile(ctx, func) == 0, "Function is already compiled");
+
   if (jit::CompiledFunction* compiled =
           lookupCompiledCode(ctx, func->func_code, func->func_globals)) {
     return finalizeCompiledFunc(ctx, func, *compiled);
@@ -657,16 +388,36 @@ _PyJIT_Result _PyJITContext_AttachCompiledCode(
   return PYJIT_RESULT_CANNOT_SPECIALIZE;
 }
 
+void _PyJITContext_FuncModified(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  deopt_func(ctx, func);
+}
+
+void _PyJITContext_FuncDestroyed(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  ctx->compiled_funcs.erase(func);
+}
+
+void _PyJITContext_TypeModified(
+    _PyJITContext* ctx,
+    BorrowedRef<PyTypeObject> type) {
+  deopt_type(ctx, type);
+}
+
+void _PyJITContext_TypeDestroyed(
+    _PyJITContext* ctx,
+    BorrowedRef<PyTypeObject> type) {
+  ctx->type_deopt.erase(type);
+}
+
 int _PyJITContext_DidCompile(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
   jit::ThreadedCompileSerialize guard;
-  auto func_ref = Ref<>::steal(PyWeakref_NewRef(func, nullptr));
-  if (func_ref == nullptr) {
-    return -1;
-  }
 
-  return PyDict_GetItem(ctx->deopt_info, func_ref) != nullptr;
+  return ctx->compiled_funcs.count(func) != 0;
 }
 
 int _PyJITContext_GetCodeSize(
@@ -712,18 +463,8 @@ PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx) {
     return nullptr;
   }
 
-  auto keys = Ref<>::steal(PyDict_Keys(ctx->deopt_info));
-  if (keys == nullptr) {
-    return nullptr;
-  }
-
-  Py_ssize_t num_keys = PyList_Size(keys);
-  for (Py_ssize_t i = 0; i < num_keys; i++) {
-    PyObject* key = PyWeakref_GetObject(PyList_GetItem(keys, i));
-    if (!PyFunction_Check(key)) {
-      continue;
-    }
-    if (PyList_Append(funcs, key) < 0) {
+  for (BorrowedRef<PyFunctionObject> func : ctx->compiled_funcs) {
+    if (PyList_Append(funcs, func) < 0) {
       return nullptr;
     }
   }

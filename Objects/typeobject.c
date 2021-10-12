@@ -403,6 +403,7 @@ PyType_Modified(PyTypeObject *type)
     type->tp_version_tag = 0; /* 0 is not a valid version tag */
     Switchboard_Notify(g_switchboard, (PyObject *) type);
     _PyShadow_TypeModified(type); /* facebook t39538061 */
+    _PyJIT_TypeModified(type);
     set_shortcut_call(type);
 }
 
@@ -4023,6 +4024,7 @@ _PyDictKeys_DecRef(PyDictKeysObject *keys);
 static void
 type_dealloc(PyTypeObject *type)
 {
+    _PyJIT_TypeDestroyed(type);
     PyHeapTypeObject *et;
     PyObject *tp, *val, *tb;
 

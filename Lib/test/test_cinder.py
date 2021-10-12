@@ -56,7 +56,7 @@ class CinderTest(unittest.TestCase):
         C.x = 100
         self.assertEqual(a.x, 100)
 
-    def test_func_update_defaults(self):
+    def test_recompute_func_entry_for_defaults(self):
         """Update function __defaults__ *after* creation
 
         Function entry point should be re-computed
@@ -74,6 +74,28 @@ class CinderTest(unittest.TestCase):
 
         foofunc.__defaults__ = (3, 4)
         self.assertEqual(foofunc(), 7)
+
+    def test_recompute_func_entry_for_kwonly(self):
+        """Change function __code__ after creation, adding kwonly args
+
+        Function entry point should be re-computed
+        """
+
+        def f():
+            return "f"
+
+        def kwonly(*, a, b):
+            return "kwonly"
+
+        self.assertEqual(f(), "f")
+
+        f.__code__ = kwonly.__code__
+
+        with self.assertRaises(TypeError):
+            f()
+        with self.assertRaises(TypeError):
+            f(1, 2)
+        self.assertEqual(f(a=1, b=2), "kwonly")
 
     @unittest.skip("re-enable once shadowcode is ported")
     def test_knob(self):
