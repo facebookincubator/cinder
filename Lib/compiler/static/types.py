@@ -399,6 +399,11 @@ class Value:
     ) -> None:
         visitor.syntax_error(f"cannot get descriptor {self.name}", node)
 
+    def resolve_descr_get(
+        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+    ) -> Optional[Value]:
+        return self
+
     def bind_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
@@ -643,19 +648,23 @@ class Object(Value, Generic[TClass]):
     ) -> NarrowingEffect:
         return self.bind_dynamic_call(node, visitor)
 
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
+    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
         for base in self.klass.mro:
             member = base.members.get(node.attr)
             if member is not None:
-                member.bind_descr_get(node, self, self.klass, visitor, type_ctx)
-                return
+                res = member.resolve_descr_get(node, self, self.klass)
+                if res is not None:
+                    return res
 
         if node.attr == "__class__":
-            visitor.set_type(node, self.klass)
+            return self.klass
         else:
-            visitor.set_type(node, DYNAMIC)
+            return DYNAMIC
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        visitor.set_type(node, self.resolve_attr(node) or DYNAMIC)
 
     def emit_delete_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
@@ -687,11 +696,6 @@ class Object(Value, Generic[TClass]):
             return
 
         super().emit_store_attr(node, code_gen)
-
-    def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
-    ) -> Optional[Value]:
-        return self
 
     def bind_descr_get(
         self,
@@ -999,16 +1003,15 @@ class Class(Object["Class"]):
         """Binds the generic type parameters to a generic type definition"""
         return None
 
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
+    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
         for base in self.mro:
             member = base.members.get(node.attr)
             if member is not None:
-                member.bind_descr_get(node, None, self, visitor, type_ctx)
-                return
+                res = member.resolve_descr_get(node, None, self)
+                if res is not None:
+                    return res
 
-        super().bind_attr(node, visitor, type_ctx)
+        return super().resolve_attr(node)
 
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -3176,10 +3179,8 @@ class TransparentDecoratedMethod(DecoratedMethod):
     ) -> Optional[Value]:
         return self.function.resolve_descr_get(node, inst, ctx)
 
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
-        return self.function.bind_attr(node, visitor, type_ctx)
+    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
+        return self.function.resolve_attr(node)
 
 
 class StaticMethod(DecoratedMethod):
@@ -6576,20 +6577,20 @@ class ModuleInstance(Object["ModuleType"]):
         "__patch_enabled__",
     }
 
-    def __init__(self, module_name: str) -> None:
+    def __init__(self, module_name: str, compiler: Compiler) -> None:
         self.module_name = module_name
+        self.compiler = compiler
         super().__init__(klass=MODULE_TYPE)
 
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
+    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
         if node.attr in self.SPECIAL_NAMES:
-            return super().bind_attr(node, visitor, type_ctx)
-        module_table = visitor.compiler.modules.get(self.module_name)
+            return super().resolve_attr(node)
+
+        module_table = self.compiler.modules.get(self.module_name)
         if module_table is None:
-            visitor.set_type(node, DYNAMIC)
-            return
-        visitor.set_type(node, module_table.children.get(node.attr, DYNAMIC))
+            return DYNAMIC
+
+        return module_table.children.get(node.attr, DYNAMIC)
 
 
 MODULE_TYPE = ModuleType()

@@ -75,6 +75,7 @@ class DeclarationVisitor(GenericVisitor):
         super().__init__(module)
         self.scopes: List[TScopeTypes] = [self.module]
         self.optimize = optimize
+        self.compiler = symbols
 
     def finish_bind(self) -> None:
         self.module.finish_bind()
@@ -196,10 +197,10 @@ class DeclarationVisitor(GenericVisitor):
             if asname is None:
                 top_level_module = name.name.split(".")[0]
                 self.module.children[top_level_module] = ModuleInstance(
-                    top_level_module
+                    top_level_module, self.compiler
                 )
             else:
-                self.module.children[asname] = ModuleInstance(name.name)
+                self.module.children[asname] = ModuleInstance(name.name, self.compiler)
 
     def visitImportFrom(self, node: ImportFrom) -> None:
         mod_name = node.module
@@ -219,7 +220,7 @@ class DeclarationVisitor(GenericVisitor):
                     self.compiler.import_module(module_as_attribute, self.optimize)
                     if module_as_attribute in self.compiler.modules:
                         self.module.children[child_name] = ModuleInstance(
-                            module_name=module_as_attribute
+                            module_as_attribute, self.compiler
                         )
 
     # We don't pick up declarations in nested statements
