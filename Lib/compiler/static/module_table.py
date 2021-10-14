@@ -43,7 +43,9 @@ from .types import (
     FLOAT_TYPE,
     FinalClass,
     INT_TYPE,
+    MethodType,
     NONE_TYPE,
+    Object,
     OPTIONAL_TYPE,
     UNION_TYPE,
     UnionType,
@@ -193,6 +195,8 @@ class ModuleTable:
                 return func.instance
             elif isinstance(func, Callable):
                 return func.return_type.resolved().instance
+            elif isinstance(func, MethodType):
+                return func.function.return_type.resolved().instance
 
         return self._resolve(node, self.resolve_decorator)
 
@@ -228,7 +232,10 @@ class ModuleTable:
                             (index,), self.compiler.generic_types
                         )
                         return gen or val
-        # TODO handle Attribute
+        elif isinstance(node, ast.Attribute):
+            val = (_resolve_subscr_target or _resolve)(node.value)
+            if val is not None:
+                return val.resolve_attr(node)
 
     def resolve_annotation(
         self,

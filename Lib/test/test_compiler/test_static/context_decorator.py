@@ -449,6 +449,42 @@ class ContextDecoratorTests(StaticTestBase):
                 (((mod.__name__, "C", "f"), 0)),
             )
 
+    def test_simple_method(self):
+        codestr = """
+            from __future__ import annotations
+            from __static__ import ContextDecorator
+            calls = 0
+            class MyDecorator(ContextDecorator):
+                def __enter__(self) -> MyDecorator:
+                    global calls
+                    calls += 1
+                    return self
+
+            class WrapperFactory:
+                def wrapper(self) -> MyDecorator:
+                    return MyDecorator()
+
+            wf: WrapperFactory = WrapperFactory()
+
+            class C:
+                @wf.wrapper()
+                def f(self) -> int:
+                    return 42
+
+                def x(self) -> int:
+                    return self.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod.C
+            a = C()
+            self.assertEqual(a.f(), 42)
+            self.assertEqual(mod.calls, 1)
+            self.assertInBytecode(
+                C.x,
+                "INVOKE_METHOD",
+                (((mod.__name__, "C", "f"), 0)),
+            )
+
     def test_cross_module(self) -> None:
         acode = """
             from __future__ import annotations

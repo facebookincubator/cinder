@@ -372,11 +372,13 @@ class Value:
     def as_oparg(self) -> int:
         raise TypeError(f"{self.name} not valid here")
 
+    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
+        raise TypedSyntaxError(f"cannot load attribute from {self.name}")
+
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
-
-        visitor.syntax_error(f"cannot load attribute from {self.name}", node)
+        visitor.set_type(node, self.resolve_attr(node) or DYNAMIC)
 
     def bind_await(
         self, node: ast.Await, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -660,11 +662,6 @@ class Object(Value, Generic[TClass]):
             return self.klass
         else:
             return DYNAMIC
-
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
-        visitor.set_type(node, self.resolve_attr(node) or DYNAMIC)
 
     def emit_delete_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
