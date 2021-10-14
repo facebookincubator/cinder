@@ -816,6 +816,16 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
   if (classDict == nullptr) {
     classDict = strDictToObjHelper(std::move(ns), context_);
   }
+  // Additional step, add __module__ to the class dict
+  if (!iContainsElement(classDict, context_.makeStr("__module__"), context_)) {
+    // getting __name__ from creator may not be accurate.
+    // But we probably don't care about __module__ being accurate
+    iSetElement(
+      classDict,
+      context_.makeStr("__module__"),
+      context_.makeStr(modName_),
+      context_);
+  }
 
   // Step 6, call metaclass with class name, bases, ns, and kwargs
   std::vector<AnalysisResult> classCallArg{

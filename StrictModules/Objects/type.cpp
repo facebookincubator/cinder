@@ -357,15 +357,6 @@ std::shared_ptr<BaseStrictObject> StrictType::type__new__(
     return true;
   });
 
-  // set __module__
-  auto dunderModuleIt = members.find("__module__");
-  if (dunderModuleIt == members.map_end()) {
-    // getting __name__ from creator may not be accurate.
-    // But we probably don't care about __module__ being accurate
-    members["__module__"] =
-        caller.makeStr(caller.caller.lock()->getModuleName());
-  }
-
   auto initSubclassItem = members.find("__init_subclass__");
   if (initSubclassItem != members.map_end()) {
     // __init_sublcass__ is automatically treated as a class method
