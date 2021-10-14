@@ -9877,3 +9877,13 @@ x = bytes.maketrans(i, j)
 x
 ---
 ---
+test_raise_assertion_error
+---
+def assert_fail():
+    raise AssertionError()
+
+assert_fail()
+---
+---
+4 0 StrictModuleUnhandledException(AssertionError) 2 4 StrictModuleUserException AssertionError
+---

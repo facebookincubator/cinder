@@ -454,6 +454,15 @@ std::shared_ptr<StrictType> IOErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> AssertionErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "AssertionError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> LazyObjectType() {
   static std::shared_ptr<StrictType> t = makeType<StrictLazyObjectType>(
       "<lazy type>", kBuiltinsModule, TObjectPtrVec{}, TypeType());
@@ -785,6 +794,7 @@ bool initializeBuiltinsModuleDict() {
         {"ZeroDivisionError", DivisionByZeroType()},
         {"DeprecationWarning", DeprecationWarningType()},
         {"IOError", IOErrorType()},
+        {"AssertionError", AssertionErrorType()},
         {"NotImplemented", NotImplemented()},
         {"None", NoneObject()},
         {"True", StrictTrue()},
