@@ -40,7 +40,7 @@ static int AnalysisResult_init(
 
   if (!PyArg_ParseTuple(
           args,
-          "UUiiOOO",
+          "UUiiOOOO",
           &module_name,
           &file_name,
           &module_kind,

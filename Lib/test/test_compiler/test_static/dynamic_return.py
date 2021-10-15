@@ -75,12 +75,12 @@ class DynamicReturnTests(StaticTestBase):
     def test_dynamic_return_async_fn(self):
         codestr = """
         from __static__ import dynamic_return
-        
+
         class C:
             @dynamic_return
             def fn(self) -> int:
                 return 3
-        
+
         def f() -> int:
             return C().fn()
         """

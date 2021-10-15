@@ -17,6 +17,8 @@ from typing import (
     Tuple,
     final,
     Dict,
+    Type,
+    TYPE_CHECKING,
 )
 
 from _strictmodule import (
@@ -34,11 +36,15 @@ from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
 from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
 
+
+if TYPE_CHECKING:
+    from _strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory
+
+
 def getSymbolTable(mod: StrictAnalysisResult) -> PythonSymbolTable:
     """
     Construct a symtable object from analysis result
     """
-    # pyre-fixme[16]: symtable has no attribute SymbolTableFactory
     return SymbolTableFactory()(mod.symtable, mod.file_name)
 
 
@@ -56,13 +62,14 @@ class Compiler(StaticCompiler):
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
         raise_on_error: bool = False,
         enable_patching: bool = False,
+        loader_factory: StrictModuleLoaderFactory = StrictModuleLoader,
     ) -> None:
         super().__init__(StaticCodeGenerator)
         self.import_path: List[str] = list(import_path)
         self.stub_root = stub_root
         self.allow_list_prefix = allow_list_prefix
         self.allow_list_exact = allow_list_exact
-        self.loader: StrictModuleLoader = StrictModuleLoader(
+        self.loader: IStrictModuleLoader = loader_factory(
             self.import_path,
             str(stub_root),
             list(allow_list_prefix),
@@ -146,7 +153,7 @@ class Compiler(StaticCompiler):
                 mod.errors.append((e.msg, e.filename, e.lineno, e.col))
 
         if not is_valid_strict:
-            code = self._compile_basic(mod, filename, optimize)
+            code = self._compile_basic(mod.ast, filename, optimize)
         elif mod.module_kind == STATIC_MODULE_KIND:
             code = self._compile_static(
                 mod, filename, name, optimize, track_import_call
@@ -159,10 +166,10 @@ class Compiler(StaticCompiler):
         return code, mod
 
     def _compile_basic(
-        self, mod: StrictAnalysisResult, filename: str, optimize: int
+        self, root: ast.Module, filename: str, optimize: int
     ) -> CodeType:
         return compile(
-            mod.ast,
+            root,
             filename,
             "exec",
             dont_inherit=True,

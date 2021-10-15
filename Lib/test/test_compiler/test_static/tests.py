@@ -2947,27 +2947,12 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, "cannot iterate over int8"):
             self.compile(codestr)
 
-    def test_pseudo_strict_module(self) -> None:
-        # simulate strict modules where the builtins come from <builtins>
+    def test_strict_module(self) -> None:
         code = """
             def f(a):
                 x: bool = a
         """
-        builtins = ast.Assign(
-            [ast.Name("bool", ast.Store())],
-            ast.Subscript(
-                ast.Name("<builtins>", ast.Load()),
-                ast.Index(ast.Str("bool")),
-                ast.Load(),
-            ),
-            None,
-        )
-        tree = ast.parse(dedent(code))
-        tree.body.insert(0, builtins)
-
-        compiler = Compiler(StaticCodeGenerator)
-        compiler.add_module("a", "a.py", tree, optimize=0)
-        acomp = compiler.compile("a", "a.py", tree, optimize=0)
+        acomp = self.compile_strict(code)
         x = self.find_code(acomp, "f")
         self.assertInBytecode(x, "CAST", ("builtins", "bool"))
 
@@ -2982,34 +2967,17 @@ class StaticCompilationTests(StaticTestBase):
             f(l)
             self.assertEqual(l[0], 2)
 
-    def test_pseudo_strict_module_constant(self) -> None:
-        # simulate strict modules where the builtins come from <builtins>
+    def test_strict_module_constant(self) -> None:
         code = """
             def f(a):
                 x: bool = a
         """
-        builtins = ast.Assign(
-            [ast.Name("bool", ast.Store())],
-            ast.Subscript(
-                ast.Name("<builtins>", ast.Load()),
-                ast.Index(ast.Constant("bool")),
-                ast.Load(),
-            ),
-            None,
-        )
-        tree = ast.parse(dedent(code))
-        tree.body.insert(0, builtins)
-
-        compiler = Compiler(StaticCodeGenerator)
-        compiler.add_module("a", "a.py", tree, optimize=0)
-        acomp = compiler.compile("a", "a.py", tree, optimize=0)
+        acomp = self.compile_strict(code)
         x = self.find_code(acomp, "f")
         self.assertInBytecode(x, "CAST", ("builtins", "bool"))
 
-    def test_pseudo_strict_module_isinstance(self):
-        tree = ast.parse(
-            dedent(
-                """
+    def test_strict_module_isinstance(self):
+        code = """
             from typing import Optional
 
             def foo(tval: Optional[object]) -> str:
@@ -3017,21 +2985,7 @@ class StaticCompilationTests(StaticTestBase):
                     return tval
                 return "hi"
         """
-            )
-        )
-        builtins = ast.Assign(
-            [ast.Name("isinstance", ast.Store())],
-            ast.Subscript(
-                ast.Name("<builtins>", ast.Load()),
-                ast.Index(ast.Str("isinstance")),
-                ast.Load(),
-            ),
-            None,
-        )
-        tree.body.insert(0, builtins)
-        compiler = Compiler(StaticCodeGenerator)
-        compiler.add_module("a", "a.py", tree, optimize=0)
-        acomp = compiler.compile("a", "a.py", tree, optimize=0)
+        self.compile_strict(code)
 
     def test_cross_module_inheritance(self) -> None:
         acode = """
@@ -8853,7 +8807,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
             def f12(): return 42
             def f11():
-                from sys import *
+                class C: pass
                 return f12()
             def f10(): return f11()
             def f9(): return f10()
@@ -8890,7 +8844,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
             def f0(): return 42
             def f1(a, b, c, d, e, f, g, h):
-                from sys import *
+                class C: pass
                 return f0() - a + b - c + d - e + f - g + h - 4
 
             def f2(): return f1(1,2,3,4,5,6,7,8)
@@ -9010,10 +8964,7 @@ class StaticCompilationTests(StaticTestBase):
             from __static__ import int8, box
 
             def n(val: int8):
-                try:
-                    from sys import *
-                except:
-                    pass
+                class C: pass
                 return box(val)
 
             def x():
@@ -9030,6 +8981,7 @@ class StaticCompilationTests(StaticTestBase):
                 print(mod.n(-129))
             with self.assertRaises(OverflowError):
                 print(mod.n(128))
+            self.assert_not_jitted(n)
 
     def test_primitive_args_funcdef_too_many_args(self):
         codestr = """
@@ -9286,7 +9238,7 @@ class StaticCompilationTests(StaticTestBase):
                 op = "*"
                 other = "1"
                 boxed = "int"
-            unjitable_code = "from sys import *" if unjitable else ""
+            unjitable_code = "class C: pass" if unjitable else ""
             codestr = f"""
                 from __static__ import {type}, box
 
@@ -11005,7 +10957,7 @@ class StaticRuntimeTests(StaticTestBase):
     def test_awaited_invoke_function_unjitable(self):
         codestr = """
             async def f() -> int:
-                from os.path import *
+                class C: pass
                 return 1
 
             async def g() -> int:
@@ -11018,6 +10970,7 @@ class StaticRuntimeTests(StaticTestBase):
                 ((mod.__name__, "f"), 0),
             )
             self.assertEqual(asyncio.run(mod.g()), 1)
+            self.assert_not_jitted(mod.f)
 
     def test_awaited_invoke_function_with_args(self):
         codestr = """

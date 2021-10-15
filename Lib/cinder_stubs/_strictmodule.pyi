@@ -1,6 +1,6 @@
 import ast
-from compiler.strict.common import StrictModuleError
-from typing import List
+from _symtable import symtable
+from typing import Callable, List, Protocol
 
 NONSTRICT_MODULE_KIND: int = ...
 STATIC_MODULE_KIND: int = ...
@@ -13,24 +13,29 @@ ENABLE_SLOTS_DECORATOR: str = ...
 CACHED_PROP_DECORATOR: str = ...
 
 class StrictAnalysisResult:
+    def __init__(
+        self,
+        _module_name: str,
+        _file_name: str,
+        _mod_kind: int,
+        _stub_kind: int,
+        _ast: ast.Module,
+        _ast_preprocessed: ast.Module,
+        _symtable: symtable,
+        _errors: List[StrictModuleError],
+        /,
+    ) -> None: ...
+    module_name: str
     file_name: str
-    is_valid: bool
     module_kind: int
     stub_kind: int
     ast: ast.Module
     ast_preprocessed: ast.Module
+    symtable: symtable
     errors: List[StrictModuleError]
+    is_valid: bool
 
-class StrictModuleLoader:
-    def __init__(
-        self,
-        _import_paths: List[str],
-        _stub_import_path: str,
-        _allow_list: List[str],
-        _allow_list_exact: List[str],
-        _load_strictmod_builtin: bool = True,
-        /,
-    ) -> None: ...
+class IStrictModuleLoader(Protocol):
     def check(self, _mod_name: str, /) -> StrictAnalysisResult: ...
     def check_source(
         self,
@@ -40,3 +45,18 @@ class StrictModuleLoader:
         _submodule_search_locations: List[str],
         /,
     ) -> StrictAnalysisResult: ...
+
+class StrictModuleLoader(IStrictModuleLoader):
+    def __init__(
+        self,
+        _import_paths: List[str],
+        _stub_import_path: str,
+        _allow_list: List[str],
+        _allow_list_exact: List[str],
+        _load_strictmod_builtin: bool = True,
+        /,
+    ) -> None: ...
+
+StrictModuleLoaderFactory = Callable[
+    [List[str], str, List[str], List[str], bool], IStrictModuleLoader
+]

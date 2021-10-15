@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import ast
 import asyncio
-import compiler.strict
+import builtins
 import gc
 import re
+import symtable
 import sys
+import typing
 from compiler import walk
 from compiler.optimizer import AstOptimizer
 from compiler.static import Static38CodeGenerator, StaticCodeGenerator
@@ -16,14 +18,24 @@ from compiler.static.module_table import ModuleTable
 from compiler.static.type_binder import TypeBinder
 from compiler.static.types import TypedSyntaxError, Value
 from compiler.strict.common import FIXED_MODULES
+from compiler.strict.compiler import Compiler as StrictCompiler
 from compiler.strict.runtime import set_freeze_enabled
 from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
+from pathlib import Path
 from textwrap import dedent
 from types import CodeType
 from typing import ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
 import cinder
+from _strictmodule import (
+    StrictAnalysisResult,
+    StrictModuleLoader,
+    NONSTRICT_MODULE_KIND,
+    STATIC_MODULE_KIND,
+    STUB_KIND_MASK_NONE,
+    STUB_KIND_MASK_STRICT,
+)
 from cinder import StrictModule
 from test.support import maybe_get_event_loop_policy
 
@@ -146,6 +158,28 @@ class StaticTestBase(CompilerTest):
             modname, f"{modname}.py", tree, optimize, enable_patching=enable_patching
         )
 
+    def compile_strict(
+        self, codestr, modname="<module>", optimize=0, enable_patching=False
+    ):
+        # TODO if we move all of the strict modules rewriter into the compiler,
+        # then it's no longer important for static python tests to run through
+        # full strict compiler; we can remove this method and have _in_strict_module
+        # go back to using self.compile()
+        compiler = StrictCompiler(
+            [],
+            "",
+            [],
+            [],
+            raise_on_error=True,
+            enable_patching=enable_patching,
+            loader_factory=StaticTestsStrictModuleLoader,
+        )
+
+        code, _ = compiler.load_compiled_module_from_source(
+            self.clean_code(codestr), f"{modname}.py", modname, optimize
+        )
+        return code
+
     def lint(self, code: str) -> TestErrors:
         errors = CollectingErrorSink()
         code = self.clean_code(code)
@@ -259,14 +293,13 @@ class StaticTestBase(CompilerTest):
         self,
         code,
         name,
-        code_gen,
         optimize,
         enable_patching,
     ):
-        compiled = self.compile(
-            code, code_gen, name, optimize, enable_patching=enable_patching
+        compiled = self.compile_strict(
+            code, name, optimize, enable_patching=enable_patching
         )
-        d = {"__name__": name}
+        d = {"__name__": name, "<builtins>": builtins.__dict__}
         add_fixed_module(d)
         m = StrictModule(d, enable_patching)
         sys.modules[name] = m
@@ -278,7 +311,6 @@ class StaticTestBase(CompilerTest):
         self,
         code,
         name=None,
-        code_gen=StaticCodeGenerator,
         optimize=0,
         enable_patching=False,
         freeze=False,
@@ -288,9 +320,7 @@ class StaticTestBase(CompilerTest):
             name = self._temp_mod_name()
         old_setting = set_freeze_enabled(freeze)
         try:
-            d, m = self._in_strict_module(
-                code, name, code_gen, optimize, enable_patching
-            )
+            d, m = self._in_strict_module(code, name, optimize, enable_patching)
             yield m
         finally:
             set_freeze_enabled(old_setting)
@@ -397,3 +427,70 @@ class StaticTestBase(CompilerTest):
         code_gen.visit(tree)
 
         return tree, compiler
+
+
+class StaticTestsStrictModuleLoader:
+    """Fake StrictModuleLoader for Static Python tests.
+
+    Allows running code through strict rewrite without actually doing a
+    full strict analysis on it.
+    """
+
+    def __init__(
+        self,
+        _import_paths: List[str],
+        _stub_import_path: str,
+        _allow_list: List[str],
+        _allow_list_exact: List[str],
+        _load_strictmod_builtin: bool = True,
+        /,
+    ) -> None:
+        pass
+
+    def check_source(
+        self,
+        _source: str | bytes,
+        _file_name: str,
+        _mod_name: str,
+        _submodule_search_locations: List[str],
+        /,
+    ) -> StrictAnalysisResult:
+        return self._get_result(
+            _source,
+            _mod_name,
+            _file_name,
+            STATIC_MODULE_KIND,
+            STUB_KIND_MASK_NONE,
+        )
+
+    def check(self, _mod_name: str, /) -> StrictAnalysisResult:
+        tree = ast.parse("")
+        symbols = symtable.symtable("", _mod_name, "exec")
+        return self._get_result(
+            "",
+            _mod_name,
+            f"{_mod_name}.py",
+            NONSTRICT_MODULE_KIND,
+            STUB_KIND_MASK_STRICT,
+        )
+
+    def _get_result(
+        self,
+        source: str | bytes,
+        modname: str,
+        filename: str,
+        mod_kind: int,
+        stub_kind: int,
+    ) -> StrictAnalysisResult:
+        tree = ast.parse(source)
+        symbols = symtable.symtable(source, filename, "exec")
+        return StrictAnalysisResult(
+            modname,
+            filename,
+            mod_kind,
+            stub_kind,
+            tree,
+            tree,
+            symbols._table,
+            [],
+        )
