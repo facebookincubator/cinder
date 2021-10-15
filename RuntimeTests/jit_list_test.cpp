@@ -49,6 +49,20 @@ TEST_F(JITListTest, LookupFO) {
   EXPECT_FALSE(jitlist->lookupFO(quux, bar));
 }
 
+TEST_F(JITListTest, LookupCO) {
+  auto jitlist = JITList::create();
+  ASSERT_NE(jitlist, nullptr);
+
+  auto func = compileAndGet("def f(): pass", "f");
+  ASSERT_NE(func, nullptr);
+
+  BorrowedRef<PyCodeObject> code(
+      reinterpret_cast<PyFunctionObject*>(func.get())->func_code);
+  ASSERT_NE(code, nullptr);
+
+  ASSERT_EQ(jitlist->lookupCO(code), 0);
+}
+
 TEST_F(WildcardJITListTest, ParseLine) {
   auto jitlist = WildcardJITList::create();
   ASSERT_NE(jitlist, nullptr);

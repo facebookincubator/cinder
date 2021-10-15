@@ -141,7 +141,7 @@ Ref<> JITList::pathBasename(BorrowedRef<> path) {
     if (sep_str_obj == nullptr) {
       return nullptr;
     }
-    path_sep_ = Ref<>::steal(sep_str_obj);
+    path_sep_ = std::move(sep_str_obj);
   }
   auto split_path_obj = Ref<>::steal(PyUnicode_RSplit(path, path_sep_, 1));
   if (split_path_obj == nullptr || !PyList_Check(split_path_obj) ||
@@ -206,7 +206,7 @@ int JITList::lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname) {
 
 int JITList::lookupCO(BorrowedRef<PyCodeObject> code) {
   Ref<> name(code->co_qualname ? code->co_qualname : code->co_name);
-  Ref<> line_no(PyLong_FromLong(code->co_firstlineno));
+  Ref<> line_no = Ref<>::steal(PyLong_FromLong(code->co_firstlineno));
   Ref<> file(pathBasename(code->co_filename));
 
   BorrowedRef<> file_set = PyDict_GetItemWithError(name_file_line_no_, name);
