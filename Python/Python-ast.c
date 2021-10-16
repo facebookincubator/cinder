@@ -402,16 +402,13 @@ static int initialize_entry(PyObject *o, struct _Py_Identifier *id,
 static int
 initialize_nodevisitor_table(PyTypeObject *type, NodeVisitorDispatchTable *existing_table)
 {
-    NodeVisitorDispatchTable *table = NULL;
+    NodeVisitorDispatchTable *table = existing_table;
     if (table == NULL) {
         table = (NodeVisitorDispatchTable*)_PyObject_GC_New(&_NodeVisitorTable_Type);
         if (table == NULL) {
             return -1;
         }
         memset(table->entries, 0, NUM_METHODS * sizeof(dispatch_table_entry));
-    }
-    else {
-        table = existing_table;
     }
 
     if (initialize_entry((PyObject*)type, &PyId_visit_mod,
