@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 from types import CodeType
-from typing import ContextManager, Dict, Generator, List, Mapping, Tuple, Type
+from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
 import cinder
 from _strictmodule import (
@@ -56,21 +56,56 @@ class TestCompiler(Compiler):
         error_sink: ErrorSink | None = None,
     ) -> None:
         self.source_by_name = source_by_name
+        self.ast_by_name: Dict[str, ast.Module] = {}
         self.test_case = test_case
         super().__init__(code_generator, error_sink)
 
     def import_module(self, name: str, optimize: int = 0) -> ModuleTable | None:
-        source = self.source_by_name.get(name, None)
-        if source is not None:
-            tree = ast.parse(source)
-            self.add_module(name, self._get_filename(name), tree, optimize)
+        if name not in self.modules:
+            tree = self._get_module_ast(name)
+            if tree is not None:
+                self.add_module(name, self._get_filename(name), tree, optimize)
         return self.modules.get(name)
 
+    def add_module(
+        self, name: str, filename: str, tree: AST, optimize: int
+    ) -> ast.Module:
+        tree = super().add_module(name, filename, tree, optimize)
+        self.ast_by_name[name] = tree
+        return tree
+
     def compile_module(self, name: str, optimize: int = 0) -> CodeType:
-        source = self.source_by_name[name]
-        return self.compile(
-            name, self._get_filename(name), ast.parse(source), optimize=optimize
-        )
+        tree = self._get_module_ast(name)
+        if tree is None:
+            raise ValueError("No source found for module '{name}'")
+        return self.compile(name, self._get_filename(name), tree, optimize=optimize)
+
+    def _get_module_ast(self, name: str) -> ast.Module | None:
+        tree = self.ast_by_name.get(name)
+        if tree is None:
+            source = self.source_by_name.get(name)
+            if source is None:
+                return None
+            tree = ast.parse(source)
+        return tree
+
+    @contextmanager
+    def in_module(self, modname: str, optimize: int = 0) -> Generator[Any, None, None]:
+        names = self.source_by_name.keys()
+        compiled = [self.compile_module(name, optimize) for name in names]
+        try:
+            dicts = []
+            for name, codeobj in zip(names, compiled):
+                d, m = self.test_case._in_module(name, codeobj)
+                dicts.append(d)
+                if name == modname:
+                    yield m
+                    break
+            else:
+                raise Exception(f"No module named '{modname}' found")
+        finally:
+            for name, d in zip(names, dicts):
+                self.test_case._finalize_module(name, d)
 
     def type_error(
         self, name: str, pattern: str, at: str | None = None
@@ -248,15 +283,12 @@ class StaticTestBase(CompilerTest):
             mod_dict.clear()
         gc.collect()
 
-    def _in_module(self, code, name, code_gen, optimize, enable_patching):
-        compiled = self.compile(
-            code, code_gen, name, optimize, enable_patching=enable_patching
-        )
+    def _in_module(self, name, code_obj):
         m = type(sys)(name)
         d = m.__dict__
         add_fixed_module(d)
         sys.modules[name] = m
-        exec(compiled, d)
+        exec(code_obj, d)
         d["__name__"] = name
         return d, m
 
@@ -283,7 +315,10 @@ class StaticTestBase(CompilerTest):
             name = self._temp_mod_name()
         old_setting = set_freeze_enabled(freeze)
         try:
-            d, m = self._in_module(code, name, code_gen, optimize, enable_patching)
+            compiled = self.compile(
+                code, code_gen, name, optimize, enable_patching=enable_patching
+            )
+            d, m = self._in_module(name, compiled)
             yield m
         finally:
             set_freeze_enabled(old_setting)
@@ -291,19 +326,15 @@ class StaticTestBase(CompilerTest):
 
     def _in_strict_module(
         self,
-        code,
         name,
-        optimize,
-        enable_patching,
+        code_obj,
+        enable_patching=False,
     ):
-        compiled = self.compile_strict(
-            code, name, optimize, enable_patching=enable_patching
-        )
         d = {"__name__": name, "<builtins>": builtins.__dict__}
         add_fixed_module(d)
         m = StrictModule(d, enable_patching)
         sys.modules[name] = m
-        exec(compiled, d)
+        exec(code_obj, d)
         return d, m
 
     @contextmanager
@@ -320,7 +351,10 @@ class StaticTestBase(CompilerTest):
             name = self._temp_mod_name()
         old_setting = set_freeze_enabled(freeze)
         try:
-            d, m = self._in_strict_module(code, name, optimize, enable_patching)
+            compiled = self.compile_strict(
+                code, name, optimize, enable_patching=enable_patching
+            )
+            d, m = self._in_strict_module(name, compiled, enable_patching)
             yield m
         finally:
             set_freeze_enabled(old_setting)

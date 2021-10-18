@@ -34,14 +34,14 @@ def run_static_tests():
         def _in_module(self, *args):
             d, m = super()._in_module(*args)
             args = list(args)
-            args[1] = d["__name__"]
+            args[0] = d["__name__"]
             CODE_SAMPLES_IN_MODULE.append(args)
             return d, m
 
         def _in_strict_module(self, *args):
             d, m = super()._in_strict_module(*args)
             args = list(args)
-            args[1] = d["__name__"]
+            args[0] = d["__name__"]
             CODE_SAMPLES_IN_STRICT_MODULE.append(args)
             return d, m
 
