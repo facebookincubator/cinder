@@ -2377,6 +2377,11 @@ testruntime: runtime_tests
 		ThirdParty/gtest-parallel/gtest-parallel \
 		$(abs_builddir)/runtime_tests
 
+testruntime_serial: runtime_tests
+	cd $(srcdir) && \
+		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` $(ASAN_TEST_ENV) \
+		$(abs_builddir)/runtime_tests
+
 strict_module_tests: ${GTEST_DIR}/libgtest.a platform $(STRICTM_TESTS_OBJS) $(STRICTM_HEADERS) $(BUILDPYTHON)
 	$(eval PYEMBED_LIBS := $$(shell ./$(BUILDPYTHON) python-config.py --libs | sed -e "s/-lpython[^ ]*//"))
 	$(V)$(CXX) -std=c++17 -I. -isystem ${GTEST_SRCDIR}/include -pthread \

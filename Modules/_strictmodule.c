@@ -15,10 +15,18 @@ static int strictmodule_exec(PyObject *m) {
   if (PyType_Ready(&StrictModuleAnalysisResult_Type) < 0)
     goto fail;
 
-  PyModule_AddObject(m, "StrictModuleLoader",
-                     (PyObject *)&StrictModuleLoader_Type);
-  PyModule_AddObject(m, "StrictAnalysisResult",
-                     (PyObject *)&StrictModuleAnalysisResult_Type);
+  Py_INCREF(&StrictModuleLoader_Type);
+  if (PyModule_AddObject(m, "StrictModuleLoader",
+                         (PyObject *)&StrictModuleLoader_Type) < 0) {
+      Py_DECREF(&StrictModuleLoader_Type);
+      return -1;
+  }
+  Py_INCREF(&StrictModuleAnalysisResult_Type);
+  if (PyModule_AddObject(m, "StrictAnalysisResult",
+                         (PyObject *)&StrictModuleAnalysisResult_Type) < 0) {
+      Py_DECREF(&StrictModuleAnalysisResult_Type);
+      return -1;
+  }
   PyObject *val;
 #define SET_STR(name)                                                          \
   val = PyUnicode_FromString(name);                                            \
