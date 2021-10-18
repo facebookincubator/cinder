@@ -2473,7 +2473,7 @@ class StrictLoaderTest(StrictTestBase):
             """
             import __strict__
             from c import f
-            
+
             f()
             """,
         )
@@ -2510,7 +2510,7 @@ class StrictLoaderTest(StrictTestBase):
             """
             import __strict__
             from c import f
-            
+
             f()
             """,
         )
@@ -2521,12 +2521,14 @@ class StrictLoaderTest(StrictTestBase):
                 print("hi")
             """,
         )
+        env = os.environ.copy()
+        env.update({"PYTHONINSTALLSTRICTLOADER": "1"})
         res = subprocess.run(
             [sys.executable, "a.py"],
             cwd=str(self.sbx.root),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            env={"PYTHONINSTALLSTRICTLOADER": "1"},
+            env=env,
         )
         self.assertEqual(res.returncode, 1)
         output = res.stdout.decode()
