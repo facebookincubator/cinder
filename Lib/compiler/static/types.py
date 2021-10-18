@@ -1040,6 +1040,18 @@ class Class(Object["Class"]):
     def type_descr(self) -> TypeDescr:
         return self.type_name.type_descr
 
+    def _resolve_dunder(self, name: str) -> Tuple[Class, Optional[Value]]:
+        klass = OBJECT_TYPE
+        for klass in self.mro:
+            if klass is DYNAMIC_TYPE:
+                return DYNAMIC_TYPE, None
+
+            if val := klass.members.get(name):
+                return klass, val
+
+        assert klass is OBJECT_TYPE
+        return OBJECT_TYPE, None
+
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -1048,46 +1060,36 @@ class Class(Object["Class"]):
         init_mapping: Optional[ArgMapping] = None
 
         dynamic_call = True
-        dynamic_new = False
-        object_new = object_init = False
-        for klass in self.mro:
-            if klass is DYNAMIC_TYPE:
-                dynamic_new = True
-            elif klass is OBJECT_TYPE:
-                object_new = True
-                break
 
-            new = klass.members.get("__new__")
-            if new is not None:
-                if isinstance(new, Callable):
-                    new_mapping, self_type = new.map_call(
-                        node, visitor, None, [node.func] + node.args
-                    )
-                    if new_mapping.can_call_statically():
-                        dynamic_call = False
-                    else:
-                        dynamic_new = True
-                break
+        klass, new = self._resolve_dunder("__new__")
+        dynamic_new = klass is DYNAMIC_TYPE
+        object_new = klass is OBJECT_TYPE
+
+        if not object_new and isinstance(new, Callable):
+            new_mapping, self_type = new.map_call(
+                node,
+                visitor,
+                None,
+                [node.func] + node.args,
+            )
+            if new_mapping.can_call_statically():
+                dynamic_call = False
+            else:
+                dynamic_new = True
+
+        object_init = False
 
         # if __new__ returns something that isn't a subclass of
-        # our type then __new__ isn't invoked
+        # our type then __init__ isn't invoked
         if not dynamic_new and self_type.klass.can_assign_from(self.instance.klass):
-            for klass in self.mro:
-                if klass is DYNAMIC_TYPE:
-                    dynamic_call = True
-                    break
-                elif klass is OBJECT_TYPE:
-                    object_init = True
-                    break
-
-                init = klass.members.get("__init__")
-                if init is not None:
-                    if isinstance(init, Callable):
-                        init_mapping = ArgMapping(init, node, None)
-                        init_mapping.bind_args(visitor, True)
-                        if init_mapping.can_call_statically():
-                            dynamic_call = False
-                    break
+            klass, init = self._resolve_dunder("__init__")
+            dynamic_call = dynamic_call or klass is DYNAMIC_TYPE
+            object_init = klass is OBJECT_TYPE
+            if not object_init and isinstance(init, Callable):
+                init_mapping = ArgMapping(init, node, None)
+                init_mapping.bind_args(visitor, True)
+                if init_mapping.can_call_statically():
+                    dynamic_call = False
 
         if object_new and object_init:
             if node.args or node.keywords:
@@ -6697,6 +6699,7 @@ class ProdAssertFunction(Object[Class]):
 if spamobj is not None:
     SPAM_OBJ = GenericClass(
         GenericTypeName("xxclassloader", "spamobj", (GenericParameter("T", 0),)),
+        [OBJECT_TYPE],
         pytype=spamobj,
     )
     XXGENERIC_T = GenericParameter("T", 0)
@@ -6751,7 +6754,7 @@ if spamobj is not None:
                 ),
             )
 
-    XX_GENERIC_TYPE = XXGeneric(XXGENERIC_TYPE_NAME)
+    XX_GENERIC_TYPE = XXGeneric(XXGENERIC_TYPE_NAME, [OBJECT_TYPE])
 else:
     SPAM_OBJ: Optional[GenericClass] = None
 
