@@ -310,6 +310,13 @@ class Runtime {
   // Release any references this Runtime holds to Python objects.
   void releaseReferences();
 
+  template <typename T, typename... Args>
+  T* allocateDeoptPatcher(Args&&... args) {
+    deopt_patchers_.emplace_back(
+        std::make_unique<T>(std::forward<Args>(args)...));
+    return static_cast<T*>(deopt_patchers_.back().get());
+  }
+
  private:
   std::vector<std::unique_ptr<CodeRuntime>> runtimes_;
   GlobalCacheMap global_caches_;
@@ -325,6 +332,7 @@ class Runtime {
 
   // References to Python objects held by this Runtime
   std::unordered_set<Ref<PyObject>> references_;
+  std::vector<std::unique_ptr<DeoptPatcher>> deopt_patchers_;
 };
 } // namespace jit
 #endif

@@ -3,6 +3,7 @@
 
 #include "Jit/codegen/gen_asm_utils.h"
 #include "Jit/codegen/x86_64.h"
+#include "Jit/deopt_patcher.h"
 #include "Jit/lir/instruction.h"
 #include "Jit/util.h"
 
@@ -148,6 +149,16 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
 
 namespace {
 
+void fillLiveValueLocations(
+    DeoptMetadata& deopt_meta,
+    const Instruction* instr,
+    size_t start_input) {
+  for (size_t i = start_input; i < instr->getNumInputs(); i++) {
+    auto loc = instr->getInput(i)->getPhyRegOrStackSlot();
+    deopt_meta.live_values[i - start_input].location = loc;
+  }
+}
+
 // Translate GUARD instruction
 void TranslateGuard(Environ* env, const Instruction* instr) {
   auto as = env->as;
@@ -209,12 +220,32 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
   auto& deopt_meta = env->rt->getDeoptMetadata(index);
   // skip the first four inputs in Guard, which are
   // kind, deopt_meta id, guard var, and target.
-  constexpr size_t kStartInput = 4;
-  for (size_t i = kStartInput; i < instr->getNumInputs(); i++) {
-    auto loc = instr->getInput(i)->getPhyRegOrStackSlot();
-    deopt_meta.live_values[i - kStartInput].location = loc;
-  }
+  fillLiveValueLocations(deopt_meta, instr, 4);
   env->deopt_exits.emplace_back(index, deopt_label);
+}
+
+void TranslateDeoptPatchpoint(Environ* env, const Instruction* instr) {
+  auto as = env->as;
+
+  // Generate patchpoint
+  auto patchpoint_label = as->newLabel();
+  as->bind(patchpoint_label);
+  DeoptPatcher::emitPatchpoint(*as);
+
+  // Fill in deopt metadata
+  auto index = instr->getInput(1)->getConstant();
+  auto& deopt_meta = env->rt->getDeoptMetadata(index);
+  // skip the first two inputs which are the patcher and deopt metadata id
+  fillLiveValueLocations(deopt_meta, instr, 2);
+  auto deopt_label = as->newLabel();
+  env->deopt_exits.emplace_back(index, deopt_label);
+
+  // The runtime will link the patcher to the appropriate point in the code
+  // once code generation has completed.
+  auto patcher =
+      reinterpret_cast<DeoptPatcher*>(instr->getInput(0)->getConstant());
+  env->pending_deopt_patchers.emplace_back(
+      patcher, patchpoint_label, deopt_label);
 }
 
 void TranslateCompare(Environ* env, const Instruction* instr) {
@@ -810,6 +841,10 @@ END_RULES
 
 BEGIN_RULES(Instruction::kGuard)
   GEN(ANY, CALL(TranslateGuard));
+END_RULES
+
+BEGIN_RULES(Instruction::kDeoptPatchpoint)
+  GEN(ANY, CALL(TranslateDeoptPatchpoint));
 END_RULES
 
 BEGIN_RULES(Instruction::kNegate)

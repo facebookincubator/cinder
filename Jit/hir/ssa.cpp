@@ -546,6 +546,7 @@ Type outputType(const Instr& instr) {
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
+    case Opcode::kDeoptPatchpoint:
     case Opcode::kGuard:
     case Opcode::kIncref:
     case Opcode::kInitFunction:

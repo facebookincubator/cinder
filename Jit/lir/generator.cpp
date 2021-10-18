@@ -1468,6 +1468,21 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             MakeGuard("AlwaysFail", static_cast<const DeoptBase&>(i)));
         break;
       }
+      case Opcode::kDeoptPatchpoint: {
+        const auto& instr = static_cast<const DeoptPatchpoint&>(i);
+        auto deopt_meta = jit::DeoptMetadata::fromInstr(
+            instr, env_->optimizable_load_call_methods_, env_->code_rt);
+        auto id = env_->rt->addDeoptMetadata(std::move(deopt_meta));
+        std::stringstream ss;
+        ss << "DeoptPatchpoint " << static_cast<void*>(instr.patcher()) << ", "
+           << id;
+        auto& regstates = instr.live_regs();
+        for (const auto& reg_state : regstates) {
+          ss << ", " << *reg_state.reg;
+        }
+        bbb.AppendCode(ss.str());
+        break;
+      }
       case Opcode::kRaiseAwaitableError: {
         const auto& instr = static_cast<const RaiseAwaitableError&>(i);
         bbb.AppendCode(
@@ -2437,6 +2452,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         case Opcode::kCheckVar:
         case Opcode::kDeleteSubscr:
         case Opcode::kDeopt:
+        case Opcode::kDeoptPatchpoint:
         case Opcode::kGuard:
         case Opcode::kGuardIs:
         case Opcode::kInvokeStaticFunction:

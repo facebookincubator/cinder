@@ -380,6 +380,15 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
         CreateInstrInput(instr, tokens[i]);
       }
     }
+  } else if (instr_str == "DeoptPatchpoint") {
+    auto instr = createInstr(Instruction::kDeoptPatchpoint);
+    for (size_t i = 1; i < tokens.size(); i++) {
+      if (IsConstant(tokens[i])) {
+        CreateInstrImmediateInput(instr, tokens[i]);
+      } else {
+        CreateInstrInput(instr, tokens[i]);
+      }
+    }
   } else if (instr_str == "Phi") {
     auto instr = createInstr(Instruction::kPhi);
 

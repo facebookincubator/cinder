@@ -277,6 +277,7 @@ static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
       return DeoptReason::kUnhandledNone;
     }
     case jit::hir::Opcode::kDeopt:
+    case jit::hir::Opcode::kDeoptPatchpoint:
     case jit::hir::Opcode::kGuard:
     case jit::hir::Opcode::kGuardIs: {
       return DeoptReason::kGuardFailure;

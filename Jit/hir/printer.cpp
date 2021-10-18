@@ -599,6 +599,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& i = static_cast<const UnpackExToTuple&>(instr);
       return fmt::format("{}, {}", i.before(), i.after());
     }
+    case Opcode::kDeoptPatchpoint: {
+      const auto& dp = static_cast<const DeoptPatchpoint&>(instr);
+      return fmt::format("{}", getStablePointer(dp.patcher()));
+    }
   }
   JIT_CHECK(false, "invalid opcode %d", static_cast<int>(instr.opcode()));
 }

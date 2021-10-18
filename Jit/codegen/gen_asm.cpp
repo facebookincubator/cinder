@@ -981,6 +981,16 @@ void NativeGenerator::generateDeoptExits() {
   env_.addAnnotation("Deoptimization exits", deopt_cursor);
 }
 
+void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
+  JIT_CHECK(code.hasBaseAddress(), "code not generated!");
+  uint64_t base = code.baseAddress();
+  for (const auto& udp : env_.pending_deopt_patchers) {
+    uint64_t patchpoint = base + code.labelOffset(udp.patchpoint);
+    uint64_t deopt_exit = base + code.labelOffset(udp.deopt_exit);
+    udp.patcher->link(patchpoint, deopt_exit);
+  }
+}
+
 void NativeGenerator::generateResumeEntry() {
   // Arbitrary scratch register for use throughout this function. Can be changed
   // to pretty much anything which doesn't conflict with arg registers.
@@ -1156,6 +1166,8 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       codeholder.labelOffset(correct_args_entry) ==
           codeholder.labelOffset(entry_label) + JITRT_CALL_REENTRY_OFFSET,
       "bad re-entry offset");
+
+  linkDeoptPatchers(codeholder);
 
   entry_ = ((char*)entry_) + codeholder.labelOffset(entry_label);
 

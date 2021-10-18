@@ -59,6 +59,19 @@ struct Environ {
   };
   std::vector<DeoptExit> deopt_exits;
 
+  struct PendingDeoptPatcher {
+    PendingDeoptPatcher(DeoptPatcher* p, asmjit::Label pp, asmjit::Label de)
+        : patcher(p), patchpoint(pp), deopt_exit(de) {}
+    DeoptPatcher* patcher;
+
+    // Location of the patchpoint
+    asmjit::Label patchpoint;
+
+    // Location to jump to when the patchpoint is overwritten
+    asmjit::Label deopt_exit;
+  };
+  std::vector<PendingDeoptPatcher> pending_deopt_patchers;
+
   // Load/Call method instructions for which we can avoid allocating a bound
   // method.
   std::unordered_set<const jit::hir::Instr*> optimizable_load_call_methods_;

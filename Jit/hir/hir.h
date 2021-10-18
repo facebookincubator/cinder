@@ -7,6 +7,7 @@
 #include "opcode.h"
 
 #include "Jit/bytecode.h"
+#include "Jit/deopt_patcher.h"
 #include "Jit/hir/type.h"
 #include "Jit/intrusive_list.h"
 #include "Jit/jit_rt.h"
@@ -270,6 +271,7 @@ struct FrameState {
   V(Decref)                     \
   V(DeleteSubscr)               \
   V(Deopt)                      \
+  V(DeoptPatchpoint)            \
   V(DoubleBinaryOp)             \
   V(FillTypeAttrCache)          \
   V(FormatValue)                \
@@ -2918,6 +2920,26 @@ class INSTR_CLASS(Snapshot, Operands<0>) {
 
 // Always deopt.
 DEFINE_SIMPLE_INSTR(Deopt, Operands<0>, DeoptBase);
+
+// A DeoptPatchpoint reserves space in the instruction stream that may be
+// overwritten at runtime with a Deopt instruction.
+//
+// These are typically used by optimizations that want to invalidate compiled
+// code at runtime when an invariant that the code depends on is violated.
+//
+// See the comment in Jit/deopt_patcher.h for a description of how to use
+// these.
+class INSTR_CLASS(DeoptPatchpoint, Operands<0>, DeoptBase) {
+ public:
+  DeoptPatchpoint(DeoptPatcher* patcher) : InstrT(), patcher_(patcher) {}
+
+  DeoptPatcher* patcher() const {
+    return patcher_;
+  }
+
+ private:
+  DeoptPatcher* patcher_;
+};
 
 // A guard verifies that the value of pred is true. When it's not, control is
 // transferred to the interpreter at the point specified by the attached
