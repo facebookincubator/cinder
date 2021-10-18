@@ -1643,5 +1643,31 @@ class TestNoShadowingInstances(unittest.TestCase):
         self.check_no_shadowing(Derived, False)
 
 
+class GetCallStackTest(unittest.TestCase):
+    def a(self):
+        return self.b()
+
+    def b(self):
+        return self.c()
+
+    def c(self):
+        return self.d()
+
+    def d(self):
+        return cinder._get_call_stack()
+
+    def test_get_call_stack(self):
+        stack = self.a()
+        self.assertGreater(len(stack), 5)
+        expected = [
+            self.test_get_call_stack.__code__,
+            self.a.__code__,
+            self.b.__code__,
+            self.c.__code__,
+            self.d.__code__,
+        ]
+        self.assertEqual(stack[-5:], expected)
+
+
 if __name__ == "__main__":
     unittest.main()

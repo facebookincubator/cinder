@@ -1,6 +1,7 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
 
+#include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
 
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
@@ -377,6 +378,28 @@ has_no_shadowing_instances(PyObject *self, PyObject *type) {
     Py_RETURN_FALSE;
 }
 
+static PyObject*
+get_call_stack(PyObject *self, PyObject *args) {
+    _PyShadowFrame *shadow_frame = PyThreadState_GET()->shadow_frame;
+    PyObject *stack = PyList_New(0);
+    if (stack == NULL) {
+        return NULL;
+    }
+    while (shadow_frame != NULL) {
+        PyCodeObject *code = _PyShadowFrame_GetCode(shadow_frame);
+        if (PyList_Append(stack, (PyObject *) code) != 0) {
+            Py_DECREF(stack);
+            return NULL;
+        }
+        shadow_frame = shadow_frame->prev;
+    }
+    if (PyList_Reverse(stack) != 0) {
+        Py_DECREF(stack);
+        return NULL;
+    }
+    return stack;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
@@ -446,6 +469,11 @@ static struct PyMethodDef cinder_module_methods[] = {
      has_no_shadowing_instances,
      METH_O,
      "Return whether or not the given type has TP_FLAGS_NO_SHADOWING_INSTACES set."},
+    {"_get_call_stack",
+     get_call_stack,
+     METH_NOARGS,
+     "Return a list that contains the code object for each function on the call"
+     " stack, top-most frame last."},
 
     {NULL, NULL} /* sentinel */
 };

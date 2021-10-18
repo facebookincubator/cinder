@@ -58,6 +58,9 @@ static inline void _PyShadowFrame_Pop(PyThreadState *tstate,
   tstate->shadow_frame = shadow_frame->prev;
 }
 
+/* Return a borrowed reference to the code object for shadow_frame */
+PyCodeObject *_PyShadowFrame_GetCode(_PyShadowFrame *shadow_frame);
+
 #ifdef __cplusplus
 }
 #endif

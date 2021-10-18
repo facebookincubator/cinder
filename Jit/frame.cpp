@@ -238,3 +238,18 @@ PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
       reinterpret_cast<uintptr_t>(shadow_frame) -
       offsetof(PyGenObject, gi_shadow_frame));
 }
+
+PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
+  _PyShadowFrame_PtrKind ptr_kind = _PyShadowFrame_GetPtrKind(shadow_frame);
+  void* ptr = _PyShadowFrame_GetPtr(shadow_frame);
+  switch (ptr_kind) {
+    case PYSF_CODE_RT:
+      return static_cast<jit::CodeRuntime*>(ptr)->GetCode();
+    case PYSF_PYFRAME:
+      return static_cast<PyFrameObject*>(ptr)->f_code;
+    case PYSF_PYCODE:
+      return static_cast<PyCodeObject*>(ptr);
+    default:
+      JIT_CHECK(false, "Unsupported ptr kind %d:", ptr_kind);
+  }
+}
