@@ -4029,7 +4029,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.func
-            self.assertInBytecode(f, "INVOKE_FUNCTION", ((("xxclassloader", "foo"), 0)))
+            self.assertInBytecode(f, "INVOKE_FUNCTION", (((mod.__name__, "foo"), 0)))
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
@@ -4065,7 +4065,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.func
-            self.assertInBytecode(f, "INVOKE_FUNCTION", ((("xxclassloader", "bar"), 1)))
+            self.assertInBytecode(f, "INVOKE_FUNCTION", (((mod.__name__, "bar"), 1)))
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
@@ -4086,7 +4086,7 @@ class StaticCompilationTests(StaticTestBase):
             try:
                 func = mod.func
                 self.assertInBytecode(
-                    func, "INVOKE_FUNCTION", ((("xxclassloader", "bar"), 1))
+                    func, "INVOKE_FUNCTION", (((mod.__name__, "bar"), 1))
                 )
                 self.assertEqual(func(), 42)
                 self.assert_jitted(func)

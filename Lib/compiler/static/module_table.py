@@ -47,6 +47,7 @@ from .types import (
     NONE_TYPE,
     Object,
     OPTIONAL_TYPE,
+    TypeDescr,
     UNION_TYPE,
     UnionType,
     UnknownDecoratedMethod,
@@ -329,8 +330,17 @@ class ModuleTable:
                 (ltype, rtype), self.compiler.generic_types
             )
 
+    def resolve_name_with_descr(
+        self, name: str
+    ) -> Tuple[Optional[Value], Optional[TypeDescr]]:
+        if val := self.children.get(name):
+            return val, (self.name, name)
+        elif val := self.compiler.builtins.children.get(name):
+            return val, None
+        return None, None
+
     def resolve_name(self, name: str) -> Optional[Value]:
-        return self.children.get(name) or self.compiler.builtins.children.get(name)
+        return self.resolve_name_with_descr(name)[0]
 
     def get_final_literal(self, node: AST, scope: Scope) -> Optional[ast.Constant]:
         if not isinstance(node, Name):

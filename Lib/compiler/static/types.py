@@ -1872,6 +1872,7 @@ class ArgMapping:
         call: ast.Call,
         self_arg: Optional[ast.expr],
         args_override: Optional[List[ast.expr]] = None,
+        descr_override: Optional[TypeDescr] = None,
     ) -> None:
         self.callable = callable
         self.call = call
@@ -1885,6 +1886,7 @@ class ArgMapping:
         self.nseen = 0
         self.spills: Dict[int, SpillArg] = {}
         self.dynamic_call = False
+        self.descr_override = descr_override
 
     def bind_args(self, visitor: TypeBinder, skip_self: bool = False) -> None:
         # TODO: handle duplicate args and other weird stuff a-la
@@ -2131,7 +2133,8 @@ class ArgMapping:
             )
         else:
             code_gen.emit("EXTENDED_ARG", 0)
-            code_gen.emit("INVOKE_FUNCTION", (self.callable.type_descr, len(func_args)))
+            descr = self.descr_override or self.callable.type_descr
+            code_gen.emit("INVOKE_FUNCTION", (descr, len(func_args)))
 
 
 class ClassMethodArgMapping(ArgMapping):
@@ -2442,8 +2445,11 @@ class Callable(Object[TClass]):
         visitor: TypeBinder,
         self_expr: Optional[ast.expr] = None,
         args_override: Optional[List[ast.expr]] = None,
+        descr_override: Optional[TypeDescr] = None,
     ) -> Tuple[ArgMapping, Value]:
-        arg_mapping = ArgMapping(self, node, self_expr, args_override)
+        arg_mapping = ArgMapping(
+            self, node, self_expr, args_override, descr_override=descr_override
+        )
         arg_mapping.bind_args(visitor)
 
         return arg_mapping, self.return_type.resolved().instance
@@ -2466,6 +2472,7 @@ class Callable(Object[TClass]):
             visitor,
             self_expr,
             node.args if self_expr is None else [self_expr] + node.args,
+            descr_override=visitor.get_opt_node_data(node.func, TypeDescr),
         )
 
         visitor.set_type(node, ret_type)
@@ -3604,8 +3611,9 @@ class BuiltinNewFunction(BuiltinFunction):
         visitor: TypeBinder,
         self_expr: Optional[ast.expr] = None,
         args_override: Optional[List[ast.expr]] = None,
+        descr_override: Optional[TypeDescr] = None,
     ) -> Tuple[ArgMapping, Value]:
-        arg_mapping = ArgMapping(self, node, self_expr, args_override)
+        arg_mapping = ArgMapping(self, node, self_expr, args_override, descr_override)
         arg_mapping.bind_args(visitor)
         ret_type = DYNAMIC
         if args_override:

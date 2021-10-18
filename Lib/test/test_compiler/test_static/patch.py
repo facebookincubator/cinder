@@ -1010,3 +1010,88 @@ class StaticPatchTests(StaticTestBase):
             self.assertEqual(foo(2), False)
             self.assertNotInBytecode(foo, "STORE_LOCAL")
             self.assertInBytecode(foo, "INVOKE_FUNCTION")
+
+    def test_patch_namespace_local(self):
+        acode = """
+            def f() -> int:
+                return 1
+        """
+        bcode = """
+            from a import f
+
+            def g():
+                return f() * 10
+        """
+        comp = self.compiler(a=acode, b=bcode)
+        with comp.in_module("b") as bmod:
+            self.assertEqual(bmod.g(), 10)
+
+            bmod.f = lambda: 2
+
+            self.assertEqual(bmod.g(), 20)
+
+    def test_patch_namespace_re_export(self):
+        acode = """
+            def f() -> int:
+                return 1
+        """
+        bcode = """
+            from a import f
+        """
+        ccode = """
+            import b
+
+            def g():
+                return b.f() * 10
+        """
+        comp = self.compiler(a=acode, b=bcode, c=ccode)
+        with comp.in_module("c") as cmod:
+            self.assertEqual(cmod.g(), 10)
+
+            cmod.b.f = lambda: 2
+
+            self.assertEqual(cmod.g(), 20)
+
+    def test_patch_namespace_origin(self):
+        acode = """
+            def f() -> int:
+                return 1
+        """
+        bcode = """
+            import a
+
+            def g():
+                return a.f() * 10
+        """
+        comp = self.compiler(a=acode, b=bcode)
+        with comp.in_module("b") as bmod:
+            self.assertEqual(bmod.g(), 10)
+
+            bmod.a.f = lambda: 2
+
+            self.assertEqual(bmod.g(), 20)
+
+    def test_patch_namespace_locally_reassigned(self):
+        acode = """
+            def f() -> int:
+                return 1
+        """
+        for kind in ["import_as", "assign"]:
+            with self.subTest(kind=kind):
+                imp = (
+                    "from a import f as ff"
+                    if kind == "import_as"
+                    else "import a; ff = a.f"
+                )
+                bcode = f"""
+                    {imp}
+                    def g():
+                        return ff() * 10
+                """
+                comp = self.compiler(a=acode, b=bcode)
+                with comp.in_module("b") as bmod:
+                    self.assertEqual(bmod.g(), 10)
+
+                    bmod.ff = lambda: 2
+
+                    self.assertEqual(bmod.g(), 20)

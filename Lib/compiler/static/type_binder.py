@@ -86,6 +86,8 @@ from .types import (
     GenericTypesDict,
     IsInstanceEffect,
     LIST_EXACT_TYPE,
+    ModuleInstance,
+    TypeDescr,
     NONE_TYPE,
     SET_EXACT_TYPE,
     SLICE_TYPE,
@@ -433,8 +435,8 @@ class TypeBinder(GenericVisitor):
         return function
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
-        func_node = self.get_func_container(node)
-        func_node.bind_function(node, self)
+        func = self.get_func_container(node)
+        func.bind_function(node, self)
 
     def visitFunctionDef(self, node: FunctionDef) -> None:
         self._visitFunc(node)
@@ -480,6 +482,9 @@ class TypeBinder(GenericVisitor):
 
     def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
         return cast(TType, self.module.node_data[key, data_type])
+
+    def get_opt_node_data(self, key: AST, data_type: Type[TType]) -> TType | None:
+        return cast(Optional[TType], self.module.node_data.get((key, data_type)))
 
     def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
         self.module.node_data[key, data_type] = value
@@ -1206,7 +1211,10 @@ class TypeBinder(GenericVisitor):
         self, node: Attribute, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.value)
-        self.get_type(node.value).bind_attr(node, self, type_ctx)
+        base = self.get_type(node.value)
+        base.bind_attr(node, self, type_ctx)
+        if isinstance(base, ModuleInstance):
+            self.set_node_data(node, TypeDescr, (base.module_name, node.attr))
         return NO_EFFECT
 
     def visitSubscript(
@@ -1236,7 +1244,10 @@ class TypeBinder(GenericVisitor):
             var_type = self.local_types.get(node.id, DYNAMIC)
             self.set_type(node, var_type)
         else:
-            self.set_type(node, self.module.resolve_name(node.id) or DYNAMIC)
+            typ, descr = self.module.resolve_name_with_descr(node.id)
+            self.set_type(node, typ or DYNAMIC)
+            if descr is not None:
+                self.set_node_data(node, TypeDescr, descr)
 
         type = self.get_type(node)
         if (

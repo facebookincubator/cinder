@@ -234,6 +234,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
         return cast(TType, self.cur_mod.node_data[key, data_type])
 
+    def get_opt_node_data(self, key: AST, data_type: Type[TType]) -> TType | None:
+        return cast(Optional[TType], self.cur_mod.node_data.get((key, data_type)))
+
     def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
         self.cur_mod.node_data[key, data_type] = value
 
