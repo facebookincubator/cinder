@@ -416,15 +416,14 @@ PyObject* JITRT_ReportStaticArgTypecheckErrors(
     PyObject* func,
     PyObject** args,
     size_t nargsf,
-    PyObject* kwnames) {
-  JIT_CHECK(
-      kwnames == nullptr,
-      "typecheck error reporting must happen after keyword binding");
+    PyObject* /* kwnames */) {
   auto code = reinterpret_cast<PyCodeObject*>(
       reinterpret_cast<PyFunctionObject*>(func)->func_code);
   int nkwonly = code->co_kwonlyargcount;
   if (code == nullptr || nkwonly == 0) {
-    return _PyFunction_Vectorcall(func, args, nargsf, kwnames);
+    // We explicitly pass in nullptr for kwnames as the default arg count can
+    // be smuggled in to this function in place of kwnames.
+    return _PyFunction_Vectorcall(func, args, nargsf, nullptr);
   }
   // This function is called after we've successfully bound all
   // arguments. However, we want to use the interpreter to construct the
