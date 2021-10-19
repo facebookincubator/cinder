@@ -1244,12 +1244,10 @@ PyObject* _PyJIT_GenSend(
   if (exc) {
     JIT_DCHECK(
         arg == Py_None, "Arg should be None when injecting an exception");
-    Py_DECREF(arg);
     arg = NULL;
   } else {
     if (arg == NULL) {
       arg = Py_None;
-      Py_INCREF(arg);
     }
   }
 

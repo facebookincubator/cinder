@@ -360,6 +360,7 @@ struct FrameState {
   V(WaitHandleRelease)          \
   V(XDecref)                    \
   V(XIncref)                    \
+  V(YieldAndYieldFrom)          \
   V(YieldFrom)                  \
   V(YieldValue)
 
@@ -3106,31 +3107,14 @@ DEFINE_SIMPLE_INSTR(YieldValue, HasOutput, Operands<1>, YieldBase);
 // functions and there should be exactly one instance before execution begins.
 DEFINE_SIMPLE_INSTR(InitialYield, HasOutput, Operands<0>, YieldBase);
 
-class INSTR_CLASS(YieldFrom, HasOutput, Operands<2>, YieldBase) {
- public:
-  YieldFrom(
-      Register* out,
-      Register* send_value,
-      Register* iter,
-      bool skip_initial_yield)
-      : InstrT(out, send_value, iter),
-        skip_initial_yield_(skip_initial_yield) {}
+// Send the value in operand 0 to the subiterator in operand 1, forwarding
+// yielded values from the subiterator back to our caller until it is
+// exhausted.
+DEFINE_SIMPLE_INSTR(YieldFrom, HasOutput, Operands<2>, YieldBase);
 
-  Register* sendValue() const {
-    return GetOperand(0);
-  }
-
-  Register* iter() const {
-    return GetOperand(1);
-  }
-
-  bool skipInitialYield() const {
-    return skip_initial_yield_;
-  }
-
- private:
-  const bool skip_initial_yield_;
-};
+// A more compact (in terms of emitted code) equivalent to YieldValue followed
+// by YieldFrom.
+DEFINE_SIMPLE_INSTR(YieldAndYieldFrom, HasOutput, Operands<2>, YieldBase);
 
 // Implements BUILD_STRING opcode.
 DEFINE_SIMPLE_INSTR(BuildString, HasOutput, Operands<>, DeoptBase);

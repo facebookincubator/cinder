@@ -1477,11 +1477,11 @@ JITRT_YieldFromRes JITRT_YieldFrom(
     return {NULL, 1};
   }
   if (finish_yield_from) {
+    Py_INCREF(v);
     return {v, 1};
   }
   PyObject* retval;
   auto gen_status = PyIter_Send(tstate, gen, v, &retval);
-  Py_DECREF(v);
 
   if (gen_status == PYGEN_RETURN) {
     return {retval, 1};

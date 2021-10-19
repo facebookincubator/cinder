@@ -3203,7 +3203,7 @@ void HIRBuilder::emitAsyncForHeaderYieldFrom(
     tc.emit<SetCurrentAwaiter>(awaitable);
   }
   // Unlike emitYieldFrom() we do not use tc.emitChecked() here.
-  tc.emit<YieldFrom>(out, send_value, awaitable, false);
+  tc.emit<YieldFrom>(out, send_value, awaitable);
   tc.frame.stack.push(out);
 
   // If an exception was raised then exit the loop
@@ -3544,7 +3544,7 @@ void HIRBuilder::emitYieldFrom(TranslationContext& tc, Register* out) {
   if (code_->co_flags & CO_COROUTINE) {
     tc.emit<SetCurrentAwaiter>(iter);
   }
-  tc.emitChecked<YieldFrom>(out, send_value, iter, false);
+  tc.emitChecked<YieldFrom>(out, send_value, iter);
   stack.push(out);
 }
 
@@ -3698,7 +3698,7 @@ void HIRBuilder::emitDispatchEagerCoroResult(
   if (code_->co_flags & CO_COROUTINE) {
     coro_block.emit<SetCurrentAwaiter>(wh_coro_or_result);
   }
-  coro_block.emitChecked<YieldFrom>(out, wh_waiter, wh_coro_or_result, true);
+  coro_block.emitChecked<YieldAndYieldFrom>(out, wh_waiter, wh_coro_or_result);
   coro_block.emit<Branch>(post_await_block);
 
   res_block.emit<Assign>(out, wh_coro_or_result);

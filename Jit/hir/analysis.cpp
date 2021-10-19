@@ -132,6 +132,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kVectorCallStatic:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:
+    case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
     case Opcode::kYieldValue:
       return false;

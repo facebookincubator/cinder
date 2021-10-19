@@ -235,6 +235,7 @@ bool Instr::isReplayable() const {
     case Opcode::kVectorCallStatic:
     case Opcode::kVectorCallKW:
     case Opcode::kWaitHandleRelease:
+    case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
     case Opcode::kYieldValue:
     case Opcode::kXDecref:

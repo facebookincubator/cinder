@@ -1609,6 +1609,31 @@ class CoroutinesTest(unittest.TestCase):
         ):
             asyncio.run(self._use_async_with(BadAExit))
 
+    class FakeFuture:
+        def __init__(self, obj):
+            self._obj = obj
+
+        def __await__(self):
+            i = iter([self._obj])
+            self._obj = None
+            return i
+
+    @unittest.skipUnlessCinderJITEnabled("Exercises JIT-specific bug")
+    def test_jit_coro_awaits_interp_coro(self):
+        @cinderjit.jit_suppress
+        async def eager_suspend(suffix):
+            await self.FakeFuture("hello, " + suffix)
+
+        @unittest.failUnlessJITCompiled
+        async def jit_coro():
+            await eager_suspend("bob")
+
+        coro = jit_coro()
+        v1 = coro.send(None)
+        with self.assertRaises(StopIteration):
+            coro.send(None)
+        self.assertEqual(v1, "hello, bob")
+
 
 class EagerCoroutineDispatch(StaticTestBase):
     def _assert_awaited_flag_seen(self, async_f_under_test):

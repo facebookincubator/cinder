@@ -555,6 +555,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kInitialYield:
     case Opcode::kYieldValue:
+    case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom: {
       std::ostringstream os;
       auto sep = "";

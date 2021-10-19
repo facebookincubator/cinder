@@ -310,8 +310,9 @@ Type outputType(const Instr& instr) {
     case Opcode::kLoadTupleItem:
     case Opcode::kStealCellItem:
     case Opcode::kWaitHandleLoadWaiter:
-    case Opcode::kYieldValue:
+    case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
+    case Opcode::kYieldValue:
       return TOptObject;
 
     case Opcode::kLoadVarObjectSize:

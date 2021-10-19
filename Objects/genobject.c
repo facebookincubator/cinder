@@ -282,9 +282,9 @@ gen_send_ex_with_finish_yf(PyGenObject *gen,
         }
     } else {
         arg = arg ? arg : Py_None;
-        Py_INCREF(arg);
         if (!gen->gi_jit_data) {
             /* Push arg onto the frame's value stack */
+            Py_INCREF(arg);
             *(f->f_stacktop++) = arg;
         }
     }
@@ -303,10 +303,10 @@ gen_send_ex_with_finish_yf(PyGenObject *gen,
     gen->gi_shadow_frame.prev = tstate->shadow_frame;
     tstate->shadow_frame = &gen->gi_shadow_frame;
     if (gen->gi_jit_data) {
-      result = _PyJIT_GenSend(gen, arg, exc, f, tstate, finish_yield_from);
-      /* We might get a frame in no-frame mode if a deopt occurs. */
-      assert(!f || f == gen->gi_frame);
-      f = gen->gi_frame;
+        result = _PyJIT_GenSend(gen, arg, exc, f, tstate, finish_yield_from);
+        /* We might get a frame in no-frame mode if a deopt occurs. */
+        assert(!f || f == gen->gi_frame);
+        f = gen->gi_frame;
     } else {
         result = PyEval_EvalFrameEx(f, exc);
     }
@@ -450,9 +450,9 @@ _PyGen_DoSend(PyThreadState *tstate,
         }
     } else {
         arg = arg ? arg : Py_None;
-        Py_INCREF(arg);
         if (!gen->gi_jit_data) {
             /* Push arg onto the frame's value stack */
+            Py_INCREF(arg);
             *(f->f_stacktop++) = arg;
         }
     }

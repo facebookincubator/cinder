@@ -115,9 +115,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kVectorCallStatic:
       return commonEffects(inst, AManagedHeapAny);
 
-    case Opcode::kInitialYield:
-      return commonEffects(inst, AAny);
-
     // Steals the reference to its second input and gives it to the cell
     case Opcode::kSetCellItem:
       return {true, AEmpty, {inst.NumOperands(), 2}, ACellItem};
@@ -222,11 +219,24 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kRaiseStatic:
       return commonEffects(inst, AManagedHeapAny);
 
-    case Opcode::kYieldFrom:
-      return {false, AEmpty, {2, 0x1}, AAny};
-
+    // The outputs of InitialYield and YieldValue are the `arg` argument to
+    // _PyJIT_GenSend(), which is borrowed from its caller like all arguments
+    // to C functions.
+    case Opcode::kInitialYield:
+      return {true, AFuncArgs, {inst.NumOperands()}, AAny};
     case Opcode::kYieldValue:
-      return {false, AEmpty, {1, 1}, AAny};
+      return {true, AFuncArgs, {1, 1}, AAny};
+
+    // YieldFrom's output is either the yielded value from the subiter or the
+    // final result from a StopIteration, and is owned in either case.
+    case Opcode::kYieldFrom: {
+      return commonEffects(inst, AAny);
+    }
+    // YieldAndYieldFrom is equivalent to YieldFrom composed with YieldValue,
+    // and steals the value it yields to the caller.
+    case Opcode::kYieldAndYieldFrom: {
+      return {false, AEmpty, {2, 1}, AAny};
+    }
 
     case Opcode::kCallCFunc:
       return commonEffects(inst, AManagedHeapAny);

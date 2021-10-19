@@ -1096,14 +1096,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(ss.str());
         break;
       }
+      case Opcode::kYieldAndYieldFrom:
       case Opcode::kYieldFrom: {
-        auto instr = static_cast<const YieldFrom*>(&i);
         std::stringstream ss;
-        ss << (instr->skipInitialYield() ? "YieldFromSkipInitialSend "
-                                         : "YieldFrom ")
-           << instr->dst()->name() << ", __asm_tstate, "
-           << instr->sendValue()->name() << ", " << instr->iter()->name();
-        append_yield_live_regs(ss, instr);
+        ss << (opcode == Opcode::kYieldFrom ? "YieldFrom "
+                                            : "YieldFromSkipInitialSend ")
+           << i.GetOutput()->name() << ", __asm_tstate, "
+           << i.GetOperand(0)->name() << ", " << i.GetOperand(1)->name();
+        append_yield_live_regs(ss, static_cast<const YieldBase*>(&i));
         bbb.AppendCode(ss.str());
         break;
       }
