@@ -102,10 +102,12 @@ if args.c:
         marshal.dump(codeobj, f)
 else:
     if args.strict and StrictModule is not None:
-        d = {}
+        d = {"__name__": "__main__"}
         mod = StrictModule(d, False)
-        d["__name__"] = "__main__"
-        sys.modules["__main__"] = mod
-        exec(codeobj, d, d)
     else:
-        exec(codeobj)
+        mod = type(sys)("__main__")
+        d = mod.__dict__
+    if args.static:
+        d["<fixed-modules>"] = static.FIXED_MODULES
+    sys.modules["__main__"] = mod
+    exec(codeobj, d, d)
