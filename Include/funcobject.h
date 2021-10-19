@@ -133,7 +133,7 @@ PyAPI_DATA(PyTypeObject) PyClassMethod_Type;
 PyAPI_DATA(PyTypeObject) PyStaticMethod_Type;
 
 #define PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
-#define PyStaticMethod_Check(op) (Py_TYPE(op) == &PyStaticMethod_Type)
+#define _PyStaticMethod_Check(op) (Py_TYPE(op) == &PyStaticMethod_Type)
 
 PyAPI_FUNC(PyObject *) PyClassMethod_New(PyObject *);
 PyAPI_FUNC(PyObject *) PyStaticMethod_New(PyObject *);

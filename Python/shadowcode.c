@@ -1196,7 +1196,7 @@ get_load_method_type_data(PyObject *descr)
     if (PyClassMethod_Check(descr)) {
         obj = _PyClassMethod_GetFunc(descr);
         kind = PYSHADOW_CALL_UNBOUND;
-    } else if (PyStaticMethod_Check(descr)) {
+    } else if (_PyStaticMethod_Check(descr)) {
         obj = _PyStaticMethod_GetFunc(descr);
         kind = PYSHADOW_CALL_NOT_UNBOUND;
     } else if (PyWrapperDescr_Check(descr) ||
