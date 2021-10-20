@@ -201,7 +201,7 @@ static void *opcode_targets[256] = {
     &&TARGET_LOAD_ATTR_SUPER,
     &&TARGET_TP_ALLOC,
     &&TARGET_BUILD_CHECKED_LIST,
-    &&_unknown_opcode,
+    &&TARGET_LOAD_TYPE,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,

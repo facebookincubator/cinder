@@ -41,6 +41,7 @@ MISSING_STACK_EFFECT = {
     "LIST_DEL",
     "REFINE_TYPE",
     "RETURN_PRIMITIVE",
+    "LOAD_TYPE",
 }
 
 

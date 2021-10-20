@@ -2795,6 +2795,14 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(LOAD_TYPE): {
+          PyObject *instance = POP();
+          Py_INCREF(Py_TYPE(instance));
+          PUSH((PyObject *)Py_TYPE(instance));
+          Py_DECREF(instance);
+          FAST_DISPATCH();
+        }
+
         case TARGET(DELETE_FAST): {
             PyObject *v = GETLOCAL(oparg);
             if (v != NULL) {
@@ -4254,6 +4262,9 @@ main_loop:
             PyObject *value = GETITEM(consts, oparg);
             long nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1)) + 1;
             PyObject *target = PyTuple_GET_ITEM(value, 0);
+            int is_classmethod =
+              _PyClassLoader_IsClassmethodDescr(
+                  PyTuple_GET_ITEM(target, PyTuple_GET_SIZE(target) - 1));
             Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
             if (slot == -1) {
                 while (nargs--) {
@@ -4273,17 +4284,28 @@ main_loop:
                             &shadow, next_instr, INVOKE_FUNCTION_CACHED, (nargs<<8) | offset);
                     }
                 } else {
+                  /* We smuggle in the information about whether the invocation was a classmethod
+                   * in the low bit of the oparg. This is necessary, as without, the runtime won't
+                   * be able to get the correct vtable from self when the type is passed in.
+                   */
                     _PyShadow_PatchByteCode(&shadow,
-                                        next_instr,
-                                        INVOKE_METHOD_CACHED,
-                                        (slot << 8) | nargs);
+                                            next_instr,
+                                            INVOKE_METHOD_CACHED,
+                                            (slot << 9) | (nargs << 1) | (is_classmethod ? 1 : 0));
                 }
             }
 
             PyObject **stack = stack_pointer - nargs;
             PyObject *self = *stack;
 
-            _PyType_VTable *vtable = (_PyType_VTable *)self->ob_type->tp_cache;
+
+            _PyType_VTable *vtable;
+            if (is_classmethod) {
+                vtable = (_PyType_VTable *)(((PyTypeObject *)self)->tp_cache);
+            }
+            else {
+                vtable = (_PyType_VTable *)self->ob_type->tp_cache;
+            }
 
             assert(!PyErr_Occurred());
 
@@ -4292,6 +4314,7 @@ main_loop:
                 vtable->vt_entries[slot].vte_state,
                 stack,
                 nargs | (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
+                (is_classmethod ? _Py_VECTORCALL_INVOKED_CLASSMETHOD : 0) |
                 _Py_VECTORCALL_INVOKED_STATICALLY,
                 NULL);
 
@@ -4358,11 +4381,12 @@ main_loop:
         }
 
         case TARGET(INVOKE_METHOD_CACHED): {
-            int nargs = oparg & 0xff;
+            int is_classmethod = oparg & 1;
+            int nargs = (oparg >> 1) & 0xff;
             PyObject **stack = stack_pointer - nargs;
             PyObject *self = *stack;
             _PyType_VTable *vtable = (_PyType_VTable *)self->ob_type->tp_cache;
-            Py_ssize_t slot = oparg >> 8;
+            Py_ssize_t slot = oparg >> 9;
 
             int awaited = IS_AWAITED();
 
@@ -4370,7 +4394,9 @@ main_loop:
             PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
                 vtable->vt_entries[slot].vte_state,
                 stack,
-                nargs | _Py_VECTORCALL_INVOKED_STATICALLY | (awaited ? _Py_AWAITED_CALL_MARKER : 0),
+                nargs | _Py_VECTORCALL_INVOKED_STATICALLY |
+                (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
+                (is_classmethod ? _Py_VECTORCALL_INVOKED_CLASSMETHOD : 0),
                 NULL);
 
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);

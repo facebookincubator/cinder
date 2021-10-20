@@ -151,6 +151,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_LOCAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
+    LOAD_TYPE,
     MAKE_FUNCTION,
     MAP_ADD,
     NOP,
@@ -854,6 +855,10 @@ void HIRBuilder::translate(
         }
         case LOAD_LOCAL: {
           emitLoadLocal(tc, bc_instr);
+          break;
+        }
+        case LOAD_TYPE: {
+          emitLoadType(tc, bc_instr);
           break;
         }
         case CONVERT_PRIMITIVE: {
@@ -2115,6 +2120,15 @@ void HIRBuilder::emitStoreLocal(
   tc.emit<Assign>(dst, src);
 }
 
+void HIRBuilder::emitLoadType(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction&) {
+  Register* instance = tc.frame.stack.pop();
+  auto type = temps_.AllocateStack();
+  tc.emit<LoadField>(type, instance, offsetof(PyObject, ob_type), TType);
+  tc.frame.stack.push(type);
+}
+
 void HIRBuilder::emitConvertPrimitive(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
@@ -3357,9 +3371,12 @@ bool HIRBuilder::emitInvokeMethod(
     Py_XDECREF(method);
     return false;
   }
+  PyObject* last_element =
+      PyTuple_GET_ITEM(target, PyTuple_GET_SIZE(target) - 1);
+  bool is_classmethod = _PyClassLoader_IsClassmethodDescr(last_element);
 
-  InvokeMethod* invoke =
-      tc.emitVariadic<InvokeMethod>(temps_, nargs, slot, is_awaited);
+  InvokeMethod* invoke = tc.emitVariadic<InvokeMethod>(
+      temps_, nargs, slot, is_awaited, is_classmethod);
   PyObject* container;
   auto func =
       Ref<PyObject>::steal(_PyClassLoader_ResolveFunction(target, &container));

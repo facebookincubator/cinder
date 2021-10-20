@@ -48,6 +48,8 @@ opcode.def_op("TP_ALLOC", 200)
 opcode.hasconst.add(200)
 opcode.def_op("BUILD_CHECKED_LIST", 201)
 opcode.hasconst.add(201)
+opcode.def_op("LOAD_TYPE", 202)
+opcode.hasconst.add(202)
 
 
 opcode.stack_effects.update(  # noqa: C408
@@ -85,4 +87,5 @@ opcode.stack_effects.update(  # noqa: C408
     REFINE_TYPE=0,
     RETURN_PRIMITIVE=-1,
     TP_ALLOC=1,
+    LOAD_TYPE=0,
 )

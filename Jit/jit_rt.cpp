@@ -1005,6 +1005,23 @@ PyObject* JITRT_InvokeMethod(
       func, args, nargs | _Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
 }
 
+PyObject* JITRT_InvokeClassMethod(
+    Py_ssize_t slot,
+    PyObject** args,
+    Py_ssize_t nargs,
+    PyObject* kwnames) {
+  PyTypeObject* self_type = (PyTypeObject*)args[0];
+  _PyType_VTable* vtable = (_PyType_VTable*)self_type->tp_cache;
+
+  PyObject* func = vtable->vt_entries[slot].vte_state;
+  return vtable->vt_entries[slot].vte_entry(
+      func,
+      args,
+      nargs | _Py_VECTORCALL_INVOKED_STATICALLY |
+          _Py_VECTORCALL_INVOKED_CLASSMETHOD,
+      kwnames);
+}
+
 PyObject* JITRT_Cast(PyObject* obj, PyTypeObject* type) {
   if (PyObject_TypeCheck(obj, type)) {
     return obj;

@@ -1469,8 +1469,15 @@ class INSTR_CLASS(CallMethod, HasOutput, Operands<>, DeoptBase) {
 
 class INSTR_CLASS(InvokeMethod, HasOutput, Operands<>, DeoptBase) {
  public:
-  InvokeMethod(Register* dst, std::size_t slot, bool is_awaited)
-      : InstrT(dst), slot_(slot), is_awaited_(is_awaited) {}
+  InvokeMethod(
+      Register* dst,
+      std::size_t slot,
+      bool is_awaited,
+      bool is_classmethod)
+      : InstrT(dst),
+        slot_(slot),
+        is_awaited_(is_awaited),
+        is_classmethod_(is_classmethod) {}
 
   // The function to call
   Register* func() const {
@@ -1498,9 +1505,14 @@ class INSTR_CLASS(InvokeMethod, HasOutput, Operands<>, DeoptBase) {
     return is_awaited_;
   }
 
+  bool isClassmethod() const {
+    return is_classmethod_;
+  }
+
  private:
   const std::size_t slot_;
   const bool is_awaited_;
+  const bool is_classmethod_;
 };
 
 // A call to a function at a known address

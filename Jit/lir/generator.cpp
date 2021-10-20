@@ -1749,9 +1749,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         std::stringstream ss;
         size_t flags = instr->isAwaited() ? _Py_AWAITED_CALL_MARKER : 0;
-        ss << "Vectorcall " << *instr->dst() << ", "
-           << reinterpret_cast<uint64_t>(JITRT_InvokeMethod) << ", " << flags
-           << ", " << instr->slot();
+        if (instr->isClassmethod()) {
+          ss << "Vectorcall " << *instr->dst() << ", "
+             << reinterpret_cast<uint64_t>(JITRT_InvokeClassMethod) << ", "
+             << flags << ", " << instr->slot();
+        } else {
+          ss << "Vectorcall " << *instr->dst() << ", "
+             << reinterpret_cast<uint64_t>(JITRT_InvokeMethod) << ", " << flags
+             << ", " << instr->slot();
+        }
 
         auto nargs = instr->NumOperands();
         for (size_t i = 0; i < nargs; i++) {

@@ -281,6 +281,8 @@ def_op("TP_ALLOC", 200)
 hasconst.append(200)
 def_op("BUILD_CHECKED_LIST", 201)
 hasconst.append(201)
+def_op("LOAD_TYPE", 202)
+hasconst.append(202)
 
 # facebook begin - shadow byte codes
 shadow_op("LOAD_METHOD_UNSHADOWED_METHOD", 207)

@@ -256,6 +256,15 @@ PyObject* JITRT_InvokeMethod(
     PyObject** args,
     Py_ssize_t nargs,
     PyObject* kwnames);
+/*
+ * Invokes a function stored within the method table for the object.
+ * The method table lives off tp_cache of self.
+ */
+PyObject* JITRT_InvokeClassMethod(
+    Py_ssize_t slot,
+    PyObject** args,
+    Py_ssize_t nargs,
+    PyObject* kwnames);
 
 /*
  * Invokes a function that was compiled statically.

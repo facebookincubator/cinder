@@ -2150,14 +2150,52 @@ class ClassMethodArgMapping(ArgMapping):
         self.is_instance_call = is_instance_call
 
     def needs_virtual_invoke(self, code_gen: Static38CodeGenerator) -> bool:
-        return self.is_instance_call
+        self_arg = self.self_arg
+        assert self_arg is not None
+        self_type = code_gen.get_type(self_arg)
+        if self.is_instance_call:
+            return not (self_type.klass.is_exact or self_type.klass.is_final)
+        assert isinstance(self_type, Class)
+        instance = self_type.instance
+        return not (instance.klass.is_exact or instance.klass.is_final)
+
+    def callable_type_descr(self) -> TypeDescr:
+        descr_items = []
+        descr = self.callable.type_descr
+        for item in descr[:-1]:
+            descr_items.append(item)
+        descr_items.append((descr[-1], "__class__"))
+        return tuple(descr_items)
 
     def emit(self, code_gen: Static38CodeGenerator, extra_self: bool = False) -> None:
-        if not self.dynamic_call:
-            self_arg = self.self_arg
-            assert self_arg is not None
-            code_gen.visit(self_arg)
-        super().emit(code_gen, extra_self=extra_self)
+        if self.dynamic_call:
+            code_gen.defaultVisit(self.call)
+            return
+
+        self_arg = self.self_arg
+        assert self_arg is not None
+        code_gen.visit(self_arg)
+        if self.is_instance_call:
+            code_gen.emit("LOAD_TYPE")
+
+        code_gen.update_lineno(self.call)
+
+        for emitter in self.emitters:
+            emitter.emit(self.call, code_gen)
+
+        func_args = self.callable.args
+        assert func_args is not None
+
+        if self.needs_virtual_invoke(code_gen):
+            code_gen.emit_invoke_method(
+                self.callable_type_descr(),
+                len(func_args) if extra_self else len(func_args) - 1,
+            )
+        else:
+            code_gen.emit("EXTENDED_ARG", 0)
+            code_gen.emit(
+                "INVOKE_FUNCTION", (self.callable_type_descr(), len(func_args))
+            )
 
 
 class ArgEmitter:
@@ -3272,7 +3310,7 @@ class ClassMethod(DecoratedMethod):
     ) -> None:
         if node.args.args:
             klass = visitor.maybe_get_current_class()
-            if klass is not None and klass.is_final:
+            if klass is not None:
                 visitor.set_param(node.args.args[0], klass, scope)
             else:
                 visitor.set_param(node.args.args[0], DYNAMIC, scope)

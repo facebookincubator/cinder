@@ -84,10 +84,12 @@ _PyObject_MakeTpCall(PyObject *callable, PyObject *const *args, Py_ssize_t nargs
 #define _Py_VECTORCALL_INVOKED_STATICALLY                                     \
     ((size_t)1 << _Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS)
 #define _Py_VECTORCALL_INVOKED_METHOD ((size_t)1 << (8 * sizeof(size_t) - 4))
+#define _Py_VECTORCALL_INVOKED_CLASSMETHOD ((size_t)1 << (8 * sizeof(size_t) - 5))
 #define _Py_AWAITED_CALL(n) ((n)&_Py_AWAITED_CALL_MARKER)
 #define PY_VECTORCALL_ARGUMENT_MASK                                           \
     ~(PY_VECTORCALL_ARGUMENTS_OFFSET | _Py_AWAITED_CALL_MARKER |              \
-      _Py_VECTORCALL_INVOKED_STATICALLY | _Py_VECTORCALL_INVOKED_METHOD)
+      _Py_VECTORCALL_INVOKED_STATICALLY | _Py_VECTORCALL_INVOKED_METHOD |     \
+      _Py_VECTORCALL_INVOKED_CLASSMETHOD)
 
 #define RELEASE_FRAME(tstate, f)                                              \
     if (Py_REFCNT(f) > 1) {                                                   \

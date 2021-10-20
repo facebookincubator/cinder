@@ -163,6 +163,7 @@ extern "C" {
   X(LOAD_ATTR_SUPER,                 199) \
   X(TP_ALLOC,                        200) \
   X(BUILD_CHECKED_LIST,              201) \
+  X(LOAD_TYPE,                       202) \
   X(LOAD_METHOD_UNSHADOWED_METHOD,   207) \
   X(LOAD_METHOD_TYPE_METHODLIKE,     208) \
   X(BUILD_CHECKED_LIST_CACHED,       209) \

@@ -504,6 +504,7 @@ _PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value) {
   return 1;
 }
 
+int _PyClassLoader_IsClassmethodDescr(PyObject *);
 
 
 #endif

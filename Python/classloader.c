@@ -570,10 +570,6 @@ type_vtable_staticmethod(PyObject *state,
     return _PyObject_Vectorcall(func, stack + 1, nargsf - 1, kwnames);
 }
 
-/* A classmethod being called by INVOKE_METHOD means that it has been invoked on
-   an instance, as we don't support invoking Type[C].classmethod yet. Therefore,
-   we replace the self arg with its type.
- */
 static PyObject *
 type_vtable_classmethod(PyObject *state,
                         PyObject *const *stack,
@@ -581,14 +577,43 @@ type_vtable_classmethod(PyObject *state,
                         PyObject *kwnames)
 {
     PyObject *func = _PyClassMethod_GetFunc(state);
-    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-    assert(nargs > 0);
-    PyObject *args[nargs];
-    args[0] = (PyObject *) Py_TYPE(stack[0]);
-    for (Py_ssize_t i = 1; i < nargs; ++i) {
-      args[i] = stack[i];
+    return _PyObject_Vectorcall(func, stack, nargsf, kwnames);
+}
+
+static PyObject *
+type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
+                                    PyObject **args,
+                                    size_t nargsf,
+                                    PyObject *kwnames)
+{
+    if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+        PyFunctionObject *func = (PyFunctionObject *)_PyClassMethod_GetFunc(state->tcs_value);
+        return func->vectorcall((PyObject *)func, args, nargsf, kwnames);
     }
-    return _PyObject_Vectorcall(func, args, nargsf, kwnames);
+    // Invoked via an instance, we need to check its dict to see if the classmethod was
+    // overridden.
+    PyObject *self = args[0];
+    PyObject **dictptr = _PyObject_GetDictPtr(self);
+    PyObject *dict = dictptr != NULL ? *dictptr : NULL;
+    PyObject *res;
+    if (dict != NULL) {
+        /* ideally types using INVOKE_METHOD are defined w/o out dictionaries,
+         * which allows us to avoid this lookup.  If they're not then we'll
+         * fallback to supporting looking in the dictionary */
+        PyObject *name = state->tcs_rt.rt_name;
+        PyObject *callable = PyDict_GetItem(dict, name);
+        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+        if (callable != NULL) {
+            res = _PyObject_Vectorcall(callable,
+                                       args,
+                                       nargs | PY_VECTORCALL_ARGUMENTS_OFFSET,
+                                       kwnames);
+            return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
+        }
+    }
+
+    PyFunctionObject *func = (PyFunctionObject *)_PyClassMethod_GetFunc(state->tcs_value);
+    return func->vectorcall((PyObject *)func, args, nargsf, kwnames);
 }
 
 static PyObject *
@@ -676,7 +701,9 @@ classloader_is_property_tuple(PyTupleObject *name)
 
 PyObject *
 classloader_get_func_name(PyObject *name) {
-    if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
+    if (PyTuple_Check(name) &&
+        (classloader_is_property_tuple((PyTupleObject *)name) ||
+         _PyClassLoader_IsClassmethodDescr(name))) {
         return PyTuple_GET_ITEM(name, 0);
     }
     return name;
@@ -744,6 +771,20 @@ PyTypeObject _PyType_TypeCheckState = {
     .tp_clear = (inquiry)_PyClassLoader_TypeCheckState_clear,
 };
 
+int _PyClassLoader_IsClassmethodDescr(PyObject *name) {
+  if (!PyTuple_CheckExact(name)) {
+      return 0;
+  }
+  if (PyTuple_GET_SIZE(name) != 2) {
+      return 0;
+  }
+  PyObject *classmethod_descriptor = PyTuple_GET_ITEM(name, 1);
+  if (!PyUnicode_Check(classmethod_descriptor)) {
+      return 0;
+  }
+  return _PyUnicode_EqualToASCIIString(classmethod_descriptor, "__class__");
+}
+
 static int
 type_vtable_setslot_typecheck(PyObject *ret_type,
                               int optional,
@@ -775,6 +816,8 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     } else if (PyFunction_Check(value)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_func_overridable;
+    } else if (Py_TYPE(value) == &PyClassMethod_Type) {
+        vtable->vt_entries[slot].vte_entry = (vectorcallfunc)type_vtable_classmethod_overridable;
     } else {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_nonfunc;
@@ -921,7 +964,7 @@ PyTypeObject _PyType_StaticThunk = {
 };
 
 PyObject *
-get_func_or_prop_method(PyObject *dict, PyObject *name);
+get_func_or_special_callable(PyObject *dict, PyObject *name);
 
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
@@ -939,7 +982,7 @@ int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
 
     Py_ssize_t i = 0;
     while (PyDict_Next(slotmap, &i, &name, &slot)) {
-        PyObject *clsitem = get_func_or_prop_method(type->tp_dict, name);
+        PyObject *clsitem = get_func_or_special_callable(type->tp_dict, name);
         if (clsitem != NULL) {
             if (PyDict_SetItem(origitems, name, clsitem)) {
                 goto error;
@@ -985,7 +1028,7 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine) 
 }
 
 PyObject *
-get_func_or_prop_method(PyObject *dict, PyObject *name) {
+get_func_or_special_callable(PyObject *dict, PyObject *name) {
     PyObject *res;
     if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
         PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
@@ -998,6 +1041,8 @@ get_func_or_prop_method(PyObject *dict, PyObject *name) {
         }
         res = classloader_get_property_method((propertyobject *) property,
                                                 (PyTupleObject *) name);
+    } else if (_PyClassLoader_IsClassmethodDescr(name)) {
+        res = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
     } else {
         res = PyDict_GetItem(dict, name);
     }
@@ -1021,7 +1066,7 @@ _PyClassLoader_GetInheritedFunction(PyTypeObject *type, PyObject *name, int only
             continue;
         }
 
-        PyObject *base = get_func_or_prop_method(dict, name);
+        PyObject *base = get_func_or_special_callable(dict, name);
         if (base != NULL) {
             if (only_static && !used_in_vtable(base)) {
                 continue;
@@ -1217,7 +1262,13 @@ type_vtable_lazyinit(PyObject *name,
                      PyObject *kwnames)
 {
     PyObject *self = args[0];
-    PyTypeObject *type = Py_TYPE(self);
+    PyTypeObject *type;
+    if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+        type = (PyTypeObject *)self;
+    }
+    else {
+        type = Py_TYPE(self);
+    }
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
     PyObject *mro = type->tp_mro;
     Py_ssize_t slot =
@@ -1612,7 +1663,9 @@ classloader_get_member(PyObject *path,
             *container = cur;
         }
 
-        if (PyTuple_CheckExact(name) && !classloader_is_property_tuple((PyTupleObject *) name)) {
+        if (PyTuple_CheckExact(name) &&
+            !classloader_is_property_tuple((PyTupleObject *) name) &&
+            !_PyClassLoader_IsClassmethodDescr(name)) {
             PyObject *next = classloader_instantiate_generic(cur, name, path);
             if (next == NULL) {
                 goto error;
@@ -1651,7 +1704,7 @@ classloader_get_member(PyObject *path,
         if (containerkey != NULL) {
             *containerkey = name;
         }
-        next = get_func_or_prop_method(d, name);
+        next = get_func_or_special_callable(d, name);
 
         if (next == NULL && d == tstate->interp->modules) {
             /* import module in case it's not available in sys.modules */
@@ -1795,6 +1848,9 @@ classloader_init_slot(PyObject *path)
 
     PyObject *slot_map = vtable->vt_slotmap;
     PyObject *slot_name = PyTuple_GET_ITEM(path, PyTuple_GET_SIZE(path) - 1);
+    if (_PyClassLoader_IsClassmethodDescr(slot_name)) {
+      slot_name = PyTuple_GET_ITEM(slot_name, 0);
+    }
 
     PyObject *new_index = PyDict_GetItem(slot_map, slot_name);
     assert(new_index != NULL);

@@ -3,8 +3,27 @@ from .common import StaticTestBase
 
 
 class ClassMethodTests(StaticTestBase):
-    def test_classmethod_from_class_calls_invoke_function(self):
+    def test_classmethod_from_non_final_class_calls_invoke_method(self):
         codestr = """
+            class C:
+                 @classmethod
+                 def foo(cls):
+                     return cls
+            def f():
+                return C.foo()
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            f = mod.f
+            C = mod.C
+            self.assertInBytecode(
+                f, "INVOKE_METHOD", (("mymod", "C", ("foo", "__class__")), 0)
+            )
+            self.assertEqual(f(), C)
+
+    def test_classmethod_from_final_class_calls_invoke_function(self):
+        codestr = """
+            from typing import final
+            @final
             class C:
                  @classmethod
                  def foo(cls):
@@ -63,7 +82,7 @@ class ClassMethodTests(StaticTestBase):
                      return x
 
             def f(c: C) -> int:
-                return c.foo(0)
+                return c.foo(42)
         """
         with self.in_module(codestr) as mod:
             f = mod.f
@@ -76,7 +95,7 @@ class ClassMethodTests(StaticTestBase):
 
             d = D()
             self.assertInBytecode(f, "INVOKE_METHOD")
-            self.assertEqual(f(d), 30)
+            self.assertEqual(f(d), 72)
 
     def test_classmethod_non_class_method_override(self):
         codestr = """
@@ -124,7 +143,9 @@ class ClassMethodTests(StaticTestBase):
         """
         with self.in_module(codestr, name="mymod") as mod:
             C = mod.C
-            self.assertInBytecode(C.bar, "INVOKE_FUNCTION", (("mymod", "C", "foo"), 1))
+            self.assertInBytecode(
+                C.bar, "INVOKE_FUNCTION", (("mymod", "C", ("foo", "__class__")), 1)
+            )
             self.assertEqual(C.bar(6), 9)
 
     def test_classmethod_calls_another(self):
@@ -141,8 +162,50 @@ class ClassMethodTests(StaticTestBase):
         with self.in_module(codestr, name="mymod") as mod:
             C = mod.C
             self.assertNotInBytecode(C.bar, "INVOKE_FUNCTION")
-            self.assertNotInBytecode(C.bar, "INVOKE_METHOD")
+            self.assertInBytecode(C.bar, "INVOKE_METHOD")
             self.assertEqual(C.bar(6), 9)
+
+    def test_classmethod_calls_another_from_static_subclass(self):
+        codestr = """
+            class C:
+                @classmethod
+                def foo(cls) -> int:
+                    return 3
+
+                @classmethod
+                def bar(cls, i: int) -> int:
+                    return cls.foo() + i
+            class D(C):
+                @classmethod
+                def foo(cls) -> int:
+                    return 42
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            D = mod.D
+            self.assertInBytecode(D.bar, "INVOKE_METHOD")
+            self.assertEqual(D.bar(6), 48)
+
+    def test_classmethod_calls_another_from_nonstatic_subclass(self):
+        codestr = """
+            class C:
+                @classmethod
+                def foo(cls) -> int:
+                    return 3
+
+                @classmethod
+                def bar(cls, i: int) -> int:
+                    return cls.foo() + i
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod.C
+
+            class D(C):
+                @classmethod
+                def foo(cls) -> int:
+                    return 42
+
+            self.assertInBytecode(D.bar, "INVOKE_METHOD")
+            self.assertEqual(D.bar(6), 48)
 
     def test_classmethod_dynamic_subclass(self):
         codestr = """
@@ -185,3 +248,25 @@ class ClassMethodTests(StaticTestBase):
         with self.in_module(codestr, name="mymod") as mod:
             C = mod.C
             self.assertEqual(C().f(), 3)
+
+    def test_classmethod_invoke_method_cached(self):
+        codestr = """
+            class C:
+                @classmethod
+                async def foo(cls) -> int:
+                    return 3
+
+            def f(c: C):
+                return c.foo()
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod.C
+            f = mod.f
+
+            async def make_hot():
+                c = C()
+                for i in range(50):
+                    await c.foo()
+
+            asyncio.run(make_hot())
+            self.assertEqual(asyncio.run(f(C())), 3)

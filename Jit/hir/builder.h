@@ -172,6 +172,9 @@ class HIRBuilder {
   void emitLoadGlobal(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitLoadType(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitMakeFunction(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
