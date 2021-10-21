@@ -175,7 +175,7 @@ class ModuleTable:
         res: Optional[Value] = func
         for decorator in reversed(node.decorator_list):
             decorator_type = self.resolve_decorator(decorator) or DYNAMIC_TYPE
-            res = decorator_type.bind_decorate_function(res, decorator)
+            res = decorator_type.resolve_decorate_function(res, decorator)
             if res is None:
                 self.types[node] = UnknownDecoratedMethod(func)
                 return None

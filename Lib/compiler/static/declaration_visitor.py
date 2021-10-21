@@ -137,7 +137,7 @@ class DeclarationVisitor(GenericVisitor):
                 break
             with self.compiler.error_sink.error_context(self.filename, d):
                 decorator = self.module.resolve_type(d) or DYNAMIC_TYPE
-                klass = decorator.bind_decorate_class(klass)
+                klass = decorator.resolve_decorate_class(klass)
 
         self.enter_scope(NestedScope() if klass is DYNAMIC_TYPE else klass)
 

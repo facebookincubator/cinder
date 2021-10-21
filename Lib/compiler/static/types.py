@@ -406,12 +406,12 @@ class Value:
     ) -> Optional[Value]:
         return self
 
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         return None
 
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         return DYNAMIC_TYPE
 
     def bind_subscr(
@@ -3444,7 +3444,7 @@ class AsyncCachedPropertyMethod(DecoratedMethod):
 
 
 class TypingFinalDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         if isinstance(fn, DecoratedMethod):
@@ -3453,19 +3453,19 @@ class TypingFinalDecorator(Class):
             fn.is_final = True
         return TransparentDecoratedMethod(FUNCTION_TYPE, fn, decorator)
 
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         klass.is_final = True
         return klass
 
 
 class AllowWeakrefsDecorator(Class):
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         klass.allow_weakrefs = True
         return klass
 
 
 class ClassMethodDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is FUNCTION_TYPE:
@@ -3481,7 +3481,7 @@ class ClassMethodDecorator(Class):
 
 
 class DynamicReturnDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Function | DecoratedMethod:
         if isinstance(fn, DecoratedMethod):
@@ -3500,7 +3500,7 @@ class DynamicReturnDecorator(Class):
 
 
 class StaticMethodDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is not FUNCTION_TYPE:
@@ -3517,7 +3517,7 @@ class StaticMethodDecorator(Class):
 
 
 class InlineFunctionDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Function | DecoratedMethod:
         real_fn = fn.real_function if isinstance(fn, DecoratedMethod) else fn
@@ -3531,61 +3531,61 @@ class InlineFunctionDecorator(Class):
 
 
 class DoNotCompileDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         real_fn = fn.real_function if isinstance(fn, DecoratedMethod) else fn
         real_fn.donotcompile = True
         return TransparentDecoratedMethod(FUNCTION_TYPE, fn, decorator)
 
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         klass.donotcompile = True
         return klass
 
 
 class PropertyDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is not FUNCTION_TYPE:
             return None
         return PropertyMethod(fn, decorator)
 
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property")
 
 
 class CachedPropertyDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is not FUNCTION_TYPE:
             return None
         return CachedPropertyMethod(fn, decorator)
 
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @cached_property")
 
 
 class AsyncCachedPropertyDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is not FUNCTION_TYPE:
             return None
         return AsyncCachedPropertyMethod(fn, decorator)
 
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @async_cached_property")
 
 
 class IdentityDecorator(Class):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         return fn
 
-    def bind_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(self, klass: Class) -> Class:
         return klass
 
 
@@ -6832,7 +6832,7 @@ class ContextDecoratorClass(Class):
 
 
 class ContextDecoratorInstance(Object[ContextDecoratorClass]):
-    def bind_decorate_function(
+    def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is FUNCTION_TYPE:
