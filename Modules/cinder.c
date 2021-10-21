@@ -4,6 +4,8 @@
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
 
+#include "Jit/pyjit.h"
+
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 
 extern int _PyShadow_PolymorphicCacheEnabled;
@@ -326,11 +328,61 @@ set_qualname_of_code(PyObject *Py_UNUSED(module), PyObject **args, Py_ssize_t na
     Py_RETURN_NONE;
 }
 
-PyAPI_FUNC(PyObject*) _PyJIT_GetAndClearCodeInterpCost(void);
+static PyObject*
+set_profile_interp(PyObject *self, PyObject *arg) {
+    int is_true = PyObject_IsTrue(arg);
+    if (is_true < 0) {
+        return NULL;
+    }
+
+    PyThreadState* tstate = PyThreadState_Get();
+    int old_flag = tstate->profile_interp;
+    _PyThreadState_SetProfileInterp(tstate, is_true);
+
+    if (old_flag) {
+      Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
 
 static PyObject*
-get_and_clear_code_interp_cost(PyObject *self, PyObject *obj) {
-    return _PyJIT_GetAndClearCodeInterpCost();
+set_profile_interp_all(PyObject *self, PyObject *arg) {
+    int is_true = PyObject_IsTrue(arg);
+    if (is_true < 0) {
+        return NULL;
+    }
+    g_profile_new_interp_threads = is_true;
+    _PyThreadState_SetProfileInterpAll(is_true);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+set_profile_interp_period(PyObject *self, PyObject *arg) {
+    if (!PyLong_Check(arg)) {
+        PyErr_Format(PyExc_TypeError,
+                     "Expected int object, got %.200s",
+                     Py_TYPE(arg)->tp_name);
+        return NULL;
+    }
+    long val = PyLong_AsLong(arg);
+    if (val == -1 && PyErr_Occurred()) {
+        return NULL;
+    }
+
+    _PyRuntimeState_SetProfileInterpPeriod(val);
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+get_and_clear_type_profiles(PyObject *self, PyObject *obj) {
+    return _PyJIT_GetAndClearTypeProfiles();
+}
+
+static PyObject*
+clear_type_profiles(PyObject *self, PyObject *obj) {
+    _PyJIT_ClearTypeProfiles();
+    Py_RETURN_NONE;
 }
 
 static PyObject*
@@ -452,10 +504,26 @@ static struct PyMethodDef cinder_module_methods[] = {
      (PyCFunction)set_qualname_of_code,
      METH_FASTCALL,
      "Sets the value of qualified name in code object"},
-    {"get_and_clear_code_interp_cost",
-     get_and_clear_code_interp_cost,
+    {"set_profile_interp",
+     set_profile_interp,
+     METH_O,
+     "Enable or disable interpreter profiling for this thread. Returns whether or not profiling was enabled before the call."},
+    {"set_profile_interp_all",
+     set_profile_interp_all,
+     METH_O,
+     "Enable or disable interpreter profiling for all threads, including threads created after this function returns."},
+    {"set_profile_interp_period",
+     set_profile_interp_period,
+     METH_O,
+     "Set the period, in bytecode instructions, for interpreter profiling."},
+    {"get_and_clear_type_profiles",
+     get_and_clear_type_profiles,
      METH_NOARGS,
-     "Get and clear accumulated interpreter cost for code objects."},
+     "Get and clear accumulated interpreter type profiles."},
+    {"clear_type_profiles",
+     clear_type_profiles,
+     METH_NOARGS,
+     "Clear accumulated interpreter type profiles."},
     {"_get_frame_gen",
      get_frame_gen,
      METH_O,

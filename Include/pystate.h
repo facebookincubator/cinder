@@ -123,6 +123,14 @@ PyAPI_FUNC(void) PyGILState_Release(PyGILState_STATE);
 */
 PyAPI_FUNC(PyThreadState *) PyGILState_GetThisThreadState(void);
 
+/* Enable or disable interpreter type profiling for all threads or for a
+   specific thread. */
+PyAPI_FUNC(void) _PyThreadState_SetProfileInterpAll(int);
+PyAPI_FUNC(void) _PyThreadState_SetProfileInterp(PyThreadState *, int);
+
+/* Set the profile period for interpreter type profiling, in bytecode
+   instructions. */
+PyAPI_FUNC(void) _PyRuntimeState_SetProfileInterpPeriod(long);
 
 #ifndef Py_LIMITED_API
 #  define Py_CPYTHON_PYSTATE_H

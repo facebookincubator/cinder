@@ -2,6 +2,7 @@
 #ifndef __JIT_RUNTIME_H__
 #define __JIT_RUNTIME_H__
 
+#include "Jit/containers.h"
 #include "Jit/deopt.h"
 #include "Jit/fixed_type_profiler.h"
 #include "Jit/inline_cache.h"
@@ -247,6 +248,18 @@ struct DeoptStat {
 // Map from DeoptMetadata index to stats about that deopt point.
 using DeoptStats = std::unordered_map<std::size_t, DeoptStat>;
 
+using BytecodeOffset = int;
+
+// Profiling information for a PyCodeObject. Includes the total number of
+// bytecodes executed and type profiles for certain opcodes, keyed by bytecode
+// offset.
+struct CodeProfile {
+  UnorderedMap<BytecodeOffset, std::unique_ptr<TypeProfiler>> typed_hits;
+  int64_t total_hits;
+};
+
+using TypeProfiles = std::unordered_map<Ref<PyCodeObject>, CodeProfile>;
+
 // this class collects all the data needed for JIT at runtime
 // it maps a PyCodeObject to the runtime info the PyCodeObject needs.
 class Runtime {
@@ -295,6 +308,8 @@ class Runtime {
   const DeoptStats& deoptStats() const;
   void clearDeoptStats();
 
+  TypeProfiles& typeProfiles();
+
   using GuardFailureCallback = std::function<void(const DeoptMetadata&)>;
 
   // Add a function to be called when deoptimization occurs due to guard
@@ -329,6 +344,8 @@ class Runtime {
   std::vector<DeoptMetadata> deopt_metadata_;
   DeoptStats deopt_stats_;
   GuardFailureCallback guard_failure_callback_;
+
+  TypeProfiles type_profiles_;
 
   // References to Python objects held by this Runtime
   std::unordered_set<Ref<PyObject>> references_;

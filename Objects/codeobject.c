@@ -519,7 +519,6 @@ code_dealloc(PyCodeObject *co)
         PyMem_Free(co_extra);
     }
     _PyShadow_ClearCache((PyObject *)co); /* facebook t39538061 */
-    _PyJIT_InvalidateCodeKey(co);
 
     Py_XDECREF(co->co_code);
     Py_XDECREF(co->co_consts);

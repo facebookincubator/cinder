@@ -8,6 +8,7 @@
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/inliner.h"
+#include "Jit/containers.h"
 #include "Jit/frame.h"
 #include "Jit/hir/builder.h"
 #include "Jit/jit_context.h"
@@ -16,8 +17,11 @@
 #include "Jit/jit_x_options.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
+#include "Jit/profile_data.h"
 #include "Jit/ref.h"
 #include "Jit/runtime.h"
+#include "Jit/type_profiler.h"
+#include "Jit/util.h"
 
 #include <atomic>
 #include <chrono>
@@ -81,25 +85,31 @@ static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
 
 // Frequently-used strings that we intern at JIT startup and hold references to.
 #define INTERNED_STRINGS(X) \
+  X(bc_offset)              \
+  X(code_hash)              \
   X(count)                  \
   X(description)            \
   X(filename)               \
+  X(firstlineno)            \
   X(func_qualname)          \
   X(guilty_type)            \
   X(int)                    \
   X(lineno)                 \
   X(normal)                 \
-  X(reason)
+  X(normvector)             \
+  X(opname)                 \
+  X(reason)                 \
+  X(types)
 
 #define DECLARE_STR(s) static PyObject* s_str_##s{nullptr};
 INTERNED_STRINGS(DECLARE_STR)
 #undef DECLARE_STR
 
+static std::array<PyObject*, 256> s_opnames;
+
 static double total_compliation_time = 0.0;
 
-// This is read directly from ceval.c to minimize overhead.
-int g_capture_interp_cost = 0;
-static std::unordered_map<std::string, long> g_code_interp_cost;
+int g_profile_new_interp_threads = 0;
 
 struct CompilationTimer {
   explicit CompilationTimer(BorrowedRef<PyFunctionObject> f)
@@ -574,24 +584,6 @@ static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
   return func_obj;
 }
 
-extern "C" {
-PyObject* _PyJIT_GetAndClearCodeInterpCost(void) {
-  if (!g_capture_interp_cost) {
-    Py_RETURN_NONE;
-  }
-  PyObject* dict = PyDict_New();
-  if (dict == NULL) {
-    return NULL;
-  }
-  for (const auto& entry : g_code_interp_cost) {
-    PyDict_SetItemString(
-        dict, entry.first.c_str(), PyLong_FromLong(entry.second));
-  }
-  g_code_interp_cost.clear();
-  return dict;
-}
-}
-
 static PyMethodDef jit_methods[] = {
     {"disable",
      (PyCFunction)(void*)disable_jit,
@@ -746,7 +738,7 @@ long flag_long(const char* xoption, const char* envname, long _default) {
   PyObject* pyobj = nullptr;
   if (PyJIT_GetXOption(xoption, &pyobj) == 0 && pyobj != nullptr &&
       PyUnicode_Check(pyobj)) {
-    auto val = Ref<PyObject>::steal(PyLong_FromUnicodeObject(pyobj, 10));
+    auto val = Ref<>::steal(PyLong_FromUnicodeObject(pyobj, 10));
     if (val != nullptr) {
       return PyLong_AsLong(val);
     }
@@ -769,6 +761,24 @@ int _PyJIT_Initialize() {
   if (jit_config.init_state == JIT_INITIALIZED) {
     return 0;
   }
+
+  // Initialize some interned strings that can be used even when the JIT is
+  // off.
+#define INTERN_STR(s)                         \
+  s_str_##s = PyUnicode_InternFromString(#s); \
+  if (s_str_##s == nullptr) {                 \
+    return -1;                                \
+  }
+  INTERNED_STRINGS(INTERN_STR)
+#undef INTERN_STR
+
+#define MAKE_OPNAME(opname, opnum)                                   \
+  if ((s_opnames.at(opnum) = PyUnicode_InternFromString(#opname)) == \
+      nullptr) {                                                     \
+    return -1;                                                       \
+  }
+  PY_OPCODES(MAKE_OPNAME)
+#undef MAKE_OPNAME
 
   int use_jit = 0;
 
@@ -895,15 +905,19 @@ int _PyJIT_Initialize() {
     }
   }
 
-  if (_is_flag_set("jit-capture-interp-cost", "PYTHONJITCAPTUREINTERPCOST")) {
+  if (_is_flag_set("jit-profile-interp", "PYTHONJITPROFILEINTERP")) {
     if (use_jit) {
       use_jit = 0;
-      JIT_LOG("Keeping JIT disabled to capture interpreter cost.");
+      JIT_LOG("Keeping JIT disabled to enable interpreter profiling.");
     }
-    g_capture_interp_cost = 1;
-    // Hack to help mitigate the cost of tracing during normal production. See
-    // ceval.c where the cost counting happens for more details.
-    _PyRuntime.ceval.tracing_possible++;
+    g_profile_new_interp_threads = 1;
+    _PyThreadState_SetProfileInterpAll(1);
+  }
+  if (_is_flag_set("jit-disable", "PYTHONJITDISABLE")) {
+    if (use_jit) {
+      use_jit = 0;
+      JIT_LOG("Disabling JIT.");
+    }
   }
 
   if (use_jit) {
@@ -931,14 +945,6 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-#define INTERN_STR(s)                         \
-  s_str_##s = PyUnicode_InternFromString(#s); \
-  if (s_str_##s == nullptr) {                 \
-    return -1;                                \
-  }
-  INTERNED_STRINGS(INTERN_STR)
-#undef INTERN_STR
-
   jit_config.init_state = JIT_INITIALIZED;
   jit_config.is_enabled = 1;
   g_jit_list = jit_list.release();
@@ -963,44 +969,6 @@ int _PyJIT_Initialize() {
   total_compliation_time = 0.0;
 
   return 0;
-}
-
-static std::string key_for_py_code_object(PyCodeObject* code) {
-  Py_ssize_t name_len;
-  PyObject* py_name = code->co_qualname ? code->co_qualname : code->co_name;
-  const char* name = PyUnicode_AsUTF8AndSize(py_name, &name_len);
-  Py_ssize_t fn_len;
-  const char* fn = PyUnicode_AsUTF8AndSize(code->co_filename, &fn_len);
-  return fmt::format(
-      "{}@{}:{}",
-      std::string{name, static_cast<std::string::size_type>(name_len)},
-      std::string{fn, static_cast<std::string::size_type>(fn_len)},
-      code->co_firstlineno);
-}
-
-static std::unordered_map<PyCodeObject*, std::string> g_code_key_cache_;
-
-void _PyJIT_InvalidateCodeKey(PyCodeObject* code) {
-  if (!g_capture_interp_cost) {
-    return;
-  }
-  g_code_key_cache_.erase(code);
-}
-
-void _PyJIT_BumpCodeInterpCost(PyCodeObject* code, long cost) {
-  std::string key;
-  auto key_cache_entry = g_code_key_cache_.find(code);
-  if (key_cache_entry == g_code_key_cache_.end()) {
-    key = key_for_py_code_object(reinterpret_cast<PyCodeObject*>(code));
-    g_code_key_cache_[code] = key;
-  } else {
-    key = key_cache_entry->second;
-  }
-  auto entry = g_code_interp_cost.find(key);
-  if (entry == g_code_interp_cost.end()) {
-    entry = g_code_interp_cost.emplace(key, 0).first;
-  }
-  entry->second += cost;
 }
 
 int _PyJIT_IsEnabled() {
@@ -1211,6 +1179,12 @@ int _PyJIT_Finalize() {
 #define CLEAR_STR(s) Py_CLEAR(s_str_##s);
   INTERNED_STRINGS(CLEAR_STR)
 #undef CLEAR_STR
+  for (PyObject*& opname : s_opnames) {
+    if (opname != nullptr) {
+      Py_DECREF(opname);
+      opname = nullptr;
+    }
+  }
 
   _PyFunction_ClearSwitchboard();
   _PyType_ClearSwitchboard();
@@ -1356,4 +1330,288 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
   jit::CodeRuntime* code_rt =
       static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
   return code_rt->GetGlobals();
+}
+
+void _PyJIT_ProfileCurrentInstr(
+    PyFrameObject* frame,
+    PyObject** stack_top,
+    int opcode,
+    int oparg) {
+  auto profile_stack = [&](auto... stack_offsets) {
+    CodeProfile& code_profile =
+        jit::codegen::NativeGeneratorFactory::runtime()
+            ->typeProfiles()[Ref<PyCodeObject>{frame->f_code}];
+    int opcode_offset = frame->f_lasti;
+
+    auto pair = code_profile.typed_hits.emplace(opcode_offset, nullptr);
+    if (pair.second) {
+      constexpr int kProfilerRows = 4;
+      pair.first->second =
+          TypeProfiler::create(kProfilerRows, sizeof...(stack_offsets));
+    }
+    auto get_type = [&](int offset) {
+      PyObject* obj = stack_top[-(offset + 1)];
+      return obj != nullptr ? Py_TYPE(obj) : nullptr;
+    };
+    pair.first->second->recordTypes(get_type(stack_offsets)...);
+  };
+
+  switch (opcode) {
+    case BEFORE_ASYNC_WITH:
+    case DELETE_ATTR:
+    case END_ASYNC_FOR:
+    case END_FINALLY:
+    case FOR_ITER:
+    case GET_AITER:
+    case GET_ANEXT:
+    case GET_AWAITABLE:
+    case GET_ITER:
+    case GET_YIELD_FROM_ITER:
+    case JUMP_IF_FALSE_OR_POP:
+    case JUMP_IF_TRUE_OR_POP:
+    case LOAD_ATTR:
+    case LOAD_FIELD:
+    case LOAD_METHOD:
+    case POP_JUMP_IF_FALSE:
+    case POP_JUMP_IF_TRUE:
+    case RETURN_VALUE:
+    case SETUP_WITH:
+    case STORE_DEREF:
+    case STORE_GLOBAL:
+    case UNARY_INVERT:
+    case UNARY_NEGATIVE:
+    case UNARY_NOT:
+    case UNARY_POSITIVE:
+    case UNPACK_EX:
+    case UNPACK_SEQUENCE:
+    case WITH_CLEANUP_START:
+    case YIELD_FROM:
+    case YIELD_VALUE: {
+      profile_stack(0);
+      break;
+    }
+    case BINARY_ADD:
+    case BINARY_AND:
+    case BINARY_FLOOR_DIVIDE:
+    case BINARY_LSHIFT:
+    case BINARY_MATRIX_MULTIPLY:
+    case BINARY_MODULO:
+    case BINARY_MULTIPLY:
+    case BINARY_OR:
+    case BINARY_POWER:
+    case BINARY_RSHIFT:
+    case BINARY_SUBSCR:
+    case BINARY_SUBTRACT:
+    case BINARY_TRUE_DIVIDE:
+    case BINARY_XOR:
+    case COMPARE_OP:
+    case DELETE_SUBSCR:
+    case INPLACE_ADD:
+    case INPLACE_AND:
+    case INPLACE_FLOOR_DIVIDE:
+    case INPLACE_LSHIFT:
+    case INPLACE_MATRIX_MULTIPLY:
+    case INPLACE_MODULO:
+    case INPLACE_MULTIPLY:
+    case INPLACE_OR:
+    case INPLACE_POWER:
+    case INPLACE_RSHIFT:
+    case INPLACE_SUBTRACT:
+    case INPLACE_TRUE_DIVIDE:
+    case INPLACE_XOR:
+    case LIST_APPEND:
+    case MAP_ADD:
+    case SET_ADD:
+    case STORE_ATTR:
+    case STORE_FIELD:
+    case WITH_CLEANUP_FINISH: {
+      profile_stack(1, 0);
+      break;
+    }
+    case STORE_SUBSCR: {
+      profile_stack(2, 1, 0);
+      break;
+    }
+    case CALL_FUNCTION: {
+      profile_stack(oparg);
+      break;
+    };
+    case CALL_METHOD: {
+      profile_stack(oparg, oparg + 1);
+      break;
+    }
+  }
+}
+
+void _PyJIT_CountProfiledInstrs(PyCodeObject* code, Py_ssize_t count) {
+  jit::codegen::NativeGeneratorFactory::runtime()
+      ->typeProfiles()[Ref<PyCodeObject>{code}]
+      .total_hits += count;
+}
+
+namespace {
+
+// ProfileEnv and the functions below that use it are for building the
+// complicated, nested data structure returned by
+// _PyJIT_GetAndClearTypeProfiles().
+struct ProfileEnv {
+  // These members are applicable during the whole process:
+  Ref<> stats_list;
+  Ref<> other_list;
+  Ref<> empty_list;
+  UnorderedMap<BorrowedRef<PyTypeObject>, Ref<>> type_name_cache;
+
+  // These members vary with each code object:
+  BorrowedRef<PyCodeObject> code;
+  Ref<> code_hash;
+  Ref<> qualname;
+  Ref<> firstlineno;
+
+  // These members vary with each instruction:
+  int64_t profiled_hits;
+  Ref<> bc_offset;
+  Ref<> opname;
+  Ref<> lineno;
+};
+
+void init_env(ProfileEnv& env) {
+  env.stats_list = Ref<>::steal(check(PyList_New(0)));
+  env.other_list = Ref<>::steal(check(PyList_New(0)));
+  auto other_str = Ref<>::steal(check(PyUnicode_InternFromString("<other>")));
+  check(PyList_Append(env.other_list, other_str));
+  env.empty_list = Ref<>::steal(check(PyList_New(0)));
+
+  env.type_name_cache.emplace(
+      nullptr, Ref<>::steal(check(PyUnicode_InternFromString("<NULL>"))));
+}
+
+PyObject* get_type_name(ProfileEnv& env, PyTypeObject* ty) {
+  auto pair = env.type_name_cache.emplace(ty, nullptr);
+  Ref<>& cached_name = pair.first->second;
+  if (pair.second) {
+    PyObject* module =
+        ty->tp_dict ? PyDict_GetItemString(ty->tp_dict, "__module__") : nullptr;
+    if (module != nullptr && PyUnicode_Check(module)) {
+      cached_name = Ref<>::steal(
+          check(PyUnicode_FromFormat("%U:%s", module, ty->tp_name)));
+    } else {
+      cached_name =
+          Ref<>::steal(check(PyUnicode_InternFromString(ty->tp_name)));
+    }
+  }
+  return cached_name;
+}
+
+void start_code(ProfileEnv& env, PyCodeObject* code) {
+  env.code = code;
+  env.code_hash =
+      Ref<>::steal(check(PyLong_FromUnsignedLong(hashBytecode(code))));
+  env.qualname.reset(code->co_qualname);
+  if (env.qualname == nullptr) {
+    env.qualname.reset(code->co_name);
+    if (env.qualname == nullptr) {
+      env.qualname =
+          Ref<>::steal(check(PyUnicode_InternFromString("<unknown>")));
+    }
+  }
+  env.firstlineno = Ref<>::steal(check(PyLong_FromLong(code->co_firstlineno)));
+  env.profiled_hits = 0;
+}
+
+void start_instr(ProfileEnv& env, int bcoff_raw) {
+  int lineno_raw = env.code->co_lnotab != nullptr
+      ? PyCode_Addr2Line(env.code, bcoff_raw)
+      : -1;
+  int opcode = _Py_OPCODE(PyBytes_AS_STRING(env.code->co_code)[bcoff_raw]);
+  env.bc_offset = Ref<>::steal(check(PyLong_FromLong(bcoff_raw)));
+  env.lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
+  env.opname.reset(s_opnames.at(opcode));
+}
+
+void append_item(
+    ProfileEnv& env,
+    long count_raw,
+    PyObject* type_names,
+    bool use_op = true) {
+  auto item = Ref<>::steal(check(PyDict_New()));
+  auto normals = Ref<>::steal(check(PyDict_New()));
+  auto ints = Ref<>::steal(check(PyDict_New()));
+  auto count = Ref<>::steal(check(PyLong_FromLong(count_raw)));
+
+  check(PyDict_SetItem(item, s_str_normal, normals));
+  check(PyDict_SetItem(item, s_str_int, ints));
+  check(PyDict_SetItem(normals, s_str_func_qualname, env.qualname));
+  check(PyDict_SetItem(normals, s_str_filename, env.code->co_filename));
+  check(PyDict_SetItem(ints, s_str_code_hash, env.code_hash));
+  check(PyDict_SetItem(ints, s_str_firstlineno, env.firstlineno));
+  check(PyDict_SetItem(ints, s_str_count, count));
+  if (use_op) {
+    check(PyDict_SetItem(ints, s_str_lineno, env.lineno));
+    check(PyDict_SetItem(ints, s_str_bc_offset, env.bc_offset));
+    check(PyDict_SetItem(normals, s_str_opname, env.opname));
+  }
+  if (type_names != nullptr) {
+    auto normvectors = Ref<>::steal(check(PyDict_New()));
+    check(PyDict_SetItem(normvectors, s_str_types, type_names));
+    check(PyDict_SetItem(item, s_str_normvector, normvectors));
+  }
+  check(PyList_Append(env.stats_list, item));
+
+  env.profiled_hits += count_raw;
+}
+
+void build_profile(ProfileEnv& env, TypeProfiles& profiles) {
+  for (auto& code_pair : profiles) {
+    start_code(env, code_pair.first);
+    const CodeProfile& code_profile = code_pair.second;
+
+    for (auto& profile_pair : code_profile.typed_hits) {
+      const TypeProfiler& profile = *profile_pair.second;
+      if (profile.empty()) {
+        continue;
+      }
+      start_instr(env, profile_pair.first);
+
+      for (int row = 0; row < profile.rows() && profile.count(row) != 0;
+           ++row) {
+        auto type_names = Ref<>::steal(check(PyList_New(0)));
+        for (int col = 0; col < profile.cols(); ++col) {
+          PyTypeObject* ty = profile.type(row, col);
+          check(PyList_Append(type_names, get_type_name(env, ty)));
+        }
+        append_item(env, profile.count(row), type_names);
+      }
+
+      if (profile.other() > 0) {
+        append_item(env, profile.other(), env.other_list);
+      }
+    }
+
+    int64_t untyped_hits = code_profile.total_hits - env.profiled_hits;
+    if (untyped_hits != 0) {
+      append_item(env, untyped_hits, nullptr, false);
+    }
+  }
+}
+
+} // namespace
+
+PyObject* _PyJIT_GetAndClearTypeProfiles() {
+  auto& profiles =
+      jit::codegen::NativeGeneratorFactory::runtime()->typeProfiles();
+  ProfileEnv env;
+
+  try {
+    init_env(env);
+    build_profile(env, profiles);
+  } catch (const CAPIError&) {
+    return nullptr;
+  }
+
+  profiles.clear();
+  return env.stats_list.release();
+}
+
+void _PyJIT_ClearTypeProfiles() {
+  jit::codegen::NativeGeneratorFactory::runtime()->typeProfiles().clear();
 }

@@ -3827,6 +3827,8 @@ esac
 
 AC_CHECK_LIB(z, inflateCopy, AC_DEFINE(HAVE_ZLIB_COPY, 1, [Define if the zlib library has inflateCopy]))
 
+LIBS="$LIBS -lz"
+
 case $ac_sys_system/$ac_sys_release in
 Darwin/*)
 	CFLAGS="${_CUR_CFLAGS}"

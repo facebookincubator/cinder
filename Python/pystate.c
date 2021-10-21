@@ -8,6 +8,8 @@
 #include "pycore_pystate.h"
 #include "pycore_pylifecycle.h"
 
+#include "Jit/pyjit.h"
+
 /* --------------------------------------------------------------------------
 CAUTION
 
@@ -571,6 +573,12 @@ new_threadstate(PyInterpreterState *interp, int init)
     tstate->overflowed = 0;
     tstate->recursion_critical = 0;
     tstate->stackcheck_counter = 0;
+
+    tstate->profile_interp = 0;
+    if (g_profile_new_interp_threads) {
+      _PyThreadState_SetProfileInterp(tstate, 1);
+    }
+
     tstate->tracing = 0;
     tstate->use_tracing = 0;
     tstate->gilstate_counter = 0;
@@ -1118,6 +1126,38 @@ _PyThread_CurrentFrames(void)
     HEAD_UNLOCK(runtime);
     Py_DECREF(result);
     return NULL;
+}
+
+void _PyThreadState_SetProfileInterpAll(int enabled) {
+    PyThreadState *tstate;
+    _PyRuntimeState *runtime = &_PyRuntime;
+
+    HEAD_LOCK(runtime);
+    for (tstate = _PyThreadState_GET()->interp->tstate_head;
+         tstate != NULL;
+         tstate = tstate->next) {
+        _PyThreadState_SetProfileInterp(tstate, enabled);
+    }
+    HEAD_UNLOCK(runtime);
+}
+
+void
+_PyThreadState_SetProfileInterp(PyThreadState *tstate, int enabled) {
+    if (!tstate->profile_interp == !enabled) {
+        return;
+    }
+    if (enabled) {
+        tstate->profile_interp = 1;
+        _PyRuntime.ceval.tracing_possible++;
+    } else {
+        tstate->profile_interp = 0;
+        _PyRuntime.ceval.tracing_possible--;
+    }
+}
+
+void
+_PyRuntimeState_SetProfileInterpPeriod(long period) {
+    _PyRuntime.ceval.profile_instr_period = period;
 }
 
 /* Python "auto thread state" API. */

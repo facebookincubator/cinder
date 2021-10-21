@@ -59,6 +59,10 @@ struct _ceval_runtime_state {
     /* Request for checking signals. */
     _Py_atomic_int signals_pending;
     struct _gil_runtime_state gil;
+    /* Global instruction counter used by interpreter type profiling. */
+    long profile_instr_counter;
+    /* Configurable period for interpreter type profiling. */
+    long profile_instr_period;
 };
 
 /* interpreter state */

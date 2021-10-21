@@ -41,19 +41,6 @@ PyAPI_DATA(int64_t) __strobe_CodeRuntime_py_code;
 PyAPI_FUNC(int) _PyJIT_Initialize(void);
 
 /*
- * Notify interpreter cost calculator that a PyCodeObject is released as the
- * same pointer may be used for another code object but need a new string
- * identity key.
- */
-PyAPI_FUNC(void) _PyJIT_InvalidateCodeKey(PyCodeObject* code);
-
-/*
- * Used by the interpreter to attribute runtime "cost" to code objects. This
- * only has an effect if interpreter cost counting is enabled.
- */
-PyAPI_FUNC(void) _PyJIT_BumpCodeInterpCost(PyCodeObject* code, long cost);
-
-/*
  * Enable the global JIT.
  *
  * _PyJIT_Initialize must be called before calling this.
@@ -282,6 +269,34 @@ PyAPI_FUNC(int) _PyJIT_IsCompiled(PyObject* func);
  * associated with tstate.
  */
 PyAPI_FUNC(PyObject*) _PyJIT_GetGlobals(PyThreadState* tstate);
+
+/*
+ * Indicates whether or not newly-created interpreter threads should have type
+ * profiling enabled by default.
+ */
+extern int g_profile_new_interp_threads;
+
+/*
+ * Record a type profile for the current instruction.
+ */
+PyAPI_FUNC(void) _PyJIT_ProfileCurrentInstr(
+    PyFrameObject* frame,
+    PyObject** stack_top,
+    int opcode,
+    int oparg);
+
+/*
+ * Record profiled instructions for the given code object upon exit from a
+ * frame, some of which may not have had their types recorded.
+ */
+PyAPI_FUNC(void)
+    _PyJIT_CountProfiledInstrs(PyCodeObject* code, Py_ssize_t count);
+
+/*
+ * Get and clear, or just clear, information about the recorded type profiles.
+ */
+PyAPI_FUNC(PyObject*) _PyJIT_GetAndClearTypeProfiles(void);
+PyAPI_FUNC(void) _PyJIT_ClearTypeProfiles(void);
 
 #ifdef __cplusplus
 }

@@ -134,6 +134,10 @@ void Runtime::clearDeoptStats() {
   deopt_stats_.clear();
 }
 
+TypeProfiles& Runtime::typeProfiles() {
+  return type_profiles_;
+}
+
 void Runtime::setGuardFailureCallback(Runtime::GuardFailureCallback cb) {
   guard_failure_callback_ = cb;
 }

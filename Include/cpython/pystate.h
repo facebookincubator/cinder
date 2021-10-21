@@ -136,9 +136,15 @@ struct _ts {
     /* Unique thread state id. */
     uint64_t id;
 
+    /* The current top of the shadow frame stack; analogous to the frame member
+     * up above. */
     struct _PyShadowFrame *shadow_frame;
-    /* XXX signal handlers should also be here */
 
+    /* 0 or 1 to indicate if this thread has interpreter type profiling
+     * enabled. */
+    char profile_interp;
+
+    /* XXX signal handlers should also be here */
 };
 
 /* Get the current interpreter state.

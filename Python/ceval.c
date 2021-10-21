@@ -90,8 +90,6 @@ int64_t __strobe__PyShadowFrame_prev = offsetof(_PyShadowFrame, prev);
 extern int _PyObject_GetMethod(PyObject *, PyObject *, PyObject **);
 extern PyObject * _PySuper_Lookup(PyTypeObject *type, PyObject *obj, PyObject *name, PyObject *super_instance, int  *meth_found);
 
-// Exposed directly from pyjit.cpp to minimize overhead.
-extern int g_capture_interp_cost;
 
 
 /* Begin FB (T37304853) */
@@ -177,6 +175,8 @@ static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
                                       PyFrameObject *, const _Py_CODEUNIT *);
 int check_args_iterable(PyThreadState *, PyObject *func, PyObject *vararg);
 void format_kwargs_error(PyThreadState *, PyObject *func, PyObject *kwargs);
+static void try_profile_next_instr(PyFrameObject* f, PyObject** stack_pointer,
+                                   const _Py_CODEUNIT* next_instr);
 
 #define NAME_ERROR_MSG \
     "name '%.200s' is not defined"
@@ -713,6 +713,8 @@ _PyEval_Initialize(struct _ceval_runtime_state *state)
 {
     state->recursion_limit = Py_DEFAULT_RECURSION_LIMIT;
     _Py_CheckRecursionLimit = Py_DEFAULT_RECURSION_LIMIT;
+    state->profile_instr_counter = 0;
+    state->profile_instr_period = 1;
     _gil_initialize(&state->gil);
 }
 
@@ -979,7 +981,7 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     _Py_atomic_int * const eval_breaker = &ceval->eval_breaker;
     PyCodeObject *co;
     _PyShadowFrame shadow_frame;
-    long code_cost = 0;
+    Py_ssize_t profiled_instrs = 0;
 
     int lazy_imports = -1;
 
@@ -1352,7 +1354,8 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     shadow.first_instr = &first_instr;
     assert(PyDict_CheckExact(f->f_builtins));
     PyObject ***global_cache = NULL;
-    if (co->co_cache.shadow != NULL && PyDict_CheckExact(f->f_globals)) {
+    if (!tstate->profile_interp && co->co_cache.shadow != NULL &&
+        PyDict_CheckExact(f->f_globals)) {
         shadow.shadow = co->co_cache.shadow;
         global_cache = shadow.shadow->globals;
         first_instr = &shadow.shadow->code[0];
@@ -1489,10 +1492,13 @@ main_loop:
         /* line-by-line tracing support */
 
         if (_Py_TracingPossible(ceval)) {
-            /* Guarding the interpreter cost counting in _Py_TracingPossible is
-               a hack to hint to the compiler/PGO this isn't on the hot/default
-               path for production. */
-            code_cost++;
+            if (tstate->profile_interp &&
+                ++ceval->profile_instr_counter == ceval->profile_instr_period) {
+                ceval->profile_instr_counter = 0;
+                profiled_instrs++;
+                try_profile_next_instr(f, stack_pointer, next_instr);
+            }
+
             if (tstate->c_tracefunc != NULL && !tstate->tracing) {
                 int err;
                 /* see maybe_call_line_trace
@@ -6114,8 +6120,8 @@ exit_eval_frame:
         _PyShadowFrame_Pop(tstate, &shadow_frame);
     }
 
-    if (g_capture_interp_cost) {
-        _PyJIT_BumpCodeInterpCost(f->f_code, code_cost);
+    if (profiled_instrs != 0) {
+        _PyJIT_CountProfiledInstrs(f->f_code, profiled_instrs);
     }
 
     return _Py_CheckFunctionResult(tstate, NULL, retval, "PyEval_EvalFrameEx");
@@ -8354,6 +8360,35 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
     res = v;
     PyUnicode_Append(&res, w);
     return res;
+}
+
+static inline void try_profile_next_instr(PyFrameObject* f,
+                                          PyObject** stack_pointer,
+                                          const _Py_CODEUNIT* next_instr) {
+    int opcode, oparg;
+    NEXTOPARG();
+    while (opcode == EXTENDED_ARG) {
+        int oldoparg = oparg;
+        NEXTOPARG();
+        oparg |= oldoparg << 8;
+    }
+
+    /* _PyJIT_ProfileCurrentInstr owns the canonical list of which instructions
+     * we want to record types for. To save a little work, filter out a few
+     * opcodes that we know the JIT will never care about and account for
+     * roughly 50% of dynamic bytecodes. */
+    switch (opcode) {
+        case LOAD_FAST:
+        case STORE_FAST:
+        case LOAD_CONST:
+        case RETURN_VALUE: {
+            break;
+        }
+        default: {
+          _PyJIT_ProfileCurrentInstr(f, stack_pointer, opcode, oparg);
+          break;
+        }
+    }
 }
 
 #ifdef DYNAMIC_EXECUTION_PROFILE
