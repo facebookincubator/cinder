@@ -905,6 +905,12 @@ int _PyJIT_Initialize() {
     }
   }
 
+  const char* profile_file =
+      flag_string("jit-use-profile", "PYTHONJITUSEPROFILE");
+  if (profile_file != nullptr) {
+    JIT_LOG("Loading profile data from %s", profile_file);
+    loadProfileData(profile_file);
+  }
   if (_is_flag_set("jit-profile-interp", "PYTHONJITPROFILEINTERP")) {
     if (use_jit) {
       use_jit = 0;

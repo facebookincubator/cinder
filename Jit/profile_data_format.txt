@@ -1,0 +1,26 @@
+---- Cinder JIT profile data binary file format ----
+
+-- General rules --
+
+- All versions will start with the same magic value and a uint32 version
+  identifier.
+- No alignment padding unless explicitly specified.
+- All int types are little endian.
+- str is uint16 len, followed by len bytes of utf-8 data (no null terminator).
+
+-- Version 1 --
+
+uint64: magic value: 0x7265646e6963
+uint32: version identifier
+uint32: num_code_keys
+[num_code_keys] {
+  str: code_key
+  uint16: num_locations
+  [num_locations] {
+    uint16: bc_offset
+    uint8: num_types
+    [num_types] {
+      str: type
+    }
+  }
+}
