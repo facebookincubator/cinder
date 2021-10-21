@@ -64,6 +64,8 @@ typedef struct {
     PyTypeObject *thunk_cls;
     /* 1 if the the original function is an async function */
     int thunk_coroutine;
+    /* 1 if the the original function is a classmethod */
+    int thunk_classmethod;
     /* a pointer which can be used for an indirection in *PyClassLoader_GetIndirectPtr.
      * This will be the current value of the function when it's not patched and will
      * be the thunk when it is. */
@@ -789,6 +791,7 @@ static int
 type_vtable_setslot_typecheck(PyObject *ret_type,
                               int optional,
                               int coroutine,
+                              int classmethod,
                               PyObject *name,
                               _PyType_VTable *vtable,
                               Py_ssize_t slot,
@@ -816,7 +819,7 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     } else if (PyFunction_Check(value)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_func_overridable;
-    } else if (Py_TYPE(value) == &PyClassMethod_Type) {
+    } else if (classmethod) {
         vtable->vt_entries[slot].vte_entry = (vectorcallfunc)type_vtable_classmethod_overridable;
     } else {
         vtable->vt_entries[slot].vte_entry =
@@ -928,6 +931,7 @@ thunkdealloc(_Py_StaticThunk *op)
     PyObject_GC_Del((PyObject *)op);
 }
 
+
 PyObject *
 thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
                                     size_t nargsf, PyObject *kwnames) {
@@ -935,6 +939,22 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
         PyErr_Format(PyExc_TypeError, "%s.%U has been deleted", thunk->thunk_cls->tp_name, thunk->thunk_tcs.tcs_rt.rt_name);
         return NULL;
     }
+    if (thunk->thunk_classmethod) {
+        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+        if (nargs == 0) {
+            PyErr_Format(PyExc_TypeError, "%s.%U must be invoked with >= 1 arguments",
+                         thunk->thunk_cls->tp_name, thunk->thunk_tcs.tcs_rt.rt_name);
+            return NULL;
+        }
+
+        if (thunk->thunk_coroutine) {
+          return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args + 1,
+                                       nargs - 1, kwnames);
+        }
+        PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args + 1, nargs - 1, kwnames);
+        return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
+    }
+
     if (thunk->thunk_coroutine) {
         return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args,
             nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
@@ -943,6 +963,7 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
     PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
     return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
 }
+
 
 static PyObject *
 thunk_call(_Py_StaticThunk *thunk, PyObject *args, PyObject *kwds)
@@ -997,8 +1018,8 @@ error:
 }
 
 PyObject *
-_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine) {
-    *coroutine = *optional = 0;
+_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, int *classmethod) {
+    *coroutine = *optional = *classmethod = 0;
     PyTypeObject *res = NULL;
     if (PyFunction_Check(func) && _PyClassLoader_IsStaticFunction(func)) {
         res = resolve_function_rettype(func, optional, coroutine);
@@ -1012,6 +1033,7 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine) 
         if (_PyClassLoader_IsStaticFunction(static_func)) {
             res = resolve_function_rettype(static_func, optional, coroutine);
         }
+        *classmethod = 1;
     } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
         // builtin methods for now assumed to return object
         res = &PyBaseObject_Type;
@@ -1141,8 +1163,9 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     assert(previous != NULL);
     Py_ssize_t index = PyLong_AsSsize_t(slot);
-    int cur_optional, cur_coroutine;
-    PyObject* cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional, &cur_coroutine);
+    int cur_optional, cur_coroutine, cur_classmethod;
+    PyObject* cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional,
+                                                          &cur_coroutine, &cur_classmethod);
     assert(cur_type != NULL);
 
     /* we make no attempts to keep things efficient when types start getting
@@ -1171,6 +1194,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     } else if (type_vtable_setslot_typecheck(cur_type,
                                              cur_optional,
                                              cur_coroutine,
+                                             cur_classmethod,
                                              name,
                                              vtable,
                                              index,
@@ -1240,8 +1264,8 @@ type_vtable_setslot(PyTypeObject *tp,
         }
     }
 
-    int optional = 0, coroutine = 0;
-    PyObject *ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine);
+    int optional = 0, coroutine = 0, classmethod = 0;
+    PyObject *ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
     if (ret_type == NULL) {
         PyErr_Format(PyExc_RuntimeError,
                     "missing type annotation on static compiled method %s.%U",
@@ -1250,7 +1274,7 @@ type_vtable_setslot(PyTypeObject *tp,
     }
 
     int res = type_vtable_setslot_typecheck(
-        ret_type, optional, coroutine, name, vtable, slot, value);
+        ret_type, optional, coroutine, classmethod, name, vtable, slot, value);
     Py_DECREF(ret_type);
     return res;
 }
@@ -1919,7 +1943,10 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyTypeObject* type, PyObje
         thunk->thunk_funcref = (PyObject *)thunk;
     }
     thunk->thunk_tcs.tcs_rt.rt_expected = (PyTypeObject *)_PyClassLoader_ResolveReturnType(
-                                original, &thunk->thunk_tcs.tcs_rt.rt_optional, &thunk->thunk_coroutine);
+                                                               original,
+                                                               &thunk->thunk_tcs.tcs_rt.rt_optional,
+                                                               &thunk->thunk_coroutine,
+                                                               &thunk->thunk_classmethod);
     if (thunk->thunk_tcs.tcs_rt.rt_expected == NULL) {
         Py_DECREF(thunk);
         return NULL;
@@ -1946,7 +1973,7 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
         if (type->tp_cache != NULL) {
             PyObject *originals = ((_PyType_VTable *)type->tp_cache)->vt_original;
             if (originals != NULL) {
-                original = PyDict_GetItem(originals, containerkey);
+              original = PyDict_GetItem(originals, classloader_get_func_name(containerkey));
                 if (original == func) {
                     original = NULL;
                 }
