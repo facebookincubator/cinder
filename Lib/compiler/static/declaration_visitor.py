@@ -67,7 +67,7 @@ class NestedScope:
 TScopeTypes = Union[ModuleTable, Class, Function, NestedScope]
 
 
-class DeclarationVisitor(GenericVisitor):
+class DeclarationVisitor(GenericVisitor[None]):
     def __init__(
         self, mod_name: str, filename: str, symbols: Compiler, optimize: int
     ) -> None:
@@ -136,7 +136,7 @@ class DeclarationVisitor(GenericVisitor):
             if klass is DYNAMIC_TYPE:
                 break
             with self.compiler.error_sink.error_context(self.filename, d):
-                decorator = self.module.resolve_type(d) or DYNAMIC_TYPE
+                decorator = self.module.resolve_decorator(d) or DYNAMIC_TYPE
                 klass = decorator.resolve_decorate_class(klass)
 
         self.enter_scope(NestedScope() if klass is DYNAMIC_TYPE else klass)

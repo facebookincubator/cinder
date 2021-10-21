@@ -185,7 +185,7 @@ if TYPE_CHECKING:
     from . import Static38CodeGenerator
     from .compiler import Compiler
     from .declaration_visitor import DeclarationVisitor
-    from .module_table import ModuleTable
+    from .module_table import AnnotationVisitor, ReferenceVisitor, ModuleTable
     from .type_binder import BindingScope, TypeBinder
 
 try:
@@ -421,6 +421,18 @@ class Value:
         visitor: TypeBinder,
         type_ctx: Optional[Class] = None,
     ) -> None:
+        visitor.check_can_assign_from(DYNAMIC_TYPE, type.klass, node)
+        visitor.set_type(
+            node,
+            self.resolve_subscr(node, type, visitor.module.ann_visitor) or DYNAMIC,
+        )
+
+    def resolve_subscr(
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: AnnotationVisitor,
+    ) -> Optional[Value]:
         visitor.syntax_error(f"cannot index {self.name}", node)
 
     def emit_subscr(
@@ -704,15 +716,13 @@ class Object(Value, Generic[TClass]):
     ) -> None:
         visitor.set_type(node, self.resolve_descr_get(node, inst, ctx) or DYNAMIC)
 
-    def bind_subscr(
+    def resolve_subscr(
         self,
         node: ast.Subscript,
         type: Value,
-        visitor: TypeBinder,
-        type_ctx: Optional[Class] = None,
-    ) -> None:
-        visitor.check_can_assign_from(DYNAMIC_TYPE, type.klass, node)
-        visitor.set_type(node, DYNAMIC)
+        visitor: AnnotationVisitor,
+    ) -> Optional[Value]:
+        return None
 
     def bind_compare(
         self,
@@ -787,7 +797,7 @@ class ClassCallInfo:
         self.dynamic_call = dynamic_call
 
 
-class InitVisitor(GenericVisitor):
+class InitVisitor(GenericVisitor[None]):
     def __init__(
         self,
         module: ModuleTable,
@@ -1424,20 +1434,17 @@ class GenericClass(Class):
             )
         return super().bind_call(node, visitor, type_ctx)
 
-    def bind_subscr(
+    def resolve_subscr(
         self,
         node: ast.Subscript,
         type: Value,
-        visitor: TypeBinder,
-        type_ctx: Optional[Class] = None,
-    ) -> None:
+        visitor: AnnotationVisitor,
+    ) -> Optional[Value]:
         slice = node.slice
-        visitor.visit(slice)
 
         if not isinstance(slice, ast.Index):
             visitor.syntax_error("can't slice generic types", node)
-            visitor.set_type(node, DYNAMIC)
-            return
+            return DYNAMIC
 
         val = slice.value
 
@@ -1445,14 +1452,14 @@ class GenericClass(Class):
         if isinstance(val, ast.Tuple):
             multiple: List[Class] = []
             for elt in val.elts:
-                klass = visitor.module.resolve_annotation(elt) or DYNAMIC_TYPE
+                klass = visitor.resolve_annotation(elt) or DYNAMIC_TYPE
                 multiple.append(klass)
 
             index = tuple(multiple)
             actual_argnum = len(val.elts)
         else:
             actual_argnum = 1
-            single = visitor.module.resolve_annotation(val) or DYNAMIC_TYPE
+            single = visitor.resolve_annotation(val) or DYNAMIC_TYPE
             index = (single,)
 
         if (not self.is_variadic) and actual_argnum != expected_argnum:
@@ -1462,8 +1469,7 @@ class GenericClass(Class):
                 node,
             )
 
-        klass = self.make_generic_type(index, visitor.compiler.generic_types)
-        visitor.set_type(node, klass)
+        return self.make_generic_type(index, visitor.module.compiler.generic_types)
 
     @property
     def type_args(self) -> Sequence[Class]:

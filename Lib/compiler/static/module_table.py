@@ -4,8 +4,13 @@ from __future__ import annotations
 import ast
 from ast import (
     AST,
+    Attribute,
     AsyncFunctionDef,
+    BinOp,
+    Call,
     ClassDef,
+    Constant,
+    Expression,
     FunctionDef,
     Subscript,
     Index,
@@ -16,6 +21,7 @@ from contextlib import nullcontext
 from enum import Enum
 from functools import partial
 from typing import (
+    cast,
     Callable as typingCallable,
     ContextManager,
     Dict,
@@ -39,6 +45,7 @@ from .types import (
     DynamicClass,
     Function,
     FunctionGroup,
+    DYNAMIC,
     DYNAMIC_TYPE,
     FLOAT_TYPE,
     FinalClass,
@@ -53,6 +60,7 @@ from .types import (
     UnknownDecoratedMethod,
     Value,
 )
+from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
     from .compiler import Compiler
@@ -62,6 +70,105 @@ class ModuleFlag(Enum):
     CHECKED_DICTS = 1
     SHADOW_FRAME = 2
     CHECKED_LISTS = 3
+
+
+class ReferenceVisitor(GenericVisitor[Optional[Value]]):
+    def __init__(self, module: ModuleTable) -> None:
+        super().__init__(module)
+        self.types: Dict[AST, Value] = {}
+        self.subscr_nesting = 0
+
+    def visitName(self, node: Name) -> Optional[Value]:
+        return self.module.children.get(
+            node.id
+        ) or self.module.compiler.builtins.children.get(node.id)
+
+    def visitAttribute(self, node: Attribute) -> Optional[Value]:
+        val = self.visit(node.value)
+        if val is not None:
+            return val.resolve_attr(node)
+
+
+class AnnotationVisitor(ReferenceVisitor):
+    def resolve_annotation(
+        self,
+        node: ast.AST,
+        *,
+        is_declaration: bool = False,
+    ) -> Optional[Class]:
+        with self.error_context(node):
+            klass = self.visit(node)
+            if not isinstance(klass, Class):
+                return None
+
+            if self.subscr_nesting or not is_declaration:
+                if isinstance(klass, FinalClass):
+                    raise TypedSyntaxError(
+                        "Final annotation is only valid in initial declaration "
+                        "of attribute or module-level constant",
+                    )
+                if isinstance(klass, ClassVar):
+                    raise TypedSyntaxError(
+                        "ClassVar is allowed only in class attribute annotations. "
+                        "Class Finals are inferred ClassVar; do not nest with Final."
+                    )
+
+            # Even if we know that e.g. `builtins.str` is the exact `str` type and
+            # not a subclass, and it's useful to track that knowledge, when we
+            # annotate `x: str` that annotation should not exclude subclasses.
+            klass = klass.inexact_type()
+            # PEP-484 specifies that ints should be treated as a subclass of floats,
+            # even though they differ in the runtime. We need to maintain the distinction
+            # between the two internally, so we should view user-specified `float` annotations
+            # as `float | int`. This widening of the type prevents us from applying
+            # optimizations to user-specified floats, but does not affect ints. Since we
+            # don't optimize Python floats anyway, we accept this to maintain PEP-484 compatibility.
+
+            if klass is FLOAT_TYPE:
+                klass = UNION_TYPE.make_generic_type(
+                    (FLOAT_TYPE, INT_TYPE), self.compiler.generic_types
+                )
+
+            # TODO until we support runtime checking of unions, we must for
+            # safety resolve union annotations to dynamic (except for
+            # optionals, which we can check at runtime)
+            if (
+                isinstance(klass, UnionType)
+                and klass is not UNION_TYPE
+                and klass is not OPTIONAL_TYPE
+                and klass.opt_type is None
+            ):
+                return None
+
+            return klass
+
+    def visitSubscript(self, node: Subscript) -> Optional[Value]:
+        target = self.resolve_annotation(node.value, is_declaration=True)
+        if target is None:
+            return None
+
+        self.subscr_nesting += 1
+        slice = self.visit(node.slice) or DYNAMIC
+        self.subscr_nesting -= 1
+        return target.resolve_subscr(node, slice, self) or target
+
+    def visitBinOp(self, node: BinOp) -> Optional[Value]:
+        if isinstance(node.op, ast.BitOr):
+            ltype = self.resolve_annotation(node.left)
+            rtype = self.resolve_annotation(node.right)
+            if ltype is None or rtype is None:
+                return None
+            return UNION_TYPE.make_generic_type(
+                (ltype, rtype), self.module.compiler.generic_types
+            )
+
+    def visitConstant(self, node: Constant) -> Optional[Value]:
+        sval = node.value
+        if sval is None:
+            return NONE_TYPE
+        elif isinstance(sval, str):
+            n = cast(Expression, ast.parse(node.value, "", "eval")).body
+            return self.visit(n)
 
 
 class ModuleTable:
@@ -87,6 +194,8 @@ class ModuleTable:
         # imports and types defined in the module? Until we have, resolving
         # type annotations is not safe.
         self.first_pass_done = False
+        self.ann_visitor = AnnotationVisitor(self)
+        self.ref_visitor = ReferenceVisitor(self)
 
     def syntax_error(self, msg: str, node: AST) -> None:
         return self.compiler.error_sink.syntax_error(msg, self.filename, node)
@@ -184,14 +293,13 @@ class ModuleTable:
         return res
 
     def resolve_type(self, node: ast.AST) -> Optional[Class]:
-        # TODO handle Call
-        typ = self._resolve(node, self.resolve_type)
+        typ = self.ann_visitor.visit(node)
         if isinstance(typ, Class):
             return typ
 
     def resolve_decorator(self, node: ast.AST) -> Optional[Value]:
-        if isinstance(node, ast.Call):
-            func = self.resolve_decorator(node.func)
+        if isinstance(node, Call):
+            func = self.ref_visitor.visit(node.func)
             if isinstance(func, Class):
                 return func.instance
             elif isinstance(func, Callable):
@@ -199,44 +307,7 @@ class ModuleTable:
             elif isinstance(func, MethodType):
                 return func.function.return_type.resolved().instance
 
-        return self._resolve(node, self.resolve_decorator)
-
-    def _resolve(
-        self,
-        node: ast.AST,
-        _resolve: typingCallable[[ast.AST], Optional[Value]],
-        _resolve_subscr_target: Optional[
-            typingCallable[[ast.AST], Optional[Class]]
-        ] = None,
-    ) -> Optional[Value]:
-        if isinstance(node, ast.Name):
-            return self.resolve_name(node.id)
-        elif isinstance(node, Subscript):
-            slice = node.slice
-            if isinstance(slice, Index):
-                val = (_resolve_subscr_target or _resolve)(node.value)
-                if val is not None:
-                    value = slice.value
-                    if isinstance(value, ast.Tuple):
-                        anns = []
-                        for elt in value.elts:
-                            ann = _resolve(elt) or DYNAMIC_TYPE
-                            anns.append(ann)
-                        values = tuple(anns)
-                        gen = val.make_generic_type(values, self.compiler.generic_types)
-                        return gen or val
-                    else:
-                        index = _resolve(value) or DYNAMIC_TYPE
-                        if not isinstance(index, Class):
-                            return None
-                        gen = val.make_generic_type(
-                            (index,), self.compiler.generic_types
-                        )
-                        return gen or val
-        elif isinstance(node, ast.Attribute):
-            val = (_resolve_subscr_target or _resolve)(node.value)
-            if val is not None:
-                return val.resolve_attr(node)
+        return self.ref_visitor.visit(node)
 
     def resolve_annotation(
         self,
@@ -248,87 +319,7 @@ class ModuleTable:
             "Type annotations cannot be resolved until after initial pass, "
             "so that all imports and types are available."
         )
-
-        with self.error_context(node):
-            klass = self._resolve_annotation(node)
-
-            if not is_declaration:
-                if isinstance(klass, FinalClass):
-                    raise TypedSyntaxError(
-                        "Final annotation is only valid in initial declaration "
-                        "of attribute or module-level constant",
-                    )
-                if isinstance(klass, ClassVar):
-                    raise TypedSyntaxError(
-                        "ClassVar is allowed only in class attribute annotations. "
-                        "Class Finals are inferred ClassVar; do not nest with Final."
-                    )
-
-            # Even if we know that e.g. `builtins.str` is the exact `str` type and
-            # not a subclass, and it's useful to track that knowledge, when we
-            # annotate `x: str` that annotation should not exclude subclasses.
-            if klass:
-                klass = klass.inexact_type()
-                # PEP-484 specifies that ints should be treated as a subclass of floats,
-                # even though they differ in the runtime. We need to maintain the distinction
-                # between the two internally, so we should view user-specified `float` annotations
-                # as `float | int`. This widening of the type prevents us from applying
-                # optimizations # to user-specified floats, but does not affect ints. Since we
-                # don't optimize Python floats anyway, we accept this to maintain PEP-484 compatibility.
-
-                if klass is FLOAT_TYPE:
-                    klass = UNION_TYPE.make_generic_type(
-                        (FLOAT_TYPE, INT_TYPE), self.compiler.generic_types
-                    )
-
-            # TODO until we support runtime checking of unions, we must for
-            # safety resolve union annotations to dynamic (except for
-            # optionals, which we can check at runtime)
-            if (
-                isinstance(klass, UnionType)
-                and klass is not UNION_TYPE
-                and klass is not OPTIONAL_TYPE
-                and klass.opt_type is None
-            ):
-                return None
-
-            return klass
-
-    def _resolve_annotation(self, node: ast.AST) -> Optional[Class]:
-        # First try to resolve non-annotation-specific forms. For resolving the
-        # outer target of a subscript (e.g. `Final` in `Final[int]`) we pass
-        # `is_declaration=True` to allow `Final` in that position; if in fact
-        # we are not resolving a declaration, the outer `resolve_annotation`
-        # (our caller) will still catch the generic Final that we end up
-        # returning.
-        typ = self._resolve(
-            node,
-            self.resolve_annotation,
-            _resolve_subscr_target=partial(
-                self.resolve_annotation, is_declaration=True
-            ),
-        )
-        if isinstance(typ, Class):
-            return typ
-        elif isinstance(node, ast.Str):
-            # pyre-ignore[16]: `AST` has no attribute `body`.
-            return self.resolve_annotation(ast.parse(node.s, "", "eval").body)
-        elif isinstance(node, ast.Constant):
-            sval = node.value
-            if sval is None:
-                return NONE_TYPE
-            elif isinstance(sval, str):
-                return self.resolve_annotation(ast.parse(node.value, "", "eval").body)
-        elif isinstance(node, NameConstant) and node.value is None:
-            return NONE_TYPE
-        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-            ltype = self.resolve_annotation(node.left)
-            rtype = self.resolve_annotation(node.right)
-            if ltype is None or rtype is None:
-                return None
-            return UNION_TYPE.make_generic_type(
-                (ltype, rtype), self.compiler.generic_types
-            )
+        return self.ann_visitor.resolve_annotation(node, is_declaration=is_declaration)
 
     def resolve_name_with_descr(
         self, name: str
