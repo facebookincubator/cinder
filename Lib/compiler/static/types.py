@@ -372,13 +372,18 @@ class Value:
     def as_oparg(self) -> int:
         raise TypeError(f"{self.name} not valid here")
 
-    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
-        raise TypedSyntaxError(f"cannot load attribute from {self.name}")
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: ReferenceVisitor
+    ) -> Optional[Value]:
+        visitor.syntax_error(f"cannot load attribute from {self.name}", node)
 
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
-        visitor.set_type(node, self.resolve_attr(node) or DYNAMIC)
+        visitor.set_type(
+            node,
+            self.resolve_attr(node, visitor.module.ann_visitor) or DYNAMIC,
+        )
 
     def bind_await(
         self, node: ast.Await, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -402,7 +407,11 @@ class Value:
         visitor.syntax_error(f"cannot get descriptor {self.name}", node)
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         return self
 
@@ -662,11 +671,13 @@ class Object(Value, Generic[TClass]):
     ) -> NarrowingEffect:
         return self.bind_dynamic_call(node, visitor)
 
-    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: ReferenceVisitor
+    ) -> Optional[Value]:
         for base in self.klass.mro:
             member = base.members.get(node.attr)
             if member is not None:
-                res = member.resolve_descr_get(node, self, self.klass)
+                res = member.resolve_descr_get(node, self, self.klass, visitor)
                 if res is not None:
                     return res
 
@@ -714,7 +725,11 @@ class Object(Value, Generic[TClass]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> None:
-        visitor.set_type(node, self.resolve_descr_get(node, inst, ctx) or DYNAMIC)
+        visitor.set_type(
+            node,
+            self.resolve_descr_get(node, inst, ctx, visitor.module.ann_visitor)
+            or DYNAMIC,
+        )
 
     def resolve_subscr(
         self,
@@ -1010,15 +1025,17 @@ class Class(Object["Class"]):
         """Binds the generic type parameters to a generic type definition"""
         return None
 
-    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: ReferenceVisitor
+    ) -> Optional[Value]:
         for base in self.mro:
             member = base.members.get(node.attr)
             if member is not None:
-                res = member.resolve_descr_get(node, None, self)
+                res = member.resolve_descr_get(node, None, self, visitor)
                 if res is not None:
                     return res
 
-        return super().resolve_attr(node)
+        return super().resolve_attr(node, visitor)
 
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -2856,7 +2873,11 @@ class Function(Callable[Class], FunctionContainer):
         code_gen.visit(inlined_call.expr)
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
             return self
@@ -3225,12 +3246,18 @@ class TransparentDecoratedMethod(DecoratedMethod):
         self.function.emit_store_attr_to(node, code_gen, klass)
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
-        return self.function.resolve_descr_get(node, inst, ctx)
+        return self.function.resolve_descr_get(node, inst, ctx, visitor)
 
-    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
-        return self.function.resolve_attr(node)
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: ReferenceVisitor
+    ) -> Optional[Value]:
+        return self.function.resolve_attr(node, visitor)
 
 
 class StaticMethod(DecoratedMethod):
@@ -3253,7 +3280,11 @@ class StaticMethod(DecoratedMethod):
         pass
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
             return self.function
@@ -3322,7 +3353,11 @@ class ClassMethod(DecoratedMethod):
                 visitor.set_param(node.args.args[0], DYNAMIC, scope)
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         return BoundClassMethod(
             self.real_function, ctx, node.value, is_instance_call=inst is not None
@@ -3341,7 +3376,11 @@ class PropertyMethod(DecoratedMethod):
         return self.real_function.qualname
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
             return DYNAMIC_TYPE
@@ -3397,7 +3436,11 @@ class CachedPropertyMethod(DecoratedMethod):
         return self.real_function.qualname
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
             return DYNAMIC_TYPE
@@ -3430,7 +3473,11 @@ class AsyncCachedPropertyMethod(DecoratedMethod):
         return self.real_function.qualname
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
             return DYNAMIC_TYPE
@@ -3719,7 +3766,11 @@ class BuiltinMethodDescriptor(Callable[Class]):
         return NO_EFFECT
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
             return self
@@ -3869,7 +3920,11 @@ class Slot(Object[TClassInv]):
         return self
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None and not self.is_classvar:
             return self
@@ -4668,7 +4723,11 @@ def maybe_emit_sequence_repeat(
 
 class ListAppendMethod(BuiltinMethodDescriptor):
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
             return self
@@ -6633,9 +6692,11 @@ class ModuleInstance(Object["ModuleType"]):
         self.compiler = compiler
         super().__init__(klass=MODULE_TYPE)
 
-    def resolve_attr(self, node: ast.Attribute) -> Optional[Value]:
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: ReferenceVisitor
+    ) -> Optional[Value]:
         if node.attr in self.SPECIAL_NAMES:
-            return super().resolve_attr(node)
+            return super().resolve_attr(node, visitor)
 
         module_table = self.compiler.modules.get(self.module_name)
         if module_table is None:
@@ -6968,9 +7029,13 @@ class ContextDecoratedMethod(DecoratedMethod):
         return self.function.emit_call(node, code_gen)
 
     def resolve_descr_get(
-        self, node: ast.Attribute, inst: Optional[Object[TClassInv]], ctx: TClassInv
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: ReferenceVisitor,
     ) -> Optional[Value]:
-        return self.function.resolve_descr_get(node, inst, ctx)
+        return self.function.resolve_descr_get(node, inst, ctx, visitor)
 
 
 CONTEXT_DECORATOR_TYPE = ContextDecoratorClass()

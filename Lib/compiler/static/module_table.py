@@ -86,7 +86,7 @@ class ReferenceVisitor(GenericVisitor[Optional[Value]]):
     def visitAttribute(self, node: Attribute) -> Optional[Value]:
         val = self.visit(node.value)
         if val is not None:
-            return val.resolve_attr(node)
+            return val.resolve_attr(node, self)
 
 
 class AnnotationVisitor(ReferenceVisitor):
