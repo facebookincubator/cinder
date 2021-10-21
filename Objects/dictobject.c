@@ -2678,10 +2678,9 @@ dict_values(PyDictObject *mp)
         value_ptr = &ep0[0].me_value;
         offset = sizeof(PyDictKeyEntry);
     }
-    if (UNLIKELY(DICT_HAS_DEFERRED(mp))) {
-        if (_PyDict_LoadDeferred(mp) != 0) {
-            return NULL;
-        }
+    if (UNLIKELY(DICT_HAS_DEFERRED(mp))
+        && _PyDict_LoadDeferred(mp) != 0) {
+        return NULL;
     }
     for (i = 0, j = 0; j < n; i++) {
         PyObject *value = *value_ptr;
@@ -2742,10 +2741,9 @@ dict_items(PyDictObject *mp)
         value_ptr = &ep0[0].me_value;
         offset = sizeof(PyDictKeyEntry);
     }
-    if (UNLIKELY(DICT_HAS_DEFERRED(mp))) {
-        if (_PyDict_LoadDeferred(mp) != 0) {
-            return NULL;
-        }
+    if (UNLIKELY(DICT_HAS_DEFERRED(mp))
+        && _PyDict_LoadDeferred(mp) != 0) {
+        return NULL;
     }
     for (i = 0, j = 0; j < n; i++) {
         PyObject *value = *value_ptr;
@@ -2846,8 +2844,12 @@ _PyDict_LoadDeferred(PyDictObject *dp)
     PyObject *item, *key, *value;
     PyObject *new_value;
     Py_ssize_t i, n = 0;
+    Py_ssize_t nentries;
 
     assert(DICT_HAS_DEFERRED(dp));
+
+top:
+    nentries = dp->ma_keys->dk_nentries;
 
     /* try importing as many deferredd objects as possible */
     v = dict_deferred_items(dp);
@@ -2877,6 +2879,9 @@ _PyDict_LoadDeferred(PyDictObject *dp)
                         if (spec != NULL) {
                             if (_PyModuleSpec_IsInitializing(spec)) {
                                 /* skip error if module is being initialized */
+                                Py_XDECREF(et);
+                                Py_XDECREF(ev);
+                                Py_XDECREF(tb);
                                 continue;
                             }
                         }
@@ -2886,6 +2891,9 @@ _PyDict_LoadDeferred(PyDictObject *dp)
                 if (strstr(PyUnicode_AsUTF8(es), "(most likely due to a circular import)") != NULL) {
                     /* skip circular-import related errors */
                     Py_DECREF(es);
+                    Py_XDECREF(et);
+                    Py_XDECREF(ev);
+                    Py_XDECREF(tb);
                     continue;
                 }
                 Py_DECREF(es);
@@ -2897,6 +2905,11 @@ _PyDict_LoadDeferred(PyDictObject *dp)
     }
     Py_DECREF(v);
 
+    if (nentries != dp->ma_keys->dk_nentries) {
+        /* The dict has mutated, try again */
+        goto top;
+    }
+
     /* check to see if we're done with the deferred objects in the dictionary */
     v = dict_deferred_items(dp);
     if (v == NULL) {
@@ -2906,7 +2919,6 @@ _PyDict_LoadDeferred(PyDictObject *dp)
     if (n == 0) {
         _PyDict_UnsetHasDeferredObjects((PyObject *)dp);
     }
-
     return n;
 }
 
