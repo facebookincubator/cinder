@@ -1456,6 +1456,11 @@ _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
     return 0;
 }
 
+int is_static_type(PyTypeObject *type) {
+    return (type->tp_flags & (Py_TPFLAGS_IS_STATICALLY_DEFINED|Py_TPFLAGS_GENERIC_TYPE_INST)) ||
+        !(type->tp_flags & Py_TPFLAGS_HEAPTYPE);
+}
+
 _PyType_VTable *
 _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
 {
@@ -1476,9 +1481,19 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
         /* TODO: Non-type objects in mro? */
         /* TODO: Multiple inheritance */
 
-        /* Get the size of the next element in our mro, we'll build on it */
-        PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(self->tp_mro, 1);
+        /* Get the size of the next element which is a static class
+         * in our mro, we'll build on it.  We don't care about any
+         * non-static classes because we don't generate invokes to them */
+        PyTypeObject *next;
+        for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(self->tp_mro); i++) {
+            next = (PyTypeObject *)PyTuple_GET_ITEM(self->tp_mro, i);
+            if (is_static_type(next)) {
+                break;
+            }
+        }
+
         assert(PyType_Check(next));
+        assert(is_static_type(next));
         if (next != &PyBaseObject_Type) {
             _PyType_VTable *base_vtable = (_PyType_VTable *)next->tp_cache;
             if (base_vtable == NULL) {
@@ -1518,8 +1533,7 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
         return NULL;
     }
 
-    if ((self->tp_flags & (Py_TPFLAGS_IS_STATICALLY_DEFINED|Py_TPFLAGS_GENERIC_TYPE_INST)) ||
-        !(self->tp_flags & Py_TPFLAGS_HEAPTYPE)) {
+    if (is_static_type(self)) {
         if (_PyClassLoader_UpdateSlotMap(self, slotmap)) {
             Py_DECREF(slotmap);
             return NULL;

@@ -161,6 +161,67 @@ class NonStaticInheritanceTests(StaticTestBase):
             self.assertEqual(f(D()), None)
             self.assertEqual(D().f(), 42)
 
+    def test_nonstatic_multiple_inheritance_invoke(self):
+        """multiple inheritance from non-static classes should
+        result in only static classes in the v-table"""
+
+        codestr = """
+        def f(x: str):
+            return x.encode('utf8')
+        """
+
+        class C:
+            pass
+
+        class D(C, str):
+            pass
+
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(D("abc")), b"abc")
+
+    def test_nonstatic_multiple_inheritance_invoke_static_base(self):
+        codestr = """
+        class B:
+            def f(self):
+                return 42
+
+        def f(x: B):
+            return x.f()
+        """
+
+        class C:
+            def f(self):
+                return "abc"
+
+        with self.in_module(codestr) as mod:
+
+            class D(C, mod.B):
+                pass
+
+            self.assertEqual(mod.f(D()), "abc")
+
+    def test_nonstatic_multiple_inheritance_invoke_static_base_2(self):
+        codestr = """
+        class B:
+            def f(self):
+                return 42
+
+        def f(x: B):
+            return x.f()
+        """
+
+        class C:
+            def f(self):
+                return "abc"
+
+        with self.in_module(codestr) as mod:
+
+            class D(C, mod.B):
+                def f(self):
+                    return "foo"
+
+            self.assertEqual(mod.f(D()), "foo")
+
 
 if __name__ == "__main__":
 
