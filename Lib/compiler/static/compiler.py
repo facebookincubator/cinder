@@ -192,6 +192,9 @@ class Compiler:
         }
 
         builtins_children["<builtins>"] = strict_builtins
+        self.modules["strict_modules"] = self.modules["__strict__"] = ModuleTable(
+            "strict_modules", "<strict-modules>", self, strict_modules_children
+        )
         fixed_modules: Dict[str, Value] = {
             "typing": StrictBuiltins(typing_children),
             "__strict__": StrictBuiltins(strict_modules_children),
