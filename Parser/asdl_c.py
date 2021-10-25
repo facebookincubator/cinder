@@ -567,311 +567,6 @@ class MarshalPrototypeVisitor(PickleVisitor):
 
     visitProduct = visitSum = prototype
 
-def get_define(name):
-    return f"INDEX_{name}"
-
-def generate_set_type_index(var, name):
-    return f"((AST_object*){var})->method_index = {get_define(name)};"
-
-class GenerateDefinesAndIdsVisitor(PickleVisitor):
-
-    def write_next_name_and_id(self, id, name):
-        self.emit(f"_Py_IDENTIFIER({id});", 0)
-        self.emit(f"#define {get_define(name)} {self.counter}", 0)
-        self.counter += 1
-
-    def write_next(self, name):
-        self.write_next_name_and_id("visit_" + name, name)
-
-    def visitModule(self, mod):
-        self.counter = 0
-        super().visitModule(mod)
-        # add two more entries to access standard methods
-        # from nodevisitor
-        self.write_next_name_and_id("visit", "visit")
-        self.write_next_name_and_id("generic_visit", "generic_visit")
-        self.emit(f"#define NUM_METHODS {self.counter}", 0)
-
-    def visitProduct(self, prod, name):
-        self.write_next(name)
-
-    def visitSum(self, sum, name):
-        self.write_next(name);
-        for t in sum.types:
-            self.visitConstructor(t, name)
-
-    def visitConstructor(self, cons, name):
-        self.write_next(cons.name);
-
-
-class EmitNodeVisitorDispatchTable(PickleVisitor):
-    def visitModule(self, mod):
-        self.emit("""// forward decl
-typedef PyObject* (*thunk_f)(PyObject *node, PyObject *visitor,
-    struct _Py_Identifier *id, PyObject *method);
-
-typedef struct dispatch_table_entry {
-    thunk_f thunk;
-    struct _Py_Identifier *id;
-    PyObject *method_descr;
-} dispatch_table_entry;
-
-typedef struct {
-    PyObject_HEAD;
-    PyTypeObject *type;
-    uint64_t type_version;
-    dispatch_table_entry entries[NUM_METHODS];
-} NodeVisitorDispatchTable;
-
-typedef struct {
-    PyObject_HEAD
-    NodeVisitorDispatchTable *dispatch_table;
-    PyObject *dict;
-} NodeVisitorObject;
-
-typedef enum {
-    AST_YES,
-    AST_NO,
-    AST_UNKNOWN
-} AST_CHECK_RESULT;
-
-static PyObject*
-invoke_generic_visit(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check);
-
-static PyObject*
-invoke_visit(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check);
-
-static PyObject*
-call_method_or_function_thunk(PyObject *node, NodeVisitorObject *visitor,
-    struct _Py_Identifier *Py_UNUSED(id), PyObject *method_or_func)
-{
-    assert(method_or_func != NULL);
-    assert(PyFunction_Check(method_or_func) || Py_TYPE(method_or_func) == &PyMethodDescr_Type);
-    PyObject *args[2] = { (PyObject*)visitor, node };
-    return _PyObject_Vectorcall(method_or_func, args, 2, NULL);
-}
-
-static PyObject*
-invoke_generic_visit_thunk(PyObject *node, NodeVisitorObject *visitor,
-    struct _Py_Identifier *Py_UNUSED(id), PyObject *method)
-{
-    assert(method == NULL);
-    return invoke_generic_visit(node, visitor, AST_YES);
-}
-
-static PyObject*
-call_or_fallback_thunk(PyObject *node, NodeVisitorObject *visitor,
-    struct _Py_Identifier *id, PyObject *method)
-{
-    assert(method == NULL);
-    PyObject *callable;
-    int ok = _PyObject_LookupAttrId((PyObject*)visitor, id, &callable);
-    if (ok < 0) {
-        return NULL;
-    }
-    if (ok) {
-        PyObject *res = _PyObject_Vectorcall(callable, &node, 1, NULL);
-        Py_DECREF(callable);
-        return res;
-    }
-    return invoke_generic_visit(node, visitor, AST_YES);
-}
-
-static PyObject*
-call_or_error_thunk(PyObject *node, NodeVisitorObject *visitor,
-    struct _Py_Identifier *id, PyObject *method)
-{
-    assert(method == NULL);
-    PyObject *callable = _PyObject_GetAttrId((PyObject*)visitor, id);
-    if (callable == NULL) {
-        return NULL;
-    }
-    PyObject *res = _PyObject_Vectorcall(callable, &node, 1, NULL);
-    Py_DECREF(callable);
-    return res;
-}
-
-static int
-nodevisitor_dispatch_table_traverse(NodeVisitorDispatchTable *self,
-    visitproc visit, void* arg)
-{
-    Py_VISIT(self->type);
-    for (Py_ssize_t i = 0; i < NUM_METHODS; ++i) {
-        Py_VISIT(self->entries[i].method_descr);
-    }
-    return 0;
-}
-
-static int
-nodevisitor_dispatch_table_clear(NodeVisitorDispatchTable *self)
-{
-    Py_CLEAR(self->type);
-    for (Py_ssize_t i = 0; i < NUM_METHODS; ++i) {
-        Py_CLEAR(self->entries[i].method_descr);
-    }
-    return 0;
-}
-
-static void
-nodevisitor_dispatch_table_dealloc(NodeVisitorDispatchTable *self)
-{
-    PyObject_GC_UnTrack(self);
-    (void)nodevisitor_dispatch_table_clear(self);
-    PyObject_GC_Del(self);
-}
-
-static PyTypeObject _NodeVisitorTable_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "nodevisitor_dispatch_table",
-    .tp_doc = "nodevisitor_dispatch_table",
-    .tp_basicsize = sizeof(NodeVisitorDispatchTable),
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
-    .tp_dealloc = (destructor)nodevisitor_dispatch_table_dealloc,
-    .tp_traverse = (traverseproc)nodevisitor_dispatch_table_traverse,
-    .tp_clear = (inquiry)nodevisitor_dispatch_table_clear
-};
-
-static PyObject *node_visitor_tables;
-static PyObject *node_visitor_method_names;
-
-static int initialize_entry(PyObject *o, struct _Py_Identifier *id,
-    dispatch_table_entry *entry,
-    thunk_f call_if_missing,
-    thunk_f call_if_unknown)
-{
-    PyObject *callable = NULL;
-    int ok = _PyObject_LookupAttrId(o, id, &callable);
-    if (ok < 0) {
-        return -1;
-    }
-    Py_CLEAR(entry->method_descr);
-    entry->id = id;
-    if (callable == NULL) {
-        entry->thunk = call_if_missing;
-        entry->method_descr = NULL;
-        return 0;
-    }
-    if (Py_TYPE(callable) == &PyMethodDescr_Type || PyFunction_Check(callable)) {
-        entry->thunk = (thunk_f)call_method_or_function_thunk;
-        entry->method_descr = callable;
-    }
-    else {
-        Py_DECREF(callable);
-        entry->thunk = call_if_unknown;
-        entry->method_descr = NULL;
-    }
-    return 0;
-}
-
-static int
-initialize_nodevisitor_table(PyTypeObject *type, NodeVisitorDispatchTable *existing_table)
-{
-    NodeVisitorDispatchTable *table = existing_table;
-    if (table == NULL) {
-        table = (NodeVisitorDispatchTable*)_PyObject_GC_New(&_NodeVisitorTable_Type);
-        if (table == NULL) {
-            return -1;
-        }
-        memset(table->entries, 0, NUM_METHODS * sizeof(dispatch_table_entry));
-    }
-""", 0, reflow=False)
-
-        super().visitModule(mod)
-
-        self.emit("""
-    if (initialize_entry((PyObject*)type, &PyId_visit,
-        &table->entries[INDEX_visit], (thunk_f)call_or_error_thunk,
-        (thunk_f)call_or_error_thunk) < 0)
-        goto fail;
-    if (initialize_entry((PyObject*)type, &PyId_generic_visit,
-        &table->entries[INDEX_generic_visit], (thunk_f)call_or_error_thunk,
-        (thunk_f)call_or_error_thunk) < 0)
-        goto fail;
-
-    if (existing_table != NULL) {
-        return 0;
-    }
-
-    int ok = PyDict_SetItem(node_visitor_tables, (PyObject*)type, (PyObject*)table);
-    Py_DECREF(table);
-    if (ok < 0) {
-        return -1;
-    }
-    table->type = type;
-    Py_INCREF(type);
-    if (PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
-        table->type_version = type->tp_version_tag;
-    }
-    else {
-        table->type_version = 0;
-    }
-    PyObject_GC_Track(table);
-    return 0;
-
-fail:
-    Py_DECREF(table);
-    return -1;
-}""", 0, reflow=False)
-
-    def emit_entry(self, name):
-        self.emit(f"if (initialize_entry((PyObject*)type, &PyId_visit_{name}, "
-                   f"&table->entries[{get_define(name)}],"
-                   " (thunk_f)invoke_generic_visit_thunk, "
-                   "(thunk_f)call_or_fallback_thunk) < 0)", 1)
-        self.emit("goto fail;", 2)
-
-    def visitProduct(self, prod, name):
-        self.emit_entry(name);
-
-    def visitSum(self, sum, name):
-        self.emit_entry(name);
-        for t in sum.types:
-            self.visitConstructor(t, name)
-
-    def visitConstructor(self, cons, name):
-        self.emit_entry(cons.name);
-
-
-class InitForwardDeclVisitor(PickleVisitor):
-
-    def emit_init_impl(self, name):
-        self.emit(f"static int {name}_type_init(PyObject *self, PyObject *args, PyObject *kwargs);", 0)
-
-    def visitProduct(self, prod, name):
-        self.emit_init_impl(name);
-
-    def visitSum(self, sum, name):
-        self.emit_init_impl(name);
-        for t in sum.types:
-            self.visitConstructor(t, name)
-
-    def visitConstructor(self, cons, name):
-        self.emit_init_impl(cons.name);
-
-
-class InitImplVisitor(PickleVisitor):
-
-    def emit_init_impl(self, name, super):
-        self.emit(f"static int {name}_type_init(PyObject *self, PyObject *args, PyObject *kwargs) {{", 0)
-        self.emit(f"int ok = {super}_type_init(self, args, kwargs);", 1)
-        self.emit("if (ok < 0) return ok;", 1)
-        self.emit(f"((AST_object*)self)->method_index =", 1)
-        self.emit(f"Py_TYPE(self) == (PyTypeObject*){name}_type ? {get_define(name)} : -1;", 2)
-        self.emit("return 0;", 1)
-        self.emit("}", 0)
-
-    def visitProduct(self, prod, name):
-        self.emit_init_impl(name, "ast");
-
-    def visitSum(self, sum, name):
-        self.emit_init_impl(name, "ast");
-        for t in sum.types:
-            self.visitConstructor(t, name)
-
-    def visitConstructor(self, cons, name):
-        self.emit_init_impl(cons.name, name);
-
-
 
 class PyTypesDeclareVisitor(PickleVisitor):
 
@@ -928,266 +623,13 @@ class PyTypesVisitor(PickleVisitor):
 
     def visitModule(self, mod):
         self.emit("""
-typedef struct {
-    PyTypeObject *type;
-    uint64_t type_version;
-    PyObject *field_descriptors;
-} pinned_node_type_properties;
-
-static pinned_node_type_properties NODE_TYPES_PROPS[NUM_METHODS];
-
 _Py_IDENTIFIER(_fields);
 _Py_IDENTIFIER(_attributes);
 
-static PyTypeObject NodeVisitor_type;
-
-// forward decls
-static PyObject*
-invoke_visit(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check);
-
-static int
-invoke_visit_skip_non_ast(PyObject *node, NodeVisitorObject *visitor)
-{
-    int ok = PyObject_IsInstance(node, (PyObject*)&AST_type);
-    if (ok < 0) {
-        return -1;
-    }
-    if (ok) {
-        PyObject *res = invoke_visit(node, visitor, AST_YES);
-        if (res == NULL) {
-            return -1;
-        }
-        Py_DECREF(res);
-    }
-    return 0;
-}
-
-static int generic_visit_child(PyObject *node, NodeVisitorObject *visitor)
-{
-    if (PyList_Check(node)) {
-        Py_ssize_t len = PyList_GET_SIZE(node);
-        for (Py_ssize_t i = 0; i < len; ++i) {
-            PyObject *li = PyList_GET_ITEM(node, i); // borrowed
-            if (li == NULL) {
-                return -1;
-            }
-            int ok = invoke_visit_skip_non_ast(li, visitor);
-            if (ok < 0) {
-                return -1;
-            }
-        }
-    }
-    else {
-        int ok = invoke_visit_skip_non_ast(node, visitor);
-        if (ok < 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-// default implementation of generic_visit
-// iterates over node._fields and calls 'visit' for each item
-static PyObject *
-default_generic_visit(PyObject *node, NodeVisitorObject *visitor)
-{
-    PyObject *item = NULL, *iter = NULL;
-
-    PyObject *fields = _PyObject_GetAttrId(node, &PyId__fields);
-    if (fields == NULL) {
-        return NULL;
-    }
-    iter = PyObject_GetIter(fields);
-    Py_DECREF(fields);
-    if (iter == NULL) {
-        return NULL;
-    }
-
-    PyObject *name;
-    while ((name = PyIter_Next(iter))) {
-        int ok = _PyObject_LookupAttr(node, name, &item);
-        Py_DECREF(name);
-        if (ok < 0) {
-            Py_DECREF(iter);
-            return NULL;
-        }
-        if (item == NULL) {
-            continue;
-        }
-        ok = generic_visit_child(item, visitor);
-        Py_DECREF(item);
-        if (ok < 0) {
-            Py_DECREF(iter);
-            return NULL;
-        }
-    }
-    Py_DECREF(iter);
-    Py_RETURN_NONE;
-}
-
-// default implementation of visit
-// builds target methods name as 'visit_' + node.__class__.__name__
-// and tries to invoke it on visitor
-// calls generic_visit if method does not exist
-static PyObject *
-default_visit(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check) {
-    _Py_IDENTIFIER(__class__);
-    _Py_IDENTIFIER(__name__);
-    _Py_IDENTIFIER(visit_);
-    PyObject *visit_str = _PyUnicode_FromId(&PyId_visit_);
-    if (visit_str == NULL) {
-        return NULL;
-    }
-    PyObject *node_class = _PyObject_GetAttrId(node, &PyId___class__);
-    if (node_class == NULL) {
-        return NULL;
-    }
-    PyObject *node_class_name = _PyObject_GetAttrId(node_class, &PyId___name__);
-    Py_DECREF(node_class);
-    if (node_class_name == NULL) {
-        return NULL;
-    }
-    PyObject *method_name = PyUnicode_Concat(visit_str, node_class_name);
-    Py_DECREF(node_class_name);
-    if (method_name == NULL) {
-        return NULL;
-    }
-    PyObject *callable;
-    int ok = _PyObject_LookupAttr((PyObject*)visitor, method_name, &callable);
-    Py_DECREF(method_name);
-    if (ok < 0) {
-        return NULL;
-    }
-    if (callable) {
-        PyObject *args[1] = {node};
-        PyObject *result = _PyObject_FastCallDict(callable, args, 1, NULL);
-        Py_DECREF(callable);
-        return result;
-    }
-    else {
-        return invoke_generic_visit(node, visitor, ast_check);
-    }
-}
-
-// specialized version of generic_visit that uses fixed set of properties
-// represented by descriptors
-static PyObject*
-visit_children(PyObject *node, NodeVisitorObject *visitor, PyObject *descriptors)
-{
-    assert(PyTuple_CheckExact(descriptors));
-
-    Py_ssize_t len = PyTuple_GET_SIZE(descriptors);
-    for (Py_ssize_t i = 0; i < len; ++i) {
-        PyObject *descr = (PyObject*)PyTuple_GET_ITEM(descriptors, i);
-        assert(Py_TYPE(descr) == &PyMemberDescr_Type);
-        PyObject *val = Py_TYPE(descr)->tp_descr_get(descr, node, Py_None);
-        if (val == NULL) {
-            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-                PyErr_Clear();
-                continue;
-            }
-            else {
-                return NULL;
-            }
-        }
-        int ok = generic_visit_child(val, visitor);
-        Py_DECREF(val);
-        if (ok < 0) {
-            return NULL;
-        }
-    }
-    Py_RETURN_NONE;
-}
-
 typedef struct {
     PyObject_HEAD
-    int method_index;
     PyObject *dict;
 } AST_object;
-
-static PyObject *
-node_visitor_generic_visit_impl(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check)
-{
-    if (ast_check == AST_UNKNOWN) {
-        int ok = PyObject_IsInstance(node, (PyObject*)&AST_type);
-        if (ok < 0) {
-            return NULL;
-        }
-        ast_check = ok ? AST_YES : AST_NO;
-    }
-    if (ast_check == AST_YES && ((AST_object*)node)->method_index != -1) {
-        pinned_node_type_properties *props = &NODE_TYPES_PROPS[((AST_object*)node)->method_index];
-        // if node is one of standard AST types
-        // and type dict was not modified - we can use slot descriptors to access fields
-        PyObject **dictptr = _PyObject_GetDictPtr(node);
-        if (props != NULL &&
-            // type of node was not changed
-            Py_TYPE(node) == props->type &&
-            PyType_HasFeature(Py_TYPE(node), Py_TPFLAGS_VALID_VERSION_TAG) &&
-            // set of properties on the type was not changed
-            Py_TYPE(node)->tp_version_tag == props->type_version &&
-            // instance does not have any extra props
-            (dictptr == NULL || *dictptr == NULL || PyDict_GET_SIZE(*dictptr) == 0)
-        ) {
-            return visit_children(node, visitor, props->field_descriptors);
-        }
-    }
-    return default_generic_visit(node, visitor);
-}
-
-static NodeVisitorDispatchTable *
-prepare_dispatch_table(NodeVisitorObject *visitor, int* has_error) {
-    // 1. get current dispatch table
-    *has_error = 0;
-    NodeVisitorDispatchTable *t = visitor->dispatch_table;
-    PyTypeObject *type = Py_TYPE(visitor);
-    // dispatch table is missing or target type is different from visitor type
-    if (t == NULL || type != t->type) {
-        return NULL;
-    }
-    if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
-        return NULL;
-    }
-    if (type->tp_version_tag != t->type_version) {
-        // actualize dispatch table
-        if (initialize_nodevisitor_table(type, t) < 0) {
-            *has_error = 1;
-            return NULL;
-        }
-        t->type_version = type->tp_version_tag;
-    }
-
-    return t;
-}
-
-static PyObject*
-node_visitor_visit_impl(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check)
-{
-    if (ast_check == AST_UNKNOWN) {
-        int ok = PyObject_IsInstance(node, (PyObject*)&AST_type);
-        if (ok < 0) {
-            return NULL;
-        }
-        ast_check = ok ? AST_YES : AST_NO;
-    }
-    if (ast_check == AST_NO) {
-        return default_visit(node, visitor, AST_NO);
-    }
-    int method_index =
-        ((AST_object*)node)->method_index;
-    int has_error;
-    NodeVisitorDispatchTable *dispatch_table =
-        prepare_dispatch_table((NodeVisitorObject*)visitor, &has_error);
-    if (has_error) {
-        return NULL;
-    }
-    if (method_index == -1 ||
-        dispatch_table == NULL) {
-        return default_visit(node, visitor, AST_YES);
-    }
-    dispatch_table_entry *e = &dispatch_table->entries[method_index];
-    return e->thunk(node, (PyObject*)visitor, e->id, e->method_descr);
-}
 
 static void
 ast_dealloc(AST_object *self)
@@ -1283,118 +725,22 @@ ast_type_init(PyObject *self, PyObject *args, PyObject *kw)
 }
 
 /* Pickling support */
-static int try_add_attributes(PyObject *names, PyObject *self, PyObject **pdict)
-{
-    if (names && PyTuple_Check(names) && PyTuple_GET_SIZE(names) > 0) {
-        PyObject *dict = *pdict;
-        if (dict == NULL) {
-            dict = PyDict_New();
-            if (dict == NULL) {
-                return -1;
-            }
-        }
-        for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(names); ++i) {
-            PyObject *key = PyTuple_GET_ITEM(names, i);
-            PyObject *v;
-            if (_PyObject_LookupAttr(self, key, &v) < 0) {
-                if (*pdict == NULL) {
-                    Py_DECREF(dict);
-                }
-                return -1;
-            }
-            if (v != NULL) {
-                int ok = PyDict_SetItem(dict, key, v);
-                Py_DECREF(v); // first for set_item
-                if (ok < 0) {
-                    if (*pdict == NULL) {
-                        Py_DECREF(dict);
-                    }
-                    return -1;
-                }
-            }
-        }
-        if (*pdict == NULL) {
-            *pdict = dict;
-        }
-    }
-    return 0;
-}
-
 static PyObject *
-ast_type_reduce(PyObject *self, PyObject *Py_UNUSED(unused))
+ast_type_reduce(PyObject *self, PyObject *unused)
 {
     _Py_IDENTIFIER(__dict__);
-    _Py_IDENTIFIER(_fields);
-    _Py_IDENTIFIER(_attributes);
-    PyObject *dict_acc = NULL, *obj_dict = NULL;
-
-    PyObject *fields;
-    if (_PyObject_LookupAttrId((PyObject*)Py_TYPE(self), &PyId__fields, &fields) < 0) {
+    PyObject *dict;
+    if (_PyObject_LookupAttrId(self, &PyId___dict__, &dict) < 0) {
         return NULL;
     }
-    if (try_add_attributes(fields, self, &dict_acc) < 0) {
-        Py_DECREF(fields);
-        return NULL;
-    }
-    Py_CLEAR(fields);
-
-    PyObject *attributes;
-    if (_PyObject_LookupAttrId((PyObject*)Py_TYPE(self), &PyId__attributes, &attributes) < 0) {
-        Py_XDECREF(dict_acc);
-        return NULL;
-    }
-    if (try_add_attributes(attributes, self, &dict_acc) < 0) {
-        Py_DECREF(attributes);
-        Py_XDECREF(dict_acc);
-        return NULL;
-    }
-    Py_CLEAR(attributes);
-
-    if (_PyObject_LookupAttrId(self, &PyId___dict__, &obj_dict) < 0) {
-        Py_DECREF(dict_acc);
-        return NULL;
-    }
-
-    if (obj_dict) {
-        if (dict_acc) {
-            if (PyDict_Merge(dict_acc, obj_dict, 0) < 0) {
-                Py_DECREF(dict_acc);
-                Py_DECREF(obj_dict);
-                return NULL;
-            }
-            Py_DECREF(obj_dict);
-        }
-        else {
-            dict_acc = obj_dict;
-        }
-    }
-
-    if (dict_acc) {
-        return Py_BuildValue("O()N", Py_TYPE(self), dict_acc);
+    if (dict) {
+        return Py_BuildValue("O()N", Py_TYPE(self), dict);
     }
     return Py_BuildValue("O()", Py_TYPE(self));
 }
 
-static PyObject *
-ast_type_setstate(PyObject *self, PyObject *state)
-{
-    if (!PyDict_Check(state)) {
-        PyErr_SetString(PyExc_TypeError, "state is not a dict");
-        return NULL;
-    }
-    Py_ssize_t ppos = 0;
-    PyObject *key, *value;
-    while (PyDict_Next(state, &ppos, &key, &value)) {
-        if (PyObject_SetAttr(self, key, value) < 0) {
-            return NULL;
-        }
-    }
-    Py_RETURN_NONE;
-}
-
 static PyMethodDef ast_type_methods[] = {
     {"__reduce__", ast_type_reduce, METH_NOARGS, NULL},
-    {"__setstate__", ast_type_setstate, METH_O, NULL},
     {NULL}
 };
 
@@ -1445,116 +791,30 @@ static PyTypeObject AST_type = {
     PyObject_GC_Del,         /* tp_free */
 };
 
-static struct wrapperbase init_wrapper_descr = {
-    .name = "__init__"
-};
 
-static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields,
-    int num_fields, char**attrs, int num_attrs, initproc init)
+static PyTypeObject* make_type(char *type, PyTypeObject* base, char**fields, int num_fields)
 {
     _Py_IDENTIFIER(__module__);
     _Py_IDENTIFIER(_ast);
-    _Py_IDENTIFIER(__slots__);
-    _Py_IDENTIFIER(__init__);
-
-    PyObject *fnames, *result, *slots;
+    PyObject *fnames, *result;
     int i;
     fnames = PyTuple_New(num_fields);
     if (!fnames) return NULL;
-    slots = PyTuple_New(num_fields + num_attrs);
-    if (!slots) {
-        Py_DECREF(fnames);
-        return NULL;
-    }
     for (i = 0; i < num_fields; i++) {
         PyObject *field = PyUnicode_FromString(fields[i]);
         if (!field) {
             Py_DECREF(fnames);
-            Py_DECREF(slots);
             return NULL;
         }
         PyTuple_SET_ITEM(fnames, i, field);
-
-        PyTuple_SET_ITEM(slots, i, field);
-        Py_INCREF(field);
     }
-    for (i = 0; i < num_attrs; i++) {
-        PyObject *attr = PyUnicode_FromString(attrs[i]);
-        if (!attr) {
-            Py_DECREF(fnames);
-            Py_DECREF(slots);
-            return NULL;
-        }
-        PyTuple_SET_ITEM(slots, i + num_fields, attr);
-    }
-
-    PyObject *init_name = _PyUnicode_FromId(&PyId___init__);
-    if (init_name == NULL) {
-        Py_DECREF(fnames);
-        Py_DECREF(slots);
-        return NULL;
-    }
-
-    PyObject *init_wrapper = PyDescr_NewWrapper(
-        &AST_type,
-        &init_wrapper_descr,
-        (void*)init
-    );
-    if (init_wrapper == NULL) {
-        Py_DECREF(fnames);
-        Py_DECREF(slots);
-        return NULL;
-    }
-    result = PyObject_CallFunction((PyObject*)&PyType_Type, "s(O){OOOOOOOO}",
+    result = PyObject_CallFunction((PyObject*)&PyType_Type, "s(O){OOOO}",
                     type, base,
                     _PyUnicode_FromId(&PyId__fields), fnames,
                     _PyUnicode_FromId(&PyId___module__),
-                    _PyUnicode_FromId(&PyId__ast),
-                    _PyUnicode_FromId(&PyId___slots__), slots,
-                    _PyUnicode_FromId(&PyId___init__), init_wrapper);
-    Py_DECREF(init_wrapper);
+                    _PyUnicode_FromId(&PyId__ast));
     Py_DECREF(fnames);
-    Py_DECREF(slots);
-
     return (PyTypeObject*)result;
-}
-
-static int pin_type_properties(PyTypeObject *type, Py_ssize_t type_index)
-{
-    PyObject *fields = _PyObject_GetAttrId((PyObject*)type, &PyId__fields);
-    if (fields == NULL) {
-        return -1;
-    }
-    assert(PyTuple_CheckExact(fields));
-    Py_ssize_t num_fields = PyTuple_GET_SIZE(fields);
-
-    PyObject *descriptors = PyTuple_New(num_fields);
-    if (descriptors == NULL) {
-        return -1;
-    }
-    for (Py_ssize_t i = 0; i < num_fields; ++i) {
-        PyObject *name = PyTuple_GET_ITEM(fields, i);
-        PyObject *descr = PyObject_GetAttr((PyObject*)type, name);
-        if (descr == NULL) {
-            Py_DECREF(fields);
-            Py_DECREF(descriptors);
-            return -1;
-        }
-        PyTuple_SET_ITEM(descriptors, i, descr);
-    }
-
-    Py_DECREF(fields);
-    pinned_node_type_properties *props = &NODE_TYPES_PROPS[type_index];
-    props->type = type;
-    Py_INCREF(type);
-    if (PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
-        props->type_version = type->tp_version_tag;
-    }
-    else {
-        props->type_version = 0;
-    }
-    props->field_descriptors = descriptors;
-    return 0;
 }
 
 static int add_attributes(PyTypeObject* type, char**attrs, int num_fields)
@@ -1680,19 +940,6 @@ static int add_ast_fields(void)
     PyObject *empty_tuple, *d;
     if (PyType_Ready(&AST_type) < 0)
         return -1;
-
-    PyObject *ast_init = PyObject_GetAttrString((PyObject*)&AST_type, "__init__");
-    if (ast_init == NULL) return -1;
-    PyObject *init_name = PyUnicode_InternFromString("__init__");
-    if (init_name == NULL) return -1;
-    init_wrapper_descr.name_strobj = init_name;
-    init_wrapper_descr.offset = ((PyWrapperDescrObject*)ast_init)->d_base->offset;
-    init_wrapper_descr.function = ((PyWrapperDescrObject*)ast_init)->d_base->function;
-    init_wrapper_descr.flags = ((PyWrapperDescrObject*)ast_init)->d_base->flags;
-    init_wrapper_descr.wrapper = ((PyWrapperDescrObject*)ast_init)->d_base->wrapper;
-
-    Py_DECREF(ast_init);
-
     d = AST_type.tp_dict;
     empty_tuple = PyTuple_New(0);
     if (!empty_tuple ||
@@ -1711,10 +958,6 @@ static int add_ast_fields(void)
         self.emit("static int init_types(void)",0)
         self.emit("{", 0)
         self.emit("if (initialized) return 1;", 1)
-        self.emit("if ((node_visitor_tables = PyDict_New()) == NULL) return 0;", 1)
-        self.emit("if ((node_visitor_method_names = PySet_New(NULL)) == NULL) return 0;", 1)
-        self.emit("if (PyType_Ready(&NodeVisitor_type) < 0) return 0;", 1)
-        self.emit("if (PyType_Ready(&_NodeVisitorTable_Type) < 0) return 0;", 1)
         self.emit("if (add_ast_fields() < 0) return 0;", 1)
         for dfn in mod.dfns:
             self.visit(dfn)
@@ -1722,43 +965,29 @@ static int add_ast_fields(void)
         self.emit("return 1;", 1);
         self.emit("}", 0)
 
-        self.emit("static void module_free(void *m) {", 0)
-        self.emit("Py_CLEAR(node_visitor_tables);", 1)
-        self.emit("Py_CLEAR(node_visitor_method_names);", 1)
-        self.emit("for (Py_ssize_t i = 0; i < NUM_METHODS; ++i) {", 1)
-        self.emit("Py_CLEAR(NODE_TYPES_PROPS[i].type);", 2)
-        self.emit("Py_CLEAR(NODE_TYPES_PROPS[i].field_descriptors);", 2)
-        self.emit("}", 1)
-        self.emit("initialized = 0;", 1)
-        self.emit("}",0)
-
     def visitProduct(self, prod, name):
         if prod.fields:
             fields = name+"_fields"
         else:
             fields = "NULL"
-        attrs, attr_len = attr_array_name_and_len(name, prod.attributes)
-        self.emit('%s_type = make_type("%s", &AST_type, %s, %d, %s, %d,%s_type_init);' %
-                        (name, name, fields, len(prod.fields), attrs, attr_len, name), 1)
+        self.emit('%s_type = make_type("%s", &AST_type, %s, %d);' %
+                        (name, name, fields, len(prod.fields)), 1)
         self.emit("if (!%s_type) return 0;" % name, 1)
         if prod.attributes:
             self.emit("if (!add_attributes(%s_type, %s_attributes, %d)) return 0;" %
                             (name, name, len(prod.attributes)), 1)
         else:
             self.emit("if (!add_attributes(%s_type, NULL, 0)) return 0;" % name, 1)
-        self.emit(f"if (pin_type_properties({name}_type, {get_define(name)}) < 0) return 0;", 1)
 
     def visitSum(self, sum, name):
-        attrs, attr_len = attr_array_name_and_len(name, sum.attributes)
-        self.emit('%s_type = make_type("%s", &AST_type, NULL, 0, %s, %d, %s_type_init);' %
-                  (name, name, attrs, attr_len, name), 1)
+        self.emit('%s_type = make_type("%s", &AST_type, NULL, 0);' %
+                  (name, name), 1)
         self.emit("if (!%s_type) return 0;" % name, 1)
         if sum.attributes:
             self.emit("if (!add_attributes(%s_type, %s_attributes, %d)) return 0;" %
                             (name, name, len(sum.attributes)), 1)
         else:
             self.emit("if (!add_attributes(%s_type, NULL, 0)) return 0;" % name, 1)
-        self.emit(f"if (pin_type_properties({name}_type, {get_define(name)}) < 0) return 0;", 1)
         simple = is_simple(sum)
         for t in sum.types:
             self.visitConstructor(t, name, simple)
@@ -1768,30 +997,20 @@ static int add_ast_fields(void)
             fields = cons.name+"_fields"
         else:
             fields = "NULL"
-        self.emit('%s_type = make_type("%s", %s_type, %s, %d, NULL, 0, %s_type_init);' %
-                            (cons.name, cons.name, name, fields, len(cons.fields), cons.name), 1)
+        self.emit('%s_type = make_type("%s", %s_type, %s, %d);' %
+                            (cons.name, cons.name, name, fields, len(cons.fields)), 1)
         self.emit("if (!%s_type) return 0;" % cons.name, 1)
-        self.emit(f"if (pin_type_properties({cons.name}_type, {get_define(cons.name)}) < 0) return 0;", 1)
         if simple:
             self.emit("%s_singleton = PyType_GenericNew(%s_type, NULL, NULL);" %
                              (cons.name, cons.name), 1)
             self.emit("if (!%s_singleton) return 0;" % cons.name, 1)
-            self.emit(generate_set_type_index(cons.name + "_singleton", cons.name), 1)
-
-def attr_array_name_and_len(name, attrs):
-    if attrs:
-        return name + "_attributes", len(attrs)
-    else:
-        return "NULL", 0
 
 
 class ASTModuleVisitor(PickleVisitor):
 
     def visitModule(self, mod):
         self.emit("static struct PyModuleDef _astmodule = {", 0)
-        self.emit('  PyModuleDef_HEAD_INIT,', 0)
-        self.emit('  .m_name = "_ast",', 0)
-        self.emit("  .m_free = (freefunc)module_free", 0)
+        self.emit('  PyModuleDef_HEAD_INIT, "_ast"', 0)
         self.emit("};", 0)
         self.emit("PyMODINIT_FUNC", 0)
         self.emit("PyInit__ast(void)", 0)
@@ -1804,8 +1023,6 @@ class ASTModuleVisitor(PickleVisitor):
         self.emit('if (PyDict_SetItemString(d, "AST", (PyObject*)&AST_type) < 0) return NULL;', 1)
         self.emit('if (PyModule_AddIntMacro(m, PyCF_ALLOW_TOP_LEVEL_AWAIT) < 0)', 1)
         self.emit("return NULL;", 2)
-        self.emit('if (PyDict_SetItemString(d, "NodeVisitor", (PyObject*)&NodeVisitor_type) < 0) return NULL;', 1)
-        self.emit("if (initialize_nodevisitor_table(&NodeVisitor_type, NULL) < 0) return NULL;", 1)
         self.emit('if (PyModule_AddIntMacro(m, PyCF_ONLY_AST) < 0)', 1)
         self.emit("return NULL;", 2)
         self.emit('if (PyModule_AddIntMacro(m, PyCF_TYPE_COMMENTS) < 0)', 1)
@@ -1854,288 +1071,6 @@ class StaticVisitor(PickleVisitor):
 
     def visit(self, object):
         self.emit(self.CODE, 0, reflow=False)
-
-
-class GenNodeVisitorVisitor(StaticVisitor):
-    CODE = """static PyObject *
-node_visitor_visit(NodeVisitorObject* self, PyObject *const*args, int nargs, PyObject *kwnames);
-
-static PyObject *
-node_visitor_generic_visit(NodeVisitorObject* self, PyObject *const*args, int nargs, PyObject *kwnames);
-
-static int is_method_impl(PyObject *o, PyCFunction impl) {
-    return o != NULL &&
-        Py_TYPE(o) == &PyMethodDescr_Type &&
-        ((PyMethodDescrObject*)o)->d_method->ml_meth == impl;
-}
-
-static PyObject*
-invoke_generic_visit(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check)
-{
-    int has_error;
-    NodeVisitorDispatchTable *table = prepare_dispatch_table(visitor, &has_error);
-    if (has_error) {
-        return NULL;
-    }
-    if (table == NULL) {
-        return call_or_error_thunk(node, visitor, &PyId_generic_visit, NULL);
-    }
-    dispatch_table_entry *e = &table->entries[INDEX_generic_visit];
-    if (is_method_impl(e->method_descr, (PyCFunction)node_visitor_generic_visit)) {
-        // if no overrides - call default impl
-        return node_visitor_generic_visit_impl(node, visitor, ast_check);
-    }
-    return e->thunk(node, (PyObject*)visitor, &PyId_generic_visit, e->method_descr);
-}
-
-static PyObject*
-invoke_visit(PyObject *node, NodeVisitorObject *visitor, AST_CHECK_RESULT ast_check)
-{
-    int has_error;
-    NodeVisitorDispatchTable *table = prepare_dispatch_table(visitor, &has_error);
-    if (has_error) {
-        return NULL;
-    }
-    if (table == NULL) {
-        return call_or_error_thunk(node, visitor, &PyId_visit, NULL);
-    }
-    dispatch_table_entry *e = &table->entries[INDEX_visit];
-    if (is_method_impl(e->method_descr, (PyCFunction)node_visitor_visit)) {
-        // if no overrides - call default impl
-        return node_visitor_visit_impl(node, visitor, ast_check);
-    }
-    return e->thunk(node, (PyObject*)visitor, &PyId_visit, e->method_descr);
-}
-
-static int
-node_visitor_clear(NodeVisitorObject *self)
-{
-    Py_CLEAR(self->dispatch_table);
-    Py_CLEAR(self->dict);
-    return 0;
-}
-
-static void
-node_visitor_dealloc(NodeVisitorObject *self)
-{
-    /* bpo-31095: UnTrack is needed before calling any callbacks */
-    PyObject_GC_UnTrack(self);
-    node_visitor_clear(self);
-    Py_TYPE(self)->tp_free(self);
-}
-
-static int
-node_visitor_traverse(NodeVisitorObject *self, visitproc visit, void *arg)
-{
-    Py_VISIT(self->dispatch_table);
-    Py_VISIT(self->dict);
-    return 0;
-}
-
-static PyObject *
-node_visitor_visit(NodeVisitorObject* self, PyObject *const*args, int nargs, PyObject *kwnames)
-{
-    static const char * const _keywords[] = {"node", NULL};
-    static _PyArg_Parser _parser = {"O:visit", _keywords, 0};
-    PyObject *argsbuf[1];
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
-    if (args == NULL) {
-        return NULL;
-    }
-    PyObject *node = args[0];
-    return node_visitor_visit_impl(node, self, AST_UNKNOWN);
-}
-
-static PyObject *
-node_visitor_generic_visit(NodeVisitorObject* self, PyObject *const*args, int nargs, PyObject *kwnames)
-{
-    static const char * const _keywords[] = {"node", NULL};
-    static _PyArg_Parser _parser = {"O:generic_visit", _keywords, 0};
-    PyObject *argsbuf[1];
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
-    if (args == NULL) {
-        return NULL;
-    }
-    PyObject *node = args[0];
-    return node_visitor_generic_visit_impl(node, self, AST_UNKNOWN);
-}
-
-static PyObject *
-node_visitor___init_subclass(PyTypeObject *cls,
-    PyObject *args, PyObject *kwargs)
-{
-    _Py_IDENTIFIER(__init_subclass__);
-    PyObject *super_args[2] = {(PyObject *)&NodeVisitor_type, (PyObject *)cls};
-
-    PyObject *super = _PyObject_FastCall((PyObject *)&PySuper_Type, super_args, 2);
-    if (super == NULL) {
-        return NULL;
-    }
-
-    PyObject *super_init = _PyObject_GetAttrId(super, &PyId___init_subclass__);
-    Py_DECREF(super);
-    if (super_init == NULL) {
-        // should at least get object_init_subtype
-        return NULL;
-    }
-    PyObject *result = PyObject_Call(super_init, args, kwargs);
-    Py_DECREF(super_init);
-    if (result == NULL) {
-        return NULL;
-    }
-
-    Py_DECREF(result);
-
-    if (initialize_nodevisitor_table(cls, NULL) < 0) {
-        return NULL;
-    }
-    Py_RETURN_NONE;
-}
-
-static PyMethodDef node_visitor_methods[] = {
-    {"visit", (PyCFunction)node_visitor_visit, METH_FASTCALL | METH_KEYWORDS, NULL},
-    {"generic_visit", (PyCFunction)node_visitor_generic_visit, METH_FASTCALL | METH_KEYWORDS, NULL},
-    {"__init_subclass__", (PyCFunction)node_visitor___init_subclass, METH_VARARGS | METH_KEYWORDS | METH_CLASS},
-    {NULL}
-};
-
-
-static PyGetSetDef node_visitor_getsets[] = {
-    {"__dict__", PyObject_GenericGetDict, PyObject_GenericSetDict},
-    {NULL}
-};
-
-static int
-node_visitor_init(NodeVisitorObject *self, PyObject *args, PyObject *kwargs) {
-    if (PyTuple_GET_SIZE(args) != 0 || (kwargs != NULL && PyDict_GET_SIZE(kwargs) != 0)) {
-        PyErr_SetString(PyExc_TypeError, "NodeVisitor() takes no arguments");
-        return -1;
-    }
-    return 0;
-}
-
-static PyObject*
-node_visitor_new(PyTypeObject *subtype, PyObject *args, PyObject *kwds)
-{
-    NodeVisitorObject *inst =
-        (NodeVisitorObject*)PyType_GenericNew(subtype, args, kwds);
-    if (inst == NULL) {
-        return NULL;
-    }
-    Py_CLEAR(inst->dict);
-    inst->dispatch_table =
-        (NodeVisitorDispatchTable*)PyDict_GetItemWithError(node_visitor_tables, (PyObject*)subtype);
-    if (inst->dispatch_table == NULL) {
-        if (PyErr_Occurred()) {
-            return NULL;
-        }
-    }
-    else {
-        Py_INCREF(inst->dispatch_table);
-    }
-    return (PyObject*)inst;
-}
-
-_Py_IDENTIFIER(__dict__);
-
-static PyObject*
-node_visitor_get_attr(NodeVisitorObject *visitor, PyObject *name)
-{
-    PyObject *dict_name = _PyUnicode_FromId(&PyId___dict__);
-    if (dict_name == NULL) {
-        return NULL;
-    }
-    if (_PyUnicode_EQ(name, dict_name)) {
-        Py_CLEAR(visitor->dispatch_table);
-    }
-    return PyObject_GenericGetAttr((PyObject*)visitor, name);
-}
-
-static int
-node_visitor_set_attr(NodeVisitorObject *visitor, PyObject *name, PyObject *value)
-{
-    if (visitor->dispatch_table != NULL) {
-        // ensure that attribute being set does not shadow anything on the type
-        PyObject *visit = _PyUnicode_FromId(&PyId_visit);
-        if (visit == NULL) {
-            return -1;
-        }
-        Py_ssize_t startswith  = PyUnicode_Tailmatch(name, visit, 0, PY_SSIZE_T_MAX, -1);
-        if (startswith < 0) {
-            return -1;
-        }
-        int has_shadowing = 0;
-        if (startswith) {
-            has_shadowing = PySet_Contains(node_visitor_method_names, name);
-            if (has_shadowing < 0) {
-                return -1;
-            }
-        }
-        else {
-            PyObject *generic_visit = _PyUnicode_FromId(&PyId_generic_visit);
-            if (generic_visit == NULL) {
-                return -1;
-            }
-            has_shadowing = _PyUnicode_EQ(name, generic_visit);
-            if (!has_shadowing) {
-                PyObject *dict_name = _PyUnicode_FromId(&PyId___dict__);
-                if (dict_name == NULL) {
-                    return -1;
-                }
-                has_shadowing = _PyUnicode_EQ(name, dict_name);
-            }
-        }
-        if (has_shadowing) {
-            Py_CLEAR(visitor->dispatch_table);
-        }
-    }
-    return PyObject_GenericSetAttr((PyObject*)visitor, name, value);
-}
-
-static PyTypeObject NodeVisitor_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "_ast.NodeVisitor",
-    sizeof(NodeVisitorObject),
-    0,
-    (destructor)node_visitor_dealloc, /* tp_dealloc */
-    0,                                /* tp_print */
-    0,                                /* tp_getattr */
-    0,                                /* tp_setattr */
-    0,                                /* tp_reserved */
-    0,                                /* tp_repr */
-    0,                                /* tp_as_number */
-    0,                                /* tp_as_sequence */
-    0,                                /* tp_as_mapping */
-    0,                                /* tp_hash */
-    0,                                /* tp_call */
-    0,                                /* tp_str */
-    (getattrofunc)node_visitor_get_attr, /* tp_getattro */
-    (setattrofunc)node_visitor_set_attr, /* tp_setattro */
-    0,                                /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /* tp_flags */
-    0,                                   /* tp_doc */
-    (traverseproc)node_visitor_traverse, /* tp_traverse */
-    (inquiry)node_visitor_clear,         /* tp_clear */
-    0,                                   /* tp_richcompare */
-    0,                                   /* tp_weaklistoffset */
-    0,                                   /* tp_iter */
-    0,                                   /* tp_iternext */
-    node_visitor_methods,                /* tp_methods */
-    0,                                   /* tp_members */
-    node_visitor_getsets,                /* tp_getset */
-    0,                                   /* tp_base */
-    0,                                   /* tp_dict */
-    0,                                   /* tp_descr_get */
-    0,                                   /* tp_descr_set */
-    offsetof(NodeVisitorObject, dict),   /* tp_dictoffset */
-    (initproc)node_visitor_init,         /* tp_init */
-    0,                                   /* tp_alloc */
-    node_visitor_new,                   /* tp_new */
-    PyObject_GC_Del,                     /* tp_free */
-};
-"""
 
 
 class ObjVisitor(PickleVisitor):
@@ -2199,7 +1134,6 @@ class ObjVisitor(PickleVisitor):
         self.func_begin(name)
         self.emit("result = PyType_GenericNew(%s_type, NULL, NULL);" % name, 1);
         self.emit("if (!result) return NULL;", 1)
-        self.emit(generate_set_type_index("result", name), 1)
         for field in prod.fields:
             self.visitField(field, name, 1, True)
         for a in prod.attributes:
@@ -2214,7 +1148,6 @@ class ObjVisitor(PickleVisitor):
         self.emit("case %s_kind:" % cons.name, 1)
         self.emit("result = PyType_GenericNew(%s_type, NULL, NULL);" % cons.name, 2);
         self.emit("if (!result) goto failed;", 2)
-        self.emit(generate_set_type_index("result", cons.name), 2)
         for f in cons.fields:
             self.visitField(f, cons.name, 2, False)
         self.emit("break;", 2)
@@ -2374,28 +1307,19 @@ def main(srcfile, dump_module=False):
     if C_FILE:
         with open(C_FILE, "w") as f:
             f.write(auto_gen_msg)
-            f.write("// clang-format off\n")
-            f.write("\n")
             f.write('#include <stddef.h>\n')
             f.write('\n')
             f.write('#include "Python.h"\n')
             f.write('#include "%s-ast.h"\n' % mod.name)
             f.write('\n')
             f.write("static PyTypeObject AST_type;\n")
-            f.write('\n')
-            f.write('\n')
             v = ChainOfVisitors(
-                GenerateDefinesAndIdsVisitor(f),
-                EmitNodeVisitorDispatchTable(f),
-                InitForwardDeclVisitor(f),
                 PyTypesDeclareVisitor(f),
                 PyTypesVisitor(f),
-                InitImplVisitor(f),
                 Obj2ModPrototypeVisitor(f),
                 FunctionVisitor(f),
                 ObjVisitor(f),
                 Obj2ModVisitor(f),
-                GenNodeVisitorVisitor(f),
                 ASTModuleVisitor(f),
                 PartingShots(f),
                 )

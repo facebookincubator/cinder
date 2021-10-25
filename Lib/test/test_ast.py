@@ -2,7 +2,6 @@ import ast
 import dis
 import os
 import sys
-import typing as t
 import unittest
 import warnings
 import weakref
@@ -278,114 +277,6 @@ class AST_Tests(unittest.TestCase):
             # "_ast.AST constructor takes 0 positional arguments"
             ast.AST(2)
 
-    def test_generic_visitor(self):
-        T = t.TypeVar("T")
-        result = []
-        class V(ast.NodeVisitor, t.Generic[T]):
-            def __init__(self):
-                pass
-            def visit_Name(self, node):
-                result.append(node.id)
-        src = ast.BinOp(
-            left=ast.Name("a", ast.Load()),
-            op=ast.Add(),
-            right=ast.Name("b", ast.Load())
-            )
-        V().visit(src)
-        self.assertEqual(result, ["a", "b"])
-
-    def test_ast_instance_fields_modified(self):
-        n = ast.Name("id", ast.Load())
-        n._fields = ("id", "ctx", "extra")
-        n.extra =  ast.Num(10)
-
-        visited = False
-        class V(ast.NodeVisitor):
-            def visit_Num(self, node):
-                nonlocal visited
-                visited = True
-        V().visit(n)
-        self.assertTrue(visited)
-
-    def test_ast_type_modified(self):
-        ast.Name.x = 100
-        n = ast.Name("id", ast.Load())
-        visited = False
-        class V(ast.NodeVisitor):
-            def visit_Load(self, node):
-                nonlocal visited
-                visited = True
-        V().visit(n)
-        self.assertTrue(visited)
-
-    def test_visitor_type_modification(self):
-        result = []
-        class V(ast.NodeVisitor):
-            def visit_Name(self, name):
-                result.append(name.id)
-
-        m = ast.Call(
-            func=ast.Name("f", ast.Load()),
-            args=[
-                ast.Num(1),
-                ast.Str("x"),
-                ast.BinOp(
-                    left=ast.Name("x", ast.Load()),
-                    op=ast.Mult(),
-                    right=ast.Name("y", ast.Load())
-            )]
-        )
-        v = V()
-        v.visit(m)
-        self.assertEqual(result, ["f", "x", "y"])
-
-        result = []
-        v.__dict__ = dict()
-        v.visit(m)
-        self.assertEqual(result, ["f", "x", "y"])
-
-        result = []
-        v = V()
-        v.__dict__["x"] = 1
-        v.visit(m)
-        self.assertEqual(result, ["f", "x", "y"])
-
-
-    def test_ast_visitors(self):
-        def walk(base, node):
-            result = []
-            class V(base):
-                def visit(self, node):
-                    result.append("1:" + str(id(node)))
-                    super().visit(node)
-                def generic_visit(self, node):
-                    result.append("2:" + str(id(node)))
-                    super().generic_visit(node)
-                def visit_Name(self, node):
-                    result.append("3:" + str(id(node)))
-
-            V().visit(node)
-            return result
-
-        srcs = [
-            """
-foo(a.b, c(), e + f)
-            """,
-            """
-class C(B):
-    def __init__(self):
-        for x, y in range(100):
-            print(x, y)
-            """,
-            ast.Name(id={1, 2, 3}) # invalid node
-        ]
-        for src in srcs:
-            m = ast.parse(src) if isinstance(src, str) else src
-            expected = walk(ast._PyNodeVisitor, m)
-            actual = walk(ast.NodeVisitor, m)
-            self.assertEqual(expected, actual)
-
-
     def test_AST_garbage_collection(self):
         class X:
             pass
@@ -655,16 +546,6 @@ class C(B):
         # this used to fail because Sub._fields was None
         x = ast.Sub()
         self.assertEqual(x._fields, ())
-
-    def test_kw_args(self):
-        def run(base):
-            class V(base):
-                pass
-            x = ast.Sub()
-            V().visit(node=x)
-            V().generic_visit(node=x)
-        run(ast._PyNodeVisitor)
-        run(ast.NodeVisitor)
 
     def test_pickling(self):
         import pickle

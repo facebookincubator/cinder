@@ -1413,7 +1413,7 @@ class SizeofTest(unittest.TestCase):
         check = self.check_sizeof
         # _ast.AST
         import _ast
-        check(_ast.AST(), size('PP'))
+        check(_ast.AST(), size('P'))
         try:
             raise TypeError
         except TypeError:

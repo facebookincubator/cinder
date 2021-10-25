@@ -559,11 +559,3 @@ _const_node_type_names = {
     bytes: 'Bytes',
     type(...): 'Ellipsis',
 }
-
-class _PyNodeVisitor(NodeVisitor):
-    pass
-
-from _ast import NodeVisitor as _NodeVisitor
-
-class NodeVisitor(_NodeVisitor):
-    visit_Constant = _PyNodeVisitor.visit_Constant
