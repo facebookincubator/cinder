@@ -2236,6 +2236,10 @@ solid_base(PyTypeObject *type)
 {
     PyTypeObject *base;
 
+    if (type->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+        return type;
+    }
+
     if (type->tp_base)
         base = solid_base(type->tp_base);
     else

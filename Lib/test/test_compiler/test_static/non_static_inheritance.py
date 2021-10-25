@@ -222,6 +222,55 @@ class NonStaticInheritanceTests(StaticTestBase):
 
             self.assertEqual(mod.f(D()), "foo")
 
+    def test_no_inherit_multiple_static_bases(self):
+        codestr = """
+            class A:
+                pass
+
+            class B:
+                pass
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"multiple bases have instance lay-out conflict"
+            ):
+
+                class C(mod.A, mod.B):
+                    pass
+
+    def test_no_inherit_multiple_static_bases_indirect(self):
+        codestr = """
+            class A:
+                pass
+
+            class B:
+                pass
+        """
+        with self.in_module(codestr) as mod:
+
+            class C(mod.B):
+                pass
+
+            with self.assertRaisesRegex(
+                TypeError, r"multiple bases have instance lay-out conflict"
+            ):
+
+                class D(C, mod.A):
+                    pass
+
+    def test_no_inherit_static_and_builtin(self):
+        codestr = """
+            class A:
+                pass
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"multiple bases have instance lay-out conflict"
+            ):
+
+                class C(mod.A, str):
+                    pass
+
 
 if __name__ == "__main__":
 
