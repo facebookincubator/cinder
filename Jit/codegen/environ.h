@@ -36,9 +36,12 @@ struct Environ {
   // and generateEpilogue().
   PhyRegisterSet changed_regs{0};
 
-  // Size of the stack frame that's fixed at compile-time: spilled values plus
-  // saved callee-saved registers.
-  int fixed_frame_size{-1};
+  // Size of the stack frame.
+  int frame_size{-1};
+
+  // Offset from the base of the frame to the last callee-saved register stored
+  // on the stack.
+  int last_callee_saved_reg_off{-1};
 
   // Space used to spill values by VariableManager.
   int spill_size{0};

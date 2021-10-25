@@ -322,7 +322,7 @@ int NativeGenerator::GetCompiledFunctionSize() const {
 }
 
 int NativeGenerator::GetCompiledFunctionStackSize() const {
-  return env_.fixed_frame_size;
+  return env_.frame_size;
 }
 
 int NativeGenerator::GetCompiledFunctionSpillStackSize() const {
@@ -404,7 +404,7 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
 
   // Allocate stack space and save the size of the function's stack.
   as_->sub(x86::rsp, spill_stack);
-  env_.fixed_frame_size = spill_stack + saved_regs_size;
+  env_.last_callee_saved_reg_off = spill_stack + saved_regs_size;
 
   // Generator shadow frames live in generator objects and only get linked in
   // on the first resume.
@@ -421,6 +421,8 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   if (arg_buffer_size > 0) {
     as_->sub(x86::rsp, arg_buffer_size);
   }
+
+  env_.frame_size = spill_stack + saved_regs_size + arg_buffer_size;
 
   return load_method_scratch;
 }
@@ -914,8 +916,10 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   auto saved_regs = env_.changed_regs & CALLEE_SAVE_REGS;
   if (!saved_regs.Empty()) {
     // Reset rsp to point at our callee-saved registers and restore them.
-    JIT_CHECK(env_.fixed_frame_size != -1, "fixed frame size not initialized");
-    as_->lea(x86::rsp, x86::ptr(x86::rbp, -env_.fixed_frame_size));
+    JIT_CHECK(
+        env_.last_callee_saved_reg_off != -1,
+        "offset to callee saved regs not initialized");
+    as_->lea(x86::rsp, x86::ptr(x86::rbp, -env_.last_callee_saved_reg_off));
 
     std::vector<int> pop_regs;
     while (!saved_regs.Empty()) {
