@@ -117,7 +117,7 @@ become default.
 ``from __static__ import cbool, int8, uint8, int16, uint16, int32, uint32, int64, uint64, double``
 --------------------------------------------------------------------------------------------------
 
-These are primitive or C types. They can be used as type annotations in
+These are primitive types, or C types. They can be used as type annotations in
 Static Python modules to signal to the Cinder JIT that it can use unboxed C
 types for these values. The static compiler automatically interprets literals
 appropriately if in a primitive type context; e.g. ``x: cbool = True`` will
