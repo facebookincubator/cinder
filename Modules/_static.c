@@ -223,6 +223,19 @@ PyObject *_set_type_static_impl(PyObject *type, int final) {
   }
   pytype = (PyTypeObject *)type;
   pytype->tp_flags |= Py_TPFLAGS_IS_STATICALLY_DEFINED;
+
+  if (pytype->tp_cache != NULL) {
+      /* If the v-table was inited because our base class was
+       * already inited, it is no longer valid...  we need to include
+       * statically defined methods (we'd be better off having custom
+       * static class building which knows we're building a static type
+       * from the get-go */
+      Py_CLEAR(pytype->tp_cache);
+      if (_PyClassLoader_EnsureVtable(pytype, 0) == NULL) {
+          return NULL;
+      }
+  }
+
   if (final) {
     pytype->tp_flags &= ~Py_TPFLAGS_BASETYPE;
   }
