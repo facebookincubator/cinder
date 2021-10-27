@@ -49,7 +49,6 @@ CATEGORIES = {
         "BUILD_SET_UNPACK",
         "BUILD_TUPLE_UNPACK",
         "BUILD_TUPLE_UNPACK_WITH_CALL",
-        "CONTINUE_LOOP",
         "IMPORT_STAR",
         "MAP_ADD",
         "SET_ADD",

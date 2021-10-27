@@ -299,7 +299,6 @@ class Block:
         "RAISE_VARARGS",
         "JUMP_ABSOLUTE",
         "JUMP_FORWARD",
-        "CONTINUE_LOOP",
     )
 
     def has_unconditional_transfer(self):
@@ -576,14 +575,6 @@ class PyFlowGraph(FlowGraph):
                         maxdepth = target_depth
 
                     assert target_depth >= 0
-                    if instr.opname == "CONTINUE_LOOP":
-                        # Pops a variable number of values from the stack,
-                        # but the target should be already proceeding.
-                        assert instr.target.startdepth >= 0
-                        assert instr.target.startdepth <= depth
-                        # remaining code is dead
-                        next = None
-                        break
 
                     self.push_block(worklist, instr.target, target_depth)
 
