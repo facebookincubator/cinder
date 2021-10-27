@@ -22,4 +22,5 @@ from .subclass import SubclassTests
 from .tests import StaticCompilationTests, StaticRuntimeTests
 from .top_level import TopLevelTests
 from .union import UnionCompilationTests
+from .variadic_arg import VariadicArgTests
 from .walrus_operator import WalrusOperatorTests
