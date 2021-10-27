@@ -585,7 +585,6 @@ class PyFlowGraph(FlowGraph):
                     "JUMP_FORWARD",
                     "RETURN_VALUE",
                     "RAISE_VARARGS",
-                    "BREAK_LOOP",
                 ):
                     # Remaining code is dead
                     next = None
