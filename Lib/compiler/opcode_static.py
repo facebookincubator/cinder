@@ -52,6 +52,14 @@ opcode.def_op("LOAD_TYPE", 202)
 opcode.hasconst.add(202)
 
 
+def _load_mapping_arg_effect(oparg: int, _jmp: int = 0) -> int:
+    if oparg == 2:
+        return -1
+    elif oparg == 3:
+        return -2
+    return 1
+
+
 opcode.stack_effects.update(  # noqa: C408
     # Static opcodes
     BUILD_CHECKED_MAP=lambda oparg, jmp: 1 - 2 * oparg[1],
@@ -78,7 +86,7 @@ opcode.stack_effects.update(  # noqa: C408
     LOAD_FIELD=0,
     LOAD_ITERABLE_ARG=1,
     LOAD_LOCAL=1,
-    LOAD_MAPPING_ARG=lambda oparg, jmp=0: -1 if oparg == 2 else 1,
+    LOAD_MAPPING_ARG=_load_mapping_arg_effect,
     POP_JUMP_IF_NONZERO=-1,
     POP_JUMP_IF_ZERO=-1,
     STORE_FIELD=-2,

@@ -384,3 +384,20 @@ class VariadicArgTests(StaticTestBase):
             y_callable = mod.y
             self.assertTrue(y_callable())
             self.assertEqual(["s", "r"], mod.stuff)
+
+    def test_load_mapping_arg_stack_effect(self) -> None:
+        codestr = """
+        def g(x=None) -> None:
+            pass
+
+        def f():
+            return [
+                g(**{})
+                for i in ()
+            ]
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            listcomp = self.find_code(f.__code__, "<listcomp>")
+            self.assertInBytecode(listcomp, "LOAD_MAPPING_ARG", 3)
+            self.assertEqual(f(), [])

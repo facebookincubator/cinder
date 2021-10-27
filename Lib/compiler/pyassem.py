@@ -262,6 +262,7 @@ class Block:
     def __repr__(self):
         data = []
         data.append(f"id={self.bid}")
+        data.append(f"startdepth={self.startdepth}")
         if self.next:
             data.append(f"next={self.next.bid}")
         extras = ", ".join(data)
