@@ -160,7 +160,7 @@ VariablesAreUncheckedOnSubgraphsWhereAssigned
 def test(x):
   if x:
     y = 1
-    if y:
+    if x:
       return 100
   return y
 ---
@@ -177,7 +177,7 @@ fun jittestmodule:test {
 
   bb 1 (preds 0) {
     v10:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v13:CInt32 = IsTruthy v10 {
+    v13:CInt32 = IsTruthy v6 {
       NextInstrOffset 12
       Locals<2> v6 v10
     }
@@ -266,6 +266,196 @@ fun jittestmodule:test {
     }
     v12:Object = LoadArrayItem<Offset[24]> v5 v11 v5
     Return v12
+  }
+}
+---
+CondBranchOfIsTruthyWithNoneTurnsToBranch
+---
+def test():
+  x = None
+  y = True
+  if not x:
+    y = False
+  return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:NoneType = LoadConst<NoneType>
+    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v18:CInt32[0] = LoadConst<CInt32[0]>
+    Branch<1>
+  }
+
+  bb 1 (preds 0) {
+    v13:MortalBool[False] = LoadConst<MortalBool[False]>
+    Branch<2>
+  }
+
+  bb 2 (preds 1) {
+    Return v13
+  }
+}
+---
+CondBranchOfIsTruthyWithNoneDeletesUnreachableBlock
+---
+def test():
+  x = None
+  y = True
+  if not x:
+    y = False
+  else:
+    y = True
+  return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:NoneType = LoadConst<NoneType>
+    v10:MortalBool[True] = LoadConst<MortalBool[True]>
+    v21:CInt32[0] = LoadConst<CInt32[0]>
+    Branch<1>
+  }
+
+  bb 1 (preds 0) {
+    v16:MortalBool[False] = LoadConst<MortalBool[False]>
+    Branch<3>
+  }
+
+  bb 3 (preds 1) {
+    Return v16
+  }
+}
+---
+CondBranchOfIsTruthyWithTrueDeletesUnreachableBlock
+---
+def test():
+  x = True
+  y = True
+  if not x:
+    y = False
+  else:
+    y = True
+  return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:MortalBool[True] = LoadConst<MortalBool[True]>
+    v10:MortalBool[True] = LoadConst<MortalBool[True]>
+    v21:CInt32[1] = LoadConst<CInt32[1]>
+    Branch<2>
+  }
+
+  bb 2 (preds 0) {
+    v14:MortalBool[True] = LoadConst<MortalBool[True]>
+    Branch<3>
+  }
+
+  bb 3 (preds 2) {
+    Return v14
+  }
+}
+---
+IsTruthyWithZeroTurnsToFalse
+---
+def test():
+  x = 0
+  y = True
+  if not x:
+    y = False
+  return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v18:CInt32[0] = LoadConst<CInt32[0]>
+    Branch<1>
+  }
+
+  bb 1 (preds 0) {
+    v13:MortalBool[False] = LoadConst<MortalBool[False]>
+    Branch<2>
+  }
+
+  bb 2 (preds 1) {
+    Return v13
+  }
+}
+---
+IsTruthyWithOneTurnsToTrue
+---
+def test():
+  x = 1
+  y = True
+  if not x:
+    y = False
+  return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v18:CInt32[1] = LoadConst<CInt32[1]>
+    Branch<2>
+  }
+
+  bb 2 (preds 0) {
+    Return v9
+  }
+}
+---
+IsTruthyWithEmptyStringTurnsToFalse
+---
+def test():
+  x = ""
+  y = True
+  if not x:
+    y = False
+  return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:MortalUnicodeExact[""] = LoadConst<MortalUnicodeExact[""]>
+    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v18:CInt32[0] = LoadConst<CInt32[0]>
+    Branch<1>
+  }
+
+  bb 1 (preds 0) {
+    v13:MortalBool[False] = LoadConst<MortalBool[False]>
+    Branch<2>
+  }
+
+  bb 2 (preds 1) {
+    Return v13
+  }
+}
+---
+IsTruthyWithNonEmptyStringTurnsToTrue
+---
+def test():
+  x = "hello"
+  y = True
+  if not x:
+    y = False
+  return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
+    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v18:CInt32[1] = LoadConst<CInt32[1]>
+    Branch<2>
+  }
+
+  bb 2 (preds 0) {
+    Return v9
   }
 }
 ---

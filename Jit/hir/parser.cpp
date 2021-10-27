@@ -404,6 +404,9 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(GuardType, dst, ty, operand);
+  } else if (strcmp(opcode, "IsTruthy") == 0) {
+    auto src = ParseRegister();
+    instruction = newInstr<IsTruthy>(dst, src);
   } else if (strcmp(opcode, "CheckExc") == 0) {
     auto operand = ParseRegister();
     instruction = newInstr<CheckExc>(dst, operand);

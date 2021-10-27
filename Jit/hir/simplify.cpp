@@ -79,6 +79,43 @@ Register* simplifyIntConvert(const IntConvert* instr) {
   return nullptr;
 }
 
+Register* simplifyCondBranch(Env& env, const CondBranch* instr) {
+  Type op_type = instr->GetOperand(0)->type();
+  if (op_type.hasIntSpec()) {
+    if (op_type.intSpec() == 0) {
+      return env.emit<Branch>(instr->false_bb());
+    }
+    return env.emit<Branch>(instr->true_bb());
+  }
+  return nullptr;
+}
+
+Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
+  Type ty = instr->GetOperand(0)->type();
+  PyObject* obj = ty.asObject();
+  if (obj == nullptr) {
+    return nullptr;
+  }
+  // Should only consider immutable Objects
+  static const std::unordered_set<PyTypeObject*> kTrustedTypes{
+      &PyBool_Type,
+      &PyFloat_Type,
+      &PyLong_Type,
+      &PyFrozenSet_Type,
+      &PySlice_Type,
+      &PyTuple_Type,
+      &PyUnicode_Type,
+      &_PyNone_Type,
+  };
+  if (kTrustedTypes.count(Py_TYPE(obj))) {
+    int res = PyObject_IsTrue(obj);
+    JIT_CHECK(res >= 0, "PyObject_IsTrue failed on trusted type");
+    Type output_type = instr->GetOutput()->type();
+    return env.emit<LoadConst>(Type::fromCInt(res, output_type));
+  }
+  return nullptr;
+}
+
 Register* simplifyLoadTupleItem(Env& env, const LoadTupleItem* instr) {
   Register* src = instr->GetOperand(0);
   Instr* def_instr = src->instr();
@@ -207,8 +244,14 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kCheckField:
       return simplifyCheck(static_cast<const CheckBase*>(instr));
 
+    case Opcode::kCondBranch:
+      return simplifyCondBranch(env, static_cast<const CondBranch*>(instr));
+
     case Opcode::kIntConvert:
       return simplifyIntConvert(static_cast<const IntConvert*>(instr));
+
+    case Opcode::kIsTruthy:
+      return simplifyIsTruthy(env, static_cast<const IsTruthy*>(instr));
 
     case Opcode::kLoadField:
       return simplifyLoadField(env, static_cast<const LoadField*>(instr));
@@ -265,6 +308,19 @@ void Simplify::Run(Function& irfunc) {
           new_instr->copyBytecodeOffset(instr);
           new_instr->InsertBefore(instr);
         }
+        if ((instr.IsCondBranch() || instr.IsCondBranchIterNotDone() ||
+             instr.IsCondBranchCheckType()) &&
+            env.new_instrs.back()->IsBranch()) {
+          // If we've optimized a CondBranchBase into a Branch, we also need to
+          // remove any Phi references to the current block from the block that
+          // we no longer visit.
+          auto cond = static_cast<CondBranchBase*>(&instr);
+          BasicBlock* new_dst =
+              static_cast<Branch*>(env.new_instrs.back())->target();
+          BasicBlock* old_branch_block =
+              cond->false_bb() == new_dst ? cond->true_bb() : cond->false_bb();
+          old_branch_block->removePhiPredecessor(cond->block());
+        }
         env.new_instrs.clear();
         instr.unlink();
         delete &instr;
@@ -276,6 +332,7 @@ void Simplify::Run(Function& irfunc) {
       CopyPropagation{}.Run(irfunc);
       irfunc.cfg.RemoveTrampolineBlocks();
       reflowTypes(irfunc);
+      irfunc.cfg.removeUnreachableBlocks();
     }
   } while (changed);
 }
