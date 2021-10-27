@@ -16,10 +16,6 @@ namespace hir {
 static_assert(sizeof(Type) == 16, "Type should fit in two registers");
 static_assert(sizeof(intptr_t) == sizeof(int64_t), "Expected 64-bit pointers");
 
-#define TY(name, ...) constexpr Type::bits_t Type::k##name;
-HIR_TYPES(TY)
-#undef TY
-
 namespace {
 
 // For Types where it makes sense, map them to their corresponding
@@ -50,21 +46,14 @@ const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
         {TNoneType, &_PyNone_Type},
     };
 
-    // After construction, verify that all builtin base and final types have an
-    // entry in this table.
-#define CHECK_TY(name)                           \
-  JIT_CHECK(                                     \
-      map.count(T##name) == 1,                   \
-      "Type %s missing entry in typeToPyType()", \
+    // After construction, verify that all appropriate types have an entry in
+    // this table.
+#define CHECK_TY(name, bits, lifetime, flags)                         \
+  JIT_CHECK(                                                          \
+      (flags & kTypeHasUniquePyType) == 0 || map.count(T##name) == 1, \
+      "Type %s missing entry in typeToPyType()",                      \
       T##name);
-// HIR_NOP2 is an awful workaround for the lack of recursive macros in C:
-// HIR_BASE_TYPES needs 2 transform macros and HIR_NOP can't expand itself.
-#define HIR_NOP2(X, ...) X(__VA_ARGS__)
-    HIR_BASE_TYPES(HIR_NOP, HIR_NOP2, CHECK_TY)
-#undef HIR_NOP2
-    HIR_BASIC_FINAL_TYPES(HIR_NOP, CHECK_TY)
-    CHECK_TY(Long)
-    CHECK_TY(Object)
+    HIR_TYPES(CHECK_TY)
 #undef CHECK_TY
 
     return map;
@@ -255,28 +244,26 @@ static auto makeSortedBits() {
   std::vector<std::pair<Type::bits_t, std::string>> vec;
 
   // Exclude predefined types with nontrivial mortality, since their 'bits'
-  // component is the same as the version with kLifetime{Top,Bottom}. We could
-  // restructure the macros in type.h to avoid this but that would be much more
-  // complex overall.
+  // component is the same as the version with kLifetime{Top,Bottom}.
   //
   // Also exclude any strict supertype of Nullptr, to give strings like
   // {List|Dict|Nullptr} rather than {OptList|Dict}.
-  auto include_bits = [](Type::bits_t bits,
-                         Type::bits_t lifetime,
-                         const char* name) {
-    if ((lifetime == Type::kLifetimeTop || lifetime == Type::kLifetimeBottom) &&
-        (bits == Type::kNullptr || (bits & Type::kNullptr) == 0)) {
-      JIT_CHECK(
-          (bits & Type::kObject) == bits || (bits & Type::kPrimitive) == bits,
-          "Bits for %s should be subset of kObject or kPrimitive",
-          name);
-      return true;
+  auto include_bits = [](Type::bits_t bits, size_t flags, const char* name) {
+    if ((flags & kTypeHasTrivialMortality) == 0 ||
+        (((Type::kNullptr & bits) == Type::kNullptr) &&
+         bits != Type::kNullptr)) {
+      return false;
     }
-    return false;
+
+    JIT_CHECK(
+        (bits & Type::kObject) == bits || (bits & Type::kPrimitive) == bits,
+        "Bits for %s should be subset of kObject or kPrimitive",
+        name);
+    return true;
   };
-#define TY(name, bits, lifetime)                            \
-  if (include_bits(Type::k##name, Type::lifetime, #name)) { \
-    vec.emplace_back(Type::k##name, #name);                 \
+#define TY(name, bits, lifetime, flags)            \
+  if (include_bits(Type::k##name, flags, #name)) { \
+    vec.emplace_back(Type::k##name, #name);        \
   }
   HIR_TYPES(TY)
 #undef TY

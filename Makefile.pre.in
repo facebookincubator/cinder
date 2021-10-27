@@ -933,7 +933,8 @@ regen-importlib: Programs/_freeze_importlib
 # Regenerate all generated files
 
 regen-all: regen-opcode regen-opcode-targets regen-typeslots regen-grammar \
-	regen-token regen-keyword regen-symbol regen-ast regen-importlib clinic
+	regen-token regen-keyword regen-symbol regen-ast regen-importlib clinic \
+	regen-jit
 
 ############################################################################
 # Special rules for object files
@@ -1228,6 +1229,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/hir/printer.h \
 		$(srcdir)/Jit/hir/ssa.h \
 		$(srcdir)/Jit/hir/type.h \
+		$(srcdir)/Jit/hir/type_generated.h \
 		$(srcdir)/Jit/hir/type_inl.h \
 		$(srcdir)/Jit/inline_cache.h \
 		$(srcdir)/Jit/intrusive_list.h \
@@ -2294,6 +2296,12 @@ patchcheck: @DEF_MAKE_RULE@
 
 Python/thread.o: @THREADHEADERS@ $(srcdir)/Python/condvar.h
 
+.PHONY: regen-jit
+regen-jit:
+	$(PYTHON_FOR_REGEN) $(srcdir)/Tools/scripts/typed/generate_jit_type_h.py \
+		$(srcdir)/Jit/hir/type_generated.h.new
+	$(UPDATE_FILE) $(srcdir)/Jit/hir/type_generated.h \
+		$(srcdir)/Jit/hir/type_generated.h.new
 #
 # Runtime tests and supporting infrastructure
 #

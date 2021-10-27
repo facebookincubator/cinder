@@ -29,6 +29,8 @@ namespace hir {
   X(TupleItem)            \
   X(TypeAttrCache)
 
+#define HIR_OR_BITS(name) | k##name
+
 // Predefined unions.
 #define HIR_UNION_ACLS(X)                           \
   /* Bottom union */                                \

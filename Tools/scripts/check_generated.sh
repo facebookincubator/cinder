@@ -22,3 +22,12 @@ if ! git diff --quiet HEAD; then
     git checkout -- .
     exit 1
 fi
+
+# Check that all JIT generated files are up-to-date
+make regen-jit > /dev/null || exit 1
+if ! git diff --quiet HEAD; then
+    echo "One or more generated JIT files are out of date"
+    echo "Please run 'make regen-jit' and commit the result."
+    git checkout -- .
+    exit 1
+fi

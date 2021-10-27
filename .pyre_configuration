@@ -4,7 +4,8 @@
   "source_directories": [
     "Lib/compiler",
     "Tools/scripts/facebook/perf",
-    "Tools/scripts/facebook/workflow"
+    "Tools/scripts/facebook/workflow",
+    "Tools/scripts/typed"
   ],
   "search_path": [
     "Lib/cinder_stubs"
