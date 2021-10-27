@@ -150,6 +150,7 @@ bool Instr::isReplayable() const {
     case Opcode::kRaise:
     case Opcode::kRaiseStatic:
     case Opcode::kRefineType:
+    case Opcode::kUseType:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter: {
       return true;

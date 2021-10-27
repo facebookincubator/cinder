@@ -37,6 +37,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCheckVar:
     case Opcode::kGuardType:
     case Opcode::kRefineType:
+    case Opcode::kUseType:
       return true;
 
     // GuardIs returns a copy of its input with a more specialized type, so it

@@ -110,6 +110,9 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
   if (kTrustedTypes.count(Py_TYPE(obj))) {
     int res = PyObject_IsTrue(obj);
     JIT_CHECK(res >= 0, "PyObject_IsTrue failed on trusted type");
+    // Since we no longer use instr->GetOperand(0), we need to make sure that
+    // we don't lose any associated type checks
+    env.emit<UseType>(instr->GetOperand(0), ty);
     Type output_type = instr->GetOutput()->type();
     return env.emit<LoadConst>(Type::fromCInt(res, output_type));
   }

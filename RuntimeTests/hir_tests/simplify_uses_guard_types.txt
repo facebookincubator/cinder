@@ -39,3 +39,51 @@ fun test {
   }
 }
 ---
+IsTruthyUsesGuardTypes
+---
+# HIR
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0; "x">
+    v1:Object = LoadArg<1; "y">
+    v2:NoneType = GuardType<NoneType> v0
+    v3:CInt32 = IsTruthy v2 {
+      NextInstrOffset 4
+      Locals<2> v2 v1
+    }
+    CondBranch<2, 1> v3
+  }
+
+  bb 1 (preds 0) {
+    v4:NoneType = LoadConst<NoneType>
+    v5:NoneType = Assign v4
+    Branch<2>
+  }
+
+  bb 2 (preds 0, 1) {
+    v6:Object = Phi<0, 1> v1 v5
+    Return v6
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:NoneType = GuardType<NoneType> v0
+    UseType<NoneType> v2
+    v7:CInt32[0] = LoadConst<CInt32[0]>
+    Branch<1>
+  }
+
+  bb 1 (preds 0) {
+    v4:NoneType = LoadConst<NoneType>
+    Branch<2>
+  }
+
+  bb 2 (preds 1) {
+    v6:NoneType = Phi<1> v4
+    Return v6
+  }
+}
+---

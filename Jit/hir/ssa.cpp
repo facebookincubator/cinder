@@ -567,6 +567,7 @@ Type outputType(const Instr& instr) {
     case Opcode::kSnapshot:
     case Opcode::kStoreArrayItem:
     case Opcode::kStoreField:
+    case Opcode::kUseType:
     case Opcode::kWaitHandleRelease:
     case Opcode::kXDecref:
     case Opcode::kXIncref:

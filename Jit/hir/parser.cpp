@@ -407,6 +407,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
   } else if (strcmp(opcode, "IsTruthy") == 0) {
     auto src = ParseRegister();
     instruction = newInstr<IsTruthy>(dst, src);
+  } else if (strcmp(opcode, "UseType") == 0) {
+    expect("<");
+    Type ty = Type::parse(GetNextToken());
+    expect(">");
+    auto operand = ParseRegister();
+    NEW_INSTR(UseType, operand, ty);
   } else if (strcmp(opcode, "CheckExc") == 0) {
     auto operand = ParseRegister();
     instruction = newInstr<CheckExc>(dst, operand);

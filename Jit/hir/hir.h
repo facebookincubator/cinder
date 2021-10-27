@@ -353,6 +353,7 @@ struct FrameState {
   V(TpAlloc)                    \
   V(UnaryOp)                    \
   V(UnpackExToTuple)            \
+  V(UseType)                    \
   V(VectorCall)                 \
   V(VectorCallStatic)           \
   V(VectorCallKW)               \
@@ -2495,6 +2496,24 @@ class INSTR_CLASS(Return, Operands<1>) {
  public:
   Return(Register* val) : InstrT(val), type_(TObject) {}
   Return(Register* val, Type type) : InstrT(val), type_(type) {}
+
+  Type type() const {
+    return type_;
+  }
+
+ private:
+  Type type_;
+};
+
+// Should be generated whenever an optimization removes the usage of a register
+// but still relies on that register being of a certain type
+// (see simplifyIsTruthy)
+//
+// Ensures that we don't accidentally remove a type check (such as in GuardType)
+// despite a register not having any explicit users
+class INSTR_CLASS(UseType, Operands<1>) {
+ public:
+  UseType(Register* val, Type type) : InstrT(val), type_(type) {}
 
   Type type() const {
     return type_;

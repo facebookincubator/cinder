@@ -283,6 +283,7 @@ fun jittestmodule:test {
     v6:Nullptr = LoadConst<Nullptr>
     v7:NoneType = LoadConst<NoneType>
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<NoneType> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
     Branch<1>
   }
@@ -313,6 +314,7 @@ fun jittestmodule:test {
     v7:Nullptr = LoadConst<Nullptr>
     v8:NoneType = LoadConst<NoneType>
     v10:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<NoneType> v8
     v21:CInt32[0] = LoadConst<CInt32[0]>
     Branch<1>
   }
@@ -343,6 +345,7 @@ fun jittestmodule:test {
     v7:Nullptr = LoadConst<Nullptr>
     v8:MortalBool[True] = LoadConst<MortalBool[True]>
     v10:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<MortalBool[True]> v8
     v21:CInt32[1] = LoadConst<CInt32[1]>
     Branch<2>
   }
@@ -371,6 +374,7 @@ fun jittestmodule:test {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<MortalLongExact[0]> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
     Branch<1>
   }
@@ -399,6 +403,7 @@ fun jittestmodule:test {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<MortalLongExact[1]> v7
     v18:CInt32[1] = LoadConst<CInt32[1]>
     Branch<2>
   }
@@ -422,6 +427,7 @@ fun jittestmodule:test {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalUnicodeExact[""] = LoadConst<MortalUnicodeExact[""]>
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<MortalUnicodeExact[""]> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
     Branch<1>
   }
@@ -450,6 +456,7 @@ fun jittestmodule:test {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<MortalUnicodeExact["hello"]> v7
     v18:CInt32[1] = LoadConst<CInt32[1]>
     Branch<2>
   }

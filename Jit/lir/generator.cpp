@@ -2296,6 +2296,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // Snapshots are purely informative
         break;
       }
+      case Opcode::kUseType: {
+        // UseTypes are purely informative
+        break;
+      }
       case Opcode::kIsTruthy: {
         auto func = reinterpret_cast<uint64_t>(&PyObject_IsTrue);
         bbb.AppendCode(
