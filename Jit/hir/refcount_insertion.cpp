@@ -1139,8 +1139,8 @@ void bindGuards(Function& irfunc) {
         fs = snapshot.frameState();
         snapshots.emplace_back(&instr);
       } else if (
-          instr.IsGuard() || instr.IsGuardIs() || instr.IsDeopt() ||
-          instr.IsDeoptPatchpoint()) {
+          instr.IsGuard() || instr.IsGuardIs() || instr.IsGuardType() ||
+          instr.IsDeopt() || instr.IsDeoptPatchpoint()) {
         JIT_DCHECK(fs != nullptr, "no dominating snapshot");
         auto& guard = static_cast<DeoptBase&>(instr);
         guard.setFrameState(*fs);

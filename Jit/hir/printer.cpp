@@ -533,6 +533,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& gs = static_cast<const GuardIs&>(instr);
       return fmt::format("{}", getStablePointer(gs.target()));
     }
+    case Opcode::kGuardType: {
+      const auto& gs = static_cast<const GuardType&>(instr);
+      return fmt::format("{}", gs.target().toString());
+    }
     case Opcode::kRaiseAwaitableError: {
       const auto& ra = static_cast<const RaiseAwaitableError&>(instr);
       if (ra.with_opcode() == BEFORE_ASYNC_WITH) {

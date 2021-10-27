@@ -267,6 +267,14 @@ std::string LIRGenerator::MakeGuard(
     auto guard_ptr = static_cast<void*>(guard.target());
     env_->code_rt->addReference(static_cast<PyObject*>(guard_ptr));
     ss << ", " << guard_ptr;
+  } else if (instr.IsGuardType()) {
+    const auto& guard = static_cast<const GuardType&>(instr);
+    // TODO(T101999851): Handle non-Exact types
+    JIT_CHECK(guard.target().isExact(), "Only exact type guards are supported");
+    PyTypeObject* guard_type = guard.target().uniquePyType();
+    JIT_CHECK(guard_type != nullptr, "Ensure unique representation exists");
+    env_->code_rt->addReference(reinterpret_cast<PyObject*>(guard_type));
+    ss << ", " << guard_type;
   } else if (instr.IsCheckNone()) {
     ss << ", " << static_cast<void*>(Py_None);
   } else {
@@ -1512,6 +1520,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(MakeGuard(kind, instr, instr.GetOperand(0)->name()));
         break;
       }
+      case Opcode::kGuardType: {
+        const auto& instr = static_cast<const DeoptBase&>(i);
+        bbb.AppendCode(
+            MakeGuard("HasType", instr, instr.GetOperand(0)->name()));
+        break;
+      }
       case Opcode::kRefineType: {
         break;
       }
@@ -2461,6 +2475,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         case Opcode::kDeoptPatchpoint:
         case Opcode::kGuard:
         case Opcode::kGuardIs:
+        case Opcode::kGuardType:
         case Opcode::kInvokeStaticFunction:
         case Opcode::kRaiseAwaitableError:
         case Opcode::kRaise:

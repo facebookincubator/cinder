@@ -1,0 +1,41 @@
+SimplifyUsesGuardTypes
+---
+Simplify
+---
+SimplifyBinaryOpSubscriptUsesGuardTypes
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; "x">
+    v1 = LoadArg<1; "y">
+    v2 = GuardType<ListExact> v0
+    v3 = GuardType<LongExact> v1
+    v4 = BinaryOp<Subscript> v2 v3 {
+      NextInstrOffset 6
+      Locals<2> v0 v1
+    }
+    v5 = Assign v4
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:ListExact = GuardType<ListExact> v0
+    v3:LongExact = GuardType<LongExact> v1
+    v7:CInt64 = PrimitiveUnbox<CInt64> v3
+    v8:CInt64 = CheckSequenceBounds v2 v7 {
+      NextInstrOffset 6
+      Locals<2> v0 v1
+    }
+    v9:CPtr = LoadField<24> v2
+    v10:Object = LoadArrayItem v9 v8 v2
+    v6:NoneType = LoadConst<NoneType>
+    Return v6
+  }
+}
+---

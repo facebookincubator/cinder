@@ -537,6 +537,11 @@ Type outputType(const Instr& instr) {
       return instr.GetOperand(0)->type() & type;
     }
 
+    case Opcode::kGuardType: {
+      auto type = static_cast<const GuardType&>(instr).target();
+      return instr.GetOperand(0)->type() & type;
+    }
+
     // Finally, some opcodes have no destination.
     case Opcode::kBranch:
     case Opcode::kCallStaticRetVoid:

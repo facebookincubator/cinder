@@ -364,6 +364,8 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       guard_kind = InstrGuardKind::kAlwaysFail;
     } else if (kind == "Is") {
       guard_kind = InstrGuardKind::kIs;
+    } else if (kind == "HasType") {
+      guard_kind = InstrGuardKind::kHasType;
     } else {
       JIT_CHECK(false, "unknown check kind: {}", kind);
     }

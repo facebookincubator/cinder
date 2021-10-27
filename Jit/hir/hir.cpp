@@ -124,6 +124,7 @@ bool Instr::isReplayable() const {
     case Opcode::kGuard:
     case Opcode::kLoadArrayItem:
     case Opcode::kGuardIs:
+    case Opcode::kGuardType:
     case Opcode::kLoadArg:
     case Opcode::kLoadCellItem:
     case Opcode::kStealCellItem:

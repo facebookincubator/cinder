@@ -398,6 +398,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
   } else if (strcmp(opcode, "Guard") == 0) {
     auto operand = ParseRegister();
     instruction = newInstr<Guard>(operand);
+  } else if (strcmp(opcode, "GuardType") == 0) {
+    expect("<");
+    Type ty = Type::parse(GetNextToken());
+    expect(">");
+    auto operand = ParseRegister();
+    NEW_INSTR(GuardType, dst, ty, operand);
   } else if (strcmp(opcode, "CheckExc") == 0) {
     auto operand = ParseRegister();
     instruction = newInstr<CheckExc>(dst, operand);

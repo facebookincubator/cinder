@@ -35,6 +35,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCheckNeg:
     case Opcode::kCheckNone:
     case Opcode::kCheckVar:
+    case Opcode::kGuardType:
     case Opcode::kRefineType:
       return true;
 

@@ -279,6 +279,7 @@ struct FrameState {
   V(GetTuple)                   \
   V(Guard)                      \
   V(GuardIs)                    \
+  V(GuardType)                  \
   V(ImportFrom)                 \
   V(ImportName)                 \
   V(InPlaceOp)                  \
@@ -2972,6 +2973,21 @@ class INSTR_CLASS(GuardIs, HasOutput, Operands<1>, DeoptBase) {
 
  private:
   PyObject* target_;
+};
+
+// Return a copy of the input with a refined Type. The output Type is the
+// intersection of the source's type with the target Type.
+class INSTR_CLASS(GuardType, HasOutput, Operands<1>, DeoptBase) {
+ public:
+  GuardType(Register* dst, Type target, Register* src)
+      : InstrT(dst, src), target_(target) {}
+
+  Type target() const {
+    return target_;
+  }
+
+ private:
+  Type target_;
 };
 
 // Output 1, 0, if `value` is truthy or not truthy.

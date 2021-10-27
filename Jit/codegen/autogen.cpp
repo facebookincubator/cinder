@@ -176,7 +176,7 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
     reg = AutoTranslator::getGp(instr->getInput(2));
   }
 
-  auto emit_cmp = [&]() {
+  auto emit_cmp = [&](auto reg_arg) {
     constexpr size_t kTargetIndex = 3;
     auto target_opnd = instr->getInput(kTargetIndex);
     if (target_opnd->isImm()) {
@@ -184,10 +184,10 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
       JIT_DCHECK(
           fitsInt32(target),
           "The constant operand should fit in a 32-bit register.");
-      as->cmp(reg, target);
+      as->cmp(reg_arg, target);
     } else {
       auto target_reg = AutoTranslator::getGp(instr->getInput(kTargetIndex));
-      as->cmp(reg, target_reg);
+      as->cmp(reg_arg, target_reg);
     }
   };
 
@@ -203,7 +203,7 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
       break;
     }
     case kNotNone: {
-      emit_cmp();
+      emit_cmp(reg);
       as->jz(deopt_label);
       break;
     }
@@ -211,9 +211,14 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
       as->jmp(deopt_label);
       break;
     case kIs:
-      emit_cmp();
+      emit_cmp(reg);
       as->jne(deopt_label);
       break;
+    case kHasType: {
+      emit_cmp(x86::qword_ptr(reg, offsetof(PyObject, ob_type)));
+      as->jne(deopt_label);
+      break;
+    }
   }
 
   auto index = instr->getInput(1)->getConstant();
