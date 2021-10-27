@@ -411,6 +411,28 @@ void BasicBlock::addPhiPredecessor(BasicBlock* old_pred, BasicBlock* new_pred) {
   }
 }
 
+void BasicBlock::removePhiPredecessor(BasicBlock* old_pred) {
+  for (auto it = instrs_.begin(); it != instrs_.end();) {
+    auto& instr = *it;
+    ++it;
+    if (!instr.IsPhi()) {
+      break;
+    }
+
+    Phi* phi = static_cast<Phi*>(&instr);
+    std::unordered_map<BasicBlock*, Register*> args;
+    for (size_t i = 0, n = phi->NumOperands(); i < n; ++i) {
+      auto block = phi->basic_blocks()[i];
+      if (block == old_pred) {
+        continue;
+      }
+      args[block] = phi->GetOperand(i);
+    }
+    phi->ReplaceWith(*Phi::create(phi->GetOutput(), args));
+    delete phi;
+  }
+}
+
 BasicBlock* CFG::AllocateBlock() {
   auto block = AllocateUnlinkedBlock();
   block->cfg = this;
@@ -463,6 +485,11 @@ void CFG::removeUnreachableBlocks() {
     BasicBlock* block = &*it;
     ++it;
     if (!visited.count(block)) {
+      if (Instr* old_term = block->GetTerminator()) {
+        for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
+          old_term->successor(i)->removePhiPredecessor(block);
+        }
+      }
       RemoveBlock(block);
       block->clear();
       unreachable.emplace_back(block);

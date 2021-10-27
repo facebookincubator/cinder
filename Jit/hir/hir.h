@@ -3232,6 +3232,8 @@ class BasicBlock {
   void fixupPhis(BasicBlock* old_pred, BasicBlock* new_pred);
   // Adds a new predecessor to the phi that follows from the old predecessor
   void addPhiPredecessor(BasicBlock* old_pred, BasicBlock* new_pred);
+  // Removes any references to old_pred in this block's Phis
+  void removePhiPredecessor(BasicBlock* old_pred);
 
   // Read-only access to the incoming and outgoing edges.
   const std::unordered_set<const Edge*>& in_edges() const {
