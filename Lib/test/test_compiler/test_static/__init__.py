@@ -20,5 +20,6 @@ from .return_cast_insertion import ReturnCastInsertionTests
 from .subclass import SubclassTests
 from .subclass import SubclassTests
 from .tests import StaticCompilationTests, StaticRuntimeTests
+from .top_level import TopLevelTests
 from .union import UnionCompilationTests
 from .walrus_operator import WalrusOperatorTests

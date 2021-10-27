@@ -62,6 +62,7 @@ from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
+from .errors import TypedSyntaxError
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
     AwaitableType,
@@ -97,6 +98,7 @@ from .types import (
     TUPLE_EXACT_TYPE,
     UNION_TYPE,
     UnionInstance,
+    UnknownDecoratedMethod,
     Value,
     OptionalInstance,
     TransparentDecoratedMethod,
@@ -270,17 +272,17 @@ class TypeBinder(GenericVisitor):
 
     def declare_local(
         self,
-        target: ast.Name,
+        name: str,
         typ: Value,
         is_final: bool = False,
         is_inferred: bool = False,
     ) -> None:
-        if target.id in self.decl_types:
-            self.syntax_error(f"Cannot redefine local variable {target.id}", target)
+        if name in self.decl_types:
+            raise TypedSyntaxError(f"Cannot redefine local variable {name}")
         if isinstance(typ, CInstance):
-            self.check_primitive_scope(target)
+            self.check_primitive_scope(name)
         self.binding_scope.declare(
-            target.id, typ, is_final=is_final, is_inferred=is_inferred
+            name, typ, is_final=is_final, is_inferred=is_inferred
         )
 
     def check_static_import_flags(self, node: Module) -> None:
@@ -437,6 +439,15 @@ class TypeBinder(GenericVisitor):
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:
         func = self.get_func_container(node)
         func.bind_function(node, self)
+        typ = self.get_type(node)
+        # avoid declaring unknown-decorateds as locals in order to support
+        # @overload and @property.setter
+        if not isinstance(typ, UnknownDecoratedMethod):
+            if isinstance(self.scope, (FunctionDef, AsyncFunctionDef)):
+                # nested functions can't be invoked against; to ensure we
+                # don't, declare them as dynamic type
+                typ = DYNAMIC
+            self.declare_local(node.name, typ)
 
     def visitFunctionDef(self, node: FunctionDef) -> None:
         self._visitFunc(node)
@@ -467,6 +478,9 @@ class TypeBinder(GenericVisitor):
 
         self.scopes.pop()
 
+        res = self.get_type(node)
+        self.declare_local(node.name, res)
+
     def set_type(
         self,
         node: AST,
@@ -489,11 +503,11 @@ class TypeBinder(GenericVisitor):
     def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
         self.module.node_data[key, data_type] = value
 
-    def check_primitive_scope(self, node: Name) -> None:
+    def check_primitive_scope(self, name: str) -> None:
         cur_scope = self.symbols.scopes[self.scope]
-        var_scope = cur_scope.check_name(node.id)
+        var_scope = cur_scope.check_name(name)
         if var_scope != SC_LOCAL or isinstance(self.scope, Module):
-            self.syntax_error("cannot use primitives in global or closure scope", node)
+            raise TypedSyntaxError("cannot use primitives in global or closure scope")
 
     def get_var_scope(self, var_id: str) -> Optional[int]:
         cur_scope = self.symbols.scopes[self.scope]
@@ -580,7 +594,7 @@ class TypeBinder(GenericVisitor):
                     self.visit(value)
                     declared_type = self.get_type(value)
 
-            self.declare_local(target, declared_type, is_final)
+            self.declare_local(target.id, declared_type, is_final)
             self.set_type(target, declared_type)
 
         self.visit(target)
@@ -985,7 +999,7 @@ class TypeBinder(GenericVisitor):
         if isinstance(target, Name):
             decl_type = self.get_target_decl(target.id)
             if decl_type is None:
-                self.declare_local(target, value, is_inferred=True)
+                self.declare_local(target.id, value, is_inferred=True)
             else:
                 if decl_type.is_final:
                     self.syntax_error("Cannot assign to a Final variable", target)

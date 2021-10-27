@@ -171,13 +171,6 @@ class DeclarationVisitorTests(StaticTestBase):
         )
 
     def test_cross_module_import_time_resolution(self) -> None:
-        class TestCompiler(Compiler):
-            def import_module(self, name, optimize):
-                if name == "a":
-                    compiler.add_module(
-                        "a", "a.py", ast.parse(dedent(acode)), optimize=optimize
-                    )
-
         acode = """
             class C:
                 def f(self):
