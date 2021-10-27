@@ -361,6 +361,8 @@ void Runtime::watchType(
 void Runtime::notifyTypeModified(
     BorrowedRef<PyTypeObject> lookup_type,
     BorrowedRef<PyTypeObject> new_type) {
+  notifyICsTypeChanged(lookup_type);
+
   ThreadedCompileSerialize guard;
   auto it = type_deopt_patchers_.find(lookup_type);
   if (it == type_deopt_patchers_.end()) {

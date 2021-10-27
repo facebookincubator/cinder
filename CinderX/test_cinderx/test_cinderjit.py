@@ -1025,6 +1025,100 @@ class LoadAttrCacheTests(unittest.TestCase):
         self.assertEqual(get_foo(obj3), 400)
         self.assertEqual(get_foo(obj4), 600)
 
+    def test_descr_type_mutated(self):
+        class Descr:
+            def __get__(self, obj, ty):
+                return "I'm a getter!"
+
+            def __set__(self, obj, ty):
+                raise RuntimeError("unimplemented")
+
+        class C:
+            foo = Descr()
+
+        @cinder_support.failUnlessJITCompiled
+        def get_attr(o):
+            return o.foo
+
+        c = C()
+        self.assertEqual(get_attr(c), "I'm a getter!")
+        c.__dict__["foo"] = "I'm an attribute!"
+        self.assertEqual(get_attr(c), "I'm a getter!")
+        descr_set = Descr.__set__
+        del Descr.__set__
+        self.assertEqual(get_attr(c), "I'm an attribute!")
+        Descr.__set__ = descr_set
+        self.assertEqual(get_attr(c), "I'm a getter!")
+
+    def test_descr_type_changed(self):
+        class Descr:
+            def __get__(self, obj, ty):
+                return "get"
+
+            def __set__(self, obj, ty):
+                raise RuntimeError("unimplemented")
+
+        class GetDescr:
+            def __get__(self, obj, ty):
+                return "only get"
+
+        class C:
+            foo = Descr()
+
+        @cinder_support.failUnlessJITCompiled
+        def get_attr(o):
+            return o.foo
+
+        c = C()
+        self.assertEqual(get_attr(c), "get")
+        c.__dict__["foo"] = "attribute"
+        self.assertEqual(get_attr(c), "get")
+        C.__dict__["foo"].__class__ = GetDescr
+        self.assertEqual(get_attr(c), "attribute")
+        del c.__dict__["foo"]
+        self.assertEqual(get_attr(c), "only get")
+        C.__dict__["foo"].__class__ = Descr
+        self.assertEqual(get_attr(c), "get")
+
+    def test_type_destroyed(self):
+        class A:
+            pass
+
+        class Attr:
+            foo = "in Attr"
+
+        # When C is first created with A as a base, return a normal MRO. When
+        # __bases__ is reassigned later to use Attr as a base, return an MRO
+        # without C in it. This gives us a type with no reference cycles in it,
+        # which can be destroyed without running the GC (which calls
+        # type_clear() and hides the bug).
+        class NoSelfMRO(type):
+            def mro(cls):
+                if cls.__bases__ == (A,):
+                    return (cls, A, object)
+                return (cls.__bases__[0], object)
+
+        class C(A, metaclass=NoSelfMRO):
+            __slots__ = ()
+
+        C.__bases__ = (Attr,)
+
+        @cinder_support.failUnlessJITCompiled
+        def get_attr(o):
+            return o.foo
+
+        c = C()
+        self.assertEqual(get_attr(c), "in Attr")
+
+        del c
+        del C
+
+        class D:
+            foo = "in D"
+
+        d = D()
+        self.assertEqual(get_attr(d), "in D")
+
 
 class SetNonDataDescrAttrTests(unittest.TestCase):
     @cinder_support.failUnlessJITCompiled

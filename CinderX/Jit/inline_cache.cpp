@@ -146,11 +146,9 @@ AttributeCache::~AttributeCache() {
   }
 }
 
-void AttributeCache::typeChanged(PyTypeObject* type) {
+void AttributeCache::typeChanged(PyTypeObject*) {
   for (auto& entry : entries()) {
-    if (entry.type() == type) {
-      entry.reset();
-    }
+    entry.reset();
   }
 }
 
@@ -178,6 +176,9 @@ void AttributeCache::fill(
       if (descr_type == &PyMemberDescr_Type) {
         mut->set_member_descr(type, descr);
       } else {
+        // If someone deletes descr_types's __set__ method, it will no longer
+        // be a data descriptor, and the cache kind has to change.
+        ac_watcher.watch(descr_type, this);
         mut->set_data_descr(type, descr);
       }
     } else {

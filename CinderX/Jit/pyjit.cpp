@@ -2033,7 +2033,6 @@ void _PyJIT_TypeModified(PyTypeObject* type) {
   if (auto rt = Runtime::getUnchecked()) {
     rt->notifyTypeModified(type, type);
   }
-  jit::notifyICsTypeChanged(type);
 }
 
 void _PyJIT_TypeNameModified(PyTypeObject* type) {
