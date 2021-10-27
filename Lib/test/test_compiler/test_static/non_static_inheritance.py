@@ -271,6 +271,36 @@ class NonStaticInheritanceTests(StaticTestBase):
                 class C(mod.A, str):
                     pass
 
+    def test_mutate_sub_sub_class(self):
+        """patching non-static class through multiple levels
+        of inheritance shouldn't crash"""
+
+        codestr = """
+        class B:
+            def __init__(self): pass
+            def f(self):
+                return 42
+
+        def f(b: B):
+            return b.f()
+        """
+        with self.in_module(codestr) as mod:
+            # force initialization of the class
+            self.assertEqual(mod.f(mod.B()), 42)
+
+            class D1(mod.B):
+                def __init__(self):
+                    pass
+
+            class D2(D1):
+                def __init__(self):
+                    pass
+
+            D1.__init__ = lambda self: None
+            D2.__init__ = lambda self: None
+            self.assertEqual(mod.f(D1()), 42)
+            self.assertEqual(mod.f(D2()), 42)
+
 
 if __name__ == "__main__":
 

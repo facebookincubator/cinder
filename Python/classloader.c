@@ -1072,7 +1072,7 @@ get_func_or_special_callable(PyObject *dict, PyObject *name) {
 }
 
 PyObject *
-_PyClassLoader_GetInheritedFunction(PyTypeObject *type, PyObject *name, int only_static) {
+_PyClassLoader_GetStaticallyInheritedFunction(PyTypeObject *type, PyObject *name) {
     PyObject *mro = type->tp_mro;
 
     for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
@@ -1090,7 +1090,7 @@ _PyClassLoader_GetInheritedFunction(PyTypeObject *type, PyObject *name, int only
 
         PyObject *base = get_func_or_special_callable(dict, name);
         if (base != NULL) {
-            if (only_static && !used_in_vtable(base)) {
+            if (!used_in_vtable(base)) {
                 continue;
             }
             return base;
@@ -1145,7 +1145,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     /* we need to search in the MRO if we don't contain the
      * item directly or we're currently deleting the current value */
     if (previous == NULL || new_value == NULL) {
-        PyObject *base = _PyClassLoader_GetInheritedFunction(type, name, /* only_static */ 0);
+        PyObject *base = _PyClassLoader_GetStaticallyInheritedFunction(type, name);
 
         assert(base != NULL || previous != NULL);
 
@@ -1256,7 +1256,7 @@ type_vtable_setslot(PyTypeObject *tp,
         /* non-static type can't influence our original static return type */
         original = value;
     } else {
-        original = _PyClassLoader_GetInheritedFunction(tp, name, /* only_static */ 1);
+        original = _PyClassLoader_GetStaticallyInheritedFunction(tp, name);
         if (original == NULL) {
             PyErr_Format(PyExc_RuntimeError,
                         "unable to resolve base method for %s.%U",
