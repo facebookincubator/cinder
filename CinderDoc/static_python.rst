@@ -114,7 +114,7 @@ calls by avoiding the creation of full Python frame objects until they are
 definitely needed (e.g. if an exception is raised.) In the future this should
 become default.
 
-``from __static__ import cbool, int8, uint8, int16, uint16, int32, uint32, int64, uint64, double``
+``from __static__ import cbool, int8, uint8, int16, uint16, int32, uint32, int64, uint64, char, double``
 --------------------------------------------------------------------------------------------------
 
 These are primitive or C types. They can be used as type annotations in
