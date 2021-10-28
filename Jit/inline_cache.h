@@ -8,7 +8,6 @@
 #include "Jit/log.h"
 #include "Jit/ref.h"
 #include "Jit/util.h"
-#include "Jit/watcher.h"
 
 #include <array>
 #include <memory>
@@ -118,7 +117,7 @@ class AttributeMutator {
   };
 };
 
-class AttributeCache : public TypeWatcher<AttributeCache> {
+class AttributeCache {
  public:
   void typeChanged(PyTypeObject* type);
 
@@ -182,7 +181,7 @@ class LoadAttrCache : public AttributeCache {
 // second element (the cached value) is loaded. If they are not equal,
 // `invoke()` is called, which performs the full lookup and potentially fills
 // the cache.
-class LoadTypeAttrCache : public TypeWatcher<LoadTypeAttrCache> {
+class LoadTypeAttrCache {
  public:
   LoadTypeAttrCache();
 
@@ -273,6 +272,9 @@ class GlobalCache {
  private:
   GlobalCacheMap::value_type* pair_;
 };
+
+// Invalidate all load/store attr caches for type
+void notifyICsTypeChanged(BorrowedRef<PyTypeObject> type);
 
 } // namespace jit
 

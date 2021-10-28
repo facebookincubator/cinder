@@ -17,6 +17,33 @@
 // clang-format on
 
 namespace jit {
+namespace {
+
+template <class T>
+struct TypeWatcher {
+  std::unordered_map<BorrowedRef<PyTypeObject>, std::vector<T*>> caches;
+
+  void watch(BorrowedRef<PyTypeObject> type, T* cache) {
+    caches[type].emplace_back(cache);
+  }
+
+  void typeChanged(BorrowedRef<PyTypeObject> type) {
+    auto it = caches.find(type);
+    if (it == caches.end()) {
+      return;
+    }
+    std::vector<T*> to_notify = std::move(it->second);
+    caches.erase(it);
+    for (T* cache : to_notify) {
+      cache->typeChanged(type);
+    }
+  }
+};
+
+TypeWatcher<AttributeCache> ac_watcher;
+TypeWatcher<LoadTypeAttrCache> ltac_watcher;
+
+} // namespace
 
 AttributeMutator::AttributeMutator() {
   reset();
@@ -81,9 +108,7 @@ void AttributeCache::fill(
     return;
   }
 
-  if (!watchType(type)) {
-    return;
-  }
+  ac_watcher.watch(type, this);
 
   if (descr != nullptr) {
     if (Py_TYPE(descr)->tp_descr_set != nullptr) {
@@ -483,7 +508,7 @@ static PyObject g_emptyTypeAttrCache = {_PyObject_EXTRA_INIT 1, nullptr};
 void LoadTypeAttrCache::fill(PyTypeObject* type, PyObject* value) {
   items[0] = reinterpret_cast<PyObject*>(type);
   items[1] = value;
-  watchType(type);
+  ltac_watcher.watch(type, this);
 }
 
 void LoadTypeAttrCache::reset() {
@@ -667,6 +692,11 @@ void GlobalCache::update(
 void GlobalCache::disable() const {
   *valuePtr() = nullptr;
   jit::codegen::NativeGeneratorFactory::runtime()->forgetLoadGlobalCache(*this);
+}
+
+void notifyICsTypeChanged(BorrowedRef<PyTypeObject> type) {
+  ac_watcher.typeChanged(type);
+  ltac_watcher.typeChanged(type);
 }
 
 } // namespace jit

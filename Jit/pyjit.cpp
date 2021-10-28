@@ -11,6 +11,7 @@
 #include "Jit/containers.h"
 #include "Jit/frame.h"
 #include "Jit/hir/builder.h"
+#include "Jit/inline_cache.h"
 #include "Jit/jit_context.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_list.h"
@@ -1116,6 +1117,7 @@ void _PyJIT_TypeModified(PyTypeObject* type) {
   if (jit_ctx) {
     _PyJITContext_TypeModified(jit_ctx, type);
   }
+  jit::notifyICsTypeChanged(type);
 }
 
 void _PyJIT_TypeDestroyed(PyTypeObject* type) {

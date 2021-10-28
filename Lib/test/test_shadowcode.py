@@ -9,6 +9,7 @@ import weakref
 from collections import UserDict
 from test.support.script_helper import assert_python_ok
 from unittest import skipIf
+from unittest.case import CINDERJIT_ENABLED
 try:
     import cinder
     from cinder import (
@@ -681,7 +682,7 @@ function grab those instances from the L2 cache'''
         for _ in range(REPETITION):
             self.assertEqual(f(a), 42)
 
-        if cinder is not None:
+        if cinder is not None and not CINDERJIT_ENABLED:
             self.assertNotEqual(len(weakref.getweakrefs(C)), 0)
         del a, C, metafin
 
@@ -693,7 +694,7 @@ function grab those instances from the L2 cache'''
         self.assertEqual(f(a), 100)
         for _ in range(REPETITION):
             self.assertEqual(g(a), 200)
-        if cinder is not None:
+        if cinder is not None and not CINDERJIT_ENABLED:
             self.assertNotEqual(len(weakref.getweakrefs(C)), 0)
 
     def test_type_resurrection_2(self):

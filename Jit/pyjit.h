@@ -298,6 +298,11 @@ PyAPI_FUNC(void)
 PyAPI_FUNC(PyObject*) _PyJIT_GetAndClearTypeProfiles(void);
 PyAPI_FUNC(void) _PyJIT_ClearTypeProfiles(void);
 
+/*
+ * Notify the JIT that type has been modified.
+ */
+PyAPI_FUNC(void) _PyJIT_TypeModified(PyTypeObject* type);
+
 #ifdef __cplusplus
 }
 #endif

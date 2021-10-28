@@ -1249,7 +1249,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/stack.h \
 		$(srcdir)/Jit/type_profiler.h \
 		$(srcdir)/Jit/util.h \
-		$(srcdir)/Jit/watcher.h \
 		$(srcdir)/Jit/codegen/annotations.h \
 		$(srcdir)/Jit/codegen/autogen.h \
 		$(srcdir)/Jit/codegen/copy_graph.h \
