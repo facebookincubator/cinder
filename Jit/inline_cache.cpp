@@ -332,9 +332,7 @@ PyObject* MemberDescrMutator::getAttr(PyObject* obj) {
 // used to delete attributes.
 PyObject* __attribute__((noinline))
 StoreAttrCache::invokeSlowPath(PyObject* obj, PyObject* name, PyObject* value) {
-  PyTypeObject* tp = Py_TYPE(obj);
-  PyObject* descr = nullptr;
-  int res = -1;
+  BorrowedRef<PyTypeObject> tp(Py_TYPE(obj));
 
   if (tp->tp_dict == nullptr && PyType_Ready(tp) < 0) {
     return nullptr;
@@ -343,27 +341,21 @@ StoreAttrCache::invokeSlowPath(PyObject* obj, PyObject* name, PyObject* value) {
     return st == 0 ? Py_None : nullptr;
   }
 
-  Py_INCREF(name);
-
-  PyObject** dictptr = _PyObject_GetDictPtr(obj);
-  descr = _PyType_Lookup(tp, name);
+  Ref<> name_guard(name);
+  Ref<> descr(_PyType_Lookup(tp, name));
   if (descr != nullptr) {
-    Py_INCREF(descr);
     descrsetfunc f = descr->ob_type->tp_descr_set;
     if (f != nullptr) {
-      res = f(descr, obj, value);
+      int res = f(descr, obj, value);
       fill(tp, name, descr);
-      goto done;
+      return (res == -1) ? nullptr : Py_None;
     }
   }
 
+  PyObject** dictptr = _PyObject_GetDictPtr(obj);
   if (dictptr == nullptr) {
     if (descr == nullptr) {
-      PyErr_Format(
-          PyExc_AttributeError,
-          "'%.100s' object has no attribute '%U'",
-          tp->tp_name,
-          name);
+      raise_attribute_error(obj, name);
     } else {
       PyErr_Format(
           PyExc_AttributeError,
@@ -371,20 +363,15 @@ StoreAttrCache::invokeSlowPath(PyObject* obj, PyObject* name, PyObject* value) {
           tp->tp_name,
           name);
     }
-    goto done;
+    return nullptr;
   }
 
-  res = _PyObjectDict_SetItem(tp, dictptr, name, value);
-
+  int res = _PyObjectDict_SetItem(tp, dictptr, name, value);
   if (descr != nullptr) {
     _PyType_ClearNoShadowingInstances(tp, descr);
   } else if (res != -1) {
-    fill(tp, name, NULL);
+    fill(tp, name, nullptr);
   }
-
-done:
-  Py_XDECREF(descr);
-  Py_DECREF(name);
 
   return (res == -1) ? nullptr : Py_None;
 }

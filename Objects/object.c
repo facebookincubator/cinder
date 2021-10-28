@@ -1111,10 +1111,13 @@ PyObject_SetAttr(PyObject *v, PyObject *name, PyObject *value)
 PyObject **
 _PyObject_GetDictPtr(PyObject *obj)
 {
-    Py_ssize_t dictoffset;
-    PyTypeObject *tp = Py_TYPE(obj);
+    Py_ssize_t dictoffset = Py_TYPE(obj)->tp_dictoffset;
+    return _PyObject_GetDictPtrAtOffset(obj, dictoffset);
+}
 
-    dictoffset = tp->tp_dictoffset;
+PyObject **
+_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset)
+{
     if (dictoffset == 0)
         return NULL;
     if (dictoffset < 0) {
@@ -1124,7 +1127,7 @@ _PyObject_GetDictPtr(PyObject *obj)
         tsize = ((PyVarObject *)obj)->ob_size;
         if (tsize < 0)
             tsize = -tsize;
-        size = _PyObject_VAR_SIZE(tp, tsize);
+        size = _PyObject_VAR_SIZE(Py_TYPE(obj), tsize);
 
         dictoffset += (long)size;
         _PyObject_ASSERT(obj, dictoffset > 0);
