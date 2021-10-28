@@ -76,11 +76,6 @@ void AttributeCache::fill(
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<> name,
     BorrowedRef<> descr) {
-  if (type->tp_dictoffset < 0 ||
-      !PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
-    return;
-  }
-
   AttributeMutator* mut = findEmptyEntry();
   if (mut == nullptr) {
     return;
@@ -92,12 +87,20 @@ void AttributeCache::fill(
 
   if (descr != nullptr) {
     if (Py_TYPE(descr)->tp_descr_set != nullptr) {
+      // Only support data-descriptors
       if (Py_TYPE(descr) == &PyMemberDescr_Type) {
         mut->set_member_descr(type, descr);
       } else {
         mut->set_data_descr(type, descr);
       }
     }
+    return;
+  }
+
+  if (type->tp_dictoffset < 0 ||
+      !PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+    // We only support the common case for objects - fixed-size instances
+    // (tp_dictoffset >= 0) of heap types (Py_TPFLAGS_HEAPTYPE).
     return;
   }
 
