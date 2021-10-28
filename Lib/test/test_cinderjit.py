@@ -2834,6 +2834,30 @@ class GetFrameTests(unittest.TestCase):
         self.assert_frames(frame, stack)
 
 
+class DeleteAttrTests(unittest.TestCase):
+    def test_delete_attr(self):
+        class C:
+            pass
+
+        c = C()
+        c.foo = "bar"
+        self.assertEqual(c.foo, "bar")
+        del c.foo
+        with self.assertRaises(AttributeError):
+            c.foo
+
+    def test_delete_attr_raises(self):
+        class C:
+            @property
+            def foo(self):
+                return "hi"
+
+        c = C()
+        self.assertEqual(c.foo, "hi")
+        with self.assertRaises(AttributeError):
+            del c.foo
+
+
 _cmp_key = cmp_to_key(lambda x, y: 0)
 
 

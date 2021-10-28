@@ -550,6 +550,7 @@ Type outputType(const Instr& instr) {
     case Opcode::kCondBranchCheckType:
     case Opcode::kCondBranchIterNotDone:
     case Opcode::kDecref:
+    case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:

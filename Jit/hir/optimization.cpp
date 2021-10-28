@@ -478,7 +478,7 @@ BasicBlock* LoadAttrSpecialization::specializeForType(
   auto block = load_attr->block();
   Register* dst = load_attr->GetOutput();
   BasicBlock* tail = block->splitAfter(*load_attr);
-  Register* receiver = load_attr->receiver();
+  Register* receiver = load_attr->GetOperand(0);
   int bc_off = load_attr->bytecodeOffset();
   int name_idx = load_attr->name_idx();
   load_attr->unlink();

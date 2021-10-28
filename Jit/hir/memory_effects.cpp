@@ -90,6 +90,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kCallStaticRetVoid:
     case Opcode::kClearError:
     case Opcode::kCompare:
+    case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
     case Opcode::kCompareBool:
     case Opcode::kFillTypeAttrCache:

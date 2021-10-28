@@ -398,10 +398,6 @@ static std::string format_immediates(const Instr& instr) {
       const auto& load = static_cast<const LoadArg&>(instr);
       return format_varname(load, load.arg_idx());
     }
-    case Opcode::kLoadAttr: {
-      const auto& load = static_cast<const LoadAttr&>(instr);
-      return format_name(load, load.name_idx());
-    }
     case Opcode::kLoadAttrSpecial: {
       const auto& load = static_cast<const LoadAttrSpecial&>(instr);
       _Py_Identifier* id = load.id();
@@ -497,9 +493,11 @@ static std::string format_immediates(const Instr& instr) {
 
       return ss.str();
     }
+    case Opcode::kDeleteAttr:
+    case Opcode::kLoadAttr:
     case Opcode::kStoreAttr: {
-      const auto& store = static_cast<const StoreAttr&>(instr);
-      return format_name(store, store.name_idx());
+      const auto& named = static_cast<const DeoptBaseWithName&>(instr);
+      return format_name(named, named.name_idx());
     }
     case Opcode::kInPlaceOp: {
       const auto& inplace_op = static_cast<const InPlaceOp&>(instr);

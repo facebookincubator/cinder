@@ -269,6 +269,7 @@ struct FrameState {
   V(CondBranchIterNotDone)      \
   V(CondBranchCheckType)        \
   V(Decref)                     \
+  V(DeleteAttr)                 \
   V(DeleteSubscr)               \
   V(Deopt)                      \
   V(DeoptPatchpoint)            \
@@ -2151,20 +2152,10 @@ DEFINE_SIMPLE_INSTR(Incref, Operands<1>);
 // Increment the refrence count of `reg`, if `reg` is not NULL
 DEFINE_SIMPLE_INSTR(XIncref, Operands<1>);
 
-// Load an attribute from an object
-class INSTR_CLASS(LoadAttr, HasOutput, Operands<1>, DeoptBase) {
+class DeoptBaseWithName : public DeoptBase {
  public:
-  LoadAttr(
-      Register* dst,
-      Register* receiver,
-      int name_idx,
-      const FrameState& frame)
-      : InstrT(dst, receiver, frame), name_idx_(name_idx) {}
-
-  // The object we're loading the attribute from
-  Register* receiver() const {
-    return GetOperand(0);
-  }
+  DeoptBaseWithName(Opcode op, int name_idx, const FrameState& frame)
+      : DeoptBase(op, frame), name_idx_(name_idx) {}
 
   // Index of the attribute name in the code object's co_names tuple
   int name_idx() const {
@@ -2174,6 +2165,17 @@ class INSTR_CLASS(LoadAttr, HasOutput, Operands<1>, DeoptBase) {
  private:
   int name_idx_;
 };
+
+// Load an attribute from an object
+DEFINE_SIMPLE_INSTR(LoadAttr, HasOutput, Operands<1>, DeoptBaseWithName);
+
+// Set the attribute of an object
+//
+// Places NULL in dst if an error occurred or a non-NULL value otherwise
+DEFINE_SIMPLE_INSTR(StoreAttr, HasOutput, Operands<2>, DeoptBaseWithName);
+
+// Delete an attribute from an object
+DEFINE_SIMPLE_INSTR(DeleteAttr, Operands<1>, DeoptBaseWithName);
 
 // Load an attribute from an object, skipping the instance dictionary but still
 // calling descriptors as appropriate (to create bound methods, for example).
@@ -2823,46 +2825,6 @@ class INSTR_CLASS(SetSetItem, HasOutput, Operands<2>, DeoptBase) {
 
 // Load the size of a PyVarObject as a CInt64.
 DEFINE_SIMPLE_INSTR(LoadVarObjectSize, HasOutput, Operands<1>);
-
-// Set the attribute of an object
-//
-// Places NULL in dst if an error occurred or a non-NULL value otherwise
-class INSTR_CLASS(StoreAttr, HasOutput, Operands<2>, DeoptBase) {
- public:
-  StoreAttr(
-      Register* dst,
-      Register* receiver,
-      int name_idx,
-      Register* value,
-      const FrameState& frame)
-      : InstrT(dst, receiver, value, frame), name_idx_(name_idx) {}
-
-  // The object we're loading the attribute from
-  Register* receiver() const {
-    return GetOperand(0);
-  }
-
-  void set_receiver(Register* receiver) {
-    SetOperand(0, receiver);
-  }
-
-  // The value being stored
-  Register* value() const {
-    return GetOperand(1);
-  }
-
-  void set_value(Register* value) {
-    SetOperand(1, value);
-  }
-
-  // Index of the attribute name in the code object's co_names tuple
-  int name_idx() const {
-    return name_idx_;
-  }
-
- private:
-  int name_idx_;
-};
 
 // Stores into an index
 //

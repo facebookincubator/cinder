@@ -1162,6 +1162,20 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr.false_bb()->id);
         break;
       }
+      case Opcode::kDeleteAttr: {
+        std::string tmp = GetSafeTempName();
+        auto instr = static_cast<const DeleteAttr*>(&i);
+        PyObject* name = PyTuple_GET_ITEM(
+            GetHIRFunction()->code->co_names, instr->name_idx());
+        bbb.AppendCode(
+            "Call {}:CInt32, {}, {}, {}, 0",
+            tmp,
+            reinterpret_cast<uint64_t>(PyObject_SetAttr),
+            instr->GetOperand(0),
+            reinterpret_cast<uint64_t>(name));
+        bbb.AppendCode(MakeGuard("NotNegative", *instr, tmp));
+        break;
+      }
       case Opcode::kLoadAttr: {
         auto instr = static_cast<const LoadAttr*>(&i);
         std::string tmp_id = GetSafeTempName();
@@ -1178,7 +1192,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->dst(),
             func,
             reinterpret_cast<uint64_t>(cache),
-            instr->receiver());
+            instr->GetOperand(0));
         break;
       }
       case Opcode::kLoadAttrSpecial: {
@@ -1571,9 +1585,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->dst(),
             reinterpret_cast<uint64_t>(&jit::StoreAttrCache::invoke),
             reinterpret_cast<uint64_t>(cache),
-            instr->receiver(),
+            instr->GetOperand(0),
             reinterpret_cast<uint64_t>(ob_item[instr->name_idx()]),
-            instr->value());
+            instr->GetOperand(1));
 
         break;
       }
@@ -2474,6 +2488,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         case Opcode::kCheckField:
         case Opcode::kCheckNone:
         case Opcode::kCheckVar:
+        case Opcode::kDeleteAttr:
         case Opcode::kDeleteSubscr:
         case Opcode::kDeopt:
         case Opcode::kDeoptPatchpoint:

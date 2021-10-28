@@ -69,11 +69,11 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BINARY_SUBTRACT,
     BINARY_TRUE_DIVIDE,
     BINARY_XOR,
+    BUILD_CHECKED_LIST,
+    BUILD_CHECKED_MAP,
     BUILD_CONST_KEY_MAP,
     BUILD_LIST,
     BUILD_LIST_UNPACK,
-    BUILD_CHECKED_LIST,
-    BUILD_CHECKED_MAP,
     BUILD_MAP,
     BUILD_MAP_UNPACK,
     BUILD_MAP_UNPACK_WITH_CALL,
@@ -93,6 +93,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CHECK_ARGS,
     COMPARE_OP,
     CONVERT_PRIMITIVE,
+    DELETE_ATTR,
     DELETE_FAST,
     DELETE_SUBSCR,
     DUP_TOP,
@@ -123,13 +124,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     INPLACE_SUBTRACT,
     INPLACE_TRUE_DIVIDE,
     INPLACE_XOR,
-    PRIMITIVE_BINARY_OP,
-    PRIMITIVE_BOX,
-    PRIMITIVE_COMPARE_OP,
-    PRIMITIVE_LOAD_CONST,
     INT_LOAD_CONST_OLD,
-    PRIMITIVE_UNARY_OP,
-    PRIMITIVE_UNBOX,
     INVOKE_FUNCTION,
     INVOKE_METHOD,
     JUMP_ABSOLUTE,
@@ -163,6 +158,12 @@ const std::unordered_set<int> kSupportedOpcodes = {
     POP_JUMP_IF_TRUE,
     POP_JUMP_IF_ZERO,
     POP_TOP,
+    PRIMITIVE_BINARY_OP,
+    PRIMITIVE_BOX,
+    PRIMITIVE_COMPARE_OP,
+    PRIMITIVE_LOAD_CONST,
+    PRIMITIVE_UNARY_OP,
+    PRIMITIVE_UNBOX,
     RAISE_VARARGS,
     REFINE_TYPE,
     RETURN_PRIMITIVE,
@@ -815,6 +816,10 @@ void HIRBuilder::translate(
         }
         case COMPARE_OP: {
           emitCompareOp(tc, bc_instr);
+          break;
+        }
+        case DELETE_ATTR: {
+          emitDeleteAttr(tc, bc_instr);
           break;
         }
         case LOAD_ATTR: {
@@ -2001,6 +2006,13 @@ void HIRBuilder::emitJumpIf(
   }
 }
 
+void HIRBuilder::emitDeleteAttr(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  Register* receiver = tc.frame.stack.pop();
+  tc.emit<DeleteAttr>(receiver, bc_instr.oparg(), tc.frame);
+}
+
 void HIRBuilder::emitLoadAttr(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
@@ -2945,7 +2957,7 @@ void HIRBuilder::emitStoreAttr(
   Register* receiver = tc.frame.stack.pop();
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<StoreAttr>(result, receiver, bc_instr.oparg(), value, tc.frame);
+  tc.emit<StoreAttr>(result, receiver, value, bc_instr.oparg(), tc.frame);
 }
 
 void HIRBuilder::moveOverwrittenStackRegisters(

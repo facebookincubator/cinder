@@ -147,6 +147,9 @@ class HIRBuilder {
   void emitJumpIf(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitDeleteAttr(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitLoadAttr(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

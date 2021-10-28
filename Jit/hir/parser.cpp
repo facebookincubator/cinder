@@ -265,7 +265,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto receiver = ParseRegister();
     auto value = ParseRegister();
-    instruction = newInstr<StoreAttr>(dst, receiver, idx, value);
+    instruction = newInstr<StoreAttr>(dst, receiver, value, idx);
   } else if (strcmp(opcode, "DeleteSubscr") == 0) {
     auto container = ParseRegister();
     auto sub = ParseRegister();

@@ -144,6 +144,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCondBranchIterNotDone:
     case Opcode::kCondBranchCheckType:
     case Opcode::kDecref:
+    case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
