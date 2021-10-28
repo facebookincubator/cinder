@@ -398,95 +398,54 @@ StoreAttrCache::doInvoke(PyObject* obj, PyObject* name, PyObject* value) {
 // NB: The logic here needs to be kept in-sync with PyObject_GenericGetAttr
 PyObject* __attribute__((noinline))
 LoadAttrCache::invokeSlowPath(PyObject* obj, PyObject* name) {
-  PyTypeObject* tp = Py_TYPE(obj);
+  BorrowedRef<PyTypeObject> tp(Py_TYPE(obj));
   if (tp->tp_getattro != PyObject_GenericGetAttr) {
     return PyObject_GetAttr(obj, name);
   }
-
-  PyObject* descr = nullptr;
-  PyObject* res = nullptr;
-  descrgetfunc f;
-  Py_ssize_t dictoffset = 0;
-  PyObject** dictptr;
-  PyObject* dict = nullptr;
-
-  Py_INCREF(name);
-
   if (tp->tp_dict == nullptr) {
     if (PyType_Ready(tp) < 0)
-      goto done;
+      return nullptr;
   }
 
-  descr = _PyType_Lookup(tp, name);
-
-  f = nullptr;
+  Ref<> name_guard(name);
+  Ref<> descr(_PyType_Lookup(tp, name));
+  descrgetfunc f = nullptr;
   if (descr != nullptr) {
-    Py_INCREF(descr);
     f = descr->ob_type->tp_descr_get;
     if (f != nullptr && PyDescr_IsData(descr)) {
-      res = f(descr, obj, (PyObject*)obj->ob_type);
+      Ref<> res = Ref<>::steal(f(descr, obj, tp));
       fill(tp, name, descr);
-      goto done;
+      return res.release();
     }
   }
 
-  /* Inline _PyObject_GetDictPtr */
-  dictoffset = tp->tp_dictoffset;
-  if (dictoffset != 0) {
-    if (dictoffset < 0) {
-      Py_ssize_t tsize;
-      size_t size;
-
-      tsize = ((PyVarObject*)obj)->ob_size;
-      if (tsize < 0)
-        tsize = -tsize;
-      size = _PyObject_VAR_SIZE(tp, tsize);
-      assert(size <= PY_SSIZE_T_MAX);
-
-      dictoffset += (Py_ssize_t)size;
-      assert(dictoffset > 0);
-      assert(dictoffset % SIZEOF_VOID_P == 0);
-    }
-    dictptr = (PyObject**)((char*)obj + dictoffset);
-    dict = *dictptr;
+  Ref<> dict;
+  PyObject** dictptr = _PyObject_GetDictPtr(obj);
+  if (dictptr != nullptr) {
+    dict.reset(*dictptr);
   }
 
   if (dict != nullptr) {
-    Py_INCREF(dict);
-    res = PyDict_GetItem(dict, name);
+    Ref<> res(PyDict_GetItem(dict, name));
     if (res != nullptr) {
-      Py_INCREF(res);
       if (descr == nullptr) {
         fill(tp, name, descr);
       }
-      Py_DECREF(dict);
-      goto done;
+      return res.release();
     }
-    Py_DECREF(dict);
   }
 
   if (f != nullptr) {
-    res = f(descr, obj, (PyObject*)Py_TYPE(obj));
-    goto done;
+    return f(descr, obj, tp);
   }
 
   if (descr != nullptr) {
-    res = descr;
-    descr = nullptr;
-    goto done;
+    return descr.release();
   }
 
-  PyErr_Format(
-      PyExc_AttributeError,
-      "'%.50s' object has no attribute '%U'",
-      tp->tp_name,
-      name);
+  raise_attribute_error(obj, name);
 
-done:
-  Py_XDECREF(descr);
-  Py_DECREF(name);
-
-  return res;
+  return nullptr;
 }
 
 // Sentinel PyObject that must never escape into user code.
