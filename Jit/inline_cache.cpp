@@ -72,6 +72,46 @@ void AttributeCache::typeChanged(PyTypeObject* type) {
   }
 }
 
+void AttributeCache::fill(
+    BorrowedRef<PyTypeObject> type,
+    BorrowedRef<> name,
+    BorrowedRef<> descr) {
+  if (type->tp_dictoffset < 0 ||
+      !PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+    return;
+  }
+
+  AttributeMutator* mut = findEmptyEntry();
+  if (mut == nullptr) {
+    return;
+  }
+
+  if (!watchType(type)) {
+    return;
+  }
+
+  if (descr != nullptr) {
+    if (Py_TYPE(descr)->tp_descr_set != nullptr) {
+      if (Py_TYPE(descr) == &PyMemberDescr_Type) {
+        mut->set_member_descr(type, descr);
+      } else {
+        mut->set_data_descr(type, descr);
+      }
+    }
+    return;
+  }
+
+  PyHeapTypeObject* ht = reinterpret_cast<PyHeapTypeObject*>(type.get());
+  PyDictKeysObject* keys = ht->ht_cached_keys;
+  Py_ssize_t val_offset;
+  if (keys != nullptr &&
+      (val_offset = _PyDictKeys_GetSplitIndex(keys, name)) != -1) {
+    mut->set_split(type, val_offset, keys);
+  } else {
+    mut->set_combined(type);
+  }
+}
+
 AttributeMutator* AttributeCache::findEmptyEntry() {
   auto it = std::find_if(
       entries_.begin(), entries_.end(), [](const AttributeMutator& e) {
@@ -259,43 +299,6 @@ PyObject* MemberDescrMutator::getAttr(PyObject* obj) {
   return PyMember_GetOne((char*)obj, memberdef);
 }
 
-void StoreAttrCache::fill(PyTypeObject* type, PyObject* name, PyObject* descr) {
-  if (type->tp_dictoffset < 0 ||
-      !PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
-    return;
-  }
-
-  AttributeMutator* mut = findEmptyEntry();
-  if (mut == nullptr) {
-    return;
-  }
-
-  if (!watchType(type)) {
-    return;
-  }
-
-  if (descr != nullptr) {
-    if (Py_TYPE(descr)->tp_descr_set != nullptr) {
-      if (Py_TYPE(descr) == &PyMemberDescr_Type) {
-        mut->set_member_descr(type, descr);
-      } else {
-        mut->set_data_descr(type, descr);
-      }
-    }
-    return;
-  }
-
-  PyHeapTypeObject* ht = reinterpret_cast<PyHeapTypeObject*>(type);
-  PyDictKeysObject* keys = ht->ht_cached_keys;
-  Py_ssize_t val_offset;
-  if (keys != nullptr &&
-      (val_offset = _PyDictKeys_GetSplitIndex(keys, name)) != -1) {
-    mut->set_split(type, val_offset, keys);
-  } else {
-    mut->set_combined(type);
-  }
-}
-
 // NB: The logic here needs to be kept in sync with
 // _PyObject_GenericSetAttrWithDict, with the proviso that this will never be
 // used to delete attributes.
@@ -375,46 +378,6 @@ StoreAttrCache::doInvoke(PyObject* obj, PyObject* name, PyObject* value) {
     }
   }
   return invokeSlowPath(obj, name, value);
-}
-
-void LoadAttrCache::fill(PyTypeObject* type, PyObject* name, PyObject* descr) {
-  if (type->tp_dictoffset < 0 ||
-      !PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
-    return;
-  }
-
-  AttributeMutator* mut = findEmptyEntry();
-  if (mut == nullptr) {
-    return;
-  }
-
-  if (!watchType(type)) {
-    return;
-  }
-
-  if (descr != nullptr) {
-    if (Py_TYPE(descr)->tp_descr_set != nullptr) {
-      if (Py_TYPE(descr) == &PyMemberDescr_Type) {
-        mut->set_member_descr(type, descr);
-      } else {
-        mut->set_data_descr(type, descr);
-      }
-    }
-    return;
-  }
-
-  PyHeapTypeObject* ht = reinterpret_cast<PyHeapTypeObject*>(type);
-  PyDictKeysObject* keys = ht->ht_cached_keys;
-  if (keys != nullptr) {
-    Py_ssize_t val_offset = _PyDictKeys_GetSplitIndex(keys, name);
-    if (val_offset >= 0) {
-      mut->set_split(type, val_offset, keys);
-    } else {
-      mut->set_combined(type);
-    }
-  } else {
-    mut->set_combined(type);
-  }
 }
 
 // NB: The logic here needs to be kept in-sync with PyObject_GenericGetAttr

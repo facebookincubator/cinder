@@ -125,6 +125,9 @@ class AttributeCache : public TypeWatcher<AttributeCache> {
  protected:
   AttributeMutator* findEmptyEntry();
 
+  void
+  fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> name, BorrowedRef<> descr);
+
   std::array<AttributeMutator, 4> entries_;
 };
 
@@ -146,7 +149,6 @@ class StoreAttrCache : public AttributeCache {
 
   PyObject* doInvoke(PyObject* obj, PyObject* name, PyObject* value);
   PyObject* invokeSlowPath(PyObject* obj, PyObject* name, PyObject* value);
-  void fill(PyTypeObject* type, PyObject* name, PyObject* descr);
 };
 
 // A cache for an individual LoadAttr instruction.
@@ -166,7 +168,6 @@ class LoadAttrCache : public AttributeCache {
 
   PyObject* doInvoke(PyObject* obj, PyObject* name);
   PyObject* invokeSlowPath(PyObject* obj, PyObject* name);
-  void fill(PyTypeObject* type, PyObject* name, PyObject* descr);
 };
 
 // A cache for LoadAttr instructions where we expect the receiver to be a type
