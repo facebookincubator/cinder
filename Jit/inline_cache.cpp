@@ -91,9 +91,18 @@ void AttributeMutator::set_member_descr(PyTypeObject* type, PyObject* descr) {
   member_descr_.memberdef = ((PyMemberDescrObject*)descr)->d_member;
 }
 
+void AttributeMutator::set_descr_or_classvar(
+    PyTypeObject* type,
+    PyObject* descr) {
+  kind_ = Kind::kDescrOrClassVar;
+  type_ = type;
+  descr_or_cvar_.descr = descr;
+  descr_or_cvar_.dictoffset = type->tp_dictoffset;
+}
+
 void AttributeCache::typeChanged(PyTypeObject* type) {
   for (auto& entry : entries_) {
-    if ((type == nullptr) || (entry.type() == type)) {
+    if (entry.type() == type) {
       entry.reset();
     }
   }
@@ -108,17 +117,20 @@ void AttributeCache::fill(
     return;
   }
 
-  ac_watcher.watch(type, this);
-
   if (descr != nullptr) {
-    if (Py_TYPE(descr)->tp_descr_set != nullptr) {
-      // Only support data-descriptors
-      if (Py_TYPE(descr) == &PyMemberDescr_Type) {
+    BorrowedRef<PyTypeObject> descr_type(Py_TYPE(descr));
+    if (descr_type->tp_descr_set != nullptr) {
+      // Data descriptor
+      if (descr_type == &PyMemberDescr_Type) {
         mut->set_member_descr(type, descr);
       } else {
         mut->set_data_descr(type, descr);
       }
+    } else {
+      // Non-data descriptor or class var
+      mut->set_descr_or_classvar(type, descr);
     }
+    ac_watcher.watch(type, this);
     return;
   }
 
@@ -129,6 +141,8 @@ void AttributeCache::fill(
     return;
   }
 
+  // Instance attribute with no shadowing. Specialize the lookup based on
+  // whether or not the type is using split dictionaries.
   PyHeapTypeObject* ht = reinterpret_cast<PyHeapTypeObject*>(type.get());
   PyDictKeysObject* keys = ht->ht_cached_keys;
   Py_ssize_t val_offset;
@@ -138,6 +152,7 @@ void AttributeCache::fill(
   } else {
     mut->set_combined(type);
   }
+  ac_watcher.watch(type, this);
 }
 
 AttributeMutator* AttributeCache::findEmptyEntry() {
@@ -159,6 +174,8 @@ AttributeMutator::setAttr(PyObject* obj, PyObject* name, PyObject* value) {
       return data_descr_.setAttr(obj, value);
     case AttributeMutator::Kind::kMemberDescr:
       return member_descr_.setAttr(obj, value);
+    case AttributeMutator::Kind::kDescrOrClassVar:
+      return descr_or_cvar_.setAttr(obj, name, value);
     default:
       JIT_CHECK(
           false,
@@ -177,6 +194,8 @@ inline PyObject* AttributeMutator::getAttr(PyObject* obj, PyObject* name) {
       return data_descr_.getAttr(obj);
     case AttributeMutator::Kind::kMemberDescr:
       return member_descr_.getAttr(obj);
+    case AttributeMutator::Kind::kDescrOrClassVar:
+      return descr_or_cvar_.getAttr(obj, name);
     default:
       JIT_CHECK(
           false,
@@ -327,6 +346,69 @@ PyObject* MemberDescrMutator::getAttr(PyObject* obj) {
   return PyMember_GetOne((char*)obj, memberdef);
 }
 
+PyObject* DescrOrClassVarMutator::setAttr(
+    PyObject* obj,
+    PyObject* name,
+    PyObject* value) {
+  descrsetfunc setter = Py_TYPE(descr)->tp_descr_set;
+  if (setter != nullptr) {
+    Ref<> descr_guard(descr);
+    int st = setter(descr, obj, value);
+    return (st == -1) ? nullptr : Py_None;
+  }
+  PyObject** dictptr = _PyObject_GetDictPtrAtOffset(obj, dictoffset);
+  if (dictptr == nullptr) {
+    PyErr_Format(
+        PyExc_AttributeError,
+        "'%.50s' object attribute '%U' is read-only",
+        Py_TYPE(obj)->tp_name,
+        name);
+    return nullptr;
+  }
+  BorrowedRef<PyTypeObject> type(Py_TYPE(obj));
+  int st = _PyObjectDict_SetItem(type, dictptr, name, value);
+  if (st < 0 && PyErr_ExceptionMatches(PyExc_KeyError)) {
+    PyErr_SetObject(PyExc_AttributeError, name);
+  }
+  _PyType_ClearNoShadowingInstances(type, descr);
+  return (st == -1) ? nullptr : Py_None;
+}
+
+PyObject* DescrOrClassVarMutator::getAttr(PyObject* obj, PyObject* name) {
+  BorrowedRef<PyTypeObject> descr_type(Py_TYPE(descr));
+  descrsetfunc setter = descr_type->tp_descr_set;
+  descrgetfunc getter = descr_type->tp_descr_get;
+
+  Ref<> descr_guard(descr);
+  if (setter != nullptr && getter != nullptr) {
+    BorrowedRef<PyTypeObject> type(Py_TYPE(obj));
+    return getter(descr, obj, type);
+  }
+
+  Ref<> dict;
+  PyObject** dictptr = _PyObject_GetDictPtrAtOffset(obj, dictoffset);
+  if (dictptr != nullptr) {
+    dict.reset(*dictptr);
+  }
+
+  // Check instance dict.
+  if (dict != nullptr) {
+    Ref<> res(_PyDict_GetItem_UnicodeExact(dict, name));
+    if (res != nullptr) {
+      return res.release();
+    }
+  }
+
+  if (getter != nullptr) {
+    // Non-data descriptor
+    BorrowedRef<PyTypeObject> type(Py_TYPE(obj));
+    return getter(descr, obj, type);
+  }
+
+  // Class var
+  return descr_guard.release();
+}
+
 // NB: The logic here needs to be kept in sync with
 // _PyObject_GenericSetAttrWithDict, with the proviso that this will never be
 // used to delete attributes.
@@ -369,8 +451,9 @@ StoreAttrCache::invokeSlowPath(PyObject* obj, PyObject* name, PyObject* value) {
   int res = _PyObjectDict_SetItem(tp, dictptr, name, value);
   if (descr != nullptr) {
     _PyType_ClearNoShadowingInstances(tp, descr);
-  } else if (res != -1) {
-    fill(tp, name, nullptr);
+  }
+  if (res != -1) {
+    fill(tp, name, descr);
   }
 
   return (res == -1) ? nullptr : Py_None;
@@ -413,9 +496,8 @@ LoadAttrCache::invokeSlowPath(PyObject* obj, PyObject* name) {
   if (descr != nullptr) {
     f = descr->ob_type->tp_descr_get;
     if (f != nullptr && PyDescr_IsData(descr)) {
-      Ref<> res = Ref<>::steal(f(descr, obj, tp));
       fill(tp, name, descr);
-      return res.release();
+      return f(descr, obj, tp);
     }
   }
 
@@ -428,18 +510,18 @@ LoadAttrCache::invokeSlowPath(PyObject* obj, PyObject* name) {
   if (dict != nullptr) {
     Ref<> res(PyDict_GetItem(dict, name));
     if (res != nullptr) {
-      if (descr == nullptr) {
-        fill(tp, name, descr);
-      }
+      fill(tp, name, descr);
       return res.release();
     }
   }
 
   if (f != nullptr) {
+    fill(tp, name, descr);
     return f(descr, obj, tp);
   }
 
   if (descr != nullptr) {
+    fill(tp, name, descr);
     return descr.release();
   }
 

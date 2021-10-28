@@ -486,6 +486,136 @@ class LoadAttrCacheTests(unittest.TestCase):
         self.assertEqual(get_foo(obj4), 600)
 
 
+class SetNonDataDescrAttrTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    def set_foo(self, obj, val):
+        obj.foo = val
+
+    def setUp(self):
+        class Descr:
+            def __init__(self, name):
+                self.name = name
+
+            def __get__(self, obj, typ):
+                return obj.__dict__[self.name]
+
+        self.descr_type = Descr
+        self.descr = Descr("foo")
+
+        class Test:
+            foo = self.descr
+
+        self.obj = Test()
+
+    def test_set_when_changed_to_data_descr(self):
+        # uncached
+        self.set_foo(self.obj, 100)
+        self.assertEqual(self.obj.foo, 100)
+
+        # cached
+        self.set_foo(self.obj, 200)
+        self.assertEqual(self.obj.foo, 200)
+
+        # convert into a data descriptor
+        def setter(self, obj, val):
+            self.invoked = True
+
+        self.descr.__class__.__set__ = setter
+
+        # setter doesn't modify the object, so obj.foo shouldn't change
+        self.set_foo(self.obj, 300)
+        self.assertEqual(self.obj.foo, 200)
+        self.assertTrue(self.descr.invoked)
+
+
+class GetSetNonDataDescrAttrTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    def get_foo(self, obj):
+        return obj.foo
+
+    def setUp(self):
+        class NonDataDescr:
+            def __init__(self, val):
+                self.val = val
+                self.invoked_count = 0
+                self.set_dict = True
+
+            def __get__(self, obj, typ):
+                self.invoked_count += 1
+                if self.set_dict:
+                    obj.__dict__["foo"] = self.val
+                return self.val
+
+        self.descr_type = NonDataDescr
+        self.descr = NonDataDescr("testing 123")
+
+        class Test:
+            foo = self.descr
+
+        self.obj = Test()
+
+    def test_get(self):
+        # uncached
+        self.assertEqual(self.get_foo(self.obj), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 1)
+
+        # cached; __get__ should not be invoked as there is now a shadowing
+        # entry in obj's __dict__
+        self.assertEqual(self.get_foo(self.obj), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 1)
+
+        # cached; __get__ should be invoked as there is not a shadowing
+        # entry in obj2's __dict__
+        obj2 = self.obj.__class__()
+        self.assertEqual(self.get_foo(obj2), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 2)
+
+    def test_get_when_changed_to_data_descr(self):
+        # uncached
+        self.assertEqual(self.get_foo(self.obj), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 1)
+
+        # cached; __get__ should not be invoked as there is now a shadowing
+        # entry in obj's __dict__
+        self.assertEqual(self.get_foo(self.obj), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 1)
+
+        # Convert descriptor into a data descr by modifying its type
+        def setter(self, obj, val):
+            pass
+
+        self.descr.__class__.__set__ = setter
+
+        # cached; __get__ should be invoked as self.descr is now a data descr
+        self.assertEqual(self.get_foo(self.obj), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 2)
+
+    def test_get_when_changed_to_classvar(self):
+        # Don't set anything in the instance dict when the descriptor is
+        # invoked. This ensures we don't early exit and bottom out into the
+        # descriptor case.
+        self.descr.set_dict = False
+
+        # uncached
+        self.assertEqual(self.get_foo(self.obj), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 1)
+
+        # cached
+        self.assertEqual(self.get_foo(self.obj), "testing 123")
+        self.assertEqual(self.descr.invoked_count, 2)
+
+        # Convert descriptor into a plain old value by changing the
+        # descriptor's type
+        class ClassVar:
+            pass
+
+        self.descr.__class__ = ClassVar
+
+        # Cached; type check on descriptor's type should fail
+        self.assertIs(self.get_foo(self.obj), self.descr)
+        self.assertEqual(self.descr.invoked_count, 2)
+
+
 @unittest.failUnlessJITCompiled
 def set_foo(x, val):
     x.foo = val

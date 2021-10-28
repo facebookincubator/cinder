@@ -81,6 +81,14 @@ struct MemberDescrMutator {
   PyMemberDef* memberdef;
 };
 
+// Attribute corresponds to a non-data descriptor or a class variable
+struct DescrOrClassVarMutator {
+  PyObject* setAttr(PyObject* obj, PyObject* name, PyObject* value);
+  PyObject* getAttr(PyObject* obj, PyObject* name);
+  BorrowedRef<> descr;
+  Py_ssize_t dictoffset;
+};
+
 // An instance of AttributeMutator is specialized to more efficiently perform a
 // get/set of a particular kind of attribute.
 class AttributeMutator {
@@ -91,6 +99,7 @@ class AttributeMutator {
     kCombined,
     kDataDescr,
     kMemberDescr,
+    kDescrOrClassVar,
   };
 
   AttributeMutator();
@@ -100,6 +109,7 @@ class AttributeMutator {
   void set_combined(PyTypeObject* type);
   void set_data_descr(PyTypeObject* type, PyObject* descr);
   void set_member_descr(PyTypeObject* type, PyObject* descr);
+  void set_descr_or_classvar(PyTypeObject* type, PyObject* descr);
   void
   set_split(PyTypeObject* type, Py_ssize_t val_offset, PyDictKeysObject* keys);
 
@@ -114,6 +124,7 @@ class AttributeMutator {
     CombinedMutator combined_;
     DataDescrMutator data_descr_;
     MemberDescrMutator member_descr_;
+    DescrOrClassVarMutator descr_or_cvar_;
   };
 };
 
