@@ -4489,8 +4489,7 @@ def common_sequence_emit_len(
     code_gen.visit(node.args[0])
     code_gen.emit("FAST_LEN", oparg)
     if boxed:
-        signed = True
-        code_gen.emit("PRIMITIVE_BOX", int(signed))
+        code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
 
 
 def common_sequence_emit_jumpif(
@@ -4531,7 +4530,7 @@ def common_sequence_emit_forloop(
             code_gen.emit("SEQUENCE_GET", SEQ_LIST | SEQ_SUBSCR_UNCHECKED)
         else:
             # todo - we need to implement TUPLE_GET which supports primitive index
-            code_gen.emit("PRIMITIVE_BOX", 1)  # 1 is for signed
+            code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
             code_gen.emit("BINARY_SUBSCR", 2)
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
         code_gen.emit("PRIMITIVE_LOAD_CONST", (1, TYPED_INT64))
@@ -4670,8 +4669,7 @@ class SetInstance(Object[SetClass]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            signed = True
-            code_gen.emit("PRIMITIVE_BOX", int(signed))
+            code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -4948,8 +4946,7 @@ class DictInstance(Object[DictClass]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            signed = True
-            code_gen.emit("PRIMITIVE_BOX", int(signed))
+            code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -5446,7 +5443,7 @@ class ArrayInstance(Object["ArrayClass"]):
         if index_is_python_int:
             # If the index is not a primitive, unbox its value to an int64, our implementation of
             # SEQUENCE_{GET/SET} expects the index to be a primitive int.
-            code_gen.emit("PRIMITIVE_UNBOX", INT64_TYPE.instance.as_oparg())
+            code_gen.emit("PRIMITIVE_UNBOX", INT64_TYPE.type_descr)
 
         if isinstance(node.ctx, ast.Store) and not aug_flag:
             code_gen.emit("SEQUENCE_SET", self._seq_type())
@@ -5477,8 +5474,7 @@ class ArrayInstance(Object["ArrayClass"]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            signed = True
-            code_gen.emit("PRIMITIVE_BOX", int(signed))
+            code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
 
 
 class ArrayClass(GenericClass):
@@ -5719,8 +5715,7 @@ class CheckedDictInstance(Object[CheckedDict]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            signed = True
-            code_gen.emit("PRIMITIVE_BOX", int(signed))
+            code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -5825,8 +5820,7 @@ class CheckedListInstance(Object[CheckedList]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            signed = True
-            code_gen.emit("PRIMITIVE_BOX", int(signed))
+            code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -6352,13 +6346,13 @@ class CIntInstance(CInstance["CIntType"]):
         code_gen.visit(node)
         type = code_gen.get_type(node)
         if isinstance(type, CIntInstance):
-            code_gen.emit("PRIMITIVE_BOX", self.as_oparg())
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
         else:
             raise RuntimeError("unsupported box type: " + type.name)
 
     def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
-        code_gen.emit("PRIMITIVE_UNBOX", self.as_oparg())
+        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
     def bind_unaryop(
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -6495,7 +6489,7 @@ class CIntType(CType):
             if self is CBOOL_TYPE and arg_type.klass is not BOOL_TYPE:
                 code_gen.visit(arg)
                 code_gen.emit("CAST", BOOL_TYPE.type_descr)
-                code_gen.emit("PRIMITIVE_UNBOX", self.instance.as_oparg())
+                code_gen.emit("PRIMITIVE_UNBOX", self.type_descr)
             else:
                 self.instance.emit_unbox(arg, code_gen)
 
@@ -6621,13 +6615,13 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         code_gen.visit(node)
         type = code_gen.get_type(node)
         if isinstance(type, CDoubleInstance):
-            code_gen.emit("PRIMITIVE_BOX", self.as_oparg())
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
         else:
             raise RuntimeError("unsupported box type: " + type.name)
 
     def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
-        code_gen.emit("PRIMITIVE_UNBOX", self.as_oparg())
+        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
 
 class CDoubleType(CType):

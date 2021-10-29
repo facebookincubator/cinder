@@ -2186,6 +2186,37 @@ main_loop:
         }
 
         case TARGET(RETURN_PRIMITIVE): {
+            PyObject* descr = GETITEM(consts, oparg);
+            int optional;
+            PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+            if (type == NULL) {
+                goto error;
+            }
+            int code = _PyClassLoader_GetTypeCode(type);
+            Py_DECREF(type);
+
+            retval = POP();
+
+            /* In the interpreter, we always return a boxed int. We have a boxed
+             * value on the stack already, but we may have to deal with sign
+             * extension. */
+            if (code & TYPED_INT_SIGNED && code != TYPED_DOUBLE) {
+                size_t ival = (size_t)PyLong_AsVoidPtr(retval);
+                if (ival & ((size_t)1) << 63) {
+                    Py_DECREF(retval);
+                    retval = PyLong_FromSsize_t((int64_t)ival);
+                }
+            }
+
+            if (shadow.shadow != NULL) {
+                _PyShadow_PatchByteCode(&shadow, next_instr, RETURN_PRIMITIVE_NUMERIC, code);
+            }
+
+            assert(f->f_iblock == 0);
+            goto exit_returning;
+        }
+
+        case TARGET(RETURN_PRIMITIVE_NUMERIC): {
             retval = POP();
 
             /* In the interpreter, we always return a boxed int. We have a boxed
@@ -4831,6 +4862,34 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_BOX): {
+            PyObject* descr = GETITEM(consts, oparg);
+            int optional;
+            PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+            if (type == NULL) {
+                goto error;
+            }
+            int code = _PyClassLoader_GetTypeCode(type);
+            Py_DECREF(type);
+
+            if ((code & (TYPED_INT_SIGNED)) && code != (TYPED_DOUBLE)) {
+                /* We have a boxed value on the stack already, but we may have to
+                 * deal with sign extension */
+                PyObject *val = TOP();
+                size_t ival = (size_t)PyLong_AsVoidPtr(val);
+                if (ival & ((size_t)1) << 63) {
+                    SET_TOP(PyLong_FromSsize_t((int64_t)ival));
+                    Py_DECREF(val);
+                }
+            }
+
+            if (shadow.shadow != NULL) {
+                _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_BOX_NUMERIC, code);
+            }
+
+            FAST_DISPATCH();
+        }
+
+        case TARGET(PRIMITIVE_BOX_NUMERIC): {
             if ((oparg & (TYPED_INT_SIGNED)) && oparg != (TYPED_DOUBLE)) {
                 /* We have a boxed value on the stack already, but we may have to
                  * deal with sign extension */
@@ -4845,6 +4904,39 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX): {
+            PyObject* descr = GETITEM(consts, oparg);
+            int optional;
+            PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+            if (type == NULL) {
+                goto error;
+            }
+            int code = _PyClassLoader_GetTypeCode(type);
+            Py_DECREF(type);
+
+            PyObject *top = TOP();
+            if (PyLong_CheckExact(top)) {
+                /* We always box values in the interpreter loop, so this just does
+                 * overflow checking here. */
+                size_t value;
+                if (!_PyClassLoader_OverflowCheck(top, code, &value)) {
+                    PyErr_SetString(PyExc_OverflowError, "int overflow");
+                    goto error;
+                }
+            }
+            else if (!PyBool_Check(top) && !PyFloat_CheckExact(top)) {
+                PyErr_Format(PyExc_TypeError, "expected int, bool or float, got %s",
+                             Py_TYPE(top)->tp_name);
+                goto error;
+            }
+
+            if (shadow.shadow != NULL) {
+                _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_UNBOX_NUMERIC, code);
+            }
+
+            FAST_DISPATCH();
+        }
+
+        case TARGET(PRIMITIVE_UNBOX_NUMERIC): {
             /* We always box values in the interpreter loop, so this just does
              * overflow checking here. Oparg indicates the type of the unboxed
              * value. */
@@ -4856,11 +4948,7 @@ main_loop:
                     goto error;
                 }
             }
-            else if (!PyBool_Check(top) && !PyFloat_CheckExact(top)) {
-                PyErr_Format(PyExc_TypeError, "expected int, bool or float, got %s",
-                             Py_TYPE(top)->tp_name);
-                goto error;
-            }
+
             FAST_DISPATCH();
         }
 

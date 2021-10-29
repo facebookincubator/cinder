@@ -959,7 +959,9 @@ void HIRBuilder::translate(
           break;
         }
         case RETURN_PRIMITIVE: {
-          Type type = prim_type_to_type(bc_instr.oparg());
+          PyObject* descr =
+              PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
+          Type type = resolve_type_descr(descr);
           JIT_CHECK(
               type <= irfunc.return_type,
               "bad return type %s, expected %s",
@@ -2193,7 +2195,10 @@ void HIRBuilder::emitPrimitiveBox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  tc.emitChecked<PrimitiveBox>(tmp, src, bc_instr.oparg());
+  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
+  int prim_type = THREADED_COMPILE_SERIALIZED_CALL(
+      _PyClassLoader_ResolvePrimitiveType(descr));
+  tc.emitChecked<PrimitiveBox>(tmp, src, prim_type);
   tc.frame.stack.push(tmp);
 }
 
@@ -2202,7 +2207,8 @@ void HIRBuilder::emitPrimitiveUnbox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  auto typ = prim_type_to_type(bc_instr.oparg());
+  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
+  Type typ = resolve_type_descr(descr);
   if (typ <= TCDouble) {
     tc.emit<LoadField>(tmp, src, offsetof(PyFloatObject, ob_fval), typ);
   } else {

@@ -152,18 +152,6 @@ RICHARDS_PATH = path.join(
     "richards_static.py",
 )
 
-PRIM_NAME_TO_TYPE = {
-    "cbool": TYPED_BOOL,
-    "int8": TYPED_INT8,
-    "int16": TYPED_INT16,
-    "int32": TYPED_INT32,
-    "int64": TYPED_INT64,
-    "uint8": TYPED_UINT8,
-    "uint16": TYPED_UINT16,
-    "uint32": TYPED_UINT32,
-    "uint64": TYPED_UINT64,
-}
-
 
 def type_mismatch(from_type: str, to_type: str) -> str:
     return re.escape(f"type mismatch: {from_type} cannot be assigned to {to_type}")
@@ -9297,7 +9285,6 @@ class StaticCompilationTests(StaticTestBase):
                     return f({error}) {op} {type}({other})
                 """
             ctx = self.in_strict_module if strict else self.in_module
-            oparg = PRIM_NAME_TO_TYPE[type]
             with self.subTest(
                 type=type,
                 val=val,
@@ -9309,11 +9296,11 @@ class StaticCompilationTests(StaticTestBase):
                 with ctx(codestr) as mod:
                     f = mod.f
                     g = mod.g
-                    self.assertInBytecode(f, "RETURN_PRIMITIVE", oparg)
+                    self.assertInBytecode(f, "RETURN_PRIMITIVE")
                     if box:
                         self.assertNotInBytecode(g, "RETURN_PRIMITIVE")
                     else:
-                        self.assertInBytecode(g, "RETURN_PRIMITIVE", oparg)
+                        self.assertInBytecode(g, "RETURN_PRIMITIVE")
                     if error:
                         with self.assertRaisesRegex(RuntimeError, "boom"):
                             g()

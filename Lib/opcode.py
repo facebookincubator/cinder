@@ -285,6 +285,10 @@ def_op("LOAD_TYPE", 202)
 hasconst.append(202)
 
 # facebook begin - shadow byte codes
+shadow_op("PRIMITIVE_BOX_NUMERIC", 204)
+shadow_op("PRIMITIVE_UNBOX_NUMERIC", 205)
+shadow_op("RETURN_PRIMITIVE_NUMERIC", 206)
+
 shadow_op("LOAD_METHOD_UNSHADOWED_METHOD", 207)
 shadow_op("LOAD_METHOD_TYPE_METHODLIKE", 208)
 shadow_op("BUILD_CHECKED_LIST_CACHED", 209)
