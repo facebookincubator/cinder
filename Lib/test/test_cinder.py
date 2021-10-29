@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import asyncio
+import asyncio.tasks
 import inspect
 import sys
 import unittest
@@ -1715,6 +1716,65 @@ class TestInterpProfiling(unittest.TestCase):
         item = profile_by_op["INPLACE_ADD"]
         self.assertEqual(item["int"]["count"], repetitions)
         self.assertEqual(item["normvector"]["types"], ["float", "int"])
+
+
+class TestWaitForAwaiter(unittest.TestCase):
+    def setUp(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
+    @async_test
+    async def test_get_awaiter_wait_for(self):
+        coro = None
+
+        async def sleeper():
+            nonlocal coro
+            # Force suspension
+            await asyncio.sleep(0.1)
+            return get_await_stack(coro)
+
+        async def waiter(c):
+            return await asyncio.tasks.wait_for(c, 10)
+
+        coro = sleeper()
+        await_stack = await waiter(coro)
+        self.assertIs(
+            await_stack[0].cr_code, asyncio.tasks._wait_until_complete.__code__
+        )
+        self.assertIs(await_stack[1].cr_code, asyncio.tasks.wait_for.__code__)
+        self.assertIs(await_stack[2].cr_code, waiter.__code__)
+
+    @async_test
+    async def test_get_awaiter_wait_for_gather(self):
+        coros = [None, None]
+
+        async def sleeper(idx):
+            nonlocal coros
+            # Force suspension
+            await asyncio.sleep(0.1)
+            return get_await_stack(coros[idx])
+
+        async def waiter(c0, c1):
+            return await asyncio.tasks.wait_for(asyncio.gather(c0, c1), 10)
+
+        coros[0] = sleeper(0)
+        coros[1] = sleeper(1)
+        await_stacks = await waiter(coros[0], coros[1])
+        self.assertIs(
+            await_stacks[0][0].cr_code, asyncio.tasks._wait_until_complete.__code__
+        )
+        self.assertIs(await_stacks[0][1].cr_code, asyncio.tasks.wait_for.__code__)
+        self.assertIs(await_stacks[0][2].cr_code, waiter.__code__)
+        self.assertIs(
+            await_stacks[1][0].cr_code, asyncio.tasks._wait_until_complete.__code__
+        )
+        self.assertIs(await_stacks[1][1].cr_code, asyncio.tasks.wait_for.__code__)
+        self.assertIs(await_stacks[1][2].cr_code, waiter.__code__)
 
 
 if __name__ == "__main__":

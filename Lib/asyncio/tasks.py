@@ -423,6 +423,31 @@ def _release_waiter(waiter, *args):
         waiter.set_result(None)
 
 
+async def _wait_until_complete(fut, waiter):
+    try:
+        await fut
+    finally:
+        # fut completed, stop waiting for timeout
+        _release_waiter(waiter)
+
+
+async def _wait_for_timeout(fut, waiter, loop):
+    try:
+        await waiter
+    except exceptions.CancelledError:
+        # If the wait is cancelled, the task is also cancelled
+        fut.cancel()
+        raise
+    if fut.done():
+        return fut
+    # Timed out.
+    # We must ensure that the task is not running
+    # after wait_for() returns.
+    # See https://bugs.python.org/issue32751
+    await _cancel_and_wait(fut, loop=loop)
+    raise exceptions.TimeoutError()
+
+
 async def wait_for(fut, timeout, *, loop=None):
     """Wait for the single Future or coroutine to complete, with timeout.
 
@@ -457,29 +482,17 @@ async def wait_for(fut, timeout, *, loop=None):
 
     waiter = loop.create_future()
     timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
-    cb = functools.partial(_release_waiter, waiter)
-
     fut = ensure_future(fut, loop=loop)
-    fut.add_done_callback(cb)
 
     try:
         # wait until the future completes or the timeout
-        try:
-            await waiter
-        except exceptions.CancelledError:
-            fut.remove_done_callback(cb)
-            fut.cancel()
-            raise
-
-        if fut.done():
+        fut_or_exc, _ = await gather(_wait_for_timeout(fut, waiter, loop),
+                                     _wait_until_complete(fut, waiter),
+                                     return_exceptions=True)
+        if fut_or_exc is fut:
             return fut.result()
         else:
-            fut.remove_done_callback(cb)
-            # We must ensure that the task is not running
-            # after wait_for() returns.
-            # See https://bugs.python.org/issue32751
-            await _cancel_and_wait(fut, loop=loop)
-            raise exceptions.TimeoutError()
+            raise fut_or_exc
     finally:
         timeout_handle.cancel()
 
