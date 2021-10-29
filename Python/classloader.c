@@ -370,6 +370,13 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         }
         args = classmethod_args;
         coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    } else if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+        // In this case, we have a patched class method, and the self has been
+        // handled via descriptors already.
+      coro = _PyObject_Vectorcall(callable,
+                                  args + 1,
+                                  (PyVectorcall_NARGS(nargsf) - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET,
+                                  kwnames);
     } else {
         coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
     }
@@ -464,7 +471,6 @@ type_vtable_nonfunc(_PyClassLoader_TypeCheckState *state,
         Py_DECREF(get);
         goto done;
     }
-
     res = _PyObject_Vectorcall(descr, args, nargsf, kwnames);
 done:
     return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
@@ -588,7 +594,7 @@ type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
                                     size_t nargsf,
                                     PyObject *kwnames)
 {
-    if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+    if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD && PyClassMethod_Check(state->tcs_value)) {
         PyFunctionObject *func = (PyFunctionObject *)_PyClassMethod_GetFunc(state->tcs_value);
         return func->vectorcall((PyObject *)func, args, nargsf, kwnames);
     }
@@ -607,8 +613,8 @@ type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
         Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
         if (callable != NULL) {
             res = _PyObject_Vectorcall(callable,
-                                       args,
-                                       nargs | PY_VECTORCALL_ARGUMENTS_OFFSET,
+                                       args + 1,
+                                       (nargs - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET,
                                        kwnames);
             return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
         }

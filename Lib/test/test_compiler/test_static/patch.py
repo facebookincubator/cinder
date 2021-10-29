@@ -956,6 +956,45 @@ class StaticPatchTests(StaticTestBase):
                 # Ensure that the invoke in g() also hits the patched function.
                 self.assertEqual(asyncio.run(C.g()), 44)
 
+    def test_patch_classmethod(self):
+        codestr = """
+            class C:
+                @classmethod
+                def f(cls) -> int:
+                    return 42
+
+                @classmethod
+                def g(cls) -> int:
+                    return cls.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod.C
+
+            with patch.object(C, "f", wraps=C.f) as p:
+                self.assertEqual(C.f(), 42)
+                self.assertInBytecode(C.g, "INVOKE_METHOD")
+                # Ensure that the invoke in g() also hits the patched function.
+                self.assertEqual(C.g(), 42)
+
+    def test_patch_async_classmethod(self):
+        codestr = """
+            class C:
+                @classmethod
+                async def f(cls) -> int:
+                    return 44
+
+                @classmethod
+                async def g(cls) -> int:
+                    return await cls.f()
+        """
+        with self.in_module(codestr) as mod:
+            C = mod.C
+            with patch.object(C, "f", wraps=C.f) as p:
+                self.assertEqual(asyncio.run(C.f()), 44)
+                self.assertInBytecode(C.g, "INVOKE_METHOD")
+                # Ensure that the invoke in g() also hits the patched function.
+                self.assertEqual(asyncio.run(C.g()), 44)
+
     def test_patch_final_async_method_incorrect_type(self):
         codestr = """
             from typing import final
