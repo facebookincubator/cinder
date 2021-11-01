@@ -286,6 +286,9 @@ class Task(futures._PyFuture):  # Inherit Python Task implementation
             _leave_task(self._loop, self)
             self = None  # Needed to break cycles when an exception occurs.
 
+    def _set_task_context(self, context):
+        self._context = context
+
     def _set_fut_waiter(self, result):
         blocking = getattr(result, '_asyncio_future_blocking', None)
         if blocking is not None:

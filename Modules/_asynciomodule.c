@@ -41,6 +41,7 @@ _Py_IDENTIFIER(exception);
 _Py_IDENTIFIER(set_result);
 _Py_IDENTIFIER(_log_destroy_pending);
 _Py_IDENTIFIER(_set_fut_waiter);
+_Py_IDENTIFIER(_set_task_context);
 /* facebook: method table */
 
 /* State of the _asyncio module */
@@ -718,6 +719,15 @@ FutureLike_set_fut_waiter(PyObject *fut, PyObject *result)
         fut, &PyId__set_fut_waiter, result, NULL);
 }
 
+static PyObject *task_set_task_context(TaskObj *task, PyObject *context);
+
+static PyObject *
+FutureLike_set_task_context(PyObject *task, PyObject *context)
+{
+    return _PyObject_CallMethodIdObjArgs(
+        task, &PyId__set_task_context, context, NULL);
+}
+
 typedef PyObject* (*get_loop_f)(PyObject* obj);
 typedef fut_blocking_state (*get_is_blocking_f)(PyObject* obj);
 typedef int (*set_is_blocking_f)(PyObject* obj, int val);
@@ -731,6 +741,7 @@ typedef PyObject *(*exception_f)(PyObject *);
 typedef int (*set_result_f)(PyObject *, PyObject *);
 typedef int (*set_log_destroy_pending_f)(PyObject *, int);
 typedef PyObject *(*set_fut_waiter_f)(PyObject *, PyObject *);
+typedef PyObject *(*set_task_context_f)(PyObject *, PyObject *);
 
 typedef struct {
     PyWeakReference weakref;
@@ -750,6 +761,7 @@ typedef struct {
     set_result_f set_result;
     set_log_destroy_pending_f set_log_destroy_pending;
     set_fut_waiter_f set_fut_waiter;
+    set_task_context_f set_task_context;
 } PyMethodTableRef;
 
 static PyMethodTableRef *GatheringFuture_TableRef;
@@ -893,7 +905,8 @@ populate_method_table(PyMethodTableRef *tableref, PyTypeObject *type) {
     PyMethodDescrObject *add_done_callback = NULL, *get_loop = NULL,
                         *cancel = NULL, *result = NULL, *cancelled = NULL,
                         *exception = NULL,
-                        *set_result = NULL, *set_fut_waiter = NULL;
+                        *set_result = NULL, *set_fut_waiter = NULL,
+                        *set_task_context = NULL;
     PyObject *step = NULL;
     PyObject *t = _PyType_LookupId(type, &PyId__asyncio_future_blocking); // t is borrowed
     if (t) {
@@ -934,6 +947,8 @@ populate_method_table(PyMethodTableRef *tableref, PyTypeObject *type) {
             type, &PyId_set_result, &PyMethodDescr_Type);
         set_fut_waiter = (PyMethodDescrObject *)lookup_attr(
             type, &PyId__set_fut_waiter, &PyMethodDescr_Type);
+        set_task_context = (PyMethodDescrObject *)lookup_attr(
+            type, &PyId__set_task_context, &PyMethodDescr_Type);
     }
     if (is_get_impl_method(get_set_is_blocking, (getter)FutureObj_get_blocking))
     {
@@ -1015,6 +1030,12 @@ populate_method_table(PyMethodTableRef *tableref, PyTypeObject *type) {
     }
     else {
         tableref->set_fut_waiter = (set_fut_waiter_f)FutureLike_set_fut_waiter;
+    }
+    if (is_impl_method(set_task_context, (PyCFunction)task_set_task_context)) {
+        tableref->set_task_context = (set_task_context_f)task_set_task_context;
+    }
+    else {
+        tableref->set_task_context = (set_task_context_f)FutureLike_set_task_context;
     }
     if (is_set_impl_method(log_destroy_pending,
                            (setter)TaskObj_set_log_destroy_pending)) {
@@ -4136,7 +4157,8 @@ static void TaskObj_set_awaiter(TaskObj *self, PyObject *awaiter) {
     _ASYNCIO_TASK_GET_NAME_METHODDEF                \
     _ASYNCIO_TASK_SET_NAME_METHODDEF                \
     _ASYNCIO_TASK_GET_CORO_METHODDEF                \
-    {"_set_fut_waiter", (PyCFunction)task_set_fut_waiter, METH_O, NULL},
+    {"_set_fut_waiter", (PyCFunction)task_set_fut_waiter, METH_O, NULL}, \
+    {"_set_task_context", (PyCFunction)task_set_task_context, METH_O, NULL},
 
 static PyMethodDef TaskType_methods[] = {
     TASK_COMMON_METHODS
@@ -4666,6 +4688,14 @@ task_set_fut_waiter(TaskObj *task, PyObject *result)
     // so add extra ref to result to prevent early deallocation
     Py_INCREF(result);
     return task_set_fut_waiter_impl(task, result);
+}
+
+static PyObject *
+task_set_task_context(TaskObj *task, PyObject *context)
+{
+    Py_XSETREF(task->task_context, context);
+    Py_INCREF(context);
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -5228,6 +5258,7 @@ static PyMethodDef ContextAwareTaskType_methods[] = {
     {"_set_fut_waiter", (PyCFunction)task_set_fut_waiter, METH_O, NULL},
     _ASYNCIO_CONTEXTAWARETASK__STEP_METHODDEF
     {"__init_subclass__", (PyCFunction)ContextAwareTask___init_subclass, METH_VARARGS | METH_KEYWORDS | METH_CLASS},
+    {"_set_task_context", (PyCFunction)task_set_task_context, METH_O, NULL},
     {NULL, NULL}        /* Sentinel */
 };
 
@@ -6988,6 +7019,25 @@ _start_coroutine_helper(PyThreadState *tstate,
 
     *finished = 0;
     PyObject *fut = suspended_coroutine_to_future(coro, loop);
+    if (fut == NULL) {
+        Py_DECREF(res);
+        PyContext_Exit(context);
+        Py_DECREF(context);
+        return NULL;
+    }
+
+    PyMethodTableRef *t = get_or_create_method_table(Py_TYPE(fut));
+    // substitute context that was captured by the task
+    // with the context that was used to start the coroutine
+    PyObject *ok = t->set_task_context(fut, context);
+    if (ok == NULL) {
+        Py_DECREF(fut);
+        Py_DECREF(res);
+        PyContext_Exit(context);
+        Py_DECREF(context);
+        return NULL;
+    }
+    Py_DECREF(ok);
 
     int failed = PyContext_Exit(context);
     Py_DECREF(context);
@@ -7001,9 +7051,6 @@ _start_coroutine_helper(PyThreadState *tstate,
         Py_DECREF(res);
         return NULL;
     }
-
-
-    PyMethodTableRef *t = get_or_create_method_table(Py_TYPE(fut));
 
     // link task to yielded future so it will be woken up
     // once future is fulfilled

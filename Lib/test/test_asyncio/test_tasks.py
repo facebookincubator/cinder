@@ -3612,6 +3612,22 @@ class GatherTests:
             await test(True, True)
         self.loop.run_until_complete(go())
 
+    def test_gather_consistent_contextvars_for_subcoro(self):
+        V = contextvars.ContextVar("V")
+        V.set(42)
+        async def inner():
+            self.assertEqual(V.get(), 42)
+            tok = V.set(0)
+            self.assertEqual(V.get(), 0)
+            await asyncio.sleep(0)
+            V.reset(tok)
+            self.assertEqual(V.get(), 42)
+
+        async def go():
+            await asyncio.gather(inner())
+
+        self.loop.run_until_complete(go())
+
 def modify_context(val):
     _modify_current_context(val)
     try:
