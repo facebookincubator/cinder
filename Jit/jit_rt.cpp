@@ -798,6 +798,12 @@ static void fill_method_cache(
     PyObject* value,
     JITRT_CallMethodKind call_kind) {
   JITRT_LoadMethodCacheEntry* to_fill = NULL;
+  if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
+    // The type must have a valid version tag in order for us to be able to
+    // invalidate the cache when the type is modified. See the comment at
+    // the top of `PyType_Modified` for more details.
+    return;
+  }
 
   if (!PyType_HasFeature(type, Py_TPFLAGS_NO_SHADOWING_INSTANCES) &&
       (type->tp_dictoffset != 0)) {

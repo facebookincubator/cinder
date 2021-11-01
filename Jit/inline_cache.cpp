@@ -112,6 +112,13 @@ void AttributeCache::fill(
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<> name,
     BorrowedRef<> descr) {
+  if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
+    // The type must have a valid version tag in order for us to be able to
+    // invalidate the cache when the type is modified. See the comment at
+    // the top of `PyType_Modified` for more details.
+    return;
+  }
+
   AttributeMutator* mut = findEmptyEntry();
   if (mut == nullptr) {
     return;
@@ -534,6 +541,12 @@ LoadAttrCache::invokeSlowPath(PyObject* obj, PyObject* name) {
 static PyObject g_emptyTypeAttrCache = {_PyObject_EXTRA_INIT 1, nullptr};
 
 void LoadTypeAttrCache::fill(PyTypeObject* type, PyObject* value) {
+  if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
+    // The type must have a valid version tag in order for us to be able to
+    // invalidate the cache when the type is modified. See the comment at
+    // the top of `PyType_Modified` for more details.
+    return;
+  }
   items[0] = reinterpret_cast<PyObject*>(type);
   items[1] = value;
   ltac_watcher.watch(type, this);
