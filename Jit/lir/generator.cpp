@@ -628,7 +628,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(PyCell_New),
-            instr->val());
+            instr->GetOperand(0));
         break;
       }
       case Opcode::kStealCellItem:
@@ -644,8 +644,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const SetCellItem*>(&i);
         bbb.AppendCode(
             "Store {}, {}, {}",
-            instr->src(),
-            instr->cell(),
+            instr->GetOperand(1),
+            instr->GetOperand(0),
             offsetof(PyCellObject, ob_ref));
         break;
       }
@@ -1898,8 +1898,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(_PySequence_CheckBounds),
-            instr->array(),
-            instr->idx());
+            instr->GetOperand(0),
+            instr->GetOperand(1));
         break;
       }
       case Opcode::kLoadArrayItem: {
@@ -2075,9 +2075,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}, {}, {}",
             instr->GetOutput(),
             reinterpret_cast<uint64_t>(_PyDict_SetItem),
-            instr->GetDict(),
-            instr->GetKey(),
-            instr->GetValue());
+            instr->GetOperand(0),
+            instr->GetOperand(1),
+            instr->GetOperand(2));
         break;
       }
       case Opcode::kSetSetItem: {
@@ -2086,8 +2086,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}, {}",
             instr->GetOutput(),
             reinterpret_cast<uint64_t>(PySet_Add),
-            instr->GetSet(),
-            instr->GetKey());
+            instr->GetOperand(0),
+            instr->GetOperand(1));
         break;
       }
       case Opcode::kStoreSubscr: {
@@ -2198,13 +2198,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Invoke {:#x}, {}",
             reinterpret_cast<uint64_t>(PyEntry_init),
-            instr->func());
+            instr->GetOperand(0));
         break;
       }
       case Opcode::kMakeFunction: {
         auto instr = static_cast<const MakeFunction*>(&i);
-        auto code = instr->codeobj();
-        auto qualname = instr->qualname();
+        auto qualname = instr->GetOperand(0);
+        auto code = instr->GetOperand(1);
         PyObject* globals = GetHIRFunction()->globals;
 
         bbb.AppendCode(
@@ -2233,8 +2233,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(_PyList_APPEND),
-            instr->list(),
-            instr->item());
+            instr->GetOperand(0),
+            instr->GetOperand(1));
         break;
       }
       case Opcode::kListExtend: {
@@ -2243,9 +2243,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, __asm_tstate, {}, {}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(__Invoke_PyList_Extend),
-            instr->list(),
-            instr->iterable(),
-            instr->func());
+            instr->GetOperand(0),
+            instr->GetOperand(1),
+            instr->GetOperand(2));
         break;
       }
       case Opcode::kMakeTupleFromList: {
@@ -2254,7 +2254,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(PyList_AsTuple),
-            instr->list());
+            instr->GetOperand(0));
         break;
       }
       case Opcode::kGetTuple: {
@@ -2264,7 +2264,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(PySequence_Tuple),
-            instr->iterable());
+            instr->GetOperand(0));
         break;
       }
       case Opcode::kCheckTuple: {
@@ -2274,7 +2274,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}, {:#x}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(__Invoke_PyTuple_Check),
-            instr->iterable());
+            instr->GetOperand(0));
         break;
       }
       case Opcode::kInvokeIterNext: {
@@ -2449,8 +2449,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Call {}:CInt32, {:#x}, {}, {}",
             tmp,
             reinterpret_cast<uint64_t>(PyObject_DelItem),
-            instr.container(),
-            instr.sub());
+            instr.GetOperand(0),
+            instr.GetOperand(1));
         bbb.AppendCode(MakeGuard("NotNegative", instr, tmp));
         break;
       }

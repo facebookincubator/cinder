@@ -1092,84 +1092,28 @@ class INSTR_CLASS(BuildSlice, HasOutput, Operands<>, DeoptBase) {
 };
 
 // Builds a new Function object, with the given qualified name and codeobj
-class INSTR_CLASS(MakeFunction, HasOutput, Operands<2>, DeoptBase) {
- public:
-  using InstrT::InstrT;
-
-  Register* qualname() const {
-    return GetOperand(0);
-  }
-
-  Register* codeobj() const {
-    return GetOperand(1);
-  }
-};
+// Takes a qualname as operand 0
+// Takes a codeobj as operand 1
+DEFINE_SIMPLE_INSTR(MakeFunction, HasOutput, Operands<2>, DeoptBase);
 
 // Calls PyEntry_Init(func)
-class INSTR_CLASS(InitFunction, Operands<1>) {
- public:
-  using InstrT::InstrT;
+DEFINE_SIMPLE_INSTR(InitFunction, Operands<1>);
 
-  Register* func() const {
-    return reg();
-  }
-};
-
-class INSTR_CLASS(ListAppend, HasOutput, Operands<2>, DeoptBase) {
- public:
-  using InstrT::InstrT;
-
-  Register* list() const {
-    return GetOperand(0);
-  }
-
-  Register* item() const {
-    return GetOperand(1);
-  }
-};
+// Takes a list as operand 0
+// Takes an item as operand 1
+DEFINE_SIMPLE_INSTR(ListAppend, HasOutput, Operands<2>, DeoptBase);
 
 // extend the list with the elements in iterable
-class INSTR_CLASS(ListExtend, HasOutput, Operands<3>, DeoptBase) {
- public:
-  ListExtend(
-      Register* dst,
-      Register* list,
-      Register* iterable,
-      Register* func,
-      const FrameState& frame)
-      : InstrT(dst, list, iterable, func, frame) {}
-  Register* list() const {
-    return GetOperand(0);
-  }
-
-  Register* iterable() const {
-    return GetOperand(1);
-  }
-
-  Register* func() const {
-    return GetOperand(2);
-  }
-};
+// Takes a list as operand 0
+// Takes an iterable as operand 1
+// Takes a func as operand 2
+DEFINE_SIMPLE_INSTR(ListExtend, HasOutput, Operands<3>, DeoptBase);
 
 // Check whether the given pyobject is a tuple.
-class INSTR_CLASS(CheckTuple, HasOutput, Operands<1>) {
- public:
-  using InstrT::InstrT;
-
-  Register* iterable() const {
-    return GetOperand(0);
-  }
-};
+DEFINE_SIMPLE_INSTR(CheckTuple, HasOutput, Operands<1>);
 
 // Gets a tuple representation from a sequence.
-class INSTR_CLASS(GetTuple, HasOutput, Operands<1>, DeoptBase) {
- public:
-  using InstrT::InstrT;
-
-  Register* iterable() const {
-    return GetOperand(0);
-  }
-};
+DEFINE_SIMPLE_INSTR(GetTuple, HasOutput, Operands<1>, DeoptBase);
 
 // An unconditional branch
 class INSTR_CLASS(Branch, Operands<0>) {
@@ -2366,18 +2310,10 @@ DEFINE_SIMPLE_INSTR(StealCellItem, HasOutput, Operands<1>);
 // Store a value to the cell in dst. The `old` arg is unused but exists in order
 // to ensure that the previous cell contents are not decref-ed until after the
 // new cell contents are in place.
-class INSTR_CLASS(SetCellItem, Operands<3>) {
- public:
-  using InstrT::InstrT;
-
-  Register* cell() const {
-    return GetOperand(0);
-  }
-
-  Register* src() const {
-    return GetOperand(1);
-  }
-};
+// Takes a cell as operand 0
+// Takes a src as operand 1
+// Takes in anything as operand 2
+DEFINE_SIMPLE_INSTR(SetCellItem, Operands<3>);
 
 // Load a constant value (given as a Type) into a register.
 class INSTR_CLASS(LoadConst, HasOutput, Operands<0>) {
@@ -2593,15 +2529,7 @@ class INSTR_CLASS(InitListTuple, Operands<>) {
 };
 
 // Initialize a tuple from a list
-class INSTR_CLASS(MakeTupleFromList, HasOutput, Operands<1>, DeoptBase) {
- public:
-  MakeTupleFromList(Register* dst, Register* list, const FrameState& frame)
-      : InstrT(dst, list, frame) {}
-
-  Register* list() const {
-    return GetOperand(0);
-  }
-};
+DEFINE_SIMPLE_INSTR(MakeTupleFromList, HasOutput, Operands<1>, DeoptBase);
 
 // Load an element from a tuple at a known index, with no bounds checking.
 class INSTR_CLASS(LoadTupleItem, HasOutput, Operands<1>) {
@@ -2697,29 +2625,13 @@ class INSTR_CLASS(StoreArrayItem, Operands<4>) {
 // Check whether the given index lies within the array boundary.
 // Returns the actual index between [0, len(array)) into the array (in case it's
 // negative). Returns -1 if the given index is not within bounds.
-class INSTR_CLASS(CheckSequenceBounds, HasOutput, Operands<2>, DeoptBase) {
- public:
-  using InstrT::InstrT;
-
-  Register* array() const {
-    return GetOperand(0);
-  }
-
-  Register* idx() const {
-    return GetOperand(1);
-  }
-};
+// Takes an array as operand 0
+// Takes an idx as operand 1
+DEFINE_SIMPLE_INSTR(CheckSequenceBounds, HasOutput, Operands<2>, DeoptBase);
 
 // Create a cell holding given value and place the cell in dst.
 // Calls PyCell_New, so it implicitly increfs the value placed in the cell.
-class INSTR_CLASS(MakeCell, HasOutput, Operands<1>, DeoptBase) {
- public:
-  using InstrT::InstrT;
-
-  Register* val() const {
-    return GetOperand(0);
-  }
-};
+DEFINE_SIMPLE_INSTR(MakeCell, HasOutput, Operands<1>, DeoptBase);
 
 // Allocate an empty dict with the given capacity, or the default capacity if 0
 // is given.
@@ -2793,35 +2705,14 @@ DEFINE_SIMPLE_INSTR(MakeSet, HasOutput, Operands<0>, DeoptBase);
 // merge two sets by calling _PySet_Update
 DEFINE_SIMPLE_INSTR(MergeSetUnpack, HasOutput, Operands<2>, DeoptBase);
 
-class INSTR_CLASS(SetDictItem, HasOutput, Operands<3>, DeoptBase) {
- public:
-  using InstrT::InstrT;
+// Takes a dict as operand 0
+// Takes a key as operand 1
+// Takes a value as operand 2
+DEFINE_SIMPLE_INSTR(SetDictItem, HasOutput, Operands<3>, DeoptBase);
 
-  Register* GetDict() const {
-    return GetOperand(0);
-  }
-
-  Register* GetKey() const {
-    return GetOperand(1);
-  }
-
-  Register* GetValue() const {
-    return GetOperand(2);
-  }
-};
-
-class INSTR_CLASS(SetSetItem, HasOutput, Operands<2>, DeoptBase) {
- public:
-  using InstrT::InstrT;
-
-  Register* GetSet() const {
-    return GetOperand(0);
-  }
-
-  Register* GetKey() const {
-    return GetOperand(1);
-  }
-};
+// Takes a set as operand 0
+// Takes a key as operand 1
+DEFINE_SIMPLE_INSTR(SetSetItem, HasOutput, Operands<2>, DeoptBase);
 
 // Load the size of a PyVarObject as a CInt64.
 DEFINE_SIMPLE_INSTR(LoadVarObjectSize, HasOutput, Operands<1>);
@@ -3147,18 +3038,9 @@ class INSTR_CLASS(FormatValue, HasOutput, Operands<2>, DeoptBase) {
 };
 
 // Implements `del container[sub]`
-class INSTR_CLASS(DeleteSubscr, Operands<2>, DeoptBase) {
- public:
-  using InstrT::InstrT;
-
-  Register* container() const {
-    return GetOperand(0);
-  }
-
-  Register* sub() const {
-    return GetOperand(1);
-  }
-};
+// Takes a container as operand 0
+// Takes a sub as operand 1
+DEFINE_SIMPLE_INSTR(DeleteSubscr, Operands<2>, DeoptBase);
 
 // Unpack a sequence as UNPACK_EX opcode and save the results
 // to a tuple
