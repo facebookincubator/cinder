@@ -1483,7 +1483,8 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
     }
 
     mro = self->tp_mro;
-    if (PyTuple_GET_SIZE(mro) != 1) {
+    Py_ssize_t mro_size = PyTuple_GET_SIZE(mro);
+    if (mro_size > 1) {
         /* TODO: Non-type objects in mro? */
         /* TODO: Multiple inheritance */
 
@@ -1491,8 +1492,8 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
          * in our mro, we'll build on it.  We don't care about any
          * non-static classes because we don't generate invokes to them */
         PyTypeObject *next;
-        for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(self->tp_mro); i++) {
-            next = (PyTypeObject *)PyTuple_GET_ITEM(self->tp_mro, i);
+        for (Py_ssize_t i = 1; i < mro_size; i++) {
+            next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
             if (is_static_type(next)) {
                 break;
             }
