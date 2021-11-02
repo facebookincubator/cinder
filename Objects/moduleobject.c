@@ -738,7 +738,7 @@ _PyModuleSpec_IsInitializing(PyObject *spec)
 }
 
 int
-PyDeferred_Compare(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name)
+PyDeferred_Equal(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name)
 {
     _Py_IDENTIFIER(__name__);
     PyObject *mod_name = _PyDict_GetItemId(mod_dict, &PyId___name__);
@@ -747,10 +747,26 @@ PyDeferred_Compare(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *nam
     }
     PyObject *fqn = PyUnicode_FromFormat("%U.%U", mod_name, name);
     PyObject *deferred_fqn = deferred_name(deferred);
-    int cmp = PyUnicode_Tailmatch(deferred_fqn, fqn, 0, PyUnicode_GET_LENGTH(fqn), -1);
+    int cmp = PyUnicode_Compare(deferred_fqn, fqn);
     Py_DECREF(fqn);
     Py_DECREF(deferred_fqn);
-    return cmp;
+    return cmp == 0;
+}
+
+int
+PyDeferred_Match(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name)
+{
+    _Py_IDENTIFIER(__name__);
+    PyObject *mod_name = _PyDict_GetItemId(mod_dict, &PyId___name__);
+    if (mod_name == NULL || !PyUnicode_Check(mod_name)) {
+        return 0;
+    }
+    PyObject *fqn = PyUnicode_FromFormat("%U.%U", mod_name, name);
+    PyObject *deferred_fqn = deferred_name(deferred);
+    int match = PyUnicode_Tailmatch(deferred_fqn, fqn, 0, PyUnicode_GET_LENGTH(fqn), -1);
+    Py_DECREF(fqn);
+    Py_DECREF(deferred_fqn);
+    return match;
 }
 
 static PyObject *
@@ -1513,6 +1529,7 @@ PyDeferredModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, 
     m->df_obj = NULL;
     m->df_next = NULL;
     m->df_resolving = 0;
+    m->df_skip_warmup = 0;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -1541,6 +1558,7 @@ PyDeferred_NewObject(PyObject *deferred, PyObject *name)
     m->df_obj = NULL;
     m->df_next = NULL;
     m->df_resolving = 0;
+    m->df_skip_warmup = 0;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }

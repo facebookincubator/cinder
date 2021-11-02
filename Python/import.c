@@ -1822,7 +1822,7 @@ PyImport_DeferredImportModuleLevelObject(
                 goto error;
             }
         }
-        // Crazy side-effects!
+        /* Crazy side-effects! */
         PyObject *type, *value, *traceback;
         PyErr_Fetch(&type, &value, &traceback);
         if (!PySet_Contains(interp->lazy_loaded, abs_name) && PyImport_GetModule(abs_name) == NULL) {
@@ -1831,7 +1831,7 @@ PyImport_DeferredImportModuleLevelObject(
                 PyObject *parent = PyUnicode_Substring(abs_name, 0, dot);
                 PyObject *existing = PyImport_GetModule(parent);
                 if (existing != NULL) {
-                    // Set the deferred module as an attribute on its parent.
+                    /* Set the deferred module as an attribute on its parent. */
                     _Py_IDENTIFIER(__dict__);
                     PyObject *dict = _PyObject_GetAttrId(existing, &PyId___dict__);
                     if (dict != NULL && PyDict_Check(dict)) {
@@ -1844,17 +1844,21 @@ PyImport_DeferredImportModuleLevelObject(
                             Py_DECREF(frmlst);
                             if (frm != NULL) {
                                 PyDeferredObject *v = (PyDeferredObject *)PyDeferred_NewObject(frm, child);
+                                v->df_skip_warmup = 1;
                                 Py_DECREF(frm);
                                 if (v != NULL) {
-                                    PyObject *d = PyDict_GetUnresolvedItem(dict, child);
-                                    if (d != NULL && PyDeferred_CheckExact(d)) {
-                                        assert(v->df_next == NULL);
-                                        Py_INCREF(d);
-                                        v->df_next = d;
+                                    if (!PyDeferred_Equal(v, dict, child)) {
+                                        /* Only set side effects if the deferred object being set is different */
+                                        PyObject *d = PyDict_GetUnresolvedItem(dict, child);
+                                        if (d != NULL && PyDeferred_CheckExact(d)) {
+                                            assert(v->df_next == NULL);
+                                            Py_INCREF(d);
+                                            v->df_next = d;
+                                        }
+                                        _PyDict_SetHasDeferredObjects(dict);
+                                        PyDict_SetItem(dict, child, (PyObject *)v);
+                                        PySet_Add(interp->lazy_loaded, abs_name);
                                     }
-                                    _PyDict_SetHasDeferredObjects(dict);
-                                    PyDict_SetItem(dict, child, (PyObject *)v);
-                                    PySet_Add(interp->lazy_loaded, abs_name);
                                     Py_DECREF(v);
                                 }
                             }
@@ -2084,11 +2088,13 @@ PyImport_ImportDeferred(PyObject *deferred)
     PyObject *obj;
     assert(deferred != NULL);
     assert(PyDeferred_CheckExact(deferred));
+
     PyDeferredObject *d = (PyDeferredObject *)deferred;
     obj = d->df_obj;
     if (obj == NULL) {
         if (d->df_next != NULL) {
             if (PyImport_ImportDeferred(d->df_next) == NULL) {
+                d->df_skip_warmup = 1;
                 return NULL;
             }
         }
@@ -2104,17 +2110,20 @@ PyImport_ImportDeferred(PyObject *deferred)
                                        lazy_loaded);
             Py_XDECREF(lazy_loaded);
             if (obj == NULL) {
+                d->df_skip_warmup = 1;
                 return NULL;
             }
         }
         else {
             PyObject *from = PyImport_ImportDeferred(d->df_deferred);
             if (from == NULL) {
+                d->df_skip_warmup = 1;
                 return NULL;
             }
             PyThreadState *tstate = _PyThreadState_GET();
             obj = _Py_DoImportFrom(tstate, from, d->df_name);
             if (obj == NULL) {
+                d->df_skip_warmup = 1;
                 return NULL;
             }
             if (PyDeferred_CheckExact(obj)) {
@@ -2122,6 +2131,7 @@ PyImport_ImportDeferred(PyObject *deferred)
                 Py_XINCREF(value);
                 Py_DECREF(obj);
                 if (value == NULL) {
+                    d->df_skip_warmup = 1;
                     return NULL;
                 }
                 obj = value;

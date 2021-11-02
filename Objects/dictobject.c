@@ -2679,7 +2679,7 @@ dict_values(PyDictObject *mp)
         offset = sizeof(PyDictKeyEntry);
     }
     if (UNLIKELY(DICT_HAS_DEFERRED(mp))
-        && _PyDict_LoadDeferred(mp) != 0) {
+        && _PyDict_LoadDeferred(mp, 0) != 0) {
         return NULL;
     }
     for (i = 0, j = 0; j < n; i++) {
@@ -2742,7 +2742,7 @@ dict_items(PyDictObject *mp)
         offset = sizeof(PyDictKeyEntry);
     }
     if (UNLIKELY(DICT_HAS_DEFERRED(mp))
-        && _PyDict_LoadDeferred(mp) != 0) {
+        && _PyDict_LoadDeferred(mp, 0) != 0) {
         return NULL;
     }
     for (i = 0, j = 0; j < n; i++) {
@@ -2838,7 +2838,7 @@ dict_deferred_items(PyDictObject *mp)
 }
 
 int
-_PyDict_LoadDeferred(PyDictObject *dp)
+_PyDict_LoadDeferred(PyDictObject *dp, int warmup)
 {
     PyObject *v;
     PyObject *item, *key, *value;
@@ -2860,9 +2860,12 @@ top:
     PyThreadState *tstate = _PyThreadState_GET();
     for (i = 0; i < n; i++) {
         item = PyList_GET_ITEM(v, i);
-        key = PyTuple_GET_ITEM(item, 0);
         value = PyTuple_GET_ITEM(item, 1);
         assert(PyDeferred_CheckExact(value));
+        if (warmup && ((PyDeferredObject *)value)->df_skip_warmup) {
+            /* skip objects flagged objects during warmup */
+            continue;
+        }
         new_value = PyImport_ImportDeferred(value);
         if (new_value == NULL) {
             /* import failed, check if we want to just ignore... */
@@ -2901,6 +2904,7 @@ top:
             _PyErr_Restore(tstate, et, ev, tb);
             return -1;
         }
+        key = PyTuple_GET_ITEM(item, 0);
         PyDict_SetItem((PyObject *)dp, key, new_value);
     }
     Py_DECREF(v);
@@ -4789,7 +4793,7 @@ _PyDictView_New(PyObject *dict, PyTypeObject *type)
     Py_INCREF(dict);
     d = (PyDictObject *)dict;
     if (UNLIKELY(DICT_HAS_DEFERRED(d))
-        && _PyDict_LoadDeferred(d) != 0) {
+        && _PyDict_LoadDeferred(d, 0) != 0) {
         return NULL;
     }
     dv->dv_dict = d;
@@ -5775,7 +5779,7 @@ top:
     if (UNLIKELY(DICT_HAS_DEFERRED(mp))) {
         if (new_value || PyDeferred_CheckExact(value)) {
             if (new_value == NULL) {
-                if (PyDeferred_Compare((PyDeferredObject *)value, op, key)) {
+                if (PyDeferred_Match((PyDeferredObject *)value, op, key)) {
                     if (((PyDeferredObject *)value)->df_resolving) {
                         return NULL;
                     }

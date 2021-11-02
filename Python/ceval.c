@@ -2177,7 +2177,7 @@ main_loop:
                 && f->f_globals == f->f_locals) {
                 /* module level return, warmup lazy imports */
                 if (_PyDict_HasDeferredObjects(f->f_globals)
-                    && _PyDict_LoadDeferred((PyDictObject *)f->f_globals) < 0) {
+                    && _PyDict_LoadDeferred((PyDictObject *)f->f_globals, 1) < 0) {
                     goto error;
                 }
             }

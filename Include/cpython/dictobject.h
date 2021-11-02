@@ -130,7 +130,7 @@ void _PyDict_SetHasDeferredObjects(PyObject *);
 /* Unflag dictionary as having deferred objects in it */
 void _PyDict_UnsetHasDeferredObjects(PyObject *);
 
-int _PyDict_LoadDeferred(PyDictObject *);
+int _PyDict_LoadDeferred(PyDictObject *, int);
 
 /* Increment the given dict's version tag for a set operation, notifying any
  * watchers of the new value.
