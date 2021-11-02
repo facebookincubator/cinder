@@ -280,7 +280,6 @@ Type outputType(const Instr& instr) {
     case Opcode::kCompare:
     case Opcode::kBinaryOp:
     case Opcode::kFillTypeAttrCache:
-    case Opcode::kFormatValue:
     case Opcode::kGetIter:
     case Opcode::kImportFrom:
     case Opcode::kImportName:
@@ -293,6 +292,7 @@ Type outputType(const Instr& instr) {
     case Opcode::kLoadGlobal:
     case Opcode::kLoadMethod:
     case Opcode::kLoadMethodSuper:
+    case Opcode::kLoadTupleItem:
     case Opcode::kUnaryOp:
     case Opcode::kVectorCall:
     case Opcode::kVectorCallKW:
@@ -307,13 +307,15 @@ Type outputType(const Instr& instr) {
     case Opcode::kCallCFunc:
     case Opcode::kLoadCellItem:
     case Opcode::kLoadGlobalCached:
-    case Opcode::kLoadTupleItem:
     case Opcode::kStealCellItem:
     case Opcode::kWaitHandleLoadWaiter:
     case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
     case Opcode::kYieldValue:
       return TOptObject;
+
+    case Opcode::kFormatValue:
+      return TUnicode;
 
     case Opcode::kLoadVarObjectSize:
       return TCInt64;
