@@ -10,7 +10,7 @@ class InferenceTests(StaticTestBase):
                 reveal_type(y)
         """
         self.type_error(
-            codestr, f"reveal_type\(y\): 'Optional\[int\]'", at="reveal_type"
+            codestr, rf"reveal_type\(y\): 'Optional\[int\]'", at="reveal_type"
         )
 
     def test_if_exp_same_type(self) -> None:
@@ -20,4 +20,4 @@ class InferenceTests(StaticTestBase):
             x = C() if a else C()
             reveal_type(x)
         """
-        self.type_error(codestr, f"reveal_type\(x\): '<module>.C'", at="reveal_type")
+        self.type_error(codestr, rf"reveal_type\(x\): '<module>.C'", at="reveal_type")
