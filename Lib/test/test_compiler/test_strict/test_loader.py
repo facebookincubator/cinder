@@ -4,8 +4,11 @@ import dis
 import gc
 import io
 import os
+import pathlib
 import subprocess
 import sys
+import tempfile
+import textwrap
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import StrictModuleError
 from compiler.strict.loader import (
@@ -2537,3 +2540,140 @@ class StrictLoaderTest(StrictTestBase):
             output,
         )
         self.assertIn("StrictModuleError", output)
+
+    def test_strict_loader_stub_path(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+            import b
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+            import __strict__
+            from c import f
+
+            f()
+            """,
+        )
+        self.sbx.write_file(
+            "c.py",
+            """
+            def f():
+                print("hi")
+            """,
+        )
+        with tempfile.TemporaryDirectory(prefix="strict_stubs") as raw_stubs_path:
+            stubs_path = pathlib.Path(raw_stubs_path)
+            stub_contents = textwrap.dedent(
+                """
+                def f(): ...
+            """
+            )
+            (stubs_path / "c.pys").write_text(stub_contents)
+
+            env = os.environ.copy()
+            env.update({"PYTHONSTRICTMODULESTUBSPATH": raw_stubs_path})
+
+            res = subprocess.run(
+                [sys.executable, "-X", "install-strict-loader", "a.py"],
+                cwd=str(self.sbx.root),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            self.assertEqual(res.returncode, 0)
+            output = res.stdout.decode()
+            self.assertEqual(output, "hi\n")
+
+    def test_strict_loader_stub_path_x_arg(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+            import b
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+            import __strict__
+            from c import f
+
+            f()
+            """,
+        )
+        self.sbx.write_file(
+            "c.py",
+            """
+            def f():
+                print("hi")
+            """,
+        )
+        with tempfile.TemporaryDirectory(prefix="strict_stubs") as raw_stubs_path:
+            stubs_path = pathlib.Path(raw_stubs_path)
+            stub_contents = textwrap.dedent(
+                """
+                def f(): ...
+            """
+            )
+            (stubs_path / "c.pys").write_text(stub_contents)
+
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "install-strict-loader",
+                    "-X",
+                    f"strict-module-stubs-path={raw_stubs_path}",
+                    "a.py",
+                ],
+                cwd=str(self.sbx.root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            self.assertEqual(res.returncode, 0)
+            output = res.stdout.decode()
+            self.assertEqual(output, "hi\n")
+
+    def test_strict_loader_stub_path_invalid(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+            import b
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+            import __strict__
+            from c import f
+
+            f()
+            """,
+        )
+        self.sbx.write_file(
+            "c.py",
+            """
+            def f():
+                print("hi")
+            """,
+        )
+        res = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "install-strict-loader",
+                "-X",
+                f"strict-module-stubs-path=/nonexistent",
+                "a.py",
+            ],
+            cwd=str(self.sbx.root),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        self.assertEqual(res.returncode, 1)
+        output = res.stdout.decode()
+        self.assertIn(
+            "ValueError: Strict module stubs path does not exist: /nonexistent", output
+        )

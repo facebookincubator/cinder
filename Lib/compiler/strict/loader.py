@@ -194,6 +194,13 @@ class StrictSourceFileLoader(SourceFileLoader):
         self.name = fullname
         self.path = path
         self.import_path: Iterable[str] = import_path or []
+        configured_stub_path = sys._xoptions.get(
+            "strict-module-stubs-path"
+        ) or os.getenv("PYTHONSTRICTMODULESTUBSPATH")
+        if stub_path == "" and configured_stub_path:
+            stub_path = str(configured_stub_path)
+        if stub_path and not os.path.isdir(stub_path):
+            raise ValueError(f"Strict module stubs path does not exist: {stub_path}")
         self.stub_path: str = stub_path
         self.allow_list_prefix: Iterable[str] = allow_list_prefix or []
         self.allow_list_exact: Iterable[str] = allow_list_exact or []
