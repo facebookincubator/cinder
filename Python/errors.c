@@ -1651,6 +1651,33 @@ int _PyErr_RaiseCinderWarning(const char *warning, PyObject *arg0, PyObject *arg
     }
     return 0;
 }
+
+PyObject* _PyErr_ImmutableWarnHandler = NULL;
+
+int _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *arg0) {
+    if (_PyErr_ImmutableWarnHandler != NULL) {
+        PyObject* code = PyLong_FromLong(warn_code);
+        if (code == NULL) {
+            return -1;
+        }
+        PyObject* msg = PyUnicode_FromString(warning);
+        if (msg == NULL) {
+            Py_DECREF(code);
+            return -1;
+        }
+
+        PyObject* args[3] = {code, msg, arg0};
+        int arg_cnt = arg0 == NULL ? 2: 3;
+        PyObject *result = _PyObject_FastCall(_PyErr_ImmutableWarnHandler, args, arg_cnt);
+        Py_DECREF(code);
+        Py_DECREF(msg);
+        if (result == NULL) {
+            return -1;
+        }
+        Py_DECREF(result);
+    }
+    return 0;
+}
 /* facebook end */
 
 #ifdef __cplusplus

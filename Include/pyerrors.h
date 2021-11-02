@@ -154,6 +154,20 @@ PyAPI_DATA(PyObject *) _PyErr_CinderWarnHandler;
 PyAPI_FUNC(int) _PyErr_RaiseCinderWarning(const char *warning, PyObject *arg0, PyObject *arg1);
 #endif
 
+#if !defined(Py_LIMITED_API)
+PyAPI_DATA(PyObject *) _PyErr_ImmutableWarnHandler;
+/*
+ * warn_code: enums describing the kind of error detected
+ * warning: the warning message
+ * arg0: optional, additional argument
+ */
+PyAPI_FUNC(int) _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *arg0);
+
+#define  _PyErr_IMMUTABLE_WARNING(c, m, a)       \
+    ((_PyErr_ImmutableWarnHandler == NULL) ? 0 : \
+    _PyErr_RaiseImmutableWarning(c, m, a))
+#endif
+
 
 /* Convenience functions */
 

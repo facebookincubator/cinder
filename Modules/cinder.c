@@ -208,6 +208,66 @@ PyDoc_STRVAR(cinder_get_warn_handler_doc, "get_warn_handler()\n\
 \n\
 Gets the callback that receives Cinder specific warnings.");
 
+static PyObject *
+cinder_set_immutable_warn_handler(PyObject *self, PyObject *o)
+{
+    Py_XDECREF(_PyErr_ImmutableWarnHandler);
+    if (o == Py_None) {
+        _PyErr_ImmutableWarnHandler = NULL;
+    } else {
+        _PyErr_ImmutableWarnHandler = o;
+        Py_INCREF(_PyErr_ImmutableWarnHandler);
+    }
+    Py_RETURN_NONE;
+}
+
+
+PyDoc_STRVAR(cinder_set_immutable_warn_handler_doc,
+"set_immutable_warn_handler(cb)\n\
+\n\
+Sets a callback that receives immutability specific warnings in Cinder.\
+\
+Callback should be a callable that accepts:\
+\
+(err_code, message, *args)"
+);
+
+static PyObject *
+cinder_get_immutable_warn_handler(PyObject *self, PyObject *args)
+{
+    if (_PyErr_ImmutableWarnHandler != NULL) {
+        Py_INCREF(_PyErr_ImmutableWarnHandler);
+        return _PyErr_ImmutableWarnHandler;
+    }
+    Py_RETURN_NONE;
+}
+
+
+PyDoc_STRVAR(cinder_get_immutable_warn_handler_doc, "get_immutable_warn_handler()\n\
+\n\
+Gets the callback that receives immutability specific warnings in Cinder.");
+
+
+static PyObject *
+cinder_raise_immutable_warning(PyObject *self, PyObject *args)
+{
+    int code;
+    const char* msg;
+    PyObject* value = NULL;
+    if (!PyArg_ParseTuple(args, "is|O", &code, &msg, &value)) {
+        return NULL;
+    }
+    if (_PyErr_IMMUTABLE_WARNING(code, msg, value) < 0) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(cinder_raise_immutable_warning_doc, "raise_immutable_warn(code, msg, [arg])\n\
+\n\
+Manually raise a immutability warning.");
+
 PyAPI_FUNC(void) _PyJIT_ClearDictCaches(void);
 
 static PyObject *
@@ -472,6 +532,18 @@ static struct PyMethodDef cinder_module_methods[] = {
      cinder_get_warn_handler,
      METH_NOARGS,
      cinder_get_warn_handler_doc},
+    {"set_immutable_warn_handler",
+     cinder_set_immutable_warn_handler,
+     METH_O,
+     cinder_set_immutable_warn_handler_doc},
+    {"get_immutable_warn_handler",
+     cinder_get_immutable_warn_handler,
+     METH_NOARGS,
+     cinder_get_immutable_warn_handler_doc},
+    {"raise_immutable_warning",
+     cinder_raise_immutable_warning,
+     METH_VARARGS,
+     cinder_raise_immutable_warning_doc},
     {"clear_caches",
      clear_caches,
      METH_NOARGS,

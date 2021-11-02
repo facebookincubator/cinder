@@ -425,6 +425,31 @@ class CinderTest(unittest.TestCase):
         finally:
             cinder.cinder_set_warn_handler(None)
 
+    def test_raise_immutability_warning(self):
+        code = msg = value = None
+
+        def log_warnings(*args):
+            nonlocal code, msg, value
+            code = args[0]
+            msg = args[1]
+            value = args[2]
+
+        cinder.set_immutable_warn_handler(None)
+
+        self.assertEqual(cinder.get_immutable_warn_handler(), None)
+        cinder.raise_immutable_warning(0, "test", "test1")
+        self.assertEqual(code, None)
+        self.assertEqual(msg, None)
+        self.assertEqual(value, None)
+
+        cinder.set_immutable_warn_handler(log_warnings)
+        cinder.raise_immutable_warning(0, "test", "test2")
+        self.assertEqual(cinder.get_immutable_warn_handler(), log_warnings)
+        self.assertEqual(code, 0)
+        self.assertEqual(msg, "test")
+        self.assertEqual(value, "test2")
+        cinder.set_immutable_warn_handler(None)
+
     def test_cached_property(self):
         class C:
             def __init__(self):
