@@ -1847,18 +1847,16 @@ PyImport_DeferredImportModuleLevelObject(
                                 v->df_skip_warmup = 1;
                                 Py_DECREF(frm);
                                 if (v != NULL) {
-                                    if (!PyDeferred_Equal(v, dict, child)) {
-                                        /* Only set side effects if the deferred object being set is different */
-                                        PyObject *d = PyDict_GetUnresolvedItem(dict, child);
-                                        if (d != NULL && PyDeferred_CheckExact(d)) {
-                                            assert(v->df_next == NULL);
-                                            Py_INCREF(d);
-                                            v->df_next = d;
-                                        }
-                                        _PyDict_SetHasDeferredObjects(dict);
-                                        PyDict_SetItem(dict, child, (PyObject *)v);
-                                        PySet_Add(interp->lazy_loaded, abs_name);
+                                    /* Only set side effects if the deferred object being set is different */
+                                    PyObject *d = PyDict_GetUnresolvedItem(dict, child);
+                                    if (d != NULL && PyDeferred_CheckExact(d)) {
+                                        assert(v->df_next == NULL);
+                                        Py_INCREF(d);
+                                        v->df_next = d;
                                     }
+                                    _PyDict_SetHasDeferredObjects(dict);
+                                    PyDict_SetItem(dict, child, (PyObject *)v);
+                                    PySet_Add(interp->lazy_loaded, abs_name);
                                     Py_DECREF(v);
                                 }
                             }

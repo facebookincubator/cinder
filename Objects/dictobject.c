@@ -3128,6 +3128,9 @@ dict_merge(PyObject *a, PyObject *b, int override)
                return -1;
             }
         }
+        if (PyDict_Check(b) && _PyDict_HasDeferredObjects(b)) {
+            _PyDict_SetHasDeferredObjects(a);
+        }
         ep0 = DK_ENTRIES(other->ma_keys);
         for (i = 0, n = other->ma_keys->dk_nentries; i < n; i++) {
             PyObject *key, *value;

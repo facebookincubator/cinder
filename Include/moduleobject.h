@@ -95,7 +95,6 @@ typedef struct {
     int df_skip_warmup;
 } PyDeferredObject;
 
-int PyDeferred_Equal(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name);
 int PyDeferred_Match(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name);
 
 typedef struct {
