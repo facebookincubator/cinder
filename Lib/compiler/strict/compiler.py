@@ -17,6 +17,7 @@ from typing import (
     Tuple,
     final,
     Dict,
+    Set,
     Type,
     TYPE_CHECKING,
 )
@@ -81,8 +82,16 @@ class Compiler(StaticCompiler):
         self.enable_patching = enable_patching
         self.ast_cache: Dict[str, ast.Module] = {}
         self.track_import_call: bool = False
+        self.not_static: Set[str] = set()
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
+        res = self.modules.get(name)
+        if res is not None:
+            return res
+
+        if name in self.not_static:
+            return None
+
         mod = self.loader.check(name)
         if mod.is_valid and name not in self.modules and len(mod.errors) == 0:
             modKind = mod.module_kind
@@ -101,6 +110,8 @@ class Compiler(StaticCompiler):
                 with ctx:
                     root = self.add_module(name, mod.file_name, root, optimize)
                 self.ast_cache[name] = root
+            else:
+                self.not_static.add(name)
 
         return self.modules.get(name)
 
