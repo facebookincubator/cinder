@@ -50,7 +50,7 @@ const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
     // this table.
 #define CHECK_TY(name, bits, lifetime, flags)                         \
   JIT_CHECK(                                                          \
-      (flags & kTypeHasUniquePyType) == 0 || map.count(T##name) == 1, \
+      ((flags)&kTypeHasUniquePyType) == 0 || map.count(T##name) == 1, \
       "Type %s missing entry in typeToPyType()",                      \
       T##name);
     HIR_TYPES(CHECK_TY)

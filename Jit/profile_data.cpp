@@ -36,7 +36,7 @@ UnorderedMap<std::string, UnorderedMap<int, std::vector<std::string>>> s_types;
 template <typename T>
 T read(std::FILE* file) {
   // TODO(bsimmers) Use std::endian::native when we have C++20.
-#ifndef __LITTLE_ENDIAN__
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #error Integers in profile data files are little endian.
 #endif
 
