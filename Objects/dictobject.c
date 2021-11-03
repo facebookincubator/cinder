@@ -5782,16 +5782,19 @@ top:
     if (UNLIKELY(DICT_HAS_DEFERRED(mp))) {
         if (new_value || PyDeferred_CheckExact(value)) {
             if (new_value == NULL) {
+                PyObject *startkey = ep->me_key;
+                Py_INCREF(startkey);
+                Py_INCREF(value);
                 if (PyDeferred_Match((PyDeferredObject *)value, op, key)) {
                     if (((PyDeferredObject *)value)->df_resolving) {
                         return NULL;
                     }
                     ((PyDeferredObject *)value)->df_resolving = 1;
+                    new_value = PyImport_ImportDeferred(value);
+                    ((PyDeferredObject *)value)->df_resolving = 0;
+                } else {
+                    new_value = PyImport_ImportDeferred(value);
                 }
-                PyObject *startkey = ep->me_key;
-                Py_INCREF(startkey);
-                Py_INCREF(value);
-                new_value = PyImport_ImportDeferred(value);
                 Py_XINCREF(new_value);
                 Py_DECREF(value);
                 Py_DECREF(startkey);
