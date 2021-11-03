@@ -1797,7 +1797,7 @@ PyDoc_STRVAR(gc_immortalize_heap__doc__,
 "Immortalize all instances accessible through the GC roots.");
 
 #define GC_IMMORTALIZE_HEAP_METHODDEF    \
-    {"immortalize_heap", (PyCFunction)gc_immortalize_heap, METH_NOARGS, gc_immortalize_heap__doc__},
+    {"immortalize_heap", (PyCFunction)PyGC_Immortalize_Heap, METH_NOARGS, gc_immortalize_heap__doc__},
 
 static int
 immortalize_object(PyObject *obj, PyObject * /* unused */ args)
@@ -1818,8 +1818,7 @@ immortalize_object(PyObject *obj, PyObject * /* unused */ args)
     return 0;
 }
 
-static PyObject *
-gc_immortalize_heap(PyObject *module, PyObject *Py_UNUSED(ignored))
+PyObject* PyGC_Immortalize_Heap(PyObject *module, PyObject *Py_UNUSED(ignored))
 {
     PyGC_Head *gc, *list;
 

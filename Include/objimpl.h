@@ -228,6 +228,8 @@ _PyObject_INIT_VAR(PyVarObject *op, PyTypeObject *typeobj, Py_ssize_t size)
 /* C equivalent of gc.collect() which ignores the state of gc.enabled. */
 PyAPI_FUNC(Py_ssize_t) PyGC_Collect(void);
 
+PyAPI_FUNC(PyObject *) PyGC_Immortalize_Heap(PyObject *module, PyObject *Py_UNUSED(ignored));
+
 /* Test if a type has a GC head */
 #define PyType_IS_GC(t) PyType_HasFeature((t), Py_TPFLAGS_HAVE_GC)
 
