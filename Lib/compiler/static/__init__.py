@@ -819,11 +819,16 @@ class Static38CodeGenerator(StrictCodeGenerator):
         iter_type = self.get_type(node.iter)
         return iter_type.emit_forloop(node, self)
 
-    def emit_invoke_method(self, descr: TypeDescr, arg_count: int) -> None:
+    def emit_invoke_method(
+        self, descr: TypeDescr, arg_count: int, is_classmethod: bool = False
+    ) -> None:
         # Emit a zero EXTENDED_ARG before so that we can optimize and insert the
         # arg count
         self.emit("EXTENDED_ARG", 0)
-        self.emit("INVOKE_METHOD", (descr, arg_count))
+        self.emit(
+            "INVOKE_METHOD",
+            (descr, arg_count, True) if is_classmethod else (descr, arg_count),
+        )
 
     def defaultCall(self, node: object, name: str, *args: object) -> None:
         meth = getattr(super(Static38CodeGenerator, Static38CodeGenerator), name)

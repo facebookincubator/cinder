@@ -4299,9 +4299,8 @@ main_loop:
             PyObject *value = GETITEM(consts, oparg);
             long nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1)) + 1;
             PyObject *target = PyTuple_GET_ITEM(value, 0);
-            int is_classmethod =
-              _PyClassLoader_IsClassmethodDescr(
-                  PyTuple_GET_ITEM(target, PyTuple_GET_SIZE(target) - 1));
+            int is_classmethod = PyTuple_GET_SIZE(value) == 3 && (PyTuple_GET_ITEM(value, 2) == Py_True);
+
             Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
             if (slot == -1) {
                 while (nargs--) {

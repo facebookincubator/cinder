@@ -3375,6 +3375,8 @@ bool HIRBuilder::emitInvokeMethod(
   PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
   PyObject* target = PyTuple_GET_ITEM(descr, 0);
   long nargs = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1)) + 1;
+  bool is_classmethod =
+      PyTuple_GET_SIZE(descr) == 3 && (PyTuple_GET_ITEM(descr, 2) == Py_True);
 
   ThreadedCompileSerialize guard;
 
@@ -3389,9 +3391,6 @@ bool HIRBuilder::emitInvokeMethod(
     Py_XDECREF(method);
     return false;
   }
-  PyObject* last_element =
-      PyTuple_GET_ITEM(target, PyTuple_GET_SIZE(target) - 1);
-  bool is_classmethod = _PyClassLoader_IsClassmethodDescr(last_element);
 
   InvokeMethod* invoke = tc.emitVariadic<InvokeMethod>(
       temps_, nargs, slot, is_awaited, is_classmethod);

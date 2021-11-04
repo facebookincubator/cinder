@@ -710,8 +710,7 @@ classloader_is_property_tuple(PyTupleObject *name)
 PyObject *
 classloader_get_func_name(PyObject *name) {
     if (PyTuple_Check(name) &&
-        (classloader_is_property_tuple((PyTupleObject *)name) ||
-         _PyClassLoader_IsClassmethodDescr(name))) {
+        classloader_is_property_tuple((PyTupleObject *)name)) {
         return PyTuple_GET_ITEM(name, 0);
     }
     return name;
@@ -778,20 +777,6 @@ PyTypeObject _PyType_TypeCheckState = {
     .tp_traverse = (traverseproc)_PyClassLoader_TypeCheckState_traverse,
     .tp_clear = (inquiry)_PyClassLoader_TypeCheckState_clear,
 };
-
-int _PyClassLoader_IsClassmethodDescr(PyObject *name) {
-  if (!PyTuple_CheckExact(name)) {
-      return 0;
-  }
-  if (PyTuple_GET_SIZE(name) != 2) {
-      return 0;
-  }
-  PyObject *classmethod_descriptor = PyTuple_GET_ITEM(name, 1);
-  if (!PyUnicode_Check(classmethod_descriptor)) {
-      return 0;
-  }
-  return _PyUnicode_EqualToASCIIString(classmethod_descriptor, "__class__");
-}
 
 static int
 type_vtable_setslot_typecheck(PyObject *ret_type,
@@ -1069,8 +1054,6 @@ get_func_or_special_callable(PyObject *dict, PyObject *name) {
         }
         res = classloader_get_property_method((propertyobject *) property,
                                                 (PyTupleObject *) name);
-    } else if (_PyClassLoader_IsClassmethodDescr(name)) {
-        res = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
     } else {
         res = PyDict_GetItem(dict, name);
     }
@@ -1709,8 +1692,7 @@ classloader_get_member(PyObject *path,
         }
 
         if (PyTuple_CheckExact(name) &&
-            !classloader_is_property_tuple((PyTupleObject *) name) &&
-            !_PyClassLoader_IsClassmethodDescr(name)) {
+            !classloader_is_property_tuple((PyTupleObject *) name)) {
             PyObject *next = classloader_instantiate_generic(cur, name, path);
             if (next == NULL) {
                 goto error;
@@ -1893,9 +1875,6 @@ classloader_init_slot(PyObject *path)
 
     PyObject *slot_map = vtable->vt_slotmap;
     PyObject *slot_name = PyTuple_GET_ITEM(path, PyTuple_GET_SIZE(path) - 1);
-    if (_PyClassLoader_IsClassmethodDescr(slot_name)) {
-      slot_name = PyTuple_GET_ITEM(slot_name, 0);
-    }
 
     PyObject *new_index = PyDict_GetItem(slot_map, slot_name);
     assert(new_index != NULL);

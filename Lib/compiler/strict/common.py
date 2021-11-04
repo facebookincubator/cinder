@@ -53,7 +53,7 @@ from .track_import_call import tracker
 # Increment this whenever we change the output of the strict modules
 # interpreter. It must stay below 32768 (15 bits), because we use the high bit
 # to encode strictness of the module.
-MAGIC_NUMBER = 33
+MAGIC_NUMBER = 34
 
 
 def make_fixed_modules() -> Mapping[str, Mapping[str, object]]:

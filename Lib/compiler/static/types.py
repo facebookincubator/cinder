@@ -2182,14 +2182,6 @@ class ClassMethodArgMapping(ArgMapping):
         instance = self_type.instance
         return not (instance.klass.is_exact or instance.klass.is_final)
 
-    def callable_type_descr(self) -> TypeDescr:
-        descr_items = []
-        descr = self.callable.type_descr
-        for item in descr[:-1]:
-            descr_items.append(item)
-        descr_items.append((descr[-1], "__class__"))
-        return tuple(descr_items)
-
     def emit(self, code_gen: Static38CodeGenerator, extra_self: bool = False) -> None:
         if self.dynamic_call:
             code_gen.defaultVisit(self.call)
@@ -2211,14 +2203,13 @@ class ClassMethodArgMapping(ArgMapping):
 
         if self.needs_virtual_invoke(code_gen):
             code_gen.emit_invoke_method(
-                self.callable_type_descr(),
+                self.callable.type_descr,
                 len(func_args) if extra_self else len(func_args) - 1,
+                is_classmethod=True,
             )
         else:
             code_gen.emit("EXTENDED_ARG", 0)
-            code_gen.emit(
-                "INVOKE_FUNCTION", (self.callable_type_descr(), len(func_args))
-            )
+            code_gen.emit("INVOKE_FUNCTION", (self.callable.type_descr, len(func_args)))
 
 
 class ArgEmitter:
