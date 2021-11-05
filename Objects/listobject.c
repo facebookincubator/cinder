@@ -3525,6 +3525,12 @@ _PyCheckedList_New(PyTypeObject *type, Py_ssize_t size)
     return (PyObject *) op;
 }
 
+int
+_PyCheckedList_TypeCheck(PyTypeObject* type)
+{
+    return _PyClassLoader_GetGenericTypeDefFromType(type) == &_PyCheckedList_Type;
+}
+
 static PyObject *
 chklist_slice(PyListObject *self, Py_ssize_t ilow, Py_ssize_t ihigh)
 {

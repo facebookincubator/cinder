@@ -312,6 +312,12 @@ _PyCheckedDict_Check(PyObject *x)
     return IS_CHECKED_DICT(x);
 }
 
+int
+_PyCheckedDict_TypeCheck(PyTypeObject *type)
+{
+    return _PyClassLoader_GetGenericTypeDefFromType(type) == &_PyCheckedDict_Type;
+}
+
 /* Dictionary reuse scheme to save calls to malloc and free */
 #ifndef PyDict_MAXFREELIST
 #define PyDict_MAXFREELIST 512

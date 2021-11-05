@@ -61,6 +61,8 @@ PyAPI_FUNC(PyObject *) PyDict_GetItemString(PyObject *dp, const char *key);
 PyAPI_FUNC(int) PyDict_SetItemString(PyObject *dp, const char *key, PyObject *item);
 PyAPI_FUNC(int) PyDict_DelItemString(PyObject *dp, const char *key);
 
+PyAPI_FUNC(int) _PyCheckedDict_TypeCheck(PyTypeObject *type);
+
 /* Dictionary (keys, values, items) views */
 
 PyAPI_DATA(PyTypeObject) PyDictKeys_Type;

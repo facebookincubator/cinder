@@ -294,13 +294,19 @@ PyObject *_PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args);
 /* gets the generic type definition for an instance if it is an instance of a
  * generic type, or returns NULL if it is not */
 static inline _PyGenericTypeDef *
+_PyClassLoader_GetGenericTypeDefFromType(PyTypeObject *gen_type)
+{
+    if (!(gen_type->tp_flags & Py_TPFLAGS_GENERIC_TYPE_INST)) {
+        return NULL;
+    }
+    return ((_PyGenericTypeInst *)gen_type)->gti_gtd;
+}
+
+static inline _PyGenericTypeDef *
 _PyClassLoader_GetGenericTypeDef(PyObject *gen_inst)
 {
     PyTypeObject *inst_type = Py_TYPE(gen_inst);
-    if (!(inst_type->tp_flags & Py_TPFLAGS_GENERIC_TYPE_INST)) {
-        return NULL;
-    }
-    return ((_PyGenericTypeInst *)inst_type)->gti_gtd;
+    return _PyClassLoader_GetGenericTypeDefFromType(inst_type);
 }
 
 PyAPI_DATA(const _Py_SigElement) _Py_Sig_T0;
