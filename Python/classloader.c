@@ -631,7 +631,7 @@ type_vtable_func_missing(PyObject *state, PyObject **args, Py_ssize_t nargs)
     PyObject *name = PyTuple_GET_ITEM(state, 0);
 
     PyErr_Format(PyExc_AttributeError,
-                 "%s object has no attribute %U",
+                 "'%s' object has no attribute %R",
                  Py_TYPE(self)->tp_name,
                  name);
     return NULL;
@@ -681,15 +681,71 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
     return 0;
 }
 
+static PyObject *g_missing_fget = NULL;
+static PyObject *g_missing_fset = NULL;
+
+static PyObject *
+classloader_get_property_missing_fget() {
+    if (g_missing_fget == NULL) {
+        PyObject *mod = PyImport_ImportModule("_static");
+        if (mod == NULL) {
+            return NULL;
+        }
+        PyObject *func = PyObject_GetAttrString(mod, "_property_missing_fget");
+        Py_DECREF(mod);
+        if (func == NULL) {
+            return NULL;
+        }
+        g_missing_fget = func;
+    }
+    return g_missing_fget;
+}
+
+static PyObject *
+classloader_get_property_missing_fset() {
+    if (g_missing_fset == NULL) {
+        PyObject *mod = PyImport_ImportModule("_static");
+        if (mod == NULL) {
+            return NULL;
+        }
+        PyObject *func = PyObject_GetAttrString(mod, "_property_missing_fset");
+        Py_DECREF(mod);
+        if (func == NULL) {
+            return NULL;
+        }
+        g_missing_fset = func;
+    }
+    return g_missing_fset;
+}
+
+static PyObject *
+classloader_get_property_fget(propertyobject *property) {
+    PyObject *func = property->prop_get;
+    if (func == NULL) {
+        func = classloader_get_property_missing_fget();
+    }
+    return func;
+}
+
+static PyObject *
+classloader_get_property_fset(propertyobject *property) {
+    PyObject *func = property->prop_set;
+    if (func == NULL) {
+        func = classloader_get_property_missing_fset();
+    }
+    return func;
+}
+
 static PyObject *
 classloader_get_property_method(propertyobject *property, PyTupleObject *name)
 {
-    if (_PyUnicode_EqualToASCIIString(PyTuple_GET_ITEM(name, 1), "fget")) {
-        return property->prop_get;
+    PyObject *fname = PyTuple_GET_ITEM(name, 1);
+    if (_PyUnicode_EqualToASCIIString(fname, "fget")) {
+        return classloader_get_property_fget(property);
+    } else if (_PyUnicode_EqualToASCIIString(fname, "fset")) {
+        return classloader_get_property_fset(property);
     }
-    if (_PyUnicode_EqualToASCIIString(PyTuple_GET_ITEM(name, 1), "fset")) {
-        return property->prop_set;
-    }
+    PyErr_Format(PyExc_RuntimeError, "bad property method name %R in classloader", fname);
     return NULL;
 }
 
@@ -975,8 +1031,8 @@ PyTypeObject _PyType_StaticThunk = {
     .tp_call = (ternaryfunc)thunk_call,
 };
 
-PyObject *
-get_func_or_special_callable(PyObject *dict, PyObject *name);
+int
+get_func_or_special_callable(PyObject *dict, PyObject *name, PyObject **result);
 
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
@@ -988,13 +1044,15 @@ int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
     }
     vtable = (_PyType_VTable *)type->tp_cache;
 
-    PyObject *name, *slot;
+    PyObject *name, *slot, *clsitem;
     PyObject *slotmap = vtable->vt_slotmap;
     PyObject *origitems = vtable->vt_original = PyDict_New();
 
     Py_ssize_t i = 0;
     while (PyDict_Next(slotmap, &i, &name, &slot)) {
-        PyObject *clsitem = get_func_or_special_callable(type->tp_dict, name);
+        if (get_func_or_special_callable(type->tp_dict, name, &clsitem)) {
+             return -1;
+        }
         if (clsitem != NULL) {
             if (PyDict_SetItem(origitems, name, clsitem)) {
                 goto error;
@@ -1036,33 +1094,50 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, 
         if (_PyClassLoader_IsStaticFunction(fget)) {
             res = resolve_function_rettype(fget, optional, coroutine);
         }
+    } else if (_PyClassLoader_IsStaticBuiltin(func)) {
+        PyMethodDef *def = ((PyCFunctionObject *)func)->m_ml;
+        _PyTypedMethodDef *tmd = (_PyTypedMethodDef *)(def->ml_meth);
+        switch (tmd->tmd_ret) {
+            case _Py_SIG_VOID:
+            case _Py_SIG_ERROR:
+                res = (PyTypeObject *)&_PyNone_Type;
+                Py_INCREF(res);
+                break;
+        }
     }
     return (PyObject *)res;
 }
 
-PyObject *
-get_func_or_special_callable(PyObject *dict, PyObject *name) {
-    PyObject *res;
+int
+get_func_or_special_callable(PyObject *dict, PyObject *name, PyObject **result) {
     if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
         PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
-        if (property == NULL || Py_TYPE(property) != &PyProperty_Type) {
-            PyErr_Format(PyExc_RuntimeError,
-                            "The slot of type %s at %U is not a property.",
-                            property != NULL ? Py_TYPE(property)->tp_name : "NULL",
-                            PyTuple_GET_ITEM(name, 0));
-            return NULL;
+        if (property == NULL) {
+            *result = NULL;
+            return 0;
         }
-        res = classloader_get_property_method((propertyobject *) property,
-                                                (PyTupleObject *) name);
+        if (Py_TYPE(property) != &PyProperty_Type) {
+            PyErr_Format(PyExc_TypeError,
+                            "Attribute '%U' should be a property, not '%s'.",
+                            PyTuple_GET_ITEM(name, 0),
+                            Py_TYPE(property)->tp_name);
+            *result = NULL;
+            return -1;
+        }
+        *result = classloader_get_property_method((propertyobject *) property,
+                                                  (PyTupleObject *) name);
+        if (*result == NULL) {
+            return -1;
+        }
     } else {
-        res = PyDict_GetItem(dict, name);
+        *result = PyDict_GetItem(dict, name);
     }
-    return res;
+    return 0;
 }
 
-PyObject *
-_PyClassLoader_GetStaticallyInheritedFunction(PyTypeObject *type, PyObject *name) {
-    PyObject *mro = type->tp_mro;
+int
+_PyClassLoader_GetStaticallyInheritedMember(PyTypeObject *type, PyObject *name, PyObject **result) {
+    PyObject *mro = type->tp_mro, *base;
 
     for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
         PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(type->tp_mro, i);
@@ -1077,15 +1152,65 @@ _PyClassLoader_GetStaticallyInheritedFunction(PyTypeObject *type, PyObject *name
             continue;
         }
 
-        PyObject *base = get_func_or_special_callable(dict, name);
+        if (get_func_or_special_callable(dict, name, &base)) {
+            return -1;
+        }
         if (base != NULL) {
             if (!used_in_vtable(base)) {
                 continue;
             }
-            return base;
+            *result = base;
+            return 0;
         }
     }
-    return NULL;
+    *result = NULL;
+    return 0;
+}
+
+static PyObject *g_fget = NULL;
+static PyObject *g_fset = NULL;
+
+PyObject *
+get_property_getter_descr_tuple(PyObject *name)
+{
+    if (g_fget == NULL) {
+        g_fget = PyUnicode_FromStringAndSize("fget", 4);
+    }
+    PyObject *getter_tuple = PyTuple_New(2);
+    Py_INCREF(name);
+    PyTuple_SET_ITEM(getter_tuple, 0, name);
+    Py_INCREF(g_fget);
+    PyTuple_SET_ITEM(getter_tuple, 1, g_fget);
+    return getter_tuple;
+}
+
+PyObject *
+get_property_setter_descr_tuple(PyObject *name)
+{
+    if (g_fset == NULL) {
+        g_fset = PyUnicode_FromStringAndSize("fset", 4);
+    }
+    PyObject *setter_tuple = PyTuple_New(2);
+    Py_INCREF(name);
+    PyTuple_SET_ITEM(setter_tuple, 0, name);
+    Py_INCREF(g_fset);
+    PyTuple_SET_ITEM(setter_tuple, 1, g_fset);
+    return setter_tuple;
+}
+
+static void
+update_thunk(_Py_StaticThunk *thunk, PyObject *previous, PyObject *new_value)
+{
+    Py_CLEAR(thunk->thunk_tcs.tcs_value);
+    if (new_value != NULL) {
+        thunk->thunk_tcs.tcs_value = new_value;
+        Py_INCREF(new_value);
+    }
+    if (new_value == previous) {
+        thunk->thunk_funcref = previous;
+    } else {
+        thunk->thunk_funcref = (PyObject *)thunk;
+    }
 }
 
 int
@@ -1114,27 +1239,22 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     /* update the value that exists in our thunks for performing indirections
      * necessary for patched INVOKE_FUNCTION calls */
-    _Py_StaticThunk *thunk = NULL;
     if (vtable->vt_thunks != NULL) {
-        thunk = (_Py_StaticThunk *)PyDict_GetItem(vtable->vt_thunks, name);
+        _Py_StaticThunk *thunk = (_Py_StaticThunk *)PyDict_GetItem(vtable->vt_thunks, name);
         if (thunk != NULL) {
-            Py_CLEAR(thunk->thunk_tcs.tcs_value);
-            if (new_value != NULL) {
-                thunk->thunk_tcs.tcs_value = new_value;
-                Py_INCREF(new_value);
-            }
-            if (new_value == previous) {
-                thunk->thunk_funcref = previous;
-            } else {
-                thunk->thunk_funcref = (PyObject *)thunk;
-            }
+            update_thunk(thunk, previous, new_value);
         }
     }
+
+    int deleting = new_value == NULL;
 
     /* we need to search in the MRO if we don't contain the
      * item directly or we're currently deleting the current value */
     if (previous == NULL || new_value == NULL) {
-        PyObject *base = _PyClassLoader_GetStaticallyInheritedFunction(type, name);
+        PyObject *base;
+        if (_PyClassLoader_GetStaticallyInheritedMember(type, name, &base)) {
+            return -1;
+        }
 
         assert(base != NULL || previous != NULL);
 
@@ -1151,11 +1271,38 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     }
 
     assert(previous != NULL);
-    Py_ssize_t index = PyLong_AsSsize_t(slot);
+
+    // if this is a property slot, also update the getter and setter slots
+    if (Py_TYPE(previous) == &PyProperty_Type) {
+        if (new_value != NULL && Py_TYPE(new_value) != &PyProperty_Type) {
+            PyErr_Format(PyExc_TypeError, "cannot patch property with %s", Py_TYPE(new_value)->tp_name);
+            return -1;
+        }
+        propertyobject *newprop = (propertyobject *)new_value;
+
+        PyTupleObject *getter_tuple = (PyTupleObject *)get_property_getter_descr_tuple(name);
+        PyObject *new_getter = deleting ? NULL : classloader_get_property_fget(newprop);
+        if(_PyClassLoader_UpdateSlot(type, (PyObject *)getter_tuple, new_getter)) {
+            Py_DECREF(getter_tuple);
+            return -1;
+        }
+        Py_DECREF(getter_tuple);
+
+        PyTupleObject *setter_tuple = (PyTupleObject *)get_property_setter_descr_tuple(name);
+        PyObject *new_setter = deleting ? NULL : classloader_get_property_fset(newprop);
+        if(_PyClassLoader_UpdateSlot(type, (PyObject *)setter_tuple, new_setter)) {
+            Py_DECREF(setter_tuple);
+            return -1;
+        }
+        Py_DECREF(setter_tuple);
+    }
+
     int cur_optional, cur_coroutine, cur_classmethod;
-    PyObject* cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional,
+    PyObject *cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional,
                                                           &cur_coroutine, &cur_classmethod);
+
     assert(cur_type != NULL);
+    Py_ssize_t index = PyLong_AsSsize_t(slot);
 
     /* we make no attempts to keep things efficient when types start getting
      * mutated.  We always install the less efficient type checked functions,
@@ -1169,11 +1316,12 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
             return -1;
         }
 
-        PyTuple_SET_ITEM(missing_state, 0, name);
+        PyObject *func_name = classloader_get_func_name(name);
+        PyTuple_SET_ITEM(missing_state, 0, func_name);
         PyTuple_SET_ITEM(missing_state, 1, cur_type);
         PyObject *optional = cur_optional ? Py_True : Py_False;
         PyTuple_SET_ITEM(missing_state, 2, optional);
-        Py_INCREF(name);
+        Py_INCREF(func_name);
         Py_INCREF(cur_type);
         Py_INCREF(optional);
 
@@ -1241,15 +1389,18 @@ type_vtable_setslot(PyTypeObject *tp,
     if (vtable->vt_original != NULL) {
         assert(tp->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
         original = PyDict_GetItem(vtable->vt_original, name);
-    } else if (_PyClassLoader_IsStaticFunction(value)) {
+    } else if (_PyClassLoader_IsStaticFunction(value) || _PyClassLoader_IsStaticBuiltin(value)) {
         /* non-static type can't influence our original static return type */
         original = value;
     } else {
-        original = _PyClassLoader_GetStaticallyInheritedFunction(tp, name);
+        if (_PyClassLoader_GetStaticallyInheritedMember(tp, name, &original)) {
+            return -1;
+        }
         if (original == NULL) {
             PyErr_Format(PyExc_RuntimeError,
-                        "unable to resolve base method for %s.%U",
-                        tp->tp_name, name);
+                        "unable to resolve base method for %R in %s",
+                        name, tp->tp_name);
+            return -1;
         }
     }
 
@@ -1257,8 +1408,8 @@ type_vtable_setslot(PyTypeObject *tp,
     PyObject *ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
     if (ret_type == NULL) {
         PyErr_Format(PyExc_RuntimeError,
-                    "missing type annotation on static compiled method %s.%U",
-                    tp->tp_name, name);
+                    "missing type annotation on static compiled method %R of %s",
+                    name, tp->tp_name);
         return -1;
     }
 
@@ -1290,35 +1441,11 @@ type_vtable_lazyinit(PyObject *name,
     assert(vtable != NULL);
 
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(mro); i++) {
+        PyObject *value;
         PyTypeObject *cur_type = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
-        if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
-            PyObject *property = PyDict_GetItem(cur_type->tp_dict, PyTuple_GET_ITEM(name, 0));
-            if (property != NULL) {
-              if (Py_TYPE(property) == &PyProperty_Type) {
-                  PyObject *property_method =
-                    classloader_get_property_method((propertyobject *) property, (PyTupleObject *) name);
-                  if (property_method != NULL) {
-                      if (type_vtable_setslot(type, name, vtable, slot, property_method)) {
-                          return NULL;
-                      }
-                      return vtable->vt_entries[slot].vte_entry(vtable->vt_entries[slot].vte_state,
-                                                                args,
-                                                                nargsf,
-                                                                kwnames);
-                  }
-              }
-              PyErr_Clear();
-              PyErr_Format(PyExc_TypeError,
-                           "Attribute %R in static class %s overrides the base class' property"
-                           " with a non-property.",
-                           name,
-                           type->tp_name);
-              return NULL;
-            }
-            continue;
+        if (get_func_or_special_callable(cur_type->tp_dict, name, &value)) {
+            return NULL;
         }
-
-        PyObject *value = PyDict_GetItem(cur_type->tp_dict, name);
         if (value != NULL) {
             if (type_vtable_setslot(type, name, vtable, slot, value)) {
                 return NULL;
@@ -1330,7 +1457,7 @@ type_vtable_lazyinit(PyObject *name,
     }
 
     PyErr_Format(
-        PyExc_TypeError, "%s has no attribute %U", type->tp_name, name);
+        PyExc_TypeError, "'%s' has no attribute %U", type->tp_name, name);
     return NULL;
 }
 
@@ -1359,7 +1486,9 @@ int
 used_in_vtable_worker(PyObject *value) {
     if (Py_TYPE(value) == &PyMethodDescr_Type) {
         return 1;
-    } else if (PyFunction_Check(value) && _PyClassLoader_IsStaticFunction(value)) {
+    } else if (_PyClassLoader_IsStaticFunction(value)) {
+        return 1;
+    } else if (_PyClassLoader_IsStaticBuiltin(value)) {
         return 1;
     }
     return 0;
@@ -1373,18 +1502,17 @@ used_in_vtable(PyObject *value)
     } else if (Py_TYPE(value) == &PyStaticMethod_Type &&
                used_in_vtable_worker(_PyStaticMethod_GetFunc(value))) {
         return 1;
-    } else if (Py_TYPE(value) == &PyProperty_Type) {
-        propertyobject *property = (propertyobject *) value;
-        return property->prop_get != NULL && used_in_vtable_worker(property->prop_get);
     } else if (Py_TYPE(value) == &PyClassMethod_Type &&
                used_in_vtable_worker(_PyClassMethod_GetFunc(value))) {
         return 1;
+    } else if (Py_TYPE(value) == &PyProperty_Type) {
+        propertyobject *prop = (propertyobject *) value;
+        PyObject *getter = classloader_get_property_fget(prop);
+        PyObject *setter = classloader_get_property_fset(prop);
+        return used_in_vtable_worker(getter) || used_in_vtable_worker(setter);
     }
     return 0;
 }
-
-static PyObject *fget = NULL;
-static PyObject *fset = NULL;
 
 int
 _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
@@ -1409,37 +1537,21 @@ _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
         }
         if (Py_TYPE(value) == &PyProperty_Type) {
             PyObject *getter_index = PyLong_FromLong(slot_index++);
-            if (fget == NULL) {
-                fget = PyUnicode_FromStringAndSize("fget", 4);
-            }
-            PyObject *getter_tuple = PyTuple_New(2);
-            Py_INCREF(key);
-            PyTuple_SET_ITEM(getter_tuple, 0, key);
-            Py_INCREF(fget);
-            PyTuple_SET_ITEM(getter_tuple, 1, fget);
+            PyObject *getter_tuple = get_property_getter_descr_tuple(key);
             err = PyDict_SetItem(slotmap, getter_tuple, getter_index);
             Py_DECREF(getter_index);
+            Py_DECREF(getter_tuple);
             if (err) {
-                Py_DECREF(getter_tuple);
                 return -1;
             }
-            Py_DECREF(getter_tuple);
             PyObject *setter_index = PyLong_FromLong(slot_index++);
-            if (fset == NULL) {
-                fset = PyUnicode_FromStringAndSize("fset", 4);
-            }
-            PyObject *setter_tuple = PyTuple_New(2);
-            Py_INCREF(key);
-            PyTuple_SET_ITEM(setter_tuple, 0, key);
-            Py_INCREF(fset);
-            PyTuple_SET_ITEM(setter_tuple, 1, fset);
+            PyObject *setter_tuple = get_property_setter_descr_tuple(key);
             err = PyDict_SetItem(slotmap, setter_tuple, setter_index);
             Py_DECREF(setter_index);
+            Py_DECREF(setter_tuple);
             if (err) {
-                Py_DECREF(setter_tuple);
                 return -1;
             }
-            Py_DECREF(setter_tuple);
         }
     }
     return 0;
@@ -1731,7 +1843,9 @@ classloader_get_member(PyObject *path,
         if (containerkey != NULL) {
             *containerkey = name;
         }
-        next = get_func_or_special_callable(d, name);
+        if (get_func_or_special_callable(d, name, &next)) {
+            return NULL;
+        }
 
         if (next == NULL && d == tstate->interp->modules) {
             /* import module in case it's not available in sys.modules */
@@ -1754,7 +1868,7 @@ classloader_get_member(PyObject *path,
         if (next == NULL) {
             PyErr_Format(
                 PyExc_TypeError,
-                "bad name provided for class loader, '%U' doesn't exist in %R",
+                "bad name provided for class loader, %R doesn't exist in %R",
                 name,
                 path);
             _PyErr_ChainExceptions(et, ev, tb);
@@ -1864,7 +1978,6 @@ classloader_init_slot(PyObject *path)
         return -1;
     }
 
-
     /* Now we need to update or make the v-table for this type */
     _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(target_type, 0);
     if (vtable == NULL) {
@@ -1932,8 +2045,9 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyTypeObject* type, PyObje
     }
     thunk->thunk_tcs.tcs_value = func;
     Py_INCREF(func);
-    thunk->thunk_tcs.tcs_rt.rt_name = name;
-    Py_INCREF(name);
+    PyObject *func_name = classloader_get_func_name(name);
+    thunk->thunk_tcs.tcs_rt.rt_name = func_name;
+    Py_INCREF(func_name);
     thunk->thunk_cls = type;
     Py_INCREF(type);
     thunk->thunk_vectorcall = (vectorcallfunc)&thunk_vectorcall;
@@ -1973,7 +2087,7 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
         if (type->tp_cache != NULL) {
             PyObject *originals = ((_PyType_VTable *)type->tp_cache)->vt_original;
             if (originals != NULL) {
-              original = PyDict_GetItem(originals, classloader_get_func_name(containerkey));
+              original = PyDict_GetItem(originals, containerkey);
                 if (original == func) {
                     original = NULL;
                 }

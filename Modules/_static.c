@@ -357,6 +357,24 @@ static int64_t posix_clock_gettime_ns(PyObject* mod)
 
 _Py_TYPED_SIGNATURE(posix_clock_gettime_ns, _Py_SIG_INT64, NULL);
 
+static Py_ssize_t
+static_property_missing_fget(PyObject *mod, PyObject *self)
+{
+    PyErr_SetString(PyExc_AttributeError, "unreadable attribute");
+    return -1;
+}
+
+_Py_TYPED_SIGNATURE(static_property_missing_fget, _Py_SIG_ERROR, &_Py_Sig_Object, NULL);
+
+static Py_ssize_t
+static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
+{
+    PyErr_SetString(PyExc_AttributeError, "can't set attribute");
+    return -1;
+}
+
+_Py_TYPED_SIGNATURE(static_property_missing_fset, _Py_SIG_ERROR, &_Py_Sig_Object, &_Py_Sig_Object, NULL);
+
 
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
@@ -368,6 +386,8 @@ static PyMethodDef static_methods[] = {
     {"make_recreate_cm", (PyCFunction)(void(*)(void))make_recreate_cm, METH_O, ""},
     {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, METH_TYPED,
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
+    {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, METH_TYPED, ""},
+    {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, METH_TYPED, ""},
     {}
 };
 

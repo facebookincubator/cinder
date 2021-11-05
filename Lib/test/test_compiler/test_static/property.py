@@ -144,7 +144,7 @@ class PropertyTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 f(D())
 
-    def test_property_getter_non_static_inheritance_with_get_decsriptor(self):
+    def test_property_getter_non_static_inheritance_with_get_descriptor(self):
         codestr = """
             class C:
                 @property
@@ -291,3 +291,20 @@ class PropertyTests(StaticTestBase):
             d = D(2)
             self.assertEqual(f(d), None)
             self.assertEqual(d.x, 13)
+
+    def test_property_no_setter(self):
+        codestr = """
+            class C:
+                @property
+                def prop(self) -> int:
+                    return 1
+
+                def set(self, val: int) -> None:
+                    self.prop = val
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C()
+            with self.assertRaisesRegex(AttributeError, "can't set attribute"):
+                c.prop = 2
+            with self.assertRaisesRegex(AttributeError, "can't set attribute"):
+                c.set(2)

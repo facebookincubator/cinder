@@ -470,6 +470,15 @@ _PyClassLoader_IsStaticFunction(PyObject *obj)
 }
 
 static inline int
+_PyClassLoader_IsStaticBuiltin(PyObject *obj)
+{
+    if (obj == NULL || !PyCFunction_Check(obj)) {
+        return 0;
+    }
+    return ((PyCFunctionObject *)obj)->m_ml->ml_flags & METH_TYPED;
+}
+
+static inline int
 _PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value) {
   static uint64_t overflow_masks[] = {
       0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000, 0xFFFFFFFF00000000, 0x0};

@@ -1179,3 +1179,197 @@ class StaticPatchTests(StaticTestBase):
                     bmod.ff = lambda: 2
 
                     self.assertEqual(bmod.g(), 20)
+
+    def test_double_patch_final_property(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                def f(self) -> int:
+                    return self.prop
+
+                @property
+                def prop(self) -> int:
+                    return 1
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C()
+            self.assertEqual(c.f(), 1)
+            mod.C.prop = property(lambda s: 2)
+            self.assertEqual(c.f(), 2)
+            mod.C.prop = property(lambda s: 3)
+            self.assertEqual(c.f(), 3)
+
+    def test_double_patch_inherited_property(self):
+        codestr = """
+            class B:
+                def f(self) -> int:
+                    return self.prop
+
+                @property
+                def prop(self) -> int:
+                    return 1
+
+            class C(B):
+                pass
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C()
+            self.assertEqual(c.f(), 1)
+            mod.C.prop = property(lambda s: 2)
+            self.assertEqual(c.f(), 2)
+            mod.C.prop = property(lambda s: 3)
+            self.assertEqual(c.f(), 3)
+
+    def test_patch_property_bad_type(self):
+        codestr = """
+            class C:
+                @property
+                def prop(self) -> int:
+                    return 1
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"cannot patch property with function"
+            ):
+                mod.C.prop = lambda s: 2
+
+    def test_patch_readonly_property_with_settable(self):
+        codestr = """
+            class C:
+                @property
+                def prop(self) -> int:
+                    return 1
+
+                def f(self):
+                    self.prop = 3
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C()
+            self.assertEqual(c.prop, 1)
+            calls = []
+
+            def _set(self, val):
+                calls.append(val)
+
+            mod.C.prop = property(lambda s: 2, _set)
+            c.f()
+            self.assertEqual(calls, [3])
+
+    def test_patch_settable_property_with_readonly(self):
+        codestr = """
+            class C:
+                def __init__(self, prop: int) -> None:
+                    self._prop = prop
+
+                @property
+                def prop(self) -> int:
+                    return self._prop
+
+                @prop.setter
+                def prop(self, value: int) -> None:
+                    self._prop = value
+
+                def f(self, prop: int) -> None:
+                    self.prop = prop
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C(2)
+            self.assertEqual(c.prop, 2)
+            mod.C.prop = property(lambda s: s._prop * 10)
+            self.assertEqual(c.prop, 20)
+            with self.assertRaisesRegex(AttributeError, r"can't set attribute"):
+                c.f(3)
+
+    def test_patch_property_del(self):
+        codestr = """
+            class C:
+                def __init__(self, prop: int) -> None:
+                    self._prop = prop
+
+                @property
+                def prop(self) -> int:
+                    return self._prop
+
+                @prop.setter
+                def prop(self, val: int) -> None:
+                    self._prop = val
+
+                def get(self) -> int:
+                    return self.prop
+
+                def set(self, val: int) -> None:
+                    self.prop = val
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C(1)
+            self.assertEqual(c.get(), 1)
+            c.set(2)
+            self.assertEqual(c.get(), 2)
+            del mod.C.prop
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'prop'"
+            ):
+                c.prop
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'prop'"
+            ):
+                c.prop = 2
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'prop'"
+            ):
+                c.get()
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'prop'"
+            ):
+                c.set(3)
+
+    def test_patch_method_del(self):
+        codestr = """
+            class C:
+                def f(self) -> int:
+                    return 1
+
+                def g(self) -> int:
+                    return self.f()
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C()
+            self.assertEqual(c.g(), 1)
+            del mod.C.f
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'f'"
+            ):
+                c.f()
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'f'"
+            ):
+                c.g()
+
+    def test_patch_property_del_on_base(self):
+        codestr = """
+            class B:
+                def __init__(self, prop: int) -> None:
+                    self._prop = prop
+
+                @property
+                def prop(self) -> int:
+                    return self._prop
+
+            class C(B):
+                def get(self) -> int:
+                    return self.prop
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C(1)
+            self.assertEqual(c.get(), 1)
+            del mod.B.prop
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'prop'"
+            ):
+                c.prop
+            with self.assertRaisesRegex(
+                AttributeError, "'C' object has no attribute 'prop'"
+            ):
+                c.get()
