@@ -138,6 +138,7 @@ OTHER_UNIONS: List[UnionSpec] = [
     UnionSpec("Primitive", BASIC_PRIMITIVE_TYPES, Lifetime.Bottom),
     UnionSpec("CSigned", BASIC_INT_TYPES, Lifetime.Bottom),
     UnionSpec("CUnsigned", BASIC_UINT_TYPES, Lifetime.Bottom),
+    UnionSpec("CInt", BASIC_UINT_TYPES + BASIC_INT_TYPES, Lifetime.Bottom),
 ]
 
 

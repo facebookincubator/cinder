@@ -42,6 +42,8 @@ constexpr size_t kTypeHasTrivialMortality = 2;
     kTypeHasTrivialMortality)                                              \
   X(CDouble,                       0x080000000000UL, kLifetimeBottom,      \
     kTypeHasTrivialMortality)                                              \
+  X(CInt,                          0x03fc00000000UL, kLifetimeBottom,      \
+    kTypeHasTrivialMortality)                                              \
   X(CInt16,                        0x000800000000UL, kLifetimeBottom,      \
     kTypeHasTrivialMortality)                                              \
   X(CInt32,                        0x001000000000UL, kLifetimeBottom,      \
