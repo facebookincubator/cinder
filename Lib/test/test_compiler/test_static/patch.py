@@ -1222,18 +1222,105 @@ class StaticPatchTests(StaticTestBase):
             mod.C.prop = property(lambda s: 3)
             self.assertEqual(c.f(), 3)
 
-    def test_patch_property_bad_type(self):
+    def test_patch_property_custom_patch_before_use(self):
         codestr = """
             class C:
                 @property
                 def prop(self) -> int:
                     return 1
+
+            def f(x: C):
+                return x.prop
         """
+
+        class Desc:
+            def __get__(self, inst, ctx):
+                return 42
+
         with self.in_module(codestr) as mod:
-            with self.assertRaisesRegex(
-                TypeError, r"cannot patch property with function"
-            ):
-                mod.C.prop = lambda s: 2
+            mod.C.prop = Desc()
+            self.assertEqual(mod.f(mod.C()), 42)
+
+    def test_patch_property_custom_desc(self):
+        codestr = """
+            class C:
+                @property
+                def prop(self) -> int:
+                    return 1
+
+            def f(x: C):
+                return x.prop
+        """
+
+        class Desc:
+            def __get__(self, inst, ctx):
+                return 42
+
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(mod.C()), 1)
+            mod.C.prop = Desc()
+            self.assertEqual(mod.f(mod.C()), 42)
+
+    def test_patch_property_custom_desc_set(self):
+        codestr = """
+            class C:
+                def __init__(self):
+                    self.value = 0
+
+                @property
+                def prop(self) -> int:
+                    return self.value
+
+                @prop.setter
+                def prop(self, value) -> None:
+                    self.value = value
+
+            def f(x: C):
+                x.prop = 42
+        """
+        called = False
+
+        class Desc:
+            def __get__(self, inst, ctx):
+                return 42
+
+            def __set__(self, inst, value):
+                nonlocal called
+                called = True
+
+        with self.in_module(codestr) as mod:
+            c = mod.C()
+            mod.f(c)
+            self.assertEqual(c.value, 42)
+            mod.C.prop = Desc()
+            mod.f(c)
+            self.assertEqual(c.value, 42)
+            self.assertTrue(called)
+
+    def test_patch_property_custom_desc_bad_ret(self):
+        codestr = """
+            class C:
+                @property
+                def prop(self) -> int:
+                    return 1
+
+            def f(x: C):
+                return x.prop
+        """
+
+        class Desc:
+            def __get__(self, inst, ctx):
+                return "abc"
+
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(mod.C()), 1)
+            mod.C.prop = Desc()
+            self.assertRaises(
+                TypeError,
+                "unexpected return type from C.prop, expected int, got str",
+                mod.f,
+                mod.C(),
+            )
 
     def test_patch_readonly_property_with_settable(self):
         codestr = """

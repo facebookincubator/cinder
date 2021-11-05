@@ -141,8 +141,97 @@ class PropertyTests(StaticTestBase):
                     return 43
 
             self.assertInBytecode(f, "INVOKE_METHOD")
-            with self.assertRaises(TypeError):
-                f(D())
+            x = D()
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from D.foo, expected int, got method"
+            ):
+                f(x)
+
+    def test_property_getter_non_static_inheritance_with_non_descr(self):
+        codestr = """
+            class C:
+                @property
+                def foo(self) -> int:
+                    return 42
+
+            def bar(c: C) -> int:
+                return c.foo
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.bar
+            C = mod.C
+
+            class D(C):
+                foo = 100
+
+            self.assertInBytecode(f, "INVOKE_METHOD")
+            x = D()
+            self.assertEqual(f(x), 100)
+
+    def test_property_getter_non_static_inheritance_with_non_descr_set(self):
+        codestr = """
+            class C:
+                @property
+                def foo(self) -> int:
+                    return 42
+
+                @foo.setter
+                def foo(self, value) -> None:
+                    pass
+
+            def bar(c: C) -> int:
+                c.foo = 42
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.bar
+            C = mod.C
+
+            class D(C):
+                foo = object()
+
+            self.assertInBytecode(f, "INVOKE_METHOD")
+            x = D()
+            with self.assertRaisesRegex(TypeError, "'object' doesn't support __set__"):
+                f(x)
+
+    def test_property_getter_non_static_inheritance_with_non_property_setter(self):
+        codestr = """
+            class C:
+                def __init__(self):
+                    self.value = 0
+
+                @property
+                def foo(self) -> int:
+                    return self.value
+
+                @foo.setter
+                def foo(self, value: int):
+                    self.value = value
+
+            def bar(c: C) -> int:
+                c.foo = 42
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.bar
+            C = mod.C
+
+            called = False
+
+            class Desc:
+                def __get__(self, inst, ctx):
+                    return 42
+
+                def __set__(self, inst, value):
+                    nonlocal called
+                    called = True
+
+            class D(C):
+                foo = Desc()
+
+            self.assertInBytecode(f, "INVOKE_METHOD")
+            x = D()
+            f(x)
+            self.assertTrue(called)
 
     def test_property_getter_non_static_inheritance_with_get_descriptor(self):
         codestr = """
@@ -166,8 +255,7 @@ class PropertyTests(StaticTestBase):
                 foo = MyDesc()
 
             self.assertInBytecode(f, "INVOKE_METHOD")
-            with self.assertRaises(TypeError):
-                f(D())
+            self.assertEqual(f(D()), 43)
 
     def test_property_getter_type_error(self):
         codestr = """

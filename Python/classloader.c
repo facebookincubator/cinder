@@ -681,6 +681,95 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
     return 0;
 }
 
+static PyObject *
+thunk_call(_Py_StaticThunk *thunk, PyObject *args, PyObject *kwds);
+
+typedef struct {
+    PyObject_HEAD;
+    PyObject *propthunk_target;
+    /* the vectorcall entry point for the thunk */
+    vectorcallfunc propthunk_vectorcall;
+} _Py_PropertyThunk;
+
+
+
+static int
+propthunktraverse(_Py_PropertyThunk *op, visitproc visit, void *arg)
+{
+    visit(op->propthunk_target, arg);
+    return 0;
+}
+
+static int
+propthunkclear(_Py_PropertyThunk *op)
+{
+    rettype_check_clear((_PyClassLoader_RetTypeInfo *)op);
+    Py_CLEAR(op->propthunk_target);
+    return 0;
+}
+
+static void
+propthunkdealloc(_Py_PropertyThunk *op)
+{
+    PyObject_GC_UnTrack((PyObject *)op);
+    Py_XDECREF(op->propthunk_target);
+    PyObject_GC_Del((PyObject *)op);
+}
+
+static PyObject *
+propthunk_get(_Py_PropertyThunk *thunk, PyObject *const *args,
+                                    size_t nargsf, PyObject *kwnames)
+{
+    size_t nargs = PyVectorcall_NARGS(nargsf);
+    if (nargs != 1) {
+        PyErr_SetString(PyExc_TypeError, "property get expected 1 argument");
+        return NULL;
+    }
+
+    descrgetfunc f = Py_TYPE(thunk->propthunk_target)->tp_descr_get;
+    if (f == NULL) {
+        Py_INCREF(thunk->propthunk_target);
+        return thunk->propthunk_target;
+    }
+
+    PyObject *res = f(thunk->propthunk_target, args[0], (PyObject *)(Py_TYPE(args[0])));
+    return res;
+}
+
+static PyObject *
+propthunk_set(_Py_PropertyThunk *thunk, PyObject *const *args,
+                                    size_t nargsf, PyObject *kwnames)
+{
+    size_t nargs = PyVectorcall_NARGS(nargsf);
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_TypeError, "property set expected 1 argument");
+        return NULL;
+    }
+
+    descrsetfunc f = Py_TYPE(thunk->propthunk_target)->tp_descr_set;
+    if (f == NULL) {
+        PyErr_Format(PyExc_TypeError,
+            "'%s' doesn't support __set__", Py_TYPE(thunk->propthunk_target)->tp_name);
+        return NULL;
+    }
+    if (f(thunk->propthunk_target, args[0], args[1])) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+PyTypeObject _PyType_PropertyThunk = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) "property_thunk",
+    sizeof(_Py_PropertyThunk),
+    .tp_dealloc = (destructor)propthunkdealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
+        _Py_TPFLAGS_HAVE_VECTORCALL,
+    .tp_traverse = (traverseproc)propthunktraverse,
+    .tp_clear = (inquiry)propthunkclear,
+    .tp_vectorcall_offset = offsetof(_Py_PropertyThunk, propthunk_vectorcall),
+    .tp_call = (ternaryfunc)thunk_call,
+};
+
 static PyObject *g_missing_fget = NULL;
 static PyObject *g_missing_fset = NULL;
 
@@ -719,25 +808,49 @@ classloader_get_property_missing_fset() {
 }
 
 static PyObject *
-classloader_get_property_fget(propertyobject *property) {
-    PyObject *func = property->prop_get;
-    if (func == NULL) {
-        func = classloader_get_property_missing_fget();
+classloader_get_property_fget(PyObject *property) {
+    if (Py_TYPE(property) == &PyProperty_Type) {
+        PyObject *func = ((propertyobject *)property)->prop_get;
+        if (func == NULL) {
+            func = classloader_get_property_missing_fget();
+        }
+        Py_XINCREF(func);
+        return func;
+    } else {
+        _Py_PropertyThunk *thunk = PyObject_GC_New(_Py_PropertyThunk, &_PyType_PropertyThunk);
+        if (thunk == NULL) {
+            return NULL;
+        }
+        thunk->propthunk_vectorcall = (vectorcallfunc)propthunk_get;
+        thunk->propthunk_target = property;
+        Py_INCREF(property);
+        return (PyObject *)thunk;
     }
-    return func;
 }
 
 static PyObject *
-classloader_get_property_fset(propertyobject *property) {
-    PyObject *func = property->prop_set;
-    if (func == NULL) {
-        func = classloader_get_property_missing_fset();
+classloader_get_property_fset(PyObject *property) {
+    if (Py_TYPE(property) == &PyProperty_Type) {
+        PyObject *func = ((propertyobject *)property)->prop_set;
+        if (func == NULL) {
+            func = classloader_get_property_missing_fset();
+        }
+        Py_XINCREF(func);
+        return func;
+    } else {
+        _Py_PropertyThunk *thunk = PyObject_GC_New(_Py_PropertyThunk, &_PyType_PropertyThunk);
+        if (thunk == NULL) {
+            return NULL;
+        }
+        thunk->propthunk_vectorcall = (vectorcallfunc)propthunk_set;
+        thunk->propthunk_target = property;
+        Py_INCREF(property);
+        return (PyObject *)thunk;
     }
-    return func;
 }
 
 static PyObject *
-classloader_get_property_method(propertyobject *property, PyTupleObject *name)
+classloader_get_property_method(PyObject *property, PyTupleObject *name)
 {
     PyObject *fname = PyTuple_GET_ITEM(name, 1);
     if (_PyUnicode_EqualToASCIIString(fname, "fget")) {
@@ -1055,8 +1168,10 @@ int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
         }
         if (clsitem != NULL) {
             if (PyDict_SetItem(origitems, name, clsitem)) {
+                Py_DECREF(clsitem);
                 goto error;
             }
+            Py_DECREF(clsitem);
         }
     }
     return 0;
@@ -1116,22 +1231,17 @@ get_func_or_special_callable(PyObject *dict, PyObject *name, PyObject **result) 
             *result = NULL;
             return 0;
         }
-        if (Py_TYPE(property) != &PyProperty_Type) {
-            PyErr_Format(PyExc_TypeError,
-                            "Attribute '%U' should be a property, not '%s'.",
-                            PyTuple_GET_ITEM(name, 0),
-                            Py_TYPE(property)->tp_name);
-            *result = NULL;
-            return -1;
-        }
-        *result = classloader_get_property_method((propertyobject *) property,
+
+        *result = classloader_get_property_method(property,
                                                   (PyTupleObject *) name);
         if (*result == NULL) {
             return -1;
         }
+        return 0;
     } else {
         *result = PyDict_GetItem(dict, name);
     }
+    Py_XINCREF(*result);
     return 0;
 }
 
@@ -1157,6 +1267,7 @@ _PyClassLoader_GetStaticallyInheritedMember(PyTypeObject *type, PyObject *name, 
         }
         if (base != NULL) {
             if (!used_in_vtable(base)) {
+                Py_DECREF(base);
                 continue;
             }
             *result = base;
@@ -1250,8 +1361,8 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     /* we need to search in the MRO if we don't contain the
      * item directly or we're currently deleting the current value */
+    PyObject *base = NULL;
     if (previous == NULL || new_value == NULL) {
-        PyObject *base;
         if (_PyClassLoader_GetStaticallyInheritedMember(type, name, &base)) {
             return -1;
         }
@@ -1274,26 +1385,26 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     // if this is a property slot, also update the getter and setter slots
     if (Py_TYPE(previous) == &PyProperty_Type) {
-        if (new_value != NULL && Py_TYPE(new_value) != &PyProperty_Type) {
-            PyErr_Format(PyExc_TypeError, "cannot patch property with %s", Py_TYPE(new_value)->tp_name);
-            return -1;
-        }
-        propertyobject *newprop = (propertyobject *)new_value;
-
         PyTupleObject *getter_tuple = (PyTupleObject *)get_property_getter_descr_tuple(name);
-        PyObject *new_getter = deleting ? NULL : classloader_get_property_fget(newprop);
+        PyObject *new_getter = deleting ? NULL : classloader_get_property_fget(new_value);
         if(_PyClassLoader_UpdateSlot(type, (PyObject *)getter_tuple, new_getter)) {
             Py_DECREF(getter_tuple);
+            Py_XDECREF(new_getter);
+            Py_XDECREF(base);
             return -1;
         }
+        Py_XDECREF(new_getter);
         Py_DECREF(getter_tuple);
 
         PyTupleObject *setter_tuple = (PyTupleObject *)get_property_setter_descr_tuple(name);
-        PyObject *new_setter = deleting ? NULL : classloader_get_property_fset(newprop);
+        PyObject *new_setter = deleting ? NULL : classloader_get_property_fset(new_value);
         if(_PyClassLoader_UpdateSlot(type, (PyObject *)setter_tuple, new_setter)) {
             Py_DECREF(setter_tuple);
+            Py_XDECREF(new_setter);
+            Py_XDECREF(base);
             return -1;
         }
+        Py_XDECREF(new_setter);
         Py_DECREF(setter_tuple);
     }
 
@@ -1313,6 +1424,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         PyObject *missing_state = PyTuple_New(3);
         if (missing_state == NULL) {
             Py_DECREF(cur_type);
+            Py_XDECREF(base);
             return -1;
         }
 
@@ -1337,9 +1449,11 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
                                              index,
                                              new_value)) {
         Py_DECREF(cur_type);
+        Py_XDECREF(base);
         return -1;
     }
     Py_DECREF(cur_type);
+    Py_XDECREF(base);
 
     /* propagate slot update to derived classes that don't override
      * the function (but first, ensure they have initialized vtables) */
@@ -1389,9 +1503,11 @@ type_vtable_setslot(PyTypeObject *tp,
     if (vtable->vt_original != NULL) {
         assert(tp->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
         original = PyDict_GetItem(vtable->vt_original, name);
+        Py_INCREF(original);
     } else if (_PyClassLoader_IsStaticFunction(value) || _PyClassLoader_IsStaticBuiltin(value)) {
         /* non-static type can't influence our original static return type */
         original = value;
+        Py_INCREF(value);
     } else {
         if (_PyClassLoader_GetStaticallyInheritedMember(tp, name, &original)) {
             return -1;
@@ -1406,6 +1522,7 @@ type_vtable_setslot(PyTypeObject *tp,
 
     int optional = 0, coroutine = 0, classmethod = 0;
     PyObject *ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
+    Py_DECREF(original);
     if (ret_type == NULL) {
         PyErr_Format(PyExc_RuntimeError,
                     "missing type annotation on static compiled method %R of %s",
@@ -1450,6 +1567,7 @@ type_vtable_lazyinit(PyObject *name,
             if (type_vtable_setslot(type, name, vtable, slot, value)) {
                 return NULL;
             }
+            Py_DECREF(value);
 
             return vtable->vt_entries[slot].vte_entry(
                 vtable->vt_entries[slot].vte_state, args, nargsf, kwnames);
@@ -1506,10 +1624,12 @@ used_in_vtable(PyObject *value)
                used_in_vtable_worker(_PyClassMethod_GetFunc(value))) {
         return 1;
     } else if (Py_TYPE(value) == &PyProperty_Type) {
-        propertyobject *prop = (propertyobject *) value;
-        PyObject *getter = classloader_get_property_fget(prop);
-        PyObject *setter = classloader_get_property_fset(prop);
-        return used_in_vtable_worker(getter) || used_in_vtable_worker(setter);
+        PyObject *getter = classloader_get_property_fget(value);
+        PyObject *setter = classloader_get_property_fset(value);
+        int res = used_in_vtable_worker(getter) || used_in_vtable_worker(setter);
+        Py_XDECREF(getter);
+        Py_XDECREF(setter);
+        return res;
     }
     return 0;
 }
@@ -1859,10 +1979,9 @@ classloader_get_member(PyObject *path,
             }
         } else if (next == Py_None && d == tstate->interp->builtins) {
             /* special case builtins.None, it's used to represent NoneType */
+            Py_DECREF(next);
             next = (PyObject *)&_PyNone_Type;
             Py_INCREF(next);
-        } else {
-            Py_XINCREF(next);
         }
 
         if (next == NULL) {
