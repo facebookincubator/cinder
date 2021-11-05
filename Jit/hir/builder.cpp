@@ -2485,6 +2485,8 @@ void HIRBuilder::emitFastLen(
     BasicBlock* fast_path = cfg.AllocateBlock();
     tc.emit<CondBranchCheckType>(collection, type, fast_path, deopt_path.block);
     tc.block = fast_path;
+    // TODO(T105038867): Remove once we have RefineTypeInsertion
+    tc.emit<RefineType>(collection, type, collection);
   } else {
     collection = tc.frame.stack.pop();
   }
@@ -2587,6 +2589,8 @@ void HIRBuilder::emitSequenceRepeat(
       tc.emit<CondBranchCheckType>(
           num, TLongExact, fast_path, deopt_path.block);
       tc.block = fast_path;
+      // TODO(T105038867): Remove once we have RefineTypeInsertion
+      tc.emit<RefineType>(num, TLongExact, num);
     }
     seq = stack.pop();
     if (seq_inexact) {
@@ -2597,6 +2601,9 @@ void HIRBuilder::emitSequenceRepeat(
           fast_path,
           deopt_path.block);
       tc.block = fast_path;
+      // TODO(T105038867): Remove once we have RefineTypeInsertion
+      tc.emit<RefineType>(
+          seq, (oparg == SEQ_LIST) ? TListExact : TTupleExact, seq);
     }
   } else {
     num = stack.pop();
@@ -3099,6 +3106,8 @@ void HIRBuilder::emitUnpackSequence(
   stack.pop();
   tc.emit<CondBranchCheckType>(seq, TTupleExact, fast_path, deopt_path.block);
   tc.block = fast_path;
+  // TODO(T105038867): Remove once we have RefineTypeInsertion
+  tc.emit<RefineType>(seq, TTupleExact, seq);
 
   Register* seq_size = temps_.AllocateStack();
   Register* target_size = temps_.AllocateStack();
