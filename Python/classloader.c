@@ -364,7 +364,11 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
         assert(nargs > 0);
         PyObject *classmethod_args[nargs];
-        classmethod_args[0] = (PyObject *) Py_TYPE(args[0]);
+        PyObject *first_arg = args[0];
+        if (~nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+            first_arg = (PyObject *) Py_TYPE(first_arg);
+        }
+        classmethod_args[0] = first_arg;
         for (Py_ssize_t i = 1; i < nargs; ++i) {
           classmethod_args[i] = args[i];
         }

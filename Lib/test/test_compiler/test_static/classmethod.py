@@ -266,3 +266,23 @@ class ClassMethodTests(StaticTestBase):
 
             asyncio.run(make_hot())
             self.assertEqual(asyncio.run(f(C())), 3)
+
+    def test_invoke_non_static_subtype_async_classmethod(self):
+        codestr = """
+            class C:
+                x = 3
+
+                @classmethod
+                async def f(cls) -> int:
+                    return cls.x
+
+                async def g(self) -> int:
+                    return await self.f()
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+                pass
+
+            d = D()
+            self.assertEqual(asyncio.run(d.g()), 3)
