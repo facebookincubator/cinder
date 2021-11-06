@@ -1768,11 +1768,8 @@ class TestWaitForAwaiter(unittest.TestCase):
 
         coro = sleeper()
         await_stack = await waiter(coro)
-        self.assertIs(
-            await_stack[0].cr_code, asyncio.tasks._wait_until_complete.__code__
-        )
-        self.assertIs(await_stack[1].cr_code, asyncio.tasks.wait_for.__code__)
-        self.assertIs(await_stack[2].cr_code, waiter.__code__)
+        self.assertIs(await_stack[0].cr_code, asyncio.tasks.wait_for.__code__)
+        self.assertIs(await_stack[1].cr_code, waiter.__code__)
 
     @async_test
     async def test_get_awaiter_wait_for_gather(self):
@@ -1790,16 +1787,10 @@ class TestWaitForAwaiter(unittest.TestCase):
         coros[0] = sleeper(0)
         coros[1] = sleeper(1)
         await_stacks = await waiter(coros[0], coros[1])
-        self.assertIs(
-            await_stacks[0][0].cr_code, asyncio.tasks._wait_until_complete.__code__
-        )
-        self.assertIs(await_stacks[0][1].cr_code, asyncio.tasks.wait_for.__code__)
-        self.assertIs(await_stacks[0][2].cr_code, waiter.__code__)
-        self.assertIs(
-            await_stacks[1][0].cr_code, asyncio.tasks._wait_until_complete.__code__
-        )
-        self.assertIs(await_stacks[1][1].cr_code, asyncio.tasks.wait_for.__code__)
-        self.assertIs(await_stacks[1][2].cr_code, waiter.__code__)
+        self.assertIs(await_stacks[0][0].cr_code, asyncio.tasks.wait_for.__code__)
+        self.assertIs(await_stacks[0][1].cr_code, waiter.__code__)
+        self.assertIs(await_stacks[1][0].cr_code, asyncio.tasks.wait_for.__code__)
+        self.assertIs(await_stacks[1][1].cr_code, waiter.__code__)
 
 
 if __name__ == "__main__":

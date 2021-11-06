@@ -426,29 +426,9 @@ def _release_waiter(waiter, *args):
         waiter.set_result(None)
 
 
-async def _wait_until_complete(fut, waiter):
-    try:
-        await fut
-    finally:
-        # fut completed, stop waiting for timeout
-        _release_waiter(waiter)
-
-
-async def _wait_for_timeout(fut, waiter, loop):
-    try:
-        await waiter
-    except exceptions.CancelledError:
-        # If the wait is cancelled, the task is also cancelled
-        fut.cancel()
-        raise
-    if fut.done():
-        return fut
-    # Timed out.
-    # We must ensure that the task is not running
-    # after wait_for() returns.
-    # See https://bugs.python.org/issue32751
-    await _cancel_and_wait(fut, loop=loop)
-    raise exceptions.TimeoutError()
+def _timeout_waiter(waiter, *args):
+    if not waiter.done():
+        waiter.set_exception(exceptions.TimeoutError())
 
 
 async def wait_for(fut, timeout, *, loop=None):
@@ -484,18 +464,31 @@ async def wait_for(fut, timeout, *, loop=None):
         raise exceptions.TimeoutError()
 
     waiter = loop.create_future()
-    timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
+    timeout_handle = loop.call_later(timeout, _timeout_waiter, waiter)
     fut = ensure_future(fut, loop=loop)
+    cb = functools.partial(_release_waiter, waiter)
+    fut.add_done_callback(cb)
 
     try:
-        # wait until the future completes or the timeout
-        fut_or_exc, _ = await gather(_wait_for_timeout(fut, waiter, loop),
-                                     _wait_until_complete(fut, waiter),
-                                     return_exceptions=True)
-        if fut_or_exc is fut:
-            return fut.result()
-        else:
-            raise fut_or_exc
+        try:
+            # wait until the future completes or the timeout
+            result, _ = await gather(fut, waiter)
+            return result
+        except exceptions.TimeoutError:
+            if fut.done():
+                # The future may have completed in the same trip of the event
+                # loop as the timeout occurring.
+                return fut.result()
+            fut.remove_done_callback(cb)
+            # We must ensure that the task is not running
+            # after wait_for() returns.
+            # See https://bugs.python.org/issue32751
+            await _cancel_and_wait(fut, loop=loop)
+            raise
+        except exceptions.CancelledError:
+            fut.cancel()
+            waiter.cancel()
+            raise
     finally:
         timeout_handle.cancel()
 
