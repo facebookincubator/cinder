@@ -4421,7 +4421,14 @@ main_loop:
             int nargs = (oparg >> 1) & 0xff;
             PyObject **stack = stack_pointer - nargs;
             PyObject *self = *stack;
-            _PyType_VTable *vtable = (_PyType_VTable *)self->ob_type->tp_cache;
+            _PyType_VTable *vtable;
+            if (is_classmethod) {
+                vtable = (_PyType_VTable *)(((PyTypeObject *)self)->tp_cache);
+            }
+            else {
+                vtable = (_PyType_VTable *)self->ob_type->tp_cache;
+            }
+
             Py_ssize_t slot = oparg >> 9;
 
             int awaited = IS_AWAITED();

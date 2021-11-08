@@ -245,28 +245,6 @@ class ClassMethodTests(StaticTestBase):
             C = mod.C
             self.assertEqual(C().f(), 3)
 
-    def test_classmethod_invoke_method_cached(self):
-        codestr = """
-            class C:
-                @classmethod
-                async def foo(cls) -> int:
-                    return 3
-
-            def f(c: C):
-                return c.foo()
-        """
-        with self.in_module(codestr, name="mymod") as mod:
-            C = mod.C
-            f = mod.f
-
-            async def make_hot():
-                c = C()
-                for i in range(50):
-                    await c.foo()
-
-            asyncio.run(make_hot())
-            self.assertEqual(asyncio.run(f(C())), 3)
-
     def test_invoke_non_static_subtype_async_classmethod(self):
         codestr = """
             class C:
@@ -286,3 +264,58 @@ class ClassMethodTests(StaticTestBase):
 
             d = D()
             self.assertEqual(asyncio.run(d.g()), 3)
+
+    def test_classmethod_invoke_method_cached(self):
+        cases = [True, False]
+        for should_make_hot in cases:
+            with self.subTest(should_make_hot=should_make_hot):
+                codestr = """
+                    class C:
+                        @classmethod
+                        def foo(cls) -> int:
+                            return 3
+
+                    def f(c: C):
+                        return c.foo()
+                """
+                with self.in_module(codestr, name="mymod") as mod:
+                    C = mod.C
+                    f = mod.f
+
+                    c = C()
+                    if should_make_hot:
+                        for i in range(50):
+                            f(c)
+                    self.assertInBytecode(f, "INVOKE_METHOD")
+                    self.assertEqual(f(c), 3)
+
+    def test_classmethod_async_invoke_method_cached(self):
+        cases = [True, False]
+        for should_make_hot in cases:
+
+            with self.subTest(should_make_hot=should_make_hot):
+                codestr = """
+                class C:
+                    async def instance_method(self) -> int:
+                        return (await self.foo())
+
+                    @classmethod
+                    async def foo(cls) -> int:
+                        return 3
+
+                async def f(c: C):
+                    return await c.instance_method()
+                """
+                with self.in_module(codestr, name="mymod") as mod:
+                    C = mod.C
+                    f = mod.f
+
+                    async def make_hot():
+                        c = C()
+                        for i in range(50):
+                            await f(c)
+
+                    if should_make_hot:
+                        asyncio.run(make_hot())
+                    self.assertInBytecode(C.instance_method, "INVOKE_METHOD")
+                    self.assertEqual(asyncio.run(f(C())), 3)
