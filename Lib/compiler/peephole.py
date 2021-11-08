@@ -302,36 +302,6 @@ class Optimizer:
 
     OP_HANDLERS, ophandler = ophandler_registry()
 
-    @ophandler("UNARY_NOT")
-    def opt_unary_not(self, instr_index, opcode, op_start, nextop, nexti):
-        # Replace UNARY_NOT POP_JUMP_IF_FALSE
-        #   with    POP_JUMP_IF_TRUE
-        if nextop != self.POP_JUMP_IF_FALSE or not self.is_basic_block(
-            op_start, instr_index + 1
-        ):
-            return
-
-        self.fill_nops(op_start, instr_index + 1)
-        self.codestr[nexti * self.CODEUNIT_SIZE] = self.POP_JUMP_IF_TRUE
-
-    @ophandler("COMPARE_OP")
-    def opt_compare_op(self, instr_index, opcode, op_start, nextop, nexti):
-        # not a is b -->  a is not b
-        # not a in b -->  a not in b
-        # not a is not b -->  a is b
-        # not a not in b -->  a in b
-        cmp_type = self.get_arg(self.codestr, instr_index)
-        if (
-            cmp_type < self.CMP_OP_IN
-            or cmp_type > self.CMP_OP_IS_NOT
-            or nextop != self.opcode.UNARY_NOT
-            or not self.is_basic_block(op_start, instr_index + 1)
-        ):
-            return
-
-        self.codestr[instr_index * self.CODEUNIT_SIZE + 1] = cmp_type ^ 1
-        self.fill_nops(instr_index + 1, nexti + 1)
-
     @ophandler("LOAD_CONST")
     def opt_load_const(self, instr_index, opcode, op_start, nextop, nexti):
         # Skip over LOAD_CONST trueconst

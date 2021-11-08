@@ -636,3 +636,10 @@ def f():
                 x = 5
         """
         self._check(code, optimize=1)
+
+    def test_unary_op_jump_folding(self):
+        code = """
+        def f(x):
+            return (not f(x) and x > 3) or x < 4
+        """
+        self._check(code)
