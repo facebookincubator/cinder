@@ -643,3 +643,36 @@ def f():
             return (not f(x) and x > 3) or x < 4
         """
         self._check(code)
+
+    def test_dunder_class_cellvar_in_nested(self):
+        """
+        __class__ should not be cell since the functions are
+        not defined in a class
+        """
+        code = """
+        def f(x):
+            def g(y):
+                def __new__(cls):
+                    return super(x, cls).__new__(cls)
+                y.__new__ = __new__
+            return g(x)
+        """
+        self._check(code)
+
+    def test_class_dunder_class_as_local(self):
+        code = """
+        class C:
+            def f(__class__):
+                return lambda: __class__
+        """
+        self._check(code)
+
+    def test_class_dunder_class_declared(self):
+        code = """
+        def f():
+            class C:
+                def g():
+                    return __class__
+                __class__
+        """
+        self._check(code)

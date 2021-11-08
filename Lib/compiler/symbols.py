@@ -188,9 +188,13 @@ class Scope:
         self.globals[name] = 1
         if name in self.frees:
             del self.frees[name]
+        # special case for __class__:
+        # in a class scope, __class__ is free when used, but defined
+        # for its children
         for child in self.children:
             if child.check_name(name) == SC_FREE:
-                child.force_global(name)
+                if not isinstance(self, ClassScope) or name != "__class__":
+                    child.force_global(name)
 
     def add_frees(self, names):
         """Process list of free vars from nested scope.
@@ -202,10 +206,15 @@ class Scope:
         child_globals = []
         for name in names:
             sc = self.check_name(name)
-            if self.nested:
-                if name == "__class__":
+            if name == "__class__":
+                if isinstance(self, ClassScope) or sc == SC_LOCAL:
                     self.cells[name] = 1
-                elif sc == SC_UNKNOWN or sc == SC_FREE or isinstance(self, ClassScope):
+                    continue
+                elif self.findParentClass() is not None:
+                    self.frees[name] = 1
+                    continue
+            if self.nested:
+                if sc == SC_UNKNOWN or sc == SC_FREE or isinstance(self, ClassScope):
                     self.frees[name] = 1
                 elif sc == SC_GLOBAL_IMPLICIT:
                     child_globals.append(name)
@@ -214,13 +223,6 @@ class Scope:
                 elif sc != SC_CELL:
                     child_globals.append(name)
             else:
-                if name == "__class__":
-                    if isinstance(self, ClassScope):
-                        self.cells[name] = 1
-                        continue
-                    elif self.findParentClass() is not None:
-                        self.frees[name] = 1
-                        continue
                 if sc == SC_LOCAL:
                     self.cells[name] = 1
                 elif sc != SC_CELL:
