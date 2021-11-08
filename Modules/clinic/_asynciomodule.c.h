@@ -1274,4 +1274,139 @@ skip_optional:
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=79a4027be558ef72 input=a9049054013a1b77]*/
+
+PyDoc_STRVAR(_asyncio__AwaitingFuture___init____doc__,
+"_AwaitingFuture(awaited, *, loop=None)\n"
+"--\n"
+"\n"
+"A subclass of Future that completes when awaited completes.\n"
+"\n"
+"An _AwaitingFuture is primarily useful if you want to wait for another future\n"
+"to complete but be able to reliably cancel the wait. An _AwaitingFuture\n"
+"completes either with a None result when awaited completes or with a\n"
+"CancelledError if it is cancelled.  It does not support set_result or\n"
+"set_exception. It propagates its awaiter onto awaited when it is awaited.");
+
+static int
+_asyncio__AwaitingFuture___init___impl(_AwaitingFutureObj *self,
+                                       PyObject *awaited, PyObject *loop);
+
+static int
+_asyncio__AwaitingFuture___init__(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    int return_value = -1;
+    static const char * const _keywords[] = {"awaited", "loop", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "_AwaitingFuture", 0};
+    PyObject *argsbuf[2];
+    PyObject * const *fastargs;
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+    Py_ssize_t noptargs = nargs + (kwargs ? PyDict_GET_SIZE(kwargs) : 0) - 1;
+    PyObject *awaited;
+    PyObject *loop = Py_None;
+
+    fastargs = _PyArg_UnpackKeywords(_PyTuple_CAST(args)->ob_item, nargs, kwargs, NULL, &_parser, 1, 1, 0, argsbuf);
+    if (!fastargs) {
+        goto exit;
+    }
+    awaited = fastargs[0];
+    if (!noptargs) {
+        goto skip_optional_kwonly;
+    }
+    loop = fastargs[1];
+skip_optional_kwonly:
+    return_value = _asyncio__AwaitingFuture___init___impl((_AwaitingFutureObj *)self, awaited, loop);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_asyncio__AwaitingFuture_cancel__doc__,
+"cancel($self, /)\n"
+"--\n"
+"\n"
+"Cancel the future and schedule callbacks.\n"
+"\n"
+"If the future is already done or cancelled, return False.  Otherwise,\n"
+"change the future\'s state to cancelled, schedule the callbacks and\n"
+"return True.\n"
+"\n"
+"This does not propagate cancellation onto the future that we\'re waiting on.");
+
+#define _ASYNCIO__AWAITINGFUTURE_CANCEL_METHODDEF    \
+    {"cancel", (PyCFunction)_asyncio__AwaitingFuture_cancel, METH_NOARGS, _asyncio__AwaitingFuture_cancel__doc__},
+
+static PyObject *
+_asyncio__AwaitingFuture_cancel_impl(_AwaitingFutureObj *self);
+
+static PyObject *
+_asyncio__AwaitingFuture_cancel(_AwaitingFutureObj *self, PyObject *Py_UNUSED(ignored))
+{
+    return _asyncio__AwaitingFuture_cancel_impl(self);
+}
+
+PyDoc_STRVAR(_asyncio__AwaitingFuture_set_result__doc__,
+"set_result($self, /, result)\n"
+"--\n"
+"\n"
+"Unsupported by _AwaitingFuture.");
+
+#define _ASYNCIO__AWAITINGFUTURE_SET_RESULT_METHODDEF    \
+    {"set_result", (PyCFunction)(void(*)(void))_asyncio__AwaitingFuture_set_result, METH_FASTCALL|METH_KEYWORDS, _asyncio__AwaitingFuture_set_result__doc__},
+
+static PyObject *
+_asyncio__AwaitingFuture_set_result_impl(_AwaitingFutureObj *self,
+                                         PyObject *result);
+
+static PyObject *
+_asyncio__AwaitingFuture_set_result(_AwaitingFutureObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"result", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "set_result", 0};
+    PyObject *argsbuf[1];
+    PyObject *result;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    result = args[0];
+    return_value = _asyncio__AwaitingFuture_set_result_impl(self, result);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_asyncio__AwaitingFuture_set_exception__doc__,
+"set_exception($self, /, exception)\n"
+"--\n"
+"\n"
+"Unsupported by _AwaitingFuture.");
+
+#define _ASYNCIO__AWAITINGFUTURE_SET_EXCEPTION_METHODDEF    \
+    {"set_exception", (PyCFunction)(void(*)(void))_asyncio__AwaitingFuture_set_exception, METH_FASTCALL|METH_KEYWORDS, _asyncio__AwaitingFuture_set_exception__doc__},
+
+static PyObject *
+_asyncio__AwaitingFuture_set_exception_impl(_AwaitingFutureObj *self,
+                                            PyObject *exception);
+
+static PyObject *
+_asyncio__AwaitingFuture_set_exception(_AwaitingFutureObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"exception", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "set_exception", 0};
+    PyObject *argsbuf[1];
+    PyObject *exception;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    exception = args[0];
+    return_value = _asyncio__AwaitingFuture_set_exception_impl(self, exception);
+
+exit:
+    return return_value;
+}
+/*[clinic end generated code: output=b49fddf1bc7c5445 input=a9049054013a1b77]*/

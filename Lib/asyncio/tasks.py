@@ -463,32 +463,33 @@ async def wait_for(fut, timeout, *, loop=None):
         fut.cancel()
         raise exceptions.TimeoutError()
 
-    waiter = loop.create_future()
-    timeout_handle = loop.call_later(timeout, _timeout_waiter, waiter)
     fut = ensure_future(fut, loop=loop)
-    cb = functools.partial(_release_waiter, waiter)
-    fut.add_done_callback(cb)
+    waiter = _asyncio._AwaitingFuture(fut, loop=loop)
+    timed_out = False
+    def on_timeout(waiter, *args):
+        nonlocal timed_out
+        timed_out = True
+        waiter.cancel()
+    timeout_handle = loop.call_later(timeout, on_timeout, waiter)
 
     try:
+        # wait until the future completes or the timeout
         try:
-            # wait until the future completes or the timeout
-            result, _ = await gather(fut, waiter)
-            return result
-        except exceptions.TimeoutError:
+            await waiter
+        except exceptions.CancelledError:
             if fut.done():
                 # The future may have completed in the same trip of the event
                 # loop as the timeout occurring.
                 return fut.result()
-            fut.remove_done_callback(cb)
-            # We must ensure that the task is not running
-            # after wait_for() returns.
-            # See https://bugs.python.org/issue32751
-            await _cancel_and_wait(fut, loop=loop)
-            raise
-        except exceptions.CancelledError:
+            if timed_out:
+                # We must ensure that the task is not running
+                # after wait_for() returns.
+                # See https://bugs.python.org/issue32751
+                await _cancel_and_wait(fut, loop=loop)
+                raise exceptions.TimeoutError()
             fut.cancel()
-            waiter.cancel()
             raise
+        return fut.result()
     finally:
         timeout_handle.cancel()
 

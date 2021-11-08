@@ -19,6 +19,7 @@ module _asyncio
 _Py_IDENTIFIER(__asyncio_running_event_loop__);
 _Py_IDENTIFIER(_asyncio_future_blocking);
 _Py_IDENTIFIER(add_done_callback);
+_Py_IDENTIFIER(remove_done_callback);
 _Py_IDENTIFIER(call_soon);
 _Py_IDENTIFIER(cancel);
 _Py_IDENTIFIER(current_task);
@@ -87,6 +88,7 @@ static PyObject *iscoroutine_typecache;
 
 static PyObject *get_loop_name;
 static PyObject *add_done_callback_name;
+static PyObject *remove_done_callback_name;
 static PyObject *result_name;
 static PyObject *cancel_name;
 static PyObject *done_name;
@@ -402,6 +404,14 @@ typedef struct {
     PyObject *av_value;
 } AwaitableValueObj;
 
+typedef struct {
+  FutureObj_HEAD(af);
+  // The future we're waiting on
+  PyObject *af_awaited;
+  // The callback that will be invoked when awaited is done
+  PyObject *af_done_callback;
+} _AwaitingFutureObj;
+
 static PyTypeObject FutureType;
 static PyTypeObject TaskType;
 static PyTypeObject ContextAwareTaskType;
@@ -410,6 +420,7 @@ static PyTypeObject PyRunningLoopHolder_Type;
 static PyTypeObject _AsyncLazyValue_Type;
 static PyTypeObject _AsyncLazyValueCompute_Type;
 static PyTypeObject AwaitableValue_Type;
+static PyTypeObject _AwaitingFuture_Type;
 
 #if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
 static pid_t current_pid;
@@ -426,6 +437,9 @@ static pid_t current_pid;
 
 #define _GatheringFuture_CheckExact(obj)                                      \
     (Py_TYPE(obj) == &_GatheringFutureType)
+
+#define _AwaitingFuture_CheckExact(obj)        \
+    (Py_TYPE(obj) == &_AwaitingFutureType)
 
 #define Future_Check(obj) PyObject_TypeCheck(obj, &FutureType)
 #define Task_Check(obj) PyObject_TypeCheck(obj, &TaskType)
@@ -564,6 +578,27 @@ FutureLike_add_done_callback(PyObject *fut, PyObject *cb, PyObject *context) {
     if (release_context) {
         Py_DECREF(context);
     }
+    return res;
+}
+
+static PyObject *
+FutureLike_remove_done_callback(PyObject *fut, PyObject *cb) {
+    PyObject *remove_cb = NULL;
+    int meth_found = _PyObject_GetMethod(fut, remove_done_callback_name, &remove_cb);
+    if (remove_cb == NULL) {
+        return NULL;
+    }
+    PyObject *stack[2];
+    stack[1] = cb;
+    PyObject *res = NULL;
+    if (meth_found == 1) {
+        stack[0] = fut;
+        res = _PyObject_Vectorcall(remove_cb, stack, 2, NULL);
+    }
+    else {
+        res = _PyObject_Vectorcall(remove_cb, stack + 1, 1, NULL);
+    }
+    Py_DECREF(remove_cb);
     return res;
 }
 
@@ -7969,6 +8004,256 @@ static PyTypeObject PyRunningLoopHolder_Type = {
     .tp_dealloc = (destructor)PyRunningLoopHolder_tp_dealloc,
 };
 
+/********************* _AwaitingFuture *************************************/
+
+static PyObject *
+awaiting_future_complete(FutureObj *self, PyObject *Py_UNUSED(arg))
+{
+    if (future_done(self)) {
+        Py_RETURN_NONE;
+    }
+    if (future_set_result(self, Py_None) < 0) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+PyMethodDef _AwaitingFuture_complete = {
+  "awaiting_future_complete",
+  (PyCFunction)awaiting_future_complete,
+  METH_O,
+  NULL
+};
+
+/*[clinic input]
+class _asyncio._AwaitingFuture "_AwaitingFutureObj *" "&_AwaitingFuture_Type"
+[clinic start generated code]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=35d731a9ef8b07e2]*/
+
+/*[clinic input]
+_asyncio._AwaitingFuture.__init__
+
+    awaited: object
+    *
+    loop: object = None
+
+A subclass of Future that completes when awaited completes.
+
+An _AwaitingFuture is primarily useful if you want to wait for another future
+to complete but be able to reliably cancel the wait. An _AwaitingFuture
+completes either with a None result when awaited completes or with a
+CancelledError if it is cancelled.  It does not support set_result or
+set_exception. It propagates its awaiter onto awaited when it is awaited.
+[clinic start generated code]*/
+
+static int
+_asyncio__AwaitingFuture___init___impl(_AwaitingFutureObj *self,
+                                       PyObject *awaited, PyObject *loop)
+/*[clinic end generated code: output=3c01cd528bbb6dc3 input=79939f5e053d0945]*/
+{
+    if (!isfuture(awaited)) {
+        PyErr_Format(PyExc_TypeError, "First argument must be a future. Got %R.", awaited);
+        return -1;
+    }
+
+    int st = future_init((FutureObj *) self, loop);
+    if (st != 0) {
+        return st;
+    }
+
+    Py_INCREF(awaited);
+    self->af_awaited = awaited;
+
+    self->af_done_callback = PyCFunction_New(&_AwaitingFuture_complete, (PyObject *) self);
+    if (self->af_done_callback == NULL) {
+        return -1;
+    }
+
+    PyMethodTableRef *tableref = get_or_create_method_table(Py_TYPE(awaited));
+    if (tableref == NULL) {
+        return -1;
+    }
+
+    PyObject *res = tableref->on_completed(awaited, self->af_done_callback, NULL);
+    if (res == NULL) {
+      return -1;
+    }
+    Py_DECREF(res);
+
+    return 0;
+}
+
+/*[clinic input]
+_asyncio._AwaitingFuture.cancel
+
+Cancel the future and schedule callbacks.
+
+If the future is already done or cancelled, return False.  Otherwise,
+change the future's state to cancelled, schedule the callbacks and
+return True.
+
+This does not propagate cancellation onto the future that we're waiting on.
+[clinic start generated code]*/
+
+static PyObject *
+_asyncio__AwaitingFuture_cancel_impl(_AwaitingFutureObj *self)
+/*[clinic end generated code: output=4bdc008d3b05902a input=3318fa0518e207a4]*/
+{
+    ENSURE_FUTURE_ALIVE((FutureObj *) self);
+    if (self->af_state != STATE_PENDING) {
+        Py_RETURN_FALSE;
+    }
+
+    // Awaited may continue running while whatever awaited us may finish.
+    // Clear awaiter in case awaited outlives us.
+    _PyAwaitable_SetAwaiter(self->af_awaited, NULL);
+
+    PyObject *res = FutureLike_remove_done_callback(self->af_awaited, self->af_done_callback);
+    if (res == NULL) {
+        return NULL;
+    }
+    Py_DECREF(res);
+
+    int st = future_cancel_impl((FutureObj *) self, NULL);
+    if (st < 0) {
+        return NULL;
+    }
+    if (st) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
+/*[clinic input]
+_asyncio._AwaitingFuture.set_result
+
+    result: object
+
+Unsupported by _AwaitingFuture.
+[clinic start generated code]*/
+
+static PyObject *
+_asyncio__AwaitingFuture_set_result_impl(_AwaitingFutureObj *self,
+                                         PyObject *result)
+/*[clinic end generated code: output=5a84708fa644a9d1 input=0cd4092a28e5a40e]*/
+{
+    PyErr_SetString(PyExc_RuntimeError,
+                    "_AwaitingFuture does not support set_result operation");
+    return NULL;
+}
+
+/*[clinic input]
+_asyncio._AwaitingFuture.set_exception
+
+    exception: object
+
+Unsupported by _AwaitingFuture.
+[clinic start generated code]*/
+
+static PyObject *
+_asyncio__AwaitingFuture_set_exception_impl(_AwaitingFutureObj *self,
+                                            PyObject *exception)
+/*[clinic end generated code: output=bc1654087cb1db67 input=105ca64ce20606fd]*/
+{
+    PyErr_SetString(PyExc_RuntimeError,
+                    "_AwaitingFuture does not support set_exception operation");
+    return NULL;
+}
+
+// clang-format off
+static PyMethodDef _AwaitingFutureType_methods[] = {
+    _ASYNCIO_FUTURE_RESULT_METHODDEF
+    _ASYNCIO_FUTURE_EXCEPTION_METHODDEF
+    _ASYNCIO__AWAITINGFUTURE_SET_RESULT_METHODDEF
+    _ASYNCIO__AWAITINGFUTURE_SET_EXCEPTION_METHODDEF
+    _ASYNCIO_FUTURE_ADD_DONE_CALLBACK_METHODDEF
+    _ASYNCIO_FUTURE_REMOVE_DONE_CALLBACK_METHODDEF
+    _ASYNCIO__AWAITINGFUTURE_CANCEL_METHODDEF
+    _ASYNCIO_FUTURE_CANCELLED_METHODDEF
+    _ASYNCIO_FUTURE_DONE_METHODDEF
+    _ASYNCIO_FUTURE_GET_LOOP_METHODDEF
+    _ASYNCIO_FUTURE__REPR_INFO_METHODDEF
+    {NULL, NULL} /* Sentinel */
+};
+// clang-format on
+
+static int
+_AwaitingFutureObj_traverse(_AwaitingFutureObj *fut,
+                            visitproc visit,
+                            void *arg)
+{
+    FutureObj_traverse((FutureObj *)fut, visit, arg);
+    Py_VISIT(fut->af_awaited);
+    Py_VISIT(fut->af_done_callback);
+    return 0;
+}
+
+static int
+_AwaitingFutureObj_clear(_AwaitingFutureObj *fut)
+{
+    (void)FutureObj_clear((FutureObj *)fut);
+    Py_CLEAR(fut->af_awaited);
+    Py_CLEAR(fut->af_done_callback);
+    return 0;
+}
+
+static void
+_AwaitingFutureObj_dealloc(PyObject *self)
+{
+
+    _AwaitingFutureObj *fut = (_AwaitingFutureObj *)self;
+
+    /* _AwaitingFutureObj cannot be subclassed */
+    if (PyObject_CallFinalizerFromDealloc(self) < 0) {
+      // resurrected.
+      return;
+    }
+
+    PyObject_GC_UnTrack(self);
+
+    if (fut->af_weakreflist != NULL) {
+      PyObject_ClearWeakRefs(self);
+    }
+
+    (void)_AwaitingFutureObj_clear(fut);
+    Py_TYPE(fut)->tp_free(fut);
+}
+
+static void
+_AwaitingFutureObj_set_awaiter(_AwaitingFutureObj *self, PyObject *awaiter) {
+    _PyAwaitable_SetAwaiter(self->af_awaited, awaiter);
+}
+
+static PyAsyncMethodsWithExtra _AwaitingFutureType_as_async = {
+    .ame_async_methods = {
+        .am_await = (unaryfunc)future_new_iter,
+    },
+    .ame_setawaiter = (setawaiterfunc)_AwaitingFutureObj_set_awaiter,
+};
+
+static PyTypeObject _AwaitingFuture_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0) "_asyncio._AwaitingFuture",
+    sizeof(_AwaitingFutureObj), /* tp_basicsize */
+    .tp_base = &FutureType,
+    .tp_dealloc = _AwaitingFutureObj_dealloc,
+    .tp_as_async = (PyAsyncMethods*)&_AwaitingFutureType_as_async,
+    .tp_repr = (reprfunc)FutureObj_repr,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_HAVE_FINALIZE | Py_TPFLAGS_HAVE_AM_EXTRA,
+    .tp_doc = _asyncio__AwaitingFuture___init____doc__,
+    .tp_traverse = (traverseproc)_AwaitingFutureObj_traverse,
+    .tp_clear = (inquiry)_AwaitingFutureObj_clear,
+    .tp_weaklistoffset = offsetof(_AwaitingFutureObj, af_weakreflist),
+    .tp_iter = (getiterfunc)future_new_iter,
+    .tp_methods = _AwaitingFutureType_methods,
+    .tp_getset = FutureType_getsetlist,
+    .tp_dictoffset = offsetof(_AwaitingFutureObj, dict),
+    .tp_init = (initproc)_asyncio__AwaitingFuture___init__,
+    .tp_new = PyType_GenericNew,
+    .tp_finalize = (destructor)FutureObj_finalize,
+};
+
+
 
 /*********************** Module **************************/
 
@@ -8297,6 +8582,9 @@ PyInit__asyncio(void)
     if (PyType_Ready((PyTypeObject *)&AwaitableValue_Type) < 0) {
         return NULL;
     }
+    if (PyType_Ready((PyTypeObject *)&_AwaitingFuture_Type) < 0) {
+        return NULL;
+    }
     if (PyType_Ready(&_ContextAwareTaskCallback_Type) < 0) {
         return NULL;
     }
@@ -8312,6 +8600,11 @@ PyInit__asyncio(void)
 
     add_done_callback_name = _PyUnicode_FromId(&PyId_add_done_callback);
     if (add_done_callback_name == NULL) {
+        return NULL;
+    }
+
+    remove_done_callback_name = _PyUnicode_FromId(&PyId_remove_done_callback);
+    if (remove_done_callback_name == NULL) {
         return NULL;
     }
 
@@ -8397,6 +8690,12 @@ PyInit__asyncio(void)
     if (PyModule_AddObject(
             m, "AwaitableValue", (PyObject *)&AwaitableValue_Type) < 0) {
         Py_DECREF(&AwaitableValue_Type);
+        return NULL;
+    }
+    Py_INCREF(&_AwaitingFuture_Type);
+    if (PyModule_AddObject(
+            m, "_AwaitingFuture", (PyObject *)&_AwaitingFuture_Type) < 0) {
+        Py_DECREF(&_AwaitingFuture_Type);
         return NULL;
     }
     PyObject *async_lazy_value_as_future =
