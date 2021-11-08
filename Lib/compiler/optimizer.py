@@ -1,5 +1,6 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
+
 import ast
 import operator
 import sys
@@ -64,10 +65,9 @@ BIN_OPS: Mapping[Type[ast.operator], Callable[[object, object], object]] = {
 
 
 class AstOptimizer(ASTRewriter):
-    def __init__(self, optimize: bool = False, force_asserts: bool = False) -> None:
+    def __init__(self, optimize: bool = False) -> None:
         super().__init__()
         self.optimize = optimize
-        self.force_asserts = force_asserts
 
     def visitUnaryOp(self, node: ast.UnaryOp) -> ast.expr:
         op = self.visit(node.operand)
@@ -135,7 +135,8 @@ class AstOptimizer(ASTRewriter):
             try:
                 return copy_location(
                     # pyre-ignore[16] we know this is unsafe, so it's wrapped in try/except
-                    Constant(get_const_value(value)[get_const_value(slice.value)]), node
+                    Constant(get_const_value(value)[get_const_value(slice.value)]),
+                    node,
                 )
             except Exception:
                 pass
@@ -196,12 +197,6 @@ class AstOptimizer(ASTRewriter):
         if node.id == "__debug__":
             return copy_location(Constant(not self.optimize), node)
 
-        return self.generic_visit(node)
-
-    def visitAssert(self, node: ast.Assert) -> ast.Assert | None:
-        if self.optimize and not self.force_asserts:
-            # Skip asserts if we're optimizing
-            return None
         return self.generic_visit(node)
 
     def visitNamedExpr(self, node: ast.NamedExpr) -> ast.NamedExpr:

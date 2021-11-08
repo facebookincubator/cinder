@@ -2182,7 +2182,14 @@ class CodeGenerator(ASTVisitor):
     ) -> CodeGenerator:
         if codegen_type is None:
             codegen_type = type(self)
-        return codegen_type(self, tree, self.symbols, graph, self.optimization_lvl)
+        return codegen_type(
+            self,
+            tree,
+            self.symbols,
+            graph,
+            flags=self.flags,
+            optimization_lvl=self.optimization_lvl,
+        )
 
     def make_func_codegen(
         self,

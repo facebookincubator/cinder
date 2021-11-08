@@ -32,7 +32,7 @@ def _make_stable(gen):
 
 def _stable_repr(obj):
     if isinstance(obj, frozenset):
-        replacement = frozenset([i for i in sorted(obj)])
+        replacement = frozenset([i for i in sorted(obj, key=lambda x: repr(x))])
         return repr(replacement)
     return repr(obj)
 

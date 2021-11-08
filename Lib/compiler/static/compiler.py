@@ -310,7 +310,7 @@ class Compiler:
     def add_module(
         self, name: str, filename: str, tree: AST, optimize: int
     ) -> ast.Module:
-        tree = AstOptimizer(optimize=optimize > 0, force_asserts=True).visit(tree)
+        tree = AstOptimizer(optimize=optimize > 0).visit(tree)
 
         decl_visit = DeclarationVisitor(name, filename, self, optimize)
         decl_visit.visit(tree)

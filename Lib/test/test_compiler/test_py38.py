@@ -19,10 +19,10 @@ def dump_code(code):
 class Python38Tests(CompilerTest):
     maxDiff = None
 
-    def _check(self, src):
+    def _check(self, src, optimize=-1):
         src = dedent(src).strip()
-        actual = dump_code(self.compile(src, PythonCodeGenerator))
-        expected = dump_code(compile(src, "", mode="exec"))
+        actual = dump_code(self.compile(src, PythonCodeGenerator, optimize=optimize))
+        expected = dump_code(compile(src, "", mode="exec", optimize=optimize))
         self.assertEqual(actual, expected)
 
     def test_sanity(self) -> None:
@@ -610,3 +610,29 @@ def f():
             self.y = x
         """
         self._check(code)
+
+    def test_assert_with_opt_0(self):
+        code = """
+        def f(x):
+            if x > 1:
+                if x > 2:
+                    pass
+                else:
+                    assert x > 3
+            else:
+                x = 5
+        """
+        self._check(code)
+
+    def test_assert_with_opt_1(self):
+        code = """
+        def f(x):
+            if x > 1:
+                if x > 2:
+                    pass
+                else:
+                    assert x > 3
+            else:
+                x = 5
+        """
+        self._check(code, optimize=1)

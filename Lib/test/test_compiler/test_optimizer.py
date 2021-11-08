@@ -224,8 +224,8 @@ class AstOptimizerTests(CompilerTest):
         code = """def f(a, b): assert a == b, 'lol'"""
         tree = ast.parse(code)
         optimized = optimizer.visit(tree)
-        # Function body should be empty
-        self.assertListEqual(optimized.body[0].body, [])
+        # Function body should contain the assert
+        self.assertIsInstance(optimized.body[0].body[0], ast.Assert)
 
         unoptimized = non_optimizer.visit(tree)
         # Function body should contain the assert
