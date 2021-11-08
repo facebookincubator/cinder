@@ -278,7 +278,7 @@ ObjectUser[MyClass] & LongUser[MyInt] == Bottom
 LongUser[MyInt] & BytesUser[MyBytes] == Bottom
 ```
 
-An important consequence of this is that `**T1 & T2**`** might not be a subtype of both `T1` and **`**T2**`. Since client code must tolerate any `Type` being wider than expected, this is rarely an issue in practice.
+An important consequence of this is that `T1 & T2` might not be a subtype of both `T1` and `T2`. Since client code must tolerate any `Type` being wider than expected, this is rarely an issue in practice.
 
 ### Subtyping
 
