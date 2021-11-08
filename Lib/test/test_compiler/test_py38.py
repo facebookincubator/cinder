@@ -601,3 +601,12 @@ def f():
             "assignment expression within a comprehension cannot be used in a class body",
         ):
             self.compile(code)
+
+    def test_future_annotated_assign_validation(self):
+        code = """
+        from __future__ import annotations
+        def f(x):
+            self.y: int # this should be invalid
+            self.y = x
+        """
+        self._check(code)

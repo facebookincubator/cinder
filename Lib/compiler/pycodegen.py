@@ -1472,7 +1472,7 @@ class CodeGenerator(ASTVisitor):
                 self.visit(elt)
 
     def checkAnnExpr(self, node):
-        self._visitAnnotation(node)
+        self.visit(node)
         self.emit("POP_TOP")
 
     def checkAnnSlice(self, node):
