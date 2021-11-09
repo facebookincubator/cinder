@@ -1,6 +1,7 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 # pyre-unsafe
 import argparse
+import builtins
 import importlib.util
 import marshal
 import os
@@ -109,5 +110,6 @@ else:
         d = mod.__dict__
     if args.static:
         d["<fixed-modules>"] = static.FIXED_MODULES
+    d["<builtins>"] = builtins.__dict__
     sys.modules["__main__"] = mod
     exec(codeobj, d, d)
