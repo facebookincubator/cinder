@@ -286,6 +286,7 @@ class StaticTestBase(CompilerTest):
     def _in_module(self, name, code_obj):
         m = type(sys)(name)
         d = m.__dict__
+        d["<builtins>"] = builtins.__dict__
         add_fixed_module(d)
         sys.modules[name] = m
         exec(code_obj, d)
@@ -366,7 +367,7 @@ class StaticTestBase(CompilerTest):
         compiled = self.compile(
             code, generator, modname, peephole_enabled=peephole_enabled
         )
-        d = {}
+        d = {"<builtins>": builtins.__dict__}
         add_fixed_module(d)
         exec(compiled, d)
         return modname, d

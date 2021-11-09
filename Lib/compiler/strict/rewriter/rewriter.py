@@ -200,27 +200,6 @@ def is_assigned(name: str) -> str:
 GLOBALS_HELPER_ALIAS = "<globals-helper>"
 
 
-def load_builtin(name: str) -> expr:
-    if name == "globals":
-        return lineinfo(ast.Name(GLOBALS_HELPER_ALIAS, ast.Load()))
-
-    return lineinfo(
-        ast.Subscript(
-            lineinfo(ast.Name("<builtins>", ast.Load())),
-            lineinfo(ast.Index(lineinfo(Constant(name)))),
-            ast.Load(),
-        )
-    )
-
-
-def make_raise(type: str, msg: str, cause: Optional[expr] = None) -> AST:
-    return lineinfo(
-        ast.Raise(
-            lineinfo(ast.Call(load_builtin(type), [lineinfo(Constant(msg))], [])), cause
-        )
-    )
-
-
 @final
 class StrictModuleRewriter:
     """rewrites a module body so that all global variables are transformed into
@@ -272,7 +251,6 @@ class StrictModuleRewriter:
             [
                 *self.get_future_imports(),
                 *self.load_helpers(),
-                *self.init_globals(),
                 *self.transform_body(),
             ]
         )
@@ -357,56 +335,6 @@ class StrictModuleRewriter:
 
         return body
 
-    def init_globals(self) -> Iterable[stmt]:
-        for name in self.visitor.globals:
-            if name in self.builtins:
-                yield lineinfo(
-                    make_assign(
-                        [lineinfo(ast.Name(is_assigned(name), ast.Store()))],
-                        lineinfo(ast.Constant(name in _IMPLICIT_GLOBALS)),
-                    )
-                )
-
-            if name == "globals":
-                # we need to provide access to the globals, we just grab __dict__
-                # from our strict module object, which produces a new fresh snapshot
-                # of the globals when accessed.
-                yield from self.make_globals_function()
-            elif name in self.builtins and name not in _IMPLICIT_GLOBALS:
-                yield self.init_shadowed_builtin(name)
-
-    def init_shadowed_builtin(self, name: str) -> stmt:
-        return self.store_global(name, load_builtin(name))
-
-    def make_globals_function(self) -> Iterable[stmt]:
-        """Produces our faked out globals() which just grabs __dict__ from our
-        strict module object where the actual work of collecting the globals
-        comes from."""
-
-        globals = make_function("globals", [])
-        globals.body = [
-            lineinfo(
-                ast.Return(
-                    lineinfo(
-                        ast.Attribute(
-                            lineinfo(ast.Name("<strict_module>", ast.Load())),
-                            "__dict__",
-                            ast.Load(),
-                        )
-                    )
-                )
-            )
-        ]
-        yield globals
-
-        # Also save globals under an alias to handle the case where they can
-        # be deleted and we need to restore them
-        yield lineinfo(
-            make_assign(
-                [lineinfo(ast.Name(GLOBALS_HELPER_ALIAS, ast.Store()))],
-                lineinfo(ast.Name("globals", ast.Load())),
-            )
-        )
 
 
 def rewrite(
@@ -820,10 +748,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         super().__init__(symbols, ALL_INDICATORS)
         symbols.scope_factory = self.make_scope
         self.modname = modname
-        self.builtins = builtins
-        self.globals = globals
-        self.global_sets = global_sets
-        self.global_dels = global_dels
         self.future_imports = future_imports
         self.is_static = is_static
         self.track_import_call = track_import_call
@@ -842,184 +766,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
             data: ScopeData = ScopeData()
         return SymbolScope(symtable, data)
 
-    def call_builtin(self, line_node: AST, name: str, args: List[arg]) -> expr:
-        return copyline(
-            line_node,
-            ast.Call(copyline(line_node, ast.Name(name, ast.Load())), args, []),
-        )
-
-    def visit_Raise(self, node: Raise) -> Optional[AST]:
-        return self.generic_visit(node)
-
-    def visit_Call(self, node: Call) -> Optional[AST]:
-        node = self.generic_visit(node)
-        func = node.func
-        if isinstance(func, ast.Name):
-            # We don't currently allow aliasing or shadowing exec/eval
-            # so this check is currently sufficient.
-            if func.id == "exec" or func.id == "eval":
-                # exec and eval don't take keyword args, so we only need to
-                # inspect the normal arguments
-                if len(node.args) < 2:
-                    node = self.clone_node(node)
-                    # we're implicitly capturing globals, make it explicit so
-                    # that we get our globals dictionary.  exec/eval won't be
-                    # able to mutate them though.  We also need to explicitly
-                    # call locals() here because the behavior of exec/eval is
-                    # to use globals as locals if it is explicitly supplied.
-                    node.args.append(self.call_builtin(node.args[0], "globals", []))
-                    node.args.append(self.call_builtin(node.args[0], "locals", []))
-
-        return node
-
-    def get_extra_assigns(self, target: AST) -> Optional[List[stmt]]:
-        if (
-            isinstance(target, ast.Name)
-            and target.id in self.builtins
-            and target.id in self.global_dels
-            and self.is_global(target.id)
-        ):
-            update = cast(stmt, self.update_del_state(target.id, True))
-            return [update]
-        elif isinstance(target, (ast.List, ast.Tuple)):
-            extras = []
-            for item in target.elts:
-                assigns = self.get_extra_assigns(item)
-                if assigns is not None:
-                    extras.extend(assigns)
-            return extras
-
-        return None
-
-    def visit_For(self, node: For) -> Optional[AST]:
-        extras = self.get_extra_assigns(node.target)
-
-        target = self.visit(node.target)
-        iter = self.visit(node.iter)
-        body = self.walk_list(node.body)
-        orelse = self.walk_list(node.orelse)
-        if extras:
-            body = body + extras
-
-        return self.update_node(
-            node, target=target, iter=iter, body=body, orelse=orelse
-        )
-
-    def gen_del_check(self, name: str) -> Optional[AST]:
-        if name in self.global_dels:
-            return lineinfo(
-                ast.If(
-                    lineinfo(
-                        ast.UnaryOp(
-                            ast.Not(), lineinfo(ast.Name(is_assigned(name), ast.Load()))
-                        )
-                    ),
-                    [make_raise("NameError", f"name '{name}' is not defined")],
-                    [],
-                )
-            )
-        return None
-
-    def update_del_state(self, name: str, assigned: bool = False) -> Assign:
-        return lineinfo(
-            make_assign(
-                [lineinfo(ast.Name(is_assigned(name), ast.Store()))],
-                lineinfo(ast.Constant(assigned)),
-            )
-        )
-
-    def get_handler_tracker(self, handler: ExceptHandler) -> str:
-        """gets a variable name to track exception state for aliased global"""
-        handler_type = handler.type
-        if isinstance(handler_type, Name):
-            desc = handler_type.id
-        elif handler.type is None:
-            desc = "bare"
-        else:
-            desc = "complex"
-
-        return f"<{desc} {handler.name} at {str(id(handler))}>"
-
-    def visit_Try(self, node: Try) -> TTransformedStmt:
-        """If an except block aliases a built-in's state based upon how the
-        exception propgated.
-
-        When we enter the except block the built-in will be aliased to the exception.
-        When we leave the except block the built-in will be restored to the built-in value.
-        If no exception is raised the built-in value is not modified.
-
-        Because except blocks clear the name after leaving them this also registers
-        it as a global delete."""
-        body = self.walk_list(node.body)
-        orelse = self.walk_list(node.orelse)
-        handlers = self.walk_list(node.handlers)
-        finalbody = self.walk_list(node.finalbody)
-
-        for i, (old_handler, handler) in enumerate(zip(node.handlers, handlers)):
-            handler_name = handler.name
-            if handler_name is None or not self.is_global(handler_name):
-                continue
-
-            if handler_name not in self.builtins:
-                continue
-
-            self.global_dels.add(handler_name)
-            tracker = self.get_handler_tracker(handler)
-
-            if body is node.body:
-                body = list(body)
-
-            # mark except as not taken before entering the try
-            body.insert(
-                0,
-                lineinfo(
-                    make_assign(
-                        [lineinfo(Name(tracker, ast.Store()))],
-                        lineinfo(Constant(False)),
-                    )
-                ),
-            )
-
-            # Mark except as taken when entering the except
-            if old_handler is handler:
-                if handlers is node.handlers:
-                    handlers = list(node.handlers)
-
-                handlers[i] = handler = self.clone_node(old_handler)
-
-            if old_handler.body is handler.body:
-                handler.body = list(handler.body)
-
-            handler.body.insert(
-                0,
-                lineinfo(
-                    make_assign(
-                        [lineinfo(Name(tracker, ast.Store()))],
-                        lineinfo(Constant(True)),
-                    )
-                ),
-            )
-
-            if finalbody is node.finalbody:
-                finalbody = list(node.finalbody)
-
-            # restore the handler variable if necessary, and cleanup our
-            # tracking variable on the way out
-            finalbody[0:0] = [
-                lineinfo(
-                    If(
-                        lineinfo(Name(tracker, ast.Load())),
-                        [self.restore_builtin(handler_name)],
-                        [],
-                    )
-                ),
-                lineinfo(Delete([lineinfo(Name(tracker, ast.Del()))])),
-            ]
-
-        return self.update_node(
-            node, body=body, orelse=orelse, handlers=handlers, finalbody=finalbody
-        )
-
     def visit_Assign(self, node: Assign) -> TTransformedStmt:
         self.scopes.scopes[-1].scope_data.visit_Assign(node)
         node = self.update_node(
@@ -1027,67 +773,11 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
             targets=self.walk_list(node.targets),
             value=self.visit(node.value),
         )
-
-        res: Optional[List[AST]] = None
-
-        for target in node.targets:
-            extras = self.get_extra_assigns(target)
-            if extras is not None:
-                if res is None:
-                    # pyre-fixme[35]: Target cannot be annotated.
-                    res: List[AST] = [node]
-                res.extend(extras)
-
-        if res is not None:
-            return res
-
         return node
 
     def visit_AnnAssign(self, node: AnnAssign) -> TTransformedStmt:
         self.scopes.scopes[-1].scope_data.visit_AnnAssign(node)
         return self.generic_visit(node)
-
-    def restore_builtin(self, name: str) -> Assign:
-        restore_to = load_builtin(name)
-        return lineinfo(
-            make_assign([lineinfo(ast.Name(name, ast.Store()))], restore_to)
-        )
-
-    def visit_Delete(self, node: Delete) -> TTransformedStmt:
-        for target in node.targets:
-            if (
-                isinstance(target, ast.Name)
-                and target.id in self.builtins
-                and self.is_global(target.id)
-            ):
-                break
-        else:
-            # no global deletes
-            return self.update_node(node, targets=self.walk_list(node.targets))
-
-        stmts: List[AST] = []
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                if target.id in self.builtins and self.is_global(target.id):
-                    # Transform a builtin delete into restoring the builtin value
-                    # If we can potentially delete the builtin value then we
-                    # also need to track whether or not it has been deleted, this
-                    # gives the right error for:
-                    #   min = 42
-                    #   del min
-                    #   del min
-                    del_check = self.gen_del_check(target.id)
-                    if del_check is not None:
-                        stmts.append(del_check)
-                    stmts.append(self.restore_builtin(target.id))
-                    if target.id in self.global_dels:
-                        stmts.append(self.update_del_state(target.id))
-                    continue
-
-            # preserve this deletion
-            stmts.append(ast.Delete([self.visit(target)]))
-
-        return stmts
 
     def make_base_class_dict_test_stmts(
         self, bases: List[TAst], instance_fields: Set[str]
@@ -1222,9 +912,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
                 self.make_cached_property_init_decorator(scope_data, class_scope)
             )
 
-        if self.is_global(node.name):
-            return [cast(AST, node), self.update_del_state(node.name, True)]
-
         return node
 
     def make_cached_property_init_decorator(
@@ -1296,8 +983,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         scope_data.visit_decorators(node)
 
         res: TTransformedStmt = node
-        if self.is_global(node.name):
-            res = [cast(AST, node), self.update_del_state(node.name, True)]
 
         self.check_cached_prop(node, scope_data, outer_scope)
 
@@ -1320,9 +1005,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
 
         if self.track_import_call:
             node.body.insert(0, self._create_track_import_call())
-
-        if self.is_global(orig_name):
-            return [cast(AST, node), self.update_del_state(orig_name, True)]
 
         return node
 

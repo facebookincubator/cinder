@@ -30,6 +30,7 @@ class StrictTestBase(CompilerTest):
         optimize=0,
         peephole_enabled=True,
         ast_optimizer_enabled=True,
+        builtins: Dict[str, Any] = builtins.__dict__,
     ):
         if generator is not StrictCodeGenerator:
             return super().compile(
@@ -43,7 +44,7 @@ class StrictTestBase(CompilerTest):
 
         code = inspect.cleandoc("\n" + code)
         tree = ast.parse(code)
-        return strict_compile(modname, f"{modname}.py", tree, optimize)
+        return strict_compile(modname, f"{modname}.py", tree, optimize, builtins)
 
     _temp_mod_num = 0
 
@@ -152,6 +153,34 @@ class StrictTestWithCheckerBase(StrictTestBase):
             source, f"{modname}.py", modname, optimize
         )
         return code
+
+    def compile_and_run(
+        self,
+        code,
+        generator=StrictCodeGenerator,
+        modname="<module>",
+        optimize=0,
+        peephole_enabled=True,
+        ast_optimizer_enabled=True,
+        builtins: Dict[str, Any] = builtins.__dict__,
+        globals: Optional[Dict[str, Any]] = None,
+    ):
+        c = self.compile(
+            code,
+            generator,
+            modname,
+            optimize,
+            peephole_enabled,
+            ast_optimizer_enabled,
+            builtins,
+        )
+
+        additional_dicts = globals or {}
+        additional_dicts.update({"<builtins>": builtins})
+        d, m = self._exec_strict_code(
+            c, modname, enable_patching=True, additional_dicts=additional_dicts
+        )
+        return m
 
     def _exec_strict_code(
         self,

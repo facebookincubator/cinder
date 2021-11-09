@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import builtins
 import dis
 import gc
 import inspect
@@ -204,7 +205,7 @@ def init_xxclassloader():
     tree = ast.parse(inspect.cleandoc(codestr))
     tree = comp.add_module("xxclassloader", "", tree, optimize=0)
     code = comp.compile("xxclassloader", "", tree, optimize=0)
-    d = {}
+    d = {"<builtins>": builtins.__dict__}
     add_fixed_module(d)
     exec(code, d, d)
 

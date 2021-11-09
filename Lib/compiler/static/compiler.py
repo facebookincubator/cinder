@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import ast
+import builtins
 from ast import AST
 from types import CodeType
-from typing import Optional, Dict, Tuple, Type, TYPE_CHECKING
+from typing import Any, Optional, Dict, Tuple, Type, TYPE_CHECKING
 
 from _static import (
     posix_clock_gettime_ns,
@@ -372,6 +373,7 @@ class Compiler:
         tree: AST,
         optimize: int,
         enable_patching: bool = False,
+        builtins: Dict[str, Any] = builtins.__dict__,
     ) -> Static38CodeGenerator:
         tree, s = self._bind(name, filename, tree, optimize, enable_patching)
         if self.error_sink.has_errors:
@@ -393,6 +395,7 @@ class Compiler:
             flags=0,
             optimization_lvl=optimize,
             enable_patching=enable_patching,
+            builtins=builtins,
         )
         code_gen.visit(tree)
         return code_gen

@@ -9,4 +9,8 @@ from .test_rewriter import (
     SlotificationTestCase,
     LazyLoadingTestCases,
 )
-from .test_strict_codegen import StrictCompilationTests, StrictCheckedCompilationTests
+from .test_strict_codegen import (
+    StrictBuiltinCompilationTests,
+    StrictCompilationTests,
+    StrictCheckedCompilationTests,
+)

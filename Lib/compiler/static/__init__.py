@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import builtins
 import sys
 from ast import (
     AST,
@@ -25,6 +26,7 @@ from ast import (
 )
 from contextlib import contextmanager
 from typing import (
+    Any,
     Callable as typingCallable,
     Dict,
     Generator,
@@ -92,6 +94,8 @@ def exec_static(
     )
     if "<fixed-modules>" not in globals:
         globals["<fixed-modules>"] = FIXED_MODULES
+    if "<builtins>" not in globals:
+        globals["<builtins>"] = builtins.__dict__
     exec(code, locals, globals)
 
 
@@ -114,8 +118,11 @@ class Static38CodeGenerator(StrictCodeGenerator):
         flags: int = 0,
         optimization_lvl: int = 0,
         enable_patching: bool = False,
+        builtins: Dict[str, Any] = builtins.__dict__,
     ) -> None:
-        super().__init__(parent, node, symbols, graph, flags, optimization_lvl)
+        super().__init__(
+            parent, node, symbols, graph, flags, optimization_lvl, builtins
+        )
         self.compiler = compiler
         self.modname = modname
         # Use this counter to allocate temporaries for loop indices
@@ -251,13 +258,14 @@ class Static38CodeGenerator(StrictCodeGenerator):
         peephole_enabled: bool = True,
         ast_optimizer_enabled: bool = True,
         enable_patching: bool = False,
+        builtins: Dict[str, Any] = builtins.__dict__,
     ) -> Static38CodeGenerator:
         assert peephole_enabled
         assert ast_optimizer_enabled
 
         compiler = Compiler(cls)
         code_gen = compiler.code_gen(
-            module_name, filename, tree, optimize, enable_patching
+            module_name, filename, tree, optimize, enable_patching, builtins
         )
         return code_gen
 
@@ -398,13 +406,18 @@ class Static38CodeGenerator(StrictCodeGenerator):
             gen.emit("BUILD_MAP", count)
             gen.emit("STORE_NAME", "__slot_types__")
 
-    def visitModule(self, node: Module) -> None:
-        if ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:
+    def emit_load_builtin(self, name: str) -> None:
+        if name == "dict" and ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:
             self.emit("LOAD_CONST", 0)
             self.emit("LOAD_CONST", ("chkdict",))
             self.emit("IMPORT_NAME", "_static")
             self.emit("IMPORT_FROM", "chkdict")
-            self.emit("STORE_NAME", "dict")
+        else:
+            super().emit_load_builtin(name)
+
+    def visitModule(self, node: Module) -> None:
+        if ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:
+            self.emit_restore_builtin("dict")
 
         super().visitModule(node)
 
@@ -479,6 +492,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 self.emit("DUP_TOP")
             if isinstance(elt, ast.AST):
                 self.visitAssignTarget(elt, node, node.value)
+        self.strictPostVisitAssign(node)
 
     def visitAnnAssign(self, node: ast.AnnAssign) -> None:
         self.set_lineno(node)
@@ -619,6 +633,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.get_type(node).emit_unaryop(node, self)
 
     def visitCall(self, node: Call) -> None:
+        self.strictPreVisitCall(node)
         self.get_type(node.func).emit_call(node, self)
 
     def visitSubscript(self, node: ast.Subscript, aug_flag: bool = False) -> None:
@@ -816,8 +831,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 self.emit("POP_TOP")
 
     def visitFor(self, node: ast.For) -> None:
+        self.strictPreVisitFor(node)
         iter_type = self.get_type(node.iter)
-        return iter_type.emit_forloop(node, self)
+        iter_type.emit_forloop(node, self)
+        self.strictPostVisitFor(node)
 
     def emit_invoke_method(
         self, descr: TypeDescr, arg_count: int, is_classmethod: bool = False
