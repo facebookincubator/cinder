@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __REGALLOC_H__
-#define __REGALLOC_H__
+#pragma once
 
 #include "Jit/bitvector.h"
 #include "Jit/codegen/copy_graph.h"
@@ -335,5 +334,3 @@ std::ostream& operator<<(std::ostream& out, const LiveInterval& rhs);
 
 } // namespace codegen
 } // namespace jit
-
-#endif

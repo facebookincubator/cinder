@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __FRAME_H__
-#define __FRAME_H__
+#pragma once
 
 #include "Python.h"
 #include "frameobject.h"
@@ -35,5 +34,3 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyGenObject* gen);
 
 } // namespace jit
-
-#endif // !__FRAME_H__

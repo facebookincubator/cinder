@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_OBJECT_TYPE_H__
-#define __STRICTM_OBJECT_TYPE_H__
+#pragma once
 
 #include "StrictModules/Objects/type.h"
 
@@ -180,5 +179,3 @@ void setDunderDict(
     std::shared_ptr<BaseStrictObject> value,
     const CallerContext& caller);
 } // namespace strictmod::objects
-
-#endif //__STRICTM_OBJECT_TYPE_H__

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_STRICT_BUILTINS_OBJ___
-#define __STRICTM_STRICT_BUILTINS_OBJ___
+#pragma once
 
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/object_type.h"
@@ -35,5 +34,3 @@ std::shared_ptr<BaseStrictObject> markCachedProperty(
     std::shared_ptr<BaseStrictObject> originalDec);
 
 } // namespace strictmod::objects
-
-#endif // __STRICTM_STRICT_BUILTINS_OBJ___

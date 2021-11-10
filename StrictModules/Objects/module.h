@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_MODULE_OBJ_H__
-#define __STRICTM_MODULE_OBJ_H__
+#pragma once
 #include <string>
 #include "StrictModules/Objects/instance.h"
 
@@ -27,4 +26,3 @@ class StrictModuleObject : public StrictInstance {
       std::shared_ptr<DictType> dict = nullptr);
 };
 } // namespace strictmod::objects
-#endif // !__STRICTM_MODULE_OBJ_H__

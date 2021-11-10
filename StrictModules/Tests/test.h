@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef STRICTM_TEST_H
-#define STRICTM_TEST_H
+#pragma once
 
 /** Include this file instead of including the gtest headers to
 avoid macro naming conflict between gtest and python ast.h
@@ -287,5 +286,3 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
   std::vector<std::string> varNames_;
   std::vector<std::string> exceptions_;
 };
-
-#endif // STRICTM_TEST_H

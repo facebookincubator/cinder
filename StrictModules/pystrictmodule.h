@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef Py_STRICTM_H
-#define Py_STRICTM_H
+#pragma once
 
 #include "Python.h"
 #include "StrictModules/strict_module_checker_interface.h"
@@ -52,4 +51,3 @@ PyAPI_DATA(int) STUB_KIND_MASK_STRICT;
 }
 #endif
 #endif /* Py_LIMITED_API */
-#endif /* Py_STRICTM_H */

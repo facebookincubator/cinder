@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_AUTOGEN_H__
-#define __JIT_AUTOGEN_H__
+#pragma once
 
 #include "Jit/codegen/environ.h"
 #include "Jit/lir/lir.h"
@@ -86,4 +85,3 @@ class AutoTranslator {
 } // namespace autogen
 } // namespace codegen
 } // namespace jit
-#endif

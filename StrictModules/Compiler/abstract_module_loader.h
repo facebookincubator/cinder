@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_MODULE_LOADER_H__
-#define __STRICTM_MODULE_LOADER_H__
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -191,5 +190,3 @@ class ModuleLoader {
 };
 
 } // namespace strictmod::compiler
-
-#endif // !__STRICTM_MODULE_LOADER_H__

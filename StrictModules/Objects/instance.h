@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_INSTANCE_H__
-#define __STRICTM_INSTANCE_H__
+#pragma once
 #include "StrictModules/Objects/base_object.h"
 
 namespace strictmod::objects {
@@ -53,4 +52,3 @@ class StrictInstance : public BaseStrictObject {
   std::optional<std::string> doc_; // every object can have __doc__
 };
 } // namespace strictmod::objects
-#endif // !__STRICTM_INSTANCE_H__

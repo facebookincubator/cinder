@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_NUMERIC_OBJ_H__
-#define __STRICTM_NUMERIC_OBJ_H__
+#pragma once
 
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
@@ -548,5 +547,3 @@ class StrictFloatType : public StrictObjectType {
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 } // namespace strictmod::objects
-
-#endif

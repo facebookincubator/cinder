@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef HIR_OPTIMIZATION_H
-#define HIR_OPTIMIZATION_H
+#pragma once
 
 #include "Jit/hir/hir.h"
 #include "Jit/hir/type.h"
@@ -195,5 +194,3 @@ class PassRegistry {
 
 } // namespace hir
 } // namespace jit
-
-#endif

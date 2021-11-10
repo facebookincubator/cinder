@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_CALLER_CONTEXT_H__
-#define __STRICTM_CALLER_CONTEXT_H__
+#pragma once
 
 #include <cassert>
 #include <memory>
@@ -126,4 +125,3 @@ class CallerContext {
       std::shared_ptr<BaseStrictObject> second) const;
 };
 } // namespace strictmod
-#endif // !__STRICTM_CALLER_CONTEXT_H__

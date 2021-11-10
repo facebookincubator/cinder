@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_CODEGEN_ANNOTATIONS_H__
-#define __JIT_CODEGEN_ANNOTATIONS_H__
+#pragma once
 
 #include "Jit/lir/instruction.h"
 
@@ -76,5 +75,3 @@ class Annotations {
 
 } // namespace codegen
 } // namespace jit
-
-#endif

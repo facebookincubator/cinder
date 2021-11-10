@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef HIR_PRINTER_H
-#define HIR_PRINTER_H
+#pragma once
 
 #include "Jit/hir/hir.h"
 
@@ -77,4 +76,3 @@ inline std::ostream& operator<<(std::ostream& os, const FrameState& state) {
 
 } // namespace hir
 } // namespace jit
-#endif // HIR_PRINTER_H

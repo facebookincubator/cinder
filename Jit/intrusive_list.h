@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_ILIST_H
-#define JIT_ILIST_H
+#pragma once
 
 #include "Jit/log.h"
 #include "Jit/util.h"
@@ -360,4 +359,3 @@ class IntrusiveListIterator {
 };
 
 } // namespace jit
-#endif // JIT_ILIST_H

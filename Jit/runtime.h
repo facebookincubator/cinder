@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_RUNTIME_H__
-#define __JIT_RUNTIME_H__
+#pragma once
 
 #include "Jit/containers.h"
 #include "Jit/deopt.h"
@@ -352,4 +351,3 @@ class Runtime {
   std::vector<std::unique_ptr<DeoptPatcher>> deopt_patchers_;
 };
 } // namespace jit
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_OBJECT_INTERFACE_H__
-#define __STRICTM_OBJECT_INTERFACE_H__
+#pragma once
 
 #include "StrictModules/caller_context.h"
 
@@ -132,5 +131,3 @@ std::shared_ptr<BaseStrictObject> iImportFrom(
     const CallerContext& context,
     ModuleLoader* loader);
 } // namespace strictmod::objects
-
-#endif // __STRICTM_OBJECT_INTERFACE_H__

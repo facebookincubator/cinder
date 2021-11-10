@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_BBBUILDER_H__
-#define __LIR_BBBUILDER_H__
+#pragma once
 
 #include "Jit/codegen/environ.h"
 #include "Jit/hir/hir.h"
@@ -84,5 +83,3 @@ class BasicBlockBuilder {
 
 } // namespace lir
 } // namespace jit
-
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_SYMBOL_MAPPING_H__
-#define __LIR_SYMBOL_MAPPING_H__
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -14,5 +13,3 @@ extern const std::unordered_map<std::string, uint64_t> kSymbolMapping;
 
 } // namespace lir
 } // namespace jit
-
-#endif

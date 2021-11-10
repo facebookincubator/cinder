@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_PARSER_H__
-#define __LIR_PARSER_H__
+#pragma once
 
 #include "Jit/containers.h"
 #include "Jit/lir/lir.h"
@@ -106,5 +105,3 @@ class Parser {
 
 } // namespace lir
 } // namespace jit
-
-#endif

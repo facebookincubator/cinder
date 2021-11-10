@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef RUNTIME_TEST_FIXTURES_H
-#define RUNTIME_TEST_FIXTURES_H
+#pragma once
 
 #include <gtest/gtest.h>
 
@@ -253,5 +252,3 @@ class HIRTest : public RuntimeTest {
   std::string src_;
   std::string expected_hir_;
 };
-
-#endif

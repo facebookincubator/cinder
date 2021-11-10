@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __INLINER_H__
-#define __INLINER_H__
+#pragma once
 
 #include "Jit/lir/function.h"
 #include "Jit/lir/lir.h"
@@ -103,5 +102,3 @@ class LIRInliner {
 
 } // namespace codegen
 } // namespace jit
-
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_MODULE_INFO_H__
-#define __STRICTM_MODULE_INFO_H__
+#pragma once
 
 #include "StrictModules/error_sink.h"
 #include "StrictModules/exceptions.h"
@@ -143,5 +142,3 @@ class ModuleInfo {
 };
 
 } // namespace strictmod::compiler
-
-#endif // !__STRICTM_MODULE_INFO_H__

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_RUNTIME_SUPPORT_H
-#define JIT_RUNTIME_SUPPORT_H
+#pragma once
 
 #include "Python.h"
 
@@ -20,5 +19,3 @@ PyObject* invokeIterNext(PyObject* iterator);
 PyObject* runPeriodicTasks();
 
 } // namespace jit
-
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTMOD_CONSTANTS_H__
-#define __STRICTMOD_CONSTANTS_H__
+#pragma once
 
 #include "StrictModules/Objects/object_type.h"
 
@@ -71,5 +70,3 @@ class StrictEllipsisType : public StrictObjectType {
 };
 
 } // namespace strictmod::objects
-
-#endif // __STRICTMOD_CONSTANTS_H__

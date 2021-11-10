@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_AST_VISITOR_H__
-#define __STRICTM_AST_VISITOR_H__
+#pragma once
 
 #include "StrictModules/py_headers.h"
 
@@ -148,4 +147,3 @@ class ASTVisitor {
   }
 };
 } // namespace strictmod
-#endif // __STRICTM_AST_VISITOR_H__

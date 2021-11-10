@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_STRING_OBJ_H__
-#define __STRICTM_STRING_OBJ_H__
+#pragma once
 
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
@@ -208,5 +207,3 @@ class StrictByteArrayType : public StrictObjectType {
 };
 
 } // namespace strictmod::objects
-
-#endif // #ifndef __STRICTM_STRING_OBJ_H__

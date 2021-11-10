@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_COMPILER_H
-#define JIT_COMPILER_H
+#pragma once
 
 #include "Python.h"
 
@@ -125,4 +124,3 @@ class Compiler {
 };
 
 } // namespace jit
-#endif // JIT_COMPILER_H

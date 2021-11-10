@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef STRICTM_CHECKER_INTERFACE_H
-#define STRICTM_CHECKER_INTERFACE_H
+#pragma once
 
 #include "Python.h"
 
@@ -148,4 +147,3 @@ int StrictAnalyzedModule_GetStubKind(StrictAnalyzedModule* mod);
 #ifdef __cplusplus
 }
 #endif
-#endif // STRICTM_LOADER_INTERFACE_H

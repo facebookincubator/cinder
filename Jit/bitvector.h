@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_BIT_VECTOR_H__
-#define __JIT_BIT_VECTOR_H__
+#pragma once
 
 #include "Jit/log.h"
 
@@ -119,5 +118,3 @@ std::ostream& operator<<(std::ostream& os, const BitVector& bv);
 
 } // namespace util
 } // namespace jit
-
-#endif // !__JIT_BIT_VECTOR_H__

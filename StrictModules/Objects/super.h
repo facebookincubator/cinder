@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_SUPER_TYPE_H__
-#define __STRICTM_SUPER_TYPE_H__
+#pragma once
 
 #include "StrictModules/Objects/object_type.h"
 namespace strictmod::objects {
@@ -88,5 +87,3 @@ class StrictSuperType : public StrictObjectType {
   virtual bool isBaseType() const override;
 };
 } // namespace strictmod::objects
-
-#endif //__STRICTM_SUPER_TYPE_H__

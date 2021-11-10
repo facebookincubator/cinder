@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef CAPSULE_H
-#define CAPSULE_H
+#pragma once
 
 #include "Python.h"
 
@@ -30,5 +29,3 @@ Ref<> makeCapsule(T* ptr) {
 }
 
 } // namespace jit
-
-#endif

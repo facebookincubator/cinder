@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_AST_PREPROCESSOR_H__
-#define __STRICTM_AST_PREPROCESSOR_H__
+#pragma once
 
 #include <memory>
 #include <optional>
@@ -114,5 +113,3 @@ class Preprocessor : public ASTVisitor<void, void, void, Preprocessor> {
 };
 
 } // namespace strictmod
-
-#endif //__STRICTM_AST_PREPROCESSOR_H__

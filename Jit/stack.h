@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_STACK_H
-#define JIT_STACK_H
+#pragma once
 
 #include "Jit/log.h"
 #include "Jit/util.h"
@@ -94,5 +93,3 @@ class Stack {
 };
 
 } // namespace jit
-
-#endif

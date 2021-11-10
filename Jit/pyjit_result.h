@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef Py_JIT_RESULT_H
-#define Py_JIT_RESULT_H
+#pragma once
 
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus
@@ -34,4 +33,3 @@ typedef enum {
 }
 #endif
 #endif /* Py_LIMITED_API */
-#endif /* Py_JIT_RESULT_H */

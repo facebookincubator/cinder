@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_SIGNATURE_H__
-#define __STRICTM_SIGNATURE_H__
+#pragma once
 
 #include "StrictModules/Objects/base_object.h"
 
@@ -36,5 +35,3 @@ class FuncSignature {
       kwDefaults_; // same size as kwonlyArgs_
 };
 } // namespace strictmod::objects
-
-#endif // __STRICTM_SIGNATURE_H__

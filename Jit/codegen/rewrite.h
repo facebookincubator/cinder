@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __REWRITE_H__
-#define __REWRITE_H__
+#pragma once
 
 #include "Jit/codegen/environ.h"
 #include "Jit/lir/block.h"
@@ -160,5 +159,3 @@ class Rewrite {
 
 } // namespace codegen
 } // namespace jit
-
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_INSTR_H__
-#define __LIR_INSTR_H__
+#pragma once
 
 #include "Jit/lir/operand.h"
 #include "Jit/util.h"
@@ -573,5 +572,3 @@ END_INSTR_PROPERTY_FIELD
 
 } // namespace lir
 } // namespace jit
-
-#endif

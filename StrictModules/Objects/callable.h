@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_CALLABLE_H__
-#define __STRICTM_CALLABLE_H__
+#pragma once
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
 
@@ -417,5 +416,3 @@ void StrictType::addPyWrappedMethodDefaultObj(
   setAttr(name, method);
 }
 } // namespace strictmod::objects
-
-#endif //__STRICTM_CALLABLE_H__

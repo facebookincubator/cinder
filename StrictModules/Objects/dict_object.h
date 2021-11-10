@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_DICT_OBJ_H__
-#define __STRICTM_DICT_OBJ_H__
+#pragma once
 
 #include "StrictModules/Objects/iterable_objects.h"
 
@@ -334,4 +333,3 @@ class StrictDictViewType : public StrictObjectType {
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 } // namespace strictmod::objects
-#endif //#ifndef __STRICTM_DICT_OBJ_H__

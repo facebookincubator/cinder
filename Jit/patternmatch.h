@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef PATTERN_MATCH_H_
-#define PATTERN_MATCH_H_
+#pragma once
 
 #include "Python.h"
 
@@ -82,4 +81,3 @@ int match_op_save_arg(_Py_CODEUNIT* instr, int opcode, int* oparg);
 }
 #endif
 #endif /* Py_LIMITED_API */
-#endif /* PATTERN_MATCH_H_ */

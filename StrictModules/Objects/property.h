@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_PROPERTY_H__
-#define __STRICTM_PROPERTY_H__
+#pragma once
 
 #include "StrictModules/Objects/object_type.h"
 #include "StrictModules/Objects/string_object.h"
@@ -215,4 +214,3 @@ void StrictType::addGetSetDescriptor(
   setAttr(name, std::move(descr));
 }
 } // namespace strictmod::objects
-#endif // __STRICTM_PROPERTY_H__

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_OBJECTS_H__
-#define __STRICTM_OBJECTS_H__
+#pragma once
 #include "StrictModules/Objects/base_object.h"
 #include "StrictModules/Objects/builtins.h"
 #include "StrictModules/Objects/callable.h"
@@ -211,4 +210,3 @@ static const int kIterationLimit = 10000;
 
 static const std::string strictModName = "__strict__";
 } // namespace strictmod::objects
-#endif // __STRICTM_OBJECTS_H__

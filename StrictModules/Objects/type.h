@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_TYPE_H__
-#define __STRICTM_TYPE_H__
+#pragma once
 
 #include <memory>
 #include <typeindex>
@@ -327,4 +326,3 @@ std::shared_ptr<StrictType> createType(
 }
 
 } // namespace strictmod::objects
-#endif // !__STRICTM_TYPE_H__

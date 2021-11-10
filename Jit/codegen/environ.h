@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __CODEGEN_ENVIRON_H__
-#define __CODEGEN_ENVIRON_H__
+#pragma once
 
 #include "Jit/codegen/annotations.h"
 #include "Jit/codegen/x86_64.h"
@@ -135,5 +134,3 @@ struct Environ {
 
 } // namespace codegen
 } // namespace jit
-
-#endif

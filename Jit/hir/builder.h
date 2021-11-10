@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_HIR_GEN_H
-#define JIT_HIR_GEN_H
+#pragma once
 
 #include "Python.h"
 
@@ -440,4 +439,3 @@ class HIRBuilder {
 
 } // namespace hir
 } // namespace jit
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_OBJ_HELPER_H__
-#define __STRICTM_OBJ_HELPER_H__
+#pragma once
 #include <memory>
 
 namespace strictmod::objects {
@@ -14,4 +13,3 @@ inline int normalizeIndex(int index, int size) {
   return index < 0 ? index + size : index;
 }
 } // namespace strictmod::objects
-#endif //__STRICTM_OBJ_HELPER_H__

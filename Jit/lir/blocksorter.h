@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_BLOCKSORTER_H__
-#define __LIR_BLOCKSORTER_H__
+#pragma once
 
 #include "Jit/lir/block.h"
 
@@ -58,5 +57,3 @@ class BasicBlockSorter {
 
 } // namespace lir
 } // namespace jit
-
-#endif

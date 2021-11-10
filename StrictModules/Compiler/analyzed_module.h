@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_ANALYZED_MODULE_H__
-#define __STRICTM_ANALYZED_MODULE_H__
+#pragma once
 
 #include <memory>
 #include "StrictModules/Compiler/module_info.h"
@@ -83,5 +82,3 @@ class AnalyzedModule {
   PreprocessingRecord preprocessRecord_;
 };
 } // namespace strictmod::compiler
-
-#endif // __STRICTM_ANALYZED_MODULE_H__

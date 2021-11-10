@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_GEN_ASM_H__
-#define __JIT_GEN_ASM_H__
+#pragma once
 
 #include "Python.h"
 #include "opcode.h"
@@ -193,5 +192,3 @@ bool canLoadStoreAddr(asmjit::x86::Gp reg, int64_t addr);
 
 } // namespace codegen
 } // namespace jit
-
-#endif // !__JIT_GEN_ASM_H__

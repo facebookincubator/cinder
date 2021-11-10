@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_PERF_JITDUMP_H__
-#define __JIT_PERF_JITDUMP_H__
+#pragma once
 
 #include <cstddef>
 #include <string>
@@ -31,5 +30,3 @@ void afterForkChild();
 
 } // namespace perf
 } // namespace jit
-
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_FUNC_H__
-#define __LIR_FUNC_H__
+#pragma once
 
 #include "Jit/lir/block.h"
 
@@ -100,5 +99,3 @@ class Function {
 
 } // namespace lir
 } // namespace jit
-
-#endif

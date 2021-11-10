@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_PRINTER_H__
-#define __LIR_PRINTER_H__
+#pragma once
 
 #include "Jit/hir/printer.h"
 #include "Jit/lir/block.h"
@@ -65,5 +64,3 @@ inline std::ostream& operator<<(
 
 } // namespace lir
 } // namespace jit
-
-#endif

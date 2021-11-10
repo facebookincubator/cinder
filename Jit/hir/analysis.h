@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef HIR_ANALYSIS_H
-#define HIR_ANALYSIS_H
+#pragma once
 
 #include "Jit/dataflow.h"
 #include "Jit/hir/alias_class.h"
@@ -198,5 +197,3 @@ class AssignmentAnalysis : public ForwardDataflowAnalysis {
 
 } // namespace hir
 } // namespace jit
-
-#endif

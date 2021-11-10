@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_HIR_H
-#define JIT_HIR_H
+#pragma once
 
 #include "Python.h"
 #include "code.h"
@@ -3416,5 +3415,3 @@ const FrameState* get_frame_state(const Instr& instr);
 
 }; // namespace hir
 }; // namespace jit
-
-#endif // JIT_HIR_H

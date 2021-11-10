@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef Py_JIT_GDB_SUPPORT_H
-#define Py_JIT_GDB_SUPPORT_H
+#pragma once
 
 #include "Python.h"
 
@@ -26,5 +25,3 @@ int register_pycode_debug_symbol(
     PyCodeObject* codeobj,
     const char* fullname,
     jit::CompiledFunction* compiled_func);
-
-#endif // Py_JIT_GDB_SUPPORT_H

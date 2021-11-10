@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_LOG_H
-#define JIT_LOG_H
+#pragma once
 
 #include "Python.h"
 #include "internal/pycore_pystate.h"
@@ -107,5 +106,3 @@ void protected_fprintf(std::FILE* file, const char* fmt, Args&&... args) {
 #endif
 
 } // namespace jit
-
-#endif /* JIT_LOG_H */

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_DISASSEMBLER_H__
-#define __JIT_DISASSEMBLER_H__
+#pragma once
 
 #include "Jit/util.h"
 
@@ -52,5 +51,3 @@ struct Disassembler {
 void disassemble(const char* buf, long size, vma_t vma);
 
 } // namespace jit
-
-#endif // !__JIT_DISASSEMBLER_H__

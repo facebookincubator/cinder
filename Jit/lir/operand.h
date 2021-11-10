@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_OPND_H__
-#define __LIR_OPND_H__
+#pragma once
 
 #include "Jit/lir/x86_64.h"
 #include "Jit/log.h"
@@ -562,5 +561,3 @@ DECLARE_TYPE_ARG(OutVReg, void*, true);
 
 } // namespace lir
 } // namespace jit
-
-#endif

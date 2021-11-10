@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef RUNTIME_TEST_UTIL_H
-#define RUNTIME_TEST_UTIL_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -45,5 +44,3 @@ struct HIRTestSuite {
 // ---
 //
 std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& path);
-
-#endif

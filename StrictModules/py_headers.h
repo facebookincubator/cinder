@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_HEADER_H__
-#define __STRICTM_HEADER_H__
+#pragma once
 #include "Python.h"
 
 #include "ast.h"
@@ -19,5 +18,3 @@
 #ifdef FunctionType
 #undef FunctionType
 #endif
-
-#endif // __STRICTM_HEADER_H__

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_DATAFLOW_H__
-#define __JIT_DATAFLOW_H__
+#pragma once
 
 #include "Jit/bitvector.h"
 
@@ -240,5 +239,3 @@ void DataFlowAnalyzer<T>::RunAnalysis(bool forward) {
 
 } // namespace optimizer
 } // namespace jit
-
-#endif // !__JIT_DATAFLOW_H__

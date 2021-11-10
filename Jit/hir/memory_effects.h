@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_HIR_MEMORY_EFFECTS_H__
-#define __JIT_HIR_MEMORY_EFFECTS_H__
+#pragma once
 
 #include "Jit/bitvector.h"
 #include "Jit/hir/alias_class.h"
@@ -38,5 +37,3 @@ MemoryEffects memoryEffects(const Instr& inst);
 
 } // namespace hir
 } // namespace jit
-
-#endif

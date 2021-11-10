@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_FUNCTION_H__
-#define __STRICTM_FUNCTION_H__
+#pragma once
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
 #include "StrictModules/Objects/signature.h"
@@ -232,4 +231,3 @@ class StrictAsyncCallType : public StrictObjectType {
 };
 
 } // namespace strictmod::objects
-#endif // __STRICTM_FUNCTION_H__

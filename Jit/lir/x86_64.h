@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_X86_H__
-#define __LIR_X86_H__
+#pragma once
 
 #include "Jit/codegen/x86_64.h"
 
@@ -9,4 +8,3 @@ namespace lir {
 using PhyLocation = jit::codegen::PhyLocation;
 }
 } // namespace jit
-#endif

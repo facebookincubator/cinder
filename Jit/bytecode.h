@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_BYTECODE_H
-#define JIT_BYTECODE_H
+#pragma once
 
 #include "Python.h"
 #include "opcode.h"
@@ -238,5 +237,3 @@ class BytecodeInstructionBlock {
 };
 
 } // namespace jit
-
-#endif

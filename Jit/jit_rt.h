@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_RUNTIME_H
-#define JIT_RUNTIME_H
+#pragma once
 
 #include "Python.h"
 #include "classloader.h"
@@ -503,6 +502,4 @@ int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

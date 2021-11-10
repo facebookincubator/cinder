@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_BLOCK_H__
-#define __LIR_BLOCK_H__
+#pragma once
 
 #include "Jit/lir/instruction.h"
 
@@ -206,5 +205,3 @@ class BasicBlock {
 
 } // namespace lir
 } // namespace jit
-
-#endif

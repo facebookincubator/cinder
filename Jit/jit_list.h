@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_JIT_LIST_H
-#define JIT_JIT_LIST_H
+#pragma once
 
 #include "Python.h"
 
@@ -122,5 +121,3 @@ class WildcardJITList : public JITList {
 };
 
 } // namespace jit
-
-#endif

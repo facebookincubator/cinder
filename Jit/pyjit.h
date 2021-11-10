@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef Py_JIT_H
-#define Py_JIT_H
+#pragma once
 
 #include "Python.h"
 #include "frameobject.h"
@@ -307,4 +306,3 @@ PyAPI_FUNC(void) _PyJIT_TypeModified(PyTypeObject* type);
 }
 #endif
 #endif /* Py_LIMITED_API */
-#endif /* Py_JIT_H */

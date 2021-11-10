@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_EXCEPTION_OBJ_H__
-#define __STRICTM_EXCEPTION_OBJ_H__
+#pragma once
 
 #include "StrictModules/Objects/object_type.h"
 #include "StrictModules/sequence_map.h"
@@ -40,4 +39,3 @@ class StrictExceptionType : public StrictObjectType {
 };
 
 } // namespace strictmod::objects
-#endif //__STRICTM_EXCEPTION_OBJ_H__

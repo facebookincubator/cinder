@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_GEN_H__
-#define __LIR_GEN_H__
+#pragma once
 
 #include "Jit/codegen/environ.h"
 #include "Jit/hir/hir.h"
@@ -99,5 +98,3 @@ class LIRGenerator {
 
 } // namespace lir
 } // namespace jit
-
-#endif

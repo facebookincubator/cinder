@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef Py_JIT_CONTEXT_H
-#define Py_JIT_CONTEXT_H
+#pragma once
 
 #include "Python.h"
 
@@ -243,5 +242,3 @@ int _PyJITContext_PrintHIR(
 int _PyJITContext_Disassemble(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func);
-
-#endif /* Py_JIT_H */

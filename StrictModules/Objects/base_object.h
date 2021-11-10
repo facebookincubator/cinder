@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_BASE_OBJ_H__
-#define __STRICTM_BASE_OBJ_H__
+#pragma once
 
 #include "StrictModules/py_headers.h"
 
@@ -163,4 +162,3 @@ struct fmt::formatter<std::shared_ptr<strictmod::objects::BaseStrictObject>>
     return formatter<std::string>::format(name, ctx);
   }
 };
-#endif // !__STRICTM_BASE_OBJ_H__

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_REF_H
-#define JIT_REF_H
+#pragma once
 
 #include "Python.h"
 
@@ -218,5 +217,3 @@ struct std::hash<Ref<T>> {
     return hasher(ref.get());
   }
 };
-
-#endif // JIT_REF_H

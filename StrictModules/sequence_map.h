@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __SEQUENCE_MAP_H__
-#define __SEQUENCE_MAP_H__
+#pragma once
 #include <iterator>
 #include <list>
 #include <unordered_map>
@@ -244,5 +243,3 @@ class sequence_map {
   MapT map;
   OrderT order;
 };
-
-#endif // __SEQUENCE_MAP_H__

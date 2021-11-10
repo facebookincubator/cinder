@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_SYMBOL_TABLE_H__
-#define __STRICTM_SYMBOL_TABLE_H__
+#pragma once
 
 #include <memory>
 #include <string>
@@ -99,5 +98,3 @@ class SymtableEntry {
   mutable std::unordered_map<std::string, Symbol> symbolCache_;
 };
 } // namespace strictmod
-
-#endif // __STRICTM_SYMBOL_TABLE_H__

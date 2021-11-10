@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_CODE_GEN_H
-#define JIT_CODE_GEN_H
+#pragma once
 
 #include "Python.h"
 
@@ -41,5 +40,3 @@ class SlotGen {
 };
 
 } // namespace jit
-
-#endif /* JIT_CODE_GEN_H */

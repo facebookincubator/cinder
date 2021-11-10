@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_ITERABLE_OBJ___
-#define __STRICTM_ITERABLE_OBJ___
+#pragma once
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
 
@@ -590,4 +589,3 @@ class StrictRangeType : public StrictObjectType {
 };
 
 } // namespace strictmod::objects
-#endif //__STRICTM_ITERABLE_OBJ___

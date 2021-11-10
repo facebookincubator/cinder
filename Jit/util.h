@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_UTIL_H
-#define JIT_UTIL_H
+#pragma once
 
 #include "Python.h"
 
@@ -191,6 +190,4 @@ inline constexpr D bit_cast(const S& src) {
 // have to include the googletest header in our headers to be tested.
 #ifndef FRIEND_TEST
 #define FRIEND_TEST(test_case_name, test_name)
-#endif
-
 #endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_CALLABLE_WRAPPER_H__
-#define __STRICTM_CALLABLE_WRAPPER_H__
+#pragma once
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
 #include "StrictModules/caller_context.h"
@@ -540,5 +539,3 @@ void StrictType::addStringOptionalMemberDescriptor(const std::string& name) {
 }
 
 } // namespace strictmod::objects
-
-#endif // __STRICTM_CALLABLE_WRAPPER_H__

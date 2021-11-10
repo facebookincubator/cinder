@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef Py_JIT_TYPESLOTS_H
-#define Py_JIT_TYPESLOTS_H
+#pragma once
 
 #include "Python.h"
 
@@ -26,4 +25,3 @@ typedef struct {
 }
 #endif
 #endif /* Py_LIMITED_API */
-#endif /* Py_JIT_TYPESLOTS_H */

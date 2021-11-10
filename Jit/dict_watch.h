@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef DICT_WATCH_H
-#define DICT_WATCH_H
+#pragma once
 
 #include "Python.h"
 
@@ -20,5 +19,3 @@ void watchDictKey(PyObject* dict, PyObject* key, GlobalCache cache);
 void unwatchDictKey(PyObject* dict, PyObject* key, GlobalCache cache);
 
 } // namespace jit
-
-#endif

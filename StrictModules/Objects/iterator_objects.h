@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_ITERATOR_OBJ___
-#define __STRICTM_ITERATOR_OBJ___
+#pragma once
 
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/iterable_objects.h"
@@ -530,4 +529,3 @@ class StrictMapIteratorType : public StrictIteratorBaseType {
 };
 
 } // namespace strictmod::objects
-#endif // __STRICTM_ITERATOR_OBJ___

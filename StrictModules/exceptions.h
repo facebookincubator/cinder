@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_EXCEPTIONS_H__
-#define __STRICTM_EXCEPTIONS_H__
+#pragma once
 
 #include <fmt/format.h>
 #include <array>
@@ -836,5 +835,3 @@ std::string StructuredStrictModuleException<T, E, mp...>::displayStringHelper()
   return fmt::format(T::fmt, static_cast<const T*>(this)->*mp...);
 }
 } // namespace strictmod
-
-#endif // __STRICTM_EXCEPTIONS_H__

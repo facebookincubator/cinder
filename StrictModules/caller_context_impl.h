@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_CALLER_CONTEXT_IMPL_CPP__
-#define __STRICTM_CALLER_CONTEXT_IMPL_CPP__
+#pragma once
 
 #include <fmt/format.h>
 #include "StrictModules/caller_context.h"
@@ -107,5 +106,3 @@ inline std::shared_ptr<BaseStrictObject> CallerContext::makePair(
 }
 
 } // namespace strictmod
-
-#endif // __STRICTM_CALLER_CONTEXT_IMPL_CPP__

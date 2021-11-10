@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_DEOPT_H__
-#define __JIT_DEOPT_H__
+#pragma once
 
 #include "Python.h"
 
@@ -173,5 +172,3 @@ void reifyFrame(
     const uint64_t* regs);
 
 } // namespace jit
-
-#endif

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_UNION_TYPE_H__
-#define __STRICTM_UNION_TYPE_H__
+#pragma once
 
 #include "StrictModules/Objects/object_type.h"
 namespace strictmod::objects {
@@ -75,4 +74,3 @@ class StrictUnionType : public StrictObjectType {
   virtual std::vector<std::type_index> getBaseTypeinfos() const override;
 };
 } // namespace strictmod::objects
-#endif //__STRICTM_UNION_TYPE_H__

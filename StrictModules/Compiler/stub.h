@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_STUB_H__
-#define __STRICTM_STUB_H__
+#pragma once
 #include "StrictModules/Compiler/module_info.h"
 namespace strictmod::compiler {
 class ModuleLoader;
@@ -29,4 +28,3 @@ std::unique_ptr<ModuleInfo> getStubModuleInfo(
     std::unique_ptr<ModuleInfo> info,
     ModuleLoader* loader);
 } // namespace strictmod::compiler
-#endif // __STRICTM_STUB_H__

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef STRICTM_REWRITER_ATTR_H
-#define STRICTM_REWRITER_ATTR_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -82,4 +81,3 @@ class RewriterAttrs {
   // this should be set on the decorator itself
   CachedPropertyKind CachedPropertyKind_;
 };
-#endif // STRICTM_REWRITER_ATTR_H

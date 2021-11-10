@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_BUILTINS_OBJ___
-#define __STRICTM_BUILTINS_OBJ___
+#pragma once
 
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/object_type.h"
@@ -220,5 +219,3 @@ std::shared_ptr<BaseStrictObject> strictKnownUnknownCallable(
     const std::vector<std::string>& namedArgs,
     const CallerContext& caller);
 } // namespace strictmod::objects
-
-#endif // __STRICTM_BUILTINS_OBJ___

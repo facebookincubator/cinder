@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef Py_JIT_X_OPTIONS_H
-#define Py_JIT_X_OPTIONS_H
+#pragma once
 
 #include "Python.h"
 
@@ -20,6 +19,4 @@ int PyJIT_IsXOptionSet(const char* option);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

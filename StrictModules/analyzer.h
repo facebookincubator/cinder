@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_ANALYZER_H__
-#define __STRICTM_ANALYZER_H__
+#pragma once
 
 #include <memory>
 #include <optional>
@@ -330,5 +329,3 @@ class AnalysisScopeData {
   AnalysisResult prepareDict_; // dict provided by __prepare__
 };
 } // namespace strictmod
-
-#endif //__STRICTM_ANALYZER_H__

@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __LIR_LIR_H__
-#define __LIR_LIR_H__
+#pragma once
 
 #include "Jit/lir/block.h"
 #include "Jit/lir/function.h"
@@ -9,5 +8,3 @@
 #include "Jit/lir/printer.h"
 
 namespace jit::lir {} // namespace jit::lir
-
-#endif

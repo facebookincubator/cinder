@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef JIT_HIR_TYPE_H
-#define JIT_HIR_TYPE_H
+#pragma once
 
 #include "Python.h"
 #include "frameobject.h"
@@ -288,5 +287,3 @@ struct std::hash<jit::hir::Type> {
 #define incl_JIT_HIR_TYPE_INL_H
 #include "Jit/hir/type_inl.h"
 #undef incl_JIT_HIR_TYPE_INL_H
-
-#endif

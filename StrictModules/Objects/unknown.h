@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_UNKNOWN_H__
-#define __STRICTM_UNKNOWN_H__
+#pragma once
 
 #include <fmt/format.h>
 #include "StrictModules/Objects/base_object.h"
@@ -145,5 +144,3 @@ makeUnknown(const CallerContext& caller, std::string&& fmtStr, Args&&... args) {
       caller.caller);
 }
 } // namespace strictmod::objects
-
-#endif //__STRICTM_UNKNOWN_H__

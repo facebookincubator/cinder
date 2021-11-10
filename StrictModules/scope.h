@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef STRICTM_SCOPE_H
-#define STRICTM_SCOPE_H
+#pragma once
 #include <functional>
 #include <memory>
 #include <optional>
@@ -269,6 +268,3 @@ class ScopeManager {
 } // namespace strictmod
 
 #include "StrictModules/scope_impl.h"
-
-#define STRICTM_SCOPE_H
-#endif // STRICTM_SCOPE_H

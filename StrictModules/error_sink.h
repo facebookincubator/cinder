@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __STRICTM_ERROR_SINK_H__
-#define __STRICTM_ERROR_SINK_H__
+#pragma once
 
 #include <memory>
 #include <string>
@@ -74,5 +73,3 @@ class CollectingErrorSink : public BaseErrorSink {
 };
 
 } // namespace strictmod
-
-#endif // __STRICTM_ERROR_SINK_H__

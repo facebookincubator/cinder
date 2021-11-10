@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __JIT_HIR_ALIAS_CLASS_H__
-#define __JIT_HIR_ALIAS_CLASS_H__
+#pragma once
 
 #include "Jit/hir/type.h"
 
@@ -115,5 +114,3 @@ struct std::hash<jit::hir::AliasClass> {
     return acls.bits();
   }
 };
-
-#endif

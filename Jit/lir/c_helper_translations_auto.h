@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef __C_HELPER_TRANSLATIONS_AUTO_H__
-#define __C_HELPER_TRANSLATIONS_AUTO_H__
+#pragma once
 
 #include <cstdint>
 #include <initializer_list>
@@ -17,5 +16,3 @@ extern const std::initializer_list<std::pair<const uint64_t, const char*>>
 
 } // namespace lir
 } // namespace jit
-
-#endif

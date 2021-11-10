@@ -1,5 +1,4 @@
-#ifndef __STRICTM_LAZY_OBJ___
-#define __STRICTM_LAZY_OBJ___
+#pragma once
 
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/iterable_objects.h"
@@ -169,5 +168,3 @@ class StrictLazyObjectType : public StrictType {
 };
 
 } // namespace strictmod::objects
-
-#endif // __STRICTM_LAZY_OBJ___

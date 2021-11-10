@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef STRICTM_TEST_UTIL_H
-#define STRICTM_TEST_UTIL_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -55,5 +54,3 @@ std::unique_ptr<StrictMTestSuite> ReadStrictMTestSuite(const std::string& path);
 
 std::unordered_set<std::string> ReadStrictMIgnoreList(
     const std::string& ignorePath);
-
-#endif // STRICTM_TEST_UTIL_H

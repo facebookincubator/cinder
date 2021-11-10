@@ -1,6 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#ifndef STRICTM_SCOPE_IMPL_H
-#define STRICTM_SCOPE_IMPL_H
+#pragma once
 #include <stdexcept>
 //------------------------Scope----------------------------
 namespace strictmod {
@@ -215,4 +214,3 @@ void ScopeStack<TVar, TScopeData>::localSet(std::string key, TVar value) {
   scopes_.back()->set(key, std::move(value));
 }
 } // namespace strictmod
-#endif // STRICTM_SCOPE_IMPL_H
