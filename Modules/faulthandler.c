@@ -1336,7 +1336,7 @@ _PyFaulthandler_Init(int enable)
        SIGSTKSZ bytes. Calling the previous signal handler in faulthandler
        signal handler uses more than SIGSTKSZ bytes of stack memory on some
        platforms. */
-    stack.ss_size = SIGSTKSZ * 2;
+    stack.ss_size = SIGSTKSZ * 128;  // 1024 kb
     stack.ss_sp = PyMem_Malloc(stack.ss_size);
     if (stack.ss_sp != NULL) {
         err = sigaltstack(&stack, &old_stack);
