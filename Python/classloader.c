@@ -375,12 +375,13 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         args = classmethod_args;
         coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
     } else if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+        Py_ssize_t awaited = nargsf & _Py_AWAITED_CALL_MARKER;
         // In this case, we have a patched class method, and the self has been
         // handled via descriptors already.
-      coro = _PyObject_Vectorcall(callable,
-                                  args + 1,
-                                  (PyVectorcall_NARGS(nargsf) - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET,
-                                  kwnames);
+        coro = _PyObject_Vectorcall(callable,
+                                    args + 1,
+                                    (PyVectorcall_NARGS(nargsf) - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET | awaited,
+                                    kwnames);
     } else {
         coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
     }
