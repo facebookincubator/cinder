@@ -1123,7 +1123,7 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
 #endif
 
     obj = type->tp_new(type, args, kwds);
-    obj = _Py_CheckFunctionResult(tstate, (PyObject*)type, obj, NULL);
+    obj = _Py_CheckFunctionResultTstate(tstate, (PyObject*)type, obj, NULL);
     if (obj == NULL)
         return NULL;
 

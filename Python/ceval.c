@@ -6218,7 +6218,7 @@ exit_eval_frame:
         _PyJIT_CountProfiledInstrs(f->f_code, profiled_instrs);
     }
 
-    return _Py_CheckFunctionResult(tstate, NULL, retval, "PyEval_EvalFrameEx");
+    return _Py_CheckFunctionResultTstate(tstate, NULL, retval, "PyEval_EvalFrameEx");
 }
 
 static void

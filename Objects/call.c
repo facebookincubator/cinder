@@ -17,7 +17,7 @@ null_error(void)
 
 
 PyObject*
-_Py_CheckFunctionResult(PyThreadState *tstate, PyObject *callable, PyObject *result, const char *where)
+_Py_CheckFunctionResultTstate(PyThreadState *tstate, PyObject *callable, PyObject *result, const char *where)
 {
     int err_occurred = (_PyErr_Occurred(tstate) != NULL);
 
@@ -64,6 +64,12 @@ _Py_CheckFunctionResult(PyThreadState *tstate, PyObject *callable, PyObject *res
     return result;
 }
 
+PyObject*
+_Py_CheckFunctionResult(PyObject *callable, PyObject *result, const char *where)
+{
+    return _Py_CheckFunctionResultTstate(_PyThreadState_GET(), callable, result, where);
+}
+
 
 /* --- Core PyObject call functions ------------------------------- */
 
@@ -108,7 +114,7 @@ _PyObject_FastCallDictTstate(PyThreadState *tstate, PyObject *callable, PyObject
             Py_DECREF(kwnames);
         }
     }
-    return _Py_CheckFunctionResult(tstate, callable, res, NULL);
+    return _Py_CheckFunctionResultTstate(tstate, callable, res, NULL);
 }
 
 PyObject *
@@ -161,7 +167,7 @@ _PyObject_MakeTpCallTstate(PyThreadState *tstate, PyObject *callable, PyObject *
         Py_DECREF(kwdict);
     }
 
-    result = _Py_CheckFunctionResult(tstate, callable, result, NULL);
+    result = _Py_CheckFunctionResultTstate(tstate, callable, result, NULL);
     return result;
 }
 
@@ -201,7 +207,7 @@ _PyVectorcall_CallTstate(PyThreadState *tstate, PyObject *callable, PyObject *tu
         Py_DECREF(kwnames);
     }
 
-    return _Py_CheckFunctionResult(tstate, callable, result, NULL);
+    return _Py_CheckFunctionResultTstate(tstate, callable, result, NULL);
 }
 
 PyObject *
@@ -249,7 +255,7 @@ _PyObject_CallTstate(PyThreadState *tstate, PyObject *callable, PyObject *args, 
 
         Py_LeaveRecursiveCall();
 
-        return _Py_CheckFunctionResult(tstate, callable, result, NULL);
+        return _Py_CheckFunctionResultTstate(tstate, callable, result, NULL);
     }
 }
 
@@ -610,7 +616,7 @@ _PyCFunction_FastCallDictTstate(
     result = _PyMethodDef_RawFastCallDict(((PyCFunctionObject*)func)->m_ml,
                                           PyCFunction_GET_SELF(func),
                                           args, nargs, kwargs);
-    result = _Py_CheckFunctionResult(tstate, func, result, NULL);
+    result = _Py_CheckFunctionResultTstate(tstate, func, result, NULL);
     return result;
 }
 
@@ -788,7 +794,7 @@ cfunction_call_varargsTstate(PyThreadState *tstate, PyObject *func, PyObject *ar
         Py_LeaveRecursiveCall();
     }
 
-    return _Py_CheckFunctionResult(tstate, func, result, NULL);
+    return _Py_CheckFunctionResultTstate(tstate, func, result, NULL);
 }
 
 PyObject *

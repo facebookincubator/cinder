@@ -596,7 +596,7 @@ classmethoddescr_call(PyMethodDescrObject *descr, PyObject *args,
     result = _PyMethodDef_RawFastCallDict(descr->d_method, self,
                                           &_PyTuple_ITEMS(args)[1], argc - 1,
                                           kwds);
-    result = _Py_CheckFunctionResult(tstate, (PyObject *)descr, result, NULL);
+    result = _Py_CheckFunctionResultTstate(tstate, (PyObject *)descr, result, NULL);
     return result;
 }
 
