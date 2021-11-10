@@ -42,7 +42,7 @@ except ImportError:
     chkdict = dict
     chklist = list
 
-    def make_recreate_cm():
+    def make_recreate_cm(_typ):
         def _recreate_cm(self):
             return self
 
