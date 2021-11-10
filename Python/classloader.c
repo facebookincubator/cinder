@@ -1504,29 +1504,30 @@ type_vtable_setslot(PyTypeObject *tp,
     }
 
     PyObject *original;
+    PyObject *ret_type;
+    int optional = 0, coroutine = 0, classmethod = 0;
     if (vtable->vt_original != NULL) {
         assert(tp->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
         original = PyDict_GetItem(vtable->vt_original, name);
-        Py_INCREF(original);
-    } else if (_PyClassLoader_IsStaticFunction(value) || _PyClassLoader_IsStaticBuiltin(value)) {
-        /* non-static type can't influence our original static return type */
-        original = value;
-        Py_INCREF(value);
+
+        ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
     } else {
-        if (_PyClassLoader_GetStaticallyInheritedMember(tp, name, &original)) {
-            return -1;
-        }
-        if (original == NULL) {
-            PyErr_Format(PyExc_RuntimeError,
-                        "unable to resolve base method for %R in %s",
-                        name, tp->tp_name);
-            return -1;
+        ret_type = _PyClassLoader_ResolveReturnType(value, &optional, &coroutine, &classmethod);
+        if (ret_type == NULL) {
+            if (_PyClassLoader_GetStaticallyInheritedMember(tp, name, &original)) {
+                return -1;
+            }
+            if (original == NULL) {
+                PyErr_Format(PyExc_RuntimeError,
+                            "unable to resolve base method for %R in %s",
+                            name, tp->tp_name);
+                return -1;
+            }
+            ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
+            Py_DECREF(original);
         }
     }
 
-    int optional = 0, coroutine = 0, classmethod = 0;
-    PyObject *ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
-    Py_DECREF(original);
     if (ret_type == NULL) {
         PyErr_Format(PyExc_RuntimeError,
                     "missing type annotation on static compiled method %R of %s",

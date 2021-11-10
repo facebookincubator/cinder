@@ -1,4 +1,5 @@
 import unittest
+from compiler.pycodegen import CinderCodeGenerator
 
 from .common import StaticTestBase
 
@@ -300,6 +301,31 @@ class NonStaticInheritanceTests(StaticTestBase):
             D2.__init__ = lambda self: None
             self.assertEqual(mod.f(D1()), 42)
             self.assertEqual(mod.f(D2()), 42)
+
+    def test_invoke_class_method_dynamic_base(self):
+        bases = """
+        class B1: pass
+        """
+        codestr = """
+        from bases import B1
+        class D(B1):
+            @classmethod
+            def f(cls):
+                return cls.g()
+
+            @classmethod
+            def g(cls):
+                return 42
+
+        def f():
+            return D.f()
+        """
+
+        with self.in_module(
+            bases, name="bases", code_gen=CinderCodeGenerator
+        ), self.in_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(), 42)
 
 
 if __name__ == "__main__":
