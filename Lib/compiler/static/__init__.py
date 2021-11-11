@@ -165,7 +165,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return super().make_child_codegen(
                 tree, graph, codegen_type=StrictCodeGenerator
             )
-        graph.setFlag(consts.CO_STATICALLY_COMPILED)
         if ModuleFlag.SHADOW_FRAME in self.cur_mod.flags:
             graph.setFlag(consts.CO_SHADOW_FRAME)
         return StaticCodeGenerator(
@@ -283,8 +282,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
             func, func_args, filename, scopes, class_name, name, first_lineno
         )
 
-        # we tagged the graph as CO_STATICALLY_COMPILED, and the last co_const entry
-        # will inform the runtime of the return type for the code object.
+        if self._is_static_compiler_disabled(func):
+            return graph
+
+        graph.setFlag(consts.CO_STATICALLY_COMPILED)
         if isinstance(func, (FunctionDef, AsyncFunctionDef)):
             function = self.get_func_container(func)
             klass = function.return_type.resolved()
