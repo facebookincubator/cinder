@@ -641,6 +641,7 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
     auto ssablock = ssa_basic_blocks.at(block);
 
     for (auto& instr : *block) {
+      JIT_CHECK(!instr.IsPhi(), "SSAify does not support Phis in its input");
       instr.visitUses([&](Register*& reg) {
         JIT_CHECK(
             reg != nullptr, "Instructions should not have nullptr operands.")
