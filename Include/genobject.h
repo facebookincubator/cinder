@@ -79,6 +79,7 @@ PyObject *_PyGen_yf(PyGenObject *);
 PyAPI_FUNC(void) _PyGen_Finalize(PyObject *self);
 
 PyAPI_FUNC(int) _PyGen_IsSuspended(PyGenObject *self);
+PyAPI_FUNC(void) _PyGen_MarkJustStartedGenAsCompleted(PyGenObject *gen);
 
 typedef struct {
     PyObject_HEAD

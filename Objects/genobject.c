@@ -81,6 +81,18 @@ gen_is_just_started(PyGenObject* gen) {
     return gen->gi_frame->f_lasti == -1;
 }
 
+void _PyGen_MarkJustStartedGenAsCompleted(PyGenObject *gen)
+{
+    if (gen_is_just_started(gen)) {
+        if (gen->gi_jit_data) {
+            _PYJIT_MarkGenCompleted(gen);
+        }
+        else {
+            Py_CLEAR(gen->gi_frame);
+        }
+    }
+}
+
 void
 _PyGen_Finalize(PyObject *self)
 {

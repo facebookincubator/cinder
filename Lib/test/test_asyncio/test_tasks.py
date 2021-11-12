@@ -15,6 +15,7 @@ import textwrap
 import types
 import unittest
 import weakref
+import warnings
 from unittest import mock
 
 import asyncio
@@ -3576,6 +3577,31 @@ class GatherTests:
         self.loop = self.new_test_loop()
         self.loop.set_task_factory(self.new_task)
         self.loop.create_future = lambda: self.new_future(self.loop)
+
+    def test_no_warnings_after_eager_fail(self):
+        class Err(Exception):
+            pass
+
+        async def fail():
+            raise Err
+
+        async def coro2():
+            self.fail("Should never happen")
+
+        async def main():
+            try:
+                await self.gather(fail(), coro2())
+                self.fail("Exception expected")
+            except Err:
+                pass
+
+        with warnings.catch_warnings(record=True) as w:
+            self.loop.run_until_complete(main())
+            non_awaited = [
+                e for e in w
+                if e.category is RuntimeWarning and "coro2' was never awaited" in e.message.args[0]
+            ]
+            self.assertEquals(non_awaited, [])
 
     def test_gather_with_suspended_coro(self):
         async def coro1():

@@ -7231,6 +7231,12 @@ _gather_multiple(PyObject *const*items,
                     // grab exception value as result
                     res = ev;
                 } else {
+                    // mark remaining coroutines in the list as completed
+                    for (Py_ssize_t j = i + 1; j < nitems; ++j) {
+                        if (PyCoro_CheckExact(items[j])) {
+                            _PyGen_MarkJustStartedGenAsCompleted((PyGenObject *)items[j]);
+                        }
+                    }
                     goto failed;
                 }
             }

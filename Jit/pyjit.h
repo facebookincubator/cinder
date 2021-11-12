@@ -229,6 +229,10 @@ PyAPI_FUNC(void) _PyJIT_GenDealloc(PyGenObject* gen);
 #define _PyJIT_GenState(gen) \
   ((_PyJitGenState)((char*)gen->gi_jit_data)[_PY_GEN_JIT_DATA_STATE_OFFSET])
 
+#define _PYJIT_MarkGenCompleted(gen)                                               \
+  (*((_PyJitGenState*)((char*)gen->gi_jit_data + _PY_GEN_JIT_DATA_STATE_OFFSET)) = \
+       _PyJitGenState_Completed)
+
 /*
  * Return current sub-iterator from JIT generator or NULL if there is none.
  */
