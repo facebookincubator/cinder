@@ -5,6 +5,7 @@
 
 #include "Jit/bytecode.h"
 #include "Jit/hir/hir.h"
+#include "Jit/hir/preload.h"
 #include "Jit/stack.h"
 #include "Jit/util.h"
 
@@ -399,6 +400,8 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
 
+  BorrowedRef<> constArg(const jit::BytecodeInstruction& bc_instr);
+
   ExecutionBlock popBlock(CFG& cfg, TranslationContext& tc);
   void insertEvalBreakerCheckForLoop(CFG& cfg, BasicBlock* loop_header);
   void insertEvalBreakerCheckForExcept(CFG& cfg, TranslationContext& tc);
@@ -430,6 +433,7 @@ class HIRBuilder {
   BorrowedRef<PyDictObject> globals_;
   BorrowedRef<PyDictObject> builtins_;
   BlockMap block_map_;
+  Preloader preloader_;
 
   // Map index of END_ASYNC_FOR bytecodes to FrameState of paired YIELD_FROMs
   std::unordered_map<size_t, FrameState> end_async_for_frame_state_;

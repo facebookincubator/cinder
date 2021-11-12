@@ -11,6 +11,7 @@
 #include "Jit/bytecode.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
+#include "Jit/hir/preload.h"
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
 #include "Jit/threaded_compile.h"
@@ -362,41 +363,12 @@ Type resolve_type_descr(PyObject* descr) {
 // treatment of registers that correspond to arguments (vs locals) during
 // definite assignment analysis.
 void HIRBuilder::addLoadArgs(TranslationContext& tc, int num_args) {
-  if (code_->co_flags & CO_STATICALLY_COMPILED) {
-    _Py_CODEUNIT* rawcode = code_->co_rawcode;
-    JIT_CHECK(
-        _Py_OPCODE(rawcode[0]) == CHECK_ARGS, "expected CHECK_ARGS as 1st arg");
-    PyObject* checks =
-        PyTuple_GET_ITEM(code_->co_consts, _Py_OPARG(rawcode[0]));
-
-    for (int i = 0; i < num_args; i++) {
-      Register* dst = tc.frame.locals[i];
-      Type type = TObject;
-      // Arguments in CPython are the first N locals
-      for (Py_ssize_t cur_check = 0; cur_check < PyTuple_GET_SIZE(checks) / 2;
-           cur_check++) {
-        long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, cur_check * 2));
-        if (local == i) {
-          PyObject* type_descr = PyTuple_GET_ITEM(checks, cur_check * 2 + 1);
-          int prim_type = THREADED_COMPILE_SERIALIZED_CALL(
-              _PyClassLoader_ResolvePrimitiveType(type_descr));
-          JIT_CHECK(prim_type != -1, "unknown type %s", repr(type_descr));
-          if (prim_type != TYPED_OBJECT) {
-            type = prim_type_to_type(prim_type);
-          }
-          break;
-        }
-      }
-      JIT_CHECK(dst != nullptr, "No register for argument %d", i);
-      tc.emit<LoadArg>(dst, i, type);
-    }
-  } else {
-    for (int i = 0; i < num_args; i++) {
-      // Arguments in CPython are the first N locals
-      Register* dst = tc.frame.locals[i];
-      JIT_CHECK(dst != nullptr, "No register for argument %d", i);
-      tc.emit<LoadArg>(dst, i);
-    }
+  for (int i = 0; i < num_args; i++) {
+    // Arguments in CPython are the first N locals
+    Register* dst = tc.frame.locals[i];
+    JIT_CHECK(dst != nullptr, "No register for argument %d", i);
+    Type type = preloader_.checkArgType(i);
+    tc.emit<LoadArg>(dst, i, type);
   }
 }
 
@@ -625,17 +597,19 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
   }
 
   auto irfunc = std::make_unique<Function>();
-  irfunc->fullname = fullname;
-  irfunc->frameMode = getFrameMode(code);
-  irfunc->setCode(code);
-  irfunc->globals.reset(globals);
-  irfunc->builtins.reset(PyEval_GetBuiltins());
-  globals_ = irfunc->globals;
-  builtins_ = irfunc->builtins;
-  temps_ = TempAllocator(&irfunc->env);
-  if (code_->co_flags & CO_STATICALLY_COMPILED) {
-    irfunc->return_type =
-        resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code));
+  {
+    ThreadedCompileSerialize guard;
+    irfunc->fullname = fullname;
+    irfunc->frameMode = getFrameMode(code);
+    irfunc->setCode(code);
+    irfunc->globals.reset(globals);
+    irfunc->builtins.reset(PyEval_GetBuiltins());
+    globals_ = irfunc->globals;
+    builtins_ = irfunc->builtins;
+    temps_ = TempAllocator(&irfunc->env);
+
+    preloader_.preload(code);
+    irfunc->return_type = preloader_.returnType();
   }
 
   BytecodeInstructionBlock bc_instrs{code_};
@@ -959,9 +933,7 @@ void HIRBuilder::translate(
           break;
         }
         case RETURN_PRIMITIVE: {
-          PyObject* descr =
-              PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-          Type type = resolve_type_descr(descr);
+          Type type = preloader_.type(constArg(bc_instr));
           JIT_CHECK(
               type <= irfunc.return_type,
               "bad return type %s, expected %s",
@@ -2195,9 +2167,7 @@ void HIRBuilder::emitPrimitiveBox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  int prim_type = THREADED_COMPILE_SERIALIZED_CALL(
-      _PyClassLoader_ResolvePrimitiveType(descr));
+  int prim_type = preloader_.primitiveTypecode(constArg(bc_instr));
   tc.emitChecked<PrimitiveBox>(tmp, src, prim_type);
   tc.frame.stack.push(tmp);
 }
@@ -2207,8 +2177,7 @@ void HIRBuilder::emitPrimitiveUnbox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  Type typ = resolve_type_descr(descr);
+  Type typ = preloader_.type(constArg(bc_instr));
   if (typ <= TCDouble) {
     tc.emit<LoadField>(tmp, src, offsetof(PyFloatObject, ob_fval), typ);
   } else {
@@ -2498,18 +2467,7 @@ void HIRBuilder::emitFastLen(
 void HIRBuilder::emitRefineType(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  int oparg = bc_instr.oparg();
-  JIT_CHECK(
-      oparg < PyTuple_Size(code_->co_consts),
-      "REFINE_TYPE index out of bounds");
-  PyObject* type_descr = PyTuple_GET_ITEM(code_->co_consts, oparg);
-  int optional;
-  auto pytype = THREADED_COMPILE_SERIALIZED_CALL(Ref<PyTypeObject>::steal(
-      _PyClassLoader_ResolveType(type_descr, &optional)));
-  Type type = Type::fromType(pytype);
-  if (optional) {
-    type |= TNoneType;
-  }
+  Type type = preloader_.type(constArg(bc_instr));
   Register* dst = tc.frame.stack.top();
   tc.emit<RefineType>(dst, type, dst);
 }
@@ -2770,20 +2728,17 @@ void HIRBuilder::emitMakeListTupleUnpack(
 void HIRBuilder::emitBuildCheckedList(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  PyObject* list_type = PyTuple_GET_ITEM(descr, 0);
-  Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1));
+  BorrowedRef<> arg = constArg(bc_instr);
+  BorrowedRef<> descr = PyTuple_GET_ITEM(arg.get(), 0);
+  Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1));
 
-  int optional = 0;
-  PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
-      _PyClassLoader_ResolveType(list_type, &optional));
-
-  JIT_CHECK(type != nullptr, "expected type to resolve");
-  JIT_CHECK(!optional, "expected non-optional checked list type");
+  Type type = preloader_.exactType(descr);
+  JIT_CHECK(
+      _PyCheckedList_TypeCheck(type.uniquePyType()),
+      "expected CheckedList type");
 
   Register* list = temps_.AllocateStack();
-  tc.emit<MakeCheckedList>(
-      list, list_size, Type::fromTypeExact(type), tc.frame);
+  tc.emit<MakeCheckedList>(list, list_size, type, tc.frame);
   // Fill list
   auto init_checked_list = tc.emit<InitListTuple>(list_size + 1, false);
   init_checked_list->SetOperand(0, list);
@@ -2797,20 +2752,17 @@ void HIRBuilder::emitBuildCheckedList(
 void HIRBuilder::emitBuildCheckedMap(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  PyObject* dict_type = PyTuple_GET_ITEM(descr, 0);
-  Py_ssize_t dict_size = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1));
+  BorrowedRef<> arg = constArg(bc_instr);
+  BorrowedRef<> descr = PyTuple_GET_ITEM(arg.get(), 0);
+  Py_ssize_t dict_size = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1));
 
-  int optional = 0;
-  PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
-      _PyClassLoader_ResolveType(dict_type, &optional));
-
-  JIT_CHECK(type != nullptr, "expected type to resolve");
-  JIT_CHECK(!optional, "expected non-optional checked dict type");
+  Type type = preloader_.exactType(descr);
+  JIT_CHECK(
+      _PyCheckedDict_TypeCheck(type.uniquePyType()),
+      "expected CheckedDict type");
 
   Register* dict = temps_.AllocateStack();
-  tc.emit<MakeCheckedDict>(
-      dict, dict_size, Type::fromTypeExact(type), tc.frame);
+  tc.emit<MakeCheckedDict>(dict, dict_size, type, tc.frame);
   // Fill dict
   auto& stack = tc.frame.stack;
   for (auto i = stack.size() - dict_size * 2, end = stack.size(); i < end;
@@ -3404,8 +3356,7 @@ bool HIRBuilder::emitInvokeMethod(
   InvokeMethod* invoke = tc.emitVariadic<InvokeMethod>(
       temps_, nargs, slot, is_awaited, is_classmethod);
   PyObject* container;
-  auto func =
-      Ref<PyObject>::steal(_PyClassLoader_ResolveFunction(target, &container));
+  auto func = Ref<>::steal(_PyClassLoader_ResolveFunction(target, &container));
   if (func != nullptr) {
     Type ret_type = TObject;
     get_static_func_ret_type(func, &ret_type);
@@ -3466,17 +3417,12 @@ void HIRBuilder::emitInvokeTypedMethod(
 void HIRBuilder::emitLoadField(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  PyObject* field = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  int field_type;
-  Py_ssize_t offset = THREADED_COMPILE_SERIALIZED_CALL(
-      _PyClassLoader_ResolveFieldOffset(field, &field_type));
-  JIT_CHECK(offset != -1, "failed to resolve field %s", repr(field));
+  auto& [offset, type] = preloader_.fieldOffsetAndType(constArg(bc_instr));
 
-  Type type = prim_type_to_type(field_type);
   Register* receiver = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
   tc.emit<LoadField>(result, receiver, offset, type);
-  if (field_type == TYPED_OBJECT) {
+  if (type.couldBe(TNullptr)) {
     tc.emit<CheckField>(result, result, tc.frame, bc_instr.oparg());
   }
   tc.frame.stack.push(result);
@@ -3485,13 +3431,8 @@ void HIRBuilder::emitLoadField(
 void HIRBuilder::emitStoreField(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  PyObject* field = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  int field_type;
-  Py_ssize_t offset = THREADED_COMPILE_SERIALIZED_CALL(
-      _PyClassLoader_ResolveFieldOffset(field, &field_type));
-  JIT_CHECK(offset != -1, "failed to resolve field %s", repr(field));
+  auto& [offset, type] = preloader_.fieldOffsetAndType(constArg(bc_instr));
 
-  Type type = prim_type_to_type(field_type);
   Register* receiver = tc.frame.stack.pop();
   Register* value = tc.frame.stack.pop();
   Register* previous = temps_.AllocateStack();
@@ -3509,30 +3450,20 @@ void HIRBuilder::emitStoreField(
 void HIRBuilder::emitCast(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  int optional;
-  Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
-      Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
-  JIT_CHECK(type != NULL, "failed to resolve type %s", repr(descr));
-
+  auto& [pytype, opt] = preloader_.pyTypeOpt(constArg(bc_instr));
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<Cast>(result, value, type, optional, tc.frame);
+  tc.emit<Cast>(result, value, pytype, opt, tc.frame);
   tc.frame.stack.push(result);
 }
 
 void HIRBuilder::emitTpAlloc(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  int optional;
-  Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
-      Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
-  JIT_CHECK(type != NULL, "failed to resolve type %s", repr(descr));
-  JIT_CHECK(!optional, "TP_ALLOC type should not be optional")
+  auto pytype = preloader_.pyType(constArg(bc_instr));
 
   Register* result = temps_.AllocateStack();
-  tc.emit<TpAlloc>(result, type, tc.frame);
+  tc.emit<TpAlloc>(result, pytype, tc.frame);
   tc.frame.stack.push(result);
 }
 
@@ -3794,6 +3725,10 @@ ExecutionBlock HIRBuilder::popBlock(CFG& cfg, TranslationContext& tc) {
     insertEvalBreakerCheckForExcept(cfg, tc);
   }
   return tc.frame.block_stack.pop();
+}
+
+BorrowedRef<> HIRBuilder::constArg(const BytecodeInstruction& bc_instr) {
+  return PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
 }
 
 } // namespace hir

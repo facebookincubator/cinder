@@ -1849,7 +1849,7 @@ classloader_instantiate_generic(PyObject *gtd, PyObject *name, PyObject *path) {
     if (!PyType_Check(gtd)) {
         PyErr_Format(PyExc_TypeError,
                         "generic type instantiation without type: %R on "
-                        "%U from %s",
+                        "%R from %s",
                         path,
                         name,
                         gtd->ob_type->tp_name);

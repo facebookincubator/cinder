@@ -438,6 +438,7 @@ JIT_OBJS=       \
 		Jit/hir/memory_effects.o \
 		Jit/hir/optimization.o \
 		Jit/hir/parser.o \
+		Jit/hir/preload.o \
 		Jit/hir/printer.o \
 		Jit/hir/refcount_insertion.o \
 		Jit/hir/simplify.o \
@@ -1226,6 +1227,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/hir/memory_effects.h \
 		$(srcdir)/Jit/hir/optimization.h \
 		$(srcdir)/Jit/hir/parser.h \
+		$(srcdir)/Jit/hir/preload.h \
 		$(srcdir)/Jit/hir/printer.h \
 		$(srcdir)/Jit/hir/ssa.h \
 		$(srcdir)/Jit/hir/type.h \
