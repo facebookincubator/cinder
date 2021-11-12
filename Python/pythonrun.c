@@ -1294,7 +1294,11 @@ Py_SymtableStringObject(const char *str, PyObject *filename, int start)
 }
 
 struct symtable *
-_Py_SymtableStringObjectFlags(const char *str, PyObject *filename, int start, PyCompilerFlags *flags)
+_Py_SymtableStringObjectFlagsOptFlags(const char *str,
+                                      PyObject *filename,
+                                      int start,
+                                      PyCompilerFlags *flags,
+                                      int inline_comprehensions)
 {
     struct symtable *st;
     mod_ty mod;
@@ -1312,6 +1316,12 @@ _Py_SymtableStringObjectFlags(const char *str, PyObject *filename, int start, Py
     st = PySymtable_BuildObject(mod, filename, 0);
     PyArena_Free(arena);
     return st;
+}
+
+struct symtable *
+_Py_SymtableStringObjectFlags(const char *str, PyObject *filename, int start, PyCompilerFlags *flags)
+{
+    return _Py_SymtableStringObjectFlagsOptFlags(str, filename, start, flags, 0);
 }
 
 struct symtable *

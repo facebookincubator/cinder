@@ -148,26 +148,27 @@ def bug1333982(x=[]):
 
 dis_bug1333982 = """\
 %3d           0 LOAD_CONST               1 (0)
-              2 POP_JUMP_IF_TRUE        26
+              2 POP_JUMP_IF_TRUE        32
               4 LOAD_GLOBAL              0 (AssertionError)
-              6 LOAD_CONST               2 (<code object <listcomp> at 0x..., file "%s", line %d>)
-              8 LOAD_CONST               3 ('bug1333982.<locals>.<listcomp>')
-             10 MAKE_FUNCTION            0
-             12 LOAD_FAST                0 (x)
-             14 GET_ITER
-             16 CALL_FUNCTION            1
+              6 BUILD_LIST               0
+              8 LOAD_FAST                0 (x)
+             10 GET_ITER
+        >>   12 FOR_ITER                 8 (to 22)
+             14 STORE_FAST               1 (s)
+             16 LOAD_FAST                1 (s)
+             18 LIST_APPEND              2
+             20 JUMP_ABSOLUTE           12
+        >>   22 DELETE_FAST              1 (s)
 
-%3d          18 LOAD_CONST               4 (1)
+%3d          24 LOAD_CONST               2 (1)
 
-%3d          20 BINARY_ADD
-             22 CALL_FUNCTION            1
-             24 RAISE_VARARGS            1
+%3d          26 BINARY_ADD
+             28 CALL_FUNCTION            1
+             30 RAISE_VARARGS            1
 
-%3d     >>   26 LOAD_CONST               0 (None)
-             28 RETURN_VALUE
+%3d     >>   32 LOAD_CONST               0 (None)
+             34 RETURN_VALUE
 """ % (bug1333982.__code__.co_firstlineno + 1,
-       __file__,
-       bug1333982.__code__.co_firstlineno + 1,
        bug1333982.__code__.co_firstlineno + 2,
        bug1333982.__code__.co_firstlineno + 1,
        bug1333982.__code__.co_firstlineno + 3)
@@ -367,38 +368,21 @@ dis_nested_0 = """\
 
 dis_nested_1 = """%s
 Disassembly of <code object foo at 0x..., file "%s", line %d>:
-%3d           0 LOAD_CLOSURE             0 (x)
-              2 BUILD_TUPLE              1
-              4 LOAD_CONST               1 (<code object <listcomp> at 0x..., file "%s", line %d>)
-              6 LOAD_CONST               2 ('_h.<locals>.foo.<locals>.<listcomp>')
-              8 MAKE_FUNCTION            8 (closure)
-             10 LOAD_DEREF               1 (y)
-             12 GET_ITER
-             14 CALL_FUNCTION            1
-             16 RETURN_VALUE
+%3d           0 BUILD_LIST               0
+              2 LOAD_DEREF               0 (y)
+              4 GET_ITER
+        >>    6 FOR_ITER                12 (to 20)
+              8 STORE_FAST               1 (z)
+             10 LOAD_FAST                0 (x)
+             12 LOAD_FAST                1 (z)
+             14 BINARY_ADD
+             16 LIST_APPEND              2
+             18 JUMP_ABSOLUTE            6
+        >>   20 DELETE_FAST              1 (z)
+             22 RETURN_VALUE
 """ % (dis_nested_0,
        __file__,
        _h.__code__.co_firstlineno + 1,
-       _h.__code__.co_firstlineno + 3,
-       __file__,
-       _h.__code__.co_firstlineno + 3,
-)
-
-dis_nested_2 = """%s
-Disassembly of <code object <listcomp> at 0x..., file "%s", line %d>:
-%3d           0 BUILD_LIST               0
-              2 LOAD_FAST                0 (.0)
-        >>    4 FOR_ITER                12 (to 18)
-              6 STORE_FAST               1 (z)
-              8 LOAD_DEREF               0 (x)
-             10 LOAD_FAST                1 (z)
-             12 BINARY_ADD
-             14 LIST_APPEND              2
-             16 JUMP_ABSOLUTE            4
-        >>   18 RETURN_VALUE
-""" % (dis_nested_1,
-       __file__,
-       _h.__code__.co_firstlineno + 3,
        _h.__code__.co_firstlineno + 3,
 )
 
@@ -741,6 +725,301 @@ Free variables:
         exec(dedent(src), g)
         self.do_disassembly_test(g["C"].f, expected)
 
+    def test_sync_comp_top(self):
+        # ensure module level comprehensions are not inlined
+        src = """
+        [x for x in lst]
+        """
+        expected = """\
+  2           0 LOAD_CONST               0 (<code object <listcomp> at 0x..., file "?", line 2>)
+              2 LOAD_CONST               1 ('<listcomp>')
+              4 MAKE_FUNCTION            0
+              6 LOAD_NAME                0 (lst)
+              8 GET_ITER
+             10 CALL_FUNCTION            1
+             12 POP_TOP
+             14 LOAD_CONST               2 (None)
+             16 RETURN_VALUE
+"""
+        co = compile(dedent(src), "?", "exec")
+        self.do_disassembly_test(co, expected)
+
+    def test_inline_sync_comp_nested_diff_scopes_1(self):
+        src = """
+        def f():
+            [x for x in lst]
+            [lambda: x for x in lst]
+        """
+        expected = """\
+  3           0 BUILD_LIST               0
+              2 LOAD_GLOBAL              0 (lst)
+              4 GET_ITER
+        >>    6 FOR_ITER                 8 (to 16)
+              8 STORE_DEREF              0 (x)
+             10 LOAD_DEREF               0 (x)
+             12 LIST_APPEND              2
+             14 JUMP_ABSOLUTE            6
+        >>   16 POP_TOP
+
+  4          18 BUILD_LIST               0
+             20 LOAD_GLOBAL              0 (lst)
+             22 GET_ITER
+        >>   24 FOR_ITER                16 (to 42)
+             26 STORE_DEREF              0 (x)
+             28 LOAD_CLOSURE             0 (x)
+             30 BUILD_TUPLE              1
+             32 LOAD_CONST               1 (<code object <lambda> at 0x..., file "<string>", line 4>)
+             34 LOAD_CONST               2 ('f.<locals>.<lambda>')
+             36 MAKE_FUNCTION            8 (closure)
+             38 LIST_APPEND              2
+             40 JUMP_ABSOLUTE           24
+        >>   42 POP_TOP
+             44 LOAD_CONST               0 (None)
+             46 RETURN_VALUE
+"""
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_inline_sync_comp_nested_diff_scopes_2(self):
+        src = """
+        def f():
+            [lambda: x for x in lst]
+            [x for x in lst]
+        """
+        expected = """\
+  3           0 BUILD_LIST               0
+              2 LOAD_GLOBAL              0 (lst)
+              4 GET_ITER
+        >>    6 FOR_ITER                16 (to 24)
+              8 STORE_DEREF              0 (x)
+             10 LOAD_CLOSURE             0 (x)
+             12 BUILD_TUPLE              1
+             14 LOAD_CONST               1 (<code object <lambda> at 0x..., file "<string>", line 3>)
+             16 LOAD_CONST               2 ('f.<locals>.<lambda>')
+             18 MAKE_FUNCTION            8 (closure)
+             20 LIST_APPEND              2
+             22 JUMP_ABSOLUTE            6
+        >>   24 POP_TOP
+
+  4          26 BUILD_LIST               0
+             28 LOAD_GLOBAL              0 (lst)
+             30 GET_ITER
+        >>   32 FOR_ITER                 8 (to 42)
+             34 STORE_DEREF              0 (x)
+             36 LOAD_DEREF               0 (x)
+             38 LIST_APPEND              2
+             40 JUMP_ABSOLUTE           32
+        >>   42 POP_TOP
+             44 LOAD_CONST               0 (None)
+             46 RETURN_VALUE
+"""
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_inline_sync_comp_nested_comprehensions(self):
+        src = """
+        def f():
+            [x for x in [y for y in lst]]
+        """
+        expected = """\
+  3           0 BUILD_LIST               0
+              2 BUILD_LIST               0
+              4 LOAD_GLOBAL              0 (lst)
+              6 GET_ITER
+        >>    8 FOR_ITER                 8 (to 18)
+             10 STORE_FAST               0 (y)
+             12 LOAD_FAST                0 (y)
+             14 LIST_APPEND              2
+             16 JUMP_ABSOLUTE            8
+        >>   18 DELETE_FAST              0 (y)
+             20 GET_ITER
+        >>   22 FOR_ITER                 8 (to 32)
+             24 STORE_FAST               1 (x)
+             26 LOAD_FAST                1 (x)
+             28 LIST_APPEND              2
+             30 JUMP_ABSOLUTE           22
+        >>   32 DELETE_FAST              1 (x)
+             34 POP_TOP
+             36 LOAD_CONST               0 (None)
+             38 RETURN_VALUE
+"""
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_inline_sync_comp_named_expr_1(self):
+        src = """
+        def f():
+            [x for x in lst if (z := 5)]
+        """
+        expected = """\
+  3           0 BUILD_LIST               0
+              2 LOAD_GLOBAL              0 (lst)
+              4 GET_ITER
+        >>    6 FOR_ITER                16 (to 24)
+              8 STORE_FAST               0 (x)
+             10 LOAD_CONST               1 (5)
+             12 DUP_TOP
+             14 STORE_FAST               1 (z)
+             16 POP_JUMP_IF_FALSE        6
+             18 LOAD_FAST                0 (x)
+             20 LIST_APPEND              2
+             22 JUMP_ABSOLUTE            6
+        >>   24 DELETE_FAST              0 (x)
+             26 POP_TOP
+             28 LOAD_CONST               0 (None)
+             30 RETURN_VALUE
+"""
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_inline_async_comp_free_var1(self):
+        src = """
+async def f(lst):
+    p = b'.'
+    split_paths = [[c for c in s if c and c != o] async for s in lst]
+        """
+        expected = """\
+  3           0 LOAD_CONST               1 (b'.')
+              2 STORE_FAST               1 (p)
+
+  4           4 BUILD_LIST               0
+              6 LOAD_FAST                0 (lst)
+              8 GET_AITER
+        >>   10 SETUP_FINALLY           44 (to 56)
+             12 GET_ANEXT
+             14 LOAD_CONST               0 (None)
+             16 YIELD_FROM
+             18 POP_BLOCK
+             20 STORE_FAST               2 (s)
+             22 BUILD_LIST               0
+             24 LOAD_FAST                2 (s)
+             26 GET_ITER
+        >>   28 FOR_ITER                20 (to 50)
+             30 STORE_FAST               3 (c)
+             32 LOAD_FAST                3 (c)
+             34 POP_JUMP_IF_FALSE       28
+             36 LOAD_FAST                3 (c)
+             38 LOAD_GLOBAL              0 (o)
+             40 COMPARE_OP               3 (!=)
+             42 POP_JUMP_IF_FALSE       28
+             44 LOAD_FAST                3 (c)
+             46 LIST_APPEND              2
+             48 JUMP_ABSOLUTE           28
+        >>   50 DELETE_FAST              3 (c)
+             52 LIST_APPEND              2
+             54 JUMP_ABSOLUTE           10
+        >>   56 END_ASYNC_FOR
+             58 DELETE_FAST              3 (c)
+             60 DELETE_FAST              2 (s)
+             62 STORE_FAST               4 (split_paths)
+             64 LOAD_CONST               0 (None)
+             66 RETURN_VALUE
+"""
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_comprehension_inlining_name_conflict_with_implicit_global(self):
+        src = """
+def f(lst):
+    [x for x in lst]
+    def g():
+        return lambda: x
+    return g
+        """
+        expected = """\
+  3           0 LOAD_CONST               1 (<code object <listcomp> at 0x..., file "<string>", line 3>)
+              2 LOAD_CONST               2 ('f.<locals>.<listcomp>')
+              4 MAKE_FUNCTION            0
+              6 LOAD_FAST                0 (lst)
+              8 GET_ITER
+             10 CALL_FUNCTION            1
+             12 POP_TOP
+
+  4          14 LOAD_CONST               3 (<code object g at 0x..., file "<string>", line 4>)
+             16 LOAD_CONST               4 ('f.<locals>.g')
+             18 MAKE_FUNCTION            0
+             20 STORE_FAST               1 (g)
+
+  6          22 LOAD_FAST                1 (g)
+             24 RETURN_VALUE
+"""
+
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_use_param_1(self):
+        src = """
+def f(self, name, data, files=(), dirs=()):
+    [os.path.join(dir, filename) for dir in files for filename in dir]
+        """
+        expected = """\
+  3           0 BUILD_LIST               0
+              2 LOAD_FAST                3 (files)
+              4 GET_ITER
+        >>    6 FOR_ITER                28 (to 36)
+              8 STORE_FAST               5 (dir)
+             10 LOAD_FAST                5 (dir)
+             12 GET_ITER
+        >>   14 FOR_ITER                18 (to 34)
+             16 STORE_FAST               6 (filename)
+             18 LOAD_GLOBAL              0 (os)
+             20 LOAD_ATTR                1 (path)
+             22 LOAD_METHOD              2 (join)
+             24 LOAD_FAST                5 (dir)
+             26 LOAD_FAST                6 (filename)
+             28 CALL_METHOD              2
+             30 LIST_APPEND              3
+             32 JUMP_ABSOLUTE           14
+        >>   34 JUMP_ABSOLUTE            6
+        >>   36 DELETE_FAST              5 (dir)
+             38 DELETE_FAST              6 (filename)
+             40 POP_TOP
+             42 LOAD_CONST               0 (None)
+             44 RETURN_VALUE
+"""
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_inline_comp_global1(self):
+        src = """
+            g = 1
+            def f():
+                actual = {{g: None for g in range(10)}}
+                assert g == 1
+        """
+        expected = """\
+  4           0 LOAD_CONST               1 (<code object <dictcomp> at 0x..., file "<string>", line 4>)
+              2 LOAD_CONST               2 ('f.<locals>.<dictcomp>')
+              4 MAKE_FUNCTION            0
+              6 LOAD_GLOBAL              0 (range)
+              8 LOAD_CONST               3 (10)
+             10 CALL_FUNCTION            1
+             12 GET_ITER
+             14 CALL_FUNCTION            1
+             16 BUILD_SET                1
+             18 STORE_FAST               0 (actual)
+
+  5          20 LOAD_GLOBAL              1 (g)
+             22 LOAD_CONST               4 (1)
+             24 COMPARE_OP               2 (==)
+             26 POP_JUMP_IF_TRUE        32
+             28 LOAD_GLOBAL              2 (AssertionError)
+             30 RAISE_VARARGS            1
+        >>   32 LOAD_CONST               0 (None)
+             34 RETURN_VALUE
+"""
+        g = {}
+        exec(dedent(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+
     def test_bug_708901(self):
         self.do_disassembly_test(bug708901, dis_bug708901)
 
@@ -882,10 +1161,6 @@ Free variables:
 
         check(dis_nested_0, depth=0)
         check(dis_nested_1, depth=1)
-        check(dis_nested_2, depth=2)
-        check(dis_nested_2, depth=3)
-        check(dis_nested_2, depth=None)
-        check(dis_nested_2)
 
 
 class DisWithFileTests(DisTests):

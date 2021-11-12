@@ -172,7 +172,7 @@ from _static import (
 from ..optimizer import AstOptimizer
 from ..pyassem import Block
 from ..pycodegen import FOR_LOOP, CodeGenerator
-from ..symbols import SymbolVisitor
+from ..symbols import SymbolVisitor, CinderSymbolVisitor
 from ..symbols import Scope, ModuleScope
 from ..unparse import to_expr
 from ..visitor import ASTVisitor

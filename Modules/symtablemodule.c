@@ -53,7 +53,7 @@ _symtable_symtable_impl(PyObject *module, PyObject *source,
         Py_XDECREF(source_copy);
         return NULL;
     }
-    st = _Py_SymtableStringObjectFlags(str, filename, start, &cf);
+    st = _Py_SymtableStringObjectFlagsOptFlags(str, filename, start, &cf, 0);
     Py_DECREF(filename);
     Py_XDECREF(source_copy);
     if (st == NULL) {

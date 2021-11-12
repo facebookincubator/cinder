@@ -2586,8 +2586,8 @@ main_loop:
             err = PyObject_DelItem(ns, name);
             if (err != 0) {
                 format_exc_check_arg(tstate, PyExc_NameError,
-                                     NAME_ERROR_MSG,
-                                     name);
+                                    NAME_ERROR_MSG,
+                                    name);
                 goto error;
             }
             DISPATCH();
@@ -2844,14 +2844,8 @@ main_loop:
             PyObject *v = GETLOCAL(oparg);
             if (v != NULL) {
                 SETLOCAL(oparg, NULL);
-                DISPATCH();
             }
-            format_exc_check_arg(
-                tstate, PyExc_UnboundLocalError,
-                UNBOUNDLOCAL_ERROR_MSG,
-                PyTuple_GetItem(co->co_varnames, oparg)
-                );
-            goto error;
+            DISPATCH();
         }
 
         case TARGET(DELETE_DEREF): {

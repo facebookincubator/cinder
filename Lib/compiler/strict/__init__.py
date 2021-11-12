@@ -148,7 +148,7 @@ class StrictCodeGenerator(CinderCodeGenerator):
     ) -> StrictCodeGenerator:
         if ast_optimizer_enabled:
             tree = cls.optimize_tree(optimize, tree)
-        s = symbols.SymbolVisitor()
+        s = cls._SymbolVisitor()
         walk(tree, s)
 
         graph = cls.flow_graph(

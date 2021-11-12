@@ -199,6 +199,7 @@ class CodeGenerator(ASTVisitor):
     class_name = None  # provide default for instance variable
     future_flags = 0
     flow_graph = pyassem.PyFlowGraph
+    _SymbolVisitor = symbols.SymbolVisitor
 
     def __init__(
         self,
@@ -912,7 +913,7 @@ class CodeGenerator(ASTVisitor):
         while not isinstance(parent, symbols.ModuleScope):
             # Only real functions use "<locals>", nested scopes like
             # comprehensions don't.
-            if type(parent) in (symbols.FunctionScope, symbols.LambdaScope):
+            if parent.is_function_scope:
                 prefix = parent.name + ".<locals>." + prefix
             else:
                 prefix = parent.name + "." + prefix
@@ -961,7 +962,9 @@ class CodeGenerator(ASTVisitor):
         if opcode:
             gen.emit(opcode, oparg)
 
-        gen.compile_comprehension_generator(node.generators, 0, elt, val, type(node))
+        gen.compile_comprehension_generator(
+            node.generators, 0, elt, val, type(node), True
+        )
 
         if not isinstance(node, ast.GeneratorExp):
             gen.emit("RETURN_VALUE")
@@ -1001,19 +1004,27 @@ class CodeGenerator(ASTVisitor):
             node, sys.intern("<dictcomp>"), node.key, node.value, "BUILD_MAP"
         )
 
-    def compile_comprehension_generator(self, generators, gen_index, elt, val, type):
+    def compile_comprehension_generator(
+        self, generators, gen_index, elt, val, type, outermost_gen_is_param
+    ):
         if generators[gen_index].is_async:
-            self.compile_async_comprehension(generators, gen_index, elt, val, type)
+            self.compile_async_comprehension(
+                generators, gen_index, elt, val, type, outermost_gen_is_param
+            )
         else:
-            self.compile_sync_comprehension(generators, gen_index, elt, val, type)
+            self.compile_sync_comprehension(
+                generators, gen_index, elt, val, type, outermost_gen_is_param
+            )
 
-    def compile_async_comprehension(self, generators, gen_index, elt, val, type):
+    def compile_async_comprehension(
+        self, generators, gen_index, elt, val, type, outermost_gen_is_param
+    ):
         start = self.newBlock("start")
         except_ = self.newBlock("except")
         if_cleanup = self.newBlock("if_cleanup")
 
         gen = generators[gen_index]
-        if gen_index == 0:
+        if gen_index == 0 and outermost_gen_is_param:
             self.loadName(".0")
         else:
             self.visit(gen.iter)
@@ -1033,7 +1044,9 @@ class CodeGenerator(ASTVisitor):
 
         gen_index += 1
         if gen_index < len(generators):
-            self.compile_comprehension_generator(generators, gen_index, elt, val, type)
+            self.compile_comprehension_generator(
+                generators, gen_index, elt, val, type, False
+            )
         elif type is ast.GeneratorExp:
             self.visit(elt)
             self.emit("YIELD_VALUE")
@@ -1056,14 +1069,16 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(except_)
         self.emit("END_ASYNC_FOR")
 
-    def compile_sync_comprehension(self, generators, gen_index, elt, val, type):
+    def compile_sync_comprehension(
+        self, generators, gen_index, elt, val, type, outermost_gen_is_param
+    ):
         start = self.newBlock("start")
         skip = self.newBlock("skip")
         if_cleanup = self.newBlock("if_cleanup")
         anchor = self.newBlock("anchor")
 
         gen = generators[gen_index]
-        if gen_index == 0:
+        if gen_index == 0 and outermost_gen_is_param:
             self.loadName(".0")
         else:
             self.visit(gen.iter)
@@ -1080,7 +1095,9 @@ class CodeGenerator(ASTVisitor):
 
         gen_index += 1
         if gen_index < len(generators):
-            self.compile_comprehension_generator(generators, gen_index, elt, val, type)
+            self.compile_comprehension_generator(
+                generators, gen_index, elt, val, type, False
+            )
         else:
             if type is ast.GeneratorExp:
                 self.visit(elt)
@@ -2319,7 +2336,7 @@ class CodeGenerator(ASTVisitor):
     ):
         if ast_optimizer_enabled:
             tree = cls.optimize_tree(optimize, tree)
-        s = symbols.SymbolVisitor()
+        s = cls._SymbolVisitor()
         walk(tree, s)
 
         graph = cls.flow_graph(
@@ -2361,6 +2378,7 @@ class Entry:
 
 class CinderCodeGenerator(CodeGenerator):
     flow_graph = pyassem.PyFlowGraphCinder
+    _SymbolVisitor = symbols.CinderSymbolVisitor
 
     def set_qual_name(self, qualname):
         self._qual_name = qualname
@@ -2462,6 +2480,63 @@ class CinderCodeGenerator(CodeGenerator):
             elif feature == "lazy_imports":
                 future_flags |= consts.CO_FUTURE_LAZY_IMPORTS
         return future_flags
+
+    def compile_comprehension(self, node, name, elt, val, opcode, oparg=0):
+        self.update_lineno(node)
+        # fetch the scope that correspond to comprehension
+        scope = self.scopes[node]
+        if scope.inlined:
+            # for inlined comprehension process with current generator
+            gen = self
+        else:
+            gen = self.make_func_codegen(
+                node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
+            )
+
+        if opcode:
+            gen.emit(opcode, oparg)
+
+        gen.compile_comprehension_generator(
+            node.generators, 0, elt, val, type(node), not scope.inlined
+        )
+
+        if scope.inlined:
+            # collect list of defs that were introduced by comprehension
+            # note that we need to exclude:
+            # - .0 parameter since it is used
+            # - non-local names (typically named expressions), they are
+            #   defined in enclosing scope and thus should not be deleted
+            to_delete = [
+                v
+                for v in scope.defs
+                if v != ".0" and v not in scope.nonlocals and v not in scope.cells
+            ]
+            # sort names to have deterministic deletion order
+            to_delete.sort()
+            for v in to_delete:
+                self.delName(v)
+            return
+
+        if not isinstance(node, ast.GeneratorExp):
+            gen.emit("RETURN_VALUE")
+
+        gen.finishFunction()
+
+        self._makeClosure(gen, 0)
+
+        # precomputation of outmost iterable
+        self.visit(node.generators[0].iter)
+        if node.generators[0].is_async:
+            self.emit("GET_AITER")
+        else:
+            self.emit("GET_ITER")
+        self.emit("CALL_FUNCTION", 1)
+
+        if gen.scope.coroutine and type(node) is not ast.GeneratorExp:
+            self.emit("GET_AWAITABLE")
+            self.emit("LOAD_CONST", None)
+            self.emit("YIELD_FROM")
+
 
 def get_default_generator():
 

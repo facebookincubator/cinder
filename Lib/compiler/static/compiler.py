@@ -339,7 +339,7 @@ class Compiler:
         if name not in self.modules:
             tree = self.add_module(name, filename, tree, optimize)
         # Analyze variable scopes
-        s = SymbolVisitor()
+        s = self.code_generator._SymbolVisitor()
         s.visit(tree)
 
         # Analyze the types of objects within local scopes

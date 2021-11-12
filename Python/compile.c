@@ -214,12 +214,12 @@ static int compiler_set_qualname(struct compiler *);
 static int compiler_sync_comprehension_generator(
                                       struct compiler *c,
                                       asdl_seq *generators, int gen_index,
-                                      expr_ty elt, expr_ty val, int type);
+                                      expr_ty elt, expr_ty val, int type, int outermost_iter_is_param);
 
 static int compiler_async_comprehension_generator(
                                       struct compiler *c,
                                       asdl_seq *generators, int gen_index,
-                                      expr_ty elt, expr_ty val, int type);
+                                      expr_ty elt, expr_ty val, int type, int outermost_iter_is_param);
 
 static PyCodeObject *assemble(struct compiler *, int addNone);
 static PyObject *__doc__, *__annotations__;
@@ -356,7 +356,7 @@ PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
         goto finally;
     }
 
-    c.c_st = PySymtable_BuildObject(mod, filename, c.c_future);
+    c.c_st = _PySymtable_BuildObjectOptFlags(mod, filename, c.c_future, 1);
     if (c.c_st == NULL) {
         if (!PyErr_Occurred())
             PyErr_SetString(PyExc_SystemError, "no symtable");
@@ -4452,23 +4452,23 @@ compiler_call_helper(struct compiler *c,
 static int
 compiler_comprehension_generator(struct compiler *c,
                                  asdl_seq *generators, int gen_index,
-                                 expr_ty elt, expr_ty val, int type)
+                                 expr_ty elt, expr_ty val, int type, int outermost_iter_is_param)
 {
     comprehension_ty gen;
     gen = (comprehension_ty)asdl_seq_GET(generators, gen_index);
     if (gen->is_async) {
         return compiler_async_comprehension_generator(
-            c, generators, gen_index, elt, val, type);
+            c, generators, gen_index, elt, val, type, outermost_iter_is_param);
     } else {
         return compiler_sync_comprehension_generator(
-            c, generators, gen_index, elt, val, type);
+            c, generators, gen_index, elt, val, type, outermost_iter_is_param);
     }
 }
 
 static int
 compiler_sync_comprehension_generator(struct compiler *c,
                                       asdl_seq *generators, int gen_index,
-                                      expr_ty elt, expr_ty val, int type)
+                                      expr_ty elt, expr_ty val, int type, int outermost_iter_is_param)
 {
     /* generate code for the iterator, then each of the ifs,
        and then write to the element */
@@ -4488,7 +4488,7 @@ compiler_sync_comprehension_generator(struct compiler *c,
 
     gen = (comprehension_ty)asdl_seq_GET(generators, gen_index);
 
-    if (gen_index == 0) {
+    if (gen_index == 0 && outermost_iter_is_param) {
         /* Receive outermost iter as an implicit argument */
         c->u->u_argcount = 1;
         ADDOP_I(c, LOAD_FAST, 0);
@@ -4515,7 +4515,7 @@ compiler_sync_comprehension_generator(struct compiler *c,
     if (++gen_index < asdl_seq_LEN(generators))
         if (!compiler_comprehension_generator(c,
                                               generators, gen_index,
-                                              elt, val, type))
+                                              elt, val, type, 0))
         return 0;
 
     /* only append after the last for generator */
@@ -4558,7 +4558,7 @@ compiler_sync_comprehension_generator(struct compiler *c,
 static int
 compiler_async_comprehension_generator(struct compiler *c,
                                       asdl_seq *generators, int gen_index,
-                                      expr_ty elt, expr_ty val, int type)
+                                      expr_ty elt, expr_ty val, int type, int outermost_iter_is_param)
 {
     comprehension_ty gen;
     basicblock *start, *if_cleanup, *except;
@@ -4573,7 +4573,7 @@ compiler_async_comprehension_generator(struct compiler *c,
 
     gen = (comprehension_ty)asdl_seq_GET(generators, gen_index);
 
-    if (gen_index == 0) {
+    if (gen_index == 0 && outermost_iter_is_param) {
         /* Receive outermost iter as an implicit argument */
         c->u->u_argcount = 1;
         ADDOP_I(c, LOAD_FAST, 0);
@@ -4604,7 +4604,7 @@ compiler_async_comprehension_generator(struct compiler *c,
     if (++gen_index < asdl_seq_LEN(generators))
         if (!compiler_comprehension_generator(c,
                                               generators, gen_index,
-                                              elt, val, type))
+                                              elt, val, type, 0))
         return 0;
 
     /* only append after the last for generator */
@@ -4645,6 +4645,46 @@ compiler_async_comprehension_generator(struct compiler *c,
 }
 
 static int
+delete_comprehension_locals(struct compiler *c, PySTEntryObject *entry)
+{
+    PyObject *to_delete = PyList_New(0);
+    if (to_delete == NULL) {
+        return 0;
+    }
+
+    int retval = 0;
+    PyObject *k, *v;
+    Py_ssize_t pos = 0;
+    // collect locals that should be deleted
+    while (PyDict_Next(entry->ste_symbols, &pos, &k, &v)) {
+        long val = PyLong_AS_LONG(v);
+        long scope = PyST_GetScope(c->u->u_ste, k);
+        if (val & DEF_NONLOCAL) {
+            continue;
+        }
+        if ((val & DEF_LOCAL) && scope == LOCAL) {
+            if (PyList_Append(to_delete, k) < 0) {
+                goto error;
+            }
+        }
+    }
+    // sort names to have deterministic deletion order
+    if (PyList_Sort(to_delete) < 0) {
+        goto error;
+    }
+    for (Py_ssize_t i = 0; i < PyList_GET_SIZE(to_delete); ++i) {
+        PyObject *k = PyList_GET_ITEM(to_delete, i);
+        if (!compiler_nameop(c, k, Del)) {
+            goto error;
+        }
+    }
+    retval = 1;
+error:
+    Py_DECREF(to_delete);
+    return retval;
+}
+
+static int
 compiler_comprehension(struct compiler *c, expr_ty e, int type,
                        identifier name, asdl_seq *generators, expr_ty elt,
                        expr_ty val)
@@ -4652,20 +4692,29 @@ compiler_comprehension(struct compiler *c, expr_ty e, int type,
     PyCodeObject *co = NULL;
     comprehension_ty outermost;
     PyObject *qualname = NULL;
-    int is_async_generator = 0;
+    PySTEntryObject *entry = NULL;
     int top_level_await = IS_TOP_LEVEL_AWAIT(c);
-
 
     int is_async_function = c->u->u_ste->ste_coroutine;
 
-    outermost = (comprehension_ty) asdl_seq_GET(generators, 0);
-    if (!compiler_enter_scope(c, name, COMPILER_SCOPE_COMPREHENSION,
-                              (void *)e, e->lineno))
-    {
+    entry = PySymtable_Lookup(c->c_st, (void *)e);
+    if (entry == NULL) {
         goto error;
     }
+    int is_inlined = entry->ste_inlined_comprehension;
+    int is_async_generator = entry->ste_coroutine;
+    // only inlining comprehennsions in functions
+    assert(!is_inlined || c->u->u_ste->ste_type == FunctionBlock);
 
-    is_async_generator = c->u->u_ste->ste_coroutine;
+    outermost = (comprehension_ty) asdl_seq_GET(generators, 0);
+    if (!is_inlined) {
+        if (!compiler_enter_scope(c, name, COMPILER_SCOPE_COMPREHENSION,
+                                (void *)e, e->lineno))
+        {
+            goto error;
+        }
+    }
+
 
     if (is_async_generator && !is_async_function && type != COMP_GENEXP  && !top_level_await) {
         compiler_error(c, "asynchronous comprehension outside of "
@@ -4695,8 +4744,22 @@ compiler_comprehension(struct compiler *c, expr_ty e, int type,
     }
 
     if (!compiler_comprehension_generator(c, generators, 0, elt,
-                                          val, type))
+                                          val, type, !is_inlined))
         goto error_in_scope;
+
+    if (is_inlined) {
+        if (top_level_await && is_async_generator) {
+            c->u->u_ste->ste_coroutine = 1;
+        }
+        // generate code to delete locals
+        if (!delete_comprehension_locals(c, entry)) {
+            goto error;
+        }
+        Py_DECREF(entry);
+        return 1;
+    }
+
+    Py_CLEAR(entry);
 
     if (type != COMP_GENEXP) {
         ADDOP(c, RETURN_VALUE);
@@ -4737,8 +4800,11 @@ compiler_comprehension(struct compiler *c, expr_ty e, int type,
 
     return 1;
 error_in_scope:
-    compiler_exit_scope(c);
+    if (!is_inlined) {
+        compiler_exit_scope(c);
+    }
 error:
+    Py_XDECREF(entry);
     Py_XDECREF(qualname);
     Py_XDECREF(co);
     return 0;

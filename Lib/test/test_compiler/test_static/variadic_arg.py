@@ -398,6 +398,5 @@ class VariadicArgTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            listcomp = self.find_code(f.__code__, "<listcomp>")
-            self.assertInBytecode(listcomp, "LOAD_MAPPING_ARG", 3)
+            self.assertInBytecode(f, "LOAD_MAPPING_ARG", 3)
             self.assertEqual(f(), [])

@@ -133,18 +133,21 @@ class Python38Tests(CompilerTest):
 
         source = """
             async def f():
+                x = 1
                 return [x async for x in y if x > 10]
         """
         self._check(source)
 
         source = """
             async def f():
+                x = 1
                 return {x async for x in y if x > 10}
         """
         self._check(source)
 
         source = """
             async def f():
+                x = 1
                 return {x:str(x) async for x in y if x > 10}
         """
         self._check(source)
@@ -380,15 +383,19 @@ def f():
                     yield i
 
             async def run_list():
+                i  = 1
                 return [i + 10 async for i in f(range(5)) if 0 < i < 4]
 
             async def run_set():
+                i  = 1
                 return {i + 10 async for i in f(range(5)) if 0 < i < 4}
 
             async def run_dict():
+                i  = 1
                 return {i + 10: i + 100 async for i in f(range(5)) if 0 < i < 4}
 
             async def run_gen():
+                g = 1
                 gen = (i + 10 async for i in f(range(5)) if 0 < i < 4)
                 return [g + 100 async for g in gen]
         """

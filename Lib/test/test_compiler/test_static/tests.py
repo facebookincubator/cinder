@@ -109,6 +109,7 @@ from compiler.static.types import (
 )
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.runtime import set_freeze_enabled
+from compiler.symbols import SymbolVisitor, CinderSymbolVisitor
 from contextlib import contextmanager
 from copy import deepcopy
 from io import StringIO
@@ -2674,8 +2675,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(code) as mod:
             f = mod.f
-            gen_code = [x for x in f.__code__.co_consts if isinstance(x, CodeType)][0]
-            self.assertInBytecode(gen_code, "POP_JUMP_IF_ZERO")
+            self.assertInBytecode(f.__code__, "POP_JUMP_IF_ZERO")
             self.assertEqual(f([1, 2, 3]), [])
 
     def test_generator_primitive_iter(self):

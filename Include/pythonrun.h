@@ -135,6 +135,12 @@ PyAPI_FUNC(struct symtable *) _Py_SymtableStringObjectFlags(
     PyObject *filename,
     int start,
     PyCompilerFlags *flags);
+PyAPI_FUNC(struct symtable *) _Py_SymtableStringObjectFlagsOptFlags(
+    const char *str,
+    PyObject *filename,
+    int start,
+    PyCompilerFlags *flags,
+    int inline_comprehensions);
 #endif
 
 PyAPI_FUNC(void) PyErr_Print(void);
