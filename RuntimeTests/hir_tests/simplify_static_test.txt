@@ -18,7 +18,7 @@ fun jittestmodule:test {
     v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
     v20:CInt64[0] = LoadConst<CInt64[0]>
     v15:CInt64 = IntBinaryOp<FloorDivide> v11 v19
-    v17:OptLongExact = PrimitiveBox<true> v15
+    v17:OptLongExact = PrimitiveBox<CInt64> v15
     v18:LongExact = CheckExc v17 {
       NextInstrOffset 20
       Locals<1> v15

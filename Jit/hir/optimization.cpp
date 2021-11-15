@@ -303,7 +303,7 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
                                           : PrimitiveCompareOp::kNotEqual,
           compare->left(),
           compare->right());
-      auto box = PrimitiveBox::create(compare->dst(), cbool, TYPED_BOOL);
+      auto box = PrimitiveBox::create(compare->dst(), cbool, TCBool);
       primitive_compare->copyBytecodeOffset(instr);
       box->copyBytecodeOffset(instr);
       compare->ExpandInto({primitive_compare, box});

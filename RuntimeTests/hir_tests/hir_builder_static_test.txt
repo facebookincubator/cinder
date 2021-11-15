@@ -886,7 +886,7 @@ fun jittestmodule:test {
       NextInstrOffset 20
     }
     v10 = LoadField<16> v9
-    v11 = PrimitiveBox<true> v10
+    v11 = PrimitiveBox<CInt64> v10
     v11 = CheckExc v11 {
       NextInstrOffset 24
     }
@@ -912,7 +912,7 @@ fun jittestmodule:test {
     InitListTuple<list, 3> v3 v0 v1 v2
     v4 = Assign v3
     v5 = LoadField<16> v4
-    v6 = PrimitiveBox<true> v5
+    v6 = PrimitiveBox<CInt64> v5
     v6 = CheckExc v6 {
       NextInstrOffset 14
     }
@@ -1032,7 +1032,7 @@ fun jittestmodule:test {
 
   bb 3 (preds 1, 2) {
     v6 = LoadConst<CInt64[0]>
-    v7 = PrimitiveBox<true> v6
+    v7 = PrimitiveBox<CInt64> v6
     v7 = CheckExc v7 {
       NextInstrOffset 14
       Locals<1> v0
@@ -1068,7 +1068,7 @@ fun jittestmodule:test {
 
   bb 6 (preds 4, 5) {
     v12 = LoadConst<CInt64[1]>
-    v13 = PrimitiveBox<true> v12
+    v13 = PrimitiveBox<CInt64> v12
     v13 = CheckExc v13 {
       NextInstrOffset 22
       Locals<1> v0
@@ -1104,7 +1104,7 @@ fun jittestmodule:test {
 
   bb 9 (preds 7, 8) {
     v18 = LoadConst<CInt64[2]>
-    v19 = PrimitiveBox<true> v18
+    v19 = PrimitiveBox<CInt64> v18
     v19 = CheckExc v19 {
       NextInstrOffset 30
       Locals<1> v0
@@ -1194,7 +1194,7 @@ fun jittestmodule:test {
     }
     v17 = LoadField<24> v1
     v18 = LoadArrayItem v17 v16 v1
-    v19 = PrimitiveBox<true> v18
+    v19 = PrimitiveBox<CInt8> v18
     v19 = CheckExc v19 {
       NextInstrOffset 44
       Locals<2> v0 v1
@@ -1323,7 +1323,7 @@ fun jittestmodule:test {
     v3 = LoadConst<CDouble[2.0]>
     v1 = Assign v3
     v4 = DoubleBinaryOp<Add> v0 v1
-    v5 = PrimitiveBox<false> v4
+    v5 = PrimitiveBox<CDouble> v4
     v5 = CheckExc v5 {
       NextInstrOffset 18
       Locals<2> v0 v1

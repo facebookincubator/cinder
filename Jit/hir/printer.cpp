@@ -438,7 +438,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kPrimitiveBox: {
       const auto& box = static_cast<const PrimitiveBox&>(instr);
-      return fmt::format("{}", box.is_signed());
+      return fmt::format("{}", box.type());
     }
     case Opcode::kPrimitiveUnbox: {
       const auto& unbox = static_cast<const PrimitiveUnbox&>(instr);

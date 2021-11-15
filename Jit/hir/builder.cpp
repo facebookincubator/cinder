@@ -1707,7 +1707,7 @@ void HIRBuilder::emitLoadIterableArg(
   auto tup_idx = temps_.AllocateStack();
   auto element = temps_.AllocateStack();
   tc.emit<LoadConst>(tmp, Type::fromCInt(bc_instr.oparg(), TCInt64));
-  tc.emitChecked<PrimitiveBox>(tup_idx, tmp, true);
+  tc.emitChecked<PrimitiveBox>(tup_idx, tmp, TCInt64);
   tc.emit<BinaryOp>(
       element, BinaryOpKind::kSubscript, tuple, tup_idx, tc.frame);
   tc.frame.stack.push(element);
@@ -1870,10 +1870,9 @@ bool HIRBuilder::emitInvokeFunction(
         int argnum = prim_args_info->tai_args[i].tai_argnum;
         Register* reg = arg_regs.at(argnum);
         auto boxed_primitive_tmp = temps_.AllocateStack();
-        tc.emit<PrimitiveBox>(
-            boxed_primitive_tmp,
-            reg,
-            prim_args_info->tai_args[i].tai_primitive_type);
+        Type typ =
+            prim_type_to_type(prim_args_info->tai_args[i].tai_primitive_type);
+        tc.emit<PrimitiveBox>(boxed_primitive_tmp, reg, typ);
         arg_regs[argnum] = boxed_primitive_tmp;
       }
     } else {
@@ -1890,7 +1889,7 @@ bool HIRBuilder::emitInvokeFunction(
         Type t = prim_type_to_type(_Py_SIG_TYPE_MASK(elem->se_argtype));
         if (t <= TPrimitive) {
           Register* reg = arg_regs.at(i);
-          tc.emit<PrimitiveBox>(reg, reg, _Py_SIG_TYPE_MASK(elem->se_argtype));
+          tc.emit<PrimitiveBox>(reg, reg, t);
         }
       }
     }
@@ -2167,8 +2166,8 @@ void HIRBuilder::emitPrimitiveBox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  int prim_type = preloader_.primitiveTypecode(constArg(bc_instr));
-  tc.emitChecked<PrimitiveBox>(tmp, src, prim_type);
+  Type typ = preloader_.type(constArg(bc_instr));
+  tc.emitChecked<PrimitiveBox>(tmp, src, typ);
   tc.frame.stack.push(tmp);
 }
 

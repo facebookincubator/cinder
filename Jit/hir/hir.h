@@ -1987,19 +1987,19 @@ class INSTR_CLASS(PrimitiveCompare, HasOutput, Operands<2>) {
 
 class INSTR_CLASS(PrimitiveBox, HasOutput, Operands<1>) {
  public:
-  PrimitiveBox(Register* dst, Register* value, int type)
+  PrimitiveBox(Register* dst, Register* value, Type type)
       : InstrT(dst, value), type_(type) {}
 
   Register* value() const {
     return GetOperand(0);
   }
 
-  bool is_signed() const {
-    return type_ != TYPED_DOUBLE && (type_ & (TYPED_INT_SIGNED));
+  Type type() const {
+    return type_;
   }
 
  private:
-  int type_;
+  Type type_;
 };
 
 class INSTR_CLASS(PrimitiveUnbox, HasOutput, Operands<1>) {

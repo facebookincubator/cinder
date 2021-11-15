@@ -154,7 +154,7 @@ BB %3 - preds: %0 - succs: %10
         %5:64bit = Move 4614256447914709615(0x400921cac083126f):Object
        %6:Double = Move %5:64bit
 
-# v6:OptFloatExact = PrimitiveBox<false> v4
+# v6:OptFloatExact = PrimitiveBox<CDouble> v4
        %7:Object = Call)");
   // Note - we only check whether the LIR has the stuff we care about
   ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);

@@ -62,7 +62,7 @@ fun jittestmodule:test {
     v3:Object = LoadArg<0; "x">
     v4:Object = LoadArg<1; "y">
     v8:CBool = PrimitiveCompare<Equal> v3 v4
-    v7:Bool = PrimitiveBox<false> v8
+    v7:Bool = PrimitiveBox<CBool> v8
     Return v7
   }
 }
@@ -77,7 +77,7 @@ fun jittestmodule:test {
     v3:Object = LoadArg<0; "x">
     v4:Object = LoadArg<1; "y">
     v8:CBool = PrimitiveCompare<NotEqual> v3 v4
-    v7:Bool = PrimitiveBox<false> v8
+    v7:Bool = PrimitiveBox<CBool> v8
     Return v7
   }
 }
