@@ -933,7 +933,7 @@ void HIRBuilder::translate(
           break;
         }
         case RETURN_PRIMITIVE: {
-          Type type = preloader_.type(constArg(bc_instr));
+          Type type = prim_type_to_type(bc_instr.oparg());
           JIT_CHECK(
               type <= irfunc.return_type,
               "bad return type %s, expected %s",

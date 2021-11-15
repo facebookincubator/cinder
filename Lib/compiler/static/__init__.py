@@ -670,7 +670,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 self._visitReturnValue(value, expected)
             if isinstance(expected, CType):
                 opcode = "RETURN_PRIMITIVE"
-                oparg = expected.type_descr
+                oparg = expected.instance.as_oparg()
         else:
             self.unwind_setup_entries(preserve_tos=False)
             self.emit("LOAD_CONST", None)

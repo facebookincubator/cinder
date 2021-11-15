@@ -275,6 +275,7 @@ _code_type = type(_write_atomic.__code__)
 #     Python 3.8b4  3415 (LOAD_TYPE, Backwards incompatible change to classmethod INVOKEs)
 #     Python 3.8b4  3416 (Migrate PRIMITIVE opcodes to use type descrs)
 #     Python 3.8b4  3417 Inlining list/set/dict comprehensions in functions
+#     Python 3.8b4  3418 (add ENUM shadow codes, migrate RETURN_PRIMITIVE back to opargs)
 #
 # MAGIC must change whenever the bytecode emitted by the compiler may no
 # longer be understood by older implementations of the eval loop (usually
@@ -283,7 +284,7 @@ _code_type = type(_write_atomic.__code__)
 # Whenever MAGIC_NUMBER is changed, the ranges in the magic_values array
 # in PC/launcher.c must also be updated.
 
-MAGIC_NUMBER = (3417).to_bytes(2, 'little') + b'\r\n'
+MAGIC_NUMBER = (3418).to_bytes(2, 'little') + b'\r\n'
 _RAW_MAGIC_NUMBER = int.from_bytes(MAGIC_NUMBER, 'little')  # For import.c
 
 _PYCACHE = '__pycache__'

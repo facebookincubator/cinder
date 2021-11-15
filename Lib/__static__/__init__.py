@@ -24,6 +24,21 @@ from typing import (
 from weakref import WeakValueDictionary
 
 from .enum import Enum
+from .type_code import (
+    type_code,
+    TYPED_INT8,
+    TYPED_INT16,
+    TYPED_INT32,
+    TYPED_INT64,
+    TYPED_UINT8,
+    TYPED_UINT16,
+    TYPED_UINT32,
+    TYPED_UINT64,
+    TYPED_DOUBLE,
+    TYPED_SINGLE,
+    TYPED_BOOL,
+    TYPED_CHAR,
+)
 
 try:
     import _static
@@ -51,7 +66,6 @@ except ImportError:
 else:
     chkdict = _static.chkdict
     chklist = _static.chklist
-    set_type_code = _static.set_type_code
     is_type_static = _static.is_type_static
     set_type_static = _static.set_type_static
     set_type_static_final = _static.set_type_static_final
@@ -76,18 +90,6 @@ try:
         posix_clock_gettime_ns,
     )
 except ImportError:
-    TYPED_INT8 = 0
-    TYPED_INT16 = 0
-    TYPED_INT32 = 0
-    TYPED_INT64 = 0
-    TYPED_UINT8 = 0
-    TYPED_UINT16 = 0
-    TYPED_UINT32 = 0
-    TYPED_UINT64 = 0
-    TYPED_DOUBLE = 0
-    TYPED_SINGLE = 0
-    TYPED_BOOL = 0
-    TYPED_CHAR = 0
     RAND_MAX = (1 << 31) - 1
 
     def rand():
@@ -101,15 +103,6 @@ try:
     import cinder
 except ImportError:
     cinder = None
-
-
-def type_code(code: int):
-    def inner(c):
-        if _static is not None:
-            _static.set_type_code(c, code)
-        return c
-
-    return inner
 
 
 pydict = dict

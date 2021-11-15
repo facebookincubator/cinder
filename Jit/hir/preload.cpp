@@ -160,7 +160,6 @@ void Preloader::preload(BorrowedRef<PyCodeObject> code) {
       case PRIMITIVE_BOX:
       case PRIMITIVE_UNBOX:
       case REFINE_TYPE:
-      case RETURN_PRIMITIVE:
       case TP_ALLOC: {
         BorrowedRef<> descr =
             PyTuple_GET_ITEM(code->co_consts, bc_instr.oparg());

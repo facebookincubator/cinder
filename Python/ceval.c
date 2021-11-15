@@ -2186,37 +2186,6 @@ main_loop:
         }
 
         case TARGET(RETURN_PRIMITIVE): {
-            PyObject* descr = GETITEM(consts, oparg);
-            int optional;
-            PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
-            if (type == NULL) {
-                goto error;
-            }
-            int code = _PyClassLoader_GetTypeCode(type);
-            Py_DECREF(type);
-
-            retval = POP();
-
-            /* In the interpreter, we always return a boxed int. We have a boxed
-             * value on the stack already, but we may have to deal with sign
-             * extension. */
-            if (code & TYPED_INT_SIGNED && code != TYPED_DOUBLE) {
-                size_t ival = (size_t)PyLong_AsVoidPtr(retval);
-                if (ival & ((size_t)1) << 63) {
-                    Py_DECREF(retval);
-                    retval = PyLong_FromSsize_t((int64_t)ival);
-                }
-            }
-
-            if (shadow.shadow != NULL) {
-                _PyShadow_PatchByteCode(&shadow, next_instr, RETURN_PRIMITIVE_NUMERIC, code);
-            }
-
-            assert(f->f_iblock == 0);
-            goto exit_returning;
-        }
-
-        case TARGET(RETURN_PRIMITIVE_NUMERIC): {
             retval = POP();
 
             /* In the interpreter, we always return a boxed int. We have a boxed
@@ -4709,8 +4678,12 @@ main_loop:
                 if (type == NULL) {
                     goto error;
                 }
+
+                int enum_type = _PyClassLoader_IsEnum(type);
                 int primitive = _PyClassLoader_GetTypeCode(type);
-                if (primitive == TYPED_BOOL) {
+                if (enum_type) {
+                    optional = 0;
+                } else if (primitive == TYPED_BOOL) {
                     optional = 0;
                     Py_DECREF(type);
                     type = &PyBool_Type;
@@ -4736,6 +4709,22 @@ main_loop:
                         Py_TYPE(val)->tp_name);
                     Py_DECREF(type);
                     goto error;
+                }
+
+                Py_DECREF(type);
+
+                if (enum_type) {
+                    PyObject* new_val = PyObject_GetAttrString(val, "value");
+                    if (new_val == NULL) {
+                        goto error;
+                    }
+                    if (idx < 0) {
+                        assert(!_PyErr_Occurred(tstate));
+                        PyCell_SET(freevars[-(idx + 1)], new_val);
+                    } else {
+                        fastlocals[idx] = new_val;
+                    }
+                    Py_SETREF(val, new_val);
                 } else if (primitive <= TYPED_INT64) {
                     size_t value;
                     if (!_PyClassLoader_OverflowCheck(val, primitive, &value)) {
@@ -4743,11 +4732,9 @@ main_loop:
                             PyExc_OverflowError,
                             "int overflow"
                         );
-                        Py_DECREF(type);
                         goto error;
                     }
                 }
-                Py_DECREF(type);
             }
 
             FAST_DISPATCH();
@@ -4779,6 +4766,20 @@ main_loop:
                             PyTuple_GetItem(co->co_varnames, idx),
                         Py_TYPE(val)->tp_name);
                     goto error;
+                }
+
+                if (_PyClassLoader_IsEnum(check->tai_type)) {
+                    PyObject* new_val = PyObject_GetAttrString(val, "value");
+                    if (new_val == NULL) {
+                        goto error;
+                    }
+                    if (idx < 0) {
+                        assert(!_PyErr_Occurred(tstate));
+                        PyCell_SET(freevars[-(idx + 1)], new_val);
+                    } else {
+                        fastlocals[idx] = new_val;
+                    }
+                    Py_SETREF(val, new_val);
                 } else if (check->tai_primitive_type != TYPED_OBJECT) {
                     size_t value;
                     if (!_PyClassLoader_OverflowCheck(val, check->tai_primitive_type, &value)) {
@@ -4868,23 +4869,63 @@ main_loop:
             if (type == NULL) {
                 goto error;
             }
-            int code = _PyClassLoader_GetTypeCode(type);
-            Py_DECREF(type);
 
+            PyObject *val = TOP();
+            int code = _PyClassLoader_GetTypeCode(type);
             if ((code & (TYPED_INT_SIGNED)) && code != (TYPED_DOUBLE)) {
                 /* We have a boxed value on the stack already, but we may have to
                  * deal with sign extension */
-                PyObject *val = TOP();
                 size_t ival = (size_t)PyLong_AsVoidPtr(val);
                 if (ival & ((size_t)1) << 63) {
-                    SET_TOP(PyLong_FromSsize_t((int64_t)ival));
-                    Py_DECREF(val);
+                    PyObject* new_val = PyLong_FromSsize_t((int64_t)ival);
+                    SET_TOP(new_val);
+                    Py_SETREF(val, new_val);
                 }
             }
 
-            if (shadow.shadow != NULL) {
+            if (_PyClassLoader_IsEnum(type)) {
+                PyObject* enum_val =
+                    PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
+                if (enum_val == NULL) {
+                    Py_DECREF(type);
+                    goto error;
+                }
+                SET_TOP(enum_val);
+                Py_DECREF(val);
+                if (shadow.shadow != NULL) {
+                   int offset = _PyShadow_CacheCastType(&shadow, (PyObject*)type);
+                   if (offset != -1) {
+                       _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_BOX_ENUM, offset);
+                   }
+                }
+            } else if (shadow.shadow != NULL) {
                 _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_BOX_NUMERIC, code);
             }
+
+            Py_DECREF(type);
+            FAST_DISPATCH();
+        }
+
+        case TARGET(PRIMITIVE_BOX_ENUM): {
+            PyTypeObject* type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
+            assert(_PyClassLoader_GetTypeCode(type) == TYPED_INT64);
+
+            PyObject *val = TOP();
+            /* We have a boxed value on the stack already, but we may have to
+             * deal with sign extension */
+            size_t ival = (size_t)PyLong_AsVoidPtr(val);
+            if (ival & ((size_t)1) << 63) {
+                PyObject *new_val = PyLong_FromSsize_t((int64_t)ival);
+                SET_TOP(new_val);
+                Py_SETREF(val, new_val);
+            }
+
+            PyObject* enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
+            if (enum_val == NULL) {
+                goto error;
+            }
+            SET_TOP(enum_val);
+            Py_DECREF(val);
 
             FAST_DISPATCH();
         }
@@ -4910,10 +4951,36 @@ main_loop:
             if (type == NULL) {
                 goto error;
             }
-            int code = _PyClassLoader_GetTypeCode(type);
-            Py_DECREF(type);
 
             PyObject *top = TOP();
+            if (_PyClassLoader_IsEnum(type)) {
+                if (!PyObject_TypeCheck(top, type)) {
+                    PyErr_Format(PyExc_TypeError, "expected %s, got %s",
+                                 type->tp_name, Py_TYPE(top)->tp_name);
+                }
+
+                PyObject* val = PyObject_GetAttrString(top, "value");
+                if (val == NULL) {
+                    Py_DECREF(type);
+                    goto error;
+                }
+                SET_TOP(val);
+                Py_DECREF(top);
+
+                if (shadow.shadow != NULL) {
+                    int offset = _PyShadow_CacheCastType(&shadow, (PyObject*)type);
+                    if (offset != -1) {
+                        _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_UNBOX_ENUM, offset);
+                    }
+                }
+
+                Py_DECREF(type);
+                FAST_DISPATCH();
+            }
+
+            Py_DECREF(type);
+
+            int code = _PyClassLoader_GetTypeCode(type);
             if (PyLong_CheckExact(top)) {
                 /* We always box values in the interpreter loop, so this just does
                  * overflow checking here. */
@@ -4924,7 +4991,7 @@ main_loop:
                 }
             }
             else if (!PyBool_Check(top) && !PyFloat_CheckExact(top)) {
-                PyErr_Format(PyExc_TypeError, "expected int, bool or float, got %s",
+                PyErr_Format(PyExc_TypeError, "expected int, enum, bool or float, got %s",
                              Py_TYPE(top)->tp_name);
                 goto error;
             }
@@ -4932,6 +4999,25 @@ main_loop:
             if (shadow.shadow != NULL) {
                 _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_UNBOX_NUMERIC, code);
             }
+
+            FAST_DISPATCH();
+        }
+
+        case TARGET(PRIMITIVE_UNBOX_ENUM): {
+            PyObject *top = TOP();
+            PyTypeObject* type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
+            if (!PyObject_TypeCheck(top, type)) {
+                PyErr_Format(PyExc_TypeError, "expected %s, got %s",
+                                type->tp_name, Py_TYPE(top)->tp_name);
+                goto error;
+            }
+
+            PyObject* val = PyObject_GetAttrString(top, "value");
+            if (val == NULL) {
+                goto error;
+            }
+            SET_TOP(val);
+            Py_DECREF(top);
 
             FAST_DISPATCH();
         }
@@ -7904,6 +7990,92 @@ _PyEntry_StaticEntry(PyFunctionObject *func,
     return _PyFunction_Vectorcall((PyObject *)func, args, nargsf, kwnames);
 }
 
+static PyObject *
+_PyEntry_WrapEnum(PyObject *obj, PyFunctionObject *func)
+{
+    PyObject* descr = _PyClassLoader_GetReturnTypeDescr(func);
+    int optional;
+    PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+    if (type == NULL) {
+        Py_DECREF(obj);
+        return NULL;
+    }
+    PyObject* res = PyObject_CallFunctionObjArgs((PyObject*)type, obj, NULL);
+    Py_DECREF(type);
+    Py_DECREF(obj);
+    return res;
+}
+
+PyObject *_Py_HOT_FUNCTION
+_PyEntry_StaticEntryNArgsEnum(PyFunctionObject *func,
+                              PyObject **args,
+                              Py_ssize_t nargsf,
+                              PyObject *kwnames)
+{
+    if (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) {
+        return _PyFunction_CallStatic(func, args, nargsf, kwnames);
+    }
+
+    PyObject* res = _PyFunction_Vectorcall_NArgs(func, args, nargsf, kwnames);
+    return res == NULL ? NULL : _PyEntry_WrapEnum(res, func);
+}
+
+PyObject *_Py_HOT_FUNCTION
+_PyEntry_StaticEntryP0DefaultsEnum(PyFunctionObject *func,
+                                   PyObject **args,
+                                   Py_ssize_t nargsf,
+                                   PyObject *kwnames)
+{
+    if (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) {
+        return _PyFunction_CallStatic(func, args, nargsf, kwnames);
+    }
+
+    PyObject* res = _PyFunction_Vectorcall_PODefaults(func, args, nargsf, kwnames);
+    return res == NULL ? NULL : _PyEntry_WrapEnum(res, func);
+}
+
+PyObject *_Py_HOT_FUNCTION
+_PyEntry_StaticEntryNArgCoroEnum(PyFunctionObject *func,
+                                 PyObject **args,
+                                 Py_ssize_t nargsf,
+                                 PyObject *kwnames)
+{
+    if (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) {
+        return _PyFunction_CallStatic(func, args, nargsf, kwnames);
+    }
+
+    PyObject* res = _PyFunction_Vectorcall_NArgCoro(func, args, nargsf, kwnames);
+    return res == NULL ? NULL : _PyEntry_WrapEnum(res, func);
+}
+
+PyObject *_Py_HOT_FUNCTION
+_PyEntry_StaticEntryEnum(PyFunctionObject *func,
+                         PyObject **args,
+                         Py_ssize_t nargsf,
+                         PyObject *kwnames)
+{
+    if (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) {
+        return _PyFunction_CallStatic(func, args, nargsf, kwnames);
+    }
+
+    PyObject* res = _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames);
+    return res == NULL ? NULL : _PyEntry_WrapEnum(res, func);
+}
+
+static vectorcallfunc
+_PyStaticEntry_MaybeEnum(PyCodeObject *co, void *entry, void *enum_entry) {
+    PyObject* descr = _PyClassLoader_GetCodeReturnTypeDescr(co);
+    int optional;
+    PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+    if (type == NULL) {
+        PyErr_Clear();
+        return (vectorcallfunc)PyEntry_LazyInit;
+    }
+    int is_enum = _PyClassLoader_IsEnum(type);
+    Py_DECREF(type);
+    return is_enum ? (vectorcallfunc)enum_entry : (vectorcallfunc)entry;
+}
+
 void
 PyEntry_initnow(PyFunctionObject *func)
 {
@@ -7925,15 +8097,16 @@ PyEntry_initnow(PyFunctionObject *func)
     if (fast_path_eligible) {
         if (func->func_defaults == NULL) {
             if (co->co_flags & CO_STATICALLY_COMPILED) {
-                func->vectorcall = (vectorcallfunc)_PyEntry_StaticEntry;
+                func->vectorcall = _PyStaticEntry_MaybeEnum(
+                    co, _PyEntry_StaticEntry, _PyEntry_StaticEntryEnum);
             } else {
                 func->vectorcall =
                     (vectorcallfunc)_PyFunction_Vectorcall_NArgs;
             }
         } else {
             if (co->co_flags & CO_STATICALLY_COMPILED) {
-                func->vectorcall =
-                    (vectorcallfunc)_PyEntry_StaticEntryP0Defaults;
+                func->vectorcall = _PyStaticEntry_MaybeEnum(
+                    co, _PyEntry_StaticEntryP0Defaults, _PyEntry_StaticEntryP0DefaultsEnum);
             } else {
                 func->vectorcall =
                     (vectorcallfunc)_PyFunction_Vectorcall_PODefaults;
@@ -7942,12 +8115,18 @@ PyEntry_initnow(PyFunctionObject *func)
     } else if ((co->co_kwonlyargcount == 0) &&
                (flags == (required_flags | CO_COROUTINE)) &&
                (func->func_defaults == NULL)) {
-        func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall_NArgCoro;
+        if (co->co_flags & CO_STATICALLY_COMPILED) {
+            func->vectorcall = _PyStaticEntry_MaybeEnum(
+                co, _PyFunction_Vectorcall_NArgCoro, _PyEntry_StaticEntryNArgCoroEnum);
+        } else {
+            func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall_NArgCoro;
+        }
     }
     else {
         if (co->co_flags & CO_STATICALLY_COMPILED &&
             !(co->co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR))) {
-            func->vectorcall = (vectorcallfunc)_PyEntry_StaticEntry;
+            func->vectorcall = _PyStaticEntry_MaybeEnum(
+                co, _PyEntry_StaticEntry, _PyEntry_StaticEntryEnum);
         } else {
             func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
         }

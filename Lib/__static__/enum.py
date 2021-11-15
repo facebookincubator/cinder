@@ -3,6 +3,8 @@ from __future__ import annotations
 import inspect
 from typing import Iterable, Mapping, Sequence, Tuple, Type, final
 
+from .type_code import set_type_code, TYPED_INT64
+
 
 def eq_method(self: Enum, other: Enum) -> bool:
     return self.value == other or (
@@ -96,6 +98,10 @@ class EnumMeta(type):
 class Enum(metaclass=EnumMeta):
     def __init__(self, value: object) -> None:
         self.value = value
+
+    def __init_subclass__(cls, /, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        set_type_code(cls, TYPED_INT64)
 
     def __dir__(self) -> Sequence[str]:
         return ["name", "value"]

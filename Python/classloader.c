@@ -10,6 +10,7 @@
 
 static PyObject *classloader_cache;
 static PyObject *genericinst_cache;
+static PyTypeObject *static_enum;
 
 static void
 vtabledealloc(_PyType_VTable *op)
@@ -1590,6 +1591,7 @@ _PyClassLoader_ClearCache()
 {
     Py_CLEAR(classloader_cache);
     Py_CLEAR(genericinst_cache);
+    Py_CLEAR(static_enum);
 }
 
 void
@@ -2278,6 +2280,21 @@ _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *containe
 done:
 
     return cache;
+}
+
+int
+_PyClassLoader_IsEnum(PyTypeObject* type) {
+    if (static_enum == NULL) {
+        int optional;
+        PyObject* descr = Py_BuildValue("(ss)", "__static__", "Enum");
+        static_enum = _PyClassLoader_ResolveType(descr, &optional);
+        Py_DECREF(descr);
+        if (static_enum == NULL) {
+            PyErr_Clear();
+            return 0;
+        }
+    }
+    return PyType_IsSubtype(type, static_enum);
 }
 
 int
@@ -3206,9 +3223,13 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
         if (ref_type == NULL) {
             return NULL;
         }
-        int prim_type = _PyClassLoader_GetTypeCode(ref_type);
 
-        if (prim_type == TYPED_BOOL) {
+        int enum_type = _PyClassLoader_IsEnum(ref_type);
+        int prim_type = _PyClassLoader_GetTypeCode(ref_type);
+        if (enum_type) {
+            cur_check->tai_type = ref_type;
+            cur_check->tai_optional = 0;
+        } else if (prim_type == TYPED_BOOL) {
             cur_check->tai_type = &PyBool_Type;
             cur_check->tai_optional = 0;
             Py_INCREF(&PyBool_Type);

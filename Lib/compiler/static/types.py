@@ -5984,6 +5984,14 @@ class CEnumInstance(CInstance["CEnumType"]):
         visitor.set_type(node, CBOOL_TYPE.instance)
         return True
 
+    def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
+        code_gen.visit(node)
+        type = code_gen.get_type(node)
+        if isinstance(type, CIntInstance):
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
+        else:
+            raise RuntimeError("unsupported box type: " + type.name)
+
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
         code_gen.emit("PRIMITIVE_COMPARE_OP", INT64_VALUE.get_op_id(op))
 
@@ -5994,6 +6002,10 @@ class CEnumInstance(CInstance["CEnumType"]):
             code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
         else:
             raise TypedSyntaxError("unsupported op")
+
+    def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
+        code_gen.visit(node)
+        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
 
 class CEnumType(CType):
@@ -6022,18 +6034,19 @@ class CEnumType(CType):
             raise TypedSyntaxError("Static Enum types do not allow subclassing")
         return CEnumType(name, bases)
 
-    @property
-    # TODO(wmeehan): remove once we can handle (un)boxing enums
-    def type_descr(self) -> TypeDescr:
-        return INT64_TYPE.type_descr
-
     def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
         if not isinstance(const, ast.Constant):
             raise TypedSyntaxError(f"cannot resolve enum value {const} at compile time")
 
         value = const.value
         if not isinstance(value, int):
-            raise TypedSyntaxError(f"Static enums only support ints, not {type(value)}")
+            raise TypedSyntaxError(
+                f"Static enum values must be int, not {type(value).__name__}"
+            )
+        if not INT64_VALUE.is_valid_int(value):
+            raise TypedSyntaxError(
+                f"Value {value} for {self.instance_name}.{name.id} is out of bounds"
+            )
 
         self.values[name.id] = CEnumInstance(self, name.id, value)
 
@@ -6048,6 +6061,20 @@ class CEnumType(CType):
             return
 
         super().bind_attr(node, visitor, type_ctx)
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        if len(node.args) != 1:
+            visitor.syntax_error(
+                f"{self.name} requires a single argument ({len(node.args)} given)", node
+            )
+
+        visitor.set_type(node, self.instance)
+        arg = node.args[0]
+        visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+
+        return NO_EFFECT
 
     def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
         target = node.target
@@ -6083,6 +6110,20 @@ class CEnumType(CType):
             return
 
         super().emit_attr(node, code_gen)
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) != 1:
+            raise code_gen.syntax_error(
+                f"{self.name} requires a single argument, given {len(node.args)}", node
+            )
+
+        arg = node.args[0]
+        arg_type = code_gen.get_type(arg)
+        if isinstance(arg_type, CEnumInstance):
+            code_gen.visit(arg)
+        else:
+            code_gen.defaultVisit(node)
+            code_gen.emit("PRIMITIVE_UNBOX", self.type_descr)
 
 
 class CIntInstance(CInstance["CIntType"]):
