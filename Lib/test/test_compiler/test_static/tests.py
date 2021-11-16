@@ -9265,7 +9265,7 @@ class StaticCompilationTests(StaticTestBase):
         ]
         tf = [True, False]
         for (type, val), box, strict, error, unjitable in itertools.product(
-            cases, [False], [True], [False], [True]
+            cases, tf, tf, tf, tf
         ):
             if type == "cbool":
                 op = "or"
