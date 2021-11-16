@@ -3366,11 +3366,20 @@ class Function {
   Ref<PyDictObject> globals;
   Ref<PyDictObject> builtins;
 
+  // for primitive args only, null if there are none
+  Ref<_PyTypedArgsInfo> prim_args_info;
+
   // Fully-qualified name of the function
   std::string fullname;
 
   // Does this function need its PyFunctionObject* at runtime?
   bool uses_runtime_func{false};
+
+  // Does this function have primitive args?
+  bool has_primitive_args{false};
+
+  // is the first argument a primitive?
+  bool has_primitive_first_arg{false};
 
   // Return type
   Type return_type{TObject};

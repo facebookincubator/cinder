@@ -246,6 +246,18 @@ Type Preloader::returnType() const {
   return return_type_;
 }
 
+bool Preloader::hasPrimitiveArgs(void) const {
+  return has_primitive_args_;
+}
+
+bool Preloader::hasPrimitiveFirstArg() const {
+  return has_primitive_first_arg_;
+}
+
+BorrowedRef<_PyTypedArgsInfo> Preloader::primArgsInfo(void) const {
+  return prim_args_info_;
+}
+
 static BorrowedRef<> constArg(
     BorrowedRef<PyCodeObject> code,
     BytecodeInstruction& bc_instr) {
@@ -277,9 +289,15 @@ void Preloader::preload(
             reinterpret_cast<PyTupleObject*>(constArg(code, bc_instr).get());
         for (int i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
           long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, i));
-          check_arg_types_.emplace(
-              local,
-              to_jit_type(resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1))));
+          Type type =
+              to_jit_type(resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1)));
+          check_arg_types_.emplace(local, type);
+          if (type <= TPrimitive) {
+            has_primitive_args_ = true;
+            if (local == 0) {
+              has_primitive_first_arg_ = true;
+            }
+          }
         }
         break;
       }
@@ -314,6 +332,11 @@ void Preloader::preload(
         break;
       }
     }
+  }
+
+  if (has_primitive_args_) {
+    prim_args_info_ = Ref<_PyTypedArgsInfo>::steal(
+        _PyClassLoader_GetTypedArgsInfo(code, true));
   }
 }
 

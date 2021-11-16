@@ -556,9 +556,12 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
     irfunc->builtins.reset(PyEval_GetBuiltins());
 
     preloader_.preload(code, irfunc->globals, irfunc->builtins);
+    irfunc->prim_args_info = Ref<_PyTypedArgsInfo>(preloader_.primArgsInfo());
   }
 
   irfunc->return_type = preloader_.returnType();
+  irfunc->has_primitive_args = preloader_.hasPrimitiveArgs();
+  irfunc->has_primitive_first_arg = preloader_.hasPrimitiveFirstArg();
   temps_ = TempAllocator(&irfunc->env);
 
   BytecodeInstructionBlock bc_instrs{code_};

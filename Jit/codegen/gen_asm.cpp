@@ -485,24 +485,6 @@ void NativeGenerator::loadOrGenerateLinkFrame(
   }
 }
 
-int hasPrimitiveFirstArg(PyCodeObject* code) {
-  _Py_CODEUNIT* rawcode = code->co_rawcode;
-  JIT_CHECK(
-      _Py_OPCODE(rawcode[0]) == CHECK_ARGS, "expected CHECK_ARGS as 1st arg");
-  PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
-  if (PyTuple_GET_SIZE(checks) &&
-      PyLong_AsLong(PyTuple_GET_ITEM(checks, 0)) == 0 &&
-      THREADED_COMPILE_SERIALIZED_CALL(_PyClassLoader_ResolvePrimitiveType(
-          PyTuple_GET_ITEM(checks, 1))) != TYPED_OBJECT) {
-    // first arg is a primitive type, don't want to link the normal frame,
-    // we can just signal this by passing 0 for nargsf.  It serves no other
-    // purpose in linking the frame
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
 void NativeGenerator::generatePrologue(
     Label correct_arg_count,
     Label native_entry_point) {
@@ -594,22 +576,17 @@ void NativeGenerator::generatePrologue(
   Label setup_frame = as_->newLabel();
   Label argCheck = as_->newLabel();
 
-  _PyTypedArgsInfo* typed_arg_checks = nullptr;
-  bool has_primitive_args = false;
   if (code->co_flags & CO_STATICALLY_COMPILED) {
     // If we've been invoked statically we can skip all of the
     // argument checking because we know our args have been
     // provided correctly.  But if we have primitives we need to
     // unbox them from their boxed ints.  We usually get to
     // avoid this by doing direct invokes from JITed code.
-    ThreadedCompileSerialize guard;
-    if (_PyClassLoader_HasPrimitiveArgs(code)) {
-      has_primitive_args = true;
-      typed_arg_checks = _PyClassLoader_GetTypedArgsInfo(code, true);
-      JIT_CHECK(typed_arg_checks != nullptr, "OOM on typed arg checks");
-      env_.code_rt->addReference((PyObject*)typed_arg_checks);
-      Py_DECREF(typed_arg_checks); // reference is now owned by runtime
-      as_->mov(x86::r8, reinterpret_cast<uint64_t>(typed_arg_checks));
+    if (func_->has_primitive_args) {
+      ThreadedCompileSerialize guard;
+      env_.code_rt->addReference(func_->prim_args_info);
+      as_->mov(
+          x86::r8, reinterpret_cast<uint64_t>(func_->prim_args_info.get()));
       as_->call(reinterpret_cast<uint64_t>(
           JITRT_CallStaticallyWithPrimitiveSignature));
       as_->leave();
@@ -620,7 +597,7 @@ void NativeGenerator::generatePrologue(
     }
   }
 
-  if (!has_primitive_args) {
+  if (!func_->has_primitive_args) {
     as_->test(x86::rcx, x86::rcx); // test for kwargs
     if (!((code->co_flags & (CO_VARARGS | CO_VARKEYWORDS)) ||
           code->co_kwonlyargcount)) {
@@ -667,12 +644,12 @@ void NativeGenerator::generatePrologue(
 
   as_->bind(correct_arg_count);
   if (code->co_flags & CO_STATICALLY_COMPILED) {
-    if (typed_arg_checks == nullptr) {
+    if (!func_->has_primitive_args) {
       // We weren't called statically, but we've now resolved
       // all arguments to fixed offsets.  Validate that the
       // arguments are correctly typed.
       generateStaticMethodTypeChecks(setup_frame);
-    } else if (hasPrimitiveFirstArg(code)) {
+    } else if (func_->has_primitive_first_arg) {
       as_->mov(x86::rdx, 0);
     }
   }

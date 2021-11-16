@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Python.h"
+#include "classloader.h"
 
 #include "Jit/hir/type.h"
 #include "Jit/log.h"
@@ -84,6 +85,10 @@ class Preloader {
 
   Type returnType(void) const;
 
+  bool hasPrimitiveArgs(void) const;
+  bool hasPrimitiveFirstArg(void) const;
+  BorrowedRef<_PyTypedArgsInfo> primArgsInfo(void) const;
+
  private:
   // keyed by type descr tuple identity (they are interned in code objects)
   std::unordered_map<PyObject*, PyTypeOpt> types_;
@@ -95,6 +100,10 @@ class Preloader {
   // keyed by name index
   std::unordered_map<int, Ref<>> globals_;
   Type return_type_{TObject};
+  bool has_primitive_args_{false};
+  bool has_primitive_first_arg_{false};
+  // for primitive args only, null unless has_primitive_args_
+  Ref<_PyTypedArgsInfo> prim_args_info_;
 };
 
 } // namespace hir
