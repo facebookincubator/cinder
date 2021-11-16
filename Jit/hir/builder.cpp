@@ -546,20 +546,20 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
   }
 
   auto irfunc = std::make_unique<Function>();
+  irfunc->fullname = fullname;
+  irfunc->frameMode = getFrameMode(code);
+  irfunc->setCode(code);
+
   {
     ThreadedCompileSerialize guard;
-    irfunc->fullname = fullname;
-    irfunc->frameMode = getFrameMode(code);
-    irfunc->setCode(code);
     irfunc->globals.reset(globals);
     irfunc->builtins.reset(PyEval_GetBuiltins());
-    globals_ = irfunc->globals;
-    builtins_ = irfunc->builtins;
-    temps_ = TempAllocator(&irfunc->env);
 
-    preloader_.preload(code);
-    irfunc->return_type = preloader_.returnType();
+    preloader_.preload(code, irfunc->globals, irfunc->builtins);
   }
+
+  irfunc->return_type = preloader_.returnType();
+  temps_ = TempAllocator(&irfunc->env);
 
   BytecodeInstructionBlock bc_instrs{code_};
   block_map_ = createBlocks(*irfunc, bc_instrs);
@@ -2535,11 +2535,7 @@ void HIRBuilder::emitLoadGlobal(
   Register* result = temps_.AllocateStack();
 
   auto try_fast_path = [&] {
-    if (!_PyDict_CanWatch(builtins_) || !_PyDict_CanWatch(globals_)) {
-      return false;
-    }
-    PyObject* value = THREADED_COMPILE_SERIALIZED_CALL(
-        loadGlobal(globals_, builtins_, code_->co_names, name_idx));
+    BorrowedRef<> value = preloader_.global(name_idx);
     if (value == nullptr) {
       return false;
     }

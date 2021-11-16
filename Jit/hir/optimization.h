@@ -3,6 +3,7 @@
 
 #include "Jit/hir/hir.h"
 #include "Jit/hir/type.h"
+#include "Jit/ref.h"
 #include "Jit/util.h"
 
 #include <functional>
@@ -23,11 +24,10 @@ class Register;
 // Attempt to load the global with the given index, in the context of the given
 // globals, builtins, and names. Returns nullptr if the global is not currently
 // defined.
-PyObject* loadGlobal(
-    PyObject* globals,
-    PyObject* builtins,
-    PyObject* names,
-    int name_idx);
+BorrowedRef<> loadGlobal(
+    BorrowedRef<PyDictObject> globals,
+    BorrowedRef<PyDictObject> builtins,
+    BorrowedRef<> name);
 
 class Pass {
  public:

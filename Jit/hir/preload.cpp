@@ -7,6 +7,7 @@
 
 #include "Jit/bytecode.h"
 #include "Jit/hir/hir.h"
+#include "Jit/hir/optimization.h"
 #include "Jit/ref.h"
 
 #include <utility>
@@ -229,9 +230,16 @@ Type Preloader::checkArgType(long local) const {
   auto it = check_arg_types_.find(local);
   if (it == check_arg_types_.end()) {
     return TObject;
-  } else {
-    return it->second;
   }
+  return it->second;
+}
+
+BorrowedRef<> Preloader::global(int name_idx) const {
+  auto it = globals_.find(name_idx);
+  if (it == globals_.end()) {
+    return nullptr;
+  }
+  return it->second;
 }
 
 Type Preloader::returnType() const {
@@ -244,18 +252,26 @@ static BorrowedRef<> constArg(
   return PyTuple_GET_ITEM(code->co_consts, bc_instr.oparg());
 }
 
-void Preloader::preload(BorrowedRef<PyCodeObject> code) {
-  // if not statically compiled, there won't be any type descrs
-  if (!(code->co_flags & CO_STATICALLY_COMPILED)) {
-    return;
+void Preloader::preload(
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals,
+    BorrowedRef<PyDictObject> builtins) {
+  if (code->co_flags & CO_STATICALLY_COMPILED) {
+    return_type_ = to_jit_type(
+        resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code)));
   }
-
-  return_type_ = to_jit_type(
-      resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code)));
 
   jit::BytecodeInstructionBlock bc_instrs{code};
   for (auto bc_instr : bc_instrs) {
     switch (bc_instr.opcode()) {
+      case LOAD_GLOBAL: {
+        if (_PyDict_CanWatch(builtins) && _PyDict_CanWatch(globals)) {
+          int name_idx = bc_instr.oparg();
+          BorrowedRef<> name = PyTuple_GET_ITEM(code->co_names, name_idx);
+          globals_[name_idx] = Ref<>(loadGlobal(globals, builtins, name));
+        }
+        break;
+      }
       case CHECK_ARGS: {
         BorrowedRef<PyTupleObject> checks =
             reinterpret_cast<PyTupleObject*>(constArg(code, bc_instr).get());

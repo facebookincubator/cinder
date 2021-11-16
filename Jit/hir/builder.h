@@ -430,8 +430,6 @@ class HIRBuilder {
   BasicBlock* getBlockAtOff(Py_ssize_t off);
 
   BorrowedRef<PyCodeObject> code_;
-  BorrowedRef<PyDictObject> globals_;
-  BorrowedRef<PyDictObject> builtins_;
   BlockMap block_map_;
   Preloader preloader_;
 

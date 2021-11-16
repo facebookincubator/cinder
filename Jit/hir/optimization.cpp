@@ -434,13 +434,11 @@ void DeadCodeElimination::Run(Function& func) {
   }
 }
 
-PyObject* loadGlobal(
-    PyObject* globals,
-    PyObject* builtins,
-    PyObject* names,
-    int name_idx) {
-  PyObject* name = PyTuple_GetItem(names, name_idx);
-  PyObject* result = PyDict_GetItem(globals, name);
+BorrowedRef<> loadGlobal(
+    BorrowedRef<PyDictObject> globals,
+    BorrowedRef<PyDictObject> builtins,
+    BorrowedRef<> name) {
+  BorrowedRef<> result = PyDict_GetItem(globals, name);
   if (result == nullptr && builtins != nullptr) {
     result = PyDict_GetItem(builtins, name);
   }

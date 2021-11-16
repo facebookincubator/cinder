@@ -54,13 +54,16 @@ struct InvokeTarget {
   bool builtin_returns_error_code;
 };
 
-// Preloads all classloader type descrs referenced by a code object. We need to
-// do this in advance because it can resolve lazy imports (or generally just
-// trigger imports) which is Python code execution, which we can't allow
-// mid-compile.
+// Preloads all globals and classloader type descrs referenced by a code object.
+// We need to do this in advance because it can resolve lazy imports (or
+// generally just trigger imports) which is Python code execution, which we
+// can't allow mid-compile.
 class Preloader {
  public:
-  void preload(BorrowedRef<PyCodeObject> code);
+  void preload(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> globals,
+      BorrowedRef<PyDictObject> builtins);
 
   Type type(BorrowedRef<> descr) const;
   Type exactType(BorrowedRef<> descr) const;
@@ -76,6 +79,9 @@ class Preloader {
   // get the type from CHECK_ARGS for the given locals index, or TObject
   Type checkArgType(long local) const;
 
+  // get value for global at given name index
+  BorrowedRef<> global(int name_idx) const;
+
   Type returnType(void) const;
 
  private:
@@ -86,6 +92,8 @@ class Preloader {
   std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> meth_targets_;
   // keyed by locals index
   std::unordered_map<long, Type> check_arg_types_;
+  // keyed by name index
+  std::unordered_map<int, Ref<>> globals_;
   Type return_type_{TObject};
 };
 
