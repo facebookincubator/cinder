@@ -1946,7 +1946,7 @@ class ArgMapping:
                 # Skip type verification here, f(a, b, *something)
                 # TODO: add support for this by implementing type constrained tuples
                 self.nvariadic += 1
-                star_params = func_args[idx:]
+                star_params = expected_args[idx:]
                 self.emitters.append(StarredArg(arg.value, star_params))
                 self.nseen = len(func_args)
                 for arg in self.args[idx:]:
@@ -2127,8 +2127,8 @@ class ArgMapping:
                     return False
         if (
             # We don't support f(**a, **b)
-            num_dstar_args > 1
-            # We don't support f(1, 2, *a) if f has any default arg values
+            (num_dstar_args + num_star_args) > 1
+            # We don't support f(1, 2, *a) iff has any default arg values
             or (has_default_args and has_star_args)
             or num_kwonly
         ):
@@ -3303,7 +3303,10 @@ class BoundClassMethod(Object[Class]):
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
         arg_mapping = ClassMethodArgMapping(
-            self.function, node, self.self_expr, is_instance_call=self.is_instance_call
+            self.function,
+            node,
+            self.self_expr,
+            is_instance_call=self.is_instance_call,
         )
         arg_mapping.bind_args(visitor, skip_self=True)
 

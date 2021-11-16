@@ -319,3 +319,34 @@ class ClassMethodTests(StaticTestBase):
                         asyncio.run(make_hot())
                     self.assertInBytecode(C.instance_method, "INVOKE_METHOD")
                     self.assertEqual(asyncio.run(f(C())), 3)
+
+    def test_invoke_starargs(self):
+        codestr = """
+
+            class C:
+                @classmethod
+                def foo(self, x: int) -> int:
+                    return 3
+
+                def f(self, *args):
+                    return self.foo(*args)
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod.C
+            self.assertEqual(C().f(42), 3)
+
+    def test_invoke_starargs_starkwargs(self):
+        codestr = """
+
+            class C:
+                @classmethod
+                def foo(self, x: int) -> int:
+                    return 3
+
+                def f(self, *args, **kwargs):
+                    return self.foo(*args, **kwargs)
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod.C
+            self.assertNotInBytecode(C.f, "INVOKE_METHOD")
+            self.assertEqual(C().f(42), 3)
