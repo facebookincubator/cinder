@@ -1729,8 +1729,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const InvokeStaticFunction*>(&i);
         auto nargs = instr->NumOperands();
         PyFunctionObject* func = instr->func();
-        int prim_ret_type = _PyClassLoader_ResolvePrimitiveType(
-            _PyClassLoader_GetReturnTypeDescr(func));
 
         std::stringstream ss;
         JIT_CHECK(
@@ -1758,14 +1756,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         bbb.AppendCode(ss.str());
 
-        // functions that return primitives will signal error via edx
+        // functions that return primitives will signal error via edx/xmm1
         std::string err_indicator;
-        if (prim_ret_type == TYPED_OBJECT) {
-          err_indicator = instr->GetOutput()->name();
-        } else if (prim_ret_type == TYPED_DOUBLE) {
+        Type ret_type = instr->ret_type();
+        if (ret_type <= TCDouble) {
           err_indicator = "reg:xmm1";
-        } else {
+        } else if (ret_type <= TPrimitive) {
           err_indicator = "reg:edx";
+        } else {
+          err_indicator = instr->GetOutput()->name();
         }
         bbb.AppendCode(MakeGuard(
             "NotNull", static_cast<const DeoptBase&>(i), err_indicator));

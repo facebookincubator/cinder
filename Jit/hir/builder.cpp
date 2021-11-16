@@ -1720,7 +1720,7 @@ bool HIRBuilder::emitInvokeFunction(
 
   Register* funcreg = temps_.AllocateStack();
   if (target.container_is_immutable) {
-    // try to emit a direct x64 call (InvokeStaticFunction) if we can
+    // try to emit a direct x64 call (InvokeStaticFunction/CallStatic) if we can
     if (!target.uses_runtime_func) {
       if (target.is_function && target.is_statically_typed) {
         if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
