@@ -109,7 +109,7 @@ inline Type Type::dropMortality() const {
 }
 
 inline bool Type::hasSpec() const {
-  return spec_kind_ != kSpecTop;
+  return spec_kind_ != kSpecTop && spec_kind_ != kSpecBottom;
 }
 
 inline Type::SpecKind Type::specKind() const {

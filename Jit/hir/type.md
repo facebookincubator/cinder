@@ -306,8 +306,8 @@ CBool[false] < Primitive
 
 1. A bitset representing the arbitrary union of predefined types. Every leaf type in the main hierarchy diagram above has a bit assigned to it, meaning predefined types like `Long` have three bits set: `LongExact`, `Bool`, and `LongUser`.
 2. A bitset encoding the lifetime of the objects represented by the `Type`: `kLifetimeTop` for `Object` subtypes with unknown mortality, `kLifetimeMortal` and `kLifetimeImmortal` for `Object` subtypes with known mortality, or `kLifetimeBottom` for `Bottom` and primitive types.
-3. A specialization kind: one of `kSpecTop`, `kSpecObject`, `kSpecTypeExact`, `kSpecType`, or `kSpecInt`. This indicates how to interpret the next component.
-4. A `union` containing a `PyTypeObject*`, a `PyObject*`, and an `int64_t`. When the specialization kind is `kSpecTop`, this will be `0`. Otherwise, this holds the specialization’s value.
+3. A specialization kind: one of `kSpecTop`, `kSpecObject`, `kSpecTypeExact`, `kSpecType`, `kSpecInt`, `kSpecDouble`, or `kSpecBottom`. This indicates how to interpret the next component.
+4. A `union` containing a `PyTypeObject*`, a `PyObject*`, an `intptr_t`, and a `double`. When the specialization kind is `kSpecTop` or `kSpecBottom`, this will be `0`. Otherwise, this holds the specialization’s value.
 
 As mentioned previously, the set of values represented by a `Type` is the intersection of the different components. Here are a few examples of this in practice:
 

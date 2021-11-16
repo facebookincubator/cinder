@@ -465,13 +465,13 @@ bool Type::operator<=(Type other) const {
 }
 
 bool Type::specSubtype(Type other) const {
-  if (!other.hasSpec()) {
-    // The Top specialization is a supertype of all specializations.
+  if (other.specKind() == kSpecTop || specKind() == kSpecBottom) {
+    // Top is a supertype of everything, and Bottom is a subtype of everything.
     return true;
   }
   if (!hasSpec()) {
-    // The Top specialization is only a subtype of itself, which is covered by
-    // the previous case.
+    // The only unspecialized Type that is a subtype of any specialized type is
+    // TBottom, which is covered by the previous case.
     return false;
   }
   if ((hasIntSpec() || other.hasIntSpec()) ||
@@ -492,19 +492,22 @@ bool Type::specSubtype(Type other) const {
 }
 
 Type Type::operator|(Type other) const {
+  // Check trivial, specialization-preserving cases first.
+  if (*this <= other) {
+    return other;
+  }
+  if (other <= *this) {
+    return *this;
+  }
+
   bits_t bits = bits_ | other.bits_;
   bits_t lifetime = lifetime_ | other.lifetime_;
 
   Type no_spec{bits, lifetime};
-  if (!hasSpec() || !other.hasSpec()) {
-    // If either type isn't specialized, the result isn't specialized.
+  if (!hasTypeSpec() || !other.hasTypeSpec()) {
+    // If either type doesn't have a specialization with a PyTypeObject*, the
+    // result is only specialized if we hit one of the trivial cases up above.
     return no_spec;
-  }
-  if (hasIntSpec() || other.hasIntSpec() || hasDoubleSpec() ||
-      other.hasDoubleSpec()) {
-    // Primitive specializations only survive unification when the types are
-    // equal.
-    return *this == other ? *this : no_spec;
   }
 
   if (hasObjectSpec() && other.hasObjectSpec() &&
@@ -515,20 +518,30 @@ Type Type::operator|(Type other) const {
     return *this;
   }
 
-  auto type_a = typeSpec();
-  auto type_b = other.typeSpec();
-  if (hasTypeExactSpec() && other.hasTypeExactSpec() && type_a == type_b) {
-    // We only return an exact specialization if we're unifying the same exact
-    // type with itself.
-    return Type{bits, lifetime, type_a, true};
-  }
+  PyTypeObject* type_a = typeSpec();
+  PyTypeObject* type_b = other.typeSpec();
+  PyTypeObject* supertype;
+  // This logic will need to be more complicated if we want to more precisely
+  // unify type specializations with a common supertype that isn't one of the
+  // two.
   if (PyType_IsSubtype(type_a, type_b)) {
-    return Type{bits, lifetime, type_b, false};
+    supertype = type_b;
+  } else if (PyType_IsSubtype(type_b, type_a)) {
+    supertype = type_a;
+  } else {
+    return no_spec;
   }
-  if (PyType_IsSubtype(type_b, type_a)) {
-    return Type{bits, lifetime, type_a, false};
+  if (pyTypeToType().count(supertype) != 0) {
+    // If the resolved supertype is a builtin type, the result doesn't need to
+    // be specialized; the bits uniquely describe it already.
+    return no_spec;
   }
-  return no_spec;
+
+  // The resulting specialization can only be exact if the two types are the
+  // same exact type.
+  bool is_exact =
+      hasTypeExactSpec() && other.hasTypeExactSpec() && type_a == type_b;
+  return Type{bits, lifetime, supertype, is_exact};
 }
 
 Type Type::operator&(Type other) const {

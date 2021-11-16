@@ -414,6 +414,22 @@ TEST_F(HIRTypeTest, SpecializedIntegerTypes) {
   EXPECT_EQ(five & five64, TBottom);
   EXPECT_EQ(five | ten, TCInt32);
   EXPECT_EQ(five & ten, TBottom);
+
+  EXPECT_EQ(five | five, five);
+  EXPECT_TRUE(TBottom <= five);
+  EXPECT_TRUE(TBottom < five);
+  EXPECT_EQ(five | TBottom, five);
+  EXPECT_EQ(TBottom | five, five);
+
+  auto py_long1 = Ref<>::steal(PyLong_FromLong(24));
+  ASSERT_NE(py_long1, nullptr);
+  auto py_long2 = Ref<>::steal(PyLong_FromLong(42));
+  ASSERT_NE(py_long2, nullptr);
+  auto long_ty1 = Type::fromObject(py_long1);
+  auto long_ty2 = Type::fromObject(py_long2);
+  auto long_ty = long_ty1 | long_ty2;
+  EXPECT_FALSE(long_ty.hasTypeSpec());
+  EXPECT_EQ(long_ty, TMortalLongExact);
 }
 
 TEST_F(HIRTypeTest, SpecializedDoubleTypes) {

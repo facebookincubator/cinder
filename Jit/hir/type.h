@@ -42,7 +42,7 @@ class Type {
   // consumption and is only public for the TFoo predefined Types (created near
   // the bottom of this file).
   explicit constexpr Type(bits_t bits, bits_t lifetime)
-      : Type{bits, lifetime, kSpecTop, 0} {}
+      : Type{bits, lifetime, bits == kBottom ? kSpecBottom : kSpecTop, 0} {}
 
   std::size_t hash() const;
   std::string toString() const;
@@ -179,6 +179,10 @@ class Type {
 
     // Double specialization: double_ is valid
     kSpecDouble,
+
+    // The Bottom type in the specialization lattice, and a subtype of all
+    // specializations. Only TBottom has this SpecKind.
+    kSpecBottom,
   };
 
   // Constructors used to create specialized Types.
@@ -214,7 +218,7 @@ class Type {
         padding_{},
         int_{spec} {
     JIT_DCHECK(
-        bits != kBottom || (spec_kind == kSpecTop && spec == 0),
+        bits != kBottom || (spec_kind == kSpecBottom && spec == 0),
         "Bottom can't be specialized");
     JIT_DCHECK(
         (lifetime == kLifetimeBottom) == ((bits & kObject) == 0),
@@ -226,12 +230,12 @@ class Type {
   // What is this Type's specialization kind?
   SpecKind specKind() const;
 
-  // Shorthand for specKind() != kSpecTop: does this Type have a non-Top
-  // specialization?
+  // Shorthand for (specKind() != kSpecTop && specKind() != kSpecBottom): does
+  // this Type have a non-trivial specialization?
   bool hasSpec() const;
 
   // String representation of this Type's specialization, which must not be
-  // kSpecTop.
+  // kSpecTop or kSpecBottom.
   std::string specString() const;
 
   // Is this Type's specialization a subtype of the other Type's
