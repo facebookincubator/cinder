@@ -5675,8 +5675,9 @@ class CheckedDictInstance(Object[CheckedDict]):
             code_gen.visit(node.value)
             code_gen.visit(node.slice)
             dict_descr = self.klass.type_descr
-            update_descr = dict_descr + ("__getitem__",)
-            code_gen.emit_invoke_method(update_descr, 1)
+            getitem_descr = dict_descr + ("__getitem__",)
+            code_gen.emit("EXTENDED_ARG", 0)
+            code_gen.emit("INVOKE_FUNCTION", (getitem_descr, 2))
         elif isinstance(node.ctx, ast.Store):
             code_gen.visit(node.value)
             code_gen.emit("ROT_TWO")
@@ -5684,7 +5685,8 @@ class CheckedDictInstance(Object[CheckedDict]):
             code_gen.emit("ROT_TWO")
             dict_descr = self.klass.type_descr
             setitem_descr = dict_descr + ("__setitem__",)
-            code_gen.emit_invoke_method(setitem_descr, 2)
+            code_gen.emit("EXTENDED_ARG", 0)
+            code_gen.emit("INVOKE_FUNCTION", (setitem_descr, 3))
             code_gen.emit("POP_TOP")
         else:
             code_gen.defaultVisit(node, aug_flag)
