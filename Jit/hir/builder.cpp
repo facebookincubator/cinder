@@ -3,7 +3,6 @@
 
 #include "Python.h"
 #include "ceval.h"
-#include "classloader.h"
 #include "opcode.h"
 #include "structmember.h"
 
@@ -306,56 +305,6 @@ struct HIRBuilder::TranslationContext {
 void HIRBuilder::addInitialYield(TranslationContext& tc) {
   auto out = temps_.AllocateNonStack();
   tc.emitChecked<InitialYield>(out);
-}
-
-Type prim_type_to_type(int prim_type) {
-  switch (prim_type) {
-    case TYPED_BOOL:
-      return TCBool;
-    case TYPED_CHAR:
-    case TYPED_INT8:
-      return TCInt8;
-    case TYPED_INT16:
-      return TCInt16;
-    case TYPED_INT32:
-      return TCInt32;
-    case TYPED_INT64:
-      return TCInt64;
-    case TYPED_UINT8:
-      return TCUInt8;
-    case TYPED_UINT16:
-      return TCUInt16;
-    case TYPED_UINT32:
-      return TCUInt32;
-    case TYPED_UINT64:
-      return TCUInt64;
-    case TYPED_OBJECT:
-      return TOptObject;
-    case TYPED_DOUBLE:
-      return TCDouble;
-    case TYPED_ERROR:
-      return TCInt32;
-    default:
-      JIT_CHECK(
-          false, "non-primitive or unsupported Python type: %d", prim_type);
-      break;
-  }
-}
-
-Type resolve_type_descr(PyObject* descr) {
-  int optional;
-  Ref<PyTypeObject> type = THREADED_COMPILE_SERIALIZED_CALL(
-      Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional)));
-
-  JIT_CHECK(type != NULL, "bad type descr %s", repr(descr));
-
-  int prim_type = _PyClassLoader_GetTypeCode(type);
-
-  if (prim_type == TYPED_OBJECT) {
-    return Type::fromType(type) | (optional ? TNoneType : TBottom);
-  } else {
-    return prim_type_to_type(prim_type);
-  }
 }
 
 // Add LoadArg instructions for each function argument. This ensures that the
@@ -1715,142 +1664,101 @@ void HIRBuilder::emitLoadIterableArg(
 }
 
 bool HIRBuilder::tryEmitDirectMethodCall(
-    PyMethodDef* method,
+    const InvokeTarget& target,
     TranslationContext& tc,
     long nargs) {
-  if (method->ml_flags & METH_TYPED) {
-    emitInvokeTypedMethod(tc, method, nargs);
-    return true;
-  } else if (
-      (method->ml_flags == METH_NOARGS && nargs == 1) ||
-      (method->ml_flags == METH_O && nargs == 2)) {
+  if (target.is_statically_typed || nargs == target.builtin_expected_nargs) {
+    Instr* staticCall;
+    Register* out = NULL;
+    if (target.builtin_returns_void) {
+      staticCall = tc.emit<CallStaticRetVoid>(nargs, target.builtin_c_func);
+    } else {
+      out = temps_.AllocateStack();
+      Type ret_type =
+          target.builtin_returns_error_code ? TCInt32 : target.return_type;
+      staticCall =
+          tc.emit<CallStatic>(nargs, out, target.builtin_c_func, ret_type);
+    }
+
     auto& stack = tc.frame.stack;
-    // this isn't strongly typed, but we have the correct number of args
-    // to directly invoke it
-    Register* out = temps_.AllocateStack();
-    auto staticCall =
-        tc.emit<CallStatic>(nargs, out, (void*)method->ml_meth, TObject);
-    for (auto i = nargs; i > 0; i--) {
+    for (auto i = nargs - 1; i >= 0; i--) {
       Register* operand = stack.pop();
-      staticCall->SetOperand(i - 1, operand);
+      staticCall->SetOperand(i, operand);
     }
-    tc.emit<CheckExc>(out, out, tc.frame);
-    stack.push(out);
+
+    if (target.builtin_returns_error_code) {
+      tc.emit<CheckNeg>(out, out, tc.frame);
+    } else if (out != NULL && !(target.return_type.couldBe(TPrimitive))) {
+      tc.emit<CheckExc>(out, out, tc.frame);
+    }
+    if (target.builtin_returns_void || target.builtin_returns_error_code) {
+      // We could update the compiler so that void returning functions either
+      // are only used in void contexts, or explicitly emit a LOAD_CONST None
+      // when not used in a void context. For now we just produce None here (and
+      // in _PyClassLoader_ConvertRet).
+      Register* tmp = temps_.AllocateStack();
+      tc.emit<LoadConst>(tmp, TNoneType);
+      stack.push(tmp);
+    } else {
+      stack.push(out);
+    }
     return true;
   }
 
   return false;
-}
-
-PyMethodDef* get_methoddef(PyObject* func) {
-  if (Py_TYPE(func) == &PyMethodDescr_Type) {
-    return ((PyMethodDescrObject*)func)->d_method;
-  } else if (PyCFunction_Check(func)) {
-    return ((PyCFunctionObject*)func)->m_ml;
-  }
-  return nullptr;
-}
-
-Type get_methoddef_ret_type(PyMethodDef* def) {
-  _PyTypedMethodDef* typed_def = (_PyTypedMethodDef*)def->ml_meth;
-  if (typed_def->tmd_ret & _Py_SIG_TYPE_PARAM) {
-    return TObject;
-  } else if (typed_def->tmd_ret != _Py_SIG_VOID) {
-    return prim_type_to_type(_Py_SIG_TYPE_MASK(typed_def->tmd_ret));
-  }
-
-  return TBottom;
-}
-
-bool get_static_func_ret_type(PyObject* func, Type* ret_type) {
-  if (PyFunction_Check(func)) {
-    PyCodeObject* code = (PyCodeObject*)((PyFunctionObject*)func)->func_code;
-    if (code->co_flags & CO_STATICALLY_COMPILED) {
-      *ret_type = resolve_type_descr(
-          _PyClassLoader_GetReturnTypeDescr((PyFunctionObject*)func));
-      return true;
-    }
-  }
-
-  PyMethodDef* def = get_methoddef(func);
-  if (def != nullptr && def->ml_flags & METH_TYPED) {
-    *ret_type = get_methoddef_ret_type(def);
-    return true;
-  }
-
-  return false;
-}
-
-bool is_function_using_runtime(PyObject* obj) {
-  return PyFunction_Check(obj) &&
-      usesRuntimeFunc(reinterpret_cast<PyFunctionObject*>(obj)->func_code);
 }
 
 bool HIRBuilder::emitInvokeFunction(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr,
     bool is_awaited) {
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  PyObject* target = PyTuple_GET_ITEM(descr, 0);
-  long nargs = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1));
+  BorrowedRef<> arg = constArg(bc_instr);
+  BorrowedRef<> descr = PyTuple_GET_ITEM(arg.get(), 0);
+  long nargs = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1));
 
-  ThreadedCompileSerialize guard;
-
-  PyObject* container;
-  PyObject* func = _PyClassLoader_ResolveFunction(target, &container);
-  JIT_CHECK(func != NULL, "unknown function %s", repr(target));
-
-  Type ret_type = TObject;
-  bool is_static_func = get_static_func_ret_type(func, &ret_type);
+  const InvokeTarget& target = preloader_.invokeFunctionTarget(descr);
 
   Register* funcreg = temps_.AllocateStack();
-  bool is_container_immutable = true;
-  if (_PyClassLoader_IsImmutable(container) &&
-      !is_function_using_runtime(func)) {
-    if (is_static_func && PyFunction_Check(func)) {
-      if (_PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func)) ==
-          PYJIT_RESULT_RETRY) {
-        JIT_DLOG(
-            "Warning: recursive compile of '%s' failed as it is already being "
-            "compiled",
-            funcFullname(reinterpret_cast<PyFunctionObject*>(func)));
+  if (target.container_is_immutable) {
+    // try to emit a direct x64 call (InvokeStaticFunction) if we can
+    if (!target.uses_runtime_func) {
+      if (target.is_function && target.is_statically_typed) {
+        if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
+          JIT_DLOG(
+              "Warning: recursive compile of '%s' failed as it is already "
+              "being "
+              "compiled",
+              funcFullname(target.func()));
+        }
+
+        // Direct invoke is safe whether we succeeded in JIT-compiling or not,
+        // it'll just have an extra indirection if not JIT compiled.
+        Register* out = temps_.AllocateStack();
+        auto call = tc.emit<InvokeStaticFunction>(
+            nargs, out, target.func(), target.return_type);
+        for (auto i = nargs - 1; i >= 0; i--) {
+          Register* operand = tc.frame.stack.pop();
+          call->SetOperand(i, operand);
+        }
+        call->setFrameState(tc.frame);
+
+        tc.frame.stack.push(out);
+
+        return false;
+      } else if (
+          target.is_builtin && tryEmitDirectMethodCall(target, tc, nargs)) {
+        return false;
       }
-
-      // Direct invoke is safe whether we succeeded in JIT-compiling or not,
-      // it'll just have an extra indirection if not JIT compiled.
-      Register* out = temps_.AllocateStack();
-      auto call = tc.emit<InvokeStaticFunction>(
-          nargs, out, (PyFunctionObject*)func, ret_type);
-      for (auto i = nargs - 1; i >= 0; i--) {
-        Register* operand = tc.frame.stack.pop();
-        call->SetOperand(i, operand);
-      }
-      call->setFrameState(tc.frame);
-
-      tc.frame.stack.push(out);
-
-      Py_DECREF(func);
-      Py_XDECREF(container);
-      return false;
-    } else if (
-        is_static_func &&
-        tryEmitDirectMethodCall(get_methoddef(func), tc, nargs)) {
-      return false;
     }
 
-    tc.emit<LoadConst>(funcreg, Type::fromObject(func));
+    // we couldn't emit an x64 call, but we know what object we'll vectorcall,
+    // so load it directly
+    tc.emit<LoadConst>(funcreg, Type::fromObject(target.callable));
   } else {
-    PyObject** funcptr = _PyClassLoader_GetIndirectPtr(target, func, container);
-    JIT_CHECK(funcptr != NULL, "function lookup failed %s", repr(target));
-
-    tc.emit<LoadFunctionIndirect>(funcptr, target, funcreg, tc.frame);
-    // We can't invoke statically for indirect calls, we don't
-    // know if they've been patched
-    is_container_immutable = false;
+    // The target is patchable so we have to load it indirectly
+    tc.emit<LoadFunctionIndirect>(
+        target.indirect_ptr, descr, funcreg, tc.frame);
   }
-
-  Py_DECREF(func);
-  Py_XDECREF(container);
 
   auto arg_regs = std::vector<Register*>(nargs, nullptr);
 
@@ -1858,46 +1766,20 @@ bool HIRBuilder::emitInvokeFunction(
     arg_regs[i] = tc.frame.stack.pop();
   }
 
-  // If we have a static func but we couldn't emit a direct static call, we have
-  // to box any primitive args
-  if (is_static_func) {
-    if (PyFunction_Check(func)) {
-      auto prim_args_info =
-          Ref<_PyTypedArgsInfo>::steal(_PyClassLoader_GetTypedArgsInfo(
-              (PyCodeObject*)((PyFunctionObject*)func)->func_code, 1));
-
-      for (Py_ssize_t i = 0; i < Py_SIZE(prim_args_info.get()); i++) {
-        int argnum = prim_args_info->tai_args[i].tai_argnum;
-        Register* reg = arg_regs.at(argnum);
-        auto boxed_primitive_tmp = temps_.AllocateStack();
-        Type typ =
-            prim_type_to_type(prim_args_info->tai_args[i].tai_primitive_type);
-        tc.emit<PrimitiveBox>(boxed_primitive_tmp, reg, typ);
-        arg_regs[argnum] = boxed_primitive_tmp;
-      }
-    } else {
-      PyMethodDef* method = get_methoddef(func);
-      JIT_DCHECK(method->ml_flags & METH_TYPED, "expected type method def");
-      _PyTypedMethodDef* def = (_PyTypedMethodDef*)method->ml_meth;
-      for (Py_ssize_t i = 0; def->tmd_sig[i] != NULL; i++) {
-        const _Py_SigElement* elem = def->tmd_sig[i];
-        if (elem->se_argtype & _Py_SIG_TYPE_PARAM) {
-          // all type parameters are currently reference types
-          continue;
-        }
-
-        Type t = prim_type_to_type(_Py_SIG_TYPE_MASK(elem->se_argtype));
-        if (t <= TPrimitive) {
-          Register* reg = arg_regs.at(i);
-          tc.emit<PrimitiveBox>(reg, reg, t);
-        }
-      }
+  // If we have a static func but we couldn't emit a direct x64 call, we
+  // have to box any primitive args
+  if (target.is_statically_typed) {
+    for (auto [argnum, type] : target.primitive_arg_types) {
+      Register* reg = arg_regs.at(argnum);
+      auto boxed_primitive_tmp = temps_.AllocateStack();
+      tc.emit<PrimitiveBox>(boxed_primitive_tmp, reg, type);
+      arg_regs[argnum] = boxed_primitive_tmp;
     }
   }
 
   Register* out = temps_.AllocateStack();
   VectorCallBase* call;
-  if (is_container_immutable) {
+  if (target.container_is_immutable) {
     call = tc.emit<VectorCallStatic>(nargs + 1, out, is_awaited);
   } else {
     call = tc.emit<VectorCall>(nargs + 1, out, is_awaited);
@@ -1908,14 +1790,44 @@ bool HIRBuilder::emitInvokeFunction(
   call->SetOperand(0, funcreg);
   call->setFrameState(tc.frame);
 
-  // Since we are not doing a direct invoke, we will get a boxed int back; if
-  // the function is supposed to return a primitive int, we need to unbox it
+  // Since we are not doing an x64 call, we will get a boxed value; if
+  // the function is supposed to return a primitive, we need to unbox it
   // because later code in the function will expect the primitive.
-  if (ret_type <= TPrimitive) {
-    tc.emit<PrimitiveUnbox>(out, out, ret_type);
+  if (target.return_type <= TPrimitive) {
+    tc.emit<PrimitiveUnbox>(out, out, target.return_type);
   }
 
   tc.frame.stack.push(out);
+
+  return true;
+}
+
+bool HIRBuilder::emitInvokeMethod(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr,
+    bool is_awaited) {
+  BorrowedRef<> arg = constArg(bc_instr);
+  BorrowedRef<> descr = PyTuple_GET_ITEM(arg.get(), 0);
+  long nargs = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1)) + 1;
+  bool is_classmethod = PyTuple_GET_SIZE(arg.get()) == 3 &&
+      (PyTuple_GET_ITEM(arg.get(), 2) == Py_True);
+
+  const InvokeTarget& target = preloader_.invokeMethodTarget(descr);
+
+  if (target.is_builtin && tryEmitDirectMethodCall(target, tc, nargs)) {
+    return false;
+  }
+
+  InvokeMethod* invoke = tc.emitVariadic<InvokeMethod>(
+      temps_, nargs, target.slot, is_awaited, is_classmethod);
+
+  // Since we are not doing an x64 call, we will get a boxed value; if
+  // the function is supposed to return a primitive, we need to unbox it
+  // because later code in the function will expect the primitive.
+  if (target.return_type <= TPrimitive) {
+    tc.emit<PrimitiveUnbox>(
+        invoke->GetOutput(), invoke->GetOutput(), target.return_type);
+  }
 
   return true;
 }
@@ -3326,91 +3238,6 @@ void HIRBuilder::emitWithCleanupFinish(TranslationContext& tc) {
   auto& stack = tc.frame.stack;
   stack.pop(); // unused result of __exit__
   stack.pop(); // None
-}
-
-bool HIRBuilder::emitInvokeMethod(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr,
-    bool is_awaited) {
-  PyObject* descr = PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
-  PyObject* target = PyTuple_GET_ITEM(descr, 0);
-  long nargs = PyLong_AsLong(PyTuple_GET_ITEM(descr, 1)) + 1;
-  bool is_classmethod =
-      PyTuple_GET_SIZE(descr) == 3 && (PyTuple_GET_ITEM(descr, 2) == Py_True);
-
-  ThreadedCompileSerialize guard;
-
-  Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
-  JIT_CHECK(
-      slot != -1,
-      "function lookup failed %s",
-      repr(target)); // TODO: do better than this?
-
-  PyMethodDescrObject* method = _PyClassLoader_ResolveMethodDef(target);
-  if (method != NULL && tryEmitDirectMethodCall(method->d_method, tc, nargs)) {
-    Py_XDECREF(method);
-    return false;
-  }
-
-  InvokeMethod* invoke = tc.emitVariadic<InvokeMethod>(
-      temps_, nargs, slot, is_awaited, is_classmethod);
-  PyObject* container;
-  auto func = Ref<>::steal(_PyClassLoader_ResolveFunction(target, &container));
-  if (func != nullptr) {
-    Type ret_type = TObject;
-    get_static_func_ret_type(func, &ret_type);
-    // Since we are not doing a direct invoke, we will get a boxed int back; if
-    // the function is supposed to return a primitive, we need to unbox it
-    // because later code in the function will expect the primitive.
-    if (ret_type <= TPrimitive) {
-      tc.emit<PrimitiveUnbox>(
-          invoke->GetOutput(), invoke->GetOutput(), ret_type);
-    }
-    Py_DECREF(container);
-  }
-  return true;
-}
-
-void HIRBuilder::emitInvokeTypedMethod(
-    TranslationContext& tc,
-    PyMethodDef* method,
-    Py_ssize_t nargs) {
-  _PyTypedMethodDef* def = (_PyTypedMethodDef*)method->ml_meth;
-
-  Instr* staticCall;
-  Register* out = NULL;
-  Type type = get_methoddef_ret_type(method);
-  if (type != TBottom) {
-    out = temps_.AllocateStack();
-    staticCall = tc.emit<CallStatic>(nargs, out, def->tmd_meth, type);
-  } else {
-    staticCall = tc.emit<CallStaticRetVoid>(nargs, def->tmd_meth);
-  }
-
-  auto& stack = tc.frame.stack;
-  for (auto i = nargs - 1; i >= 0; i--) {
-    Register* operand = stack.pop();
-    // TODO: Can we add some checks here that assert the type is correct?
-    staticCall->SetOperand(i, operand);
-  }
-
-  if (_Py_SIG_TYPE_MASK(def->tmd_ret) == TYPED_ERROR) {
-    tc.emit<CheckNeg>(out, out, tc.frame);
-  } else if (!(type <= TPrimitive)) {
-    tc.emit<CheckExc>(out, out, tc.frame);
-  }
-  if (out == NULL || def->tmd_ret == _Py_SIG_ERROR) {
-    // TODO: We should update the compiler so that in the future void
-    // returning functions either are only used in void contexts, or
-    // explicitly emit a LOAD_CONST None when not used in a void context.
-    // For now we just assume basic Python semantics which everything
-    // produces None.
-    Register* tmp = temps_.AllocateStack();
-    tc.emit<LoadConst>(tmp, TNoneType);
-    stack.push(tmp);
-  } else {
-    stack.push(out);
-  }
 }
 
 void HIRBuilder::emitLoadField(

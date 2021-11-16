@@ -1187,6 +1187,15 @@ error:
     return -1;
 }
 
+static PyObject *
+classloader_get_static_type(const char* name) {
+    PyObject *mod = PyImport_ImportModule("__static__");
+    if (mod == NULL) { return NULL; }
+    PyObject *type = PyObject_GetAttrString(mod, name);
+    Py_XINCREF(type);
+    return type;
+}
+
 PyObject *
 _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, int *classmethod) {
     *coroutine = *optional = *classmethod = 0;
@@ -1204,26 +1213,63 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, 
             res = resolve_function_rettype(static_func, optional, coroutine);
         }
         *classmethod = 1;
-    } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
-        // builtin methods for now assumed to return object
-        res = &PyBaseObject_Type;
-        Py_INCREF(res);
-        *optional = 1;
     } else if (Py_TYPE(func) == &PyProperty_Type) {
         propertyobject *property = (propertyobject *)func;
         PyObject *fget = property->prop_get;
         if (_PyClassLoader_IsStaticFunction(fget)) {
             res = resolve_function_rettype(fget, optional, coroutine);
         }
-    } else if (_PyClassLoader_IsStaticBuiltin(func)) {
-        PyMethodDef *def = ((PyCFunctionObject *)func)->m_ml;
-        _PyTypedMethodDef *tmd = (_PyTypedMethodDef *)(def->ml_meth);
-        switch (tmd->tmd_ret) {
-            case _Py_SIG_VOID:
-            case _Py_SIG_ERROR:
-                res = (PyTypeObject *)&_PyNone_Type;
-                Py_INCREF(res);
-                break;
+    } else {
+        _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
+        if (tmd != NULL) {
+            switch(tmd->tmd_ret) {
+                case _Py_SIG_VOID:
+                case _Py_SIG_ERROR: {
+                    // The underlying C implementations of these functions don't
+                    // produce a Python object at all, but we ensure (in
+                    // _PyClassLoader_ConvertRet and in JIT HIR builder) that
+                    // when we call them we produce a None.
+                    res = (PyTypeObject *)&_PyNone_Type;
+                    break;
+                }
+                case _Py_SIG_STRING: {
+                    res = &PyUnicode_Type;
+                    break;
+                }
+                case _Py_SIG_INT8: {
+                    return classloader_get_static_type("int8");
+                }
+                case _Py_SIG_INT16: {
+                    return classloader_get_static_type("int16");
+                }
+                case _Py_SIG_INT32: {
+                    return classloader_get_static_type("int32");
+                }
+                case _Py_SIG_INT64: {
+                    return classloader_get_static_type("int64");
+                }
+                case _Py_SIG_UINT8: {
+                    return classloader_get_static_type("uint8");
+                }
+                case _Py_SIG_UINT16: {
+                    return classloader_get_static_type("uint16");
+                }
+                case _Py_SIG_UINT32: {
+                    return classloader_get_static_type("uint32");
+                }
+                case _Py_SIG_UINT64: {
+                    return classloader_get_static_type("uint64");
+                }
+                default: {
+                    res = &PyBaseObject_Type;
+                }
+            }
+            Py_INCREF(res);
+        } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
+            // We emit invokes to untyped builtin methods; just assume they
+            // return object.
+            res = &PyBaseObject_Type;
+            Py_INCREF(res);
         }
     }
     return (PyObject *)res;
@@ -1610,14 +1656,11 @@ _PyClassLoader_ReinitVtable(_PyType_VTable *vtable)
 
 int
 used_in_vtable_worker(PyObject *value) {
+    // we'll emit invokes to untyped builtin methods
     if (Py_TYPE(value) == &PyMethodDescr_Type) {
         return 1;
-    } else if (_PyClassLoader_IsStaticFunction(value)) {
-        return 1;
-    } else if (_PyClassLoader_IsStaticBuiltin(value)) {
-        return 1;
     }
-    return 0;
+    return _PyClassLoader_IsStaticCallable(value);
 }
 
 int

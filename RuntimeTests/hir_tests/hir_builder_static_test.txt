@@ -955,7 +955,7 @@ fun jittestmodule:test {
     }
     v1 = LoadConst<MortalUnicodeExact["hello"]>
     v2 = LoadConst<MortalLongExact[123]>
-    v4 = InvokeStaticFunction<jittestmodule.x, 2, Unicode> v1 v2 {
+    v4 = InvokeStaticFunction<jittestmodule.x, 2, OptObject> v1 v2 {
       NextInstrOffset 10
     }
     v5 = CallCFunc<_PyCoro_GetAwaitableIter> v4

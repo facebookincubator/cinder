@@ -417,7 +417,7 @@ class HIRBuilder {
   void AllocateRegistersForCells(Environment* env, FrameState& state);
   void moveOverwrittenStackRegisters(TranslationContext& tc, Register* dst);
   bool tryEmitDirectMethodCall(
-      PyMethodDef* method,
+      const InvokeTarget& target,
       TranslationContext& tc,
       long nargs);
   struct BlockMap {

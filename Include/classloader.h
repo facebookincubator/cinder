@@ -77,6 +77,9 @@ _PyClassLoader_IsImmutable(PyObject *container);
 PyObject *
 _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container);
 
+PyObject *
+_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, int *classmethod);
+
 PyMethodDescrObject *
 _PyClassLoader_ResolveMethodDef(PyObject *path);
 void _PyClassLoader_ClearCache(void);
@@ -419,6 +422,10 @@ static inline PyObject *
 _PyClassLoader_ConvertRet(void *value, int ret_type)
 {
     switch (ret_type) {
+    // We could update the compiler so that void returning functions either
+    // are only used in void contexts, or explicitly emit a LOAD_CONST None
+    // when not used in a void context. For now we just produce None here (and
+    // in JIT HIR builder).
     case _Py_SIG_VOID:
         Py_INCREF(Py_None);
         return Py_None;
@@ -477,13 +484,39 @@ _PyClassLoader_IsStaticFunction(PyObject *obj)
            CO_STATICALLY_COMPILED;
 }
 
+static inline PyMethodDef *
+_PyClassLoader_GetMethodDef(PyObject *obj)
+{
+    if (obj == NULL) {
+        return NULL;
+    } else if (PyCFunction_Check(obj)) {
+        return ((PyCFunctionObject *)obj)->m_ml;
+    } else if (Py_TYPE(obj) == &PyMethodDescr_Type) {
+        return ((PyMethodDescrObject *)obj)->d_method;
+    }
+    return NULL;
+}
+
+static inline _PyTypedMethodDef *
+_PyClassLoader_GetTypedMethodDef(PyObject *obj)
+{
+    PyMethodDef *def = _PyClassLoader_GetMethodDef(obj);
+    if (def && def->ml_flags & METH_TYPED) {
+        return (_PyTypedMethodDef *)def->ml_meth;
+    }
+    return NULL;
+}
+
 static inline int
 _PyClassLoader_IsStaticBuiltin(PyObject *obj)
 {
-    if (obj == NULL || !PyCFunction_Check(obj)) {
-        return 0;
-    }
-    return ((PyCFunctionObject *)obj)->m_ml->ml_flags & METH_TYPED;
+    return (_PyClassLoader_GetTypedMethodDef(obj) != NULL);
+}
+
+static inline int
+_PyClassLoader_IsStaticCallable(PyObject *obj)
+{
+    return _PyClassLoader_IsStaticFunction(obj) || _PyClassLoader_IsStaticBuiltin(obj);
 }
 
 static inline int
