@@ -1192,7 +1192,7 @@ classloader_get_static_type(const char* name) {
     PyObject *mod = PyImport_ImportModule("__static__");
     if (mod == NULL) { return NULL; }
     PyObject *type = PyObject_GetAttrString(mod, name);
-    Py_XINCREF(type);
+    Py_DECREF(mod);
     return type;
 }
 
@@ -2328,10 +2328,7 @@ done:
 int
 _PyClassLoader_IsEnum(PyTypeObject* type) {
     if (static_enum == NULL) {
-        int optional;
-        PyObject* descr = Py_BuildValue("(ss)", "__static__", "Enum");
-        static_enum = _PyClassLoader_ResolveType(descr, &optional);
-        Py_DECREF(descr);
+        static_enum = (PyTypeObject *)classloader_get_static_type("Enum");
         if (static_enum == NULL) {
             PyErr_Clear();
             return 0;
