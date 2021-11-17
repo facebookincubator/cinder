@@ -135,3 +135,4 @@ pyembed_includes
 .clangd/
 strict_module_tests
 .sphinx-build/
+.cache/
