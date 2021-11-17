@@ -171,6 +171,7 @@ class LocalsBranch:
         # TODO: What about del's?
         if entry_locals is None:
             entry_locals = self.entry_locals
+
         local_types = self.scope.local_types
         for key, value in entry_locals.items():
             if key in local_types:
@@ -218,6 +219,7 @@ class TypeBinder(GenericVisitor):
         super().__init__(module)
         self.symbols = symbols
         self.scopes: List[BindingScope] = []
+        self.modules: Dict[str, ModuleTable] = compiler.modules
         self.optimize = optimize
         self.terminals: Dict[AST, TerminalKind] = {}
         self.inline_depth = 0
@@ -1361,6 +1363,12 @@ class TypeBinder(GenericVisitor):
                     self.syntax_error("from __static__ import * is disallowed", node)
                 elif name not in self.compiler.statics.children:
                     self.syntax_error(f"unsupported static import {name}", node)
+        # Unknown module, let's add a local dynamic type to ensure we don't try to infer too much.
+        if mod_name not in self.compiler.modules:
+            for alias in node.names:
+                asname = alias.asname
+                name: str = asname if asname is not None else alias.name
+                self.declare_local(name, DYNAMIC)
 
     def visit_until_terminates(self, nodes: List[ast.stmt]) -> TerminalKind:
         for stmt in nodes:

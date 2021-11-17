@@ -8,6 +8,7 @@ from .elide_type_checks import ElideTypeChecksTests
 from .enum import StaticEnumTests
 from .fields import StaticFieldTests
 from .fstring import FStringTests
+from .imports import ImportTests
 from .inference import InferenceTests
 from .lint import LintTests
 from .module import ModuleTests
