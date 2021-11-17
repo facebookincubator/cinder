@@ -2080,62 +2080,69 @@ PyImport_ImportModuleLevel(const char *name, PyObject *globals, PyObject *locals
     return mod;
 }
 
+static PyObject *
+_imp_import_deferred_impl(PyDeferredObject *d)
+{
+    PyObject *obj;
+    if (d->df_next != NULL) {
+        PyObject *value = _imp_import_deferred_impl((PyDeferredObject *)d->df_next);
+        if (value == NULL) {
+            return NULL;
+        }
+        Py_DECREF(value);
+    }
+    if (d->df_deferred == NULL) {
+        PyInterpreterState *interp = _PyInterpreterState_GET_UNSAFE();
+        PyObject *lazy_loaded = interp->lazy_loaded;
+        Py_XINCREF(lazy_loaded);
+        obj = _PyImport_ImportName(d->df_name,
+                                   d->df_globals,
+                                   d->df_locals,
+                                   d->df_fromlist,
+                                   d->df_level,
+                                   lazy_loaded);
+        Py_XDECREF(lazy_loaded);
+        if (obj == NULL) {
+            return NULL;
+        }
+    }
+    else {
+        PyObject *from = _imp_import_deferred_impl((PyDeferredObject *)d->df_deferred);
+        if (from == NULL) {
+            return NULL;
+        }
+        PyThreadState *tstate = _PyThreadState_GET();
+        obj = _Py_DoImportFrom(tstate, from, d->df_name);
+        Py_DECREF(from);
+        if (obj == NULL) {
+            return NULL;
+        }
+        if (PyDeferred_CheckExact(obj)) {
+            PyObject *value = _imp_import_deferred_impl((PyDeferredObject *)obj);
+            Py_DECREF(obj);
+            if (value == NULL) {
+                return NULL;
+            }
+            obj = value;
+        }
+    }
+    return obj;
+}
+
 PyObject *
 PyImport_ImportDeferred(PyObject *deferred)
 {
-    PyObject *obj;
     assert(deferred != NULL);
     assert(PyDeferred_CheckExact(deferred));
-
     PyDeferredObject *d = (PyDeferredObject *)deferred;
-    obj = d->df_obj;
+    PyObject *obj = d->df_obj;
     if (obj == NULL) {
-        if (d->df_next != NULL) {
-            if (PyImport_ImportDeferred(d->df_next) == NULL) {
-                d->df_skip_warmup = 1;
-                return NULL;
-            }
+        obj = _imp_import_deferred_impl(d);
+        if (obj != NULL) {
+            d->df_obj = obj;
+        } else {
+            d->df_skip_warmup = 1;
         }
-        if (d->df_deferred == NULL) {
-            PyInterpreterState *interp = _PyInterpreterState_GET_UNSAFE();
-            PyObject *lazy_loaded = interp->lazy_loaded;
-            Py_XINCREF(lazy_loaded);
-            obj = _PyImport_ImportName(d->df_name,
-                                       d->df_globals,
-                                       d->df_locals,
-                                       d->df_fromlist,
-                                       d->df_level,
-                                       lazy_loaded);
-            Py_XDECREF(lazy_loaded);
-            if (obj == NULL) {
-                d->df_skip_warmup = 1;
-                return NULL;
-            }
-        }
-        else {
-            PyObject *from = PyImport_ImportDeferred(d->df_deferred);
-            if (from == NULL) {
-                d->df_skip_warmup = 1;
-                return NULL;
-            }
-            PyThreadState *tstate = _PyThreadState_GET();
-            obj = _Py_DoImportFrom(tstate, from, d->df_name);
-            if (obj == NULL) {
-                d->df_skip_warmup = 1;
-                return NULL;
-            }
-            if (PyDeferred_CheckExact(obj)) {
-                PyObject *value = PyImport_ImportDeferred(obj);
-                Py_XINCREF(value);
-                Py_DECREF(obj);
-                if (value == NULL) {
-                    d->df_skip_warmup = 1;
-                    return NULL;
-                }
-                obj = value;
-            }
-        }
-        d->df_obj = obj;
     }
     return obj;
 }
