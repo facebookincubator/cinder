@@ -12,7 +12,7 @@ def test(c: C):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = LoadArg<0; "c">
+    v0 = LoadArg<0; "c", User[C]>
     v0 = CheckVar<0; "c"> v0 {
       NextInstrOffset 4
       Locals<1> v0
@@ -36,7 +36,7 @@ async def test(c: C):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = LoadArg<0; "c">
+    v0 = LoadArg<0; "c", User[C]>
     v1 = InitialYield
     v1 = CheckExc v1 {
       NextInstrOffset 0
@@ -128,7 +128,7 @@ def test(c: C):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = LoadArg<0; "c">
+    v0 = LoadArg<0; "c", User[C]>
     v0 = CheckVar<0; "c"> v0 {
       NextInstrOffset 4
       Locals<1> v0
@@ -154,7 +154,7 @@ def test(c: C):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = LoadArg<0; "c">
+    v0 = LoadArg<0; "c", User[C]>
     v0 = CheckVar<0; "c"> v0 {
       NextInstrOffset 4
       Locals<1> v0
@@ -180,8 +180,8 @@ def test(c: C, x: int):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = LoadArg<0; "c">
-    v1 = LoadArg<1; "x">
+    v0 = LoadArg<0; "c", User[C]>
+    v1 = LoadArg<1; "x", Long>
     v1 = CheckVar<1; "x"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1

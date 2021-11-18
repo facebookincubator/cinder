@@ -189,8 +189,13 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
   } else if (strcmp(opcode, "LoadArg") == 0) {
     expect("<");
     int idx = GetNextNameIdx();
+    Type ty = TObject;
+    if (strcmp(peekNextToken(), ",") == 0) {
+      expect(",");
+      ty = Type::parse(GetNextToken());
+    }
     expect(">");
-    NEW_INSTR(LoadArg, dst, idx);
+    NEW_INSTR(LoadArg, dst, idx, ty);
   } else if (strcmp(opcode, "_AddLocal") == 0) {
     // Pseudo instruction, allocates a local
     const char* name = GetNextToken();

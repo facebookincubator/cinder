@@ -396,7 +396,11 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kLoadArg: {
       const auto& load = static_cast<const LoadArg&>(instr);
-      return format_varname(load, load.arg_idx());
+      auto varname = format_varname(load, load.arg_idx());
+      if (load.type() == TObject) {
+        return varname;
+      }
+      return fmt::format("{}, {}", varname, load.type());
     }
     case Opcode::kLoadAttrSpecial: {
       const auto& load = static_cast<const LoadAttrSpecial&>(instr);

@@ -10,7 +10,7 @@ test = A.f
 ---
 fun jittestmodule:A.f {
   bb 0 {
-    v0 = LoadArg<0; "self">
+    v0 = LoadArg<0; "self", User[A]>
     v2 = LoadCurrentFunc
     v3 = LoadField<48> v2
     v1 = LoadTupleItem<0> v3
@@ -42,7 +42,7 @@ test = A.f
 ---
 fun jittestmodule:A.f {
   bb 0 {
-    v0 = LoadArg<0; "self">
+    v0 = LoadArg<0; "self", User[A]>
     v2 = LoadCurrentFunc
     v3 = LoadField<48> v2
     v1 = LoadTupleItem<0> v3
@@ -79,7 +79,7 @@ test = A.f
 ---
 fun jittestmodule:A.f {
   bb 0 {
-    v0 = LoadArg<0; "self">
+    v0 = LoadArg<0; "self", User[A]>
     v2 = LoadCurrentFunc
     v3 = LoadField<48> v2
     v1 = LoadTupleItem<0> v3
@@ -124,7 +124,7 @@ test = A.f
 ---
 fun jittestmodule:A.f {
   bb 0 {
-    v0 = LoadArg<0; "self">
+    v0 = LoadArg<0; "self", User[A]>
     v2 = LoadCurrentFunc
     v3 = LoadField<48> v2
     v1 = LoadTupleItem<0> v3
