@@ -104,14 +104,13 @@ class DeclarationVisitor(GenericVisitor[None]):
             klasses = []
             for base in bases:
                 klasses.append(
+                    # TODO (self.module_name, node.name) here is wrong for all nested scopes
                     base.make_subclass(TypeName(self.module_name, node.name), bases)
                 )
             for cur_type in klasses:
                 if type(cur_type) != type(klasses[0]):
                     self.syntax_error("Incompatible subtypes", node)
             klass = klasses[0]
-
-        parent_scope = self.parent_scope()
 
         for base in bases:
             if base is NAMED_TUPLE_TYPE:
@@ -131,6 +130,14 @@ class DeclarationVisitor(GenericVisitor[None]):
                     f"Class `{klass.instance.name}` cannot subclass a Final class: `{base.instance.name}`",
                     node,
                 )
+
+        parent_scope = self.parent_scope()
+
+        # we can't statically load classes nested inside functions, and for now
+        # we don't bother with ones nested inside classes (would need to fix
+        # the TypeName construction above)
+        if not isinstance(parent_scope, ModuleTable):
+            klass = DYNAMIC_TYPE
 
         for d in reversed(node.decorator_list):
             if klass is DYNAMIC_TYPE:

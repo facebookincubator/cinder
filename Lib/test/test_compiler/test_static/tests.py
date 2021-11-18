@@ -10451,7 +10451,8 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             f = mod.fn
-            self.assertInBytecode(f, "CALL_FUNCTION")
+            self.assertNotInBytecode(f, "TP_ALLOC")
+            self.assertEqual(f().c, 1)
 
 
 class StaticRuntimeTests(StaticTestBase):
