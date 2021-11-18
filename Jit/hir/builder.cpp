@@ -2096,8 +2096,10 @@ void HIRBuilder::emitPrimitiveUnbox(
     tc.emit<LoadField>(tmp, src, offsetof(PyFloatObject, ob_fval), typ);
   } else {
     tc.emit<PrimitiveUnbox>(tmp, src, typ);
-    auto did_unbox_work = temps_.AllocateStack();
-    tc.emit<IsNegativeAndErrOccurred>(did_unbox_work, tmp, tc.frame);
+    if (!(typ <= TCBool)) {
+      auto did_unbox_work = temps_.AllocateStack();
+      tc.emit<IsNegativeAndErrOccurred>(did_unbox_work, tmp, tc.frame);
+    }
   }
   tc.frame.stack.push(tmp);
 }

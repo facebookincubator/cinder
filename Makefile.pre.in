@@ -2331,6 +2331,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/hir_copy_propagation_test.o \
 	${RUNTIME_TESTS_DIR}/hir_frame_state_test.o \
 	${RUNTIME_TESTS_DIR}/hir_guard_test.o \
+	${RUNTIME_TESTS_DIR}/hir_operand_type_test.o \
 	${RUNTIME_TESTS_DIR}/hir_parser_test.o \
 	${RUNTIME_TESTS_DIR}/hir_ssa_test.o \
 	${RUNTIME_TESTS_DIR}/hir_test.o \
