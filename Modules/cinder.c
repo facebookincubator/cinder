@@ -462,11 +462,12 @@ get_frame_gen(PyObject *self, PyObject *frame) {
 }
 
 static PyObject*
-get_coro_awaiter(PyObject *self, PyObject *coro) {
+get_coro_awaiter(PyObject *Py_UNUSED(self), PyObject *coro) {
     if (!PyCoro_CheckExact(coro)) {
         PyErr_Format(PyExc_TypeError,
                      "Expected coroutine object, got %.200s",
                      Py_TYPE(coro)->tp_name);
+        return NULL;
     }
     PyCoroObject *awaiter = ((PyCoroObject *)coro)->cr_awaiter;
     if (!awaiter) {
@@ -510,6 +511,76 @@ get_call_stack(PyObject *self, PyObject *args) {
         return NULL;
     }
     return stack;
+}
+
+static inline _PyShadowFrame* _get_awaiterframe_from_shadowframe(
+  _PyShadowFrame *shadow_frame, int *did_fail
+) {
+  *did_fail = 0;
+  _PyShadowFrame* result;
+  if (_PyShadowFrame_HasGen(shadow_frame)) {
+    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    PyObject *awaiter = get_coro_awaiter(NULL, (PyObject*)gen);
+    if (!awaiter) {
+      *did_fail = 1;
+      return NULL;
+    }
+    if (awaiter != Py_None) {
+      result = &(((PyCoroObject*)awaiter)->cr_shadow_frame);
+      Py_DECREF(awaiter);
+      return result;
+    }
+    Py_DECREF(awaiter);
+  }
+  return NULL;
+}
+
+static PyObject*
+get_entire_call_stack_as_qualnames(PyObject *self, PyObject *Py_UNUSED(args)) {
+  _PyShadowFrame *shadow_frame = PyThreadState_GET()->shadow_frame;
+  _PyShadowFrame *last = NULL;
+  _PyShadowFrame *awaiter_frame = NULL;
+  PyObject *fqname;
+  PyObject *stack = PyList_New(0);
+  int did_fail;
+
+  if (stack == NULL) {
+    goto err;
+  }
+
+  while (shadow_frame != NULL) {
+    fqname = _PyShadowFrame_GetFullyQualifiedName(shadow_frame);
+    if (!fqname) {
+      goto err;
+    }
+
+    did_fail = PyList_Append(stack, fqname);
+    Py_DECREF(fqname);
+    if (did_fail) {
+      goto err;
+    }
+
+    last = shadow_frame;
+    shadow_frame = shadow_frame->prev;
+
+    // The awaiter stack (if it exists) should always get the preference
+    awaiter_frame = _get_awaiterframe_from_shadowframe(last, &did_fail);
+    if (did_fail) {
+      goto err;
+    }
+    if (awaiter_frame != NULL) {
+      shadow_frame = awaiter_frame;
+    }
+  }
+
+  if (PyList_Reverse(stack) != 0) {
+    goto err;
+  }
+  return stack;
+
+err:
+  Py_XDECREF(stack);
+  return NULL;
 }
 
 static struct PyMethodDef cinder_module_methods[] = {
@@ -614,7 +685,10 @@ static struct PyMethodDef cinder_module_methods[] = {
      METH_NOARGS,
      "Return a list that contains the code object for each function on the call"
      " stack, top-most frame last."},
-
+    {"_get_entire_call_stack_as_qualnames",
+        get_entire_call_stack_as_qualnames,
+        METH_NOARGS,
+        "Return the current stack as a list of qualnames."},
     {NULL, NULL} /* sentinel */
 };
 

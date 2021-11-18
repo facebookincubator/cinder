@@ -6,6 +6,7 @@
 #include "internal/pycore_shadow_frame.h"
 
 #include "Jit/codegen/gen_asm.h"
+#include "Jit/log.h"
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
@@ -68,6 +69,42 @@ struct JITFrame {
 
   void** base;
 };
+
+PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
+  PyObject* globals;
+  PyObject* result;
+  switch (_PyShadowFrame_GetPtrKind(shadow_frame)) {
+    case PYSF_PYFRAME: {
+      PyFrameObject* pyframe =
+          static_cast<PyFrameObject*>(_PyShadowFrame_GetPtr(shadow_frame));
+      globals = pyframe->f_globals;
+      JIT_DCHECK(
+          globals != nullptr, "Python frame (%p) has NULL globals", pyframe);
+      result = PyDict_GetItemString(globals, "__name__");
+      break;
+    }
+    case PYSF_CODE_RT: {
+      jit::CodeRuntime* code_rt =
+          static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
+      globals = code_rt->GetGlobals();
+      JIT_DCHECK(
+          globals != nullptr,
+          "JIT Runtime frame (%p) has NULL globals",
+          code_rt);
+      result = PyDict_GetItemString(globals, "__name__");
+      break;
+    }
+    case PYSF_PYCODE: {
+      // TODO(emacs): Implement this once the inliner is out in prod
+      result = PyUnicode_FromStringAndSize("<inlined>", 9);
+    }
+    default: {
+      JIT_CHECK(false, "unknown ptr kind");
+    }
+  }
+  Py_XINCREF(result);
+  return result;
+}
 
 PyFrameObject* createPyFrame(PyThreadState* tstate, jit::CodeRuntime& code_rt) {
   PyFrameObject* new_frame =
@@ -252,4 +289,15 @@ PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
     default:
       JIT_CHECK(false, "Unsupported ptr kind %d:", ptr_kind);
   }
+}
+
+PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
+  PyObject* mod_name = jit::getModuleName(shadow_frame);
+  if (!mod_name) {
+    return NULL;
+  }
+  PyCodeObject* code = _PyShadowFrame_GetCode(shadow_frame);
+  PyObject* result = PyUnicode_FromFormat("%U:%U", mod_name, code->co_qualname);
+  Py_DECREF(mod_name);
+  return result;
 }

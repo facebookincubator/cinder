@@ -61,6 +61,10 @@ static inline void _PyShadowFrame_Pop(PyThreadState *tstate,
 /* Return a borrowed reference to the code object for shadow_frame */
 PyCodeObject *_PyShadowFrame_GetCode(_PyShadowFrame *shadow_frame);
 
+
+/* Returns the fully qualified name of code running in the frame */
+PyObject *_PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame *shadow_frame);
+
 #ifdef __cplusplus
 }
 #endif

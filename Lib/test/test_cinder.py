@@ -1695,6 +1695,101 @@ class GetCallStackTest(unittest.TestCase):
         self.assertEqual(stack[-5:], expected)
 
 
+class GetEntireCallStackTest(unittest.TestCase):
+    def verify_stack(self, stack, expected):
+        n = len(expected)
+        frames = stack[-n:]
+        self.assertEqual(len(frames), n, "Callstack had less frames than expected")
+
+        for actual, expected in zip(frames, expected):
+            self.assertTrue(
+                actual.endswith(expected),
+                f"The actual frame {actual} doesn't refer to the expected function {expected}",
+            )
+
+    def test_get_entire_call_stack_as_qualnames(self):
+        a1_stack = None
+        a4_stack = None
+
+        async def a1():
+            nonlocal a1_stack
+            await asyncio.sleep(0.1)
+            a1_stack = cinder._get_entire_call_stack_as_qualnames()
+
+        async def a2():
+            await a1()
+
+        async def a3():
+            return None
+
+        async def a4():
+            nonlocal a4_stack
+            a4_stack = cinder._get_entire_call_stack_as_qualnames()
+
+        async def drive():
+            await asyncio.gather(a2(), a3(), a4())
+
+        asyncio.run(drive())
+
+        self.verify_stack(a1_stack, ["drive", "a2", "a1"])
+        self.verify_stack(a4_stack, ["drive", "a4"])
+
+    def test_get_entire_call_stack_as_qualnames_long_awaiter_chain(self):
+        a1_stack = None
+
+        async def a1():
+            nonlocal a1_stack
+            await asyncio.sleep(0.1)
+            a1_stack = cinder._get_entire_call_stack_as_qualnames()
+
+        async def a2():
+            await a1()
+
+        async def a3():
+            return await a2()
+
+        async def a4():
+            return await a3()
+
+        async def a5():
+            return await a4()
+
+        async def drive():
+            await a5()
+
+        asyncio.run(drive())
+
+        self.verify_stack(a1_stack, ["drive", "a5", "a4", "a3", "a2", "a1"])
+
+    def test_get_entire_call_stack_as_qualnames_mixed_awaiter_and_shadow_stacks(self):
+        a1_stack = None
+
+        async def a1():
+            nonlocal a1_stack
+            await asyncio.sleep(0)
+            a1_stack = cinder._get_entire_call_stack_as_qualnames()
+
+        async def a2():
+            await a1()
+
+        async def a3():
+            await asyncio.sleep(0)
+            return await a2()
+
+        async def a4():
+            return await a3()
+
+        async def a5():
+            return await a4()
+
+        async def drive():
+            await a5()
+
+        asyncio.run(drive())
+
+        self.verify_stack(a1_stack, ["drive", "a5", "a4", "a3", "a2", "a1"])
+
+
 @unittest.skipUnderCinderJIT("Profiling only works under interpreter")
 class TestInterpProfiling(unittest.TestCase):
     def tearDown(self):
