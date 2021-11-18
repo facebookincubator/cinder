@@ -214,8 +214,7 @@ void* NativeGenerator::GetEntryPoint() {
       func->CountInstrs([](const Instr& instr) { return instr.IsLoadAttr(); });
   auto num_sa_caches =
       func->CountInstrs([](const Instr& instr) { return instr.IsStoreAttr(); });
-  auto num_lat_caches = func->CountInstrs(
-      [](const Instr& instr) { return instr.IsFillTypeAttrCache(); });
+  auto num_lat_caches = func->env.numLoadAttrCaches();
 
   env_.rt = NativeGeneratorFactory::runtime();
   PyCodeObject* code_obj = func->code;

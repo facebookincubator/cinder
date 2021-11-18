@@ -299,6 +299,11 @@ void BasicBlock::push_front(Instr* instr) {
   instr->link(this);
 }
 
+void BasicBlock::insert(Instr* instr, Instr::List::iterator it) {
+  instrs_.insert(*instr, it);
+  instr->link(this);
+}
+
 void BasicBlock::clear() {
   while (!instrs_.IsEmpty()) {
     Instr* instr = &(instrs_.ExtractFront());

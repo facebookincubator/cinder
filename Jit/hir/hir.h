@@ -455,7 +455,15 @@ inline std::vector<OperandType> makeTypeVec(Args&&... args) {
 // in a compiler error, however, automatic allocation will still compile.
 // Don't do that.
 class Instr {
+  // Instructions are part of a doubly linked list in the basic block they
+  // belong to
+  IntrusiveListNode block_node_;
+
  public:
+  using List = IntrusiveList<Instr, &Instr::block_node_>;
+
+  static constexpr bool has_output = false;
+
   virtual ~Instr();
 
   static void operator delete(void* ptr) {
@@ -692,10 +700,6 @@ class Instr {
   Opcode opcode_;
   Register* output_{nullptr};
 
-  // Instructions are part of a doubly linked list in the basic block they
-  // belong to
-  IntrusiveListNode block_node_;
-
   BasicBlock* block_{nullptr};
 
   int bytecode_offset_{-1};
@@ -829,8 +833,6 @@ class InstrT;
 template <class T, Opcode opc, class Base, typename... Tys>
 class InstrT<T, opc, Base, Tys...> : public Base {
  public:
-  static constexpr bool has_output = false;
-
   OperandType GetOperandType(std::size_t i) const override {
     JIT_DCHECK(
         i < this->NumOperands(),
@@ -3421,6 +3423,9 @@ class BasicBlock {
   Instr* Append(Instr* instr);
   void push_front(Instr* instr);
 
+  // Insert the given Instr before `it'.
+  void insert(Instr* instr, Instr::List::iterator it);
+
   template <typename T, typename... Args>
   T* append(Args&&... args) {
     T* instr = T::create(std::forward<Args>(args)...);
@@ -3560,7 +3565,7 @@ class BasicBlock {
   // - CondBranch
   // - Return
   //
-  IntrusiveList<Instr, &Instr::block_node_> instrs_;
+  Instr::List instrs_;
 
   // Outgoing edges.
   std::unordered_set<const Edge*> out_edges_;
@@ -3650,11 +3655,20 @@ class Environment {
     next_register_id_ = id;
   }
 
+  int allocateLoadAttrCache() {
+    return next_load_attr_cache_++;
+  }
+
+  int numLoadAttrCaches() const {
+    return next_load_attr_cache_;
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Environment);
 
   RegisterMap registers_;
   int next_register_id_{0};
+  int next_load_attr_cache_{0};
 };
 
 enum class FrameMode {

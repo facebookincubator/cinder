@@ -466,3 +466,88 @@ fun jittestmodule:test {
   }
 }
 ---
+LoadAttrFromTypeIsSpecialized
+---
+class Foo:
+  pass
+
+def test():
+  return Foo.bar
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "Foo">
+    v3:MortalTypeExact[Foo:obj] = GuardIs<0xdeadbeef> v2
+    v5:OptObject = LoadTypeAttrCacheItem<0, 0>
+    v6:CBool = PrimitiveCompare<Equal> v5 v3
+    CondBranch<1, 2> v6
+  }
+
+  bb 1 (preds 0) {
+    v7:Object = LoadTypeAttrCacheItem<0, 1>
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v8:Object = FillTypeAttrCache<0, 1> v3 {
+      NextInstrOffset 4
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v9:Object = Phi<1, 2> v7 v8
+    Return v9
+  }
+}
+---
+LoadAttrFromBuiltinTypeIsSpecialized
+---
+def test():
+  return int.__add__
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "int">
+    v3:MortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v2
+    v5:OptObject = LoadTypeAttrCacheItem<0, 0>
+    v6:CBool = PrimitiveCompare<Equal> v5 v3
+    CondBranch<1, 2> v6
+  }
+
+  bb 1 (preds 0) {
+    v7:Object = LoadTypeAttrCacheItem<0, 1>
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v8:Object = FillTypeAttrCache<0, 1> v3 {
+      NextInstrOffset 4
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v9:Object = Phi<1, 2> v7 v8
+    Return v9
+  }
+}
+---
+LoadAttrFromModuleIsUnspecialized
+---
+import sys
+
+def test():
+  return sys.path
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "sys">
+    v3:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v4:Object = LoadAttr<1; "path"> v3 {
+      NextInstrOffset 4
+    }
+    Return v4
+  }
+}
+---

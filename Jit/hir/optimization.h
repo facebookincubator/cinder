@@ -152,25 +152,6 @@ class GuardTypeRemoval : public Pass {
   }
 };
 
-// Specialize Load{Attr,Method} instructions into more efficient versions
-class LoadAttrSpecialization : public Pass {
- public:
-  LoadAttrSpecialization() : Pass("LoadAttrSpecialization") {}
-
-  void Run(Function& irfunc) override;
-
-  static std::unique_ptr<LoadAttrSpecialization> Factory() {
-    return std::make_unique<LoadAttrSpecialization>();
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(LoadAttrSpecialization);
-
-  BasicBlock* specializeForType(Environment& env, LoadAttr* instr);
-
-  int cache_id_ = 0;
-};
-
 // Remove Phis that only have one unique input value (other than their output).
 class PhiElimination : public Pass {
  public:

@@ -205,6 +205,15 @@ class IntrusiveList {
     root_.set_prev(spliced_tail);
   }
 
+  void insert(reference r, iterator it) {
+    JIT_DCHECK(
+        it.list() == this,
+        "iterator is for list %p, this == %p",
+        it.list(),
+        this);
+    (r.*node_member).InsertBefore(it.node());
+  }
+
   // Return an iterator to the given object, assuming it's in this list.
   iterator iterator_to(reference r) {
     return iterator(this, &(r.*node_member));
@@ -304,6 +313,7 @@ class IntrusiveListIterator {
   using pointer = std::conditional_t<is_const, const T*, T*>;
   using reference = std::conditional_t<is_const, const T&, T&>;
 
+  IntrusiveListIterator() = default;
   IntrusiveListIterator(list_type list, node_type current)
       : list_(list), current_(current) {}
   IntrusiveListIterator(const IntrusiveListIterator&) = default;
@@ -353,9 +363,17 @@ class IntrusiveListIterator {
     return clone;
   }
 
+  list_type list() const {
+    return list_;
+  }
+
+  node_type node() const {
+    return current_;
+  }
+
  private:
-  list_type list_;
-  node_type current_;
+  list_type list_{};
+  node_type current_{};
 };
 
 } // namespace jit

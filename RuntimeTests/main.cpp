@@ -76,7 +76,6 @@ int main(int argc, char* argv[]) {
   register_test("RuntimeTests/hir_tests/hir_builder_test.txt");
   register_test("RuntimeTests/hir_tests/hir_builder_static_test.txt", true);
   register_test("RuntimeTests/hir_tests/guard_type_removal_test.txt");
-  register_test("RuntimeTests/hir_tests/load_attr_specialization_test.txt");
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
   register_test(

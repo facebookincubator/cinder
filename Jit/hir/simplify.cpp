@@ -1,5 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/optimization.h"
+#include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 
 namespace jit {
@@ -30,8 +31,8 @@ namespace hir {
 //   appropriately-typed Register* for you, to ease chaining multiple
 //   instructions. As with the previous case, return the Register* that should
 //   replace the current output of the instruction.
-// - If the instruction can be elided but does not produce an output, that case
-//   is currently unsupported for now.
+// - If the instruction can be elided but does not produce an output, set
+//   env.optimized = true and return nullptr.
 //
 // Do not modify, unlink, or delete the existing instruction; all of those
 // details are handled by existing code outside of the individual optimization
@@ -42,25 +43,89 @@ namespace {
 struct Env {
   Env(Function& f) : func{f} {}
 
+  // The current function.
   Function& func;
-  std::vector<Instr*> new_instrs;
 
+  // The current block being emitted into. Might not be the block originally
+  // containing the instruction being optimized, if more blocks have been
+  // inserted by the simplify function.
+  BasicBlock* block{nullptr};
+
+  // Insertion cursor for new instructions. Must belong to block's Instr::List,
+  // and except for brief critical sections during emit functions on Env,
+  // should always point to the original, unoptimized instruction.
+  Instr::List::iterator cursor;
+
+  // Bytecode instruction of the instruction being optimized, automatically set
+  // on all replacement instructions.
+  int bc_off{-1};
+
+  // Set to true by emit<T>() to indicate that the original instruction should
+  // be removed.
+  bool optimized{false};
+
+  // Create and insert the specified instruction. If the instruction has an
+  // output, a new Register* will be created and returned.
   template <typename T, typename... Args>
   Register* emit(Args&&... args) {
-    T* instr;
     if constexpr (T::has_output) {
-      instr =
-          T::create(func.env.AllocateRegister(), std::forward<Args>(args)...);
+      return emitRaw<T>(
+          func.env.AllocateRegister(), std::forward<Args>(args)...);
     } else {
-      instr = T::create(std::forward<Args>(args)...);
+      return emitRaw<T>(std::forward<Args>(args)...);
     }
-    new_instrs.emplace_back(instr);
+  }
+
+  // Similar to emit<T>(), but does not automatically create an output
+  // register.
+  template <typename T, typename... Args>
+  Register* emitRaw(Args&&... args) {
+    optimized = true;
+    T* instr = T::create(std::forward<Args>(args)...);
+    instr->setBytecodeOffset(bc_off);
+    block->insert(instr, cursor);
+
     if constexpr (T::has_output) {
       Register* output = instr->GetOutput();
       output->set_type(outputType(*instr));
       return output;
     }
     return nullptr;
+  }
+
+  // Create and return a conditional value. Expects three callables:
+  // - do_branch is given two BasicBlock* and should emit a conditional branch
+  //   instruction using them.
+  // - do_bb1 should emit code for the first successor, returning the computed
+  //   value.
+  // - do_bb2 should do the same for the second successor.
+  template <typename BranchFn, typename Bb1Fn, typename Bb2Fn>
+  Register* emitCond(BranchFn do_branch, Bb1Fn do_bb1, Bb2Fn do_bb2) {
+    BasicBlock* bb1 = func.cfg.AllocateBlock();
+    BasicBlock* bb2 = func.cfg.AllocateBlock();
+    do_branch(bb1, bb2);
+    JIT_CHECK(
+        cursor != block->begin(),
+        "block should not be empty after calling do_branch()");
+    BasicBlock* tail = block->splitAfter(*std::prev(cursor));
+
+    block = bb1;
+    cursor = bb1->end();
+    Register* bb1_reg = do_bb1();
+    emit<Branch>(tail);
+
+    block = bb2;
+    cursor = bb2->end();
+    Register* bb2_reg = do_bb2();
+    emit<Branch>(tail);
+
+    block = tail;
+    cursor = tail->begin();
+    std::unordered_map<BasicBlock*, Register*> phi_srcs{
+        {bb1, bb1_reg},
+        {bb2, bb2_reg},
+    };
+    return emit<Phi>(phi_srcs);
   }
 };
 
@@ -203,6 +268,30 @@ Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   return nullptr;
 }
 
+Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
+  Register* receiver = load_attr->GetOperand(0);
+  if (!receiver->isA(TType)) {
+    return nullptr;
+  }
+
+  const int cache_id = env.func.env.allocateLoadAttrCache();
+  Register* guard = env.emit<LoadTypeAttrCacheItem>(cache_id, 0);
+  Register* type_matches =
+      env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, guard, receiver);
+  return env.emitCond(
+      [&](BasicBlock* fast_path, BasicBlock* slow_path) {
+        env.emit<CondBranch>(type_matches, fast_path, slow_path);
+      },
+      [&] { // Fast path
+        return env.emit<LoadTypeAttrCacheItem>(cache_id, 1);
+      },
+      [&] { // Slow path
+        int name_idx = load_attr->name_idx();
+        return env.emit<FillTypeAttrCache>(
+            receiver, name_idx, cache_id, *load_attr->frameState());
+      });
+}
+
 // If we're loading a field from a const float into a double,
 // this can be simplified into a LoadConst.
 Register* simplifyLoadField(Env& env, const LoadField* instr) {
@@ -256,6 +345,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kIsTruthy:
       return simplifyIsTruthy(env, static_cast<const IsTruthy*>(instr));
 
+    case Opcode::kLoadAttr:
+      return simplifyLoadAttr(env, static_cast<const LoadAttr*>(instr));
     case Opcode::kLoadField:
       return simplifyLoadField(env, static_cast<const LoadField*>(instr));
     case Opcode::kLoadTupleItem:
@@ -284,12 +375,26 @@ void Simplify::Run(Function& irfunc) {
   bool changed;
   do {
     changed = false;
-    for (BasicBlock& block : irfunc.cfg.blocks) {
-      for (auto it = block.begin(); it != block.end();) {
-        Instr& instr = *it;
-        ++it;
+    for (auto cfg_it = irfunc.cfg.blocks.begin();
+         cfg_it != irfunc.cfg.blocks.end();) {
+      BasicBlock& block = *cfg_it;
+      ++cfg_it;
+      env.block = &block;
+
+      for (auto blk_it = block.begin(); blk_it != block.end();) {
+        Instr& instr = *blk_it;
+        ++blk_it;
+
+        env.optimized = false;
+        env.cursor = block.iterator_to(instr);
+        env.bc_off = instr.bytecodeOffset();
         Register* new_output = simplifyInstr(env, &instr);
-        if (new_output == nullptr && env.new_instrs.empty()) {
+        JIT_CHECK(
+            env.cursor == env.block->iterator_to(instr),
+            "Simplify functions are expected to leave env.cursor pointing to "
+            "the original instruction, with new instructions inserted before "
+            "it.");
+        if (new_output == nullptr && !env.optimized) {
           continue;
         }
 
@@ -304,29 +409,40 @@ void Simplify::Run(Function& irfunc) {
               "New output type %s isn't compatible with old output type %s",
               new_output->type(),
               instr.GetOutput()->type());
-          env.new_instrs.emplace_back(
-              Assign::create(instr.GetOutput(), new_output));
+          env.emitRaw<Assign>(instr.GetOutput(), new_output);
         }
-        for (Instr* new_instr : env.new_instrs) {
-          new_instr->copyBytecodeOffset(instr);
-          new_instr->InsertBefore(instr);
-        }
-        if ((instr.IsCondBranch() || instr.IsCondBranchIterNotDone() ||
-             instr.IsCondBranchCheckType()) &&
-            env.new_instrs.back()->IsBranch()) {
+
+        if (instr.IsCondBranch() || instr.IsCondBranchIterNotDone() ||
+            instr.IsCondBranchCheckType()) {
+          JIT_CHECK(env.cursor != env.block->begin(), "Unexpected empty block");
+          Instr& prev_instr = *std::prev(env.cursor);
+          JIT_CHECK(
+              prev_instr.IsBranch(),
+              "The only supported simplification for CondBranch* is to a "
+              "Branch, got unexpected '%s'",
+              prev_instr);
+
           // If we've optimized a CondBranchBase into a Branch, we also need to
           // remove any Phi references to the current block from the block that
           // we no longer visit.
           auto cond = static_cast<CondBranchBase*>(&instr);
-          BasicBlock* new_dst =
-              static_cast<Branch*>(env.new_instrs.back())->target();
+          BasicBlock* new_dst = prev_instr.successor(0);
           BasicBlock* old_branch_block =
               cond->false_bb() == new_dst ? cond->true_bb() : cond->false_bb();
           old_branch_block->removePhiPredecessor(cond->block());
         }
-        env.new_instrs.clear();
+
         instr.unlink();
         delete &instr;
+
+        if (env.block != &block) {
+          // If we're now in a different block, `block' should only contain the
+          // newly-emitted instructions, with no more old instructions to
+          // process. Continue to the next block in the list; any newly-created
+          // blocks were added to the end of the list and will be processed
+          // later.
+          break;
+        }
       }
     }
 

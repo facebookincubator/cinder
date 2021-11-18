@@ -73,7 +73,6 @@ void Compiler::runPasses(jit::hir::Function& irfunc) {
   // SSAify must come first; nothing but SSAify should ever see non-SSA HIR.
   runPass<jit::hir::SSAify>(irfunc);
   runPass<jit::hir::Simplify>(irfunc);
-  runPass<jit::hir::LoadAttrSpecialization>(irfunc);
   runPass<jit::hir::DynamicComparisonElimination>(irfunc);
   runPass<jit::hir::GuardTypeRemoval>(irfunc);
   runPass<jit::hir::CallOptimization>(irfunc);

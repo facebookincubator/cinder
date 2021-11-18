@@ -30,7 +30,6 @@ PassRegistry::PassRegistry() {
   };
   addPass(RefcountInsertion::Factory);
   addPass(CopyPropagation::Factory);
-  addPass(LoadAttrSpecialization::Factory);
   addPass(CallOptimization::Factory);
   addPass(DynamicComparisonElimination::Factory);
   addPass(PhiElimination::Factory);
@@ -500,94 +499,6 @@ void GuardTypeRemoval::Run(Function& func) {
       }
     }
   }
-}
-
-void LoadAttrSpecialization::Run(Function& irfunc) {
-  std::vector<LoadAttr*> to_specialize;
-  for (auto& block : irfunc.cfg.GetRPOTraversal()) {
-    for (auto& instr : *block) {
-      if (!instr.IsLoadAttr()) {
-        continue;
-      }
-
-      if (instr.GetOperand(0)->type() <= TType) {
-        to_specialize.emplace_back(static_cast<LoadAttr*>(&instr));
-      }
-    }
-  }
-
-  if (to_specialize.empty()) {
-    return;
-  }
-
-  for (auto load_attr : to_specialize) {
-    specializeForType(irfunc.env, load_attr);
-  }
-
-  reflowTypes(irfunc);
-}
-
-BasicBlock* LoadAttrSpecialization::specializeForType(
-    Environment& env,
-    LoadAttr* load_attr) {
-  auto block = load_attr->block();
-  Register* dst = load_attr->GetOutput();
-  BasicBlock* tail = block->splitAfter(*load_attr);
-  Register* receiver = load_attr->GetOperand(0);
-  int bc_off = load_attr->bytecodeOffset();
-  int name_idx = load_attr->name_idx();
-  load_attr->unlink();
-
-  // Fast path
-  int cache_id = cache_id_++;
-  auto fast_path = block->cfg->AllocateBlock();
-  auto cached_item = env.AllocateRegister();
-  fast_path->appendWithOff<LoadTypeAttrCacheItem>(
-      bc_off, cached_item, cache_id, 1);
-  fast_path->appendWithOff<Branch>(bc_off, tail);
-
-  // Slow path
-  auto slow_path = block->cfg->AllocateBlock();
-  auto filled_item = env.AllocateRegister();
-  slow_path->appendWithOff<FillTypeAttrCache>(
-      bc_off,
-      filled_item,
-      receiver,
-      name_idx,
-      cache_id,
-      load_attr->takeFrameState());
-  delete load_attr;
-  slow_path->appendWithOff<Branch>(bc_off, tail);
-
-  // Join fast/slow paths at the beginning of tail.
-  std::unordered_map<BasicBlock*, Register*> phi_vals{
-      {fast_path, cached_item}, {slow_path, filled_item}};
-  auto phi = tail->push_front<Phi>(dst, phi_vals);
-  phi->setBytecodeOffset(bc_off);
-
-  // Split control flow
-  auto guard = env.AllocateRegister();
-  block->appendWithOff<LoadTypeAttrCacheItem>(bc_off, guard, cache_id, 0);
-  auto cond1 = env.AllocateRegister();
-  block->appendWithOff<Compare>(
-      bc_off, cond1, CompareOp::kIs, guard, receiver, FrameState{});
-  auto cond2 = env.AllocateRegister();
-  // TODO(bsimmers): Get rid of this once we have a type checker for HIR.
-  cond2->set_type(TCInt32);
-  block->appendWithOff<IsTruthy>(bc_off, cond2, cond1, FrameState{});
-  block->appendWithOff<CondBranch>(bc_off, cond2, fast_path, slow_path);
-
-  // Remove the tail if it ends up being a trampoline
-  if (tail->IsTrampoline()) {
-    auto old_tail = tail;
-    tail = tail->GetTerminator()->successor(0);
-    fast_path->GetTerminator()->set_successor(0, tail);
-    slow_path->GetTerminator()->set_successor(0, tail);
-    tail->cfg->RemoveBlock(old_tail);
-    delete old_tail;
-  }
-
-  return tail;
 }
 
 } // namespace hir
