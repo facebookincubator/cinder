@@ -330,6 +330,9 @@ TEST_F(HIRTypeTest, Parse) {
   EXPECT_EQ(Type::parse("CInt64[123456]"), Type::fromCInt(123456, TCInt64));
   EXPECT_EQ(Type::parse("CUInt8[42]"), Type::fromCUInt(42, TCUInt8));
   EXPECT_EQ(Type::parse("CInt32[-5678]"), Type::fromCInt(-5678, TCInt32));
+  EXPECT_EQ(Type::parse("CBool[true]"), Type::fromCBool(true));
+  EXPECT_EQ(Type::parse("CBool[false]"), Type::fromCBool(false));
+  EXPECT_EQ(Type::parse("CBool[banana]"), TBottom);
 
   // Unknown types or unsupported specializations parse to Bottom
   EXPECT_EQ(Type::parse("Bootom"), TBottom);

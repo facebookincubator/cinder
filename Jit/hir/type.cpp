@@ -358,6 +358,16 @@ Type Type::parse(std::string str) {
     return base;
   }
 
+  if (base <= TCBool) {
+    if (spec_string == "true") {
+      return Type::fromCBool(true);
+    }
+    if (spec_string == "false") {
+      return Type::fromCBool(false);
+    }
+    return TBottom;
+  }
+
   intptr_t spec_value;
   if (base <= TCInt8 || base <= TCInt16 || base <= TCInt32 || base <= TCInt64) {
     errno = 0;
