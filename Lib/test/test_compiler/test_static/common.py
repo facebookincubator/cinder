@@ -272,7 +272,7 @@ class StaticTestBase(CompilerTest):
 
     def _temp_mod_name(self):
         StaticTestBase._temp_mod_num += 1
-        return sys._getframe().f_back.f_back.f_back.f_back.f_code.co_name + str(
+        return sys._getframe().f_back.f_back.f_back.f_code.co_name + str(
             StaticTestBase._temp_mod_num
         )
 
