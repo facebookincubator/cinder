@@ -42,6 +42,8 @@ constexpr size_t kTypeHasTrivialMortality = 2;
     kTypeHasTrivialMortality)                                              \
   X(CDouble,                       0x080000000000UL, kLifetimeBottom,      \
     kTypeHasTrivialMortality)                                              \
+  X(CEnum,                         0x100000000000UL, kLifetimeBottom,      \
+    kTypeHasTrivialMortality)                                              \
   X(CInt,                          0x03fc00000000UL, kLifetimeBottom,      \
     kTypeHasTrivialMortality)                                              \
   X(CInt16,                        0x000800000000UL, kLifetimeBottom,      \
@@ -196,7 +198,7 @@ constexpr size_t kTypeHasTrivialMortality = 2;
   X(MortalWaitHandle,              0x000000000100UL, kLifetimeMortal,   0) \
   X(NoneType,                      0x000000000040UL, kLifetimeTop,         \
     kTypeHasTrivialMortality | kTypeHasUniquePyType)                       \
-  X(Nullptr,                       0x100000000000UL, kLifetimeBottom,      \
+  X(Nullptr,                       0x200000000000UL, kLifetimeBottom,      \
     kTypeHasTrivialMortality)                                              \
   X(Object,                        0x0001ffffffffUL, kLifetimeTop,         \
     kTypeHasTrivialMortality | kTypeHasUniquePyType)                       \
@@ -204,195 +206,195 @@ constexpr size_t kTypeHasTrivialMortality = 2;
     kTypeHasTrivialMortality)                                              \
   X(ObjectUser,                    0x000000400000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptArray,                      0x100000800800UL, kLifetimeTop,         \
+  X(OptArray,                      0x200000800800UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptArrayExact,                 0x100000000800UL, kLifetimeTop,         \
+  X(OptArrayExact,                 0x200000000800UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptArrayUser,                  0x100000800000UL, kLifetimeTop,         \
+  X(OptArrayUser,                  0x200000800000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBaseException,              0x100001001000UL, kLifetimeTop,         \
+  X(OptBaseException,              0x200001001000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBaseExceptionExact,         0x100000001000UL, kLifetimeTop,         \
+  X(OptBaseExceptionExact,         0x200000001000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBaseExceptionUser,          0x100001000000UL, kLifetimeTop,         \
+  X(OptBaseExceptionUser,          0x200001000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBool,                       0x100000000001UL, kLifetimeTop,         \
+  X(OptBool,                       0x200000000001UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBuiltinExact,               0x1000001fffffUL, kLifetimeTop,         \
+  X(OptBuiltinExact,               0x2000001fffffUL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBytes,                      0x100002002000UL, kLifetimeTop,         \
+  X(OptBytes,                      0x200002002000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBytesExact,                 0x100000002000UL, kLifetimeTop,         \
+  X(OptBytesExact,                 0x200000002000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptBytesUser,                  0x100002000000UL, kLifetimeTop,         \
+  X(OptBytesUser,                  0x200002000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptCell,                       0x100000000002UL, kLifetimeTop,         \
+  X(OptCell,                       0x200000000002UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptCode,                       0x100000000004UL, kLifetimeTop,         \
+  X(OptCode,                       0x200000000004UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptDict,                       0x100004004000UL, kLifetimeTop,         \
+  X(OptDict,                       0x200004004000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptDictExact,                  0x100000004000UL, kLifetimeTop,         \
+  X(OptDictExact,                  0x200000004000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptDictUser,                   0x100004000000UL, kLifetimeTop,         \
+  X(OptDictUser,                   0x200004000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptFloat,                      0x100008008000UL, kLifetimeTop,         \
+  X(OptFloat,                      0x200008008000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptFloatExact,                 0x100000008000UL, kLifetimeTop,         \
+  X(OptFloatExact,                 0x200000008000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptFloatUser,                  0x100008000000UL, kLifetimeTop,         \
+  X(OptFloatUser,                  0x200008000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptFrame,                      0x100000000008UL, kLifetimeTop,         \
+  X(OptFrame,                      0x200000000008UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptFunc,                       0x100000000010UL, kLifetimeTop,         \
+  X(OptFunc,                       0x200000000010UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptGen,                        0x100000000020UL, kLifetimeTop,         \
+  X(OptGen,                        0x200000000020UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptImmortalArray,              0x100000800800UL, kLifetimeImmortal, 0) \
-  X(OptImmortalArrayExact,         0x100000000800UL, kLifetimeImmortal, 0) \
-  X(OptImmortalArrayUser,          0x100000800000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalBaseException,      0x100001001000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalBaseExceptionExact, 0x100000001000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalBaseExceptionUser,  0x100001000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalBool,               0x100000000001UL, kLifetimeImmortal, 0) \
-  X(OptImmortalBuiltinExact,       0x1000001fffffUL, kLifetimeImmortal, 0) \
-  X(OptImmortalBytes,              0x100002002000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalBytesExact,         0x100000002000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalBytesUser,          0x100002000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalCell,               0x100000000002UL, kLifetimeImmortal, 0) \
-  X(OptImmortalCode,               0x100000000004UL, kLifetimeImmortal, 0) \
-  X(OptImmortalDict,               0x100004004000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalDictExact,          0x100000004000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalDictUser,           0x100004000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalFloat,              0x100008008000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalFloatExact,         0x100000008000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalFloatUser,          0x100008000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalFrame,              0x100000000008UL, kLifetimeImmortal, 0) \
-  X(OptImmortalFunc,               0x100000000010UL, kLifetimeImmortal, 0) \
-  X(OptImmortalGen,                0x100000000020UL, kLifetimeImmortal, 0) \
-  X(OptImmortalList,               0x100010010000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalListExact,          0x100000010000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalListUser,           0x100010000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalLong,               0x100000200201UL, kLifetimeImmortal, 0) \
-  X(OptImmortalLongExact,          0x100000000200UL, kLifetimeImmortal, 0) \
-  X(OptImmortalLongUser,           0x100000200000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalNoneType,           0x100000000040UL, kLifetimeImmortal, 0) \
-  X(OptImmortalObject,             0x1001ffffffffUL, kLifetimeImmortal, 0) \
-  X(OptImmortalObjectExact,        0x100000000400UL, kLifetimeImmortal, 0) \
-  X(OptImmortalObjectUser,         0x100000400000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalSet,                0x100020020000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalSetExact,           0x100000020000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalSetUser,            0x100020000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalSlice,              0x100000000080UL, kLifetimeImmortal, 0) \
-  X(OptImmortalTuple,              0x100040040000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalTupleExact,         0x100000040000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalTupleUser,          0x100040000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalType,               0x100080080000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalTypeExact,          0x100000080000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalTypeUser,           0x100080000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalUnicode,            0x100100100000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalUnicodeExact,       0x100000100000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalUnicodeUser,        0x100100000000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalUser,               0x1001ffe00000UL, kLifetimeImmortal, 0) \
-  X(OptImmortalWaitHandle,         0x100000000100UL, kLifetimeImmortal, 0) \
-  X(OptList,                       0x100010010000UL, kLifetimeTop,         \
+  X(OptImmortalArray,              0x200000800800UL, kLifetimeImmortal, 0) \
+  X(OptImmortalArrayExact,         0x200000000800UL, kLifetimeImmortal, 0) \
+  X(OptImmortalArrayUser,          0x200000800000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalBaseException,      0x200001001000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalBaseExceptionExact, 0x200000001000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalBaseExceptionUser,  0x200001000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalBool,               0x200000000001UL, kLifetimeImmortal, 0) \
+  X(OptImmortalBuiltinExact,       0x2000001fffffUL, kLifetimeImmortal, 0) \
+  X(OptImmortalBytes,              0x200002002000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalBytesExact,         0x200000002000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalBytesUser,          0x200002000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalCell,               0x200000000002UL, kLifetimeImmortal, 0) \
+  X(OptImmortalCode,               0x200000000004UL, kLifetimeImmortal, 0) \
+  X(OptImmortalDict,               0x200004004000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalDictExact,          0x200000004000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalDictUser,           0x200004000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalFloat,              0x200008008000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalFloatExact,         0x200000008000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalFloatUser,          0x200008000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalFrame,              0x200000000008UL, kLifetimeImmortal, 0) \
+  X(OptImmortalFunc,               0x200000000010UL, kLifetimeImmortal, 0) \
+  X(OptImmortalGen,                0x200000000020UL, kLifetimeImmortal, 0) \
+  X(OptImmortalList,               0x200010010000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalListExact,          0x200000010000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalListUser,           0x200010000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalLong,               0x200000200201UL, kLifetimeImmortal, 0) \
+  X(OptImmortalLongExact,          0x200000000200UL, kLifetimeImmortal, 0) \
+  X(OptImmortalLongUser,           0x200000200000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalNoneType,           0x200000000040UL, kLifetimeImmortal, 0) \
+  X(OptImmortalObject,             0x2001ffffffffUL, kLifetimeImmortal, 0) \
+  X(OptImmortalObjectExact,        0x200000000400UL, kLifetimeImmortal, 0) \
+  X(OptImmortalObjectUser,         0x200000400000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalSet,                0x200020020000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalSetExact,           0x200000020000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalSetUser,            0x200020000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalSlice,              0x200000000080UL, kLifetimeImmortal, 0) \
+  X(OptImmortalTuple,              0x200040040000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalTupleExact,         0x200000040000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalTupleUser,          0x200040000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalType,               0x200080080000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalTypeExact,          0x200000080000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalTypeUser,           0x200080000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalUnicode,            0x200100100000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalUnicodeExact,       0x200000100000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalUnicodeUser,        0x200100000000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalUser,               0x2001ffe00000UL, kLifetimeImmortal, 0) \
+  X(OptImmortalWaitHandle,         0x200000000100UL, kLifetimeImmortal, 0) \
+  X(OptList,                       0x200010010000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptListExact,                  0x100000010000UL, kLifetimeTop,         \
+  X(OptListExact,                  0x200000010000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptListUser,                   0x100010000000UL, kLifetimeTop,         \
+  X(OptListUser,                   0x200010000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptLong,                       0x100000200201UL, kLifetimeTop,         \
+  X(OptLong,                       0x200000200201UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptLongExact,                  0x100000000200UL, kLifetimeTop,         \
+  X(OptLongExact,                  0x200000000200UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptLongUser,                   0x100000200000UL, kLifetimeTop,         \
+  X(OptLongUser,                   0x200000200000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptMortalArray,                0x100000800800UL, kLifetimeMortal,   0) \
-  X(OptMortalArrayExact,           0x100000000800UL, kLifetimeMortal,   0) \
-  X(OptMortalArrayUser,            0x100000800000UL, kLifetimeMortal,   0) \
-  X(OptMortalBaseException,        0x100001001000UL, kLifetimeMortal,   0) \
-  X(OptMortalBaseExceptionExact,   0x100000001000UL, kLifetimeMortal,   0) \
-  X(OptMortalBaseExceptionUser,    0x100001000000UL, kLifetimeMortal,   0) \
-  X(OptMortalBool,                 0x100000000001UL, kLifetimeMortal,   0) \
-  X(OptMortalBuiltinExact,         0x1000001fffffUL, kLifetimeMortal,   0) \
-  X(OptMortalBytes,                0x100002002000UL, kLifetimeMortal,   0) \
-  X(OptMortalBytesExact,           0x100000002000UL, kLifetimeMortal,   0) \
-  X(OptMortalBytesUser,            0x100002000000UL, kLifetimeMortal,   0) \
-  X(OptMortalCell,                 0x100000000002UL, kLifetimeMortal,   0) \
-  X(OptMortalCode,                 0x100000000004UL, kLifetimeMortal,   0) \
-  X(OptMortalDict,                 0x100004004000UL, kLifetimeMortal,   0) \
-  X(OptMortalDictExact,            0x100000004000UL, kLifetimeMortal,   0) \
-  X(OptMortalDictUser,             0x100004000000UL, kLifetimeMortal,   0) \
-  X(OptMortalFloat,                0x100008008000UL, kLifetimeMortal,   0) \
-  X(OptMortalFloatExact,           0x100000008000UL, kLifetimeMortal,   0) \
-  X(OptMortalFloatUser,            0x100008000000UL, kLifetimeMortal,   0) \
-  X(OptMortalFrame,                0x100000000008UL, kLifetimeMortal,   0) \
-  X(OptMortalFunc,                 0x100000000010UL, kLifetimeMortal,   0) \
-  X(OptMortalGen,                  0x100000000020UL, kLifetimeMortal,   0) \
-  X(OptMortalList,                 0x100010010000UL, kLifetimeMortal,   0) \
-  X(OptMortalListExact,            0x100000010000UL, kLifetimeMortal,   0) \
-  X(OptMortalListUser,             0x100010000000UL, kLifetimeMortal,   0) \
-  X(OptMortalLong,                 0x100000200201UL, kLifetimeMortal,   0) \
-  X(OptMortalLongExact,            0x100000000200UL, kLifetimeMortal,   0) \
-  X(OptMortalLongUser,             0x100000200000UL, kLifetimeMortal,   0) \
-  X(OptMortalNoneType,             0x100000000040UL, kLifetimeMortal,   0) \
-  X(OptMortalObject,               0x1001ffffffffUL, kLifetimeMortal,   0) \
-  X(OptMortalObjectExact,          0x100000000400UL, kLifetimeMortal,   0) \
-  X(OptMortalObjectUser,           0x100000400000UL, kLifetimeMortal,   0) \
-  X(OptMortalSet,                  0x100020020000UL, kLifetimeMortal,   0) \
-  X(OptMortalSetExact,             0x100000020000UL, kLifetimeMortal,   0) \
-  X(OptMortalSetUser,              0x100020000000UL, kLifetimeMortal,   0) \
-  X(OptMortalSlice,                0x100000000080UL, kLifetimeMortal,   0) \
-  X(OptMortalTuple,                0x100040040000UL, kLifetimeMortal,   0) \
-  X(OptMortalTupleExact,           0x100000040000UL, kLifetimeMortal,   0) \
-  X(OptMortalTupleUser,            0x100040000000UL, kLifetimeMortal,   0) \
-  X(OptMortalType,                 0x100080080000UL, kLifetimeMortal,   0) \
-  X(OptMortalTypeExact,            0x100000080000UL, kLifetimeMortal,   0) \
-  X(OptMortalTypeUser,             0x100080000000UL, kLifetimeMortal,   0) \
-  X(OptMortalUnicode,              0x100100100000UL, kLifetimeMortal,   0) \
-  X(OptMortalUnicodeExact,         0x100000100000UL, kLifetimeMortal,   0) \
-  X(OptMortalUnicodeUser,          0x100100000000UL, kLifetimeMortal,   0) \
-  X(OptMortalUser,                 0x1001ffe00000UL, kLifetimeMortal,   0) \
-  X(OptMortalWaitHandle,           0x100000000100UL, kLifetimeMortal,   0) \
-  X(OptNoneType,                   0x100000000040UL, kLifetimeTop,         \
+  X(OptMortalArray,                0x200000800800UL, kLifetimeMortal,   0) \
+  X(OptMortalArrayExact,           0x200000000800UL, kLifetimeMortal,   0) \
+  X(OptMortalArrayUser,            0x200000800000UL, kLifetimeMortal,   0) \
+  X(OptMortalBaseException,        0x200001001000UL, kLifetimeMortal,   0) \
+  X(OptMortalBaseExceptionExact,   0x200000001000UL, kLifetimeMortal,   0) \
+  X(OptMortalBaseExceptionUser,    0x200001000000UL, kLifetimeMortal,   0) \
+  X(OptMortalBool,                 0x200000000001UL, kLifetimeMortal,   0) \
+  X(OptMortalBuiltinExact,         0x2000001fffffUL, kLifetimeMortal,   0) \
+  X(OptMortalBytes,                0x200002002000UL, kLifetimeMortal,   0) \
+  X(OptMortalBytesExact,           0x200000002000UL, kLifetimeMortal,   0) \
+  X(OptMortalBytesUser,            0x200002000000UL, kLifetimeMortal,   0) \
+  X(OptMortalCell,                 0x200000000002UL, kLifetimeMortal,   0) \
+  X(OptMortalCode,                 0x200000000004UL, kLifetimeMortal,   0) \
+  X(OptMortalDict,                 0x200004004000UL, kLifetimeMortal,   0) \
+  X(OptMortalDictExact,            0x200000004000UL, kLifetimeMortal,   0) \
+  X(OptMortalDictUser,             0x200004000000UL, kLifetimeMortal,   0) \
+  X(OptMortalFloat,                0x200008008000UL, kLifetimeMortal,   0) \
+  X(OptMortalFloatExact,           0x200000008000UL, kLifetimeMortal,   0) \
+  X(OptMortalFloatUser,            0x200008000000UL, kLifetimeMortal,   0) \
+  X(OptMortalFrame,                0x200000000008UL, kLifetimeMortal,   0) \
+  X(OptMortalFunc,                 0x200000000010UL, kLifetimeMortal,   0) \
+  X(OptMortalGen,                  0x200000000020UL, kLifetimeMortal,   0) \
+  X(OptMortalList,                 0x200010010000UL, kLifetimeMortal,   0) \
+  X(OptMortalListExact,            0x200000010000UL, kLifetimeMortal,   0) \
+  X(OptMortalListUser,             0x200010000000UL, kLifetimeMortal,   0) \
+  X(OptMortalLong,                 0x200000200201UL, kLifetimeMortal,   0) \
+  X(OptMortalLongExact,            0x200000000200UL, kLifetimeMortal,   0) \
+  X(OptMortalLongUser,             0x200000200000UL, kLifetimeMortal,   0) \
+  X(OptMortalNoneType,             0x200000000040UL, kLifetimeMortal,   0) \
+  X(OptMortalObject,               0x2001ffffffffUL, kLifetimeMortal,   0) \
+  X(OptMortalObjectExact,          0x200000000400UL, kLifetimeMortal,   0) \
+  X(OptMortalObjectUser,           0x200000400000UL, kLifetimeMortal,   0) \
+  X(OptMortalSet,                  0x200020020000UL, kLifetimeMortal,   0) \
+  X(OptMortalSetExact,             0x200000020000UL, kLifetimeMortal,   0) \
+  X(OptMortalSetUser,              0x200020000000UL, kLifetimeMortal,   0) \
+  X(OptMortalSlice,                0x200000000080UL, kLifetimeMortal,   0) \
+  X(OptMortalTuple,                0x200040040000UL, kLifetimeMortal,   0) \
+  X(OptMortalTupleExact,           0x200000040000UL, kLifetimeMortal,   0) \
+  X(OptMortalTupleUser,            0x200040000000UL, kLifetimeMortal,   0) \
+  X(OptMortalType,                 0x200080080000UL, kLifetimeMortal,   0) \
+  X(OptMortalTypeExact,            0x200000080000UL, kLifetimeMortal,   0) \
+  X(OptMortalTypeUser,             0x200080000000UL, kLifetimeMortal,   0) \
+  X(OptMortalUnicode,              0x200100100000UL, kLifetimeMortal,   0) \
+  X(OptMortalUnicodeExact,         0x200000100000UL, kLifetimeMortal,   0) \
+  X(OptMortalUnicodeUser,          0x200100000000UL, kLifetimeMortal,   0) \
+  X(OptMortalUser,                 0x2001ffe00000UL, kLifetimeMortal,   0) \
+  X(OptMortalWaitHandle,           0x200000000100UL, kLifetimeMortal,   0) \
+  X(OptNoneType,                   0x200000000040UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptObject,                     0x1001ffffffffUL, kLifetimeTop,         \
+  X(OptObject,                     0x2001ffffffffUL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptObjectExact,                0x100000000400UL, kLifetimeTop,         \
+  X(OptObjectExact,                0x200000000400UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptObjectUser,                 0x100000400000UL, kLifetimeTop,         \
+  X(OptObjectUser,                 0x200000400000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptSet,                        0x100020020000UL, kLifetimeTop,         \
+  X(OptSet,                        0x200020020000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptSetExact,                   0x100000020000UL, kLifetimeTop,         \
+  X(OptSetExact,                   0x200000020000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptSetUser,                    0x100020000000UL, kLifetimeTop,         \
+  X(OptSetUser,                    0x200020000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptSlice,                      0x100000000080UL, kLifetimeTop,         \
+  X(OptSlice,                      0x200000000080UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptTuple,                      0x100040040000UL, kLifetimeTop,         \
+  X(OptTuple,                      0x200040040000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptTupleExact,                 0x100000040000UL, kLifetimeTop,         \
+  X(OptTupleExact,                 0x200000040000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptTupleUser,                  0x100040000000UL, kLifetimeTop,         \
+  X(OptTupleUser,                  0x200040000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptType,                       0x100080080000UL, kLifetimeTop,         \
+  X(OptType,                       0x200080080000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptTypeExact,                  0x100000080000UL, kLifetimeTop,         \
+  X(OptTypeExact,                  0x200000080000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptTypeUser,                   0x100080000000UL, kLifetimeTop,         \
+  X(OptTypeUser,                   0x200080000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptUnicode,                    0x100100100000UL, kLifetimeTop,         \
+  X(OptUnicode,                    0x200100100000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptUnicodeExact,               0x100000100000UL, kLifetimeTop,         \
+  X(OptUnicodeExact,               0x200000100000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptUnicodeUser,                0x100100000000UL, kLifetimeTop,         \
+  X(OptUnicodeUser,                0x200100000000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptUser,                       0x1001ffe00000UL, kLifetimeTop,         \
+  X(OptUser,                       0x2001ffe00000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(OptWaitHandle,                 0x100000000100UL, kLifetimeTop,         \
+  X(OptWaitHandle,                 0x200000000100UL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
-  X(Primitive,                     0x1ffe00000000UL, kLifetimeBottom,      \
+  X(Primitive,                     0x3ffe00000000UL, kLifetimeBottom,      \
     kTypeHasTrivialMortality)                                              \
   X(Set,                           0x000020020000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality | kTypeHasUniquePyType)                       \
@@ -402,7 +404,7 @@ constexpr size_t kTypeHasTrivialMortality = 2;
     kTypeHasTrivialMortality)                                              \
   X(Slice,                         0x000000000080UL, kLifetimeTop,         \
     kTypeHasTrivialMortality | kTypeHasUniquePyType)                       \
-  X(Top,                           0x1fffffffffffUL, kLifetimeTop,         \
+  X(Top,                           0x3fffffffffffUL, kLifetimeTop,         \
     kTypeHasTrivialMortality)                                              \
   X(Tuple,                         0x000040040000UL, kLifetimeTop,         \
     kTypeHasTrivialMortality | kTypeHasUniquePyType)                       \
@@ -427,7 +429,7 @@ constexpr size_t kTypeHasTrivialMortality = 2;
   X(WaitHandle,                    0x000000000100UL, kLifetimeTop,         \
     kTypeHasTrivialMortality | kTypeHasUniquePyType)                      
 
-constexpr size_t kNumTypeBits = 45;
+constexpr size_t kNumTypeBits = 46;
 
 // clang-format on
 

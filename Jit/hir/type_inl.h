@@ -52,6 +52,10 @@ inline Type Type::fromCUInt(uint64_t i, Type t) {
   return Type{t.bits_, kLifetimeBottom, kSpecInt, (intptr_t)i};
 }
 
+inline Type Type::fromEnum(PyTypeObject* type) {
+  return Type{kCEnum, kLifetimeBottom, type, false};
+}
+
 inline bool Type::hasTypeSpec() const {
   auto sk = specKind();
   return sk == kSpecType || sk == kSpecTypeExact || sk == kSpecObject;

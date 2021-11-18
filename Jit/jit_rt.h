@@ -327,6 +327,7 @@ PyObject* JITRT_BoxBool(uint32_t i);
 PyObject* JITRT_BoxI64(int64_t i);
 PyObject* JITRT_BoxU64(uint64_t i);
 PyObject* JITRT_BoxDouble(double_t d);
+PyObject* JITRT_BoxEnum(int64_t i, uint64_t t);
 
 uint64_t JITRT_IsNegativeAndErrOccurred_64(int64_t i);
 uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i);
@@ -361,6 +362,7 @@ int64_t JITRT_UnboxI64(PyObject* obj);
 int32_t JITRT_UnboxI32(PyObject* obj);
 int16_t JITRT_UnboxI16(PyObject* obj);
 int8_t JITRT_UnboxI8(PyObject* obj);
+int64_t JITRT_UnboxEnum(PyObject* obj);
 
 /*
  * Calls __builtins__.__import__(), with a fast-path if this hasn't been

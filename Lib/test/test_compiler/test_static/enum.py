@@ -1,3 +1,4 @@
+import itertools
 import unittest
 from compiler.static.types import TypedSyntaxError
 
@@ -162,7 +163,6 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @unittest.skipUnderCinderJIT("(un)boxing not yet supported in JIT")
     def test_enum_function_arg_and_return_type(self):
         codestr = """
         from __static__ import Enum
@@ -182,7 +182,6 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.flip(mod.Coin.HEADS), mod.Coin.TAILS)
             self.assertEqual(mod.flip(mod.Coin.TAILS), mod.Coin.HEADS)
 
-    @unittest.skipUnderCinderJIT("(un)boxing not yet supported in JIT")
     def test_function_returns_enum(self):
         codestr = """
         from __static__ import Enum
@@ -208,7 +207,6 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.sign(-42.0), mod.Sign.NEGATIVE)
             self.assertEqual(mod.sign(42.0), mod.Sign.POSITIVE)
 
-    @unittest.skipUnderCinderJIT("(un)boxing not yet supported in JIT")
     def test_pass_enum_between_static_functions(self):
         codestr = """
         from __static__ import Enum
@@ -236,7 +234,6 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.bitwise_nor(mod.Bit.ONE, mod.Bit.ZERO), mod.Bit.ZERO)
             self.assertEqual(mod.bitwise_nor(mod.Bit.ONE, mod.Bit.ONE), mod.Bit.ZERO)
 
-    @unittest.skipUnderCinderJIT("(un)boxing not yet supported in JIT")
     def test_call_converts_int_to_enum(self):
         codestr = """
         from __static__ import Enum
@@ -252,7 +249,6 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.convert_to_bit(0), mod.Bit.ZERO)
             self.assertEqual(mod.convert_to_bit(1), mod.Bit.ONE)
 
-    @unittest.skipUnderCinderJIT("(un)boxing not yet supported in JIT")
     def test_primitive_unbox_shadowcode(self):
         codestr = """
         from __static__ import Enum
@@ -268,3 +264,51 @@ class StaticEnumTests(StaticTestBase):
             for _ in range(100):
                 self.assertEqual(mod.convert_to_bit(0), mod.Bit.ZERO)
                 self.assertEqual(mod.convert_to_bit(1), mod.Bit.ONE)
+
+    def test_primitive_return(self):
+        vals = [("Foo.BAR", 1), ("Foo.BAZ", 2)]
+        tf = [True, False]
+        for val, strict, error, unjitable in itertools.product(vals, tf, tf, tf):
+            unjitable_code = "class c: pass" if unjitable else ""
+            codestr = f"""
+                from __static__ import box, Enum
+
+                class Foo(Enum):
+                    BAR = 1
+                    BAZ = 2
+
+                def f(error: bool) -> Foo:
+                    {unjitable_code}
+                    if error:
+                        raise RuntimeError("boom")
+                    return {val[0]}
+
+                def g() -> bool:
+                    x = f({error})
+                    y = Foo({val[1]})
+                    return box(x == y)
+            """
+            ctx = self.in_strict_module if strict else self.in_module
+            with self.subTest(
+                val=val,
+                strict=strict,
+                error=error,
+                unjitable=unjitable,
+            ):
+                with ctx(codestr) as mod:
+                    f = mod.f
+                    g = mod.g
+
+                    self.assertInBytecode(f, "RETURN_PRIMITIVE", TYPED_INT64)
+
+                    if error:
+                        with self.assertRaisesRegex(RuntimeError, "boom"):
+                            g()
+                    else:
+                        self.assertTrue(g())
+
+                    self.assert_jitted(g)
+                    if unjitable:
+                        self.assert_not_jitted(f)
+                    else:
+                        self.assert_jitted(f)

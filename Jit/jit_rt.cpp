@@ -343,6 +343,17 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
           goto fail;
         }
         arg_space[i] = arg;
+      } else if (_PyClassLoader_IsEnum(cur_arg->tai_type)) {
+        if (!invoked_statically &&
+            !_PyObject_TypeCheckOptional(
+                arg, cur_arg->tai_type, cur_arg->tai_optional)) {
+          goto fail;
+        }
+        int64_t ival = JITRT_UnboxEnum(arg);
+        JIT_DCHECK(
+            ival != -1 || !PyErr_Occurred(),
+            "enums are statically guaranteed to have type int64");
+        arg_space[i] = (void*)ival;
       } else {
         // Primitive arg check
         if (Py_TYPE(arg) != &PyLong_Type ||
@@ -1118,6 +1129,13 @@ PyObject* JITRT_BoxDouble(double_t d) {
   return PyFloat_FromDouble(d);
 }
 
+PyObject* JITRT_BoxEnum(int64_t i, uint64_t t) {
+  PyObject* val = PyLong_FromSsize_t(i);
+  PyObject* ret = _PyObject_Call1Arg((PyObject*)t, val);
+  Py_DECREF(val);
+  return ret;
+}
+
 uint64_t JITRT_IsNegativeAndErrOccurred_64(int64_t i) {
   return (i == -1 && _PyErr_OCCURRED()) ? -1 : 0;
 }
@@ -1248,6 +1266,16 @@ int16_t JITRT_UnboxI16(PyObject* obj) {
 
 int8_t JITRT_UnboxI8(PyObject* obj) {
   return checkedUnboxImpl<int8_t>(obj);
+}
+
+int64_t JITRT_UnboxEnum(PyObject* obj) {
+  PyObject* value = PyObject_GetAttrString(obj, "value");
+  if (value == NULL) {
+    return -1;
+  }
+  Py_ssize_t ret = PyLong_AsSsize_t(value);
+  Py_DECREF(value);
+  return ret;
 }
 
 PyObject* JITRT_ImportName(
@@ -1659,40 +1687,46 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
         }
         arg_val = (uint64_t)args[arg];
 
+        PyTypeObject* arg_type = arg_info->tai_args[i].tai_type;
         PyObject* new_val;
-        switch (arg_info->tai_args[i].tai_primitive_type) {
-          case TYPED_BOOL:
-            new_val = arg_val ? Py_True : Py_False;
-            break;
-          case TYPED_INT8:
-            new_val = PyLong_FromLong((int8_t)arg_val);
-            break;
-          case TYPED_INT16:
-            new_val = PyLong_FromLong((int16_t)arg_val);
-            break;
-          case TYPED_INT32:
-            new_val = PyLong_FromLong((int32_t)arg_val);
-            break;
-          case TYPED_INT64:
-            new_val = PyLong_FromSsize_t((Py_ssize_t)arg_val);
-            break;
-          case TYPED_UINT8:
-            new_val = PyLong_FromUnsignedLong((uint8_t)arg_val);
-            break;
-          case TYPED_UINT16:
-            new_val = PyLong_FromUnsignedLong((uint16_t)arg_val);
-            break;
-          case TYPED_UINT32:
-            new_val = PyLong_FromUnsignedLong((uint32_t)arg_val);
-            break;
-          case TYPED_UINT64:
-            new_val = PyLong_FromSize_t((size_t)arg_val);
-            break;
-          default:
-            assert(false);
-            PyErr_SetString(PyExc_RuntimeError, "unsupported primitive type");
-            new_val = nullptr;
+        if (_PyClassLoader_IsEnum(arg_type)) {
+          new_val = JITRT_BoxEnum((int64_t)arg_val, (uint64_t)arg_type);
+        } else {
+          switch (arg_info->tai_args[i].tai_primitive_type) {
+            case TYPED_BOOL:
+              new_val = arg_val ? Py_True : Py_False;
+              break;
+            case TYPED_INT8:
+              new_val = PyLong_FromLong((int8_t)arg_val);
+              break;
+            case TYPED_INT16:
+              new_val = PyLong_FromLong((int16_t)arg_val);
+              break;
+            case TYPED_INT32:
+              new_val = PyLong_FromLong((int32_t)arg_val);
+              break;
+            case TYPED_INT64:
+              new_val = PyLong_FromSsize_t((Py_ssize_t)arg_val);
+              break;
+            case TYPED_UINT8:
+              new_val = PyLong_FromUnsignedLong((uint8_t)arg_val);
+              break;
+            case TYPED_UINT16:
+              new_val = PyLong_FromUnsignedLong((uint16_t)arg_val);
+              break;
+            case TYPED_UINT32:
+              new_val = PyLong_FromUnsignedLong((uint32_t)arg_val);
+              break;
+            case TYPED_UINT64:
+              new_val = PyLong_FromSize_t((size_t)arg_val);
+              break;
+            default:
+              assert(false);
+              PyErr_SetString(PyExc_RuntimeError, "unsupported primitive type");
+              new_val = nullptr;
+          }
         }
+
         if (new_val == nullptr) {
           for (int i = 0; i < allocated_count; i++) {
             Py_DECREF(allocated_args[i]);
@@ -1724,9 +1758,17 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
   // If we are supposed to be returning a primitive, it needs unboxing because
   // our caller expected this to be a static->static direct invoke, we just
   // failed to JIT the callee.
-  int ret_type = _PyClassLoader_ResolvePrimitiveType(
-      _PyClassLoader_GetReturnTypeDescr(func));
-  if (ret_type != TYPED_OBJECT) {
+  int optional;
+  PyTypeObject* ret_type = _PyClassLoader_ResolveType(
+      _PyClassLoader_GetReturnTypeDescr(func), &optional);
+  if (_PyClassLoader_IsEnum(ret_type)) {
+    Py_DECREF(ret_type);
+    void* ival = (void*)JITRT_UnboxEnum(res);
+    return JITRT_StaticCallReturn{ival, no_error};
+  }
+  int ret_code = _PyClassLoader_GetTypeCode(ret_type);
+  Py_DECREF(ret_type);
+  if (ret_code != TYPED_OBJECT) {
     // we can always unbox to 64-bit, the JIT will just ignore the higher bits.
     // (TODO) This means that overflow here will give weird results, but
     // overflow in primitive ints in static python is undefined behavior right
@@ -1734,9 +1776,9 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
     // to implement overflow checking just here in the "unjitable" code path,
     // when overflow won't be checked if the code is JITted.
     void* ival;
-    if (ret_type == TYPED_BOOL) {
+    if (ret_code == TYPED_BOOL) {
       ival = (void*)(res == Py_True);
-    } else if (ret_type & TYPED_INT_SIGNED) {
+    } else if (ret_code & TYPED_INT_SIGNED) {
       ival = (void*)JITRT_UnboxI64(res);
     } else {
       ival = (void*)JITRT_UnboxU64(res);

@@ -86,6 +86,7 @@ Top
     +-- Nullptr
     +-- CBool
     +-- CDouble
+    +-- CEnum
     +-- CInt8
     +-- CInt16
     +-- CInt32

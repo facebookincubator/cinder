@@ -942,8 +942,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const PrimitiveBox*>(&i);
         std::string src = instr->value()->name();
         Type src_type = instr->value()->type();
+        Type box_type = instr->type();
         std::string tmp = GetSafeTempName();
         uint64_t func = 0;
+
+        if (box_type <= TCEnum) {
+          JIT_DCHECK(
+              src_type <= TCInt64,
+              "unboxed enums are represented as int64 in the JIT");
+          bbb.AppendCode(
+              "Call {}, {:#x}, {}:{}, {:#x}:CUInt64",
+              instr->GetOutput(),
+              reinterpret_cast<uint64_t>(JITRT_BoxEnum),
+              src,
+              src_type,
+              reinterpret_cast<uint64_t>(box_type.typeSpec()));
+          break;
+        }
 
         if (src_type == TNullptr) {
           // special case for an uninitialized variable, we'll
@@ -1045,6 +1060,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           func = reinterpret_cast<uint64_t>(JITRT_UnboxI16);
         } else if (ty <= TCInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_UnboxI8);
+        } else if (ty <= TCEnum) {
+          func = reinterpret_cast<uint64_t>(JITRT_UnboxEnum);
         } else {
           JIT_CHECK(false, "Cannot unbox type %s", ty.toString().c_str());
         }

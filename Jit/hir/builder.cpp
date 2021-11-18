@@ -886,11 +886,18 @@ void HIRBuilder::translate(
         }
         case RETURN_PRIMITIVE: {
           Type type = prim_type_to_type(bc_instr.oparg());
-          JIT_CHECK(
-              type <= irfunc.return_type,
-              "bad return type %s, expected %s",
-              type,
-              irfunc.return_type);
+          if (irfunc.return_type <= TCEnum) {
+            JIT_CHECK(
+                type <= TCInt64,
+                "bad return type %s for enum, expected CInt64",
+                type);
+          } else {
+            JIT_CHECK(
+                type <= irfunc.return_type,
+                "bad return type %s, expected %s",
+                type,
+                irfunc.return_type);
+          }
           Register* reg = tc.frame.stack.pop();
           tc.emit<Return>(reg, type);
           break;
@@ -1737,8 +1744,9 @@ bool HIRBuilder::emitInvokeFunction(
         // Direct invoke is safe whether we succeeded in JIT-compiling or not,
         // it'll just have an extra indirection if not JIT compiled.
         Register* out = temps_.AllocateStack();
-        auto call = tc.emit<InvokeStaticFunction>(
-            nargs, out, target.func(), target.return_type);
+        Type typ = target.return_type <= TCEnum ? TCInt64 : target.return_type;
+        auto call =
+            tc.emit<InvokeStaticFunction>(nargs, out, target.func(), typ);
         for (auto i = nargs - 1; i >= 0; i--) {
           Register* operand = tc.frame.stack.pop();
           call->SetOperand(i, operand);

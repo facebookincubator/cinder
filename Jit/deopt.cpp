@@ -27,6 +27,10 @@ hir::ValueKind deoptValueKind(hir::Type type) {
     return jit::hir::ValueKind::kDouble;
   }
 
+  if (type <= jit::hir::TCEnum) {
+    return jit::hir::ValueKind::kSigned;
+  }
+
   // TODO(bsimmers): The type predicates here are gross and indicate a deeper
   // problem with how we're using Types earlier in the pipeline: we use
   // `LoadNull` to zero-initialize locals with primitive types (currently done

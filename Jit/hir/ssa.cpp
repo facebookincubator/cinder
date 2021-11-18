@@ -479,6 +479,10 @@ Type outputType(const Instr& instr) {
 
     case Opcode::kPrimitiveBox: {
       auto& pb = static_cast<const PrimitiveBox&>(instr);
+      if (pb.type() <= TCEnum) {
+        // Calling an enum type in JITRT_BoxEnum can raise an exception
+        return TOptObject;
+      }
       if (pb.value()->type() <= TCDouble) {
         return TOptFloatExact;
       }
@@ -499,7 +503,8 @@ Type outputType(const Instr& instr) {
 
     case Opcode::kPrimitiveUnbox: {
       auto& unbox = static_cast<const PrimitiveUnbox&>(instr);
-      return unbox.type();
+      Type typ = unbox.type();
+      return typ <= TCEnum ? TCInt64 : typ;
     }
 
     // Check opcodes return a copy of their input that is statically known to

@@ -554,6 +554,10 @@ void NativeGenerator::generatePrologue(
     } else if (ret_type <= TCDouble) {
       // xmm0 already contains the return value
       box_func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
+    } else if (ret_type <= TCEnum) {
+      as_->mov(x86::rdi, x86::rax);
+      as_->mov(x86::rsi, reinterpret_cast<uint64_t>(ret_type.typeSpec()));
+      box_func = reinterpret_cast<uint64_t>(JITRT_BoxEnum);
     } else {
       JIT_CHECK(
           false, "unsupported primitive return type %s", ret_type.toString());

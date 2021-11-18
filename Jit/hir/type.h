@@ -65,6 +65,9 @@ class Type {
   static Type fromCBool(bool b);
   static Type fromCDouble(double d);
 
+  // Create a Type from a PyTypeObject representing an Enum type.
+  static Type fromEnum(PyTypeObject* type);
+
   static bool CIntFitsType(int64_t i, Type t);
   static Type fromCInt(int64_t i, Type t);
   static bool CUIntFitsType(uint64_t i, Type t);

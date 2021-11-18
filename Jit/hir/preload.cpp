@@ -51,8 +51,12 @@ Type prim_type_to_type(int prim_type) {
 
 static Type to_jit_type_impl(const PyTypeOpt& pytype_opt, bool exact) {
   auto& [pytype, opt] = pytype_opt;
-  int prim_type = _PyClassLoader_GetTypeCode(pytype);
+  if (_PyClassLoader_IsEnum(pytype)) {
+    JIT_CHECK(!opt, "static enums cannot be optional");
+    return Type::fromEnum(pytype);
+  }
 
+  int prim_type = _PyClassLoader_GetTypeCode(pytype);
   if (prim_type == TYPED_OBJECT) {
     Type type = exact ? Type::fromTypeExact(pytype) : Type::fromType(pytype);
     if (opt) {
