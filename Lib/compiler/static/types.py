@@ -5425,11 +5425,17 @@ class ArrayInstance(Object["ArrayClass"]):
         index_is_python_int = INT_TYPE.can_assign_from(index_type.klass)
         index_is_primitive_int = isinstance(index_type.klass, CIntType)
 
-        # ARRAY_{GET,SET} support only integer indices and don't support del;
+        # SEQUENCE_{GET,SET} support only integer indices and don't support del;
         # otherwise defer to the usual bytecode
         if is_del or not (index_is_python_int or index_is_primitive_int):
-            return super().emit_subscr(node, aug_flag, code_gen)
-
+            # We're going to fall back to BINARY_SUBSCR here, so we need to ensure the input
+            # it is boxed (when storing) and the output of that is unboxed (when loading)
+            if isinstance(node.ctx, ast.Store):
+                code_gen.emit("PRIMITIVE_BOX", self.klass.index.type_descr)
+            super().emit_subscr(node, aug_flag, code_gen)
+            if isinstance(node.ctx, ast.Load):
+                code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
+            return
         code_gen.update_lineno(node)
         code_gen.visit(node.value)
         code_gen.visit(node.slice)

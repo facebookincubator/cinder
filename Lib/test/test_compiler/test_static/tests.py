@@ -11251,7 +11251,7 @@ class StaticRuntimeTests(StaticTestBase):
         self.assertTrue(issubclass(Array[int64], Array[int64]))
         self.assertFalse(issubclass(Array[int64], Array[int32]))
 
-    def test_array_weird_type_constrution(self):
+    def test_array_weird_type_construction(self):
         self.assertIs(
             Array[int64],
             Array[
@@ -11853,6 +11853,23 @@ class StaticRuntimeTests(StaticTestBase):
             actual = m()
             self.assertEqual(actual, 111)
 
+    def test_array_get_dynamic_idx(self):
+        codestr = """
+            from __static__ import Array, int8, box
+
+            def x():
+                return 33
+
+            def m() -> int:
+                content = list(range(121))
+                a = Array[int8](content)
+                return box(a[x()])
+        """
+        with self.in_module(codestr) as mod:
+            m = mod.m
+            actual = m()
+            self.assertEqual(actual, 33)
+
     def test_array_get_failure(self):
         codestr = """
             from __static__ import Array, int8, box
@@ -12019,6 +12036,47 @@ class StaticRuntimeTests(StaticTestBase):
             m = mod.m
             with self.assertRaisesRegex(TypeError, "array indices must be integers"):
                 m()
+
+    def test_array_set_success_dynamic_subscript(self):
+        codestr = """
+            from __static__ import Array, int8
+
+            def x():
+                return 1
+
+            def m() -> Array[int8]:
+                a = Array[int8]([1, 3, -5])
+                a[x()] = 37
+                return a
+        """
+        c = self.compile(codestr, modname="foo.py")
+        m = self.find_code(c, "m")
+        self.assertInBytecode(m, "PRIMITIVE_LOAD_CONST", (37, TYPED_INT8))
+        with self.in_module(codestr) as mod:
+            m = mod.m
+            r = m()
+            self.assertEqual(r, array("b", [1, 37, -5]))
+
+    def test_array_set_success_dynamic_subscript_2(self):
+        codestr = """
+            from __static__ import Array, int8
+
+            def x():
+                return 1
+
+            def m() -> Array[int8]:
+                a = Array[int8]([1, 3, -5])
+                v: int8 = 37
+                a[x()] = v
+                return a
+        """
+        c = self.compile(codestr, modname="foo.py")
+        m = self.find_code(c, "m")
+        self.assertInBytecode(m, "PRIMITIVE_LOAD_CONST", (37, TYPED_INT8))
+        with self.in_module(codestr) as mod:
+            m = mod.m
+            r = m()
+            self.assertEqual(r, array("b", [1, 37, -5]))
 
     def test_fast_len_list(self):
         codestr = """
