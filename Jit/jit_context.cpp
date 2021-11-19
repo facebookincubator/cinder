@@ -284,15 +284,12 @@ jit::CompiledFunction* lookupCompiledCode(
   return it == ctx->compiled_codes.end() ? nullptr : it->second.get();
 }
 
-// Compile the given code object.
-//
-// Returns the CompiledFunction* and PYJIT_RESULT_OK if successful, or nullptr
-// and a failure reason if not.
-CompilationResult compileCode(
+CompilationResult compilePreloader(
     _PyJITContext* ctx,
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<PyDictObject> globals,
-    const std::string& fullname) {
+    const jit::hir::Preloader& preloader) {
+  BorrowedRef<PyCodeObject> code = preloader.code();
+  BorrowedRef<PyDictObject> globals = preloader.globals();
+
   int required_flags = CO_OPTIMIZED | CO_NEWLOCALS;
   int prohibited_flags = CO_SUPPRESS_JIT;
   // Don't care flags: CO_NOFREE, CO_FUTURE_* (the only still-relevant future
@@ -329,7 +326,7 @@ CompilationResult compileCode(
 
   compile_depth++;
   std::unique_ptr<jit::CompiledFunction> compiled =
-      ctx->jit_compiler.Compile(code, globals, fullname);
+      ctx->jit_compiler.Compile(preloader);
   compile_depth--;
 
   jit::ThreadedCompileSerialize guard;
@@ -338,12 +335,28 @@ CompilationResult compileCode(
     return {nullptr, PYJIT_RESULT_UNKNOWN_ERROR};
   }
 
-  register_pycode_debug_symbol(code, fullname.c_str(), compiled.get());
+  register_pycode_debug_symbol(
+      code, preloader.fullname().c_str(), compiled.get());
 
   // Store the compiled code.
   auto pair = ctx->compiled_codes.emplace(key, std::move(compiled));
   JIT_CHECK(pair.second == true, "CompilationKey already present");
   return {pair.first->second.get(), PYJIT_RESULT_OK};
+}
+
+// Compile the given code object.
+//
+// Returns the CompiledFunction* and PYJIT_RESULT_OK if successful, or nullptr
+// and a failure reason if not.
+CompilationResult compileCode(
+    _PyJITContext* ctx,
+    BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> globals,
+    const std::string& fullname) {
+  JIT_CHECK(
+      !jit::g_threaded_compile_context.compileRunning(),
+      "multi-thread compile must preload first");
+  return compilePreloader(ctx, jit::hir::Preloader(code, globals, fullname));
 }
 } // namespace
 
@@ -354,8 +367,7 @@ _PyJIT_Result _PyJITContext_CompileFunction(
     return PYJIT_RESULT_OK;
   }
   BorrowedRef<PyCodeObject> code = func->func_code;
-  std::string fullname =
-      THREADED_COMPILE_SERIALIZED_CALL(jit::funcFullname(func));
+  std::string fullname = jit::funcFullname(func);
   CompilationResult result =
       compileCode(ctx, code, func->func_globals, fullname);
   if (result.compiled == nullptr) {
@@ -370,9 +382,21 @@ _PyJIT_Result _PyJITContext_CompileCode(
     BorrowedRef<> module,
     BorrowedRef<PyCodeObject> code,
     BorrowedRef<PyDictObject> globals) {
-  std::string fullname =
-      THREADED_COMPILE_SERIALIZED_CALL(jit::codeFullname(module, code));
+  std::string fullname = jit::codeFullname(module, code);
   return compileCode(ctx, code, globals, fullname).result;
+}
+
+_PyJIT_Result _PyJITContext_CompilePreloader(
+    _PyJITContext* ctx,
+    const jit::hir::Preloader& preloader) {
+  CompilationResult result = compilePreloader(ctx, preloader);
+  if (result.compiled == nullptr) {
+    return result.result;
+  }
+  if (preloader.func() != nullptr) {
+    return finalizeCompiledFunc(ctx, preloader.func(), *result.compiled);
+  }
+  return PYJIT_RESULT_OK;
 }
 
 _PyJIT_Result _PyJITContext_AttachCompiledCode(

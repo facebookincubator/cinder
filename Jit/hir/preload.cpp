@@ -6,9 +6,9 @@
 #include "opcode.h"
 
 #include "Jit/bytecode.h"
-#include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/ref.h"
+#include "Jit/util.h"
 
 #include <utility>
 
@@ -215,82 +215,75 @@ BorrowedRef<PyTypeObject> Preloader::pyType(BorrowedRef<> descr) const {
 }
 
 const PyTypeOpt& Preloader::pyTypeOpt(BorrowedRef<> descr) const {
-  return types_.at(descr);
+  return map_get(types_, descr);
 }
 
 const OffsetAndType& Preloader::fieldOffsetAndType(BorrowedRef<> descr) const {
-  return fields_.at(descr);
+  return map_get(fields_, descr);
 }
 
 const InvokeTarget& Preloader::invokeFunctionTarget(BorrowedRef<> descr) const {
-  return *(func_targets_.at(descr));
+  return *(map_get(func_targets_, descr));
 }
 
 const InvokeTarget& Preloader::invokeMethodTarget(BorrowedRef<> descr) const {
-  return *(meth_targets_.at(descr));
+  return *(map_get(meth_targets_, descr));
 }
 
 Type Preloader::checkArgType(long local) const {
-  auto it = check_arg_types_.find(local);
-  if (it == check_arg_types_.end()) {
-    return TObject;
-  }
-  return it->second;
+  return map_get(check_arg_types_, local, TObject);
 }
 
 BorrowedRef<> Preloader::global(int name_idx) const {
-  auto it = globals_.find(name_idx);
-  if (it == globals_.end()) {
+  auto it = global_values_.find(name_idx);
+  if (it == global_values_.end()) {
     return nullptr;
   }
   return it->second;
 }
 
-Type Preloader::returnType() const {
-  return return_type_;
+std::unique_ptr<Function> Preloader::makeFunction() const {
+  // We touch refcounts of Python objects here, so must serialize
+  ThreadedCompileSerialize guard;
+  auto irfunc = std::make_unique<Function>();
+  irfunc->fullname = fullname_;
+  irfunc->setCode(code_);
+  irfunc->globals.reset(globals_);
+  irfunc->builtins.reset(builtins_);
+  irfunc->prim_args_info.reset(prim_args_info_);
+  irfunc->return_type = return_type_;
+  irfunc->has_primitive_args = has_primitive_args_;
+  irfunc->has_primitive_first_arg = has_primitive_first_arg_;
+  return irfunc;
 }
 
-bool Preloader::hasPrimitiveArgs(void) const {
-  return has_primitive_args_;
+BorrowedRef<> Preloader::constArg(BytecodeInstruction& bc_instr) const {
+  return PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
 }
 
-bool Preloader::hasPrimitiveFirstArg() const {
-  return has_primitive_first_arg_;
-}
-
-BorrowedRef<_PyTypedArgsInfo> Preloader::primArgsInfo(void) const {
-  return prim_args_info_;
-}
-
-static BorrowedRef<> constArg(
-    BorrowedRef<PyCodeObject> code,
-    BytecodeInstruction& bc_instr) {
-  return PyTuple_GET_ITEM(code->co_consts, bc_instr.oparg());
-}
-
-void Preloader::preload(
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<PyDictObject> globals,
-    BorrowedRef<PyDictObject> builtins) {
-  if (code->co_flags & CO_STATICALLY_COMPILED) {
+void Preloader::preload() {
+  if (code_->co_flags & CO_STATICALLY_COMPILED) {
     return_type_ = to_jit_type(
-        resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code)));
+        resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_)));
   }
 
-  jit::BytecodeInstructionBlock bc_instrs{code};
+  bool opt_globals = _PyDict_CanWatch(builtins_) && _PyDict_CanWatch(globals_);
+
+  jit::BytecodeInstructionBlock bc_instrs{code_};
   for (auto bc_instr : bc_instrs) {
     switch (bc_instr.opcode()) {
       case LOAD_GLOBAL: {
-        if (_PyDict_CanWatch(builtins) && _PyDict_CanWatch(globals)) {
+        if (opt_globals) {
           int name_idx = bc_instr.oparg();
-          BorrowedRef<> name = PyTuple_GET_ITEM(code->co_names, name_idx);
-          globals_[name_idx] = Ref<>(loadGlobal(globals, builtins, name));
+          BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
+          global_values_[name_idx] =
+              Ref<>(loadGlobal(globals_, builtins_, name));
         }
         break;
       }
       case CHECK_ARGS: {
         BorrowedRef<PyTupleObject> checks =
-            reinterpret_cast<PyTupleObject*>(constArg(code, bc_instr).get());
+            reinterpret_cast<PyTupleObject*>(constArg(bc_instr).get());
         for (int i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
           long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, i));
           Type type =
@@ -307,7 +300,7 @@ void Preloader::preload(
       }
       case BUILD_CHECKED_LIST:
       case BUILD_CHECKED_MAP: {
-        BorrowedRef<> descr = PyTuple_GetItem(constArg(code, bc_instr), 0);
+        BorrowedRef<> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         types_.emplace(descr, resolve_type_descr(descr));
         break;
       }
@@ -316,20 +309,19 @@ void Preloader::preload(
       case PRIMITIVE_UNBOX:
       case REFINE_TYPE:
       case TP_ALLOC: {
-        BorrowedRef<> descr = constArg(code, bc_instr);
+        BorrowedRef<> descr = constArg(bc_instr);
         types_.emplace(descr, resolve_type_descr(descr));
         break;
       }
       case LOAD_FIELD:
       case STORE_FIELD: {
-        BorrowedRef<> descr = constArg(code, bc_instr);
+        BorrowedRef<> descr = constArg(bc_instr);
         fields_.emplace(descr, resolve_field_descr(descr));
         break;
       }
       case INVOKE_FUNCTION:
       case INVOKE_METHOD: {
-        BorrowedRef<PyObject> descr =
-            PyTuple_GetItem(constArg(code, bc_instr), 0);
+        BorrowedRef<PyObject> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         auto& map = bc_instr.opcode() == INVOKE_FUNCTION ? func_targets_
                                                          : meth_targets_;
         map.emplace(descr, resolve_target_descr(descr, bc_instr.opcode()));
@@ -340,7 +332,7 @@ void Preloader::preload(
 
   if (has_primitive_args_) {
     prim_args_info_ = Ref<_PyTypedArgsInfo>::steal(
-        _PyClassLoader_GetTypedArgsInfo(code, true));
+        _PyClassLoader_GetTypedArgsInfo(code_, true));
   }
 }
 

@@ -6,6 +6,7 @@
 #include "Jit/disassembler.h"
 #include "Jit/hir/builder.h"
 #include "Jit/hir/optimization.h"
+#include "Jit/hir/preload.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/jit_x_options.h"
@@ -78,36 +79,33 @@ void Compiler::runPasses(jit::hir::Function& irfunc) {
 std::unique_ptr<CompiledFunction> Compiler::Compile(
     BorrowedRef<PyFunctionObject> func) {
   JIT_CHECK(PyFunction_Check(func), "Expected PyFunctionObject");
-  return Compile(func->func_code, func->func_globals, funcFullname(func));
+  JIT_CHECK(
+      !g_threaded_compile_context.compileRunning(),
+      "multi-thread compile must preload first");
+  return Compile(jit::hir::Preloader(func));
 }
 
 std::unique_ptr<CompiledFunction> Compiler::Compile(
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<PyDictObject> globals,
-    const std::string& fullname) {
-  JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
-
-  if (!PyDict_CheckExact(globals)) {
+    const jit::hir::Preloader& preloader) {
+  const std::string& fullname = preloader.fullname();
+  if (!PyDict_CheckExact(preloader.globals())) {
     JIT_DLOG(
         "Refusing to compile %s: globals is a %.200s, not a dict",
         fullname,
-        Py_TYPE(globals)->tp_name);
+        Py_TYPE(preloader.globals())->tp_name);
     return nullptr;
   }
 
   PyObject* builtins = PyEval_GetBuiltins();
-  if (!PyDict_CheckExact(builtins)) {
+  if (!PyDict_CheckExact(preloader.builtins())) {
     JIT_DLOG(
         "Refusing to compile %s: builtins is a %.200s, not a dict",
         fullname,
         Py_TYPE(builtins)->tp_name);
     return nullptr;
   }
-
-  JIT_DLOG("Compiling %s @ %p", fullname, code);
-  jit::hir::HIRBuilder hir_builder;
-  std::unique_ptr<jit::hir::Function> irfunc(
-      hir_builder.BuildHIR(code, globals, fullname));
+  JIT_DLOG("Compiling %s @ %p", fullname, preloader.code());
+  std::unique_ptr<jit::hir::Function> irfunc(jit::hir::buildHIR(preloader));
   if (irfunc == nullptr) {
     JIT_DLOG("Lowering to HIR failed %s", fullname);
     return nullptr;

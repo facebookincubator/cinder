@@ -5,6 +5,7 @@
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/hir/hir.h"
+#include "Jit/hir/preload.h"
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
@@ -97,22 +98,14 @@ class CompiledFunctionDebug : public CompiledFunction {
 
 // Compiler is the high-level interface for translating Python functions into
 // native code.
-//
-// NB: This API will likely change quite a bit. It's currently just enough to
-// enable us to start testing in Instalab.
 class Compiler {
  public:
   Compiler() = default;
 
-  // Compile the given code object, with the given globals dict. The fullname
-  // string is only used for internal debugging and logging and does not affect
-  // the generated code.
-  std::unique_ptr<CompiledFunction> Compile(
-      BorrowedRef<PyCodeObject> code,
-      BorrowedRef<PyDictObject> globals,
-      const std::string& fullname);
+  // Compile the function / code object preloaded by the given Preloader.
+  std::unique_ptr<CompiledFunction> Compile(const hir::Preloader& preloader);
 
-  // Convenience wrapper to extract the code, globals, and fullname from a
+  // Convenience wrapper to create and compile a preloader from a
   // PyFunctionObject.
   std::unique_ptr<CompiledFunction> Compile(BorrowedRef<PyFunctionObject> func);
 

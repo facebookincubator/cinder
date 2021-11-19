@@ -65,7 +65,7 @@ def func():
   Ref<PyFunctionObject> pyfunc(compileAndGet(pycode, "func"));
   ASSERT_NE(pyfunc, nullptr);
 
-  auto irfunc = jit::hir::HIRBuilder{}.BuildHIR(pyfunc);
+  auto irfunc = jit::hir::buildHIR(pyfunc);
   ASSERT_NE(irfunc, nullptr);
 
   jit::hir::Instr* term = irfunc->cfg.entry_block->GetTerminator();

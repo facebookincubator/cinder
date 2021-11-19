@@ -82,24 +82,34 @@ class BlockCanonicalizer {
   std::unordered_map<Register*, Register*> moved_;
 };
 
+// Convenience wrapper, used only in tests
+std::unique_ptr<Function> buildHIR(BorrowedRef<PyFunctionObject> func);
+
+// Translate the bytecode for preloader.code into HIR, in the context of the
+// preloaded globals and classloader lookups in the preloader.
+//
+// The resulting HIR is un-optimized, not in SSA form, and does not yet have
+// refcount operations or types flowed through it. Later passes will transform
+// to SSA, flow types, optimize, and insert refcount operations using liveness
+// analysis.
+std::unique_ptr<Function> buildHIR(const Preloader& preloader);
+
 class HIRBuilder {
  public:
-  HIRBuilder() = default;
+  HIRBuilder(const Preloader& preloader)
+      : code_(preloader.code()), preloader_(preloader){};
 
-  // Translate the bytecode for code into HIR, in the context of the given
-  // globals.
+  // Translate the bytecode for code_ into HIR, in the context of the preloaded
+  // globals and classloader lookups from preloader_.
   //
-  // The resulting IR is un-optimized and does not yet have refcount operations.
-  // Later passes will insert refcount operations using liveness analysis.
+  // The resulting HIR is un-optimized, not in SSA form, and does not yet have
+  // refcount operations or types flowed through it. Later passes will transform
+  // to SSA, flow types, optimize, and insert refcount operations using liveness
+  // analysis.
   //
   // TODO(mpage): Consider using something like Either here to indicate reason
   // for failure.
-  std::unique_ptr<Function> BuildHIR(
-      BorrowedRef<PyCodeObject> code,
-      BorrowedRef<PyDictObject> globals,
-      const std::string& fullname);
-
-  std::unique_ptr<Function> BuildHIR(BorrowedRef<PyFunctionObject> func);
+  std::unique_ptr<Function> buildHIR();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HIRBuilder);
@@ -431,7 +441,7 @@ class HIRBuilder {
 
   BorrowedRef<PyCodeObject> code_;
   BlockMap block_map_;
-  Preloader preloader_;
+  const Preloader& preloader_;
 
   // Map index of END_ASYNC_FOR bytecodes to FrameState of paired YIELD_FROMs
   std::unordered_map<size_t, FrameState> end_async_for_frame_state_;

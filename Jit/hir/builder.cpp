@@ -444,20 +444,6 @@ static bool should_snapshot(
   }
 }
 
-static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
-  /* check for code specific flags */
-  if (code->co_flags & CO_SHADOW_FRAME) {
-    return FrameMode::kShadow;
-  } else if (code->co_flags & CO_NORMAL_FRAME) {
-    return FrameMode::kNormal;
-  }
-
-  if (_PyJIT_ShadowFrame()) {
-    return FrameMode::kShadow;
-  }
-  return FrameMode::kNormal;
-}
-
 // Compute basic block boundaries and allocate corresponding HIR blocks
 HIRBuilder::BlockMap HIRBuilder::createBlocks(
     Function& irfunc,
@@ -518,9 +504,16 @@ BasicBlock* HIRBuilder::getBlockAtOff(Py_ssize_t off) {
   return it->second;
 }
 
-std::unique_ptr<Function> HIRBuilder::BuildHIR(
-    BorrowedRef<PyFunctionObject> func) {
-  return BuildHIR(func->func_code, func->func_globals, funcFullname(func));
+// Convenience wrapper, used only in tests
+std::unique_ptr<Function> buildHIR(BorrowedRef<PyFunctionObject> func) {
+  JIT_CHECK(
+      !g_threaded_compile_context.compileRunning(),
+      "multi-thread compile must preload first");
+  return buildHIR(Preloader(func));
+}
+
+std::unique_ptr<Function> buildHIR(const Preloader& preloader) {
+  return HIRBuilder{preloader}.buildHIR();
 }
 
 // This performs an abstract interpretation over the bytecode for func in order
@@ -535,34 +528,14 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
 // bytecode that we currently support maintain this invariant. However, there
 // are a few bytecodes that do not (e.g. SETUP_FINALLY). We will need to deal
 // with that if we ever want to support compiling them.
-std::unique_ptr<Function> HIRBuilder::BuildHIR(
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<PyDictObject> globals,
-    const std::string& fullname) {
-  JIT_DCHECK(PyCode_Check(code), "didn't supply a code object");
-  code_ = code;
+std::unique_ptr<Function> HIRBuilder::buildHIR() {
   if (!can_translate(code_)) {
-    JIT_DLOG("Can't translate all opcodes in %s", fullname);
+    JIT_DLOG("Can't translate all opcodes in %s", preloader_.fullname());
     return nullptr;
   }
 
-  auto irfunc = std::make_unique<Function>();
-  irfunc->fullname = fullname;
-  irfunc->frameMode = getFrameMode(code);
-  irfunc->setCode(code);
+  std::unique_ptr<Function> irfunc = preloader_.makeFunction();
 
-  {
-    ThreadedCompileSerialize guard;
-    irfunc->globals.reset(globals);
-    irfunc->builtins.reset(PyEval_GetBuiltins());
-
-    preloader_.preload(code, irfunc->globals, irfunc->builtins);
-    irfunc->prim_args_info = Ref<_PyTypedArgsInfo>(preloader_.primArgsInfo());
-  }
-
-  irfunc->return_type = preloader_.returnType();
-  irfunc->has_primitive_args = preloader_.hasPrimitiveArgs();
-  irfunc->has_primitive_first_arg = preloader_.hasPrimitiveFirstArg();
   temps_ = TempAllocator(&irfunc->env);
 
   BytecodeInstructionBlock bc_instrs{code_};
@@ -580,7 +553,7 @@ std::unique_ptr<Function> HIRBuilder::BuildHIR(
 
   // Insert LoadArg, LoadClosureCell, and MakeCell/MakeNullCell instructions
   // for the entry block
-  TranslationContext entry_tc{entry_block, FrameState{code}};
+  TranslationContext entry_tc{entry_block, FrameState{code_}};
   AllocateRegistersForLocals(&irfunc->env, entry_tc.frame);
   AllocateRegistersForCells(&irfunc->env, entry_tc.frame);
 
@@ -1737,8 +1710,7 @@ bool HIRBuilder::emitInvokeFunction(
         if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
           JIT_DLOG(
               "Warning: recursive compile of '%s' failed as it is already "
-              "being "
-              "compiled",
+              "being compiled",
               funcFullname(target.func()));
         }
 

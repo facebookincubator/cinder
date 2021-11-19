@@ -11,6 +11,7 @@
 #include "Jit/containers.h"
 #include "Jit/frame.h"
 #include "Jit/hir/builder.h"
+#include "Jit/hir/preload.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_context.h"
 #include "Jit/jit_gdb_support.h"
@@ -33,6 +34,7 @@
 #include <memory>
 #include <thread>
 #include <unordered_set>
+#include <utility>
 
 #define DEFAULT_CODE_SIZE 2 * 1024 * 1024
 
@@ -73,10 +75,12 @@ long g_batch_compilation_time_ms = 0;
 static _PyJITContext* jit_ctx;
 static JITList* g_jit_list{nullptr};
 
-// Function and code objects registered for compilation. Every entry that is a
-// code object has corresponding entry in jit_code_data.
+// Function and code objects ("units") registered for compilation.
 static std::unordered_set<BorrowedRef<>> jit_reg_units;
+// Every unit that is a code object has corresponding entry in jit_code_data.
 static std::unordered_map<BorrowedRef<PyCodeObject>, CodeData> jit_code_data;
+// Every unit has an entry in preloaders if we are doing multithreaded compile.
+static std::unordered_map<BorrowedRef<>, hir::Preloader> jit_preloaders;
 
 // Strong references to every function and code object that were ever
 // registered, to keep them alive for batch testing.
@@ -147,18 +151,21 @@ static _PyJIT_Result compileUnit(BorrowedRef<> unit) {
   return _PyJITContext_CompileCode(jit_ctx, data.module, code, data.globals);
 }
 
+// Compile the given function or code object with preloader from jit_preloaders
+// map.
+static _PyJIT_Result compilePreloaded(BorrowedRef<> unit) {
+  return _PyJITContext_CompilePreloader(jit_ctx, map_get(jit_preloaders, unit));
+}
+
 static void compile_worker_thread() {
   JIT_DLOG("Started compile worker in thread %d", std::this_thread::get_id());
   BorrowedRef<> unit;
   while ((unit = g_threaded_compile_context.nextUnit()) != nullptr) {
     g_compile_workers_attempted++;
-    if (compileUnit(unit) == PYJIT_RESULT_RETRY) {
+    if (compilePreloaded(unit) == PYJIT_RESULT_RETRY) {
       ThreadedCompileSerialize guard;
       g_compile_workers_retries++;
       g_threaded_compile_context.retryUnit(unit);
-      JIT_DLOG(
-          "Retrying compile of function: %s",
-          funcFullname(reinterpret_cast<PyFunctionObject*>(unit.get())));
     }
   }
   JIT_DLOG("Finished compile worker in thread %d", std::this_thread::get_id());
@@ -166,6 +173,23 @@ static void compile_worker_thread() {
 
 static void multithread_compile_all(std::vector<BorrowedRef<>>&& work_units) {
   JIT_CHECK(jit_ctx, "JIT not initialized");
+
+  // first we have to preload everything we are going to compile
+  for (auto unit : work_units) {
+    if (PyFunction_Check(unit)) {
+      BorrowedRef<PyFunctionObject> func(unit);
+      jit_preloaders.emplace(unit, func);
+    } else {
+      JIT_CHECK(PyCode_Check(unit), "Expected function or code object");
+      BorrowedRef<PyCodeObject> code(unit);
+      const CodeData& data = map_get(jit_code_data, code);
+      jit_preloaders.emplace(
+          std::piecewise_construct,
+          std::forward_as_tuple(unit),
+          std::forward_as_tuple(
+              code, data.globals, codeFullname(data.module, code)));
+    }
+  }
 
   // Disable checks for using GIL protected data across threads.
   // Conceptually what we're doing here is saying we're taking our own
@@ -196,9 +220,10 @@ static void multithread_compile_all(std::vector<BorrowedRef<>>&& work_units) {
   std::vector<BorrowedRef<>> retry_list{
       g_threaded_compile_context.endCompile()};
   for (auto unit : retry_list) {
-    compileUnit(unit);
+    compilePreloaded(unit);
   }
   _PyGILState_check_enabled = old_gil_check_enabled;
+  jit_preloaders.clear();
 }
 
 static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
@@ -1019,11 +1044,19 @@ _PyJIT_Result _PyJIT_SpecializeType(
 }
 
 _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
-  // Serialize here as we might have been called re-entrantly.
-  ThreadedCompileSerialize guard;
-
   if (jit_ctx == nullptr) {
     return PYJIT_NOT_INITIALIZED;
+  }
+
+  if (g_threaded_compile_context.compileRunning()) {
+    // we were called recursively (by emitInvokeFunction);
+    // find preloader in global map and compile it.
+
+    auto it = jit_preloaders.find(func->func_code);
+    if (it == jit_preloaders.end()) {
+      return PYJIT_RESULT_CANNOT_SPECIALIZE;
+    }
+    return _PyJITContext_CompilePreloader(jit_ctx, it->second);
   }
 
   if (!_PyJIT_OnJitList(func)) {

@@ -545,8 +545,7 @@ TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
   auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
   ASSERT_NE(func.get(), nullptr);
 
-  HIRBuilder builder;
-  std::unique_ptr<Function> irfunc(HIRBuilder().BuildHIR(func));
+  std::unique_ptr<Function> irfunc(buildHIR(func));
   ASSERT_NE(irfunc.get(), nullptr);
 
   const char* expected = R"(fun jittestmodule:funcname {

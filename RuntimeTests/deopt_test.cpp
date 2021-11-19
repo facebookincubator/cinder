@@ -333,7 +333,7 @@ class DeoptStressTest : public RuntimeTest {
       PyObject* expected) {
     Ref<PyFunctionObject> funcobj(compileAndGet(src, "test"));
     ASSERT_NE(funcobj, nullptr);
-    std::unique_ptr<Function> irfunc(HIRBuilder().BuildHIR(funcobj));
+    std::unique_ptr<Function> irfunc(buildHIR(funcobj));
     ASSERT_NE(irfunc, nullptr);
     auto guards = insertDeopts(*irfunc);
     jit::Compiler::runPasses(*irfunc);

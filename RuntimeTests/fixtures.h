@@ -157,8 +157,7 @@ class RuntimeTest : public ::testing::Test {
     Ref<PyFunctionObject> func(compileAndGet(src, func_name));
     ASSERT_NE(func.get(), nullptr) << "failed creating function";
 
-    jit::hir::HIRBuilder builder;
-    irfunc = builder.BuildHIR(func);
+    irfunc = jit::hir::buildHIR(func);
     ASSERT_NE(irfunc, nullptr) << "failed constructing HIR";
   }
 
@@ -169,8 +168,7 @@ class RuntimeTest : public ::testing::Test {
     Ref<PyFunctionObject> func(compileStaticAndGet(src, func_name));
     ASSERT_NE(func.get(), nullptr) << "failed creating function";
 
-    jit::hir::HIRBuilder builder;
-    irfunc = builder.BuildHIR(func);
+    irfunc = jit::hir::buildHIR(func);
     ASSERT_NE(irfunc, nullptr) << "failed constructing HIR";
   }
 

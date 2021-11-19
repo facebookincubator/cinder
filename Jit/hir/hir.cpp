@@ -3,6 +3,7 @@
 
 #include "Jit/hir/printer.h"
 #include "Jit/log.h"
+#include "Jit/pyjit.h"
 #include "Jit/ref.h"
 #include "Jit/threaded_compile.h"
 
@@ -891,9 +892,24 @@ bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code) {
   return PyTuple_GET_SIZE(code->co_freevars) > 0;
 }
 
+static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
+  /* check for code specific flags */
+  if (code->co_flags & CO_SHADOW_FRAME) {
+    return FrameMode::kShadow;
+  } else if (code->co_flags & CO_NORMAL_FRAME) {
+    return FrameMode::kNormal;
+  }
+
+  if (_PyJIT_ShadowFrame()) {
+    return FrameMode::kShadow;
+  }
+  return FrameMode::kNormal;
+}
+
 void Function::setCode(BorrowedRef<PyCodeObject> code) {
   this->code.reset(code);
   uses_runtime_func = usesRuntimeFunc(code);
+  frameMode = getFrameMode(code);
 }
 
 void Function::Print() const {

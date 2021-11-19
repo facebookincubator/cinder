@@ -5,6 +5,7 @@
 
 #include "Jit/compiler.h"
 #include "Jit/containers.h"
+#include "Jit/hir/preload.h"
 #include "Jit/pyjit_result.h"
 #include "Jit/pyjit_typeslots.h"
 #include "Jit/ref.h"
@@ -138,6 +139,15 @@ _PyJIT_Result _PyJITContext_CompileCode(
     BorrowedRef<> module,
     BorrowedRef<PyCodeObject> code,
     BorrowedRef<PyDictObject> globals);
+
+/*
+ * JIT compile function/code-object from Preloader.
+ *
+ * Patches func entrypoint if Preloader contains a func.
+ */
+_PyJIT_Result _PyJITContext_CompilePreloader(
+    _PyJITContext* ctx,
+    const jit::hir::Preloader& preloader);
 
 /*
  * Attach already-compiled code to the given function, if it exists.
