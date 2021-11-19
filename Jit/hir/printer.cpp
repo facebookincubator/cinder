@@ -244,6 +244,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kLoadCellItem:
     case Opcode::kLoadCurrentFunc:
     case Opcode::kLoadEvalBreaker:
+    case Opcode::kLoadFieldAddress:
     case Opcode::kLoadVarObjectSize:
     case Opcode::kMakeCell:
     case Opcode::kMakeFunction:

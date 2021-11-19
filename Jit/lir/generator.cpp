@@ -15,6 +15,7 @@
 #include "Jit/pyjit.h"
 #include "Jit/runtime_support.h"
 #include "Jit/threaded_compile.h"
+#include "Jit/util.h"
 
 #include <functional>
 #include <sstream>
@@ -1824,6 +1825,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
 
+      case Opcode::kLoadFieldAddress: {
+        auto instr = static_cast<const LoadFieldAddress*>(&i);
+        bbb.AppendCode(
+            "Lea {}, {}, {}",
+            instr->GetOutput(),
+            instr->object(),
+            instr->offset());
+        break;
+      }
+
       case Opcode::kStoreField: {
         auto instr = static_cast<const StoreField*>(&i);
         bbb.AppendCode(
@@ -1922,8 +1933,19 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadArrayItem*>(&i);
         auto type = instr->type();
         uint64_t func = 0;
-
-        if (type <= TCInt8) {
+        if (type <= TObject && instr->idx()->type().hasIntSpec()) {
+          // TODO: We could support more array types here, or in general
+          // attempt to support more array types w/ register inputs w/o
+          // calling to a helper.
+          const size_t item_offset =
+              instr->idx()->type().intSpec() * kPointerSize + instr->offset();
+          bbb.AppendCode(
+              "Load {} {} {}",
+              instr->GetOutput(),
+              instr->ob_item(),
+              item_offset);
+          break;
+        } else if (type <= TCInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_GetI8_FromArray);
         } else if (type <= TCUInt8) {
           func = reinterpret_cast<uint64_t>(JITRT_GetU8_FromArray);

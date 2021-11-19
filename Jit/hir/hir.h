@@ -303,6 +303,7 @@ struct FrameState {
   V(ListAppend)                 \
   V(ListExtend)                 \
   V(LoadArrayItem)              \
+  V(LoadFieldAddress)           \
   V(LoadArg)                    \
   V(LoadAttr)                   \
   V(LoadAttrSpecial)            \
@@ -2774,6 +2775,20 @@ INSTR_CLASS(
  private:
   ssize_t offset_;
   Type type_;
+};
+
+class INSTR_CLASS(LoadFieldAddress, HasOutput, Operands<2>) {
+ public:
+  LoadFieldAddress(Register* dst, Register* object, Register* offset)
+      : InstrT(dst, object, offset) {}
+
+  Register* object() const {
+    return GetOperand(0);
+  }
+
+  Register* offset() const {
+    return GetOperand(1);
+  }
 };
 
 // Store an element to an array at a known index, with no bounds checking.

@@ -95,6 +95,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kLoadCurrentFunc:
     case Opcode::kLoadEvalBreaker:
     case Opcode::kLoadField:
+    case Opcode::kLoadFieldAddress:
     case Opcode::kLoadFunctionIndirect:
     case Opcode::kLoadGlobal:
     case Opcode::kLoadGlobalCached:

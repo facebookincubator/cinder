@@ -190,6 +190,9 @@ MemoryEffects memoryEffects(const Instr& inst) {
       return commonEffects(inst, AEmpty);
     }
 
+    case Opcode::kLoadFieldAddress:
+      return commonEffects(inst, AEmpty);
+
     case Opcode::kLoadFunctionIndirect:
 
     case Opcode::kLoadGlobalCached:

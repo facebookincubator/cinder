@@ -154,6 +154,16 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       CreateInstrInput(instr, tokens[2]);
     }
     CreateInstrOutput(instr, tokens[1]);
+  } else if (instr_str == "Lea") {
+    JIT_CHECK(tokens.size() == 4, "Syntax error for LoadAddress.");
+    JIT_CHECK(
+        !IsConstant(tokens[1]),
+        "Syntax error for LoadAddress: %s",
+        tokens[1].c_str());
+    auto instr = createInstr(Instruction::kLea);
+
+    CreateInstrIndirect(instr, tokens[2], stoull(tokens[3]));
+    CreateInstrOutput(instr, tokens[1]);
   } else if (instr_str == "Return") {
     auto instr = createInstr(Instruction::kReturn);
 

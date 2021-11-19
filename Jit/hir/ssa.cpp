@@ -325,6 +325,8 @@ Type outputType(const Instr& instr) {
       return static_cast<const LoadArrayItem&>(instr).type();
     case Opcode::kLoadField:
       return static_cast<const LoadField&>(instr).type();
+    case Opcode::kLoadFieldAddress:
+      return TCPtr;
     case Opcode::kCallStatic: {
       auto& call = static_cast<const CallStatic&>(instr);
       return call.ret_type();
@@ -336,11 +338,12 @@ Type outputType(const Instr& instr) {
     case Opcode::kIntBinaryOp: {
       auto& binop = static_cast<const IntBinaryOp&>(instr);
       Type ltype = binop.left()->type().unspecialized();
+      Type rtype = binop.right()->type().unspecialized();
       JIT_CHECK(
-          ltype == binop.right()->type().unspecialized(),
+          ltype <= rtype || rtype <= ltype,
           "mismatched IntBinaryOp operand types %s and %s",
           ltype,
-          binop.right()->type().unspecialized());
+          rtype);
       JIT_CHECK(
           ltype <= (TCSigned | TCUnsigned),
           "bad IntBinaryOp operand type %s",

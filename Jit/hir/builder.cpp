@@ -11,6 +11,7 @@
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/preload.h"
+#include "Jit/hir/type.h"
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
 #include "Jit/threaded_compile.h"
@@ -2975,11 +2976,32 @@ void HIRBuilder::emitUnpackSequence(
   deopt->setDescr("UNPACK_SEQUENCE");
 
   BasicBlock* fast_path = cfg.AllocateBlock();
+  BasicBlock* list_check_path = cfg.AllocateBlock();
+  BasicBlock* list_fast_path = cfg.AllocateBlock();
+  BasicBlock* tuple_fast_path = cfg.AllocateBlock();
+  Register* list_mem = temps_.AllocateStack();
   stack.pop();
-  tc.emit<CondBranchCheckType>(seq, TTupleExact, fast_path, deopt_path.block);
+  // TODO: The manual type checks and branches should go away once we get
+  // PGO support to be able to optimize to known types.
+  tc.emit<CondBranchCheckType>(
+      seq, TTupleExact, tuple_fast_path, list_check_path);
+
+  tc.block = list_check_path;
+  tc.emit<CondBranchCheckType>(
+      seq, TListExact, list_fast_path, deopt_path.block);
+
+  tc.block = tuple_fast_path;
+  Register* offset_reg = temps_.AllocateStack();
+  tc.emit<LoadConst>(
+      offset_reg, Type::fromCInt(offsetof(PyTupleObject, ob_item), TCInt64));
+  tc.emit<LoadFieldAddress>(list_mem, seq, offset_reg);
+  tc.emit<Branch>(fast_path);
+
+  tc.block = list_fast_path;
+  tc.emit<LoadField>(list_mem, seq, offsetof(PyListObject, ob_item), TCPtr);
+  tc.emit<Branch>(fast_path);
+
   tc.block = fast_path;
-  // TODO(T105038867): Remove once we have RefineTypeInsertion
-  tc.emit<RefineType>(seq, TTupleExact, seq);
 
   Register* seq_size = temps_.AllocateStack();
   Register* target_size = temps_.AllocateStack();
@@ -2992,9 +3014,11 @@ void HIRBuilder::emitUnpackSequence(
   tc.emit<CondBranch>(is_equal, fast_path, deopt_path.block);
   tc.block = fast_path;
 
+  Register* idx_reg = temps_.AllocateStack();
   for (int idx = bc_instr.oparg() - 1; idx >= 0; --idx) {
     Register* item = temps_.AllocateStack();
-    tc.emit<LoadTupleItem>(item, seq, idx);
+    tc.emit<LoadConst>(idx_reg, Type::fromCInt(idx, TCInt64));
+    tc.emit<LoadArrayItem>(item, list_mem, idx_reg, seq, 0, TObject);
     stack.push(item);
   }
 }
