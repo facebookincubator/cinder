@@ -2777,13 +2777,13 @@ INSTR_CLASS(
   Type type_;
 };
 
-class INSTR_CLASS(LoadFieldAddress, HasOutput, Operands<2>) {
- public:
-  LoadFieldAddress(Register* dst, Register* object, Register* offset)
-      : InstrT(dst, object, offset) {}
+INSTR_CLASS(LoadFieldAddress, (TObject, TCInt64), HasOutput, Operands<2>){
+  public :
+      LoadFieldAddress(Register * dst, Register* object, Register* offset) :
+          InstrT(dst, object, offset){}
 
-  Register* object() const {
-    return GetOperand(0);
+  Register *
+  object() const {return GetOperand(0);
   }
 
   Register* offset() const {
