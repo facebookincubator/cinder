@@ -1381,3 +1381,69 @@ fun jittestmodule:test {
   }
 }
 ---
+TestLoadArgCellType
+---
+def test(a: int) -> int:
+    def inner() -> int:
+        return a
+    return a
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "a", Long>
+    v2 = MakeCell v0 {
+      NextInstrOffset 0
+      Locals<2> v0 v1
+      Cells<1> v2
+    }
+    v4 = LoadGlobalCached<0; "int">
+    v4 = GuardIs<0xdeadbeef> v4
+    v5 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
+    v6 = MakeDict<1> {
+      NextInstrOffset 8
+      Locals<2> v3 v1
+      Cells<1> v2
+      Stack<2> v4 v5
+    }
+    v7 = LoadTupleItem<0> v5
+    v8 = SetDictItem v6 v7 v4 {
+      NextInstrOffset 8
+      Locals<2> v3 v1
+      Cells<1> v2
+      Stack<1> v4
+    }
+    v9 = MakeListTuple<tuple, 1> {
+      NextInstrOffset 12
+      Locals<2> v3 v1
+      Cells<1> v2
+      Stack<2> v6 v2
+    }
+    InitListTuple<tuple, 1> v9 v2
+    v10 = Assign v9
+    v11 = LoadConst<MortalCode["inner"]>
+    v12 = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
+    v13 = MakeFunction v12 v11 {
+      NextInstrOffset 18
+      Locals<2> v3 v1
+      Cells<1> v2
+      Stack<2> v6 v10
+    }
+    SetFunctionAttr<func_closure> v10 v13
+    SetFunctionAttr<func_annotations> v6 v13
+    InitFunction v13
+    v1 = Assign v13
+    v14 = LoadCellItem v2
+    v14 = CheckVar<0; "a"> v14 {
+      NextInstrOffset 22
+      Locals<2> v3 v1
+      Cells<1> v2
+    }
+    v15 = Cast<int> v14 {
+      NextInstrOffset 24
+      Locals<2> v3 v1
+      Cells<1> v2
+    }
+    Return v15
+  }
+}
+---

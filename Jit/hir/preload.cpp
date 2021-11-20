@@ -230,8 +230,8 @@ const InvokeTarget& Preloader::invokeMethodTarget(BorrowedRef<> descr) const {
   return *(map_get(meth_targets_, descr));
 }
 
-Type Preloader::checkArgType(long local) const {
-  return map_get(check_arg_types_, local, TObject);
+Type Preloader::checkArgType(long local_idx) const {
+  return map_get(check_arg_types_, local_idx, TObject);
 }
 
 BorrowedRef<> Preloader::global(int name_idx) const {
@@ -286,6 +286,19 @@ void Preloader::preload() {
             reinterpret_cast<PyTupleObject*>(constArg(bc_instr).get());
         for (int i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
           long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, i));
+          if (local < 0) {
+            // A negative value for local indicates that it's a cell
+            JIT_CHECK(
+                code_->co_cell2arg != nullptr,
+                "no cell2arg but negative local %ld",
+                local);
+            long arg = code_->co_cell2arg[-1 * (local + 1)];
+            JIT_CHECK(
+                arg != CO_CELL_NOT_AN_ARG,
+                "cell not an arg for local %ld",
+                local);
+            local = arg;
+          }
           Type type =
               to_jit_type(resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1)));
           check_arg_types_.emplace(local, type);

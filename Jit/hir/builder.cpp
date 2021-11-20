@@ -322,8 +322,7 @@ void HIRBuilder::addLoadArgs(TranslationContext& tc, int num_args) {
   }
 }
 
-// Add a LoadClosureCell instruction for each freevar and a MakeCell for
-// each cellvar.
+// Add a MakeCell for each cellvar and load each freevar from closure.
 void HIRBuilder::addInitializeCells(
     TranslationContext& tc,
     Register* cur_func) {
