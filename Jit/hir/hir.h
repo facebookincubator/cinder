@@ -975,27 +975,27 @@ class InstrT<T, opcode, HasOutput, Tys...> : public InstrT<T, opcode, Tys...> {
 };
 
 // TODO(T105350013): Add a compile-time op_types size check
-#define INSTR_CLASS(name, types, ...)                                     \
-  class name##_OperandTypes {                                             \
-   public:                                                                \
-    OperandType GetOperandTypeImpl(std::size_t i) const {                 \
-      static const std::vector<OperandType> op_types = makeTypeVec types; \
-      std::size_t num_ops = op_types.size();                              \
-      if (i >= num_ops) {                                                 \
-        return op_types[num_ops - 1];                                     \
-      } else {                                                            \
-        return op_types[i];                                               \
-      }                                                                   \
-    }                                                                     \
-  };                                                                      \
-  class name final : public InstrT<name, Opcode::k##name, __VA_ARGS__>,   \
+#define INSTR_CLASS(name, types, ...)                                          \
+  name##                                                                       \
+  _OperandTypes{public : OperandType GetOperandTypeImpl(std::size_t i) const { \
+      static const std::vector<OperandType> op_types = makeTypeVec types;      \
+  std::size_t num_ops = op_types.size();                                       \
+  if (i >= num_ops) {                                                          \
+    return op_types[num_ops - 1];                                              \
+  } else {                                                                     \
+    return op_types[i];                                                        \
+  }                                                                            \
+  }                                                                            \
+  }                                                                            \
+  ;                                                                            \
+  class name final : public InstrT<name, Opcode::k##name, __VA_ARGS__>,        \
                      public name##_OperandTypes
 
-#define DEFINE_SIMPLE_INSTR(name, types, ...) \
-  INSTR_CLASS(name, types, __VA_ARGS__) {     \
-   private:                                   \
-    friend InstrT;                            \
-    using InstrT::InstrT;                     \
+#define DEFINE_SIMPLE_INSTR(name, types, ...)   \
+  class INSTR_CLASS(name, types, __VA_ARGS__) { \
+   private:                                     \
+    friend InstrT;                              \
+    using InstrT::InstrT;                       \
   };
 
 enum class BinaryOpKind {
@@ -1023,7 +1023,12 @@ const char* GetBinaryOpName(BinaryOpKind op);
 BinaryOpKind ParseBinaryOpName(const char* name);
 
 // Perform a binary operation (e.g. '+', '-')
-INSTR_CLASS(BinaryOp, (TObject, TObject), HasOutput, Operands<2>, DeoptBase) {
+class INSTR_CLASS(
+    BinaryOp,
+    (TObject, TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBase) {
  public:
   BinaryOp(
       Register* dst,
@@ -1060,7 +1065,7 @@ const char* GetUnaryOpName(UnaryOpKind op);
 UnaryOpKind ParseUnaryOpName(const char* name);
 
 // Perform a unary operator (-x, ~x, etc...)
-INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
  public:
   UnaryOp(
       Register* dst,
@@ -1101,7 +1106,12 @@ const char* GetInPlaceOpName(InPlaceOpKind op);
 InPlaceOpKind ParseInPlaceOpName(const char* name);
 
 // Perform a in place operator x += 2
-INSTR_CLASS(InPlaceOp, (TObject, TObject), HasOutput, Operands<2>, DeoptBase) {
+class INSTR_CLASS(
+    InPlaceOp,
+    (TObject, TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBase) {
  public:
   InPlaceOp(
       Register* dst,
@@ -1128,7 +1138,7 @@ INSTR_CLASS(InPlaceOp, (TObject, TObject), HasOutput, Operands<2>, DeoptBase) {
 };
 
 // Builds a slice object, with 2 or 3 operands from the stack
-INSTR_CLASS(BuildSlice, (TObject), HasOutput, Operands<>, DeoptBase) {
+class INSTR_CLASS(BuildSlice, (TObject), HasOutput, Operands<>, DeoptBase) {
  public:
   using InstrT::InstrT;
 
@@ -1185,7 +1195,7 @@ DEFINE_SIMPLE_INSTR(CheckTuple, (TObject), HasOutput, Operands<1>);
 DEFINE_SIMPLE_INSTR(GetTuple, (TObject), HasOutput, Operands<1>, DeoptBase);
 
 // An unconditional branch
-INSTR_CLASS(Branch, (), Operands<0>) {
+class INSTR_CLASS(Branch, (), Operands<0>) {
  public:
   Branch(BasicBlock* target) : InstrT() {
     set_target(target);
@@ -1221,7 +1231,7 @@ enum class FunctionAttr {
 
 const char* functionFieldName(FunctionAttr field);
 
-INSTR_CLASS(SetFunctionAttr, (TObject, TFunc), Operands<2>) {
+class INSTR_CLASS(SetFunctionAttr, (TObject, TFunc), Operands<2>) {
  public:
   SetFunctionAttr(Register* value, Register* base, FunctionAttr field)
       : InstrT(value, base), field_(field) {}
@@ -1309,7 +1319,12 @@ DEFINE_SIMPLE_INSTR(
     Operands<>,
     VectorCallBase);
 
-INSTR_CLASS(CallEx, (TObject, TObject), HasOutput, Operands<2>, DeoptBase) {
+class INSTR_CLASS(
+    CallEx,
+    (TObject, TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBase) {
  public:
   CallEx(Register* dst, Register* func, Register* pargs, bool is_awaited)
       : InstrT(dst, func, pargs), is_awaited_(is_awaited) {}
@@ -1338,7 +1353,7 @@ INSTR_CLASS(CallEx, (TObject, TObject), HasOutput, Operands<2>, DeoptBase) {
   const bool is_awaited_;
 };
 
-INSTR_CLASS(
+class INSTR_CLASS(
     CallExKw,
     (TObject, TObject, TObject),
     HasOutput,
@@ -1384,7 +1399,7 @@ INSTR_CLASS(
 
 // Call to one of the C functions defined by CallCFunc_FUNCS. We have a static
 // set of functions so we can (one day) safely (de)serialize HIR fully.
-INSTR_CLASS(CallCFunc, (TOptObject), HasOutput, Operands<>) {
+class INSTR_CLASS(CallCFunc, (TOptObject), HasOutput, Operands<>) {
  public:
 // List of allowed functions
 #define CallCFunc_FUNCS(X)      \
@@ -1424,7 +1439,7 @@ INSTR_CLASS(CallCFunc, (TOptObject), HasOutput, Operands<>) {
 };
 
 // Phi instruction
-INSTR_CLASS(Phi, (TTop), HasOutput, Operands<>) {
+class INSTR_CLASS(Phi, (TTop), HasOutput, Operands<>) {
  public:
   Phi(Register* dst) : InstrT(dst) {}
 
@@ -1470,7 +1485,7 @@ INSTR_CLASS(Phi, (TTop), HasOutput, Operands<>) {
 // The first operand is the receiver that was used for the corresponding
 // LoadMethod. The second operand is the callable to call. The remaining
 // operands are arguments to the call.
-INSTR_CLASS(CallMethod, (TOptObject), HasOutput, Operands<>, DeoptBase) {
+class INSTR_CLASS(CallMethod, (TOptObject), HasOutput, Operands<>, DeoptBase) {
  public:
   CallMethod(Register* dst, bool is_awaited)
       : InstrT(dst), is_awaited_(is_awaited) {}
@@ -1503,7 +1518,7 @@ INSTR_CLASS(CallMethod, (TOptObject), HasOutput, Operands<>, DeoptBase) {
   const bool is_awaited_;
 };
 
-INSTR_CLASS(InvokeMethod, (TObject), HasOutput, Operands<>, DeoptBase) {
+class INSTR_CLASS(InvokeMethod, (TObject), HasOutput, Operands<>, DeoptBase) {
  public:
   InvokeMethod(
       Register* dst,
@@ -1552,7 +1567,7 @@ INSTR_CLASS(InvokeMethod, (TObject), HasOutput, Operands<>, DeoptBase) {
 };
 
 // A call to a function at a known address
-INSTR_CLASS(CallStatic, (TTop), HasOutput, Operands<>) {
+class INSTR_CLASS(CallStatic, (TTop), HasOutput, Operands<>) {
  public:
   CallStatic(Register* out, void* addr, Type ret_type)
       : InstrT(out), addr_(addr), ret_type_(ret_type) {}
@@ -1579,7 +1594,7 @@ INSTR_CLASS(CallStatic, (TTop), HasOutput, Operands<>) {
 };
 
 // A call to a function at a known address
-INSTR_CLASS(CallStaticRetVoid, (TTop), Operands<>) {
+class INSTR_CLASS(CallStaticRetVoid, (TTop), Operands<>) {
  public:
   CallStaticRetVoid(void* addr) : InstrT(), addr_(addr) {}
 
@@ -1601,7 +1616,12 @@ INSTR_CLASS(CallStaticRetVoid, (TTop), Operands<>) {
 
 // Invokes a function with a static entry point, where we can
 // directly provide the arguments using the x64 calling convention.
-INSTR_CLASS(InvokeStaticFunction, (TTop), HasOutput, Operands<>, DeoptBase) {
+class INSTR_CLASS(
+    InvokeStaticFunction,
+    (TTop),
+    HasOutput,
+    Operands<>,
+    DeoptBase) {
  public:
   // Would be better not to have this constructor, we shouldn't use it, but
   // currently newInstr in the parser requires it, T85605140
@@ -1666,7 +1686,7 @@ DEFINE_SIMPLE_INSTR(CheckNeg, (TCInt), HasOutput, Operands<1>, CheckBase);
 
 // Check that a variable has been set. If not, raise an UnboundLocalError and
 // transfer control to the block's exception handler.
-INSTR_CLASS(CheckVar, (TOptObject), HasOutput, Operands<1>, CheckBase) {
+class INSTR_CLASS(CheckVar, (TOptObject), HasOutput, Operands<1>, CheckBase) {
  public:
   // `name_idx` is the index into co_varnames of the name that should be used
   // when raising an UnboundLocalError. A value of -1 indicates that no name
@@ -1691,7 +1711,7 @@ INSTR_CLASS(CheckVar, (TOptObject), HasOutput, Operands<1>, CheckBase) {
 
 // Check that a variable has been set. If not, raise an AttributeError and
 // transfer control to the block's exception handler.
-INSTR_CLASS(CheckField, (TOptObject), HasOutput, Operands<1>, CheckBase) {
+class INSTR_CLASS(CheckField, (TOptObject), HasOutput, Operands<1>, CheckBase) {
  public:
   // `field_idx` is the index into co_consts of the field that should be used
   // when raising an AttributeError.
@@ -1719,7 +1739,7 @@ INSTR_CLASS(CheckField, (TOptObject), HasOutput, Operands<1>, CheckBase) {
 
 // Check that a variable is not None.  If it is None it raises an AttributeError
 // saying None doesn't have that attribute.
-INSTR_CLASS(CheckNone, (TObject), HasOutput, Operands<1>, CheckBase) {
+class INSTR_CLASS(CheckNone, (TObject), HasOutput, Operands<1>, CheckBase) {
  public:
   // `name_idx` is the index into co_names of the name that should be used
   // when raising an AttributeError.
@@ -1748,7 +1768,7 @@ DEFINE_SIMPLE_INSTR(
     Operands<1>,
     DeoptBase);
 
-INSTR_CLASS(LoadField, (TObject), HasOutput, Operands<1>) {
+class INSTR_CLASS(LoadField, (TObject), HasOutput, Operands<1>) {
  public:
   LoadField(
       Register* dst,
@@ -1785,7 +1805,7 @@ INSTR_CLASS(LoadField, (TObject), HasOutput, Operands<1>) {
   bool borrowed_;
 };
 
-INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
+class INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
  public:
   StoreField(
       Register* receiver,
@@ -1831,7 +1851,7 @@ INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
   Type type_;
 };
 
-INSTR_CLASS(Cast, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(Cast, (TObject), HasOutput, Operands<1>, DeoptBase) {
  public:
   Cast(
       Register* dst,
@@ -1858,7 +1878,7 @@ INSTR_CLASS(Cast, (TObject), HasOutput, Operands<1>, DeoptBase) {
   bool optional_;
 };
 
-INSTR_CLASS(TpAlloc, (), HasOutput, Operands<0>, DeoptBase) {
+class INSTR_CLASS(TpAlloc, (), HasOutput, Operands<0>, DeoptBase) {
  public:
   TpAlloc(Register* dst, PyTypeObject* pytype, const FrameState& frame)
       : InstrT(dst, frame), pytype_(pytype) {}
@@ -1872,7 +1892,7 @@ INSTR_CLASS(TpAlloc, (), HasOutput, Operands<0>, DeoptBase) {
 };
 
 // Perform a binary operation (e.g. '+', '-') on primitive int operands
-INSTR_CLASS(
+class INSTR_CLASS(
     IntBinaryOp,
     (TCInt, OperandType(Constraint::kMatchOther, 0)),
     HasOutput,
@@ -1898,7 +1918,11 @@ INSTR_CLASS(
 };
 
 // Perform a binary operation (e.g. '+', '-') on primitive double operands
-INSTR_CLASS(DoubleBinaryOp, (TCDouble, TCDouble), HasOutput, Operands<2>) {
+class INSTR_CLASS(
+    DoubleBinaryOp,
+    (TCDouble, TCDouble),
+    HasOutput,
+    Operands<2>) {
  public:
   DoubleBinaryOp(
       Register* dst,
@@ -1932,7 +1956,7 @@ const char* GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op);
 PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(const char* name);
 
 // Perform a unary operation (e.g. '~', '-') on primitive operands
-INSTR_CLASS(PrimitiveUnaryOp, (TPrimitive), HasOutput, Operands<1>) {
+class INSTR_CLASS(PrimitiveUnaryOp, (TPrimitive), HasOutput, Operands<1>) {
  public:
   PrimitiveUnaryOp(Register* dst, PrimitiveUnaryOpKind op, Register* value)
       : InstrT(dst, value), op_(op) {}
@@ -1971,7 +1995,7 @@ enum class CompareOp {
 const char* GetCompareOpName(CompareOp op);
 
 // Perform the comparison indicated by op
-INSTR_CLASS(
+class INSTR_CLASS(
     Compare,
     (TOptObject, TOptObject),
     HasOutput,
@@ -2004,7 +2028,7 @@ INSTR_CLASS(
 
 // Like Compare but has an Int32 output so it can be used to replace
 // a Compare + IsTruthy.
-INSTR_CLASS(
+class INSTR_CLASS(
     CompareBool,
     (TObject, TObject),
     HasOutput,
@@ -2035,7 +2059,7 @@ INSTR_CLASS(
   CompareOp op_;
 };
 
-INSTR_CLASS(IntConvert, (TPrimitive), HasOutput, Operands<1>) {
+class INSTR_CLASS(IntConvert, (TPrimitive), HasOutput, Operands<1>) {
  public:
   IntConvert(Register* dst, Register* src, Type type)
       : InstrT(dst, src), type_(type) {}
@@ -2070,7 +2094,7 @@ enum class PrimitiveCompareOp {
 const char* GetPrimitiveCompareOpName(PrimitiveCompareOp op);
 PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name);
 
-INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
+class INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
  public:
   PrimitiveCompare(
       Register* dst,
@@ -2108,7 +2132,7 @@ INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
   PrimitiveCompareOp op_;
 };
 
-INSTR_CLASS(PrimitiveBox, (TPrimitive), HasOutput, Operands<1>) {
+class INSTR_CLASS(PrimitiveBox, (TPrimitive), HasOutput, Operands<1>) {
  public:
   PrimitiveBox(Register* dst, Register* value, Type type)
       : InstrT(dst, value), type_(type) {}
@@ -2125,7 +2149,7 @@ INSTR_CLASS(PrimitiveBox, (TPrimitive), HasOutput, Operands<1>) {
   Type type_;
 };
 
-INSTR_CLASS(PrimitiveUnbox, (TObject), HasOutput, Operands<1>) {
+class INSTR_CLASS(PrimitiveUnbox, (TObject), HasOutput, Operands<1>) {
  public:
   PrimitiveUnbox(Register* dst, Register* value, Type type)
       : InstrT(dst, value), type_(type) {}
@@ -2197,7 +2221,11 @@ DEFINE_SIMPLE_INSTR(
 
 // Branch to `true_bb` if the operand matches the supplied type specification,
 // or `false_bb` otherwise.
-INSTR_CLASS(CondBranchCheckType, (TOptObject), Operands<1>, CondBranchBase) {
+class INSTR_CLASS(
+    CondBranchCheckType,
+    (TOptObject),
+    Operands<1>,
+    CondBranchBase) {
  public:
   CondBranchCheckType(
       Register* target,
@@ -2263,7 +2291,12 @@ DEFINE_SIMPLE_INSTR(DeleteAttr, (TObject), Operands<1>, DeoptBaseWithName);
 
 // Load an attribute from an object, skipping the instance dictionary but still
 // calling descriptors as appropriate (to create bound methods, for example).
-INSTR_CLASS(LoadAttrSpecial, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(
+    LoadAttrSpecial,
+    (TObject),
+    HasOutput,
+    Operands<1>,
+    DeoptBase) {
  public:
   LoadAttrSpecial(
       Register* dst,
@@ -2281,7 +2314,7 @@ INSTR_CLASS(LoadAttrSpecial, (TObject), HasOutput, Operands<1>, DeoptBase) {
 };
 
 // Format and raise an error after failing to get an iterator for 'async with'.
-INSTR_CLASS(RaiseAwaitableError, (TType), Operands<1>, DeoptBase) {
+class INSTR_CLASS(RaiseAwaitableError, (TType), Operands<1>, DeoptBase) {
  public:
   RaiseAwaitableError(
       Register* type,
@@ -2299,7 +2332,7 @@ INSTR_CLASS(RaiseAwaitableError, (TType), Operands<1>, DeoptBase) {
 
 // Load a guard (index 0) or value (index 1) from a cache specialized for
 // loading attributes from type receivers
-INSTR_CLASS(LoadTypeAttrCacheItem, (), HasOutput, Operands<0>) {
+class INSTR_CLASS(LoadTypeAttrCacheItem, (), HasOutput, Operands<0>) {
  public:
   LoadTypeAttrCacheItem(Register* dst, int cache_id, int item_idx)
       : InstrT(dst), cache_id_(cache_id), item_idx_(item_idx) {
@@ -2321,7 +2354,12 @@ INSTR_CLASS(LoadTypeAttrCacheItem, (), HasOutput, Operands<0>) {
 
 // Perform a full attribute lookup. Fill the cache if the receiver is a type
 // object.
-INSTR_CLASS(FillTypeAttrCache, (TType), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(
+    FillTypeAttrCache,
+    (TType),
+    HasOutput,
+    Operands<1>,
+    DeoptBase) {
  public:
   FillTypeAttrCache(
       Register* dst,
@@ -2363,7 +2401,7 @@ INSTR_CLASS(FillTypeAttrCache, (TType), HasOutput, Operands<1>, DeoptBase) {
 
 // Like LoadAttr, but when we know that we're loading an attribute that will be
 // used for a method call.
-INSTR_CLASS(LoadMethod, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(LoadMethod, (TObject), HasOutput, Operands<1>, DeoptBase) {
  public:
   LoadMethod(
       Register* dst,
@@ -2469,7 +2507,7 @@ DEFINE_SIMPLE_INSTR(
     Operands<3>);
 
 // Load a constant value (given as a Type) into a register.
-INSTR_CLASS(LoadConst, (), HasOutput, Operands<0>) {
+class INSTR_CLASS(LoadConst, (), HasOutput, Operands<0>) {
  public:
   LoadConst(Register* dst, Type type) : InstrT(dst), type_(type) {
     JIT_DCHECK(
@@ -2484,7 +2522,7 @@ INSTR_CLASS(LoadConst, (), HasOutput, Operands<0>) {
   Type type_;
 };
 
-INSTR_CLASS(LoadFunctionIndirect, (), HasOutput, Operands<0>, DeoptBase) {
+class INSTR_CLASS(LoadFunctionIndirect, (), HasOutput, Operands<0>, DeoptBase) {
  public:
   LoadFunctionIndirect(
       PyObject** funcptr,
@@ -2509,7 +2547,7 @@ INSTR_CLASS(LoadFunctionIndirect, (), HasOutput, Operands<0>, DeoptBase) {
 //
 // The name is specified by the name_idx in the co_names tuple of the code
 // object.
-INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
+class INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
  public:
   LoadGlobalCached(Register* dst, BorrowedRef<PyCodeObject> code, int name_idx)
       : InstrT(dst), code_(code), name_idx_(name_idx) {}
@@ -2527,7 +2565,7 @@ INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
   int name_idx_;
 };
 
-INSTR_CLASS(LoadGlobal, (), HasOutput, Operands<0>, DeoptBase) {
+class INSTR_CLASS(LoadGlobal, (), HasOutput, Operands<0>, DeoptBase) {
  public:
   LoadGlobal(Register* dst, int name_idx, const FrameState& frame)
       : InstrT(dst, frame), name_idx_(name_idx) {}
@@ -2542,7 +2580,7 @@ INSTR_CLASS(LoadGlobal, (), HasOutput, Operands<0>, DeoptBase) {
 
 // Return a copy of the input with a refined Type. The output Type is the
 // intersection of the given Type and the input's Type.
-INSTR_CLASS(RefineType, (TTop), HasOutput, Operands<1>) {
+class INSTR_CLASS(RefineType, (TTop), HasOutput, Operands<1>) {
  public:
   RefineType(Register* dst, Type type, Register* src)
       : InstrT(dst, src), type_(type) {}
@@ -2593,7 +2631,7 @@ DEFINE_SIMPLE_INSTR(
     RepeatBase);
 
 //  Return from the function
-INSTR_CLASS(Return, (), Operands<1>) {
+class INSTR_CLASS(Return, (), Operands<1>) {
  public:
   Return(Register* val) : InstrT(val), type_(TObject) {}
   Return(Register* val, Type type) : InstrT(val), type_(type) {}
@@ -2616,7 +2654,7 @@ INSTR_CLASS(Return, (), Operands<1>) {
 //
 // Ensures that we don't accidentally remove a type check (such as in GuardType)
 // despite a register not having any explicit users
-INSTR_CLASS(UseType, (), Operands<1>) {
+class INSTR_CLASS(UseType, (), Operands<1>) {
  public:
   UseType(Register* val, Type type) : InstrT(val), type_(type) {}
 
@@ -2638,7 +2676,7 @@ DEFINE_SIMPLE_INSTR(Assign, (TTop), HasOutput, Operands<1>);
 // Load the value of an argument to the current function. Reads from implicit
 // state set up by the function prologue and must not appear after any
 // non-LoadArg instruction.
-INSTR_CLASS(LoadArg, (), HasOutput, Operands<0>) {
+class INSTR_CLASS(LoadArg, (), HasOutput, Operands<0>) {
  public:
   LoadArg(Register* dst, uint arg_idx)
       : InstrT(dst), arg_idx_(arg_idx), type_(TObject) {}
@@ -2660,7 +2698,7 @@ INSTR_CLASS(LoadArg, (), HasOutput, Operands<0>) {
 };
 
 // Allocate a tuple or list object with number of values
-INSTR_CLASS(MakeListTuple, (), HasOutput, Operands<0>, DeoptBase) {
+class INSTR_CLASS(MakeListTuple, (), HasOutput, Operands<0>, DeoptBase) {
  public:
   MakeListTuple(
       bool is_tuple,
@@ -2683,7 +2721,7 @@ INSTR_CLASS(MakeListTuple, (), HasOutput, Operands<0>, DeoptBase) {
 };
 
 // Initialize a tuple or a list with the arguments
-INSTR_CLASS(InitListTuple, (), Operands<>) {
+class INSTR_CLASS(InitListTuple, (), Operands<>) {
  public:
   InitListTuple(bool is_tuple) : InstrT(), tuple_(is_tuple) {}
 
@@ -2718,7 +2756,7 @@ DEFINE_SIMPLE_INSTR(
     DeoptBase);
 
 // Load an element from a tuple at a known index, with no bounds checking.
-INSTR_CLASS(LoadTupleItem, (TTuple), HasOutput, Operands<1>) {
+class INSTR_CLASS(LoadTupleItem, (TTuple), HasOutput, Operands<1>) {
  public:
   LoadTupleItem(Register* dst, Register* tuple, size_t idx)
       : InstrT(dst, tuple), idx_(idx) {}
@@ -2737,7 +2775,7 @@ INSTR_CLASS(LoadTupleItem, (TTuple), HasOutput, Operands<1>) {
 
 // Load an element from an array at a known index and offset, with no bounds
 // checking. Equivalent to ((type*)(((char*)ob_item)+offset))[idx]
-INSTR_CLASS(
+class INSTR_CLASS(
     LoadArrayItem,
     (Constraint::kTupleExactOrCPtr, TCInt, TObject),
     HasOutput,
@@ -2777,13 +2815,17 @@ INSTR_CLASS(
   Type type_;
 };
 
-INSTR_CLASS(LoadFieldAddress, (TObject, TCInt64), HasOutput, Operands<2>){
-  public :
-      LoadFieldAddress(Register * dst, Register* object, Register* offset) :
-          InstrT(dst, object, offset){}
+class INSTR_CLASS(
+    LoadFieldAddress,
+    (TObject, TCInt64),
+    HasOutput,
+    Operands<2>) {
+ public:
+  LoadFieldAddress(Register* dst, Register* object, Register* offset)
+      : InstrT(dst, object, offset) {}
 
-  Register *
-  object() const {return GetOperand(0);
+  Register* object() const {
+    return GetOperand(0);
   }
 
   Register* offset() const {
@@ -2792,7 +2834,7 @@ INSTR_CLASS(LoadFieldAddress, (TObject, TCInt64), HasOutput, Operands<2>){
 };
 
 // Store an element to an array at a known index, with no bounds checking.
-INSTR_CLASS(StoreArrayItem, (TCPtr, TCInt, TTop, TObject), Operands<4>) {
+class INSTR_CLASS(StoreArrayItem, (TCPtr, TCInt, TTop, TObject), Operands<4>) {
  public:
   StoreArrayItem(
       Register* ob_item,
@@ -2844,7 +2886,7 @@ DEFINE_SIMPLE_INSTR(MakeCell, (TOptObject), HasOutput, Operands<1>, DeoptBase);
 
 // Allocate an empty dict with the given capacity, or the default capacity if 0
 // is given.
-INSTR_CLASS(MakeDict, (), HasOutput, Operands<0>, DeoptBase) {
+class INSTR_CLASS(MakeDict, (), HasOutput, Operands<0>, DeoptBase) {
  public:
   MakeDict(Register* dst, size_t capacity, const FrameState& frame)
       : InstrT(dst, frame), capacity_(capacity) {}
@@ -2859,7 +2901,7 @@ INSTR_CLASS(MakeDict, (), HasOutput, Operands<0>, DeoptBase) {
 
 // Allocate an empty checked dict with the given capacity, or the default
 // capacity if 0 is given.
-INSTR_CLASS(MakeCheckedDict, (), HasOutput, Operands<0>, DeoptBase) {
+class INSTR_CLASS(MakeCheckedDict, (), HasOutput, Operands<0>, DeoptBase) {
  public:
   MakeCheckedDict(
       Register* dst,
@@ -2883,7 +2925,7 @@ INSTR_CLASS(MakeCheckedDict, (), HasOutput, Operands<0>, DeoptBase) {
 
 // Allocate an empty checked list with the given capacity, or the default
 // capacity if 0 is given.
-INSTR_CLASS(MakeCheckedList, (), HasOutput, Operands<0>, DeoptBase) {
+class INSTR_CLASS(MakeCheckedList, (), HasOutput, Operands<0>, DeoptBase) {
  public:
   MakeCheckedList(
       Register* dst,
@@ -2949,7 +2991,7 @@ DEFINE_SIMPLE_INSTR(LoadVarObjectSize, (TOptObject), HasOutput, Operands<1>);
 // Stores into an index
 //
 // Places NULL in dst if an error occurred or a non-NULL value otherwise
-INSTR_CLASS(
+class INSTR_CLASS(
     StoreSubscr,
     (TObject, TObject, TOptObject),
     HasOutput,
@@ -3011,7 +3053,7 @@ DEFINE_SIMPLE_INSTR(LoadEvalBreaker, (), HasOutput, Operands<0>);
 // Let other threads run, run signal handlers, etc.
 DEFINE_SIMPLE_INSTR(RunPeriodicTasks, (), HasOutput, Operands<0>, DeoptBase);
 
-INSTR_CLASS(Snapshot, (), Operands<0>) {
+class INSTR_CLASS(Snapshot, (), Operands<0>) {
  public:
   Snapshot(const FrameState& frame_state) : InstrT() {
     setFrameState(frame_state);
@@ -3054,7 +3096,7 @@ DEFINE_SIMPLE_INSTR(Deopt, (), Operands<0>, DeoptBase);
 //
 // See the comment in Jit/deopt_patcher.h for a description of how to use
 // these.
-INSTR_CLASS(DeoptPatchpoint, (), Operands<0>, DeoptBase) {
+class INSTR_CLASS(DeoptPatchpoint, (), Operands<0>, DeoptBase) {
  public:
   DeoptPatchpoint(DeoptPatcher* patcher) : InstrT(), patcher_(patcher) {}
 
@@ -3073,7 +3115,7 @@ DEFINE_SIMPLE_INSTR(Guard, (TOptObject), Operands<1>, DeoptBase);
 
 // A guard that verifies that its src is the same object as the target, or
 // deopts if not.
-INSTR_CLASS(GuardIs, (TOptObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(GuardIs, (TOptObject), HasOutput, Operands<1>, DeoptBase) {
  public:
   GuardIs(Register* dst, PyObject* target, Register* src)
       : InstrT(dst, src), target_(target) {}
@@ -3088,7 +3130,7 @@ INSTR_CLASS(GuardIs, (TOptObject), HasOutput, Operands<1>, DeoptBase) {
 
 // Return a copy of the input with a refined Type. The output Type is the
 // intersection of the source's type with the target Type.
-INSTR_CLASS(GuardType, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(GuardType, (TObject), HasOutput, Operands<1>, DeoptBase) {
  public:
   GuardType(Register* dst, Type target, Register* src)
       : InstrT(dst, src), target_(target) {}
@@ -3111,7 +3153,7 @@ DEFINE_SIMPLE_INSTR(
     Operands<2>,
     DeoptBase);
 
-INSTR_CLASS(ImportFrom, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(ImportFrom, (TObject), HasOutput, Operands<1>, DeoptBase) {
  public:
   ImportFrom(
       Register* dst,
@@ -3132,7 +3174,12 @@ INSTR_CLASS(ImportFrom, (TObject), HasOutput, Operands<1>, DeoptBase) {
   int name_idx_;
 };
 
-INSTR_CLASS(ImportName, (TObject, TLong), HasOutput, Operands<2>, DeoptBase) {
+class INSTR_CLASS(
+    ImportName,
+    (TObject, TLong),
+    HasOutput,
+    Operands<2>,
+    DeoptBase) {
  public:
   ImportName(
       Register* dst,
@@ -3159,7 +3206,7 @@ INSTR_CLASS(ImportName, (TObject, TLong), HasOutput, Operands<2>, DeoptBase) {
 };
 
 // (Re)raises an exception with optional cause.
-INSTR_CLASS(Raise, (TObject, TObject), Operands<>, DeoptBase) {
+class INSTR_CLASS(Raise, (TObject, TObject), Operands<>, DeoptBase) {
  public:
   enum class Kind {
     kReraise,
@@ -3194,7 +3241,7 @@ INSTR_CLASS(Raise, (TObject, TObject), Operands<>, DeoptBase) {
 
 // Set an error by calling PyErr_Format() and then raising. This is typically
 // used when a runtime assertion implemented as part of a Python opcode is hit.
-INSTR_CLASS(RaiseStatic, (TObject), Operands<>, DeoptBase) {
+class INSTR_CLASS(RaiseStatic, (TObject), Operands<>, DeoptBase) {
  public:
   RaiseStatic(PyObject* exc_type, const char* fmt, const FrameState& frame)
       : InstrT(), fmt_(fmt), exc_type_(exc_type) {
@@ -3274,7 +3321,7 @@ DEFINE_SIMPLE_INSTR(
 DEFINE_SIMPLE_INSTR(BuildString, (TUnicode), HasOutput, Operands<>, DeoptBase);
 
 // Implements FORMAT_VALUE opcode, which handles f-string value formatting.
-INSTR_CLASS(
+class INSTR_CLASS(
     FormatValue,
     (TOptUnicode, TObject),
     HasOutput,
@@ -3303,7 +3350,12 @@ DEFINE_SIMPLE_INSTR(DeleteSubscr, (TObject, TObject), Operands<2>, DeoptBase);
 
 // Unpack a sequence as UNPACK_EX opcode and save the results
 // to a tuple
-INSTR_CLASS(UnpackExToTuple, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(
+    UnpackExToTuple,
+    (TObject),
+    HasOutput,
+    Operands<1>,
+    DeoptBase) {
  public:
   UnpackExToTuple(
       Register* dst,
