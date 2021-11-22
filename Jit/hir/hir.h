@@ -3669,6 +3669,15 @@ enum class FrameMode {
   kShadow,
 };
 
+struct TypedArgument {
+  TypedArgument(long locals_idx, BorrowedRef<PyTypeObject> pytype, int optional)
+      : locals_idx(locals_idx), pytype(pytype), optional(optional){};
+
+  long locals_idx;
+  Ref<PyTypeObject> pytype;
+  int optional;
+};
+
 // Does the given code object need access to its containing PyFunctionObject at
 // runtime?
 bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code);
@@ -3696,6 +3705,10 @@ class Function {
 
   // is the first argument a primitive?
   bool has_primitive_first_arg{false};
+
+  // vector of {locals_idx, type, optional}
+  // in argument order, may have gaps for unchecked args
+  std::vector<TypedArgument> typed_args;
 
   // Return type
   Type return_type{TObject};

@@ -254,6 +254,9 @@ std::unique_ptr<Function> Preloader::makeFunction() const {
   irfunc->return_type = return_type_;
   irfunc->has_primitive_args = has_primitive_args_;
   irfunc->has_primitive_first_arg = has_primitive_first_arg_;
+  for (auto& [local, pytype_opt] : check_arg_pytypes_) {
+    irfunc->typed_args.emplace_back(local, pytype_opt.first, pytype_opt.second);
+  }
   return irfunc;
 }
 
@@ -299,9 +302,15 @@ void Preloader::preload() {
                 local);
             local = arg;
           }
-          Type type =
-              to_jit_type(resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1)));
+          PyTypeOpt pytype_opt =
+              resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1));
+          JIT_CHECK(
+              pytype_opt.first !=
+                  reinterpret_cast<PyTypeObject*>(&PyObject_Type),
+              "shouldn't generate type checks for object");
+          Type type = to_jit_type(pytype_opt);
           check_arg_types_.emplace(local, type);
+          check_arg_pytypes_.emplace(local, std::move(pytype_opt));
           if (type <= TPrimitive) {
             has_primitive_args_ = true;
             if (local == 0) {

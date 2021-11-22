@@ -151,6 +151,7 @@ class Preloader {
   std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> meth_targets_;
   // keyed by locals index
   std::unordered_map<long, Type> check_arg_types_;
+  std::map<long, PyTypeOpt> check_arg_pytypes_;
   // keyed by name index
   std::unordered_map<int, Ref<>> global_values_;
   Type return_type_{TObject};

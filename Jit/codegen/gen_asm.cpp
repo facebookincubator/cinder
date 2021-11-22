@@ -14,6 +14,7 @@
 #include "Jit/codegen/regalloc.h"
 #include "Jit/frame.h"
 #include "Jit/hir/analysis.h"
+#include "Jit/hir/hir.h"
 #include "Jit/hir/printer.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_rt.h"
@@ -29,7 +30,6 @@
 #include <cstdint>
 #include <iterator>
 #include <list>
-#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -587,7 +587,6 @@ void NativeGenerator::generatePrologue(
     // unbox them from their boxed ints.  We usually get to
     // avoid this by doing direct invokes from JITed code.
     if (func_->has_primitive_args) {
-      ThreadedCompileSerialize guard;
       env_.code_rt->addReference(func_->prim_args_info);
       as_->mov(
           x86::r8, reinterpret_cast<uint64_t>(func_->prim_args_info.get()));
@@ -714,24 +713,6 @@ emitCompare(x86::Builder* as, x86::Gp lhs, void* rhs, x86::Gp scratch) {
   }
 }
 
-static long getLocalForCheck(
-    BorrowedRef<PyTupleObject> checks,
-    Py_ssize_t check_idx,
-    BorrowedRef<PyCodeObject> code) {
-  long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, check_idx));
-  if (local >= 0) {
-    return local;
-  }
-  // A negative value for local indicates that it's a cell
-  JIT_CHECK(
-      code->co_cell2arg != nullptr,
-      "no cell2arg but negative local %ld",
-      local);
-  long arg = code->co_cell2arg[-1 * (local + 1)];
-  JIT_CHECK(arg != CO_CELL_NOT_AN_ARG, "cell not an arg for local %ld", local);
-  return arg;
-}
-
 void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   // JITRT_CallWithIncorrectArgcount uses the fact that our checks are set up
   // from last to first argument - we order the jumps so that the common case of
@@ -742,13 +723,9 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   // This is complicated a bit by the fact that not every argument will have a
   // check, as we elide the dynamic ones. For that, we do bookkeeping and assign
   // all defaulted arg counts up to the next local to the same label.
-  PyCodeObject* code = GetFunction()->code;
-  _Py_CODEUNIT* rawcode = code->co_rawcode;
-  JIT_CHECK(
-      _Py_OPCODE(rawcode[0]) == CHECK_ARGS, "expected CHECK_ARGS as 1st arg");
-  PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
+  const std::vector<TypedArgument>& checks = GetFunction()->typed_args;
   env_.static_arg_typecheck_failed_label = as_->newLabel();
-  if (!PyTuple_GET_SIZE(checks)) {
+  if (!checks.size()) {
     return;
   }
   // We build a vector of labels corresponding to [first_check, second_check,
@@ -763,7 +740,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   as_->bind(table_label);
   std::vector<Label> arg_labels;
   int defaulted_arg_count = 0;
-  Py_ssize_t check_index = PyTuple_GET_SIZE(checks) - 2;
+  Py_ssize_t check_index = checks.size() - 1;
   // Each check might be a label that hosts multiple arguments, as dynamic
   // arguments aren't checked. We need to account for this in our bookkeeping.
   auto next_arg = as_->newLabel();
@@ -773,12 +750,12 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
     as_->jmp(next_arg);
 
     if (check_index >= 0) {
-      long local = getLocalForCheck(checks, check_index, code);
+      long local = checks.at(check_index).locals_idx;
       if (GetFunction()->numArgs() - defaulted_arg_count - 1 == local) {
         if (check_index == 0) {
           next_arg = setup_frame;
         } else {
-          check_index -= 2;
+          check_index--;
           next_arg = as_->newLabel();
         }
         arg_labels.emplace_back(next_arg);
@@ -792,40 +769,32 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
 
   as_->align(AlignMode::kAlignCode, 8);
   as_->bind(arg_labels[0]);
-  for (Py_ssize_t i = PyTuple_GET_SIZE(checks) - 2; i >= 0; i -= 2) {
+  for (Py_ssize_t i = checks.size() - 1; i >= 0; i--) {
     auto check_cursor = as_->cursor();
-    long local = getLocalForCheck(checks, i, code);
+    const TypedArgument& arg = checks.at(i);
+    env_.code_rt->addReference(arg.pytype);
+    next_arg = arg_labels[checks.size() - i];
 
-    PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);
-    next_arg = arg_labels[(PyTuple_GET_SIZE(checks) - i) / 2];
-    int optional;
-    PyTypeObject* type = THREADED_COMPILE_SERIALIZED_CALL(
-        _PyClassLoader_ResolveType(type_descr, &optional));
-
-    JIT_CHECK(
-        type != (PyTypeObject*)&PyObject_Type,
-        "shouldn't generate type checks for object");
-
-    as_->mov(x86::r8, x86::ptr(x86::rsi, local * 8)); // load local
+    as_->mov(x86::r8, x86::ptr(x86::rsi, arg.locals_idx * 8)); // load local
     as_->mov(
         x86::r8, x86::ptr(x86::r8, offsetof(PyObject, ob_type))); // load type
-    if (optional) {
+    if (arg.optional) {
       // check if the value is None
       emitCompare(as_, x86::r8, Py_TYPE(Py_None), x86::rax);
       as_->je(next_arg);
     }
 
     // common case: check if we have the exact right type
-    emitCompare(as_, x86::r8, type, x86::rax);
+    emitCompare(as_, x86::r8, arg.pytype, x86::rax);
     as_->je(next_arg);
 
-    if (type->tp_flags & Py_TPFLAGS_BASETYPE) {
+    if (arg.pytype->tp_flags & Py_TPFLAGS_BASETYPE) {
       // We need to check the object's MRO and see if the declared type
       // is present in it.  Technically we don't need to check the last
       // entry that will be object but the code gen is a little bit simpler
       // if we include it.
       Label arg_loop = as_->newLabel();
-      as_->mov(x86::r10, reinterpret_cast<uint64_t>(type));
+      as_->mov(x86::r10, reinterpret_cast<uint64_t>(arg.pytype.get()));
 
       // PyObject *r8 = r8->tp_mro;
       as_->mov(x86::r8, x86::ptr(x86::r8, offsetof(PyTypeObject, tp_mro)));
@@ -851,8 +820,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
       as_->bind(next_arg);
     }
     env_.addAnnotation(
-        fmt::format("StaticTypeCheck[{}]", type->tp_name), check_cursor);
-    Py_DECREF(type);
+        fmt::format("StaticTypeCheck[{}]", arg.pytype->tp_name), check_cursor);
   }
 }
 

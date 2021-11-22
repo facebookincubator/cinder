@@ -31,7 +31,7 @@ void CodeRuntime::releaseReferences() {
 
 void CodeRuntime::addReference(PyObject* obj) {
   JIT_CHECK(obj != nullptr, "Can't own a reference to nullptr");
-  // Serialize as we modify the ref-count to obj which may be widely accesible.
+  // Serialize as we modify the ref-count to obj which may be widely accessible.
   ThreadedCompileSerialize guard;
   references_.emplace(obj);
 }
