@@ -35,7 +35,7 @@ class HIRParser {
   std::list<std::string>::iterator token_iter_;
   Environment* env_;
   std::unordered_map<int, BasicBlock*> index_to_bb_;
-  std::unordered_map<CondBranch*, std::pair<int, int>> cond_branches_;
+  std::unordered_map<CondBranchBase*, std::pair<int, int>> cond_branches_;
   std::unordered_map<Branch*, int> branches_;
   std::unordered_map<int, std::vector<PhiInfo>> phis_;
   int max_reg_id_{0};

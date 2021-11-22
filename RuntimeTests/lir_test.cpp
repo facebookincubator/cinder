@@ -4,6 +4,7 @@
 #include "Jit/codegen/environ.h"
 #include "Jit/compiler.h"
 #include "Jit/hir/hir.h"
+#include "Jit/hir/parser.h"
 #include "Jit/lir/generator.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/operand.h"
@@ -405,4 +406,54 @@ TEST(LIRTest, MemoryIndirectTests) {
       PhyLocation::RDX,
       1,
       0x1000));
+}
+
+extern "C" uint64_t __Invoke_PyTuple_Check(PyObject* obj);
+
+TEST(LIRTest, CondBranchCheckTypeEmitsCallToSubclassCheck) {
+  const char* hir = R"(
+fun foo {
+  bb 0 {
+    v0 = LoadConst<NoneType>
+    CondBranchCheckType<1, 2, Tuple> v0
+  }
+
+  bb 1 {
+    v0 = LoadConst<NoneType>
+    Branch<2>
+  }
+
+  bb 2 {
+    Return v0
+  }
+}
+)";
+
+  std::unique_ptr<hir::Function> irfunc = hir::HIRParser{}.ParseHIR(hir);
+  ASSERT_NE(irfunc, nullptr);
+
+  Compiler::runPasses(*irfunc);
+
+  jit::codegen::Environ env;
+  jit::Runtime rt;
+
+  env.rt = &rt;
+
+  LIRGenerator lir_gen(irfunc.get(), &env);
+
+  auto lir_func = lir_gen.TranslateFunction();
+
+  std::stringstream ss;
+
+  lir_func->sortBasicBlocks();
+  ss << *lir_func << std::endl;
+
+  auto lir_expected = fmt::format(
+      R"(
+# CondBranchCheckType<1, 3, Tuple> v1
+       %5:Object = Call {0}({0:#x}):Object, %4:Object
+                   CondBranch %5:Object, BB%7, BB%9
+)",
+      reinterpret_cast<uint64_t>(__Invoke_PyTuple_Check));
+  EXPECT_NE(ss.str().find(lir_expected.c_str()), std::string::npos);
 }

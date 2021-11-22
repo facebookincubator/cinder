@@ -89,11 +89,6 @@ extern "C" PyObject* __Invoke_PyList_Extend(
   return none_val;
 }
 
-extern "C" uint64_t __Invoke_PyTuple_Check(PyObject* iterable) {
-  int is_tuple = PyTuple_Check(iterable);
-  return is_tuple == 0 ? 0 : 1;
-}
-
 extern "C" uint64_t __Invoke_PyDict_MergeEx(
     PyThreadState* tstate,
     PyObject* a,
@@ -598,6 +593,45 @@ static int bytes_from_cint_type(Type type) {
   JIT_CHECK(false, "bad primitive int type: (%d)", type);
   // NOTREACHED
 }
+
+#define FOREACH_FAST_BUILTIN(V) \
+  V(Long)                       \
+  V(List)                       \
+  V(Tuple)                      \
+  V(Bytes)                      \
+  V(Unicode)                    \
+  V(Dict)                       \
+  V(Type)
+
+#define INVOKE_CHECK(name)                                       \
+  extern "C" uint64_t __Invoke_Py##name##_Check(PyObject* obj) { \
+    int result = Py##name##_Check(obj);                          \
+    return result == 0 ? 0 : 1;                                  \
+  }
+
+FOREACH_FAST_BUILTIN(INVOKE_CHECK)
+
+#undef INVOKE_CHECK
+
+static void emitSubclassCheck(
+    BasicBlockBuilder& bbb,
+    std::string dst,
+    Register* obj,
+    Type type) {
+  // Fast path: a subset of builtin types that have Py_TPFLAGS
+  uint64_t fptr = 0;
+#define GET_FPTR(name)                                            \
+  if (type <= T##name) {                                          \
+    fptr = reinterpret_cast<uint64_t>(__Invoke_Py##name##_Check); \
+  } else
+  FOREACH_FAST_BUILTIN(GET_FPTR) {
+    JIT_CHECK(false, "unsupported subclass check in CondBranchCheckType");
+  }
+#undef GET_FPTR
+  bbb.AppendCode("Call {}, {:#x}, {}", dst, fptr, obj);
+}
+
+#undef FOREACH_FAST_BUILTIN
 
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     const hir::BasicBlock* hir_bb) {
@@ -1160,19 +1194,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kCondBranchCheckType: {
         auto& instr = static_cast<const CondBranchCheckType&>(i);
-        JIT_CHECK(instr.type().isExact(), "only exact type checking supported");
-        auto type_var = GetSafeTempName();
+        auto type = instr.type();
         auto eq_res_var = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            type_var,
-            instr.reg(),
-            offsetof(PyObject, ob_type));
-        bbb.AppendCode(
-            "Equal {}, {}, {:#x}",
-            eq_res_var,
-            type_var,
-            reinterpret_cast<uint64_t>(instr.type().uniquePyType()));
+        if (type.isExact()) {
+          auto type_var = GetSafeTempName();
+          bbb.AppendCode(
+              "Load {}, {}, {}",
+              type_var,
+              instr.reg(),
+              offsetof(PyObject, ob_type));
+          bbb.AppendCode(
+              "Equal {}, {}, {:#x}",
+              eq_res_var,
+              type_var,
+              reinterpret_cast<uint64_t>(instr.type().uniquePyType()));
+        } else {
+          emitSubclassCheck(bbb, eq_res_var, instr.GetOperand(0), type);
+        }
         bbb.AppendCode(
             "CondBranch {}, {}, {}",
             eq_res_var,

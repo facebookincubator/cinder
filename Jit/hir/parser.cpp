@@ -237,6 +237,20 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         std::piecewise_construct,
         std::forward_as_tuple(instr),
         std::forward_as_tuple(true_bb, false_bb));
+  } else if (strcmp(opcode, "CondBranchCheckType") == 0) {
+    expect("<");
+    auto true_bb = GetNextInteger();
+    expect(",");
+    auto false_bb = GetNextInteger();
+    expect(",");
+    Type ty = Type::parse(GetNextToken());
+    expect(">");
+    auto var = ParseRegister();
+    NEW_INSTR(CondBranchCheckType, var, ty, nullptr, nullptr);
+    cond_branches_.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(instr),
+        std::forward_as_tuple(true_bb, false_bb));
   } else if (strcmp(opcode, "Decref") == 0) {
     auto var = ParseRegister();
     NEW_INSTR(Decref, var);
