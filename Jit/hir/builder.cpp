@@ -1613,14 +1613,12 @@ void HIRBuilder::emitLoadIterableArg(
   auto iterable = tc.frame.stack.pop();
   Register* tuple;
   if (iterable->type() != TTupleExact) {
-    auto is_tuple = temps_.AllocateStack();
-    tc.emit<CheckTuple>(is_tuple, iterable);
-
     TranslationContext tuple_path{cfg.AllocateBlock(), tc.frame};
     tuple_path.snapshot();
     TranslationContext non_tuple_path{cfg.AllocateBlock(), tc.frame};
     non_tuple_path.snapshot();
-    tc.emit<CondBranch>(is_tuple, tuple_path.block, non_tuple_path.block);
+    tc.emit<CondBranchCheckType>(
+        iterable, TTuple, tuple_path.block, non_tuple_path.block);
     tc.block = cfg.AllocateBlock();
     tc.snapshot();
 

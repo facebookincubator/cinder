@@ -256,7 +256,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
           false,
           "Opcode %s doesn't have well-defined memory effects",
           inst.opname());
-    case Opcode::kCheckTuple:
     case Opcode::kGetTuple:
       return commonEffects(inst, AAny);
   }

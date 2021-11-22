@@ -174,7 +174,6 @@ bool Instr::isReplayable() const {
     case Opcode::kCallMethod:
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
-    case Opcode::kCheckTuple:
     case Opcode::kClearError:
     case Opcode::kCondBranch:
     case Opcode::kCondBranchIterNotDone:

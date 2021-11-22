@@ -59,7 +59,6 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
     case Opcode::kCheckSequenceBounds:
-    case Opcode::kCheckTuple:
     case Opcode::kClearError:
     case Opcode::kCompare:
     case Opcode::kCompareBool:

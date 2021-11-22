@@ -1012,17 +1012,16 @@ fun jittestmodule:test {
       Locals<1> v0
       Stack<2> v2 v3
     }
-    v4 = CheckTuple v0
-    CondBranch<1, 2> v4
+    CondBranchCheckType<1, 2, Tuple> v0
   }
 
   bb 1 (preds 0) {
-    v5 = Assign v0
+    v4 = Assign v0
     Branch<3>
   }
 
   bb 2 (preds 0) {
-    v5 = GetTuple v0 {
+    v4 = GetTuple v0 {
       NextInstrOffset 14
       Locals<1> v0
       Stack<2> v2 v3
@@ -1031,100 +1030,98 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 1, 2) {
-    v6 = LoadConst<CInt64[0]>
-    v7 = PrimitiveBox<CInt64> v6
-    v7 = CheckExc v7 {
+    v5 = LoadConst<CInt64[0]>
+    v6 = PrimitiveBox<CInt64> v5
+    v6 = CheckExc v6 {
       NextInstrOffset 14
       Locals<1> v0
       Stack<2> v2 v3
     }
-    v8 = BinaryOp<Subscript> v5 v7 {
+    v7 = BinaryOp<Subscript> v4 v6 {
       NextInstrOffset 14
       Locals<1> v0
       Stack<2> v2 v3
     }
-    v9 = Cast<str> v8 {
+    v8 = Cast<str> v7 {
       NextInstrOffset 18
       Locals<1> v0
-      Stack<3> v2 v3 v5
+      Stack<3> v2 v3 v4
     }
-    v10 = CheckTuple v5
-    CondBranch<4, 5> v10
+    CondBranchCheckType<4, 5, Tuple> v4
   }
 
   bb 4 (preds 3) {
-    v11 = Assign v5
+    v9 = Assign v4
     Branch<6>
   }
 
   bb 5 (preds 3) {
-    v11 = GetTuple v5 {
+    v9 = GetTuple v4 {
       NextInstrOffset 22
       Locals<1> v0
-      Stack<3> v2 v3 v9
+      Stack<3> v2 v3 v8
     }
     Branch<6>
   }
 
   bb 6 (preds 4, 5) {
-    v12 = LoadConst<CInt64[1]>
-    v13 = PrimitiveBox<CInt64> v12
-    v13 = CheckExc v13 {
+    v10 = LoadConst<CInt64[1]>
+    v11 = PrimitiveBox<CInt64> v10
+    v11 = CheckExc v11 {
       NextInstrOffset 22
       Locals<1> v0
-      Stack<3> v2 v3 v9
+      Stack<3> v2 v3 v8
     }
-    v14 = BinaryOp<Subscript> v11 v13 {
+    v12 = BinaryOp<Subscript> v9 v11 {
       NextInstrOffset 22
       Locals<1> v0
-      Stack<3> v2 v3 v9
+      Stack<3> v2 v3 v8
     }
-    v15 = Cast<object> v14 {
+    v13 = Cast<object> v12 {
       NextInstrOffset 26
       Locals<1> v0
-      Stack<4> v2 v3 v9 v11
+      Stack<4> v2 v3 v8 v9
     }
-    v16 = CheckTuple v11
-    CondBranch<7, 8> v16
+    CondBranchCheckType<7, 8, Tuple> v9
   }
 
   bb 7 (preds 6) {
-    v17 = Assign v11
+    v14 = Assign v9
     Branch<9>
   }
 
   bb 8 (preds 6) {
-    v17 = GetTuple v11 {
+    v14 = GetTuple v9 {
       NextInstrOffset 30
       Locals<1> v0
-      Stack<4> v2 v3 v9 v15
+      Stack<4> v2 v3 v8 v13
     }
     Branch<9>
   }
 
   bb 9 (preds 7, 8) {
-    v18 = LoadConst<CInt64[2]>
-    v19 = PrimitiveBox<CInt64> v18
-    v19 = CheckExc v19 {
+    v15 = LoadConst<CInt64[2]>
+    v16 = PrimitiveBox<CInt64> v15
+    v16 = CheckExc v16 {
       NextInstrOffset 30
       Locals<1> v0
-      Stack<4> v2 v3 v9 v15
+      Stack<4> v2 v3 v8 v13
     }
-    v20 = BinaryOp<Subscript> v17 v19 {
+    v17 = BinaryOp<Subscript> v14 v16 {
       NextInstrOffset 30
       Locals<1> v0
-      Stack<4> v2 v3 v9 v15
+      Stack<4> v2 v3 v8 v13
     }
-    v21 = Cast<object> v20 {
+    v18 = Cast<object> v17 {
       NextInstrOffset 34
       Locals<1> v0
-      Stack<5> v2 v3 v9 v15 v17
+      Stack<5> v2 v3 v8 v13 v14
     }
-    v23 = InvokeStaticFunction<jittestmodule.x, 5, Long> v2 v3 v9 v15 v21 {
+    v20 = InvokeStaticFunction<jittestmodule.x, 5, Long> v2 v3 v8 v13 v18 {
       NextInstrOffset 42
       Locals<1> v0
     }
-    Return v23
+    Return v20
   }
 }
 ---

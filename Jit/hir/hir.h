@@ -260,7 +260,6 @@ struct FrameState {
   V(CheckNone)                  \
   V(CheckVar)                   \
   V(CheckField)                 \
-  V(CheckTuple)                 \
   V(ClearError)                 \
   V(Compare)                    \
   V(CompareBool)                \
@@ -1187,9 +1186,6 @@ DEFINE_SIMPLE_INSTR(
     HasOutput,
     Operands<3>,
     DeoptBase);
-
-// Check whether the given pyobject is a tuple.
-DEFINE_SIMPLE_INSTR(CheckTuple, (TObject), HasOutput, Operands<1>);
 
 // Gets a tuple representation from a sequence.
 DEFINE_SIMPLE_INSTR(GetTuple, (TObject), HasOutput, Operands<1>, DeoptBase);

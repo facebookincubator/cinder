@@ -2343,16 +2343,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->GetOperand(0));
         break;
       }
-      case Opcode::kCheckTuple: {
-        auto instr = static_cast<const CheckTuple*>(&i);
-
-        bbb.AppendCode(
-            "Call {}, {:#x}, {}",
-            instr->dst(),
-            reinterpret_cast<uint64_t>(__Invoke_PyTuple_Check),
-            instr->GetOperand(0));
-        break;
-      }
       case Opcode::kInvokeIterNext: {
         auto instr = static_cast<const InvokeIterNext*>(&i);
         bbb.AppendCode(

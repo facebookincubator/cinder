@@ -455,8 +455,7 @@ Type outputType(const Instr& instr) {
       }
       return ty;
     }
-    case Opcode::kCheckSequenceBounds:
-    case Opcode::kCheckTuple: {
+    case Opcode::kCheckSequenceBounds: {
       return TCInt64;
     }
 

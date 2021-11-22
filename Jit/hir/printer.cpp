@@ -224,7 +224,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kCheckNeg:
     case Opcode::kCheckNone:
     case Opcode::kCheckSequenceBounds:
-    case Opcode::kCheckTuple:
     case Opcode::kClearError:
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
