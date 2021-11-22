@@ -400,7 +400,7 @@ void LIRGenerator::emitExceptionCheck(
     const jit::hir::DeoptBase& i,
     jit::lir::BasicBlockBuilder& bbb) {
   auto out = i.GetOutput();
-  std::string kind = out->type() <= TCSigned ? "NotNegative" : "NotNull";
+  std::string kind = out->type() <= TCSigned ? "NotNegative" : "NotZero";
   bbb.AppendCode(MakeGuard(kind, i, out->name()));
 }
 
@@ -1579,7 +1579,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kGuard:
       case Opcode::kGuardIs: {
         const auto& instr = static_cast<const DeoptBase&>(i);
-        std::string kind = "NotNull";
+        std::string kind = "NotZero";
         if (instr.IsCheckNone()) {
           kind = "NotNone";
         } else if (instr.IsCheckNeg()) {
@@ -1823,7 +1823,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           err_indicator = instr->GetOutput()->name();
         }
         bbb.AppendCode(MakeGuard(
-            "NotNull", static_cast<const DeoptBase&>(i), err_indicator));
+            "NotZero", static_cast<const DeoptBase&>(i), err_indicator));
         break;
       }
 

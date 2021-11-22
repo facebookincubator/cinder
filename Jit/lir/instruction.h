@@ -519,7 +519,7 @@ class Instruction {
 
 // Instruction Guard specific
 enum InstrGuardKind {
-  kNotNull = 0,
+  kNotZero = 0,
   kNotNegative,
   kNotNone,
   kAlwaysFail,

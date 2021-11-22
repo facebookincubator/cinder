@@ -364,8 +364,8 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
 
     enum InstrGuardKind guard_kind;
     const std::string& kind = tokens[1];
-    if (kind == "NotNull") {
-      guard_kind = InstrGuardKind::kNotNull;
+    if (kind == "NotZero") {
+      guard_kind = InstrGuardKind::kNotZero;
     } else if (kind == "NotNegative") {
       guard_kind = InstrGuardKind::kNotNegative;
     } else if (kind == "NotNone") {
