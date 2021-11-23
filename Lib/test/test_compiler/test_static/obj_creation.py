@@ -1,5 +1,5 @@
 import inspect
-from compiler.static.errors import TypedSyntaxError
+from compiler.errors import TypedSyntaxError
 from inspect import CO_SUPPRESS_JIT
 from re import escape
 

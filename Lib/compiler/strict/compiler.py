@@ -30,8 +30,8 @@ from _strictmodule import (
     STUB_KIND_MASK_TYPING,
 )
 
+from ..errors import TypedSyntaxError
 from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
-from ..static.errors import TypedSyntaxError
 from . import strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError

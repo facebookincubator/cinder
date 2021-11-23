@@ -59,10 +59,10 @@ from typing import (
 )
 
 from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL
+from ..errors import TypedSyntaxError
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
-from .errors import TypedSyntaxError
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
     AwaitableType,

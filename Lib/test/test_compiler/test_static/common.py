@@ -9,11 +9,11 @@ import symtable
 import sys
 import typing
 from compiler import walk
+from compiler.errors import CollectingErrorSink, ErrorSink
 from compiler.optimizer import AstOptimizer
 from compiler.static import Static38CodeGenerator, StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.declaration_visitor import DeclarationVisitor
-from compiler.static.errors import CollectingErrorSink, ErrorSink
 from compiler.static.module_table import ModuleTable
 from compiler.static.type_binder import TypeBinder
 from compiler.static.types import TypedSyntaxError, Value

@@ -1,4 +1,4 @@
-from compiler.static.errors import TypedSyntaxError
+from compiler.errors import TypedSyntaxError
 
 from .common import StaticTestBase
 

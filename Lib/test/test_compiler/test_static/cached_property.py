@@ -1,9 +1,9 @@
 import asyncio
+from compiler.errors import TypedSyntaxError
 from compiler.static import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     CACHED_PROPERTY_IMPL_PREFIX,
 )
-from compiler.static.errors import TypedSyntaxError
 
 from .common import StaticTestBase
 

@@ -169,6 +169,7 @@ from _static import (
     rand,
 )
 
+from ..errors import TypedSyntaxError
 from ..optimizer import AstOptimizer
 from ..pyassem import Block
 from ..pycodegen import FOR_LOOP, CodeGenerator
@@ -178,7 +179,6 @@ from ..unparse import to_expr
 from ..visitor import ASTVisitor
 from ..visitor import ASTRewriter, TAst
 from .effects import NarrowingEffect, NO_EFFECT
-from .errors import TypedSyntaxError
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:

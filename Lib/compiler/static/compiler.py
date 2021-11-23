@@ -14,10 +14,10 @@ from _static import (
 )
 
 from .. import consts
+from ..errors import ErrorSink
 from ..optimizer import AstOptimizer
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
-from .errors import ErrorSink
 from .module_table import ModuleTable
 from .type_binder import TypeBinder
 from .types import (

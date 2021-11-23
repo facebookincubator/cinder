@@ -14,10 +14,10 @@ import warnings
 from array import array
 from collections import UserDict
 from compiler.consts import CO_SHADOW_FRAME, CO_STATICALLY_COMPILED
+from compiler.errors import CollectingErrorSink
 from compiler.pycodegen import PythonCodeGenerator, make_compiler
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
-from compiler.static.errors import CollectingErrorSink
 from compiler.static.types import (
     prim_name_to_type,
     AWAITABLE_TYPE,

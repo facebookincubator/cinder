@@ -1,8 +1,8 @@
 import ast
 import re
+from compiler.errors import TypedSyntaxError
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
-from compiler.static.errors import TypedSyntaxError
 from compiler.static.module_table import ModuleTable
 from textwrap import dedent
 

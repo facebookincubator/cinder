@@ -1,5 +1,5 @@
 import inspect
-from compiler.static.errors import TypedSyntaxError
+from compiler.errors import TypedSyntaxError
 from types import MemberDescriptorType
 
 from .common import StaticTestBase

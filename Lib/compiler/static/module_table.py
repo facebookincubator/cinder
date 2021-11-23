@@ -33,8 +33,8 @@ from typing import (
     Union,
 )
 
+from ..errors import TypedSyntaxError
 from ..symbols import Scope, ModuleScope
-from .errors import TypedSyntaxError
 from .types import (
     Callable,
     CType,
