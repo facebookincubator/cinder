@@ -6,6 +6,7 @@
 #include "opcode.h"
 
 #include "Jit/bytecode.h"
+#include "Jit/codegen/gen_asm.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/ref.h"
 #include "Jit/util.h"
@@ -234,12 +235,18 @@ Type Preloader::checkArgType(long local_idx) const {
   return map_get(check_arg_types_, local_idx, TObject);
 }
 
+GlobalCache Preloader::getGlobalCache(BorrowedRef<> name) const {
+  return jit::codegen::NativeGeneratorFactory::runtime()->findGlobalCache(
+      globals_, name);
+}
+
 BorrowedRef<> Preloader::global(int name_idx) const {
-  auto it = global_values_.find(name_idx);
-  if (it == global_values_.end()) {
-    return nullptr;
+  BorrowedRef<> name = map_get(global_names_, name_idx, nullptr);
+  if (name != nullptr) {
+    GlobalCache cache = getGlobalCache(name);
+    return *(cache.valuePtr());
   }
-  return it->second;
+  return nullptr;
 }
 
 std::unique_ptr<Function> Preloader::makeFunction() const {
@@ -270,17 +277,19 @@ void Preloader::preload() {
         resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_)));
   }
 
-  bool opt_globals = _PyDict_CanWatch(builtins_) && _PyDict_CanWatch(globals_);
-
   jit::BytecodeInstructionBlock bc_instrs{code_};
   for (auto bc_instr : bc_instrs) {
     switch (bc_instr.opcode()) {
       case LOAD_GLOBAL: {
-        if (opt_globals) {
+        if (_PyDict_CanWatch(builtins_) && _PyDict_CanWatch(globals_)) {
           int name_idx = bc_instr.oparg();
           BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
-          global_values_[name_idx] =
-              Ref<>(loadGlobal(globals_, builtins_, name));
+          // We can't keep hold of a reference to this cache, it could get
+          // invalidated and freed; we just do this here for the side effect to
+          // make sure the cached value has been loaded and any side effects of
+          // loading it have been exercised.
+          getGlobalCache(name);
+          global_names_.emplace(name_idx, name);
         }
         break;
       }

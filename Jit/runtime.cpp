@@ -55,7 +55,6 @@ GlobalCache Runtime::findGlobalCache(PyObject* globals, PyObject* name) {
   if (result.second) {
     cache.init();
   }
-  JIT_CHECK(_PyDict_IsWatched(globals), "globals dict isn't watched");
   return cache;
 }
 

@@ -683,11 +683,15 @@ void GlobalCache::init() const {
   watchDictKey(key().globals, key().name, *this);
   PyObject* builtins = key().builtins;
 
+  // We don't need to immediately watch builtins if it's
+  // defined as a global
   if (PyObject* globals_value = PyDict_GetItem(key().globals, key().name)) {
-    // But we don't need to immediately watch builtins if it's
-    // defined as a global
-    *valuePtr() = globals_value;
-  } else {
+    // the dict getitem could have triggered a lazy import with side effects
+    // that unwatched the dict
+    if (valuePtr()) {
+      *valuePtr() = globals_value;
+    }
+  } else if (_PyDict_CanWatch(builtins)) {
     *valuePtr() = PyDict_GetItem(builtins, key().name);
     if (key().globals != builtins) {
       watchDictKey(builtins, key().name, *this);

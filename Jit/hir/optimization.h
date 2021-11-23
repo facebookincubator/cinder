@@ -21,14 +21,6 @@ class Instr;
 class LoadAttr;
 class Register;
 
-// Attempt to load the global with the given index, in the context of the given
-// globals, builtins, and names. Returns nullptr if the global is not currently
-// defined.
-BorrowedRef<> loadGlobal(
-    BorrowedRef<PyDictObject> globals,
-    BorrowedRef<PyDictObject> builtins,
-    BorrowedRef<> name);
-
 class Pass {
  public:
   explicit Pass(const char* name) : name_(name) {}

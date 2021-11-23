@@ -6,6 +6,7 @@
 
 #include "Jit/hir/hir.h"
 #include "Jit/hir/type.h"
+#include "Jit/inline_cache.h"
 #include "Jit/log.h"
 #include "Jit/ref.h"
 
@@ -136,6 +137,7 @@ class Preloader {
 
  private:
   BorrowedRef<> constArg(BytecodeInstruction& bc_instr) const;
+  GlobalCache getGlobalCache(BorrowedRef<> name) const;
   void preload();
 
   Ref<PyFunctionObject> func_;
@@ -152,8 +154,8 @@ class Preloader {
   // keyed by locals index
   std::unordered_map<long, Type> check_arg_types_;
   std::map<long, PyTypeOpt> check_arg_pytypes_;
-  // keyed by name index
-  std::unordered_map<int, Ref<>> global_values_;
+  // keyed by name index, names borrowed from code object
+  std::unordered_map<int, BorrowedRef<>> global_names_;
   Type return_type_{TObject};
   bool has_primitive_args_{false};
   bool has_primitive_first_arg_{false};

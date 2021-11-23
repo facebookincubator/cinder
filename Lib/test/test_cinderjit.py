@@ -5,6 +5,7 @@ import builtins
 import dis
 import gc
 import sys
+import tempfile
 import threading
 import types
 import unittest
@@ -12,7 +13,10 @@ import warnings
 import weakref
 from compiler.consts import CO_SUPPRESS_JIT, CO_NORMAL_FRAME
 from compiler.static import StaticCodeGenerator
+from contextlib import contextmanager
 from functools import cmp_to_key
+from pathlib import Path
+from textwrap import dedent
 
 try:
     with warnings.catch_warnings():
@@ -839,6 +843,156 @@ class LoadGlobalCacheTests(unittest.TestCase):
             self._test_unwatch_builtins()
         finally:
             del builtins.__dict__[42]
+
+    @contextmanager
+    def temp_sys_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _orig_sys_modules = sys.modules
+            sys.modules = _orig_sys_modules.copy()
+            _orig_sys_path = sys.path[:]
+            sys.path.insert(0, tmpdir)
+            try:
+                yield Path(tmpdir)
+            finally:
+                sys.path[:] = _orig_sys_path
+                sys.modules = _orig_sys_modules
+
+    def test_preload_side_effect_modifies_globals(self):
+        with self.temp_sys_path() as tmp:
+            (tmp / "tmp_a.py").write_text(
+                dedent(
+                    """
+                    from __future__ import lazy_imports
+                    from tmp_b import B
+
+                    A = 1
+
+                    def get_a():
+                        return A + B
+
+                    """
+                ),
+                encoding="utf8",
+            )
+            (tmp / "tmp_b.py").write_text(
+                dedent(
+                    """
+                    import tmp_a
+
+                    tmp_a.A = 2
+
+                    B = 3
+                    """
+                ),
+                encoding="utf8",
+            )
+            if cinderjit:
+                cinderjit.clear_runtime_stats()
+            import tmp_a
+
+            # What happens on the first call is kinda undefined in principle
+            # given lazy imports; somebody could previously have imported B
+            # (not in this specific test, but in principle), or not, so the
+            # first call might return 4 or 5. With JIT compilation it will
+            # always return 5 because compilation will trigger the lazy import
+            # and its side effect. Without the JIT it will return 4 in this
+            # test, but we consider this an acceptable side effect of JIT
+            # compilation because this code can't in general rely on B never
+            # having previously been imported.
+            tmp_a.get_a()
+
+            # On the second call the result should undoubtedly be 5 in all
+            # circumstances. Even if we compile with the wrong value for A, the
+            # guard on the LoadGlobalCached will ensure we deopt and return the
+            # right result.
+            self.assertEqual(tmp_a.get_a(), 5)
+            if cinderjit:
+                self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
+                # The real test here is what when the value of a global changes
+                # during compilation preload (as it does in this test because
+                # the preload bytescan of get_a() first hits A, loads the old
+                # value, then hits B, triggers the lazy import and imports
+                # tmp_b, causing the value of A to change), we still have time
+                # to compile with the correct (new) value and avoid compiling
+                # code that will inevitably deopt, and so we should.
+                stats = cinderjit.get_and_clear_runtime_stats()
+                relevant_deopts = [
+                    d for d in stats["deopt"] if d["normal"]["func_qualname"] == "get_a"
+                ]
+                self.assertEqual(relevant_deopts, [])
+
+    def test_preload_side_effect_makes_globals_unwatchable(self):
+        with self.temp_sys_path() as tmp:
+            (tmp / "tmp_a.py").write_text(
+                dedent(
+                    """
+                    from __future__ import lazy_imports
+                    from tmp_b import B
+
+                    A = 1
+
+                    def get_a():
+                        return A + B
+
+                    """
+                ),
+                encoding="utf8",
+            )
+            (tmp / "tmp_b.py").write_text(
+                dedent(
+                    """
+                    import tmp_a
+
+                    tmp_a.__dict__[42] = 1
+                    tmp_a.A = 2
+
+                    B = 3
+                    """
+                ),
+                encoding="utf8",
+            )
+            if cinderjit:
+                cinderjit.clear_runtime_stats()
+            import tmp_a
+
+            tmp_a.get_a()
+            self.assertEqual(tmp_a.get_a(), 5)
+            if cinderjit:
+                self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
+
+    def test_preload_side_effect_makes_builtins_unwatchable(self):
+        with self.temp_sys_path() as tmp:
+            (tmp / "tmp_a.py").write_text(
+                dedent(
+                    """
+                    from __future__ import lazy_imports
+                    from tmp_b import B
+
+                    def get_a():
+                        return max(1, 2) + B
+
+                    """
+                ),
+                encoding="utf8",
+            )
+            (tmp / "tmp_b.py").write_text(
+                dedent(
+                    """
+                    __builtins__[42] = 2
+
+                    B = 3
+                    """
+                ),
+                encoding="utf8",
+            )
+            if cinderjit:
+                cinderjit.clear_runtime_stats()
+            import tmp_a
+
+            tmp_a.get_a()
+            self.assertEqual(tmp_a.get_a(), 5)
+            if cinderjit:
+                self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
 
 class ClosureTests(unittest.TestCase):

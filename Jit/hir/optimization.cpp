@@ -434,17 +434,6 @@ void DeadCodeElimination::Run(Function& func) {
   }
 }
 
-BorrowedRef<> loadGlobal(
-    BorrowedRef<PyDictObject> globals,
-    BorrowedRef<PyDictObject> builtins,
-    BorrowedRef<> name) {
-  BorrowedRef<> result = PyDict_GetItem(globals, name);
-  if (result == nullptr && builtins != nullptr) {
-    result = PyDict_GetItem(builtins, name);
-  }
-  return result;
-}
-
 void LoadAttrSpecialization::Run(Function& irfunc) {
   std::vector<LoadAttr*> to_specialize;
   for (auto& block : irfunc.cfg.GetRPOTraversal()) {
