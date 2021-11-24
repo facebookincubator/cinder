@@ -221,7 +221,13 @@ awaitable_throw(_PyClassLoader_Awaitable *self, PyObject *args)
     if (ret != NULL || _PyGen_FetchStopIterationValue(&ret) < 0) {
         return ret;
     }
-    return rettype_check(Py_TYPE(self), ret, self->retinfo);
+
+    ret = rettype_check(Py_TYPE(self), ret, self->retinfo);
+    if (ret != NULL) {
+        PyErr_SetObject(PyExc_StopIteration, ret);
+        Py_DECREF(ret);
+    }
+    return NULL;
 }
 
 static PyObject *

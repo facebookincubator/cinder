@@ -8678,8 +8678,8 @@ class StaticCompilationTests(StaticTestBase):
             coro = D().g()
             try:
                 coro.send(None)
-            except StopIteration as e:
-                self.assertEqual(e.args[0], 100)
+            except RuntimeError as e:
+                self.assertEqual(e.__cause__.args[0], 100)
             loop.close()
 
     def test_async_method_throw_incorrect_type(self):
