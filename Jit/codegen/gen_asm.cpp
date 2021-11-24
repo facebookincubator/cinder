@@ -510,6 +510,7 @@ void NativeGenerator::generatePrologue(
     // returning.
     Label generic_entry = as_->newLabel();
     Label box_done = as_->newLabel();
+    Label double_error = as_->newLabel();
     jit::hir::Type ret_type = func_->return_type;
     uint64_t box_func;
 
@@ -519,10 +520,11 @@ void NativeGenerator::generatePrologue(
     // if there was an error, there's nothing to box
     if (returns_double) {
       as_->ptest(x86::xmm1, x86::xmm1);
+      as_->je(double_error);
     } else {
       as_->test(x86::edx, x86::edx);
+      as_->je(box_done);
     }
-    as_->je(box_done);
 
     if (ret_type <= TCBool) {
       as_->movzx(x86::edi, x86::al);
@@ -568,6 +570,14 @@ void NativeGenerator::generatePrologue(
     as_->bind(box_done);
     as_->leave();
     as_->ret();
+
+    if (returns_double) {
+      as_->bind(double_error);
+      as_->xor_(x86::rax, x86::rax);
+      as_->leave();
+      as_->ret();
+    }
+
     box_entry_cursor = entry_cursor;
     generic_entry_cursor = as_->cursor();
     as_->bind(generic_entry);
