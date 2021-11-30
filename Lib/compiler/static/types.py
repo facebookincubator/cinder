@@ -1519,7 +1519,6 @@ class GenericClass(Class):
 
         assert isinstance(type_def, GenericClass)
         assert isinstance(src, GenericClass)
-        # pyre-fixme[16]: `Class` has no attribute `type_args`.
         assert len(self.type_args) == len(src.type_args)
         for def_arg, self_arg, src_arg in zip(
             type_def.type_args, self.type_args, src.type_args

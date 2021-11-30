@@ -1,6 +1,6 @@
 {
   "logger": "/usr/local/bin/scribe_cat",
-  "version": "bfc3f3dfccbeb27bb6564e42d27637601deb10a4",
+  "version": "940f637f05f755ba0ba3f3cef53f9722ab1ff871",
   "source_directories": [
     "Lib/compiler",
     "Tools/scripts/facebook/perf",
@@ -11,6 +11,6 @@
     "Lib/cinder_stubs"
   ],
   "unstable_client": "Tools/scripts/pyre/pyre_client",
-  "stable_client": "Tools/scripts/pyre/stable/pyre_client",
+  "stable_client": "Tools/scripts/pyre/pyre_client",
   "strict": true
 }
