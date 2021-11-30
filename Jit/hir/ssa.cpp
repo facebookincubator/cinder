@@ -376,7 +376,9 @@ Type outputType(const Instr& instr) {
     case Opcode::kInitialYield:
       return TOptNoneType;
     case Opcode::kLoadArg: {
-      return static_cast<const LoadArg&>(instr).type();
+      auto& loadarg = static_cast<const LoadArg&>(instr);
+      Type typ = loadarg.type();
+      return typ <= TCEnum ? TCInt64 : typ;
     }
     case Opcode::kLoadCurrentFunc:
       return TFunc;

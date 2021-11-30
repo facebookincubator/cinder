@@ -3978,6 +3978,8 @@ class BoxFunction(Object[Class]):
             visitor.set_type(node, typ.instance)
         elif isinstance(arg_type, CDoubleInstance):
             visitor.set_type(node, FLOAT_EXACT_TYPE.instance)
+        elif isinstance(arg_type, CEnumInstance):
+            visitor.set_type(node, arg_type.boxed)
         else:
             visitor.syntax_error(f"can't box non-primitive: {arg_type.name}", node)
         return NO_EFFECT
@@ -5995,10 +5997,16 @@ class CEnumInstance(CInstance["CEnumType"]):
         visitor.set_type(node, CBOOL_TYPE.instance)
         return True
 
+    @property
+    def boxed(self) -> BoxedEnumInstance:
+        if name := self.attr_name:
+            return self.klass.boxed.values[name]
+        return self.klass.boxed.instance
+
     def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
         type = code_gen.get_type(node)
-        if isinstance(type, CIntInstance):
+        if isinstance(type, CEnumInstance):
             code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
         else:
             raise RuntimeError("unsupported box type: " + type.name)
@@ -6013,10 +6021,6 @@ class CEnumInstance(CInstance["CEnumType"]):
             code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
         else:
             raise TypedSyntaxError("unsupported op")
-
-    def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
-        code_gen.visit(node)
-        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
 
 class CEnumType(CType):
@@ -6033,6 +6037,7 @@ class CEnumType(CType):
             CEnumInstance(self),
         )
 
+        self.boxed = BoxedEnumClass(self.type_name, self.bases)
         self.values: Dict[str, CEnumInstance] = {}
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
@@ -6060,6 +6065,7 @@ class CEnumType(CType):
             )
 
         self.values[name.id] = CEnumInstance(self, name.id, value)
+        self.boxed.add_enum_value(name.id, value)
 
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -6135,6 +6141,60 @@ class CEnumType(CType):
         else:
             code_gen.defaultVisit(node)
             code_gen.emit("PRIMITIVE_UNBOX", self.type_descr)
+
+
+class BoxedEnumClass(Class):
+    instance: BoxedEnumInstance
+
+    def __init__(
+        self,
+        type_name: TypeName,
+        bases: Optional[List[Class]] = None,
+    ) -> None:
+        boxed_bases = (
+            [base.boxed if isinstance(base, CEnumType) else base for base in bases]
+            if bases
+            else [OBJECT_TYPE]
+        )
+
+        super().__init__(
+            type_name,
+            boxed_bases,
+            BoxedEnumInstance(self),
+        )
+
+        self.values: Dict[str, BoxedEnumInstance] = {}
+
+    @property
+    def instance_name(self) -> str:
+        return f"Boxed[{super().instance_name}]"
+
+    def add_enum_value(self, name: str, value: int) -> None:
+        self.values[name] = BoxedEnumInstance(self, name, value)
+
+
+class BoxedEnumInstance(Object[BoxedEnumClass]):
+    def __init__(
+        self,
+        klass: BoxedEnumClass,
+        name: Optional[str] = None,
+        value: Optional[int] = None,
+    ) -> None:
+        super().__init__(klass)
+        self.klass = klass
+        self.attr_name = name
+        self.value = value
+
+    @property
+    def name(self) -> str:
+        class_name = super().name
+        if self.attr_name is not None:
+            return f"Boxed<{class_name}.{self.attr_name}: {self.value}>"
+        return class_name
+
+    def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
+        code_gen.visit(node)
+        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
 
 class CIntInstance(CInstance["CIntType"]):

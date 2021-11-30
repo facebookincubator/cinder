@@ -268,7 +268,9 @@ class StaticEnumTests(StaticTestBase):
     def test_primitive_return(self):
         vals = [("Foo.BAR", 1), ("Foo.BAZ", 2)]
         tf = [True, False]
-        for val, strict, error, unjitable in itertools.product(vals, tf, tf, tf):
+        for val, box, strict, error, unjitable in itertools.product(
+            vals, tf, tf, tf, tf
+        ):
             unjitable_code = "class c: pass" if unjitable else ""
             codestr = f"""
                 from __static__ import box, Enum
@@ -283,14 +285,25 @@ class StaticEnumTests(StaticTestBase):
                         raise RuntimeError("boom")
                     return {val[0]}
 
+            """
+            if box:
+                codestr += f"""
+                def g() -> bool:
+                    x = f({error})
+                    y = Foo({val[1]})
+                    return box(x) == box(y)
+                """
+            else:
+                codestr += f"""
                 def g() -> bool:
                     x = f({error})
                     y = Foo({val[1]})
                     return box(x == y)
-            """
+                """
             ctx = self.in_strict_module if strict else self.in_module
             with self.subTest(
                 val=val,
+                box=box,
                 strict=strict,
                 error=error,
                 unjitable=unjitable,
@@ -312,3 +325,67 @@ class StaticEnumTests(StaticTestBase):
                         self.assert_not_jitted(f)
                     else:
                         self.assert_jitted(f)
+
+    def test_boxed_enum_cannot_be_returned_primitive(self):
+        self.type_error(
+            """
+            from __static__ import box, Enum
+
+            class Foo(Enum):
+                BAR = 1
+                BAZ = 2
+
+            def f(foo: Foo) -> Foo:
+                return box(foo)
+            """,
+            r"return type must be .*\.Foo, not Boxed\[.*\.Foo\]",
+            at="return box(foo)",
+        )
+
+    def test_boxed_enum_can_be_returned_as_object(self):
+        codestr = """
+        from __static__ import box, Enum
+
+        class Foo(Enum):
+            BAR = 1
+            BAZ = 2
+
+        def f(foo: Foo) -> object:
+            return box(foo)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.f(mod.Foo.BAR), mod.Foo.BAR)
+            self.assertEqual(mod.f(mod.Foo.BAZ), mod.Foo.BAZ)
+
+    def test_cannot_unbox_static_enum(self):
+        self.type_error(
+            """
+            from __static__ import Enum
+
+            class Foo(Enum):
+                BAR = 1
+                BAZ = 2
+
+            def f(foo: Foo) -> Foo:
+                return Foo(foo)
+            """,
+            "Call argument cannot be a primitive",
+            at="foo",
+        )
+
+    def test_cannot_box_boxed_static_enum(self):
+        self.type_error(
+            """
+            from __static__ import box, Enum
+
+            class Foo(Enum):
+                BAR = 1
+                BAZ = 2
+
+            def f(foo: Foo) -> object:
+                x = box(foo)
+                return box(x)
+            """,
+            r"can't box non-primitive: Boxed\[.*\.Foo\]",
+            at="box(x)",
+        )
