@@ -29,8 +29,12 @@ from contextlib import contextmanager
 
 try:
     import cinderjit
+    from cinderjit import jit_suppress
 except:
     cinderjit = None
+
+    def jit_suppress(func):
+        return func
 
 
 # Decorator to return a new version of the function with an alternate globals
@@ -2866,6 +2870,28 @@ class CinderJitModuleTests(StaticTestBase):
             self.assertTrue(cinderjit.is_jit_compiled(g))
 
 
+@jit_suppress
+def _inner(*args, **kwargs):
+    return kwargs
+
+
+@unittest.failUnlessJITCompiled
+def _outer(args, kwargs):
+    return _inner(*args, **kwargs)
+
+
+class GetFrameInFinalizer:
+    def __del__(self):
+        sys._getframe()
+
+
+def _create_getframe_cycle():
+    a = {"fg": GetFrameInFinalizer()}
+    b = {"a": a}
+    a["b"] = b
+    return a
+
+
 class GetFrameTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def f1(self, leaf):
@@ -2986,6 +3012,129 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.getframe_in_dtor_after_deopt)[0]
         stack = ["__del__", "f3", "f2", "f1", "test_getframe_in_dtor_after_deopt"]
         self.assert_frames(frame, stack)
+
+    @jit_suppress
+    def test_frame_allocation_race(self):
+        # This test exercises a race condition that can occur in the
+        # interpreted function prologue between when its frame is
+        # allocated and when its set as `tstate->frame`.
+        #
+        # When a frame is allocated its f_back field is set to point to
+        # tstate->frame. Shortly thereafter, tstate->frame is set to the
+        # newly allocated frame by the interpreter loop. There is an implicit
+        # assumption that tstate->frame will not change between when the
+        # frame is allocated and when it is set to tstate->frame.  That
+        # assumption is invalid when the JIT is executing in shadow-frame mode.
+        #
+        # tstate->frame may change if the Python stack is materialized between
+        # when the new frame is allocated and when its set as
+        # tstate->frame. The window of time is very small, but it's
+        # possible. We must ensure that if tstate->frame changes, the newly
+        # allocated frame's f_back is updated to point to it. Otherwise, we can
+        # end up with a missing frame on the Python stack. To see why, consider
+        # the following scenario.
+        #
+        # Terms:
+        #
+        # - shadow stack - The call stack of _PyShadowFrame objects beginning
+        #   at tstate->shadow_frame.
+        # - pyframe stack - The call stack of PyFrameObject objects beginning
+        #   at tstate->frame.
+        #
+        # T0:
+        #
+        # At time T0, the stacks look like:
+        #
+        # Shadow Stack        PyFrame Stack
+        # ------------        ------------
+        # f0                  f0
+        # f1
+        #
+        # - f0 is interpreted and has called f2.
+        # - f1 is jit-compiled and is running in shadow-frame mode. The stack
+        #   hasn't been materialized, so there is no entry for f1 on the
+        #   PyFrame stack.
+        #
+        # T1:
+        #
+        # At time T1, f1 calls f2. f2 is interpreted and has a variable keyword
+        # parameter (**kwargs). The call to f2 enters PyEval_EvalCodeWithName.
+        # PyEval_EvalCodeWithName allocates a new PyFrameObject, p, to run
+        # f2. At this point the stacks still look the same, however, notice
+        # that p->f_back points to f0, not f1.
+        #
+        # Shadow Stack        PyFrame Stack
+        # ------------        ------------
+        # f0                  f0              <--- p->f_back points to f1
+        # f1
+        #
+        # T2:
+        #
+        # At time T2, PyEval_EvalCodeWithName has allocated the PyFrameObject,
+        # p, for f2, and allocates a new dictionary for the variable keyword
+        # parameter. The dictionary allocation triggers GC. During GC an object
+        # is collected with a finalizer that materializes the stack. The most
+        # common way for this to happen is through an unawaited coroutine. The
+        # coroutine's finalizer will call _PyErr_WarnUnawaitedCoroutine which
+        # materializes the stack.
+        #
+        # Notice that the stacks match after materialization, however,
+        # p->f_back still points to f0.
+        #
+        # Shadow Stack        PyFrame Stack
+        # ------------        ------------
+        # f0                  f0              <--- p->f_back points to f0
+        # f1                  f1
+        #
+        # T3:
+        #
+        # At time T3, control has transferred from PyEval_EvalCodeWithName
+        # to the interpreter loop. The interpreter loop has set tstate->frame
+        # to the frame it was passed, p. Now the stacks are mismatched:
+        #
+        # Shadow Stack        PyFrame Stack
+        # ------------        ------------
+        # f0                  f0
+        # f1                  f2
+        # f2
+        #
+        # T4:
+        #
+        # At time T4, f2 finishes execution and returns into f1.
+        #
+        # Shadow Stack        PyFrame Stack
+        # ------------        ------------
+        # f0                  f0
+        # f1
+        #
+        # T5:
+        #
+        # At time T5, f1 finishes executing and attempts to return. Since the
+        # stack was materialized, it expects to find a PyFrameObject for
+        # f1 at the top of the PyFrame stack and aborts when it does not.
+        #
+        # The test below exercises this scenario.
+        thresholds = gc.get_threshold()
+        # Initialize zombie frame for _inner (called by _outer). The zombie
+        # frame will be used the next time _inner is called. This avoids a
+        # trip to the allocator that could trigger GC.
+        args = []
+        kwargs = {"foo": 1}
+        _outer(args, kwargs)
+        # Reset counts to zero. This allows us to set a threshold for
+        # the first generation that will trigger collection when the keyword
+        # dictionary is allocated in PyEval_EvalCodeWithName.
+        gc.collect()
+        # Create cyclic garbage that will materialize the Python stack when
+        # it is collected
+        _create_getframe_cycle()
+        try:
+            # JITRT_CallFunctionEx constructs a new keyword dictionary and args
+            # tuple. PyEval_EvalCodeWithName does as well.
+            gc.set_threshold(4)
+            _outer(args, kwargs)
+        finally:
+            gc.set_threshold(*thresholds)
 
 
 class DeleteAttrTests(unittest.TestCase):

@@ -1277,6 +1277,17 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
     if (Py_EnterRecursiveCall(""))
         return NULL;
 
+    /*
+     * When shadow-frame mode is active, `tstate->frame` may have changed
+     * between when `f` was allocated and now. Reset `f->f_back` to point to
+     * the top-most frame if so.
+     *
+     * If we arrive here via deopt `f` will already be the top-most frame.
+     */
+    if ((tstate->frame != f) && (f->f_back != tstate->frame)) {
+      Py_XINCREF(tstate->frame);
+      Py_XSETREF(f->f_back, tstate->frame);
+    }
     tstate->frame = f;
     co = f->f_code;
     co->co_cache.curcalls++;
