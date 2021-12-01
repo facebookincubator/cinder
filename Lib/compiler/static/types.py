@@ -641,6 +641,25 @@ class Value:
         pass
 
 
+def resolve_attr_instance(
+    node: ast.Attribute,
+    inst: Object[TClassInv],
+    klass: TClassInv,
+    visitor: ReferenceVisitor,
+) -> Optional[Value]:
+    for base in klass.mro:
+        member = base.members.get(node.attr)
+        if member is not None:
+            res = member.resolve_descr_get(node, inst, klass, visitor)
+            if res is not None:
+                return res
+
+    if node.attr == "__class__":
+        return klass
+    else:
+        return DYNAMIC
+
+
 class Object(Value, Generic[TClass]):
     """Represents an instance of a type at compile time"""
 
@@ -674,17 +693,7 @@ class Object(Value, Generic[TClass]):
     def resolve_attr(
         self, node: ast.Attribute, visitor: ReferenceVisitor
     ) -> Optional[Value]:
-        for base in self.klass.mro:
-            member = base.members.get(node.attr)
-            if member is not None:
-                res = member.resolve_descr_get(node, self, self.klass, visitor)
-                if res is not None:
-                    return res
-
-        if node.attr == "__class__":
-            return self.klass
-        else:
-            return DYNAMIC
+        return resolve_attr_instance(node, self, self.klass, visitor)
 
     def emit_delete_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
@@ -5942,6 +5951,22 @@ class CEnumInstance(CInstance["CEnumType"]):
     def as_oparg(self) -> int:
         return TYPED_INT64
 
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            visitor.syntax_error("Enum values cannot be modified or deleted", node)
+
+        if node.attr == "name":
+            visitor.set_type(node, STR_EXACT_TYPE.instance)
+            return
+
+        if node.attr == "value":
+            visitor.set_type(node, INT64_VALUE)
+            return
+
+        super().bind_attr(node, visitor, type_ctx)
+
     def bind_compare(
         self,
         node: ast.Compare,
@@ -6002,6 +6027,17 @@ class CEnumInstance(CInstance["CEnumType"]):
             return self.klass.boxed.values[name]
         return self.klass.boxed.instance
 
+    def emit_load_attr(
+        self,
+        node: ast.Attribute,
+        code_gen: Static38CodeGenerator,
+    ) -> None:
+        if node.attr == "value":
+            return
+
+        code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
+        super().emit_load_attr(node, code_gen)
+
     def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
         type = code_gen.get_type(node)
@@ -6020,6 +6056,11 @@ class CEnumInstance(CInstance["CEnumType"]):
             code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
         else:
             raise TypedSyntaxError("unsupported op")
+
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: ReferenceVisitor
+    ) -> Optional[Value]:
+        return resolve_attr_instance(node, self.boxed, self.klass, visitor)
 
 
 class CEnumType(CType):

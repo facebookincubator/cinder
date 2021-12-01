@@ -102,9 +102,13 @@ static void fill_primitive_arg_types_func(
           reinterpret_cast<PyCodeObject*>(func->func_code), 1));
 
   for (Py_ssize_t i = 0; i < Py_SIZE(prim_args_info.get()); i++) {
+    BorrowedRef<PyTypeObject> type = prim_args_info->tai_args[i].tai_type;
     map.emplace(
         prim_args_info->tai_args[i].tai_argnum,
-        prim_type_to_type(prim_args_info->tai_args[i].tai_primitive_type));
+        _PyClassLoader_IsEnum(type)
+            ? Type::fromEnum(type)
+            : prim_type_to_type(
+                  prim_args_info->tai_args[i].tai_primitive_type));
   }
 }
 

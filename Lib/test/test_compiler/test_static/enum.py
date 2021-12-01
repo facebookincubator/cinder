@@ -389,3 +389,93 @@ class StaticEnumTests(StaticTestBase):
             r"can't box non-primitive: Boxed\[.*\.Foo\]",
             at="box(x)",
         )
+
+    def test_enum_store_attr(self):
+        self.type_error(
+            """
+            from __static__ import box, Enum
+
+            class Foo(Enum):
+                BAR = 1
+                BAZ = 2
+
+            def modify(foo: Foo) -> None:
+                foo.name = "NEW"
+            """,
+            "Enum values cannot be modified or deleted",
+            at="foo.name",
+        )
+
+    def test_enum_delete_attr(self):
+        self.type_error(
+            """
+            from __static__ import box, Enum
+
+            class Foo(Enum):
+                BAR = 1
+                BAZ = 2
+
+            def modify(foo: Foo) -> None:
+                del foo.name
+            """,
+            "Enum values cannot be modified or deleted",
+            at="foo.name",
+        )
+
+    def test_enum_method(self):
+        codestr = """
+        from __static__ import box, Enum
+
+        class Foo(Enum):
+            BAR = 1
+            BAZ = 2
+
+            def even(self) -> bool:
+                if self == Foo.BAR:
+                    return False
+                return True
+
+        def odd(foo: Foo) -> bool:
+            return not foo.even()
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertInBytecode(
+                mod.odd, "INVOKE_FUNCTION", ((mod.__name__, "Foo", "even"), 1)
+            )
+            self.assertNotInBytecode(mod.odd, "PRIMITIVE_BOX")
+
+            self.assertTrue(mod.odd(mod.Foo.BAR))
+            self.assertFalse(mod.odd(mod.Foo.BAZ))
+
+            self.assertFalse(mod.Foo.BAR.even())
+            self.assertTrue(mod.Foo.BAZ.even())
+
+    def test_enum_name(self):
+        codestr = """
+        from __static__ import box, Enum
+
+        class Foo(Enum):
+            BAR = 1
+            BAZ = 2
+
+        def name(foo: Foo) -> str:
+            return foo.name
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.name(mod.Foo.BAR), "BAR")
+            self.assertEqual(mod.name(mod.Foo.BAZ), "BAZ")
+
+    def test_enum_value(self):
+        codestr = """
+        from __static__ import box, Enum, int64
+
+        class Foo(Enum):
+            BAR = 1
+            BAZ = 2
+
+        def value(foo: Foo) -> int64:
+            return foo.value
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.value(mod.Foo.BAR), 1)
+            self.assertEqual(mod.value(mod.Foo.BAZ), 2)
