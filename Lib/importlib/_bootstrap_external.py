@@ -26,6 +26,36 @@ _CASE_INSENSITIVE_PLATFORMS =  (_CASE_INSENSITIVE_PLATFORMS_BYTES_KEY
                                 + _CASE_INSENSITIVE_PLATFORMS_STR_KEY)
 
 
+PYTHONPYCACHEMODE = None
+
+
+def _python_pycache_mode():
+    global PYTHONPYCACHEMODE
+    if PYTHONPYCACHEMODE is None:
+        if sys.platform.startswith(_CASE_INSENSITIVE_PLATFORMS_STR_KEY):
+            key, _0x, _0b, _0o = "PYTHONPYCACHEMODE", "0x", "0b", "0o"
+        else:
+            key, _0x, _0b, _0o = b"PYTHONPYCACHEMODE", b"0x", b"0b", b"0o"
+        try:
+            mode = _os.environ[key]
+            if mode.startswith(_0x):
+                base = 16
+            elif mode.startswith(_0b):
+                base = 2
+            elif mode.startswith(_0o):
+                base = 8
+            else:
+                base = 10
+            mode = int(mode, base)
+            # We always ensure write access so we can update cached files
+            # later even when the source files are read-only on Windows (#6074)
+            mode |= 0o200
+        except (KeyError, ValueError):
+            mode = 0
+        PYTHONPYCACHEMODE = mode
+    return PYTHONPYCACHEMODE
+
+
 def _make_relax_case():
     if sys.platform.startswith(_CASE_INSENSITIVE_PLATFORMS):
         if sys.platform.startswith(_CASE_INSENSITIVE_PLATFORMS_STR_KEY):
@@ -1019,7 +1049,7 @@ class SourceFileLoader(FileLoader, SourceLoader):
 
     def _cache_bytecode(self, source_path, bytecode_path, data):
         # Adapt between the two APIs
-        mode = _calc_mode(source_path)
+        mode = _python_pycache_mode() or _calc_mode(source_path)
         return self.set_data(bytecode_path, data, _mode=mode)
 
     def set_data(self, path, data, *, _mode=0o666):
