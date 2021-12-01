@@ -520,6 +520,11 @@ static inline _PyShadowFrame* _get_awaiterframe_from_shadowframe(
   _PyShadowFrame* result;
   if (_PyShadowFrame_HasGen(shadow_frame)) {
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    if (!PyCoro_CheckExact((PyObject*)gen)) {
+        // This means we have a real generator, so it cannot have awaiter frames.
+        // but we also did not fail.
+        return NULL;
+    }
     PyObject *awaiter = get_coro_awaiter(NULL, (PyObject*)gen);
     if (!awaiter) {
       *did_fail = 1;

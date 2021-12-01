@@ -1789,6 +1789,24 @@ class GetEntireCallStackTest(unittest.TestCase):
 
         self.verify_stack(a1_stack, ["drive", "a5", "a4", "a3", "a2", "a1"])
 
+    def test_get_entire_call_stack_as_qualnames_with_generator(self):
+        a1_stack = None
+
+        def a1():
+            nonlocal a1_stack
+            a1_stack = cinder._get_entire_call_stack_as_qualnames()
+
+        def a2():
+            yield a1()
+
+        def drive():
+            for _ in a2():
+                pass
+
+        drive()
+
+        self.verify_stack(a1_stack, ["drive", "a2", "a1"])
+
 
 @unittest.skipUnderCinderJIT("Profiling only works under interpreter")
 class TestInterpProfiling(unittest.TestCase):
