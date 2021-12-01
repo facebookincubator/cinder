@@ -31,17 +31,27 @@ typedef struct {
     int rt_optional;
 } _PyClassLoader_RetTypeInfo;
 
-typedef struct {
+struct _PyClassLoader_Awaitable;
+
+typedef PyObject * (*awaitable_cb)(struct _PyClassLoader_Awaitable *self, PyObject *state);
+
+typedef int (*awaitable_presend)(struct _PyClassLoader_Awaitable *self);
+typedef struct _PyClassLoader_Awaitable {
     PyObject_HEAD
-    _PyClassLoader_RetTypeInfo *retinfo;
+    PyObject *state;
     PyObject *coro;
     PyObject *iter;
+    awaitable_cb cb;
+    awaitable_presend onsend;
 } _PyClassLoader_Awaitable;
 
 typedef struct {
     _PyClassLoader_RetTypeInfo tcs_rt;
     PyObject *tcs_value;
 } _PyClassLoader_TypeCheckState;
+
+PyObject *
+_PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, awaitable_cb cb, awaitable_presend onsend);
 
 Py_ssize_t _PyClassLoader_ResolveMethod(PyObject *path);
 Py_ssize_t _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);
