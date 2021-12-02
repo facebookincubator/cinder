@@ -44,8 +44,6 @@ bool LIRInliner::inlineCall() {
   Function* callee = findFunction();
   if (callee == nullptr) {
     // If function is not found, we cannot inline.
-    JIT_DLOG(
-        "Cannot find the function that corresponds to the call instruction.");
     return false;
   }
 
