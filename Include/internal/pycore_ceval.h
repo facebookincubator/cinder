@@ -22,7 +22,6 @@ PyAPI_DATA(int64_t) __strobe_PyCodeObject_name;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_qualname;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_varnames;
 PyAPI_DATA(int64_t) __strobe_PyCoroObject_cr_awaiter;
-PyAPI_DATA(int64_t) __strobe_PyCoroObject_creator;
 PyAPI_DATA(int64_t) __strobe_PyFrameObject_back;
 PyAPI_DATA(int64_t) __strobe_PyFrameObject_code;
 PyAPI_DATA(int64_t) __strobe_PyFrameObject_gen;
