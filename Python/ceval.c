@@ -4453,8 +4453,9 @@ main_loop:
 
                 if (value == NULL) {
                     name = PyTuple_GET_ITEM(field, PyTuple_GET_SIZE(field) - 1);
-                    PyErr_SetString(PyExc_AttributeError,
-                                    PyUnicode_AsUTF8(name));
+                    PyErr_Format(PyExc_AttributeError,
+                                 "'%.50s' object has no attribute '%U'",
+                                 Py_TYPE(self)->tp_name, name);
                     goto error;
                 }
                 Py_INCREF(value);
@@ -4480,15 +4481,18 @@ main_loop:
         }
 
         case TARGET(LOAD_OBJ_FIELD): {
-            addr = FIELD_OFFSET(TOP(), oparg * sizeof(PyObject *));
+            self = TOP();
+            addr = FIELD_OFFSET(self, oparg * sizeof(PyObject *));
             value = *addr;
             if (value == NULL) {
-                PyErr_SetString(PyExc_AttributeError, "no attribute");
+                PyErr_Format(PyExc_AttributeError,
+                             "'%.50s' object has no attribute",
+                             Py_TYPE(self)->tp_name);
                 goto error;
             }
 
             Py_INCREF(value);
-            Py_DECREF(TOP());
+            Py_DECREF(self);
             SET_TOP(value);
             FAST_DISPATCH();
         }

@@ -70,11 +70,11 @@ MemoryEffects memoryEffects(const Instr& inst) {
 
     // These can deopt but don't write to any memory locations when they fall
     // through.
-    case Opcode::kCheckSequenceBounds:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
+    case Opcode::kCheckFreevar:
     case Opcode::kCheckNeg:
-    case Opcode::kCheckNone:
+    case Opcode::kCheckSequenceBounds:
     case Opcode::kCheckVar:
     case Opcode::kGuard:
       return commonEffects(inst, AEmpty);

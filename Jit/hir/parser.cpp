@@ -196,10 +196,6 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     }
     expect(">");
     NEW_INSTR(LoadArg, dst, idx, ty);
-  } else if (strcmp(opcode, "_AddLocal") == 0) {
-    // Pseudo instruction, allocates a local
-    const char* name = GetNextToken();
-    allocateRegister(name);
   } else if (strcmp(opcode, "LoadMethod") == 0) {
     expect("<");
     int idx = GetNextNameIdx();
@@ -467,10 +463,10 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<CheckExc>(dst, operand);
   } else if (strcmp(opcode, "CheckVar") == 0) {
     expect("<");
-    int name_idx = GetNextNameIdx();
+    BorrowedRef<> name = GetNextUnicode();
     expect(">");
     auto operand = ParseRegister();
-    instruction = newInstr<CheckVar>(dst, operand, name_idx);
+    instruction = newInstr<CheckVar>(dst, operand, name);
   } else if (strcmp(opcode, "Snapshot") == 0) {
     auto snapshot = Snapshot::create();
     if (strcmp(peekNextToken(), "{") == 0) {
@@ -655,7 +651,7 @@ std::unique_ptr<Function> HIRParser::ParseHIR(const char* hir) {
     if (*p == '"') {
       std::string token;
       for (p++; *p != '"'; p++) {
-        JIT_CHECK(*p != '\0', "End up input during string literal");
+        JIT_CHECK(*p != '\0', "End of input during string literal");
         if (*p != '\\') {
           token += *p;
           continue;
@@ -750,6 +746,13 @@ int HIRParser::GetNextNameIdx() {
     GetNextToken();
   }
   return idx;
+}
+
+BorrowedRef<> HIRParser::GetNextUnicode() {
+  const char* str = GetNextToken();
+  auto obj = Ref<>::steal(PyUnicode_InternFromString(str));
+  JIT_CHECK(str != nullptr, "Failed to intern string %s", str);
+  return env_->addReference(std::move(obj));
 }
 
 RegState HIRParser::GetNextRegState() {

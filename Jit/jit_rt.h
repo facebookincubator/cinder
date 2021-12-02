@@ -370,11 +370,6 @@ PyObject* JITRT_ImportName(
     PyObject* fromlist,
     PyObject* level);
 
-// Given a code object and an index into f_localsplus, compute which of
-// code->co_varnames, code->cellvars, or code->freevars contains the name of
-// the variable. Return that tuple and adjust idx as needed.
-PyObject* JITRT_GetVarnameTuple(PyCodeObject* code, int* idx);
-
 /*
  * Wrapper around _Py_DoRaise() which handles the case where we re-raise but no
  * active exception is set.

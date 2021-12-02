@@ -33,8 +33,8 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCast:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
+    case Opcode::kCheckFreevar:
     case Opcode::kCheckNeg:
-    case Opcode::kCheckNone:
     case Opcode::kCheckVar:
     case Opcode::kGuardType:
     case Opcode::kRefineType:

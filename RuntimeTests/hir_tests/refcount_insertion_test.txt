@@ -672,7 +672,7 @@ fun jittestmodule:test {
       Cells<1> v13
     }
     v15:OptObject = LoadCellItem v14
-    v16:Object = CheckVar<0; "a"> v15 {
+    v16:Object = CheckVar<"a"> v15 {
       LiveValues<3> unc:v13 o:v14 b:v15
       NextInstrOffset 2
       Locals<2> v13 v13
@@ -762,7 +762,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 2) {
-    v21:MortalLongExact = CheckVar<1; "total_time"> v18 {
+    v21:MortalLongExact = CheckVar<"total_time"> v18 {
       LiveValues<2> b:v11 b:v18
       NextInstrOffset 14
       Locals<2> v11 v18
@@ -799,7 +799,7 @@ fun jittestmodule:test {
       NextInstrOffset 24
       Locals<2> v11 v26
     }
-    v31:Object = CheckVar<1; "total_time"> v26 {
+    v31:Object = CheckVar<"total_time"> v26 {
       LiveValues<3> b:v11 o:v26 b:v30
       NextInstrOffset 28
       Locals<2> v11 v26

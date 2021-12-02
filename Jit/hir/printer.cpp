@@ -4,7 +4,6 @@
 #include "Python.h"
 
 #include "Jit/hir/hir.h"
-#include "Jit/jit_rt.h"
 #include "Jit/util.h"
 
 #include <fmt/format.h>
@@ -163,27 +162,38 @@ static PyCodeObject* get_code(const Instr& instr) {
   return nullptr;
 }
 
-static std::string format_name_impl(int idx, PyObject* names) {
-  auto name = PyUnicode_AsUTF8(PyTuple_GET_ITEM(names, idx));
+static std::string escape_unicode(PyObject* str) {
+  Py_ssize_t size;
+  const char* data = PyUnicode_AsUTF8AndSize(str, &size);
+  if (data == nullptr) {
+    PyErr_Clear();
+    return "";
+  }
 
-  std::string ret = fmt::format("{}; \"", idx);
-  for (; *name != '\0'; ++name) {
-    switch (*name) {
+  std::string ret = "\"";
+  for (Py_ssize_t i = 0; i < size; ++i) {
+    char c = data[i];
+    switch (c) {
       case '"':
       case '\\':
         ret += '\\';
-        ret += *name;
+        ret += c;
         break;
       case '\n':
         ret += "\\n";
         break;
       default:
-        ret += *name;
+        ret += c;
         break;
     }
   }
-  ret += "\"";
+  ret += '"';
   return ret;
+}
+
+static std::string format_name_impl(int idx, PyObject* names) {
+  return fmt::format(
+      "{}; {}", idx, escape_unicode(PyTuple_GET_ITEM(names, idx)));
 }
 
 static std::string format_name(const Instr& instr, int idx) {
@@ -212,7 +222,7 @@ static std::string format_varname(const Instr& instr, int idx) {
     return fmt::format("{}", idx);
   }
 
-  auto names = JITRT_GetVarnameTuple(code, &idx);
+  auto names = getVarnameTuple(code, &idx);
   return format_name_impl(idx, names);
 }
 
@@ -222,7 +232,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kBuildString:
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:
-    case Opcode::kCheckNone:
     case Opcode::kCheckSequenceBounds:
     case Opcode::kClearError:
     case Opcode::kDecref:
@@ -500,7 +509,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kDeleteAttr:
     case Opcode::kLoadAttr:
     case Opcode::kStoreAttr: {
-      const auto& named = static_cast<const DeoptBaseWithName&>(instr);
+      const auto& named = static_cast<const DeoptBaseWithNameIdx&>(instr);
       return format_name(named, named.name_idx());
     }
     case Opcode::kInPlaceOp: {
@@ -523,13 +532,11 @@ static std::string format_immediates(const Instr& instr) {
       const auto& set_fn_attr = static_cast<const SetFunctionAttr&>(instr);
       return fmt::format("{}", functionFieldName(set_fn_attr.field()));
     }
-    case Opcode::kCheckField: {
-      const auto& cf = static_cast<const CheckField&>(instr);
-      return fmt::format("{}", cf.field_idx());
-    }
+    case Opcode::kCheckField:
+    case Opcode::kCheckFreevar:
     case Opcode::kCheckVar: {
-      const auto& cv = static_cast<const CheckVar&>(instr);
-      return format_varname(cv, cv.name_idx());
+      const auto& check = static_cast<const CheckBaseWithName&>(instr);
+      return escape_unicode(check.name());
     }
     case Opcode::kGuardIs: {
       const auto& gs = static_cast<const GuardIs&>(instr);

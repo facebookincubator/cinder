@@ -497,7 +497,7 @@ fun test {
   }
 
   bb 2 {
-    CheckVar<-1> v0 {
+    CheckVar<"a"> v0 {
     }
     Branch<3>
   }
@@ -507,7 +507,7 @@ fun test {
   }
 
   bb 4 {
-    CheckVar<-1> v0 {
+    CheckVar<"a"> v0 {
     }
     Branch<3>
   }
@@ -529,7 +529,7 @@ fun test {
   }
 
   bb 2 (preds 1) {
-    CheckVar<-1> v2 {
+    CheckVar<"a"> v2 {
       NextInstrOffset 0
     }
     Branch<3>
@@ -540,7 +540,7 @@ fun test {
   }
 
   bb 4 (preds 3) {
-    CheckVar<-1> v2 {
+    CheckVar<"a"> v2 {
       NextInstrOffset 0
     }
     Branch<3>
@@ -573,7 +573,7 @@ fun test {
   }
 
   bb 1 {
-    CheckVar<-1> v0
+    CheckVar<"a"> v0
     v0 = LoadConst<NoneType>
     Branch<4>
   }
@@ -583,7 +583,7 @@ fun test {
   }
 
   bb 3 {
-    CheckVar<-1> v0
+    CheckVar<"a"> v0
     Branch<2>
   }
 
@@ -604,7 +604,7 @@ fun test {
   }
 
   bb 1 (preds 0, 2) {
-    CheckVar<-1> v2 {
+    CheckVar<"a"> v2 {
       NextInstrOffset 0
     }
     v6:NoneType = LoadConst<NoneType>
@@ -616,7 +616,7 @@ fun test {
   }
 
   bb 3 (preds 2) {
-    CheckVar<-1> v2 {
+    CheckVar<"a"> v2 {
       NextInstrOffset 0
     }
     Branch<2>
@@ -657,7 +657,7 @@ fun test {
   }
 
   bb 2 {
-    CheckVar<-1> v0 {
+    CheckVar<"a"> v0 {
     }
     Branch<3>
   }
@@ -692,7 +692,7 @@ fun test {
   }
 
   bb 2 (preds 1) {
-    CheckVar<-1> v3 {
+    CheckVar<"a"> v3 {
       NextInstrOffset 0
     }
     Branch<3>

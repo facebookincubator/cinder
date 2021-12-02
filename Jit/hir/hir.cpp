@@ -115,43 +115,43 @@ bool Instr::isReplayable() const {
   switch (opcode()) {
     case Opcode::kAssign:
     case Opcode::kBuildString:
-    case Opcode::kCheckSequenceBounds:
+    case Opcode::kCast:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
+    case Opcode::kCheckFreevar:
     case Opcode::kCheckNeg:
+    case Opcode::kCheckSequenceBounds:
     case Opcode::kCheckVar:
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFormatValue:
     case Opcode::kGuard:
-    case Opcode::kLoadArrayItem:
     case Opcode::kGuardIs:
     case Opcode::kGuardType:
+    case Opcode::kIntBinaryOp:
+    case Opcode::kIntConvert:
+    case Opcode::kIsErrStopAsyncIteration:
+    case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kLoadArg:
+    case Opcode::kLoadArrayItem:
     case Opcode::kLoadCellItem:
-    case Opcode::kStealCellItem:
     case Opcode::kLoadConst:
     case Opcode::kLoadCurrentFunc:
     case Opcode::kLoadEvalBreaker:
     case Opcode::kLoadField:
     case Opcode::kLoadFieldAddress:
+    case Opcode::kLoadFunctionIndirect:
     case Opcode::kLoadGlobalCached:
     case Opcode::kLoadTupleItem:
     case Opcode::kLoadTypeAttrCacheItem:
-    case Opcode::kCast:
-    case Opcode::kCheckNone:
-    case Opcode::kLoadFunctionIndirect:
     case Opcode::kLoadVarObjectSize:
-    case Opcode::kIntConvert:
-    case Opcode::kIntBinaryOp:
-    case Opcode::kPrimitiveCompare:
     case Opcode::kPrimitiveBox:
-    case Opcode::kPrimitiveUnbox:
+    case Opcode::kPrimitiveCompare:
     case Opcode::kPrimitiveUnaryOp:
-    case Opcode::kIsErrStopAsyncIteration:
-    case Opcode::kIsNegativeAndErrOccurred:
+    case Opcode::kPrimitiveUnbox:
     case Opcode::kRaise:
     case Opcode::kRaiseStatic:
     case Opcode::kRefineType:
+    case Opcode::kStealCellItem:
     case Opcode::kUseType:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter: {
@@ -890,6 +890,14 @@ Register* Environment::addRegister(std::unique_ptr<Register> reg) {
   auto res = registers_.emplace(id, std::move(reg));
   JIT_CHECK(res.second, "register %d already in map", id);
   return res.first->second.get();
+}
+
+BorrowedRef<> Environment::addReference(Ref<> obj) {
+  return references_.emplace(std::move(obj)).first->get();
+}
+
+const Environment::ReferenceSet& Environment::references() const {
+  return references_;
 }
 
 bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code) {

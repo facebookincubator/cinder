@@ -497,6 +497,7 @@ Type outputType(const Instr& instr) {
     // not be null.
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
+    case Opcode::kCheckFreevar:
     case Opcode::kCheckNeg:
     case Opcode::kCheckVar: {
       return instr.GetOperand(0)->type() - TNullptr;
@@ -504,10 +505,6 @@ Type outputType(const Instr& instr) {
 
     case Opcode::kGuardIs: {
       return Type::fromObject(static_cast<const GuardIs&>(instr).target());
-    }
-
-    case Opcode::kCheckNone: {
-      return instr.GetOperand(0)->type() - TNoneType;
     }
 
     case Opcode::kCast: {

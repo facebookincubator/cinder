@@ -23,7 +23,7 @@ static void testFillGuards(const char* hir_source, const char* expected) {
   ASSERT_EQ(HIRPrinter(true).ToString(*func), expected);
 }
 
-TEST(GuardTest, BindFrameStateFromBlock) {
+TEST_F(GuardTest, BindFrameStateFromBlock) {
   const char* hir = R"(
 fun test {
   bb 0 {
@@ -55,7 +55,7 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(testFillGuards(hir, expected));
 }
 
-TEST(GuardTest, BindFrameStateFromInstr) {
+TEST_F(GuardTest, BindFrameStateFromInstr) {
   const char* hir = R"(fun test {
   bb 0 {
     v0 = LoadArg<0>
@@ -101,7 +101,7 @@ TEST(GuardTest, BindFrameStateFromInstr) {
   EXPECT_NO_FATAL_FAILURE(testFillGuards(hir, expected));
 }
 
-TEST(GuardTest, BindFrameStateFromInstrWithStack) {
+TEST_F(GuardTest, BindFrameStateFromInstrWithStack) {
   const char* hir = R"(
 fun __main__:test {
   bb 0 {
@@ -112,7 +112,7 @@ fun __main__:test {
       BlockStack {
       }
     }
-    CheckVar<-1> v0 {
+    CheckVar<"foo"> v0 {
       NextInstrOffset 6
       Stack<0>
     }
@@ -143,7 +143,7 @@ fun __main__:test {
   const char* expected = R"(fun __main__:test {
   bb 0 {
     v0:Object = LoadArg<0>
-    CheckVar<-1> v0 {
+    CheckVar<"foo"> v0 {
       LiveValues<1> b:v0
       NextInstrOffset 6
     }

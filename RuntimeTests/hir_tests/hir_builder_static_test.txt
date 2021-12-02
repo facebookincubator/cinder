@@ -13,7 +13,7 @@ def test(c: C):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
-    v0 = CheckVar<0; "c"> v0 {
+    v0 = CheckVar<"c"> v0 {
       NextInstrOffset 4
       Locals<1> v0
     }
@@ -42,7 +42,7 @@ fun jittestmodule:test {
       NextInstrOffset 0
       Locals<1> v0
     }
-    v0 = CheckVar<0; "c"> v0 {
+    v0 = CheckVar<"c"> v0 {
       NextInstrOffset 4
       Locals<1> v0
     }
@@ -129,7 +129,7 @@ def test(c: C):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
-    v0 = CheckVar<0; "c"> v0 {
+    v0 = CheckVar<"c"> v0 {
       NextInstrOffset 4
       Locals<1> v0
     }
@@ -155,12 +155,12 @@ def test(c: C):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
-    v0 = CheckVar<0; "c"> v0 {
+    v0 = CheckVar<"c"> v0 {
       NextInstrOffset 4
       Locals<1> v0
     }
     v1 = LoadField<16> v0
-    v1 = CheckField<2> v1 {
+    v1 = CheckField<"x"> v1 {
       NextInstrOffset 6
       Locals<1> v0
     }
@@ -182,11 +182,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
     v1 = LoadArg<1; "x", Long>
-    v1 = CheckVar<1; "x"> v1 {
+    v1 = CheckVar<"x"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "c"> v0 {
+    v0 = CheckVar<"c"> v0 {
       NextInstrOffset 6
       Locals<2> v0 v1
       Stack<1> v1
@@ -210,7 +210,7 @@ def test(x) -> C:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 4
       Locals<1> v0
     }
@@ -236,7 +236,7 @@ def test(x) -> Optional[C]:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 4
       Locals<1> v0
     }
@@ -1007,7 +1007,7 @@ fun jittestmodule:test {
     v0 = Assign v1
     v2 = LoadConst<MortalLongExact[1]>
     v3 = LoadConst<MortalLongExact[3]>
-    v0 = CheckVar<0; "p"> v0 {
+    v0 = CheckVar<"p"> v0 {
       NextInstrOffset 12
       Locals<1> v0
       Stack<2> v2 v3
@@ -1163,7 +1163,7 @@ fun jittestmodule:test {
       NextInstrOffset 26
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "content"> v0 {
+    v0 = CheckVar<"content"> v0 {
       NextInstrOffset 28
       Locals<2> v0 v1
       Stack<1> v10
@@ -1174,7 +1174,7 @@ fun jittestmodule:test {
       Locals<2> v0 v1
     }
     v1 = Assign v12
-    v1 = CheckVar<1; "a"> v1 {
+    v1 = CheckVar<"a"> v1 {
       NextInstrOffset 36
       Locals<2> v0 v1
     }
@@ -1236,7 +1236,7 @@ fun jittestmodule:test {
     }
     v0 = Assign v10
     v11 = LoadConst<CInt8[7]>
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 26
       Locals<1> v0
       Stack<1> v11
@@ -1254,7 +1254,7 @@ fun jittestmodule:test {
     }
     v16 = LoadField<24> v0
     StoreArrayItem v16 v15 v11 v0
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 34
       Locals<1> v0
     }
@@ -1274,7 +1274,7 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "it">
     v1 = LoadGlobalCached<0; "sorted">
     v1 = GuardIs<0xdeadbeef> v1
-    v0 = CheckVar<0; "it"> v0 {
+    v0 = CheckVar<"it"> v0 {
       NextInstrOffset 6
       Locals<1> v0
       Stack<1> v1
@@ -1362,7 +1362,7 @@ fun jittestmodule:test {
     v0 = Assign v2
     v10 = LoadConst<CInt64[2]>
     v1 = Assign v10
-    v0 = CheckVar<0; "l"> v0 {
+    v0 = CheckVar<"l"> v0 {
       NextInstrOffset 28
       Locals<2> v0 v1
     }
@@ -1423,7 +1423,7 @@ fun jittestmodule:test {
     InitFunction v12
     v1 = Assign v12
     v13 = LoadCellItem v2
-    v13 = CheckVar<0; "a"> v13 {
+    v13 = CheckVar<"a"> v13 {
       NextInstrOffset 22
       Locals<2> v3 v1
       Cells<1> v2

@@ -20,8 +20,13 @@ namespace hir {
 Type prim_type_to_type(int prim_type);
 
 using PyTypeOpt = std::pair<Ref<PyTypeObject>, bool>;
-using OffsetAndType = std::pair<Py_ssize_t, Type>;
 using ArgToType = std::map<long, Type>;
+
+struct FieldInfo {
+  Py_ssize_t offset;
+  Type type;
+  BorrowedRef<PyUnicodeObject> name;
+};
 
 // The target of an INVOKE_FUNCTION or INVOKE_METHOD
 struct InvokeTarget {
@@ -102,7 +107,7 @@ class Preloader {
   BorrowedRef<PyTypeObject> pyType(BorrowedRef<> descr) const;
   const PyTypeOpt& pyTypeOpt(BorrowedRef<> descr) const;
 
-  const OffsetAndType& fieldOffsetAndType(BorrowedRef<> descr) const;
+  const FieldInfo& fieldInfo(BorrowedRef<> descr) const;
 
   const InvokeTarget& invokeFunctionTarget(BorrowedRef<> descr) const;
   const InvokeTarget& invokeMethodTarget(BorrowedRef<> descr) const;
@@ -148,7 +153,7 @@ class Preloader {
 
   // keyed by type descr tuple identity (they are interned in code objects)
   std::unordered_map<PyObject*, PyTypeOpt> types_;
-  std::unordered_map<PyObject*, OffsetAndType> fields_;
+  std::unordered_map<PyObject*, FieldInfo> fields_;
   std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> func_targets_;
   std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> meth_targets_;
   // keyed by locals index

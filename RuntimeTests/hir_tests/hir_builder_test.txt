@@ -21,7 +21,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -38,11 +38,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -65,7 +65,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -83,7 +83,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0, 1) {
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 10
       Locals<2> v0 v1
     }
@@ -99,7 +99,7 @@ def test(self):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self">
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -121,7 +121,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -154,21 +154,21 @@ fun jittestmodule:test {
     v1 = LoadArg<1; "x">
     v2 = LoadArg<2; "y">
     v3 = LoadArg<3; "z">
-    v0 = CheckVar<0; "f"> v0 {
+    v0 = CheckVar<"f"> v0 {
       NextInstrOffset 2
       Locals<4> v0 v1 v2 v3
     }
-    v1 = CheckVar<1; "x"> v1 {
+    v1 = CheckVar<"x"> v1 {
       NextInstrOffset 4
       Locals<4> v0 v1 v2 v3
       Stack<1> v0
     }
-    v2 = CheckVar<2; "y"> v2 {
+    v2 = CheckVar<"y"> v2 {
       NextInstrOffset 6
       Locals<4> v0 v1 v2 v3
       Stack<2> v0 v1
     }
-    v3 = CheckVar<3; "z"> v3 {
+    v3 = CheckVar<"z"> v3 {
       NextInstrOffset 8
       Locals<4> v0 v1 v2 v3
       Stack<3> v0 v1 v2
@@ -191,7 +191,7 @@ fun jittestmodule:test {
   bb 0 {
     v1 = LoadConst<MortalLongExact[100]>
     v0 = Assign v1
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 6
       Locals<1> v0
     }
@@ -209,7 +209,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -227,7 +227,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0, 1) {
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 10
       Locals<2> v0 v1
     }
@@ -244,7 +244,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -268,7 +268,7 @@ fun jittestmodule:test {
 
   bb 3 (preds 1, 2) {
     v1 = Assign v3
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 14
       Locals<2> v0 v1
     }
@@ -286,7 +286,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<3> v0 v1 v2
     }
@@ -298,7 +298,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 6
       Locals<3> v0 v1 v2
     }
@@ -307,7 +307,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 10
       Locals<3> v0 v1 v2
     }
@@ -317,7 +317,7 @@ fun jittestmodule:test {
 
   bb 3 (preds 1, 2) {
     v2 = Assign v4
-    v2 = CheckVar<2; "z"> v2 {
+    v2 = CheckVar<"z"> v2 {
       NextInstrOffset 14
       Locals<3> v0 v1 v2
     }
@@ -334,7 +334,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -348,7 +348,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 6
       Locals<2> v0 v1
     }
@@ -370,7 +370,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -384,7 +384,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 6
       Locals<2> v0 v1
     }
@@ -419,11 +419,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "val">
-    v1 = CheckVar<1; "val"> v1 {
+    v1 = CheckVar<"val"> v1 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v1
@@ -446,11 +446,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "f">
     v1 = LoadArg<1; "x">
-    v0 = CheckVar<0; "f"> v0 {
+    v0 = CheckVar<"f"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "x"> v1 {
+    v1 = CheckVar<"x"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -474,7 +474,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -513,7 +513,7 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "self">
     v1 = LoadArg<1; "p">
     v2 = LoadArg<2; "old">
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 2
       Locals<3> v0 v1 v2
     }
@@ -534,11 +534,11 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v1 = CheckVar<1; "p"> v1 {
+    v1 = CheckVar<"p"> v1 {
       NextInstrOffset 12
       Locals<3> v0 v1 v2
     }
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 14
       Locals<3> v0 v1 v2
       Stack<1> v1
@@ -548,7 +548,7 @@ fun jittestmodule:test {
       Locals<3> v0 v1 v2
     }
     v8 = LoadConst<MortalBool[True]>
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 20
       Locals<3> v0 v1 v2
       Stack<1> v8
@@ -557,7 +557,7 @@ fun jittestmodule:test {
       NextInstrOffset 22
       Locals<3> v0 v1 v2
     }
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 24
       Locals<3> v0 v1 v2
     }
@@ -565,7 +565,7 @@ fun jittestmodule:test {
       NextInstrOffset 26
       Locals<3> v0 v1 v2
     }
-    v2 = CheckVar<2; "old"> v2 {
+    v2 = CheckVar<"old"> v2 {
       NextInstrOffset 28
       Locals<3> v0 v1 v2
       Stack<1> v10
@@ -587,7 +587,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 36
       Locals<3> v0 v1 v2
     }
@@ -595,7 +595,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 0) {
-    v1 = CheckVar<1; "p"> v1 {
+    v1 = CheckVar<"p"> v1 {
       NextInstrOffset 40
       Locals<3> v0 v1 v2
     }
@@ -604,7 +604,7 @@ fun jittestmodule:test {
       Locals<3> v0 v1 v2
       Stack<1> v1
     }
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 44
       Locals<3> v0 v1 v2
       Stack<2> v1 v14
@@ -622,7 +622,7 @@ fun jittestmodule:test {
   }
 
   bb 4 (preds 1, 3) {
-    v2 = CheckVar<2; "old"> v2 {
+    v2 = CheckVar<"old"> v2 {
       NextInstrOffset 52
       Locals<3> v0 v1 v2
     }
@@ -657,7 +657,7 @@ fun jittestmodule:test {
   }
 
   bb 0 (preds 4, 5) {
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -669,7 +669,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 6
       Locals<2> v0 v1
     }
@@ -698,7 +698,7 @@ def test(self):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self">
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -774,7 +774,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -795,7 +795,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -816,7 +816,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -837,7 +837,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -858,7 +858,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -879,7 +879,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -901,11 +901,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "s">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "s"> v1 {
+    v1 = CheckVar<"s"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -927,11 +927,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "s">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "s"> v1 {
+    v1 = CheckVar<"s"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -952,7 +952,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -973,7 +973,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -995,11 +995,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1021,11 +1021,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1047,11 +1047,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1073,11 +1073,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1099,11 +1099,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1125,11 +1125,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1151,11 +1151,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1177,11 +1177,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1203,11 +1203,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1229,11 +1229,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1255,11 +1255,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1281,11 +1281,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1307,11 +1307,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1332,16 +1332,16 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 4
       Locals<1> v0
       Stack<1> v0
     }
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 6
       Locals<1> v0
       Stack<2> v0 v0
@@ -1365,16 +1365,16 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 4
       Locals<1> v0
       Stack<1> v0
     }
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 6
       Locals<1> v0
       Stack<2> v0 v0
@@ -1398,7 +1398,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -1418,7 +1418,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -1438,7 +1438,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -1458,7 +1458,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -1480,16 +1480,16 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "c">
     v1 = LoadArg<1; "s">
     v2 = LoadArg<2; "v">
-    v2 = CheckVar<2; "v"> v2 {
+    v2 = CheckVar<"v"> v2 {
       NextInstrOffset 2
       Locals<3> v0 v1 v2
     }
-    v0 = CheckVar<0; "c"> v0 {
+    v0 = CheckVar<"c"> v0 {
       NextInstrOffset 4
       Locals<3> v0 v1 v2
       Stack<1> v2
     }
-    v1 = CheckVar<1; "s"> v1 {
+    v1 = CheckVar<"s"> v1 {
       NextInstrOffset 6
       Locals<3> v0 v1 v2
       Stack<2> v2 v0
@@ -1512,11 +1512,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1540,11 +1540,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1568,11 +1568,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1596,11 +1596,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1624,11 +1624,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1652,11 +1652,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1680,11 +1680,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1708,11 +1708,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1736,11 +1736,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1764,11 +1764,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1792,11 +1792,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1820,11 +1820,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -1846,7 +1846,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -1874,11 +1874,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "k">
     v1 = LoadArg<1; "v">
-    v0 = CheckVar<0; "k"> v0 {
+    v0 = CheckVar<"k"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "v"> v1 {
+    v1 = CheckVar<"v"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -2224,7 +2224,7 @@ fun jittestmodule:test {
     v10 = Assign v257
     v258 = LoadConst<MortalLongExact[1337]>
     v256 = Assign v258
-    v256 = CheckVar<256; "a256"> v256 {
+    v256 = CheckVar<"a256"> v256 {
       NextInstrOffset 14
       Locals<257> v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 v16 v17 v18 v19 v20 v21 v22 v23 v24 v25 v26 v27 v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v41 v42 v43 v44 v45 v46 v47 v48 v49 v50 v51 v52 v53 v54 v55 v56 v57 v58 v59 v60 v61 v62 v63 v64 v65 v66 v67 v68 v69 v70 v71 v72 v73 v74 v75 v76 v77 v78 v79 v80 v81 v82 v83 v84 v85 v86 v87 v88 v89 v90 v91 v92 v93 v94 v95 v96 v97 v98 v99 v100 v101 v102 v103 v104 v105 v106 v107 v108 v109 v110 v111 v112 v113 v114 v115 v116 v117 v118 v119 v120 v121 v122 v123 v124 v125 v126 v127 v128 v129 v130 v131 v132 v133 v134 v135 v136 v137 v138 v139 v140 v141 v142 v143 v144 v145 v146 v147 v148 v149 v150 v151 v152 v153 v154 v155 v156 v157 v158 v159 v160 v161 v162 v163 v164 v165 v166 v167 v168 v169 v170 v171 v172 v173 v174 v175 v176 v177 v178 v179 v180 v181 v182 v183 v184 v185 v186 v187 v188 v189 v190 v191 v192 v193 v194 v195 v196 v197 v198 v199 v200 v201 v202 v203 v204 v205 v206 v207 v208 v209 v210 v211 v212 v213 v214 v215 v216 v217 v218 v219 v220 v221 v222 v223 v224 v225 v226 v227 v228 v229 v230 v231 v232 v233 v234 v235 v236 v237 v238 v239 v240 v241 v242 v243 v244 v245 v246 v247 v248 v249 v250 v251 v252 v253 v254 v255 v256
     }
@@ -2240,7 +2240,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -2267,7 +2267,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -2296,11 +2296,11 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v1
@@ -2347,7 +2347,7 @@ def test(xs):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "xs">
-    v0 = CheckVar<0; "xs"> v0 {
+    v0 = CheckVar<"xs"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -2385,7 +2385,7 @@ fun jittestmodule:test {
     v1 = Assign v3
     v4 = LoadGlobalCached<0; "print">
     v4 = GuardIs<0xdeadbeef> v4
-    v1 = CheckVar<1; "x"> v1 {
+    v1 = CheckVar<"x"> v1 {
       NextInstrOffset 12
       Locals<2> v0 v1
       Stack<2> v2 v4
@@ -2418,7 +2418,7 @@ fun jittestmodule:test {
     }
     InitListTuple<list, 0> v2
     v3 = Assign v2
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v3
@@ -2459,7 +2459,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v1 = Assign v4
-    v1 = CheckVar<1; "i"> v1 {
+    v1 = CheckVar<"i"> v1 {
       NextInstrOffset 12
       Locals<2> v0 v1
       Stack<2> v2 v3
@@ -2488,7 +2488,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -2509,7 +2509,7 @@ fun jittestmodule:test {
     SetFunctionAttr<func_defaults> v3 v6
     InitFunction v6
     v1 = Assign v6
-    v1 = CheckVar<1; "nested"> v1 {
+    v1 = CheckVar<"nested"> v1 {
       NextInstrOffset 14
       Locals<2> v0 v1
     }
@@ -2554,7 +2554,7 @@ fun jittestmodule:test {
     SetFunctionAttr<func_closure> v6 v9
     InitFunction v9
     v0 = Assign v9
-    v0 = CheckVar<0; "g"> v0 {
+    v0 = CheckVar<"g"> v0 {
       NextInstrOffset 18
       Locals<1> v0
       Cells<1> v1
@@ -2597,7 +2597,7 @@ fun jittestmodule:test {
     SetFunctionAttr<func_closure> v5 v8
     InitFunction v8
     v1 = Assign v8
-    v1 = CheckVar<1; "g"> v1 {
+    v1 = CheckVar<"g"> v1 {
       NextInstrOffset 14
       Locals<2> v3 v1
       Cells<1> v2
@@ -2641,7 +2641,7 @@ fun jittestmodule:test {
     SetFunctionAttr<func_closure> v6 v9
     InitFunction v9
     v1 = Assign v9
-    v1 = CheckVar<1; "g"> v1 {
+    v1 = CheckVar<"g"> v1 {
       NextInstrOffset 14
       Locals<3> v4 v1 v2
       Cells<1> v3
@@ -2739,7 +2739,7 @@ fun jittestmodule:test {
   }
 
   bb 0 (preds 6, 7) {
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -2756,11 +2756,11 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 10
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 12
       Locals<2> v0 v1
       Stack<1> v0
@@ -2777,7 +2777,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 1) {
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 20
       Locals<2> v0 v1
     }
@@ -2841,12 +2841,12 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v1 = Assign v3
-    v1 = CheckVar<1; "i"> v1 {
+    v1 = CheckVar<"i"> v1 {
       NextInstrOffset 10
       Locals<2> v0 v1
       Stack<1> v2
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 12
       Locals<2> v0 v1
       Stack<2> v2 v1
@@ -2918,7 +2918,7 @@ test.__code__ = type(c)(
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -3005,7 +3005,7 @@ fun jittestmodule:test {
   bb 2 (preds 1) {
     v0 = Assign v4
     v7 = LoadConst<MortalUnicodeExact["-W%s"]>
-    v0 = CheckVar<0; "o"> v0 {
+    v0 = CheckVar<"o"> v0 {
       NextInstrOffset 14
       Locals<2> v0 v1
       Stack<3> v2 v3 v7
@@ -3026,7 +3026,7 @@ fun jittestmodule:test {
   bb 3 (preds 1) {
     v0 = LoadConst<Nullptr>
     v1 = Assign v2
-    v1 = CheckVar<1; "args"> v1 {
+    v1 = CheckVar<"args"> v1 {
       NextInstrOffset 26
       Locals<2> v0 v1
     }
@@ -3079,7 +3079,7 @@ fun jittestmodule:test {
       Locals<1> v0
     }
     v0 = Assign v2
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 8
       Locals<1> v0
     }
@@ -3096,7 +3096,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 16
       Locals<1> v0
     }
@@ -3114,7 +3114,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
-    v0 = CheckVar<0; "a"> v0 {
+    v0 = CheckVar<"a"> v0 {
       NextInstrOffset 2
       Locals<4> v0 v1 v2 v3
     }
@@ -3124,7 +3124,7 @@ fun jittestmodule:test {
       Locals<4> v0 v1 v2 v3
     }
     v2 = Assign v5
-    v1 = CheckVar<1; "b"> v1 {
+    v1 = CheckVar<"b"> v1 {
       NextInstrOffset 8
       Locals<4> v0 v1 v2 v3
     }

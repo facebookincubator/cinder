@@ -76,6 +76,15 @@ inline std::size_t combineHash(std::size_t seed, std::size_t hash) {
 std::string codeFullname(PyObject* module, PyCodeObject* code);
 std::string funcFullname(PyFunctionObject* func);
 
+// Given a code object and an index into f_localsplus, compute which of
+// code->co_varnames, code->cellvars, or code->freevars contains the name of
+// the variable. Return that tuple and adjust idx as needed.
+PyObject* getVarnameTuple(PyCodeObject* code, int* idx);
+
+// Similar to getVarnameTuple, but return the name itself rather than the
+// containing tuple.
+PyObject* getVarname(PyCodeObject* code, int idx);
+
 inline int popcount(unsigned i) {
   return __builtin_popcount(i);
 }

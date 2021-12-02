@@ -85,13 +85,16 @@ static PyTypeOpt resolve_type_descr(BorrowedRef<> descr) {
   return {std::move(type), optional};
 }
 
-static OffsetAndType resolve_field_descr(BorrowedRef<> descr) {
+static FieldInfo resolve_field_descr(BorrowedRef<PyTupleObject> descr) {
   int field_type;
   Py_ssize_t offset = _PyClassLoader_ResolveFieldOffset(descr, &field_type);
 
   JIT_CHECK(offset != -1, "failed to resolve field %s", repr(descr));
 
-  return {offset, prim_type_to_type(field_type)};
+  return {
+      offset,
+      prim_type_to_type(field_type),
+      PyTuple_GET_ITEM(descr, PyTuple_GET_SIZE(descr) - 1)};
 }
 
 static void fill_primitive_arg_types_func(
@@ -223,7 +226,7 @@ const PyTypeOpt& Preloader::pyTypeOpt(BorrowedRef<> descr) const {
   return map_get(types_, descr);
 }
 
-const OffsetAndType& Preloader::fieldOffsetAndType(BorrowedRef<> descr) const {
+const FieldInfo& Preloader::fieldInfo(BorrowedRef<> descr) const {
   return map_get(fields_, descr);
 }
 
@@ -350,7 +353,7 @@ void Preloader::preload() {
       }
       case LOAD_FIELD:
       case STORE_FIELD: {
-        BorrowedRef<> descr = constArg(bc_instr);
+        BorrowedRef<PyTupleObject> descr(constArg(bc_instr));
         fields_.emplace(descr, resolve_field_descr(descr));
         break;
       }

@@ -198,13 +198,16 @@ static void reifyStack(
   }
 }
 
-static void profileDeopt(
+static Ref<> profileDeopt(
     std::size_t deopt_idx,
     const DeoptMetadata& meta,
     const MemoryView& mem) {
   const LiveValue* live_val = meta.getGuiltyValue();
-  PyObject* val = live_val == nullptr ? nullptr : mem.read(*live_val, true);
-  codegen::NativeGeneratorFactory::runtime()->recordDeopt(deopt_idx, val);
+  auto guilty_obj =
+      Ref<>::steal(live_val == nullptr ? nullptr : mem.read(*live_val, false));
+  codegen::NativeGeneratorFactory::runtime()->recordDeopt(
+      deopt_idx, guilty_obj.get());
+  return guilty_obj;
 }
 
 static void reifyBlockStack(
@@ -239,7 +242,7 @@ static void releaseRefs(
   }
 }
 
-void reifyFrame(
+Ref<> reifyFrame(
     PyFrameObject* frame,
     std::size_t deopt_idx,
     const DeoptMetadata& meta,
@@ -260,13 +263,15 @@ void reifyFrame(
   MemoryView mem{regs};
   reifyLocalsplus(frame, meta, mem);
   reifyStack(frame, meta, mem);
+  Ref<> guilty_obj;
   if (deopt_idx != -1ull) {
-    profileDeopt(deopt_idx, meta, mem);
+    guilty_obj = profileDeopt(deopt_idx, meta, mem);
   }
   // Clear our references now that we've transferred them to the frame
   releaseRefs(meta.live_values, mem);
   reifyBlockStack(frame, meta.block_stack);
   // Generator/frame linkage happens in `materializePyFrame` in frame.cpp
+  return guilty_obj;
 }
 
 static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
@@ -274,11 +279,11 @@ static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
     case jit::hir::Opcode::kCheckVar: {
       return DeoptReason::kUnhandledUnboundLocal;
     }
+    case jit::hir::Opcode::kCheckFreevar: {
+      return DeoptReason::kUnhandledUnboundFreevar;
+    }
     case jit::hir::Opcode::kCheckField: {
       return DeoptReason::kUnhandledNullField;
-    }
-    case jit::hir::Opcode::kCheckNone: {
-      return DeoptReason::kUnhandledNone;
     }
     case jit::hir::Opcode::kDeopt:
     case jit::hir::Opcode::kDeoptPatchpoint:
@@ -392,18 +397,15 @@ DeoptMetadata DeoptMetadata::fromInstr(
   meta.next_instr_offset = fs->next_instr_offset;
   meta.nonce = instr.nonce();
   meta.reason = getDeoptReason(instr);
+  JIT_CHECK(
+      meta.reason != DeoptReason::kUnhandledNullField ||
+          meta.guilty_value != -1,
+      "Guilty value is required for UnhandledNullField deopts");
   if (meta.reason == DeoptReason::kGuardFailure || fs->hasTryBlock()) {
     meta.action = DeoptAction::kResumeInInterpreter;
   }
-  if (instr.IsCheckVar()) {
-    const auto& check = static_cast<const jit::hir::CheckVar&>(instr);
-    meta.eh_name_index = check.name_idx();
-  } else if (instr.IsCheckField()) {
-    const auto& check = static_cast<const jit::hir::CheckField&>(instr);
-    meta.eh_name_index = check.field_idx();
-  } else if (instr.IsCheckNone()) {
-    const auto& check = static_cast<const jit::hir::CheckNone&>(instr);
-    meta.eh_name_index = check.name_idx();
+  if (auto check = dynamic_cast<const hir::CheckBaseWithName*>(&instr)) {
+    meta.eh_name = check->name();
   }
 
   std::string descr = instr.descr();

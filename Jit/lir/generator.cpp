@@ -271,8 +271,6 @@ std::string LIRGenerator::MakeGuard(
     JIT_CHECK(guard_type != nullptr, "Ensure unique representation exists");
     env_->code_rt->addReference(reinterpret_cast<PyObject*>(guard_type));
     ss << ", " << guard_type;
-  } else if (instr.IsCheckNone()) {
-    ss << ", " << static_cast<void*>(Py_None);
   } else {
     ss << ", 0";
   }
@@ -1571,18 +1569,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(MakeGuard("AlwaysFail", instr));
         break;
       }
-      case Opcode::kCheckNone:
       case Opcode::kCheckExc:
+      case Opcode::kCheckField:
+      case Opcode::kCheckFreevar:
       case Opcode::kCheckNeg:
       case Opcode::kCheckVar:
-      case Opcode::kCheckField:
       case Opcode::kGuard:
       case Opcode::kGuardIs: {
         const auto& instr = static_cast<const DeoptBase&>(i);
         std::string kind = "NotZero";
-        if (instr.IsCheckNone()) {
-          kind = "NotNone";
-        } else if (instr.IsCheckNeg()) {
+        if (instr.IsCheckNeg()) {
           kind = "NotNegative";
         } else if (instr.IsGuardIs()) {
           kind = "Is";
@@ -2552,7 +2548,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       switch (db->opcode()) {
         case Opcode::kCheckExc:
         case Opcode::kCheckField:
-        case Opcode::kCheckNone:
         case Opcode::kCheckVar:
         case Opcode::kDeleteAttr:
         case Opcode::kDeleteSubscr:

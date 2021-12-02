@@ -368,8 +368,6 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       guard_kind = InstrGuardKind::kNotZero;
     } else if (kind == "NotNegative") {
       guard_kind = InstrGuardKind::kNotNegative;
-    } else if (kind == "NotNone") {
-      guard_kind = InstrGuardKind::kNotNone;
     } else if (kind == "AlwaysFail") {
       guard_kind = InstrGuardKind::kAlwaysFail;
     } else if (kind == "Is") {

@@ -54,6 +54,7 @@ class HIRParser {
   };
   int GetNextNameIdx();
   RegState GetNextRegState();
+  BorrowedRef<> GetNextUnicode();
 
   void expect(const char* expected);
 

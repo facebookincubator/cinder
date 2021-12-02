@@ -156,7 +156,7 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -174,7 +174,7 @@ def test(x, y):
       NextInstrOffset 4
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 6
       Locals<2> v0 v1
     }
@@ -213,7 +213,7 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -231,7 +231,7 @@ def test(x, y):
       NextInstrOffset 4
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 6
       Locals<2> v0 v1
     }
@@ -267,11 +267,11 @@ def test(f, a):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "f"> v0 {
+    v0 = CheckVar<"f"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "a"> v1 {
+    v1 = CheckVar<"a"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -307,7 +307,7 @@ def test(f, a):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "f"> v0 {
+    v0 = CheckVar<"f"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -321,7 +321,7 @@ def test(f, a):
       Locals<2> v0 v1
       Stack<2> v0 v2
     }
-    v1 = CheckVar<1; "a"> v1 {
+    v1 = CheckVar<"a"> v1 {
       NextInstrOffset 6
       Locals<2> v0 v1
       Stack<2> v0 v2
@@ -356,7 +356,7 @@ def test(f):
       NextInstrOffset 0
       Locals<1> v0
     }
-    v0 = CheckVar<0; "f"> v0 {
+    v0 = CheckVar<"f"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -400,11 +400,11 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -442,11 +442,11 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -481,7 +481,7 @@ def test(x):
       NextInstrOffset 0
       Locals<1> v0
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }
@@ -516,11 +516,11 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v1
@@ -556,11 +556,11 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v1
@@ -597,11 +597,11 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -651,11 +651,11 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -694,11 +694,11 @@ def test(x, y):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
-    v1 = CheckVar<1; "y"> v1 {
+    v1 = CheckVar<"y"> v1 {
       NextInstrOffset 4
       Locals<2> v0 v1
       Stack<1> v0
@@ -738,7 +738,7 @@ def test(x):
       NextInstrOffset 0
       Locals<2> v0 v1
     }
-    v0 = CheckVar<0; "x"> v0 {
+    v0 = CheckVar<"x"> v0 {
       NextInstrOffset 2
       Locals<2> v0 v1
     }
@@ -769,7 +769,7 @@ def test(x):
       Stack<1> v6
     }
     v1 = Assign v6
-    v1 = CheckVar<1; "foo"> v1 {
+    v1 = CheckVar<"foo"> v1 {
       NextInstrOffset 14
       Locals<2> v0 v1
     }

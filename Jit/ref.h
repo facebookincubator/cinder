@@ -71,6 +71,14 @@ class BorrowedRef : public RefBase<T> {
       typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
   BorrowedRef(PyObject* ptr) : BorrowedRef(reinterpret_cast<X*>(ptr)) {}
 
+  // Allow conversion from any BorrowedRef to BorrowedRef<PyObject>
+  template <
+      typename V,
+      typename X = T,
+      typename = std::enable_if_t<std::is_same_v<X, PyObject>>>
+  BorrowedRef(const BorrowedRef<V>& other)
+      : BorrowedRef(reinterpret_cast<PyObject*>(other.get())) {}
+
   BorrowedRef(const RefBase<T>& other) {
     ptr_ = other.get();
   }

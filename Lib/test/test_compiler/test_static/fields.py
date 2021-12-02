@@ -171,7 +171,7 @@ class StaticFieldTests(StaticTestBase):
                 f, C = mod.f, mod.C
                 f(C())
 
-        self.assertEqual(e.exception.args[0], "x")
+        self.assertEqual(e.exception.args[0], "'C' object has no attribute 'x'")
 
     def test_conditional_init(self):
         codestr = f"""

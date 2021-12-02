@@ -49,13 +49,13 @@ fun jittestmodule:A.f {
     v4 = LoadGlobalCached<0; "super">
     v4 = GuardIs<0xdeadbeef> v4
     v5 = LoadCellItem v1
-    v5 = CheckVar<0; "__class__"> v5 {
+    v5 = CheckVar<"__class__"> v5 {
       NextInstrOffset 6
       Locals<1> v0
       Cells<1> v1
       Stack<1> v4
     }
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 8
       Locals<1> v0
       Cells<1> v1
@@ -86,13 +86,13 @@ fun jittestmodule:A.f {
     v4 = LoadGlobalCached<0; "super">
     v4 = GuardIs<0xdeadbeef> v4
     v5 = LoadCellItem v1
-    v5 = CheckVar<0; "__class__"> v5 {
+    v5 = CheckVar<"__class__"> v5 {
       NextInstrOffset 6
       Locals<1> v0
       Cells<1> v1
       Stack<1> v4
     }
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 8
       Locals<1> v0
       Cells<1> v1
@@ -131,13 +131,13 @@ fun jittestmodule:A.f {
     v4 = LoadGlobalCached<0; "super">
     v4 = GuardIs<0xdeadbeef> v4
     v5 = LoadCellItem v1
-    v5 = CheckVar<0; "__class__"> v5 {
+    v5 = CheckVar<"__class__"> v5 {
       NextInstrOffset 6
       Locals<1> v0
       Cells<1> v1
       Stack<1> v4
     }
-    v0 = CheckVar<0; "self"> v0 {
+    v0 = CheckVar<"self"> v0 {
       NextInstrOffset 8
       Locals<1> v0
       Cells<1> v1

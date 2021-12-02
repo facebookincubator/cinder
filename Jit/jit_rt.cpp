@@ -1322,21 +1322,6 @@ PyObject* JITRT_ImportName(
   return res;
 }
 
-PyObject* JITRT_GetVarnameTuple(PyCodeObject* code, int* idx) {
-  if (*idx < code->co_nlocals) {
-    return code->co_varnames;
-  }
-
-  *idx -= code->co_nlocals;
-  auto ncellvars = PyTuple_GET_SIZE(code->co_cellvars);
-  if (*idx < ncellvars) {
-    return code->co_cellvars;
-  }
-
-  *idx -= ncellvars;
-  return code->co_freevars;
-}
-
 void JITRT_DoRaise(PyThreadState* tstate, PyObject* exc, PyObject* cause) {
   // If we re-raise with no error set, deliberately do nothing and let
   // prepareForDeopt() handle this. We can't let _Py_DoRaise() handle this by

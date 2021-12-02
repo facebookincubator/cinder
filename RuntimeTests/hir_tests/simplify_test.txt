@@ -111,7 +111,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 0, 1) {
     v11:OptMortalLongExact = Phi<0, 1> v5 v8
-    v12:MortalLongExact = CheckVar<1; "y"> v11 {
+    v12:MortalLongExact = CheckVar<"y"> v11 {
       NextInstrOffset 10
       Locals<2> v4 v11
     }
@@ -191,7 +191,7 @@ fun jittestmodule:test {
 
   bb 3 (preds 0, 1) {
     v16:OptMortalLongExact = Phi<0, 1> v7 v10
-    v17:MortalLongExact = CheckVar<1; "y"> v16 {
+    v17:MortalLongExact = CheckVar<"y"> v16 {
       NextInstrOffset 18
       Locals<2> v6 v16
     }

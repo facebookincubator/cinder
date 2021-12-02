@@ -329,7 +329,7 @@ TEST_F(HIRParserTest, FormatValue) {
   const char* hir_source = R"(fun test {
   bb 0 {
     v0 = LoadArg<0>
-    v0 = CheckVar<0> v0 {
+    v0 = CheckVar<"bar"> v0 {
       NextInstrOffset 2
       Locals<1> v0
     }

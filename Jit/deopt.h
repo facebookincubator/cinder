@@ -52,15 +52,15 @@ struct LiveValue {
   }
 };
 
-#define DEOPT_REASONS(X)   \
-  X(GuardFailure)          \
-  X(Raise)                 \
-  X(RaiseStatic)           \
-  X(Reraise)               \
-  X(UnhandledException)    \
-  X(UnhandledUnboundLocal) \
-  X(UnhandledNullField)    \
-  X(UnhandledNone)
+#define DEOPT_REASONS(X)     \
+  X(GuardFailure)            \
+  X(Raise)                   \
+  X(RaiseStatic)             \
+  X(Reraise)                 \
+  X(UnhandledException)      \
+  X(UnhandledUnboundLocal)   \
+  X(UnhandledUnboundFreevar) \
+  X(UnhandledNullField)
 
 enum class DeoptReason {
 #define REASON(name) k##name,
@@ -84,9 +84,9 @@ struct DeoptMetadata {
   // What to do when we de-opt
   DeoptAction action{DeoptAction::kUnwind};
 
-  // The name index of the unbound local, if we are deopting because of an
-  // UnboundLocalError.
-  int eh_name_index{-1};
+  // The name index of the unbound local or attribute, if we are deopting
+  // because of an undefined value.
+  BorrowedRef<> eh_name;
 
   // All live values
   std::vector<LiveValue> live_values;
@@ -100,8 +100,8 @@ struct DeoptMetadata {
   // Index into live_values for each entry in the operand stack.
   std::vector<int> stack;
 
-  // If not -1, index into live_values for the value most directly responsible
-  // for this deopt. Used for tracking deopt reasons.
+  // If not -1, index into live_values for a context-dependent value that is
+  // relevant to this deopt event.
   int guilty_value{-1};
 
   jit::hir::BlockStack block_stack;
@@ -165,7 +165,10 @@ struct DeoptMetadata {
 //
 // We expect `frame` to already have `globals`, `code`, and `builtins`
 // initialized.
-void reifyFrame(
+//
+// May return a reference to an object that is relevant to the deopt event. The
+// meaning of this object depends on meta.reason.
+Ref<> reifyFrame(
     PyFrameObject* frame,
     std::size_t deopt_idx,
     const DeoptMetadata& meta,

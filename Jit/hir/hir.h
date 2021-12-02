@@ -257,8 +257,8 @@ struct FrameState {
   V(CheckSequenceBounds)        \
   V(CheckExc)                   \
   V(CheckNeg)                   \
-  V(CheckNone)                  \
   V(CheckVar)                   \
+  V(CheckFreevar)               \
   V(CheckField)                 \
   V(ClearError)                 \
   V(Compare)                    \
@@ -795,8 +795,8 @@ class DeoptBase : public Instr {
     descr_ = std::move(r);
   }
 
-  // Get or set the optional value that is the likely cause for this
-  // instruction deopting.
+  // Get or set the optional value that is responsible for this deopt
+  // event. Its exact meaning depends on the opcode of this instruction.
   Register* guiltyReg() const {
     return guilty_reg_;
   }
@@ -808,8 +808,8 @@ class DeoptBase : public Instr {
  private:
   std::vector<RegState> live_regs_;
   std::unique_ptr<FrameState> frame_state_{nullptr};
-  // If set and this instruction deopts at runtime, the value that most likely
-  // caused the deopt.
+  // If set and this instruction deopts at runtime, this value is made
+  // conveniently available in the deopt machinery.
   Register* guilty_reg_{nullptr};
   int nonce_{-1};
   // A human-readable description of why this instruction might deopt.
@@ -1682,82 +1682,49 @@ DEFINE_SIMPLE_INSTR(
 // return code.
 DEFINE_SIMPLE_INSTR(CheckNeg, (TCInt), HasOutput, Operands<1>, CheckBase);
 
-// Check that a variable has been set. If not, raise an UnboundLocalError and
-// transfer control to the block's exception handler.
-class INSTR_CLASS(CheckVar, (TOptObject), HasOutput, Operands<1>, CheckBase) {
+class CheckBaseWithName : public CheckBase {
+ protected:
+  CheckBaseWithName(Opcode op, BorrowedRef<> name)
+      : CheckBase(op), name_(name) {}
+
+  CheckBaseWithName(Opcode op, BorrowedRef<> name, const FrameState& frame)
+      : CheckBase(op, frame), name_(name) {}
+
  public:
-  // `name_idx` is the index into co_varnames of the name that should be used
-  // when raising an UnboundLocalError. A value of -1 indicates that no name
-  // should be reported in the exception.
-  CheckVar(Register* dst, Register* reg, int name_idx)
-      : InstrT(dst, reg), name_idx_(name_idx) {}
-
-  CheckVar(Register* dst, Register* reg, int name_idx, const FrameState& frame)
-      : InstrT(dst, reg, frame), name_idx_(name_idx) {}
-
-  void set_name_idx(int name_idx) {
-    name_idx_ = name_idx;
-  }
-
-  int name_idx() const {
-    return name_idx_;
+  BorrowedRef<> name() const {
+    return name_;
   }
 
  private:
-  int name_idx_;
+  BorrowedRef<> name_;
 };
 
-// Check that a variable has been set. If not, raise an AttributeError and
-// transfer control to the block's exception handler.
-class INSTR_CLASS(CheckField, (TOptObject), HasOutput, Operands<1>, CheckBase) {
- public:
-  // `field_idx` is the index into co_consts of the field that should be used
-  // when raising an AttributeError.
-  CheckField(Register* dst, Register* reg, int field_idx)
-      : InstrT(dst, reg), field_idx_(field_idx) {}
+// If the operand is Nullptr, raise an UnboundLocalError referencing the
+// given local variable name.
+DEFINE_SIMPLE_INSTR(
+    CheckVar,
+    (TOptObject),
+    HasOutput,
+    Operands<1>,
+    CheckBaseWithName);
 
-  CheckField(
-      Register* dst,
-      Register* reg,
-      const FrameState& frame,
-      int field_idx)
-      : InstrT(dst, reg, frame), field_idx_(field_idx) {}
+// If the operand is Nullptr, raise a NameError referencing the given free
+// variable name.
+DEFINE_SIMPLE_INSTR(
+    CheckFreevar,
+    (TOptObject),
+    HasOutput,
+    Operands<1>,
+    CheckBaseWithName);
 
-  void set_field_idx(int field_idx) {
-    field_idx_ = field_idx;
-  }
-
-  int field_idx() const {
-    return field_idx_;
-  }
-
- private:
-  int field_idx_;
-};
-
-// Check that a variable is not None.  If it is None it raises an AttributeError
-// saying None doesn't have that attribute.
-class INSTR_CLASS(CheckNone, (TObject), HasOutput, Operands<1>, CheckBase) {
- public:
-  // `name_idx` is the index into co_names of the name that should be used
-  // when raising an AttributeError.
-  CheckNone(Register* dst, Register* reg, int name_idx)
-      : InstrT(dst, reg), name_idx_(name_idx) {}
-
-  CheckNone(Register* dst, Register* reg, const FrameState& frame, int name_idx)
-      : InstrT(dst, reg, frame), name_idx_(name_idx) {}
-
-  void set_name_idx(int name_idx) {
-    name_idx_ = name_idx;
-  }
-
-  int name_idx() const {
-    return name_idx_;
-  }
-
- private:
-  int name_idx_;
-};
+// If the operand is Nullptr, raise an AttributeError referencing the given
+// attribute/field name.
+DEFINE_SIMPLE_INSTR(
+    CheckField,
+    (TOptObject),
+    HasOutput,
+    Operands<1>,
+    CheckBaseWithName);
 
 DEFINE_SIMPLE_INSTR(
     IsNegativeAndErrOccurred,
@@ -2249,9 +2216,9 @@ DEFINE_SIMPLE_INSTR(Incref, (TObject), Operands<1>);
 // Increment the refrence count of `reg`, if `reg` is not NULL
 DEFINE_SIMPLE_INSTR(XIncref, (TOptObject), Operands<1>);
 
-class DeoptBaseWithName : public DeoptBase {
+class DeoptBaseWithNameIdx : public DeoptBase {
  public:
-  DeoptBaseWithName(Opcode op, int name_idx, const FrameState& frame)
+  DeoptBaseWithNameIdx(Opcode op, int name_idx, const FrameState& frame)
       : DeoptBase(op, frame), name_idx_(name_idx) {}
 
   // Index of the attribute name in the code object's co_names tuple
@@ -2269,7 +2236,7 @@ DEFINE_SIMPLE_INSTR(
     (TObject),
     HasOutput,
     Operands<1>,
-    DeoptBaseWithName);
+    DeoptBaseWithNameIdx);
 
 // Set the attribute of an object
 //
@@ -2279,10 +2246,10 @@ DEFINE_SIMPLE_INSTR(
     (TObject, TObject),
     HasOutput,
     Operands<2>,
-    DeoptBaseWithName);
+    DeoptBaseWithNameIdx);
 
 // Delete an attribute from an object
-DEFINE_SIMPLE_INSTR(DeleteAttr, (TObject), Operands<1>, DeoptBaseWithName);
+DEFINE_SIMPLE_INSTR(DeleteAttr, (TObject), Operands<1>, DeoptBaseWithNameIdx);
 
 // Load an attribute from an object, skipping the instance dictionary but still
 // calling descriptors as appropriate (to create bound methods, for example).
@@ -3634,6 +3601,7 @@ class CFG {
 class Environment {
  public:
   using RegisterMap = std::unordered_map<int, std::unique_ptr<Register>>;
+  using ReferenceSet = std::unordered_set<Ref<>>;
 
   Environment() = default;
 
@@ -3641,8 +3609,15 @@ class Environment {
 
   const RegisterMap& GetRegisters() const;
 
-  // Only intended to be used in tests and parsing code
+  // Only intended to be used in tests and parsing code.
   Register* addRegister(std::unique_ptr<Register> reg);
+
+  // Only intended to be used in tests and parsing code. Add a strong reference
+  // to the given object to this Environment, returning a borrowed reference to
+  // the object.
+  BorrowedRef<> addReference(Ref<> obj);
+
+  const ReferenceSet& references() const;
 
   // Returns nullptr if a register with the given `id` isn't found
   Register* getRegister(int id);
@@ -3667,6 +3642,7 @@ class Environment {
   DISALLOW_COPY_AND_ASSIGN(Environment);
 
   RegisterMap registers_;
+  ReferenceSet references_;
   int next_register_id_{0};
   int next_load_attr_cache_{0};
 };

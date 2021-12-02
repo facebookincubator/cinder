@@ -227,6 +227,12 @@ void* NativeGenerator::GetEntryPoint() {
       num_sa_caches,
       num_lat_caches);
 
+  // TODO(bsimmers): If we have a good reason to violate this JIT_CHECK(), we
+  // could transfer the references to the CodeRuntime instead.
+  JIT_CHECK(
+      GetFunction()->env.references().empty(),
+      "Environment should not contain any references");
+
   jit::lir::LIRGenerator lirgen(GetFunction(), &env_);
   auto lir_func = lirgen.TranslateFunction();
 
@@ -1205,35 +1211,26 @@ bool canLoadStoreAddr(asmjit::x86::Gp reg, int64_t addr) {
   return reg == x86::rax || (addr >= INT32_MIN && addr <= INT32_MAX);
 }
 
-static void raiseUnboundLocalError(PyFrameObject* frame, int name_idx) {
-  auto co_vars = JITRT_GetVarnameTuple(frame->f_code, &name_idx);
-  JIT_CHECK(name_idx >= 0, "Bad name_idx");
-  PyObject* exc = PyExc_UnboundLocalError;
-  const char* fmt = "local variable '%.200s' referenced before assignment";
-  if (co_vars == frame->f_code->co_freevars) {
-    exc = PyExc_NameError;
-    fmt =
-        "free variable '%.200s' referenced before assignment in enclosing "
-        "scope";
-  }
-  format_exc_check_arg(
-      PyThreadState_Get(), exc, fmt, PyTuple_GetItem(co_vars, name_idx));
+static void raiseUnboundLocalError(BorrowedRef<> name) {
+  PyErr_Format(
+      PyExc_UnboundLocalError,
+      "local variable '%.200U' referenced before assignment",
+      name);
 }
 
-static void raiseAttributeError(PyFrameObject* frame, int field_idx) {
-  auto code = frame->f_code;
-  auto co_consts = code->co_consts;
-  PyObject* descr = PyTuple_GetItem(co_consts, field_idx);
-  PyObject* name = PyTuple_GetItem(descr, PyTuple_GET_SIZE(descr) - 1);
-  PyErr_SetString(PyExc_AttributeError, PyUnicode_AsUTF8(name));
+static void raiseUnboundFreevarError(BorrowedRef<> name) {
+  PyErr_Format(
+      PyExc_NameError,
+      "free variable '%.200U' referenced before assignment in enclosing scope",
+      name);
 }
 
-static void raiseAttributeErrorNone(PyFrameObject* frame, int name_idx) {
-  auto co_names = frame->f_code->co_names;
+static void raiseAttributeError(BorrowedRef<> receiver, BorrowedRef<> name) {
   PyErr_Format(
       PyExc_AttributeError,
-      "'NoneType' object has no attribute '%U'",
-      PyTuple_GET_ITEM(co_names, name_idx));
+      "'%.50s' object has no attribute '%U'",
+      Py_TYPE(receiver)->tp_name,
+      name);
 }
 
 static PyFrameObject* prepareForDeopt(
@@ -1246,7 +1243,7 @@ static PyFrameObject* prepareForDeopt(
   PyFrameObject* frame = nullptr;
   Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate);
   frame = f.release();
-  reifyFrame(frame, deopt_idx, deopt_meta, regs);
+  Ref<> deopt_obj = reifyFrame(frame, deopt_idx, deopt_meta, regs);
   if (!PyErr_Occurred()) {
     auto reason = deopt_meta.reason;
     switch (reason) {
@@ -1254,14 +1251,14 @@ static PyFrameObject* prepareForDeopt(
         runtime->guardFailed(deopt_meta);
         break;
       }
-      case DeoptReason::kUnhandledNone:
-        raiseAttributeErrorNone(frame, deopt_meta.eh_name_index);
-        break;
       case DeoptReason::kUnhandledNullField:
-        raiseAttributeError(frame, deopt_meta.eh_name_index);
+        raiseAttributeError(deopt_obj, deopt_meta.eh_name);
         break;
       case DeoptReason::kUnhandledUnboundLocal:
-        raiseUnboundLocalError(frame, deopt_meta.eh_name_index);
+        raiseUnboundLocalError(deopt_meta.eh_name);
+        break;
+      case DeoptReason::kUnhandledUnboundFreevar:
+        raiseUnboundFreevarError(deopt_meta.eh_name);
         break;
       case DeoptReason::kUnhandledException:
         JIT_CHECK(false, "unhandled exception without error set");

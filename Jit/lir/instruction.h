@@ -516,14 +516,7 @@ class Instruction {
 };
 
 // Instruction Guard specific
-enum InstrGuardKind {
-  kNotZero = 0,
-  kNotNegative,
-  kNotNone,
-  kAlwaysFail,
-  kIs,
-  kHasType
-};
+enum InstrGuardKind { kNotZero, kNotNegative, kAlwaysFail, kIs, kHasType };
 
 // an instruction property type specifying how its operand sizes
 // are determined.

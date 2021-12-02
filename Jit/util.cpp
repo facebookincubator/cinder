@@ -127,4 +127,24 @@ std::string funcFullname(PyFunctionObject* func) {
   return fullnameImpl(func->func_module, func->func_qualname);
 }
 
+PyObject* getVarnameTuple(PyCodeObject* code, int* idx) {
+  if (*idx < code->co_nlocals) {
+    return code->co_varnames;
+  }
+
+  *idx -= code->co_nlocals;
+  auto ncellvars = PyTuple_GET_SIZE(code->co_cellvars);
+  if (*idx < ncellvars) {
+    return code->co_cellvars;
+  }
+
+  *idx -= ncellvars;
+  return code->co_freevars;
+}
+
+PyObject* getVarname(PyCodeObject* code, int idx) {
+  PyObject* tuple = getVarnameTuple(code, &idx);
+  return PyTuple_GET_ITEM(tuple, idx);
+}
+
 } // namespace jit

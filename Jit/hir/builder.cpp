@@ -1937,9 +1937,9 @@ void HIRBuilder::emitLoadDeref(
   int idx = bc_instr.oparg();
   Register* src = tc.frame.cells[idx];
   Register* dst = temps_.AllocateStack();
-  auto frame_idx = tc.frame.locals.size() + idx;
+  int frame_idx = tc.frame.locals.size() + idx;
   tc.emit<LoadCellItem>(dst, src);
-  tc.emit<CheckVar>(dst, dst, frame_idx, tc.frame);
+  tc.emit<CheckVar>(dst, dst, getVarname(code_, frame_idx), tc.frame);
   tc.frame.stack.push(dst);
 }
 
@@ -1971,7 +1971,7 @@ void HIRBuilder::emitLoadFast(
     const jit::BytecodeInstruction& bc_instr) {
   int var_idx = bc_instr.oparg();
   Register* var = tc.frame.locals[var_idx];
-  tc.emit<CheckVar>(var, var, var_idx, tc.frame);
+  tc.emit<CheckVar>(var, var, getVarname(code_, var_idx), tc.frame);
   tc.frame.stack.push(var);
 }
 
@@ -3245,13 +3245,14 @@ void HIRBuilder::emitWithCleanupFinish(TranslationContext& tc) {
 void HIRBuilder::emitLoadField(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  auto& [offset, type] = preloader_.fieldOffsetAndType(constArg(bc_instr));
+  auto& [offset, type, name] = preloader_.fieldInfo(constArg(bc_instr));
 
   Register* receiver = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
   tc.emit<LoadField>(result, receiver, offset, type);
   if (type.couldBe(TNullptr)) {
-    tc.emit<CheckField>(result, result, tc.frame, bc_instr.oparg());
+    CheckField* cf = tc.emit<CheckField>(result, result, name, tc.frame);
+    cf->setGuiltyReg(receiver);
   }
   tc.frame.stack.push(result);
 }
@@ -3259,7 +3260,7 @@ void HIRBuilder::emitLoadField(
 void HIRBuilder::emitStoreField(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  auto& [offset, type] = preloader_.fieldOffsetAndType(constArg(bc_instr));
+  auto& [offset, type, name] = preloader_.fieldInfo(constArg(bc_instr));
 
   Register* receiver = tc.frame.stack.pop();
   Register* value = tc.frame.stack.pop();
