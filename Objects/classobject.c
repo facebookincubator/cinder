@@ -142,7 +142,8 @@ method_vectorcall(PyObject *method, PyObject *const *args,
         assert(args != NULL);
         memcpy(newargs + 1, args, totalargs * sizeof(PyObject *));
         result = _PyObject_Vectorcall(func, newargs,
-                                      nargs+1 | (nargsf & _Py_AWAITED_CALL_MARKER), kwnames);
+                                      (nargs + 1) | (nargsf & _Py_AWAITED_CALL_MARKER),
+                                      kwnames);
         if (newargs != newargs_stack) {
             PyMem_Free(newargs);
         }
