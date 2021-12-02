@@ -1,0 +1,65 @@
+GuardTypeRemovalTest
+---
+GuardTypeRemoval
+---
+GuardTypeRemovalRemovesUnusedGuardType
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = GuardType<ListExact> v0
+    v3 = BinaryOp<Subscript> v2 v1 {
+      NextInstrOffset 6
+      Locals<2> v0 v1
+    }
+    v4 = Assign v3
+    v5 = LoadConst<NoneType>
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v3:Object = BinaryOp<Subscript> v0 v1 {
+      NextInstrOffset 6
+      Locals<2> v0 v1
+    }
+    v4:Object = Assign v3
+    v5:NoneType = LoadConst<NoneType>
+    Return v5
+  }
+}
+---
+KeepsGuardTypeWhenRefineTypeIsntSufficientRefinement
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = LoadArg<2>
+    v3 = GuardType<Tuple> v0
+    v4 = RefineType<BuiltinExact> v3
+    v5 = PrimitiveUnbox<CInt64> v1
+    v6 = LoadArrayItem v4 v5 v2
+    Return v6
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:Object = LoadArg<2>
+    v3:Tuple = GuardType<Tuple> v0
+    v4:TupleExact = RefineType<BuiltinExact> v3
+    v5:CInt64 = PrimitiveUnbox<CInt64> v1
+    v6:Object = LoadArrayItem v4 v5 v2
+    Return v6
+  }
+}
+---

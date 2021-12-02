@@ -36,6 +36,7 @@ PassRegistry::PassRegistry() {
   addPass(PhiElimination::Factory);
   addPass(Simplify::Factory);
   addPass(DeadCodeElimination::Factory);
+  addPass(GuardTypeRemoval::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
@@ -427,6 +428,73 @@ void DeadCodeElimination::Run(Function& func) {
       auto& instr = *it;
       ++it;
       if (live_set.count(&instr) == 0) {
+        instr.unlink();
+        delete &instr;
+      }
+    }
+  }
+}
+
+using RegUses = std::unordered_map<Register*, std::unordered_set<Instr*>>;
+
+static bool
+guardNeeded(const RegUses& uses, Register* old_reg, Register* new_reg) {
+  for (const Instr* instr : map_get(uses, new_reg)) {
+    for (std::size_t i = 0; i < instr->NumOperands(); i++) {
+      // TODO(T106115065): We should be able to remove GuardTypes in this case
+      // as long as the function still type checks when we pass in old_reg's
+      // type to the passthrough instruction
+      if ((instr->GetOutput() != nullptr) && isPassthrough(*instr)) {
+        return true;
+      }
+      if (instr->GetOperand(i) == new_reg) {
+        OperandType expected_type = instr->GetOperandType(i);
+        // TODO(T106726658): We should be able to remove GuardTypes if we ever
+        // add a matching constraint for non-Primitive types, and our GuardType
+        // adds an unnecessary refinement
+        // Since we cannot guard on primitive types yet, this should never
+        // happen
+        if (operandsMustMatch(expected_type)) {
+          return true;
+        }
+        if (!registerTypeMatches(old_reg->type(), expected_type)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+static void collectRegUses(Function& func, RegUses& uses) {
+  for (auto& block : func.cfg.blocks) {
+    for (Instr& instr : block) {
+      instr.visitUses([&](Register*& reg) {
+        uses[reg].insert(&instr);
+        return true;
+      });
+    }
+  }
+}
+
+void GuardTypeRemoval::Run(Function& func) {
+  RegUses reg_uses;
+  collectRegUses(func, reg_uses);
+  for (auto& block : func.cfg.blocks) {
+    for (auto it = block.begin(); it != block.end();) {
+      auto& instr = *it;
+      ++it;
+
+      if (!instr.IsGuardType()) {
+        continue;
+      }
+
+      Register* guard_out = instr.GetOutput();
+      Register* guard_in = instr.GetOperand(0);
+      if (!guardNeeded(reg_uses, guard_in, guard_out)) {
+        for (Instr* guard_users : reg_uses[guard_out]) {
+          guard_users->ReplaceUsesOf(guard_out, guard_in);
+        }
         instr.unlink();
         delete &instr;
       }

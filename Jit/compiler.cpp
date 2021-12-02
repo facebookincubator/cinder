@@ -75,6 +75,7 @@ void Compiler::runPasses(jit::hir::Function& irfunc) {
   runPass<jit::hir::Simplify>(irfunc);
   runPass<jit::hir::LoadAttrSpecialization>(irfunc);
   runPass<jit::hir::DynamicComparisonElimination>(irfunc);
+  runPass<jit::hir::GuardTypeRemoval>(irfunc);
   runPass<jit::hir::CallOptimization>(irfunc);
   runPass<jit::hir::PhiElimination>(irfunc);
   runPass<jit::hir::DeadCodeElimination>(irfunc);

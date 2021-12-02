@@ -330,6 +330,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(PrimitiveUnaryOp, dst, op, operand);
+  } else if (strcmp(opcode, "PrimitiveUnbox") == 0) {
+    expect("<");
+    Type type = Type::parse(GetNextToken());
+    expect(">");
+    auto operand = ParseRegister();
+    NEW_INSTR(PrimitiveUnbox, dst, operand, type);
   } else if (strcmp(opcode, "InPlaceOp") == 0) {
     expect("<");
     InPlaceOpKind op = ParseInPlaceOpName(GetNextToken());
@@ -411,6 +417,11 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto receiver = ParseRegister();
     instruction =
         newInstr<FillTypeAttrCache>(dst, receiver, name_idx, cache_id);
+  } else if (strcmp(opcode, "LoadArrayItem") == 0) {
+    auto ob_item = ParseRegister();
+    auto idx = ParseRegister();
+    auto array_unused = ParseRegister();
+    NEW_INSTR(LoadArrayItem, dst, ob_item, idx, array_unused, 0, TObject);
   } else if (strcmp(opcode, "Phi") == 0) {
     expect("<");
     PhiInfo info{dst};
