@@ -206,6 +206,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto receiver = ParseRegister();
     instruction = newInstr<LoadMethod>(dst, receiver, idx);
+  } else if (strcmp(opcode, "LoadTupleItem") == 0) {
+    expect("<");
+    int idx = GetNextNameIdx();
+    expect(">");
+    auto receiver = ParseRegister();
+    NEW_INSTR(LoadTupleItem, dst, receiver, idx);
   } else if (strcmp(opcode, "CallMethod") == 0) {
     expect("<");
     int num_args = GetNextInteger();
@@ -304,6 +310,13 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     instruction = newInstr<BinaryOp>(dst, op, left, right);
+  } else if (strcmp(opcode, "IntBinaryOp") == 0) {
+    expect("<");
+    BinaryOpKind op = ParseBinaryOpName(GetNextToken());
+    expect(">");
+    auto left = ParseRegister();
+    auto right = ParseRegister();
+    NEW_INSTR(IntBinaryOp, dst, op, left, right);
   } else if (strcmp(opcode, "PrimitiveCompareOp") == 0) {
     expect("<");
     PrimitiveCompareOp op = ParsePrimitiveCompareOpName(GetNextToken());
@@ -432,6 +445,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(UseType, operand, ty);
+  } else if (strcmp(opcode, "RefineType") == 0) {
+    expect("<");
+    Type ty = Type::parse(GetNextToken());
+    expect(">");
+    auto operand = ParseRegister();
+    NEW_INSTR(RefineType, dst, ty, operand);
   } else if (strcmp(opcode, "CheckExc") == 0) {
     auto operand = ParseRegister();
     instruction = newInstr<CheckExc>(dst, operand);
@@ -448,6 +467,8 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
       snapshot->setFrameState(parseFrameState());
     }
     instruction = snapshot;
+  } else if (strcmp(opcode, "Deopt") == 0) {
+    instruction = newInstr<Deopt>();
   } else if (strcmp(opcode, "MakeDict") == 0) {
     expect("<");
     auto capacity = GetNextInteger();

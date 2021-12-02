@@ -980,6 +980,27 @@ std::ostream& operator<<(std::ostream& os, ValueKind kind) {
   JIT_CHECK(false, "Bad ValueKind %d", static_cast<int>(kind));
 }
 
+std::ostream& operator<<(std::ostream& os, OperandType op) {
+  switch (op.kind) {
+    case Constraint::kType:
+      return os << op.type;
+    case Constraint::kOptObjectOrCIntOrCBool:
+      return os << "(OptObject, CInt, CBool)";
+    case Constraint::kOptObjectOrCInt:
+      return os << "(OptObject, CInt)";
+    case Constraint::kTupleExactOrCPtr:
+      return os << "(TupleExact, CPtr)";
+    case Constraint::kListOrChkList:
+      return os << "(List, chklist)";
+    case Constraint::kDictOrChkDict:
+      return os << "(Dict, chkdict)";
+    case Constraint::kMatchAllAsCInt:
+      return os << "CInt";
+    case Constraint::kMatchAllAsPrimitive:
+      return os << "Primitive";
+  }
+}
+
 const FrameState* get_frame_state(const Instr& instr) {
   if (instr.IsSnapshot()) {
     return static_cast<const Snapshot&>(instr).frameState();

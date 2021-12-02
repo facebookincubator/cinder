@@ -337,28 +337,9 @@ Type outputType(const Instr& instr) {
     }
     case Opcode::kIntBinaryOp: {
       auto& binop = static_cast<const IntBinaryOp&>(instr);
-      Type ltype = binop.left()->type().unspecialized();
-      Type rtype = binop.right()->type().unspecialized();
-      JIT_CHECK(
-          ltype <= rtype || rtype <= ltype,
-          "mismatched IntBinaryOp operand types %s and %s",
-          ltype,
-          rtype);
-      JIT_CHECK(
-          ltype <= (TCSigned | TCUnsigned),
-          "bad IntBinaryOp operand type %s",
-          ltype);
-      return ltype;
+      return binop.left()->type().unspecialized();
     }
     case Opcode::kDoubleBinaryOp: {
-      auto& binop = static_cast<const DoubleBinaryOp&>(instr);
-      Type ltype = binop.left()->type();
-      Type rtype = binop.right()->type();
-      JIT_CHECK(
-          (ltype <= TCDouble && rtype <= TCDouble),
-          "DoubleBinaryOp cannot operate on types %s and %s",
-          ltype,
-          rtype);
       return TCDouble;
     }
     case Opcode::kPrimitiveCompare:
@@ -501,7 +482,8 @@ Type outputType(const Instr& instr) {
       }
       JIT_CHECK(
           false,
-          "only primitive numeric types should be boxed. got %s",
+          "only primitive numeric types should be boxed. type verification"
+          "missed an unexpected type %s",
           pb.value()->type());
     }
 

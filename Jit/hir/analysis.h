@@ -28,6 +28,17 @@ bool isPassthrough(const Instr& instr);
 // given value, returning the original source of the value.
 Register* modelReg(Register* reg);
 
+// Returns true if each instruction in func properly type-checks
+// Writes to err if any failure occurs and returns false
+bool funcTypeChecks(const Function& func, std::ostream& err);
+
+// Returns true iff the constraint signifies that all of its instruction's
+// operands must match
+bool operandsMustMatch(OperandType op_type);
+
+// Returns true if the type satisfies the passed in OperandType
+bool registerTypeMatches(Type op_type, OperandType expected_type);
+
 // Base class for dataflow analyses that compute facts about registers in the
 // HIR.
 //

@@ -4,6 +4,7 @@
 #include "Jit/dataflow.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/memory_effects.h"
+#include "Jit/hir/printer.h"
 
 #include <memory>
 
@@ -175,6 +176,104 @@ Register* modelReg(Register* reg) {
     JIT_DCHECK(reg != orig_reg, "Hit cycle while looking for model reg");
   }
   return reg;
+}
+
+static bool isSingleCInt(Type t) {
+  return t <= TCInt8 || t <= TCUInt8 || t <= TCInt16 || t <= TCUInt16 ||
+      t <= TCInt32 || t <= TCUInt32 || t <= TCInt64 || t <= TCUInt64;
+}
+
+bool registerTypeMatches(Type op_type, OperandType expected_type) {
+  switch (expected_type.kind) {
+    case Constraint::kType:
+      return op_type <= expected_type.type;
+    case Constraint::kTupleExactOrCPtr:
+      return op_type <= TTupleExact || op_type <= TCPtr;
+    case Constraint::kListOrChkList:
+      return op_type <= TList ||
+          (op_type.hasTypeSpec() &&
+           _PyCheckedList_TypeCheck(op_type.typeSpec()));
+    case Constraint::kDictOrChkDict:
+      return op_type <= TDict ||
+          (op_type.hasTypeSpec() &&
+           _PyCheckedDict_TypeCheck(op_type.typeSpec()));
+    case Constraint::kOptObjectOrCIntOrCBool:
+      return op_type <= TOptObject || op_type <= TCInt || op_type <= TCBool;
+    case Constraint::kOptObjectOrCInt:
+      return op_type <= TOptObject || op_type <= TCInt;
+    case Constraint::kMatchAllAsCInt:
+      return isSingleCInt(op_type);
+    case Constraint::kMatchAllAsPrimitive:
+      return isSingleCInt(op_type) || op_type <= TCBool ||
+          op_type <= TCDouble || op_type <= TCEnum || op_type <= TCPtr;
+  }
+}
+
+bool operandsMustMatch(OperandType op_type) {
+  switch (op_type.kind) {
+    case Constraint::kMatchAllAsCInt:
+    case Constraint::kMatchAllAsPrimitive:
+      return true;
+
+    case Constraint::kType:
+    case Constraint::kTupleExactOrCPtr:
+    case Constraint::kListOrChkList:
+    case Constraint::kDictOrChkDict:
+    case Constraint::kOptObjectOrCInt:
+    case Constraint::kOptObjectOrCIntOrCBool:
+      return false;
+  }
+}
+
+bool funcTypeChecks(const Function& func, std::ostream& err) {
+  for (auto& block : func.cfg.blocks) {
+    for (const Instr& instr : block) {
+      if (instr.NumOperands() > 1 &&
+          operandsMustMatch(instr.GetOperandType(0))) {
+        Type join = TBottom;
+        for (std::size_t i = 0; i < instr.NumOperands(); i++) {
+          JIT_DCHECK(
+              operandsMustMatch(instr.GetOperandType(i)),
+              "Inconsistent operand type constraint");
+          join |= instr.GetOperand(i)->type();
+        }
+        OperandType expected_type = instr.GetOperandType(0);
+        if (!registerTypeMatches(join, expected_type)) {
+          fmt::print(
+              err,
+              "TYPE MISMATCH in bb {} of '{}'\nInstr '{}' expected "
+              "join of operands of type {} to subclass '{}'\n",
+              block.id,
+              func.fullname,
+              instr,
+              join,
+              expected_type);
+          return false;
+        }
+      } else {
+        for (std::size_t i = 0; i < instr.NumOperands(); i++) {
+          Register* op = instr.GetOperand(i);
+          OperandType expected_type = instr.GetOperandType(i);
+          if (!registerTypeMatches(op->type(), expected_type)) {
+            fmt::print(
+                err,
+                "TYPE MISMATCH in bb {} of '{}'\nInstr '{}' expected "
+                "operand {} to be of type {} "
+                "but got {} from '{}'\n",
+                block.id,
+                func.fullname,
+                instr,
+                i,
+                expected_type,
+                op->type(),
+                *op->instr());
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
 }
 
 void DataflowAnalysis::AddBasicBlock(const BasicBlock* cfg_block) {

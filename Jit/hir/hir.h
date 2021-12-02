@@ -410,7 +410,8 @@ class Edge {
 // that's typed as the union of the types in the Constraint
 enum class Constraint {
   kType,
-  kMatchOther,
+  kMatchAllAsCInt,
+  kMatchAllAsPrimitive,
   kTupleExactOrCPtr,
   kListOrChkList,
   kDictOrChkDict,
@@ -420,14 +421,13 @@ enum class Constraint {
 
 struct OperandType {
   OperandType(Type ty) : kind{Constraint::kType}, type{ty} {}
-  OperandType(Constraint c, int i = -1) : kind{c}, other_idx{i} {}
+  OperandType(Constraint c) : kind{c}, type{TBottom} {}
 
   Constraint kind;
-  union {
-    int other_idx;
-    Type type;
-  };
+  Type type;
 };
+
+std::ostream& operator<<(std::ostream& os, OperandType kind);
 
 template <typename... Args>
 inline std::vector<OperandType> makeTypeVec(Args&&... args) {
@@ -1171,7 +1171,7 @@ DEFINE_SIMPLE_INSTR(InitFunction, (TFunc), Operands<1>);
 // Takes an item as operand 1
 DEFINE_SIMPLE_INSTR(
     ListAppend,
-    (Constraint::kListOrChkList, TObject),
+    (Constraint::kListOrChkList, TOptObject),
     HasOutput,
     Operands<2>,
     DeoptBase);
@@ -1764,7 +1764,7 @@ DEFINE_SIMPLE_INSTR(
     Operands<1>,
     DeoptBase);
 
-class INSTR_CLASS(LoadField, (TObject), HasOutput, Operands<1>) {
+class INSTR_CLASS(LoadField, (TOptObject), HasOutput, Operands<1>) {
  public:
   LoadField(
       Register* dst,
@@ -1890,7 +1890,7 @@ class INSTR_CLASS(TpAlloc, (), HasOutput, Operands<0>, DeoptBase) {
 // Perform a binary operation (e.g. '+', '-') on primitive int operands
 class INSTR_CLASS(
     IntBinaryOp,
-    (TCInt, OperandType(Constraint::kMatchOther, 0)),
+    (Constraint::kMatchAllAsCInt, Constraint::kMatchAllAsCInt),
     HasOutput,
     Operands<2>) {
  public:
@@ -2111,16 +2111,13 @@ class INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
     return GetOperand(1);
   }
 
-  OperandType GetOperandTypeImpl(std::size_t i) const {
+  OperandType GetOperandTypeImpl(std::size_t /* i */) const {
     // `is` gets treated as a PrimtiveCompare and can hold anything
     if (op_ == PrimitiveCompareOp::kEqual ||
         op_ == PrimitiveCompareOp::kNotEqual) {
       return TTop;
     } else {
-      if (i == 0) {
-        return TPrimitive;
-      }
-      return {Constraint::kMatchOther, 0};
+      return {Constraint::kMatchAllAsPrimitive};
     }
   }
 
@@ -2773,7 +2770,7 @@ class INSTR_CLASS(LoadTupleItem, (TTuple), HasOutput, Operands<1>) {
 // checking. Equivalent to ((type*)(((char*)ob_item)+offset))[idx]
 class INSTR_CLASS(
     LoadArrayItem,
-    (Constraint::kTupleExactOrCPtr, TCInt, TObject),
+    (Constraint::kTupleExactOrCPtr, TCInt, TOptObject),
     HasOutput,
     Operands<3>) {
  public:
@@ -2813,7 +2810,7 @@ class INSTR_CLASS(
 
 class INSTR_CLASS(
     LoadFieldAddress,
-    (TObject, TCInt64),
+    (TOptObject, TCInt64),
     HasOutput,
     Operands<2>) {
  public:
@@ -2967,7 +2964,7 @@ DEFINE_SIMPLE_INSTR(
 // Takes a value as operand 2
 DEFINE_SIMPLE_INSTR(
     SetDictItem,
-    (Constraint::kDictOrChkDict, TObject, TObject),
+    (Constraint::kDictOrChkDict, TObject, TOptObject),
     HasOutput,
     Operands<3>,
     DeoptBase);
