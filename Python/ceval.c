@@ -1576,6 +1576,30 @@ main_loop:
         }
 #endif
 
+        ; /* locals hoisted to reduce stack size */
+        PyObject **addr;
+        int awaited;
+        int code;
+        PyObject *container;
+        PyObject *enum_val;
+        PyObject *field;
+        PyObject *func;
+        int is_classmethod;
+        size_t ival;
+        PyObject *local;
+        PyObject *name;
+        long nargs;
+        int optional;
+        PyObject *owner;
+        PyObject *res;
+        PyObject *self;
+        PyObject *sub;
+        PyObject *target;
+        PyObject *top;
+        PyTypeObject *type;
+        PyObject *type_descr;
+        PyObject *value;
+
         switch (opcode) {
 
         /* BEWARE!
@@ -2203,7 +2227,7 @@ main_loop:
              * value on the stack already, but we may have to deal with sign
              * extension. */
             if (oparg & TYPED_INT_SIGNED && oparg != TYPED_DOUBLE) {
-                size_t ival = (size_t)PyLong_AsVoidPtr(retval);
+                ival = (size_t)PyLong_AsVoidPtr(retval);
                 if (ival & ((size_t)1) << 63) {
                     Py_DECREF(retval);
                     retval = PyLong_FromSsize_t((int64_t)ival);
@@ -2950,12 +2974,10 @@ main_loop:
         }
 
         case TARGET(BUILD_CHECKED_LIST): {
-            int optional;
             PyObject *list_info = GETITEM(consts, oparg);
             PyObject *list_type = PyTuple_GET_ITEM(list_info, 0);
             Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(list_info, 1));
-            PyTypeObject *type =
-                _PyClassLoader_ResolveType(list_type, &optional);
+            type = _PyClassLoader_ResolveType(list_type, &optional);
             assert(!optional);
 
             if (shadow.shadow != NULL) {
@@ -2996,7 +3018,7 @@ main_loop:
 
         case TARGET(BUILD_CHECKED_LIST_CACHED): {
             PyObject *cache = _PyShadow_GetCastType(&shadow, oparg);
-            PyTypeObject *type = (PyTypeObject *)PyTuple_GET_ITEM(cache, 0);
+            type = (PyTypeObject *)PyTuple_GET_ITEM(cache, 0);
             Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(cache, 1));
 
             PyObject * list = _PyCheckedList_New(type, list_size);
@@ -3125,12 +3147,10 @@ main_loop:
         }
 
         case TARGET(BUILD_CHECKED_MAP): {
-            int optional;
             PyObject *map_info = GETITEM(consts, oparg);
             PyObject *map_type = PyTuple_GET_ITEM(map_info, 0);
             Py_ssize_t map_size = PyLong_AsLong(PyTuple_GET_ITEM(map_info, 1));
-            PyTypeObject *type =
-                _PyClassLoader_ResolveType(map_type, &optional);
+            type = _PyClassLoader_ResolveType(map_type, &optional);
             assert(!optional);
 
             if (shadow.shadow != NULL) {
@@ -3167,7 +3187,7 @@ main_loop:
 
         case TARGET(BUILD_CHECKED_MAP_CACHED): {
             PyObject *cache = _PyShadow_GetCastType(&shadow, oparg);
-            PyTypeObject *type = (PyTypeObject *)PyTuple_GET_ITEM(cache, 0);
+            type = (PyTypeObject *)PyTuple_GET_ITEM(cache, 0);
             Py_ssize_t map_size = PyLong_AsLong(PyTuple_GET_ITEM(cache, 1));
 
             PyObject *map = _PyCheckedDict_NewPresized(type, map_size);
@@ -3829,12 +3849,12 @@ main_loop:
             PyObject *pair = GETITEM(consts, oparg);
             PyObject *name_obj = PyTuple_GET_ITEM(pair, 0);
             int name_idx = _PyLong_AsInt(name_obj);
-            PyObject *name = GETITEM(names, name_idx);
+            name = GETITEM(names, name_idx);
 
             assert (PyBool_Check(PyTuple_GET_ITEM(pair, 1)));
             int call_no_args = PyTuple_GET_ITEM(pair, 1) == Py_True;
 
-            PyObject *self = POP();
+            self = POP();
             PyObject *type = POP();
             PyObject *global_super = POP();
 
@@ -3865,13 +3885,13 @@ main_loop:
             PyObject *pair = GETITEM(consts, oparg);
             PyObject *name_obj = PyTuple_GET_ITEM(pair, 0);
             int name_idx = _PyLong_AsInt(name_obj);
-            PyObject *name = GETITEM(names, name_idx);
+            name = GETITEM(names, name_idx);
 
             assert (PyBool_Check(PyTuple_GET_ITEM(pair, 1)));
 
             int call_no_args = PyTuple_GET_ITEM(pair, 1) == Py_True;
 
-            PyObject *self = POP();
+            self = POP();
             PyObject *type = POP();
             PyObject *global_super = POP();
             PyObject *attr = _PySuperLookupMethodOrAttr(
@@ -4029,17 +4049,14 @@ main_loop:
             DISPATCH();                                           \
 
         case TARGET(INVOKE_FUNCTION): {
-            PyObject *value = GETITEM(consts, oparg);
-            long nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1));
-            PyObject *target = PyTuple_GET_ITEM(value, 0);
-
-            PyObject *container;
-            PyObject *func = _PyClassLoader_ResolveFunction(target, &container);
+            value = GETITEM(consts, oparg);
+            nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1));
+            target = PyTuple_GET_ITEM(value, 0);
+            func = _PyClassLoader_ResolveFunction(target, &container);
             if (func == NULL) {
                 goto error;
             }
-            PyObject *res;
-            int awaited = IS_AWAITED();
+            awaited = IS_AWAITED();
 
             PyObject **sp = stack_pointer - nargs;
             res = _PyObject_Vectorcall(
@@ -4270,10 +4287,10 @@ main_loop:
         }
 
         case TARGET(INVOKE_METHOD): {
-            PyObject *value = GETITEM(consts, oparg);
-            long nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1)) + 1;
-            PyObject *target = PyTuple_GET_ITEM(value, 0);
-            int is_classmethod = PyTuple_GET_SIZE(value) == 3 && (PyTuple_GET_ITEM(value, 2) == Py_True);
+            value = GETITEM(consts, oparg);
+            nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1)) + 1;
+            target = PyTuple_GET_ITEM(value, 0);
+            is_classmethod = PyTuple_GET_SIZE(value) == 3 && (PyTuple_GET_ITEM(value, 2) == Py_True);
 
             Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
             if (slot == -1) {
@@ -4306,7 +4323,7 @@ main_loop:
             }
 
             PyObject **stack = stack_pointer - nargs;
-            PyObject *self = *stack;
+            self = *stack;
 
 
             _PyType_VTable *vtable;
@@ -4319,8 +4336,8 @@ main_loop:
 
             assert(!PyErr_Occurred());
 
-            int awaited = IS_AWAITED();
-            PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
+            awaited = IS_AWAITED();
+            res = (*vtable->vt_entries[slot].vte_entry)(
                 vtable->vt_entries[slot].vte_state,
                 stack,
                 nargs | (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
@@ -4332,11 +4349,9 @@ main_loop:
         }
 
         case TARGET(INVOKE_FUNCTION_CACHED): {
-            PyObject *func = _PyShadow_GetCastType(&shadow, oparg & 0xff);
-            int nargs = oparg >> 8;
-
-            PyObject *res;
-            int awaited = IS_AWAITED();
+            func = _PyShadow_GetCastType(&shadow, oparg & 0xff);
+            nargs = oparg >> 8;
+            awaited = IS_AWAITED();
 
             PyObject **sp = stack_pointer - nargs;
             res = _PyObject_Vectorcall(
@@ -4351,19 +4366,16 @@ main_loop:
 
         case TARGET(INVOKE_FUNCTION_INDIRECT_CACHED): {
             PyObject **funcref = _PyShadow_GetFunction(&shadow, oparg & 0xff);
-            int nargs = oparg >> 8;
-
-            PyObject *res;
-            int awaited = IS_AWAITED();
+            nargs = oparg >> 8;
+            awaited = IS_AWAITED();
 
             PyObject **sp = stack_pointer - nargs;
-            PyObject *func = *funcref;
+            func = *funcref;
             /* For indirect calls we just use _PyObject_Vectorcall, which will
             * handle non-vector call objects as well.  We expect in high-perf
             * situations to either have frozen types or frozen strict modules */
             if (func == NULL) {
-                PyObject *target =
-                    PyTuple_GET_ITEM(_PyShadow_GetOriginalConst(&shadow, next_instr), 0);
+                target = PyTuple_GET_ITEM(_PyShadow_GetOriginalConst(&shadow, next_instr), 0);
                 func = _PyClassLoader_ResolveFunction(target, NULL);
                 if (func == NULL) {
                     goto error;
@@ -4391,10 +4403,10 @@ main_loop:
         }
 
         case TARGET(INVOKE_METHOD_CACHED): {
-            int is_classmethod = oparg & 1;
-            int nargs = (oparg >> 1) & 0xff;
+            is_classmethod = oparg & 1;
+            nargs = (oparg >> 1) & 0xff;
             PyObject **stack = stack_pointer - nargs;
-            PyObject *self = *stack;
+            self = *stack;
             _PyType_VTable *vtable;
             if (is_classmethod) {
                 vtable = (_PyType_VTable *)(((PyTypeObject *)self)->tp_cache);
@@ -4405,10 +4417,10 @@ main_loop:
 
             Py_ssize_t slot = oparg >> 9;
 
-            int awaited = IS_AWAITED();
+            awaited = IS_AWAITED();
 
             assert(!PyErr_Occurred());
-            PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
+            res = (*vtable->vt_entries[slot].vte_entry)(
                 vtable->vt_entries[slot].vte_state,
                 stack,
                 nargs | _Py_VECTORCALL_INVOKED_STATICALLY |
@@ -4421,15 +4433,14 @@ main_loop:
 
 #define FIELD_OFFSET(self, offset) (PyObject **)(((char *)self) + offset)
         case TARGET(LOAD_FIELD): {
-            PyObject *field = GETITEM(consts, oparg);
+            field = GETITEM(consts, oparg);
             int field_type;
             Py_ssize_t offset =
                 _PyClassLoader_ResolveFieldOffset(field, &field_type);
             if (offset == -1) {
                 goto error;
             }
-            PyObject *self = TOP();
-            PyObject *value;
+            self = TOP();
             if (field_type == TYPED_OBJECT) {
                 value = *FIELD_OFFSET(self, offset);
                 if (shadow.shadow != NULL) {
@@ -4441,8 +4452,7 @@ main_loop:
                 }
 
                 if (value == NULL) {
-                    PyObject *name =
-                        PyTuple_GET_ITEM(field, PyTuple_GET_SIZE(field) - 1);
+                    name = PyTuple_GET_ITEM(field, PyTuple_GET_SIZE(field) - 1);
                     PyErr_SetString(PyExc_AttributeError,
                                     PyUnicode_AsUTF8(name));
                     goto error;
@@ -4470,8 +4480,8 @@ main_loop:
         }
 
         case TARGET(LOAD_OBJ_FIELD): {
-            PyObject **addr = FIELD_OFFSET(TOP(), oparg * sizeof(PyObject *));
-            PyObject *value = *addr;
+            addr = FIELD_OFFSET(TOP(), oparg * sizeof(PyObject *));
+            value = *addr;
             if (value == NULL) {
                 PyErr_SetString(PyExc_AttributeError, "no attribute");
                 goto error;
@@ -4497,7 +4507,7 @@ main_loop:
         }
 
         case TARGET(STORE_FIELD): {
-            PyObject *field = GETITEM(consts, oparg);
+            field = GETITEM(consts, oparg);
             int field_type;
             Py_ssize_t offset =
                 _PyClassLoader_ResolveFieldOffset(field, &field_type);
@@ -4505,9 +4515,9 @@ main_loop:
                 goto error;
             }
 
-            PyObject *self = POP();
-            PyObject *value = POP();
-            PyObject **addr = FIELD_OFFSET(self, offset);
+            self = POP();
+            value = POP();
+            addr = FIELD_OFFSET(self, offset);
 
             if (field_type == TYPED_OBJECT) {
                 Py_XDECREF(*addr);
@@ -4536,9 +4546,9 @@ main_loop:
 
         case TARGET(STORE_OBJ_FIELD): {
             Py_ssize_t offset = oparg * sizeof(PyObject *);
-            PyObject *self = POP();
-            PyObject *value = POP();
-            PyObject **addr = FIELD_OFFSET(self, offset);
+            self = POP();
+            value = POP();
+            addr = FIELD_OFFSET(self, offset);
             Py_XDECREF(*addr);
             *addr = value;
             Py_DECREF(self);
@@ -4547,8 +4557,8 @@ main_loop:
 
         case TARGET(STORE_PRIMITIVE_FIELD): {
             _FieldCache *cache = _PyShadow_GetFieldCache(&shadow, oparg);
-            PyObject *self = POP();
-            PyObject *value = POP();
+            self = POP();
+            value = POP();
             store_field(cache->type, ((char *)self) + cache->offset, value);
             Py_DECREF(self);
             FAST_DISPATCH();
@@ -4556,9 +4566,7 @@ main_loop:
 
         case TARGET(CAST): {
             PyObject *val = TOP();
-            int optional;
-            PyTypeObject *type =
-                _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
+            type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
             if (type == NULL) {
                 goto error;
             }
@@ -4590,8 +4598,7 @@ main_loop:
 
         case TARGET(CAST_CACHED): {
             PyObject *val = TOP();
-            PyTypeObject *type =
-                (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!PyObject_TypeCheck(val, type)) {
                 PyErr_Format(PyExc_TypeError,
                              "expected '%s', got '%s'",
@@ -4604,8 +4611,7 @@ main_loop:
 
         case TARGET(CAST_CACHED_OPTIONAL): {
             PyObject *val = TOP();
-            PyTypeObject *type =
-                (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!_PyObject_TypeCheckOptional(val, type, 1)) {
                 PyErr_Format(PyExc_TypeError,
                              "expected '%s', got '%s'",
@@ -4617,9 +4623,7 @@ main_loop:
         }
 
         case TARGET(TP_ALLOC): {
-            int optional;
-            PyTypeObject *type =
-                _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
+            type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
             assert(!optional);
             if (type == NULL) {
                 goto error;
@@ -4645,8 +4649,7 @@ main_loop:
         }
 
         case TARGET(TP_ALLOC_CACHED): {
-            PyTypeObject *type =
-                (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             PyObject *inst = type->tp_alloc(type, 0);
             if (inst == NULL) {
                 goto error;
@@ -4672,8 +4675,8 @@ main_loop:
             }
 
             for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
-                PyObject *local = PyTuple_GET_ITEM(checks, i);
-                PyObject *type_descr = PyTuple_GET_ITEM(checks, i + 1);
+                local = PyTuple_GET_ITEM(checks, i);
+                type_descr = PyTuple_GET_ITEM(checks, i + 1);
                 long idx = PyLong_AsLong(local);
                 PyObject *val;
                 // Look in freevars if necessary
@@ -4684,8 +4687,7 @@ main_loop:
                     val = fastlocals[idx];
                 }
 
-                int optional;
-                PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional);
+                type = _PyClassLoader_ResolveType(type_descr, &optional);
                 if (type == NULL) {
                     goto error;
                 }
@@ -4725,7 +4727,7 @@ main_loop:
                 Py_DECREF(type);
 
                 if (enum_type) {
-                    PyObject* new_val = PyObject_GetAttrString(val, "value");
+                    PyObject *new_val = PyObject_GetAttrString(val, "value");
                     if (new_val == NULL) {
                         goto error;
                     }
@@ -4811,7 +4813,7 @@ main_loop:
             int index =
                 _PyLong_AsInt(PyTuple_GET_ITEM(GETITEM(consts, oparg), 0));
 
-            PyObject *value = GETLOCAL(index);
+            value = GETLOCAL(index);
             if (value == NULL) {
                 value = PyLong_FromLong(0);
                 SETLOCAL(index, value); /* will steal the ref */
@@ -4823,7 +4825,7 @@ main_loop:
         }
 
         case TARGET(STORE_LOCAL): {
-            PyObject *local = GETITEM(consts, oparg);
+            local = GETITEM(consts, oparg);
             int index = _PyLong_AsInt(PyTuple_GET_ITEM(local, 0));
             int type =
                 _PyClassLoader_ResolvePrimitiveType(PyTuple_GET_ITEM(local, 1));
@@ -4849,7 +4851,7 @@ main_loop:
         case TARGET(PRIMITIVE_STORE_FAST): {
             int type = oparg & 0xF;
             int idx = oparg >> 4;
-            PyObject *value = POP();
+            value = POP();
 
             if (type == TYPED_DOUBLE) {
                 SETLOCAL(idx, POP());
@@ -4874,29 +4876,27 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_BOX): {
-            PyObject* descr = GETITEM(consts, oparg);
-            int optional;
-            PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+            type_descr = GETITEM(consts, oparg);
+            type = _PyClassLoader_ResolveType(type_descr, &optional);
             if (type == NULL) {
                 goto error;
             }
 
             PyObject *val = TOP();
-            int code = _PyClassLoader_GetTypeCode(type);
+            code = _PyClassLoader_GetTypeCode(type);
             if ((code & (TYPED_INT_SIGNED)) && code != (TYPED_DOUBLE)) {
                 /* We have a boxed value on the stack already, but we may have to
                  * deal with sign extension */
-                size_t ival = (size_t)PyLong_AsVoidPtr(val);
+                ival = (size_t)PyLong_AsVoidPtr(val);
                 if (ival & ((size_t)1) << 63) {
-                    PyObject* new_val = PyLong_FromSsize_t((int64_t)ival);
+                    PyObject *new_val = PyLong_FromSsize_t((int64_t)ival);
                     SET_TOP(new_val);
                     Py_SETREF(val, new_val);
                 }
             }
 
             if (_PyClassLoader_IsEnum(type)) {
-                PyObject* enum_val =
-                    PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
+                enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
                 if (enum_val == NULL) {
                     Py_DECREF(type);
                     goto error;
@@ -4918,20 +4918,20 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_BOX_ENUM): {
-            PyTypeObject* type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
+            type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
             assert(_PyClassLoader_GetTypeCode(type) == TYPED_INT64);
 
             PyObject *val = TOP();
             /* We have a boxed value on the stack already, but we may have to
              * deal with sign extension */
-            size_t ival = (size_t)PyLong_AsVoidPtr(val);
+            ival = (size_t)PyLong_AsVoidPtr(val);
             if (ival & ((size_t)1) << 63) {
                 PyObject *new_val = PyLong_FromSsize_t((int64_t)ival);
                 SET_TOP(new_val);
                 Py_SETREF(val, new_val);
             }
 
-            PyObject* enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
+            enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
             if (enum_val == NULL) {
                 goto error;
             }
@@ -4946,7 +4946,7 @@ main_loop:
                 /* We have a boxed value on the stack already, but we may have to
                  * deal with sign extension */
                 PyObject *val = TOP();
-                size_t ival = (size_t)PyLong_AsVoidPtr(val);
+                ival = (size_t)PyLong_AsVoidPtr(val);
                 if (ival & ((size_t)1) << 63) {
                     SET_TOP(PyLong_FromSsize_t((int64_t)ival));
                     Py_DECREF(val);
@@ -4956,21 +4956,20 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX): {
-            PyObject* descr = GETITEM(consts, oparg);
-            int optional;
-            PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+            type_descr = GETITEM(consts, oparg);
+            type = _PyClassLoader_ResolveType(type_descr, &optional);
             if (type == NULL) {
                 goto error;
             }
 
-            PyObject *top = TOP();
+            top = TOP();
             if (_PyClassLoader_IsEnum(type)) {
                 if (!PyObject_TypeCheck(top, type)) {
                     PyErr_Format(PyExc_TypeError, "expected %s, got %s",
                                  type->tp_name, Py_TYPE(top)->tp_name);
                 }
 
-                PyObject* val = PyObject_GetAttrString(top, "value");
+                PyObject *val = PyObject_GetAttrString(top, "value");
                 if (val == NULL) {
                     Py_DECREF(type);
                     goto error;
@@ -4991,7 +4990,7 @@ main_loop:
 
             Py_DECREF(type);
 
-            int code = _PyClassLoader_GetTypeCode(type);
+            code = _PyClassLoader_GetTypeCode(type);
             if (PyLong_CheckExact(top)) {
                 /* We always box values in the interpreter loop, so this just does
                  * overflow checking here. */
@@ -5015,15 +5014,15 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX_ENUM): {
-            PyObject *top = TOP();
-            PyTypeObject* type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
+            top = TOP();
+            type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
             if (!PyObject_TypeCheck(top, type)) {
                 PyErr_Format(PyExc_TypeError, "expected %s, got %s",
                                 type->tp_name, Py_TYPE(top)->tp_name);
                 goto error;
             }
 
-            PyObject* val = PyObject_GetAttrString(top, "value");
+            PyObject *val = PyObject_GetAttrString(top, "value");
             if (val == NULL) {
                 goto error;
             }
@@ -5037,7 +5036,7 @@ main_loop:
             /* We always box values in the interpreter loop, so this just does
              * overflow checking here. Oparg indicates the type of the unboxed
              * value. */
-            PyObject *top = TOP();
+            top = TOP();
             if (PyLong_CheckExact(top)) {
                 size_t value;
                 if (!_PyClassLoader_OverflowCheck(top, oparg, &value)) {
@@ -5290,8 +5289,7 @@ main_loop:
             PyObject *v = *global_cache[(unsigned int)oparg];
 
             if (v == NULL) {
-                PyObject *name =
-                    _PyShadow_GetOriginalName(&shadow, next_instr);
+                name = _PyShadow_GetOriginalName(&shadow, next_instr);
                 v = _PyDict_LoadGlobal((PyDictObject *)f->f_globals,
                                        (PyDictObject *)f->f_builtins,
                                        name);
@@ -5311,10 +5309,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_NO_DICT_DESCR): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
-            PyObject *res = _PyShadow_LoadAttrNoDictDescr(
+            res = _PyShadow_LoadAttrNoDictDescr(
                 &shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5325,10 +5323,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_DICT_DESCR): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
-            PyObject *res =
+            res =
                 _PyShadow_LoadAttrDictDescr(&shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5339,10 +5337,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_DICT_NO_DESCR): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
-            PyObject *res = _PyShadow_LoadAttrDictNoDescr(
+            res = _PyShadow_LoadAttrDictNoDescr(
                 &shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5353,10 +5351,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_SLOT): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
-            PyObject *res =
+            res =
                 _PyShadow_LoadAttrSlot(&shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5367,10 +5365,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_SPLIT_DICT): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
-            PyObject *res =
+            res =
                 _PyShadow_LoadAttrSplitDict(&shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5383,10 +5381,10 @@ main_loop:
         case TARGET(LOAD_ATTR_SPLIT_DICT_DESCR): {
             /* Normal descriptor + split dict.  We're probably looking up a
              * method and likely have a splitoffset of -1 */
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
-            PyObject *res = _PyShadow_LoadAttrSplitDictDescr(
+            res = _PyShadow_LoadAttrSplitDictDescr(
                 &shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5399,8 +5397,8 @@ main_loop:
         case TARGET(LOAD_ATTR_TYPE): {
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
-            PyObject *owner = TOP();
-            PyObject *res =
+            owner = TOP();
+            res =
                 _PyShadow_LoadAttrType(&shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5411,10 +5409,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_MODULE): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_ModuleAttrEntry *entry =
                 _PyShadow_GetModuleAttr(&shadow, oparg);
-            PyObject *res =
+            res =
                 _PyShadow_LoadAttrModule(&shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5425,10 +5423,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_S_MODULE): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_ModuleAttrEntry *entry =
                 _PyShadow_GetStrictModuleAttr(&shadow, oparg);
-            PyObject *res =
+            res =
                 _PyShadow_LoadAttrStrictModule(&shadow, next_instr, entry, owner);
             if (res == NULL)
                 goto error;
@@ -5439,12 +5437,12 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_UNCACHABLE): {
-            PyObject *name = GETITEM(names, oparg);
-            PyObject *owner = TOP();
+            name = GETITEM(names, oparg);
+            owner = TOP();
             INLINE_CACHE_UNCACHABLE_TYPE(Py_TYPE(owner));
 
             INLINE_CACHE_RECORD_STAT(LOAD_ATTR_UNCACHABLE, hits);
-            PyObject *res = PyObject_GetAttr(owner, name);
+            res = PyObject_GetAttr(owner, name);
             Py_DECREF(owner);
             SET_TOP(res);
             if (res == NULL)
@@ -5453,11 +5451,10 @@ main_loop:
         }
 
         case TARGET(LOAD_ATTR_POLYMORPHIC): {
-            PyObject *owner = TOP();
+            owner = TOP();
             _PyShadow_InstanceAttrEntry **entries =
                 _PyShadow_GetPolymorphicAttr(&shadow, oparg);
-            PyObject *res;
-            PyTypeObject *type = Py_TYPE(owner);
+            type = Py_TYPE(owner);
             for (int i = 0; i < POLYMORPHIC_CACHE_SIZE; i++) {
                 _PyShadow_InstanceAttrEntry *entry = entries[i];
                 if (entry == NULL) {
@@ -5511,8 +5508,8 @@ main_loop:
         }
 
         case TARGET(STORE_ATTR_UNCACHABLE): {
-            PyObject *name = GETITEM(names, oparg);
-            PyObject *owner = TOP();
+            name = GETITEM(names, oparg);
+            owner = TOP();
             PyObject *v = SECOND();
             int err;
             STACK_SHRINK(2);
@@ -5525,7 +5522,7 @@ main_loop:
         }
 
         case TARGET(STORE_ATTR_DICT): {
-            PyObject *owner = TOP();
+            owner = TOP();
             PyObject *v = SECOND();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
@@ -5541,7 +5538,7 @@ main_loop:
         }
 
         case TARGET(STORE_ATTR_DESCR): {
-            PyObject *owner = TOP();
+            owner = TOP();
             PyObject *v = SECOND();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
@@ -5557,7 +5554,7 @@ main_loop:
         }
 
         case TARGET(STORE_ATTR_SPLIT_DICT): {
-            PyObject *owner = TOP();
+            owner = TOP();
             PyObject *v = SECOND();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
@@ -5573,7 +5570,7 @@ main_loop:
         }
 
         case TARGET(STORE_ATTR_SLOT): {
-            PyObject *owner = TOP();
+            owner = TOP();
             PyObject *v = SECOND();
             _PyShadow_InstanceAttrEntry *entry =
                 _PyShadow_GetInstanceAttr(&shadow, oparg);
@@ -5676,7 +5673,7 @@ main_loop:
 
         case TARGET(LOAD_METHOD_UNCACHABLE): {
             /* Designed to work in tandem with CALL_METHOD. */
-            PyObject *name = GETITEM(names, oparg);
+            name = GETITEM(names, oparg);
             PyObject *obj = TOP();
             PyObject *meth = NULL;
 
@@ -5711,8 +5708,7 @@ main_loop:
         }
 
         case TARGET(BINARY_SUBSCR_TUPLE_CONST_INT): {
-            PyObject *res;
-            PyObject *container = TOP();
+            container = TOP();
             if (PyTuple_CheckExact(container)) {
                 Py_ssize_t i = (Py_ssize_t)oparg;
                 if (i < 0) {
@@ -5727,7 +5723,7 @@ main_loop:
                     Py_INCREF(res);
                 }
             } else {
-                PyObject *sub = PyLong_FromLong(oparg);
+                sub = PyLong_FromLong(oparg);
                 res = PyObject_GetItem(container, sub);
                 Py_DECREF(sub);
             }
@@ -5748,9 +5744,8 @@ main_loop:
             FAST_DISPATCH();
         }
         case TARGET(BINARY_SUBSCR_DICT_STR): {
-            PyObject *res;
-            PyObject *sub = POP();
-            PyObject *container = TOP();
+            sub = POP();
+            container = TOP();
             if (PyDict_CheckExact(container) && PyUnicode_CheckExact(sub)) {
                 res = _PyDict_GetItem_Unicode(container, sub);
                 if (res == NULL) {
@@ -5773,9 +5768,8 @@ main_loop:
         }
 
         case TARGET(BINARY_SUBSCR_TUPLE): {
-            PyObject *res;
-            PyObject *sub = POP();
-            PyObject *container = TOP();
+            sub = POP();
+            container = TOP();
             if (PyTuple_CheckExact(container)) {
                 res = _PyTuple_Subscript(container, sub);
             } else {
@@ -5793,9 +5787,8 @@ main_loop:
         }
 
         case TARGET(BINARY_SUBSCR_LIST): {
-            PyObject *res;
-            PyObject *sub = POP();
-            PyObject *container = TOP();
+            sub = POP();
+            container = TOP();
             if (PyList_CheckExact(container)) {
                 res = _PyList_Subscript(container, sub);
             } else {
@@ -5813,9 +5806,8 @@ main_loop:
         }
 
         case TARGET(BINARY_SUBSCR_DICT): {
-            PyObject *res;
-            PyObject *sub = POP();
-            PyObject *container = TOP();
+            sub = POP();
+            container = TOP();
             if (PyDict_CheckExact(container)) {
                 res = _PyDict_GetItemMissing(container, sub);
             } else {
@@ -5870,8 +5862,7 @@ main_loop:
         }
 
         case TARGET(LOAD_MAPPING_ARG): {
-            PyObject *value;
-            PyObject *name = POP();
+            name = POP();
             PyObject *mapping = POP();
 
             if (!PyDict_Check(mapping) && !_PyCheckedDict_Check(mapping)) {
@@ -5916,7 +5907,7 @@ main_loop:
             Py_ssize_t extend_sign = (from_type & TYPED_INT_SIGNED) && (to_type & TYPED_INT_SIGNED);
             int size = to_type >> 1;
             PyObject *val = TOP();
-            size_t ival = (size_t)PyLong_AsVoidPtr(val);
+            ival = (size_t)PyLong_AsVoidPtr(val);
 
             ival &= trunc_masks[size];
 
@@ -6022,7 +6013,7 @@ main_loop:
                 if (_Py_IS_TYPED_ARRAY_SIGNED(oparg)) {
                     // Deal with signed values on the stack
                     PyObject *tmp = v;
-                    size_t ival = (size_t)PyLong_AsVoidPtr(tmp);
+                    ival = (size_t)PyLong_AsVoidPtr(tmp);
                     if (ival & ((size_t)1) << 63) {
                         v = PyLong_FromSsize_t((int64_t)ival);
                         Py_DECREF(tmp);
@@ -8004,9 +7995,9 @@ _PyEntry_StaticEntry(PyFunctionObject *func,
 static PyObject *
 _PyEntry_WrapEnum(PyObject *obj, PyFunctionObject *func)
 {
-    PyObject* descr = _PyClassLoader_GetReturnTypeDescr(func);
+    PyObject *type_descr = _PyClassLoader_GetReturnTypeDescr(func);
     int optional;
-    PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+    PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional);
     if (type == NULL) {
         Py_DECREF(obj);
         return NULL;
@@ -8075,9 +8066,9 @@ _PyEntry_StaticEntryEnum(PyFunctionObject *func,
 
 static vectorcallfunc
 _PyStaticEntry_MaybeEnum(PyCodeObject *co, void *entry, void *enum_entry) {
-    PyObject* descr = _PyClassLoader_GetCodeReturnTypeDescr(co);
+    PyObject *type_descr = _PyClassLoader_GetCodeReturnTypeDescr(co);
     int optional;
-    PyTypeObject* type = _PyClassLoader_ResolveType(descr, &optional);
+    PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional);
     if (type == NULL) {
         PyErr_Clear();
         return (vectorcallfunc)PyEntry_LazyInit;
