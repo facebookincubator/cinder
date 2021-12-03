@@ -148,6 +148,10 @@ async_cached_property_init(PyObject *self, PyObject *args, PyObject *kwargs)
     if (!fastargs) {
         goto exit;
     }
+    if (!PyObject_TypeCheck(fastargs[0], &PyFunction_Type)) {
+        _PyArg_BadArgument("async_cached_property", "argument 'func'", (&PyFunction_Type)->tp_name, fastargs[0]);
+        goto exit;
+    }
     func = fastargs[0];
     if (!noptargs) {
         goto skip_optional_pos;
@@ -201,4 +205,4 @@ async_cached_classproperty_new(PyTypeObject *type, PyObject *args, PyObject *kwa
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=65b7067b62e324c0 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=8dd92ad360d46816 input=a9049054013a1b77]*/
