@@ -246,7 +246,7 @@ awaitable_throw(_PyClassLoader_Awaitable *self, PyObject *args)
         /* Deliver exception result to callback */
         ret = self->cb(self, NULL);
         if (ret != NULL) {
-            PyErr_SetObject(PyExc_StopIteration, ret);
+            _PyGen_SetStopIterationValue(ret);
             Py_DECREF(ret);
             return NULL;
         }
@@ -255,7 +255,7 @@ awaitable_throw(_PyClassLoader_Awaitable *self, PyObject *args)
 
     ret = self->cb(self, ret);
     if (ret != NULL) {
-        PyErr_SetObject(PyExc_StopIteration, ret);
+        _PyGen_SetStopIterationValue(ret);
         Py_DECREF(ret);
     }
     return NULL;

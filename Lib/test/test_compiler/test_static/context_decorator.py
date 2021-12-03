@@ -991,3 +991,27 @@ class ContextDecoratorTests(StaticTestBase):
 
         x = f()
         self.assertFalse(enter_called)
+
+    def test_nonstatic_async_return_tuple_on_throw(self):
+        class C(ContextDecorator):
+            pass
+
+        loop = asyncio.new_event_loop()
+        try:
+            fut = asyncio.Future(loop=loop)
+
+            @C()
+            async def f():
+                try:
+                    await fut
+                except ValueError:
+                    return (1, 2, 3)
+
+            x = f()
+            x.send(None)
+            with self.assertRaises(StopIteration) as e:
+                x.throw(ValueError())
+
+            self.assertEqual(e.exception.args, ((1, 2, 3),))
+        finally:
+            loop.close()
