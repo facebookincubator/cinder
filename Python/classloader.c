@@ -78,7 +78,7 @@ typedef struct {
 static int
 awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
 {
-    Py_VISIT(self->retinfo);
+    Py_VISIT(self->state);
     Py_VISIT(self->coro);
     Py_VISIT(self->iter);
     return 0;
@@ -87,7 +87,7 @@ awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
 static int
 awaitable_clear(_PyClassLoader_Awaitable *self)
 {
-    Py_CLEAR(self->retinfo);
+    Py_CLEAR(self->state);
     Py_CLEAR(self->coro);
     Py_CLEAR(self->iter);
     return 0;
@@ -156,17 +156,38 @@ awaitable_itersend(PyThreadState* tstate,
         self->iter = iter;
     }
 
+    if (self->onsend != NULL) {
+        awaitable_presend send = self->onsend;
+        self->onsend = NULL;
+        if (send(self)) {
+            *pResult = NULL;
+            return PYGEN_ERROR;
+        }
+    }
+
     PyObject *result;
     PySendResult status = PyIter_Send(tstate, iter, value, &result);
     if (status == PYGEN_RETURN) {
-        result = rettype_check(Py_TYPE(self), result, self->retinfo);
+        result = self->cb(self, result);
         if (result == NULL) {
             status = PYGEN_ERROR;
+        }
+    } else if (status == PYGEN_ERROR) {
+        result = self->cb(self, NULL);
+        if (result != NULL) {
+            status = PYGEN_RETURN;
         }
     }
 
     *pResult = result;
     return status;
+}
+
+PyObject *rettype_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result) {
+    if (result == NULL) {
+        return NULL;
+    }
+    return rettype_check(Py_TYPE(awaitable), result, (_PyClassLoader_RetTypeInfo *)awaitable->state);
 }
 
 static PyAsyncMethodsWithExtra awaitable_as_async = {
@@ -186,6 +207,7 @@ awaitable_send(_PyClassLoader_Awaitable *self, PyObject *value)
     if (status == PYGEN_ERROR || status == PYGEN_NEXT) {
         return result;
     }
+
     assert(status == PYGEN_RETURN);
     _PyGen_SetStopIterationValue(result);
     Py_DECREF(result);
@@ -218,11 +240,20 @@ awaitable_throw(_PyClassLoader_Awaitable *self, PyObject *args)
     }
     PyObject *ret = PyObject_CallObject(method, args);
     Py_DECREF(method);
-    if (ret != NULL || _PyGen_FetchStopIterationValue(&ret) < 0) {
+    if (ret != NULL) {
+        return ret;
+    } else if (_PyGen_FetchStopIterationValue(&ret) < 0) {
+        /* Deliver exception result to callback */
+        ret = self->cb(self, NULL);
+        if (ret != NULL) {
+            PyErr_SetObject(PyExc_StopIteration, ret);
+            Py_DECREF(ret);
+            return NULL;
+        }
         return ret;
     }
 
-    ret = rettype_check(Py_TYPE(self), ret, self->retinfo);
+    ret = self->cb(self, ret);
     if (ret != NULL) {
         PyErr_SetObject(PyExc_StopIteration, ret);
         Py_DECREF(ret);
@@ -270,6 +301,35 @@ static PyTypeObject _PyClassLoader_AwaitableType = {
     .tp_alloc = PyType_GenericAlloc,
     .tp_free = PyObject_GC_Del,
 };
+
+PyObject *
+_PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, awaitable_cb cb, awaitable_presend onsend) {
+    if (PyType_Ready(&_PyClassLoader_AwaitableType) < 0) {
+        return NULL;
+    }
+    _PyClassLoader_Awaitable *awaitable =
+        PyObject_GC_New(_PyClassLoader_Awaitable,
+                        &_PyClassLoader_AwaitableType);
+
+
+    Py_INCREF(state);
+    awaitable->state = state;
+    awaitable->cb = cb;
+    awaitable->onsend = onsend;
+
+    if (eager) {
+        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
+        Py_INCREF(handle->wh_coro_or_result);
+        awaitable->coro = handle->wh_coro_or_result;
+        awaitable->iter = handle->wh_coro_or_result;
+        handle->wh_coro_or_result = (PyObject *)awaitable;
+        return coro;
+    }
+
+    awaitable->coro = coro;
+    awaitable->iter = NULL;
+    return (PyObject *)awaitable;
+}
 
 static int
 rettype_check_traverse(_PyClassLoader_RetTypeInfo *op, visitproc visit, void *arg)
@@ -409,31 +469,7 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         }
     }
 
-    if (PyType_Ready(&_PyClassLoader_AwaitableType) < 0) {
-        return NULL;
-    }
-    _PyClassLoader_Awaitable *awaitable =
-        PyObject_GC_New(_PyClassLoader_Awaitable,
-                        &_PyClassLoader_AwaitableType);
-    if (awaitable == NULL) {
-        return NULL;
-    }
-
-    Py_INCREF(state);
-    awaitable->retinfo = (_PyClassLoader_RetTypeInfo *)state;
-
-    if (eager) {
-        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
-        Py_INCREF(handle->wh_coro_or_result);
-        awaitable->coro = handle->wh_coro_or_result;
-        awaitable->iter = handle->wh_coro_or_result;
-        handle->wh_coro_or_result = (PyObject *)awaitable;
-        return coro;
-    }
-
-    awaitable->coro = coro;
-    awaitable->iter = NULL;
-    return (PyObject *)awaitable;
+    return _PyClassLoader_NewAwaitableWrapper(coro, eager, (PyObject *)state, rettype_cb, NULL);
 }
 
 static PyObject *
