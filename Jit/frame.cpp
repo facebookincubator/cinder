@@ -253,9 +253,30 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
     shadow_frame = shadow_frame->prev;
   }
 
-  JIT_CHECK(false, "failed to find frame for gen");
+  // The generator will be marked as running but will not be on the stack when
+  // it appears as a predecessor in a chain of generators into which an
+  // exception was thrown. For example, given an "await stack" of
+  // coroutines like the following, where ` a <- b` indicates a `a` awaits `b`,
+  //
+  //   coro0 <- coro1 <- coro2
+  //
+  // if someone does `coro0.throw(...)`, then `coro0` and `coro1` will be
+  // marked as running but will not appear on the stack while `coro2` is
+  // handling the exception.
+  JIT_CHECK(gen->gi_jit_data != nullptr, "not a JIT generator!");
+  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  // Generator owns new reference to py_frame
+  PyFrameObject* py_frame = createPyFrame(tstate, *gen_footer->code_rt);
+  gen->gi_frame = py_frame;
+  // py_frame's reference to gen is borrowed
+  py_frame->f_gen = reinterpret_cast<PyObject*>(gen);
+  _PyShadowFrame_PtrKind kind =
+      _PyShadowFrame_GetPtrKind(&gen->gi_shadow_frame);
+  JIT_CHECK(kind == PYSF_CODE_RT, "incorrect ptr kind %d", kind);
+  gen->gi_shadow_frame.data =
+      _PyShadowFrame_MakeData(gen->gi_frame, PYSF_PYFRAME);
 
-  return nullptr;
+  return py_frame;
 }
 
 } // namespace jit

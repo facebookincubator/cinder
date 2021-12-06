@@ -2892,6 +2892,10 @@ def _create_getframe_cycle():
     return a
 
 
+class TestException(Exception):
+    pass
+
+
 class GetFrameTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def f1(self, leaf):
@@ -3135,6 +3139,54 @@ class GetFrameTests(unittest.TestCase):
             _outer(args, kwargs)
         finally:
             gc.set_threshold(*thresholds)
+
+
+class GetGenFrameDuringThrowTest(unittest.TestCase):
+    def setUp(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
+    @unittest.failUnlessJITCompiled
+    async def outer_propagates_exc(self, inner):
+        return await inner
+
+    @unittest.failUnlessJITCompiled
+    async def outer_handles_exc(self, inner):
+        try:
+            await inner
+        except TestException:
+            return 123
+
+    async def inner(self, fut, outer_box):
+        try:
+            await fut
+        except TestException:
+            outer_coro = outer_box[0]
+            outer_coro.cr_frame
+            raise
+
+    def run_test(self, outer_func):
+        box = [None]
+        fut = asyncio.Future()
+        inner = self.inner(fut, box)
+        outer = outer_func(inner)
+        box[0] = outer
+        outer.send(None)
+        return outer.throw(TestException())
+
+    def test_unhandled_exc(self):
+        with self.assertRaises(TestException):
+            self.run_test(self.outer_propagates_exc)
+
+    def test_handled_exc(self):
+        with self.assertRaises(StopIteration) as cm:
+            self.run_test(self.outer_handles_exc)
+        self.assertEqual(cm.exception.value, 123)
 
 
 class DeleteAttrTests(unittest.TestCase):
