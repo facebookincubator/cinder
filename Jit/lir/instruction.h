@@ -96,8 +96,6 @@ enum class FlagEffects {
   X(MovZX)                                                                   \
   X(MovSX)                                                                   \
   X(MovSXD)                                                                  \
-  X(Jz)                                                                      \
-  X(Jnz)                                                                     \
   X(YieldInitial, true, FlagEffects::kInvalidate, kDefault, 0)               \
   X(YieldFrom, true, FlagEffects::kInvalidate, kDefault, 0)                  \
   X(YieldFromSkipInitialSend, true, FlagEffects::kInvalidate, kDefault, 0)   \
