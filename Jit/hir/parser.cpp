@@ -442,7 +442,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Type ty = Type::parse(GetNextToken());
     expect(">");
     auto operand = ParseRegister();
-    NEW_INSTR(GuardType, dst, ty, operand);
+    instruction = newInstr<GuardType>(dst, ty, operand);
   } else if (strcmp(opcode, "IsTruthy") == 0) {
     auto src = ParseRegister();
     instruction = newInstr<IsTruthy>(dst, src);
@@ -513,6 +513,10 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     NEW_INSTR(ClearError);
   } else if (strcmp(opcode, "LoadCurrentFunc") == 0) {
     NEW_INSTR(LoadCurrentFunc, dst);
+  } else if (strcmp(opcode, "RepeatList") == 0) {
+    Register* list = ParseRegister();
+    Register* count = ParseRegister();
+    instruction = newInstr<RepeatList>(dst, list, count);
   } else {
     JIT_CHECK(0, "Unknown opcode: %s", opcode);
   }
@@ -559,12 +563,8 @@ FrameState HIRParser::parseFrameState() {
     } else if (strcmp(token, "Cells") == 0) {
       fs.cells = parseRegisterVector();
     } else if (strcmp(token, "Stack") == 0) {
-      expect("<");
-      int num_items = GetNextInteger();
-      expect(">");
-      for (int i = 0; i < num_items; i++) {
-        auto reg = ParseRegister();
-        fs.stack.push(reg);
+      for (Register* r : parseRegisterVector()) {
+        fs.stack.push(r);
       }
     } else if (strcmp(token, "BlockStack") == 0) {
       expect("{");

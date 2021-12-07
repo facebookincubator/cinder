@@ -25,8 +25,12 @@ fun test {
   bb 0 {
     v0:Object = LoadArg<0>
     v1:Object = LoadArg<1>
-    v2:ListExact = GuardType<ListExact> v0
-    v3:LongExact = GuardType<LongExact> v1
+    v2:ListExact = GuardType<ListExact> v0 {
+      NextInstrOffset 0
+    }
+    v3:LongExact = GuardType<LongExact> v1 {
+      NextInstrOffset 0
+    }
     v7:CInt64 = PrimitiveUnbox<CInt64> v3
     v8:CInt64 = CheckSequenceBounds v2 v7 {
       NextInstrOffset 6
@@ -70,9 +74,9 @@ fun test {
   bb 0 {
     v0:Object = LoadArg<0>
     v1:Object = LoadArg<1>
-    v2:NoneType = GuardType<NoneType> v0
-    UseType<NoneType> v2
-    v7:CInt32[0] = LoadConst<CInt32[0]>
+    v7:NoneType = GuardIs<0xdeadbeef> v0
+    UseType<NoneType> v7
+    v8:CInt32[0] = LoadConst<CInt32[0]>
     Branch<1>
   }
 

@@ -137,6 +137,18 @@ Register* simplifyCheck(const CheckBase* instr) {
   return nullptr;
 }
 
+Register* simplifyGuardType(Env& env, const GuardType* instr) {
+  Register* input = instr->GetOperand(0);
+  Type type = instr->target();
+  if (input->isA(type)) {
+    return input;
+  }
+  if (type == TNoneType) {
+    return env.emit<GuardIs>(Py_None, input);
+  }
+  return nullptr;
+}
+
 Register* simplifyIntConvert(const IntConvert* instr) {
   if (instr->GetOperand(0)->isA(instr->type())) {
     return instr->GetOperand(0);
@@ -335,6 +347,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
       return simplifyCheck(static_cast<const CheckBase*>(instr));
+    case Opcode::kGuardType:
+      return simplifyGuardType(env, static_cast<const GuardType*>(instr));
 
     case Opcode::kCondBranch:
       return simplifyCondBranch(env, static_cast<const CondBranch*>(instr));

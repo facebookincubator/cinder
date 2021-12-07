@@ -28,7 +28,6 @@ fun test {
       NextInstrOffset 6
       Locals<2> v0 v1
     }
-    v4:Object = Assign v3
     v5:NoneType = LoadConst<NoneType>
     Return v5
   }
@@ -55,11 +54,46 @@ fun test {
     v0:Object = LoadArg<0>
     v1:Object = LoadArg<1>
     v2:Object = LoadArg<2>
-    v3:Tuple = GuardType<Tuple> v0
+    v3:Tuple = GuardType<Tuple> v0 {
+      NextInstrOffset 0
+    }
     v4:TupleExact = RefineType<BuiltinExact> v3
     v5:CInt64 = PrimitiveUnbox<CInt64> v1
     v6:Object = LoadArrayItem v4 v5 v2
     Return v6
+  }
+}
+---
+FrameStateUsesDontKeepGuardsAlive
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = GuardType<TupleExact> v0
+    v3 = GuardType<ListExact> v1 {
+      Stack<1> v2
+    }
+    v4 = LoadConst<CInt64[5]>
+    v5 = RepeatList v3 v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v3:ListExact = GuardType<ListExact> v1 {
+      NextInstrOffset 0
+      Stack<1> v0
+    }
+    v4:CInt64[5] = LoadConst<CInt64[5]>
+    v5:ListExact = RepeatList v3 v4 {
+      NextInstrOffset 0
+    }
+    Return v5
   }
 }
 ---

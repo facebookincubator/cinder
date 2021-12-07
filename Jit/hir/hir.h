@@ -3097,6 +3097,9 @@ class INSTR_CLASS(GuardType, (TObject), HasOutput, Operands<1>, DeoptBase) {
   GuardType(Register* dst, Type target, Register* src)
       : InstrT(dst, src), target_(target) {}
 
+  GuardType(Register* dst, Type target, Register* src, const FrameState& fs)
+      : InstrT(dst, src, fs), target_(target) {}
+
   Type target() const {
     return target_;
   }

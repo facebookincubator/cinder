@@ -551,3 +551,23 @@ fun jittestmodule:test {
   }
 }
 ---
+RedundantGuardTypeIsRemoved
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = RefineType<TupleExact> v1
+    v3 = GuardType<Tuple> v2
+    Return v3
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:TupleExact = RefineType<TupleExact> v1
+    Return v2
+  }
+}
+---

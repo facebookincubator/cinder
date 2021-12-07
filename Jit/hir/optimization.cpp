@@ -438,12 +438,19 @@ using RegUses = std::unordered_map<Register*, std::unordered_set<Instr*>>;
 
 static bool
 guardNeeded(const RegUses& uses, Register* old_reg, Register* new_reg) {
-  for (const Instr* instr : map_get(uses, new_reg)) {
+  auto it = uses.find(new_reg);
+  if (it == uses.end()) {
+    // No uses; the guard is dead.
+    return false;
+  }
+  for (const Instr* instr : it->second) {
     for (std::size_t i = 0; i < instr->NumOperands(); i++) {
       // TODO(T106115065): We should be able to remove GuardTypes in this case
       // as long as the function still type checks when we pass in old_reg's
       // type to the passthrough instruction
       if ((instr->GetOutput() != nullptr) && isPassthrough(*instr)) {
+        JIT_DLOG(
+            "'%s' kept alive by passthrough '%s'", *new_reg->instr(), *instr);
         return true;
       }
       if (instr->GetOperand(i) == new_reg) {
@@ -454,9 +461,12 @@ guardNeeded(const RegUses& uses, Register* old_reg, Register* new_reg) {
         // Since we cannot guard on primitive types yet, this should never
         // happen
         if (operandsMustMatch(expected_type)) {
+          JIT_DLOG(
+              "'%s' kept alive by primitive '%s'", *new_reg->instr(), *instr);
           return true;
         }
         if (!registerTypeMatches(old_reg->type(), expected_type)) {
+          JIT_DLOG("'%s' kept alive by '%s'", *new_reg->instr(), *instr);
           return true;
         }
       }
@@ -465,20 +475,23 @@ guardNeeded(const RegUses& uses, Register* old_reg, Register* new_reg) {
   return false;
 }
 
-static void collectRegUses(Function& func, RegUses& uses) {
+// Collect direct operand uses of all Registers in the given func, excluding
+// uses in FrameState or other metadata.
+static RegUses collectDirectRegUses(Function& func) {
+  RegUses uses;
   for (auto& block : func.cfg.blocks) {
     for (Instr& instr : block) {
-      instr.visitUses([&](Register*& reg) {
-        uses[reg].insert(&instr);
-        return true;
-      });
+      for (size_t i = 0; i < instr.NumOperands(); ++i) {
+        uses[instr.GetOperand(i)].insert(&instr);
+      }
     }
   }
+  return uses;
 }
 
 void GuardTypeRemoval::Run(Function& func) {
-  RegUses reg_uses;
-  collectRegUses(func, reg_uses);
+  RegUses reg_uses = collectDirectRegUses(func);
+  std::vector<std::unique_ptr<Instr>> removed_guards;
   for (auto& block : func.cfg.blocks) {
     for (auto it = block.begin(); it != block.end();) {
       auto& instr = *it;
@@ -491,14 +504,15 @@ void GuardTypeRemoval::Run(Function& func) {
       Register* guard_out = instr.GetOutput();
       Register* guard_in = instr.GetOperand(0);
       if (!guardNeeded(reg_uses, guard_in, guard_out)) {
-        for (Instr* guard_users : reg_uses[guard_out]) {
-          guard_users->ReplaceUsesOf(guard_out, guard_in);
-        }
-        instr.unlink();
-        delete &instr;
+        auto assign = Assign::create(guard_out, guard_in);
+        assign->copyBytecodeOffset(instr);
+        instr.ReplaceWith(*assign);
+        removed_guards.emplace_back(&instr);
       }
     }
   }
+
+  CopyPropagation{}.Run(func);
 }
 
 } // namespace hir
