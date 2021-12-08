@@ -1524,7 +1524,7 @@ class GenericClass(Class):
     def is_subclass_of(self, src: Class) -> bool:
         type_def = self.generic_type_def
         if src.generic_type_def is not type_def:
-            return False
+            return super().is_subclass_of(src)
 
         assert isinstance(type_def, GenericClass)
         assert isinstance(src, GenericClass)

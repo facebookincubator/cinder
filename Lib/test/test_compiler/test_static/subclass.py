@@ -1,7 +1,9 @@
 import unittest
 from compiler.static.types import (
     BOOL_TYPE,
+    CHECKED_LIST_TYPE,
     INT_TYPE,
+    OBJECT_TYPE,
     STR_TYPE,
     UNION_TYPE,
     TUPLE_TYPE,
@@ -91,6 +93,9 @@ class SubclassTests(StaticTestBase):
         bool_or_int = UNION_TYPE.make_generic_type((BOOL_TYPE, INT_TYPE), {})
         self.assertIs(bool_or_int, INT_TYPE)
 
+    def test_checkedlist_subclass(self):
+        checked_list_str = CHECKED_LIST_TYPE.make_generic_type((STR_TYPE,), {})
+        self.assertTrue(checked_list_str.is_subclass_of(OBJECT_TYPE))
 
 if __name__ == "__main__":
     unittest.main()
