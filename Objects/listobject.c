@@ -3472,7 +3472,7 @@ _PyTypedMethodDef chklist_insert_def = {
 };
 
 static PyObject *
-chklist_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+chklist_alloc(PyTypeObject *type, Py_ssize_t nitems)
 {
     PyListObject *op;
 #ifdef SHOW_ALLOC_COUNT
@@ -3510,7 +3510,7 @@ chklist_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 PyObject *
 _PyCheckedList_New(PyTypeObject *type, Py_ssize_t size)
 {
-  PyListObject *op = (PyListObject *) chklist_new(type, NULL, NULL);
+  PyListObject *op = (PyListObject *) chklist_alloc(type, 0);
     if (size == 0 || op == NULL) {
         return (PyObject *) op;
     }
@@ -3903,11 +3903,11 @@ _PyGenericTypeDef _PyCheckedList_Type = {
         0,                                          /* tp_descr_get */
         0,                                          /* tp_descr_set */
         0,                                          /* tp_dictoffset */
-        (initproc)chklist_init,                    /* tp_init */
-        PyType_GenericAlloc,                        /* tp_alloc */
+        (initproc)chklist_init,                     /* tp_init */
+        chklist_alloc,                              /* tp_alloc */
         NULL,                                       /* tp_new */
         PyObject_GC_Del,                            /* tp_free */
       },
   .gtd_size = 1,
-  .gtd_new = chklist_new,
+  .gtd_new = NULL,
 };

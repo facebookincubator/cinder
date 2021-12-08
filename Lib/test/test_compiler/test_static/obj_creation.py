@@ -3,7 +3,7 @@ from compiler.errors import TypedSyntaxError
 from inspect import CO_SUPPRESS_JIT
 from re import escape
 
-from __static__ import Array, int64
+from __static__ import Array, int64, chkdict, chklist
 from cinder import freeze_type
 
 from .common import StaticTestBase
@@ -410,32 +410,20 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertEqual(f(), {})
             self.assertInBytecode(
                 f,
-                "INVOKE_FUNCTION",
-                (
-                    (
-                        (
-                            "__static__",
-                            "chkdict",
-                            (("builtins", "str"), ("builtins", "int")),
-                            "__new__",
-                        ),
-                        1,
-                    )
-                ),
+                "TP_ALLOC",
+                ("__static__", "chkdict", (("builtins", "str"), ("builtins", "int"))),
             )
             self.assertInBytecode(
                 f,
                 "INVOKE_FUNCTION",
                 (
                     (
-                        (
-                            "__static__",
-                            "chkdict",
-                            (("builtins", "str"), ("builtins", "int")),
-                            "__init__",
-                        ),
-                        2,
-                    )
+                        "__static__",
+                        "chkdict",
+                        (("builtins", "str"), ("builtins", "int")),
+                        "__init__",
+                    ),
+                    2,
                 ),
             )
 
@@ -451,18 +439,8 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertEqual(f(), {})
             self.assertInBytecode(
                 f,
-                "INVOKE_FUNCTION",
-                (
-                    (
-                        (
-                            "__static__",
-                            "chkdict",
-                            (("builtins", "str"), ("builtins", "int")),
-                            "__new__",
-                        ),
-                        1,
-                    )
-                ),
+                "TP_ALLOC",
+                ("__static__", "chkdict", (("builtins", "str"), ("builtins", "int"))),
             )
             self.assertInBytecode(
                 f,
@@ -557,3 +535,27 @@ class StaticObjCreationTests(StaticTestBase):
 
         init = d["C"].__init__
         self.assertInBytecode(init, "LOAD_METHOD_SUPER")
+
+    def test_generic_unknown_type_dict(self):
+        codestr = """
+            from __static__ import CheckedDict
+            def make_C():
+                class C: pass
+                return C
+            C = make_C()
+            d = CheckedDict[str, C]({})
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(type(mod.d), chkdict[str, object])
+
+    def test_generic_unknown_type_list(self):
+        codestr = """
+            from __static__ import CheckedList
+            def make_C():
+                class C: pass
+                return C
+            C = make_C()
+            l = CheckedList[C]([])
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(type(mod.l), chklist[object])

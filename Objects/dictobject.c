@@ -6440,7 +6440,7 @@ _PyCheckedDict_New(PyTypeObject *type)
 }
 
 static PyObject *
-chkdict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+chkdict_alloc(PyTypeObject *type, Py_ssize_t nitems)
 {
     return _PyCheckedDict_New(type);
 }
@@ -6515,10 +6515,9 @@ _PyGenericTypeDef _PyCheckedDict_Type = {
             0,                               /* tp_descr_set */
             0,                               /* tp_dictoffset */
             chkdict_init,                    /* tp_init */
-            PyType_GenericAlloc,             /* tp_alloc */
+            chkdict_alloc,                   /* tp_alloc */
             NULL,                            /* tp_new */
             PyObject_GC_Del,                 /* tp_free */
         },
-    .gtd_size = 2,
-    .gtd_new = chkdict_new,
+    .gtd_size = 2
 };
