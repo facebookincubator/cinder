@@ -31,12 +31,12 @@ from _strictmodule import (
 )
 
 from ..errors import TypedSyntaxError
+from ..pycodegen import compile as python_compile
 from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
 from . import strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
 from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
-
 
 if TYPE_CHECKING:
     from _strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory
@@ -64,6 +64,7 @@ class Compiler(StaticCompiler):
         raise_on_error: bool = False,
         enable_patching: bool = False,
         loader_factory: StrictModuleLoaderFactory = StrictModuleLoader,
+        use_py_compiler: bool = False,
     ) -> None:
         super().__init__(StaticCodeGenerator)
         self.import_path: List[str] = list(import_path)
@@ -83,6 +84,7 @@ class Compiler(StaticCompiler):
         self.ast_cache: Dict[str, ast.Module] = {}
         self.track_import_call: bool = False
         self.not_static: Set[str] = set()
+        self.use_py_compiler = use_py_compiler
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         res = self.modules.get(name)
@@ -179,11 +181,11 @@ class Compiler(StaticCompiler):
     def _compile_basic(
         self, root: ast.Module, filename: str, optimize: int
     ) -> CodeType:
-        return compile(
+        compile_method = python_compile if self.use_py_compiler else compile
+        return compile_method(
             root,
             filename,
             "exec",
-            dont_inherit=True,
             optimize=optimize,
         )
 

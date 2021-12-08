@@ -96,6 +96,7 @@ static const char usage_3[] = "\
              given directory instead of to the code tree\n\
          -X lazyimportsall: Enable lazy imports by default\n\
          -X lazyimportswarmup: Warmup lazy imports\n\
+         -X usepycompiler: use default c compiler\n\
 \n\
 --check-hash-based-pycs always|default|never:\n\
     control how Python invalidates hash-based .pyc files\n\
@@ -132,7 +133,8 @@ static const char usage_6[] =
 "PYTHONDEVMODE: enable the development mode.\n"
 "PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
 "PYTHONLAZYIMPORTSALL: Enable lazy imports by default.\n"
-"PYTHONLAZYIMPORTSWARMUP: Warmup lazy imports.\n";
+"PYTHONLAZYIMPORTSWARMUP: Warmup lazy imports.\n"
+"PYTHONUSEPYCOMPILER: use compiler written in Lib/compiler.\n";
 
 #if defined(MS_WINDOWS)
 #  define PYTHONHOMEHELP "<prefix>\\python{major}{minor}"
@@ -853,6 +855,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
 #endif
     COPY_ATTR(lazy_imports_all);
     COPY_ATTR(lazy_imports_warmup);
+    COPY_ATTR(use_py_compiler);
     COPY_ATTR(skip_source_first_line);
     COPY_WSTR_ATTR(run_command);
     COPY_WSTR_ATTR(run_module);
@@ -953,6 +956,7 @@ config_as_dict(const PyConfig *config)
 #endif
     SET_ITEM_INT(lazy_imports_all);
     SET_ITEM_INT(lazy_imports_warmup);
+    SET_ITEM_INT(use_py_compiler);
     SET_ITEM_INT(skip_source_first_line);
     SET_ITEM_WSTR(run_command);
     SET_ITEM_WSTR(run_module);
@@ -1456,6 +1460,11 @@ config_read_complex_options(PyConfig *config)
     if (config_get_env(config, "PYTHONLAZYIMPORTSWARMUP")
        || config_get_xoption(config, L"lazyimportswarmup")) {
         config->lazy_imports_warmup = 1;
+    }
+
+    if (config_get_env(config, "PYTHONUSEPYCOMPILER")
+       || config_get_xoption(config, L"usepycompiler")) {
+        config->use_py_compiler = 1;
     }
 
     PyStatus status;

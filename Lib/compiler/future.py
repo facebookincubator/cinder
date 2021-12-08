@@ -40,11 +40,19 @@ class FutureParser(ASTVisitor):
     def __init__(self):
         super().__init__()
         self.found = {}  # set
+        self.possible_docstring = True
 
     def visitModule(self, node):
         for s in node.body:
-            if isinstance(s, ast.Expr) and isinstance(s.value, ast.Str):
+            if (
+                self.possible_docstring
+                and isinstance(s, ast.Expr)
+                and isinstance(s.value, ast.Str)
+            ):
+                self.possible_docstring = False
                 continue
+            # no docstring after first statement
+            self.possible_docstring = False
             if not self.check_stmt(s):
                 break
 

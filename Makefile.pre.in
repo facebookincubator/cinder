@@ -1507,6 +1507,7 @@ $(STRICTM_OBJS): $(STRICTM_HEADERS)
 TESTOPTS=	$(EXTRATESTOPTS)
 TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) $(TESTPYTHONOPTS)
 TESTRUNNER=	$(TESTPYTHON) $(srcdir)/Tools/scripts/run_tests.py
+TESTRUNNERPYCOMPILER=	$(TESTPYTHON) -X usepycompiler $(srcdir)/Tools/scripts/run_tests.py
 TESTTIMEOUT=	1200
 
 .PHONY: test testall testuniversal buildbottest pythoninfo
@@ -1590,19 +1591,23 @@ JIT_TEST_RUNNER=$(srcdir)/Tools/scripts/jit_test_runner.py dispatcher $(JIT_TEST
 
 testcinder: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDEROPTS)
+	$(ASAN_TEST_ENV)$(TESTRUNNERPYCOMPILER) $(TESTCINDEROPTS)
 
 testcinder_jit: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(JIT_TEST_RUNNER)
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit $(JIT_TEST_RUNNER)
 	# TODO re-enable when it doesn't crash on exit
 	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py
 
 testcinder_jit_shadowframe: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-shadow-frame $(JIT_TEST_RUNNER)
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit -X jit-shadow-frame $(JIT_TEST_RUNNER)
 	# TODO re-enable when it doesn't crash on exit
 	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-shadow-frame -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py
 
 testcinder_refleak: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDER_REFLEAK_OPTS)
+	$(ASAN_TEST_ENV)$(TESTRUNNERPYCOMPILER) $(TESTCINDER_REFLEAK_OPTS)
 
 # SSL tests
 .PHONY: multisslcompile multissltest

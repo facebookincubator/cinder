@@ -190,6 +190,7 @@ class StrictSourceFileLoader(SourceFileLoader):
             ]
         ] = None,
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
+        use_py_compiler: bool = False,
     ) -> None:
         self.name = fullname
         self.path = path
@@ -213,6 +214,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         self.track_import_call = track_import_call
         self.init_cached_properties = init_cached_properties
         self.log_time_func = log_time_func
+        self.use_py_compiler = use_py_compiler
 
     @classmethod
     def ensure_compiler(

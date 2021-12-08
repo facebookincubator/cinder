@@ -15,6 +15,7 @@ import sys
 import importlib.util
 import py_compile
 import struct
+from compiler.pysourceloader import PySourceFileLoader
 
 from functools import partial
 
@@ -49,7 +50,7 @@ def _walk_dir(dir, ddir=None, maxlevels=10, quiet=0):
 
 def compile_dir(dir, maxlevels=10, ddir=None, force=False, rx=None,
                 quiet=0, legacy=False, optimize=-1, workers=1,
-                invalidation_mode=None):
+                invalidation_mode=None, loader_override=None):
     """Byte-compile all modules in the given directory tree.
 
     Arguments (only dir is required):
@@ -65,6 +66,7 @@ def compile_dir(dir, maxlevels=10, ddir=None, force=False, rx=None,
     optimize:  optimization level or -1 for level of the interpreter
     workers:   maximum number of parallel workers
     invalidation_mode: how the up-to-dateness of the pyc will be checked
+    loader_override: loader type to use instead of default SourceFileLoader
     """
     ProcessPoolExecutor = None
     if workers < 0:
@@ -88,13 +90,15 @@ def compile_dir(dir, maxlevels=10, ddir=None, force=False, rx=None,
                             force=force, rx=rx, quiet=quiet,
                             legacy=legacy, optimize=optimize,
                             invalidation_mode=invalidation_mode,
+                            loader_override=loader_override,
                         ),
                     files_and_ddirs)
             success = min(results, default=True)
     else:
         for file, dfile in files_and_ddirs:
             if not compile_file(file, dfile, force, rx, quiet,
-                                legacy, optimize, invalidation_mode):
+                                legacy, optimize, invalidation_mode,
+                                loader_override=loader_override):
                 success = False
     return success
 
@@ -105,7 +109,7 @@ def _compile_file_tuple(file_and_dfile, **kwargs):
 
 def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
                  legacy=False, optimize=-1,
-                 invalidation_mode=None):
+                 invalidation_mode=None, loader_override=None):
     """Byte-compile one file.
 
     Arguments (only fullname is required):
@@ -119,6 +123,7 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
     legacy:    if True, produce legacy pyc paths instead of PEP 3147 paths
     optimize:  optimization level or -1 for level of the interpreter
     invalidation_mode: how the up-to-dateness of the pyc will be checked
+    loader_override: loader type to use instead of default SourceFileLoader
     """
     success = True
     if quiet < 2 and isinstance(fullname, os.PathLike):
@@ -161,7 +166,8 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
             try:
                 ok = py_compile.compile(fullname, cfile, dfile, True,
                                         optimize=optimize,
-                                        invalidation_mode=invalidation_mode)
+                                        invalidation_mode=invalidation_mode,
+                                        loader_override=loader_override)
             except py_compile.PyCompileError as err:
                 success = False
                 if quiet >= 2:
@@ -191,7 +197,7 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
 
 def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
                  legacy=False, optimize=-1,
-                 invalidation_mode=None):
+                 invalidation_mode=None, loader_override=None):
     """Byte-compile all module on sys.path.
 
     Arguments (all optional):
@@ -203,6 +209,7 @@ def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
     legacy: as for compile_dir() (default False)
     optimize: as for compile_dir() (default -1)
     invalidation_mode: as for compiler_dir()
+    loader_override: as for compiler_dir()
     """
     success = True
     for dir in sys.path:
@@ -219,6 +226,7 @@ def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
                 legacy=legacy,
                 optimize=optimize,
                 invalidation_mode=invalidation_mode,
+                loader_override=loader_override,
             )
     return success
 
@@ -270,6 +278,9 @@ def main():
                               '"checked-hash" if the SOURCE_DATE_EPOCH '
                               'environment variable is set, and '
                               '"timestamp" otherwise.'))
+    parser.add_argument('-p', '--python-loader',
+                        action='store_true', dest='use_py_loader',
+                        help=('use loader that uses non default compiler in Lib/compiler'))
 
     args = parser.parse_args()
     compile_dests = args.compile_dest
@@ -302,25 +313,30 @@ def main():
         invalidation_mode = None
 
     success = True
+    loader_override = PySourceFileLoader if args.use_py_loader else None
+
     try:
         if compile_dests:
             for dest in compile_dests:
                 if os.path.isfile(dest):
                     if not compile_file(dest, args.ddir, args.force, args.rx,
                                         args.quiet, args.legacy,
-                                        invalidation_mode=invalidation_mode):
+                                        invalidation_mode=invalidation_mode,
+                                        loader_override=loader_override):
                         success = False
                 else:
                     if not compile_dir(dest, maxlevels, args.ddir,
                                        args.force, args.rx, args.quiet,
                                        args.legacy, workers=args.workers,
-                                       invalidation_mode=invalidation_mode):
+                                       invalidation_mode=invalidation_mode,
+                                       loader_override=loader_override):
                         success = False
             return success
         else:
             return compile_path(legacy=args.legacy, force=args.force,
                                 quiet=args.quiet,
-                                invalidation_mode=invalidation_mode)
+                                invalidation_mode=invalidation_mode,
+                                loader_override=loader_override)
     except KeyboardInterrupt:
         if args.quiet < 2:
             print("\n[interrupted]")

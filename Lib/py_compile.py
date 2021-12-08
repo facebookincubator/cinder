@@ -4,6 +4,7 @@ This module has intimate knowledge of the format of .pyc files.
 """
 
 import enum
+import importlib._bootstrap
 import importlib._bootstrap_external
 import importlib.machinery
 import importlib.util
@@ -13,6 +14,7 @@ import sys
 import traceback
 
 __all__ = ["compile", "main", "PyCompileError", "PycInvalidationMode"]
+
 
 
 class PyCompileError(Exception):
@@ -77,7 +79,7 @@ def _get_default_invalidation_mode():
 
 
 def compile(file, cfile=None, dfile=None, doraise=False, optimize=-1,
-            invalidation_mode=None, quiet=0):
+            invalidation_mode=None, quiet=0, loader_override=None):
     """Byte-compile one Python source file to Python bytecode.
 
     :param file: The source file name.
@@ -97,6 +99,7 @@ def compile(file, cfile=None, dfile=None, doraise=False, optimize=-1,
     :param invalidation_mode:
     :param quiet: Return full output with False or 0, errors only with 1,
         and no output with 2.
+    :param quiet: Use the compiler written in Lib/compiler instead of the default.
 
     :return: Path to the resulting byte compiled file.
 
@@ -138,7 +141,10 @@ def compile(file, cfile=None, dfile=None, doraise=False, optimize=-1,
         msg = ('{} is a non-regular file and will be changed into a regular '
                'one if import writes a byte-compiled file to it')
         raise FileExistsError(msg.format(cfile))
-    loader = importlib.machinery.SourceFileLoader('<py_compile>', file)
+    loader_type = importlib.machinery.SourceFileLoader
+    if loader_override:
+        loader_type = loader_override
+    loader = loader_type('<py_compile>', file)
     source_bytes = loader.get_data(file)
     try:
         code = loader.source_to_code(source_bytes, dfile or file,
