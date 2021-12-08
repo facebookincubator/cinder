@@ -7,6 +7,7 @@ from .dynamic_return import DynamicReturnTests
 from .elide_type_checks import ElideTypeChecksTests
 from .enum import StaticEnumTests
 from .fields import StaticFieldTests
+from .final import FinalTests
 from .fstring import FStringTests
 from .imports import ImportTests
 from .inference import InferenceTests
