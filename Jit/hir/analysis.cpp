@@ -207,6 +207,8 @@ bool registerTypeMatches(Type op_type, OperandType expected_type) {
       return isSingleCInt(op_type) || op_type <= TCBool ||
           op_type <= TCDouble || op_type <= TCEnum || op_type <= TCPtr;
   }
+  JIT_CHECK(false, "unknown constraint");
+  return false;
 }
 
 bool operandsMustMatch(OperandType op_type) {
@@ -223,6 +225,8 @@ bool operandsMustMatch(OperandType op_type) {
     case Constraint::kOptObjectOrCIntOrCBool:
       return false;
   }
+  JIT_CHECK(false, "unknown constraint");
+  return false;
 }
 
 bool funcTypeChecks(const Function& func, std::ostream& err) {
