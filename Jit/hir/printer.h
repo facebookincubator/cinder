@@ -74,5 +74,9 @@ inline std::ostream& operator<<(std::ostream& os, const FrameState& state) {
   return os;
 }
 
+void DebugPrint(const CFG& cfg);
+void DebugPrint(const BasicBlock& block);
+void DebugPrint(const Instr& instr);
+
 } // namespace hir
 } // namespace jit

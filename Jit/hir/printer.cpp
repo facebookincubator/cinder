@@ -727,5 +727,17 @@ void HIRPrinter::Print(std::ostream& os, const FrameState& state) {
   }
 }
 
+void DebugPrint(const CFG& cfg) {
+  HIRPrinter(true).Print(std::cout, cfg);
+}
+
+void DebugPrint(const BasicBlock& block) {
+  HIRPrinter(true).Print(std::cout, block);
+}
+
+void DebugPrint(const Instr& instr) {
+  HIRPrinter(true).Print(std::cout, instr);
+}
+
 } // namespace hir
 } // namespace jit
