@@ -999,6 +999,8 @@ std::ostream& operator<<(std::ostream& os, OperandType op) {
     case Constraint::kMatchAllAsPrimitive:
       return os << "Primitive";
   }
+  JIT_CHECK(false, "unknown constraint");
+  return os << "<unknown>";
 }
 
 const FrameState* get_frame_state(const Instr& instr) {
