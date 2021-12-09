@@ -49,6 +49,7 @@ int64_t __strobe_PyCodeObject_name = offsetof(PyCodeObject, co_name);
 int64_t __strobe_PyCodeObject_qualname = offsetof(PyCodeObject, co_qualname);
 int64_t __strobe_PyCodeObject_varnames = offsetof(PyCodeObject, co_varnames);
 int64_t __strobe_PyCoroObject_cr_awaiter = offsetof(PyCoroObject, cr_awaiter);
+int64_t __strobe_PyCoroObject_creator = offsetof(PyCoroObject, creator);
 int64_t __strobe_PyFrameObject_back = offsetof(PyFrameObject, f_back);
 int64_t __strobe_PyFrameObject_code = offsetof(PyFrameObject, f_code);
 int64_t __strobe_PyFrameObject_gen = offsetof(PyFrameObject, f_gen);
@@ -6827,6 +6828,15 @@ _PyEval_EvalCodeWithName(PyObject *_co, PyObject *globals, PyObject *locals,
          * and return that as the value. */
         if (is_coro) {
             gen = _PyCoro_NewTstate(tstate, f, name, qualname);
+            PyFrameObject* parent_f = tstate->frame;
+            const char *UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
+            if (!strcmp(UTF8_name, "<genexpr>") ||
+                !strcmp(UTF8_name, "<listcomp>") ||
+                !strcmp(UTF8_name, "<dictcomp>")) {
+                ((PyCoroObject *)gen)->creator = parent_f->f_back;
+            } else {
+                ((PyCoroObject *)gen)->creator = parent_f;
+            }
         } else if (co->co_flags & CO_ASYNC_GENERATOR) {
             gen = PyAsyncGen_New(f, name, qualname);
         } else {
@@ -7739,6 +7749,16 @@ PyEntry_NArgCoro(PyFunctionObject *func, PyObject **stack, Py_ssize_t nargsf)
         _PyCoro_NewTstate(tstate, f, func->func_name, func->func_qualname);
     if (gen == NULL) {
         return NULL;
+    }
+
+    PyFrameObject *parent_f = tstate->frame;
+    const char *UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
+    if (UTF8_name[0] == '<' &&
+        (!strcmp(UTF8_name, "<genexpr>") || !strcmp(UTF8_name, "<listcomp>") ||
+        !strcmp(UTF8_name, "<dictcomp>"))) {
+        ((PyCoroObject*)gen)->creator = parent_f->f_back;
+    } else {
+        ((PyCoroObject*)gen)->creator = parent_f;
     }
 
     _PyObject_GC_TRACK(f);

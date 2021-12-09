@@ -99,6 +99,7 @@ PyAPI_FUNC(void) _PyWaitHandle_Release(PyObject *wait_handle);
 typedef struct _coro {
     _PyGenObject_HEAD(cr)
     PyObject *cr_origin;
+    struct _frame * creator;
     struct _coro * cr_awaiter;
 } PyCoroObject;
 
