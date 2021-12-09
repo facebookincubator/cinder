@@ -1546,6 +1546,10 @@ void* generateJitTrampoline(asmjit::JitRuntime& rt) {
   return result;
 }
 
+namespace {
+constexpr int kNumPyFrameUnlinkTrampolinePaddingBytes = 16;
+}
+
 // This trampoline is used as the return address for JIT-compiled functions in
 // shadow-frame mode that have a materialized frame. We return into it, it
 // unlinks the Python frame and finally jumps to the original return address.
@@ -1554,6 +1558,24 @@ void* generatePyFrameUnlinkTrampoline(asmjit::JitRuntime& rt) {
   code.init(rt.codeInfo());
   x86::Builder a(&code);
   Annotations annot;
+
+  // This is a pretty gross hack, but our sampling profiler will sometimes be
+  // off by 1 or 2 bytes when it performs a stack walk. If we patch the return
+  // address with the very start of the trampoline the profiler may end up with
+  // an address that is 1 or 2 bytes before the start of the trampoline.
+  // Symbolization will fail when that happens; the address lies outside of the
+  // address range that we record in the perf map file. To work around this we
+  // pad the start of the trampoline with NOPs. We register the full address
+  // range, including the NOPs, in the perf map file, but use the address
+  // immediately after the NOPs when patching return addresses. When the
+  // profiler walks the stack it should always find an address that is within
+  // the address range recorded in the perf map file even if it is off by 1 or
+  // 2 bytes.
+  //
+  // TODO(T107740706): Remove once strobelight issue is resolved.
+  for (int i = 0; i < kNumPyFrameUnlinkTrampolinePaddingBytes; i++) {
+    a.nop();
+  }
 
   // Save return value and keep stack aligned
   a.push(x86::rax);
@@ -1580,7 +1602,8 @@ void* generatePyFrameUnlinkTrampoline(asmjit::JitRuntime& rt) {
   register_raw_debug_symbol(name, __FILE__, __LINE__, result, code_size, 0);
   perf::registerFunction(result, code_size, name);
 
-  return result;
+  return reinterpret_cast<uint8_t*>(result) +
+      kNumPyFrameUnlinkTrampolinePaddingBytes;
 }
 
 void NativeGenerator::generateAssemblyBody() {
