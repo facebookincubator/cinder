@@ -299,7 +299,7 @@ def test(x, y):
     PyCodeObject* code =
         reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
     const int jump_index = 20;
-    ASSERT_EQ(((unsigned char*)code->co_rawcode)[jump_index], POP_JUMP_IF_ZERO);
+    ASSERT_EQ(((unsigned char*)code->co_rawcode)[24], POP_JUMP_IF_ZERO);
 
     CodeRuntime code_rt{
         code, PyFunction_GetGlobals(func), FrameMode::kNormal, 0, 0, 0, 0};

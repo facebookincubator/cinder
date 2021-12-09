@@ -2111,7 +2111,7 @@ class INSTR_CLASS(PrimitiveBox, (TPrimitive), HasOutput, Operands<1>) {
   Type type_;
 };
 
-class INSTR_CLASS(PrimitiveUnbox, (TObject), HasOutput, Operands<1>) {
+class INSTR_CLASS(PrimitiveUnbox, (), HasOutput, Operands<1>) {
  public:
   PrimitiveUnbox(Register* dst, Register* value, Type type)
       : InstrT(dst, value), type_(type) {}
@@ -2122,6 +2122,10 @@ class INSTR_CLASS(PrimitiveUnbox, (TObject), HasOutput, Operands<1>) {
 
   Type type() const {
     return type_;
+  }
+
+  OperandType GetOperandTypeImpl(std::size_t /* i */) const {
+    return type_.asBoxed();
   }
 
  private:

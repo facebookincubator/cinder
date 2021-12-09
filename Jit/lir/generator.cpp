@@ -397,9 +397,13 @@ static void emitVectorCall(
 void LIRGenerator::emitExceptionCheck(
     const jit::hir::DeoptBase& i,
     jit::lir::BasicBlockBuilder& bbb) {
-  auto out = i.GetOutput();
-  std::string kind = out->type() <= TCSigned ? "NotNegative" : "NotZero";
-  bbb.AppendCode(MakeGuard(kind, i, out->name()));
+  Register* out = i.GetOutput();
+  if (out->isA(TBottom)) {
+    bbb.AppendCode(MakeGuard("AlwaysFail", i));
+  } else {
+    std::string kind = out->isA(TCSigned) ? "NotNegative" : "NotZero";
+    bbb.AppendCode(MakeGuard(kind, i, out->name()));
+  }
 }
 
 void LIRGenerator::MakeIncref(

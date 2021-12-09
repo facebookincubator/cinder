@@ -149,6 +149,14 @@ Register* simplifyGuardType(Env& env, const GuardType* instr) {
   return nullptr;
 }
 
+Register* simplifyRefineType(const RefineType* instr) {
+  Register* input = instr->GetOperand(0);
+  if (input->isA(instr->type())) {
+    return input;
+  }
+  return nullptr;
+}
+
 Register* simplifyIntConvert(const IntConvert* instr) {
   if (instr->GetOperand(0)->isA(instr->type())) {
     return instr->GetOperand(0);
@@ -349,6 +357,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
       return simplifyCheck(static_cast<const CheckBase*>(instr));
     case Opcode::kGuardType:
       return simplifyGuardType(env, static_cast<const GuardType*>(instr));
+    case Opcode::kRefineType:
+      return simplifyRefineType(static_cast<const RefineType*>(instr));
 
     case Opcode::kCondBranch:
       return simplifyCondBranch(env, static_cast<const CondBranch*>(instr));

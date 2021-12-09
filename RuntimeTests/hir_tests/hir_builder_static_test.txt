@@ -21,6 +21,7 @@ fun jittestmodule:test {
       NextInstrOffset 8
       Locals<1> v0
     }
+    v1 = RefineType<Long> v1
     Return v1
   }
 }
@@ -138,6 +139,7 @@ fun jittestmodule:test {
       NextInstrOffset 10
       Locals<1> v0
     }
+    v2 = RefineType<Long> v2
     Return v2
   }
 }
@@ -955,7 +957,7 @@ fun jittestmodule:test {
     }
     v1 = LoadConst<MortalUnicodeExact["hello"]>
     v2 = LoadConst<MortalLongExact[123]>
-    v4 = InvokeStaticFunction<jittestmodule.x, 2, OptObject> v1 v2 {
+    v4 = InvokeStaticFunction<jittestmodule.x, 2, Object> v1 v2 {
       NextInstrOffset 10
     }
     v5 = CallCFunc<_PyCoro_GetAwaitableIter> v4
@@ -1179,21 +1181,22 @@ fun jittestmodule:test {
       Locals<2> v0 v1
     }
     v13 = LoadConst<MortalLongExact[111]>
+    v13 = RefineType<Long> v13
     v14 = PrimitiveUnbox<CInt64> v13
     v15 = IsNegativeAndErrOccurred v14 {
-      NextInstrOffset 40
+      NextInstrOffset 42
       Locals<2> v0 v1
       Stack<1> v1
     }
     v16 = CheckSequenceBounds v1 v14 {
-      NextInstrOffset 42
+      NextInstrOffset 44
       Locals<2> v0 v1
     }
     v17 = LoadField<24, CPtr, borrowed> v1
     v18 = LoadArrayItem v17 v16 v1
     v19 = PrimitiveBox<CInt8> v18
     v19 = CheckExc v19 {
-      NextInstrOffset 44
+      NextInstrOffset 46
       Locals<2> v0 v1
     }
     Return v19
@@ -1242,20 +1245,21 @@ fun jittestmodule:test {
       Stack<1> v11
     }
     v12 = LoadConst<MortalLongExact[1]>
+    v12 = RefineType<Long> v12
     v13 = PrimitiveUnbox<CInt64> v12
     v14 = IsNegativeAndErrOccurred v13 {
-      NextInstrOffset 30
+      NextInstrOffset 32
       Locals<1> v0
       Stack<2> v11 v0
     }
     v15 = CheckSequenceBounds v0 v13 {
-      NextInstrOffset 32
+      NextInstrOffset 34
       Locals<1> v0
     }
     v16 = LoadField<24, CPtr, borrowed> v0
     StoreArrayItem v16 v15 v11 v0
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 34
+      NextInstrOffset 36
       Locals<1> v0
     }
     Return v0

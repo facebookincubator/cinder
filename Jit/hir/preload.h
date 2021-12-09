@@ -35,7 +35,7 @@ struct InvokeTarget {
   // Vector-callable Python object
   Ref<> callable;
   // python-level return type (None for void/error-code builtins)
-  Type return_type{TOptObject};
+  Type return_type{TObject};
   // map argnum to primitive type code for primitive args only
   ArgToType primitive_arg_types;
   // container is immutable (target is not patchable)

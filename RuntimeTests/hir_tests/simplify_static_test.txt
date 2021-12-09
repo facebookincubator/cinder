@@ -15,15 +15,15 @@ fun jittestmodule:test {
     v10:CInt32 = CallStatic<0>
     v11:CInt64 = IntConvert<CInt64> v10
     v12:MortalLongExact[2147483647] = LoadConst<MortalLongExact[2147483647]>
-    v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
-    v20:CInt64[0] = LoadConst<CInt64[0]>
-    v15:CInt64 = IntBinaryOp<FloorDivide> v11 v19
-    v17:OptLongExact = PrimitiveBox<CInt64> v15
-    v18:LongExact = CheckExc v17 {
-      NextInstrOffset 20
-      Locals<1> v15
+    v20:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
+    v21:CInt64[0] = LoadConst<CInt64[0]>
+    v16:CInt64 = IntBinaryOp<FloorDivide> v11 v20
+    v18:OptLongExact = PrimitiveBox<CInt64> v16
+    v19:LongExact = CheckExc v18 {
+      NextInstrOffset 22
+      Locals<1> v16
     }
-    Return v18
+    Return v19
   }
 }
 ---
@@ -46,20 +46,20 @@ fun jittestmodule:test {
     v8:Nullptr = LoadConst<Nullptr>
     v9:CInt64[64] = LoadConst<CInt64[64]>
     v11:MortalLongExact[111] = LoadConst<MortalLongExact[111]>
-    v17:CInt64[111] = LoadConst<CInt64[111]>
-    v18:CInt64[0] = LoadConst<CInt64[0]>
-    v14:CBool = PrimitiveCompare<LessThan> v9 v17
-    CondBranch<1, 2> v14
+    v18:CInt64[111] = LoadConst<CInt64[111]>
+    v19:CInt64[0] = LoadConst<CInt64[0]>
+    v15:CBool = PrimitiveCompare<LessThan> v9 v18
+    CondBranch<1, 2> v15
   }
 
   bb 1 (preds 0) {
-    v15:MortalBool[True] = LoadConst<MortalBool[True]>
-    Return v15
+    v16:MortalBool[True] = LoadConst<MortalBool[True]>
+    Return v16
   }
 
   bb 2 (preds 0) {
-    v16:MortalBool[False] = LoadConst<MortalBool[False]>
-    Return v16
+    v17:MortalBool[False] = LoadConst<MortalBool[False]>
+    Return v17
   }
 }
 ---
@@ -78,8 +78,8 @@ fun jittestmodule:test {
   bb 0 {
     v3:Nullptr = LoadConst<Nullptr>
     v4:MortalFloatExact[1.23] = LoadConst<MortalFloatExact[1.23]>
-    v7:CDouble[1.23] = LoadConst<CDouble[1.23]>
-    Return<CDouble> v7
+    v8:CDouble[1.23] = LoadConst<CDouble[1.23]>
+    Return<CDouble> v8
   }
 }
 ---
@@ -98,9 +98,9 @@ fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
     v5:MortalLongExact[42] = LoadConst<MortalLongExact[42]>
-    v9:CUInt8[42] = LoadConst<CUInt8[42]>
-    v10:CInt64[0] = LoadConst<CInt64[0]>
-    Return<CUInt8> v9
+    v10:CUInt8[42] = LoadConst<CUInt8[42]>
+    v11:CInt64[0] = LoadConst<CInt64[0]>
+    Return<CUInt8> v10
   }
 }
 ---
@@ -119,12 +119,12 @@ fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
     v5:MortalLongExact[10000] = LoadConst<MortalLongExact[10000]>
-    v6:CInt8 = PrimitiveUnbox<CInt8> v5
-    v7:CInt64 = IsNegativeAndErrOccurred v6 {
-      NextInstrOffset 6
+    v7:CInt8 = PrimitiveUnbox<CInt8> v5
+    v8:CInt64 = IsNegativeAndErrOccurred v7 {
+      NextInstrOffset 8
       Locals<1> v4
     }
-    Return<CInt8> v6
+    Return<CInt8> v7
   }
 }
 ---

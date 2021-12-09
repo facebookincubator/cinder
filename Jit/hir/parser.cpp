@@ -332,6 +332,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(PrimitiveUnbox, dst, operand, type);
+  } else if (strcmp(opcode, "PrimitiveBox") == 0) {
+    expect("<");
+    Type type = Type::parse(GetNextToken());
+    expect(">");
+    auto operand = ParseRegister();
+    NEW_INSTR(PrimitiveBox, dst, operand, type);
   } else if (strcmp(opcode, "InPlaceOp") == 0) {
     expect("<");
     InPlaceOpKind op = ParseInPlaceOpName(GetNextToken());

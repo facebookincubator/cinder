@@ -400,27 +400,28 @@ static bool should_snapshot(
     // These instructions only modify frame state and are always safe to
     // replay. We don't snapshot these in order to limit the amount of
     // unnecessary metadata in the lowered IR.
-    case NOP:
+    case CHECK_ARGS:
+    case CONVERT_PRIMITIVE:
     case DUP_TOP:
     case DUP_TOP_TWO:
     case EXTENDED_ARG:
+    case INT_LOAD_CONST_OLD:
     case LOAD_CLOSURE:
     case LOAD_CONST:
     case LOAD_FAST:
     case LOAD_LOCAL:
-    case CONVERT_PRIMITIVE:
-    case PRIMITIVE_LOAD_CONST:
-    case INT_LOAD_CONST_OLD:
+    case NOP:
     case POP_FINALLY:
     case POP_TOP:
+    case PRIMITIVE_BOX:
+    case PRIMITIVE_LOAD_CONST:
+    case PRIMITIVE_UNARY_OP:
+    case PRIMITIVE_UNBOX:
+    case REFINE_TYPE:
     case ROT_FOUR:
     case ROT_THREE:
     case ROT_TWO:
     case STORE_FAST:
-    case PRIMITIVE_BOX:
-    case PRIMITIVE_UNBOX:
-    case PRIMITIVE_UNARY_OP:
-    case CHECK_ARGS:
     case STORE_LOCAL: {
       return false;
     }
@@ -1689,6 +1690,27 @@ bool HIRBuilder::tryEmitDirectMethodCall(
   return false;
 }
 
+void HIRBuilder::fixStaticReturn(
+    TranslationContext& tc,
+    Register* ret_val,
+    Type ret_type) {
+  Type boxed_ret = ret_type;
+  if (boxed_ret <= TPrimitive) {
+    boxed_ret = boxed_ret.asBoxed();
+  }
+  if (boxed_ret < TObject) {
+    // TODO(T108048062): This should be a type check rather than a RefineType.
+    tc.emit<RefineType>(ret_val, boxed_ret, ret_val);
+  }
+
+  // Since we are not doing an x64 call, we will get a boxed value; if the
+  // function is supposed to return a primitive, we need to unbox it because
+  // later code in the function will expect the primitive.
+  if (ret_type <= TPrimitive) {
+    unboxPrimitive(tc, ret_val, ret_val, ret_type);
+  }
+}
+
 bool HIRBuilder::emitInvokeFunction(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr,
@@ -1753,7 +1775,7 @@ bool HIRBuilder::emitInvokeFunction(
     for (auto [argnum, type] : target.primitive_arg_types) {
       Register* reg = arg_regs.at(argnum);
       auto boxed_primitive_tmp = temps_.AllocateStack();
-      tc.emit<PrimitiveBox>(boxed_primitive_tmp, reg, type);
+      tc.emitChecked<PrimitiveBox>(boxed_primitive_tmp, reg, type);
       arg_regs[argnum] = boxed_primitive_tmp;
     }
   }
@@ -1771,13 +1793,7 @@ bool HIRBuilder::emitInvokeFunction(
   call->SetOperand(0, funcreg);
   call->setFrameState(tc.frame);
 
-  // Since we are not doing an x64 call, we will get a boxed value; if
-  // the function is supposed to return a primitive, we need to unbox it
-  // because later code in the function will expect the primitive.
-  if (target.return_type <= TPrimitive) {
-    tc.emit<PrimitiveUnbox>(out, out, target.return_type);
-  }
-
+  fixStaticReturn(tc, out, target.return_type);
   tc.frame.stack.push(out);
 
   return true;
@@ -1802,13 +1818,7 @@ bool HIRBuilder::emitInvokeMethod(
   InvokeMethod* invoke = tc.emitVariadic<InvokeMethod>(
       temps_, nargs, target.slot, is_awaited, is_classmethod);
 
-  // Since we are not doing an x64 call, we will get a boxed value; if
-  // the function is supposed to return a primitive, we need to unbox it
-  // because later code in the function will expect the primitive.
-  if (target.return_type <= TPrimitive) {
-    tc.emit<PrimitiveUnbox>(
-        invoke->GetOutput(), invoke->GetOutput(), target.return_type);
-  }
+  fixStaticReturn(tc, invoke->GetOutput(), target.return_type);
 
   return true;
 }
@@ -2070,16 +2080,20 @@ void HIRBuilder::emitPrimitiveUnbox(
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
   Type typ = preloader_.type(constArg(bc_instr));
-  if (typ <= TCDouble) {
-    tc.emit<LoadField>(tmp, src, offsetof(PyFloatObject, ob_fval), typ);
-  } else {
-    tc.emit<PrimitiveUnbox>(tmp, src, typ);
-    if (!(typ <= TCBool)) {
-      auto did_unbox_work = temps_.AllocateStack();
-      tc.emit<IsNegativeAndErrOccurred>(did_unbox_work, tmp, tc.frame);
-    }
-  }
+  unboxPrimitive(tc, tmp, src, typ);
   tc.frame.stack.push(tmp);
+}
+
+void HIRBuilder::unboxPrimitive(
+    TranslationContext& tc,
+    Register* dst,
+    Register* src,
+    Type type) {
+  tc.emit<PrimitiveUnbox>(dst, src, type);
+  if (!(type <= (TCBool | TCDouble))) {
+    Register* did_unbox_work = temps_.AllocateStack();
+    tc.emit<IsNegativeAndErrOccurred>(did_unbox_work, dst, tc.frame);
+  }
 }
 
 static inline BinaryOpKind get_primitive_bin_op_kind(

@@ -451,7 +451,7 @@ Type outputType(const Instr& instr) {
     }
 
     case Opcode::kLoadFunctionIndirect: {
-      return TOptObject;
+      return TObject;
     }
 
     case Opcode::kRepeatList: {
@@ -463,6 +463,10 @@ Type outputType(const Instr& instr) {
     }
 
     case Opcode::kPrimitiveBox: {
+      // This duplicates the logic in Type::asBoxed(), but it has enough
+      // special cases (for exactness/optionality/nullptr) that it's not worth
+      // trying to reuse it here.
+
       auto& pb = static_cast<const PrimitiveBox&>(instr);
       if (pb.type() <= TCEnum) {
         // Calling an enum type in JITRT_BoxEnum can raise an exception

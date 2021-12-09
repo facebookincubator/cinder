@@ -439,6 +439,20 @@ class HIRBuilder {
       const BytecodeInstructionBlock& bc_block);
   BasicBlock* getBlockAtOff(Py_ssize_t off);
 
+  // When a static function calls another static function indirectly, the
+  // return value is always boxed. This function ensures that the returned
+  // value is the correct type, unboxing it if necessary.
+  void fixStaticReturn(TranslationContext& tc, Register* reg, Type ret_type);
+
+  // Unbox the primitive value from src into dst, using the given type. Similar
+  // to TranslationContext::emitChecked(), but uses IsNegativeAndErrOccurred
+  // instead of the normal CheckExc because of the primitive output value.
+  void unboxPrimitive(
+      TranslationContext& tc,
+      Register* dst,
+      Register* src,
+      Type type);
+
   BorrowedRef<PyCodeObject> code_;
   BlockMap block_map_;
   const Preloader& preloader_;

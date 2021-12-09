@@ -1141,7 +1141,11 @@ void bindGuards(Function& irfunc) {
       } else if (
           instr.IsGuard() || instr.IsGuardIs() || instr.IsGuardType() ||
           instr.IsDeopt() || instr.IsDeoptPatchpoint()) {
-        JIT_DCHECK(fs != nullptr, "no dominating snapshot");
+        JIT_DCHECK(
+            fs != nullptr,
+            "No dominating snapshot for '%s' in function:\n%s",
+            instr,
+            irfunc);
         auto& guard = static_cast<DeoptBase&>(instr);
         guard.setFrameState(*fs);
       } else if (!instr.isReplayable()) {

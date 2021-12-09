@@ -73,11 +73,14 @@ class Type {
   static bool CUIntFitsType(uint64_t i, Type t);
   static Type fromCUInt(uint64_t i, Type t);
 
+  // Assuming this Type is a primitive type that can be boxed, return the boxed
+  // equivalent (e.g., TCInt32.asBoxed() == TLong).
+  Type asBoxed() const;
+
   // Return the PyTypeObject* that uniquely represents this type, or nullptr if
-  // there isn't one. The PyTypeObject* may be from a type
-  // specialization. "Uniquely" here means that there should be no loss of
-  // information in the Type -> PyTypeObject* conversion, other than mortality
-  // and exactness.
+  // there isn't one. The PyTypeObject* may be from a type specialization.
+  // "Uniquely" here means that there should be no loss of information in the
+  // Type -> PyTypeObject* conversion, other than mortality and exactness.
   //
   // Some examples:
   // TLong.uniquePyType() == &PyLong_Type

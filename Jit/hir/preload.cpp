@@ -148,7 +148,7 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   if (return_pytype != NULL) {
     if (coroutine) {
       // TODO properly handle coroutine returns awaitable type
-      target->return_type = TOptObject;
+      target->return_type = TObject;
     } else {
       target->return_type = to_jit_type({std::move(return_pytype), optional});
     }

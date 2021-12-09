@@ -1320,6 +1320,21 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(f(), 100)
         self.assert_jitted(f)
 
+    def test_int_unbox_from_call(self):
+        codestr = f"""
+        from __static__ import int64
+        def foo() -> int:
+            return 1234
+
+        def testfunc() -> int64:
+            return int64(foo())
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.testfunc
+            import dis
+
+            self.assertEqual(f(), 1234)
+
     def test_int_compare_or(self):
         codestr = """
         from __static__ import box, ssize_t
@@ -1386,9 +1401,10 @@ class StaticCompilationTests(StaticTestBase):
                 return True
             return False
         """
-        f = self.run_code(codestr)["testfunc"]
-        self.assertTrue(f(4.1))
-        self.assertFalse(f(1.1))
+        with self.in_module(codestr) as mod:
+            f = mod.testfunc
+            self.assertTrue(f(4.1))
+            self.assertFalse(f(1.1))
 
     def test_double_compare_with_integer_literal(self):
         codestr = f"""
@@ -1946,10 +1962,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             f = mod.f
-            with self.assertRaisesRegex(
-                TypeError,
-                "(expected int, enum, bool or float, got str)|(an integer is required)",
-            ):
+            with self.assertRaisesRegex(TypeError, "expected 'int', got 'str'"):
                 f()
 
     def test_unbox_typed(self):
@@ -1964,10 +1977,7 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(42), 42)
             self.assertInBytecode(f, "PRIMITIVE_UNBOX")
-            with self.assertRaisesRegex(
-                TypeError,
-                "(expected int, enum, bool or float, got str)|(an integer is required)",
-            ):
+            with self.assertRaisesRegex(TypeError, "expected 'int', got 'str'"):
                 self.assertEqual(f("abc"), 42)
 
     def test_unbox_typed_bool(self):

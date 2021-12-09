@@ -625,5 +625,21 @@ Type Type::operator-(Type rhs) const {
   return Type{bits, lifetime, specKind(), int_};
 }
 
+Type Type::asBoxed() const {
+  if (*this <= TCBool) {
+    return TBool;
+  }
+  if (*this <= TCInt) {
+    return TLong;
+  }
+  if (*this <= TCDouble) {
+    return TFloat;
+  }
+  if (*this <= TCEnum) {
+    return TObject;
+  }
+  JIT_CHECK(false, "%s does not have a boxed equivalent", *this);
+}
+
 } // namespace hir
 } // namespace jit

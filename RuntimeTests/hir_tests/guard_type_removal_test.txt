@@ -97,3 +97,36 @@ fun test {
   }
 }
 ---
+PrimitiveUnboxUsesInputType
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = GuardType<LongExact> v0
+    v2 = PrimitiveUnbox<CInt32> v1
+    v3 = LoadConst<CInt32[123]>
+    v4 = IntBinaryOp<Add> v2 v3
+    v5 = PrimitiveBox<CInt32> v4
+    v6 = CheckExc v5
+    Return v6
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:LongExact = GuardType<LongExact> v0 {
+      NextInstrOffset 0
+    }
+    v2:CInt32 = PrimitiveUnbox<CInt32> v1
+    v3:CInt32[123] = LoadConst<CInt32[123]>
+    v4:CInt32 = IntBinaryOp<Add> v2 v3
+    v5:OptLongExact = PrimitiveBox<CInt32> v4
+    v6:LongExact = CheckExc v5 {
+      NextInstrOffset 0
+    }
+    Return v6
+  }
+}
+---

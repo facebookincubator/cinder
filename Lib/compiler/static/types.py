@@ -57,6 +57,7 @@ from ast import (
     copy_location,
 )
 from enum import Enum
+from functools import cached_property
 from types import (
     BuiltinFunctionType,
     CodeType,
@@ -1660,6 +1661,10 @@ class CType(Class):
         pytype: Optional[Type[object]] = None,
     ) -> None:
         super().__init__(type_name, bases, instance, klass, members, is_exact, pytype)
+
+    @property
+    def boxed(self) -> Class:
+        raise NotImplementedError(type(self))
 
     @property
     def can_be_narrowed(self) -> bool:
@@ -4718,6 +4723,7 @@ def maybe_emit_sequence_repeat(
         oparg |= rev
         code_gen.visit(seq)
         code_gen.visit(num)
+        code_gen.emit("REFINE_TYPE", num_type.type_descr)
         code_gen.emit("SEQUENCE_REPEAT", oparg)
         return True
     return False
@@ -5444,6 +5450,7 @@ class ArrayInstance(Object["ArrayClass"]):
                 code_gen.emit("PRIMITIVE_BOX", self.klass.index.type_descr)
             super().emit_subscr(node, aug_flag, code_gen)
             if isinstance(node.ctx, ast.Load):
+                code_gen.emit("REFINE_TYPE", self.klass.index.boxed.type_descr)
                 code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
             return
         code_gen.update_lineno(node)
@@ -5453,6 +5460,7 @@ class ArrayInstance(Object["ArrayClass"]):
         if index_is_python_int:
             # If the index is not a primitive, unbox its value to an int64, our implementation of
             # SEQUENCE_{GET/SET} expects the index to be a primitive int.
+            code_gen.emit("REFINE_TYPE", index_type.klass.type_descr)
             code_gen.emit("PRIMITIVE_UNBOX", INT64_TYPE.type_descr)
 
         if isinstance(node.ctx, ast.Store) and not aug_flag:
@@ -5525,8 +5533,10 @@ class ArrayClass(GenericClass):
         )
 
     @property
-    def index(self) -> Class:
-        return self.type_args[0]
+    def index(self) -> CType:
+        cls = self.type_args[0]
+        assert isinstance(cls, CType)
+        return cls
 
     def make_generic_type(
         self, index: Tuple[Class, ...], generic_types: GenericTypesDict
@@ -6043,8 +6053,11 @@ class CEnumType(CType):
             CEnumInstance(self),
         )
 
-        self.boxed = BoxedEnumClass(self.type_name, self.bases)
         self.values: Dict[str, CEnumInstance] = {}
+
+    @cached_property
+    def boxed(self) -> BoxedEnumClass:
+        return BoxedEnumClass(self.type_name, self.bases)
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         # TODO(wmeehan): handle enum subclassing and mix-ins
@@ -6461,6 +6474,12 @@ class CIntInstance(CInstance["CIntType"]):
 
     def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
+        ty = code_gen.get_type(node)
+        target_ty = BOOL_TYPE if self.klass is CBOOL_TYPE else INT_TYPE
+        if target_ty.can_assign_from(ty.klass):
+            code_gen.emit("REFINE_TYPE", ty.klass.type_descr)
+        else:
+            code_gen.emit("CAST", target_ty.type_descr)
         code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
     def bind_unaryop(
@@ -6516,6 +6535,10 @@ class CIntType(CType):
             [],
             CIntInstance(self, self.constant, self.size, self.signed),
         )
+
+    @property
+    def boxed(self) -> Class:
+        return INT_TYPE
 
     def can_assign_from(self, src: Class) -> bool:
         if isinstance(src, CIntType):
@@ -6595,12 +6618,7 @@ class CIntType(CType):
             if arg_type != self.instance:
                 self.instance.emit_convert(arg_type, code_gen)
         else:
-            if self is CBOOL_TYPE and arg_type.klass is not BOOL_TYPE:
-                code_gen.visit(arg)
-                code_gen.emit("CAST", BOOL_TYPE.type_descr)
-                code_gen.emit("PRIMITIVE_UNBOX", self.type_descr)
-            else:
-                self.instance.emit_unbox(arg, code_gen)
+            self.instance.emit_unbox(arg, code_gen)
 
 
 class CDoubleInstance(CInstance["CDoubleType"]):
@@ -6730,6 +6748,11 @@ class CDoubleInstance(CInstance["CDoubleType"]):
 
     def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
+        node_ty = code_gen.get_type(node)
+        if FLOAT_TYPE.can_assign_from(node_ty.klass):
+            code_gen.emit("REFINE_TYPE", node_ty.klass.type_descr)
+        else:
+            code_gen.emit("CAST", FLOAT_TYPE.type_descr)
         code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
 
@@ -6740,6 +6763,10 @@ class CDoubleType(CType):
             [OBJECT_TYPE],
             CDoubleInstance(self),
         )
+
+    @property
+    def boxed(self) -> Class:
+        return FLOAT_TYPE
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -6773,7 +6800,6 @@ class CDoubleType(CType):
         if isinstance(arg_type, CDoubleInstance):
             code_gen.visit(arg)
         else:
-            # must be a `float`.
             self.instance.emit_unbox(arg, code_gen)
 
 

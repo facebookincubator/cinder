@@ -15,14 +15,14 @@ fun jittestmodule:test {
     v9:Nullptr = LoadConst<Nullptr>
     v10:CInt32 = CallStatic<0>
     v11:CInt64 = IntConvert<CInt64> v10
-    v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
-    v15:CInt64 = IntBinaryOp<FloorDivide> v11 v19
-    v17:OptLongExact = PrimitiveBox<CInt64> v15
-    v18:LongExact = CheckExc v17 {
-      NextInstrOffset 20
-      Locals<1> v15
+    v20:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
+    v16:CInt64 = IntBinaryOp<FloorDivide> v11 v20
+    v18:OptLongExact = PrimitiveBox<CInt64> v16
+    v19:LongExact = CheckExc v18 {
+      NextInstrOffset 22
+      Locals<1> v16
     }
-    Return v18
+    Return v19
   }
 }
 ---
@@ -40,8 +40,8 @@ def test() -> double:
 fun jittestmodule:test {
   bb 0 {
     v3:Nullptr = LoadConst<Nullptr>
-    v7:CDouble[1.23] = LoadConst<CDouble[1.23]>
-    Return<CDouble> v7
+    v8:CDouble[1.23] = LoadConst<CDouble[1.23]>
+    Return<CDouble> v8
   }
 }
 ---
