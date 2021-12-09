@@ -515,11 +515,6 @@ CheckedDict = chkdict
 CheckedList = chklist
 
 
-async def _return_none():
-    """This exists solely as a helper for the ContextDecorator C implementation"""
-    pass
-
-
 class ContextDecorator:
     def __enter__(self) -> None:
         return self
@@ -536,6 +531,7 @@ class ContextDecorator:
                 with self._recreate_cm():
                     return func(*args, **kwds)
 
+            return _no_profile_inner
         else:
 
             @functools.wraps(func)
@@ -543,10 +539,7 @@ class ContextDecorator:
                 with self._recreate_cm():
                     return await func(*args, **kwds)
 
-        # This will replace the vector call entry point with a C implementation.
-        # We still want to return a function object because various things check
-        # for functions or if an object is a co-routine.
-        return _static.make_context_decorator_wrapper(self, _no_profile_inner, func)
+            return _no_profile_inner
 
 
 ContextDecorator._recreate_cm = make_recreate_cm(ContextDecorator)

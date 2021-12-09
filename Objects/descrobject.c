@@ -2448,7 +2448,7 @@ async_cached_property_traverse(PyAsyncCachedPropertyDescrObject *prop, visitproc
 async_cached_property.__init__ as async_cached_property_init
 
   self: self(type="PyAsyncCachedPropertyDescrObject *")
-  func: object
+  func: object(subclass_of="&PyFunction_Type")
   name_or_descr: object(c_default="NULL", subclass_of="&PyMemberDescr_Type") = None
 
 init a async_cached_property.
@@ -2462,7 +2462,7 @@ If slot descriptor is provided it will be used for storing the value."
 static int
 async_cached_property_init_impl(PyAsyncCachedPropertyDescrObject *self,
                                 PyObject *func, PyObject *name_or_descr)
-/*[clinic end generated code: output=d8f17f423e7ad7f2 input=5bfa6f9a771d138d]*/
+/*[clinic end generated code: output=d8f17f423e7ad7f2 input=1afd71a95b7e8615]*/
 {
     if (name_or_descr != NULL) {
         PyMemberDescrObject *descr = (PyMemberDescrObject *)name_or_descr;
