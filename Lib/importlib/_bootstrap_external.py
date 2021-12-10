@@ -33,9 +33,9 @@ def _python_pycache_mode():
     global PYTHONPYCACHEMODE
     if PYTHONPYCACHEMODE is None:
         if sys.platform.startswith(_CASE_INSENSITIVE_PLATFORMS_STR_KEY):
-            key, _0x, _0b, _0o = "PYTHONPYCACHEMODE", "0x", "0b", "0o"
+            key, _0x, _0b, _0o = "PYTHONPYCACHEMODE", "0x", "0b", "0"
         else:
-            key, _0x, _0b, _0o = b"PYTHONPYCACHEMODE", b"0x", b"0b", b"0o"
+            key, _0x, _0b, _0o = b"PYTHONPYCACHEMODE", b"0x", b"0b", b"0"
         try:
             mode = _os.environ[key]
             if mode.startswith(_0x):
