@@ -42,7 +42,6 @@ fun test {
 )";
   const char* expected = R"(fun test {
   bb 0 {
-    v0:Object = LoadArg<0>
     v1:Object = LoadArg<1>
     Guard v1 {
       LiveValues<1> b:v1
@@ -82,7 +81,6 @@ TEST(GuardTest, BindFrameStateFromInstr) {
 )";
   const char* expected = R"(fun test {
   bb 0 {
-    v0:Object = LoadArg<0>
     v1:Object = LoadGlobal<0> {
       NextInstrOffset 0
     }

@@ -1153,6 +1153,7 @@ void bindGuards(Function& irfunc) {
     snapshot->unlink();
     delete snapshot;
   }
+  DeadCodeElimination{}.Run(irfunc);
 }
 
 std::ostream& operator<<(std::ostream& os, const RegState& rstate) {

@@ -145,17 +145,14 @@ BB %0 - succs: %3
        %1:Object = Bind R10:Object
        %2:Object = Bind R11:Object
 
-BB %3 - preds: %0 - succs: %10
-
-# v3:Nullptr = LoadConst<Nullptr>
-       %4:Object = Move 0(0x0):Object
+BB %3 - preds: %0 - succs: %9
 
 # v4:CDouble[3.1415] = LoadConst<CDouble[3.1415]>
-        %5:64bit = Move 4614256447914709615(0x400921cac083126f):Object
-       %6:Double = Move %5:64bit
+        %4:64bit = Move 4614256447914709615(0x400921cac083126f):Object
+       %5:Double = Move %4:64bit
 
 # v6:OptFloatExact = PrimitiveBox<CDouble> v4
-       %7:Object = Call)");
+       %6:Object = Call)");
   // Note - we only check whether the LIR has the stuff we care about
   ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);
 }
@@ -180,21 +177,18 @@ BB %0 - succs: %3
        %1:Object = Bind R10:Object
        %2:Object = Bind R11:Object
 
-BB %3 - preds: %0 - succs: %13
-
-# v6:Nullptr = LoadConst<Nullptr>
-       %4:Object = Move 0(0x0):Object
+BB %3 - preds: %0 - succs: %12
 
 # v7:CDouble[1.14] = LoadConst<CDouble[1.14]>
-        %5:64bit = Move 4607812922747849277(0x3ff23d70a3d70a3d):Object
-       %6:Double = Move %5:64bit
+        %4:64bit = Move 4607812922747849277(0x3ff23d70a3d70a3d):Object
+       %5:Double = Move %4:64bit
 
 # v9:CDouble[2.0] = LoadConst<CDouble[2.0]>
-        %7:64bit = Move 4611686018427387904(0x4000000000000000):Object
-       %8:Double = Move %7:64bit
+        %6:64bit = Move 4611686018427387904(0x4000000000000000):Object
+       %7:Double = Move %6:64bit
 
 # v11:CDouble = DoubleBinaryOp<Add> v7 v9
-       %9:Double = Fadd %6:Double, %8:Double)");
+       %8:Double = Fadd %5:Double, %7:Double)");
   // Note - we only check whether the LIR has the stuff we care about
   ASSERT_EQ(lir_str.substr(0, lir_expected.size()), lir_expected);
 }
