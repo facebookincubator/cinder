@@ -135,7 +135,8 @@ static void connectLinkedOperands(
 // Copies the instructions and successors from src_blocks.
 static void deepCopyBasicBlocks(
     const std::vector<BasicBlock*>& src_blocks,
-    std::unordered_map<int, BasicBlock*>& block_index_map_) {
+    std::unordered_map<int, BasicBlock*>& block_index_map_,
+    const hir::Instr* origin) {
   std::unordered_map<int, Instruction*> output_index_map;
   std::unordered_map<LinkedOperand*, int> instr_refs;
 
@@ -148,7 +149,7 @@ static void deepCopyBasicBlocks(
       // Copying the instruction will also copy the output
       // (including the output type and data type).
       bb_copy->instructions().emplace_back(
-          std::make_unique<Instruction>(bb_copy, instr.get()));
+          std::make_unique<Instruction>(bb_copy, instr.get(), origin));
       Instruction* instr_copy = bb_copy->instructions().back().get();
       output_index_map.emplace(instr->id(), instr_copy);
       // Copy output.
@@ -169,7 +170,8 @@ static void deepCopyBasicBlocks(
 Function::CopyResult Function::copyFrom(
     const Function* src_func,
     BasicBlock* prev_bb,
-    BasicBlock* next_bb) {
+    BasicBlock* next_bb,
+    const hir::Instr* origin) {
   JIT_CHECK(
       prev_bb->successors().size() == 1 && prev_bb->successors()[0] == next_bb,
       "prev_bb should only have 1 successor which should be next_bb.");
@@ -184,7 +186,7 @@ Function::CopyResult Function::copyFrom(
     basic_blocks_.emplace(std::prev(basic_blocks_.end()), bb_copy);
   }
 
-  deepCopyBasicBlocks(src_func->basicblocks(), block_index_map);
+  deepCopyBasicBlocks(src_func->basicblocks(), block_index_map, origin);
 
   int end = basic_blocks_.size() - 1;
   int start = end - src_func->basic_blocks_.size();

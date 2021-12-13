@@ -29,8 +29,11 @@ class Function {
   // Returns the range of inserted blocks in dest_func->basic_blocks_.
   // The inserted blocks start at (inclusive) dest_func->basic_blocks_[begin_bb]
   // and end right before (exclusive) dest_func->basic_blocks_[begin_bb].
-  CopyResult
-  copyFrom(const Function* src_func, BasicBlock* prev_bb, BasicBlock* next_bb);
+  CopyResult copyFrom(
+      const Function* src_func,
+      BasicBlock* prev_bb,
+      BasicBlock* next_bb,
+      const hir::Instr* origin);
 
   BasicBlock* allocateBasicBlock();
 

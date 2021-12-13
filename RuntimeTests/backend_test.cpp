@@ -800,7 +800,8 @@ TEST_F(BackendTest, CopyFromArrayTest) {
   auto bb1 = caller->allocateBasicBlock();
   auto bb2 = caller->allocateBasicBlock();
   bb1->addSuccessor(bb2);
-  auto [begin_bb, end_bb] = caller->copyFrom(parsed_func.get(), bb1, bb2);
+  auto [begin_bb, end_bb] =
+      caller->copyFrom(parsed_func.get(), bb1, bb2, nullptr);
   parsed_func.reset();
 
   // Check that the caller is what we expected.
@@ -853,7 +854,8 @@ TEST_F(BackendTest, CopyCastTest) {
   auto bb1 = caller->allocateBasicBlock();
   auto bb2 = caller->allocateBasicBlock();
   bb1->addSuccessor(bb2);
-  auto [begin_bb, end_bb] = caller->copyFrom(parsed_func.get(), bb1, bb2);
+  auto [begin_bb, end_bb] =
+      caller->copyFrom(parsed_func.get(), bb1, bb2, nullptr);
   parsed_func.reset();
 
   auto expected_caller = fmt::format(

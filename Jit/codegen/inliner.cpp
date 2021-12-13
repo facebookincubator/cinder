@@ -58,7 +58,8 @@ bool LIRInliner::inlineCall() {
 
   // Copy callee into caller.
   Function* caller = call_instr_->basicblock()->function();
-  Function::CopyResult callee_bounds = caller->copyFrom(callee, block1, block2);
+  Function::CopyResult callee_bounds =
+      caller->copyFrom(callee, block1, block2, call_instr_->origin());
   callee_start_ = callee_bounds.begin_bb;
   callee_end_ = callee_bounds.end_bb;
 
