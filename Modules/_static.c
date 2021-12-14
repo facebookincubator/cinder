@@ -1,6 +1,13 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 
 #include "Python.h"
+#include "boolobject.h"
+#include "dictobject.h"
+#include "funcobject.h"
+#include "import.h"
+#include "methodobject.h"
+#include "object.h"
+#include "pyport.h"
 #include "structmember.h"
 #include "pycore_object.h"
 #include "classloader.h"
@@ -272,6 +279,461 @@ PyObject *make_recreate_cm(PyObject *mod, PyObject *type) {
     return PyDescr_NewMethod((PyTypeObject *)type, &def);
 }
 
+typedef struct {
+    PyWeakReference weakref; /* base weak ref */
+    PyObject *func;     /* function that's being wrapped */
+    PyObject *ctxdec;   /* the instance of the ContextDecorator class */
+    PyObject *enter;    /* borrowed ref to __enter__, valid on cache_version */
+    PyObject *exit;     /* borrowed ref to __exit__, valid on cache_version */
+    PyObject *recreate_cm; /* borrowed ref to recreate_cm, valid on recreate_cache_version */
+    Py_ssize_t cache_version;
+    Py_ssize_t recreate_cache_version;
+    int is_coroutine;
+} _Py_ContextManagerWrapper;
+
+static PyObject *_return_none;
+
+int
+ctxmgrwrp_import_value(const char *module, const char *name, PyObject **dest) {
+    PyObject *mod = PyImport_ImportModule(module);
+    if (mod == NULL) {
+        return -1;
+    }
+    if (*dest == NULL) {
+        PyObject *value = PyObject_GetAttrString(mod, name);
+        if (value == NULL) {
+            return -1;
+        }
+        *dest = value;
+    }
+    Py_DECREF(mod);
+    return 0;
+}
+
+
+static PyObject *
+ctxmgrwrp_exit(int is_coroutine, PyObject *ctxmgr,
+               PyObject *result, PyObject *exit)
+{
+    if (result == NULL) {
+        // exception
+        PyObject *ret;
+        PyObject *exc, *val, *tb;
+        PyErr_Fetch(&exc, &val, &tb);
+        if (tb == NULL) {
+            tb = Py_None;
+            Py_INCREF(tb);
+        }
+
+        if (ctxmgr != NULL) {
+            assert(Py_TYPE(exit)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR);
+            PyObject* stack[] = {(PyObject *)ctxmgr, exc, val, tb};
+            ret =  _PyObject_Vectorcall(exit, stack, 4 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+        } else {
+            PyObject* stack[] = {exc, val, tb};
+            ret =  _PyObject_Vectorcall(exit, stack, 3 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+        }
+        if (ret == NULL) {
+            Py_DECREF(exc);
+            Py_DECREF(val);
+            Py_DECREF(tb);
+            return NULL;
+        }
+
+        int err = PyObject_IsTrue(ret);
+        Py_DECREF(ret);
+        if (!err) {
+            PyErr_Restore(exc, val, tb);
+            goto error;
+        }
+
+        Py_DECREF(exc);
+        Py_DECREF(val);
+        Py_DECREF(tb);
+        if (err < 0) {
+            goto error;
+        }
+
+        if (is_coroutine) {
+            /* The co-routine needs to yield None instead of raising the exception.  We
+             * need to actually produce a co-routine which is going to return None to
+             * do that, so we have a helper function which does just that. */
+            if (_return_none == NULL &&
+                ctxmgrwrp_import_value("__static__", "_return_none", &_return_none)) {
+                return NULL;
+            }
+
+            PyObject *call_none = _PyObject_CallNoArg(_return_none);
+            if (call_none == NULL) {
+                return NULL;
+            }
+            return call_none;
+        }
+        Py_RETURN_NONE;
+    } else {
+        PyObject *ret;
+        if (ctxmgr != NULL) {
+            /* we picked up a method like object and have self for it */
+            assert(Py_TYPE(exit)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR);
+            PyObject *stack[] = {(PyObject *) ctxmgr, Py_None, Py_None, Py_None};
+            ret = _PyObject_Vectorcall(exit, stack, 4 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+        } else {
+            PyObject *stack[] = {Py_None, Py_None, Py_None};
+            ret = _PyObject_Vectorcall(exit, stack, 3 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+        }
+        if (ret == NULL) {
+            goto error;
+        }
+        Py_DECREF(ret);
+    }
+
+    return result;
+error:
+    Py_XDECREF(result);
+    return NULL;
+}
+
+static PyObject *
+ctxmgrwrp_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result)
+{
+    /* In the error case our awaitable is done, and if we return a value
+     * it'll turn into the returned value, so we don't want to pass iscoroutine
+     * because we don't need a wrapper object. */
+    if (awaitable->onsend != NULL) {
+        /* Send has never happened, so we never called __enter__, so there's
+         * no __exit__ to call. */
+         return NULL;
+    }
+    return ctxmgrwrp_exit(result != NULL, NULL, result, awaitable->state);
+}
+
+extern int _PyObject_GetMethod(PyObject *, PyObject *, PyObject **);
+
+static PyObject *
+get_descr(PyObject *obj, PyObject *self)
+{
+    descrgetfunc f = Py_TYPE(obj)->tp_descr_get;
+    if (f != NULL) {
+        return f(obj, self, (PyObject *)Py_TYPE(self));
+    }
+    Py_INCREF(obj);
+    return obj;
+}
+
+static PyObject *
+call_with_self(PyThreadState *tstate, PyObject *func, PyObject *self)
+{
+    if (Py_TYPE(func)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR) {
+        PyObject *args[1] = { self };
+        return _PyObject_VectorcallTstate(tstate, func, args, 1|_Py_VECTORCALL_INVOKED_METHOD, NULL);
+    } else {
+        func = get_descr(func, self);
+        if (func == NULL) {
+            return NULL;
+        }
+        PyObject *ret = _PyObject_VectorcallTstate(tstate, func, NULL, 0|_Py_VECTORCALL_INVOKED_METHOD, NULL);
+        Py_DECREF(func);
+        return ret;
+    }
+}
+
+static PyObject *
+ctxmgrwrp_enter(_Py_ContextManagerWrapper *self, PyObject **ctxmgr)
+{
+    _Py_IDENTIFIER(__exit__);
+    _Py_IDENTIFIER(__enter__);
+    _Py_IDENTIFIER(_recreate_cm);
+
+    PyThreadState *tstate = _PyThreadState_GET();
+
+    if (self->recreate_cache_version != Py_TYPE(self->ctxdec)->tp_version_tag) {
+        self->recreate_cm = _PyType_LookupId(Py_TYPE(self->ctxdec), &PyId__recreate_cm);
+        if (self->recreate_cm == NULL) {
+            PyErr_Format(PyExc_TypeError, "failed to resolve _recreate_cm on %s",
+                        Py_TYPE(self->ctxdec)->tp_name);
+            return NULL;
+        }
+
+        self->recreate_cache_version = Py_TYPE(self->ctxdec)->tp_version_tag;
+    }
+
+    PyObject *ctx_mgr = call_with_self(tstate, self->recreate_cm, self->ctxdec);
+    if (ctx_mgr == NULL) {
+        return NULL;
+    }
+
+    if (self->cache_version != Py_TYPE(ctx_mgr)->tp_version_tag) {
+        /* we probably get the same type back from _recreate_cm over and
+         * over again, so we cache the lookups for enter and exit */
+        self->enter = _PyType_LookupId(Py_TYPE(ctx_mgr), &PyId___enter__);
+        self->exit = _PyType_LookupId(Py_TYPE(ctx_mgr), &PyId___exit__);
+        if (self->enter == NULL || self->exit == NULL) {
+            Py_DECREF(ctx_mgr);
+            PyErr_Format(PyExc_TypeError, "failed to resolve context manager on %s",
+                        Py_TYPE(ctx_mgr)->tp_name);
+            return NULL;
+        }
+
+        self->cache_version = Py_TYPE(ctx_mgr)->tp_version_tag;
+    }
+
+    PyObject *enter = self->enter;
+    PyObject *exit = self->exit;
+
+    Py_INCREF(enter);
+    if (!(Py_TYPE(exit)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR)) {
+        /* Descriptor protocol for exit needs to run before we call
+         * user code */
+        exit = get_descr(exit, ctx_mgr);
+        Py_CLEAR(ctx_mgr);
+        if (exit == NULL) {
+            return NULL;
+        }
+    } else {
+        Py_INCREF(exit);
+    }
+
+    PyObject *enter_res = call_with_self(tstate, enter, ctx_mgr);
+    Py_DECREF(enter);
+
+    if (enter_res == NULL) {
+        goto error;
+    }
+    Py_DECREF(enter_res);
+
+    *ctxmgr = ctx_mgr;
+    return exit;
+error:
+    Py_DECREF(ctx_mgr);
+    return NULL;
+}
+
+static int
+ctxmgrwrp_first_send(_PyClassLoader_Awaitable *self) {
+    /* Handles calling __enter__ on the first step of the co-routine when
+     * we're not eagerly evaluated. We'll swap our state over to the exit
+     * function from the _Py_ContextManagerWrapper once we're successful */
+    _Py_ContextManagerWrapper *ctxmgrwrp = (_Py_ContextManagerWrapper *)self->state;
+    PyObject *ctx_mgr;
+    PyObject *exit = ctxmgrwrp_enter(ctxmgrwrp, &ctx_mgr);
+    Py_DECREF(ctxmgrwrp);
+    if (exit == NULL) {
+        return -1;
+    }
+    if (ctx_mgr != NULL) {
+        PyObject *bound_exit = get_descr(exit, ctx_mgr);
+        if (bound_exit == NULL) {
+            return -1;
+        }
+        Py_DECREF(exit);
+        Py_DECREF(ctx_mgr);
+        exit = bound_exit;
+    }
+    self->state = exit;
+    return 0;
+}
+
+static PyObject *
+ctxmgrwrp_make_awaitable(_Py_ContextManagerWrapper *ctxmgrwrp, PyObject *ctx_mgr,
+                         PyObject *exit, PyObject *res, int eager)
+{
+    /* We won't have exit yet if we're not eagerly evaluated, and haven't called
+     * __enter__ yet.  In that case we'll setup ctxmgrwrp_first_send to run on
+     * the first iteration (with the wrapper as our state)) and then restore the
+     * awaitable wrapper to our normal state of having exit as the state after
+     * we've called __enter__ */
+    if (ctx_mgr != NULL && exit != NULL) {
+        PyObject *bound_exit = get_descr(exit, ctx_mgr);
+        if (bound_exit == NULL) {
+            return NULL;
+        }
+        Py_DECREF(exit);
+        Py_DECREF(ctx_mgr);
+        exit = bound_exit;
+    }
+    res = _PyClassLoader_NewAwaitableWrapper(res,
+                                             eager,
+                                             exit == NULL ? (PyObject *)ctxmgrwrp : exit,
+                                             ctxmgrwrp_cb,
+                                             exit == NULL ? ctxmgrwrp_first_send : NULL);
+    Py_XDECREF(exit);
+    return res;
+}
+
+PyTypeObject _PyContextDecoratorWrapper_Type;
+
+static PyObject *
+ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
+                     Py_ssize_t nargsf, PyObject *kwargs)
+{
+    PyWeakReference *wr = (PyWeakReference *)func->func_weakreflist;
+    while (wr != NULL && Py_TYPE(wr) != &_PyContextDecoratorWrapper_Type) {
+        wr = wr->wr_next;
+    }
+    if (wr == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "missing weakref");
+        return NULL;
+    }
+    _Py_ContextManagerWrapper *self = (_Py_ContextManagerWrapper *)wr;
+
+    PyObject *ctx_mgr;
+    PyObject *exit = NULL;
+
+    /* If this is a co-routine, and we're not being eagerly evaluated, we cannot
+     * start calling __enter__ just yet.  We'll delay that until the first step
+     * of the coroutine.  Otherwise we're not a co-routine or we're eagerly
+     * awaited in which case we'll call __enter__ now and capture __exit__
+     * before any possible side effects to match the normal eval loop */
+    if (!self->is_coroutine || nargsf & _Py_AWAITED_CALL_MARKER) {
+        exit = ctxmgrwrp_enter(self, &ctx_mgr);
+        if (exit == NULL) {
+            return NULL;
+        }
+    }
+
+    /* Call the wrapped function */
+    PyObject *res = _PyObject_Vectorcall(self->func, args, nargsf, kwargs);
+    if (self->is_coroutine && res != NULL) {
+        /* If it's a co-routine either pass up the eagerly awaited value or
+         * pass out a wrapping awaitable */
+        int eager = _PyWaitHandle_CheckExact(res);
+        if (eager) {
+            PyWaitHandleObject *handle = (PyWaitHandleObject *)res;
+            if (handle->wh_waiter == NULL) {
+                assert(nargsf & _Py_AWAITED_CALL_MARKER && exit != NULL);
+                res = ctxmgrwrp_exit(1, ctx_mgr, res, exit);
+                Py_DECREF(exit);
+                Py_XDECREF(ctx_mgr);
+                if (res == NULL) {
+                    _PyWaitHandle_Release((PyObject *)handle);
+                }
+                return res;
+            }
+        }
+        return ctxmgrwrp_make_awaitable(self, ctx_mgr, exit, res, eager);
+    }
+
+    if (exit == NULL) {
+        assert(self->is_coroutine && res == NULL);
+        /* We must have failed producing the coroutine object for the
+         * wrapped function, we haven't called __enter__, just report
+         * out the error from creating the co-routine */
+        return NULL;
+    }
+
+    /* Call __exit__ */
+    res = ctxmgrwrp_exit(self->is_coroutine, ctx_mgr, res, exit);
+    Py_XDECREF(ctx_mgr);
+    Py_DECREF(exit);
+    return res;
+}
+
+static int
+ctxmgrwrp_traverse(_Py_ContextManagerWrapper *self, visitproc visit, void *arg)
+{
+    _PyWeakref_RefType.tp_traverse((PyObject *)self, visit, arg);
+    Py_VISIT(self->ctxdec);
+    return 0;
+}
+
+static int
+ctxmgrwrp_clear(_Py_ContextManagerWrapper *self)
+{
+    _PyWeakref_RefType.tp_clear((PyObject *)self);
+    Py_CLEAR(self->ctxdec);
+    return 0;
+}
+
+static void
+ctxmgrwrp_dealloc(_Py_ContextManagerWrapper *self)
+{
+    ctxmgrwrp_clear(self);
+    _PyWeakref_RefType.tp_dealloc((PyObject *)self);
+}
+
+PyTypeObject _PyContextDecoratorWrapper_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) "context_decorator_wrapper",
+    sizeof(_Py_ContextManagerWrapper),
+    .tp_base = &_PyWeakref_RefType,
+    .tp_dealloc = (destructor)ctxmgrwrp_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_traverse = (traverseproc)ctxmgrwrp_traverse,
+    .tp_clear = (inquiry)ctxmgrwrp_clear,
+};
+
+static PyObject *
+weakref_callback_impl(PyObject *self, _Py_ContextManagerWrapper *weakref)
+{
+    /* the weakref provides a callback when the object it's tracking
+       is freed.  The only thing holding onto this weakref is the
+       function object we're tracking, so we rely upon this callback
+       to free the weakref / context mgr wrapper. */
+    Py_DECREF(weakref);
+
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef _WeakrefCallback = {
+    "weakref_callback", (PyCFunction)weakref_callback_impl, METH_O, NULL};
+
+
+static PyObject *weakref_callback;
+
+PyObject *make_context_decorator_wrapper(PyObject *mod, PyObject *const *args, Py_ssize_t nargs) {
+    if (nargs != 3) {
+        PyErr_SetString(PyExc_TypeError, "expected 3 arguments: context decorator, wrapper func, and original func");
+        return NULL;
+    } else if (PyType_Ready(&_PyContextDecoratorWrapper_Type)) {
+        return NULL;
+    } else if (!PyFunction_Check(args[1])) {
+        PyErr_SetString(PyExc_TypeError, "expected function for argument 2");
+        return NULL;
+    }
+
+    PyFunctionObject *wrapper_func = (PyFunctionObject *)args[1];
+    PyObject *wrapped_func = args[2];
+
+    if (weakref_callback == NULL) {
+        weakref_callback = PyCFunction_New(&_WeakrefCallback, NULL);
+        if (weakref_callback == NULL) {
+            return NULL;
+        }
+    }
+
+    PyObject *wrargs = PyTuple_New(2);
+    if (wrargs == NULL) {
+        return NULL;
+    }
+
+    PyTuple_SET_ITEM(wrargs, 0, (PyObject *)wrapper_func);
+    Py_INCREF(wrapper_func);
+    PyTuple_SET_ITEM(wrargs, 1, weakref_callback);
+    Py_INCREF(weakref_callback);
+
+    _Py_ContextManagerWrapper *ctxmgr_wrapper = (_Py_ContextManagerWrapper *)_PyWeakref_RefType.tp_new(
+        &_PyContextDecoratorWrapper_Type, wrargs, NULL);
+    Py_DECREF(wrargs);
+
+    if (ctxmgr_wrapper == NULL) {
+        return NULL;
+    }
+
+    ctxmgr_wrapper->recreate_cache_version = -1;
+    ctxmgr_wrapper->cache_version = -1;
+    ctxmgr_wrapper->enter = ctxmgr_wrapper->exit = ctxmgr_wrapper->recreate_cm = NULL;
+    ctxmgr_wrapper->ctxdec = args[0];
+    Py_INCREF(args[0]);
+    ctxmgr_wrapper->func = wrapped_func; /* borrowed, the weak ref will live as long as the function */
+    ctxmgr_wrapper->is_coroutine = ((PyCodeObject *)wrapper_func->func_code)->co_flags & CO_COROUTINE;
+
+    wrapper_func->func_weakreflist = (PyObject *)ctxmgr_wrapper;
+    wrapper_func->vectorcall = (vectorcallfunc)ctxmgrwrp_vectorcall;
+
+    Py_INCREF(wrapper_func);
+    return (PyObject *)wrapper_func;
+}
+
+
 #define VECTOR_APPEND(size, sig_type, append)                                           \
     int vector_append_##size(PyObject *self, size##_t value) {                          \
         return append(self, value);                                                     \
@@ -388,6 +850,7 @@ static PyMethodDef static_methods[] = {
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
     {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, METH_TYPED, ""},
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, METH_TYPED, ""},
+    {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
     {}
 };
 
