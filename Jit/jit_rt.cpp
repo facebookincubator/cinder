@@ -520,16 +520,6 @@ void JITRT_UnlinkFrame(PyThreadState* tstate) {
   }
 }
 
-void* JITRT_UnlinkMaterializedShadowFrame() {
-  PyThreadState* tstate = PyThreadState_Get();
-  PyFrameObject* frame = tstate->frame;
-  JIT_CHECK(frame->f_valuestack == frame->f_stacktop, "stack should be empty");
-  void* retaddr = *(frame->f_stacktop);
-  *(frame->f_stacktop) = nullptr;
-  JITRT_UnlinkFrame(tstate);
-  return retaddr;
-}
-
 PyObject*
 JITRT_LoadGlobal(PyObject* globals, PyObject* builtins, PyObject* name) {
   PyObject* result =

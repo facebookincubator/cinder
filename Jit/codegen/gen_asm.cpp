@@ -67,60 +67,43 @@ void RestoreOriginalGeneratorRBP(x86::Emitter* as) {
   as->mov(x86::rbp, x86::ptr(x86::rbp, original_rbp_offset));
 }
 
-void EmitEpilogueUnlinkFrame(
-    x86::Builder* as,
+void NativeGenerator::generateEpilogueUnlinkFrame(
     x86::Gp tstate_r,
-    FrameMode frame_mode,
     bool is_generator) {
   // It's safe to use caller saved registers in this function
   auto scratch_reg = tstate_r == x86::rsi ? x86::rdx : x86::rsi;
-  auto unlinkShadowFrame = [&] {
-    x86::Mem shadow_stack_top_ptr = shadow_frame::getStackTopPtr(tstate_r);
-    // scratch_reg = tstate->shadow_frame
-    as->mov(scratch_reg, shadow_stack_top_ptr);
+  x86::Mem shadow_stack_top_ptr = shadow_frame::getStackTopPtr(tstate_r);
+
+  // Check bit 0 of _PyShadowFrame::data to see if a frame needs
+  // unlinking. This bit will be set (pointer kind == PYSF_PYFRAME) if so.
+  // scratch_reg = tstate->shadow_frame
+  as_->mov(scratch_reg, shadow_stack_top_ptr);
+  static_assert(
+      PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
+      "Unexpected constants");
+  as_->bt(x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)), 0);
+
+  // Unlink shadow frame. The send implementation handles unlinking these for
+  // generators.
+  if (!is_generator) {
     // tstate->shadow_frame = ((_PyShadowFrame*)scratch_reg)->prev
-    as->mov(
+    as_->mov(
         scratch_reg,
         x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, prev)));
-    as->mov(shadow_stack_top_ptr, scratch_reg);
-  };
-  auto unlinkPyFrame = [&] {
-    auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
-    as->mov(saved_rax_ptr, x86::rax);
-    if (tstate_r != x86::rdi) {
-      as->mov(x86::rdi, tstate_r);
-    }
-    as->call(reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
-    as->mov(x86::rax, saved_rax_ptr);
-  };
-  switch (frame_mode) {
-    case FrameMode::kNormal:
-      if (!is_generator) {
-        unlinkShadowFrame();
-      }
-      unlinkPyFrame();
-      break;
-    case FrameMode::kShadow:
-      // Generators need to unlink a frame if one was allocated but not shadow
-      // frames as these are handled by the send implementation.
-      if (is_generator) {
-        asmjit::Label done = as->newLabel();
-        x86::Mem shadow_stack_top_ptr = shadow_frame::getStackTopPtr(tstate_r);
-        as->mov(scratch_reg, shadow_stack_top_ptr);
-        // Check bit 0 of _PyShadowFrame::data to see if a frame needs
-        // unlinking. This bit will be set (pointer kind == PYSF_PYFRAME) if so.
-        static_assert(
-            PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
-            "Unexpected constants");
-        as->bt(x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)), 0);
-        as->jnc(done);
-        unlinkPyFrame();
-        as->bind(done);
-      } else {
-        unlinkShadowFrame();
-      }
-      break;
+    as_->mov(shadow_stack_top_ptr, scratch_reg);
   }
+
+  // Unlink PyFrame if needed
+  asmjit::Label done = as_->newLabel();
+  as_->jnc(done);
+  auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
+  as_->mov(saved_rax_ptr, x86::rax);
+  if (tstate_r != x86::rdi) {
+    as_->mov(x86::rdi, tstate_r);
+  }
+  as_->call(reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
+  as_->mov(x86::rax, saved_rax_ptr);
+  as_->bind(done);
 }
 
 // Scratch register used by the various deopt trampolines.
@@ -130,7 +113,6 @@ void EmitEpilogueUnlinkFrame(
 static const auto deopt_scratch_reg = x86::r15;
 
 JitRuntime* NativeGeneratorFactory::rt = nullptr;
-void* NativeGeneratorFactory::py_frame_unlink_trampoline_ = nullptr;
 Runtime* NativeGeneratorFactory::s_jit_asm_code_rt_ = nullptr;
 
 // these functions call int returning functions and convert their output from
@@ -838,7 +820,6 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   as_->setCursor(epilogue_cursor);
 
   // now we can use all the caller save registers except for RAX
-  FrameMode frame_mode = GetFunction()->frameMode;
   as_->bind(env_.exit_label);
 
   bool is_gen = GetFunction()->code->co_flags & kCoFlagsAnyGenerator;
@@ -853,7 +834,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
     RestoreOriginalGeneratorRBP(as_->as<x86::Emitter>());
   }
 
-  EmitEpilogueUnlinkFrame(as_, x86::rdi, frame_mode, is_gen);
+  generateEpilogueUnlinkFrame(x86::rdi, is_gen);
 
   // If we return a primitive, set edx/xmm1 to 1 to indicate no error (in case
   // of error, deopt will set it to 0 and jump to hard_exit_label, skipping
@@ -1260,12 +1241,11 @@ static PyFrameObject* prepareForDeopt(
     const uint64_t* regs,
     Runtime* runtime,
     std::size_t deopt_idx,
-    int* err_occurred,
-    void** frame_base) {
+    int* err_occurred) {
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
   PyFrameObject* frame = nullptr;
-  Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate, frame_base);
+  Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate);
   frame = f.release();
   reifyFrame(frame, deopt_idx, deopt_meta, regs);
   if (!PyErr_Occurred()) {
@@ -1421,7 +1401,11 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   // returns, so we reuse the space on the stack to store whether or not we're
   // deopting into a except/finally block.
   a.lea(x86::rcx, deopt_meta_addr);
-  a.mov(x86::r8, x86::rbp);
+  static_assert(
+      std::is_same_v<
+          decltype(prepareForDeopt),
+          PyFrameObject*(const uint64_t*, Runtime*, std::size_t, int*)>,
+      "prepareForDeopt has unexpected signature");
   a.call(reinterpret_cast<uint64_t>(prepareForDeopt));
 
   // If we return a primitive and prepareForDeopt returned null, we need that
@@ -1544,66 +1528,6 @@ void* generateJitTrampoline(asmjit::JitRuntime& rt) {
   perf::registerFunction(result, code_size, name);
 
   return result;
-}
-
-namespace {
-constexpr int kNumPyFrameUnlinkTrampolinePaddingBytes = 16;
-}
-
-// This trampoline is used as the return address for JIT-compiled functions in
-// shadow-frame mode that have a materialized frame. We return into it, it
-// unlinks the Python frame and finally jumps to the original return address.
-void* generatePyFrameUnlinkTrampoline(asmjit::JitRuntime& rt) {
-  CodeHolder code;
-  code.init(rt.codeInfo());
-  x86::Builder a(&code);
-  Annotations annot;
-
-  // This is a pretty gross hack, but our sampling profiler will sometimes be
-  // off by 1 or 2 bytes when it performs a stack walk. If we patch the return
-  // address with the very start of the trampoline the profiler may end up with
-  // an address that is 1 or 2 bytes before the start of the trampoline.
-  // Symbolization will fail when that happens; the address lies outside of the
-  // address range that we record in the perf map file. To work around this we
-  // pad the start of the trampoline with NOPs. We register the full address
-  // range, including the NOPs, in the perf map file, but use the address
-  // immediately after the NOPs when patching return addresses. When the
-  // profiler walks the stack it should always find an address that is within
-  // the address range recorded in the perf map file even if it is off by 1 or
-  // 2 bytes.
-  //
-  // TODO(T107740706): Remove once strobelight issue is resolved.
-  for (int i = 0; i < kNumPyFrameUnlinkTrampolinePaddingBytes; i++) {
-    a.nop();
-  }
-
-  // Save return value and keep stack aligned
-  a.push(x86::rax);
-  a.push(x86::rdx);
-  // Unlink the frame. The return value is the original return address.
-  a.call(reinterpret_cast<uint64_t>(JITRT_UnlinkMaterializedShadowFrame));
-  a.mov(x86::rdi, x86::rax);
-  a.pop(x86::rdx);
-  a.pop(x86::rax);
-  a.jmp(x86::rdi);
-
-  auto name = "PyFrameUnlinkTrampoline";
-  ASM_CHECK(a.finalize(), name);
-  void* result{nullptr};
-  ASM_CHECK(rt.add(&result, &code), name);
-
-  JIT_LOGIF(
-      g_dump_asm,
-      "Disassembly for %s\n%s",
-      name,
-      annot.disassemble(result, code));
-
-  auto code_size = code.textSection()->realSize();
-  register_raw_debug_symbol(name, __FILE__, __LINE__, result, code_size, 0);
-  perf::registerFunction(result, code_size, name);
-
-  return reinterpret_cast<uint8_t*>(result) +
-      kNumPyFrameUnlinkTrampolinePaddingBytes;
 }
 
 void NativeGenerator::generateAssemblyBody() {

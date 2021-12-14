@@ -65,13 +65,6 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
 void JITRT_UnlinkFrame(PyThreadState* tstate);
 
 /*
- * Helper to unlink a Python frame that was materialized for a shadow frame.
- *
- * Returns the original return address.
- */
-void* JITRT_UnlinkMaterializedShadowFrame();
-
-/*
  * Handles a call that includes kw arguments or excess tuple arguments
  */
 PyObject* JITRT_CallWithKeywordArgs(

@@ -15,15 +15,13 @@ class CodeRuntime;
 // Returns a borrowed reference to top of the Python stack (tstate->frame).
 BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate);
 
-// Materialize a Python frame for the JIT frame starting at base, with the
+// Materialize a Python frame for the top-most frame for tstate, with the
 // expectation that this frame will immediately either be unwound or resumed in
 // the interpreter.
 //
 // NB: This returns a stolen reference to the frame. The caller is responsible
 // for ensuring that the frame is unlinked and the reference is destroyed.
-Ref<PyFrameObject> materializePyFrameForDeopt(
-    PyThreadState* tstate,
-    void** base);
+Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate);
 
 // Find the shadow frame associated with the running generator gen and
 // materialize a Python frame for it.

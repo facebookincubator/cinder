@@ -29,7 +29,6 @@ namespace codegen {
 // execution in the interpreter and then returning the result to the caller.
 void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode);
 void* generateJitTrampoline(asmjit::JitRuntime& rt);
-void* generatePyFrameUnlinkTrampoline(asmjit::JitRuntime& rt);
 
 class NativeGenerator {
  public:
@@ -106,6 +105,7 @@ class NativeGenerator {
       const std::vector<std::pair<asmjit::x86::Gp, asmjit::x86::Gp>>&
           save_regs);
   void generateEpilogue(asmjit::BaseNode* epilogue_cursor);
+  void generateEpilogueUnlinkFrame(asmjit::x86::Gp tstate_reg, bool is_gen);
   void generateDeoptExits();
   void linkDeoptPatchers(const asmjit::CodeHolder& code);
   void generateResumeEntry();
@@ -158,16 +158,6 @@ class NativeGeneratorFactory {
         jit_trampoline_);
   }
 
-  static void* pyFrameUnlinkTrampoline() {
-    if (rt == nullptr) {
-      rt = new asmjit::JitRuntime;
-    }
-    if (py_frame_unlink_trampoline_ == nullptr) {
-      py_frame_unlink_trampoline_ = generatePyFrameUnlinkTrampoline(*rt);
-    }
-    return py_frame_unlink_trampoline_;
-  }
-
   static void shutdown() {
     _PyJIT_ClearDictCaches();
     delete s_jit_asm_code_rt_;
@@ -178,7 +168,6 @@ class NativeGeneratorFactory {
 
  private:
   static asmjit::JitRuntime* rt;
-  static void* py_frame_unlink_trampoline_;
   static Runtime* s_jit_asm_code_rt_;
 
   void* deopt_trampoline_;

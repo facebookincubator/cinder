@@ -32,44 +32,6 @@ namespace jit {
 
 namespace {
 
-struct JITFrame {
-  static const int kRetAddrIdx = 1;
-
-  explicit JITFrame(void** b) : base(b) {}
-  explicit JITFrame(_PyShadowFrame* shadow_frame)
-      : base(reinterpret_cast<void**>(
-            reinterpret_cast<uintptr_t>(shadow_frame) +
-            sizeof(_PyShadowFrame))) {}
-
-  void* retAddr() const {
-    return base[kRetAddrIdx];
-  }
-
-  void setRetAddr(void* addr) {
-    base[kRetAddrIdx] = addr;
-  }
-
-  void insertPyFrameUnlinkTrampoline(PyFrameObject* frame) {
-    void* trampoline =
-        jit::codegen::NativeGeneratorFactory::pyFrameUnlinkTrampoline();
-    void* orig_retaddr = retAddr();
-    // f_stacktop points to the first empty slot in the value stack
-    *(frame->f_stacktop) = reinterpret_cast<PyObject*>(orig_retaddr);
-    setRetAddr(trampoline);
-  }
-
-  void removePyFrameUnlinkTrampoline(PyFrameObject* frame) {
-    void* trampoline =
-        jit::codegen::NativeGeneratorFactory::pyFrameUnlinkTrampoline();
-    if (retAddr() != trampoline) {
-      return;
-    }
-    setRetAddr(*(frame->f_stacktop));
-  }
-
-  void** base;
-};
-
 PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
   PyObject* globals;
   PyObject* result;
@@ -161,10 +123,6 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     frame->f_gen = reinterpret_cast<PyObject*>(gen);
     gen->gi_frame = frame;
     Py_INCREF(frame);
-  } else {
-    // Transfer ownership of the new reference to frame to the unlink
-    // trampoline.
-    JITFrame{shadow_frame}.insertPyFrameUnlinkTrampoline(frame);
   }
   shadow_frame->data = _PyShadowFrame_MakeData(frame, PYSF_PYFRAME);
 
@@ -173,13 +131,9 @@ BorrowedRef<PyFrameObject> materializePyFrame(
 
 } // namespace
 
-Ref<PyFrameObject> materializePyFrameForDeopt(
-    PyThreadState* tstate,
-    void** base) {
-  JITFrame jf{base};
+Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
   auto py_frame = Ref<PyFrameObject>::steal(
       materializePyFrame(tstate, nullptr, tstate->shadow_frame));
-  jf.removePyFrameUnlinkTrampoline(py_frame);
   return py_frame;
 }
 
