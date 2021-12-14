@@ -43,6 +43,7 @@ typedef struct _PyClassLoader_Awaitable {
     PyObject *iter;
     awaitable_cb cb;
     awaitable_presend onsend;
+    PyObject *awaiter;
 } _PyClassLoader_Awaitable;
 
 typedef struct {

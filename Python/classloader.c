@@ -107,6 +107,9 @@ awaitable_get_iter(_PyClassLoader_Awaitable *self) {
     if (iter == NULL) {
         return NULL;
     }
+    if (self->awaiter != NULL) {
+       _PyAwaitable_SetAwaiter(iter, self->awaiter);
+    }
     if (PyCoro_CheckExact(iter)) {
         PyObject *yf = _PyGen_yf((PyGenObject*)iter);
         if (yf != NULL) {
@@ -166,6 +169,7 @@ awaitable_itersend(PyThreadState* tstate,
     }
 
     PyObject *result;
+
     PySendResult status = PyIter_Send(tstate, iter, value, &result);
     if (status == PYGEN_RETURN) {
         result = self->cb(self, result);
@@ -190,6 +194,15 @@ PyObject *rettype_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result) {
     return rettype_check(Py_TYPE(awaitable), result, (_PyClassLoader_RetTypeInfo *)awaitable->state);
 }
 
+
+static void
+awaitable_setawaiter(_PyClassLoader_Awaitable *awaitable, PyObject *awaiter) {
+    if (awaitable->iter != NULL) {
+        _PyAwaitable_SetAwaiter(awaitable->iter, awaiter);
+    }
+    awaitable->awaiter = awaiter;
+}
+
 static PyAsyncMethodsWithExtra awaitable_as_async = {
     .ame_async_methods = {
         (unaryfunc)awaitable_await,
@@ -197,6 +210,7 @@ static PyAsyncMethodsWithExtra awaitable_as_async = {
         NULL,
     },
     .ame_send = (sendfunc)awaitable_itersend,
+    .ame_setawaiter = (setawaiterfunc)awaitable_setawaiter,
 };
 
 static PyObject *
@@ -285,6 +299,12 @@ static PyMethodDef awaitable_methods[] = {
     {NULL, NULL},
 };
 
+static PyMemberDef awaitable_memberlist[] = {
+    {"__coro__", T_OBJECT, offsetof(_PyClassLoader_Awaitable, coro), READONLY},
+    {NULL}  /* Sentinel */
+};
+
+
 static PyTypeObject _PyClassLoader_AwaitableType = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0).tp_name = "awaitable_wrapper",
     sizeof(_PyClassLoader_Awaitable),
@@ -300,6 +320,7 @@ static PyTypeObject _PyClassLoader_AwaitableType = {
     .tp_methods = awaitable_methods,
     .tp_alloc = PyType_GenericAlloc,
     .tp_free = PyObject_GC_Del,
+    .tp_members = awaitable_memberlist,
 };
 
 PyObject *
@@ -316,6 +337,7 @@ _PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, a
     awaitable->state = state;
     awaitable->cb = cb;
     awaitable->onsend = onsend;
+    awaitable->awaiter = NULL;
 
     if (eager) {
         PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;

@@ -8,6 +8,7 @@ from compiler.static.declaration_visitor import DeclarationVisitor
 from textwrap import dedent
 
 from __static__ import ContextDecorator
+from test.support.cinder import get_await_stack
 
 from .common import StaticTestBase
 
@@ -1015,3 +1016,50 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertEqual(e.exception.args, ((1, 2, 3),))
         finally:
             loop.close()
+
+    def test_stack_trace(self):
+        coro = None
+        await_stack = None
+
+        class C(ContextDecorator):
+            pass
+
+        @C()
+        async def f():
+            nonlocal await_stack
+            await_stack = get_await_stack(coro)
+            return 100
+
+        async def g():
+            nonlocal coro
+            x = f()
+            coro = x.__coro__
+            return await x
+
+        g_coro = g()
+        asyncio.run(g_coro)
+        self.assertEqual(await_stack, [g_coro])
+
+    def test_stack_trace_non_eager(self):
+        coro = None
+        await_stack = None
+
+        class C(ContextDecorator):
+            pass
+
+        @C()
+        async def f():
+            nonlocal await_stack
+            await asyncio.sleep(0.1)
+            await_stack = get_await_stack(coro)
+            return 100
+
+        async def g():
+            nonlocal coro
+            x = f()
+            coro = x.__coro__
+            return await x
+
+        g_coro = g()
+        asyncio.run(g_coro)
+        self.assertEqual(await_stack, [g_coro])
