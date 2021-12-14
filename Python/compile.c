@@ -2007,31 +2007,32 @@ compiler_visit_annexpr(struct compiler *c, expr_ty annotation)
 
 static int
 compiler_visit_argannotation(struct compiler *c, identifier id,
-    expr_ty annotation, PyObject *names)
+    expr_ty annotation, Py_ssize_t *annotations_len)
 {
-    if (annotation) {
-        PyObject *mangled;
-        if (c->c_future->ff_features & CO_FUTURE_ANNOTATIONS) {
-            VISIT(c, annexpr, annotation)
-        }
-        else {
-            VISIT(c, expr, annotation);
-        }
-        mangled = _Py_Mangle(c->u->u_private, id);
-        if (!mangled)
-            return 0;
-        if (PyList_Append(names, mangled) < 0) {
-            Py_DECREF(mangled);
-            return 0;
-        }
-        Py_DECREF(mangled);
+    if (!annotation) {
+        return 1;
     }
+
+    PyObject *mangled = _Py_Mangle(c->u->u_private, id);
+    if (!mangled) {
+        return 0;
+    }
+    ADDOP_LOAD_CONST(c, mangled);
+    Py_DECREF(mangled);
+
+    if (c->c_future->ff_features & CO_FUTURE_ANNOTATIONS) {
+        VISIT(c, annexpr, annotation)
+    }
+    else {
+        VISIT(c, expr, annotation);
+    }
+    *annotations_len += 2;
     return 1;
 }
 
 static int
 compiler_visit_argannotations(struct compiler *c, asdl_seq* args,
-                              PyObject *names)
+                              Py_ssize_t *annotations_len)
 {
     int i;
     for (i = 0; i < asdl_seq_LEN(args); i++) {
@@ -2040,7 +2041,7 @@ compiler_visit_argannotations(struct compiler *c, asdl_seq* args,
                         c,
                         arg->arg,
                         arg->annotation,
-                        names))
+                        annotations_len))
             return 0;
     }
     return 1;
@@ -2050,58 +2051,42 @@ static int
 compiler_visit_annotations(struct compiler *c, arguments_ty args,
                            expr_ty returns)
 {
-    /* Push arg annotation dict.
+    /* Push arg annotation names and values.
        The expressions are evaluated out-of-order wrt the source code.
-
-       Return 0 on error, -1 if no dict pushed, 1 if a dict is pushed.
+       Return 0 on error, -1 if no annotations pushed, 1 if a annotations is pushed.
        */
-    static identifier return_str;
-    PyObject *names;
-    Py_ssize_t len;
-    names = PyList_New(0);
-    if (!names)
-        return 0;
+    _Py_IDENTIFIER(return);
+    Py_ssize_t annotations_len = 0;
 
-    if (!compiler_visit_argannotations(c, args->args, names))
-        goto error;
-    if (!compiler_visit_argannotations(c, args->posonlyargs, names))
-        goto error;
+    if (!compiler_visit_argannotations(c, args->args, &annotations_len))
+        return 0;
+    if (!compiler_visit_argannotations(c, args->posonlyargs, &annotations_len))
+        return 0;
     if (args->vararg && args->vararg->annotation &&
         !compiler_visit_argannotation(c, args->vararg->arg,
-                                     args->vararg->annotation, names))
-        goto error;
-    if (!compiler_visit_argannotations(c, args->kwonlyargs, names))
-        goto error;
+                                     args->vararg->annotation, &annotations_len))
+        return 0;
+    if (!compiler_visit_argannotations(c, args->kwonlyargs, &annotations_len))
+        return 0;
     if (args->kwarg && args->kwarg->annotation &&
         !compiler_visit_argannotation(c, args->kwarg->arg,
-                                     args->kwarg->annotation, names))
-        goto error;
+                                     args->kwarg->annotation, &annotations_len))
+        return 0;
 
-    if (!return_str) {
-        return_str = PyUnicode_InternFromString("return");
-        if (!return_str)
-            goto error;
+    identifier return_str = _PyUnicode_FromId(&PyId_return); /* borrowed ref */
+    if (return_str == NULL) {
+        return 0;
     }
-    if (!compiler_visit_argannotation(c, return_str, returns, names)) {
-        goto error;
+    if (!compiler_visit_argannotation(c, return_str, returns, &annotations_len)) {
+        return 0;
     }
 
-    len = PyList_GET_SIZE(names);
-    if (len) {
-        PyObject *keytuple = PyList_AsTuple(names);
-        Py_DECREF(names);
-        ADDOP_LOAD_CONST_NEW(c, keytuple);
-        ADDOP_I(c, BUILD_CONST_KEY_MAP, len);
+    if (annotations_len) {
+        ADDOP_I(c, BUILD_TUPLE, annotations_len);
         return 1;
     }
-    else {
-        Py_DECREF(names);
-        return -1;
-    }
 
-error:
-    Py_DECREF(names);
-    return 0;
+    return -1;
 }
 
 static int

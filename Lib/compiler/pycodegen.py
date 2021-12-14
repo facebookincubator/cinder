@@ -482,17 +482,25 @@ class CodeGenerator(ASTVisitor):
             self.emit("BUILD_CONST_KEY_MAP", len(kwdefaults))
             flags |= 0x02
 
+        if self.build_annotations(node):
+            flags |= 0x04
+
+        self._makeClosure(gen, flags)
+
+    def build_annotations(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+    ) -> bool:
         ann_args = self.annotate_args(node.args)
         # Cannot annotate return type for lambda
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns:
             self._visitAnnotation(node.returns)
             ann_args.append("return")
         if ann_args:
-            flags |= 0x04
             self.emit("LOAD_CONST", tuple(ann_args))
             self.emit("BUILD_CONST_KEY_MAP", len(ann_args))
+            return True
 
-        self._makeClosure(gen, flags)
+        return False
 
     def visitFunctionOrLambda(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
@@ -2536,6 +2544,28 @@ class CinderCodeGenerator(CodeGenerator):
             self.emit("GET_AWAITABLE")
             self.emit("LOAD_CONST", None)
             self.emit("YIELD_FROM")
+
+    def annotate_arg(self, arg: ast.arg, ann_args: List[str]):
+        if arg.annotation:
+            name = self.mangle(arg.arg)
+            self.emit("LOAD_CONST", name)
+            self._visitAnnotation(arg.annotation)
+            ann_args.append(name)
+
+    def build_annotations(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+    ) -> bool:
+        ann_args = self.annotate_args(node.args)
+        # Cannot annotate return type for lambda
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns:
+            self.emit("LOAD_CONST", "return")
+            self._visitAnnotation(node.returns)
+            ann_args.append("return")
+        if ann_args:
+            self.emit("BUILD_TUPLE", len(ann_args) * 2)
+            return True
+
+        return False
 
 
 def get_default_generator():

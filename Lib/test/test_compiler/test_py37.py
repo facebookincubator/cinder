@@ -112,7 +112,8 @@ class Python37Tests(CompilerTest):
         annotations = ["42"]
         for annotation in annotations:
             code = self.compile(
-                f"from __future__ import annotations\ndef f() -> {annotation}:\n    pass"
+                f"from __future__ import annotations\ndef f() -> {annotation}:\n    pass",
+                generator=CodeGenerator,
             )
             self.assertInBytecode(code, "LOAD_CONST", annotation)
         self.assertEqual(

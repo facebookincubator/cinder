@@ -3,9 +3,8 @@ def f(x: int):
 
 # EXPECTED:
 [
-    LOAD_NAME('int'),
-    LOAD_CONST(('x',)),
-    BUILD_CONST_KEY_MAP(1),
+    ...,
+    BUILD_TUPLE(2),
     ...,
     MAKE_FUNCTION(4),
     ...,
