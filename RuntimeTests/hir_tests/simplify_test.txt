@@ -223,7 +223,7 @@ fun jittestmodule:test {
       NextInstrOffset 16
       Locals<1> v12
     }
-    v20:CPtr = LoadField<24> v12
+    v20:CPtr = LoadField<24, CPtr, borrowed> v12
     v21:Object = LoadArrayItem v20 v19 v12
     Return v21
   }

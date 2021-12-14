@@ -36,7 +36,7 @@ fun test {
       NextInstrOffset 6
       Locals<2> v0 v1
     }
-    v9:CPtr = LoadField<24> v2
+    v9:CPtr = LoadField<24, CPtr, borrowed> v2
     v10:Object = LoadArrayItem v9 v8 v2
     v6:NoneType = LoadConst<NoneType>
     Return v6

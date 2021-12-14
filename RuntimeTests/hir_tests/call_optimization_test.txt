@@ -12,7 +12,7 @@ fun jittestmodule:test {
     v3:Object = LoadArg<0; "x">
     v4:OptObject = LoadGlobalCached<0; "type">
     v5:MortalTypeExact[type:obj] = GuardIs<0xdeadbeef> v4
-    v7:Object = LoadField<8> v3
+    v7:Object = LoadField<8, Type, borrowed> v3
     Return v7
   }
 }

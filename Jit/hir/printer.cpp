@@ -346,14 +346,19 @@ static std::string format_immediates(const Instr& instr) {
           "{}{}", call.NumOperands(), call.isAwaited() ? ", awaited" : "");
     }
     case Opcode::kLoadField: {
-      const auto& call = static_cast<const LoadField&>(instr);
+      const auto& lf = static_cast<const LoadField&>(instr);
+      std::size_t offset = lf.offset();
 #ifdef Py_TRACE_REFS
       // Keep these stable from the offset of ob_refcnt, in trace refs
       // we have 2 extra next/prev pointers linking all objects together
-      return fmt::format("{}", call.offset() - (sizeof(PyObject*) * 2));
-#else
-      return fmt::format("{}", call.offset());
+      offset -= (sizeof(PyObject*) * 2);
 #endif
+
+      return fmt::format(
+          "{}, {}, {}",
+          offset,
+          lf.type(),
+          lf.borrowed() ? "borrowed" : "owned");
     }
     case Opcode::kStoreField: {
       const auto& call = static_cast<const StoreField&>(instr);

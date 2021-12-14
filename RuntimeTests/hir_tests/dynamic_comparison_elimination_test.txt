@@ -95,7 +95,7 @@ fun jittestmodule:test {
     v9:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v8
     v11:OptObject = LoadGlobalCached<1; "str">
     v12:MortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v11
-    v17:Type = LoadField<8> v7
+    v17:Type = LoadField<8, Type, borrowed> v7
     v18:CBool = PrimitiveCompare<Equal> v17 v12
     CondBranch<1, 3> v18
   }
