@@ -479,3 +479,21 @@ class StaticEnumTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             self.assertEqual(mod.value(mod.Foo.BAR), 1)
             self.assertEqual(mod.value(mod.Foo.BAZ), 2)
+
+    def test_pass_enum_from_module_level(self):
+        codestr = """
+        from __static__ import box, Enum
+
+        class Foo(Enum):
+            BAR = 1
+            BAZ = 2
+
+        def value(foo: Foo) -> int:
+            return box(foo.value)
+
+        result1 = value(Foo.BAR)
+        result2 = value(Foo.BAZ)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.result1, 1)
+            self.assertEqual(mod.result2, 2)

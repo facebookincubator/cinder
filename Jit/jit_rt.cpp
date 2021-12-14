@@ -344,12 +344,15 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
         }
         arg_space[i] = arg;
       } else if (_PyClassLoader_IsEnum(cur_arg->tai_type)) {
-        if (!invoked_statically &&
-            !_PyObject_TypeCheckOptional(
-                arg, cur_arg->tai_type, cur_arg->tai_optional)) {
+        int64_t ival;
+        if (invoked_statically) {
+          ival = JITRT_UnboxI64(arg);
+        } else if (_PyObject_TypeCheckOptional(
+                       arg, cur_arg->tai_type, cur_arg->tai_optional)) {
+          ival = JITRT_UnboxEnum(arg);
+        } else {
           goto fail;
         }
-        int64_t ival = JITRT_UnboxEnum(arg);
         JIT_DCHECK(
             ival != -1 || !PyErr_Occurred(),
             "enums are statically guaranteed to have type int64");
