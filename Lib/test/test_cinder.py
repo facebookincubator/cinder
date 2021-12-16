@@ -1696,6 +1696,15 @@ class GetCallStackTest(unittest.TestCase):
 
 
 class GetEntireCallStackTest(unittest.TestCase):
+    def setUp(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
     def verify_stack(self, stack, expected):
         n = len(expected)
         frames = stack[-n:]
@@ -1806,6 +1815,43 @@ class GetEntireCallStackTest(unittest.TestCase):
         drive()
 
         self.verify_stack(a1_stack, ["drive", "a2", "a1"])
+
+    def test_get_stack_across_coro_with_no_awaiter_and_eager_invoker(self):
+        # We want to test the scenario where we:
+        # 1. Walk the sync stack
+        # 2. Transition to the await stack
+        # 3. Reach a suspended coroutine with no awaiter but that was
+        #    invoked eagerly.
+        def a1(g):
+            c = a2(g)
+            # Manually start the coroutine so that no awaiter is set
+            c.send(None)
+            return c
+
+        async def a2(g):
+            # When a3 wakes up from the sleep it will walk the awaiter to find
+            # a2. a2 won't have an awaiter set. The prev pointer in it's shadow
+            # frame should also be NULL since it's suspended. Thus, the stack
+            # walk should terminate here.
+            fut = asyncio.ensure_future(a3(g))
+            return await fut
+
+        async def a3(g):
+            await asyncio.sleep(0.1)
+            res = cinder._get_entire_call_stack_as_qualnames()
+            g.set_result(res)
+
+        stack = None
+
+        async def drive():
+            nonlocal stack
+            f = asyncio.Future()
+            c = a1(f)
+            stack = await f
+
+        asyncio.run(drive())
+
+        self.verify_stack(stack, ["a2", "a3"])
 
 
 @unittest.skipUnderCinderJIT("Profiling only works under interpreter")

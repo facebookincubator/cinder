@@ -56,6 +56,7 @@ static inline void _PyShadowFrame_Pop(PyThreadState *tstate,
                                       _PyShadowFrame *shadow_frame) {
   assert(tstate->shadow_frame == shadow_frame);
   tstate->shadow_frame = shadow_frame->prev;
+  shadow_frame->prev = NULL;
 }
 
 /* Return a borrowed reference to the code object for shadow_frame */
