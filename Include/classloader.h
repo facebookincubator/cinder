@@ -100,6 +100,12 @@ _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func);
 PyObject *
 _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject *code);
 
+/* Checks whether any method in the members dict overrides a final method in the base type. This
+   API explicitly takes in a base_type and members_dict instead of a type object as it is used
+   within `type_new`.
+ */
+int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *members_dict);
+
 #define TYPED_INT_UNSIGNED 0
 #define TYPED_INT_SIGNED 1
 

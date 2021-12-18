@@ -1440,6 +1440,111 @@ update_thunk(_Py_StaticThunk *thunk, PyObject *previous, PyObject *new_value)
     }
 }
 
+
+/* Static types have a slot containing all final methods in their inheritance chain. This function
+   returns the contents of that slot by looking up the MRO, if it exists.
+ */
+static PyObject *
+get_final_method_names(PyTypeObject *type)
+{
+    PyObject *mro = type->tp_mro;
+    if (mro == NULL) {
+        return NULL;
+    }
+    Py_ssize_t n = PyTuple_GET_SIZE(mro);
+    for (Py_ssize_t i = 0; i < n; i++) {
+        PyObject *mro_type = PyTuple_GET_ITEM(mro, i);
+        if (((PyTypeObject *)mro_type)->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+            _Py_IDENTIFIER(__final_method_names__);
+            PyObject *final_method_names_string = _PyUnicode_FromId(&PyId___final_method_names__);
+            PyObject *final_method_names = _PyObject_GenericGetAttrWithDict(mro_type,
+                                                                            final_method_names_string,
+                                                                            /*dict=*/NULL,
+                                                                            /*suppress=*/1);
+            return final_method_names;
+        }
+    }
+    return NULL;
+}
+
+int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *members_dict)
+{
+    PyObject *final_method_names = get_final_method_names(base_type);
+    if (final_method_names == NULL) {
+        return 0;
+    }
+    if (!PyTuple_Check(final_method_names)) {
+        PyErr_Format(PyExc_TypeError,
+                     "The __final_method_names__ slot for type %R is not a tuple.",
+                     final_method_names);
+        Py_DECREF(final_method_names);
+        return -1;
+    }
+    Py_ssize_t member_pos = 0;
+    PyObject *key, *value;
+    while (PyDict_Next(members_dict, &member_pos, &key, &value)) {
+        for (Py_ssize_t final_method_index = 0;
+             final_method_index < PyTuple_GET_SIZE(final_method_names);
+             final_method_index++) {
+            PyObject *current_final_method_name = PyTuple_GET_ITEM(final_method_names,
+                                                                   final_method_index);
+            int compare_result = PyUnicode_Compare(key, current_final_method_name);
+            if (compare_result == 0) {
+                PyErr_Format(PyExc_TypeError,
+                             "%R overrides a final method in the static base class %R",
+                             key,
+                             base_type);
+                Py_DECREF(final_method_names);
+                return -1;
+            } else if (compare_result == -1 && PyErr_Occurred()) {
+                return -1;
+            }
+        }
+    }
+    Py_DECREF(final_method_names);
+    return 0;
+}
+
+static int
+check_if_final_method_overridden(PyTypeObject *type, PyObject *name)
+{
+
+    PyTypeObject *base_type = type->tp_base;
+    if (base_type == NULL) {
+        return 0;
+    }
+    PyObject *final_method_names = get_final_method_names(base_type);
+    if (final_method_names == NULL) {
+        return 0;
+    }
+    if (!PyTuple_Check(final_method_names)) {
+        PyErr_Format(PyExc_TypeError,
+                     "The __final_method_names__ slot for type %R is not a tuple.",
+                     final_method_names);
+        Py_DECREF(final_method_names);
+        return -1;
+    }
+    for (Py_ssize_t final_method_index = 0;
+         final_method_index < PyTuple_GET_SIZE(final_method_names);
+         final_method_index++) {
+        PyObject *current_final_method_name = PyTuple_GET_ITEM(final_method_names,
+                                                               final_method_index);
+        int compare_result = PyUnicode_Compare(name, current_final_method_name);
+        if (compare_result == 0) {
+            PyErr_Format(PyExc_TypeError,
+                         "%R overrides a final method in the static base class %R",
+                         name,
+                         base_type);
+            Py_DECREF(final_method_names);
+            return -1;
+        } else if (compare_result == -1 && PyErr_Occurred()) {
+            Py_DECREF(final_method_names);
+            return -1;
+        }
+    }
+    Py_DECREF(final_method_names);
+    return 0;
+}
 /* The UpdateSlot method will always get called by `tp_setattro` when one of a type's attribute
    gets changed, and serves as an entry point for handling modifications to vtables. */
 int
@@ -1447,6 +1552,11 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
                           PyObject *name,
                           PyObject *new_value)
 {
+    /* This check needs to be happen before we look into the vtable, as non-static subclasses of
+       static classes won't necessarily have vtables already constructed. */
+    if (check_if_final_method_overridden(type, name)) {
+        return -1;
+    }
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
     if (vtable == NULL) {
         return 0;

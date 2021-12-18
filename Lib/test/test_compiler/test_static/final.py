@@ -720,3 +720,43 @@ class FinalTests(StaticTestBase):
                     @staticmethod
                     def bar():
                         return self
+
+    def test_updating_slot_of_final_method_in_subclass_throws_type_error(
+        self,
+    ):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self) -> int:
+                return 0
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"'foo' overrides a final method in the static base class"
+            ):
+
+                class D(mod.C):
+                    pass
+
+                D.foo = lambda self: 0
+
+    def test_updating_slot_of_final_method_in_base_class_succeeds(
+        self,
+    ):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self) -> int:
+                return 0
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+                pass
+
+            mod.C.foo = lambda self: 1
+            self.assertEqual(mod.C().foo(), 1)

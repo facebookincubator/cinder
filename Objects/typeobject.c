@@ -3179,53 +3179,9 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     }
 
     // Validate that no Static Python final methods are overridden.
-    PyObject *base_mro = base->tp_mro;
-    if (base_mro != NULL) {
-        Py_ssize_t n = PyTuple_GET_SIZE(base_mro);
-        for (i = 0; i < n; i++) {
-            PyObject *mro_type = PyTuple_GET_ITEM(base_mro, i);
-            if (((PyTypeObject *)mro_type)->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
-                PyObject *final_method_names_string = PyUnicode_FromString("__final_method_names__");
-                PyObject *final_method_names = _PyObject_GenericGetAttrWithDict(mro_type,
-                                                                                final_method_names_string,
-                                                                                /*dict=*/NULL,
-                                                                                /*suppress=*/1);
-                Py_DECREF(final_method_names_string);
-                if (final_method_names == NULL) {
-                    break;
-                }
-                if (!PyTuple_Check(final_method_names)) {
-                    Py_DECREF(final_method_names);
-                    goto error;
-                }
-                Py_ssize_t member_pos = 0;
-                PyObject *key, *value;
-                while (PyDict_Next(orig_dict, &member_pos, &key, &value)) {
-                    for (Py_ssize_t final_method_index = 0;
-                         final_method_index < PyTuple_GET_SIZE(final_method_names);
-                         final_method_index++) {
-                        PyObject *current_final_method_name = PyTuple_GET_ITEM(final_method_names,
-                                                                               final_method_index);
-                        int compare = PyUnicode_Compare(key, current_final_method_name);
-                        if (compare == 0) {
-                            PyErr_Format(PyExc_TypeError,
-                                         "%R overrides a final method in the static base class %R",
-                                         key,
-                                         mro_type);
-                            Py_DECREF(final_method_names);
-                            goto error;
-                        } else if (compare == -1 && PyErr_Occurred()) {
-                            goto error;
-                        }
-                    }
-                }
-                Py_DECREF(final_method_names);
-                break;
-            }
-        }
-
+    if (_PyClassLoader_IsFinalMethodOverridden(base, orig_dict)) {
+        goto error;
     }
-
 
     /* Initialize the rest */
     if (PyType_Ready(type) < 0)
