@@ -1440,15 +1440,19 @@ update_thunk(_Py_StaticThunk *thunk, PyObject *previous, PyObject *new_value)
     }
 }
 
+/* The UpdateSlot method will always get called by `tp_setattro` when one of a type's attribute
+   gets changed, and serves as an entry point for handling modifications to vtables. */
 int
 _PyClassLoader_UpdateSlot(PyTypeObject *type,
                           PyObject *name,
                           PyObject *new_value)
 {
-    assert(type->tp_cache != NULL);
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
-    PyObject *slotmap = vtable->vt_slotmap;
+    if (vtable == NULL) {
+        return 0;
+    }
 
+    PyObject *slotmap = vtable->vt_slotmap;
     PyObject *slot = PyDict_GetItem(slotmap, name);
     if (slot == NULL) {
         return 0;

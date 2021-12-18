@@ -3964,7 +3964,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         }
         _PyType_ClearNoShadowingInstances(type, value);
         assert(_PyType_CheckConsistency(type));
-        if (existing != value && type->tp_cache != NULL) {
+        if (existing != value) {
             res =
                 _PyClassLoader_UpdateSlot(type, name, value) || res;
         }
