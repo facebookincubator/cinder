@@ -29,6 +29,7 @@ from typing import (
     Any,
     Callable as typingCallable,
     Dict,
+    List,
     Generator,
     Optional,
     Type,
@@ -335,9 +336,21 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.emit("STORE_ATTR", name)
         self.emit("DELETE_ATTR", impl_name)
 
+    def _emit_final_method_names(self, klass: Class) -> None:
+        final_methods: List[str] = []
+        for class_or_subclass in klass.mro:
+            final_methods.extend(class_or_subclass.get_own_final_method_names())
+
+        self.emit("DUP_TOP")
+        self.emit("LOAD_CONST", tuple(sorted(final_methods)))
+        self.emit("ROT_TWO")
+        self.emit("STORE_ATTR", "__final_method_names__")
+
     def post_process_and_store_name(self, node: ClassDef) -> None:
         klass = self._resolve_class(node)
         if klass:
+            self._emit_final_method_names(klass)
+
             method = "set_type_static_final" if klass.is_final else "set_type_static"
             self.emit("INVOKE_FUNCTION", (("_static", method), 1))
 

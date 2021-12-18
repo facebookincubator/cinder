@@ -543,3 +543,72 @@ class FinalTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.__final_constants__, ())
+
+    def test_final_method_in_class_slots(self):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self):
+                return self
+
+            def bar(self):
+                return self
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C.__final_method_names__, ("foo",))
+
+    def test_final_method_in_class_slots_with_inheritance(self):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self):
+                return self
+
+            def bar(self):
+                return self
+
+        class D(C):
+            @final
+            def bar(self):
+                return self
+
+            def baz(self):
+                return self
+
+        class E(D):
+            @final
+            def baz(self):
+                return self
+
+        class F(D):
+            def baz(self):
+                return self
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C.__final_method_names__, ("foo",))
+            self.assertEqual(mod.D.__final_method_names__, ("bar", "foo"))
+            self.assertEqual(mod.E.__final_method_names__, ("bar", "baz", "foo"))
+            self.assertEqual(mod.F.__final_method_names__, ("bar", "foo"))
+
+    def test_final_method_in_class_nonstatic_subclass_slots(self):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self):
+                return self
+
+            def bar(self):
+                return self
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+                pass
+
+            self.assertEqual(D.__final_method_names__, ("foo",))

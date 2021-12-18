@@ -1254,8 +1254,13 @@ class Class(Object["Class"]):
                         to_remove.add(name)
                     elif isinstance(value, Function):
                         if value.func_name not in NON_VIRTUAL_METHODS:
-                            assert isinstance(my_value, Function)
-                            value.validate_compat_signature(my_value, module)
+                            if isinstance(my_value, TransparentDecoratedMethod):
+                                value.validate_compat_signature(
+                                    my_value.real_function, module
+                                )
+                            else:
+                                assert isinstance(my_value, Function)
+                                value.validate_compat_signature(my_value, module)
                     elif isinstance(value, TransparentDecoratedMethod):
                         if value.function.is_final:
                             raise TypedSyntaxError(
@@ -1404,6 +1409,15 @@ class Class(Object["Class"]):
         if member:
             return member
         return self.get_parent_member(name)
+
+    def get_own_final_method_names(self) -> Sequence[str]:
+        final_methods = []
+        for name, value in self.members.items():
+            if isinstance(value, DecoratedMethod) and value.is_final:
+                final_methods.append(name)
+            elif isinstance(value, Function) and value.is_final:
+                final_methods.append(name)
+        return final_methods
 
     def unwrap(self) -> Class:
         return self
