@@ -612,3 +612,111 @@ class FinalTests(StaticTestBase):
                 pass
 
             self.assertEqual(D.__final_method_names__, ("foo",))
+
+    def test_final_method_nonstatic_override_throws_runtime_type_error(self):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self):
+                return self
+
+            def bar(self):
+                return self
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"'foo' overrides a final method in the static base class"
+            ):
+
+                class D(mod.C):
+                    def foo(self):
+                        return self
+
+    def test_final_method_nonstatic_override_of_static_subclass_throws_runtime_type_error(
+        self,
+    ):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self):
+                return self
+
+            def bar(self):
+                return self
+        class D(C):
+            pass
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"'foo' overrides a final method in the static base class"
+            ):
+
+                class E(mod.D):
+                    def foo(self):
+                        return self
+
+    def test_final_method_nonstatic_subclass_of_static_class_throws_runtime_type_error(
+        self,
+    ):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            def foo(self):
+                return self
+
+            def bar(self):
+                return self
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"'foo' overrides a final method in the static base class"
+            ):
+
+                class D(mod.C):
+                    pass
+
+                class E(D):
+                    def foo(self):
+                        return self
+
+    def test_final_method_with_other_decorator_throws_type_error(
+        self,
+    ):
+        codestr = """
+        from typing import final
+
+        class C:
+            @final
+            @staticmethod
+            def foo():
+                return self
+
+            @staticmethod
+            @final
+            def bar():
+                return self
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, r"'foo' overrides a final method in the static base class"
+            ):
+
+                class D(mod.C):
+                    @staticmethod
+                    def foo():
+                        return self
+
+            with self.assertRaisesRegex(
+                TypeError, r"'bar' overrides a final method in the static base class"
+            ):
+
+                class D(mod.C):
+                    @staticmethod
+                    def bar():
+                        return self
