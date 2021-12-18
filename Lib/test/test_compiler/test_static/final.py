@@ -1,4 +1,5 @@
 from compiler.errors import TypedSyntaxError
+from typing import ClassVar
 
 from .common import StaticTestBase
 
@@ -760,3 +761,110 @@ class FinalTests(StaticTestBase):
 
             mod.C.foo = lambda self: 1
             self.assertEqual(mod.C().foo(), 1)
+
+    def test_final_method_in_non_final_class_emits_invoke_function(
+        self,
+    ):
+        codestr = """
+        from typing import final
+
+        class C:
+            def __init__(self, x: int) -> None:
+                self.x = x
+            @final
+            def foo(self) -> int:
+                return self.x
+
+        def foo(c: C) -> int:
+            return c.foo()
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+                def __init__(self):
+                    super().__init__(5)
+
+            self.assertInBytecode(mod.foo, "INVOKE_FUNCTION")
+            self.assertEqual(mod.foo(mod.C(4)), 4)
+            self.assertEqual(mod.foo(D()), 5)
+
+    def test_final_method_in_subclass_of_non_final_class_emits_invoke_function(
+        self,
+    ):
+        codestr = """
+        from typing import final
+
+        class C:
+            def __init__(self, x: int) -> None:
+                self.x = x
+            @final
+            def foo(self) -> int:
+                return self.x
+
+        class D(C):
+            def __init__(self) -> None:
+                self.x = 4
+
+        def foo(d: D) -> int:
+            return d.foo()
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(
+                mod.foo, "INVOKE_FUNCTION", ((mod.__name__, "C", "foo"), 1)
+            )
+            self.assertEqual(mod.foo(mod.D()), 4)
+
+    def test_final_classmethod_in_non_final_nonstatic_class_emits_invoke_function(
+        self,
+    ):
+        codestr = """
+        from typing import ClassVar, final
+
+        class C:
+            CV: ClassVar[int] = 42
+
+            @final
+            @classmethod
+            def foo(cls) -> int:
+                return cls.CV
+
+        def foo(c: C) -> int:
+            return c.foo()
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+                CV: ClassVar[int] = 84
+
+            self.assertInBytecode(
+                mod.foo, "INVOKE_FUNCTION", ((mod.__name__, "C", "foo"), 1)
+            )
+            self.assertEqual(mod.foo(mod.C()), 42)
+            self.assertEqual(mod.foo(D()), 84)
+
+    def test_final_classmethod_in_non_final_static_class_emits_invoke_function(
+        self,
+    ):
+        codestr = """
+        from typing import ClassVar, final
+
+        class C:
+            CV: ClassVar[int] = 42
+
+            @final
+            @classmethod
+            def foo(cls) -> int:
+                return cls.CV
+
+        class D(C):
+            CV: ClassVar[int] = 63
+
+        def foo(c: C) -> int:
+            return c.foo()
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(
+                mod.foo, "INVOKE_FUNCTION", ((mod.__name__, "C", "foo"), 1)
+            )
+            self.assertEqual(mod.foo(mod.C()), 42)
+            self.assertEqual(mod.foo(mod.D()), 63)

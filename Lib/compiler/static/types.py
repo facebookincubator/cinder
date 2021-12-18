@@ -2116,6 +2116,8 @@ class ArgMapping:
         return resolved_type
 
     def needs_virtual_invoke(self, code_gen: Static38CodeGenerator) -> bool:
+        if self.callable.is_final:
+            return False
         self_arg = self.self_arg
         if self_arg is None:
             return False
@@ -2200,6 +2202,9 @@ class ClassMethodArgMapping(ArgMapping):
         self.is_instance_call = is_instance_call
 
     def needs_virtual_invoke(self, code_gen: Static38CodeGenerator) -> bool:
+        if self.callable.is_final:
+            return False
+
         self_arg = self.self_arg
         assert self_arg is not None
         self_type = code_gen.get_type(self_arg)
@@ -3276,6 +3281,14 @@ class TransparentDecoratedMethod(DecoratedMethod):
         self, node: ast.Attribute, visitor: ReferenceVisitor
     ) -> Optional[Value]:
         return self.function.resolve_attr(node, visitor)
+
+    def bind_function_self(
+        self,
+        node: Union[FunctionDef, AsyncFunctionDef],
+        scope: BindingScope,
+        visitor: TypeBinder,
+    ) -> None:
+        self.function.bind_function_self(node, scope, visitor)
 
 
 class StaticMethod(DecoratedMethod):
