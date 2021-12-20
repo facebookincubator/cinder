@@ -5015,6 +5015,29 @@ class BoolClass(Class):
             ResolvedTypeRef(self),
         )
 
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        if len(node.args) == 1 and not node.keywords:
+            arg = node.args[0]
+            visitor.visit(arg)
+            arg_type = visitor.get_type(arg)
+            if isinstance(arg_type, CIntInstance) and arg_type.constant == TYPED_BOOL:
+                visitor.set_type(node, BOOL_TYPE.instance)
+                return NO_EFFECT
+
+        return super().bind_call(node, visitor, type_ctx)
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) == 1 and not node.keywords:
+            arg = node.args[0]
+            arg_type = code_gen.get_type(arg)
+            if isinstance(arg_type, CIntInstance) and arg_type.constant == TYPED_BOOL:
+                arg_type.emit_box(arg, code_gen)
+                return
+
+        super().emit_call(node, code_gen)
+
 
 FUNCTION_TYPE = Class(TypeName("types", "FunctionType"), is_exact=True)
 METHOD_TYPE = Class(TypeName("types", "MethodType"), is_exact=True)

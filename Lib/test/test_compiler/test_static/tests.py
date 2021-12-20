@@ -2037,6 +2037,19 @@ class StaticCompilationTests(StaticTestBase):
 
         self.type_error(codestr, "type mismatch: int cannot be assigned to cbool")
 
+    def test_box_cbool_to_bool(self):
+        codestr = """
+            from typing import final
+            from __static__ import cbool
+
+            def foo() -> bool:
+                b: cbool = True
+                return bool(b)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.foo, "PRIMITIVE_BOX")
+            self.assertTrue(mod.foo())
+
     def test_unbox_incompat_type(self):
         codestr = """
         from __static__ import int64, box
