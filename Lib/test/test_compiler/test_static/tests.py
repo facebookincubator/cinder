@@ -20,18 +20,22 @@ from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import (
     prim_name_to_type,
+    ALL_CINT_TYPES,
     AWAITABLE_TYPE,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
     BUILTIN_METHOD_DESC_TYPE,
     BUILTIN_METHOD_TYPE,
     BYTES_TYPE,
+    CBOOL_TYPE,
+    CHAR_TYPE,
     COMPLEX_EXACT_TYPE,
     COMPLEX_TYPE,
     Class,
     Object,
     DICT_EXACT_TYPE,
     DICT_TYPE,
+    DOUBLE_TYPE,
     DYNAMIC,
     DYNAMIC_TYPE,
     ELLIPSIS_TYPE,
@@ -10063,6 +10067,22 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.fn
             self.assertNotInBytecode(f, "TP_ALLOC")
             self.assertEqual(f().c, 1)
+
+    def test_primitive_types_final(self):
+        PRIMITIVE_TYPES = ALL_CINT_TYPES + [CBOOL_TYPE, CHAR_TYPE, DOUBLE_TYPE]
+        PRIMITIVE_NAMES = [klass.instance_name for klass in PRIMITIVE_TYPES]
+        for name in PRIMITIVE_NAMES:
+            codestr = f"""
+                from __static__ import {name}
+
+                class C({name}): pass
+            """
+            with self.subTest(klass=name):
+                self.type_error(
+                    codestr,
+                    f"Primitive type {name} cannot be subclassed: ",
+                    at="class C",
+                )
 
 
 class StaticRuntimeTests(StaticTestBase):

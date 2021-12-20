@@ -1697,6 +1697,11 @@ class CType(Class):
             visitor.visit(arg, self.instance)
         return NO_EFFECT
 
+    def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
+        raise TypedSyntaxError(
+            f"Primitive type {self.instance_name} cannot be subclassed: {name.friendly_name}",
+        )
+
 
 class DynamicClass(Class):
     instance: DynamicInstance
