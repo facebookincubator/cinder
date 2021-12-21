@@ -46,6 +46,7 @@ from ..pycodegen import (
     FuncOrLambda,
     CompNode,
 )
+from ..readonly import TReadonlyTypes
 from ..strict import StrictCodeGenerator, FIXED_MODULES
 from ..symbols import Scope, SymbolVisitor, ClassScope
 from .compiler import Compiler
@@ -116,13 +117,21 @@ class Static38CodeGenerator(StrictCodeGenerator):
         graph: PyFlowGraph,
         compiler: Compiler,
         modname: str,
+        readonly_types: TReadonlyTypes,
         flags: int = 0,
         optimization_lvl: int = 0,
         enable_patching: bool = False,
         builtins: Dict[str, Any] = builtins.__dict__,
     ) -> None:
         super().__init__(
-            parent, node, symbols, graph, flags, optimization_lvl, builtins
+            parent,
+            node,
+            symbols,
+            graph,
+            readonly_types,
+            flags=flags,
+            optimization_lvl=optimization_lvl,
+            builtins=builtins,
         )
         self.compiler = compiler
         self.modname = modname
@@ -175,6 +184,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             graph,
             compiler=self.compiler,
             modname=self.modname,
+            readonly_types=self.readonly_types,
             optimization_lvl=self.optimization_lvl,
             enable_patching=self.enable_patching,
         )

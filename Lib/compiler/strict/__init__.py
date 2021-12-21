@@ -28,13 +28,13 @@ from ..pyassem import PyFlowGraph
 from ..pyassem import PyFlowGraphCinder
 from ..pycodegen import (
     CodeGenerator,
-    CinderCodeGenerator,
     FOR_LOOP,
     END_FINALLY,
     TRY_FINALLY_BREAK,
     TRY_FINALLY,
     Entry,
 )
+from ..readonly import ReadonlyCodeGenerator, TReadonlyTypes, ReadonlyTypeBinder
 from ..symbols import FunctionScope, SymbolVisitor
 from ..visitor import walk
 from .common import FIXED_MODULES
@@ -109,7 +109,7 @@ def get_is_assigned_tracking_name(name: str) -> str:
     return f"<assigned:{name}>"
 
 
-class StrictCodeGenerator(CinderCodeGenerator):
+class StrictCodeGenerator(ReadonlyCodeGenerator):
     flow_graph = PyFlowGraphCinder
     class_list_name: str = "<classes>"
 
@@ -119,11 +119,20 @@ class StrictCodeGenerator(CinderCodeGenerator):
         node: AST,
         symbols: SymbolVisitor,
         graph: PyFlowGraph,
+        readonly_types: TReadonlyTypes,
         flags: int = 0,
         optimization_lvl: int = 0,
         builtins: Dict[str, Any] = builtins.__dict__,
     ) -> None:
-        super().__init__(parent, node, symbols, graph, flags, optimization_lvl)
+        super().__init__(
+            parent,
+            node,
+            symbols,
+            graph,
+            readonly_types,
+            flags=flags,
+            optimization_lvl=optimization_lvl,
+        )
         self.has_class: bool = self.has_classDef(node)
         self.made_class_list = False
         self.builtins = builtins
@@ -151,10 +160,22 @@ class StrictCodeGenerator(CinderCodeGenerator):
         s = cls._SymbolVisitor()
         walk(tree, s)
 
+        binder = ReadonlyTypeBinder(tree, filename, s)
+        readonly_types = binder.get_types()
+
         graph = cls.flow_graph(
             module_name, filename, s.scopes[tree], peephole_enabled=peephole_enabled
         )
-        code_gen = cls(None, tree, s, graph, flags, optimize, builtins)
+        code_gen = cls(
+            None,
+            tree,
+            s,
+            graph,
+            readonly_types,
+            flags=flags,
+            optimization_lvl=optimize,
+            builtins=builtins,
+        )
         code_gen._qual_name = module_name
         walk(tree, code_gen)
         return code_gen
