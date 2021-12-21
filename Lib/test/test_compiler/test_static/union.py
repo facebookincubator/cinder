@@ -5,7 +5,7 @@ from compiler.static.compiler import Compiler
 from compiler.static.types import UNION_TYPE, INT_TYPE, STR_TYPE, NONE_TYPE
 
 from .common import StaticTestBase
-from .tests import bad_ret_type, type_mismatch
+from .tests import bad_ret_type
 
 
 class UnionCompilationTests(StaticTestBase):
@@ -406,6 +406,45 @@ class UnionCompilationTests(StaticTestBase):
             # runtime type error comes from return, not argument
             with self.assertRaisesRegex(TypeError, "expected 'int', got 'list'"):
                 f([])
+
+    def test_union_compare(self):
+        codestr = """
+            # float is actually int | float
+            def f(x: float) -> bool:
+                return x > 0
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.f(3), True)
+            self.assertEqual(mod.f(3.1), True)
+            self.assertEqual(mod.f(-3), False)
+            self.assertEqual(mod.f(-3.1), False)
+
+    def test_int_subclass_of_float(self):
+        """PEP 484 specifies that ints should be treated as subclasses of floats,
+        even though they differ in the runtime."""
+        codestr = """
+            def takes_float(f: float) -> float:
+                return f
+
+            a: int = 1
+            x: float = takes_float(a)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.x, 1)
+
+    def test_float_int_union_error_message(self):
+        codestr = """
+            class MyFloat(float):
+                pass
+
+            def f(x: int) -> int:
+                y = 1.0
+                if x:
+                    y = MyFloat("1.5")
+                z = x or y
+                return z
+        """
+        self.type_error(codestr, bad_ret_type("float", "int"))
 
 
 

@@ -14,14 +14,12 @@ import warnings
 from array import array
 from collections import UserDict
 from compiler.consts import CO_SHADOW_FRAME, CO_STATICALLY_COMPILED
-from compiler.errors import CollectingErrorSink
-from compiler.pycodegen import PythonCodeGenerator, make_compiler
+from compiler.pycodegen import PythonCodeGenerator
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import (
     prim_name_to_type,
     ALL_CINT_TYPES,
-    AWAITABLE_TYPE,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
     BUILTIN_METHOD_DESC_TYPE,
@@ -31,7 +29,6 @@ from compiler.static.types import (
     CHAR_TYPE,
     COMPLEX_EXACT_TYPE,
     COMPLEX_TYPE,
-    Class,
     Object,
     DICT_EXACT_TYPE,
     DICT_TYPE,
@@ -67,10 +64,8 @@ from compiler.static.types import (
     TYPE_TYPE,
     Function,
     TypedSyntaxError,
-    Value,
     TUPLE_EXACT_TYPE,
     TUPLE_TYPE,
-    UNION_TYPE,
     INT_EXACT_TYPE,
     FLOAT_EXACT_TYPE,
     SET_EXACT_TYPE,
@@ -109,20 +104,14 @@ from compiler.static.types import (
     FAST_LEN_STR,
     DICT_EXACT_TYPE,
     TYPED_DOUBLE,
-    InlinedCall,
 )
-from compiler.strict.common import FIXED_MODULES
-from compiler.strict.runtime import set_freeze_enabled
-from compiler.symbols import SymbolVisitor, CinderSymbolVisitor
-from contextlib import contextmanager
 from copy import deepcopy
 from io import StringIO
 from os import path
-from textwrap import dedent
-from types import CodeType, MemberDescriptorType, ModuleType
-from typing import Generic, Optional, Tuple, TypeVar, Dict
-from unittest import TestCase, skip, skipIf
-from unittest.mock import Mock, patch
+from types import ModuleType
+from typing import Optional, TypeVar
+from unittest import skipIf
+from unittest.mock import patch
 
 import cinder
 import xxclassloader
@@ -130,14 +119,11 @@ from __static__ import (
     Array,
     Vector,
     chkdict,
-    chklist,
     int32,
     int64,
-    int8,
     make_generic_type,
     StaticGeneric,
     is_type_static,
-    RAND_MAX,
 )
 from cinder import StrictModule
 
@@ -1335,8 +1321,6 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.testfunc
-            import dis
-
             self.assertEqual(f(), 1234)
 
     def test_int_compare_or(self):
@@ -5734,17 +5718,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    def test_union_compare(self):
-        codestr = """
-            def f(x: int | float) -> bool:
-                return x > 0
-        """
-        with self.in_strict_module(codestr) as mod:
-            self.assertEqual(mod.f(3), True)
-            self.assertEqual(mod.f(3.1), True)
-            self.assertEqual(mod.f(-3), False)
-            self.assertEqual(mod.f(-3.1), False)
-
     def test_global_int(self):
         codestr = """
             X: int =  60 * 60 * 24
@@ -9608,33 +9581,6 @@ class StaticCompilationTests(StaticTestBase):
             return i("p")
         """
         self.compile(codestr, modname="foo")
-
-    def test_int_subclass_of_float(self):
-        """PEP 484 specifies that ints should be treated as subclasses of floats,
-        even though they differ in the runtime."""
-        codestr = """
-            def takes_float(f: float) -> float:
-                return f
-
-            a: int = 1
-            x: float = takes_float(a)
-        """
-        with self.in_module(codestr) as mod:
-            self.assertEqual(mod.x, 1)
-
-    def test_float_int_union_error_message(self):
-        codestr = """
-            class MyFloat(float):
-                pass
-
-            def f(x: int) -> int:
-                y = 1.0
-                if x:
-                    y = MyFloat("1.5")
-                z = x or y
-                return z
-        """
-        self.type_error(codestr, bad_ret_type("float", "int"))
 
     def test_exact_float_type(self):
         codestr = """
