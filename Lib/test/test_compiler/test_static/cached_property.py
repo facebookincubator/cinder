@@ -5,6 +5,8 @@ from compiler.static import (
     CACHED_PROPERTY_IMPL_PREFIX,
 )
 
+from cinder import cached_property
+
 from .common import StaticTestBase
 
 
@@ -31,6 +33,34 @@ class CachedPropertyTests(StaticTestBase):
             # This next access shouldn't bump the hit count
             self.assertEqual(c.x, 3)
             self.assertEqual(c.hit_count, 1)
+
+    def test_cached_property_invoked(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            def __init__(self):
+                self.hit_count = 0
+
+            @cached_property
+            def x(self):
+                self.hit_count += 1
+                return 3
+
+        def f() -> C:
+            c = C()
+            c.x
+            c.x
+            return c
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertInBytecode(
+                mod.f,
+                "INVOKE_METHOD",
+                ((mod.__name__, "C", ("x", "fget")), 0),
+            )
+            r = mod.f()
+            self.assertEqual(r.hit_count, 1)
 
     def test_multiple_cached_properties(self):
         codestr = """
@@ -133,6 +163,108 @@ class CachedPropertyTests(StaticTestBase):
             D = mod.D
             with self.assertRaisesRegex(AttributeError, "This object has no __dict__"):
                 D().x
+
+    def test_cached_property_override_property(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @property
+            def x(self):
+                return 3
+
+        class D(C):
+            @cached_property
+            def x(self):
+                return 4
+        """
+        with self.in_strict_module(codestr) as mod:
+            C = mod.C
+            D = mod.D
+            self.assertEqual(C().x, 3)
+            self.assertEqual(D().x, 4)
+
+    def test_property_override_cached_property(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @cached_property
+            def x(self):
+                return 3
+
+        class D(C):
+            @property
+            def x(self):
+                return 4
+        """
+        with self.in_strict_module(codestr) as mod:
+            C = mod.C
+            D = mod.D
+            self.assertEqual(C().x, 3)
+            self.assertEqual(D().x, 4)
+
+    def test_cached_property_override_cached_property(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @cached_property
+            def x(self):
+                return 3
+
+        class D(C):
+            @cached_property
+            def x(self):
+                return 4
+        """
+        with self.in_strict_module(codestr) as mod:
+            C = mod.C
+            D = mod.D
+            self.assertEqual(C().x, 3)
+            self.assertEqual(D().x, 4)
+
+    def test_cached_property_override_cached_property_non_static(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @cached_property
+            def x(self):
+                return 3
+
+        """
+        with self.in_strict_module(codestr) as mod:
+            C = mod.C
+
+            class D(C):
+                @cached_property
+                def x(self):
+                    return 4
+
+            self.assertEqual(C().x, 3)
+            self.assertEqual(D().x, 4)
+
+    def test_property_override_cached_property_non_static(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @cached_property
+            def x(self):
+                return 3
+
+        """
+        with self.in_strict_module(codestr) as mod:
+            C = mod.C
+
+            class D(C):
+                @property
+                def x(self):
+                    return 4
+
+            self.assertEqual(C().x, 3)
+            self.assertEqual(D().x, 4)
 
     def test_async_cached_property(self):
         codestr = """

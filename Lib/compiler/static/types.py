@@ -1220,6 +1220,14 @@ class Class(Object["Class"]):
         if isinstance(inherited, TransparentDecoratedMethod):
             inherited = inherited.function
 
+        if isinstance(override, (CachedPropertyMethod, PropertyMethod)) and isinstance(
+            inherited, (CachedPropertyMethod, PropertyMethod)
+        ):
+            # Properties can be overridden by cached properties, and vice-versa. In that case,
+            # we just look at whether the underlying functions are compatible
+            override = override.function
+            inherited = inherited.function
+
         if type(override) != type(inherited) and (
             type(override) is not Function
             or not isinstance(inherited, (BuiltinFunction, BuiltinMethodDescriptor))
@@ -1280,7 +1288,9 @@ class Class(Object["Class"]):
                             raise TypedSyntaxError(
                                 f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
                             )
-                        assert isinstance(my_value, PropertyMethod)
+                        assert isinstance(
+                            my_value, (PropertyMethod, CachedPropertyMethod)
+                        )
                         value.real_function.validate_compat_signature(
                             my_value.real_function, module
                         )
@@ -3404,8 +3414,13 @@ class ClassMethod(DecoratedMethod):
 
 
 class PropertyMethod(DecoratedMethod):
-    def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
-        super().__init__(PROPERTY_TYPE, function, decorator)
+    def __init__(
+        self,
+        function: Function | DecoratedMethod,
+        decorator: expr,
+        property_type: Optional[Class] = None,
+    ) -> None:
+        super().__init__(property_type or PROPERTY_TYPE, function, decorator)
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
         return PropertyMethod(self.function.replace_function(func), self.decorator)
@@ -3461,30 +3476,14 @@ class PropertyMethod(DecoratedMethod):
         return self.container_descr + ((self.function.func_name, "fset"),)
 
 
-class CachedPropertyMethod(DecoratedMethod):
+class CachedPropertyMethod(PropertyMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
-        super().__init__(CACHED_PROPERTY_TYPE, function, decorator)
+        super().__init__(function, decorator, property_type=CACHED_PROPERTY_TYPE)
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
         return CachedPropertyMethod(
             self.function.replace_function(func), self.decorator
         )
-
-    @property
-    def name(self) -> str:
-        return self.real_function.qualname
-
-    def resolve_descr_get(
-        self,
-        node: ast.Attribute,
-        inst: Optional[Object[TClassInv]],
-        ctx: TClassInv,
-        visitor: ReferenceVisitor,
-    ) -> Optional[Value]:
-        if inst is None:
-            return DYNAMIC_TYPE
-        else:
-            return self.function.return_type.resolved().instance
 
     def emit_function(
         self,
