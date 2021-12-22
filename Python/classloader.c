@@ -1948,6 +1948,10 @@ used_in_vtable(PyObject *value)
         Py_XDECREF(getter);
         Py_XDECREF(setter);
         return res;
+    } else if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
+        _Py_CachedPropertyThunk *thunk = (_Py_CachedPropertyThunk *)value;
+        PyCachedPropertyDescrObject *target = (PyCachedPropertyDescrObject *)thunk->propthunk_target;
+        return used_in_vtable_worker(target->func);
     }
     return 0;
 }

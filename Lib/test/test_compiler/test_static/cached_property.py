@@ -266,6 +266,36 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(C().x, 3)
             self.assertEqual(D().x, 4)
 
+    def test_cached_property_override_cached_property_non_static_invoked(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @cached_property
+            def x(self):
+                return 3
+
+        def f(c: C):
+            return c.x
+        """
+        with self.in_strict_module(codestr) as mod:
+            C = mod.C
+
+            class D(C):
+                def __init__(self):
+                    self.hit_count = 0
+
+                @cached_property
+                def x(self):
+                    self.hit_count += 1
+                    return 4
+
+            d = D()
+            self.assertEqual(mod.f(d), 4)
+            self.assertEqual(d.hit_count, 1)
+            mod.f(D())
+            self.assertEqual(d.hit_count, 1)
+
     def test_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property
