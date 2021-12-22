@@ -1371,6 +1371,11 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, 
         if (_PyClassLoader_IsStaticFunction(target)) {
             res = resolve_function_rettype(target, optional, coroutine);
         }
+    } else if (Py_TYPE(func) == &PyCachedPropertyWithDescr_Type) {
+        PyCachedPropertyDescrObject *property = (PyCachedPropertyDescrObject *)func;
+        if (_PyClassLoader_IsStaticFunction(property->func)) {
+            res = resolve_function_rettype(property->func, optional, coroutine);
+        }
     } else {
         _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
         if (tmd != NULL) {
