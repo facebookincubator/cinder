@@ -930,9 +930,9 @@ class Class(Object["Class"]):
         self._member_nodes: Dict[str, AST] = {}
 
     def _get_bases(self, bases: Optional[List[Class]]) -> List[Class]:
-        ret = []
         if bases is None:
-            return ret
+            return [OBJECT_TYPE]
+        ret = []
         for b in bases:
             ret.append(b)
             # Can't check for DYNAMIC_TYPE because that'd be a cyclic dependency
@@ -1720,7 +1720,6 @@ class DynamicClass(Class):
         super().__init__(
             # any references to dynamic at runtime are object
             TypeName("builtins", "object"),
-            bases=[OBJECT_TYPE],
             instance=DynamicInstance(self),
         )
 
@@ -4000,7 +3999,7 @@ class Slot(Object[TClassInv]):
 
 
 # TODO (aniketpanse): move these to a better place
-OBJECT_TYPE = BuiltinObject(TypeName("builtins", "object"))
+OBJECT_TYPE = BuiltinObject(TypeName("builtins", "object"), bases=[])
 OBJECT = OBJECT_TYPE.instance
 
 DYNAMIC_TYPE = DynamicClass()
@@ -4594,7 +4593,6 @@ class TupleClass(Class):
         instance = TupleExactInstance(self) if is_exact else TupleInstance(self)
         super().__init__(
             type_name=TypeName("builtins", "tuple"),
-            bases=[OBJECT_TYPE],
             instance=instance,
             is_exact=is_exact,
             pytype=tuple,
@@ -4682,7 +4680,6 @@ class SetClass(Class):
     def __init__(self, is_exact: bool = False) -> None:
         super().__init__(
             type_name=TypeName("builtins", "set"),
-            bases=[OBJECT_TYPE],
             instance=SetInstance(self),
             is_exact=is_exact,
             pytype=tuple,
@@ -4790,7 +4787,6 @@ class ListClass(Class):
         instance = ListExactInstance(self) if is_exact else ListInstance(self)
         super().__init__(
             type_name=TypeName("builtins", "list"),
-            bases=[OBJECT_TYPE],
             instance=instance,
             is_exact=is_exact,
             pytype=list,
@@ -4918,7 +4914,6 @@ class StrClass(Class):
     def __init__(self, is_exact: bool = False) -> None:
         super().__init__(
             type_name=TypeName("builtins", "str"),
-            bases=[OBJECT_TYPE],
             instance=StrInstance(self),
             is_exact=is_exact,
             pytype=str,
@@ -4960,7 +4955,6 @@ class DictClass(Class):
     def __init__(self, is_exact: bool = False) -> None:
         super().__init__(
             type_name=TypeName("builtins", "dict"),
-            bases=[OBJECT_TYPE],
             instance=DictInstance(self),
             is_exact=is_exact,
             pytype=dict,
@@ -5091,12 +5085,10 @@ EXCEPTION_TYPE = Class(
 )
 STATIC_METHOD_TYPE = StaticMethodDecorator(
     TypeName("builtins", "staticmethod"),
-    bases=[OBJECT_TYPE],
     pytype=staticmethod,
 )
 CLASS_METHOD_TYPE = ClassMethodDecorator(
     TypeName("builtins", "classmethod"),
-    bases=[OBJECT_TYPE],
     pytype=classmethod,
 )
 FINAL_METHOD_TYPE = TypingFinalDecorator(TypeName("typing", "final"))
@@ -5104,7 +5096,7 @@ ALLOW_WEAKREFS_TYPE = AllowWeakrefsDecorator(TypeName("__static__", "allow_weakr
 DYNAMIC_RETURN_TYPE = DynamicReturnDecorator(TypeName("__static__", "dynamic_return"))
 INLINE_TYPE = InlineFunctionDecorator(TypeName("__static__", "inline"))
 DONOTCOMPILE_TYPE = DoNotCompileDecorator(TypeName("__static__", "_donotcompile"))
-PROPERTY_TYPE = PropertyDecorator(TypeName("builtins", "property"))
+PROPERTY_TYPE = PropertyDecorator(TypeName("builtins", "property"), pytype=property)
 CACHED_PROPERTY_TYPE = CachedPropertyDecorator(TypeName("cinder", "cached_property"))
 ASYNC_CACHED_PROPERTY_TYPE = AsyncCachedPropertyDecorator(
     TypeName("cinder", "async_cached_property")

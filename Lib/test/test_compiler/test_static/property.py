@@ -396,3 +396,14 @@ class PropertyTests(StaticTestBase):
                 c.prop = 2
             with self.assertRaisesRegex(AttributeError, "can't set attribute"):
                 c.set(2)
+
+    def test_property_call(self):
+        codestr = """
+            class C:
+                a = property(lambda: "A")
+
+            def f(x: C):
+                return x.a
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "LOAD_ATTR", "a")
