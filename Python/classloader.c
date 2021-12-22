@@ -126,7 +126,7 @@ cachedpropthunk_get(_Py_CachedPropertyThunk *thunk, PyObject *const *args,
 
 
 PyTypeObject _PyType_CachedPropertyThunk = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0) "property_thunk",
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) "cachedproperty_thunk",
     sizeof(_Py_CachedPropertyThunk),
     .tp_dealloc = (destructor)cachedpropthunkdealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
