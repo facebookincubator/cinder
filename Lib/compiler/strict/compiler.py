@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import ast
+from ast import NodeVisitor
 from contextlib import nullcontext
+from functools import cached_property
+from os import path
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
 from types import CodeType
 from typing import (
@@ -15,6 +18,7 @@ from typing import (
     final,
     Dict,
     Set,
+    Type,
     TYPE_CHECKING,
 )
 
@@ -28,12 +32,11 @@ from _strictmodule import (
 
 from ..errors import TypedSyntaxError
 from ..pycodegen import compile as python_compile
-from ..readonly import readonly_compile
 from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
 from . import strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
-from .rewriter import rewrite, remove_annotations
+from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
 
 if TYPE_CHECKING:
     from _strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory
@@ -174,15 +177,6 @@ class Compiler(StaticCompiler):
             )
 
         return code, mod
-
-    def _compile_readonly(
-        self, name: str, root: ast.Module, filename: str, optimize: int
-    ) -> CodeType:
-        """
-        TODO: this should eventually replace compile_basic once all python sources
-        are compiled through this compiler
-        """
-        return readonly_compile(name, filename, root, flags=0, optimize=optimize)
 
     def _compile_basic(
         self, root: ast.Module, filename: str, optimize: int

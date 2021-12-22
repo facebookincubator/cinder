@@ -2115,7 +2115,7 @@ class ArgMapping:
     def visit_arg(
         self, visitor: TypeBinder, param: Parameter, arg: expr, arg_style: str
     ) -> Class:
-        resolved_type = param.type_ref.resolved().unwrap()
+        resolved_type = param.type_ref.resolved()
         desc = (
             f"{arg_style} arg '{param.name}'"
             if param.name
@@ -2550,7 +2550,8 @@ class Callable(Object[TClass]):
             self, node, self_expr, args_override, descr_override=descr_override
         )
         arg_mapping.bind_args(visitor)
-        return arg_mapping, self.return_type.resolved().unwrap().instance
+
+        return arg_mapping, self.return_type.resolved().instance
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -2822,6 +2823,7 @@ class Function(Callable[Class], FunctionContainer):
         res = super().bind_call(node, visitor, type_ctx)
         if self.inline and not visitor.enable_patching:
             assert isinstance(self.node.body[0], ast.Return)
+
             return self.bind_inline_call(node, visitor, type_ctx) or res
 
         return res
@@ -4297,28 +4299,6 @@ class RevealTypeFunction(Object[Class]):
         return NO_EFFECT
 
 
-class ReadonlyFunction(Object[Class]):
-    def __init__(self) -> None:
-        super().__init__(FUNCTION_TYPE)
-
-    @property
-    def name(self) -> str:
-        return "readonly function"
-
-    def bind_call(
-        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> NarrowingEffect:
-        if node.keywords:
-            visitor.syntax_error("readonly() does not accept keyword arguments", node)
-        if len(node.args) != 1:
-            visitor.syntax_error("readonly() accepts exactly one argument", node)
-        arg = node.args[0]
-        visitor.visit(arg)
-        arg_type = visitor.get_type(arg)
-        visitor.set_type(node, arg_type)
-        return NO_EFFECT
-
-
 class NumClass(Class):
     def __init__(
         self,
@@ -5129,6 +5109,9 @@ CACHED_PROPERTY_TYPE = CachedPropertyDecorator(TypeName("cinder", "cached_proper
 ASYNC_CACHED_PROPERTY_TYPE = AsyncCachedPropertyDecorator(
     TypeName("cinder", "async_cached_property")
 )
+IDENTITY_DECORATOR_TYPE = IdentityDecorator(
+    TypeName("__strict__", "<identity-decorator>")
+)
 
 RESOLVED_INT_TYPE = ResolvedTypeRef(INT_TYPE)
 RESOLVED_STR_TYPE = ResolvedTypeRef(STR_TYPE)
@@ -5164,10 +5147,6 @@ class FinalClass(TypeWrapper):
 
 
 class ClassVar(TypeWrapper):
-    pass
-
-
-class ReadonlyType(TypeWrapper):
     pass
 
 
@@ -5670,9 +5649,6 @@ OPTIONAL_TYPE = OptionalType()
 FINAL_TYPE = FinalClass(GenericTypeName("typing", "Final", (GenericParameter("T", 0),)))
 CLASSVAR_TYPE = ClassVar(
     GenericTypeName("typing", "ClassVar", (GenericParameter("T", 0),))
-)
-READONLY_TYPE = ReadonlyType(
-    GenericTypeName("builtins", "Readonly", (GenericParameter("T", 0),))
 )
 CHECKED_DICT_TYPE_NAME = GenericTypeName(
     "__static__", "chkdict", (GenericParameter("K", 0), GenericParameter("V", 1))

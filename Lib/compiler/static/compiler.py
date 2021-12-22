@@ -16,7 +16,6 @@ from _static import (
 from .. import consts
 from ..errors import ErrorSink
 from ..optimizer import AstOptimizer
-from ..readonly.type_binder import ReadonlyTypeBinder
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
 from .module_table import ModuleTable
@@ -35,7 +34,6 @@ from .types import (
     CHECKED_DICT_TYPE,
     CHECKED_LIST_TYPE,
     CLASSVAR_TYPE,
-    READONLY_TYPE,
     CLASS_METHOD_TYPE,
     COMPLEX_EXACT_TYPE,
     CONTEXT_DECORATOR_TYPE,
@@ -54,7 +52,7 @@ from .types import (
     FLOAT_EXACT_TYPE,
     FUNCTION_TYPE,
     GenericTypesDict,
-    IdentityDecorator,
+    IDENTITY_DECORATOR_TYPE,
     INLINE_TYPE,
     INT16_TYPE,
     INT32_TYPE,
@@ -74,7 +72,6 @@ from .types import (
     Object,
     PROTOCOL_TYPE,
     PROPERTY_TYPE,
-    ReadonlyFunction,
     ProdAssertFunction,
     RevealTypeFunction,
     SET_EXACT_TYPE,
@@ -171,10 +168,7 @@ class Compiler:
             "staticmethod": STATIC_METHOD_TYPE,
             "reveal_type": RevealTypeFunction(),
             "property": PROPERTY_TYPE,
-            "<mutable>": IdentityDecorator(TypeName("__strict__", "<mutable>")),
-            "readonly_func": IdentityDecorator(TypeName("builtins", "readonly_func")),
-            "Readonly": READONLY_TYPE,
-            "readonly": ReadonlyFunction(),
+            "<mutable>": IDENTITY_DECORATOR_TYPE,
         }
         strict_builtins = StrictBuiltins(builtins_children)
         typing_children = {
@@ -192,10 +186,10 @@ class Compiler:
             "TYPE_CHECKING": BOOL_TYPE.instance,
         }
         strict_modules_children: Dict[str, Value] = {
-            "mutable": IdentityDecorator(TypeName("__strict__", "mutable")),
-            "strict_slots": IdentityDecorator(TypeName("__strict__", "strict_slots")),
-            "loose_slots": IdentityDecorator(TypeName("__strict__", "loose_slots")),
-            "freeze_type": IdentityDecorator(TypeName("__strict__", "freeze_type")),
+            "mutable": IDENTITY_DECORATOR_TYPE,
+            "strict_slots": IDENTITY_DECORATOR_TYPE,
+            "loose_slots": IDENTITY_DECORATOR_TYPE,
+            "freeze_type": IDENTITY_DECORATOR_TYPE,
         }
 
         builtins_children["<builtins>"] = strict_builtins
@@ -384,11 +378,6 @@ class Compiler:
         tree, s = self._bind(name, filename, tree, optimize, enable_patching)
         if self.error_sink.has_errors:
             raise self.error_sink.errors[0]
-        # Analyze using readonly type binder
-        readonly_type_binder = ReadonlyTypeBinder(tree, filename, s)
-        readonly_types = readonly_type_binder.get_types()
-        if readonly_type_binder.error_sink.has_errors:
-            raise readonly_type_binder.error_sink.errors[0]
 
         # Compile the code w/ the static compiler
         graph = self.code_generator.flow_graph(
@@ -403,7 +392,6 @@ class Compiler:
             graph,
             self,
             name,
-            readonly_types=readonly_types,
             flags=0,
             optimization_lvl=optimize,
             enable_patching=enable_patching,
