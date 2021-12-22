@@ -426,6 +426,28 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
       func, args, nargsf, arg_info);
 }
 
+JITRT_StaticCallFPReturn JITRT_ReportStaticArgTypecheckErrorsWithDoubleReturn(
+    PyObject* func,
+    PyObject** args,
+    size_t nargsf,
+    PyObject* /* kwnames */) {
+  PyObject* res =
+      JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, NULL);
+  JIT_CHECK(res == NULL, "should always return an error");
+  return {0, 0};
+}
+
+JITRT_StaticCallReturn JITRT_ReportStaticArgTypecheckErrorsWithPrimitiveReturn(
+    PyObject* func,
+    PyObject** args,
+    size_t nargsf,
+    PyObject* /* kwnames */) {
+  PyObject* res =
+      JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, NULL);
+  JIT_CHECK(res == NULL, "should always return an error");
+  return {NULL, NULL};
+}
+
 PyObject* JITRT_ReportStaticArgTypecheckErrors(
     PyObject* func,
     PyObject** args,

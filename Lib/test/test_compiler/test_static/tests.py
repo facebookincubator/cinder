@@ -11472,6 +11472,28 @@ class StaticRuntimeTests(StaticTestBase):
             m = mod.m
             self.assertEqual(m(), -5)
 
+    def test_array_call_typecheck(self):
+        codestr = """
+            from __static__ import Array, int32
+            def h(x: Array[int32]) -> int32:
+                return x[0]
+        """
+        error_msg = re.escape("h expected 'Array[int32]' for argument x, got 'list'")
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(TypeError, error_msg):
+                mod.h(["B"])
+
+    def test_array_call_typecheck_double(self):
+        codestr = """
+            from __static__ import Array, int32, double, box
+            def h(x: Array[int32]) -> double:
+                return double(float(box(x[0])))
+        """
+        error_msg = re.escape("h expected 'Array[int32]' for argument x, got 'list'")
+        with self.in_module(codestr) as mod:
+            with self.assertRaisesRegex(TypeError, error_msg):
+                mod.h(["B"])
+
     def test_array_set_signed(self):
         int_types = [
             "int8",

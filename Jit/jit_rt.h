@@ -89,7 +89,28 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
 #define JITRT_GET_REENTRY(entry) \
   ((vectorcallfunc)(((char*)entry) + JITRT_CALL_REENTRY_OFFSET))
 
+/* Helper function to report an error when the arguments aren't correct for
+ * a static function call.  Dispatches to the eval loop to let the normal
+ CHECK_ARGS run and then report the error */
 PyObject* JITRT_ReportStaticArgTypecheckErrors(
+    PyObject* func,
+    PyObject** args,
+    size_t nargsf,
+    PyObject* kwnames);
+
+/* Variation of JITRT_ReportStaticArgTypecheckErrors but also sets the primitive
+   return value error in addition to returning the normal NULL error indicator
+ */
+JITRT_StaticCallReturn JITRT_ReportStaticArgTypecheckErrorsWithPrimitiveReturn(
+    PyObject* func,
+    PyObject** args,
+    size_t nargsf,
+    PyObject* kwnames);
+
+/* Variation of JITRT_ReportStaticArgTypecheckErrors but also sets the double
+   return value error in addition to returning the normal NULL error indicator
+ */
+JITRT_StaticCallFPReturn JITRT_ReportStaticArgTypecheckErrorsWithDoubleReturn(
     PyObject* func,
     PyObject** args,
     size_t nargsf,

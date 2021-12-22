@@ -1084,7 +1084,18 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   if (env_.static_arg_typecheck_failed_label.isValid()) {
     auto static_typecheck_cursor = as_->cursor();
     as_->bind(env_.static_arg_typecheck_failed_label);
-    as_->call(reinterpret_cast<uint64_t>(JITRT_ReportStaticArgTypecheckErrors));
+    if (GetFunction()->returnsPrimitive()) {
+      if (GetFunction()->returnsPrimitiveDouble()) {
+        as_->call(reinterpret_cast<uint64_t>(
+            JITRT_ReportStaticArgTypecheckErrorsWithDoubleReturn));
+      } else {
+        as_->call(reinterpret_cast<uint64_t>(
+            JITRT_ReportStaticArgTypecheckErrorsWithPrimitiveReturn));
+      }
+    } else {
+      as_->call(
+          reinterpret_cast<uint64_t>(JITRT_ReportStaticArgTypecheckErrors));
+    }
     as_->leave();
     as_->ret();
     env_.addAnnotation(
