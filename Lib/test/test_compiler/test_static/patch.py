@@ -1460,20 +1460,3 @@ class StaticPatchTests(StaticTestBase):
                 AttributeError, "'C' object has no attribute 'prop'"
             ):
                 c.get()
-
-    def test_patch_cached_property_with_descr(self):
-        codestr = """
-        from cinder import cached_property
-
-        class C:
-            @cached_property
-            def x(self) -> int:
-                return 3
-
-        def f(c: C) -> int:
-            return c.x
-        """
-        with self.in_strict_module(codestr) as mod:
-            setattr(mod.C, "x", 42)
-            self.assertEqual(mod.C().x, 42)
-            self.assertEqual(mod.f(mod.C()), 42)

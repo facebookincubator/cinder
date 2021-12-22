@@ -838,63 +838,6 @@ static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
 _Py_TYPED_SIGNATURE(static_property_missing_fset, _Py_SIG_ERROR, &_Py_Sig_Object, &_Py_Sig_Object, NULL);
 
 
-/*
-    Static Python compiles cached properties into something like this:
-        class C:
-            __slots__ = ("x")
-
-            def _x_impl(self): ...
-
-            C.x = cached_property(C._x_impl, C.x)
-            del C._x_impl
-
-    The last two lines result in a STORE_ATTR + DELETE_ATTR. However, both those
-    opcodes result in us creating a v-table on the C class. That's not correct, because
-    the v-table should be created only _after_ `C.x` is assigned (and the impl deleted).
-
-    This function does the job, without going through the v-table creation.
-*/
-static PyObject *
-setup_cached_property_on_type(PyObject *Py_UNUSED(module), PyObject **args, Py_ssize_t nargs)
-{
-    if (nargs != 4) {
-        PyErr_SetString(PyExc_TypeError, "Expected 4 arguments");
-        return NULL;
-    }
-    PyObject *typ = args[0];
-    if (!PyType_Check(typ)) {
-        PyErr_SetString(PyExc_TypeError, "Expected a type object as 1st argument");
-        return NULL;
-    }
-    PyObject *property = args[1];
-    PyObject *name = args[2];
-    if (!PyUnicode_Check(name)) {
-        PyErr_SetString(PyExc_TypeError, "Expected str as 3rd argument (name of the cached property)");
-        return NULL;
-    }
-    PyObject *impl_name = args[3];
-    if (!PyUnicode_Check(impl_name)) {
-        PyErr_SetString(PyExc_TypeError, "Expected str as 4th argument (name of the implementation slot)");
-        return NULL;
-    }
-
-    // First setup the cached_property
-    int res;
-    res = _PyObject_GenericSetAttrWithDict(typ, name, property, NULL);
-    if (res != 0) {
-        return NULL;
-    }
-
-    // Next clear the backing slot
-    res = _PyObject_GenericSetAttrWithDict(typ, impl_name, NULL, NULL);
-    if (res != 0) {
-        return NULL;
-    }
-
-    PyType_Modified((PyTypeObject*)typ);
-    Py_RETURN_NONE;
-}
-
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
@@ -908,7 +851,6 @@ static PyMethodDef static_methods[] = {
     {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, METH_TYPED, ""},
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, METH_TYPED, ""},
     {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
-    {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
     {}
 };
 
