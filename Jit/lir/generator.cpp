@@ -1886,18 +1886,28 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kCast: {
         uint64_t func;
         auto instr = static_cast<const Cast*>(&i);
-        if (instr->optional()) {
-          func = reinterpret_cast<uint64_t>(JITRT_CastOptional);
+        bool pass_type = true;
+        if (instr->pytype() == &PyFloat_Type) {
+          pass_type = false;
+          func = reinterpret_cast<uint64_t>(
+              instr->optional() ? JITRT_CastToFloatOptional
+                                : JITRT_CastToFloat);
         } else {
-          func = reinterpret_cast<uint64_t>(JITRT_Cast);
+          func = reinterpret_cast<uint64_t>(
+              instr->optional() ? JITRT_CastOptional : JITRT_Cast);
         }
 
-        bbb.AppendCode(
-            "Call {}, {:#x}, {}, {:#x}\n",
-            instr->dst(),
-            func,
-            instr->value(),
-            reinterpret_cast<uint64_t>(instr->pytype()));
+        if (pass_type) {
+          bbb.AppendCode(
+              "Call {}, {:#x}, {}, {:#x}\n",
+              instr->dst(),
+              func,
+              instr->value(),
+              reinterpret_cast<uint64_t>(instr->pytype()));
+        } else {
+          bbb.AppendCode(
+              "Call {}, {:#x}, {}\n", instr->dst(), func, instr->value());
+        }
         break;
       }
 

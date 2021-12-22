@@ -4568,6 +4568,20 @@ main_loop:
             FAST_DISPATCH();
         }
 
+#define CAST_COERCE_OR_ERROR(val, type)                                     \
+    if (type == &PyFloat_Type && PyObject_TypeCheck(val, &PyLong_Type)) {   \
+        long lval = PyLong_AsLong(val);                                     \
+        Py_DECREF(val);                                                     \
+        SET_TOP(PyFloat_FromDouble(lval));                                  \
+    } else {                                                                \
+        PyErr_Format(PyExc_TypeError,                                       \
+                    "expected '%s', got '%s'",                              \
+                    type->tp_name,                                          \
+                    Py_TYPE(val)->tp_name);                                 \
+        Py_DECREF(type);                                                    \
+        goto error;                                                         \
+    }
+
         case TARGET(CAST): {
             PyObject *val = TOP();
             type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
@@ -4575,12 +4589,7 @@ main_loop:
                 goto error;
             }
             if (!_PyObject_TypeCheckOptional(val, type, optional)) {
-                PyErr_Format(PyExc_TypeError,
-                             "expected '%s', got '%s'",
-                             type->tp_name,
-                             Py_TYPE(val)->tp_name);
-                Py_DECREF(type);
-                goto error;
+                CAST_COERCE_OR_ERROR(val, type);
             }
 
             if (shadow.shadow != NULL) {
@@ -4604,11 +4613,7 @@ main_loop:
             PyObject *val = TOP();
             type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!PyObject_TypeCheck(val, type)) {
-                PyErr_Format(PyExc_TypeError,
-                             "expected '%s', got '%s'",
-                             type->tp_name,
-                             Py_TYPE(val)->tp_name);
-                goto error;
+                CAST_COERCE_OR_ERROR(val, type);
             }
             FAST_DISPATCH();
         }
@@ -4617,11 +4622,7 @@ main_loop:
             PyObject *val = TOP();
             type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!_PyObject_TypeCheckOptional(val, type, 1)) {
-                PyErr_Format(PyExc_TypeError,
-                             "expected '%s', got '%s'",
-                             type->tp_name,
-                             Py_TYPE(val)->tp_name);
-                goto error;
+                CAST_COERCE_OR_ERROR(val, type);
             }
             FAST_DISPATCH();
         }

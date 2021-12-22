@@ -1032,6 +1032,8 @@ PyObject* JITRT_InvokeClassMethod(
       kwnames);
 }
 
+/* This function is inlined to LIR via kCHelpersManual, so changes here will
+ * have no effect. */
 PyObject* JITRT_Cast(PyObject* obj, PyTypeObject* type) {
   if (PyObject_TypeCheck(obj, type)) {
     return obj;
@@ -1056,6 +1058,44 @@ PyObject* JITRT_CastOptional(PyObject* obj, PyTypeObject* type) {
       "expected '%s', got '%s'",
       type->tp_name,
       Py_TYPE(obj)->tp_name);
+
+  return NULL;
+}
+
+/* Needed because cast to float does extra work that would be a pain to add to
+ * the manual inlined LIR for JITRT_Cast. */
+PyObject* JITRT_CastToFloat(PyObject* obj) {
+  if (PyObject_TypeCheck(obj, &PyFloat_Type)) {
+    // cast to float is not considered pass-through by refcount insertion (since
+    // it may produce a new reference), so even if in fact it is pass-through
+    // (because we got a float), we need to return a new reference.
+    Py_INCREF(obj);
+    return obj;
+  } else if (PyObject_TypeCheck(obj, &PyLong_Type)) {
+    // special case because Python typing pretends int subtypes float
+    return PyFloat_FromDouble(PyLong_AsLong(obj));
+  }
+
+  PyErr_Format(
+      PyExc_TypeError, "expected 'float', got '%s'", Py_TYPE(obj)->tp_name);
+
+  return NULL;
+}
+
+PyObject* JITRT_CastToFloatOptional(PyObject* obj) {
+  if (_PyObject_TypeCheckOptional(obj, &PyFloat_Type, 1)) {
+    // cast to float is not considered pass-through by refcount insertion (since
+    // it may produce a new reference), so even if in fact it is pass-through
+    // (because we got a float), we need to return a new reference.
+    Py_INCREF(obj);
+    return obj;
+  } else if (PyObject_TypeCheck(obj, &PyLong_Type)) {
+    // special case because Python typing pretends int subtypes float
+    return PyFloat_FromDouble(PyLong_AsLong(obj));
+  }
+
+  PyErr_Format(
+      PyExc_TypeError, "expected 'float', got '%s'", Py_TYPE(obj)->tp_name);
 
   return NULL;
 }

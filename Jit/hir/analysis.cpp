@@ -30,7 +30,6 @@ std::ostream& operator<<(std::ostream& os, const RegisterSet& regs) {
 bool isPassthrough(const Instr& instr) {
   switch (instr.opcode()) {
     case Opcode::kAssign:
-    case Opcode::kCast:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
     case Opcode::kCheckFreevar:
@@ -49,6 +48,11 @@ bool isPassthrough(const Instr& instr) {
     // wait to see if more instructions need it before adding that complexity.
     case Opcode::kGuardIs:
       return false;
+
+    // Cast is pass-through except when we are casting to float, in which case
+    // we may coerce an incoming int to a new float.
+    case Opcode::kCast:
+      return (static_cast<const Cast*>(&instr))->pytype() != &PyFloat_Type;
 
     case Opcode::kBinaryOp:
     case Opcode::kBuildSlice:

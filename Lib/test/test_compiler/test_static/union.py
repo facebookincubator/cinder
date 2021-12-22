@@ -446,6 +446,23 @@ class UnionCompilationTests(StaticTestBase):
         """
         self.type_error(codestr, bad_ret_type("float", "int"))
 
+    def test_cast_int_to_float(self):
+        codestr = """
+            from __static__ import double
+
+            def f(x: float) -> double:
+                return double(x)
+        """
+
+        class MyInt(int):
+            pass
+
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(1.0), 1.0)
+            for i in range(51):
+                self.assertEqual(mod.f(1), 1.0)
+                self.assertEqual(mod.f(MyInt(1)), 1.0)
+
 
 
 if __name__ == "__main__":

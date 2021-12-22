@@ -285,6 +285,18 @@ PyObject* JITRT_LoadFunctionIndirect(PyObject** func, PyObject* descr);
 PyObject* JITRT_Cast(PyObject* obj, PyTypeObject* type);
 
 /*
+ * JITRT_Cast when target type is float. This case requires extra work
+ * because Python typing pretends int is a subtype of float, so CAST
+ * needs to coerce int to float.
+ */
+PyObject* JITRT_CastToFloat(PyObject* obj);
+
+/*
+ * JITRT_CastToFloat but with None allowed.
+ */
+PyObject* JITRT_CastToFloatOptional(PyObject* obj);
+
+/*
  * Performs a type check on an object, raising an error if the object is
  * not an instance of the specified type or None.  The type check is a
  * real type check which doesn't support dynamic behaviors against the
