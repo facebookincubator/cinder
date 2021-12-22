@@ -137,6 +137,13 @@ PyTypeObject _PyType_CachedPropertyThunk = {
     .tp_call = (ternaryfunc)thunk_call,
 };
 
+static PyObject *
+cachedpropthunk_get_func(PyObject *thunk) {
+    assert(Py_TYPE(thunk) == &_PyType_CachedPropertyThunk);
+    _Py_CachedPropertyThunk *t = (_Py_CachedPropertyThunk *)thunk;
+    PyCachedPropertyDescrObject *descr = (PyCachedPropertyDescrObject *)t->propthunk_target;
+    return descr->func;
+}
 
 static int
 awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
@@ -1360,10 +1367,9 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, 
             res = resolve_function_rettype(fget, optional, coroutine);
         }
     } else if (Py_TYPE(func) == &_PyType_CachedPropertyThunk) {
-        _Py_CachedPropertyThunk *thunk = (_Py_CachedPropertyThunk *)func;
-        PyCachedPropertyDescrObject *descr = (PyCachedPropertyDescrObject *)(thunk->propthunk_target);
-        if (_PyClassLoader_IsStaticFunction(descr->func)) {
-            res = resolve_function_rettype(descr->func, optional, coroutine);
+        PyObject *target = cachedpropthunk_get_func(func);
+        if (_PyClassLoader_IsStaticFunction(target)) {
+            res = resolve_function_rettype(target, optional, coroutine);
         }
     } else {
         _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
@@ -1925,6 +1931,8 @@ used_in_vtable_worker(PyObject *value) {
     // we'll emit invokes to untyped builtin methods
     if (Py_TYPE(value) == &PyMethodDescr_Type) {
         return 1;
+    } else if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
+        return used_in_vtable_worker(cachedpropthunk_get_func(value));
     }
     return _PyClassLoader_IsStaticCallable(value);
 }
@@ -1948,10 +1956,6 @@ used_in_vtable(PyObject *value)
         Py_XDECREF(getter);
         Py_XDECREF(setter);
         return res;
-    } else if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
-        _Py_CachedPropertyThunk *thunk = (_Py_CachedPropertyThunk *)value;
-        PyCachedPropertyDescrObject *target = (PyCachedPropertyDescrObject *)thunk->propthunk_target;
-        return used_in_vtable_worker(target->func);
     }
     return 0;
 }
