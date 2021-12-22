@@ -1674,7 +1674,9 @@ class CType(Class):
         is_exact: bool = True,
         pytype: Optional[Type[object]] = None,
     ) -> None:
-        super().__init__(type_name, bases, instance, klass, members, is_exact, pytype)
+        super().__init__(
+            type_name, bases or [], instance, klass, members, is_exact, pytype
+        )
 
     @property
     def boxed(self) -> Class:
@@ -6591,8 +6593,7 @@ class CIntType(CType):
             name = name_override
         super().__init__(
             TypeName("__static__", name),
-            [],
-            CIntInstance(self, self.constant, self.size, self.signed),
+            instance=CIntInstance(self, self.constant, self.size, self.signed),
         )
 
     @property
@@ -6819,8 +6820,7 @@ class CDoubleType(CType):
     def __init__(self) -> None:
         super().__init__(
             TypeName("__static__", "double"),
-            [OBJECT_TYPE],
-            CDoubleInstance(self),
+            instance=CDoubleInstance(self),
         )
 
     @property
