@@ -5693,6 +5693,18 @@ class CheckedDict(GenericClass):
             ResolvedTypeRef(self),
         )
 
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        if len(node.args) == 1:
+            # Validate that the incoming argument is compatible with us if it's
+            # anything intersting like a dict or a checked dict.
+            visitor.visit(node.args[0], self.instance)
+        super().bind_call(node, visitor, type_ctx)
+
+        return NO_EFFECT
+
+
 
 class CheckedDictInstance(Object[CheckedDict]):
     def bind_subscr(
