@@ -269,11 +269,21 @@ primitive integer arithmetic avoids all Python overhead. Some operations on
 builtin types (e.g. list or dictionary subscript or ``len()``) are also
 optimized.
 
-Cinder doesn't currently come bundled with a module loader that is able to
-automatically detect static modules and load them as static with cross-module
-compilation; we currently do this via our strict/static import loader which
-is not part of Cinder. Currently the best way to experiment with static
-python in Cinder is to use ``./python -m compiler --static some_module.py``,
+Cinder supports gradual adoption of static modules via a strict/static module
+loader that can automatically detect static modules and load them as static
+with cross-module compilation. The loader will look for ``import __static__``
+and ``import __strict__`` annotations at the top of a file, and compile
+modules appropriately. To enable the loader, you have one of three options:
+
+1. Explicitly install the loader at the top level of your application
+via ``from compiler.strict.loader import install; install()``.
+
+2. Set ``PYTHONINSTALLSTRICTLOADER=1`` in your env.
+
+3. Run ``./python -X install-strict-loader application.py``.
+
+Alternatively, you can compile all code statically by using
+``./python -m compiler --static some_module.py``,
 which will compile the module as static Python and execute it.
 
 See ``CinderDoc/static_python.rst`` for more detailed documentation.
