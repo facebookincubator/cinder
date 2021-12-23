@@ -337,6 +337,10 @@ Type outputType(const Instr& instr) {
     }
     case Opcode::kIntBinaryOp: {
       auto& binop = static_cast<const IntBinaryOp&>(instr);
+      if (binop.op() == BinaryOpKind::kPower ||
+          binop.op() == BinaryOpKind::kPowerUnsigned) {
+        return TCDouble;
+      }
       return binop.left()->type().unspecialized();
     }
     case Opcode::kDoubleBinaryOp: {

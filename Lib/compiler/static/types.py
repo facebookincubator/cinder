@@ -144,6 +144,8 @@ from _static import (
     PRIM_OP_DIV_UN_INT,
     PRIM_OP_MOD_INT,
     PRIM_OP_MOD_UN_INT,
+    PRIM_OP_POW_INT,
+    PRIM_OP_POW_UN_INT,
     PRIM_OP_LSHIFT_INT,
     PRIM_OP_RSHIFT_INT,
     PRIM_OP_RSHIFT_UN_INT,
@@ -158,7 +160,7 @@ from _static import (
     PRIM_OP_MUL_DBL,
     PRIM_OP_DIV_DBL,
     PRIM_OP_MOD_DBL,
-    PROM_OP_POW_DBL,
+    PRIM_OP_POW_DBL,
     FAST_LEN_INEXACT,
     FAST_LEN_LIST,
     FAST_LEN_DICT,
@@ -5922,6 +5924,7 @@ class CInstance(Value, Generic[TClass]):
         ast.FloorDiv: "divide",
         ast.Div: "divide",
         ast.Mod: "modulus",
+        ast.Pow: "pow",
         ast.LShift: "left shift",
         ast.RShift: "right shift",
         ast.BitOr: "bitwise or",
@@ -5945,7 +5948,9 @@ class CInstance(Value, Generic[TClass]):
         visitor.set_type(node, self)
         return True
 
-    def get_op_id(self, op: AST) -> int:
+    def get_op_id(
+        self, op: AST, ltype: Optional[Value] = None, rtype: Optional[Value] = None
+    ) -> int:
         raise NotImplementedError("Must be implemented in the subclass")
 
     def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
@@ -5959,14 +5964,19 @@ class CInstance(Value, Generic[TClass]):
         rtype = code_gen.get_type(node.right)
         if rtype != common_type:
             common_type.emit_convert(rtype, code_gen)
-        op = self.get_op_id(node.op)
+        op = self.get_op_id(node.op, ltype, rtype)
         code_gen.emit("PRIMITIVE_BINARY_OP", op)
 
     def emit_aug_rhs(
         self, node: ast.AugAssign, code_gen: Static38CodeGenerator
     ) -> None:
         code_gen.visit(node.value)
-        code_gen.emit("PRIMITIVE_BINARY_OP", self.get_op_id(node.op))
+        code_gen.emit(
+            "PRIMITIVE_BINARY_OP",
+            self.get_op_id(
+                node.op, code_gen.get_type(node.target), code_gen.get_type(node.value)
+            ),
+        )
 
 
 class CEnumInstance(CInstance["CEnumType"]):
@@ -6335,7 +6345,9 @@ class CIntInstance(CInstance["CIntType"]):
         ast.BitAnd: PRIM_OP_AND_INT,
     }
 
-    def get_op_id(self, op: AST) -> int:
+    def get_op_id(
+        self, op: AST, ltype: Optional[Value] = None, rtype: Optional[Value] = None
+    ) -> int:
         return (
             self._int_binary_opcode_signed[type(op)]
             if self.signed
@@ -6521,8 +6533,10 @@ class CIntInstance(CInstance["CIntType"]):
                 node.right,
                 self.binop_error("{1}", "{0}", node.op),
             )
-
-        visitor.set_type(node, type_ctx)
+        if isinstance(node.op, ast.Pow):
+            visitor.set_type(node, DOUBLE_TYPE.instance)
+        else:
+            visitor.set_type(node, type_ctx)
         return True
 
     def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
@@ -6687,6 +6701,8 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         ast.Sub: PRIM_OP_SUB_DBL,
         ast.Mult: PRIM_OP_MUL_DBL,
         ast.Div: PRIM_OP_DIV_DBL,
+        ast.Mod: PRIM_OP_MOD_DBL,
+        ast.Pow: PRIM_OP_POW_DBL,
         ast.Lt: PRIM_OP_LT_DBL,
         ast.Gt: PRIM_OP_GT_DBL,
         ast.Eq: PRIM_OP_EQ_DBL,
@@ -6695,7 +6711,25 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         ast.GtE: PRIM_OP_GE_DBL,
     }
 
-    def get_op_id(self, op: AST) -> int:
+    def get_op_id(
+        self, op: AST, ltype: Optional[Value] = None, rtype: Optional[Value] = None
+    ) -> int:
+        if isinstance(op, ast.Pow):
+            if (
+                ltype is not None
+                and isinstance(ltype, CIntInstance)
+                and rtype is not None
+                and isinstance(rtype, CIntInstance)
+            ):
+                if (
+                    ltype.signed
+                    or rtype.signed
+                    and rtype is not None
+                    and isinstance(rtype, CIntInstance)
+                ):
+                    return PRIM_OP_POW_INT
+                return PRIM_OP_POW_UN_INT
+            return PRIM_OP_POW_DBL
         return self._double_binary_opcode_signed[type(op)]
 
     def as_oparg(self) -> int:
