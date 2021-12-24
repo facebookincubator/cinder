@@ -2144,13 +2144,6 @@ static inline BinaryOpKind get_primitive_bin_op_kind(
     case PRIM_OP_DIV_DBL: {
       return BinaryOpKind::kTrueDivide;
     }
-    case PRIM_OP_POW_UN_INT: {
-      return BinaryOpKind::kPowerUnsigned;
-    }
-    case PRIM_OP_POW_INT:
-    case PRIM_OP_POW_DBL: {
-      return BinaryOpKind::kPower;
-    }
     default: {
       JIT_CHECK(false, "unhandled binary op %d", bc_instr.oparg());
       // NOTREACHED
@@ -2168,8 +2161,6 @@ static inline bool is_double_binop(int oparg) {
     case PRIM_OP_LSHIFT_INT:
     case PRIM_OP_MOD_INT:
     case PRIM_OP_MOD_UN_INT:
-    case PRIM_OP_POW_INT:
-    case PRIM_OP_POW_UN_INT:
     case PRIM_OP_MUL_INT:
     case PRIM_OP_OR_INT:
     case PRIM_OP_RSHIFT_INT:
@@ -2181,8 +2172,7 @@ static inline bool is_double_binop(int oparg) {
     case PRIM_OP_ADD_DBL:
     case PRIM_OP_SUB_DBL:
     case PRIM_OP_DIV_DBL:
-    case PRIM_OP_MUL_DBL:
-    case PRIM_OP_POW_DBL: {
+    case PRIM_OP_MUL_DBL: {
       return true;
     }
     default: {

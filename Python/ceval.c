@@ -5187,25 +5187,6 @@ main_loop:
                 INT_BIN_OPCODE_SIGNED(PRIM_OP_MUL_INT, *)
                 INT_BIN_OPCODE_SIGNED(PRIM_OP_DIV_INT, /)
                 INT_BIN_OPCODE_SIGNED(PRIM_OP_MOD_INT, %)
-            case PRIM_OP_POW_INT: {
-                r = POP();
-                l = POP();
-                double power = pow((Py_ssize_t)PyLong_AsVoidPtr(l), (Py_ssize_t) PyLong_AsVoidPtr(r));
-                PUSH(PyFloat_FromDouble(power));
-                Py_DECREF(r);
-                Py_DECREF(l);
-                FAST_DISPATCH();
-              }
-            case PRIM_OP_POW_UN_INT: {
-                r = POP();
-                l = POP();
-                double power = pow((size_t)PyLong_AsVoidPtr(l), (size_t) PyLong_AsVoidPtr(r));
-                PUSH(PyFloat_FromDouble(power));
-                Py_DECREF(r);
-                Py_DECREF(l);
-                FAST_DISPATCH();
-              }
-
                 INT_BIN_OPCODE_SIGNED(PRIM_OP_LSHIFT_INT, <<)
                 INT_BIN_OPCODE_SIGNED(PRIM_OP_RSHIFT_INT, >>)
                 INT_BIN_OPCODE_SIGNED(PRIM_OP_XOR_INT, ^)
@@ -5218,15 +5199,6 @@ main_loop:
                 DOUBLE_BIN_OPCODE(PRIM_OP_SUB_DBL, -)
                 DOUBLE_BIN_OPCODE(PRIM_OP_MUL_DBL, *)
                 DOUBLE_BIN_OPCODE(PRIM_OP_DIV_DBL, /)
-            case PRIM_OP_POW_DBL: {
-                r = POP();
-                l = POP();
-                double power = pow(PyFloat_AsDouble(l), PyFloat_AsDouble(r));
-                PUSH(PyFloat_FromDouble(power));
-                Py_DECREF(r);
-                Py_DECREF(l);
-                FAST_DISPATCH();
-              }
             }
 
             PyErr_SetString(PyExc_RuntimeError, "unknown op");

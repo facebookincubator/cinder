@@ -844,32 +844,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
                 break;
             }
             break;
-          case BinaryOpKind::kPower:
-            switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
-              case 1:
-              case 2:
-                convert = "Convert";
-              case 3:
-                helper = reinterpret_cast<uint64_t>(JITRT_Power32);
-                break;
-              case 4:
-                helper = reinterpret_cast<uint64_t>(JITRT_Power64);
-                break;
-            };
-            break;
-          case BinaryOpKind::kPowerUnsigned:
-            switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
-              case 1:
-              case 2:
-                convert = "ConvertUnsigned";
-              case 3:
-                helper = reinterpret_cast<uint64_t>(JITRT_PowerUnsigned32);
-                break;
-              case 4:
-                helper = reinterpret_cast<uint64_t>(JITRT_PowerUnsigned64);
-                break;
-            };
-            break;
           default:
             JIT_CHECK(false, "not implemented");
             break;
@@ -903,7 +877,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kDoubleBinaryOp: {
         auto instr = static_cast<const DoubleBinaryOp*>(&i);
         std::string op;
-        uint64_t helper = 0;
 
         switch (instr->op()) {
           case BinaryOpKind::kAdd: {
@@ -922,25 +895,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             op = "Fdiv";
             break;
           }
-          case BinaryOpKind::kPower: {
-            helper = reinterpret_cast<uint64_t>(JITRT_PowerDouble);
-            break;
-          }
           default: {
             JIT_CHECK(false, "Invalid operation for DoubleBinaryOp");
             break;
           }
         }
 
-        if (helper != 0) {
-          bbb.AppendCode(
-              "Call {} {:#x}, {}, {}",
-              instr->dst(),
-              helper,
-              instr->left()->name(),
-              instr->right()->name());
-          break;
-        }
         // Our formatter for Registers tries to be clever with constant values,
         // and this backfires in certain situations (it converts registers to
         // immediates). We have to manually format the name and type here to

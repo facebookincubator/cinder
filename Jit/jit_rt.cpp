@@ -1199,26 +1199,6 @@ uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i) {
   return (i == -1 && _PyErr_OCCURRED()) ? -1 : 0;
 }
 
-double JITRT_PowerDouble(double x, double y) {
-  return pow(x, y);
-}
-
-double JITRT_Power32(int32_t x, int32_t y) {
-  return pow(x, y);
-}
-
-double JITRT_PowerUnsigned32(uint32_t x, uint32_t y) {
-  return pow(x, y);
-}
-
-double JITRT_Power64(int64_t x, int64_t y) {
-  return pow(x, y);
-}
-
-double JITRT_PowerUnsigned64(uint64_t x, uint64_t y) {
-  return pow(x, y);
-}
-
 uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx, ssize_t offset) {
   long result = (arr + offset)[idx];
   if (result >= 128)

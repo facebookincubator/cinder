@@ -146,7 +146,7 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define PRIM_OP_DIV_UN_INT 4
 #define PRIM_OP_MOD_INT 5
 #define PRIM_OP_MOD_UN_INT 6
-#define PRIM_OP_POW_INT 7
+#define PROM_OP_POW_INT 7
 #define PRIM_OP_LSHIFT_INT 8
 #define PRIM_OP_RSHIFT_INT 9
 #define PRIM_OP_RSHIFT_UN_INT 10
@@ -159,8 +159,7 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define PRIM_OP_MUL_DBL 16
 #define PRIM_OP_DIV_DBL 17
 #define PRIM_OP_MOD_DBL 18
-#define PRIM_OP_POW_DBL 19
-#define PRIM_OP_POW_UN_INT 20
+#define PROM_OP_POW_DBL 19
 
 #define PRIM_OP_EQ_INT 0
 #define PRIM_OP_NE_INT 1

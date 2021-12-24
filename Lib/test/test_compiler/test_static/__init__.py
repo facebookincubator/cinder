@@ -1,4 +1,3 @@
-from .binop import BinopTests
 from .cached_property import CachedPropertyTests
 from .checked_list import CheckedListTests
 from .classmethod import ClassMethodTests

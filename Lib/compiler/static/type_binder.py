@@ -744,19 +744,8 @@ class TypeBinder(GenericVisitor):
     def visitBinOp(
         self, node: BinOp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        # If we're taking pow, the output type is always double, regardless of
-        # the input types, and we need to clear the type context to avoid coercing improperly.
-        if isinstance(node.op, ast.Pow):
-            type_ctx = None
-            self.visit(node.left, type_ctx)
-            self.visitExpectedType(
-                node.right,
-                self.get_type(node.left),
-                f"can't compute pow of {{}} and {{}}",
-            )
-        else:
-            self.visit(node.left, type_ctx)
-            self.visit(node.right, type_ctx)
+        self.visit(node.left, type_ctx)
+        self.visit(node.right, type_ctx)
 
         ltype = self.get_type(node.left)
         rtype = self.get_type(node.right)
