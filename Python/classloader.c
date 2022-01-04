@@ -605,13 +605,18 @@ is_static_entry(vectorcallfunc func)
            func == (vectorcallfunc)_PyEntry_StaticEntryP0Defaults;
 }
 
+/**
+    This vectorcall entrypoint pulls out the function, slot index and replaces
+    its own entrypoint in the v-table with optimized static vectorcall. (It also
+    calls the underlying function and returns the value while doing so).
+*/
 static PyObject *
 type_vtable_func_lazyinit(PyTupleObject *state,
                           PyObject **stack,
                           size_t nargsf,
                           PyObject *kwnames)
 {
-    /* func is (vtable, index, function) */
+    /* state is (vtable, index, function) */
     _PyType_VTable *vtable = (_PyType_VTable *)PyTuple_GET_ITEM(state, 0);
     long index = PyLong_AS_LONG(PyTuple_GET_ITEM(state, 1));
     PyFunctionObject *func = (PyFunctionObject *)PyTuple_GET_ITEM(state, 2);
@@ -707,6 +712,15 @@ type_vtable_func_missing(PyObject *state, PyObject **args, Py_ssize_t nargs)
     return NULL;
 }
 
+/**
+    This does the initialization of the vectorcall entrypoint for the v-table for
+    static functions. It'll set the entrypoint to type_vtable_func_lazyinit if
+    the functions entry point hasn't yet been initialized.
+
+    If it has been initialized and is being handled by the interpreter loop it'll go
+    through the single _PyFunction_CallStatic entry point. Otherwise it'll just use
+    the function entry point, which should be JITed.
+*/
 static int
 type_vtable_set_opt_slot(PyTypeObject *tp,
                          PyObject *name,
@@ -1058,6 +1072,10 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     return 0;
 }
 
+/**
+    As the name suggests, this creates v-tables for all subclasses of the given type
+    (recursively).
+*/
 static int
 type_init_subclass_vtables(PyTypeObject *target_type)
 {
@@ -1698,6 +1716,11 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     return 0;
 }
 
+/**
+    Sets the vtable slot entry for the given method name to the correct type of vectorcall.
+    We specialize where possible, but also have a generic fallback which checks whether the
+    actual return type matches the declared one (if any).
+*/
 static int
 type_vtable_setslot(PyTypeObject *tp,
                     PyObject *name,
@@ -1706,6 +1729,9 @@ type_vtable_setslot(PyTypeObject *tp,
                     PyObject *value)
 {
     if (tp->tp_dictoffset == 0) {
+        // These cases mean that the type instances don't have a __dict__ slot,
+        // meaning our compile time type-checks are valid (nothing's been patched)
+        // meaning we can omit return type checks at runtime.
         if (_PyClassLoader_IsStaticFunction(value)) {
             return type_vtable_set_opt_slot(tp, name, vtable, slot, value);
         } else if (Py_TYPE(value) == &PyStaticMethod_Type &&
@@ -1767,6 +1793,13 @@ type_vtable_setslot(PyTypeObject *tp,
     return res;
 }
 
+/**
+    This is usually what we use as the initial entrypoint in v-tables. Then,
+    when a method is called, this traverses the MRO, finds the correct callable,
+    and updates the vtable entry with the correct one (and then calls the
+    callable). All following method invokes directly hit the actual callable,
+    because the v-table has been updated.
+*/
 static PyObject *
 type_vtable_lazyinit(PyObject *name,
                      PyObject **args,
@@ -1818,6 +1851,10 @@ _PyClassLoader_ClearCache()
     Py_CLEAR(static_enum);
 }
 
+/**
+    For every slot in the vtable slotmap, this sets the vectorcall entrypoint
+    to `type_vtable_lazyinit`.
+*/
 void
 _PyClassLoader_ReinitVtable(_PyType_VTable *vtable)
 {
@@ -1863,12 +1900,18 @@ used_in_vtable(PyObject *value)
     return 0;
 }
 
+/**
+    Merges the slot map of our bases with our own members, initializing the
+    map with the members which are defined in the current type but not the
+    base type. Also, skips non-static callables that exist in tp_dict,
+    because we cannot invoke against those anyway.
+*/
 int
 _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
     PyObject *key, *value;
     Py_ssize_t i;
 
-    /* Now add indexes for anything that is new in our class */
+    /* Add indexes for anything that is new in our class */
     int slot_index = PyDict_Size(slotmap);
     i = 0;
     while (PyDict_Next(self->tp_dict, &i, &key, &value)) {
@@ -1911,6 +1954,10 @@ int is_static_type(PyTypeObject *type) {
         !(type->tp_flags & Py_TPFLAGS_HEAPTYPE);
 }
 
+/**
+    Creates a vtable for a type. Goes through the MRO, and recursively creates v-tables for
+    any static base classes if needed.
+*/
 _PyType_VTable *
 _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
 {
@@ -1919,6 +1966,10 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
     PyObject *mro;
 
     if (self == &PyBaseObject_Type) {
+        // We don't create a vtable for `object`. If we try to do that, all subclasses of
+        // `object` (which is all classes), will need to have a v-table of their own, and that's
+        // too much memory usage for almost no benefit (since most classes are not Static).
+        // Also, none of the attributes on `object` are interesting enough to invoke against.
         PyErr_SetString(PyExc_RuntimeError, "cannot initialize vtable for builtins.object");
         return NULL;
     }
@@ -2056,6 +2107,9 @@ PyObject *_PyClassLoader_GetGenericInst(PyObject *type,
                                         PyObject **args,
                                         Py_ssize_t nargs);
 
+/**
+    Makes sure the given type is a PyTypeObject (raises an error if not)
+*/
 static int classloader_verify_type(PyObject *type, PyObject *path) {
     if (type == NULL || !PyType_Check(type)) {
         PyErr_Format(
@@ -2309,6 +2363,16 @@ _PyClassLoader_ResolveType(PyObject *descr, int *optional)
     return (PyTypeObject *)res;
 }
 
+/**
+    This function is called when a member on a previously unseen
+    class is encountered.
+
+    Given a type descriptor to a callable, this function:
+    - Ensures that the containing class has a v-table.
+    - Adds an entry to the global `classloader_cache`
+      (so future slot index lookups are faster)
+    - Initializes v-tables for all subclasses of the containing class
+*/
 static int
 classloader_init_slot(PyObject *path)
 {
@@ -2352,6 +2416,10 @@ classloader_init_slot(PyObject *path)
     return 0;
 }
 
+/**
+    Returns a slot index given a "path" (type descr tuple) to a method.
+    e.g ("my_mod", "MyClass", "my_method")
+*/
 Py_ssize_t
 _PyClassLoader_ResolveMethod(PyObject *path)
 {
