@@ -53,6 +53,9 @@ except ImportError:
     def set_type_static_final(_t):
         return _t
 
+    def set_type_final(_t):
+        return _t
+
     _static = None
     chkdict = dict
     chklist = list
@@ -63,12 +66,14 @@ except ImportError:
 
         return _recreate_cm
 
+
 else:
     chkdict = _static.chkdict
     chklist = _static.chklist
     is_type_static = _static.is_type_static
     set_type_static = _static.set_type_static
     set_type_static_final = _static.set_type_static_final
+    set_type_final = _static.set_type_final
     make_recreate_cm = _static.make_recreate_cm
 
 try:
@@ -111,16 +116,19 @@ PyDict = Dict
 clen = len
 
 
+@set_type_final
 @type_code(TYPED_UINT64)
 class size_t(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_INT64)
 class ssize_t(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_INT8)
 class int8(int):
     pass
@@ -129,58 +137,69 @@ class int8(int):
 byte = int8
 
 
+@set_type_final
 @type_code(TYPED_INT16)
 class int16(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_INT32)
 class int32(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_INT64)
 class int64(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_UINT8)
 class uint8(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_UINT16)
 class uint16(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_UINT32)
 class uint32(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_UINT64)
 class uint64(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_SINGLE)
 class single(float):
     pass
 
 
+@set_type_final
 @type_code(TYPED_DOUBLE)
 class double(float):
     pass
 
 
+@set_type_final
 @type_code(TYPED_CHAR)
 class char(int):
     pass
 
 
+@set_type_final
 @type_code(TYPED_BOOL)
-class cbool(int8):
+class cbool(int):
     pass
 
 
@@ -388,6 +407,7 @@ class StaticGeneric:
         )
 
 
+@set_type_final
 class Array(array.array, StaticGeneric[ArrayElement]):
     __slots__ = ()
 
@@ -403,9 +423,6 @@ class Array(array.array, StaticGeneric[ArrayElement]):
         else:
             return array.array.__new__(cls, typecode, initializer)
 
-    def __init_subclass__(cls):
-        raise TypeError("Cannot subclass Array")
-
     def __getitem__(self, index):
         if isinstance(index, slice):
             return type(self)(array.array.__getitem__(self, index))
@@ -416,6 +433,7 @@ class Array(array.array, StaticGeneric[ArrayElement]):
         return type(self)(self)
 
 
+@set_type_final
 class Vector(array.array, StaticGeneric[ArrayElement]):
     """Vector is a resizable array of primitive elements"""
 
@@ -441,9 +459,6 @@ class Vector(array.array, StaticGeneric[ArrayElement]):
         @_runtime_impl
         def append(self, value: ArrayElement) -> None:
             super().append(value)
-
-    def __init_subclass__(cls):
-        raise TypeError("Cannot subclass Vector")
 
     def __getitem__(self, index):
         if isinstance(index, slice):

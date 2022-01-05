@@ -35,7 +35,7 @@ from __static__ import (
     PyDict,
     clen,
     rand,
-    RAND_MAX
+    RAND_MAX,
 )
 from typing import Generic, Optional, TypeVar, Union, Dict
 
@@ -100,7 +100,10 @@ class StaticTests(unittest.TestCase):
             Array(42)
 
     def test_array_no_subclass(self):
-        with self.assertRaisesRegex(TypeError, "Cannot subclass Array"):
+        with self.assertRaisesRegex(
+            TypeError, "type 'Array' is not an acceptable base type"
+        ):
+
             class MyArray(Array):
                 pass
 
@@ -120,7 +123,10 @@ class StaticTests(unittest.TestCase):
             Vector()
 
     def test_vector_no_subclass(self):
-        with self.assertRaisesRegex(TypeError, "Cannot subclass Vector"):
+        with self.assertRaisesRegex(
+            TypeError, "type 'Vector' is not an acceptable base type"
+        ):
+
             class MyVec(Vector):
                 pass
 

@@ -258,6 +258,18 @@ PyObject *set_type_static_final(PyObject *mod, PyObject *type) {
     return _set_type_static_impl(type, 1);
 }
 
+PyObject *set_type_final(PyObject *mod, PyObject *type) {
+  if (!PyType_Check(type)) {
+    PyErr_Format(PyExc_TypeError, "Expected a type object, not %.100s",
+                 Py_TYPE(type)->tp_name);
+    return NULL;
+  }
+  PyTypeObject *pytype = (PyTypeObject *)type;
+  pytype->tp_flags &= ~Py_TPFLAGS_BASETYPE;
+  Py_INCREF(type);
+  return type;
+}
+
 static PyObject *
 _recreate_cm(PyObject *self) {
     Py_INCREF(self);
@@ -845,6 +857,7 @@ static PyMethodDef static_methods[] = {
     {"is_type_static", (PyCFunction)(void(*)(void))is_type_static, METH_O, ""},
     {"set_type_static", (PyCFunction)(void(*)(void))set_type_static, METH_O, ""},
     {"set_type_static_final", (PyCFunction)(void(*)(void))set_type_static_final, METH_O, ""},
+    {"set_type_final", (PyCFunction)(void(*)(void))set_type_final, METH_O, ""},
     {"make_recreate_cm", (PyCFunction)(void(*)(void))make_recreate_cm, METH_O, ""},
     {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, METH_TYPED,
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
