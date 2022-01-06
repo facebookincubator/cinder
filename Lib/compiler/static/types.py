@@ -144,6 +144,8 @@ from _static import (
     PRIM_OP_DIV_UN_INT,
     PRIM_OP_MOD_INT,
     PRIM_OP_MOD_UN_INT,
+    PRIM_OP_POW_INT,
+    PRIM_OP_POW_UN_INT,
     PRIM_OP_LSHIFT_INT,
     PRIM_OP_RSHIFT_INT,
     PRIM_OP_RSHIFT_UN_INT,
@@ -158,7 +160,7 @@ from _static import (
     PRIM_OP_MUL_DBL,
     PRIM_OP_DIV_DBL,
     PRIM_OP_MOD_DBL,
-    PROM_OP_POW_DBL,
+    PRIM_OP_POW_DBL,
     FAST_LEN_INEXACT,
     FAST_LEN_LIST,
     FAST_LEN_DICT,
@@ -335,6 +337,11 @@ TType = TypeVar("TType")
 TClass = TypeVar("TClass", bound="Class", covariant=True)
 TClassInv = TypeVar("TClassInv", bound="Class")
 CALL_ARGUMENT_CANNOT_BE_PRIMITIVE = "Call argument cannot be a primitive"
+
+
+class BinOpCommonType:
+    def __init__(self, value: Value) -> None:
+        self.value = value
 
 
 class Value:
@@ -5921,6 +5928,7 @@ class CInstance(Value, Generic[TClass]):
         ast.FloorDiv: "divide",
         ast.Div: "divide",
         ast.Mod: "modulus",
+        ast.Pow: "pow",
         ast.LShift: "left shift",
         ast.RShift: "right shift",
         ast.BitOr: "bitwise or",
@@ -5941,7 +5949,10 @@ class CInstance(Value, Generic[TClass]):
         visitor.visitExpectedType(
             node.left, self, self.binop_error("{}", "{}", node.op)
         )
-        visitor.set_type(node, self)
+        if isinstance(node.op, ast.Pow):
+            visitor.set_type(node, DOUBLE_TYPE.instance)
+        else:
+            visitor.set_type(node, self)
         return True
 
     def get_op_id(self, op: AST) -> int:
@@ -5949,16 +5960,21 @@ class CInstance(Value, Generic[TClass]):
 
     def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
         code_gen.update_lineno(node)
-        common_type = code_gen.get_type(node)
-        code_gen.visit(node.left)
+        # In the pow case, the return type isn't the common type.
         ltype = code_gen.get_type(node.left)
+        common_type = code_gen.get_opt_node_data(node, BinOpCommonType)
+        common_type = (
+            common_type.value if common_type is not None else code_gen.get_type(node)
+        )
+        code_gen.visit(node.left)
         if ltype != common_type:
             common_type.emit_convert(ltype, code_gen)
-        code_gen.visit(node.right)
         rtype = code_gen.get_type(node.right)
+        code_gen.visit(node.right)
         if rtype != common_type:
             common_type.emit_convert(rtype, code_gen)
-        op = self.get_op_id(node.op)
+        assert isinstance(common_type, CInstance)
+        op = common_type.get_op_id(node.op)
         code_gen.emit("PRIMITIVE_BINARY_OP", op)
 
     def emit_aug_rhs(
@@ -6320,6 +6336,7 @@ class CIntInstance(CInstance["CIntType"]):
         ast.BitOr: PRIM_OP_OR_INT,
         ast.BitXor: PRIM_OP_XOR_INT,
         ast.BitAnd: PRIM_OP_AND_INT,
+        ast.Pow: PRIM_OP_POW_INT,
     }
 
     _int_binary_opcode_unsigned: Mapping[Type[ast.AST], int] = {
@@ -6341,6 +6358,7 @@ class CIntInstance(CInstance["CIntType"]):
         ast.BitOr: PRIM_OP_OR_INT,
         ast.BitXor: PRIM_OP_XOR_INT,
         ast.BitAnd: PRIM_OP_AND_INT,
+        ast.Pow: PRIM_OP_POW_UN_INT,
     }
 
     def get_op_id(self, op: AST) -> int:
@@ -6503,6 +6521,16 @@ class CIntInstance(CInstance["CIntType"]):
 
             visitor.visit(node.right, type_ctx or INT64_VALUE)
 
+        if isinstance(node.op, ast.Pow):
+            # For pow, we don't support mixed math of unsigned/signed ints.
+            if isinstance(self, CIntInstance) and isinstance(rinst, CIntInstance):
+                if self.signed != rinst.signed:
+                    visitor.syntax_error(
+                        self.binop_error(
+                            self.name, visitor.get_type(node.right).name, node.op
+                        ),
+                        node,
+                    )
         if type_ctx is None:
             type_ctx = self.validate_mixed_math(visitor.get_type(node.right))
             if type_ctx is None:
@@ -6513,6 +6541,8 @@ class CIntInstance(CInstance["CIntType"]):
                     node,
                 )
                 type_ctx = DYNAMIC
+            else:
+                visitor.set_node_data(node, BinOpCommonType, BinOpCommonType(type_ctx))
         else:
             visitor.check_can_assign_from(
                 type_ctx.klass,
@@ -6520,8 +6550,10 @@ class CIntInstance(CInstance["CIntType"]):
                 node.right,
                 self.binop_error("{1}", "{0}", node.op),
             )
-
-        visitor.set_type(node, type_ctx)
+        if isinstance(node.op, ast.Pow):
+            visitor.set_type(node, DOUBLE_TYPE.instance)
+        else:
+            visitor.set_type(node, type_ctx)
         return True
 
     def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
@@ -6686,6 +6718,8 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         ast.Sub: PRIM_OP_SUB_DBL,
         ast.Mult: PRIM_OP_MUL_DBL,
         ast.Div: PRIM_OP_DIV_DBL,
+        ast.Mod: PRIM_OP_MOD_DBL,
+        ast.Pow: PRIM_OP_POW_DBL,
         ast.Lt: PRIM_OP_LT_DBL,
         ast.Gt: PRIM_OP_GT_DBL,
         ast.Eq: PRIM_OP_EQ_DBL,

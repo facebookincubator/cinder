@@ -1018,6 +1018,7 @@ enum class BinaryOpKind {
   kModuloUnsigned,
   kRShiftUnsigned,
   kNumBinaryOps,
+  kPowerUnsigned,
 };
 
 const char* GetBinaryOpName(BinaryOpKind op);
