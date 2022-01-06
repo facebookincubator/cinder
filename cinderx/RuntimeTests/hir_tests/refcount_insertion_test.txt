@@ -1066,7 +1066,6 @@ fun jittestmodule:test {
     v7:Object = LoadArg<1; "b">
     v8:Nullptr = LoadConst<Nullptr>
     v11:ListExact = MakeList<2> v6 v7 {
-      LiveValues<3> b:v6 b:v7 unc:v8
       FrameState {
         NextInstrOffset 6
         Locals<3> v6 v7 v8
@@ -1086,7 +1085,7 @@ fun jittestmodule:test {
     Incref v6
     Incref v7
     v11:MortalListExact = MakeList<2> v6 v7 {
-      LiveValues<6> b:v6 b:v6 b:v7 b:v7 unc:v8 unc:v8
+      LiveValues<3> b:v6 b:v7 unc:v8
       FrameState {
         NextInstrOffset 6
         Locals<3> v6 v7 v8

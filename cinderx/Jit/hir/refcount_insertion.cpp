@@ -927,6 +927,7 @@ void fillDeoptLiveRegs(const StateMap& live_regs, Instr& instr) {
     return;
   }
 
+  JIT_CHECK(deopt->live_regs().empty(), "Instruction should have no live regs");
   for (auto& pair : live_regs) {
     auto& rstate = pair.second;
     auto ref_kind = rstate.kind();
@@ -942,6 +943,7 @@ void fillDeoptLiveRegs(const StateMap& live_regs, Instr& instr) {
       }
     }
   }
+  deopt->sortLiveRegs();
 }
 
 // Process any operands stolen by the given instruction.

@@ -27,6 +27,16 @@ const std::vector<const char*> CallCFunc::kFuncNames{
 #undef FUNC_NAME
 };
 
+void DeoptBase::sortLiveRegs() {
+  std::sort(
+      live_regs_.begin(),
+      live_regs_.end(),
+      [](const RegState& a, const RegState& b) {
+        JIT_DCHECK(a.reg != b.reg, "Same register should not be live twice");
+        return a.reg->id() < b.reg->id();
+      });
+}
+
 void Phi::setArgs(const std::unordered_map<BasicBlock*, Register*>& args) {
   JIT_DCHECK(NumOperands() == args.size(), "arg mismatch");
 

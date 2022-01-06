@@ -789,6 +789,8 @@ class DeoptBase : public Instr {
     return live_regs_;
   }
 
+  void sortLiveRegs();
+
   // Set/get the metadata needed to reconstruct the state of the interpreter
   // after this instruction executes.
   void setFrameState(std::unique_ptr<FrameState> state) {
