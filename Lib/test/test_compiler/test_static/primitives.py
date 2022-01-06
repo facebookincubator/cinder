@@ -13,3 +13,18 @@ class PrimitivesTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(), 0)
             self.assertEqual(f(1), 1)
+
+    def test_double_augassign(self) -> None:
+        codestr = """
+            from __static__ import box, double
+
+            def f() -> float:
+                x: double = 3
+                x /= 2
+                return box(x)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            self.assertNotInBytecode(f, "LOAD_FAST")
+            self.assertNotInBytecode(f, "STORE_FAST")
+            self.assertEqual(f(), 1.5)

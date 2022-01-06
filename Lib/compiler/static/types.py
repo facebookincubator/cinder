@@ -5700,7 +5700,6 @@ class CheckedDict(GenericClass):
         return NO_EFFECT
 
 
-
 class CheckedDictInstance(Object[CheckedDict]):
     def bind_subscr(
         self,
@@ -5967,6 +5966,15 @@ class CInstance(Value, Generic[TClass]):
     ) -> None:
         code_gen.visit(node.value)
         code_gen.emit("PRIMITIVE_BINARY_OP", self.get_op_id(node.op))
+
+    def emit_augname(
+        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
+    ) -> None:
+        target = node.target
+        assert isinstance(target, ast.Name)
+        code_gen.emit("LOAD_LOCAL", (target.id, self.klass.type_descr))
+        code_gen.emitAugRHS(node)
+        code_gen.emit("STORE_LOCAL", (target.id, self.klass.type_descr))
 
 
 class CEnumInstance(CInstance["CEnumType"]):
@@ -6419,15 +6427,6 @@ class CIntInstance(CInstance["CIntType"]):
 
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
         code_gen.emit("PRIMITIVE_COMPARE_OP", self.get_op_id(op))
-
-    def emit_augname(
-        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
-    ) -> None:
-        target = node.target
-        assert isinstance(target, ast.Name)
-        code_gen.emit("LOAD_LOCAL", (target.id, self.klass.type_descr))
-        code_gen.emitAugRHS(node)
-        code_gen.emit("STORE_LOCAL", (target.id, self.klass.type_descr))
 
     def get_int_range(self) -> Tuple[int, int]:
         bits = 8 << self.size
