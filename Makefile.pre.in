@@ -471,6 +471,7 @@ JIT_OBJS=       \
 		Jit/codegen/rewrite.o \
 		Jit/codegen/x86_64.o \
 		Jit/lir/block_builder.o \
+		Jit/lir/dce.o \
 		Jit/lir/lir.o \
 		Jit/lir/block.o \
 		Jit/lir/blocksorter.o \
@@ -1263,6 +1264,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/codegen/rewrite.h \
 		$(srcdir)/Jit/codegen/x86_64.h \
 		$(srcdir)/Jit/lir/block_builder.h \
+		$(srcdir)/Jit/lir/dce.h \
 		$(srcdir)/Jit/lir/lir.h \
 		$(srcdir)/Jit/lir/block.h \
 		$(srcdir)/Jit/lir/blocksorter.h \
@@ -2344,6 +2346,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/intrusive_list_test.o \
 	${RUNTIME_TESTS_DIR}/jit_context_test.o \
 	${RUNTIME_TESTS_DIR}/jit_list_test.o \
+	${RUNTIME_TESTS_DIR}/lir_dce_test.o \
 	${RUNTIME_TESTS_DIR}/lir_inliner_test.o \
 	${RUNTIME_TESTS_DIR}/lir_test.o \
 	${RUNTIME_TESTS_DIR}/main.o \

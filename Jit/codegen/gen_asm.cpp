@@ -18,6 +18,7 @@
 #include "Jit/hir/printer.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_rt.h"
+#include "Jit/lir/dce.h"
 #include "Jit/lir/generator.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
@@ -244,6 +245,8 @@ void* NativeGenerator::GetEntryPoint() {
 
   PostGenerationRewrite post_gen(lir_func.get(), &env_);
   post_gen.run();
+
+  eliminateDeadCode(lir_func.get());
 
   LinearScanAllocator lsalloc(lir_func.get(), frame_header_size_);
   lsalloc.run();

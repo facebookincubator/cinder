@@ -26,16 +26,16 @@ enum class FlagEffects {
 
 #define FOREACH_INSTR_TYPE(X)                                                \
   /* name, <inputs live across> <flag effects>, <opnd_size_type>, <out use   \
-   * reg>, <in use reg> */                                                   \
+   * reg>, <in use reg>, <is essential> */                                   \
   /* Bind is not used to generate any machine code. Its sole      */         \
   /* purpose is to associate a physical register with a predefined */        \
   /* value to virtual register for register allocator. */                    \
   X(Bind)                                                                    \
   X(Nop)                                                                     \
-  X(Call, false, FlagEffects::kInvalidate, kAlways64)                        \
-  X(VectorCall, true, FlagEffects::kInvalidate, kAlways64, 1, {1})           \
-  X(Guard, true, FlagEffects::kInvalidate, kDefault, 1, {0, 0, 1, 1})        \
-  X(DeoptPatchpoint, true, FlagEffects::kInvalidate, kDefault, 0, {1, 1})    \
+  X(Call, false, FlagEffects::kInvalidate, kAlways64, 1, {}, 1)              \
+  X(VectorCall, true, FlagEffects::kInvalidate, kAlways64, 1, {1}, 1)        \
+  X(Guard, true, FlagEffects::kInvalidate, kDefault, 1, {0, 0, 1, 1}, 1)     \
+  X(DeoptPatchpoint, true, FlagEffects::kInvalidate, kDefault, 0, {1, 1}, 1) \
   X(Sext)                                                                    \
   X(Zext)                                                                    \
   X(Negate, false, FlagEffects::kSet, kOut)                                  \
@@ -71,11 +71,11 @@ enum class FlagEffects {
   X(LoadArg, false, FlagEffects::kNone, kAlways64)                           \
   X(Exchange, false, FlagEffects::kNone, kAlways64, 1, {1, 1})               \
   X(Move, false, FlagEffects::kNone, kOut)                                   \
-  X(Push)                                                                    \
-  X(Pop, false, FlagEffects::kNone, kDefault, 0)                             \
-  X(Cdq)                                                                     \
-  X(Cwd)                                                                     \
-  X(Cqo)                                                                     \
+  X(Push, false, FlagEffects::kNone, kDefault, 1, {}, 1)                     \
+  X(Pop, false, FlagEffects::kNone, kDefault, 0, {}, 1)                      \
+  X(Cdq, false, FlagEffects::kNone, kDefault, 1, {}, 1)                      \
+  X(Cwd, false, FlagEffects::kNone, kDefault, 1, {}, 1)                      \
+  X(Cqo, false, FlagEffects::kNone, kDefault, 1, {}, 1)                      \
   X(Branch)                                                                  \
   X(BranchNZ)                                                                \
   X(BranchZ)                                                                 \
@@ -96,10 +96,16 @@ enum class FlagEffects {
   X(MovZX)                                                                   \
   X(MovSX)                                                                   \
   X(MovSXD)                                                                  \
-  X(YieldInitial, true, FlagEffects::kInvalidate, kDefault, 0)               \
-  X(YieldFrom, true, FlagEffects::kInvalidate, kDefault, 0)                  \
-  X(YieldFromSkipInitialSend, true, FlagEffects::kInvalidate, kDefault, 0)   \
-  X(YieldValue, true, FlagEffects::kInvalidate, kDefault, 0)
+  X(YieldInitial, true, FlagEffects::kInvalidate, kDefault, 0, {}, 1)        \
+  X(YieldFrom, true, FlagEffects::kInvalidate, kDefault, 0, {}, 1)           \
+  X(YieldFromSkipInitialSend,                                                \
+    true,                                                                    \
+    FlagEffects::kInvalidate,                                                \
+    kDefault,                                                                \
+    0,                                                                       \
+    {},                                                                      \
+    1)                                                                       \
+  X(YieldValue, true, FlagEffects::kInvalidate, kDefault, 0, {}, 1)
 
 // Instruction class defines instructions in LIR.
 // Every instruction can have no more than one output, but arbitrary
@@ -397,6 +403,19 @@ class Instruction {
     }
   }
 
+  bool isAnyBranch() const {
+    return (opcode_ == kCondBranch) || isBranchCC();
+  }
+
+  bool isTerminator() const {
+    switch (opcode_) {
+      case kReturn:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   bool isAnyYield() const {
     switch (opcode_) {
       case kYieldFrom:
@@ -551,6 +570,9 @@ class InstrProperty {
 
 // clang-format off
 // This table contains definitions of all the instruction property field.
+// `is_essential` indicates that a given instruction can have memory effects not
+// captured by its operands. We maintain the invariant that all instructions
+// without operands have `may_store` set.
 BEGIN_INSTR_PROPERTY_FIELD
   FIELD_NO_DEFAULT(std::string, name)
   FIELD_DEFAULT(bool, inputs_live_across, false)
@@ -558,6 +580,7 @@ BEGIN_INSTR_PROPERTY_FIELD
   FIELD_DEFAULT(OperandSizeType, opnd_size_type, kDefault)
   FIELD_DEFAULT(bool, output_phy_use, true)
   FIELD_DEFAULT(std::vector<int>, input_phy_uses, std::vector<int>{})
+  FIELD_DEFAULT(bool, is_essential, false)
 END_INSTR_PROPERTY_FIELD
 // clang-format on
 
