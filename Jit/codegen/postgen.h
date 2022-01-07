@@ -40,5 +40,7 @@ class PostGenerationRewrite : public Rewrite {
 
   // Rewrite LoadArg to Bind and allocate a physical register for its input.
   static RewriteResult rewriteLoadArg(instr_iter_t instr_iter, Environ* env);
+
+  FRIEND_TEST(LIRRewriteTest, RewriteCondBranchTest);
 };
 } // namespace jit::codegen

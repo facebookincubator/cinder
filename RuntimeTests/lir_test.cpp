@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "Jit/codegen/environ.h"
+#include "Jit/codegen/postgen.h"
 #include "Jit/compiler.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/parser.h"

@@ -193,17 +193,18 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteCondBranch(
     return kUnchanged;
   }
 
+  // for a compare instruction, if the output is not the condition operand
+  // of the cond instruction, we can't optimize it
+  if (flag_affecting_instr !=
+      static_cast<LinkedOperand*>(cond)->getLinkedInstr()) {
+    return kUnchanged;
+  }
+
   // if the output of the compare has more than one use, we can't remove it
   Operand* output = flag_affecting_instr->output();
   if (output->numUses() > 1) {
     return kUnchanged;
   }
-
-  JIT_CHECK(
-      static_cast<LinkedOperand*>(cond)->getLinkedInstr() ==
-          flag_affecting_instr,
-      "The output of a Compare instruction is not used by a CondBranch "
-      "instruction.");
 
   // Setting the output to None is effectively removing the output of
   // flag_affecting_instr and all the input operands that linked to it.
