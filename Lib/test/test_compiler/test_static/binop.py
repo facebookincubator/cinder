@@ -4,7 +4,6 @@ from compiler.static.types import (
     TYPED_INT16,
     PRIM_OP_DIV_INT,
     PRIM_OP_ADD_INT,
-    PRIM_OP_POW_INT,
 )
 
 from .common import StaticTestBase
@@ -543,3 +542,16 @@ class BinopTests(StaticTestBase):
 
         with self.assertRaisesRegex(TypedSyntaxError, "cannot add int16 and uint64"):
             self.compile(codestr)
+
+    def test_literal_int_binop_inferred_type(self):
+        """primitive literal doesn't wrongly carry through arithmetic"""
+        for rev in [False, True]:
+            with self.subTest(rev=rev):
+                op = "1 + x" if rev else "x + 1"
+                codestr = f"""
+                    from __static__ import int64
+
+                    def f(x: int64):
+                        reveal_type({op})
+                """
+                self.type_error(codestr, "'int64'", f"reveal_type({op})")

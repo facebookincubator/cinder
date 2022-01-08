@@ -6377,11 +6377,11 @@ class CIntInstance(CInstance["CIntType"]):
             if other.constant == TYPED_BOOL:
                 return None
             if self.signed == other.signed:
-                # signs match, we can just treat this as a comparison of the larger type
-                if self.size > other.size:
-                    return self
-                else:
-                    return other
+                # Signs match, we can just treat this as a comparison of the larger type.
+                # Ensure we return a simple cint type even if self or other is a literal.
+                size = max(self.size, other.size)
+                types = SIGNED_CINT_TYPES if self.signed else UNSIGNED_CINT_TYPES
+                return types[size].instance
             else:
                 new_size = max(
                     self.size if self.signed else self.size + 1,
@@ -6971,6 +6971,7 @@ ALLOWED_ARRAY_TYPES: List[Class] = [
     FLOAT_TYPE,
 ]
 
+# TODO uses of these to check if something is a CInt wrongly exclude literals
 SIGNED_CINT_TYPES = [INT8_TYPE, INT16_TYPE, INT32_TYPE, INT64_TYPE]
 UNSIGNED_CINT_TYPES: List[CIntType] = [
     UINT8_TYPE,
