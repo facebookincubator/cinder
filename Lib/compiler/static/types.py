@@ -598,7 +598,21 @@ class Value:
         return code_gen.defaultVisit(node)
 
     def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
-        return code_gen.defaultVisit(node)
+        if isinstance(node.ctx, ast.Load):
+            return self.emit_load_name(node, code_gen)
+        elif isinstance(node.ctx, ast.Store):
+            return self.emit_store_name(node, code_gen)
+        else:
+            return self.emit_delete_name(node, code_gen)
+
+    def emit_load_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.loadName(node.id)
+
+    def emit_store_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.storeName(node.id)
+
+    def emit_delete_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.delName(node.id)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -4390,14 +4404,10 @@ class NumInstance(Object[NumClass]):
     def inexact(self) -> Value:
         return self
 
-    def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
-        if (
-            self.klass.is_final
-            and self.klass.literal_value is not None
-            and isinstance(node.ctx, ast.Load)
-        ):
+    def emit_load_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        if self.klass.is_final and self.klass.literal_value is not None:
             return code_gen.emit("LOAD_CONST", self.klass.literal_value)
-        super().emit_name(node, code_gen)
+        return super().emit_load_name(node, code_gen)
 
 
 class NumExactInstance(NumInstance):
@@ -5977,6 +5987,15 @@ class CInstance(Value, Generic[TClass]):
         op = common_type.get_op_id(node.op)
         code_gen.emit("PRIMITIVE_BINARY_OP", op)
 
+    def emit_load_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("LOAD_LOCAL", (node.id, self.klass.type_descr))
+
+    def emit_store_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
+
+    def emit_delete_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        raise TypedSyntaxError("deleting primitives not supported")
+
     def emit_aug_rhs(
         self, node: ast.AugAssign, code_gen: Static38CodeGenerator
     ) -> None:
@@ -6109,14 +6128,6 @@ class CEnumInstance(CInstance["CEnumType"]):
 
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
         code_gen.emit("PRIMITIVE_COMPARE_OP", INT64_VALUE.get_op_id(op))
-
-    def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
-        if isinstance(node.ctx, ast.Load):
-            code_gen.emit("LOAD_LOCAL", (node.id, self.klass.type_descr))
-        elif isinstance(node.ctx, ast.Store):
-            code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
-        else:
-            raise TypedSyntaxError("unsupported op")
 
     def resolve_attr(
         self, node: ast.Attribute, visitor: ReferenceVisitor
@@ -6483,14 +6494,6 @@ class CIntInstance(CInstance["CIntType"]):
             val = bool(val)
         code_gen.emit("PRIMITIVE_LOAD_CONST", (val, self.as_oparg()))
 
-    def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
-        if isinstance(node.ctx, ast.Load):
-            code_gen.emit("LOAD_LOCAL", (node.id, self.klass.type_descr))
-        elif isinstance(node.ctx, ast.Store):
-            code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
-        else:
-            raise TypedSyntaxError("unsupported op")
-
     def emit_jumpif_only(
         self, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
     ) -> None:
@@ -6752,14 +6755,6 @@ class CDoubleInstance(CInstance["CDoubleType"]):
             code_gen.emit("PRIMITIVE_UNARY_OP", PRIM_OP_NEG_DBL)
         elif isinstance(node.op, ast.UAdd):
             code_gen.visit(node.operand)
-
-    def emit_name(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
-        if isinstance(node.ctx, ast.Load):
-            code_gen.emit("LOAD_LOCAL", (node.id, self.klass.type_descr))
-        elif isinstance(node.ctx, ast.Store):
-            code_gen.emit("STORE_LOCAL", (node.id, self.klass.type_descr))
-        else:
-            raise TypedSyntaxError("unsupported op")
 
     def bind_compare(
         self,
