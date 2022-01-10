@@ -574,11 +574,6 @@ class Value:
     def emit_unaryop(self, node: ast.UnaryOp, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultVisit(node)
 
-    def emit_augassign(
-        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
-    ) -> None:
-        code_gen.defaultVisit(node)
-
     def emit_aug_rhs(
         self, node: ast.AugAssign, code_gen: Static38CodeGenerator
     ) -> None:

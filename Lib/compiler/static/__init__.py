@@ -556,9 +556,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return self.defaultVisit(final_val)
         self.get_type(node).emit_name(node, self)
 
-    def visitAugAssign(self, node: AugAssign) -> None:
-        self.get_type(node.target).emit_augassign(node, self)
-
     def emitAugAttribute(self, node: ast.AugAssign) -> None:
         target = node.target
         assert isinstance(target, ast.Attribute)
