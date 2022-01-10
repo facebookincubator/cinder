@@ -1,3 +1,4 @@
+from .augassign import AugAssignTests
 from .binop import BinopTests
 from .cached_property import CachedPropertyTests
 from .checked_list import CheckedListTests

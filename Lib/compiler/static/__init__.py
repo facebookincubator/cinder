@@ -578,9 +578,13 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def emitAugSubscript(self, node: ast.AugAssign) -> None:
         target = node.target
         assert isinstance(target, ast.Subscript)
+        self.visit(target.value)
+        self.visit(target.slice)
         typ = self.get_type(target.value)
-        typ.emit_subscr(target, True, self)
+        self.emit("DUP_TOP_TWO")
+        typ.emit_load_subscr(target, self)
         self.emitAugRHS(node)
+        self.emit("ROT_THREE")
         typ.emit_store_subscr(target, self)
 
     def emitAugRHS(self, node: ast.AugAssign) -> None:
@@ -655,7 +659,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.get_type(node.func).emit_call(node, self)
 
     def visitSubscript(self, node: ast.Subscript, aug_flag: bool = False) -> None:
-        self.get_type(node.value).emit_subscr(node, aug_flag, self)
+        # aug_flag is unused in static compiler; we have our own
+        # emitAugSubscript that doesn't call visitSubscript
+        self.get_type(node.value).emit_subscr(node, self)
 
     def _visitReturnValue(self, value: ast.AST, expected: Class) -> None:
         self.visit(value)

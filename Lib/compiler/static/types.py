@@ -452,16 +452,31 @@ class Value:
     ) -> Optional[Value]:
         visitor.syntax_error(f"cannot index {self.name}", node)
 
-    def emit_subscr(
-        self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
+    def emit_subscr(self, node: ast.Subscript, code_gen: Static38CodeGenerator) -> None:
+        code_gen.update_lineno(node)
+        code_gen.visit(node.value)
+        code_gen.visit(node.slice)
+        if isinstance(node.ctx, ast.Load):
+            return self.emit_load_subscr(node, code_gen)
+        elif isinstance(node.ctx, ast.Store):
+            return self.emit_store_subscr(node, code_gen)
+        else:
+            return self.emit_delete_subscr(node, code_gen)
+
+    def emit_load_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.defaultVisit(node, aug_flag)
+        code_gen.emit("BINARY_SUBSCR")
 
     def emit_store_subscr(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.emit("ROT_THREE")
         code_gen.emit("STORE_SUBSCR")
+
+    def emit_delete_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
+    ) -> None:
+        code_gen.emit("DELETE_SUBSCR")
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultVisit(node)
@@ -4857,22 +4872,26 @@ class ListInstance(Object[ListClass]):
             super().bind_subscr(node, type, visitor)
         visitor.set_type(node, DYNAMIC)
 
-    def emit_subscr(
-        self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
+    def emit_load_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
-        index_type = code_gen.get_type(node.slice)
-        if index_type.klass not in SIGNED_CINT_TYPES:
-            return super().emit_subscr(node, aug_flag, code_gen)
+        if code_gen.get_type(node.slice).klass not in SIGNED_CINT_TYPES:
+            return super().emit_load_subscr(node, code_gen)
+        code_gen.emit("SEQUENCE_GET", self.get_subscr_type())
 
-        code_gen.update_lineno(node)
-        code_gen.visit(node.value)
-        code_gen.visit(node.slice)
-        if isinstance(node.ctx, ast.Load):
-            code_gen.emit("SEQUENCE_GET", self.get_subscr_type())
-        elif isinstance(node.ctx, ast.Store):
-            code_gen.emit("SEQUENCE_SET", self.get_subscr_type())
-        elif isinstance(node.ctx, ast.Del):
-            code_gen.emit("LIST_DEL")
+    def emit_store_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
+    ) -> None:
+        if code_gen.get_type(node.slice).klass not in SIGNED_CINT_TYPES:
+            return super().emit_store_subscr(node, code_gen)
+        code_gen.emit("SEQUENCE_SET", self.get_subscr_type())
+
+    def emit_delete_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
+    ) -> None:
+        if code_gen.get_type(node.slice).klass not in SIGNED_CINT_TYPES:
+            return super().emit_delete_subscr(node, code_gen)
+        code_gen.emit("LIST_DEL", self.get_subscr_type())
 
     def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
         if maybe_emit_sequence_repeat(node, code_gen):
@@ -5489,48 +5508,49 @@ class ArrayInstance(Object["ArrayClass"]):
 
         visitor.set_type(node, self.klass.index.instance)
 
-    def emit_subscr(
-        self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
+    def _supported_index(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
+    ) -> bool:
+        index_type = code_gen.get_type(node.slice)
+        return INT_TYPE.can_assign_from(index_type.klass) or isinstance(
+            index_type, CIntInstance
+        )
+
+    def _maybe_unbox_index(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
         index_type = code_gen.get_type(node.slice)
-        is_del = isinstance(node.ctx, ast.Del)
-        index_is_python_int = INT_TYPE.can_assign_from(index_type.klass)
-        index_is_primitive_int = isinstance(index_type.klass, CIntType)
-
-        # SEQUENCE_{GET,SET} support only integer indices and don't support del;
-        # otherwise defer to the usual bytecode
-        if is_del or not (index_is_python_int or index_is_primitive_int):
-            # We're going to fall back to BINARY_SUBSCR here, so we need to ensure the input
-            # it is boxed (when storing) and the output of that is unboxed (when loading)
-            if isinstance(node.ctx, ast.Store):
-                code_gen.emit("PRIMITIVE_BOX", self.klass.index.type_descr)
-            super().emit_subscr(node, aug_flag, code_gen)
-            if isinstance(node.ctx, ast.Load):
-                code_gen.emit("REFINE_TYPE", self.klass.index.boxed.type_descr)
-                code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
-            return
-        code_gen.update_lineno(node)
-        code_gen.visit(node.value)
-        code_gen.visit(node.slice)
-
-        if index_is_python_int:
+        if not isinstance(index_type, CIntInstance):
             # If the index is not a primitive, unbox its value to an int64, our implementation of
             # SEQUENCE_{GET/SET} expects the index to be a primitive int.
             code_gen.emit("REFINE_TYPE", index_type.klass.type_descr)
             code_gen.emit("PRIMITIVE_UNBOX", INT64_TYPE.type_descr)
 
-        if isinstance(node.ctx, ast.Store) and not aug_flag:
-            code_gen.emit("SEQUENCE_SET", self._seq_type())
-        elif isinstance(node.ctx, ast.Load) or aug_flag:
-            if aug_flag:
-                code_gen.emit("DUP_TOP_TWO")
+    def emit_load_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
+    ) -> None:
+        if self._supported_index(node, code_gen):
+            self._maybe_unbox_index(node, code_gen)
             code_gen.emit("SEQUENCE_GET", self._seq_type())
+        else:
+            # Falling back to BINARY_SUBSCR here, so we need to unbox the output
+            super().emit_load_subscr(node, code_gen)
+            code_gen.emit("REFINE_TYPE", self.klass.index.boxed.type_descr)
+            code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
 
     def emit_store_subscr(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
-        code_gen.emit("ROT_THREE")
-        code_gen.emit("SEQUENCE_SET", self._seq_type())
+        if self._supported_index(node, code_gen):
+            self._maybe_unbox_index(node, code_gen)
+            code_gen.emit("SEQUENCE_SET", self._seq_type())
+        else:
+            # Falling back to STORE_SUBSCR here, so need to box the value first
+            code_gen.emit("ROT_THREE")
+            code_gen.emit("ROT_THREE")
+            code_gen.emit("PRIMITIVE_BOX", self.klass.index.type_descr)
+            code_gen.emit("ROT_THREE")
+            super().emit_store_subscr(node, code_gen)
 
     def __repr__(self) -> str:
         return f"{self.klass.type_name.name}[{self.klass.index.name!r}]"
@@ -5720,28 +5740,26 @@ class CheckedDictInstance(Object[CheckedDict]):
         )
         visitor.set_type(node, self.klass.gen_name.args[1].instance)
 
-    def emit_subscr(
-        self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
+    def emit_load_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
-        if isinstance(node.ctx, ast.Load):
-            code_gen.visit(node.value)
-            code_gen.visit(node.slice)
-            dict_descr = self.klass.type_descr
-            getitem_descr = dict_descr + ("__getitem__",)
-            code_gen.emit("EXTENDED_ARG", 0)
-            code_gen.emit("INVOKE_FUNCTION", (getitem_descr, 2))
-        elif isinstance(node.ctx, ast.Store):
-            code_gen.visit(node.value)
-            code_gen.emit("ROT_TWO")
-            code_gen.visit(node.slice)
-            code_gen.emit("ROT_TWO")
-            dict_descr = self.klass.type_descr
-            setitem_descr = dict_descr + ("__setitem__",)
-            code_gen.emit("EXTENDED_ARG", 0)
-            code_gen.emit("INVOKE_FUNCTION", (setitem_descr, 3))
-            code_gen.emit("POP_TOP")
-        else:
-            code_gen.defaultVisit(node, aug_flag)
+        dict_descr = self.klass.type_descr
+        getitem_descr = dict_descr + ("__getitem__",)
+        code_gen.emit("EXTENDED_ARG", 0)
+        code_gen.emit("INVOKE_FUNCTION", (getitem_descr, 2))
+
+    def emit_store_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
+    ) -> None:
+        # We have, from TOS: index, dict, value-to-store
+        # We want, from TOS: value-to-store, index, dict
+        code_gen.emit("ROT_THREE")
+        code_gen.emit("ROT_THREE")
+        dict_descr = self.klass.type_descr
+        setitem_descr = dict_descr + ("__setitem__",)
+        code_gen.emit("EXTENDED_ARG", 0)
+        code_gen.emit("INVOKE_FUNCTION", (setitem_descr, 3))
+        code_gen.emit("POP_TOP")
 
     def get_fast_len_type(self) -> int:
         # CheckedDict is always an exact type because we don't allow
@@ -5828,35 +5846,43 @@ class CheckedListInstance(Object[CheckedList]):
     def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
         return self.elem_type
 
-    def emit_subscr(
-        self, node: ast.Subscript, aug_flag: bool, code_gen: Static38CodeGenerator
+    def emit_load_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
         # From slice
         if code_gen.get_type(node) == self:
-            return code_gen.defaultVisit(node, aug_flag)
+            return super().emit_load_subscr(node, code_gen)
 
         index_is_ctype = code_gen.get_type(node.slice).klass in SIGNED_CINT_TYPES
 
-        if isinstance(node.ctx, ast.Load):
-            if index_is_ctype:
-                code_gen.visit(node.value)
-                code_gen.visit(node.slice)
-                code_gen.emit("SEQUENCE_GET", SEQ_CHECKED_LIST)
-            else:
-                code_gen.visit(node.value)
-                code_gen.visit(node.slice)
-                update_descr = self.klass.type_descr + ("__getitem__",)
-                code_gen.emit_invoke_method(update_descr, 1)
-        elif isinstance(node.ctx, ast.Store):
-            code_gen.visit(node.value)
-            code_gen.emit("ROT_TWO")
-            code_gen.visit(node.slice)
-            code_gen.emit("ROT_TWO")
-            setitem_descr = self.klass.type_descr + ("__setitem__",)
-            code_gen.emit_invoke_method(setitem_descr, 2)
-            code_gen.emit("POP_TOP")
+        if index_is_ctype:
+            code_gen.emit("SEQUENCE_GET", SEQ_CHECKED_LIST)
         else:
-            code_gen.defaultVisit(node, aug_flag)
+            update_descr = self.klass.type_descr + ("__getitem__",)
+            code_gen.emit_invoke_method(update_descr, 1)
+
+    def emit_store_subscr(
+        self, node: ast.Subscript, code_gen: Static38CodeGenerator
+    ) -> None:
+        # From slice
+        if code_gen.get_type(node) == self:
+            return super().emit_store_subscr(node, code_gen)
+
+        index_type = code_gen.get_type(node.slice).klass
+
+        if index_type in SIGNED_CINT_TYPES:
+            # TODO add CheckedList to SEQUENCE_SET so we can emit that instead
+            # of having to box the index here
+            code_gen.emit("PRIMITIVE_BOX", index_type.type_descr)
+
+        # We have, from TOS: index, list, value-to-store
+        # We want, from TOS: value-to-store, index, list
+        code_gen.emit("ROT_THREE")
+        code_gen.emit("ROT_THREE")
+
+        setitem_descr = self.klass.type_descr + ("__setitem__",)
+        code_gen.emit_invoke_method(setitem_descr, 2)
+        code_gen.emit("POP_TOP")
 
     def get_fast_len_type(self) -> int:
         # CheckedList is always an exact type because we don't allow

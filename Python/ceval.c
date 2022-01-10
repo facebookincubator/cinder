@@ -6067,7 +6067,7 @@ main_loop:
                     Py_DECREF(v);
                     goto error;
                 }
-              } else if (oparg == SEQ_LIST_INEXACT) {
+            } else if (oparg == SEQ_LIST_INEXACT) {
                 if (PyList_CheckExact(sequence) ||
                     Py_TYPE(sequence)->tp_as_sequence->sq_ass_item == PyList_Type.tp_as_sequence->sq_ass_item) {
                     err = PyList_SetItem(sequence, idx, v);
@@ -6084,9 +6084,9 @@ main_loop:
                     if (err != 0) {
                         goto error;
                     }
-              }
+                }
             } else {
-                PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_GET: %d", oparg);
+                PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_SET: %d", oparg);
                 goto error;
             }
             FAST_DISPATCH();

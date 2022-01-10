@@ -2576,17 +2576,6 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(acomp, "f")
         self.assertInBytecode(x, "CAST", ("builtins", "bool"))
 
-    def test_aug_assign(self) -> None:
-        codestr = """
-        def f(l):
-            l[0] += 1
-        """
-        with self.in_module(codestr) as mod:
-            f = mod.f
-            l = [1]
-            f(l)
-            self.assertEqual(l[0], 2)
-
     def test_strict_module_constant(self) -> None:
         code = """
             def f(a):
@@ -3096,20 +3085,6 @@ class StaticCompilationTests(StaticTestBase):
             D = mod.D
             d = D(42)
             self.assertEqual(d.f(), 42)
-
-    def test_aug_add(self):
-        codestr = """
-        class C:
-            def __init__(self):
-                self.x = 1
-
-        def f(a: C):
-            a.x += 1
-        """
-        code = self.compile(codestr, modname="foo")
-        code = self.find_code(code, name="f")
-        self.assertInBytecode(code, "LOAD_FIELD", ("foo", "C", "x"))
-        self.assertInBytecode(code, "STORE_FIELD", ("foo", "C", "x"))
 
     def test_untyped_attr(self):
         codestr = """
@@ -6368,19 +6343,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    def test_array_inplace_assign(self):
-        codestr = """
-            from __static__ import Array, int8
-
-            def m() -> Array[int8]:
-                a = Array[int8]([1, 3, -5, -1, 7, 22])
-                a[0] += 1
-                return a
-        """
-        with self.in_module(codestr) as mod:
-            m = mod.m
-            self.assertEqual(m()[0], 2)
-
     def test_array_subscripting_slice(self):
         codestr = """
             from __static__ import Array, int8
@@ -9485,20 +9447,6 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int", "str")):
             self.compile(codestr)
-
-    def test_augassign_primitive_int(self):
-        codestr = """
-        from __static__ import int8, box, unbox
-
-        def a(i: int) -> int:
-            j: int8 = unbox(i)
-            j += 2
-            return box(j)
-        """
-        with self.in_module(codestr) as mod:
-            a = mod.a
-            self.assertInBytecode(a, "PRIMITIVE_BINARY_OP", 0)
-            self.assertEqual(a(3), 5)
 
     def test_primitive_compare_immediate_no_branch_on_result(self):
         for rev in [True, False]:
@@ -12791,23 +12739,6 @@ class StaticRuntimeTests(StaticTestBase):
             t = mod.t
             self.assertInBytecode(t, "POP_JUMP_IF_TRUE")
             self.assertTrue(t())
-
-    def test_augassign_inexact(self):
-        codestr = """
-        def something():
-            return 3
-
-        def t():
-            a: int = something()
-
-            b = 0
-            b += a
-            return b
-        """
-        with self.in_module(codestr) as mod:
-            t = mod.t
-            self.assertInBytecode(t, "INPLACE_ADD")
-            self.assertEqual(t(), 3)
 
     def test_qualname(self):
         codestr = """
