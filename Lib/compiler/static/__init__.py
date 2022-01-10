@@ -563,24 +563,31 @@ class Static38CodeGenerator(StrictCodeGenerator):
         target = node.target
         assert isinstance(target, ast.Attribute)
         self.visit(target.value)
+        typ = self.get_type(target.value)
         self.emit("DUP_TOP")
-        self.get_type(target.value).emit_load_attr(target, self)
+        typ.emit_load_attr(target, self)
         self.emitAugRHS(node)
         self.emit("ROT_TWO")
-        self.get_type(target.value).emit_store_attr(target, self)
+        typ.emit_store_attr(target, self)
 
     def emitAugName(self, node: ast.AugAssign) -> None:
-        self.get_type(node.target).emit_augname(node, self)
-
-    def emitAugRHS(self, node: ast.AugAssign) -> None:
-        self.get_type(node.target).emit_aug_rhs(node, self)
+        target = node.target
+        assert isinstance(target, ast.Name)
+        typ = self.get_type(target)
+        typ.emit_load_name(target, self)
+        self.emitAugRHS(node)
+        typ.emit_store_name(target, self)
 
     def emitAugSubscript(self, node: ast.AugAssign) -> None:
         target = node.target
         assert isinstance(target, ast.Subscript)
-        self.get_type(target.value).emit_subscr(target, True, self)
+        typ = self.get_type(target.value)
+        typ.emit_subscr(target, True, self)
         self.emitAugRHS(node)
-        self.get_type(target.value).emit_store_subscr(target, self)
+        typ.emit_store_subscr(target, self)
+
+    def emitAugRHS(self, node: ast.AugAssign) -> None:
+        self.get_type(node.target).emit_aug_rhs(node, self)
 
     def visitCompare(self, node: Compare) -> None:
         self.update_lineno(node)

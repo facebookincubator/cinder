@@ -579,11 +579,6 @@ class Value:
     ) -> None:
         code_gen.defaultVisit(node)
 
-    def emit_augname(
-        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
-    ) -> None:
-        code_gen.defaultCall(node, "emitAugName")
-
     def emit_aug_rhs(
         self, node: ast.AugAssign, code_gen: Static38CodeGenerator
     ) -> None:
@@ -6001,15 +5996,6 @@ class CInstance(Value, Generic[TClass]):
     ) -> None:
         code_gen.visit(node.value)
         code_gen.emit("PRIMITIVE_BINARY_OP", self.get_op_id(node.op))
-
-    def emit_augname(
-        self, node: ast.AugAssign, code_gen: Static38CodeGenerator
-    ) -> None:
-        target = node.target
-        assert isinstance(target, ast.Name)
-        code_gen.emit("LOAD_LOCAL", (target.id, self.klass.type_descr))
-        code_gen.emitAugRHS(node)
-        code_gen.emit("STORE_LOCAL", (target.id, self.klass.type_descr))
 
 
 class CEnumInstance(CInstance["CEnumType"]):
