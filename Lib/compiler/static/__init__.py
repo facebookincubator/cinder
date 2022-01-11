@@ -321,8 +321,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             cached_property_prefix = CACHED_PROPERTY_IMPL_PREFIX
             cached_property_function_name = "cached_property"
         impl_name = cached_property_prefix + name
-        self.emit("DUP_TOP")  # used for delete attr
-        self.emit("DUP_TOP")  # used for store attr
+        self.emit("DUP_TOP")  # used for _setup_cached_property_on_type
         self.emit("DUP_TOP")  # used to load descriptor
         self.emit("DUP_TOP")  # used to load method implementation
         self.emit("LOAD_ATTR", impl_name)  # Loads implemented method on the stack
@@ -332,9 +331,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
             "INVOKE_FUNCTION",
             (("cinder", cached_property_function_name), 2),
         )
-        self.emit("ROT_TWO")
-        self.emit("STORE_ATTR", name)
-        self.emit("DELETE_ATTR", impl_name)
+        self.emit("LOAD_CONST", name)
+        self.emit("LOAD_CONST", impl_name)
+        self.emit("INVOKE_FUNCTION", (("_static", "_setup_cached_property_on_type"), 4))
+        self.emit("POP_TOP")
 
     def _emit_final_method_names(self, klass: Class) -> None:
         final_methods: List[str] = []
