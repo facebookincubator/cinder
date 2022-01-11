@@ -1724,8 +1724,32 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     assert(previous != NULL);
 
+    int cur_optional, cur_coroutine, cur_classmethod;
+    PyObject *cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional,
+                                                          &cur_coroutine, &cur_classmethod);
+    assert(cur_type != NULL);
+
     // if this is a property slot, also update the getter and setter slots
     if (Py_TYPE(previous) == &PyProperty_Type) {
+        if (new_value) {
+            // If we have a new value, and it's not a descriptor, we can type-check it
+            // at the time of assignment.
+            PyTypeObject *new_value_type = Py_TYPE(new_value);
+            if (new_value_type->tp_descr_get == NULL) {
+                int check_res = _PyObject_RealIsInstance(new_value, cur_type);
+                if (check_res == -1) {
+                    Py_DECREF(cur_type);
+                    return -1;
+                } else if (check_res == 0) {
+                    PyErr_Format(
+                        PyExc_TypeError, "Cannot assign a %s, because %s.%U is expected to be a %s",
+                        new_value_type->tp_name, type->tp_name, name, ((PyTypeObject*)cur_type)->tp_name
+                    );
+                    Py_DECREF(cur_type);
+                    return -1;
+                }
+            }
+        }
         PyTupleObject *getter_tuple = (PyTupleObject *)get_property_getter_descr_tuple(name);
         PyObject *new_getter = deleting ? NULL : classloader_get_property_fget(new_value);
         if(_PyClassLoader_UpdateSlot(type, (PyObject *)getter_tuple, new_getter)) {
@@ -1749,11 +1773,6 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         Py_DECREF(setter_tuple);
     }
 
-    int cur_optional, cur_coroutine, cur_classmethod;
-    PyObject *cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional,
-                                                          &cur_coroutine, &cur_classmethod);
-
-    assert(cur_type != NULL);
     Py_ssize_t index = PyLong_AsSsize_t(slot);
 
     /* we make no attempts to keep things efficient when types start getting

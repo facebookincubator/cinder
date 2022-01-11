@@ -1477,3 +1477,32 @@ class StaticPatchTests(StaticTestBase):
             setattr(mod.C, "x", 42)
             self.assertEqual(mod.C().x, 42)
             self.assertEqual(mod.f(mod.C()), 42)
+
+    def test_property_patch_with_bad_type(self):
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 3
+
+        """
+        with self.in_strict_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, "Cannot assign a str, because C.x is expected to be a int"
+            ):
+                setattr(mod.C, "x", "42")
+
+            # ensures that the value was not patched
+            self.assertEqual(mod.C().x, 3)
+
+    def test_property_patch_with_good_type(self):
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 3
+
+        """
+        with self.in_strict_module(codestr) as mod:
+            setattr(mod.C, "x", 42)
+            self.assertEqual(mod.C().x, 42)

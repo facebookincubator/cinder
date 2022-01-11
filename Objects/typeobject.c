@@ -3921,8 +3921,16 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         _PyType_ClearNoShadowingInstances(type, value);
         assert(_PyType_CheckConsistency(type));
         if (existing != value) {
-            res =
-                _PyClassLoader_UpdateSlot(type, name, value) || res;
+            int slotupdate_res = _PyClassLoader_UpdateSlot(type, name, value);
+            if (slotupdate_res == -1) {
+                // We failed to update the slot, so restore the existing value
+                int revert_res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, existing, NULL);
+                if (revert_res == 0) {
+                    PyType_Modified(type);
+                }
+                slotupdate_res = slotupdate_res || revert_res;
+            }
+            res = res || slotupdate_res;
         }
     }
     Py_XDECREF(existing);
