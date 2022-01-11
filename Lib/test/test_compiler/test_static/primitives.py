@@ -28,3 +28,15 @@ class PrimitivesTests(StaticTestBase):
             self.assertNotInBytecode(f, "LOAD_FAST")
             self.assertNotInBytecode(f, "STORE_FAST")
             self.assertEqual(f(), 1.5)
+
+    def test_no_useless_convert(self) -> None:
+        codestr = """
+            from __static__ import int64
+
+            def f(x: int64) -> int64:
+                return x + 1
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            self.assertNotInBytecode(f, "CONVERT_PRIMITIVE")
+            self.assertEqual(f(2), 3)

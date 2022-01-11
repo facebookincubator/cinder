@@ -6565,9 +6565,10 @@ class CIntInstance(CInstance["CIntType"]):
     def emit_convert(self, from_type: Value, code_gen: Static38CodeGenerator) -> None:
         assert isinstance(from_type, CIntInstance)
         # Lower nibble is type-from, higher nibble is type-to.
-        code_gen.emit(
-            "CONVERT_PRIMITIVE", (self.as_oparg() << 4) | from_type.as_oparg()
-        )
+        from_oparg = from_type.as_oparg()
+        to_oparg = self.as_oparg()
+        if from_oparg != to_oparg:
+            code_gen.emit("CONVERT_PRIMITIVE", (to_oparg << 4) | from_oparg)
 
 
 class CIntType(CType):
