@@ -6554,6 +6554,7 @@ class CIntInstance(CInstance["CIntType"]):
             else:
                 visitor.set_node_data(node, BinOpCommonType, BinOpCommonType(type_ctx))
         else:
+            visitor.check_can_assign_from(type_ctx.klass, self.klass, node.left)
             visitor.check_can_assign_from(
                 type_ctx.klass,
                 visitor.get_type(node.right).klass,

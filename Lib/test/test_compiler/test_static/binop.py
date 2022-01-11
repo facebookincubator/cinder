@@ -555,3 +555,15 @@ class BinopTests(StaticTestBase):
                         reveal_type({op})
                 """
                 self.type_error(codestr, "'int64'", f"reveal_type({op})")
+
+    def test_error_type_ctx_left_operand_mismatch(self):
+        codestr = f"""
+            from __static__ import int64
+
+            def f(k: int64):
+                l = [1, 2, 3]
+                # slices cannot be primitives, so this is invalid
+                l[:k + 1] = [0]
+                return l
+        """
+        self.type_error(codestr, "int64 cannot be assigned to dynamic", f"k + 1")
