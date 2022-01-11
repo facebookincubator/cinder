@@ -14,3 +14,8 @@ TEST_F(SanityTest, CanUsePrivateAPIs) {
   ASSERT_TRUE(PyLong_CheckExact(g.get()));
   ASSERT_EQ(_PyLong_AsInt(g.get()), 100);
 }
+
+TEST_F(SanityTest, CanReinitRuntime) {
+  TearDown();
+  SetUp();
+}

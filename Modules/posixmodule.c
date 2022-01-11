@@ -14413,6 +14413,7 @@ all_ins(PyObject *m)
     return 0;
 }
 
+static void posixmodule_free(void*);
 
 static struct PyModuleDef posixmodule = {
     PyModuleDef_HEAD_INIT,
@@ -14423,7 +14424,7 @@ static struct PyModuleDef posixmodule = {
     NULL,
     NULL,
     NULL,
-    NULL
+    posixmodule_free,
 };
 
 
@@ -14756,6 +14757,10 @@ INITFUNC(void)
     initialized = 1;
 
     return m;
+}
+
+static void posixmodule_free(void* Py_UNUSED(unused)) {
+    Py_CLEAR(billion);
 }
 
 #ifdef __cplusplus

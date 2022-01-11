@@ -308,6 +308,7 @@ STRICTM_TESTS_SRCDIR=$(srcdir)/$(STRICTM_TESTS_DIR)
 # Environment variables injected by ./configure when ASAN is enabled, to make
 # all tests pass.
 ASAN_TEST_ENV= @ASAN_TEST_ENV@
+ASAN_TEST_ENV_WITH_LSAN= @ASAN_TEST_ENV_WITH_LSAN@
 
 # === Definitions added by makesetup ===
 
@@ -2397,13 +2398,13 @@ runtime_tests: ${GTEST_DIR}/libgtest.a platform $(RUNTIME_TESTS_OBJS) $(JIT_HEAD
 
 testruntime: runtime_tests
 	cd $(srcdir) && \
-		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` \
+		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` $(ASAN_TEST_ENV_WITH_LSAN) \
 		ThirdParty/gtest-parallel/gtest-parallel \
 		$(abs_builddir)/runtime_tests
 
 testruntime_serial: runtime_tests
 	cd $(srcdir) && \
-		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` $(ASAN_TEST_ENV) \
+		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` $(ASAN_TEST_ENV_WITH_LSAN) \
 		$(abs_builddir)/runtime_tests
 
 strict_module_tests: ${GTEST_DIR}/libgtest.a platform $(STRICTM_TESTS_OBJS) $(STRICTM_HEADERS) $(BUILDPYTHON)
