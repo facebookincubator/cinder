@@ -13,16 +13,12 @@ def fannkuch(n):
     max_flips = 0
     m = n - 1
     r = n
-    check = 0
     perm1 = list(range(n))
     perm = list(range(n))
     perm1_ins = perm1.insert
     perm1_pop = perm1.pop
 
     while 1:
-        if check < 30:
-            check += 1
-
         while r != 1:
             count[r - 1] = r
             r -= 1
