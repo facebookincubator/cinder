@@ -4,54 +4,20 @@ from __future__ import annotations
 import ast
 from ast import (
     AST,
-    And,
     AnnAssign,
     Assign,
-    AsyncFor,
     AsyncFunctionDef,
-    AsyncWith,
     Attribute,
-    AugAssign,
-    Await,
-    BinOp,
-    BoolOp,
     Bytes,
     Call,
     ClassDef,
-    Compare,
     Constant,
-    DictComp,
-    Ellipsis,
-    For,
-    FormattedValue,
     FunctionDef,
-    GeneratorExp,
-    If,
-    IfExp,
-    Import,
-    ImportFrom,
-    Index,
-    Is,
-    IsNot,
-    JoinedStr,
-    Lambda,
-    ListComp,
-    Module,
-    Name,
     NameConstant,
     Num,
     Return,
-    SetComp,
-    Slice,
     Starred,
     Str,
-    Subscript,
-    Try,
-    UnaryOp,
-    While,
-    With,
-    Yield,
-    YieldFrom,
     cmpop,
     expr,
     copy_location,
@@ -60,8 +26,6 @@ from enum import Enum
 from functools import cached_property
 from types import (
     BuiltinFunctionType,
-    CodeType,
-    FunctionType,
     MethodDescriptorType,
     WrapperDescriptorType,
 )
@@ -86,16 +50,10 @@ from typing import (
 )
 
 from __static__ import chkdict, chklist
-from _static import (
+from _static import (  # noqa: F401
     TYPED_BOOL,
-    TYPED_INT_8BIT,
-    TYPED_INT_16BIT,
-    TYPED_INT_32BIT,
     TYPED_INT_64BIT,
     TYPED_OBJECT,
-    TYPED_ARRAY,
-    TYPED_INT_UNSIGNED,
-    TYPED_INT_SIGNED,
     TYPED_INT8,
     TYPED_INT16,
     TYPED_INT32,
@@ -169,17 +127,13 @@ from _static import (
     FAST_LEN_ARRAY,
     FAST_LEN_STR,
     TYPED_DOUBLE,
-    rand,
 )
 
 from ..errors import TypedSyntaxError
 from ..optimizer import AstOptimizer
 from ..pyassem import Block
 from ..pycodegen import FOR_LOOP, CodeGenerator
-from ..symbols import SymbolVisitor, CinderSymbolVisitor
-from ..symbols import Scope, ModuleScope
 from ..unparse import to_expr
-from ..visitor import ASTVisitor
 from ..visitor import ASTRewriter, TAst
 from .effects import NarrowingEffect, NO_EFFECT
 from .visitor import GenericVisitor
@@ -187,12 +141,11 @@ from .visitor import GenericVisitor
 if TYPE_CHECKING:
     from . import Static38CodeGenerator
     from .compiler import Compiler
-    from .declaration_visitor import DeclarationVisitor
     from .module_table import AnnotationVisitor, ReferenceVisitor, ModuleTable
     from .type_binder import BindingScope, TypeBinder
 
 try:
-    import xxclassloader  # pyre-ignore[21]: unknown module
+    # pyre-ignore[21]: unknown module
     from xxclassloader import spamobj
 except ImportError:
     spamobj = None
@@ -5533,10 +5486,11 @@ class ArrayInstance(Object["ArrayClass"]):
             self._maybe_unbox_index(node, code_gen)
             code_gen.emit("SEQUENCE_GET", self._seq_type())
         else:
-            # Falling back to BINARY_SUBSCR here, so we need to unbox the output
             super().emit_load_subscr(node, code_gen)
-            code_gen.emit("REFINE_TYPE", self.klass.index.boxed.type_descr)
-            code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
+            if code_gen.get_type(node.slice).klass != SLICE_TYPE:
+                # Falling back to BINARY_SUBSCR here, so we need to unbox the output
+                code_gen.emit("REFINE_TYPE", self.klass.index.boxed.type_descr)
+                code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
 
     def emit_store_subscr(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
@@ -5545,11 +5499,12 @@ class ArrayInstance(Object["ArrayClass"]):
             self._maybe_unbox_index(node, code_gen)
             code_gen.emit("SEQUENCE_SET", self._seq_type())
         else:
-            # Falling back to STORE_SUBSCR here, so need to box the value first
-            code_gen.emit("ROT_THREE")
-            code_gen.emit("ROT_THREE")
-            code_gen.emit("PRIMITIVE_BOX", self.klass.index.type_descr)
-            code_gen.emit("ROT_THREE")
+            if code_gen.get_type(node.slice).klass != SLICE_TYPE:
+                # Falling back to STORE_SUBSCR here, so need to box the value first
+                code_gen.emit("ROT_THREE")
+                code_gen.emit("ROT_THREE")
+                code_gen.emit("PRIMITIVE_BOX", self.klass.index.type_descr)
+                code_gen.emit("ROT_THREE")
             super().emit_store_subscr(node, code_gen)
 
     def __repr__(self) -> str:
