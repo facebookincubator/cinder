@@ -226,7 +226,7 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     auto errorSink = std::make_shared<strictmod::CollectingErrorSink>();
     auto loader = getLoader(
         nullptr,
-        "StrictModules/Tests/comparison_tests/stubs",
+        "StrictModules/stubs",
         [](const std::string&, const std::string&) { return true; },
         [errorSink] { return errorSink; });
     loader->setImportPath(

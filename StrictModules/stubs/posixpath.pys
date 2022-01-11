@@ -1,0 +1,3 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+def join(a, *p):
+    return _known_unknown_obj("<os.join path>")

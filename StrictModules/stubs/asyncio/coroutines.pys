@@ -1,0 +1,8 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+import inspect
+
+_is_coroutine = object()
+
+@implicit
+def iscoroutinefunction(func):
+    ...

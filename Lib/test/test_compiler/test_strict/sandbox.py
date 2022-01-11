@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from compiler.strict.compiler import Compiler
+from compiler.strict.common import DEFAULT_STUB_PATH
 from compiler.strict.loader import StrictSourceFileLoader
 from contextlib import contextmanager
 from importlib.machinery import FileFinder
@@ -11,18 +11,8 @@ from textwrap import dedent
 from typing import Callable, ContextManager, Generator, Type, TypeVar
 from unittest import TestCase
 
-# These are import roots used in tests and can be patched
-STUB_ROOT = ""
 ALLOW_LIST = []
 EXACT_ALLOW_LIST = []
-# XXX: put the stubs in a more sharable place?
-TESTING_STUB = str(
-    Path(__file__).parent.parent.parent.parent.parent
-    / "StrictModules"
-    / "Tests"
-    / "comparison_tests"
-    / "stubs"
-)
 
 
 class Sandbox:
@@ -74,7 +64,7 @@ def restore_strict_modules() -> Generator[None, None, None]:
         StrictSourceFileLoader.compiler = None
         StrictSourceFileLoader.ensure_compiler(
             sys.path,
-            STUB_ROOT,
+            DEFAULT_STUB_PATH,
             ALLOW_LIST,
             EXACT_ALLOW_LIST,
             None,
@@ -89,7 +79,7 @@ def restore_strict_modules() -> Generator[None, None, None]:
 def restore_static_symtable() -> Generator[None, None, None]:
     compiler = StrictSourceFileLoader.ensure_compiler(
         sys.path,
-        STUB_ROOT,
+        DEFAULT_STUB_PATH,
         ALLOW_LIST,
         EXACT_ALLOW_LIST,
         None,

@@ -1,0 +1,5 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+def compile(pattern, flags=0):
+    return _known_unknown_callable("re.compile", pattern)
+
+VERBOSE = _known_unknown_obj("re.VERBOSE")

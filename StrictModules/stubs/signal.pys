@@ -1,0 +1,8 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+SIGALRM = _known_unknown_obj("SIGALRM")
+
+def signal(*args):
+    return _known_unknown_callable("signal", *args)
+
+def alarm(arg):
+    return _known_unknown_callable("alarm", arg)

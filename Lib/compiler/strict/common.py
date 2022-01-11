@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import os.path
 import symtable
 import typing
 from ast import (
@@ -10,12 +11,10 @@ from ast import (
     AsyncFunctionDef,
     ClassDef,
     DictComp,
-    ExceptHandler,
     FunctionDef,
     GeneratorExp,
     Lambda,
     ListComp,
-    Module,
     NodeVisitor,
     SetComp,
     Try,
@@ -27,7 +26,6 @@ from ast import (
 from collections import deque
 from symtable import Class, SymbolTable
 from typing import (
-    TYPE_CHECKING,
     Callable,
     Dict,
     Generic,
@@ -54,6 +52,12 @@ from .track_import_call import tracker
 # interpreter. It must stay below 32768 (15 bits), because we use the high bit
 # to encode strictness of the module.
 MAGIC_NUMBER = 36
+
+
+DEFAULT_STUB_PATH = (
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    + "/StrictModules/stubs"
+)
 
 
 def make_fixed_modules() -> Mapping[str, Mapping[str, object]]:

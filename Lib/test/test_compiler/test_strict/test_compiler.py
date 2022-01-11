@@ -1,12 +1,11 @@
-import ast
+from compiler.strict.common import DEFAULT_STUB_PATH
 from textwrap import dedent
 from typing import Optional, Sequence, final
-from unittest import skip
 
 from _strictmodule import StrictModuleLoader, StrictAnalysisResult
 
 from .common import StrictTestBase
-from .sandbox import sandbox, TESTING_STUB
+from .sandbox import sandbox
 
 
 class CompilerTests(StrictTestBase):
@@ -16,7 +15,7 @@ class CompilerTests(StrictTestBase):
         mod_name: str = "mod",
         import_path: Optional[Sequence[str]] = None,
         allow_list_prefix: Optional[Sequence[str]] = None,
-        stub_root: str = "",
+        stub_root: str = DEFAULT_STUB_PATH,
         forced_strict_name: Optional[str] = None,
     ) -> StrictAnalysisResult:
         code = dedent(code)
@@ -146,7 +145,7 @@ class CompilerTests(StrictTestBase):
             x = f()
         """
 
-        m = self.analyze(code, stub_root=TESTING_STUB)
+        m = self.analyze(code)
         self.assertTrue(m.is_valid)
         self.assertEqual(m.errors, [])
 

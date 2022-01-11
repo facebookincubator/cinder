@@ -104,7 +104,7 @@ class TypeVar(_Final, _Immutable, _root=True):
             raise TypeError("A single constraint is not allowed")
         msg = "TypeVar(name, constraint, ...): constraints must be types."
         self.__constraints__ = tuple(_type_check(t, msg) for t in constraints)
-        if bound:
+        if bound is not None:
             self.__bound__ = _type_check(bound, "Bound must be a type.")
         else:
             self.__bound__ = None
@@ -261,6 +261,7 @@ Generator = _alias(collections.abc.Generator, (T_co, T_contra, V_co))
 AsyncGenerator = _alias(collections.abc.AsyncGenerator, (T_co, T_contra))
 Type = _alias(type, CT_co, inst=False)
 
+
 def _make_nmtuple(name, types):
     msg = "NamedTuple('Name', [(f0, t0), (f1, t1), ...]); each t must be a type"
     types = [(n, _type_check(t, msg)) for n, t in types]
@@ -320,3 +321,6 @@ def overload(func):
 @implicit
 def _overload_dummy():
     ...
+
+@implicit
+def NewType(name, tp): ...

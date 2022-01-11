@@ -1,5 +1,4 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-
 class _C:
     def _m(self): pass
 MethodType = type(_C()._m)
@@ -16,8 +15,8 @@ Union = type(int | str)
 
 BuiltinFunctionType = type(len)
 BuiltinMethodType = type([].append)     # Same as BuiltinFunctionType
-GetSetDescriptorType = type(FunctionType.__code__)
-MemberDescriptorType = type(FunctionType.__code__)
+GetSetDescriptorType = type(MethodType.__func__)
+MemberDescriptorType = type(MethodType.__func__)
 
 @implicit
 def new_class():

@@ -16,29 +16,23 @@ from importlib.machinery import (
     SourceFileLoader,
     SourcelessFileLoader,
 )
-from types import CodeType, MappingProxyType, ModuleType
+from types import CodeType, ModuleType
 from typing import (
-    TYPE_CHECKING,
-    Any,
     Callable,
     Collection,
-    Dict,
-    Generic,
     Iterable,
     List,
     Mapping,
-    NoReturn,
     Optional,
     Tuple,
     Type,
-    TypeVar,
     cast,
     final,
 )
 
 from cinder import StrictModule
 
-from .common import FIXED_MODULES, MAGIC_NUMBER
+from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import NONSTRICT_MODULE_KIND, Compiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
 
@@ -177,7 +171,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         fullname: str,
         path: str,
         import_path: Optional[Iterable[str]] = None,
-        stub_path: str = "",
+        stub_path: Optional[str] = None,
         allow_list_prefix: Optional[Iterable[str]] = None,
         allow_list_exact: Optional[Iterable[str]] = None,
         enable_patching: bool = False,
@@ -198,8 +192,8 @@ class StrictSourceFileLoader(SourceFileLoader):
         configured_stub_path = sys._xoptions.get(
             "strict-module-stubs-path"
         ) or os.getenv("PYTHONSTRICTMODULESTUBSPATH")
-        if stub_path == "" and configured_stub_path:
-            stub_path = str(configured_stub_path)
+        if stub_path is None:
+            stub_path = configured_stub_path or DEFAULT_STUB_PATH
         if stub_path and not os.path.isdir(stub_path):
             raise ValueError(f"Strict module stubs path does not exist: {stub_path}")
         self.stub_path: str = stub_path

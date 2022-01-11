@@ -1,0 +1,7 @@
+# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+class Lock:
+    def acquire(self, *args, **kwargs):
+        return _known_unknown_callable("threading.Lock.acquire", args, kwargs)
+
+    def release(self, *args, **kwargs):
+        return _known_unknown_callable("threading.Lock.release", args, kwargs)

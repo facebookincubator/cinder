@@ -52,7 +52,6 @@ from .sandbox import (
     restore_static_symtable,
     restore_strict_modules,
     restore_sys_modules,
-    TESTING_STUB,
 )
 
 if TYPE_CHECKING:
@@ -621,11 +620,8 @@ class StrictLoaderTest(StrictTestBase):
             D = C()
 
         """
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
-            base_sandbox, "ALLOW_LIST", ALLOW_LIST
-        ):
-            self.sbx.write_file("foo.py", test_case)
-            self.sbx.strict_import("foo")
+        self.sbx.write_file("foo.py", test_case)
+        self.sbx.strict_import("foo")
 
     def test_import_child_module(self) -> None:
         self.sbx.write_file(
@@ -1174,15 +1170,8 @@ class StrictLoaderTest(StrictTestBase):
                     pass
             """,
         )
-        # order matters here; if other is imported first, then the cycle will
-        # break in requestcontext, causing SomeType to be unknown. But if we
-        # start from jkbase, the cycle breaks in other, causing JustKnobBoolean
-        # to be unknown
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
-            base_sandbox, "ALLOW_LIST", ALLOW_LIST
-        ):
-            jkbase, other = self.sbx.strict_import("jkbase", "other")
-            self.assertEqual(type(other.x), jkbase.JustKnobBoolean)
+        jkbase, other = self.sbx.strict_import("jkbase", "other")
+        self.assertEqual(type(other.x), jkbase.JustKnobBoolean)
 
     def test_annotations_present(self) -> None:
         code = """
@@ -1529,11 +1518,8 @@ class StrictLoaderTest(StrictTestBase):
 
             a = C(42, 'foo')
         """
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
-            base_sandbox, "ALLOW_LIST", ALLOW_LIST
-        ):
-            mod = self.sbx.strict_from_code(code)
-            self.assertEqual(mod.a, (42, "foo"))
+        mod = self.sbx.strict_from_code(code)
+        self.assertEqual(mod.a, (42, "foo"))
 
     def test_generic_slots(self) -> None:
         code = """
@@ -1546,11 +1532,8 @@ class StrictLoaderTest(StrictTestBase):
             class C(Generic[TypeVar('T')]):
                 pass
         """
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
-            base_sandbox, "ALLOW_LIST", ALLOW_LIST
-        ):
-            mod = self.sbx.strict_from_code(code)
-            self.assertEqual(mod.C.__slots__, ("__orig_class__",))
+        mod = self.sbx.strict_from_code(code)
+        self.assertEqual(mod.C.__slots__, ("__orig_class__",))
 
     def test_ordered_keys(self) -> None:
         code = """
@@ -2047,12 +2030,11 @@ class StrictLoaderTest(StrictTestBase):
                     return 42
         """,
         )
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB):
-            a = self.sbx.strict_import("a")
-            x = a.C()
-            self.assertEqual(x.f(), 42)
-            self.assertEqual(x.f(), 42)
-            self.assertEqual(x.calls, 1)
+        a = self.sbx.strict_import("a")
+        x = a.C()
+        self.assertEqual(x.f(), 42)
+        self.assertEqual(x.f(), 42)
+        self.assertEqual(x.calls, 1)
 
     def test_lru_cache_top_level(self) -> None:
         # lru cache exists and can be used normally
@@ -2069,9 +2051,8 @@ class StrictLoaderTest(StrictTestBase):
             C().f()
         """,
         )
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB):
-            with self.assertRaises(StrictModuleError):
-                self.sbx.strict_import("a")
+        with self.assertRaises(StrictModuleError):
+            self.sbx.strict_import("a")
 
     def test_is_module(self) -> None:
         self.sbx.write_file(
@@ -2120,9 +2101,7 @@ class StrictLoaderTest(StrictTestBase):
                 from typing import List
             """,
         )
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
-            base_sandbox, "ALLOW_LIST", ALLOW_LIST
-        ), self.sbx.in_strict_module("a") as mod:
+        with self.sbx.in_strict_module("a") as mod:
             self.assertIs(mod.List, List)
 
     def test_static_python_try_aliases_builtin(self) -> None:
@@ -2154,9 +2133,7 @@ class StrictLoaderTest(StrictTestBase):
                     return a
             """,
         )
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
-            base_sandbox, "ALLOW_LIST", ALLOW_LIST
-        ), self.sbx.with_strict_patching():
+        with self.sbx.with_strict_patching():
             a = __import__("a")
             self.assertEqual(a.__final_constants__, ("a",))
 
@@ -2193,11 +2170,8 @@ class StrictLoaderTest(StrictTestBase):
                 pass
             """,
         )
-        with patch.object(base_sandbox, "STUB_ROOT", TESTING_STUB), patch.object(
-            base_sandbox, "ALLOW_LIST", ALLOW_LIST
-        ):
-            a, b = self.sbx.strict_import("a", "b")
-            self.assertEqual(a.D.x, [])
+        a, b = self.sbx.strict_import("a", "b")
+        self.assertEqual(a.D.x, [])
 
     def test_loading_allowlisted_dependencies(self) -> None:
         with patch.object(base_sandbox, "ALLOW_LIST", ["dir_a.a"]):
