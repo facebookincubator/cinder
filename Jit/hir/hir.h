@@ -1916,6 +1916,7 @@ class INSTR_CLASS(
 enum class PrimitiveUnaryOpKind {
   kNegateInt = 0,
   kInvertInt = 1,
+  kNotInt = 2,
 };
 
 const char* GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op);

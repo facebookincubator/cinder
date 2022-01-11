@@ -357,6 +357,11 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
             ival != -1 || !PyErr_Occurred(),
             "enums are statically guaranteed to have type int64");
         arg_space[i] = (void*)ival;
+      } else if (cur_arg->tai_primitive_type == TYPED_BOOL) {
+        if (Py_TYPE(arg) != &PyBool_Type) {
+          goto fail;
+        }
+        arg_space[i] = (void*)(arg == Py_True);
       } else {
         // Primitive arg check
         if (Py_TYPE(arg) != &PyLong_Type ||

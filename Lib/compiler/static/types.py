@@ -113,6 +113,7 @@ from _static import (  # noqa: F401
     PRIM_OP_NEG_INT,
     PRIM_OP_INV_INT,
     PRIM_OP_NEG_DBL,
+    PRIM_OP_NOT_INT,
     PRIM_OP_ADD_DBL,
     PRIM_OP_SUB_DBL,
     PRIM_OP_MUL_DBL,
@@ -6564,16 +6565,13 @@ class CIntInstance(CInstance["CIntType"]):
 
     def emit_unaryop(self, node: ast.UnaryOp, code_gen: Static38CodeGenerator) -> None:
         code_gen.update_lineno(node)
+        code_gen.visit(node.operand)
         if isinstance(node.op, ast.USub):
-            code_gen.visit(node.operand)
             code_gen.emit("PRIMITIVE_UNARY_OP", PRIM_OP_NEG_INT)
         elif isinstance(node.op, ast.Invert):
-            code_gen.visit(node.operand)
             code_gen.emit("PRIMITIVE_UNARY_OP", PRIM_OP_INV_INT)
-        elif isinstance(node.op, ast.UAdd):
-            code_gen.visit(node.operand)
         elif isinstance(node.op, ast.Not):
-            raise NotImplementedError()
+            code_gen.emit("PRIMITIVE_UNARY_OP", PRIM_OP_NOT_INT)
 
     def emit_convert(self, from_type: Value, code_gen: Static38CodeGenerator) -> None:
         assert isinstance(from_type, CIntInstance)

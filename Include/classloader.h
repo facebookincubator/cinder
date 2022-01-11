@@ -209,6 +209,7 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define PRIM_OP_NEG_INT 0
 #define PRIM_OP_INV_INT 1
 #define PRIM_OP_NEG_DBL 2
+#define PRIM_OP_NOT_INT 3
 
 #define FAST_LEN_INEXACT (1 << 4)
 #define FAST_LEN_LIST 0

@@ -351,6 +351,10 @@ Type outputType(const Instr& instr) {
     case Opcode::kPrimitiveUnaryOp:
       // TODO if we have a specialized input type we should really be
       // constant-folding
+      if (static_cast<const PrimitiveUnaryOp&>(instr).op() ==
+          PrimitiveUnaryOpKind::kNotInt) {
+        return TCBool;
+      }
       return instr.GetOperand(0)->type().unspecialized();
 
     // Some return something slightly more interesting.

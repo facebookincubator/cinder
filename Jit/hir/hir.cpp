@@ -792,6 +792,7 @@ UnaryOpKind ParseUnaryOpName(const char* name) {
 static const char* gPrimitiveUnaryOpNames[] = {
     "Negative",
     "Invert",
+    "Not",
 };
 
 const char* GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op) {

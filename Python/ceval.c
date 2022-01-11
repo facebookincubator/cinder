@@ -5075,6 +5075,14 @@ main_loop:
                 INT_UNARY_OPCODE(PRIM_OP_NEG_INT, -)
                 INT_UNARY_OPCODE(PRIM_OP_INV_INT, ~)
                 DBL_UNARY_OPCODE(PRIM_OP_NEG_DBL, -)
+                case PRIM_OP_NOT_INT: {
+                    val = POP();
+                    res = PyLong_AsVoidPtr(val) ? Py_False : Py_True;
+                    Py_INCREF(res);
+                    PUSH(res);
+                    Py_DECREF(val);
+                    FAST_DISPATCH();
+                }
             }
             PyErr_SetString(PyExc_RuntimeError, "unknown op");
             goto error;

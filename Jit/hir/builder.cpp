@@ -2312,6 +2312,11 @@ void HIRBuilder::emitPrimitiveUnaryOp(
       tc.emit<PrimitiveUnaryOp>(result, op, value);
       break;
     }
+    case PRIM_OP_NOT_INT: {
+      op = PrimitiveUnaryOpKind::kNotInt;
+      tc.emit<PrimitiveUnaryOp>(result, op, value);
+      break;
+    }
     case PRIM_OP_NEG_DBL: {
       // For doubles, there's no easy way to unary negate a value, so just
       // multiply it by -1

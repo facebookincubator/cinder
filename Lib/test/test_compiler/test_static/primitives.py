@@ -40,3 +40,21 @@ class PrimitivesTests(StaticTestBase):
             f = mod.f
             self.assertNotInBytecode(f, "CONVERT_PRIMITIVE")
             self.assertEqual(f(2), 3)
+
+    def test_not(self) -> None:
+        for typ, vals in [
+            ("cbool", {True: False, False: True}),
+            ("int64", {5: False, 0: True, -27: False}),
+            ("uint8", {1: False, 0: True}),
+        ]:
+            codestr = f"""
+                from __static__ import cbool, int64, uint8
+
+                def f(x: {typ}) -> cbool:
+                    return not x
+            """
+            with self.in_module(codestr) as mod:
+                self.assertInBytecode(mod.f, "PRIMITIVE_UNARY_OP")
+                for k, v in vals.items():
+                    with self.subTest(typ=typ, val=k, res=v):
+                        self.assertEqual(mod.f(k), v)
