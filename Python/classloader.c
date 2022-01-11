@@ -2294,6 +2294,17 @@ classloader_instantiate_generic(PyObject *gtd, PyObject *name, PyObject *path) {
     return next;
 }
 
+/*
+    Fetches the member held at the path defined by a type descriptor.
+    e.g: ("mymod", "MyClass", "my_member")
+
+    When container is not NULL, populates it with the `PyTypeObject` of the container.
+    When containerkey is not NULL, populates it with the member name. This could be
+    a tuple in the case of properties, such as ("my_member", "fget").
+
+    The lookup is done from `sys.modules` (tstate->interp->modules), and if a module
+    is not found, this function will import it.
+*/
 static PyObject *
 classloader_get_member(PyObject *path,
                        Py_ssize_t items,
