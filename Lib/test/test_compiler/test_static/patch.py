@@ -1547,3 +1547,22 @@ class StaticPatchTests(StaticTestBase):
             setattr(mod.C, "x", 42)
             self.assertEqual(c.x, 42)
             self.assertEqual(mod.f(c), 42)
+
+    def test_cached_property_patch_with_none(self):
+        codestr = """
+        from cinder import cached_property
+        from typing import Optional
+
+        class C:
+            @cached_property
+            def x(self) -> Optional[int]:
+                return 3
+
+        def f(c: C) -> Optional[int]:
+            return c.x
+        """
+        with self.in_strict_module(codestr) as mod:
+            c = mod.C()
+            setattr(mod.C, "x", None)
+            self.assertEqual(c.x, None)
+            self.assertEqual(mod.f(c), None)

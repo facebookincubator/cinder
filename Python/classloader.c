@@ -1724,7 +1724,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     assert(previous != NULL);
 
-    int cur_optional, cur_coroutine, cur_classmethod;
+    int cur_optional = 0, cur_coroutine = 0, cur_classmethod = 0;
     PyObject *cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional,
                                                           &cur_coroutine, &cur_classmethod);
     assert(cur_type != NULL);
@@ -1735,7 +1735,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
             // If we have a new value, and it's not a descriptor, we can type-check it
             // at the time of assignment.
             PyTypeObject *new_value_type = Py_TYPE(new_value);
-            if (new_value_type->tp_descr_get == NULL) {
+            if (new_value_type->tp_descr_get == NULL && !(cur_optional && new_value == Py_None)) {
                 int check_res = _PyObject_RealIsInstance(new_value, cur_type);
                 if (check_res == -1) {
                     Py_DECREF(cur_type);
