@@ -13,6 +13,7 @@ from compiler.static.types import (
     SEQ_ARRAY_UINT16,
     SEQ_ARRAY_UINT32,
     SEQ_ARRAY_UINT64,
+    SEQ_SUBSCR_UNCHECKED,
     TYPED_INT8,
 )
 from copy import deepcopy
@@ -560,3 +561,20 @@ class ArrayTests(StaticTestBase):
             m = mod.m
             r = m()
             self.assertEqual(r, array("b", [1, 37, -5]))
+
+    def test_fast_forloop(self):
+        codestr = """
+            from __static__ import Array, int8
+
+            def f() -> int8:
+                a: Array[int8] = Array[int8]([1, 2, 3])
+                sum: int8 = 0
+                for el in a:
+                    sum += el
+                return sum
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(
+                mod.f, "SEQUENCE_GET", SEQ_ARRAY_INT8 | SEQ_SUBSCR_UNCHECKED
+            )
+            self.assertEqual(mod.f(), 6)

@@ -4522,8 +4522,14 @@ def common_sequence_emit_jumpif(
 
 
 def common_sequence_emit_forloop(
-    node: ast.For, code_gen: Static38CodeGenerator, oparg: int
+    node: ast.For, code_gen: Static38CodeGenerator, seq_type: int
 ) -> None:
+    if seq_type == SEQ_TUPLE:
+        fast_len_oparg = FAST_LEN_TUPLE
+    elif seq_type == SEQ_LIST:
+        fast_len_oparg = FAST_LEN_LIST
+    else:
+        fast_len_oparg = FAST_LEN_ARRAY
     descr = ("__static__", "int64")
     start = code_gen.newBlock(f"seq_forloop_start")
     anchor = code_gen.newBlock(f"seq_forloop_anchor")
@@ -4538,17 +4544,17 @@ def common_sequence_emit_forloop(
         code_gen.nextBlock(start)
         code_gen.emit("DUP_TOP")  # used for SEQUENCE_GET
         code_gen.emit("DUP_TOP")  # used for FAST_LEN
-        code_gen.emit("FAST_LEN", oparg)
+        code_gen.emit("FAST_LEN", fast_len_oparg)
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
         code_gen.emit("PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
         code_gen.emit("POP_JUMP_IF_ZERO", anchor)
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
-        if oparg == FAST_LEN_LIST:
-            code_gen.emit("SEQUENCE_GET", SEQ_LIST | SEQ_SUBSCR_UNCHECKED)
-        else:
+        if seq_type == SEQ_TUPLE:
             # todo - we need to implement TUPLE_GET which supports primitive index
             code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
             code_gen.emit("BINARY_SUBSCR", 2)
+        else:
+            code_gen.emit("SEQUENCE_GET", seq_type | SEQ_SUBSCR_UNCHECKED)
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
         code_gen.emit("PRIMITIVE_LOAD_CONST", (1, TYPED_INT64))
         code_gen.emit("PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
@@ -4651,7 +4657,7 @@ class TupleExactInstance(TupleInstance):
             # We don't yet support `for a, b in my_tuple: ...`
             return super().emit_forloop(node, code_gen)
 
-        return common_sequence_emit_forloop(node, code_gen, FAST_LEN_TUPLE)
+        return common_sequence_emit_forloop(node, code_gen, SEQ_TUPLE)
 
 
 class SetClass(Class):
@@ -4889,7 +4895,7 @@ class ListExactInstance(ListInstance):
             # We don't yet support `for a, b in my_list: ...`
             return super().emit_forloop(node, code_gen)
 
-        return common_sequence_emit_forloop(node, code_gen, FAST_LEN_LIST)
+        return common_sequence_emit_forloop(node, code_gen, SEQ_LIST)
 
 
 class StrClass(Class):
@@ -5524,6 +5530,13 @@ class ArrayInstance(Object["ArrayClass"]):
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
             code_gen.emit("PRIMITIVE_BOX", INT64_TYPE.type_descr)
+
+    def emit_forloop(self, node: ast.For, code_gen: Static38CodeGenerator) -> None:
+        if not isinstance(node.target, ast.Name):
+            # We don't yet support `for a, b in my_array: ...`
+            return super().emit_forloop(node, code_gen)
+
+        return common_sequence_emit_forloop(node, code_gen, self._seq_type())
 
 
 class ArrayClass(GenericClass):
