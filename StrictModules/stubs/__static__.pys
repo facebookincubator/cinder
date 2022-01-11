@@ -15,9 +15,13 @@ def cast(typ, x):
 
 T = TypeVar("T")
 
-class Vector(Generic[T]):
-    pass
+class Array(Generic[T]):
+    def __class_getitem__(cls, index):
+        return cls
 
+class Vector(Generic[T]):
+    def __class_getitem__(cls, index):
+        return cls
 
 class CheckedDict(dict):
     def __class_getitem__(cls, index):

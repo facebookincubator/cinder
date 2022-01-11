@@ -112,4 +112,6 @@ else:
         d["<fixed-modules>"] = static.FIXED_MODULES
     d["<builtins>"] = builtins.__dict__
     sys.modules["__main__"] = mod
+    # don't confuse the script with args meant for us
+    sys.argv = sys.argv[:1]
     exec(codeobj, d, d)

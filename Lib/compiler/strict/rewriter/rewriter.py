@@ -11,14 +11,10 @@ from ast import (
     Call,
     ClassDef,
     Constant,
-    Delete,
     DictComp,
-    ExceptHandler,
-    For,
     FunctionDef,
     GeneratorExp,
     Global,
-    If,
     Import,
     ImportFrom,
     Lambda,
@@ -26,18 +22,16 @@ from ast import (
     Module,
     Name,
     NodeVisitor,
-    Raise,
     SetComp,
     Str,
     Try,
     alias,
     arg,
-    copy_location,
     expr,
     stmt,
 )
 from symtable import SymbolTable
-from types import CodeType, ModuleType
+from types import ModuleType
 from typing import (
     Dict,
     Generic,
@@ -54,9 +48,7 @@ from typing import (
     final,
 )
 
-from .. import strict_compile
 from ..common import (
-    FIXED_MODULES,
     AstRewriter,
     ScopeStack,
     SymbolMap,
