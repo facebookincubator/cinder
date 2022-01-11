@@ -1502,7 +1502,48 @@ class StaticPatchTests(StaticTestBase):
             def x(self) -> int:
                 return 3
 
+        def f(c: C) -> int:
+            return c.x
         """
         with self.in_strict_module(codestr) as mod:
+            c = mod.C()
             setattr(mod.C, "x", 42)
-            self.assertEqual(mod.C().x, 42)
+            self.assertEqual(c.x, 42)
+            self.assertEqual(mod.f(c), 42)
+
+    def test_cached_property_patch_with_bad_type(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @cached_property
+            def x(self) -> int:
+                return 3
+
+        def f(c: C) -> int:
+            return c.x
+        """
+        with self.in_strict_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                TypeError, "Cannot assign a str, because C.x is expected to be a int"
+            ):
+                setattr(mod.C, "x", "42")
+
+    def test_cached_property_patch_with_good_type(self):
+        codestr = """
+        from cinder import cached_property
+
+
+        class C:
+            @cached_property
+            def x(self) -> int:
+                return 3
+
+        def f(c: C) -> int:
+            return c.x
+        """
+        with self.in_strict_module(codestr) as mod:
+            c = mod.C()
+            setattr(mod.C, "x", 42)
+            self.assertEqual(c.x, 42)
+            self.assertEqual(mod.f(c), 42)

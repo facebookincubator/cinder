@@ -1730,7 +1730,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     assert(cur_type != NULL);
 
     // if this is a property slot, also update the getter and setter slots
-    if (Py_TYPE(previous) == &PyProperty_Type) {
+    if (Py_TYPE(previous) == &PyProperty_Type || Py_TYPE(previous) == &PyCachedPropertyWithDescr_Type) {
         if (new_value) {
             // If we have a new value, and it's not a descriptor, we can type-check it
             // at the time of assignment.
