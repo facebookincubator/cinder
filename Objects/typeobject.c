@@ -3231,6 +3231,7 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     }
 
     Py_DECREF(dict);
+    _PyJIT_TypeCreated(type);
     return (PyObject *)type;
 
 error:
@@ -6439,7 +6440,9 @@ PyType_Ready(PyTypeObject *type)
         (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
     assert(_PyType_CheckConsistency(type));
 
-    _PyJIT_TypeCreated(type);
+    if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+        _PyJIT_TypeCreated(type);
+    }
     return 0;
 
   error:

@@ -44,3 +44,31 @@ uint32: num_code_keys
     }
   }
 }
+
+-- Version 3 --
+
+uint64: magic value: 0x7265646e6963
+uint32: 3 (version identifier)
+uint32: num_code_keys
+[num_code_keys] {
+  str: code_key
+  uint16: num_locations
+  [num_locations] {
+    uint16: bc_offset
+    uint8: num_profiles
+    [num_profiles] {
+      uint8: num_types
+      [num_types] {
+        str: type
+      }
+    }
+  }
+}
+uint32: num_type_key_lists
+[num_type_key_lists] {
+  str: type_name
+  uint16: num_keys
+  [num_keys] {
+    str: key
+  }
+}
