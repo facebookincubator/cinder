@@ -51,6 +51,8 @@ import os
 import locale
 import logging
 import sys
+from collections import namedtuple
+
 
 log = logging.getLogger(__name__)
 
@@ -653,6 +655,33 @@ class PyCodeObjectPtr(PyObjectPtr):
     """
     _typename = 'PyCodeObject'
 
+    # These are available in compiler.consts, but gdb's Python doesn't use Cinder
+    CO_OPTIMIZED = 0x0001
+    CO_NEWLOCALS = 0x0002
+    CO_VARARGS = 0x0004
+    CO_VARKEYWORDS = 0x0008
+    CO_NESTED = 0x0010
+    CO_GENERATOR = 0x0020
+    CO_NOFREE = 0x0040
+    CO_COROUTINE = 0x0080
+    CO_GENERATOR_ALLOWED = 0
+    CO_ITERABLE_COROUTINE = 0x0100
+    CO_ASYNC_GENERATOR = 0x0200
+    CO_FUTURE_DIVISION = 0x20000
+    CO_FUTURE_ABSOLUTE_IMPORT = 0x40000
+    CO_FUTURE_WITH_STATEMENT = 0x80000
+    CO_FUTURE_PRINT_FUNCTION = 0x100000
+    CO_FUTURE_UNICODE_LITERALS = 0x200000
+    CO_FUTURE_BARRY_AS_BDFL = 0x400000
+    CO_FUTURE_GENERATOR_STOP = 0x800000
+    CO_FUTURE_ANNOTATIONS = 0x1000000
+    CO_FUTURE_EAGER_IMPORTS = 0x2000000
+    CO_STATICALLY_COMPILED = 0x4000000
+    CO_FUTURE_LAZY_IMPORTS = 0x8000000
+    CO_SHADOW_FRAME = 0x10000000
+    CO_NORMAL_FRAME = 0x20000000
+    CO_SUPPRESS_JIT = 0x40000000
+
     def addr2line(self, addrq):
         '''
         Get the line number for a given bytecode offset
@@ -673,6 +702,20 @@ class PyCodeObjectPtr(PyObjectPtr):
                 return lineno
             lineno += ord(line_incr)
         return lineno
+
+    def is_gen(self):
+        flags = long(self.field('co_flags'))
+        return bool(
+            flags & (
+                PyCodeObjectPtr.CO_ASYNC_GENERATOR |
+                PyCodeObjectPtr.CO_COROUTINE |
+                PyCodeObjectPtr.CO_GENERATOR |
+                PyCodeObjectPtr.CO_ITERABLE_COROUTINE
+            )
+        )
+
+    def __repr__(self):
+        return f"<code {self.field('co_qualname')}, file={self.field('co_filename')}>"
 
 
 class PyDictObjectPtr(PyObjectPtr):
@@ -2138,6 +2181,206 @@ class WalkPyFrameObjectStack(gdb.Command):
 
 WalkPyFrameObjectStack()
 
+class PyShadowFrameWalkError(Exception):
+    pass
+
+class PyShadowFrameEdgeType:
+    BOTTOM = "BOTTOM"
+    SYNC = "SYNC"
+    AWAITER = "AWAITER"
+
+
+PyShadowFrameKind = namedtuple("PyShadowFrameKind", ['value', 'name'])
+
+class PyShadowFrameKinds:
+    PYSF_CODE_RT = PyShadowFrameKind(0b00, "PYSF_CODE_RT")
+    PYSF_PYFRAME = PyShadowFrameKind(0b01, "PYSF_PYFRAME")
+    PYSF_PYCODE = PyShadowFrameKind(0b10, "PYSF_PYCODE")
+    PYSF_DUMMY = PyShadowFrameKind(0b11, "PYSF_DUMMY")
+
+class JitCodeRuntime:
+    _typename = 'jit::CodeRuntime'
+
+    def __init__(self, gdbval):
+        self._gdbval = gdbval
+
+    def is_null(self):
+        return 0 == long(self._gdbval.address)
+
+    def get_code(self):
+        return PyCodeObjectPtr.from_pyobject_ptr(self._gdbval['py_code_'].cast(PyCodeObjectPtr.get_gdb_type()))
+
+    @classmethod
+    def get_gdb_type(cls):
+        return gdb.lookup_type(cls._typename).pointer()
+
+    def __repr__(self):
+        return f"<JitCodeRuntime {hex(self._gdbval.address)}>"
+
+class PyShadowFrame:
+    """
+    Class wrapping a gdb.Value that represents a `_PyShadowFrame`
+    """
+    _typename = '_PyShadowFrame'
+
+    PTRKIND_MASK = 0b11
+
+    def __init__(self, gdbval, edge_type):
+        self._gdbval = gdbval
+        self.edge_type = edge_type
+
+    def prev(self):
+        if self.is_null():
+            return None
+
+        prev_ptr = self._gdbval['prev']
+        return PyShadowFrame(prev_ptr.dereference(), PyShadowFrameEdgeType.SYNC)
+
+    def is_null(self):
+        return 0 == long(self._gdbval.address)
+
+    @classmethod
+    def get_gdb_type(cls):
+        return gdb.lookup_type(cls._typename).pointer()
+
+    @classmethod
+    def get_bottommost_frame(cls):
+        # The bottommost frame always exists on the thread state
+        bottom = gdb.parse_and_eval(
+            "((PyThreadState*)_PyRuntime->gilstate->tstate_current)->shadow_frame"
+        )
+        return cls(bottom.dereference(), PyShadowFrameEdgeType.BOTTOM)
+
+    @property
+    def ptr_kind(self):
+        if self.is_null():
+            return PyShadowFrameKinds.PYSF_DUMMY
+        kind = self._gdbval['data'] & PyShadowFrame.PTRKIND_MASK
+        if kind == PyShadowFrameKinds.PYSF_CODE_RT.value:
+            return PyShadowFrameKinds.PYSF_CODE_RT
+        elif kind == PyShadowFrameKinds.PYSF_PYFRAME.value:
+            return PyShadowFrameKinds.PYSF_PYFRAME
+        elif kind == PyShadowFrameKinds.PYSF_PYCODE.value:
+            return PyShadowFrameKinds.PYSF_PYCODE
+        else:
+            return PyShadowFrameKinds.PYSF_DUMMY
+
+    def _get_ptr(self):
+        if self.is_null():
+            return 0
+
+        data = self._gdbval['data'] & (~PyShadowFrame.PTRKIND_MASK)
+        return data
+
+    def _get_codeobj(self):
+        if self.ptr_kind == PyShadowFrameKinds.PYSF_PYFRAME:
+            ptr = self._get_ptr()
+            frame = ptr.cast(PyObjectPtr.get_gdb_type())
+            frameobj = PyFrameObjectPtr.from_pyobject_ptr(frame)
+            return getattr(frameobj, 'co', None)
+        elif self.ptr_kind == PyShadowFrameKinds.PYSF_CODE_RT:
+            ptr = self._get_ptr()
+            codert = JitCodeRuntime(ptr.cast(JitCodeRuntime.get_gdb_type()))
+            return codert.get_code()
+
+    def _has_gen(self):
+        if self.ptr_kind == PyShadowFrameKinds.PYSF_CODE_RT:
+            code = self._get_codeobj()
+            return code and code.is_gen()
+        elif self.ptr_kind == PyShadowFrameKinds.PYSF_PYFRAME:
+            ptr = self._get_ptr()
+            frame = ptr.cast(PyObjectPtr.get_gdb_type())
+            frameobj = PyFrameObjectPtr.from_pyobject_ptr(frame)
+            f_gen = frameobj.field('f_gen')
+            return f_gen != 0
+
+    def _get_gen(self):
+        if not self._has_gen():
+            return None
+
+        offset = int(gdb.parse_and_eval("__strobe_PyGenObject_gi_shadow_frame"))
+        raw_addr = long(self._gdbval.address) - offset
+        return PyObjectPtr.from_pyobject_ptr(gdb.Value(raw_addr))
+
+    def get_awaiter(self):
+        if not self._has_gen():
+            return None
+        gen = self._get_gen()
+        PyCoro_Type = gdb.parse_and_eval("PyCoro_Type")
+        PyCoroObjectPtr = gdb.lookup_type('PyCoroObject').pointer()
+        if (gen.field('ob_type').dereference().address == PyCoro_Type.address):
+            # The generator is a coroutine. Look up the awaiter.
+            coro = gdb.Value(gen.as_address()).cast(PyCoroObjectPtr)
+            awaiter = coro['cr_awaiter'].cast(PyCoroObjectPtr)
+            if awaiter != 0:
+                return awaiter['cr_shadow_frame'].address
+
+    def __repr__(self):
+        return f"<ShadowFrame {hex(self._gdbval.address)}, {self.ptr_kind.name} code={self._get_codeobj()}>"
+
+
+class WalkShadowFrameSyncStack(gdb.Command):
+    """
+    Walks the "sync" stack of shadow frames, by following the "prev" pointers
+    """
+    gdb_command_name = 'py-walk-shadow-sync'
+
+    def __init__(self):
+        super().__init__(
+            self.gdb_command_name,
+            gdb.COMMAND_DATA,
+            gdb.COMPLETE_NONE
+        )
+
+    def walk_sync(self):
+        shadow_frame = PyShadowFrame.get_bottommost_frame()
+        while shadow_frame and shadow_frame.ptr_kind != PyShadowFrameKinds.PYSF_DUMMY:
+            print(shadow_frame)
+            shadow_frame = shadow_frame.prev()
+
+    def invoke(self, args, from_tty):
+        try:
+            self.walk_sync()
+        except Exception:
+            log.exception("Stack walking failed")
+
+
+WalkShadowFrameSyncStack()
+
+class WalkShadowFrameAsyncStack(gdb.Command):
+    """
+    Walks the shadow frame "async" stack, by following awaiter pointers
+    wherever possible. This connects frames across asyncio Tasks too.
+    """
+    gdb_command_name = 'py-walk-shadow-async'
+
+    def __init__(self):
+        super().__init__(
+            self.gdb_command_name,
+            gdb.COMMAND_DATA,
+            gdb.COMPLETE_NONE
+        )
+
+    def walk_async(self):
+        shadow_frame = PyShadowFrame.get_bottommost_frame()
+        while shadow_frame and shadow_frame.ptr_kind != PyShadowFrameKinds.PYSF_DUMMY:
+            print(shadow_frame)
+            awaiter = shadow_frame.get_awaiter()
+            # For async stacks, we try to walk the awaiter pointers
+            if awaiter is not None:
+                awaiter_frame = awaiter.cast(PyShadowFrame.get_gdb_type())
+                shadow_frame = PyShadowFrame(awaiter_frame.dereference(), PyShadowFrameEdgeType.AWAITER)
+            else:
+                shadow_frame = shadow_frame.prev()
+
+    def invoke(self, args, from_tty):
+        try:
+            self.walk_async()
+        except Exception:
+            log.exception("Stack walking failed")
+
+
+WalkShadowFrameAsyncStack()
 
 class PyWalkThreads(gdb.Command):
     """
@@ -2179,4 +2422,3 @@ class PyWalkThreads(gdb.Command):
             )
 
 PyWalkThreads()
-
