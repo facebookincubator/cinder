@@ -1,3 +1,4 @@
+from .array import ArrayTests
 from .augassign import AugAssignTests
 from .binop import BinopTests
 from .cached_property import CachedPropertyTests

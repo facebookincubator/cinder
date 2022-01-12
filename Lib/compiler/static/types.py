@@ -5460,6 +5460,9 @@ class ArrayInstance(Object["ArrayClass"]):
         else:
             raise SyntaxError(f"Invalid Array size: {size}")
 
+    def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
+        return self.klass.index.instance
+
     def bind_subscr(
         self,
         node: ast.Subscript,
