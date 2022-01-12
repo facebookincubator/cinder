@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/type.h"
 
+#include "Jit/hir/hir.h"
 #include "Jit/log.h"
 
 #include <fmt/format.h>
@@ -333,7 +334,7 @@ std::string Type::toString() const {
   return hasSpec() ? fmt::format("{}[{}]", base, specString()) : base;
 }
 
-Type Type::parse(std::string str) {
+Type Type::parse(Environment* env, std::string str) {
   static auto const name_types = nameToType();
 
   std::string spec_string;
@@ -369,6 +370,26 @@ Type Type::parse(std::string str) {
   }
 
   intptr_t spec_value;
+  if (base <= TLong) {
+    JIT_CHECK(
+        Py_IsInitialized(),
+        "Python runtime must be initialized for the HIR parser to parse "
+        "PyObject*s (can't parse '%s')",
+        str.c_str());
+    JIT_CHECK(
+        env != nullptr,
+        "HIR Environment must be initialized for the HIR parser to allocate "
+        "PyObject*s (can't parse '%s')",
+        str.c_str());
+    errno = 0;
+    spec_value = strtoll(spec_string.data(), nullptr, 10);
+    if (errno != 0) {
+      return TBottom;
+    }
+    auto result = Ref<>::steal(PyLong_FromLong(spec_value));
+    return Type::fromObject(env->addReference(std::move(result)));
+  }
+
   if (base <= TCInt8 || base <= TCInt16 || base <= TCInt32 || base <= TCInt64) {
     errno = 0;
     spec_value = strtoll(spec_string.data(), nullptr, 10);

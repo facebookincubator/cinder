@@ -319,25 +319,59 @@ TEST_F(HIRTypeTest, ToString) {
   EXPECT_EQ(my_obj.toString(), "MortalObjectUser[MyClass:0xdeadbeef]");
 }
 
-TEST_F(HIRTypeTest, Parse) {
-  EXPECT_EQ(Type::parse("Top"), TTop);
-  EXPECT_EQ(Type::parse("Bottom"), TBottom);
-  EXPECT_EQ(Type::parse("NoneType"), TNoneType);
-  EXPECT_EQ(Type::parse("Long"), TLong);
-  EXPECT_EQ(Type::parse("ImmortalTuple"), TImmortalTuple);
-  EXPECT_EQ(Type::parse("MortalUser"), TMortalUser);
+static ::testing::AssertionResult
+isLongTypeWithValue(Type actual, Type expected, Py_ssize_t value) {
+  if (!(actual <= expected)) {
+    return ::testing::AssertionFailure()
+        << "Expected " << actual.toString() << " <= " << expected.toString()
+        << ", but it was not";
+  }
+  if (!actual.hasObjectSpec()) {
+    return ::testing::AssertionFailure() << "Expected " << actual.toString()
+                                         << " to have int spec but it did not";
+  }
+  PyObject* obj = actual.objectSpec();
+  if (PyLong_AsLong(obj) != value) {
+    return ::testing::AssertionFailure()
+        << "Expected " << actual.toString() << " to be == " << value
+        << " but it was not";
+  }
+  return ::testing::AssertionSuccess();
+}
 
-  EXPECT_EQ(Type::parse("CInt64[123456]"), Type::fromCInt(123456, TCInt64));
-  EXPECT_EQ(Type::parse("CUInt8[42]"), Type::fromCUInt(42, TCUInt8));
-  EXPECT_EQ(Type::parse("CInt32[-5678]"), Type::fromCInt(-5678, TCInt32));
-  EXPECT_EQ(Type::parse("CBool[true]"), Type::fromCBool(true));
-  EXPECT_EQ(Type::parse("CBool[false]"), Type::fromCBool(false));
-  EXPECT_EQ(Type::parse("CBool[banana]"), TBottom);
+static Type typeParseSimple(const char* str) {
+  return Type::parse(/*env=*/nullptr, str);
+}
+
+TEST_F(HIRTypeTest, Parse) {
+  EXPECT_EQ(typeParseSimple("Top"), TTop);
+  EXPECT_EQ(typeParseSimple("Bottom"), TBottom);
+  EXPECT_EQ(typeParseSimple("NoneType"), TNoneType);
+  EXPECT_EQ(typeParseSimple("Long"), TLong);
+  EXPECT_EQ(typeParseSimple("ImmortalTuple"), TImmortalTuple);
+  EXPECT_EQ(typeParseSimple("MortalUser"), TMortalUser);
+
+  EXPECT_EQ(typeParseSimple("CInt64[123456]"), Type::fromCInt(123456, TCInt64));
+  EXPECT_EQ(typeParseSimple("CUInt8[42]"), Type::fromCUInt(42, TCUInt8));
+  EXPECT_EQ(typeParseSimple("CInt32[-5678]"), Type::fromCInt(-5678, TCInt32));
+  EXPECT_EQ(typeParseSimple("CBool[true]"), Type::fromCBool(true));
+  EXPECT_EQ(typeParseSimple("CBool[false]"), Type::fromCBool(false));
+  EXPECT_EQ(typeParseSimple("CBool[banana]"), TBottom);
 
   // Unknown types or unsupported specializations parse to Bottom
-  EXPECT_EQ(Type::parse("Bootom"), TBottom);
-  EXPECT_EQ(Type::parse("Banana"), TBottom);
-  EXPECT_EQ(Type::parse("Long[123]"), TBottom);
+  EXPECT_EQ(typeParseSimple("Bootom"), TBottom);
+  EXPECT_EQ(typeParseSimple("Banana"), TBottom);
+}
+
+TEST_F(HIRTypeTest, ParsePyObject) {
+  Environment env;
+  EXPECT_TRUE(isLongTypeWithValue(Type::parse(&env, "Long[1]"), TLong, 1));
+  EXPECT_TRUE(
+      isLongTypeWithValue(Type::parse(&env, "MortalLong[2]"), TMortalLong, 2));
+  EXPECT_TRUE(isLongTypeWithValue(
+      Type::parse(&env, "MortalLongExact[3]"), TMortalLongExact, 3));
+  EXPECT_EQ(
+      Type::parse(&env, "Long[123123123123123123123123123123123123]"), TBottom);
 }
 
 TEST_F(HIRTypeTest, SimpleUnion) {

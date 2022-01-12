@@ -192,7 +192,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Type ty = TObject;
     if (strcmp(peekNextToken(), ",") == 0) {
       expect(",");
-      ty = Type::parse(GetNextToken());
+      ty = Type::parse(env_, GetNextToken());
     }
     expect(">");
     NEW_INSTR(LoadArg, dst, idx, ty);
@@ -245,7 +245,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(",");
     auto false_bb = GetNextInteger();
     expect(",");
-    Type ty = Type::parse(GetNextToken());
+    Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     auto var = ParseRegister();
     NEW_INSTR(CondBranchCheckType, var, ty, nullptr, nullptr);
@@ -267,7 +267,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<LoadAttr>(dst, receiver, idx);
   } else if (strcmp(opcode, "LoadConst") == 0) {
     expect("<");
-    Type ty = Type::parse(GetNextToken());
+    Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     NEW_INSTR(LoadConst, dst, ty);
   } else if (strcmp(opcode, "LoadGlobal") == 0) {
@@ -328,13 +328,13 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     NEW_INSTR(PrimitiveUnaryOp, dst, op, operand);
   } else if (strcmp(opcode, "PrimitiveUnbox") == 0) {
     expect("<");
-    Type type = Type::parse(GetNextToken());
+    Type type = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(PrimitiveUnbox, dst, operand, type);
   } else if (strcmp(opcode, "PrimitiveBox") == 0) {
     expect("<");
-    Type type = Type::parse(GetNextToken());
+    Type type = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(PrimitiveBox, dst, operand, type);
@@ -370,7 +370,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Type type = TObject;
     if (strcmp(peekNextToken(), "<") == 0) {
       GetNextToken();
-      type = Type::parse(GetNextToken());
+      type = Type::parse(env_, GetNextToken());
       expect(">");
     }
     auto var = ParseRegister();
@@ -445,7 +445,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<Guard>(operand);
   } else if (strcmp(opcode, "GuardType") == 0) {
     expect("<");
-    Type ty = Type::parse(GetNextToken());
+    Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<GuardType>(dst, ty, operand);
@@ -454,13 +454,13 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<IsTruthy>(dst, src);
   } else if (strcmp(opcode, "UseType") == 0) {
     expect("<");
-    Type ty = Type::parse(GetNextToken());
+    Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(UseType, operand, ty);
   } else if (strcmp(opcode, "RefineType") == 0) {
     expect("<");
-    Type ty = Type::parse(GetNextToken());
+    Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(RefineType, dst, ty, operand);
@@ -509,7 +509,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(",");
     auto argcount = GetNextInteger();
     expect(",");
-    Type ty = Type::parse(GetNextToken());
+    Type ty = Type::parse(env_, GetNextToken());
     expect(">");
 
     instruction = newInstr<InvokeStaticFunction>(argcount, dst, func, ty);
