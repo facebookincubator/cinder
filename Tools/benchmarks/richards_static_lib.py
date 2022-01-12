@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import __static__
 from __static__ import cast, cbool, int64, box, Array, inline
-from __static__.compiler_flags import shadow_frame
 from typing import Final, Optional, List
 from typing import Optional
 
