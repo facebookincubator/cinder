@@ -4526,7 +4526,7 @@ def common_sequence_emit_forloop(
 ) -> None:
     if seq_type == SEQ_TUPLE:
         fast_len_oparg = FAST_LEN_TUPLE
-    elif seq_type == SEQ_LIST:
+    elif seq_type in {SEQ_LIST, SEQ_CHECKED_LIST}:
         fast_len_oparg = FAST_LEN_LIST
     else:
         fast_len_oparg = FAST_LEN_ARRAY
@@ -5886,6 +5886,13 @@ class CheckedListInstance(Object[CheckedList]):
         code_gen.visit(test)
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
+
+    def emit_forloop(self, node: ast.For, code_gen: Static38CodeGenerator) -> None:
+        if not isinstance(node.target, ast.Name):
+            # We don't yet support `for a, b in my_list: ...`
+            return super().emit_forloop(node, code_gen)
+
+        return common_sequence_emit_forloop(node, code_gen, SEQ_CHECKED_LIST)
 
 
 class CastFunction(Object[Class]):

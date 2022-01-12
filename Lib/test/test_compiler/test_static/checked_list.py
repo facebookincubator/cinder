@@ -1,5 +1,5 @@
 from __static__ import CheckedList
-from _static import SEQ_CHECKED_LIST
+from _static import SEQ_CHECKED_LIST, SEQ_SUBSCR_UNCHECKED
 
 from .common import StaticTestBase
 from .tests import bad_ret_type, type_mismatch
@@ -481,3 +481,20 @@ class CheckedListTests(StaticTestBase):
                 return 0
         """
         self.type_error(codestr, r"reveal_type\(x\): 'int'", at="reveal_type")
+
+    def test_fast_forloop(self):
+        codestr = """
+            from __static__ import CheckedList
+
+            def f() -> int:
+                a: CheckedList[int] = [1, 2, 3]
+                sum: int = 0
+                for el in a:
+                    sum += el
+                return sum
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(
+                mod.f, "SEQUENCE_GET", SEQ_CHECKED_LIST | SEQ_SUBSCR_UNCHECKED
+            )
+            self.assertEqual(mod.f(), 6)
