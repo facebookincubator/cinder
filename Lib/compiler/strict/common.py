@@ -54,10 +54,7 @@ from .track_import_call import tracker
 MAGIC_NUMBER = 36
 
 
-DEFAULT_STUB_PATH = (
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    + "/StrictModules/stubs"
-)
+DEFAULT_STUB_PATH = os.path.dirname(__file__) + "/stubs"
 
 
 def make_fixed_modules() -> Mapping[str, Mapping[str, object]]:
