@@ -4834,14 +4834,20 @@ class ListInstance(Object[ListClass]):
     def emit_load_subscr(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
-        if code_gen.get_type(node.slice).klass not in SIGNED_CINT_TYPES:
+        index_type = code_gen.get_type(node.slice).klass
+        if self.klass.is_exact and INT_TYPE.can_assign_from(index_type):
+            code_gen.emit("PRIMITIVE_UNBOX", INT64_TYPE.type_descr)
+        elif index_type not in SIGNED_CINT_TYPES:
             return super().emit_load_subscr(node, code_gen)
         code_gen.emit("SEQUENCE_GET", self.get_subscr_type())
 
     def emit_store_subscr(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
-        if code_gen.get_type(node.slice).klass not in SIGNED_CINT_TYPES:
+        index_type = code_gen.get_type(node.slice).klass
+        if self.klass.is_exact and INT_TYPE.can_assign_from(index_type):
+            code_gen.emit("PRIMITIVE_UNBOX", INT64_TYPE.type_descr)
+        elif index_type not in SIGNED_CINT_TYPES:
             return super().emit_store_subscr(node, code_gen)
         code_gen.emit("SEQUENCE_SET", self.get_subscr_type())
 
