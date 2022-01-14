@@ -391,6 +391,7 @@ Type outputType(
       return TMortalFunc;
     case Opcode::kMakeSet:
       return TMortalSet;
+    case Opcode::kLongCompare:
     case Opcode::kRunPeriodicTasks:
       return TBool;
 

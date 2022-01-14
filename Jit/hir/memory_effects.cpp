@@ -47,6 +47,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kLoadEvalBreaker:
     case Opcode::kLoadVarObjectSize:
+    case Opcode::kLongCompare:
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
     case Opcode::kMakeCheckedList:

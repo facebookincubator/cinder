@@ -320,6 +320,7 @@ struct FrameState {
   V(LoadTupleItem)              \
   V(LoadTypeAttrCacheItem)      \
   V(LoadVarObjectSize)          \
+  V(LongCompare)                \
   V(MakeCheckedDict)            \
   V(MakeCheckedList)            \
   V(MakeCell)                   \
@@ -1977,6 +1978,32 @@ class INSTR_CLASS(
       Register* right,
       const FrameState& frame)
       : InstrT(dst, left, right, frame), op_(op) {}
+
+  CompareOp op() const {
+    return op_;
+  }
+
+  Register* left() const {
+    return GetOperand(0);
+  }
+
+  Register* right() const {
+    return GetOperand(1);
+  }
+
+ private:
+  CompareOp op_;
+};
+
+// Perform the comparison indicated by op
+class INSTR_CLASS(
+    LongCompare,
+    (TLongExact, TLongExact),
+    HasOutput,
+    Operands<2>) {
+ public:
+  LongCompare(Register* dst, CompareOp op, Register* left, Register* right)
+      : InstrT(dst, left, right), op_(op) {}
 
   CompareOp op() const {
     return op_;

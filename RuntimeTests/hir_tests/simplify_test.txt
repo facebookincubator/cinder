@@ -672,3 +672,60 @@ fun jittestmodule:test {
   }
 }
 ---
+CompareOfTwoLongsTurnsToLongCompare
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; "x">
+    v1 = LoadArg<1; "y">
+    v2 = GuardType<LongExact> v0
+    v3 = GuardType<LongExact> v1
+    v4 = Compare<Equal> v2 v3
+    v5 = IsTruthy v4 {
+      NextInstrOffset 4
+      Locals<2> v2 v3
+    }
+    CondBranch<2, 1> v5
+  }
+
+  bb 1 (preds 0) {
+    v6 = LoadConst<MortalBool[True]>
+    Return v6
+  }
+
+  bb 2 (preds 0) {
+    v7 = LoadConst<MortalBool[False]>
+    Return v7
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:LongExact = GuardType<LongExact> v0 {
+      NextInstrOffset 0
+    }
+    v3:LongExact = GuardType<LongExact> v1 {
+      NextInstrOffset 0
+    }
+    v8:Bool = LongCompare<Equal> v2 v3
+    v5:CInt32 = IsTruthy v8 {
+      NextInstrOffset 4
+      Locals<2> v2 v3
+    }
+    CondBranch<2, 1> v5
+  }
+
+  bb 2 (preds 0) {
+    v7:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    Return v7
+  }
+
+  bb 1 (preds 0) {
+    v6:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    Return v6
+  }
+}
+---

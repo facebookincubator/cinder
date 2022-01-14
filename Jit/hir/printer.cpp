@@ -380,6 +380,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& cmp = static_cast<const Compare&>(instr);
       return GetCompareOpName(cmp.op());
     }
+    case Opcode::kLongCompare: {
+      const auto& cmp = static_cast<const LongCompare&>(instr);
+      return GetCompareOpName(cmp.op());
+    }
     case Opcode::kCompareBool: {
       const auto& cmp = static_cast<const Compare&>(instr);
       return GetCompareOpName(cmp.op());

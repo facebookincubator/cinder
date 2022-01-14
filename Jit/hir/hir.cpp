@@ -144,6 +144,7 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadTupleItem:
     case Opcode::kLoadTypeAttrCacheItem:
     case Opcode::kLoadVarObjectSize:
+    case Opcode::kLongCompare:
     case Opcode::kPrimitiveBox:
     case Opcode::kPrimitiveCompare:
     case Opcode::kPrimitiveUnaryOp:

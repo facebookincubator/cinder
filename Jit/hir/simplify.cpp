@@ -195,6 +195,13 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
           Type::fromObject(op == CompareOp::kEqual ? Py_True : Py_False));
     }
   }
+  // Emit LongCompare if both args are LongExact and the op is supported
+  // between two longs.
+  if (left->isA(TLongExact) && right->isA(TLongExact) &&
+      !(op == CompareOp::kIn || op == CompareOp::kNotIn ||
+        op == CompareOp::kExcMatch)) {
+    return env.emit<LongCompare>(instr->op(), left, right);
+  }
   return nullptr;
 }
 
