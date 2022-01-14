@@ -23,6 +23,14 @@ bool checkFunc(const Function& func, std::ostream& err);
 // current type of its output Register.
 Type outputType(const Instr& instr);
 
+// Compute and return the output type of the given instruction, ignoring the
+// current type of its output Register. Uses the `get_op_type` function to get
+// the type of its operands - useful for examining possible output types of
+// passthrough instructions
+Type outputType(
+    const Instr& instr,
+    const std::function<Type(std::size_t)>& get_op_type);
+
 // Re-derive all Register types in the given function. Meant to be called after
 // SSAify and any optimizations that could refine the output type of an
 // instruction.

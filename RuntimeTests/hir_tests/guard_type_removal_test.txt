@@ -130,3 +130,164 @@ fun test {
   }
 }
 ---
+RemovesGuardTypeWhenRefineTypeIsSufficientRefinement
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = LoadArg<2>
+    v3 = GuardType<BuiltinExact> v0
+    v4 = RefineType<TupleExact> v3
+    v5 = PrimitiveUnbox<CInt64> v1
+    v6 = LoadArrayItem v4 v5 v2
+    Return v6
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:Object = LoadArg<2>
+    v4:TupleExact = RefineType<TupleExact> v0
+    v5:CInt64 = PrimitiveUnbox<CInt64> v1
+    v6:Object = LoadArrayItem v4 v5 v2
+    Return v6
+  }
+}
+---
+KeepsGuardTypeThroughPassthroughDependency
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = LoadArg<2>
+    v3 = GuardType<Tuple> v0
+    v4 = Assign v3
+    v5 = RefineType<BuiltinExact> v4
+    v6 = PrimitiveUnbox<CInt64> v1
+    v7 = LoadArrayItem v5 v6 v2
+    Return v7
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:Object = LoadArg<2>
+    v3:Tuple = GuardType<Tuple> v0 {
+      NextInstrOffset 0
+    }
+    v5:TupleExact = RefineType<BuiltinExact> v3
+    v6:CInt64 = PrimitiveUnbox<CInt64> v1
+    v7:Object = LoadArrayItem v5 v6 v2
+    Return v7
+  }
+}
+---
+RemovesGuardTypesFromPhisThatReferenceThemselves
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = GuardType<LongExact> v0
+    v2 = IsTruthy v1
+    CondBranch<2, 1> v2
+  }
+  bb 1 {
+   v3 = LoadConst<NoneType>
+   Branch<2>
+  }
+  bb 2 {
+   v4 = Phi<0, 1, 2> v1 v3 v4
+   CondBranch<2, 3> v4
+  }
+  bb 3 {
+   Return v4
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v2:CInt32 = IsTruthy v0 {
+      NextInstrOffset 0
+    }
+    CondBranch<2, 1> v2
+  }
+
+  bb 1 (preds 0) {
+    v3:NoneType = LoadConst<NoneType>
+    Branch<2>
+  }
+
+  bb 2 (preds 0, 1, 2) {
+    v4:Object = Phi<0, 1, 2> v0 v3 v4
+    CondBranch<2, 3> v4
+  }
+
+  bb 3 (preds 2) {
+    Return v4
+  }
+}
+---
+KeepGuardTypesFromPhisWhoseTypeRefinementIsNeeded
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = GuardType<Tuple> v0
+    CondBranch<1, 2> v1
+  }
+  bb 1 {
+    v3 = RefineType<BuiltinExact> v2
+    Branch<3>
+  }
+  bb 2 {
+    v4 = RefineType<TupleExact> v2
+    Branch<3>
+  }
+  bb 3 {
+    v5 = Phi<1, 2> v3 v4
+    v6 = PrimitiveUnbox<CInt64> v1
+    v7 = LoadArrayItem v5 v6 v1
+    Return v7
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:Tuple = GuardType<Tuple> v0 {
+      NextInstrOffset 0
+    }
+    CondBranch<1, 2> v1
+  }
+
+  bb 1 (preds 0) {
+    v3:TupleExact = RefineType<BuiltinExact> v2
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v4:TupleExact = RefineType<TupleExact> v2
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v5:TupleExact = Phi<1, 2> v3 v4
+    v6:CInt64 = PrimitiveUnbox<CInt64> v1
+    v7:Object = LoadArrayItem v5 v6 v1
+    Return v7
+  }
+}
+---

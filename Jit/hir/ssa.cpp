@@ -272,7 +272,9 @@ bool checkFunc(const Function& func, std::ostream& err) {
   return env.ok;
 }
 
-Type outputType(const Instr& instr) {
+Type outputType(
+    const Instr& instr,
+    const std::function<Type(std::size_t)>& get_op_type) {
   switch (instr.opcode()) {
     case Opcode::kCallEx:
     case Opcode::kCallExKw:
@@ -355,7 +357,7 @@ Type outputType(const Instr& instr) {
           PrimitiveUnaryOpKind::kNotInt) {
         return TCBool;
       }
-      return instr.GetOperand(0)->type().unspecialized();
+      return get_op_type(0).unspecialized();
 
     // Some return something slightly more interesting.
     case Opcode::kBuildSlice:
@@ -428,7 +430,7 @@ Type outputType(const Instr& instr) {
       return item == 1 ? TObject : TOptObject;
     }
     case Opcode::kAssign:
-      return instr.GetOperand(0)->type();
+      return get_op_type(0);
     case Opcode::kLoadConst: {
       return static_cast<const LoadConst&>(instr).type();
     }
@@ -442,7 +444,7 @@ Type outputType(const Instr& instr) {
     case Opcode::kPhi: {
       auto ty = TBottom;
       for (std::size_t i = 0, n = instr.NumOperands(); i < n; ++i) {
-        ty |= instr.GetOperand(i)->type();
+        ty |= get_op_type(i);
       }
       return ty;
     }
@@ -512,7 +514,7 @@ Type outputType(const Instr& instr) {
     case Opcode::kCheckFreevar:
     case Opcode::kCheckNeg:
     case Opcode::kCheckVar: {
-      return instr.GetOperand(0)->type() - TNullptr;
+      return get_op_type(0) - TNullptr;
     }
 
     case Opcode::kGuardIs: {
@@ -536,12 +538,12 @@ Type outputType(const Instr& instr) {
     // Refine type gives us more information about the type of its input.
     case Opcode::kRefineType: {
       auto type = static_cast<const RefineType&>(instr).type();
-      return instr.GetOperand(0)->type() & type;
+      return get_op_type(0) & type;
     }
 
     case Opcode::kGuardType: {
       auto type = static_cast<const GuardType&>(instr).target();
-      return instr.GetOperand(0)->type() & type;
+      return get_op_type(0) & type;
     }
 
     // Finally, some opcodes have no destination.
@@ -577,6 +579,11 @@ Type outputType(const Instr& instr) {
       JIT_CHECK(false, "Opcode %s has no output", instr.opname());
   }
   JIT_CHECK(false, "Bad opcode %d", static_cast<int>(instr.opcode()));
+}
+
+Type outputType(const Instr& instr) {
+  return outputType(
+      instr, [&](std::size_t ind) { return instr.GetOperand(ind)->type(); });
 }
 
 void reflowTypes(Environment* env, BasicBlock* start) {
