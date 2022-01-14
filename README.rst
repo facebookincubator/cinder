@@ -1,5 +1,12 @@
+.. image:: CinderDoc/images/Cinder-Logo.svg
+  :alt: Cinder Logo
+
 Welcome to Cinder!
 ==================
+
+.. image:: https://github.com/facebookincubator/cinder/workflows/cinder-oss-build-and-test/badge.svg
+   :alt: Cinder build status on GitHub Actions
+   :target: https://github.com/facebookincubator/cinder/actions
 
 Cinder is Instagram's internal performance-oriented production version of
 CPython 3.8. It contains a number of performance optimizations, including
