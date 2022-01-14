@@ -313,6 +313,14 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(IntBinaryOp, dst, op, left, right);
+  } else if (strcmp(opcode, "Compare") == 0) {
+    expect("<");
+    std::optional<CompareOp> op = ParseCompareOpName(GetNextToken());
+    JIT_CHECK(op.has_value(), "Invalid CompareOp");
+    expect(">");
+    auto left = ParseRegister();
+    auto right = ParseRegister();
+    instruction = newInstr<Compare>(dst, *op, left, right);
   } else if (strcmp(opcode, "PrimitiveCompareOp") == 0) {
     expect("<");
     PrimitiveCompareOp op = ParsePrimitiveCompareOpName(GetNextToken());

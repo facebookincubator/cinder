@@ -17,6 +17,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#define ARRAYSIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #define DISALLOW_COPY_AND_ASSIGN(klass) \
   klass(const klass&) = delete;         \
   klass& operator=(const klass&) = delete

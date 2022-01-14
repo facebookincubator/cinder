@@ -1960,6 +1960,7 @@ enum class CompareOp {
 };
 
 const char* GetCompareOpName(CompareOp op);
+std::optional<CompareOp> ParseCompareOpName(const char* name);
 
 // Perform the comparison indicated by op
 class INSTR_CLASS(

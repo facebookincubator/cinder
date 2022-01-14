@@ -571,3 +571,104 @@ fun test {
   }
 }
 ---
+CompareOfTwoNonesTurnsToLoadConst
+---
+# HIR
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0; "x">
+    v1:Object = LoadConst<NoneType>
+    v2:NoneType = GuardType<NoneType> v0
+    v3:Object = Compare<Equal> v1 v2
+    v4:CInt32 = IsTruthy v3 {
+      NextInstrOffset 4
+      Locals<2> v2 v1
+    }
+    CondBranch<2, 1> v4
+  }
+
+  bb 1 (preds 0) {
+    v5:NoneType = LoadConst<NoneType>
+    Branch<2>
+  }
+
+  bb 2 (preds 0, 1) {
+    v7:Object = Phi<0, 1> v1 v5
+    Return v7
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:NoneType = LoadConst<NoneType>
+    v8:NoneType = GuardIs<0xdeadbeef> v0
+    UseType<NoneType> v1
+    UseType<NoneType> v8
+    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    UseType<MortalBool[True]> v9
+    v10:CInt32[1] = LoadConst<CInt32[1]>
+    Branch<2>
+  }
+
+  bb 2 (preds 0) {
+    v7:NoneType = Phi<0> v1
+    Return v7
+  }
+}
+---
+CompareIsOfNonEqualTypesTurnsToLoadConst
+---
+def test():
+  x = 2
+  if x is None:
+    return True
+  return False
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v11:NoneType = LoadConst<NoneType>
+    UseType<MortalLongExact[2]> v8
+    UseType<NoneType> v11
+    v16:MortalBool[False] = LoadConst<MortalBool[False]>
+    UseType<MortalBool[False]> v16
+    v17:CInt32[0] = LoadConst<CInt32[0]>
+    Branch<2>
+  }
+
+  bb 2 (preds 0) {
+    v15:MortalBool[False] = LoadConst<MortalBool[False]>
+    Return v15
+  }
+}
+---
+CompareIsOfKnownObjectsTurnsToLoadConst
+---
+def test():
+  x = 2
+  y = 4
+  if x is y:
+    return True
+  return False
+---
+fun jittestmodule:test {
+  bb 0 {
+    v8:Nullptr = LoadConst<Nullptr>
+    v9:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v11:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    UseType<MortalLongExact[2]> v9
+    UseType<MortalLongExact[4]> v11
+    v19:MortalBool[False] = LoadConst<MortalBool[False]>
+    UseType<MortalBool[False]> v19
+    v20:CInt32[0] = LoadConst<CInt32[0]>
+    Branch<2>
+  }
+
+  bb 2 (preds 0) {
+    v18:MortalBool[False] = LoadConst<MortalBool[False]>
+    Return v18
+  }
+}
+---

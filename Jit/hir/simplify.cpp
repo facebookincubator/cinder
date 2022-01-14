@@ -164,6 +164,40 @@ Register* simplifyIntConvert(const IntConvert* instr) {
   return nullptr;
 }
 
+Register* simplifyCompare(Env& env, const Compare* instr) {
+  Register* left = instr->GetOperand(0);
+  Register* right = instr->GetOperand(1);
+  CompareOp op = instr->op();
+  if (op == CompareOp::kIs || op == CompareOp::kIsNot) {
+    Type left_t = left->type();
+    Type right_t = right->type();
+    if (!left_t.couldBe(right_t)) {
+      env.emit<UseType>(left, left_t);
+      env.emit<UseType>(right, right_t);
+      return env.emit<LoadConst>(
+          Type::fromObject(op == CompareOp::kIs ? Py_False : Py_True));
+    }
+    PyObject* left_t_obj = left_t.asObject();
+    PyObject* right_t_obj = right_t.asObject();
+    if (left_t_obj != nullptr && right_t_obj != nullptr) {
+      env.emit<UseType>(left, left_t);
+      env.emit<UseType>(right, right_t);
+      bool same_obj = left_t_obj == right_t_obj;
+      bool truthy = (op == CompareOp::kIs) == same_obj;
+      return env.emit<LoadConst>(Type::fromObject(truthy ? Py_True : Py_False));
+    }
+  }
+  if (left->isA(TNoneType) && right->isA(TNoneType)) {
+    if (op == CompareOp::kEqual || op == CompareOp::kNotEqual) {
+      env.emit<UseType>(left, TNoneType);
+      env.emit<UseType>(right, TNoneType);
+      return env.emit<LoadConst>(
+          Type::fromObject(op == CompareOp::kEqual ? Py_True : Py_False));
+    }
+  }
+  return nullptr;
+}
+
 Register* simplifyCondBranch(Env& env, const CondBranch* instr) {
   Type op_type = instr->GetOperand(0)->type();
   if (op_type.hasIntSpec()) {
@@ -359,6 +393,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
       return simplifyGuardType(env, static_cast<const GuardType*>(instr));
     case Opcode::kRefineType:
       return simplifyRefineType(static_cast<const RefineType*>(instr));
+
+    case Opcode::kCompare:
+      return simplifyCompare(env, static_cast<const Compare*>(instr));
 
     case Opcode::kCondBranch:
       return simplifyCondBranch(env, static_cast<const CondBranch*>(instr));

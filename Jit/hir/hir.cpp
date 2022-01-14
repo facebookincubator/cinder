@@ -704,6 +704,15 @@ const char* GetCompareOpName(CompareOp op) {
   return gCompareOpNames[static_cast<int>(op)];
 }
 
+std::optional<CompareOp> ParseCompareOpName(const char* name) {
+  for (size_t i = 0; i < ARRAYSIZE(gCompareOpNames); i++) {
+    if (strcmp(name, gCompareOpNames[i]) == 0) {
+      return static_cast<CompareOp>(i);
+    }
+  }
+  return std::nullopt;
+}
+
 static const char* gPrimitiveCompareOpNames[] = {
     "LessThan",
     "LessThanEqual",
@@ -722,8 +731,7 @@ const char* GetPrimitiveCompareOpName(PrimitiveCompareOp op) {
 }
 
 PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name) {
-  for (size_t i = 0; i < sizeof(gPrimitiveCompareOpNames) / sizeof(char*);
-       i++) {
+  for (size_t i = 0; i < ARRAYSIZE(gPrimitiveCompareOpNames); i++) {
     if (strcmp(name, gPrimitiveCompareOpNames[i]) == 0) {
       return (PrimitiveCompareOp)i;
     }
@@ -757,7 +765,7 @@ const char* GetBinaryOpName(BinaryOpKind op) {
 }
 
 BinaryOpKind ParseBinaryOpName(const char* name) {
-  for (size_t i = 0; i < sizeof(gBinaryOpNames) / sizeof(char*); i++) {
+  for (size_t i = 0; i < ARRAYSIZE(gBinaryOpNames); i++) {
     if (strcmp(name, gBinaryOpNames[i]) == 0) {
       return (BinaryOpKind)i;
     }
@@ -779,7 +787,7 @@ const char* GetUnaryOpName(UnaryOpKind op) {
 }
 
 UnaryOpKind ParseUnaryOpName(const char* name) {
-  for (size_t i = 0; i < sizeof(gUnaryOpNames) / sizeof(char*); i++) {
+  for (size_t i = 0; i < ARRAYSIZE(gUnaryOpNames); i++) {
     if (strcmp(name, gUnaryOpNames[i]) == 0) {
       return (UnaryOpKind)i;
     }
@@ -800,7 +808,7 @@ const char* GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op) {
 }
 
 PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(const char* name) {
-  for (size_t i = 0; i < sizeof(gPrimitiveUnaryOpNames) / sizeof(char*); i++) {
+  for (size_t i = 0; i < ARRAYSIZE(gPrimitiveUnaryOpNames); i++) {
     if (strcmp(name, gPrimitiveUnaryOpNames[i]) == 0) {
       return static_cast<PrimitiveUnaryOpKind>(i);
     }
@@ -832,7 +840,7 @@ const char* GetInPlaceOpName(InPlaceOpKind op) {
 }
 
 InPlaceOpKind ParseInPlaceOpName(const char* name) {
-  for (size_t i = 0; i < sizeof(gInPlaceOpNames) / sizeof(char*); i++) {
+  for (size_t i = 0; i < ARRAYSIZE(gInPlaceOpNames); i++) {
     if (strcmp(name, gInPlaceOpNames[i]) == 0) {
       return (InPlaceOpKind)i;
     }
