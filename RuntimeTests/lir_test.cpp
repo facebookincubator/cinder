@@ -409,7 +409,7 @@ TEST(LIRTest, CondBranchCheckTypeEmitsCallToSubclassCheck) {
   const char* hir = R"(
 fun foo {
   bb 0 {
-    v0 = LoadConst<NoneType>
+    v0 = LoadArg<0>
     CondBranchCheckType<1, 2, Tuple> v0
   }
 

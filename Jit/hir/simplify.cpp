@@ -216,6 +216,23 @@ Register* simplifyCondBranch(Env& env, const CondBranch* instr) {
   return nullptr;
 }
 
+Register* simplifyCondBranchCheckType(
+    Env& env,
+    const CondBranchCheckType* instr) {
+  Register* value = instr->GetOperand(0);
+  Type actual_type = value->type();
+  Type expected_type = instr->type();
+  if (actual_type <= expected_type) {
+    env.emit<UseType>(value, actual_type);
+    return env.emit<Branch>(instr->true_bb());
+  }
+  if (!actual_type.couldBe(expected_type)) {
+    env.emit<UseType>(value, actual_type);
+    return env.emit<Branch>(instr->false_bb());
+  }
+  return nullptr;
+}
+
 Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
   Type ty = instr->GetOperand(0)->type();
   PyObject* obj = ty.asObject();
@@ -406,6 +423,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
 
     case Opcode::kCondBranch:
       return simplifyCondBranch(env, static_cast<const CondBranch*>(instr));
+    case Opcode::kCondBranchCheckType:
+      return simplifyCondBranchCheckType(
+          env, static_cast<const CondBranchCheckType*>(instr));
 
     case Opcode::kIntConvert:
       return simplifyIntConvert(static_cast<const IntConvert*>(instr));
