@@ -1,3 +1,15 @@
+.. image:: CinderDoc/images/Cinder-Logo-White.svg#gh-dark-mode-only
+  :width: 400
+  :alt: Cinder Logo
+
+.. image:: CinderDoc/images/Cinder-Logo-Dark.svg#gh-light-mode-only
+  :width: 400
+  :alt: Cinder Logo
+
+.. image:: https://github.com/facebookincubator/cinder/workflows/cinder-oss-build-and-test/badge.svg
+   :alt: Cinder build status on GitHub Actions
+   :target: https://github.com/facebookincubator/cinder/actions
+
 Welcome to Cinder!
 ==================
 
