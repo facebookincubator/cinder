@@ -689,9 +689,7 @@ class Object(Value, Generic[TClass]):
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
         if member := self.klass.find_slot(node):
-            type_descr = member.container_type.type_descr
-            type_descr += (member.slot_name,)
-            code_gen.emit("LOAD_FIELD", type_descr)
+            member.emit_load_from_slot(code_gen)
             return
 
         super().emit_load_attr(node, code_gen)
@@ -700,9 +698,7 @@ class Object(Value, Generic[TClass]):
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
         if member := self.klass.find_slot(node):
-            type_descr = member.container_type.type_descr
-            type_descr += (member.slot_name,)
-            code_gen.emit("STORE_FIELD", type_descr)
+            member.emit_store_to_slot(code_gen)
             return
 
         super().emit_store_attr(node, code_gen)
@@ -3931,11 +3927,6 @@ class Slot(Object[TClassInv]):
             raise TypedSyntaxError(
                 f"Final attribute not initialized: {self.container_type.instance.name}:{self.slot_name}"
             )
-        elif self.assigned_on_class and not self.is_classvar:
-            raise TypedSyntaxError(
-                f"Class attribute requires ClassVar[...] annotation: {self.slot_name}"
-            )
-
         return self
 
     def resolve_descr_get(
@@ -3945,6 +3936,8 @@ class Slot(Object[TClassInv]):
         ctx: TClassInv,
         visitor: ReferenceVisitor,
     ) -> Optional[Value]:
+        if self.is_typed_descriptor_with_default_value():
+            return self._resolved_type.instance
         if inst is None and not self.is_classvar:
             return self
         if inst and self.is_classvar and isinstance(node.ctx, ast.Store):
@@ -3969,6 +3962,13 @@ class Slot(Object[TClassInv]):
             return True
         return isinstance(self._resolved_type, ClassVar)
 
+    def is_typed_descriptor_with_default_value(self) -> bool:
+        return (
+            self.type_ref is not None
+            and self.assigned_on_class
+            and not self.is_classvar
+        )
+
     @property
     def _resolved_type(self) -> Class:
         if tr := self.type_ref:
@@ -3978,6 +3978,24 @@ class Slot(Object[TClassInv]):
     @property
     def type_descr(self) -> TypeDescr:
         return self.decl_type.type_descr
+
+    def emit_load_from_slot(self, code_gen: Static38CodeGenerator) -> None:
+        if self.is_typed_descriptor_with_default_value():
+            code_gen.emit("LOAD_ATTR", code_gen.mangle(self.slot_name))
+            return
+
+        type_descr = self.container_type.type_descr
+        type_descr += (self.slot_name,)
+        code_gen.emit("LOAD_FIELD", type_descr)
+
+    def emit_store_to_slot(self, code_gen: Static38CodeGenerator) -> None:
+        if self.is_typed_descriptor_with_default_value():
+            code_gen.emit("STORE_ATTR", code_gen.mangle(self.slot_name))
+            return
+
+        type_descr = self.container_type.type_descr
+        type_descr += (self.slot_name,)
+        code_gen.emit("STORE_FIELD", type_descr)
 
 
 # TODO (aniketpanse): move these to a better place

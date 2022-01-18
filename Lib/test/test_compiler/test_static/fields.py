@@ -370,42 +370,6 @@ class StaticFieldTests(StaticTestBase):
             a = C()
             self.assertEqual(a.f(), 42)
 
-    def test_class_ann_assign_with_value(self):
-        self.type_error(
-            """
-            class C:
-                X: int = 42
-            """,
-            r"Class attribute requires ClassVar\[...\] annotation",
-            at="X: int",
-        )
-
-    def test_class_ann_assign_after_init(self):
-        self.type_error(
-            """
-            class C:
-                def __init__(self):
-                    self.X = 1
-                X: int = 3
-            """,
-            r"Class attribute requires ClassVar\[...\] annotation",
-            at="X: int",
-        )
-
-    def test_classvar_after_init(self):
-        self.type_error(
-            """
-            from typing import ClassVar
-
-            class C:
-                def __init__(self):
-                    self.X = 1
-                X: ClassVar[int] = 3
-            """,
-            r"Cannot assign to classvar 'X' on '<module>.C' instance",
-            at="self.X = 1",
-        )
-
     def test_class_ann_assign_with_value_conflict_init(self):
         self.type_error(
             """

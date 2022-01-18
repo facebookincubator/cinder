@@ -401,6 +401,17 @@ class Static38CodeGenerator(StrictCodeGenerator):
         gen.emit("LOAD_CONST", tuple(class_mems))
         gen.emit("STORE_NAME", "__slots__")
 
+        slots_with_default = [
+            name
+            for name in class_mems
+            if name in klass.members
+            and isinstance(klass.members[name], Slot)
+            and cast(
+                Slot[Class], klass.members[name]
+            ).is_typed_descriptor_with_default_value()
+        ]
+        gen.emit("LOAD_CONST", tuple(slots_with_default))
+        gen.emit("STORE_NAME", "__slots_with_default__")
         count = 0
         for name, value in klass.members.items():
             if not isinstance(value, Slot):

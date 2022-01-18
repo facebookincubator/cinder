@@ -283,6 +283,20 @@ PyAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
 PyObject *
 _PyTypedDescriptor_New(PyObject *name, PyObject *type, Py_ssize_t offset);
 
+PyAPI_DATA(PyTypeObject) _PyTypedDescriptorWithDefaultValue_Type;
+
+typedef struct {
+    PyObject_HEAD PyObject *td_name;
+    PyObject *td_type; /* tuple type reference or type object once resolved */
+    PyObject *td_default; /* the default value to return from the get if offset is null */
+    Py_ssize_t td_offset;
+    int td_optional;
+} _PyTypedDescriptorWithDefaultValue;
+
+PyAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
+
+PyObject *
+_PyTypedDescriptorWithDefaultValue_New(PyObject *name, PyObject *type, Py_ssize_t offset, PyObject *default_value);
 int _PyClassLoader_UpdateSlot(PyTypeObject *type,
                               PyObject *name,
                               PyObject *new_value);

@@ -6,6 +6,7 @@
 #include "pycore_object.h"
 #include "pycore_pystate.h"
 #include "pycore_context.h"
+#include "classloader.h"
 #include "frameobject.h"
 #include "interpreteridobject.h"
 
@@ -1978,6 +1979,9 @@ _PyTypes_Init(void)
     /* fb T46346203 */
     INIT_TYPE(&PyCachedProperty_Type, "cached property");
     /* end fb T46346203 */
+    /* fb T95601127 */
+    INIT_TYPE(&_PyTypedDescriptorWithDefaultValue_Type, "typed descriptor with default");
+    /* end fb T95601127 */
     INIT_TYPE(&PyConst_Type, "const object");
     return _PyStatus_OK();
 

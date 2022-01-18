@@ -2650,6 +2650,12 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
     else {
         /* Have slots */
 
+        _Py_IDENTIFIER(__slots_with_default__);
+        PyObject *slots_with_default = _PyDict_GetItemIdWithError(dict, &PyId___slots_with_default__);
+        Py_ssize_t nslots_with_default = slots_with_default == NULL ? 0 : PyTuple_GET_SIZE(slots_with_default);
+        if (slots_with_default == NULL && PyErr_Occurred()) {
+           goto error;
+        }
         /* Make it into a tuple */
         if (PyUnicode_Check(slots))
             slots = PyTuple_Pack(1, slots);
@@ -2731,6 +2737,17 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
                 (add_weak &&
                  _PyUnicode_EqualToASCIIString(tmp, "__weakref__")))
                 continue;
+
+            int slot_is_static_classvar = 0;
+            for (int slot_index = 0; slot_index < nslots_with_default; ++slot_index) {
+                if (PyUnicode_Compare(PyTuple_GET_ITEM(slots_with_default, slot_index), tmp) == 0) {
+                    slot_is_static_classvar = 1;
+                    break;
+                } else if (PyErr_Occurred()) {
+                    goto error;
+                }
+            }
+
             tmp =_Py_Mangle(name, tmp);
             if (!tmp) {
                 Py_DECREF(newslots);
@@ -2740,7 +2757,8 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
                 /* CPython inserts __qualname__ and __classcell__ (when needed)
                    into the namespace when creating a class.  They will be deleted
                    below so won't act as class variables. */
-                if (!_PyUnicode_EqualToASCIIId(tmp, &PyId___qualname__) &&
+                if (!slot_is_static_classvar &&
+                    !_PyUnicode_EqualToASCIIId(tmp, &PyId___qualname__) &&
                     !_PyUnicode_EqualToASCIIId(tmp, &PyId___classcell__)) {
                     PyErr_Format(PyExc_ValueError,
                                  "%R in __slots__ conflicts with class variable",
@@ -3057,10 +3075,21 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
                     /* Add strongly typed reference type descriptor,
                      * add_members will check and not overwrite this new
                      * descriptor  */
-                    PyObject *descr =
-                        _PyTypedDescriptor_New(PyTuple_GET_ITEM(name, 0),
-                                               PyTuple_GET_ITEM(name, 1),
-                                               slotoffset);
+                    PyObject *default_value = PyDict_GetItemWithError(dict, PyTuple_GET_ITEM(name, 0));
+                    if (default_value == NULL && PyErr_Occurred()) {
+                        goto error;
+                    }
+                    PyObject *descr;
+                    if (default_value != NULL) {
+                        descr = _PyTypedDescriptorWithDefaultValue_New(PyTuple_GET_ITEM(name, 0),
+                                                                     PyTuple_GET_ITEM(name, 1),
+                                                                     slotoffset,
+                                                                     default_value);
+                    } else {
+                        descr = _PyTypedDescriptor_New(PyTuple_GET_ITEM(name, 0),
+                                                       PyTuple_GET_ITEM(name, 1),
+                                                       slotoffset);
+                    }
                     if (descr == NULL ||
                         PyDict_SetItem(
                             dict, PyTuple_GET_ITEM(name, 0), descr)) {

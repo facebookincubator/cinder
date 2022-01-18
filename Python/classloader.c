@@ -1656,6 +1656,7 @@ check_if_final_method_overridden(PyTypeObject *type, PyObject *name)
     Py_DECREF(final_method_names);
     return 0;
 }
+
 /* The UpdateSlot method will always get called by `tp_setattro` when one of a type's attribute
    gets changed, and serves as an entry point for handling modifications to vtables. */
 int
@@ -2041,7 +2042,6 @@ _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
              * so it doesn't need a slot */
             continue;
         }
-
         PyObject *index = PyLong_FromLong(slot_index++);
         int err = PyDict_SetItem(slotmap, key, index);
         Py_DECREF(index);
@@ -2143,6 +2143,7 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
             assert(next_slotmap != NULL);
 
             slotmap = PyDict_Copy(next_slotmap);
+
             if (slotmap == NULL) {
                 return NULL;
             }
@@ -2533,7 +2534,6 @@ classloader_init_slot(PyObject *path)
 
     PyObject *slot_map = vtable->vt_slotmap;
     PyObject *slot_name = PyTuple_GET_ITEM(path, PyTuple_GET_SIZE(path) - 1);
-
     PyObject *new_index = PyDict_GetItem(slot_map, slot_name);
     assert(new_index != NULL);
 
@@ -2921,6 +2921,15 @@ classloader_init_field(PyObject *path, int *field_type)
         }
         Py_DECREF(cur);
         return ((_PyTypedDescriptor *)cur)->td_offset;
+    } else if (Py_TYPE(cur) == &_PyTypedDescriptorWithDefaultValue_Type) {
+        if (field_type != NULL) {
+            *field_type = TYPED_OBJECT;
+            assert(((_PyTypedDescriptorWithDefaultValue *)cur)->td_offset %
+                       sizeof(Py_ssize_t) ==
+                   0);
+        }
+        Py_DECREF(cur);
+        return ((_PyTypedDescriptorWithDefaultValue *)cur)->td_offset;
     }
 
     Py_DECREF(cur);
@@ -3112,6 +3121,143 @@ _PyTypedDescriptor_New(PyObject *name, PyObject *type, Py_ssize_t offset)
     res->td_optional = 0;
     Py_INCREF(name);
     Py_INCREF(type);
+    PyObject_GC_Track(res);
+    return (PyObject *)res;
+}
+
+static void
+typed_descriptor_with_default_value_dealloc(_PyTypedDescriptorWithDefaultValue *self)
+{
+    PyObject_GC_UnTrack(self);
+    Py_XDECREF(self->td_name);
+    Py_XDECREF(self->td_type);
+    Py_XDECREF(self->td_default);
+    Py_TYPE(self)->tp_free(self);
+}
+
+static int
+typed_descriptor_with_default_value_traverse(_PyTypedDescriptorWithDefaultValue *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->td_type);
+    Py_VISIT(self->td_default);
+    return 0;
+}
+
+static int
+typed_descriptor_with_default_value_clear(_PyTypedDescriptorWithDefaultValue *self)
+{
+    Py_CLEAR(self->td_type);
+    Py_CLEAR(self->td_default);
+    return 0;
+}
+
+static PyObject *
+typed_descriptor_with_default_value_get(PyObject *self, PyObject *obj, PyObject *cls)
+{
+    _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *)self;
+    if (obj == NULL) {
+        /* Since we don't have any APIs supporting the modification of the default, it should never
+           always be set. */
+        assert(td->td_default != NULL);
+        Py_INCREF(td->td_default);
+        return td->td_default;
+    }
+
+    PyObject *res = *(PyObject **)(((char *)obj) + td->td_offset);
+    if (res == NULL) {
+        res = td->td_default;
+    }
+    if (res == NULL) {
+        PyErr_Format(PyExc_AttributeError,
+                     "'%s' object has no attribute '%U'",
+                     ((PyTypeObject *) cls)->tp_name,
+                     td->td_name);
+    }
+    Py_XINCREF(res);
+    return res;
+}
+
+static int
+typed_descriptor_with_default_value_set(PyObject *self, PyObject *obj, PyObject *value)
+{
+    _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *)self;
+     if (PyTuple_CheckExact(td->td_type)) {
+        PyTypeObject *type =
+            _PyClassLoader_ResolveType(td->td_type, &td->td_optional);
+        if (type == NULL) {
+            assert(PyErr_Occurred());
+            if (value == Py_None && td->td_optional) {
+                /* allow None assignment to optional values before the class is
+                 * loaded */
+                PyErr_Clear();
+                PyObject **addr = (PyObject **)(((char *)obj) + td->td_offset);
+                PyObject *prev = *addr;
+                *addr = value;
+                Py_XINCREF(value);
+                Py_XDECREF(prev);
+                return 0;
+            }
+            return -1;
+        }
+        Py_DECREF(td->td_type);
+        td->td_type = (PyObject *)type;
+    }
+
+    if (value == NULL ||
+        (value == Py_None && td->td_optional) ||
+        _PyObject_RealIsInstance(value, td->td_type)) {
+        PyObject **addr = (PyObject **)(((char *)obj) + td->td_offset);
+        PyObject *prev = *addr;
+        *addr = value;
+        Py_XINCREF(value);
+        Py_XDECREF(prev);
+        return 0;
+    }
+
+    PyErr_Format(PyExc_TypeError,
+                 "expected '%s', got '%s' for attribute '%U'",
+                 ((PyTypeObject *)td->td_type)->tp_name,
+                 Py_TYPE(value)->tp_name,
+                 td->td_name);
+
+    return -1;
+}
+
+PyTypeObject _PyTypedDescriptorWithDefaultValue_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    .tp_name = "typed_descriptor_with_default_value",
+    .tp_basicsize = sizeof(_PyTypedDescriptorWithDefaultValue),
+    .tp_dealloc = (destructor)typed_descriptor_with_default_value_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .tp_traverse = (traverseproc)typed_descriptor_with_default_value_traverse,
+    .tp_clear = (inquiry)typed_descriptor_with_default_value_clear,
+    .tp_descr_get = typed_descriptor_with_default_value_get,
+    .tp_descr_set = typed_descriptor_with_default_value_set,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_free = PyObject_GC_Del,
+};
+
+PyObject *
+_PyTypedDescriptorWithDefaultValue_New(PyObject *name,
+                                       PyObject *type,
+                                       Py_ssize_t offset,
+                                       PyObject *default_value)
+{
+    _PyTypedDescriptorWithDefaultValue *res =
+        PyObject_GC_New(_PyTypedDescriptorWithDefaultValue, &_PyTypedDescriptorWithDefaultValue_Type);
+    if (res == NULL) {
+        return NULL;
+    }
+
+    res->td_name = name;
+    res->td_type = type;
+    res->td_offset = offset;
+
+    res->td_optional = 0;
+    res->td_default = default_value;
+    Py_INCREF(name);
+    Py_INCREF(type);
+    Py_INCREF(default_value);
     PyObject_GC_Track(res);
     return (PyObject *)res;
 }
