@@ -23,6 +23,7 @@ from .type_binder import TypeBinder
 from .types import (
     ALLOW_WEAKREFS_TYPE,
     ARRAY_TYPE,
+    ANNOTATED_TYPE,
     ASYNC_CACHED_PROPERTY_TYPE,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
@@ -185,6 +186,9 @@ class Compiler:
             "Tuple": TUPLE_TYPE,
             "TYPE_CHECKING": BOOL_TYPE.instance,
         }
+        typing_extensions_children: Dict[str, Value] = {
+            "Annotated": ANNOTATED_TYPE,
+        }
         strict_modules_children: Dict[str, Value] = {
             "mutable": IDENTITY_DECORATOR_TYPE,
             "strict_slots": IDENTITY_DECORATOR_TYPE,
@@ -198,6 +202,7 @@ class Compiler:
         )
         fixed_modules: Dict[str, Value] = {
             "typing": StrictBuiltins(typing_children),
+            "typing_extensions": StrictBuiltins(typing_extensions_children),
             "__strict__": StrictBuiltins(strict_modules_children),
             "strict_modules": StrictBuiltins(dict(strict_modules_children)),
         }
@@ -212,6 +217,9 @@ class Compiler:
         )
         self.typing = self.modules["typing"] = ModuleTable(
             "typing", "<typing>", self, typing_children
+        )
+        self.modules["typing_extensions"] = ModuleTable(
+            "typing_extensions", "<typing_extensions>", self, typing_extensions_children
         )
         self.statics = self.modules["__static__"] = ModuleTable(
             "__static__",

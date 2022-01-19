@@ -1,3 +1,4 @@
+from .annotated import AnnotatedTests
 from .array import ArrayTests
 from .augassign import AugAssignTests
 from .binop import BinopTests

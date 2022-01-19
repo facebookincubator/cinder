@@ -5043,6 +5043,30 @@ class BoolClass(Class):
         super().emit_call(node, code_gen)
 
 
+class AnnotatedType(Class):
+    def resolve_subscr(
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: AnnotationVisitor,
+    ) -> Optional[Value]:
+        slice = node.slice
+
+        if not isinstance(slice, ast.Index):
+            visitor.syntax_error("can't slice generic types", node)
+            return DYNAMIC
+
+        val = slice.value
+
+        if not isinstance(val, ast.Tuple) or len(val.elts) <= 1:
+            visitor.syntax_error(
+                "Annotated types must be parametrized by at least one annotation.", node
+            )
+            return None
+        actual_type, *annotations = val.elts
+        return visitor.resolve_annotation(actual_type)
+
+
 FUNCTION_TYPE = Class(TypeName("types", "FunctionType"), is_exact=True)
 METHOD_TYPE = Class(TypeName("types", "MethodType"), is_exact=True)
 MEMBER_TYPE = Class(TypeName("types", "MemberDescriptorType"), is_exact=True)
@@ -5133,6 +5157,7 @@ CONSTANT_TYPES: Mapping[Type[object], Value] = {
 
 NAMED_TUPLE_TYPE = Class(TypeName("typing", "NamedTuple"))
 PROTOCOL_TYPE = Class(TypeName("typing", "Protocol"))
+ANNOTATED_TYPE = AnnotatedType(TypeName("typing_extensions", "Annotated"))
 
 
 class TypeWrapper(GenericClass):
