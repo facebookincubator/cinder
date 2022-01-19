@@ -224,6 +224,9 @@ extern void generic_print_address
 
 int print_insn (vma_t pc, disassemble_info *info);
 
+void set_intel_syntax(void);
+void set_att_syntax(void);
+
 #ifdef __cplusplus
 }
 #endif

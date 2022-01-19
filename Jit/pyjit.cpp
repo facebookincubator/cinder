@@ -25,6 +25,8 @@
 #include "Jit/type_profiler.h"
 #include "Jit/util.h"
 
+#include <dis-asm.h>
+
 #include <atomic>
 #include <chrono>
 #include <climits>
@@ -831,6 +833,19 @@ int _PyJIT_Initialize() {
     } else {
       g_log_file = file;
     }
+  }
+
+  const char* asm_syntax = flag_string("jit-asm-syntax", "PYTHONJITASMSYNTAX");
+  if (asm_syntax != nullptr) {
+    if (std::strcmp(asm_syntax, "intel") == 0) {
+      set_intel_syntax();
+    } else if (std::strcmp(asm_syntax, "att") == 0) {
+      set_att_syntax();
+    } else {
+      JIT_CHECK(false, "unknown asm syntax '%s'", asm_syntax);
+    }
+  } else {
+    set_att_syntax();
   }
 
   if (_is_flag_set("jit-debug", "PYTHONJITDEBUG")) {

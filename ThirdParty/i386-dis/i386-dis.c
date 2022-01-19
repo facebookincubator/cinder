@@ -11316,7 +11316,7 @@ static vma_t start_pc;
  * The function returns the length of this instruction in bytes.
  */
 
-static char intel_syntax;
+static char intel_syntax = 0;
 static char intel_mnemonic = !SYSV386_COMPAT;
 static char open_char;
 static char close_char;
@@ -11797,6 +11797,14 @@ get_sib (disassemble_info *info, int sizeflag)
     }
 }
 
+void set_intel_syntax() {
+  intel_syntax = 1;
+}
+
+void set_att_syntax() {
+  intel_syntax = 0;
+}
+
 int
 print_insn (vma_t pc, disassemble_info *info)
 {
@@ -11810,7 +11818,6 @@ print_insn (vma_t pc, disassemble_info *info)
 
   priv.orig_sizeflag = AFLAG | DFLAG;
   address_mode = mode_64bit;
-  intel_syntax = 0;
 
   if (address_mode == mode_64bit && sizeof (vma_t) < 8)
     {
