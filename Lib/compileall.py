@@ -231,7 +231,7 @@ def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
     return success
 
 
-def main():
+def main(loader_override=None):
     """Script main program."""
     import argparse
 
@@ -313,7 +313,13 @@ def main():
         invalidation_mode = None
 
     success = True
-    loader_override = PySourceFileLoader if args.use_py_loader else None
+    # the type of loader to use for compilation
+    # the loader should accept arguments (modname: str, file: str)
+    loader_type = None
+    if loader_override is not None:
+        loader_type = loader_override
+    elif args.use_py_loader:
+        loader_type = PySourceFileLoader
 
     try:
         if compile_dests:
@@ -322,21 +328,21 @@ def main():
                     if not compile_file(dest, args.ddir, args.force, args.rx,
                                         args.quiet, args.legacy,
                                         invalidation_mode=invalidation_mode,
-                                        loader_override=loader_override):
+                                        loader_override=loader_type):
                         success = False
                 else:
                     if not compile_dir(dest, maxlevels, args.ddir,
                                        args.force, args.rx, args.quiet,
                                        args.legacy, workers=args.workers,
                                        invalidation_mode=invalidation_mode,
-                                       loader_override=loader_override):
+                                       loader_override=loader_type):
                         success = False
             return success
         else:
             return compile_path(legacy=args.legacy, force=args.force,
                                 quiet=args.quiet,
                                 invalidation_mode=invalidation_mode,
-                                loader_override=loader_override)
+                                loader_override=loader_type)
     except KeyboardInterrupt:
         if args.quiet < 2:
             print("\n[interrupted]")
