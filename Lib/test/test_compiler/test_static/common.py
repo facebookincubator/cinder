@@ -7,30 +7,21 @@ import gc
 import re
 import symtable
 import sys
-import typing
-from compiler import walk
 from compiler.errors import CollectingErrorSink, ErrorSink
-from compiler.optimizer import AstOptimizer
 from compiler.static import Static38CodeGenerator, StaticCodeGenerator
 from compiler.static.compiler import Compiler
-from compiler.static.declaration_visitor import DeclarationVisitor
 from compiler.static.module_table import ModuleTable
-from compiler.static.type_binder import TypeBinder
 from compiler.static.types import TypedSyntaxError, Value
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import Compiler as StrictCompiler
 from compiler.strict.runtime import set_freeze_enabled
-from compiler.symbols import SymbolVisitor
 from contextlib import contextmanager
-from pathlib import Path
-from textwrap import dedent
 from types import CodeType
 from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
 import cinder
 from _strictmodule import (
     StrictAnalysisResult,
-    StrictModuleLoader,
     NONSTRICT_MODULE_KIND,
     STATIC_MODULE_KIND,
     STUB_KIND_MASK_NONE,
@@ -56,7 +47,6 @@ class TestCompiler(Compiler):
         error_sink: ErrorSink | None = None,
     ) -> None:
         self.source_by_name = source_by_name
-        self.ast_by_name: Dict[str, ast.Module] = {}
         self.test_case = test_case
         super().__init__(code_generator, error_sink)
 
@@ -67,27 +57,16 @@ class TestCompiler(Compiler):
                 self.add_module(name, self._get_filename(name), tree, optimize)
         return self.modules.get(name)
 
-    def add_module(
-        self, name: str, filename: str, tree: AST, optimize: int
-    ) -> ast.Module:
-        tree = super().add_module(name, filename, tree, optimize)
-        self.ast_by_name[name] = tree
-        return tree
-
     def compile_module(self, name: str, optimize: int = 0) -> CodeType:
         tree = self._get_module_ast(name)
         if tree is None:
-            raise ValueError("No source found for module '{name}'")
+            raise ValueError(f"No source found for module '{name}'")
         return self.compile(name, self._get_filename(name), tree, optimize=optimize)
 
     def _get_module_ast(self, name: str) -> ast.Module | None:
-        tree = self.ast_by_name.get(name)
-        if tree is None:
-            source = self.source_by_name.get(name)
-            if source is None:
-                return None
-            tree = ast.parse(source)
-        return tree
+        source = self.source_by_name.get(name)
+        if source is not None:
+            return ast.parse(source)
 
     @contextmanager
     def in_module(self, modname: str, optimize: int = 0) -> Generator[Any, None, None]:

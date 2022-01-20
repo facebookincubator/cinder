@@ -1,12 +1,8 @@
-import ast
-from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
-from compiler.static.declaration_visitor import DeclarationVisitor
-from compiler.static.types import INT_TYPE, MODULE_TYPE, TypedSyntaxError
-from textwrap import dedent
-from typing import List, Tuple
+from compiler.static.types import INT_TYPE, MODULE_TYPE
+from compiler.strict.compiler import Compiler as StrictCompiler
 
-from .common import StaticTestBase
+from .common import StaticTestBase, StaticTestsStrictModuleLoader
 
 
 class ModuleTests(StaticTestBase):
@@ -176,3 +172,24 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.compiler(a=acode, b=bcode, c=ccode)
         compiler.revealed_type("c", "types.ModuleType")
+
+    def test_repeated_import(self) -> None:
+        codestr = """
+            def foo():
+                pass
+        """
+        compiler = StrictCompiler(
+            [],
+            "",
+            [],
+            [],
+            raise_on_error=True,
+            enable_patching=False,
+            loader_factory=StaticTestsStrictModuleLoader,
+        )
+        compiler.load_compiled_module_from_source(
+            self.clean_code(codestr), "mod.py", "mod", 1
+        )
+        compiler.load_compiled_module_from_source(
+            self.clean_code(codestr), "mod.py", "mod", 1
+        )

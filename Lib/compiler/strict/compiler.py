@@ -2,10 +2,7 @@
 from __future__ import annotations
 
 import ast
-from ast import NodeVisitor
 from contextlib import nullcontext
-from functools import cached_property
-from os import path
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
 from types import CodeType
 from typing import (
@@ -18,7 +15,6 @@ from typing import (
     final,
     Dict,
     Set,
-    Type,
     TYPE_CHECKING,
 )
 
@@ -36,7 +32,7 @@ from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerato
 from . import strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
-from .rewriter import StrictModuleRewriter, rewrite, remove_annotations
+from .rewriter import rewrite, remove_annotations
 
 if TYPE_CHECKING:
     from _strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory
@@ -81,7 +77,6 @@ class Compiler(StaticCompiler):
         self.raise_on_error = raise_on_error
         self.log_time_func = log_time_func
         self.enable_patching = enable_patching
-        self.ast_cache: Dict[str, ast.Module] = {}
         self.track_import_call: bool = False
         self.not_static: Set[str] = set()
         self.use_py_compiler = use_py_compiler
@@ -111,7 +106,6 @@ class Compiler(StaticCompiler):
                 )
                 with ctx:
                     root = self.add_module(name, mod.file_name, root, optimize)
-                self.ast_cache[name] = root
             else:
                 self.not_static.add(name)
 
@@ -120,19 +114,16 @@ class Compiler(StaticCompiler):
     def _get_rewritten_ast(
         self, name: str, mod: StrictAnalysisResult, root: ast.Module, optimize: int
     ) -> ast.Module:
-        cached_ast = self.ast_cache.get(name)
-        if cached_ast is None:
-            symbols = getSymbolTable(mod)
-            cached_ast = rewrite(
-                root,
-                symbols,
-                mod.file_name,
-                name,
-                optimize=optimize,
-                is_static=True,
-                track_import_call=self.track_import_call,
-            )
-        return cached_ast
+        symbols = getSymbolTable(mod)
+        return rewrite(
+            root,
+            symbols,
+            mod.file_name,
+            name,
+            optimize=optimize,
+            is_static=True,
+            track_import_call=self.track_import_call,
+        )
 
     def load_compiled_module_from_source(
         self,

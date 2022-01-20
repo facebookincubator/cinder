@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import ast
 import builtins
-import sys
 from ast import (
     AST,
     Call,
@@ -13,7 +12,6 @@ from ast import (
     AsyncFunctionDef,
     NodeVisitor,
     ImportFrom,
-    Module,
     Name,
     stmt,
 )
@@ -23,7 +21,6 @@ from typing import Any, cast, Dict, final, Optional, List, Mapping
 from _strictmodule import MUTABLE_DECORATOR
 
 from .. import symbols
-from ..optimizer import AstOptimizer
 from ..pyassem import PyFlowGraph
 from ..pyassem import PyFlowGraphCinder
 from ..pycodegen import (

@@ -143,6 +143,7 @@ class Compiler:
         error_sink: Optional[ErrorSink] = None,
     ) -> None:
         self.modules: Dict[str, ModuleTable] = {}
+        self.ast_cache: Dict[str, ast.Module] = {}
         self.code_generator = code_generator
         builtins_children = {
             "object": OBJECT_TYPE,
@@ -320,6 +321,7 @@ class Compiler:
         self, name: str, filename: str, tree: AST, optimize: int
     ) -> ast.Module:
         tree = AstOptimizer(optimize=optimize > 0).visit(tree)
+        self.ast_cache[name] = tree
 
         decl_visit = DeclarationVisitor(name, filename, self, optimize)
         decl_visit.visit(tree)
@@ -344,8 +346,11 @@ class Compiler:
         optimize: int,
         enable_patching: bool = False,
     ) -> Tuple[AST, SymbolVisitor]:
-        if name not in self.modules:
+        cached_tree = self.ast_cache.get(name)
+        if cached_tree is None:
             tree = self.add_module(name, filename, tree, optimize)
+        else:
+            tree = cached_tree
         # Analyze variable scopes
         s = self.code_generator._SymbolVisitor()
         s.visit(tree)

@@ -36,9 +36,8 @@ from typing import (
     cast,
 )
 
-from .. import consts, symbols, opcode_static
+from .. import consts, opcode_static
 from ..opcodebase import Opcode
-from ..optimizer import AstOptimizer
 from ..pyassem import Block, PyFlowGraph, PyFlowGraphCinder, IndexedSet
 from ..pycodegen import (
     CodeGenerator,
@@ -49,10 +48,8 @@ from ..pycodegen import (
 from ..strict import StrictCodeGenerator, FIXED_MODULES
 from ..symbols import Scope, SymbolVisitor, ClassScope
 from .compiler import Compiler
-from .declaration_visitor import DeclarationVisitor
 from .effects import NarrowingEffect
 from .module_table import ModuleTable, ModuleFlag
-from .type_binder import TypeBinder
 from .types import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     AsyncCachedPropertyMethod,
