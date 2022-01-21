@@ -1566,3 +1566,36 @@ class StaticPatchTests(StaticTestBase):
             setattr(mod.C, "x", None)
             self.assertEqual(c.x, None)
             self.assertEqual(mod.f(c), None)
+
+    def test_invoke_after_patch_nonstatic_base(self):
+        nonstaticcodestr = """
+        class B:
+            pass
+        """
+        with self.in_module(
+            nonstaticcodestr, code_gen=PythonCodeGenerator
+        ) as nonstatic_module:
+            codestr = f"""
+            from {nonstatic_module.__name__} import B
+
+            class C(B):
+
+                def p(self) -> int:
+                    return self.q()
+
+                def q(self) -> int:
+                    return 3
+
+            class D(C):
+                pass
+            """
+            with self.in_strict_module(codestr) as mod:
+                D = mod.D
+                C = mod.C
+
+                # First initialize D for patching, this populates D's vt_original
+                setattr(D, "r", 4)
+
+                d = D()
+                # Next, invoke a method on the base-class (C) through the patched subclass (D)
+                self.assertEqual(d.p(), 3)

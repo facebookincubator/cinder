@@ -1472,6 +1472,11 @@ get_func_or_special_callable(PyObject *dict, PyObject *name, PyObject **result) 
     return 0;
 }
 
+
+/*
+    Looks up through parent classes to find a member specified by the name. If a parent class attribute
+    has been patched, that is ignored, i.e it goes through the originally defined members.
+*/
 int
 _PyClassLoader_GetStaticallyInheritedMember(PyTypeObject *type, PyObject *name, PyObject **result) {
     PyObject *mro = type->tp_mro, *base;
@@ -1881,7 +1886,20 @@ type_vtable_setslot(PyTypeObject *tp,
         assert(tp->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
         original = PyDict_GetItem(vtable->vt_original, name);
 
+        if (!original) {
+            // The member was actually defined in one of the parent classes, so try to look it up from there.
+            // TODO: It might be possible to avoid the type-check in this situation, because while `tp` was patched,
+            // the parent Static classes may not be.
+            int res = _PyClassLoader_GetStaticallyInheritedMember(tp, name, &original);
+            if (res != 0) {
+                return -1;
+            }
+        } else {
+            Py_INCREF(original);
+        }
+
         ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
+        Py_DECREF(original);
     } else {
         ret_type = _PyClassLoader_ResolveReturnType(value, &optional, &coroutine, &classmethod);
         if (ret_type == NULL) {
