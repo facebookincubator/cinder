@@ -187,7 +187,7 @@ class StrictSourceFileLoader(SourceFileLoader):
     ) -> None:
         self.name = fullname
         self.path = path
-        self.import_path: Iterable[str] = import_path or []
+        self.import_path: Iterable[str] = import_path or list(sys.path)
         configured_stub_path = sys._xoptions.get(
             "strict-module-stubs-path"
         ) or os.getenv("PYTHONSTRICTMODULESTUBSPATH")
