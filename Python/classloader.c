@@ -3156,7 +3156,7 @@ typed_descriptor_with_default_value_get(PyObject *self, PyObject *obj, PyObject 
 {
     _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *)self;
     if (obj == NULL) {
-        /* Since we don't have any APIs supporting the modification of the default, it should never
+        /* Since we don't have any APIs supporting the modification of the default, it should
            always be set. */
         assert(td->td_default != NULL);
         Py_INCREF(td->td_default);

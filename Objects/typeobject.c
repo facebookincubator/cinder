@@ -2652,11 +2652,10 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
 
         _Py_IDENTIFIER(__slots_with_default__);
         PyObject *slots_with_default = _PyDict_GetItemIdWithError(dict, &PyId___slots_with_default__);
-        Py_ssize_t nslots_with_default = slots_with_default == NULL ? 0 : PyTuple_GET_SIZE(slots_with_default);
         if (slots_with_default == NULL && PyErr_Occurred()) {
            goto error;
         }
-        /* Make it into a tuple */
+        Py_ssize_t nslots_with_default = slots_with_default == NULL ? 0 : PyTuple_GET_SIZE(slots_with_default);        /* Make it into a tuple */
         if (PyUnicode_Check(slots))
             slots = PyTuple_Pack(1, slots);
         else
