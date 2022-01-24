@@ -587,6 +587,65 @@ std::unique_ptr<Function> HIRBuilder::buildHIR() {
   return irfunc;
 }
 
+void HIRBuilder::emitProfiledTypes(
+    TranslationContext& tc,
+    const CodeProfileData& profile_data,
+    const BytecodeInstruction& bc_instr) {
+  if (bc_instr.opcode() == CALL_METHOD) {
+    // TODO(T107300350): Ignore profiling data for CALL_METHOD because we lie
+    // about its stack inputs.
+    return;
+  }
+
+  const std::vector<BorrowedRef<PyTypeObject>> types =
+      getProfiledTypes(profile_data, bc_instr.offset());
+  if (types.empty() || types.size() > tc.frame.stack.size()) {
+    // The types are either absent or invalid (e.g., from a different version
+    // of the code than what we're running now).
+    return;
+  }
+
+  if (bc_instr.opcode() == WITH_CLEANUP_START ||
+      bc_instr.opcode() == END_FINALLY) {
+    // TOS for WITH_CLEANUP_START can be nullptr or a type, and TOS for
+    // END_FINALLY can be nullptr, a type, or an int. In both cases, a type TOS
+    // signals that an exception has been raised and a nullptr TOS indicates a
+    // normal exit from the context manager or finally block. Since we deopt
+    // when an exception is raised, the JIT statically knows that TOS for
+    // WITH_CLEANUP_START is TNullptr, and that value flows to TOS for
+    // END_FINALLY.
+    //
+    // TODO(T110447724): If the profiled types for either opcode's TOS is is a
+    // type, that means that during profiling, we always left this block by
+    // raising an exception. This implies that the code we're compiling is
+    // probably unreachable, and we may want to consider leaving it out of the
+    // HIR to save space (replacing it with a Deopt).
+    //
+    // More importantly, if we emit a GuardType<TypeExact> here, the TNullptr
+    // TOS value will conflict with GuardType's input type of TObject. This is
+    // currently the only situation where we try to give a possibly-null value
+    // to GuardType; if we run into more we may want to consider making
+    // GuardType null-aware.
+    if (types[0] != nullptr && types[0] == &PyType_Type) {
+      return;
+    }
+  }
+
+  // Except for function calls, all instructions profile all of their inputs,
+  // with deeper stack elements first.
+  size_t stack_idx = types.size() - 1;
+  if (bc_instr.opcode() == CALL_FUNCTION) {
+    stack_idx = bc_instr.oparg();
+  }
+  for (auto type : types) {
+    if (type != nullptr) {
+      Register* value = tc.frame.stack.top(stack_idx);
+      tc.emit<GuardType>(value, Type::fromTypeExact(type), value);
+    }
+    stack_idx--;
+  }
+}
+
 void HIRBuilder::translate(
     Function& irfunc,
     const jit::BytecodeInstructionBlock& bc_instrs,
@@ -595,6 +654,8 @@ void HIRBuilder::translate(
   std::deque<TranslationContext> queue = {tc};
   std::unordered_set<BasicBlock*> processed;
   std::unordered_set<BasicBlock*> loop_headers;
+
+  const CodeProfileData* profile_data = getProfileData(tc.frame.code);
 
   while (!queue.empty()) {
     auto tc = std::move(queue.front());
@@ -620,6 +681,10 @@ void HIRBuilder::translate(
     for (auto bc_it = bc_block.begin(); bc_it != bc_block.end(); ++bc_it) {
       BytecodeInstruction bc_instr = *bc_it;
       tc.setCurrentInstr(bc_instr);
+
+      if (profile_data != nullptr) {
+        emitProfiledTypes(tc, *profile_data, bc_instr);
+      }
 
       // Translate instruction
       switch (bc_instr.opcode()) {
@@ -3243,7 +3308,7 @@ void HIRBuilder::emitSetupWith(
 }
 
 void HIRBuilder::emitWithCleanupStart(TranslationContext& tc) {
-  // We currently deopt when an instruction is raised, so we don't have to
+  // We currently deopt when an exception is raised, so we don't have to
   // worry about the exception case. TOS should always be NULL.
   auto& stack = tc.frame.stack;
   Register* null = stack.pop();

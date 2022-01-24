@@ -187,66 +187,40 @@ class RuntimeTest : public ::testing::Test {
 
 class HIRTest : public RuntimeTest {
  public:
-  HIRTest(
-      std::vector<std::unique_ptr<jit::hir::Pass>>&& passes,
-      bool src_is_hir,
-      const std::string& src,
-      const std::string& expected_hir,
-      bool compile_static = false)
-      : RuntimeTest(compile_static),
-        passes_(std::move(passes)),
-        src_is_hir_(src_is_hir),
-        src_(src),
-        expected_hir_(expected_hir) {}
+  enum Flags {
+    kCompileStatic = 1 << 0,
+    kUseProfileData = 1 << 1,
+  };
+
   HIRTest(
       bool src_is_hir,
       const std::string& src,
       const std::string& expected_hir,
-      bool compile_static = false)
-      : RuntimeTest(compile_static),
+      Flags flags)
+      : RuntimeTest(flags & kCompileStatic),
         src_is_hir_(src_is_hir),
         src_(src),
-        expected_hir_(expected_hir) {}
-
-  void TestBody() override {
-    using namespace jit::hir;
-    std::unique_ptr<Function> irfunc;
-    if (src_is_hir_) {
-      irfunc = HIRParser{}.ParseHIR(src_.c_str());
-      ASSERT_FALSE(passes_.empty())
-          << "HIR tests don't make sense without a pass to test";
-      ASSERT_NE(irfunc, nullptr);
-      ASSERT_TRUE(checkFunc(*irfunc, std::cout));
-      reflowTypes(*irfunc);
-    } else if (compile_static_) {
-      ASSERT_NO_FATAL_FAILURE(CompileToHIRStatic(src_.c_str(), "test", irfunc));
-    } else {
-      ASSERT_NO_FATAL_FAILURE(CompileToHIR(src_.c_str(), "test", irfunc));
-    }
-
-    if (!passes_.empty()) {
-      if (!src_is_hir_) {
-        SSAify{}.Run(*irfunc);
-        // Perform some straightforward cleanup on Python inputs to make the
-        // output more reasonable. This implies that tests for the passes used
-        // here are most useful as HIR-only tests.
-        Simplify{}.Run(*irfunc);
-        CopyPropagation{}.Run(*irfunc);
-        PhiElimination{}.Run(*irfunc);
-      }
-      for (auto& pass : passes_) {
-        pass->Run(*irfunc);
-      }
-      ASSERT_TRUE(checkFunc(*irfunc, std::cout));
-    }
-    HIRPrinter printer;
-    auto hir = printer.ToString(*irfunc.get());
-    EXPECT_EQ(hir, expected_hir_);
+        expected_hir_(expected_hir),
+        use_profile_data_(flags & kUseProfileData) {
+    JIT_CHECK(
+        !src_is_hir || !use_profile_data_,
+        "Profile data tests can't have HIR input");
   }
+
+  void setPasses(std::vector<std::unique_ptr<jit::hir::Pass>> passes) {
+    passes_ = std::move(passes);
+  }
+
+  void TestBody() override;
 
  private:
   std::vector<std::unique_ptr<jit::hir::Pass>> passes_;
   bool src_is_hir_;
   std::string src_;
   std::string expected_hir_;
+  bool use_profile_data_;
 };
+
+inline HIRTest::Flags operator|(HIRTest::Flags a, HIRTest::Flags b) {
+  return static_cast<HIRTest::Flags>(static_cast<int>(a) | static_cast<int>(b));
+}

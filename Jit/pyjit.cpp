@@ -90,6 +90,10 @@ static std::vector<Ref<>> test_multithreaded_units;
 static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
     jit_time_functions;
 
+// If non-empty, profile information will be written to this filename at
+// shutdown.
+static std::string g_write_profile_file;
+
 // Frequently-used strings that we intern at JIT startup and hold references to.
 #define INTERNED_STRINGS(X) \
   X(bc_offset)              \
@@ -946,19 +950,25 @@ int _PyJIT_Initialize() {
     }
   }
 
-  const char* profile_file =
-      flag_string("jit-use-profile", "PYTHONJITUSEPROFILE");
-  if (profile_file != nullptr) {
-    JIT_LOG("Loading profile data from %s", profile_file);
-    loadProfileData(profile_file);
+  const char* read_profile_file =
+      flag_string("jit-read-profile", "PYTHONJITUSEPROFILE");
+  if (read_profile_file != nullptr) {
+    JIT_LOG("Loading profile data from %s", read_profile_file);
+    readProfileData(read_profile_file);
   }
-  if (_is_flag_set("jit-profile-interp", "PYTHONJITPROFILEINTERP")) {
+  const char* write_profile_file =
+      flag_string("jit-write-profile", "PYTHONJITWRITEPROFILE");
+  if (write_profile_file != nullptr ||
+      _is_flag_set("jit-profile-interp", "PYTHONJITPROFILEINTERP")) {
     if (use_jit) {
       use_jit = 0;
       JIT_LOG("Keeping JIT disabled to enable interpreter profiling.");
     }
     g_profile_new_interp_threads = 1;
     _PyThreadState_SetProfileInterpAll(1);
+    if (write_profile_file != nullptr) {
+      g_write_profile_file = write_profile_file;
+    }
   }
   if (_is_flag_set("jit-disable", "PYTHONJITDISABLE")) {
     if (use_jit) {
@@ -1161,6 +1171,10 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
   return result;
 }
 
+void _PyJIT_TypeCreated(PyTypeObject* type) {
+  registerProfiledType(type);
+}
+
 void _PyJIT_TypeModified(PyTypeObject* type) {
   if (jit_ctx) {
     _PyJITContext_TypeModified(jit_ctx, type);
@@ -1168,10 +1182,17 @@ void _PyJIT_TypeModified(PyTypeObject* type) {
   jit::notifyICsTypeChanged(type);
 }
 
+void _PyJIT_TypeNameModified(PyTypeObject* type) {
+  // We assume that this is a very rare case, and simply give up on tracking
+  // the type if it happens.
+  unregisterProfiledType(type);
+}
+
 void _PyJIT_TypeDestroyed(PyTypeObject* type) {
   if (jit_ctx) {
     _PyJITContext_TypeDestroyed(jit_ctx, type);
   }
+  unregisterProfiledType(type);
 }
 
 void _PyJIT_FuncModified(PyFunctionObject* func) {
@@ -1213,6 +1234,11 @@ int _PyJIT_Finalize() {
   if (g_dump_stats) {
     dump_jit_stats();
   }
+
+  if (!g_write_profile_file.empty()) {
+    writeProfileData(g_write_profile_file.c_str());
+  }
+  clearProfileData();
 
   // Always release references from Runtime objects: C++ clients may have
   // invoked the JIT directly without initializing a full _PyJITContext.
@@ -1545,15 +1571,8 @@ PyObject* get_type_name(ProfileEnv& env, PyTypeObject* ty) {
   auto pair = env.type_name_cache.emplace(ty, nullptr);
   Ref<>& cached_name = pair.first->second;
   if (pair.second) {
-    PyObject* module =
-        ty->tp_dict ? PyDict_GetItemString(ty->tp_dict, "__module__") : nullptr;
-    if (module != nullptr && PyUnicode_Check(module)) {
-      cached_name = Ref<>::steal(
-          check(PyUnicode_FromFormat("%U:%s", module, ty->tp_name)));
-    } else {
-      cached_name =
-          Ref<>::steal(check(PyUnicode_InternFromString(ty->tp_name)));
-    }
+    cached_name = Ref<>::steal(
+        check(PyUnicode_InternFromString(typeFullname(ty).c_str())));
   }
   return cached_name;
 }
@@ -1562,14 +1581,8 @@ void start_code(ProfileEnv& env, PyCodeObject* code) {
   env.code = code;
   env.code_hash =
       Ref<>::steal(check(PyLong_FromUnsignedLong(hashBytecode(code))));
-  env.qualname.reset(code->co_qualname);
-  if (env.qualname == nullptr) {
-    env.qualname.reset(code->co_name);
-    if (env.qualname == nullptr) {
-      env.qualname =
-          Ref<>::steal(check(PyUnicode_InternFromString("<unknown>")));
-    }
-  }
+  env.qualname = Ref<>::steal(
+      check(PyUnicode_InternFromString(codeQualname(code).c_str())));
   env.firstlineno = Ref<>::steal(check(PyLong_FromLong(code->co_firstlineno)));
   env.profiled_hits = 0;
 }

@@ -32,6 +32,10 @@ class alignas(Ref<PyTypeObject>) TypeProfiler {
 
   bool empty() const;
 
+  // Return true if and only if this TypeProfiler has recorded more than one
+  // type.
+  bool isPolymorphic() const;
+
   int rows() const;
   int cols() const;
 

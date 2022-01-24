@@ -49,6 +49,10 @@ bool TypeProfiler::empty() const {
   return true;
 }
 
+bool TypeProfiler::isPolymorphic() const {
+  return other() > 0 || (rows() > 1 && count(1) > 0);
+}
+
 void TypeProfiler::clear() {
   Ref<PyTypeObject>* types = typesPtr();
   int* counts = countsPtr();

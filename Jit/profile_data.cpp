@@ -1,12 +1,14 @@
 #include "Jit/profile_data.h"
 
+#include "Jit/codegen/gen_asm.h"
 #include "Jit/containers.h"
 #include "Jit/hir/type.h"
+#include "Jit/live_type_map.h"
 #include "Jit/ref.h"
 
 #include <zlib.h>
 
-#include <cstdio>
+#include <fstream>
 #include <type_traits>
 
 namespace jit {
@@ -31,47 +33,100 @@ namespace {
 
 const uint64_t kMagicHeader = 0x7265646e6963;
 
-UnorderedMap<std::string, UnorderedMap<int, std::vector<std::string>>> s_types;
+using ProfileData = UnorderedMap<CodeKey, CodeProfileData>;
+ProfileData s_profile_data;
 
-template <typename T>
-T read(std::FILE* file) {
-  // TODO(bsimmers) Use std::endian::native when we have C++20.
+LiveTypeMap s_live_types;
+
+// TODO(bsimmers) Use std::endian::native when we have C++20.
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #error Integers in profile data files are little endian.
 #endif
 
+template <typename T>
+T read(std::istream& stream) {
   static_assert(
       std::is_trivially_copyable_v<T>, "T must be trivially copyable");
   T val;
-  if (std::fread(&val, sizeof(val), 1, file) != 1) {
-    throw std::runtime_error("Couldn't read enough bytes from file");
-  }
+  stream.read(reinterpret_cast<char*>(&val), sizeof(val));
   return val;
 }
 
-std::string readStr(std::FILE* file) {
-  auto len = read<uint16_t>(file);
+template <typename T>
+void write(std::ostream& stream, T value) {
+  static_assert(
+      std::is_trivially_copyable_v<T>, "T must be trivially copyable");
+  stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
+}
+
+void writeStr(std::ostream& stream, const std::string& str) {
+  write<uint16_t>(stream, str.size());
+  stream.write(str.data(), str.size());
+}
+
+std::string readStr(std::istream& stream) {
+  auto len = read<uint16_t>(stream);
   std::string result(len, '\0');
-  if (std::fread(result.data(), len, 1, file) != 1) {
-    throw std::runtime_error("Couldn't read enough bytes from file");
-  }
+  stream.read(result.data(), len);
   return result;
 }
 
-void readVersion1(std::FILE* file) {
-  auto num_code_keys = read<uint32_t>(file);
+void readVersion1(std::istream& stream) {
+  auto num_code_keys = read<uint32_t>(stream);
   for (size_t i = 0; i < num_code_keys; ++i) {
-    std::string code_key = readStr(file);
-    auto& code_map = s_types[code_key];
+    std::string code_key = readStr(stream);
+    auto& code_map = s_profile_data[code_key];
 
-    auto num_locations = read<uint16_t>(file);
+    auto num_locations = read<uint16_t>(stream);
     for (size_t j = 0; j < num_locations; ++j) {
-      auto bc_offset = read<uint16_t>(file);
+      auto bc_offset = read<uint16_t>(stream);
 
       auto& type_list = code_map[bc_offset];
-      auto num_types = read<uint8_t>(file);
+      auto num_types = read<uint8_t>(stream);
       for (size_t k = 0; k < num_types; ++k) {
-        type_list.emplace_back(readStr(file));
+        type_list.emplace_back(readStr(stream));
+      }
+    }
+  }
+}
+
+void writeVersion1(std::ostream& stream, const TypeProfiles& profiles) {
+  ProfileData data;
+
+  // First, collect only monomorphic results in data.
+  for (auto& [code_obj, code_profile] : profiles) {
+    CodeProfileData code_data;
+    for (auto& profile_pair : code_profile.typed_hits) {
+      const TypeProfiler& profile = *profile_pair.second;
+      if (profile.empty() || profile.isPolymorphic()) {
+        // The profile isn't interesting. Ignore it.
+        continue;
+      }
+      auto& vec = code_data[profile_pair.first];
+      for (int col = 0; col < profile.cols(); ++col) {
+        BorrowedRef<PyTypeObject> type = profile.type(0, col);
+        if (type == nullptr) {
+          vec.emplace_back("<NULL>");
+        } else {
+          vec.emplace_back(typeFullname(type));
+        }
+      }
+    }
+    if (!code_data.empty()) {
+      data.emplace(codeKey(code_obj), std::move(code_data));
+    }
+  }
+
+  // Second, write data to the given stream.
+  write<uint32_t>(stream, data.size());
+  for (auto& [code_key, code_data] : data) {
+    writeStr(stream, code_key);
+    write<uint16_t>(stream, code_data.size());
+    for (auto& [bc_offset, type_vec] : code_data) {
+      write<uint16_t>(stream, bc_offset);
+      write<uint8_t>(stream, type_vec.size());
+      for (auto& type_name : type_vec) {
+        writeStr(stream, type_name);
       }
     }
   }
@@ -79,44 +134,128 @@ void readVersion1(std::FILE* file) {
 
 } // namespace
 
-bool loadProfileData(const char* filename) {
-  std::FILE* file = std::fopen(filename, "r");
-  if (file == nullptr) {
+bool readProfileData(const std::string& filename) {
+  std::ifstream file(filename, std::ios::binary);
+  if (!file) {
+    JIT_LOG("Failed to open %s for reading", filename);
     return false;
   }
+  if (readProfileData(file)) {
+    JIT_LOG(
+        "Loaded data for %d code objects from %s",
+        s_profile_data.size(),
+        filename);
+    return true;
+  }
+  return false;
+}
 
+bool readProfileData(std::istream& stream) {
   try {
-    auto magic = read<uint64_t>(file);
+    stream.exceptions(std::ios::badbit | std::ios::failbit);
+    auto magic = read<uint64_t>(stream);
     if (magic != kMagicHeader) {
-      JIT_LOG("Bad magic value %d in file %s", magic, filename);
+      JIT_LOG("Bad magic value %#x in profile data stream", magic);
       return false;
     }
-    auto version = read<uint32_t>(file);
+    auto version = read<uint32_t>(stream);
     if (version == 1) {
-      readVersion1(file);
+      readVersion1(stream);
     } else {
       JIT_LOG("Unknown profile data version %d", version);
       return false;
     }
   } catch (const std::runtime_error& e) {
-    JIT_LOG("Failed to load profile data from %s: %s", filename, e.what());
-    s_types.clear();
+    JIT_LOG("Failed to load profile data from stream: %s", e.what());
+    s_profile_data.clear();
     return false;
   }
 
-  long pos = std::ftell(file);
-  if (pos < 0 || std::fseek(file, 0, SEEK_END) != 0) {
-    JIT_LOG("Failed to seek in %f", filename);
-    return false;
-  }
-  long end = std::ftell(file);
-  if (pos != end) {
-    JIT_LOG(
-        "File %s has %d bytes of extra data at the end", filename, end - pos);
+  stream.exceptions(std::ios::iostate{});
+  if (stream.peek() != EOF) {
+    JIT_LOG("Warning: stream has unread data at end");
   }
 
-  JIT_LOG("Loaded data for %d code objects from %s", s_types.size(), filename);
   return true;
+}
+
+bool writeProfileData(const std::string& filename) {
+  std::ofstream file(filename, std::ios::binary);
+  if (!file) {
+    JIT_LOG("Failed to open %s for writing", filename);
+    return false;
+  }
+  if (writeProfileData(file)) {
+    JIT_LOG("Wrote %d bytes of profile data to %s", file.tellp(), filename);
+    return true;
+  }
+  return false;
+}
+
+bool writeProfileData(std::ostream& stream) {
+  try {
+    stream.exceptions(std::ios::badbit | std::ios::failbit);
+    write<uint64_t>(stream, kMagicHeader);
+    write<uint32_t>(stream, 1);
+    writeVersion1(
+        stream, codegen::NativeGeneratorFactory::runtime()->typeProfiles());
+  } catch (const std::runtime_error& e) {
+    JIT_LOG("Failed to write profile data to stream: %s", e.what());
+    return false;
+  }
+
+  return true;
+}
+
+void clearProfileData() {
+  s_profile_data.clear();
+  s_live_types.clear();
+}
+
+const CodeProfileData* getProfileData(PyCodeObject* code) {
+  auto it = s_profile_data.find(codeKey(code));
+  return it == s_profile_data.end() ? nullptr : &it->second;
+}
+
+std::vector<BorrowedRef<PyTypeObject>> getProfiledTypes(
+    const CodeProfileData& data,
+    BytecodeOffset bc_off) {
+  auto it = data.find(bc_off);
+  if (it == data.end()) {
+    return {};
+  }
+
+  std::vector<BorrowedRef<PyTypeObject>> ret;
+  for (const std::string& type_name : it->second) {
+    ret.emplace_back(s_live_types.get(type_name));
+  }
+  return ret;
+}
+
+std::string codeKey(PyCodeObject* code) {
+  const std::string filename = unicodeAsString(code->co_filename);
+  const int firstlineno = code->co_firstlineno;
+  const std::string qualname = codeQualname(code);
+  uint32_t hash = hashBytecode(code);
+  return fmt::format("{}:{}:{}:{}", filename, firstlineno, qualname, hash);
+}
+
+std::string codeQualname(PyCodeObject* code) {
+  if (code->co_qualname != nullptr) {
+    return unicodeAsString(code->co_qualname);
+  }
+  if (code->co_name != nullptr) {
+    return unicodeAsString(code->co_name);
+  }
+  return "<unknown>";
+}
+
+void registerProfiledType(PyTypeObject* type) {
+  s_live_types.insert(type);
+}
+
+void unregisterProfiledType(PyTypeObject* type) {
+  s_live_types.erase(type);
 }
 
 } // namespace jit

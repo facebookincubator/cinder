@@ -6,6 +6,7 @@
 #include "Jit/bytecode.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/preload.h"
+#include "Jit/profile_data.h"
 #include "Jit/stack.h"
 #include "Jit/util.h"
 
@@ -123,6 +124,10 @@ class HIRBuilder {
       const jit::BytecodeInstructionBlock& bc_instrs,
       const TranslationContext& tc,
       FinallyCompleter complete_finally = nullptr);
+  void emitProfiledTypes(
+      TranslationContext& tc,
+      const CodeProfileData& profile_data,
+      const BytecodeInstruction& bc_instr);
 
   void emitBinaryOp(
       TranslationContext& tc,

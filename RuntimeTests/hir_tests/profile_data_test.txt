@@ -1,0 +1,26 @@
+ProfileDataTest
+---
+GuardTypeRemoval
+---
+LoadFromTuple
+---
+def test(c, i):
+  return c[i]
+test((1, 2, 3), 1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "c">
+    v4:Object = LoadArg<1; "i">
+    v7:TupleExact = GuardType<TupleExact> v3
+    v8:LongExact = GuardType<LongExact> v4
+    v10:CInt64 = PrimitiveUnbox<CInt64> v8
+    v11:CInt64 = CheckSequenceBounds v7 v10 {
+      NextInstrOffset 6
+      Locals<2> v7 v8
+    }
+    v12:Object = LoadArrayItem<Offset[24]> v7 v11 v7
+    Return v12
+  }
+}
+---
