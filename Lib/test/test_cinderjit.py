@@ -1922,6 +1922,87 @@ class CoroutinesTest(unittest.TestCase):
             coro.send(None)
         self.assertEqual(v1, "hello, bob")
 
+    def assert_already_awaited(self, coro):
+        with self.assertRaisesRegex(RuntimeError, "coroutine is being awaited already"):
+            asyncio.run(coro)
+
+    def test_already_awaited_coroutine_in_try_except(self):
+        """Except blocks should execute when a coroutine is already awaited"""
+
+        async def f():
+            await asyncio.sleep(0.1)
+
+        executed_except_block = False
+
+        async def runner():
+            nonlocal executed_except_block
+            coro = f()
+            loop = asyncio.get_running_loop()
+            t = loop.create_task(coro)
+            try:
+                await asyncio.sleep(0)
+                await coro
+            except RuntimeError:
+                executed_except_block = True
+                t.cancel()
+                raise
+
+        self.assert_already_awaited(runner())
+        self.assertTrue(executed_except_block)
+
+    def test_already_awaited_coroutine_in_try_finally(self):
+        """Finally blocks should execute when a coroutine is already awaited"""
+
+        async def f():
+            await asyncio.sleep(0.1)
+
+        executed_finally_block = False
+
+        async def runner():
+            nonlocal executed_finally_block
+            coro = f()
+            loop = asyncio.get_running_loop()
+            t = loop.create_task(coro)
+            try:
+                await asyncio.sleep(0)
+                await coro
+            finally:
+                executed_finally_block = True
+                t.cancel()
+
+        self.assert_already_awaited(runner())
+        self.assertTrue(executed_finally_block)
+
+    def test_already_awaited_coroutine_in_try_except_finally(self):
+        """Except and finally blocks should execute when a coroutine is already
+        awaited.
+        """
+
+        async def f():
+            await asyncio.sleep(0.1)
+
+        executed_except_block = False
+        executed_finally_block = False
+
+        async def runner():
+            nonlocal executed_except_block, executed_finally_block
+            coro = f()
+            loop = asyncio.get_running_loop()
+            t = loop.create_task(coro)
+            try:
+                await asyncio.sleep(0)
+                await coro
+            except RuntimeError:
+                executed_except_block = True
+                raise
+            finally:
+                executed_finally_block = True
+                t.cancel()
+
+        self.assert_already_awaited(runner())
+        self.assertTrue(executed_except_block)
+        self.assertTrue(executed_finally_block)
+
 
 class EagerCoroutineDispatch(StaticTestBase):
     def _assert_awaited_flag_seen(self, async_f_under_test):

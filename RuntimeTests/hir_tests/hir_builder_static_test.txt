@@ -94,6 +94,7 @@ fun jittestmodule:test {
   bb 9 (preds 7) {
     RaiseStatic<RuntimeError, "coroutine is being awaited already", <<0>>> {
       NextInstrOffset 8
+      Locals<1> v0
     }
   }
 

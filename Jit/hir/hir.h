@@ -3244,11 +3244,8 @@ class INSTR_CLASS(Raise, (TObject, TObject), Operands<>, DeoptBase) {
 class INSTR_CLASS(RaiseStatic, (TObject), Operands<>, DeoptBase) {
  public:
   RaiseStatic(PyObject* exc_type, const char* fmt, const FrameState& frame)
-      : InstrT(), fmt_(fmt), exc_type_(exc_type) {
+      : InstrT(frame), fmt_(fmt), exc_type_(exc_type) {
     JIT_CHECK(PyExceptionClass_Check(exc_type), "Expecting exception type");
-    auto new_frame = std::make_unique<FrameState>();
-    new_frame->next_instr_offset = frame.next_instr_offset;
-    setFrameState(std::move(new_frame));
   }
 
   const char* fmt() const {
