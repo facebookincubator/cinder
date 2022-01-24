@@ -451,6 +451,7 @@ JIT_OBJS=       \
 		Jit/jit_list.o \
 		Jit/jit_rt.o \
 		Jit/jit_x_options.o \
+		Jit/live_type_map.o \
 		Jit/log.o \
 		Jit/patternmatch.o \
 		Jit/perf_jitdump.o \
@@ -1237,6 +1238,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/hir/type_inl.h \
 		$(srcdir)/Jit/inline_cache.h \
 		$(srcdir)/Jit/intrusive_list.h \
+		$(srcdir)/Jit/live_type_map.h \
 		$(srcdir)/Jit/log.h \
 		$(srcdir)/Jit/jit_context.h \
 		$(srcdir)/Jit/jit_gdb_support.h \
@@ -2352,6 +2354,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/lir_inliner_test.o \
 	${RUNTIME_TESTS_DIR}/lir_rewrite_test.o \
 	${RUNTIME_TESTS_DIR}/lir_test.o \
+	${RUNTIME_TESTS_DIR}/live_type_map_test.o \
 	${RUNTIME_TESTS_DIR}/main.o \
 	${RUNTIME_TESTS_DIR}/ref_test.o \
 	${RUNTIME_TESTS_DIR}/regalloc_test.o \

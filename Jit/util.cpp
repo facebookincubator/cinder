@@ -147,4 +147,24 @@ PyObject* getVarname(PyCodeObject* code, int idx) {
   return PyTuple_GET_ITEM(tuple, idx);
 }
 
+std::string unicodeAsString(PyObject* str) {
+  Py_ssize_t size;
+  const char* utf8 = PyUnicode_AsUTF8AndSize(str, &size);
+  if (utf8 == nullptr) {
+    PyErr_Clear();
+    return "";
+  }
+  return std::string(utf8, size);
+}
+
+std::string typeFullname(PyTypeObject* type) {
+  PyObject* module_str = type->tp_dict
+      ? PyDict_GetItemString(type->tp_dict, "__module__")
+      : nullptr;
+  if (module_str != nullptr && PyUnicode_Check(module_str)) {
+    return fmt::format("{}:{}", unicodeAsString(module_str), type->tp_name);
+  }
+  return type->tp_name;
+}
+
 } // namespace jit

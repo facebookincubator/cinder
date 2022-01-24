@@ -78,6 +78,13 @@ inline std::size_t combineHash(std::size_t seed, std::size_t hash) {
 std::string codeFullname(PyObject* module, PyCodeObject* code);
 std::string funcFullname(PyFunctionObject* func);
 
+// When possible, return the fully qualified name of the given type (including
+// its module). Falls back to the type's bare name.
+std::string typeFullname(PyTypeObject* type);
+
+// Return the given PyUnicodeObject as a std::string, or "" if an error occurs.
+std::string unicodeAsString(PyObject* str);
+
 // Given a code object and an index into f_localsplus, compute which of
 // code->co_varnames, code->cellvars, or code->freevars contains the name of
 // the variable. Return that tuple and adjust idx as needed.
