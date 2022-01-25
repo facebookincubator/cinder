@@ -37,6 +37,95 @@ except:
         return func
 
 
+class GetFrameLineNumberTests(unittest.TestCase):
+    def assert_code_and_lineno(self, frame, func, lineno):
+        self.assertEqual(frame.f_code, func.__code__)
+        self.assertEqual(frame.f_lineno, lineno)
+
+    def test_line_numbers(self):
+        """Verify that line numbers are correct"""
+
+        @unittest.failUnlessJITCompiled
+        def g():
+            return sys._getframe()
+
+        self.assert_code_and_lineno(g(), g, 50)
+
+    def test_line_numbers_for_running_generators(self):
+        """Verify that line numbers are correct for running generator functions"""
+
+        @unittest.failUnlessJITCompiled
+        def g(x, y):
+            yield sys._getframe()
+            z = x + y
+            yield sys._getframe()
+            yield z
+
+        initial_lineno = 59
+        gen = g(1, 2)
+        frame = next(gen)
+        self.assert_code_and_lineno(frame, g, initial_lineno)
+        frame = next(gen)
+        self.assert_code_and_lineno(frame, g, initial_lineno + 2)
+        self.assertEqual(next(gen), 3)
+
+    def test_line_numbers_for_suspended_generators(self):
+        """Verify that line numbers are correct for suspended generator functions"""
+
+        @unittest.failUnlessJITCompiled
+        def g(x):
+            x = x + 1
+            yield x
+            z = x + 1
+            yield z
+
+        gen = g(0)
+        initial_lineno = 75
+        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno)
+        v = next(gen)
+        self.assertEqual(v, 1)
+        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno + 3)
+        v = next(gen)
+        self.assertEqual(v, 2)
+        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno + 5)
+
+    def test_line_numbers_during_gen_throw(self):
+        """Verify that line numbers are correct for suspended generator functions when
+        an exception is thrown into them.
+        """
+
+        @unittest.failUnlessJITCompiled
+        def f1(g):
+            yield from g
+
+        @unittest.failUnlessJITCompiled
+        def f2(g):
+            yield from g
+
+        gen1, gen2 = None, None
+        gen1_frame, gen2_frame = None, None
+
+        @unittest.failUnlessJITCompiled
+        def f3():
+            nonlocal gen1_frame, gen2_frame
+            try:
+                yield "hello"
+            except TestException:
+                gen1_frame = gen1.gi_frame
+                gen2_frame = gen2.gi_frame
+                raise
+
+        gen3 = f3()
+        gen2 = f2(gen3)
+        gen1 = f1(gen2)
+        gen1.send(None)
+        with self.assertRaises(TestException):
+            gen1.throw(TestException())
+        initial_lineno = 99
+        self.assert_code_and_lineno(gen1_frame, f1, initial_lineno)
+        self.assert_code_and_lineno(gen2_frame, f2, initial_lineno + 4)
+
+
 # Decorator to return a new version of the function with an alternate globals
 # dict.
 def with_globals(gbls):
@@ -3220,90 +3309,6 @@ class GetFrameTests(unittest.TestCase):
             _outer(args, kwargs)
         finally:
             gc.set_threshold(*thresholds)
-
-    def assert_code_and_lineno(self, frame, func, lineno):
-        self.assertEqual(frame.f_code, func.__code__)
-        self.assertEqual(frame.f_lineno, lineno)
-
-    def test_line_numbers(self):
-        """Verify that line numbers are correct"""
-
-        @unittest.failUnlessJITCompiled
-        def g():
-            return sys._getframe()
-
-        self.assert_code_and_lineno(g(), g, 3152)
-
-    def test_line_numbers_for_running_generators(self):
-        """Verify that line numbers are correct for running generator functions"""
-
-        @unittest.failUnlessJITCompiled
-        def g(x, y):
-            yield sys._getframe()
-            z = x + y
-            yield sys._getframe()
-            yield z
-
-        gen = g(1, 2)
-        frame = next(gen)
-        self.assert_code_and_lineno(frame, g, 3161)
-        frame = next(gen)
-        self.assert_code_and_lineno(frame, g, 3163)
-        self.assertEqual(next(gen), 3)
-
-    def test_line_numbers_for_suspended_generators(self):
-        """Verify that line numbers are correct for suspended generator functions"""
-
-        @unittest.failUnlessJITCompiled
-        def g(x):
-            x = x + 1
-            yield x
-            z = x + 1
-            yield z
-
-        gen = g(0)
-        self.assert_code_and_lineno(gen.gi_frame, g, 3176)
-        v = next(gen)
-        self.assertEqual(v, 1)
-        self.assert_code_and_lineno(gen.gi_frame, g, 3179)
-        v = next(gen)
-        self.assertEqual(v, 2)
-        self.assert_code_and_lineno(gen.gi_frame, g, 3181)
-
-    def test_line_numbers_during_gen_throw(self):
-        """Verify that line numbers are correct for suspended generator functions when
-        an exception is thrown into them.
-        """
-
-        @unittest.failUnlessJITCompiled
-        def f1(g):
-            yield from g
-
-        @unittest.failUnlessJITCompiled
-        def f2(g):
-            yield from g
-
-        gen1, gen2 = None, None
-        gen1_frame, gen2_frame = None, None
-
-        @unittest.failUnlessJITCompiled
-        def f3():
-            nonlocal gen1_frame, gen2_frame
-            try:
-                yield "hello"
-            except TestException:
-                gen1_frame = gen1.gi_frame
-                gen2_frame = gen2.gi_frame
-                raise
-
-        gen3 = f3()
-        gen2 = f2(gen3)
-        gen1 = f1(gen2)
-        gen1.send(None)
-        with self.assertRaises(TestException):
-            gen1.throw(TestException())
-        self.assert_code_and_lineno(gen1_frame, f1, 3199)
-        self.assert_code_and_lineno(gen2_frame, f2, 3203)
 
 
 class GetGenFrameDuringThrowTest(unittest.TestCase):
