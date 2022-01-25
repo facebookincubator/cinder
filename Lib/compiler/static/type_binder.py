@@ -1464,7 +1464,9 @@ class TypeBinder(GenericVisitor):
             del self.decl_types[hname]
             del self.local_types[hname]
 
-    def iterate_to_fixed_point(self, body: Sequence[ast.stmt]) -> None:
+    def iterate_to_fixed_point(
+        self, body: Sequence[ast.stmt], test: ast.expr | None = None
+    ) -> None:
         """Iterate given loop body until local types reach a fixed point."""
         branch: LocalsBranch | None = None
         counter = 0
@@ -1480,21 +1482,26 @@ class TypeBinder(GenericVisitor):
                 # types seen? fall back to declared type?
                 raise AssertionError("Too many loops in fixed-point iteration.")
             with self.temporary_error_sink(CollectingErrorSink()):
+                if test is not None:
+                    effect = self.visit(test) or NO_EFFECT
+                    effect.apply(self.local_types)
                 terminates = self.visit_until_terminates(body)
                 # reset any declarations from the loop body to avoid redeclaration errors
                 self.binding_scope.decl_types = entry_decls.copy()
                 if terminates:
-                    # no need to iterate further if the loop terminates
+                    # no need to iterate if the loop terminates
+                    branch.restore()
                     break
             branch.merge()
 
     def visitWhile(self, node: While) -> None:
         branch = self.scopes[-1].branch()
 
+        self.iterate_to_fixed_point(node.body, node.test)
+
         effect = self.visit(node.test) or NO_EFFECT
         effect.apply(self.local_types)
 
-        self.iterate_to_fixed_point(node.body)
         while_returns = self.visit_until_terminates(node.body) == TerminalKind.Return
         if while_returns:
             branch.restore()
