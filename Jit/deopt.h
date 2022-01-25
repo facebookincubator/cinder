@@ -5,6 +5,7 @@
 
 #include "Jit/codegen/x86_64.h"
 #include "Jit/hir/hir.h"
+#include "Jit/jit_rt.h"
 
 #include <cstdint>
 #include <vector>
@@ -172,6 +173,7 @@ Ref<> reifyFrame(
     PyFrameObject* frame,
     std::size_t deopt_idx,
     const DeoptMetadata& meta,
-    const uint64_t* regs);
+    const uint64_t* regs,
+    const JITRT_CallMethodKind* call_method_kind);
 
 } // namespace jit

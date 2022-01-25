@@ -918,8 +918,9 @@ void NativeGenerator::generateDeoptExits() {
   }
   // Generate the stage 2 trampoline (one per function). This saves the address
   // of the final part of the JIT-epilogue that is responsible for restoring
-  // callee-saved registers and returning, our scratch register (since we need
-  // it), and jumps to the final trampoline.
+  // callee-saved registers and returning, our scratch register, whose original
+  // contents may be needed during frame reification, and jumps to the final
+  // trampoline.
   as_->bind(deopt_exit);
   as_->push(deopt_scratch_reg);
   as_->push(deopt_scratch_reg);
@@ -1251,13 +1252,15 @@ static PyFrameObject* prepareForDeopt(
     const uint64_t* regs,
     Runtime* runtime,
     std::size_t deopt_idx,
-    int* err_occurred) {
+    int* err_occurred,
+    const JITRT_CallMethodKind* call_method_kind) {
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
   PyFrameObject* frame = nullptr;
   Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate);
   frame = f.release();
-  Ref<> deopt_obj = reifyFrame(frame, deopt_idx, deopt_meta, regs);
+  Ref<> deopt_obj =
+      reifyFrame(frame, deopt_idx, deopt_meta, regs, call_method_kind);
   if (!PyErr_Occurred()) {
     auto reason = deopt_meta.reason;
     switch (reason) {
@@ -1364,16 +1367,25 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   Annotations annot;
 
   auto annot_cursor = a.cursor();
-  // Save registers.
-  //
-  // When we get here the stack looks like:
+  // When we get here the stack has the following layout. The space on the
+  // stack for the call arg buffer / LOAD_METHOD scratch space is always safe
+  // to read, but its contents will depend on the function being compiled as
+  // well as the program point at which deopt occurs. We pass a pointer to it
+  // into the frame reification code so that it can properly reconstruct the
+  // interpreter's stack when the the result of a LOAD_METHOD is on the
+  // stack. See the comments in reifyStack in deopt.cpp for more details.
   //
   // +-------------------------+
-  // | ...
+  // | ...                     |
+  // | ? call arg buffer       |
+  // | ^ LOAD_METHOD scratch   |
+  // +-------------------------+ <-- end of JIT's fixed frame
   // | index of deopt metadata |
   // | address of epilogue     |
   // | r15                     | <-- rsp
   // +-------------------------+
+  //
+  // Save registers.
   a.push(x86::r14);
   a.push(x86::r13);
   a.push(x86::r12);
@@ -1411,10 +1423,18 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   // returns, so we reuse the space on the stack to store whether or not we're
   // deopting into a except/finally block.
   a.lea(x86::rcx, deopt_meta_addr);
+  auto call_method_kind_addr =
+      x86::ptr(x86::rsp, (PhyLocation::NUM_GP_REGS + 2) * kPointerSize);
+  a.lea(x86::r8, call_method_kind_addr);
   static_assert(
       std::is_same_v<
           decltype(prepareForDeopt),
-          PyFrameObject*(const uint64_t*, Runtime*, std::size_t, int*)>,
+          PyFrameObject*(
+              const uint64_t*,
+              Runtime*,
+              std::size_t,
+              int*,
+              const JITRT_CallMethodKind*)>,
       "prepareForDeopt has unexpected signature");
   a.call(reinterpret_cast<uint64_t>(prepareForDeopt));
 
