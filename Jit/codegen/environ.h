@@ -74,6 +74,24 @@ struct Environ {
   };
   std::vector<PendingDeoptPatcher> pending_deopt_patchers;
 
+  // Maps points in the compiled code to bytecode offsets in the code object
+  struct PendingIPtoBCOff {
+    PendingIPtoBCOff(asmjit::Label ip_, int bc_off_)
+        : ip(ip_), bc_off(bc_off_) {}
+
+    // Point in the compiled code
+    asmjit::Label ip;
+
+    int bc_off;
+  };
+  std::vector<PendingIPtoBCOff> pending_ip_to_bc_offs;
+
+  // Record that label corresponds to the bytcode offset that was ultimately
+  // lowered into the supplied lir instruction.
+  void addIPToBCMapping(
+      asmjit::Label label,
+      const jit::lir::Instruction* instr);
+
   // Load/Call method instructions for which we can avoid allocating a bound
   // method.
   std::unordered_set<const jit::hir::Instr*> optimizable_load_call_methods_;

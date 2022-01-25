@@ -36,6 +36,19 @@ void CodeRuntime::addReference(PyObject* obj) {
   references_.emplace(obj);
 }
 
+void CodeRuntime::addIPtoBCOff(uintptr_t ip, int bc_off) {
+  JIT_CHECK(bc_off >= -1, "invalid bc_off: %d", bc_off);
+  ip_to_bc_off_.emplace(ip, bc_off);
+}
+
+std::optional<int> CodeRuntime::getBCOffForIP(uintptr_t ip) const {
+  auto it = ip_to_bc_off_.find(ip);
+  if (it == ip_to_bc_off_.end()) {
+    return {};
+  }
+  return it->second;
+}
+
 PyObject* GenYieldPoint::yieldFromValue(GenDataFooter* gen_footer) const {
   if (!isYieldFrom_) {
     return NULL;

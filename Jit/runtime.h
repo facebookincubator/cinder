@@ -11,6 +11,7 @@
 #include "Jit/type_profiler.h"
 #include "Jit/util.h"
 
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -127,6 +128,10 @@ class GenYieldPoint {
     resume_target_ = resume_target;
   }
 
+  uint64_t resumeTarget() const {
+    return resume_target_;
+  }
+
   int visitRefs(PyGenObject* gen, visitproc visit, void* arg) const;
   void releaseRefs(PyGenObject* gen) const;
   PyObject* yieldFromValue(GenDataFooter* gen_footer) const;
@@ -219,6 +224,20 @@ class CodeRuntime {
     return &gen_yield_points_.back();
   }
 
+  void set_frame_size(int size) {
+    frame_size_ = size;
+  }
+  int frame_size() const {
+    return frame_size_;
+  }
+
+  // Add or lookup a mapping from a point in generated code to corresponding
+  // bytecode offset.
+  void addIPtoBCOff(uintptr_t ip, int bc_off);
+
+  // Returns the bytecode offset for the given address in generated code.
+  std::optional<int> getBCOffForIP(uintptr_t ip) const;
+
   static const int64_t kPyCodeOffset;
 
  private:
@@ -235,6 +254,11 @@ class CodeRuntime {
 
   // Metadata about yield points. Deque so we can have raw pointers to content.
   std::deque<GenYieldPoint> gen_yield_points_;
+
+  int frame_size_{-1};
+
+  // Map of address in compiled code to bytecode offset
+  std::unordered_map<uintptr_t, int> ip_to_bc_off_;
 };
 
 // Information about the runtime behavior of a single deopt point: how often

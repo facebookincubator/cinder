@@ -465,7 +465,9 @@ JIT_OBJS=       \
 		Jit/codegen/annotations.o \
 		Jit/codegen/autogen.o \
 		Jit/codegen/copy_graph.o \
+		Jit/codegen/environ.o \
 		Jit/codegen/gen_asm.o \
+		Jit/codegen/gen_asm_utils.o \
 		Jit/codegen/inliner.o \
 		Jit/codegen/postalloc.o \
 		Jit/codegen/postgen.o \

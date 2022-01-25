@@ -3,6 +3,7 @@
 
 #include "Python.h"
 #include "frameobject.h"
+#include "internal/pycore_shadow_frame_struct.h"
 
 #include "Jit/ref.h"
 
@@ -10,7 +11,17 @@ namespace jit {
 
 class CodeRuntime;
 
-// Materialize all the Python frames for the shadow stack associated with tstate
+// FrameHeader lives at the beginning of the stack frame for JIT-compiled
+// functions.
+struct FrameHeader {
+  _PyShadowFrame shadow_frame;
+
+  // The CodeRuntime for the function that is executing.
+  CodeRuntime* code_rt;
+};
+
+// Materialize all the Python frames for the shadow stack associated with
+// tstate.
 //
 // Returns a borrowed reference to top of the Python stack (tstate->frame).
 BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate);

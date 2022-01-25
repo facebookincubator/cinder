@@ -7,6 +7,7 @@
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -109,6 +110,10 @@ struct DeoptMetadata {
 
   // The offset of the next bytecode instruction to execute.
   int next_instr_offset{0};
+  int instr_offset() const {
+    return std::max(
+        next_instr_offset - static_cast<int>(sizeof(_Py_CODEUNIT)), -1);
+  }
 
   // An identifier that can be used to map back to the guard from which
   // this was generated.

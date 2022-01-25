@@ -337,6 +337,7 @@ void emitStoreGenYieldPoint(
       GenYieldPoint{std::move(pyobj_offs), is_yield_from, yield_from_offset});
 
   env->unresolved_gen_entry_labels.emplace(gen_yield_point, resume_label);
+  env->addIPToBCMapping(resume_label, yield);
 
   as->mov(scratch_r, reinterpret_cast<uint64_t>(gen_yield_point));
   auto yieldPointOffset = offsetof(GenDataFooter, yieldPoint);
@@ -384,11 +385,12 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   as->mov(x86::rdx, (env->spill_size / kPointerSize) + 1);
   as->mov(x86::rcx, reinterpret_cast<uint64_t>(env->code_rt));
   if (env->code_rt->GetCode()->co_flags & CO_COROUTINE) {
-    as->call(reinterpret_cast<uint64_t>(JITRT_MakeGenObjectCoro));
+    emitCall(*env, reinterpret_cast<uint64_t>(JITRT_MakeGenObjectCoro), instr);
   } else if (env->code_rt->GetCode()->co_flags & CO_ASYNC_GENERATOR) {
-    as->call(reinterpret_cast<uint64_t>(JITRT_MakeGenObjectAsyncGen));
+    emitCall(
+        *env, reinterpret_cast<uint64_t>(JITRT_MakeGenObjectAsyncGen), instr);
   } else {
-    as->call(reinterpret_cast<uint64_t>(JITRT_MakeGenObject));
+    emitCall(*env, reinterpret_cast<uint64_t>(JITRT_MakeGenObject), instr);
   }
   // Resulting generator is now in RAX for filling in below and epilogue return.
   const auto gen_reg = x86::rax;
@@ -505,7 +507,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   JIT_CHECK(iter_loc < 0, "Iter should be spilled");
   as->mov(x86::rdi, x86::ptr(x86::rbp, iter_loc));
 
-  as->call(reinterpret_cast<uint64_t>(JITRT_YieldFrom));
+  emitCall(*env, reinterpret_cast<uint64_t>(JITRT_YieldFrom), instr);
   // Yielded or final result value now in RAX. If the result was NULL then
   // done will be set so we'll correctly jump to the following CheckExc.
   const auto yf_result_phys_reg = PhyLocation::RAX;
@@ -734,6 +736,14 @@ struct RuleActions<> {
   static void eval(Environ*, const Instruction*) {}
 };
 
+struct AddIPToBCMappingAction {
+  static void eval(Environ* env, const Instruction* instr) {
+    asmjit::Label label = env->as->newLabel();
+    env->as->bind(label);
+    env->addIPToBCMapping(label, instr);
+  }
+};
+
 } // namespace
 
 #define ASM(instr, args...)                    \
@@ -743,6 +753,8 @@ struct RuleActions<> {
       OperandList<args>>
 
 #define CALL(func) CallAction<func>
+
+#define ADDIPMAPPING() AddIPToBCMappingAction
 
 #define BEGIN_RULE_TABLE void AutoTranslator::initTable() {
 #define END_RULE_TABLE }
@@ -821,11 +833,11 @@ BEGIN_RULES(Instruction::kLea)
 END_RULES
 
 BEGIN_RULES(Instruction::kCall)
-  GEN("Ri", ASM(call, OP(1)))
-  GEN("Rr", ASM(call, OP(1)))
-  GEN("i", ASM(call, OP(0)))
-  GEN("r", ASM(call, OP(0)))
-  GEN("m", ASM(call, STK(0)))
+  GEN("Ri", ASM(call, OP(1)), ADDIPMAPPING())
+  GEN("Rr", ASM(call, OP(1)), ADDIPMAPPING())
+  GEN("i", ASM(call, OP(0)), ADDIPMAPPING())
+  GEN("r", ASM(call, OP(0)), ADDIPMAPPING())
+  GEN("m", ASM(call, STK(0)), ADDIPMAPPING())
 END_RULES
 
 BEGIN_RULES(Instruction::kMove)

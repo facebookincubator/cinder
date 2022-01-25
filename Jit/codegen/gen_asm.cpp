@@ -304,6 +304,7 @@ void* NativeGenerator::GetEntryPoint() {
 
   JIT_DCHECK(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = static_cast<int>(code.codeSize());
+  env_.code_rt->set_frame_size(env_.frame_size);
   return entry_;
 }
 
@@ -335,13 +336,13 @@ void NativeGenerator::loadTState(x86::Gp dst_reg) {
   }
 }
 
-void NativeGenerator::linkOnStackShadowFrame(x86::Gp tstate_reg) {
+void NativeGenerator::linkOnStackShadowFrame(
+    x86::Gp tstate_reg,
+    x86::Gp scratch_reg) {
   const jit::hir::Function* func = GetFunction();
   jit::hir::FrameMode frame_mode = func->frameMode;
-  auto scratch_reg = x86::rax;
   using namespace shadow_frame;
   x86::Mem shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
-  as_->push(scratch_reg);
   // Save old top of shadow stack
   as_->mov(scratch_reg, shadow_stack_top_ptr);
   as_->mov(kInFramePrevPtr, scratch_reg);
@@ -353,26 +354,53 @@ void NativeGenerator::linkOnStackShadowFrame(x86::Gp tstate_reg) {
         "Unexpected constant");
     as_->bts(scratch_reg, 0);
   } else {
-    uintptr_t data = _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT);
+    uintptr_t data =
+        _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, PYSF_JIT);
     as_->mov(scratch_reg, data);
   }
   as_->mov(kInFrameDataPtr, scratch_reg);
   // Set our shadow frame as top of shadow stack
   as_->lea(scratch_reg, kFramePtr);
   as_->mov(shadow_stack_top_ptr, scratch_reg);
-  as_->pop(scratch_reg);
+}
+
+void NativeGenerator::initializeFrameHeader(
+    x86::Gp tstate_reg,
+    x86::Gp scratch_reg) {
+  // Save pointer to the CodeRuntime
+  // TODO(mpage) - This is only necessary in the prologue when in normal-frame
+  // mode. We can lazily fill this when the frame is materialized in
+  // shadow-frame mode. Not sure if the added complexity is worth the two
+  // instructions we would save...
+  as_->mov(scratch_reg, reinterpret_cast<uintptr_t>(env_.code_rt));
+  as_->mov(
+      x86::ptr(
+          x86::rbp,
+          -static_cast<int>(offsetof(FrameHeader, code_rt)) - kPointerSize),
+      scratch_reg);
+  // Generator shadow frames live in generator objects and only get linked in
+  // on the first resume.
+  if (!isGen()) {
+    linkOnStackShadowFrame(tstate_reg, scratch_reg);
+  }
 }
 
 int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
-  // During execution, the stack looks like this: (items marked with *
-  // represent 0 or more words, items marked with ? represent 0 or 1 words,
-  // items marked with ^ share the space from the item above):
+  // During execution, the stack looks like the diagram below. The column to
+  // left indicates how many words on the stack each line occupies.
+  //
+  // Legend:
+  //  - <empty> - 1 word
+  //  - N       - A fixed number of words > 1
+  //  - *       - 0 or more words
+  //  - ?       - 0 or 1 words
+  //  - ^       - shares the space with the item above
   //
   // +-----------------------+
   // | * memory arguments    |
   // |   return address      |
   // |   saved rbp           | <-- rbp
-  // |   shadow frame?       |
+  // | N frame header        | See frame.h
   // | * spilled values      |
   // | ? alignment padding   |
   // | * callee-saved regs   |
@@ -396,11 +424,10 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   as_->sub(x86::rsp, spill_stack);
   env_.last_callee_saved_reg_off = spill_stack + saved_regs_size;
 
-  // Generator shadow frames live in generator objects and only get linked in
-  // on the first resume.
-  if (!isGen()) {
-    linkOnStackShadowFrame(tstate_reg);
-  }
+  x86::Gp scratch_reg = x86::rax;
+  as_->push(scratch_reg);
+  initializeFrameHeader(tstate_reg, scratch_reg);
+  as_->pop(scratch_reg);
 
   // Push used callee-saved registers.
   while (!saved_regs.Empty()) {
@@ -914,7 +941,8 @@ void NativeGenerator::generateDeoptExits() {
   for (const auto& exit : deopt_exits) {
     as_->bind(exit.label);
     as_->push(exit.deopt_meta_index);
-    as_->call(deopt_exit);
+    const auto& deopt_meta = env_.rt->getDeoptMetadata(exit.deopt_meta_index);
+    emitCall(env_, deopt_exit, deopt_meta.instr_offset());
   }
   // Generate the stage 2 trampoline (one per function). This saves the address
   // of the final part of the JIT-epilogue that is responsible for restoring
@@ -971,6 +999,15 @@ void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
     uint64_t patchpoint = base + code.labelOffset(udp.patchpoint);
     uint64_t deopt_exit = base + code.labelOffset(udp.deopt_exit);
     udp.patcher->link(patchpoint, deopt_exit);
+  }
+}
+
+void NativeGenerator::linkIPtoBCMappings(const asmjit::CodeHolder& code) {
+  JIT_CHECK(code.hasBaseAddress(), "code not generated!");
+  uint64_t base = code.baseAddress();
+  for (const auto& mapping : env_.pending_ip_to_bc_offs) {
+    uintptr_t ip = base + code.labelOffsetFromBase(mapping.ip);
+    env_.code_rt->addIPtoBCOff(ip, mapping.bc_off);
   }
 }
 
@@ -1162,6 +1199,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       "bad re-entry offset");
 
   linkDeoptPatchers(codeholder);
+  linkIPtoBCMappings(codeholder);
 
   entry_ = ((char*)entry_) + codeholder.labelOffset(entry_label);
 
@@ -1289,6 +1327,10 @@ static PyFrameObject* prepareForDeopt(
   PyFrameObject* frame = nullptr;
   Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate);
   frame = f.release();
+  // Transfer ownership of shadow frame to the interpreter. The associated
+  // Python frame will be ignored during future attempts to materialize the
+  // stack.
+  _PyShadowFrame_SetOwner(tstate->shadow_frame, PYSF_INTERP);
   Ref<> deopt_obj =
       reifyFrame(frame, deopt_idx, deopt_meta, regs, call_method_kind);
   if (!PyErr_Occurred()) {
@@ -1674,7 +1716,7 @@ bool NativeGenerator::isPredefinedUsed(const char* name) {
 }
 
 int NativeGenerator::calcFrameHeaderSize(const hir::Function* func) {
-  return func == nullptr ? 0 : sizeof(_PyShadowFrame);
+  return func == nullptr ? 0 : sizeof(FrameHeader);
 }
 
 } // namespace codegen

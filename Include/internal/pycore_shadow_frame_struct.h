@@ -15,9 +15,11 @@
  *
  * When a user requests a Python frame for a JIT-compiled function, the runtime
  * will allocate one and insert it into the appropriate place in chain of
- * PyFrameObjects. If the JIT-compiled function corresponded to a generator, the
- * newly allocated PyFrameObject will be linked to the corresponding generator
- * for the rest of its execution.
+ * PyFrameObjects. If the JIT-compiled function corresponded to a generator,
+ * the newly allocated PyFrameObject will be linked to the corresponding
+ * generator for the rest of its execution. Subsequent requests for a Python
+ * frame will update the previously allocated Python frame to reflect the
+ * current execution state of the JIT-compiled function.
  *
  * In addition to allowing materialization of PyFrameObjects, shadow frames
  * provide enough information for introspection of the PyCodeObject's for all
@@ -44,12 +46,15 @@ typedef struct _PyShadowFrame {
    * This data field holds a pointer in the upper bits and meta-data in the
    * lower bits. The format is as follows:
    *
-   *   [pointer: void*][pointer_kind: _PyShadowFrame_PtrKind]
-   *    62 bits         2 bits
+   *   [ pointer ][ owner ][ pointer_kind ]
+   *     61 bits    1 bit    2 bits
+   *
+   * - pointer      - void*
+   * - owner        - _PyShadowFrameOwner
+   * - pointer_kind - _PyShadowFrame_PtrKind
    *
    * The contents of `pointer` depends on the value of `pointer_kind`. See below
-   * in the definition of _PyShadowFrame_PtrKind for details. A full 64 bit
-   * pointer takes the 63 bits with the bottom bits padded with zeros.
+   * in the definition of _PyShadowFrame_PtrKind for details.
    */
   uintptr_t data;
 } _PyShadowFrame;
@@ -71,5 +76,22 @@ typedef enum {
    * kinds. */
   PYSF_DUMMY = 0b11,
 } _PyShadowFrame_PtrKind;
+
+/* Who is responsible for unlinking the frame.
+ *
+ * This is used by the JIT to determine which, if any, pre-existing
+ * PyFrameObjects it needs to update when user code requests a frame. There may
+ * be shadow frames for JIT-compiled functions that are on the call stack for
+ * which corresponding PyFrameObjects have already been allocated. Those
+ * PyFrameObjects should be updated to reflect the current execution state of
+ * the corresponding Python function. However, we want to ignore PyFrameObjects
+ * for shadow frames that are owned by the interpreter. Both cases will have a
+ * `pointer_kind` of `PYSF_PYFRAME`; we use the `owner` field to disambiguate
+ * between the two.
+ */
+typedef enum {
+  PYSF_JIT = 0,
+  PYSF_INTERP = 1,
+} _PyShadowFrame_Owner;
 
 #endif /* !Py_SHADOW_FRAME_STRUCT_H */

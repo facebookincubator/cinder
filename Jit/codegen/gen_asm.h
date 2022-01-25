@@ -95,7 +95,12 @@ class NativeGenerator {
   int calcFrameHeaderSize(const hir::Function* func);
   void generateCode(asmjit::CodeHolder& code);
   void generateFunctionEntry();
-  void linkOnStackShadowFrame(asmjit::x86::Gp tstate_reg);
+  void linkOnStackShadowFrame(
+      asmjit::x86::Gp tstate_reg,
+      asmjit::x86::Gp scratch_reg);
+  void initializeFrameHeader(
+      asmjit::x86::Gp tstate_reg,
+      asmjit::x86::Gp scratch_reg);
   int setupFrameAndSaveCallerRegisters(asmjit::x86::Gp tstate_reg);
   void generatePrologue(
       asmjit::Label correct_arg_count,
@@ -108,6 +113,7 @@ class NativeGenerator {
   void generateEpilogueUnlinkFrame(asmjit::x86::Gp tstate_reg, bool is_gen);
   void generateDeoptExits();
   void linkDeoptPatchers(const asmjit::CodeHolder& code);
+  void linkIPtoBCMappings(const asmjit::CodeHolder& code);
   void generateResumeEntry();
   void generateStaticMethodTypeChecks(asmjit::Label setup_frame);
   void generateStaticEntryPoint(

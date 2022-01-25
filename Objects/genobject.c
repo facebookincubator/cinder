@@ -1134,8 +1134,8 @@ gen_new_with_qualname(PyGenObject *gen,
     gen->gi_shadow_frame.prev = NULL;
     // Code_rt object for JIT functions are set by the calling JITRT function.
     if (f) {
-        gen->gi_shadow_frame.data =
-            _PyShadowFrame_MakeData(f, PYSF_PYFRAME);
+      gen->gi_shadow_frame.data =
+          _PyShadowFrame_MakeData(f, PYSF_PYFRAME, PYSF_INTERP);
     }
 #ifdef Py_DEBUG
     else {

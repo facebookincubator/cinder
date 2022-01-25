@@ -14,15 +14,43 @@
 extern "C" {
 #endif
 
+// TODO(mpage) - Generalize bit setting/getting into helpers?
+static const unsigned int _PyShadowFrame_NumTagBits = 3;
+static const uintptr_t _PyShadowFrame_TagMask =
+    (1 << _PyShadowFrame_NumTagBits) - 1;
+static const uintptr_t _PyShadowFrame_PtrMask = ~_PyShadowFrame_TagMask;
+
+#define TAG_MASK(num_bits, off) ((1 << num_bits) - 1) << off
+
 static const unsigned int _PyShadowFrame_NumPtrKindBits = 2;
+static const unsigned int _PyShadowFrame_PtrKindOff = 0;
 static const uintptr_t _PyShadowFrame_PtrKindMask =
-    (1 << _PyShadowFrame_NumPtrKindBits) - 1;
-static const uintptr_t _PyShadowFrame_PtrMask = ~_PyShadowFrame_PtrKindMask;
+    TAG_MASK(_PyShadowFrame_NumPtrKindBits, _PyShadowFrame_PtrKindOff);
+
+static const unsigned int _PyShadowFrame_NumOwnerBits = 1;
+static const unsigned int _PyShadowFrame_OwnerOff =
+    _PyShadowFrame_NumPtrKindBits;
+static const uintptr_t _PyShadowFrame_OwnerMask =
+    TAG_MASK(_PyShadowFrame_NumOwnerBits, _PyShadowFrame_OwnerOff);
+
+#undef TAG_MASK
 
 static inline _PyShadowFrame_PtrKind
 _PyShadowFrame_GetPtrKind(_PyShadowFrame *shadow_frame) {
   return (_PyShadowFrame_PtrKind)(shadow_frame->data &
                                   _PyShadowFrame_PtrKindMask);
+}
+
+static inline void _PyShadowFrame_SetOwner(_PyShadowFrame *shadow_frame,
+                                           _PyShadowFrame_Owner owner) {
+  uintptr_t data = shadow_frame->data & ~_PyShadowFrame_OwnerMask;
+  shadow_frame->data = data | (owner << _PyShadowFrame_OwnerOff);
+}
+
+static inline _PyShadowFrame_Owner
+_PyShadowFrame_GetOwner(_PyShadowFrame *shadow_frame) {
+  uintptr_t data = shadow_frame->data & _PyShadowFrame_OwnerMask;
+  return (_PyShadowFrame_Owner)(data >> _PyShadowFrame_OwnerOff);
 }
 
 static inline void *_PyShadowFrame_GetPtr(_PyShadowFrame *shadow_frame) {
@@ -38,10 +66,12 @@ _PyShadowFrame_GetPyFrame(_PyShadowFrame *shadow_frame) {
 int _PyShadowFrame_HasGen(_PyShadowFrame *shadow_frame);
 PyGenObject *_PyShadowFrame_GetGen(_PyShadowFrame *shadow_frame);
 
-static inline uintptr_t
-_PyShadowFrame_MakeData(void *ptr, _PyShadowFrame_PtrKind ptr_kind) {
+static inline uintptr_t _PyShadowFrame_MakeData(void *ptr,
+                                                _PyShadowFrame_PtrKind ptr_kind,
+                                                _PyShadowFrame_Owner owner) {
   assert(((uintptr_t)ptr & _PyShadowFrame_PtrKindMask) == 0);
-  return (uintptr_t)ptr | ptr_kind;
+  return (uintptr_t)ptr | (owner << _PyShadowFrame_OwnerOff) |
+         (ptr_kind << _PyShadowFrame_PtrKindOff);
 }
 
 static inline void _PyShadowFrame_PushInterp(PyThreadState *tstate,
@@ -49,7 +79,8 @@ static inline void _PyShadowFrame_PushInterp(PyThreadState *tstate,
                                              PyFrameObject *py_frame) {
   shadow_frame->prev = tstate->shadow_frame;
   tstate->shadow_frame = shadow_frame;
-  shadow_frame->data = _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME);
+  shadow_frame->data =
+      _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_INTERP);
 }
 
 static inline void _PyShadowFrame_Pop(PyThreadState *tstate,

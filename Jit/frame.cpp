@@ -68,6 +68,119 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
   return result;
 }
 
+// Return the base of the stack frame given its shadow frame.
+uintptr_t getFrameBaseFromOnStackShadowFrame(_PyShadowFrame* shadow_frame) {
+  // The shadow frame is embedded in the frame header at the beginning of the
+  // stack frame.
+  return reinterpret_cast<uintptr_t>(shadow_frame) +
+      offsetof(FrameHeader, shadow_frame) + sizeof(_PyShadowFrame);
+}
+
+CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
+  JIT_CHECK(
+      _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
+      "shadow frame not owned by the JIT");
+  if (is_shadow_frame_for_gen(shadow_frame)) {
+    // The shadow frame belongs to a generator; retrieve the CodeRuntime
+    // directly from the generator.
+    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    return reinterpret_cast<GenDataFooter*>(gen->gi_jit_data)->code_rt;
+  }
+  // The shadow frame belongs to a JIT-compiled function that is on the stack;
+  // read the CodeRuntime from the stack.
+  uintptr_t frame_base = getFrameBaseFromOnStackShadowFrame(shadow_frame);
+  CodeRuntime* ret = nullptr;
+  uintptr_t code_rt_loc =
+      frame_base - offsetof(FrameHeader, code_rt) - kPointerSize;
+  memcpy(&ret, reinterpret_cast<CodeRuntime*>(code_rt_loc), kPointerSize);
+  return ret;
+}
+
+// Find a shadow frame in the call stack. If the frame was found, returns the
+// last Python frame seen during the search, or nullptr if there was none.
+std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
+    PyThreadState* tstate,
+    _PyShadowFrame* needle) {
+  PyFrameObject* prev_py_frame = nullptr;
+  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+  while (shadow_frame) {
+    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+      prev_py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+    } else if (shadow_frame == needle) {
+      return prev_py_frame;
+    }
+    shadow_frame = shadow_frame->prev;
+  }
+  return {};
+}
+
+// Return whether or not needle is linked into a call stack
+bool isShadowFrameLinked(PyThreadState* tstate, _PyShadowFrame* needle) {
+  if (tstate->shadow_frame == needle || needle->prev != nullptr) {
+    return true;
+  }
+  // Handle the case where needle is the last frame on the call stack
+  return findInnermostPyFrameForShadowFrame(tstate, needle).has_value();
+}
+
+// Return the instruction pointer for the JIT-compiled function that is
+// executing shadow_frame.
+uintptr_t
+getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
+  JIT_CHECK(
+      _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
+      "shadow frame not executed by the JIT");
+  uintptr_t frame_base;
+  if (is_shadow_frame_for_gen(shadow_frame)) {
+    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    auto footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+    if (gen->gi_running && isShadowFrameLinked(tstate, shadow_frame)) {
+      // The generator is running. Under rare circumstances the generater will
+      // be marked as running but won't yet be resumed. We check to make sure
+      // the shadow frame in linked into the call stack to account for this
+      // case. See the comment in materializePyFrameForGen() for details.
+      frame_base = footer->originalRbp;
+    } else {
+      // The generator is suspended.
+      return footer->yieldPoint->resumeTarget();
+    }
+  } else {
+    frame_base = getFrameBaseFromOnStackShadowFrame(shadow_frame);
+  }
+  // Read the saved IP from the stack
+  uintptr_t ip;
+  auto saved_ip =
+      reinterpret_cast<uintptr_t*>(frame_base - frame_size - kPointerSize);
+  memcpy(&ip, saved_ip, kPointerSize);
+  return ip;
+}
+
+// If shadow_frame is being executed by the JIT, update py_frame to reflect the
+// state of the Python function being executed.
+void updatePyFrame(
+    PyThreadState* tstate,
+    BorrowedRef<PyFrameObject> py_frame,
+    _PyShadowFrame* shadow_frame) {
+  if (_PyShadowFrame_GetOwner(shadow_frame) != PYSF_JIT) {
+    // Interpreter is executing this frame; don't touch the PyFrameObject.
+    return;
+  }
+  CodeRuntime* code_rt = getCodeRuntime(shadow_frame);
+  uintptr_t ip = getIP(tstate, shadow_frame, code_rt->frame_size());
+  std::optional<int> bc_off = code_rt->getBCOffForIP(ip);
+  if (!bc_off.has_value()) {
+    // This can happen if we forget to record the address following a call made
+    // by JIT-compiled code. Just emit a warning instead of crashing since this
+    // should only result in incorrect bytecode offsets being reported.
+    auto qn = Ref<>::steal(_PyShadowFrame_GetFullyQualifiedName(shadow_frame));
+    const char* fqname = qn != nullptr ? PyUnicode_AsUTF8(qn) : "<unknown>";
+    JIT_LOG("WARNING: Couldn't find bc off for ip %lx in %s", ip, fqname);
+    return;
+  }
+  py_frame->f_lasti = bc_off.value();
+}
+
+// Create an unlinked PyFrameObject for the given shadow frame.
 Ref<PyFrameObject> createPyFrame(
     PyThreadState* tstate,
     _PyShadowFrame* shadow_frame) {
@@ -101,7 +214,9 @@ Ref<PyFrameObject> createPyFrame(
     gen->gi_frame = py_frame.get();
     Py_INCREF(py_frame);
   }
-  shadow_frame->data = _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME);
+  shadow_frame->data =
+      _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_JIT);
+  updatePyFrame(tstate, py_frame, shadow_frame);
   return py_frame;
 }
 
@@ -132,7 +247,9 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     _PyShadowFrame* shadow_frame,
     PyFrameObject* cursor) {
   if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-    return _PyShadowFrame_GetPyFrame(shadow_frame);
+    PyFrameObject* py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+    updatePyFrame(tstate, py_frame, shadow_frame);
+    return py_frame;
   }
   // Python frame doesn't exist yet, create it and insert it into the
   // call stack.
@@ -141,24 +258,6 @@ BorrowedRef<PyFrameObject> materializePyFrame(
   // Ownership of the new reference is transferred to whomever unlinks the
   // frame (either the JIT epilogue or the interpreter loop).
   return frame.release();
-}
-
-// Find a shadow frame in the call stack. If the frame was found, returns the
-// last Python frame seen during the search, or nullptr if there was none.
-std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
-    PyThreadState* tstate,
-    _PyShadowFrame* needle) {
-  PyFrameObject* prev_py_frame = nullptr;
-  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
-  while (shadow_frame) {
-    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-      prev_py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
-    } else if (shadow_frame == needle) {
-      return prev_py_frame;
-    }
-    shadow_frame = shadow_frame->prev;
-  }
-  return {};
 }
 
 } // namespace
@@ -216,11 +315,12 @@ BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
 BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen) {
+  _PyShadowFrame* shadow_frame = &gen->gi_shadow_frame;
   if (gen->gi_frame) {
+    updatePyFrame(tstate, gen->gi_frame, shadow_frame);
     return gen->gi_frame;
   }
 
-  _PyShadowFrame* shadow_frame = &gen->gi_shadow_frame;
   if (!gen->gi_running) {
     auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
     if (gen_footer->state == _PyJitGenState_Completed) {
