@@ -132,6 +132,7 @@ struct Env {
 Register* simplifyCheck(const CheckBase* instr) {
   // These all check their input for null.
   if (instr->GetOperand(0)->isA(TObject)) {
+    // No UseType is necessary because we never guard potentially-null values.
     return instr->GetOperand(0);
   }
   return nullptr;
@@ -141,6 +142,11 @@ Register* simplifyGuardType(Env& env, const GuardType* instr) {
   Register* input = instr->GetOperand(0);
   Type type = instr->target();
   if (input->isA(type)) {
+    // We don't need a UseType: If an instruction cares about the type of this
+    // GuardType's output, it will express that through its operand type
+    // constraints. Once this GuardType is removed, those constraints will
+    // apply to input's instruction rather than this GuardType, and any
+    // downstream instructions will still be satisfied.
     return input;
   }
   if (type == TNoneType) {
@@ -152,13 +158,18 @@ Register* simplifyGuardType(Env& env, const GuardType* instr) {
 Register* simplifyRefineType(const RefineType* instr) {
   Register* input = instr->GetOperand(0);
   if (input->isA(instr->type())) {
+    // No UseType for the same reason as GuardType above: RefineType itself
+    // doesn't care about the input's type, only users of its output do, and
+    // they're unchanged.
     return input;
   }
   return nullptr;
 }
 
-Register* simplifyIntConvert(const IntConvert* instr) {
-  if (instr->GetOperand(0)->isA(instr->type())) {
+Register* simplifyIntConvert(Env& env, const IntConvert* instr) {
+  Register* src = instr->GetOperand(0);
+  if (src->isA(instr->type())) {
+    env.emit<UseType>(src, instr->type());
     return instr->GetOperand(0);
   }
   return nullptr;
@@ -264,17 +275,13 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
 
 Register* simplifyLoadTupleItem(Env& env, const LoadTupleItem* instr) {
   Register* src = instr->GetOperand(0);
-  Instr* def_instr = src->instr();
-  if (!def_instr->IsLoadConst()) {
+  Type src_ty = src->type();
+  if (!src_ty.hasValueSpec(TTuple)) {
     return nullptr;
   }
-  auto load_const = static_cast<const LoadConst*>(def_instr);
-  Type const_ty = load_const->type();
-  if (!const_ty.hasValueSpec(TTuple)) {
-    return nullptr;
-  }
+  env.emit<UseType>(src, src_ty);
   return env.emit<LoadConst>(
-      Type::fromObject(PyTuple_GET_ITEM(const_ty.objectSpec(), instr->idx())));
+      Type::fromObject(PyTuple_GET_ITEM(src_ty.objectSpec(), instr->idx())));
 }
 
 Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
@@ -297,6 +304,7 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
     // Lists carry a nested array of ob_item whereas tuples are variable-sized
     // structs.
     if (lhs->isA(TListExact)) {
+      env.emit<UseType>(lhs, TListExact);
       array = env.emit<LoadField>(lhs, offsetof(PyListObject, ob_item), TCPtr);
       offset = 0;
     }
@@ -353,6 +361,7 @@ Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
   }
 
   const int cache_id = env.func.env.allocateLoadAttrCache();
+  env.emit<UseType>(receiver, TType);
   Register* guard = env.emit<LoadTypeAttrCacheItem>(cache_id, 0);
   Register* type_matches =
       env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, guard, receiver);
@@ -370,22 +379,21 @@ Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
       });
 }
 
-// If we're loading a field from a const float into a double,
-// this can be simplified into a LoadConst.
+// If we're loading ob_fval from a known float into a double, this can be
+// simplified into a LoadConst.
 Register* simplifyLoadField(Env& env, const LoadField* instr) {
   Register* loadee = instr->GetOperand(0);
   Type load_output_type = instr->GetOutput()->type();
   // Ensure that we are dealing with either a integer or a double.
   Type loadee_type = loadee->type();
-  if (!(loadee_type.hasObjectSpec())) {
+  if (!loadee_type.hasObjectSpec()) {
     return nullptr;
   }
   PyObject* value = loadee_type.objectSpec();
-  if (load_output_type <= TCDouble) {
-    if (!PyFloat_Check(value)) {
-      return nullptr;
-    }
+  if (PyFloat_Check(value) && load_output_type <= TCDouble &&
+      instr->offset() == offsetof(PyFloatObject, ob_fval)) {
     double number = PyFloat_AS_DOUBLE(loadee_type.objectSpec());
+    env.emit<UseType>(loadee, loadee_type);
     return env.emit<LoadConst>(Type::fromCDouble(number));
   }
   return nullptr;
@@ -428,7 +436,7 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
           env, static_cast<const CondBranchCheckType*>(instr));
 
     case Opcode::kIntConvert:
-      return simplifyIntConvert(static_cast<const IntConvert*>(instr));
+      return simplifyIntConvert(env, static_cast<const IntConvert*>(instr));
 
     case Opcode::kIsTruthy:
       return simplifyIsTruthy(env, static_cast<const IsTruthy*>(instr));
