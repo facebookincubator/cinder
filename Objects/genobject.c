@@ -997,13 +997,10 @@ static PyObject *
 gen_getframe(PyGenObject *gen, void *Py_UNUSED(ignored))
 {
     PyFrameObject *frame = gen->gi_frame;
+    if (gen->gi_jit_data) {
+        frame = _PyJIT_GenMaterializeFrame(gen);
+    }
     if (frame == NULL) {
-        if (gen->gi_jit_data) {
-            frame = _PyJIT_GenMaterializeFrame(gen);
-            if (frame != NULL) {
-                return (PyObject *)frame;
-            }
-        }
         Py_RETURN_NONE;
     }
     Py_INCREF(frame);

@@ -1337,31 +1337,8 @@ PyObject* _PyJIT_GenSend(
 }
 
 PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
-  if (gen->gi_frame) {
-    PyFrameObject* frame = gen->gi_frame;
-    Py_INCREF(frame);
-    return frame;
-  }
   PyThreadState* tstate = PyThreadState_Get();
-  if (gen->gi_running) {
-    PyFrameObject* frame = jit::materializePyFrameForGen(tstate, gen);
-    Py_INCREF(frame);
-    return frame;
-  }
-  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-  if (gen_footer->state == _PyJitGenState_Completed) {
-    return nullptr;
-  }
-  jit::CodeRuntime* code_rt = gen_footer->code_rt;
-  PyFrameObject* frame =
-      PyFrame_New(tstate, code_rt->GetCode(), code_rt->GetGlobals(), nullptr);
-  JIT_CHECK(frame != nullptr, "failed allocating frame");
-  // PyFrame_New links the frame into the thread stack.
-  Py_CLEAR(frame->f_back);
-  frame->f_gen = reinterpret_cast<PyObject*>(gen);
-  Py_INCREF(frame);
-  gen->gi_frame = frame;
-  gen->gi_shadow_frame.data = _PyShadowFrame_MakeData(frame, PYSF_PYFRAME);
+  PyFrameObject* frame = jit::materializePyFrameForGen(tstate, gen);
   return frame;
 }
 

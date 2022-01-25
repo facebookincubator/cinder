@@ -68,43 +68,19 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
   return result;
 }
 
-PyFrameObject* createPyFrame(PyThreadState* tstate, jit::CodeRuntime& code_rt) {
-  PyFrameObject* new_frame =
-      PyFrame_New(tstate, code_rt.GetCode(), code_rt.GetGlobals(), nullptr);
-  JIT_CHECK(new_frame != nullptr, "failed allocating frame");
-  // PyFrame_New links the frame into the thread stack.
-  Py_CLEAR(new_frame->f_back);
-  new_frame->f_executing = 1;
-  return new_frame;
-}
-
-BorrowedRef<PyFrameObject> materializePyFrame(
+Ref<PyFrameObject> createPyFrame(
     PyThreadState* tstate,
-    PyFrameObject* prev,
     _PyShadowFrame* shadow_frame) {
-  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-    return _PyShadowFrame_GetPyFrame(shadow_frame);
-  }
-  // Python frame doesn't exist yet, create it and insert it into the
-  // stack. Ownership of the new reference is transferred to whomever
-  // unlinks the frame.
   JIT_CHECK(
       _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
       "Unexpected shadow frame type");
   auto code_rt = static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
-  PyFrameObject* frame = createPyFrame(tstate, *code_rt);
-  if (prev != nullptr) {
-    // New frame steals reference from previous frame to next frame.
-    frame->f_back = prev->f_back;
-    // Need to create a new reference for prev to the newly created frame.
-    Py_INCREF(frame);
-    prev->f_back = frame;
-  } else {
-    Py_XINCREF(tstate->frame);
-    frame->f_back = tstate->frame;
-    // ThreadState holds a borrowed reference
-    tstate->frame = frame;
-  }
+  Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(
+      PyFrame_New(tstate, code_rt->GetCode(), code_rt->GetGlobals(), nullptr));
+  JIT_CHECK(py_frame != nullptr, "failed allocating frame");
+  // PyFrame_New links the frame into the thread stack.
+  Py_CLEAR(py_frame->f_back);
+  py_frame->f_executing = 1;
   if (code_rt->isGen()) {
     // Transfer ownership of the new reference to frame to the generator
     // epilogue.  It handles detecting and unlinking the frame if the generator
@@ -120,20 +96,76 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     // that `_PyJIT_GenSend` handles both linking and unlinking.
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     // f_gen is borrowed
-    frame->f_gen = reinterpret_cast<PyObject*>(gen);
-    gen->gi_frame = frame;
-    Py_INCREF(frame);
+    py_frame->f_gen = reinterpret_cast<PyObject*>(gen);
+    // gi_frame is owned
+    gen->gi_frame = py_frame.get();
+    Py_INCREF(py_frame);
   }
-  shadow_frame->data = _PyShadowFrame_MakeData(frame, PYSF_PYFRAME);
+  shadow_frame->data = _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME);
+  return py_frame;
+}
 
-  return frame;
+void insertPyFrameBefore(
+    PyThreadState* tstate,
+    BorrowedRef<PyFrameObject> frame,
+    BorrowedRef<PyFrameObject> cursor) {
+  if (cursor == nullptr) {
+    // Insert frame at the top of the call stack
+    Py_XINCREF(tstate->frame);
+    frame->f_back = tstate->frame;
+    // ThreadState holds a borrowed reference
+    tstate->frame = frame;
+    return;
+  }
+  // Insert frame immediately before cursor in the call stack
+  // New frame steals reference for cursor->f_back
+  frame->f_back = cursor->f_back;
+  // Need to create a new reference for cursor to the newly created frame.
+  Py_INCREF(frame);
+  cursor->f_back = frame;
+}
+
+// Get the PyFrameObject for shadow_frame or create and insert one before
+// cursor if no PyFrameObject exists.
+BorrowedRef<PyFrameObject> materializePyFrame(
+    PyThreadState* tstate,
+    _PyShadowFrame* shadow_frame,
+    PyFrameObject* cursor) {
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+    return _PyShadowFrame_GetPyFrame(shadow_frame);
+  }
+  // Python frame doesn't exist yet, create it and insert it into the
+  // call stack.
+  Ref<PyFrameObject> frame = createPyFrame(tstate, shadow_frame);
+  insertPyFrameBefore(tstate, frame, cursor);
+  // Ownership of the new reference is transferred to whomever unlinks the
+  // frame (either the JIT epilogue or the interpreter loop).
+  return frame.release();
+}
+
+// Find a shadow frame in the call stack. If the frame was found, returns the
+// last Python frame seen during the search, or nullptr if there was none.
+std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
+    PyThreadState* tstate,
+    _PyShadowFrame* needle) {
+  PyFrameObject* prev_py_frame = nullptr;
+  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+  while (shadow_frame) {
+    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+      prev_py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+    } else if (shadow_frame == needle) {
+      return prev_py_frame;
+    }
+    shadow_frame = shadow_frame->prev;
+  }
+  return {};
 }
 
 } // namespace
 
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
   auto py_frame = Ref<PyFrameObject>::steal(
-      materializePyFrame(tstate, nullptr, tstate->shadow_frame));
+      materializePyFrame(tstate, tstate->shadow_frame, nullptr));
   return py_frame;
 }
 
@@ -170,11 +202,7 @@ BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
 
   while (shadow_frame) {
-    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-      prev_py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
-    } else {
-      prev_py_frame = materializePyFrame(tstate, prev_py_frame, shadow_frame);
-    }
+    prev_py_frame = materializePyFrame(tstate, shadow_frame, prev_py_frame);
     shadow_frame = shadow_frame->prev;
   }
 
@@ -188,49 +216,42 @@ BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
 BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen) {
-  JIT_CHECK(gen->gi_running, "gen must be running");
   if (gen->gi_frame) {
     return gen->gi_frame;
   }
 
-  PyFrameObject* prev_py_frame = nullptr;
-  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
-  while (shadow_frame) {
-    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-      prev_py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
-    } else if (is_shadow_frame_for_gen(shadow_frame)) {
-      PyGenObject* cur_gen = _PyShadowFrame_GetGen(shadow_frame);
-      if (cur_gen == gen) {
-        return materializePyFrame(tstate, prev_py_frame, shadow_frame);
-      }
+  _PyShadowFrame* shadow_frame = &gen->gi_shadow_frame;
+  if (!gen->gi_running) {
+    auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+    if (gen_footer->state == _PyJitGenState_Completed) {
+      return nullptr;
     }
-    shadow_frame = shadow_frame->prev;
+    Ref<PyFrameObject> py_frame = createPyFrame(tstate, shadow_frame);
+    py_frame->f_executing = 0;
+    // It's safe to destroy our reference to the frame; gen holds a strong
+    // reference to the frame which keeps the frame alive.
+    return py_frame;
   }
 
-  // The generator will be marked as running but will not be on the stack when
-  // it appears as a predecessor in a chain of generators into which an
-  // exception was thrown. For example, given an "await stack" of
-  // coroutines like the following, where ` a <- b` indicates a `a` awaits `b`,
+  // Check if the generator's shadow frame is on the call stack. The generator
+  // will be marked as running but will not be on the stack when it appears as
+  // a predecessor in a chain of generators into which an exception was
+  // thrown. For example, given an "await stack" of coroutines like the
+  // following, where ` a <- b` indicates a `a` awaits `b`,
   //
   //   coro0 <- coro1 <- coro2
   //
   // if someone does `coro0.throw(...)`, then `coro0` and `coro1` will be
   // marked as running but will not appear on the stack while `coro2` is
   // handling the exception.
-  JIT_CHECK(gen->gi_jit_data != nullptr, "not a JIT generator!");
-  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-  // Generator owns new reference to py_frame
-  PyFrameObject* py_frame = createPyFrame(tstate, *gen_footer->code_rt);
-  gen->gi_frame = py_frame;
-  // py_frame's reference to gen is borrowed
-  py_frame->f_gen = reinterpret_cast<PyObject*>(gen);
-  _PyShadowFrame_PtrKind kind =
-      _PyShadowFrame_GetPtrKind(&gen->gi_shadow_frame);
-  JIT_CHECK(kind == PYSF_CODE_RT, "incorrect ptr kind %d", kind);
-  gen->gi_shadow_frame.data =
-      _PyShadowFrame_MakeData(gen->gi_frame, PYSF_PYFRAME);
-
-  return py_frame;
+  std::optional<PyFrameObject*> cursor =
+      findInnermostPyFrameForShadowFrame(tstate, shadow_frame);
+  if (cursor.has_value()) {
+    return materializePyFrame(tstate, shadow_frame, cursor.value());
+  }
+  // It's safe to destroy our reference to the frame; gen holds a strong
+  // reference to the frame which keeps the frame alive.
+  return createPyFrame(tstate, shadow_frame);
 }
 
 } // namespace jit

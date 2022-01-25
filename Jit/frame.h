@@ -23,10 +23,10 @@ BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate);
 // for ensuring that the frame is unlinked and the reference is destroyed.
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate);
 
-// Find the shadow frame associated with the running generator gen and
-// materialize a Python frame for it.
+// Materialize a Python frame for gen.
 //
-// Returns a borrowed reference to the materialized frame.
+// This returns nullptr if gen is completed or a borrowed reference to its
+// PyFrameObject otherwise.
 BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen);
