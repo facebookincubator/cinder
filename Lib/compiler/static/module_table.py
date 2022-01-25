@@ -13,16 +13,12 @@ from ast import (
     Expression,
     FunctionDef,
     Subscript,
-    Index,
     Name,
-    NameConstant,
 )
 from contextlib import nullcontext
 from enum import Enum
-from functools import partial
 from typing import (
     cast,
-    Callable as typingCallable,
     ContextManager,
     Dict,
     List,
@@ -30,7 +26,6 @@ from typing import (
     Set,
     TYPE_CHECKING,
     Tuple,
-    Union,
 )
 
 from ..errors import TypedSyntaxError
@@ -41,7 +36,6 @@ from .types import (
     Callable,
     Class,
     ClassVar,
-    DecoratedMethod,
     DynamicClass,
     Function,
     FunctionGroup,
@@ -52,7 +46,6 @@ from .types import (
     INT_TYPE,
     MethodType,
     NONE_TYPE,
-    Object,
     OPTIONAL_TYPE,
     TypeDescr,
     UNION_TYPE,

@@ -145,6 +145,7 @@ class Compiler:
         self.modules: Dict[str, ModuleTable] = {}
         self.ast_cache: Dict[str, ast.Module] = {}
         self.code_generator = code_generator
+        self.error_sink: ErrorSink = error_sink or ErrorSink()
         builtins_children = {
             "object": OBJECT_TYPE,
             "type": TYPE_TYPE,
@@ -306,16 +307,19 @@ class Compiler:
         self.generic_types: GenericTypesDict = {
             k: dict(v) for k, v in BUILTIN_GENERICS.items()
         }
-
-        if not error_sink:
-            error_sink = ErrorSink()
-        self.error_sink: ErrorSink = error_sink
+        self.literal_types: Dict[Tuple[Value, object], Value] = {}
 
     def __getitem__(self, name: str) -> ModuleTable:
         return self.modules[name]
 
     def __setitem__(self, name: str, value: ModuleTable) -> None:
         self.modules[name] = value
+
+    def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
+        key = (base_type, literal_value)
+        if key not in self.literal_types:
+            self.literal_types[key] = base_type.make_literal(literal_value)
+        return self.literal_types[key]
 
     def add_module(
         self, name: str, filename: str, tree: AST, optimize: int
@@ -363,7 +367,6 @@ class Compiler:
             name,
             optimize,
             enable_patching=enable_patching,
-            nodes_default_dynamic=not self.error_sink.throwing,
         )
         type_binder.visit(tree)
         return tree, s

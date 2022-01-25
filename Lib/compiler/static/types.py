@@ -618,6 +618,9 @@ class Value:
     ) -> Value:
         return self
 
+    def make_literal(self, literal_value: object) -> Value:
+        raise NotImplementedError(f"Type {self.name} does not support literals")
+
     def emit_convert(self, from_type: Value, code_gen: Static38CodeGenerator) -> None:
         pass
 
@@ -774,9 +777,7 @@ class Object(Value, Generic[TClass]):
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
-            node_type = NumClass(
-                TypeName("builtins", "int"), pytype=int, literal_value=node.value
-            ).instance
+            node_type = visitor.compiler.get_literal_type(INT_TYPE.instance, node.value)
         else:
             node_type = CONSTANT_TYPES[type(node.value)]
         visitor.set_type(node, node_type)
@@ -4350,6 +4351,12 @@ class NumClass(Class):
 
 
 class NumInstance(Object[NumClass]):
+    def make_literal(self, literal_value: object) -> Value:
+        assert isinstance(literal_value, int)
+        return NumClass(
+            self.klass.type_name, pytype=self.klass.pytype, literal_value=literal_value
+        ).instance
+
     def bind_unaryop(
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
@@ -6407,6 +6414,10 @@ class CIntInstance(CInstance["CIntType"]):
             else (self._int_binary_opcode_unsigned[type(op)])
         )
 
+    def make_literal(self, literal_value: object) -> Value:
+        assert isinstance(literal_value, int)
+        return CIntType(self.klass.constant, literal_value=literal_value).instance
+
     def validate_mixed_math(self, other: Value) -> Optional[Value]:
         if self.constant == TYPED_BOOL:
             return None
@@ -6502,7 +6513,7 @@ class CIntInstance(CInstance["CIntType"]):
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
-            node_type = CIntType(self.klass.constant, literal_value=node.value).instance
+            node_type = visitor.compiler.get_literal_type(self, node.value)
         elif type(node.value) is bool and self is CBOOL_TYPE.instance:
             assert self is CBOOL_TYPE.instance
             node_type = self

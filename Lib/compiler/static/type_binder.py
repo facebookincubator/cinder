@@ -59,7 +59,7 @@ from typing import (
 )
 
 from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL
-from ..errors import TypedSyntaxError
+from ..errors import CollectingErrorSink, TypedSyntaxError
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
@@ -179,6 +179,9 @@ class LocalsBranch:
                     local_types[key] = self._join(value, local_types[key])
                 continue
 
+    def changed(self) -> bool:
+        return self.entry_locals != self.scope.local_types
+
     def _join(self, *types: Value) -> Value:
         if len(types) == 1:
             return types[0]
@@ -213,7 +216,6 @@ class TypeBinder(GenericVisitor):
         module_name: str,
         optimize: int,
         enable_patching: bool = False,
-        nodes_default_dynamic: bool = False,
     ) -> None:
         module = compiler[module_name]
         super().__init__(module)
@@ -225,7 +227,12 @@ class TypeBinder(GenericVisitor):
         self.inline_depth = 0
         self.inline_calls = 0
         self.enable_patching = enable_patching
-        self.nodes_default_dynamic = nodes_default_dynamic
+
+    @property
+    def nodes_default_dynamic(self) -> bool:
+        # If we have a non-throwing ErrorSink, then we may miss typing some
+        # nodes on error, so default them to dynamic silently.
+        return not self.error_sink.throwing
 
     @property
     def local_types(self) -> Dict[str, Value]:
@@ -1374,7 +1381,7 @@ class TypeBinder(GenericVisitor):
                 name: str = asname if asname is not None else alias.name
                 self.declare_local(name, DYNAMIC)
 
-    def visit_until_terminates(self, nodes: List[ast.stmt]) -> TerminalKind:
+    def visit_until_terminates(self, nodes: Sequence[ast.stmt]) -> TerminalKind:
         for stmt in nodes:
             self.visit(stmt)
             if stmt in self.terminals:
@@ -1457,12 +1464,37 @@ class TypeBinder(GenericVisitor):
             del self.decl_types[hname]
             del self.local_types[hname]
 
+    def iterate_to_fixed_point(self, body: Sequence[ast.stmt]) -> None:
+        """Iterate given loop body until local types reach a fixed point."""
+        branch: LocalsBranch | None = None
+        counter = 0
+        entry_decls = self.decl_types.copy()
+        while (not branch) or branch.changed():
+            branch = self.binding_scope.branch()
+            counter += 1
+            if counter > 50:
+                # TODO today it should not be possible to hit this case, but in
+                # the future with more complex types or more accurate tracking
+                # of literal types (think `x += 1` in a loop) it could become
+                # possible, and we'll need a smarter approach here: union all
+                # types seen? fall back to declared type?
+                raise AssertionError("Too many loops in fixed-point iteration.")
+            with self.temporary_error_sink(CollectingErrorSink()):
+                terminates = self.visit_until_terminates(body)
+                # reset any declarations from the loop body to avoid redeclaration errors
+                self.binding_scope.decl_types = entry_decls.copy()
+                if terminates:
+                    # no need to iterate further if the loop terminates
+                    break
+            branch.merge()
+
     def visitWhile(self, node: While) -> None:
         branch = self.scopes[-1].branch()
 
         effect = self.visit(node.test) or NO_EFFECT
         effect.apply(self.local_types)
 
+        self.iterate_to_fixed_point(node.body)
         while_returns = self.visit_until_terminates(node.body) == TerminalKind.Return
         if while_returns:
             branch.restore()
@@ -1484,8 +1516,11 @@ class TypeBinder(GenericVisitor):
         target_type = self.get_type(node.iter).get_iter_type(node.iter, self)
         self.visit(node.target)
         self.assign_value(node.target, target_type)
+        branch = self.scopes[-1].branch()
+        self.iterate_to_fixed_point(node.body)
         self.visit(node.body)
         self.visit(node.orelse)
+        branch.merge()
 
     def visitwithitem(self, node: ast.withitem) -> None:
         self.visit(node.context_expr)
