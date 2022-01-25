@@ -914,16 +914,46 @@ void NativeGenerator::generateDeoptExits() {
   for (const auto& exit : deopt_exits) {
     as_->bind(exit.label);
     as_->push(exit.deopt_meta_index);
-    as_->jmp(deopt_exit);
+    as_->call(deopt_exit);
   }
   // Generate the stage 2 trampoline (one per function). This saves the address
   // of the final part of the JIT-epilogue that is responsible for restoring
   // callee-saved registers and returning, our scratch register, whose original
   // contents may be needed during frame reification, and jumps to the final
   // trampoline.
+  //
+  // Right now the top of the stack looks like:
+  //
+  // +-------------------------+ <-- end of JIT's fixed frame
+  // | index of deopt metadata |
+  // | saved rip               |
+  // +-------------------------+
+  //
+  // and we need to pass our scratch register and the address of the epilogue
+  // to the global deopt trampoline. The code below leaves the stack with the
+  // following layout:
+  //
+  // +-------------------------+ <-- end of JIT's fixed frame
+  // | index of deopt metadata |
+  // | saved rip               |
+  // | padding                 |
+  // | address of epilogue     |
+  // | r15                     |
+  // +-------------------------+
+  //
+  // The global deopt trampoline expects that our scratch register is at the
+  // top of the stack so that it can save the remaining registers immediately
+  // after it, forming a contiguous array of all registers.
+  //
+  // If you change this make sure you update that code!
   as_->bind(deopt_exit);
+  // Add padding to keep the stack aligned
   as_->push(deopt_scratch_reg);
+  // Save space for the epilogue
   as_->push(deopt_scratch_reg);
+  // Save our scratch register
+  as_->push(deopt_scratch_reg);
+  // Save the address of the epilogue
   as_->lea(deopt_scratch_reg, x86::ptr(env_.hard_exit_label));
   as_->mov(x86::ptr(x86::rsp, kPointerSize), deopt_scratch_reg);
   auto trampoline = GetFunction()->code->co_flags & kCoFlagsAnyGenerator
@@ -1381,11 +1411,17 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   // | ^ LOAD_METHOD scratch   |
   // +-------------------------+ <-- end of JIT's fixed frame
   // | index of deopt metadata |
+  // | saved rip               |
+  // | padding                 |
   // | address of epilogue     |
   // | r15                     | <-- rsp
   // +-------------------------+
   //
-  // Save registers.
+  // Save registers for use in frame reification. Once these are saved we're
+  // free to clobber any caller-saved registers.
+  //
+  // IF YOU USE CALLEE-SAVED REGISTERS YOU HAVE TO RESTORE THEM MANUALLY BEFORE
+  // THE EXITING THE TRAMPOLINE.
   a.push(x86::r14);
   a.push(x86::r13);
   a.push(x86::r12);
@@ -1408,6 +1444,56 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
     RestoreOriginalGeneratorRBP(a.as<x86::Emitter>());
   }
 
+  // Set up a stack frame for the trampoline so that:
+  //
+  // 1. Runtime code in the JIT that is used to update PyFrameObjects can find
+  //    the saved rip at the expected location immediately following the end of
+  //    the JIT's fixed frame.
+  // 2. The JIT-compiled function shows up in C stack straces when it is
+  //    deopting. Only the deopt trampoline will appear in the trace if
+  //    we don't open a frame.
+  //
+  // Right now the stack has the following layout:
+  //
+  // +-------------------------+ <-- end of JIT's fixed frame
+  // | index of deopt metadata |
+  // | saved rip               |
+  // | padding                 |
+  // | address of epilogue     |
+  // | r15                     |
+  // | ...                     |
+  // | rax                     | <-- rsp
+  // +-------------------------+
+  //
+  // We want our frame to look like:
+  //
+  // +-------------------------+ <-- end of JIT's fixed frame
+  // | saved rip               |
+  // | saved rbp               | <-- rbp
+  // | index of deopt metadata |
+  // | address of epilogue     |
+  // | r15                     |
+  // | ...                     |
+  // | rax                     | <-- rsp
+  // +-------------------------+
+  //
+  // Load the saved rip passed to us from the JIT-compiled function, which
+  // resides where we're supposed to save rbp.
+  auto saved_rbp_addr =
+      x86::ptr(x86::rsp, (PhyLocation::NUM_GP_REGS + 2) * kPointerSize);
+  a.mov(x86::rdi, saved_rbp_addr);
+  // Save rbp and set up our frame
+  a.mov(saved_rbp_addr, x86::rbp);
+  a.lea(x86::rbp, saved_rbp_addr);
+  // Load the index of the deopt metadata, which resides where we're supposed to
+  // save rip.
+  auto saved_rip_addr = x86::ptr(x86::rbp, kPointerSize);
+  a.mov(x86::rsi, saved_rip_addr);
+  a.mov(saved_rip_addr, x86::rdi);
+  // Save the index of the deopt metadata
+  auto deopt_meta_addr = x86::ptr(x86::rbp, -kPointerSize);
+  a.mov(deopt_meta_addr, x86::rsi);
+
   // Prep the frame for evaluation in the interpreter.
   //
   // We pass the array of saved registers, a pointer to the runtime, and the
@@ -1416,15 +1502,12 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   a.mov(x86::rdi, x86::rsp);
   a.mov(
       x86::rsi, reinterpret_cast<uint64_t>(NativeGeneratorFactory::runtime()));
-  auto deopt_meta_addr =
-      x86::ptr(x86::rsp, (PhyLocation::NUM_GP_REGS + 1) * kPointerSize);
   a.mov(x86::rdx, deopt_meta_addr);
   // We no longer need the index of the deopt metadata after prepareForDeopt
   // returns, so we reuse the space on the stack to store whether or not we're
   // deopting into a except/finally block.
   a.lea(x86::rcx, deopt_meta_addr);
-  auto call_method_kind_addr =
-      x86::ptr(x86::rsp, (PhyLocation::NUM_GP_REGS + 2) * kPointerSize);
+  auto call_method_kind_addr = x86::ptr(x86::rbp, 2 * kPointerSize);
   a.lea(x86::r8, call_method_kind_addr);
   static_assert(
       std::is_same_v<
@@ -1448,11 +1531,13 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
 
   // Clean up saved registers.
   //
+  // This isn't strictly necessary but saves 128 bytes on the stack if we end
+  // up resuming in the interpreter.
+  a.add(x86::rsp, (PhyLocation::NUM_GP_REGS - 1) * kPointerSize);
   // We have to restore our scratch register manually since it's callee-saved
   // and the stage 2 trampoline used it to hold the address of this
   // trampoline. We can't rely on the JIT epilogue to restore it for us, as the
-  // JIT-compiled code may not have used it.
-  a.add(x86::rsp, (PhyLocation::NUM_GP_REGS - 1) * kPointerSize);
+  // JIT-compiled code may not have spilled it.
   a.pop(deopt_scratch_reg);
   annot.add("prepareForDeopt", &a, annot_cursor);
 
@@ -1462,15 +1547,20 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   a.test(x86::rax, x86::rax);
   a.jz(done);
   a.mov(x86::rdi, x86::rax);
-  // This is the same stack location as `deopt_meta_addr` above.
-  a.mov(x86::rsi, x86::ptr(x86::rsp, kPointerSize));
+  a.mov(x86::rsi, deopt_meta_addr);
   a.call(reinterpret_cast<uint64_t>(resumeInInterpreter));
   annot.add("resumeInInterpreter", &a, annot_cursor);
 
   // Now we're done. Get the address of the epilogue and jump there.
   annot_cursor = a.cursor();
   a.bind(done);
-  a.pop(x86::rdi);
+  auto epilogue_addr = x86::ptr(x86::rbp, -2 * kPointerSize);
+  a.mov(x86::rdi, epilogue_addr);
+  // Remove our frame from the stack
+  a.leave();
+  // Clear the saved rip. Normally this would be handled by a `ret`; we must
+  // clear it manually because we're jumping directly to the epilogue.
+  a.sub(x86::rsp, -kPointerSize);
   a.jmp(x86::rdi);
   annot.add("jumpToRealEpilogue", &a, annot_cursor);
 
