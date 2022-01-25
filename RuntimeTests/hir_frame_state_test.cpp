@@ -15,6 +15,11 @@ using namespace jit::hir;
 
 class FrameStateCreationTest : public RuntimeTest {};
 
+TEST_F(FrameStateCreationTest, InitialInstrOffset) {
+  FrameState frame;
+  EXPECT_EQ(frame.instr_offset(), -1);
+}
+
 #define EXPECT_HIR_EQ(irfunc, expected) \
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected)
 

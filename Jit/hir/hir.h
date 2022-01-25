@@ -14,6 +14,7 @@
 #include "Jit/stack.h"
 #include "Jit/util.h"
 
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <memory>
@@ -198,8 +199,11 @@ struct FrameState {
   BlockStack block_stack;
   Ref<PyCodeObject> code;
 
+  // The bytecode offset of the current instruction, or -1 if no instruction
+  // has executed. This corresponds to the `f_lasti` field of PyFrameObject.
   int instr_offset() const {
-    return next_instr_offset - sizeof(_Py_CODEUNIT);
+    return std::max(
+        next_instr_offset - static_cast<int>(sizeof(_Py_CODEUNIT)), -1);
   }
 
   bool visitUses(const std::function<bool(Register*&)>& func) {
