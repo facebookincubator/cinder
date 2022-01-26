@@ -2819,6 +2819,10 @@ class Function(Callable[Class], FunctionContainer):
         arg_replacements = {}
         spills = {}
 
+        # in fixpoint iteration we may have done the inlining already
+        if visitor.get_opt_node_data(node, Optional[InlinedCall]):
+            return None
+
         if visitor.inline_depth > 20:
             visitor.set_node_data(node, Optional[InlinedCall], None)
             return None

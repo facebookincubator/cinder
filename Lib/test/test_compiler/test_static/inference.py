@@ -118,3 +118,19 @@ class InferenceTests(StaticTestBase):
                     c2 = c2.meth()
         """
         self.type_error(codestr, r"reveal_type\(c2\): '<module>.C'")
+
+    def test_inlined_call_in_loop(self) -> None:
+        codestr = """
+            from __static__ import inline
+
+            @inline
+            def incr(x: int) -> int:
+                return x + 1
+
+            def f(x: int) -> int:
+                for i in [0, 1, 2]:
+                    x = incr(x)
+                return x
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(1), 4)
