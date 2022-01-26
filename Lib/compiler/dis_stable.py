@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Dissassemble code objects:
-# a) recursively (like dis.dis() in Python3.7 behaves);
+# a) recursively (like dis.dis() in CPython behaves);
 # b) providing stable references to internal code objects (by replacing
 #    memory address with incrementing number);
 # c) besides disassembly, also dump other fields of code objects.
@@ -14,9 +14,12 @@ import opcode
 import re
 import sys
 from types import CodeType
+from typing import TextIO, Pattern, Generator, Iterable, List, Optional, Dict, Tuple
 
 
-def _make_stable(gen):
+def _make_stable(
+    gen: Iterable[_dis.Instruction],
+) -> Generator[_dis.Instruction, None, None]:
     for instr in gen:
         yield _dis.Instruction(
             instr.opname,
@@ -30,7 +33,7 @@ def _make_stable(gen):
         )
 
 
-def _stable_repr(obj):
+def _stable_repr(obj: object) -> str:
     if isinstance(obj, frozenset):
         replacement = frozenset([i for i in sorted(obj, key=lambda x: repr(x))])
         return repr(replacement)
@@ -38,20 +41,21 @@ def _stable_repr(obj):
 
 
 def _disassemble_bytes(
-    code,
-    lasti=-1,
-    varnames=None,
-    names=None,
-    constants=None,
-    cells=None,
-    linestarts=None,
+    code: bytes,
+    lasti: int = -1,
+    varnames: Optional[Tuple[str]] = None,
+    names: Optional[Tuple[str]] = None,
+    constants: Optional[Tuple[object]] = None,
+    cells: Optional[Tuple[object]] = None,
+    linestarts: Optional[Dict[int, int]] = None,
     *,
-    file=None,
-    line_offset=0
-):
+    file: Optional[TextIO] = None,
+    line_offset: int = 0
+) -> None:
     # Omit the line number column entirely if we have no line number info
     show_lineno = linestarts is not None
     if show_lineno:
+        # pyre-fixme [16]: `Optional` has no attribute `values`.
         maxlineno = max(linestarts.values()) + line_offset
         if maxlineno >= 1000:
             lineno_width = len(str(maxlineno))
@@ -65,6 +69,7 @@ def _disassemble_bytes(
     else:
         offset_width = 4
     for instr in _make_stable(
+        # pyre-fixme [16]: Module `dis` has no attribute `_get_instructions_bytes`
         _dis._get_instructions_bytes(
             code, varnames, names, constants, cells, linestarts, line_offset=line_offset
         )
@@ -77,12 +82,19 @@ def _disassemble_bytes(
         is_current_instr = instr.offset == lasti
 
         print(
+            # pyre-fixme [16]: `_dis.Instruction` has no attribute `_disassemble`
             instr._disassemble(lineno_width, is_current_instr, offset_width),
             file=file,
         )
 
 
-def disassemble(co, lasti=-1, *, file=None, skip_line_nos=False):
+def disassemble(
+    co: CodeType,
+    lasti: int = -1,
+    *,
+    file: Optional[TextIO] = None,
+    skip_line_nos: bool = False
+) -> None:
     cell_names = co.co_cellvars + co.co_freevars
     if skip_line_nos:
         linestarts = None
@@ -101,11 +113,11 @@ def disassemble(co, lasti=-1, *, file=None, skip_line_nos=False):
 
 
 class Disassembler:
-    def __init__(self):
-        self.id_map = {}
-        self.id_cnt = 0
+    def __init__(self) -> None:
+        self.id_map: Dict[int, int] = {}
+        self.id_cnt: int = 0
 
-    def get_co_id(self, co):
+    def get_co_id(self, co: CodeType) -> int:
         addr = id(co)
         if addr in self.id_map:
             return self.id_map[addr]
@@ -113,7 +125,7 @@ class Disassembler:
         self.id_cnt += 1
         return self.id_cnt - 1
 
-    def co_repr(self, co):
+    def co_repr(self, co: CodeType) -> str:
         return '<code object %s at #%d, file "%s", line %d>' % (
             co.co_name,
             self.get_co_id(co),
@@ -121,7 +133,13 @@ class Disassembler:
             co.co_firstlineno,
         )
 
-    def disassemble(self, co, lasti=-1, file=None, skip_line_nos=False):
+    def disassemble(
+        self,
+        co: CodeType,
+        lasti: int = -1,
+        file: Optional[TextIO] = None,
+        skip_line_nos: bool = False,
+    ) -> None:
         """Disassemble a code object."""
         consts = tuple(
             [self.co_repr(x) if hasattr(x, "co_code") else x for x in co.co_consts]
@@ -146,7 +164,7 @@ class Disassembler:
         )
         disassemble(codeobj, file=file, skip_line_nos=skip_line_nos)
 
-    def dump_code(self, co, file):
+    def dump_code(self, co: CodeType, file: Optional[TextIO] = None) -> None:
         if not file:
             file = sys.stdout
         print(self.co_repr(co), file=file)
@@ -186,10 +204,12 @@ class Disassembler:
 
 
 # https://www.python.org/dev/peps/pep-0263/
-coding_re = re.compile(rb"^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)")
+coding_re: Pattern[bytes] = re.compile(
+    rb"^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)"
+)
 
 
-def open_with_coding(fname):
+def open_with_coding(fname: str) -> TextIO:
     with open(fname, "rb") as f:
         l = f.readline()
         m = coding_re.match(l)
@@ -204,5 +224,5 @@ def open_with_coding(fname):
 
 if __name__ == "__main__":
     with open_with_coding(sys.argv[1]) as f:
-        co = compile(f.read(), sys.argv[1], "exec")
+        co: CodeType = compile(f.read(), sys.argv[1], "exec")
     Disassembler().dump_code(co, file=sys.stdout)

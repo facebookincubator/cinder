@@ -2,8 +2,8 @@ import ast
 import dis
 import inspect
 import io
+from compiler.dis_stable import Disassembler
 from compiler.pycodegen import PythonCodeGenerator
-from .dis_stable import Disassembler
 from textwrap import dedent
 
 from .common import CompilerTest

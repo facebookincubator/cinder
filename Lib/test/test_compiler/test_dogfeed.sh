@@ -6,7 +6,7 @@ set -e
 
 run_compare() {
     echo $1
-    ./python3.5-nopeephole dis_stable.py $1 >out.ref
+    ./python3.5-nopeephole -m compiler.dis_stable $1 >out.ref
     ./python3.5-nopeephole compiler_runtest.py $1 >out.compiler
     diff -u out.ref out.compiler
     rm out.ref out.compiler

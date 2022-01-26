@@ -1,5 +1,6 @@
 import ast
 import dis
+from compiler.dis_stable import Disassembler
 from compiler.pycodegen import compile as py_compile
 from io import StringIO
 from os import path
@@ -7,7 +8,6 @@ from tokenize import detect_encoding
 from unittest import TestCase
 
 from .common import get_repo_root, glob_test
-from .dis_stable import Disassembler
 
 
 class SbsCorpusCompileTests(TestCase):

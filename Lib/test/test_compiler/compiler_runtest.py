@@ -5,9 +5,8 @@
 import ast
 import re
 import sys
+from compiler import dis_stable
 from compiler.pycodegen import compile as py_compile
-
-import dis_stable
 
 
 # https://www.python.org/dev/peps/pep-0263/
