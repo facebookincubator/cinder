@@ -527,17 +527,28 @@ void NativeGenerator::generatePrologue(
     // returning.
     Label generic_entry = as_->newLabel();
     Label box_done = as_->newLabel();
-    Label double_error = as_->newLabel();
+    Label error = as_->newLabel();
     jit::hir::Type ret_type = func_->return_type;
+    Annotations annot;
     uint64_t box_func;
 
+    bool returns_enum = ret_type <= TCEnum;
+
     generateFunctionEntry();
+    if (returns_enum) {
+      as_->push(x86::rdx);
+      as_->push(0xdeadbeef); // extra push to maintain alignment
+      annot.add("saveRegisters", as_, entry_cursor);
+    }
     as_->call(generic_entry);
 
     // if there was an error, there's nothing to box
     if (returns_double) {
       as_->ptest(x86::xmm1, x86::xmm1);
-      as_->je(double_error);
+      as_->je(error);
+    } else if (returns_enum) {
+      as_->test(x86::edx, x86::edx);
+      as_->je(error);
     } else {
       as_->test(x86::edx, x86::edx);
       as_->je(box_done);
@@ -570,13 +581,24 @@ void NativeGenerator::generatePrologue(
     } else if (ret_type <= TCUInt64) {
       as_->mov(x86::rdi, x86::rax);
       box_func = reinterpret_cast<uint64_t>(JITRT_BoxU64);
-    } else if (ret_type <= TCDouble) {
+    } else if (returns_double) {
       // xmm0 already contains the return value
       box_func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
-    } else if (ret_type <= TCEnum) {
+    } else if (returns_enum) {
       as_->mov(x86::rdi, x86::rax);
+
+      Label box_int = as_->newLabel();
+      as_->pop(x86::rdx);
+      as_->pop(x86::rdx);
+      as_->bt(x86::rdx, _Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS);
+      as_->jb(box_int);
+
       as_->mov(x86::rsi, reinterpret_cast<uint64_t>(ret_type.typeSpec()));
-      box_func = reinterpret_cast<uint64_t>(JITRT_BoxEnum);
+      as_->call(reinterpret_cast<uint64_t>(JITRT_BoxEnum));
+      as_->jmp(box_done);
+
+      as_->bind(box_int);
+      box_func = reinterpret_cast<uint64_t>(JITRT_BoxI64);
     } else {
       JIT_CHECK(
           false, "unsupported primitive return type %s", ret_type.toString());
@@ -589,8 +611,14 @@ void NativeGenerator::generatePrologue(
     as_->ret();
 
     if (returns_double) {
-      as_->bind(double_error);
+      as_->bind(error);
       as_->xor_(x86::rax, x86::rax);
+      as_->leave();
+      as_->ret();
+    } else if (returns_enum) {
+      as_->bind(error);
+      as_->pop(x86::rdx);
+      as_->pop(x86::rdx);
       as_->leave();
       as_->ret();
     }
@@ -1137,7 +1165,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   Label correct_args_entry = as_->newLabel();
   as_->bind(correct_args_entry);
   generateFunctionEntry();
-  as_->short_().jmp(correct_arg_count);
+  as_->long_().jmp(correct_arg_count);
   env_.addAnnotation("Reentry with processed args", arg_reentry_cursor);
 
   // Setup the normal entry point that expects that implements the

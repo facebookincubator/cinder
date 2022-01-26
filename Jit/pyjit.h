@@ -243,7 +243,7 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenYieldFromValue(PyGenObject* gen);
 /*
  * Specifies the offset from a JITed function entry point where the re-entry
  * point for calling with the correct bound args lives */
-#define JITRT_CALL_REENTRY_OFFSET (-6)
+#define JITRT_CALL_REENTRY_OFFSET (-9)
 
 /*
  * Fixes the JITed function entry point up to be the re-entry point after
@@ -254,7 +254,7 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenYieldFromValue(PyGenObject* gen);
 /*
  * Specifies the offset from a JITed function entry point where the static
  * entry point lives */
-#define JITRT_STATIC_ENTRY_OFFSET (-8)
+#define JITRT_STATIC_ENTRY_OFFSET (-11)
 
 /*
  * Fixes the JITed function entry point up to be the static entry point after

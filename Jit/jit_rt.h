@@ -85,7 +85,7 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
     size_t nargsf,
     int argcount);
 
-#define JITRT_CALL_REENTRY_OFFSET (-6)
+#define JITRT_CALL_REENTRY_OFFSET (-9)
 #define JITRT_GET_REENTRY(entry) \
   ((vectorcallfunc)(((char*)entry) + JITRT_CALL_REENTRY_OFFSET))
 
