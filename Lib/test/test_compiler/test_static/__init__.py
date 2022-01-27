@@ -15,6 +15,7 @@ from .final import FinalTests
 from .fstring import FStringTests
 from .imports import ImportTests
 from .inference import InferenceTests
+from .invoke import InvokeTests
 from .lint import LintTests
 from .module import ModuleTests
 from .non_static_inheritance import NonStaticInheritanceTests

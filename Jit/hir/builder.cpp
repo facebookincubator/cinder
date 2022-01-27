@@ -1755,6 +1755,30 @@ bool HIRBuilder::tryEmitDirectMethodCall(
   return false;
 }
 
+std::vector<Register*> HIRBuilder::setupStaticArgs(
+    TranslationContext& tc,
+    const InvokeTarget& target,
+    long nargs) {
+  auto arg_regs = std::vector<Register*>(nargs, nullptr);
+
+  for (auto i = nargs - 1; i >= 0; i--) {
+    arg_regs[i] = tc.frame.stack.pop();
+  }
+
+  // If we have a static func but we couldn't emit a direct x64 call, we
+  // have to box any primitive args
+  if (target.is_statically_typed) {
+    for (auto [argnum, type] : target.primitive_arg_types) {
+      Register* reg = arg_regs.at(argnum);
+      auto boxed_primitive_tmp = temps_.AllocateStack();
+      tc.emitChecked<PrimitiveBox>(boxed_primitive_tmp, reg, type);
+      arg_regs[argnum] = boxed_primitive_tmp;
+    }
+  }
+
+  return arg_regs;
+}
+
 void HIRBuilder::fixStaticReturn(
     TranslationContext& tc,
     Register* ret_val,
@@ -1828,22 +1852,7 @@ bool HIRBuilder::emitInvokeFunction(
         target.indirect_ptr, descr, funcreg, tc.frame);
   }
 
-  auto arg_regs = std::vector<Register*>(nargs, nullptr);
-
-  for (auto i = nargs - 1; i >= 0; i--) {
-    arg_regs[i] = tc.frame.stack.pop();
-  }
-
-  // If we have a static func but we couldn't emit a direct x64 call, we
-  // have to box any primitive args
-  if (target.is_statically_typed) {
-    for (auto [argnum, type] : target.primitive_arg_types) {
-      Register* reg = arg_regs.at(argnum);
-      auto boxed_primitive_tmp = temps_.AllocateStack();
-      tc.emitChecked<PrimitiveBox>(boxed_primitive_tmp, reg, type);
-      arg_regs[argnum] = boxed_primitive_tmp;
-    }
-  }
+  std::vector<Register*> arg_regs = setupStaticArgs(tc, target, nargs);
 
   Register* out = temps_.AllocateStack();
   VectorCallBase* call;
@@ -1880,10 +1889,18 @@ bool HIRBuilder::emitInvokeMethod(
     return false;
   }
 
-  InvokeMethod* invoke = tc.emitVariadic<InvokeMethod>(
-      temps_, nargs, target.slot, is_awaited, is_classmethod);
+  std::vector<Register*> arg_regs = setupStaticArgs(tc, target, nargs);
 
-  fixStaticReturn(tc, invoke->GetOutput(), target.return_type);
+  Register* out = temps_.AllocateStack();
+  auto call = tc.emit<InvokeMethod>(
+      nargs, out, target.slot, is_awaited, is_classmethod);
+  for (auto i = 0; i < nargs; i++) {
+    call->SetOperand(i, arg_regs.at(i));
+  }
+  call->setFrameState(tc.frame);
+
+  fixStaticReturn(tc, out, target.return_type);
+  tc.frame.stack.push(out);
 
   return true;
 }

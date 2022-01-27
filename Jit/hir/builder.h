@@ -444,9 +444,14 @@ class HIRBuilder {
       const BytecodeInstructionBlock& bc_block);
   BasicBlock* getBlockAtOff(Py_ssize_t off);
 
-  // When a static function calls another static function indirectly, the
-  // return value is always boxed. This function ensures that the returned
-  // value is the correct type, unboxing it if necessary.
+  // When a static function calls another static function indirectly, all args
+  // are passed boxed and the return value will come back boxed, so we must
+  // box primitive args and and unbox primitive return values. These functions
+  // take care of these two, respectively.
+  std::vector<Register*> setupStaticArgs(
+      TranslationContext& tc,
+      const InvokeTarget& target,
+      long nargs);
   void fixStaticReturn(TranslationContext& tc, Register* reg, Type ret_type);
 
   // Unbox the primitive value from src into dst, using the given type. Similar

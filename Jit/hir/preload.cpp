@@ -185,14 +185,15 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
       JIT_CHECK(
           target->indirect_ptr != NULL, "%s indirect_ptr is null", repr(descr));
     }
-    if (target->is_statically_typed) {
-      if (target->is_function) {
-        fill_primitive_arg_types_func(
-            target->func(), target->primitive_arg_types);
-      } else {
-        fill_primitive_arg_types_builtin(
-            target->callable, target->primitive_arg_types);
-      }
+  }
+
+  if (target->is_statically_typed) {
+    if (target->is_function) {
+      fill_primitive_arg_types_func(
+          target->func(), target->primitive_arg_types);
+    } else {
+      fill_primitive_arg_types_builtin(
+          target->callable, target->primitive_arg_types);
     }
   }
 
