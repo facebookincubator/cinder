@@ -19,6 +19,10 @@ compile time.
 Static Python modules are just specialized Python modules, and can seamlessly
 call into or be called from normal Python code.
 
+Except for a few cases where we tighten up semantics (e.g. modules and types are
+immutable after construction, classes are auto-slotified), the Static Python
+compiler can compile normal untyped or typed Python code without changes.
+
 Why do we need Static Python?
 =============================
 
@@ -65,7 +69,7 @@ slot of class C, so it generates this bytecode instead::
                 6 RETURN_VALUE
 
 With the static compiler, the `LOAD_ATTR` is now `LOAD_FIELD`. Within the
-JIT, this is compiled to these three machine instructions::
+JIT, this opcode is compiled to these three machine instructions::
 
     mov    0x10(%rdi),%rbx
     test   %rbx,%rbx
@@ -82,15 +86,28 @@ Python module.
 I’m interested! How do I use it?
 ================================
 
-Static Python is still under development, and there are a lot of rough edges.
+Static Python is still under development, and there are a lot of rough edges,
+including probably bugs that can crash the interpreter.
 
 Getting full benefit from Static Python (with cross-module compilation)
 requires a module loader able to detect Static Python modules based on some
 marker (we use the presence of ``import __static__``) and compile them using
-the Static Python bytecode compiler. Such a module loader isn't yet part of
-Cinder, but we plan to add one.
+the Static Python bytecode compiler. Such a loader is included (at
+`compiler.strict.loader.StrictSourceFileLoader`) and you can install it by
+calling `compiler.strict.loader.install()` in the "main" module of your
+program (before anything else is imported.) Note this means the main module
+itself cannot be Static Python. You can also just set the
+``PYTHONINSTALLSTRICTLOADER`` environment variable to a nonzero value, and
+the loader will be installed for you.
 
-In the meantime, it is possible to try out the Static Python compiler by
+Once you've installed the loader, any module with ``import __static__`` as its
+first line of code (barring optional docstring and optional ``__future__``
+imports) will be compiled as Static Python. (You can also use
+``import __strict__`` if you just want Strict Module semantics -- immutable
+modules that can't have side effects at import time -- without Static Python.
+``import __static__`` also implies Strict, so you should never use both.)
+
+It is also possible to try out Static Python on simple examples by
 running ``./python -m compiler --static somemod.py``. This will compile and
 execute ``somemod.py`` as Static Python. Add ``--dis`` to also dump a
 disassembly of the emitted bytecode, and add ``--strict`` to compile the
@@ -112,10 +129,11 @@ This is a “magic” import that signals to the Static Python compiler to enabl
 “shadow frame” mode in the Cinder JIT. This improves performance of function
 calls by avoiding the creation of full Python frame objects until they are
 definitely needed (e.g. if an exception is raised.) In the future this should
-become default.
+become default. (You can also enable this process-wide with
+``-X jit-shadow-frame``.)
 
 ``from __static__ import cbool, int8, uint8, int16, uint16, int32, uint32, int64, uint64, char, double``
---------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------
 
 These are primitive types, or C types. They can be used as type annotations in
 Static Python modules to signal to the Cinder JIT that it can use unboxed C
@@ -186,32 +204,35 @@ The ``__static__.box`` function explicitly converts a primitive value to the
 corresponding Python type. E.g. ``x: int = box(an_int64)``, ``y: bool =
 box(a_cbool)``, ``z: float = box(a_double)``.
 
-``from __static__ import CheckedDict``
---------------------------------------
+``from __static__ import CheckedDict, CheckedList``
+---------------------------------------------------
 
 ``__static__.CheckedDict`` is a Python dictionary that enforces the contained
-types at runtime. E.g. if ``d: CheckedDict[int, str]`` then it will be a
-runtime ``TypeError`` to place a non-int key or non-str value into ``d``.
-Within static Python code this is unnecessary since the compiler will already
-enforce correct types (and in fact we bypass the check in this case, so
-there’s also no overhead.) But you can safely pass a ``CheckedDict`` out of
-Static Python code and into normal Python code and if it is later passed back
-into Static Python code, the static compiler will be able to trust that its
-keys are definitely ints and its values definitely strings. (For normal
-Python containers, which don’t do any runtime enforcement, Static Python
-always treats their contents as of dynamic, unknown type.
+types at runtime. E.g. if ``d: CheckedDict[int, str]`` then it will be a runtime
+``TypeError`` to place a non-int key or non-str value into ``d``.  Within static
+Python code this is unnecessary since the compiler will already enforce correct
+types (and in fact we bypass the check in this case, so there’s also no
+overhead.) But you can safely pass a ``CheckedDict`` out of Static Python code
+and into normal Python code and if it is later passed back into Static Python
+code, the static compiler will be able to trust that its keys are definitely
+ints and its values definitely strings. (For normal Python containers, which
+don’t do any runtime enforcement, Static Python always treats their contents as
+of dynamic, unknown type.)
 
-(You may be wondering why ``CHECK_ARGS`` described above doesn’t fully
-validate the contained types of e.g. a Python dict passed as an argument to a
-Static Python function, so that we can trust them. The answer is that it’s
-far too expensive to do this in general, since it is necessarily ``O(n)`` in
-the size of the container.)
+Similarly, ``CheckedList`` is just like a Python list, except its contained type
+is enforced at runtime.
+
+(You may be wondering why ``CHECK_ARGS`` described above doesn’t fully validate
+the contained types of e.g. a Python dict passed as an argument to a Static
+Python function, so that we can trust them. The answer is that it’s far too
+expensive to do this in general, since it is necessarily ``O(n)`` in the size of
+the container.)
 
 ``from __static__ import Array, Vector``
 ----------------------------------------
 
-``__static__.Array`` is a fixed-size contiguous array of primitive values, like a C array.
-``__static__.Vector`` is similar but dynamically sized.
+``__static__.Array`` is a fixed-size contiguous array of primitive values, like
+a C array.  ``__static__.Vector`` is similar but dynamically sized.
 
 ``from __static__ import clen``
 -------------------------------
@@ -228,19 +249,21 @@ we are able to emit a much faster length check without ever creating a Python
 
 The ``@inline`` decorator allows the static compiler to inline a one-line
 function directly into its (statically compiled) callers for efficiency.
-Currently the function body must consist only of a single ``return``
-statement.
+The function body must consist only of a single ``return`` statement.
 
 ``from __static__ import dynamic_return``
----------------------------------
+-----------------------------------------
 
-The ``@dynamic_return`` decorator causes the static compiler to not trust the annotated
-return type of a function. It is useful in cases where we intentionally lie about the return
-type.
+The ``@dynamic_return`` decorator causes the static compiler to not trust the
+annotated return type of a function. It is useful in cases where we
+intentionally lie about the return type.
 
-For example, if we return a weakref, or a lazily evaluated string translation. In these scenarios,
-Static Python will try to ensure the returned object matches the annotation, but that'll fail. Using
-`dynamic_return` is a workaround for such scenarios.
+For example, if we return a weakref, or a lazily evaluated string translation,
+we may annotate the return value as the weakly-referenced type, or as a string.
+In these scenarios, Static Python will try to ensure the returned object matches
+the annotation, but that'll fail. Using `dynamic_return` is a workaround for
+such scenarios so that MyPy or Pyre can still see the more specific annotation,
+but Static Python will treat it as dynamically typed.
 
 
 ``from __static__ import cast``
