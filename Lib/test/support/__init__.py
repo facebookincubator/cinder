@@ -34,6 +34,7 @@ import threading
 import time
 import types
 import unittest
+import unittest.case
 import urllib.error
 import warnings
 
@@ -3001,6 +3002,42 @@ def check_free_after_iterating(test, iter, cls, args=()):
                 next(it)
             except StopIteration:
                 pass
+            except ValueError as ve:
+                if (unittest.case.CINDERJIT_ENABLED and
+                    "already executing" in str(ve)):
+                    # `it` will still be marked as running when `it` is a
+                    # generator returned by UserList.__reversed__ and
+                    # UserList.__reversed__ is JIT-compiled. (For readers
+                    # following along at home, the implementation of
+                    # UserList.__reversed__ is actually Sequence.__reversed__
+                    # in _collections_abc.py.)
+                    #
+                    # Generators are marked as suspended (gi_running is set to
+                    # 0) immediately after execution returns to the gen_send
+                    # implemenation (either gen_send_ex_with_finish_yf or
+                    # _PyGen_DoSend) in genobject.c.
+                    #
+                    # When UserList.__reversed__ is interpreted, the last
+                    # reference to self is held by the by the generator's
+                    # PyFrameObject; this is destroyed in gen_send after
+                    # gi_running is cleared.
+                    #
+                    # When UserList.__reversed__ is JIT-compiled, the last
+                    # reference to self is destroyed at the end of the function
+                    # in the refcounting code emitted by the JIT. This happens
+                    # before returning to the gen_send implementation, thus
+                    # the generator will still be marked as running when
+                    # __del__ executes.
+                    #
+                    # We could fix this by assigning A(*args) to a local and
+                    # then del-ing the local before calling gc_collect,
+                    # however, it seems like the test intends for A(*args) to
+                    # be a temporary. The issue
+                    # (https://bugs.python.org/issue26494) doesn't make it
+                    # clear. So, just ignore the exception when running under
+                    # the JIT, since it shouldn't affect what is being tested.
+                    return
+                raise
 
     done = False
     it = iter(A(*args))
