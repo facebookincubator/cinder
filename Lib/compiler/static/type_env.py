@@ -24,6 +24,7 @@ class TypeEnvironment:
             if builtin_type_env is not None
             else {}
         )
+        self._literal_types: Dict[Tuple[Value, object], Value] = {}
 
     def get_generic_type(
         self, generic_type: GenericClass, index: GenericTypeIndex
@@ -38,3 +39,9 @@ class TypeEnvironment:
         concrete = generic_type.make_generic_type(index, self)
         instantiations[index] = concrete
         return concrete
+
+    def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
+        key = (base_type, literal_value)
+        if key not in self._literal_types:
+            self._literal_types[key] = base_type.make_literal(literal_value)
+        return self._literal_types[key]

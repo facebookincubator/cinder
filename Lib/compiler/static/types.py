@@ -775,7 +775,9 @@ class Object(Value, Generic[TClass]):
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
-            node_type = visitor.compiler.get_literal_type(INT_TYPE.instance, node.value)
+            node_type = visitor.compiler.type_env.get_literal_type(
+                INT_TYPE.instance, node.value
+            )
         else:
             node_type = CONSTANT_TYPES[type(node.value)]
         visitor.set_type(node, node_type)
@@ -6493,7 +6495,7 @@ class CIntInstance(CInstance["CIntType"]):
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
-            node_type = visitor.compiler.get_literal_type(self, node.value)
+            node_type = visitor.compiler.type_env.get_literal_type(self, node.value)
         elif type(node.value) is bool and self is CBOOL_TYPE.instance:
             assert self is CBOOL_TYPE.instance
             node_type = self

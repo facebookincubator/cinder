@@ -302,19 +302,12 @@ class Compiler:
             )
 
         self.type_env: TypeEnvironment = TypeEnvironment(BUILTIN_TYPE_ENV)
-        self.literal_types: Dict[Tuple[Value, object], Value] = {}
 
     def __getitem__(self, name: str) -> ModuleTable:
         return self.modules[name]
 
     def __setitem__(self, name: str, value: ModuleTable) -> None:
         self.modules[name] = value
-
-    def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
-        key = (base_type, literal_value)
-        if key not in self.literal_types:
-            self.literal_types[key] = base_type.make_literal(literal_value)
-        return self.literal_types[key]
 
     def add_module(
         self, name: str, filename: str, tree: AST, optimize: int
