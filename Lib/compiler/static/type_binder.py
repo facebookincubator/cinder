@@ -64,6 +64,7 @@ from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
 from .module_table import ModuleTable, ModuleFlag
+from .type_env import TypeEnvironment
 from .types import (
     AwaitableType,
     BOOL_TYPE,
@@ -84,7 +85,6 @@ from .types import (
     Function,
     FunctionContainer,
     GenericClass,
-    GenericTypesDict,
     IsInstanceEffect,
     LIST_EXACT_TYPE,
     ModuleInstance,
@@ -109,11 +109,11 @@ if TYPE_CHECKING:
 
 
 class BindingScope:
-    def __init__(self, node: AST, generic_types: GenericTypesDict) -> None:
+    def __init__(self, node: AST, type_env: TypeEnvironment) -> None:
         self.node = node
         self.local_types: Dict[str, Value] = {}
         self.decl_types: Dict[str, TypeDeclaration] = {}
-        self.generic_types = generic_types
+        self.type_env = type_env
 
     def branch(self) -> LocalsBranch:
         return LocalsBranch(self)
@@ -132,9 +132,9 @@ class BindingScope:
 
 class ModuleBindingScope(BindingScope):
     def __init__(
-        self, node: ast.Module, module: ModuleTable, generic_types: GenericTypesDict
+        self, node: ast.Module, module: ModuleTable, type_env: TypeEnvironment
     ) -> None:
-        super().__init__(node, generic_types)
+        super().__init__(node, type_env)
         self.module = module
 
     def declare(
@@ -187,7 +187,7 @@ class LocalsBranch:
             return types[0]
 
         return UNION_TYPE.make_generic_type(
-            tuple(t.inexact().klass for t in types), self.scope.generic_types
+            tuple(t.inexact().klass for t in types), self.scope.type_env
         ).instance
 
 
@@ -319,9 +319,7 @@ class TypeBinder(GenericVisitor):
 
     def visitModule(self, node: Module) -> None:
         self.scopes.append(
-            ModuleBindingScope(
-                node, self.module, generic_types=self.compiler.generic_types
-            )
+            ModuleBindingScope(node, self.module, type_env=self.compiler.type_env)
         )
 
         self.check_static_import_flags(node)
@@ -434,7 +432,7 @@ class TypeBinder(GenericVisitor):
             self.set_param(kwarg, DICT_EXACT_TYPE.instance, scope)
 
     def new_scope(self, node: AST) -> BindingScope:
-        return BindingScope(node, generic_types=self.compiler.generic_types)
+        return BindingScope(node, type_env=self.compiler.type_env)
 
     def get_func_container(
         self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
@@ -478,9 +476,7 @@ class TypeBinder(GenericVisitor):
         for base in node.bases:
             self.visitExpectedType(base, DYNAMIC, "class base cannot be a primitive")
 
-        self.scopes.append(
-            BindingScope(node, generic_types=self.compiler.generic_types)
-        )
+        self.scopes.append(BindingScope(node, type_env=self.compiler.type_env))
 
         for stmt in node.body:
             self.visit(stmt)
@@ -792,7 +788,7 @@ class TypeBinder(GenericVisitor):
     def visitLambda(
         self, node: Lambda, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        scope = BindingScope(node, generic_types=self.compiler.generic_types)
+        scope = BindingScope(node, type_env=self.compiler.type_env)
         self._visitParameters(node.args, scope)
 
         self.scopes.append(scope)
@@ -821,7 +817,7 @@ class TypeBinder(GenericVisitor):
         self.set_type(
             node,
             UNION_TYPE.make_generic_type(
-                (body_t.klass, else_t.klass), self.compiler.generic_types
+                (body_t.klass, else_t.klass), self.compiler.type_env
             ).instance,
         )
         return NO_EFFECT
@@ -848,7 +844,7 @@ class TypeBinder(GenericVisitor):
             return existing
 
         res = UNION_TYPE.make_generic_type(
-            (existing.klass, new.klass), self.compiler.generic_types
+            (existing.klass, new.klass), self.compiler.type_env
         ).instance
         return res
 
@@ -892,7 +888,7 @@ class TypeBinder(GenericVisitor):
             ):
                 typ = CHECKED_DICT_TYPE.make_generic_type(
                     (key_type.klass.inexact_type(), value_type.klass.inexact_type()),
-                    self.compiler.generic_types,
+                    self.compiler.type_env,
                 ).instance
             else:
                 typ = DICT_EXACT_TYPE.instance
@@ -911,7 +907,7 @@ class TypeBinder(GenericVisitor):
             value_type = type_class.type_args[1].instance
 
         gen_type = CHECKED_DICT_TYPE.make_generic_type(
-            (key_type.klass, value_type.klass), self.compiler.generic_types
+            (key_type.klass, value_type.klass), self.compiler.type_env
         )
 
         self.set_type(node, type_ctx)
@@ -935,7 +931,7 @@ class TypeBinder(GenericVisitor):
             if ModuleFlag.CHECKED_LISTS in self.module.flags and item_type is not None:
                 typ = CHECKED_LIST_TYPE.make_generic_type(
                     (item_type.klass.inexact_type(),),
-                    self.compiler.generic_types,
+                    self.compiler.type_env,
                 ).instance
             else:
                 typ = LIST_EXACT_TYPE.instance
@@ -952,7 +948,7 @@ class TypeBinder(GenericVisitor):
             item_type = type_class.type_args[0].instance
 
         gen_type = CHECKED_LIST_TYPE.make_generic_type(
-            (item_type.klass.inexact_type(),), self.compiler.generic_types
+            (item_type.klass.inexact_type(),), self.compiler.type_env
         )
 
         self.set_type(node, type_ctx)
@@ -1048,7 +1044,7 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         self.visit(node.generators[0].iter)
 
-        scope = BindingScope(node, generic_types=self.compiler.generic_types)
+        scope = BindingScope(node, type_env=self.compiler.type_env)
         self.scopes.append(scope)
 
         iter_type = self.get_type(node.generators[0].iter).get_iter_type(
@@ -1084,7 +1080,7 @@ class TypeBinder(GenericVisitor):
     ) -> None:
         self.visit(generators[0].iter)
 
-        scope = BindingScope(node, generic_types=self.compiler.generic_types)
+        scope = BindingScope(node, type_env=self.compiler.type_env)
         self.scopes.append(scope)
 
         iter_type = self.get_type(generators[0].iter).get_iter_type(

@@ -1,4 +1,5 @@
 import unittest
+from compiler.static.type_env import TypeEnvironment
 from compiler.static.types import (
     BOOL_TYPE,
     CHECKED_LIST_TYPE,
@@ -46,13 +47,9 @@ class SubclassTests(StaticTestBase):
     def test_issubclass_with_awaitable_covariant(self):
         mod, comp = self.bind_module("class Num(int): pass", 0)
         num = comp.modules["foo"].children["Num"]
-        awaitable_bool = AWAITABLE_TYPE.make_generic_type(
-            (BOOL_TYPE,), comp.generic_types
-        )
-        awaitable_int = AWAITABLE_TYPE.make_generic_type(
-            (INT_TYPE,), comp.generic_types
-        )
-        awaitable_num = AWAITABLE_TYPE.make_generic_type((num,), comp.generic_types)
+        awaitable_bool = AWAITABLE_TYPE.make_generic_type((BOOL_TYPE,), comp.type_env)
+        awaitable_int = AWAITABLE_TYPE.make_generic_type((INT_TYPE,), comp.type_env)
+        awaitable_num = AWAITABLE_TYPE.make_generic_type((num,), comp.type_env)
 
         self.assertTrue(awaitable_bool.is_subclass_of(awaitable_bool))
         self.assertTrue(awaitable_bool.is_subclass_of(awaitable_int))
@@ -67,20 +64,20 @@ class SubclassTests(StaticTestBase):
         self.assertTrue(awaitable_num.is_subclass_of(awaitable_num))
 
     def test_issubclass_with_union_self(self):
-        int_or_str = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), {})
+        int_or_str = UNION_TYPE.make_generic_type(
+            (INT_TYPE, STR_TYPE), TypeEnvironment()
+        )
         self.assertFalse(int_or_str.is_subclass_of(INT_TYPE))
         self.assertFalse(int_or_str.is_subclass_of(STR_TYPE))
         self.assertTrue(INT_TYPE.is_subclass_of(int_or_str))
         self.assertTrue(STR_TYPE.is_subclass_of(int_or_str))
 
     def test_issubclass_with_union_self_and_source(self):
-        generic_types = {}
-        int_or_str = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), generic_types)
-        str_or_tuple = UNION_TYPE.make_generic_type(
-            (STR_TYPE, TUPLE_TYPE), generic_types
-        )
+        type_env = TypeEnvironment()
+        int_or_str = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), type_env)
+        str_or_tuple = UNION_TYPE.make_generic_type((STR_TYPE, TUPLE_TYPE), type_env)
         int_or_str_or_tuple = UNION_TYPE.make_generic_type(
-            (INT_TYPE, STR_TYPE, TUPLE_TYPE), generic_types
+            (INT_TYPE, STR_TYPE, TUPLE_TYPE), type_env
         )
         self.assertFalse(int_or_str_or_tuple.is_subclass_of(int_or_str))
         self.assertFalse(int_or_str_or_tuple.is_subclass_of(str_or_tuple))
@@ -90,11 +87,15 @@ class SubclassTests(StaticTestBase):
         self.assertTrue(str_or_tuple.is_subclass_of(int_or_str_or_tuple))
 
     def test_union_with_subclass_returns_superclass(self):
-        bool_or_int = UNION_TYPE.make_generic_type((BOOL_TYPE, INT_TYPE), {})
+        bool_or_int = UNION_TYPE.make_generic_type(
+            (BOOL_TYPE, INT_TYPE), TypeEnvironment()
+        )
         self.assertIs(bool_or_int, INT_TYPE)
 
     def test_checkedlist_subclass(self):
-        checked_list_str = CHECKED_LIST_TYPE.make_generic_type((STR_TYPE,), {})
+        checked_list_str = CHECKED_LIST_TYPE.make_generic_type(
+            (STR_TYPE,), TypeEnvironment()
+        )
         self.assertTrue(checked_list_str.is_subclass_of(OBJECT_TYPE))
 
     def test_cannot_subclass_static_classes_in_nonstatic_code(self):

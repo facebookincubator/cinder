@@ -137,6 +137,7 @@ from ..pycodegen import FOR_LOOP, CodeGenerator
 from ..unparse import to_expr
 from ..visitor import ASTRewriter, TAst
 from .effects import NarrowingEffect, NO_EFFECT
+from .type_env import GenericTypeIndex, TypeEnvironment
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
@@ -284,9 +285,6 @@ class GenericTypeName(TypeName):
         return f"{super().friendly_name}[{args}]"
 
 
-GenericTypeIndex = Tuple["Class", ...]
-GenericTypesDict = Dict["Class", Dict[GenericTypeIndex, "Class"]]
-
 TType = TypeVar("TType")
 TClass = TypeVar("TClass", bound="Class", covariant=True)
 TClassInv = TypeVar("TClassInv", bound="Class")
@@ -322,7 +320,7 @@ class Value:
         return self
 
     def make_generic_type(
-        self, index: GenericTypeIndex, generic_types: GenericTypesDict
+        self, index: GenericTypeIndex, type_env: TypeEnvironment
     ) -> Optional[Class]:
         pass
 
@@ -614,7 +612,7 @@ class Value:
         return self.emit_call(node, code_gen)
 
     def make_generic(
-        self, new_type: Class, name: GenericTypeName, generic_types: GenericTypesDict
+        self, new_type: Class, name: GenericTypeName, type_env: TypeEnvironment
     ) -> Value:
         return self
 
@@ -1007,7 +1005,7 @@ class Class(Object["Class"]):
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
-        generic_types: GenericTypesDict,
+        type_env: TypeEnvironment,
     ) -> Optional[Class]:
         """Binds the generic type parameters to a generic type definition"""
         return None
@@ -1039,7 +1037,7 @@ class Class(Object["Class"]):
                     node,
                 )
             union = UNION_TYPE.make_generic_type(
-                (self, rtype), visitor.compiler.generic_types
+                (self, rtype), visitor.compiler.type_env
             )
             visitor.set_type(node, union)
             return True
@@ -1366,7 +1364,7 @@ class Class(Object["Class"]):
     def bind_generics(
         self,
         name: GenericTypeName,
-        generic_types: Dict[Class, Dict[Tuple[Class, ...], Class]],
+        type_env: TypeEnvironment,
     ) -> Class:
         return self
 
@@ -1497,7 +1495,7 @@ class GenericClass(Class):
                 node,
             )
 
-        return self.make_generic_type(index, visitor.module.compiler.generic_types)
+        return self.make_generic_type(index, visitor.module.compiler.type_env)
 
     @property
     def type_args(self) -> Sequence[Class]:
@@ -1553,15 +1551,15 @@ class GenericClass(Class):
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
-        generic_types: GenericTypesDict,
+        type_env: TypeEnvironment,
     ) -> Class:
-        instantiations = generic_types.get(self)
+        instantiations = type_env._generic_types.get(self)
         if instantiations is not None:
             instance = instantiations.get(index)
             if instance is not None:
                 return instance
         else:
-            generic_types[self] = instantiations = {}
+            type_env._generic_types[self] = instantiations = {}
 
         type_args = index
         type_name = GenericTypeName(
@@ -1569,7 +1567,7 @@ class GenericClass(Class):
         )
         generic_bases: List[Optional[Class]] = [
             (
-                base.make_generic_type(index, generic_types)
+                base.make_generic_type(index, type_env)
                 if base.contains_generic_parameters
                 else base
             )
@@ -1596,7 +1594,7 @@ class GenericClass(Class):
         instantiations[index] = concrete
         concrete.members.update(
             {
-                k: v.make_generic(concrete, type_name, generic_types)
+                k: v.make_generic(concrete, type_name, type_env)
                 for k, v in self.members.items()
             }
         )
@@ -1605,7 +1603,7 @@ class GenericClass(Class):
     def bind_generics(
         self,
         name: GenericTypeName,
-        generic_types: Dict[Class, Dict[Tuple[Class, ...], Class]],
+        type_env: TypeEnvironment,
     ) -> Class:
         if self.contains_generic_parameters:
             type_args = [
@@ -1617,7 +1615,7 @@ class GenericClass(Class):
             # We don't yet support generic methods, so all of the generic parameters are coming from the
             # type definition.
 
-            return self.make_generic_type(bind_args, generic_types)
+            return self.make_generic_type(bind_args, type_env)
 
         return self
 
@@ -1641,7 +1639,7 @@ class GenericParameter(Class):
     def bind_generics(
         self,
         name: GenericTypeName,
-        generic_types: Dict[Class, Dict[Tuple[Class, ...], Class]],
+        type_env: TypeEnvironment,
     ) -> Class:
         return name.args[self.index]
 
@@ -1882,9 +1880,9 @@ class Parameter:
     def bind_generics(
         self,
         name: GenericTypeName,
-        generic_types: Dict[Class, Dict[Tuple[Class, ...], Class]],
+        type_env: TypeEnvironment,
     ) -> Parameter:
-        klass = self.type_ref.resolved().bind_generics(name, generic_types)
+        klass = self.type_ref.resolved().bind_generics(name, type_env)
         if klass is not self.type_ref.resolved():
             return Parameter(
                 self.name,
@@ -2618,17 +2616,17 @@ class AwaitableType(GenericClass):
         raise NotImplementedError("Awaitables shouldn't have a type descr")
 
     def make_generic_type(
-        self, index: Tuple[Class, ...], generic_types: GenericTypesDict
+        self, index: Tuple[Class, ...], type_env: TypeEnvironment
     ) -> Class:
         assert len(index) == 1
 
-        instantiations = generic_types.get(self)
+        instantiations = type_env._generic_types.get(self)
         if instantiations is not None:
             instance = instantiations.get(index)
             if instance is not None:
                 return instance
         else:
-            generic_types[self] = instantiations = {}
+            type_env._generic_types[self] = instantiations = {}
 
         type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
         instantiations[index] = concrete = AwaitableType(
@@ -2655,7 +2653,7 @@ class AwaitableTypeRef(TypeRef):
 
     def resolved(self, is_declaration: bool = False) -> Class:
         res = self.ref.resolved(is_declaration)
-        return AWAITABLE_TYPE.make_generic_type((res,), self.compiler.generic_types)
+        return AWAITABLE_TYPE.make_generic_type((res,), self.compiler.type_env)
 
     def __repr__(self) -> str:
         return f"AwaitableTypeRef({self.ref!r})"
@@ -3695,13 +3693,13 @@ class BuiltinFunction(Callable[Class]):
         self.emit_call_self(node, code_gen)
 
     def make_generic(
-        self, new_type: Class, name: GenericTypeName, generic_types: GenericTypesDict
+        self, new_type: Class, name: GenericTypeName, type_env: TypeEnvironment
     ) -> Value:
         cur_args = self.args
         cur_ret_type = self.return_type
         if cur_args is not None and cur_ret_type is not None:
-            new_args = tuple(arg.bind_generics(name, generic_types) for arg in cur_args)
-            new_ret_type = cur_ret_type.resolved().bind_generics(name, generic_types)
+            new_args = tuple(arg.bind_generics(name, type_env) for arg in cur_args)
+            new_ret_type = cur_ret_type.resolved().bind_generics(name, type_env)
             return BuiltinFunction(
                 self.func_name,
                 self.module_name,
@@ -3798,13 +3796,13 @@ class BuiltinMethodDescriptor(Callable[Class]):
             return DYNAMIC if self.dynamic_dispatch else BuiltinMethod(self, node)
 
     def make_generic(
-        self, new_type: Class, name: GenericTypeName, generic_types: GenericTypesDict
+        self, new_type: Class, name: GenericTypeName, type_env: TypeEnvironment
     ) -> Value:
         cur_args = self.args
         cur_ret_type = self.return_type
         if cur_args is not None and cur_ret_type is not None:
-            new_args = tuple(arg.bind_generics(name, generic_types) for arg in cur_args)
-            new_ret_type = cur_ret_type.resolved().bind_generics(name, generic_types)
+            new_args = tuple(arg.bind_generics(name, type_env) for arg in cur_args)
+            new_ret_type = cur_ret_type.resolved().bind_generics(name, type_env)
             return BuiltinMethodDescriptor(
                 self.func_name,
                 new_type,
@@ -4183,7 +4181,7 @@ class IsInstanceEffect(NarrowingEffect):
                 ta for ta in prev.klass.type_args if not inst.klass.can_assign_from(ta)
             )
             reverse = UNION_TYPE.make_generic_type(
-                type_args, visitor.compiler.generic_types
+                type_args, visitor.compiler.type_env
             ).instance
         self.rev: Value = reverse
 
@@ -4237,7 +4235,7 @@ class IsInstanceFunction(Object[Class]):
                 types = tuple(visitor.get_type(el) for el in arg1.elts)
                 if all(isinstance(t, Class) for t in types):
                     klass_type = UNION_TYPE.make_generic_type(
-                        types, visitor.compiler.generic_types
+                        types, visitor.compiler.type_env
                     )
             else:
                 arg1_type = visitor.get_type(node.args[1])
@@ -4477,7 +4475,7 @@ def parse_type(info: Dict[str, object]) -> Class:
         klass = GenericParameter("T" + str(type_param), type_param)
 
     if optional:
-        return OPTIONAL_TYPE.make_generic_type((klass,), BUILTIN_GENERICS)
+        return OPTIONAL_TYPE.make_generic_type((klass,), BUILTIN_TYPE_ENV)
 
     return klass
 
@@ -5238,7 +5236,7 @@ class UnionType(GenericClass):
         type_name: Optional[UnionTypeName] = None,
         type_def: Optional[GenericClass] = None,
         instance_type: Optional[Type[Object[Class]]] = None,
-        generic_types: Optional[GenericTypesDict] = None,
+        type_env: Optional[TypeEnvironment] = None,
     ) -> None:
         instance_type = instance_type or UnionInstance
         super().__init__(
@@ -5247,25 +5245,25 @@ class UnionType(GenericClass):
             instance=instance_type(self),
             type_def=type_def,
         )
-        self.generic_types = generic_types
+        self.type_env = type_env
 
     @property
     def opt_type(self) -> Optional[Class]:
         return self.type_name.opt_type
 
     def exact_type(self) -> Class:
-        generic_types = self.generic_types
-        if generic_types is not None:
+        type_env = self.type_env
+        if type_env is not None:
             return UNION_TYPE.make_generic_type(
-                tuple(a.exact_type() for a in self.type_args), generic_types
+                tuple(a.exact_type() for a in self.type_args), type_env
             )
         return self
 
     def inexact_type(self) -> Class:
-        generic_types = self.generic_types
-        if generic_types is not None:
+        type_env = self.type_env
+        if type_env is not None:
             return UNION_TYPE.make_generic_type(
-                tuple(a.inexact_type() for a in self.type_args), generic_types
+                tuple(a.inexact_type() for a in self.type_args), type_env
             )
         return self
 
@@ -5279,15 +5277,15 @@ class UnionType(GenericClass):
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
-        generic_types: GenericTypesDict,
+        type_env: TypeEnvironment,
     ) -> Class:
-        instantiations = generic_types.get(self)
+        instantiations = type_env._generic_types.get(self)
         if instantiations is not None:
             instance = instantiations.get(index)
             if instance is not None:
                 return instance
         else:
-            generic_types[self] = instantiations = {}
+            type_env._generic_types[self] = instantiations = {}
 
         type_args = self._simplify_args(index)
         if len(type_args) == 1 and not type_args[0].is_generic_parameter:
@@ -5301,9 +5299,7 @@ class UnionType(GenericClass):
         if type_name.opt_type is not None:
             ThisUnionType = OptionalType
         instantiations[index] = concrete = ThisUnionType(
-            type_name,
-            type_def=self,
-            generic_types=generic_types,
+            type_name, type_def=self, type_env=type_env
         )
         return concrete
 
@@ -5349,7 +5345,7 @@ class UnionInstance(Object[UnionType]):
             visitor.syntax_error(f"{self.name}: {e.msg}", node)
 
         union = UNION_TYPE.make_generic_type(
-            tuple(result_types), visitor.compiler.generic_types
+            tuple(result_types), visitor.compiler.type_env
         )
         visitor.set_type(node, union.instance)
         return ret_types
@@ -5456,14 +5452,14 @@ class OptionalType(UnionType):
         self,
         type_name: Optional[UnionTypeName] = None,
         type_def: Optional[GenericClass] = None,
-        generic_types: Optional[GenericTypesDict] = None,
+        type_env: Optional[TypeEnvironment] = None,
     ) -> None:
         super().__init__(
             type_name
             or UnionTypeName("typing", "Optional", (GenericParameter("T", 0),)),
             type_def=type_def,
             instance_type=OptionalInstance,
-            generic_types=generic_types,
+            type_env=type_env,
         )
 
     @property
@@ -5475,13 +5471,13 @@ class OptionalType(UnionType):
         return opt_type
 
     def make_generic_type(
-        self, index: Tuple[Class, ...], generic_types: GenericTypesDict
+        self, index: Tuple[Class, ...], type_env: TypeEnvironment
     ) -> Class:
         assert len(index) == 1
         if not index[0].is_generic_parameter:
             # Optional[T] is syntactic sugar for Union[T, None]
             index = index + (NONE_TYPE,)
-        return super().make_generic_type(index, generic_types)
+        return super().make_generic_type(index, type_env)
 
 
 class OptionalInstance(UnionInstance):
@@ -5640,14 +5636,16 @@ class ArrayClass(GenericClass):
         return cls
 
     def make_generic_type(
-        self, index: Tuple[Class, ...], generic_types: GenericTypesDict
+        self,
+        index: Tuple[Class, ...],
+        type_env: TypeEnvironment,
     ) -> Class:
         for tp in index:
             if tp not in ALLOWED_ARRAY_TYPES:
                 raise TypedSyntaxError(
                     f"Invalid {self.gen_name.name} element type: {tp.instance.name}"
                 )
-        return super().make_generic_type(index, generic_types)
+        return super().make_generic_type(index, type_env)
 
 
 class VectorClass(ArrayClass):
@@ -5689,7 +5687,7 @@ class VectorClass(ArrayClass):
         )
 
 
-BUILTIN_GENERICS: Dict[Class, Dict[GenericTypeIndex, Class]] = {}
+BUILTIN_TYPE_ENV: TypeEnvironment = TypeEnvironment()
 AWAITABLE_TYPE = AwaitableType()
 UNION_TYPE = UnionType()
 OPTIONAL_TYPE = OptionalType()
@@ -7257,7 +7255,7 @@ class ContextDecoratedMethod(DecoratedMethod):
                 ResolvedTypeRef(
                     CLASSVAR_TYPE.make_generic_type(
                         (self.ctx_dec.klass,),
-                        self.real_function.module.compiler.generic_types,
+                        self.real_function.module.compiler.type_env,
                     )
                 ),
                 assignment=node,

@@ -119,7 +119,7 @@ class AnnotationVisitor(ReferenceVisitor):
 
             if klass is FLOAT_TYPE:
                 klass = UNION_TYPE.make_generic_type(
-                    (FLOAT_TYPE, INT_TYPE), self.compiler.generic_types
+                    (FLOAT_TYPE, INT_TYPE), self.compiler.type_env
                 )
 
             # TODO until we support runtime checking of unions, we must for
@@ -152,7 +152,7 @@ class AnnotationVisitor(ReferenceVisitor):
             if ltype is None or rtype is None:
                 return None
             return UNION_TYPE.make_generic_type(
-                (ltype, rtype), self.module.compiler.generic_types
+                (ltype, rtype), self.module.compiler.type_env
             )
 
     def visitConstant(self, node: Constant) -> Optional[Value]:

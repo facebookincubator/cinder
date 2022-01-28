@@ -20,6 +20,7 @@ from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
 from .module_table import ModuleTable
 from .type_binder import TypeBinder
+from .type_env import TypeEnvironment
 from .types import (
     ALLOW_WEAKREFS_TYPE,
     ARRAY_TYPE,
@@ -27,7 +28,7 @@ from .types import (
     ASYNC_CACHED_PROPERTY_TYPE,
     BASE_EXCEPTION_TYPE,
     BOOL_TYPE,
-    BUILTIN_GENERICS,
+    BUILTIN_TYPE_ENV,
     BYTES_TYPE,
     BoxFunction,
     CBOOL_TYPE,
@@ -52,7 +53,6 @@ from .types import (
     FINAL_TYPE,
     FLOAT_EXACT_TYPE,
     FUNCTION_TYPE,
-    GenericTypesDict,
     IDENTITY_DECORATOR_TYPE,
     INLINE_TYPE,
     INT16_TYPE,
@@ -301,12 +301,7 @@ class Compiler:
                 },
             )
 
-        # We need to clone the dictionaries for each type so that as we populate
-        # generic instantations that we don't store them in the global dict for
-        # built-in types
-        self.generic_types: GenericTypesDict = {
-            k: dict(v) for k, v in BUILTIN_GENERICS.items()
-        }
+        self.type_env: TypeEnvironment = TypeEnvironment(BUILTIN_TYPE_ENV)
         self.literal_types: Dict[Tuple[Value, object], Value] = {}
 
     def __getitem__(self, name: str) -> ModuleTable:
