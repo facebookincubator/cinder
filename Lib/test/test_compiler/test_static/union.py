@@ -87,9 +87,13 @@ class UnionCompilationTests(StaticTestBase):
 
     def test_union_can_assign_from(self):
         compiler = Compiler(StaticCodeGenerator)
-        u1 = UNION_TYPE.make_generic_type((INT_TYPE, STR_TYPE), compiler.type_env)
-        u2 = UNION_TYPE.make_generic_type(
-            (INT_TYPE, STR_TYPE, NONE_TYPE), compiler.type_env
+        u1 = compiler.type_env.get_generic_type(
+            UNION_TYPE,
+            (INT_TYPE, STR_TYPE),
+        )
+        u2 = compiler.type_env.get_generic_type(
+            UNION_TYPE,
+            (INT_TYPE, STR_TYPE, NONE_TYPE),
         )
         self.assertTrue(u2.can_assign_from(u1))
         self.assertFalse(u1.can_assign_from(u2))

@@ -1036,8 +1036,9 @@ class Class(Object["Class"]):
                     f"unsupported operand type(s) for |: {self.name} and {rtype.name}",
                     node,
                 )
-            union = UNION_TYPE.make_generic_type(
-                (self, rtype), visitor.compiler.type_env
+                return False
+            union = visitor.compiler.type_env.get_generic_type(
+                UNION_TYPE, (self, rtype)
             )
             visitor.set_type(node, union)
             return True
@@ -1168,6 +1169,12 @@ class Class(Object["Class"]):
 
     def __repr__(self) -> str:
         return f"<{self.name} class>"
+
+    def exact(self) -> Class:
+        return self
+
+    def inexact(self) -> Class:
+        return self
 
     def exact_type(self) -> Class:
         return self
@@ -1495,7 +1502,7 @@ class GenericClass(Class):
                 node,
             )
 
-        return self.make_generic_type(index, visitor.module.compiler.type_env)
+        return visitor.compiler.type_env.get_generic_type(self, index)
 
     @property
     def type_args(self) -> Sequence[Class]:
@@ -1553,22 +1560,14 @@ class GenericClass(Class):
         index: Tuple[Class, ...],
         type_env: TypeEnvironment,
     ) -> Class:
-        instantiations = type_env._generic_types.get(self)
-        if instantiations is not None:
-            instance = instantiations.get(index)
-            if instance is not None:
-                return instance
-        else:
-            type_env._generic_types[self] = instantiations = {}
-
         type_args = index
         type_name = GenericTypeName(
             self.type_name.module, self.type_name.name, type_args
         )
         generic_bases: List[Optional[Class]] = [
             (
-                base.make_generic_type(index, type_env)
-                if base.contains_generic_parameters
+                type_env.get_generic_type(base, index)
+                if isinstance(base, GenericClass) and base.contains_generic_parameters
                 else base
             )
             for base in self.bases
@@ -1588,10 +1587,11 @@ class GenericClass(Class):
             is_exact=self.is_exact,
             type_def=self,
         )
-
         instance.klass = concrete
-
-        instantiations[index] = concrete
+        # This is a bit annoying - updating the members of the concrete types can lead to an
+        # infinite loop, so we need to break the loop by marking the concrete type as being
+        # registered in the type environment.
+        type_env._generic_types[self][index] = concrete
         concrete.members.update(
             {
                 k: v.make_generic(concrete, type_name, type_env)
@@ -1615,7 +1615,7 @@ class GenericClass(Class):
             # We don't yet support generic methods, so all of the generic parameters are coming from the
             # type definition.
 
-            return self.make_generic_type(bind_args, type_env)
+            return type_env.get_generic_type(self, bind_args)
 
         return self
 
@@ -2619,22 +2619,8 @@ class AwaitableType(GenericClass):
         self, index: Tuple[Class, ...], type_env: TypeEnvironment
     ) -> Class:
         assert len(index) == 1
-
-        instantiations = type_env._generic_types.get(self)
-        if instantiations is not None:
-            instance = instantiations.get(index)
-            if instance is not None:
-                return instance
-        else:
-            type_env._generic_types[self] = instantiations = {}
-
         type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
-        instantiations[index] = concrete = AwaitableType(
-            type_name,
-            type_def=self,
-        )
-
-        return concrete
+        return AwaitableType(type_name, type_def=self)
 
 
 class AwaitableInstance(Object[AwaitableType]):
@@ -2653,7 +2639,7 @@ class AwaitableTypeRef(TypeRef):
 
     def resolved(self, is_declaration: bool = False) -> Class:
         res = self.ref.resolved(is_declaration)
-        return AWAITABLE_TYPE.make_generic_type((res,), self.compiler.type_env)
+        return self.compiler.type_env.get_generic_type(AWAITABLE_TYPE, (res,))
 
     def __repr__(self) -> str:
         return f"AwaitableTypeRef({self.ref!r})"
@@ -4180,8 +4166,8 @@ class IsInstanceEffect(NarrowingEffect):
             type_args = tuple(
                 ta for ta in prev.klass.type_args if not inst.klass.can_assign_from(ta)
             )
-            reverse = UNION_TYPE.make_generic_type(
-                type_args, visitor.compiler.type_env
+            reverse = visitor.compiler.type_env.get_generic_type(
+                UNION_TYPE, type_args
             ).instance
         self.rev: Value = reverse
 
@@ -4230,12 +4216,13 @@ class IsInstanceFunction(Object[Class]):
                 return NO_EFFECT
 
             arg1 = node.args[1]
-            klass_type = None
+            klass_type: Optional[Class] = None
             if isinstance(arg1, ast.Tuple):
                 types = tuple(visitor.get_type(el) for el in arg1.elts)
                 if all(isinstance(t, Class) for t in types):
-                    klass_type = UNION_TYPE.make_generic_type(
-                        types, visitor.compiler.type_env
+                    klass_type = visitor.compiler.type_env.get_generic_type(
+                        UNION_TYPE,
+                        cast(Tuple[Class, ...], types),
                     )
             else:
                 arg1_type = visitor.get_type(node.args[1])
@@ -4475,7 +4462,7 @@ def parse_type(info: Dict[str, object]) -> Class:
         klass = GenericParameter("T" + str(type_param), type_param)
 
     if optional:
-        return OPTIONAL_TYPE.make_generic_type((klass,), BUILTIN_TYPE_ENV)
+        return BUILTIN_TYPE_ENV.get_generic_type(OPTIONAL_TYPE, (klass,))
 
     return klass
 
@@ -5254,16 +5241,18 @@ class UnionType(GenericClass):
     def exact_type(self) -> Class:
         type_env = self.type_env
         if type_env is not None:
-            return UNION_TYPE.make_generic_type(
-                tuple(a.exact_type() for a in self.type_args), type_env
+            return type_env.get_generic_type(
+                UNION_TYPE,
+                tuple(a.exact_type() for a in self.type_args),
             )
         return self
 
     def inexact_type(self) -> Class:
         type_env = self.type_env
         if type_env is not None:
-            return UNION_TYPE.make_generic_type(
-                tuple(a.inexact_type() for a in self.type_args), type_env
+            return type_env.get_generic_type(
+                UNION_TYPE,
+                tuple(a.inexact_type() for a in self.type_args),
             )
         return self
 
@@ -5279,14 +5268,6 @@ class UnionType(GenericClass):
         index: Tuple[Class, ...],
         type_env: TypeEnvironment,
     ) -> Class:
-        instantiations = type_env._generic_types.get(self)
-        if instantiations is not None:
-            instance = instantiations.get(index)
-            if instance is not None:
-                return instance
-        else:
-            type_env._generic_types[self] = instantiations = {}
-
         type_args = self._simplify_args(index)
         if len(type_args) == 1 and not type_args[0].is_generic_parameter:
             return type_args[0]
@@ -5298,10 +5279,7 @@ class UnionType(GenericClass):
         ThisUnionType = type(self)
         if type_name.opt_type is not None:
             ThisUnionType = OptionalType
-        instantiations[index] = concrete = ThisUnionType(
-            type_name, type_def=self, type_env=type_env
-        )
-        return concrete
+        return ThisUnionType(type_name, type_def=self, type_env=type_env)
 
     def _simplify_args(self, args: Sequence[Class]) -> Tuple[Class, ...]:
         args = self._flatten_args(args)
@@ -5344,8 +5322,8 @@ class UnionInstance(Object[UnionType]):
         except TypedSyntaxError as e:
             visitor.syntax_error(f"{self.name}: {e.msg}", node)
 
-        union = UNION_TYPE.make_generic_type(
-            tuple(result_types), visitor.compiler.type_env
+        union = visitor.compiler.type_env.get_generic_type(
+            UNION_TYPE, tuple(result_types)
         )
         visitor.set_type(node, union.instance)
         return ret_types
@@ -7253,9 +7231,9 @@ class ContextDecoratedMethod(DecoratedMethod):
                 dec_name,
                 self.decorator,
                 ResolvedTypeRef(
-                    CLASSVAR_TYPE.make_generic_type(
+                    visitor.compiler.type_env.get_generic_type(
+                        CLASSVAR_TYPE,
                         (self.ctx_dec.klass,),
-                        self.real_function.module.compiler.type_env,
                     )
                 ),
                 assignment=node,

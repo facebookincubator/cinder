@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Dict, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .types import Class, Value, TypeName
+    from .types import Class, GenericClass, Value, TypeName
 
 
 GenericTypeIndex = Tuple["Class", ...]
@@ -24,3 +24,17 @@ class TypeEnvironment:
             if builtin_type_env is not None
             else {}
         )
+
+    def get_generic_type(
+        self, generic_type: GenericClass, index: GenericTypeIndex
+    ) -> Class:
+        instantiations = self._generic_types.get(generic_type)
+        if instantiations is not None:
+            instance = instantiations.get(index)
+            if instance is not None:
+                return instance
+        else:
+            self._generic_types[generic_type] = instantiations = {}
+        concrete = generic_type.make_generic_type(index, self)
+        instantiations[index] = concrete
+        return concrete

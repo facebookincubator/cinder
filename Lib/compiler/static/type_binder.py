@@ -155,6 +155,7 @@ class LocalsBranch:
 
     def __init__(self, scope: BindingScope) -> None:
         self.scope = scope
+        self.type_env: TypeEnvironment = scope.type_env
         self.entry_locals: Dict[str, Value] = dict(scope.local_types)
 
     def copy(self) -> Dict[str, Value]:
@@ -186,8 +187,9 @@ class LocalsBranch:
         if len(types) == 1:
             return types[0]
 
-        return UNION_TYPE.make_generic_type(
-            tuple(t.inexact().klass for t in types), self.scope.type_env
+        return self.type_env.get_generic_type(
+            UNION_TYPE,
+            tuple(t.inexact().klass for t in types),
         ).instance
 
 
@@ -224,6 +226,7 @@ class TypeBinder(GenericVisitor):
         self.modules: Dict[str, ModuleTable] = compiler.modules
         self.optimize = optimize
         self.terminals: Dict[AST, TerminalKind] = {}
+        self.type_env: TypeEnvironment = compiler.type_env
         self.inline_depth = 0
         self.inline_calls = 0
         self.enable_patching = enable_patching
@@ -319,7 +322,7 @@ class TypeBinder(GenericVisitor):
 
     def visitModule(self, node: Module) -> None:
         self.scopes.append(
-            ModuleBindingScope(node, self.module, type_env=self.compiler.type_env)
+            ModuleBindingScope(node, self.module, type_env=self.type_env)
         )
 
         self.check_static_import_flags(node)
@@ -432,7 +435,7 @@ class TypeBinder(GenericVisitor):
             self.set_param(kwarg, DICT_EXACT_TYPE.instance, scope)
 
     def new_scope(self, node: AST) -> BindingScope:
-        return BindingScope(node, type_env=self.compiler.type_env)
+        return BindingScope(node, type_env=self.type_env)
 
     def get_func_container(
         self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
@@ -476,7 +479,7 @@ class TypeBinder(GenericVisitor):
         for base in node.bases:
             self.visitExpectedType(base, DYNAMIC, "class base cannot be a primitive")
 
-        self.scopes.append(BindingScope(node, type_env=self.compiler.type_env))
+        self.scopes.append(BindingScope(node, type_env=self.type_env))
 
         for stmt in node.body:
             self.visit(stmt)
@@ -788,7 +791,7 @@ class TypeBinder(GenericVisitor):
     def visitLambda(
         self, node: Lambda, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        scope = BindingScope(node, type_env=self.compiler.type_env)
+        scope = BindingScope(node, type_env=self.type_env)
         self._visitParameters(node.args, scope)
 
         self.scopes.append(scope)
@@ -816,8 +819,9 @@ class TypeBinder(GenericVisitor):
         else_t = self.get_type(node.orelse)
         self.set_type(
             node,
-            UNION_TYPE.make_generic_type(
-                (body_t.klass, else_t.klass), self.compiler.type_env
+            self.type_env.get_generic_type(
+                UNION_TYPE,
+                (body_t.klass, else_t.klass),
             ).instance,
         )
         return NO_EFFECT
@@ -843,8 +847,8 @@ class TypeBinder(GenericVisitor):
         elif existing.klass.can_assign_from(new.klass):
             return existing
 
-        res = UNION_TYPE.make_generic_type(
-            (existing.klass, new.klass), self.compiler.type_env
+        res = self.type_env.get_generic_type(
+            UNION_TYPE, (existing.klass, new.klass)
         ).instance
         return res
 
@@ -886,9 +890,9 @@ class TypeBinder(GenericVisitor):
                 and key_type is not None
                 and value_type is not None
             ):
-                typ = CHECKED_DICT_TYPE.make_generic_type(
+                typ = self.type_env.get_generic_type(
+                    CHECKED_DICT_TYPE,
                     (key_type.klass.inexact_type(), value_type.klass.inexact_type()),
-                    self.compiler.type_env,
                 ).instance
             else:
                 typ = DICT_EXACT_TYPE.instance
@@ -906,8 +910,9 @@ class TypeBinder(GenericVisitor):
         if value_type is None:
             value_type = type_class.type_args[1].instance
 
-        gen_type = CHECKED_DICT_TYPE.make_generic_type(
-            (key_type.klass, value_type.klass), self.compiler.type_env
+        gen_type = self.type_env.get_generic_type(
+            CHECKED_DICT_TYPE,
+            (key_type.klass, value_type.klass),
         )
 
         self.set_type(node, type_ctx)
@@ -929,9 +934,9 @@ class TypeBinder(GenericVisitor):
     ) -> Value:
         if not isinstance(type_ctx, CheckedListInstance):
             if ModuleFlag.CHECKED_LISTS in self.module.flags and item_type is not None:
-                typ = CHECKED_LIST_TYPE.make_generic_type(
+                typ = self.type_env.get_generic_type(
+                    CHECKED_LIST_TYPE,
                     (item_type.klass.inexact_type(),),
-                    self.compiler.type_env,
                 ).instance
             else:
                 typ = LIST_EXACT_TYPE.instance
@@ -947,8 +952,9 @@ class TypeBinder(GenericVisitor):
         if item_type is None:
             item_type = type_class.type_args[0].instance
 
-        gen_type = CHECKED_LIST_TYPE.make_generic_type(
-            (item_type.klass.inexact_type(),), self.compiler.type_env
+        gen_type = self.type_env.get_generic_type(
+            CHECKED_LIST_TYPE,
+            (item_type.klass.inexact_type(),),
         )
 
         self.set_type(node, type_ctx)
@@ -1044,7 +1050,7 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         self.visit(node.generators[0].iter)
 
-        scope = BindingScope(node, type_env=self.compiler.type_env)
+        scope = BindingScope(node, type_env=self.type_env)
         self.scopes.append(scope)
 
         iter_type = self.get_type(node.generators[0].iter).get_iter_type(
@@ -1080,7 +1086,7 @@ class TypeBinder(GenericVisitor):
     ) -> None:
         self.visit(generators[0].iter)
 
-        scope = BindingScope(node, type_env=self.compiler.type_env)
+        scope = BindingScope(node, type_env=self.type_env)
         self.scopes.append(scope)
 
         iter_type = self.get_type(generators[0].iter).get_iter_type(
