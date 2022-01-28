@@ -29,13 +29,10 @@ class TypeEnvironment:
     def get_generic_type(
         self, generic_type: GenericClass, index: GenericTypeIndex
     ) -> Class:
-        instantiations = self._generic_types.get(generic_type)
-        if instantiations is not None:
-            instance = instantiations.get(index)
-            if instance is not None:
-                return instance
-        else:
-            self._generic_types[generic_type] = instantiations = {}
+        instantiations = self._generic_types.setdefault(generic_type, {})
+        instance = instantiations.get(index)
+        if instance is not None:
+            return instance
         concrete = generic_type.make_generic_type(index, self)
         instantiations[index] = concrete
         return concrete
