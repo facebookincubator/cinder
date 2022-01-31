@@ -1590,16 +1590,6 @@ class GenericClass(Class):
             type_def=self,
         )
         instance.klass = concrete
-        # This is a bit annoying - updating the members of the concrete types can lead to an
-        # infinite loop, so we need to break the loop by marking the concrete type as being
-        # registered in the type environment.
-        type_env._generic_types[self][index] = concrete
-        concrete.members.update(
-            {
-                k: v.make_generic(concrete, type_name, type_env)
-                for k, v in self.members.items()
-            }
-        )
         return concrete
 
     def bind_generics(

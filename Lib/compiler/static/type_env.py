@@ -35,6 +35,13 @@ class TypeEnvironment:
             return instance
         concrete = generic_type.make_generic_type(index, self)
         instantiations[index] = concrete
+        concrete.members.update(
+            {
+                # pyre-ignore[6]: We trust that the type name is generic here.
+                k: v.make_generic(concrete, concrete.type_name, self)
+                for k, v in generic_type.members.items()
+            }
+        )
         return concrete
 
     def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
