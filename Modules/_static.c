@@ -910,6 +910,74 @@ setup_cached_property_on_type(PyObject *Py_UNUSED(module), PyObject **args, Py_s
     Py_RETURN_NONE;
 }
 
+static PyObject *
+create_overridden_slot_descriptors_with_default(PyObject *mod, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyTypeObject *type;
+    if (!_PyArg_ParseStack(args, nargs, "O!", &PyType_Type, &type)) {
+        return NULL;
+    }
+
+    PyObject *mro = type->tp_mro;
+    if (mro == NULL) {
+        Py_RETURN_NONE;
+    }
+    Py_ssize_t mro_size = PyTuple_GET_SIZE(mro);
+    if (mro_size <= 1) {
+        Py_RETURN_NONE;
+    }
+
+    PyObject *slots_with_default = NULL;
+    PyTypeObject *next;
+    for (Py_ssize_t i = 1; i < mro_size; i++) {
+        next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
+        if (!(next->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED)) {
+            continue;
+        }
+        assert(next->tp_dict != NULL);
+        slots_with_default = PyDict_GetItemString(next->tp_dict, "__slots_with_default__");
+        break;
+    }
+    if (slots_with_default == NULL || !PyTuple_CheckExact(slots_with_default)) {
+        Py_RETURN_NONE;
+    }
+    Py_ssize_t nslots_with_default = PyTuple_GET_SIZE(slots_with_default);
+    for (Py_ssize_t i = 0; i < nslots_with_default; ++i) {
+        PyObject *name = PyTuple_GET_ITEM(slots_with_default, i);
+        PyObject *default_value = PyObject_GetAttr((PyObject *)type, name);
+        if (default_value == NULL) {
+            PyErr_Format(PyExc_TypeError,
+                         "The `slot_with_default` at %s is missing when creating class `%s`.",
+                         type->tp_name);
+            return NULL;
+        }
+        if (Py_TYPE(default_value)->tp_descr_get != NULL) {
+            // If the subclass overrides the base slot with a descriptor, just leave it be.
+            Py_DECREF(default_value);
+            continue;
+        }
+        PyObject *typed_descriptor = _PyType_Lookup(next, name);
+        if (typed_descriptor == NULL ||
+              Py_TYPE(typed_descriptor) != &_PyTypedDescriptorWithDefaultValue_Type) {
+            Py_DECREF(default_value);
+            PyErr_Format(PyExc_TypeError,
+                         "The slot at %R is not a typed descriptor for class `%s`.",
+                         name,
+                         next->tp_name);
+            return NULL;
+        }
+        _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *) typed_descriptor;
+        PyObject *new_typed_descriptor = _PyTypedDescriptorWithDefaultValue_New(td->td_name,
+                                                                                td->td_type,
+                                                                                td->td_offset,
+                                                                                default_value);
+        PyDict_SetItem(type->tp_dict, name, new_typed_descriptor);
+        Py_DECREF(new_typed_descriptor);
+        Py_DECREF(default_value);
+    }
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
@@ -925,6 +993,10 @@ static PyMethodDef static_methods[] = {
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, METH_TYPED, ""},
     {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
     {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
+    {"create_overridden_slot_descriptors_with_default",
+     (PyCFunction)create_overridden_slot_descriptors_with_default,
+     METH_FASTCALL,
+     ""},
     {}
 };
 

@@ -93,6 +93,7 @@ try:
         RAND_MAX,
         rand,
         posix_clock_gettime_ns,
+        create_overridden_slot_descriptors_with_default,
     )
 except ImportError:
     RAND_MAX = (1 << 31) - 1
@@ -102,6 +103,9 @@ except ImportError:
 
     def posix_clock_gettime_ns():
         return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+
+    def create_overridden_slot_descriptors_with_default(t):
+        return None
 
 
 try:
@@ -566,3 +570,12 @@ class ContextDecorator:
 
 ContextDecorator._recreate_cm = make_recreate_cm(ContextDecorator)
 set_type_static(ContextDecorator)
+
+
+original_build_class = __build_class__
+
+
+def __build_cinder_class__(class_body, name, *args, **kwds):
+    klass = original_build_class(class_body, name, *args, **kwds)
+    create_overridden_slot_descriptors_with_default(klass)
+    return klass

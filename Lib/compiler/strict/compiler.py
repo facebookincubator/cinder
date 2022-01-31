@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import builtins
 from contextlib import nullcontext
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
 from types import CodeType
@@ -18,6 +19,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
+import __static__
 from _strictmodule import (
     StrictAnalysisResult,
     StrictModuleLoader,
@@ -207,6 +209,7 @@ class Compiler(StaticCompiler):
         optimize: int,
         track_import_call: bool,
     ) -> CodeType | None:
+        self._ensure_build_class_patched()
         self.track_import_call = track_import_call
         root = self.ast_cache.get(name)
         if root is None:
@@ -232,3 +235,8 @@ class Compiler(StaticCompiler):
                 raise err
 
         return code
+
+    def _ensure_build_class_patched(self) -> None:
+        # pyre-ignore[61]: __build_class__ isn't exposed in builtins.pyi.
+        if builtins.__build_class__ is not __static__.__build_cinder_class__:
+            builtins.__build_class__ = __static__.__build_cinder_class__

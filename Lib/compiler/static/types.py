@@ -3959,7 +3959,9 @@ class Slot(Object[TClassInv]):
 
     def emit_load_from_slot(self, code_gen: Static38CodeGenerator) -> None:
         if self.is_typed_descriptor_with_default_value():
-            code_gen.emit("LOAD_ATTR", code_gen.mangle(self.slot_name))
+            code_gen.emit_invoke_method(
+                self.container_type.type_descr + ((self.slot_name, "tdget"),), 0
+            )
             return
 
         type_descr = self.container_type.type_descr
@@ -3968,7 +3970,10 @@ class Slot(Object[TClassInv]):
 
     def emit_store_to_slot(self, code_gen: Static38CodeGenerator) -> None:
         if self.is_typed_descriptor_with_default_value():
-            code_gen.emit("STORE_ATTR", code_gen.mangle(self.slot_name))
+            code_gen.emit("ROT_TWO")
+            code_gen.emit_invoke_method(
+                self.container_type.type_descr + ((self.slot_name, "tdset"),), 1
+            )
             return
 
         type_descr = self.container_type.type_descr
