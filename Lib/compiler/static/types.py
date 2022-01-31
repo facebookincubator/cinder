@@ -1562,10 +1562,7 @@ class GenericClass(Class):
         index: Tuple[Class, ...],
         type_env: TypeEnvironment,
     ) -> Class:
-        type_args = index
-        type_name = GenericTypeName(
-            self.type_name.module, self.type_name.name, type_args
-        )
+        type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
         generic_bases: List[Optional[Class]] = [
             (
                 type_env.get_generic_type(base, index)
