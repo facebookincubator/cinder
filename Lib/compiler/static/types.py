@@ -5120,10 +5120,6 @@ IDENTITY_DECORATOR_TYPE = IdentityDecorator(
     TypeName("__strict__", "<identity-decorator>")
 )
 
-RESOLVED_INT_TYPE = ResolvedTypeRef(INT_TYPE)
-RESOLVED_STR_TYPE = ResolvedTypeRef(STR_TYPE)
-RESOLVED_NONE_TYPE = ResolvedTypeRef(NONE_TYPE)
-
 TYPE_TYPE.bases = [OBJECT_TYPE]
 TYPE_TYPE.make_type_dict(type)
 
