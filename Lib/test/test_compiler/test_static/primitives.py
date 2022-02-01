@@ -1,3 +1,4 @@
+from unittest import skipUnderCinderJIT
 from .common import StaticTestBase
 
 
@@ -85,3 +86,15 @@ class PrimitivesTests(StaticTestBase):
             val.set_x(100.0)
             self.assertEqual(val.x, 100.0)
             self.assertEqual(type(val.x), float)
+
+    @skipUnderCinderJIT
+    def test_double_function(self):
+        codestr = """
+            from __static__ import double, box
+
+            def f(x: double):
+                return box(x)
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(42.1), 42.1)

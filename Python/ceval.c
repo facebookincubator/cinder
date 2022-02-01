@@ -4711,6 +4711,11 @@ main_loop:
                     Py_DECREF(type);
                     type = &PyLong_Type;
                     Py_INCREF(type);
+                } else if (primitive == TYPED_DOUBLE) {
+                    optional = 0;
+                    Py_DECREF(type);
+                    type = &PyFloat_Type;
+                    Py_INCREF(type);
                 } else {
                     assert(primitive == TYPED_OBJECT);
                 }
