@@ -48,10 +48,10 @@ enum class FlagEffects {
   X(DivUn, false, FlagEffects::kSet, kDefault, 1, {1})                       \
   X(Mul, false, FlagEffects::kSet, kOut, 1, {1})                             \
   X(Or, false, FlagEffects::kSet, kOut, 1, {1})                              \
-  X(Fadd, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
-  X(Fsub, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
-  X(Fmul, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
-  X(Fdiv, false, FlagEffects::kNone, kAlways64, 1, {1, 1})                   \
+  X(Fadd, true, FlagEffects::kNone, kAlways64, 1, {1, 1})                    \
+  X(Fsub, true, FlagEffects::kNone, kAlways64, 1, {1, 1})                    \
+  X(Fmul, true, FlagEffects::kNone, kAlways64, 1, {1, 1})                    \
+  X(Fdiv, true, FlagEffects::kNone, kAlways64, 1, {1, 1})                    \
   X(LShift, false, FlagEffects::kSet)                                        \
   X(RShift, false, FlagEffects::kSet)                                        \
   X(RShiftUn, false, FlagEffects::kSet)                                      \
