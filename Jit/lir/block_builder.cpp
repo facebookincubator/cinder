@@ -384,6 +384,9 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       if (tokens[i] == "reg:edx") {
         Operand* opnd = instr->allocatePhyRegisterInput(PhyLocation::RDX);
         opnd->setDataType(OperandBase::k32bit);
+      } else if (tokens[i] == "reg:xmm1") {
+        Operand* opnd = instr->allocatePhyRegisterInput(PhyLocation::XMM1);
+        opnd->setDataType(OperandBase::kDouble);
       } else if (IsConstant(tokens[i])) {
         CreateInstrImmediateInput(instr, tokens[i]);
       } else {

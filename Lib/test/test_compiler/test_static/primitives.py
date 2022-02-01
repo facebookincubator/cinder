@@ -98,3 +98,32 @@ class PrimitivesTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.f
             self.assertEqual(f(42.1), 42.1)
+
+    def test_double_return(self):
+        codestr = """
+            from __static__ import double
+
+            def g() -> double:
+                return 42.0
+
+            def f() -> double:
+                return g()
+        """
+        with self.in_strict_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(), 42.0)
+
+    def test_double_return_raises(self):
+        codestr = """
+            from __static__ import double
+
+            def g() -> double:
+                raise ValueError('no way')
+
+            def f() -> double:
+                return g()
+        """
+        with self.in_strict_module(codestr) as mod:
+            f = mod.f
+            with self.assertRaises(ValueError):
+                f()

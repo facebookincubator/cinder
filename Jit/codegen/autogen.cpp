@@ -172,8 +172,17 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
   auto deopt_label = as->newLabel();
   auto kind = instr->getInput(0)->getConstant();
   auto reg = x86::rax;
+  bool is_double = false;
   if (kind != kAlwaysFail) {
-    reg = AutoTranslator::getGp(instr->getInput(2));
+    if (instr->getInput(2)->dataType() == jit::lir::OperandBase::kDouble) {
+      assert(kind == kNotZero);
+      auto xmm_reg = AutoTranslator::getXmm(instr->getInput(2));
+      as->ptest(xmm_reg, xmm_reg);
+      as->jz(deopt_label);
+      is_double = true;
+    } else {
+      reg = AutoTranslator::getGp(instr->getInput(2));
+    }
   }
 
   auto emit_cmp = [&](auto reg_arg) {
@@ -191,30 +200,32 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
     }
   };
 
-  switch (kind) {
-    case kNotZero: {
-      // TODO(T106113229): Add a JIT_CHECK that instr->getInput(2) is 64 bits
-      // wide.
-      as->test(reg, reg);
-      as->jz(deopt_label);
-      break;
-    }
-    case kNotNegative: {
-      as->test(reg, reg);
-      as->js(deopt_label);
-      break;
-    }
-    case kAlwaysFail:
-      as->jmp(deopt_label);
-      break;
-    case kIs:
-      emit_cmp(reg);
-      as->jne(deopt_label);
-      break;
-    case kHasType: {
-      emit_cmp(x86::qword_ptr(reg, offsetof(PyObject, ob_type)));
-      as->jne(deopt_label);
-      break;
+  if (!is_double) {
+    switch (kind) {
+      case kNotZero: {
+        // TODO(T106113229): Add a JIT_CHECK that instr->getInput(2) is 64 bits
+        // wide.
+        as->test(reg, reg);
+        as->jz(deopt_label);
+        break;
+      }
+      case kNotNegative: {
+        as->test(reg, reg);
+        as->js(deopt_label);
+        break;
+      }
+      case kAlwaysFail:
+        as->jmp(deopt_label);
+        break;
+      case kIs:
+        emit_cmp(reg);
+        as->jne(deopt_label);
+        break;
+      case kHasType: {
+        emit_cmp(x86::qword_ptr(reg, offsetof(PyObject, ob_type)));
+        as->jne(deopt_label);
+        break;
+      }
     }
   }
 
