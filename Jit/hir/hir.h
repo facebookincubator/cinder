@@ -3692,12 +3692,20 @@ enum class FrameMode {
 };
 
 struct TypedArgument {
-  TypedArgument(long locals_idx, BorrowedRef<PyTypeObject> pytype, int optional)
-      : locals_idx(locals_idx), pytype(pytype), optional(optional){};
+  TypedArgument(
+      long locals_idx,
+      BorrowedRef<PyTypeObject> pytype,
+      int optional,
+      Type jit_type)
+      : locals_idx(locals_idx),
+        pytype(pytype),
+        optional(optional),
+        jit_type(jit_type){};
 
   long locals_idx;
   Ref<PyTypeObject> pytype;
   int optional;
+  Type jit_type;
 };
 
 // Does the given code object need access to its containing PyFunctionObject at

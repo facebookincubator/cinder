@@ -217,6 +217,8 @@ static constexpr PhyLocation ARGUMENT_REGS[] = {
     PhyLocation::R8,
     PhyLocation::R9};
 
+static constexpr size_t ARGUMENT_REG_COUNT = ARRAYSIZE(ARGUMENT_REGS);
+
 static constexpr PhyLocation FP_ARGUMENT_REGS[] = {
     PhyLocation::XMM0,
     PhyLocation::XMM1,
@@ -226,6 +228,8 @@ static constexpr PhyLocation FP_ARGUMENT_REGS[] = {
     PhyLocation::XMM5,
     PhyLocation::XMM6,
     PhyLocation::XMM7};
+
+static constexpr size_t FP_ARGUMENT_REG_COUNT = ARRAYSIZE(FP_ARGUMENT_REGS);
 
 } // namespace codegen
 } // namespace jit

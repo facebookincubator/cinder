@@ -107,7 +107,8 @@ class NativeGenerator {
       asmjit::Label native_entry_point);
   void loadOrGenerateLinkFrame(
       asmjit::x86::Gp tstate_reg,
-      const std::vector<std::pair<asmjit::x86::Gp, asmjit::x86::Gp>>&
+      const std::vector<
+          std::pair<const asmjit::x86::Reg&, const asmjit::x86::Reg&>>&
           save_regs);
   void generateEpilogue(asmjit::BaseNode* epilogue_cursor);
   void generateEpilogueUnlinkFrame(asmjit::x86::Gp tstate_reg, bool is_gen);

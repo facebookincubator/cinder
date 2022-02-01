@@ -149,6 +149,10 @@ class OperandBase {
     return dataType() == kDouble;
   }
 
+  bool isXmm() const {
+    return PhyLocation(getPhyRegister()).is_fp_register();
+  }
+
   bool isLastUse() const {
     return last_use_;
   }

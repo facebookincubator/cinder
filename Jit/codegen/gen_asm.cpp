@@ -177,10 +177,9 @@ extern "C" void ___debug_helper(const char* name) {
 }
 #endif
 
-constexpr int NUM_REG_ARGS = sizeof(ARGUMENT_REGS) / sizeof(ARGUMENT_REGS[0]);
 
 PhyLocation get_arg_location_phy_location(int arg) {
-  if (arg < NUM_REG_ARGS) {
+  if (static_cast<size_t>(arg) < ARGUMENT_REG_COUNT) {
     return ARGUMENT_REGS[arg];
   }
 
@@ -206,6 +205,43 @@ void* NativeGenerator::GetEntryPoint() {
   env_.as = as_;
   env_.hard_exit_label = as_->newLabel();
   env_.gen_resume_entry_label = as_->newLabel();
+
+  // Prepare the location for where our arguments will go.  This just
+  // uses general purpose registers while available for non-floating
+  // point values, and floating point values while available for fp
+  // arguments.
+  const std::vector<TypedArgument>& checks = GetFunction()->typed_args;
+
+  for (size_t i = 0, check_index = 0, gp_index = 0, fp_index = 0;
+       i < static_cast<size_t>(GetFunction()->numArgs());
+       i++) {
+    auto add_gp = [&]() {
+      if (gp_index < ARGUMENT_REG_COUNT) {
+        env_.arg_locations.push_back(ARGUMENT_REGS[gp_index++]);
+      } else {
+        env_.arg_locations.push_back(PhyLocation::REG_INVALID);
+      }
+    };
+
+    if (check_index < checks.size() &&
+        checks[check_index].locals_idx == static_cast<int>(i)) {
+      if (checks[check_index].jit_type <= TCDouble) {
+        if (fp_index < FP_ARGUMENT_REG_COUNT) {
+          env_.arg_locations.push_back(FP_ARGUMENT_REGS[fp_index++]);
+        } else {
+          // The register will come in on the stack, and the backend
+          // will access it via __asm_extra_args.
+          env_.arg_locations.push_back(PhyLocation::REG_INVALID);
+        }
+      } else {
+        add_gp();
+      }
+      check_index++;
+      continue;
+    }
+
+    add_gp();
+  }
 
   CollectOptimizableLoadMethods();
   auto num_lm_caches = env_.optimizable_load_call_methods_.size() / 2;
@@ -456,12 +492,24 @@ x86::Gp get_arg_location(int arg) {
 
 void NativeGenerator::loadOrGenerateLinkFrame(
     asmjit::x86::Gp tstate_reg,
-    const std::vector<std::pair<asmjit::x86::Gp, asmjit::x86::Gp>>& save_regs) {
+    const std::vector<
+        std::pair<const asmjit::x86::Reg&, const asmjit::x86::Reg&>>&
+        save_regs) {
   auto load_tstate_and_move = [&]() {
     loadTState(tstate_reg);
     for (const auto& pair : save_regs) {
       if (pair.first != pair.second) {
-        as_->mov(pair.second, pair.first);
+        if (pair.first.isGpq()) {
+          JIT_DCHECK(pair.second.isGpq(), "can't mix and match register types");
+          as_->mov(
+              static_cast<const asmjit::x86::Gpq&>(pair.second),
+              static_cast<const asmjit::x86::Gpq&>(pair.first));
+        } else if (pair.first.isXmm()) {
+          JIT_DCHECK(pair.second.isXmm(), "can't mix and match register types");
+          as_->movsd(
+              static_cast<const asmjit::x86::Xmm&>(pair.second),
+              static_cast<const asmjit::x86::Xmm&>(pair.first));
+        }
       }
     }
   };
@@ -478,7 +526,14 @@ void NativeGenerator::loadOrGenerateLinkFrame(
     case FrameMode::kNormal: {
       bool align_stack = save_regs.size() % 2;
       for (const auto& pair : save_regs) {
-        as_->push(pair.first);
+        if (pair.first.isGpq()) {
+          as_->push((asmjit::x86::Gpq&)pair.first);
+        } else if (pair.first.isXmm()) {
+          as_->sub(x86::rsp, 16);
+          as_->movdqu(x86::dqword_ptr(x86::rsp), (asmjit::x86::Xmm&)pair.first);
+        } else {
+          JIT_CHECK(false, "unsupported saved register type");
+        }
       }
       if (align_stack) {
         as_->push(x86::rax);
@@ -495,7 +550,15 @@ void NativeGenerator::loadOrGenerateLinkFrame(
         as_->pop(x86::rax);
       }
       for (auto iter = save_regs.rbegin(); iter != save_regs.rend(); ++iter) {
-        as_->pop(iter->second);
+        if (iter->second.isGpq()) {
+          as_->pop((asmjit::x86::Gpq&)iter->second);
+        } else if (iter->second.isXmm()) {
+          as_->movdqu(
+              (asmjit::x86::Xmm&)iter->second, x86::dqword_ptr(x86::rsp));
+          as_->add(x86::rsp, 16);
+        } else {
+          JIT_CHECK(false, "unsupported saved register type");
+        }
       }
       break;
     }
@@ -736,14 +799,16 @@ void NativeGenerator::generatePrologue(
 
   // Move arguments into their expected registers and then
   // use r10 as the base for additional args.
-  int total_args = GetFunction()->numArgs();
-  for (int i = 0; i < total_args && i < NUM_REG_ARGS; i++) {
+  size_t total_args = static_cast<size_t>(GetFunction()->numArgs());
+  for (size_t i = 0; i < total_args && i < ARGUMENT_REG_COUNT; i++) {
     as_->mov(get_arg_location(i), x86::ptr(kArgsReg, i * sizeof(void*)));
   }
-  if (total_args >= NUM_REG_ARGS) {
+  if (total_args >= ARGUMENT_REG_COUNT) {
     // load the location of the remaining args, the backend will
     // deal with loading them from here...
-    as_->lea(kArgsPastSixReg, x86::ptr(kArgsReg, NUM_REG_ARGS * sizeof(void*)));
+    as_->lea(
+        kArgsPastSixReg,
+        x86::ptr(kArgsReg, ARGUMENT_REG_COUNT * sizeof(void*)));
   }
 
   // Finally allocate the saved space required for the actual function
@@ -1105,22 +1170,77 @@ void NativeGenerator::generateStaticEntryPoint(
   generateFunctionEntry();
 
   // Save incoming args across link call...
-  int total_args = GetFunction()->numArgs();
+  size_t total_args = (size_t)GetFunction()->numArgs();
 
-  std::vector<std::pair<x86::Gp, x86::Gp>> save_regs;
+  const std::vector<TypedArgument>& checks = GetFunction()->typed_args;
+  std::vector<std::pair<const x86::Reg&, const x86::Reg&>> save_regs;
+
   if (!isGen()) {
-    int pushed_args = std::min(total_args, NUM_REG_ARGS);
-    save_regs.reserve(pushed_args);
+    for (size_t i = 0, check_index = 0, arg_index = 0, fp_index = 0;
+         i < total_args;
+         i++) {
+      if (check_index < checks.size() &&
+          checks[check_index].locals_idx == (int)i) {
+        if (checks[check_index++].jit_type <= TCDouble &&
+            fp_index < FP_ARGUMENT_REG_COUNT) {
+          switch (FP_ARGUMENT_REGS[fp_index++]) {
+            case PhyLocation::XMM0:
+              save_regs.emplace_back(x86::xmm0, x86::xmm0);
+              break;
+            case PhyLocation::XMM1:
+              save_regs.emplace_back(x86::xmm1, x86::xmm1);
+              break;
+            case PhyLocation::XMM2:
+              save_regs.emplace_back(x86::xmm2, x86::xmm2);
+              break;
+            case PhyLocation::XMM3:
+              save_regs.emplace_back(x86::xmm3, x86::xmm3);
+              break;
+            case PhyLocation::XMM4:
+              save_regs.emplace_back(x86::xmm4, x86::xmm4);
+              break;
+            case PhyLocation::XMM5:
+              save_regs.emplace_back(x86::xmm5, x86::xmm5);
+              break;
+            case PhyLocation::XMM6:
+              save_regs.emplace_back(x86::xmm6, x86::xmm6);
+              break;
+            case PhyLocation::XMM7:
+              save_regs.emplace_back(x86::xmm7, x86::xmm7);
+              break;
+          }
+          continue;
+        }
+      }
 
-    for (int i = 0; i < pushed_args; i++) {
-      auto loc = get_arg_location(i);
-      save_regs.emplace_back(loc, loc);
+      if (arg_index < ARGUMENT_REG_COUNT) {
+        switch (ARGUMENT_REGS[arg_index++]) {
+          case PhyLocation::RDI:
+            save_regs.emplace_back(x86::rdi, x86::rdi);
+            break;
+          case PhyLocation::RSI:
+            save_regs.emplace_back(x86::rsi, x86::rsi);
+            break;
+          case PhyLocation::RDX:
+            save_regs.emplace_back(x86::rdx, x86::rdx);
+            break;
+          case PhyLocation::RCX:
+            save_regs.emplace_back(x86::rcx, x86::rcx);
+            break;
+          case PhyLocation::R8:
+            save_regs.emplace_back(x86::r8, x86::r8);
+            break;
+          case PhyLocation::R9:
+            save_regs.emplace_back(x86::r9, x86::r9);
+            break;
+        }
+      }
     }
   }
 
   loadOrGenerateLinkFrame(x86::r11, save_regs);
 
-  if (total_args > NUM_REG_ARGS) {
+  if (total_args > ARGUMENT_REG_COUNT) {
     as_->lea(x86::r10, x86::ptr(x86::rbp, 16));
   }
   as_->jmp(native_entry_point);
@@ -1128,7 +1248,9 @@ void NativeGenerator::generateStaticEntryPoint(
   auto static_entry_point_cursor = as_->cursor();
 
   as_->bind(static_jmp_location);
-  as_->short_().jmp(static_entry_point);
+  // force a long jump even if the static entry point is small so that we get
+  // a consistent offset for the static entry point from the normal entry point.
+  as_->long_().jmp(static_entry_point);
   env_.addAnnotation("StaticEntryPoint", static_entry_point_cursor);
 }
 

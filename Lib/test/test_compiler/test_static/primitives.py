@@ -87,7 +87,6 @@ class PrimitivesTests(StaticTestBase):
             self.assertEqual(val.x, 100.0)
             self.assertEqual(type(val.x), float)
 
-    @skipUnderCinderJIT
     def test_double_function(self):
         codestr = """
             from __static__ import double, box
@@ -127,3 +126,81 @@ class PrimitivesTests(StaticTestBase):
             f = mod.f
             with self.assertRaises(ValueError):
                 f()
+
+    def test_primitive_float_arg_not_clobbered(self):
+        codestr = """
+            from __static__ import double
+
+            def g(x: double) -> double:
+                return x
+
+            def f() -> double:
+                return g(42.0)
+        """
+        with self.in_strict_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(), 42.0)
+
+    def test_double_function_with_obj(self):
+        codestr = """
+            from __static__ import double, box
+
+            def f(obj, x: double):
+                return box(x) / obj
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(0.1, 42.1), 421.0)
+
+    def test_double_function_with_obj_reversed(self):
+        codestr = """
+            from __static__ import double, box
+
+            def f(x: double, obj):
+                return box(x) / obj
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(42.1, 0.1), 421.0)
+
+    def test_primitive_float_arg_not_clobbered_all(self):
+        codestr = """
+            from __static__ import double
+
+            def g(x0: double, x1: double, x2: double, x3: double, x4: double, x5: double, x6: double, x7: double) -> double:
+                return x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7
+
+            def f() -> double:
+                return g(0, 1, 2, 3, 4, 5, 6, 7)
+        """
+        with self.in_strict_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(), 28.0)
+
+    def test_primitive_float_arg_not_clobbered_all_offset(self):
+        codestr = """
+            from __static__ import double
+
+            def g(unused, x0: double, x1: double, x2: double, x3: double, x4: double, x5: double, x6: double, x7: double) -> double:
+                return x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7
+
+            def f() -> double:
+                return g(None, 0, 1, 2, 3, 4, 5, 6, 7)
+        """
+        with self.in_strict_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(), 28.0)
+
+    def test_primitive_float_arg_not_clobbered_all_plus_one(self):
+        codestr = """
+            from __static__ import double
+
+            def g(x0: double, x1: double, x2: double, x3: double, x4: double, x5: double, x6: double, x7: double, x8: double) -> double:
+                return x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8
+
+            def f() -> double:
+                return g(0, 1, 2, 3, 4, 5, 6, 7, 8)
+        """
+        with self.in_strict_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(), 36.0)

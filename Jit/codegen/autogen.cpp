@@ -103,7 +103,7 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
 
     switch (operand->type()) {
       case OperandBase::kReg:
-        pattern += (operand->isFp() ? "X" : "R");
+        pattern += (operand->isXmm() ? "X" : "R");
         break;
       case OperandBase::kStack:
       case OperandBase::kMem:
@@ -119,7 +119,7 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
   instr->foreachInputOperand([&](const OperandBase* operand) {
     switch (operand->type()) {
       case OperandBase::kReg:
-        pattern += (operand->isFp() ? "x" : "r");
+        pattern += (operand->isXmm() ? "x" : "r");
         break;
       case OperandBase::kStack:
       case OperandBase::kMem:
@@ -267,7 +267,7 @@ void TranslateCompare(Environ* env, const Instruction* instr) {
   const OperandBase* inp1 = instr->getInput(1);
   if (inp1->type() == OperandBase::kImm) {
     as->cmp(AutoTranslator::getGp(inp0), inp1->getConstant());
-  } else if (!inp1->isFp()) {
+  } else if (!inp1->isXmm()) {
     as->cmp(AutoTranslator::getGp(inp0), AutoTranslator::getGp(inp1));
   } else {
     as->comisd(AutoTranslator::getXmm(inp0), AutoTranslator::getXmm(inp1));

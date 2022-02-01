@@ -254,7 +254,7 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenYieldFromValue(PyGenObject* gen);
 /*
  * Specifies the offset from a JITed function entry point where the static
  * entry point lives */
-#define JITRT_STATIC_ENTRY_OFFSET (-11)
+#define JITRT_STATIC_ENTRY_OFFSET (-14)
 
 /*
  * Fixes the JITed function entry point up to be the static entry point after

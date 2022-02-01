@@ -15,14 +15,6 @@ namespace codegen {
 
 struct Environ {
   Environ() {
-    // Prepare the location for where our arguments will go.
-    // We fill out all the registers even if there are less arguments.
-    int num_reg_args = sizeof(ARGUMENT_REGS) / sizeof(ARGUMENT_REGS[0]);
-    // These registers are from x86_64.h.
-    // There should be 6 registers.
-    for (int i = 0; i < num_reg_args; i++) {
-      arg_locations.push_back(ARGUMENT_REGS[i]);
-    }
   };
 
   // Metadata for annotated disassembly.

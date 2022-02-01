@@ -35,6 +35,7 @@ class BackendTest : public RuntimeTest {
   // and machine code generation.
   void* SimpleCompile(Function* lir_func, int arg_buffer_size = 0) {
     Environ environ;
+    InitEnviron(environ);
     PostGenerationRewrite post_gen(lir_func, &environ);
     post_gen.run();
 
@@ -103,6 +104,12 @@ class BackendTest : public RuntimeTest {
     rt_.add(&func, &code);
     gen.lir_func_.release();
     return func;
+  }
+
+  void InitEnviron(Environ& environ) {
+    for (size_t i = 0; i < ARGUMENT_REG_COUNT; i++) {
+      environ.arg_locations.push_back(ARGUMENT_REGS[i]);
+    }
   }
 
   void CheckFromArray(Function* lir_func) {
@@ -1061,6 +1068,7 @@ TEST_F(BackendTest, PostgenJITRTFromArrayTest) {
   bb->addSuccessor(epilogue);
 
   Environ environ;
+  InitEnviron(environ);
   PostGenerationRewrite post_gen(caller.get(), &environ);
   post_gen.run();
 
@@ -1111,6 +1119,7 @@ TEST_F(BackendTest, PostgenJITRTCastTest) {
   bb->addSuccessor(epilogue);
 
   Environ environ;
+  InitEnviron(environ);
   PostGenerationRewrite post_gen(caller.get(), &environ);
   post_gen.run();
 

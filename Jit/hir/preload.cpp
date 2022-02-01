@@ -270,7 +270,8 @@ std::unique_ptr<Function> Preloader::makeFunction() const {
   irfunc->has_primitive_args = has_primitive_args_;
   irfunc->has_primitive_first_arg = has_primitive_first_arg_;
   for (auto& [local, pytype_opt] : check_arg_pytypes_) {
-    irfunc->typed_args.emplace_back(local, pytype_opt.first, pytype_opt.second);
+    irfunc->typed_args.emplace_back(
+        local, pytype_opt.first, pytype_opt.second, to_jit_type(pytype_opt));
   }
   return irfunc;
 }

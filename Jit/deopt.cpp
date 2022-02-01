@@ -44,6 +44,8 @@ hir::ValueKind deoptValueKind(hir::Type type) {
     if (type <= (jit::hir::TCSigned | jit::hir::TNullptr)) {
       return jit::hir::ValueKind::kSigned;
     }
+  } else if (type.couldBe(jit::hir::TCDouble)) {
+    return jit::hir::ValueKind::kDouble;
   }
 
   JIT_CHECK(

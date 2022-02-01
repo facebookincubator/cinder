@@ -266,6 +266,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteLoadArg(
   auto arg_idx = input->getConstant();
   auto loc = env->arg_locations[arg_idx];
   static_cast<Operand*>(input)->setPhyRegOrStackSlot(loc);
+  static_cast<Operand*>(input)->setDataType(instr->output()->dataType());
   return kChanged;
 }
 
