@@ -951,7 +951,7 @@ int _PyJIT_Initialize() {
   }
 
   const char* read_profile_file =
-      flag_string("jit-read-profile", "PYTHONJITUSEPROFILE");
+      flag_string("jit-read-profile", "PYTHONJITREADPROFILE");
   if (read_profile_file != nullptr) {
     JIT_LOG("Loading profile data from %s", read_profile_file);
     readProfileData(read_profile_file);
