@@ -6013,6 +6013,9 @@ class CInstance(Value, Generic[TClass]):
         code_gen.visit(node.value)
         code_gen.emit("PRIMITIVE_BINARY_OP", self.get_op_id(node.op))
 
+    def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        raise NotImplementedError()
+
 
 class CEnumInstance(CInstance["CEnumType"]):
     def __init__(
@@ -6135,6 +6138,10 @@ class CEnumInstance(CInstance["CEnumType"]):
         self, node: ast.Attribute, visitor: ReferenceVisitor
     ) -> Optional[Value]:
         return resolve_attr_instance(node, self.boxed, self.klass, visitor)
+
+    def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
+        self.emit_store_name(node, code_gen)
 
 
 class CEnumType(CType):
@@ -6611,6 +6618,10 @@ class CIntInstance(CInstance["CIntType"]):
         if from_oparg != to_oparg:
             code_gen.emit("CONVERT_PRIMITIVE", (to_oparg << 4) | from_oparg)
 
+    def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("PRIMITIVE_LOAD_CONST", (0, self.as_oparg()))
+        self.emit_store_name(node, code_gen)
+
 
 class CIntType(CType):
     instance: CIntInstance
@@ -6847,6 +6858,10 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         else:
             code_gen.emit("CAST", FLOAT_TYPE.type_descr)
         code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
+
+    def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("PRIMITIVE_LOAD_CONST", (float(0), self.as_oparg()))
+        self.emit_store_name(node, code_gen)
 
 
 class CDoubleType(CType):

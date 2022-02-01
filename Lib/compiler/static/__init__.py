@@ -48,6 +48,7 @@ from ..pycodegen import (
 from ..strict import StrictCodeGenerator, FIXED_MODULES
 from ..symbols import Scope, SymbolVisitor, ClassScope
 from .compiler import Compiler
+from .definite_assignment_checker import DefiniteAssignmentVisitor
 from .effects import NarrowingEffect
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
@@ -357,6 +358,22 @@ class Static38CodeGenerator(StrictCodeGenerator):
                     self._emit_cached_property(name, is_async=True)
 
         self.storeName(node.name)
+
+    def processBody(
+        self, node: AST, body: List[ast.stmt] | AST, gen: CodeGenerator
+    ) -> None:
+        if isinstance(node, (ast.FunctionDef | ast.AsyncFunctionDef)):
+            # check for any unassigned primitive values and force them to be
+            # assigned.
+            visitor = DefiniteAssignmentVisitor(self.symbols.scopes[node])
+            visitor.analyzeFunction(node)
+            for unassigned in visitor.unassigned:
+                node_type = self.get_type(unassigned)
+                if isinstance(node_type, CInstance):
+                    assert type(gen) is Static38CodeGenerator
+                    node_type.emit_init(unassigned, gen)
+
+        super().processBody(node, body, gen)
 
     def visitFunctionOrLambda(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
