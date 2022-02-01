@@ -43,6 +43,8 @@ class int32(int): pass
 class uint64(int): pass
 class int64(int): pass
 
+class double(float): pass
+
 def dynamic_return(func):
     return func
 
