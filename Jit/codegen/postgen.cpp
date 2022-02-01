@@ -134,6 +134,45 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpLargeConstant(
   return kChanged;
 }
 
+Rewrite::RewriteResult PostGenerationRewrite::rewriteMoveToMemoryLargeConstant(
+    instr_iter_t instr_iter) {
+  // rewrite
+  //     [Vreg0 + offset] = Imm64
+  // to
+  //     Vreg1 = Mov Imm64
+  //     [Vreg0 + offset] = Vreg1
+
+  auto instr = instr_iter->get();
+
+  if (!instr->isMove()) {
+    return kUnchanged;
+  }
+
+  auto input = instr->getInput(0);
+  if (input->type() != OperandBase::kImm || fitsInt32(input->getConstant())) {
+    return kUnchanged;
+  }
+
+  auto out = instr->output();
+  if (!out->isInd()) {
+    return kUnchanged;
+  }
+
+  auto constant = input->getConstant();
+
+  auto block = instr->basicblock();
+  auto move = block->allocateInstrBefore(
+      instr_iter,
+      Instruction::kMove,
+      OutVReg(),
+      Imm(constant, input->dataType()));
+
+  // remove the constant input
+  instr->setNumInputs(instr->getNumInputs() - 1);
+  instr->allocateLinkedInput(move);
+  return kChanged;
+}
+
 Rewrite::RewriteResult PostGenerationRewrite::rewriteGuardLargeConstant(
     instr_iter_t instr_iter) {
   auto instr = instr_iter->get();

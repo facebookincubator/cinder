@@ -449,7 +449,11 @@ void BasicBlockBuilder::CreateInstrImmediateInput(
   std::string sval;
   Operand::DataType type;
   std::tie(sval, type) = GetIdAndType(val_type);
-  instr->allocateImmediateInput(stoull(sval), type);
+  if (type == Operand::kDouble) {
+    instr->allocateImmediateInput(bit_cast<uint64_t>(stod(sval)), type);
+  } else {
+    instr->allocateImmediateInput(stoull(sval), type);
+  }
 }
 
 Instruction* BasicBlockBuilder::getDefInstr(const std::string& name) {

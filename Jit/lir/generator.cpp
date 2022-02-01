@@ -692,10 +692,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (ty <= TCDouble) {
           auto tmp_name = GetSafeTempName();
           double_t spec_value = ty.doubleSpec();
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-          uint64_t v = *reinterpret_cast<uint64_t*>(&spec_value);
-#pragma GCC diagnostic pop
+          auto v = bit_cast<uint64_t>(spec_value);
           // This loads the bits of the double into memory
           bbb.AppendCode("Move {}:{}, {:#x}", tmp_name, TCUInt64, v);
           // This moves the value into a floating point register

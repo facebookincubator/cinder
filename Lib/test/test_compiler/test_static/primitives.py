@@ -58,3 +58,30 @@ class PrimitivesTests(StaticTestBase):
                 for k, v in vals.items():
                     with self.subTest(typ=typ, val=k, res=v):
                         self.assertEqual(mod.f(k), v)
+
+    def test_float_field(self):
+        codestr = """
+            from __static__ import double, box
+
+            class C:
+                def __init__(self):
+                    self.x: double = 42.1
+
+                def get_x(self):
+                    return box(self.x)
+
+                def set_x(self, val):
+                    self.x = double(val)
+        """
+        with self.in_module(codestr) as mod:
+            C = mod.C
+            val = C()
+            self.assertEqual(val.x, 42.1)
+            self.assertEqual(type(val.x), float)
+
+            self.assertEqual(val.get_x(), 42.1)
+            self.assertEqual(type(val.get_x()), float)
+
+            val.set_x(100.0)
+            self.assertEqual(val.x, 100.0)
+            self.assertEqual(type(val.x), float)

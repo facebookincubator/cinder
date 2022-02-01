@@ -7622,6 +7622,9 @@ load_field(int field_type, void *addr)
     case TYPED_UINT64:
         value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((uint64_t *)addr));
         break;
+    case TYPED_DOUBLE:
+        value = PyFloat_FromDouble(*(double *)addr);
+        break;
     default:
         PyErr_SetString(PyExc_RuntimeError, "unsupported field type");
         return NULL;
@@ -7659,6 +7662,10 @@ store_field(int field_type, void *addr, PyObject *value)
         break;
     case TYPED_UINT64:
         *(uint64_t *)addr = (uint64_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_DOUBLE:
+        *((double*)addr) = PyFloat_AsDouble(value);
+        Py_DECREF(value);
         break;
     default:
         PyErr_SetString(PyExc_RuntimeError, "unsupported field type");

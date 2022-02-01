@@ -17,6 +17,7 @@ class PostGenerationRewrite : public Rewrite {
     registerOneRewriteFunction(rewriteGuardLargeConstant, 1);
     registerOneRewriteFunction(rewriteCondBranch, 1);
     registerOneRewriteFunction(rewriteLoadArg, 1);
+    registerOneRewriteFunction(rewriteMoveToMemoryLargeConstant, 1);
   }
 
  private:
@@ -33,6 +34,10 @@ class PostGenerationRewrite : public Rewrite {
 
   // Rewrite Guard instructions with > 32-bit constant.
   static RewriteResult rewriteGuardLargeConstant(instr_iter_t instr_iter);
+
+  // Rewrite storing a large immediate to a memory location
+  static RewriteResult rewriteMoveToMemoryLargeConstant(
+      instr_iter_t instr_iter);
 
   // Rewrite CondBranch instruction so that in some cases, we don't have
   // to allocate a register for it.
