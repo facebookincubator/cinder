@@ -348,6 +348,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         klass = self._resolve_class(node)
         if klass:
             self._emit_final_method_names(klass)
+
             method = "set_type_static_final" if klass.is_final else "set_type_static"
             self.emit("INVOKE_FUNCTION", (("_static", method), 1))
 

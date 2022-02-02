@@ -18,10 +18,8 @@ from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
 from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
-from unittest.mock import patch
 
 import cinder
-from __static__ import __build_cinder_class__
 from _strictmodule import (
     StrictAnalysisResult,
     NONSTRICT_MODULE_KIND,
@@ -389,16 +387,11 @@ class StaticTestBase(CompilerTest):
         self.assertFalse(cinderjit.is_jit_compiled(func))
 
     def setUp(self):
-        self.original_build_class = __build_class__
-        builtins.__build_class__ = __build_cinder_class__
         # ensure clean classloader/vtable slate for all tests
         cinder.clear_classloader_caches()
         # ensure our async tests don't change the event loop policy
         policy = maybe_get_event_loop_policy()
         self.addCleanup(lambda: asyncio.set_event_loop_policy(policy))
-
-    def tearDown(self):
-        builtins.__build_class__ = self.original_build_class
 
     def subTest(self, **kwargs):
         cinder.clear_classloader_caches()
