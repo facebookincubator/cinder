@@ -6,9 +6,9 @@
   :width: 400
   :alt: Cinder Logo
 
-.. image:: https://github.com/facebookincubator/cinder/workflows/cinder-oss-build-and-test/badge.svg
+.. image:: https://github.com/facebookincubator/cinder/actions/workflows/cinder-oss-build-and-test.yml/badge.svg?branch=cinder%2F3.8
    :alt: Cinder build status on GitHub Actions
-   :target: https://github.com/facebookincubator/cinder/actions
+   :target: https://github.com/facebookincubator/cinder/actions/workflows/cinder-oss-build-and-test.yml
 
 Welcome to Cinder!
 ==================
