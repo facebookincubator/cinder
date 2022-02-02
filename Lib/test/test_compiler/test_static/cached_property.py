@@ -426,6 +426,35 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(f(c)), 3)
             self.assertEqual(c.hit_count, 1)
 
+    def test_async_cached_property_override_async_cached_property(self):
+        codestr = """
+        from cinder import async_cached_property
+
+        class C:
+            @async_cached_property
+            async def x(self):
+                return 3
+
+        class D(C):
+            @async_cached_property
+            async def x(self):
+                return 4
+        """
+        with self.in_strict_module(codestr) as mod:
+            C = mod.C
+            D = mod.D
+
+            async def await_c_x():
+                res = await C().x
+                return res
+
+            async def await_d_x():
+                res = await D().x
+                return res
+
+            self.assertEqual(asyncio.run(await_c_x()), 3)
+            self.assertEqual(asyncio.run(await_d_x()), 4)
+
     def test_async_cached_property_on_class_raises_type_error(self):
         codestr = """
         from cinder import async_cached_property
