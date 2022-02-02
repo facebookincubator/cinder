@@ -901,7 +901,7 @@ int _PyJIT_Initialize() {
     g_debug = 1;
     g_gdb_support = 1;
   }
-  if (_is_flag_set("jit-gdb-stubs-support", "PYTHONJITGDBSUPPORT")) {
+  if (_is_flag_set("jit-gdb-stubs-support", "PYTHONJITGDBSTUBSSUPPORT")) {
     JIT_DLOG("Enable GDB support for stubs.");
     g_gdb_stubs_support = 1;
   }
