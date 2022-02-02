@@ -1195,6 +1195,20 @@ class Class(Object["Class"]):
             return any(self.is_subclass_of(t) for t in src.type_args)
         return src.inexact_type() in self.mro_inexact
 
+    def _check_compatible_property_override(
+        self, override: Value, inherited: Value
+    ) -> bool:
+        # Properties can be overridden by cached properties, and vice-versa.
+        valid_sync_override = isinstance(
+            override, (CachedPropertyMethod, PropertyMethod)
+        ) and isinstance(inherited, (CachedPropertyMethod, PropertyMethod))
+
+        valid_async_override = isinstance(
+            override, (AsyncCachedPropertyMethod, PropertyMethod)
+        ) and isinstance(inherited, (AsyncCachedPropertyMethod, PropertyMethod))
+
+        return valid_sync_override or valid_async_override
+
     def check_incompatible_override(self, override: Value, inherited: Value) -> None:
         # TODO: There's more checking we should be doing to ensure
         # this is a compatible override
@@ -1204,11 +1218,12 @@ class Class(Object["Class"]):
         if isinstance(inherited, TransparentDecoratedMethod):
             inherited = inherited.function
 
-        if isinstance(override, (CachedPropertyMethod, PropertyMethod)) and isinstance(
-            inherited, (CachedPropertyMethod, PropertyMethod)
-        ):
-            # Properties can be overridden by cached properties, and vice-versa. In that case,
-            # we just look at whether the underlying functions are compatible
+        if self._check_compatible_property_override(override, inherited):
+            assert isinstance(override, PropertyMethod) and isinstance(
+                inherited, PropertyMethod
+            )
+
+            # In this case, we just look at whether the underlying functions are compatible
             override = override.function
             inherited = inherited.function
 
@@ -1267,14 +1282,12 @@ class Class(Object["Class"]):
                         value.real_function.validate_compat_signature(
                             my_value.real_function, module, first_arg_is_implicit=False
                         )
-                    elif isinstance(value, (PropertyMethod, CachedPropertyMethod)):
+                    elif isinstance(value, PropertyMethod):
                         if value.is_final:
                             raise TypedSyntaxError(
                                 f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
                             )
-                        assert isinstance(
-                            my_value, (PropertyMethod, CachedPropertyMethod)
-                        )
+                        assert isinstance(my_value, PropertyMethod)
                         value.real_function.validate_compat_signature(
                             my_value.real_function, module
                         )
@@ -3452,30 +3465,14 @@ class CachedPropertyMethod(PropertyMethod):
         return CACHED_PROPERTY_IMPL_PREFIX + node.name
 
 
-class AsyncCachedPropertyMethod(DecoratedMethod):
+class AsyncCachedPropertyMethod(PropertyMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
-        super().__init__(ASYNC_CACHED_PROPERTY_TYPE, function, decorator)
+        super().__init__(function, decorator, property_type=ASYNC_CACHED_PROPERTY_TYPE)
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
         return AsyncCachedPropertyMethod(
             self.function.replace_function(func), self.decorator
         )
-
-    @property
-    def name(self) -> str:
-        return self.real_function.qualname
-
-    def resolve_descr_get(
-        self,
-        node: ast.Attribute,
-        inst: Optional[Object[TClassInv]],
-        ctx: TClassInv,
-        visitor: ReferenceVisitor,
-    ) -> Optional[Value]:
-        if inst is None:
-            return DYNAMIC_TYPE
-        else:
-            return self.function.return_type.resolved().instance
 
     def emit_function(
         self,

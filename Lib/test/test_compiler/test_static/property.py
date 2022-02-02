@@ -1,3 +1,5 @@
+import asyncio
+
 from .common import StaticTestBase
 from .tests import bad_ret_type
 
@@ -59,6 +61,23 @@ class PropertyTests(StaticTestBase):
             self.assertNotInBytecode(f, "INVOKE_FUNCTION")
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(C()), 42)
+
+    def test_property_getter_async(self):
+        codestr = """
+            class C:
+                @property
+                async def foo(self) -> int:
+                    return 42
+
+            async def bar(c: C) -> int:
+                return await c.foo
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.bar
+            C = mod.C
+            self.assertNotInBytecode(f, "INVOKE_FUNCTION")
+            self.assertInBytecode(f, "INVOKE_METHOD")
+            self.assertEqual(asyncio.run(f(C())), 42)
 
     def test_property_getter_inheritance(self):
         codestr = """
