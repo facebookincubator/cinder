@@ -135,7 +135,10 @@ class Compiler(StaticCompiler):
         optimize: int,
         submodule_search_locations: Optional[List[str]] = None,
         track_import_call: bool = False,
+        force_strict: bool = False,
     ) -> Tuple[CodeType | None, StrictAnalysisResult]:
+        if force_strict:
+            self.loader.set_force_strict_by_name(name)
         mod = self.loader.check_source(
             source, filename, name, submodule_search_locations or []
         )

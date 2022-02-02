@@ -263,6 +263,9 @@ class StrictSourceFileLoader(SourceFileLoader):
             data = magic + data
         return super().set_data(path, data, _mode=_mode)
 
+    def should_force_strict(self) -> bool:
+        return False
+
     # pyre-ignore[40]: Non-static method `source_to_code` cannot override a static
     #  method defined in `importlib.abc.InspectLoader`.
     def source_to_code(
@@ -273,7 +276,8 @@ class StrictSourceFileLoader(SourceFileLoader):
             log_source_load(path, self.bytecode_path, self.bytecode_found)
         # pyre-ignore[28]: typeshed doesn't know about _optimize arg
         code = super().source_to_code(data, path, _optimize=_optimize)
-        if "__strict__" in code.co_names or "__static__" in code.co_names:
+        force = self.should_force_strict()
+        if force or "__strict__" in code.co_names or "__static__" in code.co_names:
             # Since a namespace package will never call `source_to_code` (there
             # is no source!), there are only two possibilities here: non-package
             # (submodule_search_paths should be None) or regular package
@@ -307,6 +311,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 opt,
                 submodule_search_locations,
                 self.track_import_call,
+                force_strict=force,
             )
             self.strict = mod.module_kind != NONSTRICT_MODULE_KIND
             assert code is not None

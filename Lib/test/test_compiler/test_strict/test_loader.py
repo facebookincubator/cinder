@@ -102,6 +102,17 @@ STRICT_LOADER_ENABLE_IMPORT_CALL_TRACKING: Tuple[
 )
 
 
+class AlwaysStrictSourceFileLoader(StrictSourceFileLoader):
+    def should_force_strict(self) -> bool:
+        return True
+
+
+STRICT_LOADER_ALWAYS_STRICT: Tuple[Type[SourceFileLoader], List[str]] = (
+    AlwaysStrictSourceFileLoader,
+    SOURCE_SUFFIXES,
+)
+
+
 ALLOW_LIST = ["_collections_abc"]
 
 
@@ -254,6 +265,19 @@ class StrictLoaderTest(StrictTestBase):
     def test_bad_not_strict(self) -> None:
         mod = self.sbx.strict_from_code('exec("a=2")')
         self.assertEqual(mod.a, 2)
+
+    def test_forced_strict(self) -> None:
+        self.sbx.write_file("a.py", "x = 2")
+        with file_loader(STRICT_LOADER_ALWAYS_STRICT):
+            mod = self.sbx._import("a")
+        self.assertEqual(mod.x, 2)
+        self.assertEqual(type(mod), StrictModule)
+
+    def test_forced_strict_bad(self) -> None:
+        self.sbx.write_file("a.py", "eval('2')")
+        with self.assertRaises(StrictModuleError):
+            with file_loader(STRICT_LOADER_ALWAYS_STRICT):
+                mod = self.sbx._import("a")
 
     def test_strict_second_import(self) -> None:
         """Second import of unmodified strict module (from pyc) is still strict."""
