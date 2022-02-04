@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import ast
-import asyncio
 import builtins
-import compiler.strict
 import gc
 import inspect
 import sys
@@ -14,7 +12,7 @@ from compiler.strict.loader import StrictModule
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
-from typing import Mapping, Tuple, Type, Callable
+from typing import Any, Dict, Mapping, Optional, Tuple, Type, Callable
 
 import cinder
 from cinder import cached_property
@@ -149,9 +147,10 @@ class StrictTestWithCheckerBase(StrictTestBase):
     ):
         compiler = Compiler([], "", [], [])
         source = inspect.cleandoc("\n" + source)
-        code, _ = compiler.load_compiled_module_from_source(
+        code, is_valid_strict = compiler.load_compiled_module_from_source(
             source, f"{modname}.py", modname, optimize
         )
+        assert is_valid_strict
         return code
 
     def compile_and_run(

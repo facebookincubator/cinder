@@ -189,9 +189,10 @@ class StaticTestBase(CompilerTest):
             loader_factory=StaticTestsStrictModuleLoader,
         )
 
-        code, _ = compiler.load_compiled_module_from_source(
+        code, is_valid_strict = compiler.load_compiled_module_from_source(
             self.clean_code(codestr), f"{modname}.py", modname, optimize
         )
+        assert is_valid_strict
         return code
 
     def lint(self, code: str) -> TestErrors:

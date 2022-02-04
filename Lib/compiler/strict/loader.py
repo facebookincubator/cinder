@@ -296,7 +296,7 @@ class StrictSourceFileLoader(SourceFileLoader):
             # Let the ast transform attempt to validate the strict module.  This
             # will return an unmodified module if import __strict__ isn't
             # actually at the top-level
-            code, mod = self.ensure_compiler(
+            code, is_valid_strict = self.ensure_compiler(
                 self.import_path,
                 self.stub_path,
                 self.allow_list_prefix,
@@ -312,7 +312,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 self.track_import_call,
                 force_strict=force,
             )
-            self.strict = mod.module_kind != NONSTRICT_MODULE_KIND
+            self.strict = is_valid_strict
             assert code is not None
             return code
         self.strict = False

@@ -134,7 +134,7 @@ class Compiler(StaticCompiler):
         submodule_search_locations: Optional[List[str]] = None,
         track_import_call: bool = False,
         force_strict: bool = False,
-    ) -> Tuple[CodeType | None, StrictAnalysisResult]:
+    ) -> Tuple[CodeType | None, bool]:
         if force_strict:
             self.loader.set_force_strict_by_name(name)
         mod = self.loader.check_source(
@@ -144,7 +144,7 @@ class Compiler(StaticCompiler):
         is_valid_strict = (
             mod.is_valid
             and len(errors) == 0
-            and mod.module_kind != NONSTRICT_MODULE_KIND
+            and (force_strict or (mod.module_kind != NONSTRICT_MODULE_KIND))
         )
         if errors and self.raise_on_error:
             # if raise on error, just raise the first error
@@ -170,7 +170,7 @@ class Compiler(StaticCompiler):
                 mod, filename, name, optimize, track_import_call
             )
 
-        return code, mod
+        return code, is_valid_strict
 
     def _compile_basic(
         self, root: ast.Module, filename: str, optimize: int

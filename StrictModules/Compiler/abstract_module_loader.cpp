@@ -473,16 +473,13 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   // Following python semantics, publish the module before ast visits
   auto errorSink = errorSinkFactory_();
   BaseErrorSink* errorSinkBorrowed = errorSink.get();
-  const std::string& name = modInfo->getModName();
-  const std::string& filename = modInfo->getFilename();
   ModuleKind kind = getModuleKind(modInfo.get());
-  if (kind == ModuleKind::kNonStrict && isForcedStrict(name, filename)) {
-    kind = ModuleKind::kStrict;
-  }
   modInfo->raiseAnyFlagError(errorSinkBorrowed);
   AnalyzedModule* analyzedModule =
       new AnalyzedModule(kind, std::move(errorSink), std::move(modInfo));
   const ModuleInfo& moduleInfo = analyzedModule->getModuleInfo();
+  const std::string& name = moduleInfo.getModName();
+  const std::string& filename = moduleInfo.getFilename();
 
   // if `name` already exist in `modules_`, do not override the existing one
   // but if there were no AST or filename is different, update the AST
@@ -505,7 +502,7 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
     return existingMod;
   }
 
-  if (analyzedModule->isStrict()) {
+  if (analyzedModule->isStrict() || isForcedStrict(name, filename)) {
     assert(ast != nullptr);
     // Run ast visits
     auto globalScope = std::make_shared<objects::DictType>();
