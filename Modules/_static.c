@@ -234,16 +234,43 @@ PyObject *_set_type_static_impl(PyObject *type, int final) {
   pytype = (PyTypeObject *)type;
   pytype->tp_flags |= Py_TPFLAGS_IS_STATICALLY_DEFINED;
 
-  if (pytype->tp_cache != NULL) {
-      /* If the v-table was inited because our base class was
-       * already inited, it is no longer valid...  we need to include
-       * statically defined methods (we'd be better off having custom
-       * static class building which knows we're building a static type
-       * from the get-go */
-      Py_CLEAR(pytype->tp_cache);
-      if (_PyClassLoader_EnsureVtable(pytype, 0) == NULL) {
-          return NULL;
+  /* Inheriting a non-static type which inherits a static type is not sound, and
+   * we can only catch it at runtime. The compiler can't see the static base
+   * through the nonstatic type (which is opaque to it) and thus a) can't verify
+   * validity of method and attribute overrides, and b) also can't check
+   * statically if this case has occurred. */
+  PyObject *mro = pytype->tp_mro;
+  PyTypeObject *nonstatic_base = NULL;
+
+  for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
+    PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
+    if (next->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+      if (nonstatic_base) {
+        PyErr_Format(
+          PyExc_TypeError,
+          "Static compiler cannot verify that static type '%s' is a valid "
+          "override of static base '%s' because intervening base '%s' is non-static.",
+          pytype->tp_name,
+          next->tp_name,
+          nonstatic_base->tp_name);
+        return NULL;
       }
+    } else if (nonstatic_base == NULL) {
+      nonstatic_base = next;
+    }
+  }
+
+
+  if (pytype->tp_cache != NULL) {
+    /* If the v-table was inited because our base class was
+     * already inited, it is no longer valid...  we need to include
+     * statically defined methods (we'd be better off having custom
+     * static class building which knows we're building a static type
+     * from the get-go) */
+    Py_CLEAR(pytype->tp_cache);
+    if (_PyClassLoader_EnsureVtable(pytype, 0) == NULL) {
+        return NULL;
+    }
   }
 
   if (final) {

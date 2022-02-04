@@ -327,6 +327,34 @@ class NonStaticInheritanceTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(), 42)
 
+    def test_no_inherit_static_through_nonstatic(self):
+        base = """
+            class A:
+                pass
+        """
+        nonstatic = """
+            from base import A
+
+            class B(A):
+                pass
+        """
+        static = """
+            from nonstatic import B
+
+            class C(B):
+                pass
+        """
+        with self.in_module(base, name="base"), self.in_module(
+            nonstatic, name="nonstatic", code_gen=CinderCodeGenerator
+        ):
+            with self.assertRaisesRegex(
+                TypeError,
+                r"Static compiler cannot verify that static type 'C' is a "
+                r"valid override of static base 'A' because intervening base "
+                r"'B' is non-static",
+            ):
+                self.run_code(static)
+
 
 if __name__ == "__main__":
 
