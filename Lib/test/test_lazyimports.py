@@ -48,3 +48,7 @@ class LazyImportsTest(unittest.TestCase):
         rc, out, err = self.python_run("test.lazyimports.deferred_resolve_failure", lazy=False)
         self.assertNotEqual(rc, 0)
         self.assertIn("(most likely due to a circular import)", err)
+
+    def test_split_fromlist(self):
+        rc, out, err = self.python_run("test.lazyimports.split_fromlist")
+        self.assertEqual(out, "['test.lazyimports.split_fromlist.foo', 'test.lazyimports.split_fromlist.foo.bar']")
