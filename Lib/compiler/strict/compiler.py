@@ -80,6 +80,7 @@ class Compiler(StaticCompiler):
         self.track_import_call: bool = False
         self.not_static: Set[str] = set()
         self.use_py_compiler = use_py_compiler
+        self.original_builtins: Dict[str, object] = dict(__builtins__)
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         res = self.modules.get(name)
@@ -123,6 +124,7 @@ class Compiler(StaticCompiler):
             optimize=optimize,
             is_static=True,
             track_import_call=self.track_import_call,
+            builtins=self.original_builtins,
         )
 
     def load_compiled_module_from_source(
@@ -199,8 +201,9 @@ class Compiler(StaticCompiler):
             name,
             optimize=optimize,
             track_import_call=track_import_call,
+            builtins=self.original_builtins,
         )
-        return strict_compile(name, filename, tree, optimize)
+        return strict_compile(name, filename, tree, optimize, self.original_builtins)
 
     def _compile_static(
         self,
@@ -221,7 +224,12 @@ class Compiler(StaticCompiler):
             ctx = log()(name, filename, "compile") if log else nullcontext()
             with ctx:
                 code = self.compile(
-                    name, filename, root, optimize, enable_patching=self.enable_patching
+                    name,
+                    filename,
+                    root,
+                    optimize,
+                    enable_patching=self.enable_patching,
+                    builtins=self.original_builtins,
                 )
         except TypedSyntaxError as e:
             err = StrictModuleError(

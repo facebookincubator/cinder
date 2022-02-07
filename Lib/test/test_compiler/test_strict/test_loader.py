@@ -329,6 +329,23 @@ class StrictLoaderTest(StrictTestBase):
         self.assertEqual(mod4.__cached__, mod4.__spec__.cached)
         self.assertTrue(os.path.exists(mod4.__cached__))
 
+    def test_builtins_modified(self) -> None:
+        """__cached__ attribute of a strict or non-strict module is correct."""
+
+        self.sbx.write_file(
+            "strict.py", "import __strict__\nfrom dependency import abc"
+        )
+        with self.sbx.begin_loader(STRICT_LOADER):
+            self.sbx.write_file("dependency.py", "import __strict__\nabc = 42")
+            dependency = self.sbx.import_modules("dependency")
+
+            __builtins__["abc"] = 42
+            mod1x = self.sbx.import_modules("strict")
+            del __builtins__["abc"]
+            del sys.modules["strict"]
+            # should successfully import with `abc` no longer defined
+            mod1 = self.sbx.import_modules("strict")
+
     def test_magic_number(self) -> None:
         """Extra magic number is written to pycs, and validated."""
         self.sbx.write_file("a.py", "import __strict__\nx = 2")

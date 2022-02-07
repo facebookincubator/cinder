@@ -366,8 +366,11 @@ class Compiler:
         tree: AST,
         optimize: int,
         enable_patching: bool = False,
+        builtins: Dict[str, Any] = builtins.__dict__,
     ) -> CodeType:
-        code_gen = self.code_gen(name, filename, tree, optimize, enable_patching)
+        code_gen = self.code_gen(
+            name, filename, tree, optimize, enable_patching, builtins
+        )
         return code_gen.getCode()
 
     def code_gen(
