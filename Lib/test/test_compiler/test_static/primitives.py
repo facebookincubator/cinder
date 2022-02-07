@@ -216,12 +216,13 @@ class PrimitivesTests(StaticTestBase):
                 x0: double
                 for i in range(2):
                     x0 += b
+
                 return x0
         """
         with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", ((0.0, TYPED_DOUBLE)))
-            # self.assertEqual(f(2.0), 4.0)
+            self.assertEqual(f(2.0), 4.0)
 
     def test_uninit_int(self):
         codestr = """

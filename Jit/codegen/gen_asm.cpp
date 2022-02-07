@@ -98,12 +98,22 @@ void NativeGenerator::generateEpilogueUnlinkFrame(
   asmjit::Label done = as_->newLabel();
   as_->jnc(done);
   auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
-  as_->mov(saved_rax_ptr, x86::rax);
+
+  jit::hir::Type ret_type = func_->return_type;
+  if (ret_type <= TCDouble) {
+    as_->movsd(saved_rax_ptr, x86::xmm0);
+  } else {
+    as_->mov(saved_rax_ptr, x86::rax);
+  }
   if (tstate_r != x86::rdi) {
     as_->mov(x86::rdi, tstate_r);
   }
   as_->call(reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
-  as_->mov(x86::rax, saved_rax_ptr);
+  if (ret_type <= TCDouble) {
+    as_->movsd(x86::xmm0, saved_rax_ptr);
+  } else {
+    as_->mov(x86::rax, saved_rax_ptr);
+  }
   as_->bind(done);
 }
 
@@ -708,8 +718,13 @@ void NativeGenerator::generatePrologue(
       env_.code_rt->addReference(func_->prim_args_info);
       as_->mov(
           x86::r8, reinterpret_cast<uint64_t>(func_->prim_args_info.get()));
-      as_->call(reinterpret_cast<uint64_t>(
-          JITRT_CallStaticallyWithPrimitiveSignature));
+      if (func_->returnsPrimitiveDouble()) {
+        as_->call(reinterpret_cast<uint64_t>(
+            JITRT_CallStaticallyWithPrimitiveSignatureFP));
+      } else {
+        as_->call(reinterpret_cast<uint64_t>(
+            JITRT_CallStaticallyWithPrimitiveSignature));
+      }
       as_->leave();
       as_->ret();
     } else {
@@ -799,11 +814,20 @@ void NativeGenerator::generatePrologue(
 
   // Move arguments into their expected registers and then
   // use r10 as the base for additional args.
-  size_t total_args = static_cast<size_t>(GetFunction()->numArgs());
-  for (size_t i = 0; i < total_args && i < ARGUMENT_REG_COUNT; i++) {
-    as_->mov(get_arg_location(i), x86::ptr(kArgsReg, i * sizeof(void*)));
+  bool has_extra_args = false;
+  for (size_t i = 0; i < env_.arg_locations.size(); i++) {
+    PhyLocation arg = env_.arg_locations[i];
+    if (arg == PhyLocation::REG_INVALID) {
+      has_extra_args = true;
+      continue;
+    }
+    if (arg.is_gp_register()) {
+      as_->mov(x86::gpq(arg), x86::ptr(kArgsReg, i * sizeof(void*)));
+    } else {
+      as_->movsd(x86::xmm(arg), x86::ptr(kArgsReg, i * sizeof(void*)));
+    }
   }
-  if (total_args >= ARGUMENT_REG_COUNT) {
+  if (has_extra_args) {
     // load the location of the remaining args, the backend will
     // deal with loading them from here...
     as_->lea(

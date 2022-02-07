@@ -321,15 +321,13 @@ JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
       (PyObject*)defaulted_args);
 }
 
-JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
-    PyFunctionObject* func,
+bool JITRT_PackStaticArgs(
     PyObject** args,
-    size_t nargsf,
-    _PyTypedArgsInfo* arg_info) {
+    _PyTypedArgsInfo* arg_info,
+    void** arg_space,
+    Py_ssize_t nargs,
+    bool invoked_statically) {
   Py_ssize_t arg_index = 0;
-  Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-  void* arg_space[nargs];
-  int invoked_statically = (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) != 0;
 
   for (Py_ssize_t i = 0; i < nargs; i++) {
     if (arg_index < Py_SIZE(arg_info) &&
@@ -340,7 +338,7 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
         if (!invoked_statically &&
             !_PyObject_TypeCheckOptional(
                 arg, cur_arg->tai_type, cur_arg->tai_optional)) {
-          goto fail;
+          return true;
         }
         arg_space[i] = arg;
       } else if (_PyClassLoader_IsEnum(cur_arg->tai_type)) {
@@ -351,7 +349,7 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
                        arg, cur_arg->tai_type, cur_arg->tai_optional)) {
           ival = JITRT_UnboxEnum(arg);
         } else {
-          goto fail;
+          return true;
         }
         JIT_DCHECK(
             ival != -1 || !PyErr_Occurred(),
@@ -359,28 +357,56 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignatureWorker(
         arg_space[i] = (void*)ival;
       } else if (cur_arg->tai_primitive_type == TYPED_BOOL) {
         if (Py_TYPE(arg) != &PyBool_Type) {
-          goto fail;
+          return true;
         }
         arg_space[i] = (void*)(arg == Py_True);
-      } else {
+      } else if (cur_arg->tai_primitive_type == TYPED_DOUBLE) {
+        if (Py_TYPE(arg) != &PyFloat_Type) {
+          return true;
+        }
+        arg_space[i] = bit_cast<void*>(PyFloat_AsDouble(arg));
+      } else if (cur_arg->tai_primitive_type <= TYPED_INT64) {
         // Primitive arg check
         if (Py_TYPE(arg) != &PyLong_Type ||
             !_PyClassLoader_OverflowCheck(
                 arg, cur_arg->tai_primitive_type, (size_t*)&arg_space[i])) {
-          goto fail;
+          return true;
         }
+      } else {
+        JIT_CHECK(
+            false,
+            "unsupported primitive type %d",
+            cur_arg->tai_primitive_type);
       }
       arg_index++;
       continue;
     }
     arg_space[i] = args[i];
   }
+  return false;
+}
 
-  return reinterpret_cast<staticvectorcallfunc>(JITRT_GET_REENTRY(
-      func->vectorcall))((PyObject*)func, (PyObject**)arg_space, nargsf, NULL);
+template <typename TRetType, typename TVectorcall>
+TRetType JITRT_CallStaticallyWithPrimitiveSignatureWorker(
+    PyFunctionObject* func,
+    PyObject** args,
+    size_t nargsf,
+    _PyTypedArgsInfo* arg_info) {
+  Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+  void* arg_space[nargs];
+  bool invoked_statically = (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) != 0;
+  if (JITRT_PackStaticArgs(
+          args, arg_info, arg_space, nargs, invoked_statically)) {
+    goto fail;
+  }
+
+  return reinterpret_cast<TVectorcall>(JITRT_GET_REENTRY(func->vectorcall))(
+      (PyObject*)func, (PyObject**)arg_space, nargsf, NULL);
 
 fail:
-  return {_PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL), NULL};
+  PyObject* res = _PyFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
+  JIT_DCHECK(res == NULL, "should alway be reporting an error");
+  return TRetType();
 }
 
 // This can either be a static method returning a primitive or a Python object,
@@ -389,7 +415,8 @@ fail:
 // _PyFunction_Vectorcall for error generation.  If it returns a Python object
 // we'll return an additional garbage rdx from our caller, but our caller won't
 // care about it either.
-JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
+template <typename TRetType, typename TVectorcall>
+TRetType JITRT_CallStaticallyWithPrimitiveSignatureTemplate(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,
@@ -419,16 +446,41 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
             total_args,
             kwdict,
             varargs)) {
-      return JITRT_CallStaticallyWithPrimitiveSignatureWorker(
+      return JITRT_CallStaticallyWithPrimitiveSignatureWorker<
+          TRetType,
+          TVectorcall>(
           func, arg_space, total_args | PyVectorcall_FLAGS(nargsf), arg_info);
     }
 
-    return {
-        _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames), NULL};
+    _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames);
+    return TRetType();
   }
 
-  return JITRT_CallStaticallyWithPrimitiveSignatureWorker(
-      func, args, nargsf, arg_info);
+  return JITRT_CallStaticallyWithPrimitiveSignatureWorker<
+      TRetType,
+      TVectorcall>(func, args, nargsf, arg_info);
+}
+
+JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
+    PyFunctionObject* func,
+    PyObject** args,
+    size_t nargsf,
+    PyObject* kwnames,
+    _PyTypedArgsInfo* arg_info) {
+  return JITRT_CallStaticallyWithPrimitiveSignatureTemplate<
+      JITRT_StaticCallReturn,
+      staticvectorcallfunc>(func, args, nargsf, kwnames, arg_info);
+}
+
+JITRT_StaticCallFPReturn JITRT_CallStaticallyWithPrimitiveSignatureFP(
+    PyFunctionObject* func,
+    PyObject** args,
+    size_t nargsf,
+    PyObject* kwnames,
+    _PyTypedArgsInfo* arg_info) {
+  return JITRT_CallStaticallyWithPrimitiveSignatureTemplate<
+      JITRT_StaticCallFPReturn,
+      staticvectorcallfuncfp>(func, args, nargsf, kwnames, arg_info);
 }
 
 JITRT_StaticCallFPReturn JITRT_ReportStaticArgTypecheckErrorsWithDoubleReturn(

@@ -512,6 +512,13 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
     PyObject* kwnames,
     _PyTypedArgsInfo* arg_info);
 
+JITRT_StaticCallFPReturn JITRT_CallStaticallyWithPrimitiveSignatureFP(
+    PyFunctionObject* func,
+    PyObject** args,
+    size_t nargsf,
+    PyObject* kwnames,
+    _PyTypedArgsInfo* arg_info);
+
 /* Compares if one unicode object is equal to another object.
  * At least one of the objects has to be exactly a unicode
  * object.
