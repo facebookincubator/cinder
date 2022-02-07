@@ -316,7 +316,7 @@ class Value:
     def inexact(self) -> Value:
         return self
 
-    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+    def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
         return self
 
     def make_generic_type(
@@ -851,10 +851,10 @@ class FunctionGroup(Value):
         super().__init__(FUNCTION_TYPE)
         self.functions = functions
 
-    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+    def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
         known_funcs = []
         for func in self.functions:
-            new_func = module.finish_decorator(func.node, func)
+            new_func = func.finish_bind(module, klass)
             if new_func is not None:
                 known_funcs.append(new_func)
 
@@ -1226,65 +1226,77 @@ class Class(Object["Class"]):
                     f"Cannot change type of inherited attribute (inherited type '{itr.instance.name}')"
                 )
 
-    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
-        to_remove = set()
-        for name, my_value in self.members.items():
-            node = self._member_nodes.get(name, None)
-            with module.error_context(node):
-                new_value = my_value.finish_bind(module)
-                if new_value is None:
-                    to_remove.add(name)
-                    continue
-                elif my_value is not new_value:
-                    my_value = self.members[name] = new_value
+    def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
+        todo = set(self.members.keys())
+        finished = set()
 
-                for base in self.mro[1:]:
-                    value = base.members.get(name)
-                    if value is not None:
-                        self.check_incompatible_override(my_value, value)
-                    if isinstance(value, Slot):
-                        to_remove.add(name)
-                    elif isinstance(value, Function):
-                        if value.func_name not in NON_VIRTUAL_METHODS:
-                            if isinstance(my_value, TransparentDecoratedMethod):
-                                value.validate_compat_signature(
-                                    my_value.real_function, module
-                                )
-                            else:
-                                assert isinstance(my_value, Function)
-                                value.validate_compat_signature(my_value, module)
-                    elif isinstance(value, TransparentDecoratedMethod):
-                        if value.function.is_final:
-                            raise TypedSyntaxError(
-                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
-                            )
-                    elif isinstance(value, StaticMethod):
-                        if value.is_final:
-                            raise TypedSyntaxError(
-                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
-                            )
-                        assert isinstance(my_value, DecoratedMethod)
-                        value.real_function.validate_compat_signature(
-                            my_value.real_function, module, first_arg_is_implicit=False
-                        )
-                    elif isinstance(value, (PropertyMethod, CachedPropertyMethod)):
-                        if value.is_final:
-                            raise TypedSyntaxError(
-                                f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
-                            )
-                        assert isinstance(
-                            my_value, (PropertyMethod, CachedPropertyMethod)
-                        )
-                        value.real_function.validate_compat_signature(
-                            my_value.real_function, module
-                        )
-
-        for name in to_remove:
-            del self.members[name]
+        while todo:
+            name = todo.pop()
+            my_value = self.members[name]
+            new_value = self._finish_bind_one(name, my_value, module)
+            if new_value is None:
+                del self.members[name]
+            else:
+                self.members[name] = new_value
+            finished.add(name)
+            # account for the possibility that finish_bind of one member added new members
+            todo.update(self.members.keys())
+            todo.difference_update(finished)
 
         # These were just for error reporting here, don't need them anymore
         self._member_nodes = {}
         return self
+
+    def _finish_bind_one(
+        self, name: str, my_value: Value, module: ModuleTable
+    ) -> Value | None:
+        node = self._member_nodes.get(name, None)
+        with module.error_context(node):
+            new_value = my_value.finish_bind(module, self)
+            if new_value is None:
+                return None
+            my_value = new_value
+
+            for base in self.mro[1:]:
+                value = base.members.get(name)
+                if value is not None:
+                    self.check_incompatible_override(my_value, value)
+                if isinstance(value, Slot):
+                    return None
+                elif isinstance(value, Function):
+                    if value.func_name not in NON_VIRTUAL_METHODS:
+                        if isinstance(my_value, TransparentDecoratedMethod):
+                            value.validate_compat_signature(
+                                my_value.real_function, module
+                            )
+                        else:
+                            assert isinstance(my_value, Function)
+                            value.validate_compat_signature(my_value, module)
+                elif isinstance(value, TransparentDecoratedMethod):
+                    if value.function.is_final:
+                        raise TypedSyntaxError(
+                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                        )
+                elif isinstance(value, StaticMethod):
+                    if value.is_final:
+                        raise TypedSyntaxError(
+                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                        )
+                    assert isinstance(my_value, DecoratedMethod)
+                    value.real_function.validate_compat_signature(
+                        my_value.real_function, module, first_arg_is_implicit=False
+                    )
+                elif isinstance(value, (PropertyMethod, CachedPropertyMethod)):
+                    if value.is_final:
+                        raise TypedSyntaxError(
+                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
+                        )
+                    assert isinstance(my_value, (PropertyMethod, CachedPropertyMethod))
+                    value.real_function.validate_compat_signature(
+                        my_value.real_function, module
+                    )
+
+        return my_value
 
     def define_slot(
         self,
@@ -2743,13 +2755,24 @@ class Function(Callable[Class], FunctionContainer):
     ) -> Function | DecoratedMethod:
         return func
 
-    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
-        func = module.finish_decorator(self.node, self)
-        if func is not None:
-            return func
+    def finish_bind(
+        self, module: ModuleTable, klass: Class | None
+    ) -> Function | DecoratedMethod | None:
+        res: Function | DecoratedMethod = self
+        for decorator in reversed(self.node.decorator_list):
+            decorator_type = module.resolve_decorator(decorator) or DYNAMIC_TYPE
+            new = decorator_type.resolve_decorate_function(res, decorator)
+            if new and new is not res:
+                new = new.finish_bind(module, klass)
+            if new is None:
+                # With an un-analyzable decorator we want to force late binding
+                # to it because we don't know what the decorator does
+                module.types[self.node] = UnknownDecoratedMethod(self)
+                return None
+            res = new
 
-        # With an un-analyzable decorator we want to force late binding
-        # to it because we don't know what the decorator does
+        module.types[self.node] = res
+        return res
 
     @property
     def name(self) -> str:
@@ -3159,6 +3182,10 @@ class DecoratedMethod(FunctionContainer):
         super().__init__(klass)
         self.function = function
         self.decorator = decorator
+
+    def finish_bind(self, module: ModuleTable, klass: Class | None) -> DecoratedMethod:
+        # This override exists only for typing purposes.
+        return self
 
     def emit_function(
         self,
@@ -3900,7 +3927,7 @@ class Slot(Object[TClassInv]):
         self.assignment = assignment
         self.assigned_on_class = assigned_on_class
 
-    def finish_bind(self, module: ModuleTable) -> Optional[Value]:
+    def finish_bind(self, module: ModuleTable, klass: Class | None) -> Value:
         if self.is_final and not self.assignment:
             raise TypedSyntaxError(
                 f"Final attribute not initialized: {self.container_type.instance.name}:{self.slot_name}"
@@ -7226,21 +7253,27 @@ class ContextDecoratedMethod(DecoratedMethod):
     ) -> None:
         klass = self.real_function.container_type
         dec_name = self.get_temp_name(self.real_function, self.decorator)
+        if klass is None:
+            visitor.binding_scope.declare(dec_name, self.ctx_dec, is_final=True)
+        self.function.bind_function_inner(node, visitor)
+
+    def finish_bind(
+        self, module: ModuleTable, klass: Class | None
+    ) -> ContextDecoratedMethod:
+        dec_name = self.get_temp_name(self.real_function, self.decorator)
         if klass is not None:
             klass.define_slot(
                 dec_name,
                 self.decorator,
                 ResolvedTypeRef(
-                    visitor.compiler.type_env.get_generic_type(
+                    module.compiler.type_env.get_generic_type(
                         CLASSVAR_TYPE,
                         (self.ctx_dec.klass,),
                     )
                 ),
-                assignment=node,
+                assignment=self.real_function.node,
             )
-        else:
-            visitor.binding_scope.declare(dec_name, self.ctx_dec, is_final=True)
-        self.function.bind_function_inner(node, visitor)
+        return self
 
     def emit_function_body(
         self,

@@ -178,15 +178,8 @@ class ModuleTests(StaticTestBase):
             def foo():
                 pass
         """
-        compiler = StrictCompiler(
-            [],
-            "",
-            [],
-            [],
-            raise_on_error=True,
-            enable_patching=False,
-            loader_factory=StaticTestsStrictModuleLoader,
-        )
+        compiler = self.get_strict_compiler()
+
         compiler.load_compiled_module_from_source(
             self.clean_code(codestr), "mod.py", "mod", 1
         )

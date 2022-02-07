@@ -1,7 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
-import ast
 from ast import (
     AST,
     AnnAssign,
@@ -9,7 +8,6 @@ from ast import (
     AsyncFor,
     AsyncFunctionDef,
     AsyncWith,
-    Attribute,
     ClassDef,
     For,
     FunctionDef,
@@ -20,19 +18,14 @@ from ast import (
     Try,
     While,
     With,
-    expr,
 )
-from contextlib import nullcontext
-from typing import Union, Sequence, Optional, List, TYPE_CHECKING
+from typing import Union, List, TYPE_CHECKING
 
-from ..visitor import ASTVisitor
 from .module_table import ModuleTable
 from .types import (
     AwaitableTypeRef,
-    CEnumType,
     Class,
     DYNAMIC_TYPE,
-    ENUM_TYPE,
     Function,
     ModuleInstance,
     NAMED_TUPLE_TYPE,
@@ -166,19 +159,15 @@ class DeclarationVisitor(GenericVisitor[None]):
         for item in node.body:
             self.visit(item)
         self.exit_scope()
+
         func_type = func
-        if (
-            isinstance(self.parent_scope(), (NestedScope, Function))
-            and node.decorator_list
-        ):
-            # If this is a scope we don't perform any extra binding in we need
-            # to treat decorated functions as unknown decorated to emit their
-            # decorators as we won't do the transform later in finish_bind
-            # and we don't care about optimizing calls to them.
+        if node.decorator_list:
+            # Since we haven't resolved decorators yet (until finish_bind), we
+            # don't know what type we should ultimately set for this node;
+            # Function.finish_bind() will likely override this.
             func_type = UnknownDecoratedMethod(func)
 
         self.module.types[node] = func_type
-
         return func
 
     def visitFunctionDef(self, node: FunctionDef) -> None:

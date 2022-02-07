@@ -1,11 +1,5 @@
-import ast
 import asyncio
-import dis
 import inspect
-from compiler.static import StaticCodeGenerator
-from compiler.static.compiler import Compiler
-from compiler.static.declaration_visitor import DeclarationVisitor
-from textwrap import dedent
 
 from __static__ import ContextDecorator
 from test.support.cinder import get_await_stack
@@ -1063,3 +1057,21 @@ class ContextDecoratorTests(StaticTestBase):
         g_coro = g()
         asyncio.run(g_coro)
         self.assertEqual(await_stack, [g_coro])
+
+    def test_repeated_import_with_contextdecorator(self) -> None:
+        codestr = """
+            from __static__ import ContextDecorator
+
+            class C:
+                @ContextDecorator()
+                def meth(self):
+                    pass
+        """
+        compiler = self.get_strict_compiler()
+
+        compiler.load_compiled_module_from_source(
+            self.clean_code(codestr), "mod.py", "mod", 1
+        )
+        compiler.load_compiled_module_from_source(
+            self.clean_code(codestr), "mod.py", "mod", 1
+        )

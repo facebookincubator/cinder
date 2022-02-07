@@ -17,7 +17,7 @@ from compiler.strict.compiler import Compiler as StrictCompiler
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
-from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
+from typing import Any, ContextManager, Generator, List, Mapping, Tuple, Type
 
 import cinder
 from _strictmodule import (
@@ -172,14 +172,8 @@ class StaticTestBase(CompilerTest):
             modname, f"{modname}.py", tree, optimize, enable_patching=enable_patching
         )
 
-    def compile_strict(
-        self, codestr, modname="<module>", optimize=0, enable_patching=False
-    ):
-        # TODO if we move all of the strict modules rewriter into the compiler,
-        # then it's no longer important for static python tests to run through
-        # full strict compiler; we can remove this method and have _in_strict_module
-        # go back to using self.compile()
-        compiler = StrictCompiler(
+    def get_strict_compiler(self, enable_patching=False) -> StrictCompiler:
+        return StrictCompiler(
             [],
             "",
             [],
@@ -188,6 +182,11 @@ class StaticTestBase(CompilerTest):
             enable_patching=enable_patching,
             loader_factory=StaticTestsStrictModuleLoader,
         )
+
+    def compile_strict(
+        self, codestr, modname="<module>", optimize=0, enable_patching=False
+    ):
+        compiler = self.get_strict_compiler(enable_patching=enable_patching)
 
         code, is_valid_strict = compiler.load_compiled_module_from_source(
             self.clean_code(codestr), f"{modname}.py", modname, optimize

@@ -5,13 +5,11 @@ import ast
 from ast import (
     AST,
     Attribute,
-    AsyncFunctionDef,
     BinOp,
     Call,
     ClassDef,
     Constant,
     Expression,
-    FunctionDef,
     Subscript,
     Name,
 )
@@ -40,7 +38,6 @@ from .types import (
     Function,
     FunctionGroup,
     DYNAMIC,
-    DYNAMIC_TYPE,
     FLOAT_TYPE,
     FinalClass,
     INT_TYPE,
@@ -50,7 +47,6 @@ from .types import (
     TypeDescr,
     UNION_TYPE,
     UnionType,
-    UnknownDecoratedMethod,
     Value,
 )
 from .visitor import GenericVisitor
@@ -232,7 +228,7 @@ class ModuleTable:
             with self.error_context(node):
                 if value is not None:
                     assert name is not None
-                    new_value = value.finish_bind(self)
+                    new_value = value.finish_bind(self, None)
                     if new_value is None:
                         del self.children[name]
                     elif new_value is not value:
@@ -270,22 +266,7 @@ class ModuleTable:
                             self.named_finals[target.id] = value
 
         # We don't need these anymore...
-
         self.decls.clear()
-
-    def finish_decorator(
-        self, node: FunctionDef | AsyncFunctionDef, func: Function
-    ) -> Optional[Value]:
-        res: Optional[Value] = func
-        for decorator in reversed(node.decorator_list):
-            decorator_type = self.resolve_decorator(decorator) or DYNAMIC_TYPE
-            res = decorator_type.resolve_decorate_function(res, decorator)
-            if res is None:
-                self.types[node] = UnknownDecoratedMethod(func)
-                return None
-
-        self.types[node] = res
-        return res
 
     def resolve_type(self, node: ast.AST) -> Optional[Class]:
         typ = self.ann_visitor.visit(node)
