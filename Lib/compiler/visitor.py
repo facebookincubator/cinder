@@ -4,7 +4,6 @@ import ast
 from ast import AST, copy_location
 from typing import Any, Sequence, TypeVar, Union
 
-
 # XXX should probably rename ASTVisitor to ASTWalker
 # XXX can it be made even more generic?
 

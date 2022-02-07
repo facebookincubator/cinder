@@ -320,6 +320,10 @@ def main(loader_override=None):
         loader_type = loader_override
     elif args.use_py_loader:
         loader_type = PySourceFileLoader
+    if loader_type is not None:
+        # if the default c compiler is not used, we need to protect
+        # against recursion limit for any python based compilers
+        sys.setrecursionlimit(100000)
 
     try:
         if compile_dests:
