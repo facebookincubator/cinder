@@ -49,6 +49,7 @@ class BuildRpmTestCase(support.TempdirManager,
                      'the rpm command is not found')
     @unittest.skipIf(find_executable('rpmbuild') is None,
                      'the rpmbuild command is not found')
+    @unittest.skip('not allowed to use rpmbuild directly on devservers')
     def test_quiet(self):
         # let's create a package
         tmp_dir = self.mkdtemp()
@@ -93,6 +94,7 @@ class BuildRpmTestCase(support.TempdirManager,
                      'the rpm command is not found')
     @unittest.skipIf(find_executable('rpmbuild') is None,
                      'the rpmbuild command is not found')
+    @unittest.skip('not allowed to use rpmbuild directly on devservers')
     def test_no_optimize_flag(self):
         # let's create a package that breaks bdist_rpm
         tmp_dir = self.mkdtemp()

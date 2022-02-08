@@ -88,13 +88,6 @@ class GroupDatabaseTestCase(unittest.TestCase):
 
         self.assertRaises(KeyError, grp.getgrnam, fakename)
 
-        # Choose a non-existent gid.
-        fakegid = 4127
-        while fakegid in bygids:
-            fakegid = (fakegid * 3) % 0x10000
-
-        self.assertRaises(KeyError, grp.getgrgid, fakegid)
-
     def test_noninteger_gid(self):
         entries = grp.getgrall()
         if not entries:
