@@ -1,6 +1,8 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
+from __static__ import chkdict, chklist
+
 import ast
 from ast import (
     AST,
@@ -49,7 +51,6 @@ from typing import (
     cast,
 )
 
-from __static__ import chkdict, chklist
 from _static import (  # noqa: F401
     TYPED_BOOL,
     TYPED_INT_64BIT,
@@ -1101,7 +1102,7 @@ class Class(Object["Class"]):
             dynamic_call = dynamic_call or klass is DYNAMIC_TYPE
             object_init = klass is OBJECT_TYPE
             if not object_init and isinstance(init, Callable):
-                init_mapping = ArgMapping(init, node, None)
+                init_mapping = ArgMapping(init, node, visitor, None)
                 init_mapping.bind_args(visitor, True)
                 if init_mapping.can_call_statically():
                     dynamic_call = False
@@ -1912,12 +1913,14 @@ class ArgMapping:
         self,
         callable: Callable[TClass],
         call: ast.Call,
+        visitor: TypeBinder,
         self_arg: Optional[ast.expr],
         args_override: Optional[List[ast.expr]] = None,
         descr_override: Optional[TypeDescr] = None,
     ) -> None:
         self.callable = callable
         self.call = call
+        self.visitor = visitor
         self.args: List[ast.expr] = args_override or list(call.args)
         self.kwargs: List[Tuple[Optional[str], ast.expr]] = [
             (kwarg.arg, kwarg.value) for kwarg in call.keywords
@@ -2128,10 +2131,17 @@ class ArgMapping:
             if isinstance(a, ast.Starred):
                 if has_star_args:
                     # We don't support f(*a, *b)
+                    self.visitor.perf_warning(
+                        "Multiple *args prevents more efficient static call", self.call
+                    )
                     return False
                 has_star_args = True
             elif has_star_args:
                 # We don't support f(*a, b)
+                self.visitor.perf_warning(
+                    "Positional arg after *args prevents more efficient static call",
+                    self.call,
+                )
                 return False
 
         num_star_args = [isinstance(a, ast.Starred) for a in self.call.args].count(True)
@@ -2146,13 +2156,24 @@ class ArgMapping:
                         break
                 else:
                     return False
-        if (
+        if (num_dstar_args + num_star_args) > 1:
             # We don't support f(**a, **b)
-            (num_dstar_args + num_star_args) > 1
+            self.visitor.perf_warning(
+                "Multiple **kwargs prevents more efficient static call", self.call
+            )
+            return False
+        elif has_default_args and has_star_args:
             # We don't support f(1, 2, *a) iff has any default arg values
-            or (has_default_args and has_star_args)
-            or num_kwonly
-        ):
+            self.visitor.perf_warning(
+                "Passing *args to function with default values prevents more efficient static call",
+                self.call,
+            )
+            return False
+        elif num_kwonly:
+            self.visitor.perf_warning(
+                "Keyword-only args in called function prevents more efficient static call",
+                self.call,
+            )
             return False
 
         return True
@@ -2186,11 +2207,12 @@ class ClassMethodArgMapping(ArgMapping):
         self,
         callable: Callable[TClass],
         call: ast.Call,
+        visitor: TypeBinder,
         self_arg: Optional[ast.expr] = None,
         args_override: Optional[List[ast.expr]] = None,
         is_instance_call: bool = False,
     ) -> None:
-        super().__init__(callable, call, self_arg, args_override)
+        super().__init__(callable, call, visitor, self_arg, args_override)
         self.is_instance_call = is_instance_call
 
     def needs_virtual_invoke(self, code_gen: Static38CodeGenerator) -> bool:
@@ -2524,7 +2546,12 @@ class Callable(Object[TClass]):
         descr_override: Optional[TypeDescr] = None,
     ) -> Tuple[ArgMapping, Value]:
         arg_mapping = ArgMapping(
-            self, node, self_expr, args_override, descr_override=descr_override
+            self,
+            node,
+            visitor,
+            self_expr,
+            args_override,
+            descr_override=descr_override,
         )
         arg_mapping.bind_args(visitor)
 
@@ -3156,7 +3183,9 @@ class StaticMethodInstanceBound(Object[Class]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
-        arg_mapping = ArgMapping(self.function, node, self.target.value, node.args)
+        arg_mapping = ArgMapping(
+            self.function, node, visitor, self.target.value, node.args
+        )
         arg_mapping.bind_args(visitor)
 
         visitor.set_type(node, self.function.return_type.resolved().instance)
@@ -3342,6 +3371,7 @@ class BoundClassMethod(Object[Class]):
         arg_mapping = ClassMethodArgMapping(
             self.function,
             node,
+            visitor,
             self.self_expr,
             is_instance_call=self.is_instance_call,
         )
@@ -3724,7 +3754,9 @@ class BuiltinNewFunction(BuiltinFunction):
         args_override: Optional[List[ast.expr]] = None,
         descr_override: Optional[TypeDescr] = None,
     ) -> Tuple[ArgMapping, Value]:
-        arg_mapping = ArgMapping(self, node, self_expr, args_override, descr_override)
+        arg_mapping = ArgMapping(
+            self, node, visitor, self_expr, args_override, descr_override
+        )
         arg_mapping.bind_args(visitor)
         ret_type = DYNAMIC
         if args_override:

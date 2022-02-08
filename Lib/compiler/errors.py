@@ -15,6 +15,22 @@ class TypedSyntaxError(SyntaxError):
     pass
 
 
+class PerfWarning(Warning):
+    def __init__(
+        self,
+        msg: str,
+        filename: str,
+        lineno: int,
+        offset: int,
+        text: Optional[str],
+    ) -> None:
+        super().__init__(msg)
+        self.filename = filename
+        self.lineno = lineno
+        self.offset = offset
+        self.text = text
+
+
 def error_location(filename: str, node: AST) -> Tuple[int, int, Optional[str]]:
     source_line = linecache.getline(filename, node.lineno)
     return (node.lineno, node.col_offset, source_line or None)
@@ -25,6 +41,7 @@ class ErrorSink:
 
     def __init__(self) -> None:
         self.errors: List[TypedSyntaxError] = []
+        self.warnings: List[PerfWarning] = []
 
     def error(self, exception: TypedSyntaxError) -> None:
         raise exception
@@ -48,6 +65,25 @@ class ErrorSink:
             if (exc.lineno, exc.offset) == (None, None):
                 exc.lineno, exc.offset, exc.text = error_location(filename, node)
             self.error(exc)
+        except PerfWarning as warning:
+            if warning.filename is None:
+                warning.filename = filename
+            if (warning.lineno, warning.offset) == (None, None):
+                warning.lineno, warning.offset, warning.text = error_location(
+                    filename, node
+                )
+            self.warn(warning)
+
+    def warn(self, warning: PerfWarning) -> None:
+        pass
+
+    def perf_warning(self, msg: str, filename: str, node: AST) -> None:
+        lineno, offset, source_line = error_location(filename, node)
+        self.warn(PerfWarning(msg, filename, lineno, offset, source_line))
+
+    @property
+    def has_warnings(self) -> bool:
+        return len(self.warnings) > 0
 
 
 class CollectingErrorSink(ErrorSink):
@@ -55,3 +91,6 @@ class CollectingErrorSink(ErrorSink):
 
     def error(self, exception: TypedSyntaxError) -> None:
         self.errors.append(exception)
+
+    def warn(self, warning: PerfWarning) -> None:
+        self.warnings.append(warning)

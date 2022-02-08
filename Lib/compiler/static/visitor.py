@@ -44,6 +44,9 @@ class GenericVisitor(ASTVisitor, Generic[TVisitRet]):
     def syntax_error(self, msg: str, node: AST) -> None:
         return self.error_sink.syntax_error(msg, self.filename, node)
 
+    def perf_warning(self, msg: str, node: AST) -> None:
+        return self.error_sink.perf_warning(msg, self.filename, node)
+
     def error_context(self, node: Optional[AST]) -> ContextManager[None]:
         if node is None:
             return nullcontext()

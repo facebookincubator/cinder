@@ -3,15 +3,22 @@ from __future__ import annotations
 import ast
 import asyncio
 import builtins
+import cinder
 import gc
 import re
 import symtable
 import sys
-from compiler.errors import CollectingErrorSink, ErrorSink
+from cinder import StrictModule
+from compiler.errors import (
+    CollectingErrorSink,
+    ErrorSink,
+    PerfWarning,
+    TypedSyntaxError,
+)
 from compiler.static import Static38CodeGenerator, StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.module_table import ModuleTable
-from compiler.static.types import TypedSyntaxError, Value
+from compiler.static.types import Value
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import Compiler as StrictCompiler
 from compiler.strict.runtime import set_freeze_enabled
@@ -19,7 +26,6 @@ from contextlib import contextmanager
 from types import CodeType
 from typing import Any, ContextManager, Generator, List, Mapping, Tuple, Type
 
-import cinder
 from _strictmodule import (
     StrictAnalysisResult,
     NONSTRICT_MODULE_KIND,
@@ -27,7 +33,6 @@ from _strictmodule import (
     STUB_KIND_MASK_NONE,
     STUB_KIND_MASK_STRICT,
 )
-from cinder import StrictModule
 from test.support import maybe_get_event_loop_policy
 
 from ..common import CompilerTest
@@ -116,19 +121,29 @@ class ErrorMatcher:
 
 class TestErrors:
     def __init__(
-        self, case: StaticTestBase, code: str, errors: List[TypedSyntaxError]
+        self,
+        case: StaticTestBase,
+        code: str,
+        errors: List[TypedSyntaxError],
+        warnings: List[PerfWarning] = [],
     ) -> None:
         self.case = case
         self.code = code
         self.errors = errors
+        self.warnings = warnings
 
-    def check(self, *matchers: List[ErrorMatcher], loc_only: bool = False) -> None:
+    def _check(
+        self,
+        errors: List[TypedSyntaxError] | List[PerfWarning],
+        *matchers: List[ErrorMatcher],
+        loc_only: bool = False,
+    ) -> None:
         self.case.assertEqual(
             len(matchers),
-            len(self.errors),
-            f"Expected {len(matchers)} errors, got {self.errors}",
+            len(errors),
+            f"Expected {len(matchers)} errors, got {errors}",
         )
-        for exc, matcher in zip(self.errors, matchers):
+        for exc, matcher in zip(errors, matchers):
             if not loc_only:
                 self.case.assertIn(matcher.msg, str(exc))
             if (at := matcher.at) is not None:
@@ -137,6 +152,14 @@ class TestErrors:
                     self.case.fail(
                         f"Expected error '{matcher.msg}' at '{at}', occurred at '{actual}'"
                     )
+
+    def check(self, *matchers: List[ErrorMatcher], loc_only: bool = False) -> None:
+        self._check(self.errors, *matchers, loc_only=loc_only)
+
+    def check_warnings(
+        self, *matchers: List[ErrorMatcher], loc_only: bool = False
+    ) -> None:
+        self._check(self.warnings, *matchers, loc_only=loc_only)
 
     def match(self, msg: str, at: str | None = None) -> ErrorMatcher:
         return ErrorMatcher(msg, at)
@@ -200,7 +223,7 @@ class StaticTestBase(CompilerTest):
         tree = ast.parse(code)
         compiler = Compiler(StaticCodeGenerator, errors)
         compiler.bind("<module>", "<module>.py", tree, optimize=0)
-        return TestErrors(self, code, errors.errors)
+        return TestErrors(self, code, errors.errors, errors.warnings)
 
     @contextmanager
     def type_error_ctx(
