@@ -1256,6 +1256,12 @@ QUICKTESTOPTS=	$(TESTOPTS) -x test_subprocess test_io test_lib2to3 \
 quicktest:	@DEF_MAKE_RULE@ platform
 		$(TESTRUNNER) $(QUICKTESTOPTS)
 
+# Exclude tests that will not pass on devservers because of environmental restrictions
+# (e.g. lack of outbound network access)
+TESTCINDEROPTS= $(TESTOPTS) -x test_urllib2net test_unicodedata
+testcinder: @DEF_MAKE_RULE@ platform
+		$(TESTRUNNER) $(TESTCINDEROPTS)
+
 # SSL tests
 .PHONY: multisslcompile multissltest
 multisslcompile: build_all
@@ -2022,7 +2028,7 @@ Python/thread.o: @THREADHEADERS@ $(srcdir)/Python/condvar.h
 .PHONY: smelly funny patchcheck touch altmaninstall commoninstall
 .PHONY: clean-retain-profile profile-removal run_profile_task
 .PHONY: build_all_generate_profile build_all_merge_profile
-.PHONY: gdbhooks
+.PHONY: gdbhooks testcinder
 
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
 # Local Variables:
