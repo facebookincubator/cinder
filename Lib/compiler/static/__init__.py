@@ -742,7 +742,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         dict_type = self.get_type(node)
         if dict_type in (
             self.compiler.type_env.dict.instance,
-            self.compiler.type_env.dict_exact.instance,
+            self.compiler.type_env.dict.exact_type().instance,
         ):
             return super().visitDictComp(node)
         klass = dict_type.klass
@@ -776,7 +776,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         dict_type = self.get_type(node)
         if dict_type in (
             self.compiler.type_env.dict.instance,
-            self.compiler.type_env.dict_exact.instance,
+            self.compiler.type_env.dict.exact_type().instance,
         ):
             return super().visitDict(node)
         klass = dict_type.klass
@@ -843,7 +843,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         list_type = self.get_type(node)
         if list_type in (
             self.compiler.type_env.list.instance,
-            self.compiler.type_env.list_exact.instance,
+            self.compiler.type_env.list.exact_type().instance,
         ):
             return super().visitListComp(node)
         klass = list_type.klass
@@ -865,7 +865,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         list_type = self.get_type(node)
         if list_type in (
             self.compiler.type_env.list.instance,
-            self.compiler.type_env.list_exact.instance,
+            self.compiler.type_env.list.exact_type().instance,
         ):
             return super().visitList(node)
         klass = list_type.klass

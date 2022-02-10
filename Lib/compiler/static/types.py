@@ -165,6 +165,8 @@ class TypeEnvironment:
     def __init__(self) -> None:
         self._generic_types: GenericTypesDict = {}
         self._literal_types: Dict[Tuple[Value, object], Value] = {}
+        self._exact_types: Dict[Class, Class] = {}
+        self._inexact_types: Dict[Class, Class] = {}
         # Bringing up the type system is a little special as we have dependencies
         # amongst type and object
         self.type: Class = Class.__new__(Class)
@@ -188,6 +190,7 @@ class TypeEnvironment:
             bases=[],
         )
         self.type.bases = [self.object]
+        self.dynamic = DynamicClass(self)
 
         self.builtin_method_desc = Class(
             TypeName("types", "MethodDescriptorType"),
@@ -203,19 +206,9 @@ class TypeEnvironment:
         self.object.make_type_dict()
         self.type.make_type_dict()
         self.str = StrClass(self)
-        self.str_exact = StrClass(self, is_exact=True)
         self.int = NumClass(TypeName("builtins", "int"), self, pytype=int)
-        self.int_exact = NumClass(
-            TypeName("builtins", "int"), self, pytype=int, is_exact=True
-        )
         self.float = NumClass(TypeName("builtins", "float"), self, pytype=float)
-        self.float_exact = NumClass(
-            TypeName("builtins", "float"), self, pytype=float, is_exact=True
-        )
         self.complex = NumClass(TypeName("builtins", "complex"), self, pytype=complex)
-        self.complex_exact = NumClass(
-            TypeName("builtins", "complex"), self, pytype=complex, is_exact=True
-        )
         self.bytes = Class(
             TypeName("builtins", "bytes"), self, [self.object], pytype=bytes
         )
@@ -307,13 +300,9 @@ class TypeEnvironment:
             is_exact=True,
         )
         self.dict = DictClass(self, is_exact=False)
-        self.dict_exact = DictClass(self, is_exact=True)
         self.list = ListClass(self)
-        self.list_exact = ListClass(self, is_exact=True)
         self.set = SetClass(self, is_exact=False)
-        self.set_exact = SetClass(self, is_exact=True)
         self.tuple = TupleClass(self)
-        self.tuple_exact = TupleClass(self, is_exact=True)
         self.function = Class(TypeName("types", "FunctionType"), self, is_exact=True)
         self.method = Class(TypeName("types", "MethodType"), self, is_exact=True)
         self.member = Class(
@@ -402,14 +391,14 @@ class TypeEnvironment:
             TypeName("__strict__", "<identity-decorator>"), self
         )
         self.constant_types: Mapping[Type[object], Value] = {
-            str: self.str_exact.instance,
-            int: self.int_exact.instance,
-            float: self.float_exact.instance,
-            complex: self.complex_exact.instance,
+            str: self.str.exact_type().instance,
+            int: self.int.exact_type().instance,
+            float: self.float.exact_type().instance,
+            complex: self.complex.exact_type().instance,
             bytes: self.bytes.instance,
             bool: self.bool.instance,
             type(None): self.none.instance,
-            tuple: self.tuple_exact.instance,
+            tuple: self.tuple.exact_type().instance,
             type(...): self.ellipsis.instance,
             frozenset: self.set.instance,
         }
@@ -444,6 +433,25 @@ class TypeEnvironment:
         if key not in self._literal_types:
             self._literal_types[key] = base_type.make_literal(literal_value, self)
         return self._literal_types[key]
+
+    def get_exact_type(self, klass: Class) -> Class:
+        if klass.is_exact:
+            return klass
+        if klass in self._exact_types:
+            return self._exact_types[klass]
+        exact_klass = klass._create_exact_type()
+        self._exact_types[klass] = exact_klass
+        self._inexact_types[exact_klass] = klass
+        return exact_klass
+
+    def get_inexact_type(self, klass: Class) -> Class:
+        if not klass.is_exact:
+            return klass
+        # Some types are always exact by default and have no inexact version. In that case,
+        # the exact type is the correct value to return.
+        if klass not in self._inexact_types:
+            return klass
+        return self._inexact_types[klass]
 
     @property
     def DYNAMIC(self) -> Value:
@@ -1453,10 +1461,23 @@ class Class(Object["Class"]):
         return self
 
     def exact_type(self) -> Class:
-        return self
+        return self.type_env.get_exact_type(self)
 
     def inexact_type(self) -> Class:
-        return self
+        return self.type_env.get_inexact_type(self)
+
+    def _create_exact_type(self) -> Class:
+        return type(self)(
+            type_name=self.type_name,
+            type_env=self.type_env,
+            bases=self.bases,
+            klass=self.klass,
+            members=self.members,
+            instance=self.instance,
+            is_exact=True,
+            pytype=self.pytype,
+            is_final=self.is_final,
+        )
 
     def isinstance(self, src: Value) -> bool:
         return src.klass.is_subclass_of(self)
@@ -4365,11 +4386,14 @@ class BoxFunction(Object[Class]):
             typ = (
                 self.klass.type_env.bool
                 if arg_type.constant == TYPED_BOOL
-                else self.klass.type_env.int_exact
+                else self.klass.type_env.int.exact_type()
             )
             visitor.set_type(node, typ.instance)
         elif isinstance(arg_type, CDoubleInstance):
-            visitor.set_type(node, self.klass.type_env.float_exact.instance)
+            visitor.set_type(
+                node,
+                self.klass.type_env.float.exact_type().instance,
+            )
         elif isinstance(arg_type, CEnumInstance):
             visitor.set_type(node, arg_type.boxed)
         else:
@@ -4432,7 +4456,7 @@ class LenFunction(Object[Class]):
             visitor.syntax_error(f"bad argument type '{arg_type.name}' for clen()", arg)
 
         output_type = (
-            self.klass.type_env.int_exact.instance
+            self.klass.type_env.int.exact_type().instance
             if self.boxed
             else self.klass.type_env.int64.instance
         )
@@ -4465,12 +4489,15 @@ class SortedFunction(Object[Class]):
                 kw.value, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
             )
 
-        visitor.set_type(node, self.klass.type_env.list_exact.instance)
+        visitor.set_type(node, self.klass.type_env.list.exact_type().instance)
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         super().emit_call(node, code_gen)
-        code_gen.emit("REFINE_TYPE", self.klass.type_env.list_exact.type_descr)
+        code_gen.emit(
+            "REFINE_TYPE",
+            self.klass.type_env.list.exact_type().type_descr,
+        )
 
 
 class ExtremumFunction(Object[Class]):
@@ -4675,7 +4702,7 @@ class NumClass(Class):
         bases: List[Class] = [type_env.object]
         if literal_value is not None:
             is_exact = True
-            bases = [type_env.int_exact]
+            bases = [type_env.int.exact_type()]
         instance = NumExactInstance(self) if is_exact else NumInstance(self)
         super().__init__(
             name,
@@ -4696,16 +4723,32 @@ class NumClass(Class):
                 return True
         return super().can_assign_from(src)
 
+    def _create_exact_type(self) -> Class:
+        return type(self)(
+            self.type_name,
+            self.type_env,
+            pytype=self.pytype,
+            is_exact=True,
+            literal_value=self.literal_value,
+            is_final=self.is_final,
+        )
+
     def exact_type(self) -> Class:
+        if self.literal_value is None:
+            # This is a special case: We guarantee that all non-literal NumClasses are
+            # present in the type environment after construction.
+            return super().exact_type()
         if self.pytype is int:
-            return self.type_env.int_exact
+            return self.type_env.int.exact_type()
         if self.pytype is float:
-            return self.type_env.float_exact
+            return self.type_env.float.exact_type()
         if self.pytype is complex:
-            return self.type_env.complex_exact
+            return self.type_env.complex.exact_type()
         return self
 
     def inexact_type(self) -> Class:
+        if self.literal_value is None:
+            return super().inexact_type()
         if self.pytype is int:
             return self.type_env.int
         if self.pytype is float:
@@ -4746,11 +4789,11 @@ class NumInstance(Object[NumClass]):
 
     def exact(self) -> Value:
         if self.klass.pytype is int:
-            return self.klass.type_env.int_exact.instance
+            return self.klass.type_env.int.exact_type().instance
         if self.klass.pytype is float:
-            return self.klass.type_env.float_exact.instance
+            return self.klass.type_env.float.exact_type().instance
         if self.klass.pytype is complex:
-            return self.klass.type_env.complex_exact.instance
+            return self.klass.type_env.complex.exact_type().instance
         return self
 
     def inexact(self) -> Value:
@@ -4774,13 +4817,21 @@ class NumExactInstance(NumInstance):
     ) -> bool:
         ltype = visitor.get_type(node.left)
         rtype = visitor.get_type(node.right)
-        if self.klass.type_env.int_exact.can_assign_from(
-            ltype.klass
-        ) and self.klass.type_env.int_exact.can_assign_from(rtype.klass):
+        type_env = self.klass.type_env
+        int_exact = type_env.int.exact_type()
+        if int_exact.can_assign_from(ltype.klass) and int_exact.can_assign_from(
+            rtype.klass
+        ):
             if isinstance(node.op, ast.Div):
-                visitor.set_type(node, self.klass.type_env.float_exact.instance)
+                visitor.set_type(
+                    node,
+                    type_env.float.exact_type().instance,
+                )
             else:
-                visitor.set_type(node, self.klass.type_env.int_exact.instance)
+                visitor.set_type(
+                    node,
+                    int_exact.instance,
+                )
             return True
         return False
 
@@ -5008,11 +5059,8 @@ class TupleClass(Class):
             ResolvedTypeRef(self),
         )
 
-    def exact_type(self) -> Class:
-        return self.type_env.tuple_exact
-
-    def inexact_type(self) -> Class:
-        return self.type_env.tuple
+    def _create_exact_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=True)
 
 
 class TupleInstance(Object[TupleClass]):
@@ -5039,7 +5087,7 @@ class TupleInstance(Object[TupleClass]):
         code_gen.defaultVisit(node)
 
     def exact(self) -> Value:
-        return self.klass.type_env.tuple_exact.instance
+        return self.klass.type_env.tuple.exact_type().instance
 
     def inexact(self) -> Value:
         return self.klass.type_env.tuple.instance
@@ -5054,7 +5102,10 @@ class TupleExactInstance(TupleInstance):
             self.klass.type_env.int.can_assign_from(rtype)
             or rtype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.type_env.tuple_exact.instance)
+            visitor.set_type(
+                node,
+                self.klass.type_env.tuple.exact_type().instance,
+            )
             return True
         return super().bind_binop(node, visitor, type_ctx)
 
@@ -5066,7 +5117,10 @@ class TupleExactInstance(TupleInstance):
             self.klass.type_env.int.can_assign_from(ltype)
             or ltype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.type_env.tuple_exact.instance)
+            visitor.set_type(
+                node,
+                self.klass.type_env.tuple.exact_type().instance,
+            )
             return True
         return super().bind_reverse_binop(node, visitor, type_ctx)
 
@@ -5088,11 +5142,8 @@ class SetClass(Class):
             pytype=set,
         )
 
-    def exact_type(self) -> Class:
-        return self.type_env.set_exact
-
-    def inexact_type(self) -> Class:
-        return self.type_env.set
+    def _create_exact_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=True)
 
 
 class SetInstance(Object[SetClass]):
@@ -5119,7 +5170,7 @@ class SetInstance(Object[SetClass]):
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
 
     def exact(self) -> Value:
-        return self.klass.type_env.set_exact.instance
+        return self.klass.type_env.set.exact_type().instance
 
     def inexact(self) -> Value:
         return self.klass.type_env.set.instance
@@ -5196,11 +5247,8 @@ class ListClass(Class):
             pytype=list,
         )
 
-    def exact_type(self) -> Class:
-        return self.type_env.list_exact
-
-    def inexact_type(self) -> Class:
-        return self.type_env.list
+    def _create_exact_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=True)
 
     def make_type_dict(self) -> None:
         super().make_type_dict()
@@ -5296,7 +5344,7 @@ class ListInstance(Object[ListClass]):
         code_gen.defaultVisit(node)
 
     def exact(self) -> Value:
-        return self.klass.type_env.list_exact.instance
+        return self.klass.type_env.list.exact_type().instance
 
     def inexact(self) -> Value:
         return self.klass.type_env.list.instance
@@ -5314,7 +5362,10 @@ class ListExactInstance(ListInstance):
             self.klass.type_env.int.can_assign_from(rtype)
             or rtype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.type_env.list_exact.instance)
+            visitor.set_type(
+                node,
+                self.klass.type_env.list.exact_type().instance,
+            )
             return True
         return super().bind_binop(node, visitor, type_ctx)
 
@@ -5326,7 +5377,10 @@ class ListExactInstance(ListInstance):
             self.klass.type_env.int.can_assign_from(ltype)
             or ltype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.type_env.list_exact.instance)
+            visitor.set_type(
+                node,
+                self.klass.type_env.list.exact_type().instance,
+            )
             return True
         return super().bind_reverse_binop(node, visitor, type_ctx)
 
@@ -5348,11 +5402,8 @@ class StrClass(Class):
             pytype=str,
         )
 
-    def exact_type(self) -> Class:
-        return self.type_env.str_exact
-
-    def inexact_type(self) -> Class:
-        return self.type_env.str
+    def _create_exact_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=True)
 
 
 class StrInstance(Object[StrClass]):
@@ -5374,7 +5425,7 @@ class StrInstance(Object[StrClass]):
         )
 
     def exact(self) -> Value:
-        return self.klass.type_env.str_exact.instance
+        return self.klass.type_env.str.exact_type().instance
 
     def inexact(self) -> Value:
         return self.klass.type_env.str.instance
@@ -5390,11 +5441,8 @@ class DictClass(Class):
             pytype=dict,
         )
 
-    def exact_type(self) -> Class:
-        return self.type_env.dict_exact
-
-    def inexact_type(self) -> Class:
-        return self.type_env.dict
+    def _create_exact_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=True)
 
 
 class DictInstance(Object[DictClass]):
@@ -5421,7 +5469,7 @@ class DictInstance(Object[DictClass]):
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
 
     def exact(self) -> Value:
-        return self.klass.type_env.dict_exact.instance
+        return self.klass.type_env.dict.exact_type().instance
 
     def inexact(self) -> Value:
         return self.klass.type_env.dict.instance
@@ -6458,7 +6506,7 @@ class CEnumInstance(CInstance["CEnumType"]):
             visitor.syntax_error("Enum values cannot be modified or deleted", node)
 
         if node.attr == "name":
-            visitor.set_type(node, visitor.type_env.str_exact.instance)
+            visitor.set_type(node, visitor.type_env.str.exact_type().instance)
             return
 
         if node.attr == "value":
@@ -6957,11 +7005,11 @@ class CIntInstance(CInstance["CIntType"]):
             )
         rinst = visitor.get_type(node.right)
         if rinst != self:
-            if rinst.klass == self.klass.type_env.list_exact:
-                visitor.set_type(node, self.klass.type_env.list_exact.instance)
-                return True
-            if rinst.klass == self.klass.type_env.tuple_exact:
-                visitor.set_type(node, self.klass.type_env.tuple_exact.instance)
+            if (
+                rinst.klass == self.klass.type_env.list.exact_type()
+                or rinst.klass == self.klass.type_env.tuple.exact_type()
+            ):
+                visitor.set_type(node, rinst.klass.instance)
                 return True
 
             visitor.visit(node.right, type_ctx or visitor.type_env.int64.instance)
@@ -7221,7 +7269,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     ) -> bool:
         rtype = visitor.get_type(right)
         if rtype != self:
-            if rtype == self.klass.type_env.float_exact.instance:
+            if rtype == self.klass.type_env.float.exact_type().instance:
                 visitor.visitExpectedType(right, self, f"can't compare {{}} to {{}}")
             else:
                 visitor.syntax_error(f"can't compare {self.name} to {rtype.name}", node)
@@ -7241,7 +7289,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     ) -> bool:
         ltype = visitor.get_type(left)
         if ltype != self:
-            if ltype == self.klass.type_env.float_exact.instance:
+            if ltype == self.klass.type_env.float.exact_type().instance:
                 visitor.visitExpectedType(left, self, f"can't compare {{}} to {{}}")
             else:
                 visitor.syntax_error(f"can't compare {self.name} to {ltype.name}", node)
@@ -7328,7 +7376,7 @@ class CDoubleType(CType):
         arg_type = visitor.get_type(arg)
         if arg_type not in (
             self.type_env.float.instance,
-            self.type_env.float_exact.instance,
+            self.type_env.float.exact_type().instance,
             self.type_env.DYNAMIC,
             self.instance,
         ):

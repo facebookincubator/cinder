@@ -402,7 +402,7 @@ class TypeBinder(GenericVisitor):
                     "argument annotation cannot be a primitive",
                 )
 
-            self.set_param(vararg, self.type_env.tuple_exact.instance, scope)
+            self.set_param(vararg, self.type_env.tuple.exact_type().instance, scope)
 
         default_index = len(args.kw_defaults or []) - len(args.kwonlyargs)
         for arg in args.kwonlyargs:
@@ -438,7 +438,7 @@ class TypeBinder(GenericVisitor):
                     self.type_env.DYNAMIC,
                     "argument annotation cannot be a primitive",
                 )
-            self.set_param(kwarg, self.type_env.dict_exact.instance, scope)
+            self.set_param(kwarg, self.type_env.dict.exact_type().instance, scope)
 
     def new_scope(self, node: AST) -> BindingScope:
         return BindingScope(
@@ -900,7 +900,7 @@ class TypeBinder(GenericVisitor):
                     value_type = self.widen(value_type, d_type.type_args[1].instance)
                 elif d_type in (
                     self.type_env.dict,
-                    self.type_env.dict_exact,
+                    self.type_env.dict.exact_type(),
                     self.type_env.dynamic,
                 ):
                     key_type = self.type_env.DYNAMIC
@@ -927,7 +927,7 @@ class TypeBinder(GenericVisitor):
                     (key_type.klass.inexact_type(), value_type.klass.inexact_type()),
                 ).instance
             else:
-                typ = self.type_env.dict_exact.instance
+                typ = self.type_env.dict.exact_type().instance
             self.set_type(node, typ)
             return typ
 
@@ -971,7 +971,7 @@ class TypeBinder(GenericVisitor):
                     (item_type.klass.inexact_type(),),
                 ).instance
             else:
-                typ = self.type_env.list_exact.instance
+                typ = self.type_env.list.exact_type().instance
 
             self.set_type(node, typ)
             return typ
@@ -1005,7 +1005,7 @@ class TypeBinder(GenericVisitor):
             self.visitExpectedType(
                 elt, self.type_env.DYNAMIC, "set members cannot be primitives"
             )
-        self.set_type(node, self.type_env.set_exact.instance)
+        self.set_type(node, self.type_env.set.exact_type().instance)
         return NO_EFFECT
 
     def visitGeneratorExp(
@@ -1027,7 +1027,7 @@ class TypeBinder(GenericVisitor):
         self, node: SetComp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit_comprehension(node, node.generators, node.elt)
-        self.set_type(node, self.type_env.set_exact.instance)
+        self.set_type(node, self.type_env.set.exact_type().instance)
         return NO_EFFECT
 
     def get_target_decl(self, name: str) -> Optional[TypeDeclaration]:
@@ -1276,7 +1276,7 @@ class TypeBinder(GenericVisitor):
         for value in node.values:
             self.visit(value)
 
-        self.set_type(node, self.type_env.str_exact.instance)
+        self.set_type(node, self.type_env.str.exact_type().instance)
         return NO_EFFECT
 
     def visitConstant(
@@ -1378,7 +1378,7 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         for elt in node.elts:
             self.visitExpectedType(elt, self.type_env.DYNAMIC)
-        self.set_type(node, self.type_env.tuple_exact.instance)
+        self.set_type(node, self.type_env.tuple.exact_type().instance)
         return NO_EFFECT
 
     def set_terminal_kind(self, node: AST, level: TerminalKind) -> None:

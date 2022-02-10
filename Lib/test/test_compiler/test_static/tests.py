@@ -1744,15 +1744,19 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(value, expected_type_callable(comp.type_env))
 
         self.assertEqual(repr(self.bind_expr("42")[0]), "<Literal[42]>")
-        assert_expr_binds_to("42.0", lambda type_env: type_env.float_exact.instance)
-        assert_expr_binds_to("'abc'", lambda type_env: type_env.str_exact.instance)
+        assert_expr_binds_to(
+            "42.0", lambda type_env: type_env.float.exact_type().instance
+        )
+        assert_expr_binds_to(
+            "'abc'", lambda type_env: type_env.str.exact_type().instance
+        )
         assert_expr_binds_to(
             "b'abc'",
             lambda type_env: type_env.bytes.instance,
         )
         assert_expr_binds_to(
             "3j",
-            lambda type_env: type_env.complex_exact.instance,
+            lambda type_env: type_env.complex.exact_type().instance,
         )
         assert_expr_binds_to("None", lambda type_env: type_env.none.instance)
         assert_expr_binds_to("True", lambda type_env: type_env.bool.instance)
@@ -1763,11 +1767,11 @@ class StaticCompilationTests(StaticTestBase):
         )
         assert_expr_binds_to(
             "f''",
-            lambda type_env: type_env.str_exact.instance,
+            lambda type_env: type_env.str.exact_type().instance,
         )
         assert_expr_binds_to(
             "f'{x}'",
-            lambda type_env: type_env.str_exact.instance,
+            lambda type_env: type_env.str.exact_type().instance,
         )
 
         assert_expr_binds_to("a", lambda type_env: type_env.DYNAMIC)
@@ -1780,7 +1784,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(repr(self.bind_expr("1 * 2")[0]), "<Literal[2]>")
         assert_expr_binds_to(
             "1 / 2",
-            lambda type_env: type_env.float_exact.instance,
+            lambda type_env: type_env.float.exact_type().instance,
         )
         self.assertEqual(repr(self.bind_expr("1 % 2")[0]), "<Literal[1]>")
         self.assertEqual(repr(self.bind_expr("1 & 2")[0]), "<Literal[0]>")
@@ -1809,40 +1813,40 @@ class StaticCompilationTests(StaticTestBase):
         assert_expr_binds_to("x[:]", lambda type_env: type_env.DYNAMIC)
         assert_expr_binds_to(
             "{}",
-            lambda type_env: type_env.dict_exact.instance,
+            lambda type_env: type_env.dict.exact_type().instance,
         )
         assert_expr_binds_to(
             "{2:3}",
-            lambda type_env: type_env.dict_exact.instance,
+            lambda type_env: type_env.dict.exact_type().instance,
         )
         assert_expr_binds_to(
             "{1,2}",
-            lambda type_env: type_env.set_exact.instance,
+            lambda type_env: type_env.set.exact_type().instance,
         )
         assert_expr_binds_to(
             "[]",
-            lambda type_env: type_env.list_exact.instance,
+            lambda type_env: type_env.list.exact_type().instance,
         )
         assert_expr_binds_to(
             "[1,2]",
-            lambda type_env: type_env.list_exact.instance,
+            lambda type_env: type_env.list.exact_type().instance,
         )
         assert_expr_binds_to(
             "(1,2)",
-            lambda type_env: type_env.tuple_exact.instance,
+            lambda type_env: type_env.tuple.exact_type().instance,
         )
 
         assert_expr_binds_to(
             "[x for x in y]",
-            lambda type_env: type_env.list_exact.instance,
+            lambda type_env: type_env.list.exact_type().instance,
         )
         assert_expr_binds_to(
             "{x for x in y}",
-            lambda type_env: type_env.set_exact.instance,
+            lambda type_env: type_env.set.exact_type().instance,
         )
         assert_expr_binds_to(
             "{x:y for x in y}",
-            lambda type_env: type_env.dict_exact.instance,
+            lambda type_env: type_env.dict.exact_type().instance,
         )
         assert_expr_binds_to(
             "(x for x in y)",
@@ -1886,17 +1890,26 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_type_exact(self) -> None:
         self.assertIs(self.type_env.list.exact(), self.type_env.list)
-        self.assertIs(self.type_env.list_exact.exact(), self.type_env.list_exact)
+        self.assertIs(
+            self.type_env.list.exact_type().exact(), self.type_env.list.exact_type()
+        )
 
-        self.assertIs(self.type_env.list.exact_type(), self.type_env.list_exact)
-        self.assertIs(self.type_env.list_exact.exact_type(), self.type_env.list_exact)
+        self.assertIs(self.type_env.list.exact_type(), self.type_env.list.exact_type())
+        self.assertIs(
+            self.type_env.list.exact_type().exact_type(),
+            self.type_env.list.exact_type(),
+        )
 
     def test_type_inexact(self) -> None:
         self.assertIs(self.type_env.list.inexact(), self.type_env.list)
-        self.assertIs(self.type_env.list_exact.inexact(), self.type_env.list_exact)
+        self.assertIs(
+            self.type_env.list.exact_type().inexact(), self.type_env.list.exact_type()
+        )
 
         self.assertIs(self.type_env.list.inexact_type(), self.type_env.list)
-        self.assertIs(self.type_env.list_exact.inexact_type(), self.type_env.list)
+        self.assertIs(
+            self.type_env.list.exact_type().inexact_type(), self.type_env.list
+        )
 
     def test_type_is_exact(self) -> None:
         self.assertTrue(self.type_env.function.is_exact)
@@ -1906,16 +1919,16 @@ class StaticCompilationTests(StaticTestBase):
         self.assertTrue(self.type_env.builtin_method.is_exact)
         self.assertTrue(self.type_env.slice.is_exact)
         self.assertTrue(self.type_env.none.is_exact)
-        self.assertTrue(self.type_env.str_exact.is_exact)
-        self.assertTrue(self.type_env.int_exact.is_exact)
-        self.assertTrue(self.type_env.float_exact.is_exact)
-        self.assertTrue(self.type_env.complex_exact.is_exact)
+        self.assertTrue(self.type_env.str.exact_type().is_exact)
+        self.assertTrue(self.type_env.int.exact_type().is_exact)
+        self.assertTrue(self.type_env.float.exact_type().is_exact)
+        self.assertTrue(self.type_env.complex.exact_type().is_exact)
         self.assertTrue(self.type_env.bool.is_exact)
         self.assertTrue(self.type_env.ellipsis.is_exact)
-        self.assertTrue(self.type_env.dict_exact.is_exact)
-        self.assertTrue(self.type_env.tuple_exact.is_exact)
-        self.assertTrue(self.type_env.set_exact.is_exact)
-        self.assertTrue(self.type_env.list_exact.is_exact)
+        self.assertTrue(self.type_env.dict.exact_type().is_exact)
+        self.assertTrue(self.type_env.tuple.exact_type().is_exact)
+        self.assertTrue(self.type_env.set.exact_type().is_exact)
+        self.assertTrue(self.type_env.list.exact_type().is_exact)
 
         self.assertFalse(self.type_env.type.is_exact)
         self.assertFalse(self.type_env.object.is_exact)
