@@ -24,13 +24,11 @@ from typing import Union, List, TYPE_CHECKING
 from .module_table import ModuleTable
 from .types import (
     AwaitableTypeRef,
+    BuiltinTypes,
+    CEnumType,
     Class,
-    DYNAMIC_TYPE,
     Function,
     ModuleInstance,
-    NAMED_TUPLE_TYPE,
-    OBJECT_TYPE,
-    PROTOCOL_TYPE,
     ResolvedTypeRef,
     DecoratedMethod,
     TypeName,
@@ -69,6 +67,7 @@ class DeclarationVisitor(GenericVisitor[None]):
         self.scopes: List[TScopeTypes] = [self.module]
         self.optimize = optimize
         self.compiler = symbols
+        self.builtin_types: BuiltinTypes = symbols.builtin_types
 
     def finish_bind(self) -> None:
         self.module.finish_bind()
@@ -89,9 +88,12 @@ class DeclarationVisitor(GenericVisitor[None]):
         self.parent_scope().declare_variables(node, self.module)
 
     def visitClassDef(self, node: ClassDef) -> None:
-        bases = [self.module.resolve_type(base) or DYNAMIC_TYPE for base in node.bases]
+        bases = [
+            self.module.resolve_type(base) or self.builtin_types.dynamic
+            for base in node.bases
+        ]
         if not bases:
-            bases.append(OBJECT_TYPE)
+            bases.append(self.builtin_types.object)
 
         with self.compiler.error_sink.error_context(self.filename, node):
             klasses = []
@@ -106,16 +108,16 @@ class DeclarationVisitor(GenericVisitor[None]):
             klass = klasses[0]
 
         for base in bases:
-            if base is NAMED_TUPLE_TYPE:
+            if base is self.builtin_types.named_tuple:
                 # In named tuples, the fields are actually elements
                 # of the tuple, so we can't do any advanced binding against it.
-                klass = DYNAMIC_TYPE
+                klass = self.builtin_types.dynamic
                 break
 
-            if base is PROTOCOL_TYPE:
+            if base is self.builtin_types.protocol:
                 # Protocols aren't guaranteed to exist in the actual MRO, so let's treat
                 # them as dynamic to force dynamic dispatch.
-                klass = DYNAMIC_TYPE
+                klass = self.builtin_types.dynamic
                 break
 
             if base.is_final:
@@ -130,16 +132,20 @@ class DeclarationVisitor(GenericVisitor[None]):
         # we don't bother with ones nested inside classes (would need to fix
         # the TypeName construction above)
         if not isinstance(parent_scope, ModuleTable):
-            klass = DYNAMIC_TYPE
+            klass = self.builtin_types.dynamic
 
         for d in reversed(node.decorator_list):
-            if klass is DYNAMIC_TYPE:
+            if klass is self.builtin_types.dynamic:
                 break
             with self.compiler.error_sink.error_context(self.filename, d):
-                decorator = self.module.resolve_decorator(d) or DYNAMIC_TYPE
+                decorator = (
+                    self.module.resolve_decorator(d) or self.builtin_types.dynamic
+                )
                 klass = decorator.resolve_decorate_class(klass)
 
-        self.enter_scope(NestedScope() if klass is DYNAMIC_TYPE else klass)
+        self.enter_scope(
+            NestedScope() if klass is self.builtin_types.dynamic else klass
+        )
 
         for item in node.body:
             with self.compiler.error_sink.error_context(self.filename, item):
@@ -179,7 +185,7 @@ class DeclarationVisitor(GenericVisitor[None]):
     def type_ref(self, node: Union[FunctionDef, AsyncFunctionDef]) -> TypeRef:
         ann = node.returns
         if not ann:
-            res = ResolvedTypeRef(DYNAMIC_TYPE)
+            res = ResolvedTypeRef(self.builtin_types.dynamic)
         else:
             res = TypeRef(self.module, ann)
         if isinstance(node, AsyncFunctionDef):

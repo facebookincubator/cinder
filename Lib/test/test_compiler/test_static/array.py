@@ -1,8 +1,14 @@
+from __static__ import (
+    Array,
+    int8,
+    int32,
+    int64,
+)
+
 import itertools
 import re
 from array import array
 from compiler.static.types import (
-    prim_name_to_type,
     TypedSyntaxError,
     FAST_LEN_ARRAY,
     SEQ_ARRAY_INT8,
@@ -17,16 +23,33 @@ from compiler.static.types import (
     TYPED_INT8,
 )
 from copy import deepcopy
+from typing import Mapping
 
-from __static__ import (
-    Array,
-    int8,
-    int32,
-    int64,
+from _static import (
+    TYPED_INT8,
+    TYPED_INT16,
+    TYPED_INT32,
+    TYPED_INT64,
+    TYPED_UINT8,
+    TYPED_UINT16,
+    TYPED_UINT32,
+    TYPED_UINT64,
 )
 
 from .common import StaticTestBase
 from .tests import type_mismatch
+
+
+prim_name_to_type: Mapping[str, int] = {
+    "int8": TYPED_INT8,
+    "int16": TYPED_INT16,
+    "int32": TYPED_INT32,
+    "int64": TYPED_INT64,
+    "uint8": TYPED_UINT8,
+    "uint16": TYPED_UINT16,
+    "uint32": TYPED_UINT32,
+    "uint64": TYPED_UINT64,
+}
 
 
 class ArrayTests(StaticTestBase):

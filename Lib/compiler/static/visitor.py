@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from ..errors import ErrorSink
     from .compiler import Compiler
     from .module_table import ModuleTable
+    from .types import BuiltinTypes
 
 
 TVisitRet = TypeVar("TVisitRet")
@@ -32,6 +33,7 @@ class GenericVisitor(ASTVisitor, Generic[TVisitRet]):
         self.filename: str = module.filename
         self.compiler: Compiler = module.compiler
         self.error_sink: ErrorSink = module.compiler.error_sink
+        self.builtin_types: BuiltinTypes = module.compiler.builtin_types
 
     def visit(self, node: Union[AST, Sequence[AST]], *args: object) -> TVisitRet:
         # if we have a sequence of nodes, don't catch TypedSyntaxError here;

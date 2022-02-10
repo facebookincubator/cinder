@@ -38,14 +38,9 @@ from .types import (
     Function,
     FunctionGroup,
     DYNAMIC,
-    FLOAT_TYPE,
     FinalClass,
-    INT_TYPE,
     MethodType,
-    NONE_TYPE,
-    OPTIONAL_TYPE,
     TypeDescr,
-    UNION_TYPE,
     UnionType,
     Value,
 )
@@ -113,10 +108,10 @@ class AnnotationVisitor(ReferenceVisitor):
             # optimizations to user-specified floats, but does not affect ints. Since we
             # don't optimize Python floats anyway, we accept this to maintain PEP-484 compatibility.
 
-            if klass is FLOAT_TYPE:
+            if klass is self.builtin_types.float:
                 klass = self.compiler.type_env.get_generic_type(
-                    UNION_TYPE,
-                    (FLOAT_TYPE, INT_TYPE),
+                    self.builtin_types.union,
+                    (self.builtin_types.float, self.builtin_types.int),
                 )
 
             # TODO until we support runtime checking of unions, we must for
@@ -124,8 +119,8 @@ class AnnotationVisitor(ReferenceVisitor):
             # optionals, which we can check at runtime)
             if (
                 isinstance(klass, UnionType)
-                and klass is not UNION_TYPE
-                and klass is not OPTIONAL_TYPE
+                and klass is not self.builtin_types.union
+                and klass is not self.builtin_types.optional
                 and klass.opt_type is None
             ):
                 return None
@@ -149,14 +144,14 @@ class AnnotationVisitor(ReferenceVisitor):
             if ltype is None or rtype is None:
                 return None
             return self.module.compiler.type_env.get_generic_type(
-                UNION_TYPE,
+                self.module.compiler.builtin_types.union,
                 (ltype, rtype),
             )
 
     def visitConstant(self, node: Constant) -> Optional[Value]:
         sval = node.value
         if sval is None:
-            return NONE_TYPE
+            return self.builtin_types.none
         elif isinstance(sval, str):
             n = cast(Expression, ast.parse(node.value, "", "eval")).body
             return self.visit(n)
@@ -205,7 +200,9 @@ class ModuleTable:
         new_member = func
         if existing is not None:
             if isinstance(existing, Function):
-                new_member = FunctionGroup([existing, new_member])
+                new_member = FunctionGroup(
+                    [existing, new_member], func.klass.builtin_types
+                )
             elif isinstance(existing, FunctionGroup):
                 existing.functions.append(new_member)
                 new_member = existing

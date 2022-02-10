@@ -1,5 +1,5 @@
 from compiler.static.compiler import Compiler
-from compiler.static.types import INT_TYPE, MODULE_TYPE
+from compiler.static.types import BUILTIN_TYPES
 from compiler.strict.compiler import Compiler as StrictCompiler
 
 from .common import StaticTestBase, StaticTestsStrictModuleLoader
@@ -24,7 +24,9 @@ class ModuleTests(StaticTestBase):
 
         self.assertIn("b", compiler.modules)
         self.assertIn("a", compiler.modules["b"].children)
-        self.assertEqual(compiler.modules["b"].children["a"].klass, MODULE_TYPE)
+        self.assertEqual(
+            compiler.modules["b"].children["a"].klass, BUILTIN_TYPES.module
+        )
         self.assertEqual(compiler.modules["b"].children["a"].module_name, "a")
 
     def test_import_name_as(self) -> None:
@@ -38,7 +40,9 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(a=acode, b=bcode)
 
         self.assertIn("foo", compiler.modules["b"].children)
-        self.assertEqual(compiler.modules["b"].children["foo"].klass, MODULE_TYPE)
+        self.assertEqual(
+            compiler.modules["b"].children["foo"].klass, BUILTIN_TYPES.module
+        )
         self.assertEqual(compiler.modules["b"].children["foo"].module_name, "a")
 
     def test_import_module_within_directory(self) -> None:
@@ -52,7 +56,9 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(**{"a.b": abcode, "c": ccode})
 
         self.assertIn("a", compiler.modules["c"].children)
-        self.assertEqual(compiler.modules["c"].children["a"].klass, MODULE_TYPE)
+        self.assertEqual(
+            compiler.modules["c"].children["a"].klass, BUILTIN_TYPES.module
+        )
         self.assertEqual(compiler.modules["c"].children["a"].module_name, "a")
 
     def test_import_module_within_directory_as(self) -> None:
@@ -66,7 +72,9 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(**{"a.b": abcode, "c": ccode})
 
         self.assertIn("m", compiler.modules["c"].children)
-        self.assertEqual(compiler.modules["c"].children["m"].klass, MODULE_TYPE)
+        self.assertEqual(
+            compiler.modules["c"].children["m"].klass, BUILTIN_TYPES.module
+        )
         self.assertEqual(compiler.modules["c"].children["m"].module_name, "a.b")
 
     def test_import_module_within_directory_from(self) -> None:
@@ -83,7 +91,9 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
         self.assertIn("b", compiler.modules["c"].children)
-        self.assertEqual(compiler.modules["c"].children["b"].klass, MODULE_TYPE)
+        self.assertEqual(
+            compiler.modules["c"].children["b"].klass, BUILTIN_TYPES.module
+        )
         self.assertEqual(compiler.modules["c"].children["b"].module_name, "a.b")
 
     def test_import_module_within_directory_from_as(self) -> None:
@@ -100,7 +110,9 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
         self.assertIn("zoidberg", compiler.modules["c"].children)
-        self.assertEqual(compiler.modules["c"].children["zoidberg"].klass, MODULE_TYPE)
+        self.assertEqual(
+            compiler.modules["c"].children["zoidberg"].klass, BUILTIN_TYPES.module
+        )
         self.assertEqual(compiler.modules["c"].children["zoidberg"].module_name, "a.b")
 
     def test_import_module_within_directory_from_where_value_exists(self) -> None:
@@ -117,7 +129,7 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
         self.assertIn("b", compiler.modules["c"].children)
-        self.assertEqual(compiler.modules["c"].children["b"].klass, INT_TYPE)
+        self.assertEqual(compiler.modules["c"].children["b"].klass, BUILTIN_TYPES.int)
 
     def test_import_module_within_directory_from_where_untyped_value_exists(
         self,
@@ -138,7 +150,9 @@ class ModuleTests(StaticTestBase):
         # Note that since the declaration visitor doesn't distinguish between
         # untyped values and missing ones, we resolve to the module type where that might
         # not have been the intention.
-        self.assertEqual(compiler.modules["c"].children["b"].klass, MODULE_TYPE)
+        self.assertEqual(
+            compiler.modules["c"].children["b"].klass, BUILTIN_TYPES.module
+        )
 
     def test_import_chaining(self) -> None:
         acode = """

@@ -14,16 +14,8 @@ GenericTypesDict = Dict["Class", Dict[GenericTypeIndex, "Class"]]
 class TypeEnvironment:
     def __init__(
         self,
-        builtin_type_env: Optional[TypeEnvironment] = None,
     ) -> None:
-        # We need to clone the dictionaries for each type so that as we populate
-        # generic instantations that we don't store them in the global dict for
-        # built-in types
-        self._generic_types: GenericTypesDict = (
-            {k: v.copy() for k, v in builtin_type_env._generic_types.items()}
-            if builtin_type_env is not None
-            else {}
-        )
+        self._generic_types: GenericTypesDict = {}
         self._literal_types: Dict[Tuple[Value, object], Value] = {}
 
     def get_generic_type(
@@ -47,5 +39,5 @@ class TypeEnvironment:
     def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
         key = (base_type, literal_value)
         if key not in self._literal_types:
-            self._literal_types[key] = base_type.make_literal(literal_value)
+            self._literal_types[key] = base_type.make_literal(literal_value, self)
         return self._literal_types[key]

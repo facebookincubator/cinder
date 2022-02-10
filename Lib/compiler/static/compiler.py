@@ -5,7 +5,7 @@ import ast
 import builtins
 from ast import AST
 from types import CodeType
-from typing import Any, Optional, Dict, Tuple, Type, TYPE_CHECKING
+from typing import Any, cast, Optional, Dict, Tuple, Type, TYPE_CHECKING
 
 from _static import (
     posix_clock_gettime_ns,
@@ -22,79 +22,26 @@ from .module_table import ModuleTable
 from .type_binder import TypeBinder
 from .type_env import TypeEnvironment
 from .types import (
-    ALLOW_WEAKREFS_TYPE,
-    ARRAY_TYPE,
-    ANNOTATED_TYPE,
-    ASYNC_CACHED_PROPERTY_TYPE,
-    BASE_EXCEPTION_TYPE,
-    BOOL_TYPE,
-    BUILTIN_TYPE_ENV,
-    BYTES_TYPE,
+    BuiltinTypes,
+    BUILTIN_TYPES,
     BoxFunction,
-    CBOOL_TYPE,
-    CHAR_TYPE,
-    CHECKED_DICT_TYPE,
-    CHECKED_LIST_TYPE,
-    CLASSVAR_TYPE,
-    CLASS_METHOD_TYPE,
-    COMPLEX_EXACT_TYPE,
-    CONTEXT_DECORATOR_TYPE,
     CastFunction,
     Class,
-    DICT_TYPE,
-    DONOTCOMPILE_TYPE,
-    DOUBLE_TYPE,
     DYNAMIC,
-    DYNAMIC_RETURN_TYPE,
-    ENUM_TYPE,
-    EXCEPTION_TYPE,
     ExtremumFunction,
-    FINAL_METHOD_TYPE,
-    FINAL_TYPE,
-    FLOAT_EXACT_TYPE,
-    FUNCTION_TYPE,
-    IDENTITY_DECORATOR_TYPE,
-    INLINE_TYPE,
-    INT16_TYPE,
-    INT32_TYPE,
-    INT64_TYPE,
-    INT8_TYPE,
-    INT_EXACT_TYPE,
     IsInstanceFunction,
     IsSubclassFunction,
-    LIST_EXACT_TYPE,
-    LIST_TYPE,
     LenFunction,
-    NAMED_TUPLE_TYPE,
-    NONE_TYPE,
     NumClass,
-    OBJECT_TYPE,
-    OPTIONAL_TYPE,
     Object,
-    PROTOCOL_TYPE,
-    PROPERTY_TYPE,
     ProdAssertFunction,
     RevealTypeFunction,
-    SET_EXACT_TYPE,
-    SPAM_OBJ,
-    STATIC_METHOD_TYPE,
-    STR_EXACT_TYPE,
     SortedFunction,
-    TUPLE_EXACT_TYPE,
-    TUPLE_TYPE,
-    TYPE_TYPE,
     TypeName,
-    UINT16_TYPE,
-    UINT32_TYPE,
-    UINT64_TYPE,
-    UINT8_TYPE,
-    UNION_TYPE,
     UnboxFunction,
-    VECTOR_TYPE,
     Value,
     XX_GENERIC_TYPE,
     reflect_builtin_function,
-    CACHED_PROPERTY_TYPE,
 )
 
 if TYPE_CHECKING:
@@ -107,8 +54,8 @@ except ImportError:
 
 
 class StrictBuiltins(Object[Class]):
-    def __init__(self, builtins: Dict[str, Value]) -> None:
-        super().__init__(DICT_TYPE)
+    def __init__(self, builtins: Dict[str, Value], builtin_types: BuiltinTypes) -> None:
+        super().__init__(builtin_types.dict)
         self.builtins = builtins
 
     def bind_subscr(
@@ -146,56 +93,66 @@ class Compiler:
         self.ast_cache: Dict[str, ast.Module] = {}
         self.code_generator = code_generator
         self.error_sink: ErrorSink = error_sink or ErrorSink()
+        self.type_env: TypeEnvironment = TypeEnvironment()
+        self.builtin_types: BuiltinTypes = BUILTIN_TYPES
+        self.builtin_types.post_process(self.type_env)
+        rand_max = NumClass(
+            TypeName("builtins", "int"),
+            self.builtin_types,
+            pytype=int,
+            literal_value=RAND_MAX,
+            is_final=True,
+        )
         builtins_children = {
-            "object": OBJECT_TYPE,
-            "type": TYPE_TYPE,
-            "None": NONE_TYPE.instance,
-            "int": INT_EXACT_TYPE,
-            "classmethod": CLASS_METHOD_TYPE,
-            "complex": COMPLEX_EXACT_TYPE,
-            "str": STR_EXACT_TYPE,
-            "bytes": BYTES_TYPE,
-            "bool": BOOL_TYPE,
-            "float": FLOAT_EXACT_TYPE,
-            "len": LenFunction(FUNCTION_TYPE, boxed=True),
-            "min": ExtremumFunction(FUNCTION_TYPE, is_min=True),
-            "max": ExtremumFunction(FUNCTION_TYPE, is_min=False),
-            "list": LIST_EXACT_TYPE,
-            "tuple": TUPLE_EXACT_TYPE,
-            "set": SET_EXACT_TYPE,
-            "sorted": SortedFunction(FUNCTION_TYPE),
-            "Exception": EXCEPTION_TYPE,
-            "BaseException": BASE_EXCEPTION_TYPE,
-            "isinstance": IsInstanceFunction(),
-            "issubclass": IsSubclassFunction(),
-            "staticmethod": STATIC_METHOD_TYPE,
-            "reveal_type": RevealTypeFunction(),
-            "property": PROPERTY_TYPE,
-            "<mutable>": IDENTITY_DECORATOR_TYPE,
+            "object": self.builtin_types.object,
+            "type": self.builtin_types.type,
+            "None": self.builtin_types.none.instance,
+            "int": self.builtin_types.int_exact,
+            "classmethod": self.builtin_types.class_method,
+            "complex": self.builtin_types.complex_exact,
+            "str": self.builtin_types.str_exact,
+            "bytes": self.builtin_types.bytes,
+            "bool": self.builtin_types.bool,
+            "float": self.builtin_types.float_exact,
+            "len": LenFunction(self.builtin_types.function, boxed=True),
+            "min": ExtremumFunction(self.builtin_types.function, is_min=True),
+            "max": ExtremumFunction(self.builtin_types.function, is_min=False),
+            "list": self.builtin_types.list_exact,
+            "tuple": self.builtin_types.tuple_exact,
+            "set": self.builtin_types.set_exact,
+            "sorted": SortedFunction(self.builtin_types.function),
+            "Exception": self.builtin_types.exception,
+            "BaseException": self.builtin_types.base_exception,
+            "isinstance": IsInstanceFunction(self.builtin_types),
+            "issubclass": IsSubclassFunction(self.builtin_types),
+            "staticmethod": self.builtin_types.static_method,
+            "reveal_type": RevealTypeFunction(self.builtin_types),
+            "property": self.builtin_types.property,
+            "<mutable>": self.builtin_types.identity_decorator,
         }
-        strict_builtins = StrictBuiltins(builtins_children)
+        strict_builtins = StrictBuiltins(builtins_children, self.builtin_types)
         typing_children = {
-            "ClassVar": CLASSVAR_TYPE,
+            "ClassVar": self.builtin_types.classvar,
             # TODO: Need typed members for dict
-            "Dict": DICT_TYPE,
-            "List": LIST_TYPE,
-            "Final": FINAL_TYPE,
-            "final": FINAL_METHOD_TYPE,
-            "NamedTuple": NAMED_TUPLE_TYPE,
-            "Protocol": PROTOCOL_TYPE,
-            "Optional": OPTIONAL_TYPE,
-            "Union": UNION_TYPE,
-            "Tuple": TUPLE_TYPE,
-            "TYPE_CHECKING": BOOL_TYPE.instance,
+            "Dict": self.builtin_types.dict,
+            "List": self.builtin_types.list,
+            "Final": self.builtin_types.final,
+            "final": self.builtin_types.final_method,
+            "NamedTuple": self.builtin_types.named_tuple,
+            "Protocol": self.builtin_types.protocol,
+            "Optional": self.builtin_types.optional,
+            "Union": self.builtin_types.union,
+            "Tuple": self.builtin_types.tuple,
+            "TYPE_CHECKING": self.builtin_types.bool.instance,
         }
         typing_extensions_children: Dict[str, Value] = {
-            "Annotated": ANNOTATED_TYPE,
+            "Annotated": self.builtin_types.annotated,
         }
         strict_modules_children: Dict[str, Value] = {
-            "mutable": IDENTITY_DECORATOR_TYPE,
-            "strict_slots": IDENTITY_DECORATOR_TYPE,
-            "loose_slots": IDENTITY_DECORATOR_TYPE,
-            "freeze_type": IDENTITY_DECORATOR_TYPE,
+            "mutable": self.builtin_types.identity_decorator,
+            "strict_slots": self.builtin_types.identity_decorator,
+            "loose_slots": self.builtin_types.identity_decorator,
+            "freeze_type": self.builtin_types.identity_decorator,
         }
 
         builtins_children["<builtins>"] = strict_builtins
@@ -203,13 +160,19 @@ class Compiler:
             "strict_modules", "<strict-modules>", self, strict_modules_children
         )
         fixed_modules: Dict[str, Value] = {
-            "typing": StrictBuiltins(typing_children),
-            "typing_extensions": StrictBuiltins(typing_extensions_children),
-            "__strict__": StrictBuiltins(strict_modules_children),
-            "strict_modules": StrictBuiltins(dict(strict_modules_children)),
+            "typing": StrictBuiltins(typing_children, self.builtin_types),
+            "typing_extensions": StrictBuiltins(
+                typing_extensions_children, self.builtin_types
+            ),
+            "__strict__": StrictBuiltins(strict_modules_children, self.builtin_types),
+            "strict_modules": StrictBuiltins(
+                dict(strict_modules_children), self.builtin_types
+            ),
         }
 
-        builtins_children["<fixed-modules>"] = StrictBuiltins(fixed_modules)
+        builtins_children["<fixed-modules>"] = StrictBuiltins(
+            fixed_modules, self.builtin_types
+        )
 
         self.builtins = self.modules["builtins"] = ModuleTable(
             "builtins",
@@ -228,51 +191,54 @@ class Compiler:
             "<__static__>",
             self,
             {
-                "Array": ARRAY_TYPE,
-                "CheckedDict": CHECKED_DICT_TYPE,
-                "CheckedList": CHECKED_LIST_TYPE,
-                "Enum": ENUM_TYPE,
-                "allow_weakrefs": ALLOW_WEAKREFS_TYPE,
-                "box": BoxFunction(FUNCTION_TYPE),
-                "cast": CastFunction(FUNCTION_TYPE),
-                "clen": LenFunction(FUNCTION_TYPE, boxed=False),
-                "ContextDecorator": CONTEXT_DECORATOR_TYPE,
-                "dynamic_return": DYNAMIC_RETURN_TYPE,
-                "size_t": UINT64_TYPE,
-                "ssize_t": INT64_TYPE,
-                "cbool": CBOOL_TYPE,
-                "inline": INLINE_TYPE,
+                "Array": self.builtin_types.array,
+                "CheckedDict": self.builtin_types.checked_dict,
+                "CheckedList": self.builtin_types.checked_list,
+                "Enum": self.builtin_types.enum,
+                "allow_weakrefs": self.builtin_types.allow_weakrefs,
+                "box": BoxFunction(self.builtin_types.function),
+                "cast": CastFunction(self.builtin_types.function),
+                "clen": LenFunction(self.builtin_types.function, boxed=False),
+                "ContextDecorator": self.builtin_types.context_decorator,
+                "dynamic_return": self.builtin_types.dynamic_return,
+                "size_t": self.builtin_types.uint64,
+                "ssize_t": self.builtin_types.int64,
+                "cbool": self.builtin_types.cbool,
+                "inline": self.builtin_types.inline,
                 # This is a way to disable the static compiler for
                 # individual functions/methods
-                "_donotcompile": DONOTCOMPILE_TYPE,
-                "int8": INT8_TYPE,
-                "int16": INT16_TYPE,
-                "int32": INT32_TYPE,
-                "int64": INT64_TYPE,
-                "uint8": UINT8_TYPE,
-                "uint16": UINT16_TYPE,
-                "uint32": UINT32_TYPE,
-                "uint64": UINT64_TYPE,
-                "char": CHAR_TYPE,
-                "double": DOUBLE_TYPE,
-                "unbox": UnboxFunction(FUNCTION_TYPE),
-                "checked_dicts": BOOL_TYPE.instance,
-                "prod_assert": ProdAssertFunction(),
-                "pydict": DICT_TYPE,
-                "PyDict": DICT_TYPE,
-                "Vector": VECTOR_TYPE,
-                "RAND_MAX": NumClass(
-                    TypeName("builtins", "int"),
-                    pytype=int,
-                    literal_value=RAND_MAX,
-                    is_final=True,
-                ).instance,
+                "_donotcompile": self.builtin_types.donotcompile,
+                "int8": self.builtin_types.int8,
+                "int16": self.builtin_types.int16,
+                "int32": self.builtin_types.int32,
+                "int64": self.builtin_types.int64,
+                "uint8": self.builtin_types.uint8,
+                "uint16": self.builtin_types.uint16,
+                "uint32": self.builtin_types.uint32,
+                "uint64": self.builtin_types.uint64,
+                "char": self.builtin_types.char,
+                "double": self.builtin_types.double,
+                "unbox": UnboxFunction(self.builtin_types.function),
+                "checked_dicts": self.builtin_types.bool.instance,
+                "prod_assert": ProdAssertFunction(self.builtin_types),
+                "pydict": self.builtin_types.dict,
+                "PyDict": self.builtin_types.dict,
+                "Vector": self.builtin_types.vector,
+                "RAND_MAX": rand_max.instance,
                 "posix_clock_gettime_ns": reflect_builtin_function(
                     # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
-                    posix_clock_gettime_ns
+                    posix_clock_gettime_ns,
+                    None,
+                    self.type_env,
+                    self.builtin_types,
                 ),
-                # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
-                "rand": reflect_builtin_function(rand),
+                "rand": reflect_builtin_function(
+                    # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
+                    rand,
+                    None,
+                    self.type_env,
+                    self.builtin_types,
+                ),
                 "set_type_static": DYNAMIC,
             },
         )
@@ -282,26 +248,41 @@ class Compiler:
             "<cinder>",
             self,
             {
-                "cached_property": CACHED_PROPERTY_TYPE,
-                "async_cached_property": ASYNC_CACHED_PROPERTY_TYPE,
+                "cached_property": self.builtin_types.cached_property,
+                "async_cached_property": self.builtin_types.async_cached_property,
             },
         )
 
         if xxclassloader is not None:
+            spam_obj = self.builtin_types.spam_obj
+            assert spam_obj is not None
             self.modules["xxclassloader"] = ModuleTable(
                 "xxclassloader",
                 "<xxclassloader>",
                 self,
                 {
-                    "spamobj": SPAM_OBJ,
+                    "spamobj": spam_obj,
                     "XXGeneric": XX_GENERIC_TYPE,
-                    "foo": reflect_builtin_function(xxclassloader.foo),
-                    "bar": reflect_builtin_function(xxclassloader.bar),
-                    "neg": reflect_builtin_function(xxclassloader.neg),
+                    "foo": reflect_builtin_function(
+                        xxclassloader.foo,
+                        None,
+                        self.type_env,
+                        self.builtin_types,
+                    ),
+                    "bar": reflect_builtin_function(
+                        xxclassloader.bar,
+                        None,
+                        self.type_env,
+                        self.builtin_types,
+                    ),
+                    "neg": reflect_builtin_function(
+                        xxclassloader.neg,
+                        None,
+                        self.type_env,
+                        self.builtin_types,
+                    ),
                 },
             )
-
-        self.type_env: TypeEnvironment = TypeEnvironment(BUILTIN_TYPE_ENV)
 
     def __getitem__(self, name: str) -> ModuleTable:
         return self.modules[name]

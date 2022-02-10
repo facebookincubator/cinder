@@ -2,7 +2,7 @@ import re
 import unittest
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
-from compiler.static.types import UNION_TYPE, INT_TYPE, STR_TYPE, NONE_TYPE
+from compiler.static.types import BUILTIN_TYPES
 
 from .common import StaticTestBase
 from .tests import bad_ret_type
@@ -88,18 +88,18 @@ class UnionCompilationTests(StaticTestBase):
     def test_union_can_assign_from(self):
         compiler = Compiler(StaticCodeGenerator)
         u1 = compiler.type_env.get_generic_type(
-            UNION_TYPE,
-            (INT_TYPE, STR_TYPE),
+            BUILTIN_TYPES.union,
+            (BUILTIN_TYPES.int, BUILTIN_TYPES.str),
         )
         u2 = compiler.type_env.get_generic_type(
-            UNION_TYPE,
-            (INT_TYPE, STR_TYPE, NONE_TYPE),
+            BUILTIN_TYPES.union,
+            (BUILTIN_TYPES.int, BUILTIN_TYPES.str, BUILTIN_TYPES.none),
         )
         self.assertTrue(u2.can_assign_from(u1))
         self.assertFalse(u1.can_assign_from(u2))
         self.assertTrue(u1.can_assign_from(u1))
         self.assertTrue(u2.can_assign_from(u2))
-        self.assertTrue(u1.can_assign_from(INT_TYPE))
+        self.assertTrue(u1.can_assign_from(BUILTIN_TYPES.int))
 
     def test_union_simplify_to_single_type(self):
         self.revealed_type(

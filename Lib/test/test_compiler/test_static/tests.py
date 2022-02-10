@@ -1,3 +1,12 @@
+from __static__ import (
+    Vector,
+    chkdict,
+    int64,
+    make_generic_type,
+    StaticGeneric,
+    is_type_static,
+)
+
 import ast
 import asyncio
 import builtins
@@ -18,56 +27,14 @@ from compiler.pycodegen import PythonCodeGenerator
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import (
-    ALL_CINT_TYPES,
-    BASE_EXCEPTION_TYPE,
-    BOOL_TYPE,
-    BUILTIN_METHOD_DESC_TYPE,
-    BUILTIN_METHOD_TYPE,
-    BYTES_TYPE,
-    CBOOL_TYPE,
-    CHAR_TYPE,
-    COMPLEX_EXACT_TYPE,
-    COMPLEX_TYPE,
+    BUILTIN_TYPES,
     Object,
-    DICT_EXACT_TYPE,
-    DICT_TYPE,
-    DOUBLE_TYPE,
     DYNAMIC,
-    DYNAMIC_TYPE,
-    ELLIPSIS_TYPE,
-    EXCEPTION_TYPE,
-    FLOAT_EXACT_TYPE,
-    FLOAT_TYPE,
-    FUNCTION_TYPE,
-    INT_EXACT_TYPE,
-    INT_TYPE,
-    LIST_EXACT_TYPE,
-    LIST_TYPE,
-    METHOD_TYPE,
-    MEMBER_TYPE,
-    NAMED_TUPLE_TYPE,
-    NONE_TYPE,
-    OBJECT_TYPE,
     PRIM_OP_ADD_INT,
     PRIM_OP_GT_INT,
     PRIM_OP_LT_INT,
-    SET_EXACT_TYPE,
-    SET_TYPE,
-    SLICE_TYPE,
-    STATIC_METHOD_TYPE,
-    STR_EXACT_TYPE,
-    STR_TYPE,
-    TUPLE_EXACT_TYPE,
-    TUPLE_TYPE,
-    TYPE_TYPE,
     Function,
     TypedSyntaxError,
-    TUPLE_EXACT_TYPE,
-    TUPLE_TYPE,
-    INT_EXACT_TYPE,
-    FLOAT_EXACT_TYPE,
-    SET_EXACT_TYPE,
-    ELLIPSIS_TYPE,
     FAST_LEN_LIST,
     FAST_LEN_TUPLE,
     FAST_LEN_INEXACT,
@@ -82,16 +49,7 @@ from compiler.static.types import (
     SEQ_REPEAT_REVERSED,
     SEQ_SUBSCR_UNCHECKED,
     TYPED_BOOL,
-    TYPED_INT8,
-    TYPED_INT16,
-    TYPED_INT32,
-    TYPED_INT64,
-    TYPED_UINT8,
-    TYPED_UINT16,
-    TYPED_UINT32,
-    TYPED_UINT64,
     FAST_LEN_STR,
-    DICT_EXACT_TYPE,
     TYPED_DOUBLE,
 )
 from copy import deepcopy
@@ -104,13 +62,16 @@ from unittest.mock import patch
 
 import cinder
 import xxclassloader
-from __static__ import (
-    Vector,
-    chkdict,
-    int64,
-    make_generic_type,
-    StaticGeneric,
-    is_type_static,
+from _static import (
+    TYPED_BOOL,
+    TYPED_INT8,
+    TYPED_INT16,
+    TYPED_INT32,
+    TYPED_INT64,
+    TYPED_UINT8,
+    TYPED_UINT16,
+    TYPED_UINT32,
+    TYPED_UINT64,
 )
 from cinder import StrictModule
 
@@ -1766,16 +1727,16 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_type_binder(self) -> None:
         self.assertEqual(repr(self.bind_expr("42")), "<Literal[42]>")
-        self.assertEqual(self.bind_expr("42.0"), FLOAT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("'abc'"), STR_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("b'abc'"), BYTES_TYPE.instance)
-        self.assertEqual(self.bind_expr("3j"), COMPLEX_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("None"), NONE_TYPE.instance)
-        self.assertEqual(self.bind_expr("True"), BOOL_TYPE.instance)
-        self.assertEqual(self.bind_expr("False"), BOOL_TYPE.instance)
-        self.assertEqual(self.bind_expr("..."), ELLIPSIS_TYPE.instance)
-        self.assertEqual(self.bind_expr("f''"), STR_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("f'{x}'"), STR_EXACT_TYPE.instance)
+        self.assertEqual(self.bind_expr("42.0"), BUILTIN_TYPES.float_exact.instance)
+        self.assertEqual(self.bind_expr("'abc'"), BUILTIN_TYPES.str_exact.instance)
+        self.assertEqual(self.bind_expr("b'abc'"), BUILTIN_TYPES.bytes.instance)
+        self.assertEqual(self.bind_expr("3j"), BUILTIN_TYPES.complex_exact.instance)
+        self.assertEqual(self.bind_expr("None"), BUILTIN_TYPES.none.instance)
+        self.assertEqual(self.bind_expr("True"), BUILTIN_TYPES.bool.instance)
+        self.assertEqual(self.bind_expr("False"), BUILTIN_TYPES.bool.instance)
+        self.assertEqual(self.bind_expr("..."), BUILTIN_TYPES.ellipsis.instance)
+        self.assertEqual(self.bind_expr("f''"), BUILTIN_TYPES.str_exact.instance)
+        self.assertEqual(self.bind_expr("f'{x}'"), BUILTIN_TYPES.str_exact.instance)
 
         self.assertEqual(self.bind_expr("a"), DYNAMIC)
         self.assertEqual(self.bind_expr("a.b"), DYNAMIC)
@@ -1785,7 +1746,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(repr(self.bind_expr("1 - 2")), "<Literal[-1]>")
         self.assertEqual(repr(self.bind_expr("1 // 2")), "<Literal[0]>")
         self.assertEqual(repr(self.bind_expr("1 * 2")), "<Literal[2]>")
-        self.assertEqual(self.bind_expr("1 / 2"), FLOAT_EXACT_TYPE.instance)
+        self.assertEqual(self.bind_expr("1 / 2"), BUILTIN_TYPES.float_exact.instance)
         self.assertEqual(repr(self.bind_expr("1 % 2")), "<Literal[1]>")
         self.assertEqual(repr(self.bind_expr("1 & 2")), "<Literal[0]>")
         self.assertEqual(repr(self.bind_expr("1 | 2")), "<Literal[3]>")
@@ -1798,7 +1759,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(self.bind_stmt("x += 1"), DYNAMIC)
         self.assertEqual(self.bind_expr("a or b"), DYNAMIC)
         self.assertEqual(self.bind_expr("+a"), DYNAMIC)
-        self.assertEqual(self.bind_expr("not a"), BOOL_TYPE.instance)
+        self.assertEqual(self.bind_expr("not a"), BUILTIN_TYPES.bool.instance)
         self.assertEqual(self.bind_expr("lambda: 42"), DYNAMIC)
         self.assertEqual(self.bind_expr("a if b else c"), DYNAMIC)
         self.assertEqual(self.bind_expr("x > y"), DYNAMIC)
@@ -1808,16 +1769,22 @@ class StaticCompilationTests(StaticTestBase):
         self.assertEqual(self.bind_expr("x[1:2]"), DYNAMIC)
         self.assertEqual(self.bind_expr("x[1:2:3]"), DYNAMIC)
         self.assertEqual(self.bind_expr("x[:]"), DYNAMIC)
-        self.assertEqual(self.bind_expr("{}"), DICT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("{2:3}"), DICT_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("{1,2}"), SET_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("[]"), LIST_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("[1,2]"), LIST_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("(1,2)"), TUPLE_EXACT_TYPE.instance)
+        self.assertEqual(self.bind_expr("{}"), BUILTIN_TYPES.dict_exact.instance)
+        self.assertEqual(self.bind_expr("{2:3}"), BUILTIN_TYPES.dict_exact.instance)
+        self.assertEqual(self.bind_expr("{1,2}"), BUILTIN_TYPES.set_exact.instance)
+        self.assertEqual(self.bind_expr("[]"), BUILTIN_TYPES.list_exact.instance)
+        self.assertEqual(self.bind_expr("[1,2]"), BUILTIN_TYPES.list_exact.instance)
+        self.assertEqual(self.bind_expr("(1,2)"), BUILTIN_TYPES.tuple_exact.instance)
 
-        self.assertEqual(self.bind_expr("[x for x in y]"), LIST_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("{x for x in y}"), SET_EXACT_TYPE.instance)
-        self.assertEqual(self.bind_expr("{x:y for x in y}"), DICT_EXACT_TYPE.instance)
+        self.assertEqual(
+            self.bind_expr("[x for x in y]"), BUILTIN_TYPES.list_exact.instance
+        )
+        self.assertEqual(
+            self.bind_expr("{x for x in y}"), BUILTIN_TYPES.set_exact.instance
+        )
+        self.assertEqual(
+            self.bind_expr("{x:y for x in y}"), BUILTIN_TYPES.dict_exact.instance
+        )
         self.assertEqual(self.bind_expr("(x for x in y)"), DYNAMIC)
 
         def body_get(stmt):
@@ -1835,64 +1802,64 @@ class StaticCompilationTests(StaticTestBase):
             self.bind_stmt("async def f(): await x", getter=body_get), DYNAMIC
         )
 
-        self.assertEqual(self.bind_expr("object"), OBJECT_TYPE)
+        self.assertEqual(self.bind_expr("object"), BUILTIN_TYPES.object)
 
         self.assertEqual(repr(self.bind_expr("1 + 2", optimize=True)), "<Literal[3]>")
 
     def test_type_attrs(self):
-        attrs = TYPE_TYPE.__dict__.keys()
-        obj_attrs = OBJECT_TYPE.__dict__.keys()
+        attrs = BUILTIN_TYPES.type.__dict__.keys()
+        obj_attrs = BUILTIN_TYPES.object.__dict__.keys()
         self.assertEqual(set(attrs), set(obj_attrs))
 
     def test_type_exact(self) -> None:
-        self.assertIs(LIST_TYPE.exact(), LIST_TYPE)
-        self.assertIs(LIST_EXACT_TYPE.exact(), LIST_EXACT_TYPE)
+        self.assertIs(BUILTIN_TYPES.list.exact(), BUILTIN_TYPES.list)
+        self.assertIs(BUILTIN_TYPES.list_exact.exact(), BUILTIN_TYPES.list_exact)
 
-        self.assertIs(LIST_TYPE.exact_type(), LIST_EXACT_TYPE)
-        self.assertIs(LIST_EXACT_TYPE.exact_type(), LIST_EXACT_TYPE)
+        self.assertIs(BUILTIN_TYPES.list.exact_type(), BUILTIN_TYPES.list_exact)
+        self.assertIs(BUILTIN_TYPES.list_exact.exact_type(), BUILTIN_TYPES.list_exact)
 
     def test_type_inexact(self) -> None:
-        self.assertIs(LIST_TYPE.inexact(), LIST_TYPE)
-        self.assertIs(LIST_EXACT_TYPE.inexact(), LIST_EXACT_TYPE)
+        self.assertIs(BUILTIN_TYPES.list.inexact(), BUILTIN_TYPES.list)
+        self.assertIs(BUILTIN_TYPES.list_exact.inexact(), BUILTIN_TYPES.list_exact)
 
-        self.assertIs(LIST_TYPE.inexact_type(), LIST_TYPE)
-        self.assertIs(LIST_EXACT_TYPE.inexact_type(), LIST_TYPE)
+        self.assertIs(BUILTIN_TYPES.list.inexact_type(), BUILTIN_TYPES.list)
+        self.assertIs(BUILTIN_TYPES.list_exact.inexact_type(), BUILTIN_TYPES.list)
 
     def test_type_is_exact(self) -> None:
-        self.assertTrue(FUNCTION_TYPE.is_exact)
-        self.assertTrue(METHOD_TYPE.is_exact)
-        self.assertTrue(MEMBER_TYPE.is_exact)
-        self.assertTrue(BUILTIN_METHOD_DESC_TYPE.is_exact)
-        self.assertTrue(BUILTIN_METHOD_TYPE.is_exact)
-        self.assertTrue(SLICE_TYPE.is_exact)
-        self.assertTrue(NONE_TYPE.is_exact)
-        self.assertTrue(STR_EXACT_TYPE.is_exact)
-        self.assertTrue(INT_EXACT_TYPE.is_exact)
-        self.assertTrue(FLOAT_EXACT_TYPE.is_exact)
-        self.assertTrue(COMPLEX_EXACT_TYPE.is_exact)
-        self.assertTrue(BOOL_TYPE.is_exact)
-        self.assertTrue(ELLIPSIS_TYPE.is_exact)
-        self.assertTrue(DICT_EXACT_TYPE.is_exact)
-        self.assertTrue(TUPLE_EXACT_TYPE.is_exact)
-        self.assertTrue(SET_EXACT_TYPE.is_exact)
-        self.assertTrue(LIST_EXACT_TYPE.is_exact)
+        self.assertTrue(BUILTIN_TYPES.function.is_exact)
+        self.assertTrue(BUILTIN_TYPES.method.is_exact)
+        self.assertTrue(BUILTIN_TYPES.member.is_exact)
+        self.assertTrue(BUILTIN_TYPES.builtin_method_desc.is_exact)
+        self.assertTrue(BUILTIN_TYPES.builtin_method.is_exact)
+        self.assertTrue(BUILTIN_TYPES.slice.is_exact)
+        self.assertTrue(BUILTIN_TYPES.none.is_exact)
+        self.assertTrue(BUILTIN_TYPES.str_exact.is_exact)
+        self.assertTrue(BUILTIN_TYPES.int_exact.is_exact)
+        self.assertTrue(BUILTIN_TYPES.float_exact.is_exact)
+        self.assertTrue(BUILTIN_TYPES.complex_exact.is_exact)
+        self.assertTrue(BUILTIN_TYPES.bool.is_exact)
+        self.assertTrue(BUILTIN_TYPES.ellipsis.is_exact)
+        self.assertTrue(BUILTIN_TYPES.dict_exact.is_exact)
+        self.assertTrue(BUILTIN_TYPES.tuple_exact.is_exact)
+        self.assertTrue(BUILTIN_TYPES.set_exact.is_exact)
+        self.assertTrue(BUILTIN_TYPES.list_exact.is_exact)
 
-        self.assertFalse(TYPE_TYPE.is_exact)
-        self.assertFalse(OBJECT_TYPE.is_exact)
-        self.assertFalse(DYNAMIC_TYPE.is_exact)
-        self.assertFalse(STR_TYPE.is_exact)
-        self.assertFalse(INT_TYPE.is_exact)
-        self.assertFalse(FLOAT_TYPE.is_exact)
-        self.assertFalse(COMPLEX_TYPE.is_exact)
-        self.assertFalse(BYTES_TYPE.is_exact)
-        self.assertFalse(DICT_TYPE.is_exact)
-        self.assertFalse(TUPLE_TYPE.is_exact)
-        self.assertFalse(SET_TYPE.is_exact)
-        self.assertFalse(LIST_TYPE.is_exact)
-        self.assertFalse(BASE_EXCEPTION_TYPE.is_exact)
-        self.assertFalse(EXCEPTION_TYPE.is_exact)
-        self.assertFalse(STATIC_METHOD_TYPE.is_exact)
-        self.assertFalse(NAMED_TUPLE_TYPE.is_exact)
+        self.assertFalse(BUILTIN_TYPES.type.is_exact)
+        self.assertFalse(BUILTIN_TYPES.object.is_exact)
+        self.assertFalse(BUILTIN_TYPES.dynamic.is_exact)
+        self.assertFalse(BUILTIN_TYPES.str.is_exact)
+        self.assertFalse(BUILTIN_TYPES.int.is_exact)
+        self.assertFalse(BUILTIN_TYPES.float.is_exact)
+        self.assertFalse(BUILTIN_TYPES.complex.is_exact)
+        self.assertFalse(BUILTIN_TYPES.bytes.is_exact)
+        self.assertFalse(BUILTIN_TYPES.dict.is_exact)
+        self.assertFalse(BUILTIN_TYPES.tuple.is_exact)
+        self.assertFalse(BUILTIN_TYPES.set.is_exact)
+        self.assertFalse(BUILTIN_TYPES.list.is_exact)
+        self.assertFalse(BUILTIN_TYPES.base_exception.is_exact)
+        self.assertFalse(BUILTIN_TYPES.exception.is_exact)
+        self.assertFalse(BUILTIN_TYPES.static_method.is_exact)
+        self.assertFalse(BUILTIN_TYPES.named_tuple.is_exact)
 
     def test_cmpop(self):
         codestr = """
@@ -9436,7 +9403,11 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f().c, 1)
 
     def test_primitive_types_final(self):
-        PRIMITIVE_TYPES = ALL_CINT_TYPES + [CBOOL_TYPE, CHAR_TYPE, DOUBLE_TYPE]
+        PRIMITIVE_TYPES = BUILTIN_TYPES.all_cint_types + [
+            BUILTIN_TYPES.cbool,
+            BUILTIN_TYPES.char,
+            BUILTIN_TYPES.double,
+        ]
         PRIMITIVE_NAMES = [klass.instance_name for klass in PRIMITIVE_TYPES]
         for name in PRIMITIVE_NAMES:
             codestr = f"""
