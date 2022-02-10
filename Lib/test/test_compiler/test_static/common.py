@@ -438,20 +438,31 @@ class StaticTestBase(CompilerTest):
         return types[node]
 
     def bind_stmt(
-        self, code: str, optimize: bool = False, getter=lambda stmt: stmt
-    ) -> ast.stmt:
+        self,
+        code: str,
+        optimize: bool = False,
+        getter=lambda stmt: stmt,
+    ) -> Tuple[ast.stmt, Compiler]:
         mod, comp = self.bind_module(code, optimize)
         assert len(mod.body) == 1
         types = comp.modules["foo"].types
-        return types[getter(mod.body[0])]
+        return types[getter(mod.body[0])], comp
 
-    def bind_expr(self, code: str, optimize: bool = False) -> Value:
+    def bind_expr(
+        self,
+        code: str,
+        optimize: bool = False,
+    ) -> Tuple[Value, Compiler]:
         mod, comp = self.bind_module(code, optimize)
         assert len(mod.body) == 1
         types = comp.modules["foo"].types
-        return types[mod.body[0].value]
+        return types[mod.body[0].value], comp
 
-    def bind_module(self, code: str, optimize: int = 0) -> Tuple[ast.Module, Compiler]:
+    def bind_module(
+        self,
+        code: str,
+        optimize: int = 0,
+    ) -> Tuple[ast.Module, Compiler]:
         tree = ast.parse(self.clean_code(code))
 
         compiler = Compiler(StaticCodeGenerator)

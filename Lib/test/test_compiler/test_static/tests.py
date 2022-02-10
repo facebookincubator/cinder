@@ -27,13 +27,12 @@ from compiler.pycodegen import PythonCodeGenerator
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import (
-    BUILTIN_TYPES,
     Object,
-    DYNAMIC,
     PRIM_OP_ADD_INT,
     PRIM_OP_GT_INT,
     PRIM_OP_LT_INT,
     Function,
+    TypeEnvironment,
     TypedSyntaxError,
     FAST_LEN_LIST,
     FAST_LEN_TUPLE,
@@ -51,12 +50,13 @@ from compiler.static.types import (
     TYPED_BOOL,
     FAST_LEN_STR,
     TYPED_DOUBLE,
+    Value,
 )
 from copy import deepcopy
 from io import StringIO
 from os import path
 from types import ModuleType
-from typing import Optional, TypeVar
+from typing import Callable, Optional, TypeVar
 from unittest import skipIf
 from unittest.mock import patch
 
@@ -167,6 +167,7 @@ class StaticCompilationTests(StaticTestBase):
     @classmethod
     def setUpClass(cls):
         init_xxclassloader()
+        cls.type_env = TypeEnvironment()
 
     @classmethod
     def tearDownClass(cls):
@@ -1726,140 +1727,212 @@ class StaticCompilationTests(StaticTestBase):
         code = self.compile(codestr, modname="foo")
 
     def test_type_binder(self) -> None:
-        self.assertEqual(repr(self.bind_expr("42")), "<Literal[42]>")
-        self.assertEqual(self.bind_expr("42.0"), BUILTIN_TYPES.float_exact.instance)
-        self.assertEqual(self.bind_expr("'abc'"), BUILTIN_TYPES.str_exact.instance)
-        self.assertEqual(self.bind_expr("b'abc'"), BUILTIN_TYPES.bytes.instance)
-        self.assertEqual(self.bind_expr("3j"), BUILTIN_TYPES.complex_exact.instance)
-        self.assertEqual(self.bind_expr("None"), BUILTIN_TYPES.none.instance)
-        self.assertEqual(self.bind_expr("True"), BUILTIN_TYPES.bool.instance)
-        self.assertEqual(self.bind_expr("False"), BUILTIN_TYPES.bool.instance)
-        self.assertEqual(self.bind_expr("..."), BUILTIN_TYPES.ellipsis.instance)
-        self.assertEqual(self.bind_expr("f''"), BUILTIN_TYPES.str_exact.instance)
-        self.assertEqual(self.bind_expr("f'{x}'"), BUILTIN_TYPES.str_exact.instance)
+        compiler = Compiler(StaticCodeGenerator)
 
-        self.assertEqual(self.bind_expr("a"), DYNAMIC)
-        self.assertEqual(self.bind_expr("a.b"), DYNAMIC)
-        self.assertEqual(self.bind_expr("a + b"), DYNAMIC)
+        def assert_expr_binds_to(
+            exprstr: str, expected_type_callable: Callable[[TypeEnvironment], Value]
+        ) -> None:
+            value, comp = self.bind_expr(exprstr)
+            self.assertEqual(value, expected_type_callable(comp.type_env))
 
-        self.assertEqual(repr(self.bind_expr("1 + 2")), "<Literal[3]>")
-        self.assertEqual(repr(self.bind_expr("1 - 2")), "<Literal[-1]>")
-        self.assertEqual(repr(self.bind_expr("1 // 2")), "<Literal[0]>")
-        self.assertEqual(repr(self.bind_expr("1 * 2")), "<Literal[2]>")
-        self.assertEqual(self.bind_expr("1 / 2"), BUILTIN_TYPES.float_exact.instance)
-        self.assertEqual(repr(self.bind_expr("1 % 2")), "<Literal[1]>")
-        self.assertEqual(repr(self.bind_expr("1 & 2")), "<Literal[0]>")
-        self.assertEqual(repr(self.bind_expr("1 | 2")), "<Literal[3]>")
-        self.assertEqual(repr(self.bind_expr("1 ^ 2")), "<Literal[3]>")
-        self.assertEqual(repr(self.bind_expr("1 << 2")), "<Literal[4]>")
-        self.assertEqual(repr(self.bind_expr("100 >> 2")), "<Literal[25]>")
+        def assert_stmt_binds_to(
+            stmtstr: str,
+            expected_type_callable: Callable[[TypeEnvironment], Value],
+            getter=lambda stmt: stmt,
+        ) -> None:
+            value, comp = self.bind_stmt(stmtstr, getter=getter)
+            self.assertEqual(value, expected_type_callable(comp.type_env))
 
-        self.assertEqual(repr(self.bind_stmt("x = 1")), "<Literal[1]>")
+        self.assertEqual(repr(self.bind_expr("42")[0]), "<Literal[42]>")
+        assert_expr_binds_to("42.0", lambda type_env: type_env.float_exact.instance)
+        assert_expr_binds_to("'abc'", lambda type_env: type_env.str_exact.instance)
+        assert_expr_binds_to(
+            "b'abc'",
+            lambda type_env: type_env.bytes.instance,
+        )
+        assert_expr_binds_to(
+            "3j",
+            lambda type_env: type_env.complex_exact.instance,
+        )
+        assert_expr_binds_to("None", lambda type_env: type_env.none.instance)
+        assert_expr_binds_to("True", lambda type_env: type_env.bool.instance)
+        assert_expr_binds_to("False", lambda type_env: type_env.bool.instance)
+        assert_expr_binds_to(
+            "...",
+            lambda type_env: type_env.ellipsis.instance,
+        )
+        assert_expr_binds_to(
+            "f''",
+            lambda type_env: type_env.str_exact.instance,
+        )
+        assert_expr_binds_to(
+            "f'{x}'",
+            lambda type_env: type_env.str_exact.instance,
+        )
+
+        assert_expr_binds_to("a", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("a.b", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("a + b", lambda type_env: type_env.DYNAMIC)
+
+        self.assertEqual(repr(self.bind_expr("1 + 2")[0]), "<Literal[3]>")
+        self.assertEqual(repr(self.bind_expr("1 - 2")[0]), "<Literal[-1]>")
+        self.assertEqual(repr(self.bind_expr("1 // 2")[0]), "<Literal[0]>")
+        self.assertEqual(repr(self.bind_expr("1 * 2")[0]), "<Literal[2]>")
+        assert_expr_binds_to(
+            "1 / 2",
+            lambda type_env: type_env.float_exact.instance,
+        )
+        self.assertEqual(repr(self.bind_expr("1 % 2")[0]), "<Literal[1]>")
+        self.assertEqual(repr(self.bind_expr("1 & 2")[0]), "<Literal[0]>")
+        self.assertEqual(repr(self.bind_expr("1 | 2")[0]), "<Literal[3]>")
+        self.assertEqual(repr(self.bind_expr("1 ^ 2")[0]), "<Literal[3]>")
+        self.assertEqual(repr(self.bind_expr("1 << 2")[0]), "<Literal[4]>")
+        self.assertEqual(repr(self.bind_expr("100 >> 2")[0]), "<Literal[25]>")
+
+        self.assertEqual(repr(self.bind_stmt("x = 1")[0]), "<Literal[1]>")
         # self.assertEqual(self.bind_stmt("x: foo = 1").target.comp_type, DYNAMIC)
-        self.assertEqual(self.bind_stmt("x += 1"), DYNAMIC)
-        self.assertEqual(self.bind_expr("a or b"), DYNAMIC)
-        self.assertEqual(self.bind_expr("+a"), DYNAMIC)
-        self.assertEqual(self.bind_expr("not a"), BUILTIN_TYPES.bool.instance)
-        self.assertEqual(self.bind_expr("lambda: 42"), DYNAMIC)
-        self.assertEqual(self.bind_expr("a if b else c"), DYNAMIC)
-        self.assertEqual(self.bind_expr("x > y"), DYNAMIC)
-        self.assertEqual(self.bind_expr("x()"), DYNAMIC)
-        self.assertEqual(self.bind_expr("x(y)"), DYNAMIC)
-        self.assertEqual(self.bind_expr("x[y]"), DYNAMIC)
-        self.assertEqual(self.bind_expr("x[1:2]"), DYNAMIC)
-        self.assertEqual(self.bind_expr("x[1:2:3]"), DYNAMIC)
-        self.assertEqual(self.bind_expr("x[:]"), DYNAMIC)
-        self.assertEqual(self.bind_expr("{}"), BUILTIN_TYPES.dict_exact.instance)
-        self.assertEqual(self.bind_expr("{2:3}"), BUILTIN_TYPES.dict_exact.instance)
-        self.assertEqual(self.bind_expr("{1,2}"), BUILTIN_TYPES.set_exact.instance)
-        self.assertEqual(self.bind_expr("[]"), BUILTIN_TYPES.list_exact.instance)
-        self.assertEqual(self.bind_expr("[1,2]"), BUILTIN_TYPES.list_exact.instance)
-        self.assertEqual(self.bind_expr("(1,2)"), BUILTIN_TYPES.tuple_exact.instance)
+        assert_stmt_binds_to("x += 1", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("a or b", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("+a", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("not a", lambda type_env: type_env.bool.instance)
+        assert_expr_binds_to("lambda: 42", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to(
+            "a if b else c",
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to("x > y", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("x()", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("x(y)", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("x[y]", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("x[1:2]", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("x[1:2:3]", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to("x[:]", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to(
+            "{}",
+            lambda type_env: type_env.dict_exact.instance,
+        )
+        assert_expr_binds_to(
+            "{2:3}",
+            lambda type_env: type_env.dict_exact.instance,
+        )
+        assert_expr_binds_to(
+            "{1,2}",
+            lambda type_env: type_env.set_exact.instance,
+        )
+        assert_expr_binds_to(
+            "[]",
+            lambda type_env: type_env.list_exact.instance,
+        )
+        assert_expr_binds_to(
+            "[1,2]",
+            lambda type_env: type_env.list_exact.instance,
+        )
+        assert_expr_binds_to(
+            "(1,2)",
+            lambda type_env: type_env.tuple_exact.instance,
+        )
 
-        self.assertEqual(
-            self.bind_expr("[x for x in y]"), BUILTIN_TYPES.list_exact.instance
+        assert_expr_binds_to(
+            "[x for x in y]",
+            lambda type_env: type_env.list_exact.instance,
         )
-        self.assertEqual(
-            self.bind_expr("{x for x in y}"), BUILTIN_TYPES.set_exact.instance
+        assert_expr_binds_to(
+            "{x for x in y}",
+            lambda type_env: type_env.set_exact.instance,
         )
-        self.assertEqual(
-            self.bind_expr("{x:y for x in y}"), BUILTIN_TYPES.dict_exact.instance
+        assert_expr_binds_to(
+            "{x:y for x in y}",
+            lambda type_env: type_env.dict_exact.instance,
         )
-        self.assertEqual(self.bind_expr("(x for x in y)"), DYNAMIC)
+        assert_expr_binds_to(
+            "(x for x in y)",
+            lambda type_env: type_env.DYNAMIC,
+        )
 
         def body_get(stmt):
             return stmt.body[0].value
 
         self.assertEqual(
-            repr(self.bind_stmt("def f(): return 42", getter=body_get)),
+            repr(self.bind_stmt("def f(): return 42", getter=body_get)[0]),
             "<Literal[42]>",
         )
-        self.assertEqual(self.bind_stmt("def f(): yield 42", getter=body_get), DYNAMIC)
-        self.assertEqual(
-            self.bind_stmt("def f(): yield from x", getter=body_get), DYNAMIC
+        assert_stmt_binds_to(
+            "def f(): yield 42",
+            lambda type_env: type_env.DYNAMIC,
+            getter=body_get,
         )
-        self.assertEqual(
-            self.bind_stmt("async def f(): await x", getter=body_get), DYNAMIC
+        assert_stmt_binds_to(
+            "def f(): yield from x",
+            lambda type_env: type_env.DYNAMIC,
+            getter=body_get,
+        )
+        assert_stmt_binds_to(
+            "async def f(): await x",
+            lambda type_env: type_env.DYNAMIC,
+            getter=body_get,
         )
 
-        self.assertEqual(self.bind_expr("object"), BUILTIN_TYPES.object)
+        assert_expr_binds_to("object", lambda type_env: type_env.object)
 
-        self.assertEqual(repr(self.bind_expr("1 + 2", optimize=True)), "<Literal[3]>")
+        self.assertEqual(
+            repr(self.bind_expr("1 + 2", optimize=True)[0]),
+            "<Literal[3]>",
+        )
 
     def test_type_attrs(self):
-        attrs = BUILTIN_TYPES.type.__dict__.keys()
-        obj_attrs = BUILTIN_TYPES.object.__dict__.keys()
+        attrs = self.type_env.type.__dict__.keys()
+        obj_attrs = self.type_env.object.__dict__.keys()
         self.assertEqual(set(attrs), set(obj_attrs))
 
     def test_type_exact(self) -> None:
-        self.assertIs(BUILTIN_TYPES.list.exact(), BUILTIN_TYPES.list)
-        self.assertIs(BUILTIN_TYPES.list_exact.exact(), BUILTIN_TYPES.list_exact)
+        self.assertIs(self.type_env.list.exact(), self.type_env.list)
+        self.assertIs(self.type_env.list_exact.exact(), self.type_env.list_exact)
 
-        self.assertIs(BUILTIN_TYPES.list.exact_type(), BUILTIN_TYPES.list_exact)
-        self.assertIs(BUILTIN_TYPES.list_exact.exact_type(), BUILTIN_TYPES.list_exact)
+        self.assertIs(self.type_env.list.exact_type(), self.type_env.list_exact)
+        self.assertIs(self.type_env.list_exact.exact_type(), self.type_env.list_exact)
 
     def test_type_inexact(self) -> None:
-        self.assertIs(BUILTIN_TYPES.list.inexact(), BUILTIN_TYPES.list)
-        self.assertIs(BUILTIN_TYPES.list_exact.inexact(), BUILTIN_TYPES.list_exact)
+        self.assertIs(self.type_env.list.inexact(), self.type_env.list)
+        self.assertIs(self.type_env.list_exact.inexact(), self.type_env.list_exact)
 
-        self.assertIs(BUILTIN_TYPES.list.inexact_type(), BUILTIN_TYPES.list)
-        self.assertIs(BUILTIN_TYPES.list_exact.inexact_type(), BUILTIN_TYPES.list)
+        self.assertIs(self.type_env.list.inexact_type(), self.type_env.list)
+        self.assertIs(self.type_env.list_exact.inexact_type(), self.type_env.list)
 
     def test_type_is_exact(self) -> None:
-        self.assertTrue(BUILTIN_TYPES.function.is_exact)
-        self.assertTrue(BUILTIN_TYPES.method.is_exact)
-        self.assertTrue(BUILTIN_TYPES.member.is_exact)
-        self.assertTrue(BUILTIN_TYPES.builtin_method_desc.is_exact)
-        self.assertTrue(BUILTIN_TYPES.builtin_method.is_exact)
-        self.assertTrue(BUILTIN_TYPES.slice.is_exact)
-        self.assertTrue(BUILTIN_TYPES.none.is_exact)
-        self.assertTrue(BUILTIN_TYPES.str_exact.is_exact)
-        self.assertTrue(BUILTIN_TYPES.int_exact.is_exact)
-        self.assertTrue(BUILTIN_TYPES.float_exact.is_exact)
-        self.assertTrue(BUILTIN_TYPES.complex_exact.is_exact)
-        self.assertTrue(BUILTIN_TYPES.bool.is_exact)
-        self.assertTrue(BUILTIN_TYPES.ellipsis.is_exact)
-        self.assertTrue(BUILTIN_TYPES.dict_exact.is_exact)
-        self.assertTrue(BUILTIN_TYPES.tuple_exact.is_exact)
-        self.assertTrue(BUILTIN_TYPES.set_exact.is_exact)
-        self.assertTrue(BUILTIN_TYPES.list_exact.is_exact)
+        self.assertTrue(self.type_env.function.is_exact)
+        self.assertTrue(self.type_env.method.is_exact)
+        self.assertTrue(self.type_env.member.is_exact)
+        self.assertTrue(self.type_env.builtin_method_desc.is_exact)
+        self.assertTrue(self.type_env.builtin_method.is_exact)
+        self.assertTrue(self.type_env.slice.is_exact)
+        self.assertTrue(self.type_env.none.is_exact)
+        self.assertTrue(self.type_env.str_exact.is_exact)
+        self.assertTrue(self.type_env.int_exact.is_exact)
+        self.assertTrue(self.type_env.float_exact.is_exact)
+        self.assertTrue(self.type_env.complex_exact.is_exact)
+        self.assertTrue(self.type_env.bool.is_exact)
+        self.assertTrue(self.type_env.ellipsis.is_exact)
+        self.assertTrue(self.type_env.dict_exact.is_exact)
+        self.assertTrue(self.type_env.tuple_exact.is_exact)
+        self.assertTrue(self.type_env.set_exact.is_exact)
+        self.assertTrue(self.type_env.list_exact.is_exact)
 
-        self.assertFalse(BUILTIN_TYPES.type.is_exact)
-        self.assertFalse(BUILTIN_TYPES.object.is_exact)
-        self.assertFalse(BUILTIN_TYPES.dynamic.is_exact)
-        self.assertFalse(BUILTIN_TYPES.str.is_exact)
-        self.assertFalse(BUILTIN_TYPES.int.is_exact)
-        self.assertFalse(BUILTIN_TYPES.float.is_exact)
-        self.assertFalse(BUILTIN_TYPES.complex.is_exact)
-        self.assertFalse(BUILTIN_TYPES.bytes.is_exact)
-        self.assertFalse(BUILTIN_TYPES.dict.is_exact)
-        self.assertFalse(BUILTIN_TYPES.tuple.is_exact)
-        self.assertFalse(BUILTIN_TYPES.set.is_exact)
-        self.assertFalse(BUILTIN_TYPES.list.is_exact)
-        self.assertFalse(BUILTIN_TYPES.base_exception.is_exact)
-        self.assertFalse(BUILTIN_TYPES.exception.is_exact)
-        self.assertFalse(BUILTIN_TYPES.static_method.is_exact)
-        self.assertFalse(BUILTIN_TYPES.named_tuple.is_exact)
+        self.assertFalse(self.type_env.type.is_exact)
+        self.assertFalse(self.type_env.object.is_exact)
+        self.assertFalse(self.type_env.dynamic.is_exact)
+        self.assertFalse(self.type_env.str.is_exact)
+        self.assertFalse(self.type_env.int.is_exact)
+        self.assertFalse(self.type_env.float.is_exact)
+        self.assertFalse(self.type_env.complex.is_exact)
+        self.assertFalse(self.type_env.bytes.is_exact)
+        self.assertFalse(self.type_env.dict.is_exact)
+        self.assertFalse(self.type_env.tuple.is_exact)
+        self.assertFalse(self.type_env.set.is_exact)
+        self.assertFalse(self.type_env.list.is_exact)
+        self.assertFalse(self.type_env.base_exception.is_exact)
+        self.assertFalse(self.type_env.exception.is_exact)
+        self.assertFalse(self.type_env.static_method.is_exact)
+        self.assertFalse(self.type_env.named_tuple.is_exact)
 
     def test_cmpop(self):
         codestr = """
@@ -9403,10 +9476,10 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f().c, 1)
 
     def test_primitive_types_final(self):
-        PRIMITIVE_TYPES = BUILTIN_TYPES.all_cint_types + [
-            BUILTIN_TYPES.cbool,
-            BUILTIN_TYPES.char,
-            BUILTIN_TYPES.double,
+        PRIMITIVE_TYPES = self.type_env.all_cint_types + [
+            self.type_env.cbool,
+            self.type_env.char,
+            self.type_env.double,
         ]
         PRIMITIVE_NAMES = [klass.instance_name for klass in PRIMITIVE_TYPES]
         for name in PRIMITIVE_NAMES:

@@ -1,5 +1,5 @@
 from compiler.static.compiler import Compiler
-from compiler.static.types import BUILTIN_TYPES
+from compiler.static.types import TypeEnvironment
 from compiler.strict.compiler import Compiler as StrictCompiler
 
 from .common import StaticTestBase, StaticTestsStrictModuleLoader
@@ -25,7 +25,7 @@ class ModuleTests(StaticTestBase):
         self.assertIn("b", compiler.modules)
         self.assertIn("a", compiler.modules["b"].children)
         self.assertEqual(
-            compiler.modules["b"].children["a"].klass, BUILTIN_TYPES.module
+            compiler.modules["b"].children["a"].klass, compiler.type_env.module
         )
         self.assertEqual(compiler.modules["b"].children["a"].module_name, "a")
 
@@ -41,7 +41,7 @@ class ModuleTests(StaticTestBase):
 
         self.assertIn("foo", compiler.modules["b"].children)
         self.assertEqual(
-            compiler.modules["b"].children["foo"].klass, BUILTIN_TYPES.module
+            compiler.modules["b"].children["foo"].klass, compiler.type_env.module
         )
         self.assertEqual(compiler.modules["b"].children["foo"].module_name, "a")
 
@@ -57,7 +57,7 @@ class ModuleTests(StaticTestBase):
 
         self.assertIn("a", compiler.modules["c"].children)
         self.assertEqual(
-            compiler.modules["c"].children["a"].klass, BUILTIN_TYPES.module
+            compiler.modules["c"].children["a"].klass, compiler.type_env.module
         )
         self.assertEqual(compiler.modules["c"].children["a"].module_name, "a")
 
@@ -73,7 +73,7 @@ class ModuleTests(StaticTestBase):
 
         self.assertIn("m", compiler.modules["c"].children)
         self.assertEqual(
-            compiler.modules["c"].children["m"].klass, BUILTIN_TYPES.module
+            compiler.modules["c"].children["m"].klass, compiler.type_env.module
         )
         self.assertEqual(compiler.modules["c"].children["m"].module_name, "a.b")
 
@@ -92,7 +92,7 @@ class ModuleTests(StaticTestBase):
 
         self.assertIn("b", compiler.modules["c"].children)
         self.assertEqual(
-            compiler.modules["c"].children["b"].klass, BUILTIN_TYPES.module
+            compiler.modules["c"].children["b"].klass, compiler.type_env.module
         )
         self.assertEqual(compiler.modules["c"].children["b"].module_name, "a.b")
 
@@ -111,7 +111,7 @@ class ModuleTests(StaticTestBase):
 
         self.assertIn("zoidberg", compiler.modules["c"].children)
         self.assertEqual(
-            compiler.modules["c"].children["zoidberg"].klass, BUILTIN_TYPES.module
+            compiler.modules["c"].children["zoidberg"].klass, compiler.type_env.module
         )
         self.assertEqual(compiler.modules["c"].children["zoidberg"].module_name, "a.b")
 
@@ -129,7 +129,9 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
         self.assertIn("b", compiler.modules["c"].children)
-        self.assertEqual(compiler.modules["c"].children["b"].klass, BUILTIN_TYPES.int)
+        self.assertEqual(
+            compiler.modules["c"].children["b"].klass, compiler.type_env.int
+        )
 
     def test_import_module_within_directory_from_where_untyped_value_exists(
         self,
@@ -151,7 +153,7 @@ class ModuleTests(StaticTestBase):
         # untyped values and missing ones, we resolve to the module type where that might
         # not have been the intention.
         self.assertEqual(
-            compiler.modules["c"].children["b"].klass, BUILTIN_TYPES.module
+            compiler.modules["c"].children["b"].klass, compiler.type_env.module
         )
 
     def test_import_chaining(self) -> None:

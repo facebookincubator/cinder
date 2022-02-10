@@ -60,11 +60,9 @@ from .types import (
     CType,
     Class,
     DecoratedMethod,
-    DYNAMIC,
     Function,
     FunctionContainer,
     GenericClass,
-    OBJECT,
     Slot,
     TType,
     TypeDescr,
@@ -194,15 +192,25 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
         for i, arg in enumerate(args.posonlyargs):
             t = self.get_type(arg)
-            if t is not DYNAMIC and t is not OBJECT:
+            if (
+                t is not self.compiler.type_env.DYNAMIC
+                and t is not self.compiler.type_env.OBJECT
+            ):
                 arg_checks.append(self._calculate_idx(arg.arg, i, cellvars))
                 arg_checks.append(t.klass.type_descr)
 
         for i, arg in enumerate(args.args):
             # Comprehension nodes don't have arguments when they're typed; make
             # up for that here.
-            t = DYNAMIC if is_comprehension else self.get_type(arg)
-            if t is not DYNAMIC and t is not OBJECT:
+            t = (
+                self.compiler.type_env.DYNAMIC
+                if is_comprehension
+                else self.get_type(arg)
+            )
+            if (
+                t is not self.compiler.type_env.DYNAMIC
+                and t is not self.compiler.type_env.OBJECT
+            ):
                 arg_checks.append(
                     self._calculate_idx(arg.arg, i + len(args.posonlyargs), cellvars)
                 )
@@ -210,7 +218,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
         for i, arg in enumerate(args.kwonlyargs):
             t = self.get_type(arg)
-            if t is not DYNAMIC and t is not OBJECT:
+            if (
+                t is not self.compiler.type_env.DYNAMIC
+                and t is not self.compiler.type_env.OBJECT
+            ):
                 arg_checks.append(
                     self._calculate_idx(
                         arg.arg,
@@ -299,7 +310,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def _resolve_class(self, node: ClassDef) -> Optional[Class]:
         cur_mod = self.compiler.modules[self.modname]
         klass = cur_mod.resolve_name(node.name)
-        if not isinstance(klass, Class) or klass is self.compiler.builtin_types.dynamic:
+        if not isinstance(klass, Class) or klass is self.compiler.type_env.dynamic:
             return
         return klass
 
@@ -426,7 +437,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             if value.is_classvar:
                 continue
 
-            if value.decl_type is self.compiler.builtin_types.dynamic:
+            if value.decl_type is self.compiler.type_env.dynamic:
                 continue
 
             gen.emit("LOAD_CONST", name)
@@ -471,7 +482,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         effect_name_nodes: Dict[str, ast.Name] = {}
         effect.apply(effect_types, effect_name_nodes)
         for key, value in effect_types.items():
-            if value.klass is not DYNAMIC:
+            if value.klass is not self.compiler.type_env.DYNAMIC:
                 value.emit_name(effect_name_nodes[key], self)
                 self.emit("CAST", value.klass.type_descr)
                 self.emit("POP_TOP")
@@ -487,9 +498,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
     def emit_type_check(self, dest: Class, src: Class, node: AST) -> None:
         if (
-            src is self.compiler.builtin_types.dynamic
-            and dest is not self.compiler.builtin_types.object
-            and dest is not self.compiler.builtin_types.dynamic
+            src is self.compiler.type_env.dynamic
+            and dest is not self.compiler.type_env.object
+            and dest is not self.compiler.type_env.dynamic
         ):
             assert not isinstance(dest, CType)
             self.emit("CAST", dest.type_descr)
@@ -515,7 +526,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 )
             else:
                 self.emit_type_check(
-                    self.get_type(elt).klass, self.compiler.builtin_types.dynamic, stmt
+                    self.get_type(elt).klass, self.compiler.type_env.dynamic, stmt
                 )
             self.visit(elt)
 
@@ -691,10 +702,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if (
             expected
             not in (
-                self.compiler.builtin_types.dynamic,
-                self.compiler.builtin_types.object,
+                self.compiler.type_env.dynamic,
+                self.compiler.type_env.object,
             )
-            and self.get_type(value) is DYNAMIC
+            and self.get_type(value) is self.compiler.type_env.DYNAMIC
         ):
             self.emit("CAST", expected.type_descr)
 
@@ -730,15 +741,15 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def visitDictComp(self, node: DictComp) -> None:
         dict_type = self.get_type(node)
         if dict_type in (
-            self.compiler.builtin_types.dict.instance,
-            self.compiler.builtin_types.dict_exact.instance,
+            self.compiler.type_env.dict.instance,
+            self.compiler.type_env.dict_exact.instance,
         ):
             return super().visitDictComp(node)
         klass = dict_type.klass
 
         assert (
             isinstance(klass, GenericClass)
-            and klass.type_def is self.compiler.builtin_types.checked_dict
+            and klass.type_def is self.compiler.type_env.checked_dict
         ), dict_type
         self.compile_comprehension(
             node,
@@ -764,15 +775,15 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def visitDict(self, node: ast.Dict) -> None:
         dict_type = self.get_type(node)
         if dict_type in (
-            self.compiler.builtin_types.dict.instance,
-            self.compiler.builtin_types.dict_exact.instance,
+            self.compiler.type_env.dict.instance,
+            self.compiler.type_env.dict_exact.instance,
         ):
             return super().visitDict(node)
         klass = dict_type.klass
 
         assert (
             isinstance(klass, GenericClass)
-            and klass.type_def is self.compiler.builtin_types.checked_dict
+            and klass.type_def is self.compiler.type_env.checked_dict
         ), dict_type
 
         self.update_lineno(node)
@@ -831,15 +842,15 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def visitListComp(self, node: ast.ListComp) -> None:
         list_type = self.get_type(node)
         if list_type in (
-            self.compiler.builtin_types.list.instance,
-            self.compiler.builtin_types.list_exact.instance,
+            self.compiler.type_env.list.instance,
+            self.compiler.type_env.list_exact.instance,
         ):
             return super().visitListComp(node)
         klass = list_type.klass
 
         assert (
             isinstance(klass, GenericClass)
-            and klass.type_def is self.compiler.builtin_types.checked_list
+            and klass.type_def is self.compiler.type_env.checked_list
         ), list_type
         self.compile_comprehension(
             node,
@@ -853,15 +864,15 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def visitList(self, node: ast.List) -> None:
         list_type = self.get_type(node)
         if list_type in (
-            self.compiler.builtin_types.list.instance,
-            self.compiler.builtin_types.list_exact.instance,
+            self.compiler.type_env.list.instance,
+            self.compiler.type_env.list_exact.instance,
         ):
             return super().visitList(node)
         klass = list_type.klass
 
         assert (
             isinstance(klass, GenericClass)
-            and klass.type_def is self.compiler.builtin_types.checked_list
+            and klass.type_def is self.compiler.type_env.checked_list
         ), list_type
 
         self.update_lineno(node)

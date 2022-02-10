@@ -37,7 +37,6 @@ from .types import (
     DynamicClass,
     Function,
     FunctionGroup,
-    DYNAMIC,
     FinalClass,
     MethodType,
     TypeDescr,
@@ -108,10 +107,10 @@ class AnnotationVisitor(ReferenceVisitor):
             # optimizations to user-specified floats, but does not affect ints. Since we
             # don't optimize Python floats anyway, we accept this to maintain PEP-484 compatibility.
 
-            if klass is self.builtin_types.float:
+            if klass is self.type_env.float:
                 klass = self.compiler.type_env.get_generic_type(
-                    self.builtin_types.union,
-                    (self.builtin_types.float, self.builtin_types.int),
+                    self.type_env.union,
+                    (self.type_env.float, self.type_env.int),
                 )
 
             # TODO until we support runtime checking of unions, we must for
@@ -119,8 +118,8 @@ class AnnotationVisitor(ReferenceVisitor):
             # optionals, which we can check at runtime)
             if (
                 isinstance(klass, UnionType)
-                and klass is not self.builtin_types.union
-                and klass is not self.builtin_types.optional
+                and klass is not self.type_env.union
+                and klass is not self.type_env.optional
                 and klass.opt_type is None
             ):
                 return None
@@ -133,7 +132,7 @@ class AnnotationVisitor(ReferenceVisitor):
             return None
 
         self.subscr_nesting += 1
-        slice = self.visit(node.slice) or DYNAMIC
+        slice = self.visit(node.slice) or self.type_env.DYNAMIC
         self.subscr_nesting -= 1
         return target.resolve_subscr(node, slice, self) or target
 
@@ -144,14 +143,14 @@ class AnnotationVisitor(ReferenceVisitor):
             if ltype is None or rtype is None:
                 return None
             return self.module.compiler.type_env.get_generic_type(
-                self.module.compiler.builtin_types.union,
+                self.module.compiler.type_env.union,
                 (ltype, rtype),
             )
 
     def visitConstant(self, node: Constant) -> Optional[Value]:
         sval = node.value
         if sval is None:
-            return self.builtin_types.none
+            return self.type_env.none
         elif isinstance(sval, str):
             n = cast(Expression, ast.parse(node.value, "", "eval")).body
             return self.visit(n)
@@ -200,9 +199,7 @@ class ModuleTable:
         new_member = func
         if existing is not None:
             if isinstance(existing, Function):
-                new_member = FunctionGroup(
-                    [existing, new_member], func.klass.builtin_types
-                )
+                new_member = FunctionGroup([existing, new_member], func.klass.type_env)
             elif isinstance(existing, FunctionGroup):
                 existing.functions.append(new_member)
                 new_member = existing

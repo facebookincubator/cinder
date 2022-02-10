@@ -64,18 +64,14 @@ from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
 from .module_table import ModuleTable, ModuleFlag
-from .type_env import TypeEnvironment
 from .types import (
     AwaitableType,
-    BuiltinTypes,
     CInstance,
-    CONSTANT_TYPES,
     CType,
     CheckedDictInstance,
     CheckedListInstance,
     Class,
     ClassVar,
-    DYNAMIC,
     FinalClass,
     Function,
     FunctionContainer,
@@ -85,6 +81,7 @@ from .types import (
     TypeDescr,
     Slot,
     TType,
+    TypeEnvironment,
     UnionInstance,
     UnknownDecoratedMethod,
     Value,
@@ -101,13 +98,11 @@ class BindingScope:
         self,
         node: AST,
         type_env: TypeEnvironment,
-        builtin_types: BuiltinTypes,
     ) -> None:
         self.node = node
         self.local_types: Dict[str, Value] = {}
         self.decl_types: Dict[str, TypeDeclaration] = {}
-        self.type_env = type_env
-        self.builtin_types = builtin_types
+        self.type_env: TypeEnvironment = type_env
 
     def branch(self) -> LocalsBranch:
         return LocalsBranch(self)
@@ -118,7 +113,7 @@ class BindingScope:
         # For an unannotated assignment (is_inferred=True), we declare dynamic
         # type; this disallows later re-declaration, but allows any type to be
         # assigned later, so `x = None; if flag: x = "foo"` works.
-        decl = TypeDeclaration(DYNAMIC if is_inferred else typ, is_final)
+        decl = TypeDeclaration(self.type_env.DYNAMIC if is_inferred else typ, is_final)
         self.decl_types[name] = decl
         self.local_types[name] = typ
         return decl
@@ -130,9 +125,8 @@ class ModuleBindingScope(BindingScope):
         node: ast.Module,
         module: ModuleTable,
         type_env: TypeEnvironment,
-        builtin_types: BuiltinTypes,
     ) -> None:
-        super().__init__(node, type_env, builtin_types)
+        super().__init__(node, type_env)
         self.module = module
 
     def declare(
@@ -154,7 +148,6 @@ class LocalsBranch:
     def __init__(self, scope: BindingScope) -> None:
         self.scope = scope
         self.type_env: TypeEnvironment = scope.type_env
-        self.builtin_types: BuiltinTypes = scope.builtin_types
         self.entry_locals: Dict[str, Value] = dict(scope.local_types)
 
     def copy(self) -> Dict[str, Value]:
@@ -187,7 +180,7 @@ class LocalsBranch:
             return types[0]
 
         return self.type_env.get_generic_type(
-            self.builtin_types.union,
+            self.type_env.union,
             tuple(t.inexact().klass for t in types),
         ).instance
 
@@ -226,7 +219,6 @@ class TypeBinder(GenericVisitor):
         self.optimize = optimize
         self.terminals: Dict[AST, TerminalKind] = {}
         self.type_env: TypeEnvironment = compiler.type_env
-        self.builtin_types: BuiltinTypes = compiler.builtin_types
         self.inline_depth = 0
         self.inline_calls = 0
         self.enable_patching = enable_patching
@@ -257,7 +249,7 @@ class TypeBinder(GenericVisitor):
         decl = self.get_target_decl(name)
         assert decl is not None
         decl_type = decl.type
-        if local_type is DYNAMIC or not decl_type.klass.can_be_narrowed:
+        if local_type is self.type_env.DYNAMIC or not decl_type.klass.can_be_narrowed:
             local_type = decl_type
         self.local_types[name] = local_type
         return local_type
@@ -326,7 +318,6 @@ class TypeBinder(GenericVisitor):
                 node,
                 self.module,
                 type_env=self.type_env,
-                builtin_types=self.builtin_types,
             )
         )
 
@@ -354,17 +345,17 @@ class TypeBinder(GenericVisitor):
             ann = arg.annotation
             if ann:
                 self.visitExpectedType(
-                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                    ann,
+                    self.type_env.DYNAMIC,
+                    "argument annotation cannot be a primitive",
                 )
-                arg_type = (
-                    self.module.resolve_annotation(ann) or self.builtin_types.dynamic
-                )
+                arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
             elif arg.arg in scope.decl_types:
                 # Already handled self
                 default_index += 1
                 continue
             else:
-                arg_type = self.builtin_types.dynamic
+                arg_type = self.type_env.dynamic
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
                 self.check_can_assign_from(
@@ -379,17 +370,17 @@ class TypeBinder(GenericVisitor):
             ann = arg.annotation
             if ann:
                 self.visitExpectedType(
-                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                    ann,
+                    self.type_env.DYNAMIC,
+                    "argument annotation cannot be a primitive",
                 )
-                arg_type = (
-                    self.module.resolve_annotation(ann) or self.builtin_types.dynamic
-                )
+                arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
             elif arg.arg in scope.decl_types:
                 # Already handled self
                 default_index += 1
                 continue
             else:
-                arg_type = self.builtin_types.dynamic
+                arg_type = self.type_env.dynamic
 
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
@@ -406,23 +397,25 @@ class TypeBinder(GenericVisitor):
             ann = vararg.annotation
             if ann:
                 self.visitExpectedType(
-                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                    ann,
+                    self.type_env.DYNAMIC,
+                    "argument annotation cannot be a primitive",
                 )
 
-            self.set_param(vararg, self.builtin_types.tuple_exact.instance, scope)
+            self.set_param(vararg, self.type_env.tuple_exact.instance, scope)
 
         default_index = len(args.kw_defaults or []) - len(args.kwonlyargs)
         for arg in args.kwonlyargs:
             ann = arg.annotation
             if ann:
                 self.visitExpectedType(
-                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                    ann,
+                    self.type_env.DYNAMIC,
+                    "argument annotation cannot be a primitive",
                 )
-                arg_type = (
-                    self.module.resolve_annotation(ann) or self.builtin_types.dynamic
-                )
+                arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
             else:
-                arg_type = self.builtin_types.dynamic
+                arg_type = self.type_env.dynamic
 
             if default_index >= 0:
                 default = args.kw_defaults[default_index]
@@ -441,13 +434,16 @@ class TypeBinder(GenericVisitor):
             ann = kwarg.annotation
             if ann:
                 self.visitExpectedType(
-                    ann, DYNAMIC, "argument annotation cannot be a primitive"
+                    ann,
+                    self.type_env.DYNAMIC,
+                    "argument annotation cannot be a primitive",
                 )
-            self.set_param(kwarg, self.builtin_types.dict_exact.instance, scope)
+            self.set_param(kwarg, self.type_env.dict_exact.instance, scope)
 
     def new_scope(self, node: AST) -> BindingScope:
         return BindingScope(
-            node, type_env=self.type_env, builtin_types=self.builtin_types
+            node,
+            type_env=self.type_env,
         )
 
     def get_func_container(
@@ -469,7 +465,7 @@ class TypeBinder(GenericVisitor):
             if isinstance(self.scope, (FunctionDef, AsyncFunctionDef)):
                 # nested functions can't be invoked against; to ensure we
                 # don't, declare them as dynamic type
-                typ = DYNAMIC
+                typ = self.type_env.DYNAMIC
             self.declare_local(node.name, typ)
 
     def visitFunctionDef(self, node: FunctionDef) -> None:
@@ -481,20 +477,20 @@ class TypeBinder(GenericVisitor):
     def visitClassDef(self, node: ClassDef) -> None:
         for decorator in node.decorator_list:
             self.visitExpectedType(
-                decorator, DYNAMIC, "decorator cannot be a primitive"
+                decorator, self.type_env.DYNAMIC, "decorator cannot be a primitive"
             )
 
         for kwarg in node.keywords:
             self.visitExpectedType(
-                kwarg.value, DYNAMIC, "class kwarg cannot be a primitive"
+                kwarg.value, self.type_env.DYNAMIC, "class kwarg cannot be a primitive"
             )
 
         for base in node.bases:
-            self.visitExpectedType(base, DYNAMIC, "class base cannot be a primitive")
+            self.visitExpectedType(
+                base, self.type_env.DYNAMIC, "class base cannot be a primitive"
+            )
 
-        self.scopes.append(
-            BindingScope(node, type_env=self.type_env, builtin_types=self.builtin_types)
-        )
+        self.scopes.append(BindingScope(node, type_env=self.type_env))
 
         for stmt in node.body:
             self.visit(stmt)
@@ -513,7 +509,7 @@ class TypeBinder(GenericVisitor):
 
     def get_type(self, node: AST) -> Value:
         if self.nodes_default_dynamic:
-            return self.module.types.get(node, DYNAMIC)
+            return self.module.types.get(node, self.type_env.DYNAMIC)
         assert node in self.module.types, f"node not found: {node}, {node.lineno}"
         return self.module.types[node]
 
@@ -588,13 +584,15 @@ class TypeBinder(GenericVisitor):
 
     def visitAnnAssign(self, node: AnnAssign) -> None:
         self.visitExpectedType(
-            node.annotation, DYNAMIC, "annotation can not be a primitive value"
+            node.annotation,
+            self.type_env.DYNAMIC,
+            "annotation can not be a primitive value",
         )
 
         target = node.target
         comp_type = (
             self.module.resolve_annotation(node.annotation, is_declaration=True)
-            or self.builtin_types.dynamic
+            or self.type_env.dynamic
         )
         is_final = False
         comp_type, wrapper = comp_type.unwrap(), type(comp_type)
@@ -606,7 +604,7 @@ class TypeBinder(GenericVisitor):
             is_final = True
 
         declared_type = comp_type.instance
-        is_dynamic_final = is_final and declared_type is DYNAMIC
+        is_dynamic_final = is_final and declared_type is self.type_env.DYNAMIC
         if isinstance(target, Name):
             # We special case x: Final[dynamic] = value to treat `x`'s inferred type as the
             # declared type instead of the comp_type - this allows us to support aliasing of
@@ -690,7 +688,7 @@ class TypeBinder(GenericVisitor):
         reason: str = "type mismatch: {} cannot be assigned to {}",
     ) -> None:
         if not dest.can_assign_from(src) and (
-            src is not self.builtin_types.dynamic or isinstance(dest, CType)
+            src is not self.type_env.dynamic or isinstance(dest, CType)
         ):
             self.syntax_error(
                 reason.format(src.instance.name, dest.instance.name),
@@ -704,7 +702,7 @@ class TypeBinder(GenericVisitor):
         message = node.msg
         if message:
             self.visitExpectedType(
-                message, DYNAMIC, "assert message cannot be a primitive"
+                message, self.type_env.DYNAMIC, "assert message cannot be a primitive"
             )
 
     def visitBoolOp(
@@ -759,7 +757,7 @@ class TypeBinder(GenericVisitor):
                 self.visit(value)
                 final_type = self.widen(final_type, self.get_type(value))
 
-        self.set_type(node, final_type or DYNAMIC)
+        self.set_type(node, final_type or self.type_env.DYNAMIC)
         return effect
 
     def visitBinOp(
@@ -807,17 +805,18 @@ class TypeBinder(GenericVisitor):
         self, node: Lambda, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         scope = BindingScope(
-            node, type_env=self.type_env, builtin_types=self.builtin_types
+            node,
+            type_env=self.type_env,
         )
         self._visitParameters(node.args, scope)
 
         self.scopes.append(scope)
         self.visitExpectedType(
-            node.body, DYNAMIC, "lambda cannot return primitive value"
+            node.body, self.type_env.DYNAMIC, "lambda cannot return primitive value"
         )
         self.scopes.pop()
 
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, self.type_env.DYNAMIC)
         return NO_EFFECT
 
     def visitIfExp(
@@ -837,7 +836,7 @@ class TypeBinder(GenericVisitor):
         self.set_type(
             node,
             self.type_env.get_generic_type(
-                self.builtin_types.union,
+                self.type_env.union,
                 (body_t.klass, else_t.klass),
             ).instance,
         )
@@ -848,14 +847,20 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         lower = node.lower
         if lower:
-            self.visitExpectedType(lower, DYNAMIC, "slice indices cannot be primitives")
+            self.visitExpectedType(
+                lower, self.type_env.DYNAMIC, "slice indices cannot be primitives"
+            )
         upper = node.upper
         if upper:
-            self.visitExpectedType(upper, DYNAMIC, "slice indices cannot be primitives")
+            self.visitExpectedType(
+                upper, self.type_env.DYNAMIC, "slice indices cannot be primitives"
+            )
         step = node.step
         if step:
-            self.visitExpectedType(step, DYNAMIC, "slice indices cannot be primitives")
-        self.set_type(node, self.builtin_types.slice.instance)
+            self.visitExpectedType(
+                step, self.type_env.DYNAMIC, "slice indices cannot be primitives"
+            )
+        self.set_type(node, self.type_env.slice.instance)
         return NO_EFFECT
 
     def widen(self, existing: Optional[Value], new: Value) -> Value:
@@ -865,7 +870,7 @@ class TypeBinder(GenericVisitor):
             return existing
 
         res = self.type_env.get_generic_type(
-            self.builtin_types.union, (existing.klass, new.klass)
+            self.type_env.union, (existing.klass, new.klass)
         ).instance
         return res
 
@@ -876,24 +881,30 @@ class TypeBinder(GenericVisitor):
         value_type: Optional[Value] = None
         for k, v in zip(node.keys, node.values):
             if k:
-                self.visitExpectedType(k, DYNAMIC, "dict keys cannot be primitives")
+                self.visitExpectedType(
+                    k, self.type_env.DYNAMIC, "dict keys cannot be primitives"
+                )
                 key_type = self.widen(key_type, self.get_type(k))
-                self.visitExpectedType(v, DYNAMIC, "dict keys cannot be primitives")
+                self.visitExpectedType(
+                    v, self.type_env.DYNAMIC, "dict keys cannot be primitives"
+                )
                 value_type = self.widen(value_type, self.get_type(v))
             else:
-                self.visitExpectedType(v, DYNAMIC, "dict splat cannot be a primitive")
+                self.visitExpectedType(
+                    v, self.type_env.DYNAMIC, "dict splat cannot be a primitive"
+                )
                 d_type = self.get_type(v).klass
-                if d_type.generic_type_def is self.builtin_types.checked_dict:
+                if d_type.generic_type_def is self.type_env.checked_dict:
                     assert isinstance(d_type, GenericClass)
                     key_type = self.widen(key_type, d_type.type_args[0].instance)
                     value_type = self.widen(value_type, d_type.type_args[1].instance)
                 elif d_type in (
-                    self.builtin_types.dict,
-                    self.builtin_types.dict_exact,
-                    self.builtin_types.dynamic,
+                    self.type_env.dict,
+                    self.type_env.dict_exact,
+                    self.type_env.dynamic,
                 ):
-                    key_type = DYNAMIC
-                    value_type = DYNAMIC
+                    key_type = self.type_env.DYNAMIC
+                    value_type = self.type_env.DYNAMIC
 
         self.set_dict_type(node, key_type, value_type, type_ctx)
         return NO_EFFECT
@@ -912,20 +923,18 @@ class TypeBinder(GenericVisitor):
                 and value_type is not None
             ):
                 typ = self.type_env.get_generic_type(
-                    self.builtin_types.checked_dict,
+                    self.type_env.checked_dict,
                     (key_type.klass.inexact_type(), value_type.klass.inexact_type()),
                 ).instance
             else:
-                typ = self.builtin_types.dict_exact.instance
+                typ = self.type_env.dict_exact.instance
             self.set_type(node, typ)
             return typ
 
         # Calculate the type that is inferred by the keys and values
         assert type_ctx is not None
         type_class = type_ctx.klass
-        assert (
-            type_class.generic_type_def is self.builtin_types.checked_dict
-        ), type_class
+        assert type_class.generic_type_def is self.type_env.checked_dict, type_class
         assert isinstance(type_class, GenericClass)
         if key_type is None:
             key_type = type_class.type_args[0].instance
@@ -934,7 +943,7 @@ class TypeBinder(GenericVisitor):
             value_type = type_class.type_args[1].instance
 
         gen_type = self.type_env.get_generic_type(
-            self.builtin_types.checked_dict,
+            self.type_env.checked_dict,
             (key_type.klass, value_type.klass),
         )
 
@@ -958,11 +967,11 @@ class TypeBinder(GenericVisitor):
         if not isinstance(type_ctx, CheckedListInstance):
             if ModuleFlag.CHECKED_LISTS in self.module.flags and item_type is not None:
                 typ = self.type_env.get_generic_type(
-                    self.builtin_types.checked_list,
+                    self.type_env.checked_list,
                     (item_type.klass.inexact_type(),),
                 ).instance
             else:
-                typ = self.builtin_types.list_exact.instance
+                typ = self.type_env.list_exact.instance
 
             self.set_type(node, typ)
             return typ
@@ -970,15 +979,13 @@ class TypeBinder(GenericVisitor):
         # Calculate the type that is inferred by the item.
         assert type_ctx is not None
         type_class = type_ctx.klass
-        assert (
-            type_class.generic_type_def is self.builtin_types.checked_list
-        ), type_class
+        assert type_class.generic_type_def is self.type_env.checked_list, type_class
         assert isinstance(type_class, GenericClass)
         if item_type is None:
             item_type = type_class.type_args[0].instance
 
         gen_type = self.type_env.get_generic_type(
-            self.builtin_types.checked_list,
+            self.type_env.checked_list,
             (item_type.klass.inexact_type(),),
         )
 
@@ -995,15 +1002,17 @@ class TypeBinder(GenericVisitor):
         self, node: ast.Set, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         for elt in node.elts:
-            self.visitExpectedType(elt, DYNAMIC, "set members cannot be primitives")
-        self.set_type(node, self.builtin_types.set_exact.instance)
+            self.visitExpectedType(
+                elt, self.type_env.DYNAMIC, "set members cannot be primitives"
+            )
+        self.set_type(node, self.type_env.set_exact.instance)
         return NO_EFFECT
 
     def visitGeneratorExp(
         self, node: GeneratorExp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit_comprehension(node, node.generators, node.elt)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, self.type_env.DYNAMIC)
         return NO_EFFECT
 
     def visitListComp(
@@ -1018,7 +1027,7 @@ class TypeBinder(GenericVisitor):
         self, node: SetComp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit_comprehension(node, node.generators, node.elt)
-        self.set_type(node, self.builtin_types.set_exact.instance)
+        self.set_type(node, self.type_env.set_exact.instance)
         return NO_EFFECT
 
     def get_target_decl(self, name: str) -> Optional[TypeDeclaration]:
@@ -1059,13 +1068,15 @@ class TypeBinder(GenericVisitor):
                 t = src.value
                 if isinstance(t, tuple) and len(t) == len(target.elts):
                     for target, inner_value in zip(target.elts, t):
-                        self.assign_value(target, CONSTANT_TYPES[type(inner_value)])
+                        self.assign_value(
+                            target, self.type_env.constant_types[type(inner_value)]
+                        )
                 else:
                     for val in target.elts:
-                        self.assign_value(val, DYNAMIC)
+                        self.assign_value(val, self.type_env.DYNAMIC)
             else:
                 for val in target.elts:
-                    self.assign_value(val, DYNAMIC)
+                    self.assign_value(val, self.type_env.DYNAMIC)
         else:
             self.check_can_assign_from(self.get_type(target).klass, value.klass, target)
         self._check_final_attribute_reassigned(target, assignment)
@@ -1076,7 +1087,8 @@ class TypeBinder(GenericVisitor):
         self.visit(node.generators[0].iter)
 
         scope = BindingScope(
-            node, type_env=self.type_env, builtin_types=self.builtin_types
+            node,
+            type_env=self.type_env,
         )
         self.scopes.append(scope)
 
@@ -1094,10 +1106,14 @@ class TypeBinder(GenericVisitor):
             self.assign_value(gen.target, iter_type)
 
         self.visitExpectedType(
-            node.key, DYNAMIC, "dictionary comprehension key cannot be a primitive"
+            node.key,
+            self.type_env.DYNAMIC,
+            "dictionary comprehension key cannot be a primitive",
         )
         self.visitExpectedType(
-            node.value, DYNAMIC, "dictionary comprehension value cannot be a primitive"
+            node.value,
+            self.type_env.DYNAMIC,
+            "dictionary comprehension value cannot be a primitive",
         )
 
         self.scopes.pop()
@@ -1114,7 +1130,8 @@ class TypeBinder(GenericVisitor):
         self.visit(generators[0].iter)
 
         scope = BindingScope(
-            node, type_env=self.type_env, builtin_types=self.builtin_types
+            node,
+            type_env=self.type_env,
         )
         self.scopes.append(scope)
 
@@ -1135,7 +1152,7 @@ class TypeBinder(GenericVisitor):
 
         for elt in elts:
             self.visitExpectedType(
-                elt, DYNAMIC, "generator element cannot be a primitive"
+                elt, self.type_env.DYNAMIC, "generator element cannot be a primitive"
             )
 
         self.scopes.pop()
@@ -1143,7 +1160,9 @@ class TypeBinder(GenericVisitor):
     def visitAwait(
         self, node: Await, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        self.visitExpectedType(node.value, DYNAMIC, "cannot await a primitive value")
+        self.visitExpectedType(
+            node.value, self.type_env.DYNAMIC, "cannot await a primitive value"
+        )
         self.get_type(node.value).bind_await(node, self, type_ctx)
         return NO_EFFECT
 
@@ -1152,17 +1171,19 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         value = node.value
         if value is not None:
-            self.visitExpectedType(value, DYNAMIC, "cannot yield a primitive value")
-        self.set_type(node, DYNAMIC)
+            self.visitExpectedType(
+                value, self.type_env.DYNAMIC, "cannot yield a primitive value"
+            )
+        self.set_type(node, self.type_env.DYNAMIC)
         return NO_EFFECT
 
     def visitYieldFrom(
         self, node: YieldFrom, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visitExpectedType(
-            node.value, DYNAMIC, "cannot yield from a primitive value"
+            node.value, self.type_env.DYNAMIC, "cannot yield from a primitive value"
         )
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, self.type_env.DYNAMIC)
         return NO_EFFECT
 
     def visitIndex(
@@ -1180,8 +1201,8 @@ class TypeBinder(GenericVisitor):
             right = node.comparators[0]
             other = None
 
-            self.set_type(node, self.builtin_types.bool.instance)
-            self.set_type(node.ops[0], self.builtin_types.bool.instance)
+            self.set_type(node, self.type_env.bool.instance)
+            self.set_type(node.ops[0], self.type_env.bool.instance)
 
             self.visit(left)
             self.visit(right)
@@ -1199,7 +1220,7 @@ class TypeBinder(GenericVisitor):
                     and not var_type.klass.is_generic_type_definition
                 ):
                     effect = IsInstanceEffect(
-                        other, var_type, self.builtin_types.none.instance, self
+                        other, var_type, self.type_env.none.instance, self
                     )
                     if isinstance(node.ops[0], IsNot):
                         effect = effect.not_()
@@ -1242,11 +1263,11 @@ class TypeBinder(GenericVisitor):
         self, node: FormattedValue, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visitExpectedType(
-            node.value, DYNAMIC, "cannot use primitive in formatted value"
+            node.value, self.type_env.DYNAMIC, "cannot use primitive in formatted value"
         )
         if fs := node.format_spec:
             self.visit(fs)
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, self.type_env.DYNAMIC)
         return NO_EFFECT
 
     def visitJoinedStr(
@@ -1255,7 +1276,7 @@ class TypeBinder(GenericVisitor):
         for value in node.values:
             self.visit(value)
 
-        self.set_type(node, self.builtin_types.str_exact.instance)
+        self.set_type(node, self.type_env.str_exact.instance)
         return NO_EFFECT
 
     def visitConstant(
@@ -1264,7 +1285,7 @@ class TypeBinder(GenericVisitor):
         if type_ctx is not None:
             type_ctx.bind_constant(node, self)
         else:
-            DYNAMIC.bind_constant(node, self)
+            self.type_env.DYNAMIC.bind_constant(node, self)
         return NO_EFFECT
 
     def visitAttribute(
@@ -1290,9 +1311,11 @@ class TypeBinder(GenericVisitor):
         self, node: Starred, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visitExpectedType(
-            node.value, DYNAMIC, "cannot use primitive in starred expression"
+            node.value,
+            self.type_env.DYNAMIC,
+            "cannot use primitive in starred expression",
         )
-        self.set_type(node, DYNAMIC)
+        self.set_type(node, self.type_env.DYNAMIC)
         return NO_EFFECT
 
     def visitName(
@@ -1301,11 +1324,11 @@ class TypeBinder(GenericVisitor):
         cur_scope = self.symbols.scopes[self.scope]
         scope = cur_scope.check_name(node.id)
         if scope == SC_LOCAL and not isinstance(self.scope, Module):
-            var_type = self.local_types.get(node.id, DYNAMIC)
+            var_type = self.local_types.get(node.id, self.type_env.DYNAMIC)
             self.set_type(node, var_type)
         else:
             typ, descr = self.module.resolve_name_with_descr(node.id)
-            self.set_type(node, typ or DYNAMIC)
+            self.set_type(node, typ or self.type_env.DYNAMIC)
             if descr is not None:
                 self.set_node_data(node, TypeDescr, descr)
 
@@ -1314,9 +1337,7 @@ class TypeBinder(GenericVisitor):
             isinstance(type, UnionInstance)
             and not type.klass.is_generic_type_definition
         ):
-            effect = IsInstanceEffect(
-                node, type, self.builtin_types.none.instance, self
-            )
+            effect = IsInstanceEffect(node, type, self.type_env.none.instance, self)
             return effect.not_()
 
         return NO_EFFECT
@@ -1339,13 +1360,13 @@ class TypeBinder(GenericVisitor):
     ) -> NarrowingEffect:
         item_type: Optional[Value] = None
         for elt in node.elts:
-            self.visitExpectedType(elt, DYNAMIC)
+            self.visitExpectedType(elt, self.type_env.DYNAMIC)
             if isinstance(elt, ast.Starred):
                 unpacked_value_type = self.get_type(elt.value)
                 if isinstance(unpacked_value_type, CheckedListInstance):
                     element_type = unpacked_value_type.klass.type_args[0].instance
                 else:
-                    element_type = DYNAMIC
+                    element_type = self.type_env.DYNAMIC
             else:
                 element_type = self.get_type(elt)
             item_type = self.widen(item_type, element_type)
@@ -1356,8 +1377,8 @@ class TypeBinder(GenericVisitor):
         self, node: ast.Tuple, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         for elt in node.elts:
-            self.visitExpectedType(elt, DYNAMIC)
-        self.set_type(node, self.builtin_types.tuple_exact.instance)
+            self.visitExpectedType(elt, self.type_env.DYNAMIC)
+        self.set_type(node, self.type_env.tuple_exact.instance)
         return NO_EFFECT
 
     def set_terminal_kind(self, node: AST, level: TerminalKind) -> None:
@@ -1377,7 +1398,7 @@ class TypeBinder(GenericVisitor):
         if value is not None:
             cur_scope = self.binding_scope
             func = cur_scope.node
-            expected = DYNAMIC
+            expected = self.type_env.DYNAMIC
 
             if isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 function = self.get_func_container(func)
@@ -1389,7 +1410,7 @@ class TypeBinder(GenericVisitor):
             self.visit(value, expected)
             returned = self.get_type(value).klass
             if (
-                returned is not self.builtin_types.dynamic
+                returned is not self.type_env.dynamic
                 and not expected.klass.can_assign_from(returned)
             ):
                 self.syntax_error(
@@ -1415,7 +1436,7 @@ class TypeBinder(GenericVisitor):
             for alias in node.names:
                 asname = alias.asname
                 name: str = asname if asname is not None else alias.name
-                self.declare_local(name, DYNAMIC)
+                self.declare_local(name, self.type_env.DYNAMIC)
 
     def visit_until_terminates(self, nodes: Sequence[ast.stmt]) -> TerminalKind:
         for stmt in nodes:
@@ -1486,8 +1507,10 @@ class TypeBinder(GenericVisitor):
             handler_type = self.get_type(htype)
             hname = node.name
             if hname:
-                if handler_type is DYNAMIC or not isinstance(handler_type, Class):
-                    handler_type = self.builtin_types.dynamic
+                if handler_type is self.type_env.DYNAMIC or not isinstance(
+                    handler_type, Class
+                ):
+                    handler_type = self.type_env.dynamic
 
                 decl_type = self.decl_types.get(hname)
                 if decl_type and decl_type.is_final:
@@ -1570,4 +1593,4 @@ class TypeBinder(GenericVisitor):
         optional_vars = node.optional_vars
         if optional_vars:
             self.visit(optional_vars)
-            self.assign_value(optional_vars, DYNAMIC)
+            self.assign_value(optional_vars, self.type_env.DYNAMIC)

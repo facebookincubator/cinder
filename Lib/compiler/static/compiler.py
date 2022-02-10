@@ -20,14 +20,10 @@ from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
 from .module_table import ModuleTable
 from .type_binder import TypeBinder
-from .type_env import TypeEnvironment
 from .types import (
-    BuiltinTypes,
-    BUILTIN_TYPES,
     BoxFunction,
     CastFunction,
     Class,
-    DYNAMIC,
     ExtremumFunction,
     IsInstanceFunction,
     IsSubclassFunction,
@@ -38,9 +34,9 @@ from .types import (
     RevealTypeFunction,
     SortedFunction,
     TypeName,
+    TypeEnvironment,
     UnboxFunction,
     Value,
-    XX_GENERIC_TYPE,
     reflect_builtin_function,
 )
 
@@ -54,8 +50,8 @@ except ImportError:
 
 
 class StrictBuiltins(Object[Class]):
-    def __init__(self, builtins: Dict[str, Value], builtin_types: BuiltinTypes) -> None:
-        super().__init__(builtin_types.dict)
+    def __init__(self, builtins: Dict[str, Value], type_env: TypeEnvironment) -> None:
+        super().__init__(type_env.dict)
         self.builtins = builtins
 
     def bind_subscr(
@@ -66,7 +62,7 @@ class StrictBuiltins(Object[Class]):
         type_ctx: Optional[Class] = None,
     ) -> None:
         slice = node.slice
-        type = DYNAMIC
+        type = visitor.type_env.DYNAMIC
         if isinstance(slice, ast.Index):
             val = slice.value
             if isinstance(val, ast.Str):
@@ -94,65 +90,63 @@ class Compiler:
         self.code_generator = code_generator
         self.error_sink: ErrorSink = error_sink or ErrorSink()
         self.type_env: TypeEnvironment = TypeEnvironment()
-        self.builtin_types: BuiltinTypes = BUILTIN_TYPES
-        self.builtin_types.post_process(self.type_env)
         rand_max = NumClass(
             TypeName("builtins", "int"),
-            self.builtin_types,
+            self.type_env,
             pytype=int,
             literal_value=RAND_MAX,
             is_final=True,
         )
         builtins_children = {
-            "object": self.builtin_types.object,
-            "type": self.builtin_types.type,
-            "None": self.builtin_types.none.instance,
-            "int": self.builtin_types.int_exact,
-            "classmethod": self.builtin_types.class_method,
-            "complex": self.builtin_types.complex_exact,
-            "str": self.builtin_types.str_exact,
-            "bytes": self.builtin_types.bytes,
-            "bool": self.builtin_types.bool,
-            "float": self.builtin_types.float_exact,
-            "len": LenFunction(self.builtin_types.function, boxed=True),
-            "min": ExtremumFunction(self.builtin_types.function, is_min=True),
-            "max": ExtremumFunction(self.builtin_types.function, is_min=False),
-            "list": self.builtin_types.list_exact,
-            "tuple": self.builtin_types.tuple_exact,
-            "set": self.builtin_types.set_exact,
-            "sorted": SortedFunction(self.builtin_types.function),
-            "Exception": self.builtin_types.exception,
-            "BaseException": self.builtin_types.base_exception,
-            "isinstance": IsInstanceFunction(self.builtin_types),
-            "issubclass": IsSubclassFunction(self.builtin_types),
-            "staticmethod": self.builtin_types.static_method,
-            "reveal_type": RevealTypeFunction(self.builtin_types),
-            "property": self.builtin_types.property,
-            "<mutable>": self.builtin_types.identity_decorator,
+            "object": self.type_env.object,
+            "type": self.type_env.type,
+            "None": self.type_env.none.instance,
+            "int": self.type_env.int_exact,
+            "classmethod": self.type_env.class_method,
+            "complex": self.type_env.complex_exact,
+            "str": self.type_env.str_exact,
+            "bytes": self.type_env.bytes,
+            "bool": self.type_env.bool,
+            "float": self.type_env.float_exact,
+            "len": LenFunction(self.type_env.function, boxed=True),
+            "min": ExtremumFunction(self.type_env.function, is_min=True),
+            "max": ExtremumFunction(self.type_env.function, is_min=False),
+            "list": self.type_env.list_exact,
+            "tuple": self.type_env.tuple_exact,
+            "set": self.type_env.set_exact,
+            "sorted": SortedFunction(self.type_env.function),
+            "Exception": self.type_env.exception,
+            "BaseException": self.type_env.base_exception,
+            "isinstance": IsInstanceFunction(self.type_env),
+            "issubclass": IsSubclassFunction(self.type_env),
+            "staticmethod": self.type_env.static_method,
+            "reveal_type": RevealTypeFunction(self.type_env),
+            "property": self.type_env.property,
+            "<mutable>": self.type_env.identity_decorator,
         }
-        strict_builtins = StrictBuiltins(builtins_children, self.builtin_types)
+        strict_builtins = StrictBuiltins(builtins_children, self.type_env)
         typing_children = {
-            "ClassVar": self.builtin_types.classvar,
+            "ClassVar": self.type_env.classvar,
             # TODO: Need typed members for dict
-            "Dict": self.builtin_types.dict,
-            "List": self.builtin_types.list,
-            "Final": self.builtin_types.final,
-            "final": self.builtin_types.final_method,
-            "NamedTuple": self.builtin_types.named_tuple,
-            "Protocol": self.builtin_types.protocol,
-            "Optional": self.builtin_types.optional,
-            "Union": self.builtin_types.union,
-            "Tuple": self.builtin_types.tuple,
-            "TYPE_CHECKING": self.builtin_types.bool.instance,
+            "Dict": self.type_env.dict,
+            "List": self.type_env.list,
+            "Final": self.type_env.final,
+            "final": self.type_env.final_method,
+            "NamedTuple": self.type_env.named_tuple,
+            "Protocol": self.type_env.protocol,
+            "Optional": self.type_env.optional,
+            "Union": self.type_env.union,
+            "Tuple": self.type_env.tuple,
+            "TYPE_CHECKING": self.type_env.bool.instance,
         }
         typing_extensions_children: Dict[str, Value] = {
-            "Annotated": self.builtin_types.annotated,
+            "Annotated": self.type_env.annotated,
         }
         strict_modules_children: Dict[str, Value] = {
-            "mutable": self.builtin_types.identity_decorator,
-            "strict_slots": self.builtin_types.identity_decorator,
-            "loose_slots": self.builtin_types.identity_decorator,
-            "freeze_type": self.builtin_types.identity_decorator,
+            "mutable": self.type_env.identity_decorator,
+            "strict_slots": self.type_env.identity_decorator,
+            "loose_slots": self.type_env.identity_decorator,
+            "freeze_type": self.type_env.identity_decorator,
         }
 
         builtins_children["<builtins>"] = strict_builtins
@@ -160,18 +154,18 @@ class Compiler:
             "strict_modules", "<strict-modules>", self, strict_modules_children
         )
         fixed_modules: Dict[str, Value] = {
-            "typing": StrictBuiltins(typing_children, self.builtin_types),
+            "typing": StrictBuiltins(typing_children, self.type_env),
             "typing_extensions": StrictBuiltins(
-                typing_extensions_children, self.builtin_types
+                typing_extensions_children, self.type_env
             ),
-            "__strict__": StrictBuiltins(strict_modules_children, self.builtin_types),
+            "__strict__": StrictBuiltins(strict_modules_children, self.type_env),
             "strict_modules": StrictBuiltins(
-                dict(strict_modules_children), self.builtin_types
+                dict(strict_modules_children), self.type_env
             ),
         }
 
         builtins_children["<fixed-modules>"] = StrictBuiltins(
-            fixed_modules, self.builtin_types
+            fixed_modules, self.type_env
         )
 
         self.builtins = self.modules["builtins"] = ModuleTable(
@@ -191,55 +185,53 @@ class Compiler:
             "<__static__>",
             self,
             {
-                "Array": self.builtin_types.array,
-                "CheckedDict": self.builtin_types.checked_dict,
-                "CheckedList": self.builtin_types.checked_list,
-                "Enum": self.builtin_types.enum,
-                "allow_weakrefs": self.builtin_types.allow_weakrefs,
-                "box": BoxFunction(self.builtin_types.function),
-                "cast": CastFunction(self.builtin_types.function),
-                "clen": LenFunction(self.builtin_types.function, boxed=False),
-                "ContextDecorator": self.builtin_types.context_decorator,
-                "dynamic_return": self.builtin_types.dynamic_return,
-                "size_t": self.builtin_types.uint64,
-                "ssize_t": self.builtin_types.int64,
-                "cbool": self.builtin_types.cbool,
-                "inline": self.builtin_types.inline,
+                "Array": self.type_env.array,
+                "CheckedDict": self.type_env.checked_dict,
+                "CheckedList": self.type_env.checked_list,
+                "Enum": self.type_env.enum,
+                "allow_weakrefs": self.type_env.allow_weakrefs,
+                "box": BoxFunction(self.type_env.function),
+                "cast": CastFunction(self.type_env.function),
+                "clen": LenFunction(self.type_env.function, boxed=False),
+                "ContextDecorator": self.type_env.context_decorator,
+                "dynamic_return": self.type_env.dynamic_return,
+                "size_t": self.type_env.uint64,
+                "ssize_t": self.type_env.int64,
+                "cbool": self.type_env.cbool,
+                "inline": self.type_env.inline,
                 # This is a way to disable the static compiler for
                 # individual functions/methods
-                "_donotcompile": self.builtin_types.donotcompile,
-                "int8": self.builtin_types.int8,
-                "int16": self.builtin_types.int16,
-                "int32": self.builtin_types.int32,
-                "int64": self.builtin_types.int64,
-                "uint8": self.builtin_types.uint8,
-                "uint16": self.builtin_types.uint16,
-                "uint32": self.builtin_types.uint32,
-                "uint64": self.builtin_types.uint64,
-                "char": self.builtin_types.char,
-                "double": self.builtin_types.double,
-                "unbox": UnboxFunction(self.builtin_types.function),
-                "checked_dicts": self.builtin_types.bool.instance,
-                "prod_assert": ProdAssertFunction(self.builtin_types),
-                "pydict": self.builtin_types.dict,
-                "PyDict": self.builtin_types.dict,
-                "Vector": self.builtin_types.vector,
+                "_donotcompile": self.type_env.donotcompile,
+                "int8": self.type_env.int8,
+                "int16": self.type_env.int16,
+                "int32": self.type_env.int32,
+                "int64": self.type_env.int64,
+                "uint8": self.type_env.uint8,
+                "uint16": self.type_env.uint16,
+                "uint32": self.type_env.uint32,
+                "uint64": self.type_env.uint64,
+                "char": self.type_env.char,
+                "double": self.type_env.double,
+                "unbox": UnboxFunction(self.type_env.function),
+                "checked_dicts": self.type_env.bool.instance,
+                "prod_assert": ProdAssertFunction(self.type_env),
+                "pydict": self.type_env.dict,
+                "PyDict": self.type_env.dict,
+                "Vector": self.type_env.vector,
                 "RAND_MAX": rand_max.instance,
                 "posix_clock_gettime_ns": reflect_builtin_function(
                     # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
                     posix_clock_gettime_ns,
                     None,
                     self.type_env,
-                    self.builtin_types,
                 ),
                 "rand": reflect_builtin_function(
                     # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
                     rand,
                     None,
                     self.type_env,
-                    self.builtin_types,
                 ),
-                "set_type_static": DYNAMIC,
+                "set_type_static": self.type_env.DYNAMIC,
             },
         )
 
@@ -248,13 +240,13 @@ class Compiler:
             "<cinder>",
             self,
             {
-                "cached_property": self.builtin_types.cached_property,
-                "async_cached_property": self.builtin_types.async_cached_property,
+                "cached_property": self.type_env.cached_property,
+                "async_cached_property": self.type_env.async_cached_property,
             },
         )
 
         if xxclassloader is not None:
-            spam_obj = self.builtin_types.spam_obj
+            spam_obj = self.type_env.spam_obj
             assert spam_obj is not None
             self.modules["xxclassloader"] = ModuleTable(
                 "xxclassloader",
@@ -262,24 +254,21 @@ class Compiler:
                 self,
                 {
                     "spamobj": spam_obj,
-                    "XXGeneric": XX_GENERIC_TYPE,
+                    "XXGeneric": self.type_env.xx_generic,
                     "foo": reflect_builtin_function(
                         xxclassloader.foo,
                         None,
                         self.type_env,
-                        self.builtin_types,
                     ),
                     "bar": reflect_builtin_function(
                         xxclassloader.bar,
                         None,
                         self.type_env,
-                        self.builtin_types,
                     ),
                     "neg": reflect_builtin_function(
                         xxclassloader.neg,
                         None,
                         self.type_env,
-                        self.builtin_types,
                     ),
                 },
             )

@@ -2,13 +2,15 @@ import re
 import unittest
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
-from compiler.static.types import BUILTIN_TYPES
+from compiler.static.types import TypeEnvironment
 
 from .common import StaticTestBase
 from .tests import bad_ret_type
 
 
 class UnionCompilationTests(StaticTestBase):
+    type_env: TypeEnvironment = TypeEnvironment()
+
     def test_static_incompatible_union(self) -> None:
         codestr = """
         from typing import Optional
@@ -88,18 +90,18 @@ class UnionCompilationTests(StaticTestBase):
     def test_union_can_assign_from(self):
         compiler = Compiler(StaticCodeGenerator)
         u1 = compiler.type_env.get_generic_type(
-            BUILTIN_TYPES.union,
-            (BUILTIN_TYPES.int, BUILTIN_TYPES.str),
+            self.type_env.union,
+            (self.type_env.int, self.type_env.str),
         )
         u2 = compiler.type_env.get_generic_type(
-            BUILTIN_TYPES.union,
-            (BUILTIN_TYPES.int, BUILTIN_TYPES.str, BUILTIN_TYPES.none),
+            self.type_env.union,
+            (self.type_env.int, self.type_env.str, self.type_env.none),
         )
         self.assertTrue(u2.can_assign_from(u1))
         self.assertFalse(u1.can_assign_from(u2))
         self.assertTrue(u1.can_assign_from(u1))
         self.assertTrue(u2.can_assign_from(u2))
-        self.assertTrue(u1.can_assign_from(BUILTIN_TYPES.int))
+        self.assertTrue(u1.can_assign_from(self.type_env.int))
 
     def test_union_simplify_to_single_type(self):
         self.revealed_type(

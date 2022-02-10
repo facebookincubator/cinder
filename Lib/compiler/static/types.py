@@ -138,7 +138,6 @@ from ..pycodegen import FOR_LOOP, CodeGenerator
 from ..unparse import to_expr
 from ..visitor import ASTRewriter, TAst
 from .effects import NarrowingEffect, NO_EFFECT
-from .type_env import GenericTypeIndex, TypeEnvironment
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
@@ -158,13 +157,19 @@ CACHED_PROPERTY_IMPL_PREFIX = "_pystatic_cprop."
 ASYNC_CACHED_PROPERTY_IMPL_PREFIX = "_pystatic_async_cprop."
 
 
-class BuiltinTypes:
+GenericTypeIndex = Tuple["Class", ...]
+GenericTypesDict = Dict["Class", Dict[GenericTypeIndex, "Class"]]
+
+
+class TypeEnvironment:
     def __init__(self) -> None:
+        self._generic_types: GenericTypesDict = {}
+        self._literal_types: Dict[Tuple[Value, object], Value] = {}
         # Bringing up the type system is a little special as we have dependencies
         # amongst type and object
         self.type: Class = Class.__new__(Class)
         self.type.type_name = TypeName("builtins", "type")
-        self.type.builtin_types = self
+        self.type.type_env = self
         self.type.klass = self.type
         self.type.instance = self.type
         self.type.members = {}
@@ -192,6 +197,11 @@ class BuiltinTypes:
         self.builtin_method = Class(
             TypeName("types", "BuiltinMethodType"), self, is_exact=True
         )
+        self.dynamic = DynamicClass(self)
+        # We special case make_type_dict() on object for bootstrapping purposes.
+        self.object.pytype = object
+        self.object.make_type_dict()
+        self.type.make_type_dict()
         self.str = StrClass(self)
         self.str_exact = StrClass(self, is_exact=True)
         self.int = NumClass(TypeName("builtins", "int"), self, pytype=int)
@@ -236,6 +246,21 @@ class BuiltinTypes:
         self.all_cint_types: Sequence[CIntType] = (
             self.signed_cint_types + self.unsigned_cint_types
         )
+        self.none = NoneType(self)
+        self.optional = OptionalType(self)
+        self.name_to_type: Mapping[str, Class] = {
+            "NoneType": self.none,
+            "object": self.object,
+            "str": self.str,
+            "__static__.int8": self.int8,
+            "__static__.int16": self.int16,
+            "__static__.int32": self.int32,
+            "__static__.int64": self.int64,
+            "__static__.uint8": self.uint8,
+            "__static__.uint16": self.uint16,
+            "__static__.uint32": self.uint32,
+            "__static__.uint64": self.uint64,
+        }
         if spamobj is not None:
             self.spam_obj: Optional[GenericClass] = GenericClass(
                 GenericTypeName(
@@ -269,7 +294,6 @@ class BuiltinTypes:
             pytype=chklist,
             is_exact=True,
         )
-        self.none = NoneType(self)
         self.ellipsis = Class(
             TypeName("builtins", "ellipsis"),
             self,
@@ -290,7 +314,6 @@ class BuiltinTypes:
         self.set_exact = SetClass(self, is_exact=True)
         self.tuple = TupleClass(self)
         self.tuple_exact = TupleClass(self, is_exact=True)
-        self.dynamic = DynamicClass(self)
         self.function = Class(TypeName("types", "FunctionType"), self, is_exact=True)
         self.method = Class(TypeName("types", "MethodType"), self, is_exact=True)
         self.member = Class(
@@ -335,7 +358,6 @@ class BuiltinTypes:
         self.final_method = TypingFinalDecorator(TypeName("typing", "final"), self)
         self.awaitable = AwaitableType(self)
         self.union = UnionType(self)
-        self.optional = OptionalType(self)
         self.final = FinalClass(
             GenericTypeName("typing", "Final", (GenericParameter("T", 0, self),)), self
         )
@@ -379,18 +401,58 @@ class BuiltinTypes:
         self.identity_decorator = IdentityDecorator(
             TypeName("__strict__", "<identity-decorator>"), self
         )
+        self.constant_types: Mapping[Type[object], Value] = {
+            str: self.str_exact.instance,
+            int: self.int_exact.instance,
+            float: self.float_exact.instance,
+            complex: self.complex_exact.instance,
+            bytes: self.bytes.instance,
+            bool: self.bool.instance,
+            type(None): self.none.instance,
+            tuple: self.tuple_exact.instance,
+            type(...): self.ellipsis.instance,
+            frozenset: self.set.instance,
+        }
+        if spamobj is not None:
+            T = GenericParameter("T", 0, self)
+            U = GenericParameter("U", 1, self)
+            XXGENERIC_TYPE_NAME = GenericTypeName("xxclassloader", "XXGeneric", (T, U))
+            self.xx_generic: XXGeneric = XXGeneric(
+                XXGENERIC_TYPE_NAME, self, [self.object]
+            )
 
-    def post_process(self, type_env: TypeEnvironment) -> None:
-        for klass in self.__dict__.values():
-            if isinstance(klass, Class):
-                klass.make_type_dict(type_env)
+    def get_generic_type(
+        self, generic_type: GenericClass, index: GenericTypeIndex
+    ) -> Class:
+        instantiations = self._generic_types.setdefault(generic_type, {})
+        instance = instantiations.get(index)
+        if instance is not None:
+            return instance
+        concrete = generic_type.make_generic_type(index)
+        instantiations[index] = concrete
+        concrete.members.update(
+            {
+                # pyre-ignore[6]: We trust that the type name is generic here.
+                k: v.make_generic(concrete, concrete.type_name, self)
+                for k, v in generic_type.members.items()
+            }
+        )
+        return concrete
 
+    def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
+        key = (base_type, literal_value)
+        if key not in self._literal_types:
+            self._literal_types[key] = base_type.make_literal(literal_value, self)
+        return self._literal_types[key]
 
-INT64_VALUE: CIntInstance
+    @property
+    def DYNAMIC(self) -> Value:
+        return self.dynamic.instance
 
-OBJECT: Value
+    @property
+    def OBJECT(self) -> Value:
+        return self.object.instance
 
-DYNAMIC: DynamicInstance
 
 # Prefix for temporary var names. It's illegal in normal
 # Python, so there's no chance it will ever clash with a
@@ -420,7 +482,7 @@ class TypeRef:
     def resolved(self, is_declaration: bool = False) -> Class:
         res = self.module.resolve_annotation(self.ref, is_declaration=is_declaration)
         if res is None:
-            return self.module.compiler.builtin_types.dynamic
+            return self.module.compiler.type_env.dynamic
         return res
 
     def __repr__(self) -> str:
@@ -520,15 +582,13 @@ class Value:
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
         return self
 
-    def make_generic_type(
-        self, index: GenericTypeIndex, type_env: TypeEnvironment
-    ) -> Optional[Class]:
+    def make_generic_type(self, index: GenericTypeIndex) -> Optional[Class]:
         pass
 
     def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
         """returns the type that is produced when iterating over this value"""
         visitor.syntax_error(f"cannot iterate over {self.name}", node)
-        return DYNAMIC
+        return visitor.type_env.DYNAMIC
 
     def as_oparg(self) -> int:
         raise TypeError(f"{self.name} not valid here")
@@ -543,13 +603,14 @@ class Value:
     ) -> None:
         visitor.set_type(
             node,
-            self.resolve_attr(node, visitor.module.ann_visitor) or DYNAMIC,
+            self.resolve_attr(node, visitor.module.ann_visitor)
+            or visitor.type_env.DYNAMIC,
         )
 
     def bind_await(
         self, node: ast.Await, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, visitor.type_env.DYNAMIC)
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -582,7 +643,7 @@ class Value:
         return None
 
     def resolve_decorate_class(self, klass: Class) -> Class:
-        return self.klass.builtin_types.dynamic
+        return self.klass.type_env.dynamic
 
     def bind_subscr(
         self,
@@ -591,10 +652,11 @@ class Value:
         visitor: TypeBinder,
         type_ctx: Optional[Class] = None,
     ) -> None:
-        visitor.check_can_assign_from(visitor.builtin_types.dynamic, type.klass, node)
+        visitor.check_can_assign_from(visitor.type_env.dynamic, type.klass, node)
         visitor.set_type(
             node,
-            self.resolve_subscr(node, type, visitor.module.ann_visitor) or DYNAMIC,
+            self.resolve_subscr(node, type, visitor.module.ann_visitor)
+            or visitor.type_env.DYNAMIC,
         )
 
     def resolve_subscr(
@@ -642,7 +704,7 @@ class Value:
     def emit_load_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
-        member = self.klass.members.get(node.attr, DYNAMIC)
+        member = self.klass.members.get(node.attr, self.klass.type_env.DYNAMIC)
         member.emit_load_attr_from(node, code_gen, self.klass)
 
     def emit_load_attr_from(
@@ -653,7 +715,7 @@ class Value:
     def emit_store_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
-        member = self.klass.members.get(node.attr, DYNAMIC)
+        member = self.klass.members.get(node.attr, self.klass.type_env.DYNAMIC)
         member.emit_store_attr_to(node, code_gen, self.klass)
 
     def emit_store_attr_to(
@@ -840,7 +902,7 @@ def resolve_attr_instance(
     if node.attr == "__class__":
         return klass
     else:
-        return DYNAMIC
+        return klass.type_env.DYNAMIC
 
 
 class Object(Value, Generic[TClass]):
@@ -857,13 +919,15 @@ class Object(Value, Generic[TClass]):
 
     @staticmethod
     def bind_dynamic_call(node: ast.Call, visitor: TypeBinder) -> NarrowingEffect:
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, visitor.type_env.DYNAMIC)
         for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+            visitor.visitExpectedType(
+                arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
 
         for arg in node.keywords:
             visitor.visitExpectedType(
-                arg.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                arg.value, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
             )
 
         return NO_EFFECT
@@ -916,7 +980,7 @@ class Object(Value, Generic[TClass]):
         visitor.set_type(
             node,
             self.resolve_descr_get(node, inst, ctx, visitor.module.ann_visitor)
-            or DYNAMIC,
+            or visitor.type_env.DYNAMIC,
         )
 
     def resolve_subscr(
@@ -947,11 +1011,11 @@ class Object(Value, Generic[TClass]):
         visitor: TypeBinder,
         type_ctx: Optional[Class],
     ) -> bool:
-        visitor.set_type(op, DYNAMIC)
+        visitor.set_type(op, visitor.type_env.DYNAMIC)
         if isinstance(op, (ast.Is, ast.IsNot, ast.In, ast.NotIn)):
-            visitor.set_type(node, visitor.builtin_types.bool.instance)
+            visitor.set_type(node, visitor.type_env.bool.instance)
             return True
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, visitor.type_env.DYNAMIC)
         return False
 
     def bind_binop(
@@ -963,29 +1027,29 @@ class Object(Value, Generic[TClass]):
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> bool:
         # we'll set the type in case we're the only one called
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, visitor.type_env.DYNAMIC)
         return False
 
     def bind_unaryop(
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
         if isinstance(node.op, ast.Not):
-            visitor.set_type(node, visitor.builtin_types.bool.instance)
+            visitor.set_type(node, visitor.type_env.bool.instance)
         else:
-            visitor.set_type(node, DYNAMIC)
+            visitor.set_type(node, visitor.type_env.DYNAMIC)
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
             node_type = visitor.compiler.type_env.get_literal_type(
-                visitor.builtin_types.int.instance, node.value
+                visitor.type_env.int.instance, node.value
             )
         else:
-            node_type = CONSTANT_TYPES[type(node.value)]
+            node_type = visitor.type_env.constant_types[type(node.value)]
         visitor.set_type(node, node_type)
 
     def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
         """returns the type that is produced when iterating over this value"""
-        return DYNAMIC
+        return visitor.type_env.DYNAMIC
 
     def __repr__(self) -> str:
         return f"<{self.name}>"
@@ -1048,8 +1112,8 @@ class FunctionGroup(Value):
     usage of the the ".setter" syntax for properties, or the @overload
     decorator"""
 
-    def __init__(self, functions: List[Function], builtin_types: BuiltinTypes) -> None:
-        super().__init__(builtin_types.function)
+    def __init__(self, functions: List[Function], type_env: TypeEnvironment) -> None:
+        super().__init__(type_env.function)
         self.functions = functions
 
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
@@ -1078,7 +1142,7 @@ class Class(Object["Class"]):
     def __init__(
         self,
         type_name: TypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Value] = None,
         klass: Optional[Class] = None,
@@ -1087,10 +1151,10 @@ class Class(Object["Class"]):
         pytype: Optional[Type[object]] = None,
         is_final: bool = False,
     ) -> None:
-        super().__init__(klass or builtin_types.type)
+        super().__init__(klass or type_env.type)
         assert isinstance(bases, (type(None), list))
         self.type_name = type_name
-        self.builtin_types = builtin_types
+        self.type_env = type_env
         self.instance: Value = instance or Object(self)
         self.bases: List[Class] = self._get_bases(bases)
         self._mro: Optional[List[Class]] = None
@@ -1104,12 +1168,14 @@ class Class(Object["Class"]):
         # This will cause all built-in method calls on the type to be done dynamically
         self.dynamic_builtinmethod_dispatch = False
         self.pytype = pytype
+        if self.pytype is not None:
+            self.make_type_dict()
         # track AST node of each member until finish_bind, for error reporting
         self._member_nodes: Dict[str, AST] = {}
 
     def _get_bases(self, bases: Optional[List[Class]]) -> List[Class]:
         if bases is None:
-            return [self.klass.builtin_types.object]
+            return [self.klass.type_env.object]
         ret = []
         for b in bases:
             ret.append(b)
@@ -1121,7 +1187,7 @@ class Class(Object["Class"]):
                 break
         return ret
 
-    def make_type_dict(self, type_env: TypeEnvironment) -> None:
+    def make_type_dict(self) -> None:
         pytype = self.pytype
         if pytype is None:
             return
@@ -1136,18 +1202,14 @@ class Class(Object["Class"]):
                 continue
 
             if isinstance(obj, (MethodDescriptorType, WrapperDescriptorType)):
-                result[k] = reflect_method_desc(
-                    obj, self, type_env, self.klass.builtin_types
-                )
+                result[k] = reflect_method_desc(obj, self, self.type_env)
             elif isinstance(obj, BuiltinFunctionType):
-                result[k] = reflect_builtin_function(
-                    obj, self, type_env, self.klass.builtin_types
-                )
+                result[k] = reflect_builtin_function(obj, self, self.type_env)
 
         self.members.update(result)
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
-        return Class(name, self.builtin_types, bases)
+        return Class(name, self.type_env, bases)
 
     @property
     def name(self) -> str:
@@ -1218,7 +1280,6 @@ class Class(Object["Class"]):
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
-        type_env: TypeEnvironment,
     ) -> Optional[Class]:
         """Binds the generic type parameters to a generic type definition"""
         return None
@@ -1240,18 +1301,18 @@ class Class(Object["Class"]):
     ) -> bool:
         if isinstance(node.op, ast.BitOr):
             rtype = visitor.get_type(node.right)
-            if rtype is visitor.builtin_types.none.instance:
-                rtype = visitor.builtin_types.none
-            if rtype is DYNAMIC:
-                rtype = visitor.builtin_types.dynamic
+            if rtype is visitor.type_env.none.instance:
+                rtype = visitor.type_env.none
+            if rtype is visitor.type_env.DYNAMIC:
+                rtype = visitor.type_env.dynamic
             if not isinstance(rtype, Class):
                 visitor.syntax_error(
                     f"unsupported operand type(s) for |: {self.name} and {rtype.name}",
                     node,
                 )
                 return False
-            union = visitor.compiler.type_env.get_generic_type(
-                self.builtin_types.union, (self, rtype)
+            union = visitor.type_env.get_generic_type(
+                self.type_env.union, (self, rtype)
             )
             visitor.set_type(node, union)
             return True
@@ -1267,16 +1328,16 @@ class Class(Object["Class"]):
         return self.type_name.type_descr
 
     def _resolve_dunder(self, name: str) -> Tuple[Class, Optional[Value]]:
-        klass = self.builtin_types.object
+        klass = self.type_env.object
         for klass in self.mro:
-            if klass is self.builtin_types.dynamic:
-                return self.builtin_types.dynamic, None
+            if klass is self.type_env.dynamic:
+                return self.type_env.dynamic, None
 
             if val := klass.members.get(name):
                 return klass, val
 
-        assert klass is self.builtin_types.object
-        return self.builtin_types.object, None
+        assert klass is self.type_env.object
+        return self.type_env.object, None
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -1288,8 +1349,8 @@ class Class(Object["Class"]):
         dynamic_call = True
 
         klass, new = self._resolve_dunder("__new__")
-        dynamic_new = klass is self.builtin_types.dynamic
-        object_new = klass is self.builtin_types.object
+        dynamic_new = klass is self.type_env.dynamic
+        object_new = klass is self.type_env.object
 
         if not object_new and isinstance(new, Callable):
             new_mapping, self_type = new.map_call(
@@ -1309,8 +1370,8 @@ class Class(Object["Class"]):
         # our type then __init__ isn't invoked
         if not dynamic_new and self_type.klass.can_assign_from(self.instance.klass):
             klass, init = self._resolve_dunder("__init__")
-            dynamic_call = dynamic_call or klass is self.builtin_types.dynamic
-            object_init = klass is self.builtin_types.object
+            dynamic_call = dynamic_call or klass is self.type_env.dynamic
+            object_init = klass is self.type_env.object
             if not object_init and isinstance(init, Callable):
                 init_mapping = ArgMapping(init, node, visitor, None)
                 init_mapping.bind_args(visitor, True)
@@ -1338,11 +1399,13 @@ class Class(Object["Class"]):
         if dynamic_call:
             for arg in node.args:
                 visitor.visitExpectedType(
-                    arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                    arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
                 )
             for arg in node.keywords:
                 visitor.visitExpectedType(
-                    arg.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                    arg.value,
+                    visitor.type_env.DYNAMIC,
+                    CALL_ARGUMENT_CANNOT_BE_PRIMITIVE,
                 )
 
         return NO_EFFECT
@@ -1550,9 +1613,7 @@ class Class(Object["Class"]):
         new_member = func
         if existing is not None:
             if isinstance(existing, Function):
-                new_member = FunctionGroup(
-                    [existing, new_member], func.klass.builtin_types
-                )
+                new_member = FunctionGroup([existing, new_member], func.klass.type_env)
             elif isinstance(existing, FunctionGroup):
                 existing.functions.append(new_member)
                 new_member = existing
@@ -1646,7 +1707,7 @@ class BuiltinObject(Class):
     def __init__(
         self,
         type_name: TypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Value] = None,
         klass: Optional[Class] = None,
@@ -1656,13 +1717,12 @@ class BuiltinObject(Class):
     ) -> None:
         super().__init__(
             type_name,
-            builtin_types,
+            type_env,
             bases,
             instance,
             klass,
             members,
             is_exact,
-            pytype=object,
             is_final=is_final,
         )
         self.dynamic_builtinmethod_dispatch = True
@@ -1681,7 +1741,7 @@ class GenericClass(Class):
     def __init__(
         self,
         name: GenericTypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
         klass: Optional[Class] = None,
@@ -1691,7 +1751,7 @@ class GenericClass(Class):
         pytype: Optional[Type[object]] = None,
     ) -> None:
         super().__init__(
-            name, builtin_types, bases, instance, klass, members, is_exact, pytype
+            name, type_env, bases, instance, klass, members, is_exact, pytype
         )
         self.gen_name = name
         self.type_def = type_def
@@ -1715,7 +1775,7 @@ class GenericClass(Class):
 
         if not isinstance(slice, ast.Index):
             visitor.syntax_error("can't slice generic types", node)
-            return DYNAMIC
+            return visitor.type_env.DYNAMIC
 
         val = slice.value
 
@@ -1723,14 +1783,14 @@ class GenericClass(Class):
         if isinstance(val, ast.Tuple):
             multiple: List[Class] = []
             for elt in val.elts:
-                klass = visitor.resolve_annotation(elt) or self.builtin_types.dynamic
+                klass = visitor.resolve_annotation(elt) or self.type_env.dynamic
                 multiple.append(klass)
 
             index = tuple(multiple)
             actual_argnum = len(val.elts)
         else:
             actual_argnum = 1
-            single = visitor.resolve_annotation(val) or self.builtin_types.dynamic
+            single = visitor.resolve_annotation(val) or self.type_env.dynamic
             index = (single,)
 
         if (not self.is_variadic) and actual_argnum != expected_argnum:
@@ -1796,12 +1856,11 @@ class GenericClass(Class):
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
-        type_env: TypeEnvironment,
     ) -> Class:
         type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
         generic_bases: List[Optional[Class]] = [
             (
-                type_env.get_generic_type(base, index)
+                self.type_env.get_generic_type(base, index)
                 if isinstance(base, GenericClass) and base.contains_generic_parameters
                 else base
             )
@@ -1813,7 +1872,7 @@ class GenericClass(Class):
         instance.__dict__.update(self.instance.__dict__)
         concrete = type(self)(
             type_name,
-            self.builtin_types,
+            self.type_env,
             bases,
             # pyre-fixme[6]: Expected `Optional[Object[Class]]` for 3rd param but
             #  got `Value`.
@@ -1851,10 +1910,10 @@ class GenericParameter(Class):
         self,
         name: str,
         index: int,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         variance: Variance = Variance.INVARIANT,
     ) -> None:
-        super().__init__(TypeName("", name), builtin_types, [], None, None, {})
+        super().__init__(TypeName("", name), type_env, [], None, None, {})
         self.index = index
         self.variance = variance
 
@@ -1882,7 +1941,7 @@ class CType(Class):
     def __init__(
         self,
         type_name: TypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[CInstance[Class]] = None,
         klass: Optional[Class] = None,
@@ -1892,7 +1951,7 @@ class CType(Class):
     ) -> None:
         super().__init__(
             type_name,
-            builtin_types,
+            type_env,
             bases or [],
             instance,
             klass,
@@ -1931,11 +1990,11 @@ class CType(Class):
 class DynamicClass(Class):
     instance: DynamicInstance
 
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
+    def __init__(self, type_env: TypeEnvironment) -> None:
         super().__init__(
             # any references to dynamic at runtime are object
             TypeName("builtins", "object"),
-            builtin_types,
+            type_env,
             instance=DynamicInstance(self),
         )
 
@@ -1961,11 +2020,11 @@ class DynamicInstance(Object[DynamicClass]):
 class NoneType(Class):
     suppress_exact = True
 
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
+    def __init__(self, type_env: TypeEnvironment) -> None:
         super().__init__(
             TypeName("builtins", "None"),
-            builtin_types,
-            [builtin_types.object],
+            type_env,
+            [type_env.object],
             NoneInstance(self),
             is_exact=True,
         )
@@ -2007,7 +2066,7 @@ class NoneInstance(Object[NoneType]):
                 f"bad operand type for unary {UNARY_SYMBOLS[type(node.op)]}: 'NoneType'",
                 node,
             )
-        visitor.set_type(node, visitor.builtin_types.bool.instance)
+        visitor.set_type(node, visitor.type_env.bool.instance)
 
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -2212,11 +2271,15 @@ class ArgMapping:
                 for arg in self.args[idx:]:
                     if isinstance(arg, Starred):
                         visitor.visitExpectedType(
-                            arg.value, DYNAMIC, "starred expression cannot be primitive"
+                            arg.value,
+                            visitor.type_env.DYNAMIC,
+                            "starred expression cannot be primitive",
                         )
                     else:
                         visitor.visitExpectedType(
-                            arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                            arg,
+                            visitor.type_env.DYNAMIC,
+                            CALL_ARGUMENT_CANNOT_BE_PRIMITIVE,
                         )
                 break
 
@@ -2534,7 +2597,7 @@ class StarredArg(ArgEmitter):
 
             if (
                 param.type_ref.resolved() is not None
-                and param.type_ref.resolved() is not DYNAMIC
+                and param.type_ref.resolved() is not code_gen.compiler.type_env.DYNAMIC
             ):
                 code_gen.emit("ROT_TWO")
                 code_gen.emit("CAST", param.type_ref.resolved().type_descr)
@@ -2566,7 +2629,7 @@ class SpilledKeywordArg(ArgEmitter):
         code_gen.emit("LOAD_FAST", self.temporary)
         code_gen.emit_type_check(
             self.type,
-            code_gen.compiler.builtin_types.dynamic,
+            code_gen.compiler.type_env.dynamic,
             node,
         )
 
@@ -2604,8 +2667,8 @@ class KeywordMappingArg(ArgEmitter):
         else:
             code_gen.emit("LOAD_MAPPING_ARG", 2)
         code_gen.emit_type_check(
-            self.param.type_ref.resolved() or code_gen.compiler.builtin_types.dynamic,
-            code_gen.compiler.builtin_types.dynamic,
+            self.param.type_ref.resolved() or code_gen.compiler.type_env.dynamic,
+            code_gen.compiler.type_env.dynamic,
             node,
         )
 
@@ -2634,7 +2697,7 @@ class FunctionContainer(Object[Class]):
 
         for decorator in reversed(node.decorator_list):
             visitor.visitExpectedType(
-                decorator, DYNAMIC, "decorator cannot be a primitive"
+                decorator, visitor.type_env.DYNAMIC, "decorator cannot be a primitive"
             )
 
         self.bind_function_self(node, scope, visitor)
@@ -2643,7 +2706,9 @@ class FunctionContainer(Object[Class]):
         returns = node.returns
         if returns:
             visitor.visitExpectedType(
-                returns, DYNAMIC, "return annotation cannot be a primitive"
+                returns,
+                visitor.type_env.DYNAMIC,
+                "return annotation cannot be a primitive",
             )
 
         self.bind_function_inner(node, visitor)
@@ -2685,11 +2750,11 @@ class FunctionContainer(Object[Class]):
         cur_scope = visitor.scope
         if isinstance(cur_scope, ClassDef) and node.args.args:
             # Handle type of "self"
-            self_type = DYNAMIC
+            self_type = visitor.type_env.DYNAMIC
             if node.name == "__new__":
                 # __new__ is special and isn't a normal method, so we expect a
                 # type for cls
-                self_type = self.klass.builtin_types.type.instance
+                self_type = visitor.type_env.type.instance
             else:
                 klass = visitor.maybe_get_current_class()
                 if klass is not None:
@@ -2864,7 +2929,7 @@ class Callable(Object[TClass]):
 class AwaitableType(GenericClass):
     def __init__(
         self,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         type_name: Optional[GenericTypeName] = None,
         type_def: Optional[GenericClass] = None,
     ) -> None:
@@ -2873,9 +2938,9 @@ class AwaitableType(GenericClass):
             or GenericTypeName(
                 "static",
                 "InferredAwaitable",
-                (GenericParameter("T", 0, builtin_types, Variance.COVARIANT),),
+                (GenericParameter("T", 0, type_env, Variance.COVARIANT),),
             ),
-            builtin_types,
+            type_env,
             instance=AwaitableInstance(self),
             type_def=type_def,
         )
@@ -2885,12 +2950,10 @@ class AwaitableType(GenericClass):
         # This is not a real type, so we should not emit it.
         raise NotImplementedError("Awaitables shouldn't have a type descr")
 
-    def make_generic_type(
-        self, index: Tuple[Class, ...], type_env: TypeEnvironment
-    ) -> Class:
+    def make_generic_type(self, index: Tuple[Class, ...]) -> Class:
         assert len(index) == 1
         type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
-        return AwaitableType(self.builtin_types, type_name, type_def=self)
+        return AwaitableType(self.type_env, type_name, type_def=self)
 
 
 class AwaitableInstance(Object[AwaitableType]):
@@ -2910,7 +2973,7 @@ class AwaitableTypeRef(TypeRef):
     def resolved(self, is_declaration: bool = False) -> Class:
         res = self.ref.resolved(is_declaration)
         return self.compiler.type_env.get_generic_type(
-            self.compiler.builtin_types.awaitable, (res,)
+            self.compiler.type_env.awaitable, (res,)
         )
 
     def __repr__(self) -> str:
@@ -2927,7 +2990,7 @@ class ContainerTypeRef(TypeRef):
     def resolved(self, is_declaration: bool = False) -> Class:
         res = self.func.container_type
         if res is None:
-            return self.func.klass.builtin_types.dynamic
+            return self.func.klass.type_env.dynamic
         return res
 
 
@@ -2984,7 +3047,7 @@ class Function(Callable[Class], FunctionContainer):
         return_type: TypeRef,
     ) -> None:
         super().__init__(
-            module.compiler.builtin_types.function,
+            module.compiler.type_env.function,
             node.name,
             module.name,
             [],
@@ -3032,7 +3095,7 @@ class Function(Callable[Class], FunctionContainer):
         res: Function | DecoratedMethod = self
         for decorator in reversed(self.node.decorator_list):
             decorator_type = (
-                module.resolve_decorator(decorator) or self.klass.builtin_types.dynamic
+                module.resolve_decorator(decorator) or self.klass.type_env.dynamic
             )
             new = decorator_type.resolve_decorate_function(res, decorator)
             if new and new is not res:
@@ -3190,7 +3253,7 @@ class Function(Callable[Class], FunctionContainer):
 
     def process_args(self: Function, module: ModuleTable) -> None:
         """
-        Register type-refs for each function argument, assume DYNAMIC if annotation is missing.
+        Register type-refs for each function argument, assume type_env.DYNAMIC if annotation is missing.
         """
         arguments = self.node.args
         nrequired = len(arguments.args) - len(arguments.defaults)
@@ -3209,11 +3272,11 @@ class Function(Callable[Class], FunctionContainer):
                 ref = TypeRef(module, annotation)
             elif idx == 0:
                 if self.node.name == "__new__":
-                    ref = ResolvedTypeRef(self.klass.builtin_types.type)
+                    ref = ResolvedTypeRef(self.klass.type_env.type)
                 else:
                     ref = ContainerTypeRef(self)
             else:
-                ref = ResolvedTypeRef(self.klass.builtin_types.dynamic)
+                ref = ResolvedTypeRef(self.klass.type_env.dynamic)
 
             self.register_arg(argument.arg, idx, ref, has_default, default_val, False)
 
@@ -3233,7 +3296,7 @@ class Function(Callable[Class], FunctionContainer):
             if annotation:
                 ref = TypeRef(module, annotation)
             else:
-                ref = ResolvedTypeRef(self.klass.builtin_types.dynamic)
+                ref = ResolvedTypeRef(self.klass.type_env.dynamic)
             base_idx += 1
             self.register_arg(
                 argument.arg, base_idx, ref, has_default, default_val, True
@@ -3321,7 +3384,7 @@ class UnknownDecoratedMethod(FunctionContainer):
     of the decorators"""
 
     def __init__(self, func: Function) -> None:
-        super().__init__(func.klass.builtin_types.dynamic)
+        super().__init__(func.klass.type_env.dynamic)
         self.func = func
 
     def get_function_body(self) -> List[ast.stmt]:
@@ -3335,7 +3398,7 @@ class UnknownDecoratedMethod(FunctionContainer):
     ) -> None:
         if node.args.args:
             klass = visitor.maybe_get_current_class()
-            visitor.set_param(node.args.args[0], DYNAMIC, scope)
+            visitor.set_param(node.args.args[0], visitor.type_env.DYNAMIC, scope)
 
     def emit_function(
         self,
@@ -3363,10 +3426,10 @@ class UnknownDecoratedMethod(FunctionContainer):
     def return_type(self) -> TypeRef:
         if isinstance(self.func.node, AsyncFunctionDef):
             return AwaitableTypeRef(
-                ResolvedTypeRef(self.klass.builtin_types.dynamic),
+                ResolvedTypeRef(self.klass.type_env.dynamic),
                 self.func.module.compiler,
             )
-        return ResolvedTypeRef(self.klass.builtin_types.dynamic)
+        return ResolvedTypeRef(self.klass.type_env.dynamic)
 
 
 class MethodType(Object[Class]):
@@ -3377,7 +3440,7 @@ class MethodType(Object[Class]):
         target: ast.Attribute,
         function: Function,
     ) -> None:
-        super().__init__(function.klass.builtin_types.method)
+        super().__init__(function.klass.type_env.method)
         # TODO currently this type (the type the bound method was accessed
         # from) is unused, and we just end up deferring to the type where the
         # function was defined. This is fine until we want to fully support a
@@ -3423,7 +3486,7 @@ class StaticMethodInstanceBound(Object[Class]):
         function: Function,
         target: ast.Attribute,
     ) -> None:
-        super().__init__(function.klass.builtin_types.static_method)
+        super().__init__(function.klass.type_env.static_method)
         self.function = function
         self.target = target
 
@@ -3566,9 +3629,7 @@ class TransparentDecoratedMethod(DecoratedMethod):
 
 class StaticMethod(DecoratedMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
-        super().__init__(
-            function.klass.builtin_types.static_method, function, decorator
-        )
+        super().__init__(function.klass.type_env.static_method, function, decorator)
 
     @property
     def name(self) -> str:
@@ -3608,7 +3669,7 @@ class BoundClassMethod(Object[Class]):
         self_expr: ast.expr,
         is_instance_call: bool,
     ) -> None:
-        super().__init__(klass.builtin_types.class_method)
+        super().__init__(klass.type_env.class_method)
         self.function = function
         self.klass = klass
         self.self_expr = self_expr
@@ -3640,7 +3701,7 @@ class BoundClassMethod(Object[Class]):
 
 class ClassMethod(DecoratedMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
-        super().__init__(function.klass.builtin_types.class_method, function, decorator)
+        super().__init__(function.klass.type_env.class_method, function, decorator)
 
     @property
     def name(self) -> str:
@@ -3660,7 +3721,7 @@ class ClassMethod(DecoratedMethod):
             if klass is not None:
                 visitor.set_param(node.args.args[0], klass, scope)
             else:
-                visitor.set_param(node.args.args[0], DYNAMIC, scope)
+                visitor.set_param(node.args.args[0], visitor.type_env.DYNAMIC, scope)
 
     def resolve_descr_get(
         self,
@@ -3682,7 +3743,7 @@ class PropertyMethod(DecoratedMethod):
         property_type: Optional[Class] = None,
     ) -> None:
         super().__init__(
-            property_type or function.klass.builtin_types.property, function, decorator
+            property_type or function.klass.type_env.property, function, decorator
         )
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
@@ -3700,7 +3761,7 @@ class PropertyMethod(DecoratedMethod):
         visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
-            return self.klass.builtin_types.dynamic
+            return self.klass.type_env.dynamic
         else:
             return self.function.return_type.resolved().instance
 
@@ -3744,7 +3805,7 @@ class CachedPropertyMethod(PropertyMethod):
         super().__init__(
             function,
             decorator,
-            property_type=function.klass.builtin_types.cached_property,
+            property_type=function.klass.type_env.cached_property,
         )
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
@@ -3767,7 +3828,7 @@ class CachedPropertyMethod(PropertyMethod):
 class AsyncCachedPropertyMethod(DecoratedMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
         super().__init__(
-            function.klass.builtin_types.async_cached_property, function, decorator
+            function.klass.type_env.async_cached_property, function, decorator
         )
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
@@ -3787,7 +3848,7 @@ class AsyncCachedPropertyMethod(DecoratedMethod):
         visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         if inst is None:
-            return self.klass.builtin_types.dynamic
+            return self.klass.type_env.dynamic
         else:
             return self.function.return_type.resolved().instance
 
@@ -3811,7 +3872,7 @@ class TypingFinalDecorator(Class):
             fn.real_function.is_final = True
         else:
             fn.is_final = True
-        return TransparentDecoratedMethod(self.builtin_types.function, fn, decorator)
+        return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
     def resolve_decorate_class(self, klass: Class) -> Class:
         klass.is_final = True
@@ -3828,15 +3889,15 @@ class ClassMethodDecorator(Class):
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if fn.klass is self.builtin_types.function:
+        if fn.klass is self.type_env.function:
             func = fn.real_function if isinstance(fn, DecoratedMethod) else fn
             args = func.args
             if args:
                 klass = func.container_type
                 if klass is not None:
-                    args[0].type_ref = ResolvedTypeRef(self.builtin_types.type)
+                    args[0].type_ref = ResolvedTypeRef(self.type_env.type)
                 else:
-                    args[0].type_ref = ResolvedTypeRef(self.builtin_types.dynamic)
+                    args[0].type_ref = ResolvedTypeRef(self.type_env.dynamic)
             return ClassMethod(fn, decorator)
 
 
@@ -3849,10 +3910,10 @@ class DynamicReturnDecorator(Class):
             self._set_dynamic_return_type(real_fn)
         if isinstance(fn, Function):
             self._set_dynamic_return_type(fn)
-        return TransparentDecoratedMethod(self.builtin_types.function, fn, decorator)
+        return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
     def _set_dynamic_return_type(self, fn: Function) -> None:
-        dynamic_typeref = ResolvedTypeRef(self.builtin_types.dynamic)
+        dynamic_typeref = ResolvedTypeRef(self.type_env.dynamic)
         if isinstance(fn.node, AsyncFunctionDef):
             fn.return_type = AwaitableTypeRef(dynamic_typeref, fn.module.compiler)
         else:
@@ -3863,14 +3924,14 @@ class StaticMethodDecorator(Class):
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if fn.klass is not self.builtin_types.function:
+        if fn.klass is not self.type_env.function:
             return None
 
         func = fn.real_function if isinstance(fn, DecoratedMethod) else fn
         args = func.args
         if args:
             if not func.node.args.args[0].annotation:
-                func.args[0].type_ref = ResolvedTypeRef(self.builtin_types.dynamic)
+                func.args[0].type_ref = ResolvedTypeRef(self.type_env.dynamic)
                 fn = fn.replace_function(func)
 
         return StaticMethod(fn, decorator)
@@ -3887,7 +3948,7 @@ class InlineFunctionDecorator(Class):
             )
 
         real_fn.inline = True
-        return TransparentDecoratedMethod(self.builtin_types.function, fn, decorator)
+        return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
 
 class DoNotCompileDecorator(Class):
@@ -3896,7 +3957,7 @@ class DoNotCompileDecorator(Class):
     ) -> Optional[Function | DecoratedMethod]:
         real_fn = fn.real_function if isinstance(fn, DecoratedMethod) else fn
         real_fn.donotcompile = True
-        return TransparentDecoratedMethod(self.builtin_types.function, fn, decorator)
+        return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
     def resolve_decorate_class(self, klass: Class) -> Class:
         klass.donotcompile = True
@@ -3907,7 +3968,7 @@ class PropertyDecorator(Class):
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if fn.klass is not self.builtin_types.function:
+        if fn.klass is not self.type_env.function:
             return None
         return PropertyMethod(fn, decorator)
 
@@ -3919,7 +3980,7 @@ class CachedPropertyDecorator(Class):
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if fn.klass is not self.builtin_types.function:
+        if fn.klass is not self.type_env.function:
             return None
         return CachedPropertyMethod(fn, decorator)
 
@@ -3931,7 +3992,7 @@ class AsyncCachedPropertyDecorator(Class):
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if fn.klass is not self.builtin_types.function:
+        if fn.klass is not self.type_env.function:
             return None
         return AsyncCachedPropertyMethod(fn, decorator)
 
@@ -3955,13 +4016,13 @@ class BuiltinFunction(Callable[Class]):
         func_name: str,
         module_name: str,
         klass: Optional[Class],
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         args: Optional[Tuple[Parameter, ...]] = None,
         return_type: Optional[TypeRef] = None,
     ) -> None:
         assert isinstance(return_type, (TypeRef, type(None)))
         super().__init__(
-            builtin_types.builtin_method_desc,
+            type_env.builtin_method_desc,
             func_name,
             module_name,
             # pyre-fixme[6]: Expected `Optional[List[Parameter]]` for 4th param but
@@ -3971,7 +4032,7 @@ class BuiltinFunction(Callable[Class]):
             0,
             None,
             None,
-            return_type or ResolvedTypeRef(builtin_types.dynamic),
+            return_type or ResolvedTypeRef(type_env.dynamic),
         )
         self.set_container_type(klass)
 
@@ -3994,7 +4055,7 @@ class BuiltinFunction(Callable[Class]):
                 self.func_name,
                 self.module_name,
                 new_type,
-                new_type.builtin_types,
+                new_type.type_env,
                 new_args,
                 ResolvedTypeRef(new_ret_type),
             )
@@ -4003,7 +4064,7 @@ class BuiltinFunction(Callable[Class]):
                 self.func_name,
                 self.module_name,
                 new_type,
-                new_type.builtin_types,
+                new_type.type_env,
                 None,
                 self.return_type,
             )
@@ -4022,15 +4083,15 @@ class BuiltinNewFunction(BuiltinFunction):
             self, node, visitor, self_expr, args_override, descr_override
         )
         arg_mapping.bind_args(visitor)
-        ret_type = DYNAMIC
+        ret_type = visitor.type_env.DYNAMIC
         if args_override:
             cls_type = visitor.get_type(args_override[0])
             if isinstance(cls_type, Class):
                 ret_type = cls_type.instance
-                if ret_type is self.klass.builtin_types.type:
+                if ret_type is self.klass.type_env.type:
                     # if we get a generic "type" then we don't really know
                     # what type we're producing
-                    ret_type = DYNAMIC
+                    ret_type = visitor.type_env.DYNAMIC
 
         return arg_mapping, ret_type
 
@@ -4045,9 +4106,9 @@ class BuiltinMethodDescriptor(Callable[Class]):
         dynamic_dispatch: bool = False,
     ) -> None:
         assert isinstance(return_type, (TypeRef, type(None)))
-        self.builtin_types: BuiltinTypes = container_type.builtin_types
+        self.type_env: TypeEnvironment = container_type.type_env
         super().__init__(
-            self.builtin_types.builtin_method_desc,
+            self.type_env.builtin_method_desc,
             func_name,
             container_type.type_name.module,
             # pyre-fixme[6]: Expected `Optional[List[Parameter]]` for 4th param but
@@ -4057,7 +4118,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
             0,
             None,
             None,
-            return_type or ResolvedTypeRef(container_type.builtin_types.dynamic),
+            return_type or ResolvedTypeRef(container_type.type_env.dynamic),
         )
         # When `dynamic_dispatch` is True, we will not emit INVOKE_* on this
         # method.
@@ -4076,9 +4137,11 @@ class BuiltinMethodDescriptor(Callable[Class]):
         elif node.keywords:
             return super().bind_call(node, visitor, type_ctx)
 
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, visitor.type_env.DYNAMIC)
         for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+            visitor.visitExpectedType(
+                arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
 
         return NO_EFFECT
 
@@ -4092,7 +4155,11 @@ class BuiltinMethodDescriptor(Callable[Class]):
         if inst is None:
             return self
         else:
-            return DYNAMIC if self.dynamic_dispatch else BuiltinMethod(self, node)
+            return (
+                visitor.type_env.DYNAMIC
+                if self.dynamic_dispatch
+                else BuiltinMethod(self, node)
+            )
 
     def make_generic(
         self, new_type: Class, name: GenericTypeName, type_env: TypeEnvironment
@@ -4115,7 +4182,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
 class BuiltinMethod(Callable[Class]):
     def __init__(self, desc: BuiltinMethodDescriptor, target: ast.Attribute) -> None:
         super().__init__(
-            desc.builtin_types.method,
+            desc.type_env.method,
             desc.func_name,
             desc.module_name,
             desc.args,
@@ -4144,7 +4211,9 @@ class BuiltinMethod(Callable[Class]):
         visitor.set_type(node, self.return_type.resolved().instance)
         visitor.visit(self.target.value)
         for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+            visitor.visitExpectedType(
+                arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
 
         return NO_EFFECT
 
@@ -4199,7 +4268,7 @@ class Slot(Object[TClassInv]):
         assignment: Optional[AST] = None,
         assigned_on_class: bool = False,
     ) -> None:
-        super().__init__(container_type.builtin_types.member)
+        super().__init__(container_type.type_env.member)
         self.container_type = container_type
         self.slot_name = name
         self.type_ref = type_ref
@@ -4257,7 +4326,7 @@ class Slot(Object[TClassInv]):
     def _resolved_type(self) -> Class:
         if tr := self.type_ref:
             return tr.resolved(is_declaration=True)
-        return self.klass.builtin_types.dynamic
+        return self.klass.type_env.dynamic
 
     @property
     def type_descr(self) -> TypeDescr:
@@ -4294,13 +4363,13 @@ class BoxFunction(Object[Class]):
         arg_type = visitor.get_type(arg)
         if isinstance(arg_type, CIntInstance):
             typ = (
-                self.klass.builtin_types.bool
+                self.klass.type_env.bool
                 if arg_type.constant == TYPED_BOOL
-                else self.klass.builtin_types.int_exact
+                else self.klass.type_env.int_exact
             )
             visitor.set_type(node, typ.instance)
         elif isinstance(arg_type, CDoubleInstance):
-            visitor.set_type(node, self.klass.builtin_types.float_exact.instance)
+            visitor.set_type(node, self.klass.type_env.float_exact.instance)
         elif isinstance(arg_type, CEnumInstance):
             visitor.set_type(node, arg_type.boxed)
         else:
@@ -4321,9 +4390,13 @@ class UnboxFunction(Object[Class]):
             visitor.syntax_error("unbox() takes no keyword arguments", node)
 
         for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+            visitor.visitExpectedType(
+                arg,
+                visitor.type_env.DYNAMIC,
+                CALL_ARGUMENT_CANNOT_BE_PRIMITIVE,
+            )
 
-        visitor.set_type(node, type_ctx or INT64_VALUE)
+        visitor.set_type(node, type_ctx or visitor.type_env.int64.instance)
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -4351,15 +4424,17 @@ class LenFunction(Object[Class]):
             visitor.syntax_error("len() takes no keyword arguments", node)
 
         arg = node.args[0]
-        visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+        visitor.visitExpectedType(
+            arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+        )
         arg_type = visitor.get_type(arg)
         if not self.boxed and arg_type.get_fast_len_type() is None:
             visitor.syntax_error(f"bad argument type '{arg_type.name}' for clen()", arg)
 
         output_type = (
-            self.klass.builtin_types.int_exact.instance
+            self.klass.type_env.int_exact.instance
             if self.boxed
-            else self.klass.builtin_types.int64.instance
+            else self.klass.type_env.int64.instance
         )
 
         visitor.set_type(node, output_type)
@@ -4383,19 +4458,19 @@ class SortedFunction(Object[Class]):
                 node,
             )
         visitor.visitExpectedType(
-            node.args[0], DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            node.args[0], visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
         )
         for kw in node.keywords:
             visitor.visitExpectedType(
-                kw.value, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+                kw.value, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
             )
 
-        visitor.set_type(node, self.klass.builtin_types.list_exact.instance)
+        visitor.set_type(node, self.klass.type_env.list_exact.instance)
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         super().emit_call(node, code_gen)
-        code_gen.emit("REFINE_TYPE", self.klass.builtin_types.list_exact.type_descr)
+        code_gen.emit("REFINE_TYPE", self.klass.type_env.list_exact.type_descr)
 
 
 class ExtremumFunction(Object[Class]):
@@ -4462,7 +4537,7 @@ class IsInstanceEffect(NarrowingEffect):
                 ta for ta in prev.klass.type_args if not inst.klass.can_assign_from(ta)
             )
             reverse = visitor.compiler.type_env.get_generic_type(
-                visitor.compiler.builtin_types.union, type_args
+                visitor.compiler.type_env.union, type_args
             ).instance
         self.rev: Value = reverse
 
@@ -4489,8 +4564,8 @@ class IsInstanceEffect(NarrowingEffect):
 
 
 class IsInstanceFunction(Object[Class]):
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
-        super().__init__(builtin_types.function)
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        super().__init__(type_env.function)
 
     @property
     def name(self) -> str:
@@ -4502,9 +4577,11 @@ class IsInstanceFunction(Object[Class]):
         if node.keywords:
             visitor.syntax_error("isinstance() does not accept keyword arguments", node)
         for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+            visitor.visitExpectedType(
+                arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
 
-        visitor.set_type(node, self.klass.builtin_types.bool.instance)
+        visitor.set_type(node, self.klass.type_env.bool.instance)
         if len(node.args) == 2:
             arg0 = node.args[0]
             if not isinstance(arg0, ast.Name):
@@ -4516,7 +4593,7 @@ class IsInstanceFunction(Object[Class]):
                 types = tuple(visitor.get_type(el) for el in arg1.elts)
                 if all(isinstance(t, Class) for t in types):
                     klass_type = visitor.compiler.type_env.get_generic_type(
-                        self.klass.builtin_types.union,
+                        self.klass.type_env.union,
                         cast(Tuple[Class, ...], types),
                     )
             else:
@@ -4536,8 +4613,8 @@ class IsInstanceFunction(Object[Class]):
 
 
 class IsSubclassFunction(Object[Class]):
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
-        super().__init__(builtin_types.function)
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        super().__init__(type_env.function)
 
     @property
     def name(self) -> str:
@@ -4549,14 +4626,16 @@ class IsSubclassFunction(Object[Class]):
         if node.keywords:
             visitor.syntax_error("issubclass() does not accept keyword arguments", node)
         for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
-        visitor.set_type(node, self.klass.builtin_types.bool.instance)
+            visitor.visitExpectedType(
+                arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
+        visitor.set_type(node, visitor.type_env.bool.instance)
         return NO_EFFECT
 
 
 class RevealTypeFunction(Object[Class]):
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
-        super().__init__(builtin_types.function)
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        super().__init__(type_env.function)
 
     @property
     def name(self) -> str:
@@ -4587,20 +4666,20 @@ class NumClass(Class):
     def __init__(
         self,
         name: TypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         pytype: Optional[Type[object]] = None,
         is_exact: bool = False,
         literal_value: Optional[int] = None,
         is_final: bool = False,
     ) -> None:
-        bases: List[Class] = [builtin_types.object]
+        bases: List[Class] = [type_env.object]
         if literal_value is not None:
             is_exact = True
-            bases = [builtin_types.int_exact]
+            bases = [type_env.int_exact]
         instance = NumExactInstance(self) if is_exact else NumInstance(self)
         super().__init__(
             name,
-            builtin_types,
+            type_env,
             bases,
             instance,
             pytype=pytype,
@@ -4619,20 +4698,20 @@ class NumClass(Class):
 
     def exact_type(self) -> Class:
         if self.pytype is int:
-            return self.builtin_types.int_exact
+            return self.type_env.int_exact
         if self.pytype is float:
-            return self.builtin_types.float_exact
+            return self.type_env.float_exact
         if self.pytype is complex:
-            return self.builtin_types.complex_exact
+            return self.type_env.complex_exact
         return self
 
     def inexact_type(self) -> Class:
         if self.pytype is int:
-            return self.builtin_types.int
+            return self.type_env.int
         if self.pytype is float:
-            return self.builtin_types.float
+            return self.type_env.float
         if self.pytype is complex:
-            return self.builtin_types.complex
+            return self.type_env.complex
         return self
 
 
@@ -4641,11 +4720,10 @@ class NumInstance(Object[NumClass]):
         assert isinstance(literal_value, int)
         klass = NumClass(
             self.klass.type_name,
-            self.klass.builtin_types,
+            self.klass.type_env,
             pytype=self.klass.pytype,
             literal_value=literal_value,
         )
-        klass.make_type_dict(type_env)
         return klass.instance
 
     def bind_unaryop(
@@ -4655,7 +4733,7 @@ class NumInstance(Object[NumClass]):
             visitor.set_type(node, self)
         else:
             assert isinstance(node.op, ast.Not)
-            visitor.set_type(node, self.klass.builtin_types.bool.instance)
+            visitor.set_type(node, self.klass.type_env.bool.instance)
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         self._bind_constant(node.value, node, visitor)
@@ -4663,16 +4741,16 @@ class NumInstance(Object[NumClass]):
     def _bind_constant(
         self, value: object, node: ast.expr, visitor: TypeBinder
     ) -> None:
-        value_inst = CONSTANT_TYPES.get(type(value), self)
+        value_inst = visitor.type_env.constant_types.get(type(value), self)
         visitor.set_type(node, value_inst)
 
     def exact(self) -> Value:
         if self.klass.pytype is int:
-            return self.klass.builtin_types.int_exact.instance
+            return self.klass.type_env.int_exact.instance
         if self.klass.pytype is float:
-            return self.klass.builtin_types.float_exact.instance
+            return self.klass.type_env.float_exact.instance
         if self.klass.pytype is complex:
-            return self.klass.builtin_types.complex_exact.instance
+            return self.klass.type_env.complex_exact.instance
         return self
 
     def inexact(self) -> Value:
@@ -4696,13 +4774,13 @@ class NumExactInstance(NumInstance):
     ) -> bool:
         ltype = visitor.get_type(node.left)
         rtype = visitor.get_type(node.right)
-        if self.klass.builtin_types.int_exact.can_assign_from(
+        if self.klass.type_env.int_exact.can_assign_from(
             ltype.klass
-        ) and self.klass.builtin_types.int_exact.can_assign_from(rtype.klass):
+        ) and self.klass.type_env.int_exact.can_assign_from(rtype.klass):
             if isinstance(node.op, ast.Div):
-                visitor.set_type(node, self.klass.builtin_types.float_exact.instance)
+                visitor.set_type(node, self.klass.type_env.float_exact.instance)
             else:
-                visitor.set_type(node, self.klass.builtin_types.int_exact.instance)
+                visitor.set_type(node, self.klass.type_env.int_exact.instance)
             return True
         return False
 
@@ -4711,11 +4789,11 @@ class NumExactInstance(NumInstance):
 
     def inexact(self) -> Value:
         if self.klass.pytype is int:
-            return self.klass.builtin_types.int.instance
+            return self.klass.type_env.int.instance
         if self.klass.pytype is float:
-            return self.klass.builtin_types.float.instance
+            return self.klass.type_env.float.instance
         if self.klass.pytype is complex:
-            return self.klass.builtin_types.complex.instance
+            return self.klass.type_env.complex.instance
         return self
 
 
@@ -4723,7 +4801,6 @@ def parse_param(
     info: Dict[str, object],
     idx: int,
     type_env: TypeEnvironment,
-    builtin_types: BuiltinTypes,
 ) -> Parameter:
     name = info.get("name", "")
     assert isinstance(name, str)
@@ -4731,7 +4808,7 @@ def parse_param(
     return Parameter(
         name,
         idx,
-        ResolvedTypeRef(parse_type(info, type_env, builtin_types)),
+        ResolvedTypeRef(parse_type(info, type_env)),
         "default" in info,
         info.get("default"),
         False,
@@ -4742,7 +4819,6 @@ def parse_typed_signature(
     sig: Dict[str, object],
     klass: Optional[Class],
     type_env: TypeEnvironment,
-    builtin_types: BuiltinTypes,
 ) -> Tuple[Tuple[Parameter, ...], Class]:
     args = sig["args"]
     assert isinstance(args, list)
@@ -4752,32 +4828,28 @@ def parse_typed_signature(
         signature = []
 
     for idx, arg in enumerate(args):
-        signature.append(parse_param(arg, idx + 1, type_env, builtin_types))
+        signature.append(parse_param(arg, idx + 1, type_env))
     return_info = sig["return"]
     assert isinstance(return_info, dict)
-    return_type = parse_type(return_info, type_env, builtin_types)
+    return_type = parse_type(return_info, type_env)
     return tuple(signature), return_type
 
 
-NAME_TO_TYPE: Mapping[object, Class]
-
-
-def parse_type(
-    info: Dict[str, object], type_env: TypeEnvironment, builtin_types: BuiltinTypes
-) -> Class:
+def parse_type(info: Dict[str, object], type_env: TypeEnvironment) -> Class:
     optional = info.get("optional", False)
     type = info.get("type")
     if type:
-        klass = NAME_TO_TYPE.get(type)
+        # pyre-ignore[6]: type is not known to be a str statically.
+        klass = type_env.name_to_type.get(type)
         if klass is None:
             raise NotImplementedError("unsupported type: " + str(type))
     else:
         type_param = info.get("type_param")
         assert isinstance(type_param, int)
-        klass = GenericParameter("T" + str(type_param), type_param, builtin_types)
+        klass = GenericParameter("T" + str(type_param), type_param, type_env)
 
     if optional:
-        return type_env.get_generic_type(builtin_types.optional, (klass,))
+        return type_env.get_generic_type(type_env.optional, (klass,))
 
     return klass
 
@@ -4786,13 +4858,10 @@ def reflect_method_desc(
     obj: MethodDescriptorType | WrapperDescriptorType,
     klass: Class,
     type_env: TypeEnvironment,
-    builtin_types: BuiltinTypes,
 ) -> BuiltinMethodDescriptor:
     sig = getattr(obj, "__typed_signature__", None)
     if sig is not None:
-        signature, return_type = parse_typed_signature(
-            sig, klass, type_env, builtin_types
-        )
+        signature, return_type = parse_typed_signature(sig, klass, type_env)
 
         method = BuiltinMethodDescriptor(
             obj.__name__,
@@ -4812,28 +4881,23 @@ def reflect_builtin_function(
     obj: BuiltinFunctionType,
     klass: Optional[Class],
     type_env: TypeEnvironment,
-    builtin_types: BuiltinTypes,
 ) -> BuiltinFunction:
     sig = getattr(obj, "__typed_signature__", None)
     if sig is not None:
-        signature, return_type = parse_typed_signature(
-            sig, None, type_env, builtin_types
-        )
+        signature, return_type = parse_typed_signature(sig, None, type_env)
         method = BuiltinFunction(
             obj.__name__,
             obj.__module__,
             klass,
-            builtin_types,
+            type_env,
             signature,
             ResolvedTypeRef(return_type),
         )
     else:
         if obj.__name__ == "__new__" and klass is not None:
-            method = BuiltinNewFunction(
-                obj.__name__, obj.__module__, klass, builtin_types
-            )
+            method = BuiltinNewFunction(obj.__name__, obj.__module__, klass, type_env)
         else:
-            method = BuiltinFunction(obj.__name__, obj.__module__, klass, builtin_types)
+            method = BuiltinFunction(obj.__name__, obj.__module__, klass, type_env)
     return method
 
 
@@ -4847,7 +4911,7 @@ def common_sequence_emit_len(
     code_gen.visit(node.args[0])
     code_gen.emit("FAST_LEN", oparg)
     if boxed:
-        code_gen.emit("PRIMITIVE_BOX", code_gen.compiler.builtin_types.int64.type_descr)
+        code_gen.emit("PRIMITIVE_BOX", code_gen.compiler.type_env.int64.type_descr)
 
 
 def common_sequence_emit_jumpif(
@@ -4892,9 +4956,7 @@ def common_sequence_emit_forloop(
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
         if seq_type == SEQ_TUPLE:
             # todo - we need to implement TUPLE_GET which supports primitive index
-            code_gen.emit(
-                "PRIMITIVE_BOX", code_gen.compiler.builtin_types.int64.type_descr
-            )
+            code_gen.emit("PRIMITIVE_BOX", code_gen.compiler.type_env.int64.type_descr)
             code_gen.emit("BINARY_SUBSCR", 2)
         else:
             code_gen.emit("SEQUENCE_GET", seq_type | SEQ_SUBSCR_UNCHECKED)
@@ -4916,11 +4978,11 @@ def common_sequence_emit_forloop(
 
 
 class TupleClass(Class):
-    def __init__(self, builtin_types: BuiltinTypes, is_exact: bool = False) -> None:
+    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
         instance = TupleExactInstance(self) if is_exact else TupleInstance(self)
         super().__init__(
             type_name=TypeName("builtins", "tuple"),
-            builtin_types=builtin_types,
+            type_env=type_env,
             instance=instance,
             is_exact=is_exact,
             pytype=tuple,
@@ -4929,28 +4991,28 @@ class TupleClass(Class):
             "__new__",
             "builtins",
             self,
-            self.builtin_types,
+            self.type_env,
             (
                 Parameter(
                     "cls",
                     0,
-                    ResolvedTypeRef(self.builtin_types.type),
+                    ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
                     False,
                 ),
                 Parameter(
-                    "x", 0, ResolvedTypeRef(self.builtin_types.object), True, (), False
+                    "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
                 ),
             ),
             ResolvedTypeRef(self),
         )
 
     def exact_type(self) -> Class:
-        return self.builtin_types.tuple_exact
+        return self.type_env.tuple_exact
 
     def inexact_type(self) -> Class:
-        return self.builtin_types.tuple
+        return self.type_env.tuple
 
 
 class TupleInstance(Object[TupleClass]):
@@ -4977,10 +5039,10 @@ class TupleInstance(Object[TupleClass]):
         code_gen.defaultVisit(node)
 
     def exact(self) -> Value:
-        return self.klass.builtin_types.tuple_exact.instance
+        return self.klass.type_env.tuple_exact.instance
 
     def inexact(self) -> Value:
-        return self.klass.builtin_types.tuple.instance
+        return self.klass.type_env.tuple.instance
 
 
 class TupleExactInstance(TupleInstance):
@@ -4989,10 +5051,10 @@ class TupleExactInstance(TupleInstance):
     ) -> bool:
         rtype = visitor.get_type(node.right).klass
         if isinstance(node.op, ast.Mult) and (
-            self.klass.builtin_types.int.can_assign_from(rtype)
-            or rtype in self.klass.builtin_types.signed_cint_types
+            self.klass.type_env.int.can_assign_from(rtype)
+            or rtype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.builtin_types.tuple_exact.instance)
+            visitor.set_type(node, self.klass.type_env.tuple_exact.instance)
             return True
         return super().bind_binop(node, visitor, type_ctx)
 
@@ -5001,10 +5063,10 @@ class TupleExactInstance(TupleInstance):
     ) -> bool:
         ltype = visitor.get_type(node.left).klass
         if isinstance(node.op, ast.Mult) and (
-            self.klass.builtin_types.int.can_assign_from(ltype)
-            or ltype in self.klass.builtin_types.signed_cint_types
+            self.klass.type_env.int.can_assign_from(ltype)
+            or ltype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.builtin_types.tuple_exact.instance)
+            visitor.set_type(node, self.klass.type_env.tuple_exact.instance)
             return True
         return super().bind_reverse_binop(node, visitor, type_ctx)
 
@@ -5017,20 +5079,20 @@ class TupleExactInstance(TupleInstance):
 
 
 class SetClass(Class):
-    def __init__(self, builtin_types: BuiltinTypes, is_exact: bool = False) -> None:
+    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
         super().__init__(
             type_name=TypeName("builtins", "set"),
-            builtin_types=builtin_types,
+            type_env=type_env,
             instance=SetInstance(self),
             is_exact=is_exact,
             pytype=set,
         )
 
     def exact_type(self) -> Class:
-        return self.builtin_types.set_exact
+        return self.type_env.set_exact
 
     def inexact_type(self) -> Class:
-        return self.builtin_types.set
+        return self.type_env.set
 
 
 class SetInstance(Object[SetClass]):
@@ -5047,7 +5109,7 @@ class SetInstance(Object[SetClass]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.builtin_types.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -5057,10 +5119,10 @@ class SetInstance(Object[SetClass]):
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
 
     def exact(self) -> Value:
-        return self.klass.builtin_types.set_exact.instance
+        return self.klass.type_env.set_exact.instance
 
     def inexact(self) -> Value:
-        return self.klass.builtin_types.set.instance
+        return self.klass.type_env.set.instance
 
 
 def maybe_emit_sequence_repeat(
@@ -5075,15 +5137,15 @@ def maybe_emit_sequence_repeat(
         seq_type = code_gen.get_type(seq).klass
         num_type = code_gen.get_type(num).klass
         oparg = None
-        if code_gen.compiler.builtin_types.tuple.can_assign_from(seq_type):
+        if code_gen.compiler.type_env.tuple.can_assign_from(seq_type):
             oparg = SEQ_TUPLE
-        elif code_gen.compiler.builtin_types.list.can_assign_from(seq_type):
+        elif code_gen.compiler.type_env.list.can_assign_from(seq_type):
             oparg = SEQ_LIST
         if oparg is None:
             continue
-        if num_type in code_gen.compiler.builtin_types.signed_cint_types:
+        if num_type in code_gen.compiler.type_env.signed_cint_types:
             oparg |= SEQ_REPEAT_PRIMITIVE_NUM
-        elif not code_gen.compiler.builtin_types.int.can_assign_from(num_type):
+        elif not code_gen.compiler.type_env.int.can_assign_from(num_type):
             continue
         if not seq_type.is_exact:
             oparg |= SEQ_REPEAT_INEXACT_SEQ
@@ -5124,24 +5186,24 @@ class ListAppendBuiltinMethod(BuiltinMethod):
 
 
 class ListClass(Class):
-    def __init__(self, builtin_types: BuiltinTypes, is_exact: bool = False) -> None:
+    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
         instance = ListExactInstance(self) if is_exact else ListInstance(self)
         super().__init__(
             type_name=TypeName("builtins", "list"),
-            builtin_types=builtin_types,
+            type_env=type_env,
             instance=instance,
             is_exact=is_exact,
             pytype=list,
         )
 
     def exact_type(self) -> Class:
-        return self.builtin_types.list_exact
+        return self.type_env.list_exact
 
     def inexact_type(self) -> Class:
-        return self.builtin_types.list
+        return self.type_env.list
 
-    def make_type_dict(self, type_env: TypeEnvironment) -> None:
-        super().make_type_dict(type_env)
+    def make_type_dict(self) -> None:
+        super().make_type_dict()
         if self.is_exact:
             self.members["append"] = ListAppendMethod("append", self)
         # list inherits object.__new__
@@ -5156,13 +5218,13 @@ class ListClass(Class):
                 Parameter(
                     "iterable",
                     0,
-                    ResolvedTypeRef(self.builtin_types.object),
+                    ResolvedTypeRef(self.type_env.object),
                     True,
                     (),
                     False,
                 ),
             ),
-            ResolvedTypeRef(self.builtin_types.none),
+            ResolvedTypeRef(self.type_env.none),
         )
 
 
@@ -5194,16 +5256,16 @@ class ListInstance(Object[ListClass]):
         visitor: TypeBinder,
         type_ctx: Optional[Class] = None,
     ) -> None:
-        if type.klass not in self.klass.builtin_types.signed_cint_types:
+        if type.klass not in visitor.type_env.signed_cint_types:
             super().bind_subscr(node, type, visitor)
-        visitor.set_type(node, DYNAMIC)
+        visitor.set_type(node, visitor.type_env.DYNAMIC)
 
     def emit_load_subscr(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> None:
         if (
             code_gen.get_type(node.slice).klass
-            not in self.klass.builtin_types.signed_cint_types
+            not in self.klass.type_env.signed_cint_types
         ):
             return super().emit_load_subscr(node, code_gen)
         code_gen.emit("SEQUENCE_GET", self.get_subscr_type())
@@ -5213,7 +5275,7 @@ class ListInstance(Object[ListClass]):
     ) -> None:
         if (
             code_gen.get_type(node.slice).klass
-            not in self.klass.builtin_types.signed_cint_types
+            not in self.klass.type_env.signed_cint_types
         ):
             return super().emit_store_subscr(node, code_gen)
         code_gen.emit("SEQUENCE_SET", self.get_subscr_type())
@@ -5223,7 +5285,7 @@ class ListInstance(Object[ListClass]):
     ) -> None:
         if (
             code_gen.get_type(node.slice).klass
-            not in self.klass.builtin_types.signed_cint_types
+            not in self.klass.type_env.signed_cint_types
         ):
             return super().emit_delete_subscr(node, code_gen)
         code_gen.emit("LIST_DEL", self.get_subscr_type())
@@ -5234,10 +5296,10 @@ class ListInstance(Object[ListClass]):
         code_gen.defaultVisit(node)
 
     def exact(self) -> Value:
-        return self.klass.builtin_types.list_exact.instance
+        return self.klass.type_env.list_exact.instance
 
     def inexact(self) -> Value:
-        return self.klass.builtin_types.list.instance
+        return self.klass.type_env.list.instance
 
 
 class ListExactInstance(ListInstance):
@@ -5249,10 +5311,10 @@ class ListExactInstance(ListInstance):
     ) -> bool:
         rtype = visitor.get_type(node.right).klass
         if isinstance(node.op, ast.Mult) and (
-            self.klass.builtin_types.int.can_assign_from(rtype)
-            or rtype in self.klass.builtin_types.signed_cint_types
+            self.klass.type_env.int.can_assign_from(rtype)
+            or rtype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.builtin_types.list_exact.instance)
+            visitor.set_type(node, self.klass.type_env.list_exact.instance)
             return True
         return super().bind_binop(node, visitor, type_ctx)
 
@@ -5261,10 +5323,10 @@ class ListExactInstance(ListInstance):
     ) -> bool:
         ltype = visitor.get_type(node.left).klass
         if isinstance(node.op, ast.Mult) and (
-            self.klass.builtin_types.int.can_assign_from(ltype)
-            or ltype in self.klass.builtin_types.signed_cint_types
+            self.klass.type_env.int.can_assign_from(ltype)
+            or ltype in self.klass.type_env.signed_cint_types
         ):
-            visitor.set_type(node, self.klass.builtin_types.list_exact.instance)
+            visitor.set_type(node, self.klass.type_env.list_exact.instance)
             return True
         return super().bind_reverse_binop(node, visitor, type_ctx)
 
@@ -5277,20 +5339,20 @@ class ListExactInstance(ListInstance):
 
 
 class StrClass(Class):
-    def __init__(self, builtin_types: BuiltinTypes, is_exact: bool = False) -> None:
+    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
         super().__init__(
             type_name=TypeName("builtins", "str"),
-            builtin_types=builtin_types,
+            type_env=type_env,
             instance=StrInstance(self),
             is_exact=is_exact,
             pytype=str,
         )
 
     def exact_type(self) -> Class:
-        return self.builtin_types.str_exact
+        return self.type_env.str_exact
 
     def inexact_type(self) -> Class:
-        return self.builtin_types.str
+        return self.type_env.str
 
 
 class StrInstance(Object[StrClass]):
@@ -5312,27 +5374,27 @@ class StrInstance(Object[StrClass]):
         )
 
     def exact(self) -> Value:
-        return self.klass.builtin_types.str_exact.instance
+        return self.klass.type_env.str_exact.instance
 
     def inexact(self) -> Value:
-        return self.klass.builtin_types.str.instance
+        return self.klass.type_env.str.instance
 
 
 class DictClass(Class):
-    def __init__(self, builtin_types: BuiltinTypes, is_exact: bool = False) -> None:
+    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
         super().__init__(
             type_name=TypeName("builtins", "dict"),
-            builtin_types=builtin_types,
+            type_env=type_env,
             instance=DictInstance(self),
             is_exact=is_exact,
             pytype=dict,
         )
 
     def exact_type(self) -> Class:
-        return self.builtin_types.dict_exact
+        return self.type_env.dict_exact
 
     def inexact_type(self) -> Class:
-        return self.builtin_types.dict
+        return self.type_env.dict
 
 
 class DictInstance(Object[DictClass]):
@@ -5349,7 +5411,7 @@ class DictInstance(Object[DictClass]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.builtin_types.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -5359,34 +5421,34 @@ class DictInstance(Object[DictClass]):
         code_gen.emit("POP_JUMP_IF_NONZERO" if is_if_true else "POP_JUMP_IF_ZERO", next)
 
     def exact(self) -> Value:
-        return self.klass.builtin_types.dict_exact.instance
+        return self.klass.type_env.dict_exact.instance
 
     def inexact(self) -> Value:
-        return self.klass.builtin_types.dict.instance
+        return self.klass.type_env.dict.instance
 
 
 class BoolClass(Class):
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
+    def __init__(self, type_env: TypeEnvironment) -> None:
         super().__init__(
             TypeName("builtins", "bool"),
-            builtin_types,
-            [builtin_types.int],
+            type_env,
+            [type_env.int],
             pytype=bool,
             is_exact=True,
         )
 
-    def make_type_dict(self, type_env: TypeEnvironment) -> None:
-        super().make_type_dict(type_env)
+    def make_type_dict(self) -> None:
+        super().make_type_dict()
         self.members["__new__"] = BuiltinNewFunction(
             "__new__",
             "builtins",
             self,
-            self.builtin_types,
+            self.type_env,
             (
                 Parameter(
                     "cls",
                     0,
-                    ResolvedTypeRef(self.builtin_types.type),
+                    ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
                     False,
@@ -5394,7 +5456,7 @@ class BoolClass(Class):
                 Parameter(
                     "x",
                     0,
-                    ResolvedTypeRef(self.builtin_types.object),
+                    ResolvedTypeRef(self.type_env.object),
                     True,
                     False,
                     False,
@@ -5411,7 +5473,7 @@ class BoolClass(Class):
             visitor.visit(arg)
             arg_type = visitor.get_type(arg)
             if isinstance(arg_type, CIntInstance) and arg_type.constant == TYPED_BOOL:
-                visitor.set_type(node, self.builtin_types.bool.instance)
+                visitor.set_type(node, self.type_env.bool.instance)
                 return NO_EFFECT
 
         return super().bind_call(node, visitor, type_ctx)
@@ -5438,7 +5500,7 @@ class AnnotatedType(Class):
 
         if not isinstance(slice, ast.Index):
             visitor.syntax_error("can't slice generic types", node)
-            return DYNAMIC
+            return visitor.type_env.DYNAMIC
 
         val = slice.value
 
@@ -5470,10 +5532,10 @@ class UnionTypeName(GenericTypeName):
         module: str,
         name: str,
         args: Tuple[Class, ...],
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
     ) -> None:
         super().__init__(module, name, args)
-        self.builtin_types = builtin_types
+        self.type_env = type_env
 
     @property
     def opt_type(self) -> Optional[Class]:
@@ -5481,9 +5543,9 @@ class UnionTypeName(GenericTypeName):
         # Assumes well-formed union (no duplicate elements, >1 element)
         opt_type = None
         if len(self.args) == 2:
-            if self.args[0] is self.builtin_types.none:
+            if self.args[0] is self.type_env.none:
                 opt_type = self.args[1]
-            elif self.args[1] is self.builtin_types.none:
+            elif self.args[1] is self.type_env.none:
                 opt_type = self.args[0]
         return opt_type
 
@@ -5492,13 +5554,13 @@ class UnionTypeName(GenericTypeName):
         """Collapse `float | int` and `int | float` to `float`. Otherwise, return None."""
         if len(self.args) == 2:
             if (
-                self.args[0] is self.builtin_types.float
-                and self.args[1] is self.builtin_types.int
+                self.args[0] is self.type_env.float
+                and self.args[1] is self.type_env.int
             ):
                 return self.args[0]
             if (
-                self.args[1] is self.builtin_types.float
-                and self.args[0] is self.builtin_types.int
+                self.args[1] is self.type_env.float
+                and self.args[0] is self.type_env.int
             ):
                 return self.args[1]
         return None
@@ -5510,7 +5572,7 @@ class UnionTypeName(GenericTypeName):
             return opt_type.type_descr + ("?",)
         # the runtime does not support unions beyond optional, so just fall back
         # to dynamic for runtime purposes
-        return self.builtin_types.dynamic.type_descr
+        return self.type_env.dynamic.type_descr
 
     @property
     def friendly_name(self) -> str:
@@ -5531,40 +5593,38 @@ class UnionType(GenericClass):
 
     def __init__(
         self,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         type_name: Optional[UnionTypeName] = None,
         type_def: Optional[GenericClass] = None,
         instance_type: Optional[Type[Object[Class]]] = None,
-        type_env: Optional[TypeEnvironment] = None,
+        is_instantiated: bool = False,
     ) -> None:
         instance_type = instance_type or UnionInstance
         super().__init__(
-            type_name or UnionTypeName("typing", "Union", (), builtin_types),
-            builtin_types,
+            type_name or UnionTypeName("typing", "Union", (), type_env),
+            type_env,
             bases=[],
             instance=instance_type(self),
             type_def=type_def,
         )
-        self.type_env = type_env
+        self.is_instantiated = is_instantiated
 
     @property
     def opt_type(self) -> Optional[Class]:
         return self.type_name.opt_type
 
     def exact_type(self) -> Class:
-        type_env = self.type_env
-        if type_env is not None:
-            return type_env.get_generic_type(
-                self.builtin_types.union,
+        if self.is_instantiated:
+            return self.type_env.get_generic_type(
+                self.type_env.union,
                 tuple(a.exact_type() for a in self.type_args),
             )
         return self
 
     def inexact_type(self) -> Class:
-        type_env = self.type_env
-        if type_env is not None:
-            return type_env.get_generic_type(
-                self.builtin_types.union,
+        if self.is_instantiated:
+            return self.type_env.get_generic_type(
+                self.type_env.union,
                 tuple(a.inexact_type() for a in self.type_args),
             )
         return self
@@ -5579,13 +5639,12 @@ class UnionType(GenericClass):
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
-        type_env: TypeEnvironment,
     ) -> Class:
         type_args = self._simplify_args(index)
         if len(type_args) == 1 and not type_args[0].is_generic_parameter:
             return type_args[0]
         type_name = UnionTypeName(
-            self.type_name.module, self.type_name.name, type_args, self.builtin_types
+            self.type_name.module, self.type_name.name, type_args, self.type_env
         )
         if any(isinstance(a, CType) for a in type_args):
             raise TypedSyntaxError(
@@ -5595,7 +5654,7 @@ class UnionType(GenericClass):
         if type_name.opt_type is not None:
             ThisUnionType = OptionalType
         return ThisUnionType(
-            self.builtin_types, type_name, type_def=self, type_env=type_env
+            self.type_env, type_name, type_def=self, is_instantiated=True
         )
 
     def _simplify_args(self, args: Sequence[Class]) -> Tuple[Class, ...]:
@@ -5640,7 +5699,7 @@ class UnionInstance(Object[UnionType]):
             visitor.syntax_error(f"{self.name}: {e.msg}", node)
 
         union = visitor.compiler.type_env.get_generic_type(
-            self.klass.builtin_types.union, tuple(result_types)
+            self.klass.type_env.union, tuple(result_types)
         )
         visitor.set_type(node, union.instance)
         return ret_types
@@ -5745,23 +5804,23 @@ class OptionalType(UnionType):
 
     def __init__(
         self,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         type_name: Optional[UnionTypeName] = None,
         type_def: Optional[GenericClass] = None,
-        type_env: Optional[TypeEnvironment] = None,
+        is_instantiated: bool = False,
     ) -> None:
         super().__init__(
-            builtin_types,
+            type_env,
             type_name
             or UnionTypeName(
                 "typing",
                 "Optional",
-                (GenericParameter("T", 0, builtin_types),),
-                builtin_types,
+                (GenericParameter("T", 0, type_env),),
+                type_env,
             ),
             type_def=type_def,
             instance_type=OptionalInstance,
-            type_env=type_env,
+            is_instantiated=is_instantiated,
         )
 
     @property
@@ -5773,13 +5832,14 @@ class OptionalType(UnionType):
         return opt_type
 
     def make_generic_type(
-        self, index: Tuple[Class, ...], type_env: TypeEnvironment
+        self,
+        index: Tuple[Class, ...],
     ) -> Class:
         assert len(index) == 1
         if not index[0].is_generic_parameter:
             # Optional[T] is syntactic sugar for Union[T, None]
-            index = index + (self.builtin_types.none,)
-        return super().make_generic_type(index, type_env)
+            index = index + (self.type_env.none,)
+        return super().make_generic_type(index)
 
 
 class OptionalInstance(UnionInstance):
@@ -5816,7 +5876,7 @@ class ArrayInstance(Object["ArrayClass"]):
         visitor: TypeBinder,
         type_ctx: Optional[Class] = None,
     ) -> None:
-        if type == self.klass.builtin_types.slice.instance:
+        if type == self.klass.type_env.slice.instance:
             # Slicing preserves type
             return visitor.set_type(node, self)
 
@@ -5826,9 +5886,9 @@ class ArrayInstance(Object["ArrayClass"]):
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
     ) -> bool:
         index_type = code_gen.get_type(node.slice)
-        return self.klass.builtin_types.int.can_assign_from(
-            index_type.klass
-        ) or isinstance(index_type, CIntInstance)
+        return self.klass.type_env.int.can_assign_from(index_type.klass) or isinstance(
+            index_type, CIntInstance
+        )
 
     def _maybe_unbox_index(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
@@ -5838,7 +5898,7 @@ class ArrayInstance(Object["ArrayClass"]):
             # If the index is not a primitive, unbox its value to an int64, our implementation of
             # SEQUENCE_{GET/SET} expects the index to be a primitive int.
             code_gen.emit("REFINE_TYPE", index_type.klass.type_descr)
-            code_gen.emit("PRIMITIVE_UNBOX", self.klass.builtin_types.int64.type_descr)
+            code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_env.int64.type_descr)
 
     def emit_load_subscr(
         self, node: ast.Subscript, code_gen: Static38CodeGenerator
@@ -5848,7 +5908,7 @@ class ArrayInstance(Object["ArrayClass"]):
             code_gen.emit("SEQUENCE_GET", self._seq_type())
         else:
             super().emit_load_subscr(node, code_gen)
-            if code_gen.get_type(node.slice).klass != self.klass.builtin_types.slice:
+            if code_gen.get_type(node.slice).klass != self.klass.type_env.slice:
                 # Falling back to BINARY_SUBSCR here, so we need to unbox the output
                 code_gen.emit("REFINE_TYPE", self.klass.index.boxed.type_descr)
                 code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
@@ -5860,7 +5920,7 @@ class ArrayInstance(Object["ArrayClass"]):
             self._maybe_unbox_index(node, code_gen)
             code_gen.emit("SEQUENCE_SET", self._seq_type())
         else:
-            if code_gen.get_type(node.slice).klass != self.klass.builtin_types.slice:
+            if code_gen.get_type(node.slice).klass != self.klass.type_env.slice:
                 # Falling back to STORE_SUBSCR here, so need to box the value first
                 code_gen.emit("ROT_THREE")
                 code_gen.emit("ROT_THREE")
@@ -5884,7 +5944,7 @@ class ArrayInstance(Object["ArrayClass"]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.builtin_types.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
 
     def emit_forloop(self, node: ast.For, code_gen: Static38CodeGenerator) -> None:
         if not isinstance(node.target, ast.Name):
@@ -5898,7 +5958,7 @@ class ArrayClass(GenericClass):
     def __init__(
         self,
         name: GenericTypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
         klass: Optional[Class] = None,
@@ -5907,11 +5967,11 @@ class ArrayClass(GenericClass):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
     ) -> None:
-        default_bases: List[Class] = [builtin_types.object]
+        default_bases: List[Class] = [type_env.object]
         default_instance: Object[Class] = ArrayInstance(self)
         super().__init__(
             name,
-            builtin_types,
+            type_env,
             bases or default_bases,
             instance or default_instance,
             klass,
@@ -5924,12 +5984,12 @@ class ArrayClass(GenericClass):
             "__new__",
             "__static__",
             self,
-            self.builtin_types,
+            self.type_env,
             (
                 Parameter(
                     "cls",
                     0,
-                    ResolvedTypeRef(self.builtin_types.type),
+                    ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
                     False,
@@ -5937,7 +5997,7 @@ class ArrayClass(GenericClass):
                 Parameter(
                     "initializer",
                     0,
-                    ResolvedTypeRef(self.builtin_types.object),
+                    ResolvedTypeRef(self.type_env.object),
                     True,
                     (),
                     False,
@@ -5955,21 +6015,20 @@ class ArrayClass(GenericClass):
     def make_generic_type(
         self,
         index: Tuple[Class, ...],
-        type_env: TypeEnvironment,
     ) -> Class:
         for tp in index:
-            if tp not in self.builtin_types.allowed_array_types:
+            if tp not in self.type_env.allowed_array_types:
                 raise TypedSyntaxError(
                     f"Invalid {self.gen_name.name} element type: {tp.instance.name}"
                 )
-        return super().make_generic_type(index, type_env)
+        return super().make_generic_type(index)
 
 
 class VectorClass(ArrayClass):
     def __init__(
         self,
         name: GenericTypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
         klass: Optional[Class] = None,
@@ -5980,7 +6039,7 @@ class VectorClass(ArrayClass):
     ) -> None:
         super().__init__(
             name,
-            builtin_types,
+            type_env,
             bases,
             instance,
             klass,
@@ -5997,7 +6056,7 @@ class VectorClass(ArrayClass):
                 Parameter(
                     "v",
                     0,
-                    ResolvedTypeRef(self.builtin_types.vector_type_param),
+                    ResolvedTypeRef(self.type_env.vector_type_param),
                     False,
                     None,
                     False,
@@ -6010,7 +6069,7 @@ class CheckedDict(GenericClass):
     def __init__(
         self,
         name: GenericTypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
         klass: Optional[Class] = None,
@@ -6023,7 +6082,7 @@ class CheckedDict(GenericClass):
             instance = CheckedDictInstance(self)
         super().__init__(
             name,
-            builtin_types,
+            type_env,
             bases,
             instance,
             klass,
@@ -6036,18 +6095,18 @@ class CheckedDict(GenericClass):
             "__init__",
             "builtins",
             self,
-            self.builtin_types,
+            self.type_env,
             (
                 Parameter(
                     "cls",
                     0,
-                    ResolvedTypeRef(self.builtin_types.type),
+                    ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
                     False,
                 ),
                 Parameter(
-                    "x", 0, ResolvedTypeRef(self.builtin_types.object), True, (), False
+                    "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
                 ),
             ),
             ResolvedTypeRef(self),
@@ -6116,7 +6175,7 @@ class CheckedDictInstance(Object[CheckedDict]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.builtin_types.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -6130,7 +6189,7 @@ class CheckedList(GenericClass):
     def __init__(
         self,
         name: GenericTypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
         klass: Optional[Class] = None,
@@ -6143,7 +6202,7 @@ class CheckedList(GenericClass):
             instance = CheckedListInstance(self)
         super().__init__(
             name,
-            builtin_types,
+            type_env,
             bases,
             instance,
             klass,
@@ -6156,18 +6215,18 @@ class CheckedList(GenericClass):
             "__init__",
             "builtins",
             self,
-            self.builtin_types,
+            self.type_env,
             (
                 Parameter(
                     "cls",
                     0,
-                    ResolvedTypeRef(self.builtin_types.type),
+                    ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
                     False,
                 ),
                 Parameter(
-                    "x", 0, ResolvedTypeRef(self.builtin_types.object), True, (), False
+                    "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
                 ),
             ),
             ResolvedTypeRef(self),
@@ -6186,12 +6245,12 @@ class CheckedListInstance(Object[CheckedList]):
         visitor: TypeBinder,
         type_ctx: Optional[Class] = None,
     ) -> None:
-        if type == self.klass.builtin_types.slice.instance:
+        if type == self.klass.type_env.slice.instance:
             visitor.set_type(node, self)
         else:
-            if type.klass not in self.klass.builtin_types.signed_cint_types:
+            if type.klass not in self.klass.type_env.signed_cint_types:
                 visitor.visitExpectedType(
-                    node.slice, self.klass.builtin_types.int.instance, blame=node
+                    node.slice, self.klass.type_env.int.instance, blame=node
                 )
             visitor.set_type(node, self.elem_type)
 
@@ -6206,8 +6265,7 @@ class CheckedListInstance(Object[CheckedList]):
             return super().emit_load_subscr(node, code_gen)
 
         index_is_ctype = (
-            code_gen.get_type(node.slice).klass
-            in self.klass.builtin_types.signed_cint_types
+            code_gen.get_type(node.slice).klass in self.klass.type_env.signed_cint_types
         )
 
         if index_is_ctype:
@@ -6225,7 +6283,7 @@ class CheckedListInstance(Object[CheckedList]):
 
         index_type = code_gen.get_type(node.slice).klass
 
-        if index_type in self.klass.builtin_types.signed_cint_types:
+        if index_type in self.klass.type_env.signed_cint_types:
             # TODO add CheckedList to SEQUENCE_SET so we can emit that instead
             # of having to box the index here
             code_gen.emit("PRIMITIVE_BOX", index_type.type_descr)
@@ -6256,7 +6314,7 @@ class CheckedListInstance(Object[CheckedList]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.builtin_types.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -6281,12 +6339,14 @@ class CastFunction(Object[Class]):
             visitor.syntax_error("cast requires two parameters: type and value", node)
 
         for arg in node.args:
-            visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+            visitor.visitExpectedType(
+                arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+            )
 
         cast_type = visitor.module.resolve_annotation(node.args[0])
         if cast_type is None:
             visitor.syntax_error("cast to unknown type", node)
-            cast_type = self.klass.builtin_types.dynamic
+            cast_type = self.klass.type_env.dynamic
 
         visitor.set_type(node, cast_type.instance)
         return NO_EFFECT
@@ -6326,7 +6386,7 @@ class CInstance(Value, Generic[TClass]):
             node.left, self, self.binop_error("{}", "{}", node.op)
         )
         if isinstance(node.op, ast.Pow):
-            visitor.set_type(node, self.klass.builtin_types.double.instance)
+            visitor.set_type(node, self.klass.type_env.double.instance)
         else:
             visitor.set_type(node, self)
         return True
@@ -6398,11 +6458,11 @@ class CEnumInstance(CInstance["CEnumType"]):
             visitor.syntax_error("Enum values cannot be modified or deleted", node)
 
         if node.attr == "name":
-            visitor.set_type(node, self.klass.builtin_types.str_exact.instance)
+            visitor.set_type(node, visitor.type_env.str_exact.instance)
             return
 
         if node.attr == "value":
-            visitor.set_type(node, INT64_VALUE)
+            visitor.set_type(node, visitor.type_env.int64.instance)
             return
 
         super().bind_attr(node, visitor, type_ctx)
@@ -6431,7 +6491,7 @@ class CEnumInstance(CInstance["CEnumType"]):
             return False
 
         visitor.set_type(op, self)
-        visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+        visitor.set_type(node, self.klass.type_env.cbool.instance)
         return True
 
     def bind_reverse_compare(
@@ -6458,7 +6518,7 @@ class CEnumInstance(CInstance["CEnumType"]):
             return False
 
         visitor.set_type(op, self)
-        visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+        visitor.set_type(node, self.klass.type_env.cbool.instance)
         return True
 
     @property
@@ -6487,7 +6547,9 @@ class CEnumInstance(CInstance["CEnumType"]):
             raise RuntimeError("unsupported box type: " + type.name)
 
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
-        code_gen.emit("PRIMITIVE_COMPARE_OP", INT64_VALUE.get_op_id(op))
+        code_gen.emit(
+            "PRIMITIVE_COMPARE_OP", self.klass.type_env.int64.instance.get_op_id(op)
+        )
 
     def resolve_attr(
         self, node: ast.Attribute, visitor: ReferenceVisitor
@@ -6504,13 +6566,13 @@ class CEnumType(CType):
 
     def __init__(
         self,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         type_name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
     ) -> None:
         super().__init__(
             type_name or TypeName("__static__", "Enum"),
-            builtin_types,
+            type_env,
             bases,
             CEnumInstance(self),
         )
@@ -6519,7 +6581,7 @@ class CEnumType(CType):
 
     @cached_property
     def boxed(self) -> BoxedEnumClass:
-        return BoxedEnumClass(self.type_name, self.builtin_types, self.bases)
+        return BoxedEnumClass(self.type_name, self.type_env, self.bases)
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         # TODO(wmeehan): handle enum subclassing and mix-ins
@@ -6527,9 +6589,9 @@ class CEnumType(CType):
             raise TypedSyntaxError(
                 f"Static Enum types cannot support multiple bases: {bases}",
             )
-        if bases[0] != self.builtin_types.enum:
+        if bases[0] != self.type_env.enum:
             raise TypedSyntaxError("Static Enum types do not allow subclassing")
-        return CEnumType(self.builtin_types, name, bases)
+        return CEnumType(self.type_env, name, bases)
 
     def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
         if not isinstance(const, ast.Constant):
@@ -6540,7 +6602,7 @@ class CEnumType(CType):
             raise TypedSyntaxError(
                 f"Static enum values must be int, not {type(value).__name__}"
             )
-        if not INT64_VALUE.is_valid_int(value):
+        if not self.type_env.int64.instance.is_valid_int(value):
             raise TypedSyntaxError(
                 f"Value {value} for {self.instance_name}.{name.id} is out of bounds"
             )
@@ -6570,7 +6632,9 @@ class CEnumType(CType):
 
         visitor.set_type(node, self.instance)
         arg = node.args[0]
-        visitor.visitExpectedType(arg, DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE)
+        visitor.visitExpectedType(
+            arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+        )
 
         return NO_EFFECT
 
@@ -6630,18 +6694,18 @@ class BoxedEnumClass(Class):
     def __init__(
         self,
         type_name: TypeName,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
     ) -> None:
         boxed_bases = (
             [base.boxed if isinstance(base, CEnumType) else base for base in bases]
             if bases
-            else [builtin_types.object]
+            else [type_env.object]
         )
 
         super().__init__(
             type_name,
-            builtin_types,
+            type_env,
             boxed_bases,
             BoxedEnumInstance(self),
         )
@@ -6750,7 +6814,7 @@ class CIntInstance(CInstance["CIntType"]):
     def make_literal(self, literal_value: object, type_env: TypeEnvironment) -> Value:
         assert isinstance(literal_value, int)
         return CIntType(
-            self.klass.constant, self.klass.builtin_types, literal_value=literal_value
+            self.klass.constant, self.klass.type_env, literal_value=literal_value
         ).instance
 
     def validate_mixed_math(self, other: Value) -> Optional[Value]:
@@ -6766,9 +6830,9 @@ class CIntInstance(CInstance["CIntType"]):
                 # Ensure we return a simple cint type even if self or other is a literal.
                 size = max(self.size, other.size)
                 types = (
-                    self.klass.builtin_types.signed_cint_types
+                    self.klass.type_env.signed_cint_types
                     if self.signed
-                    else self.klass.builtin_types.unsigned_cint_types
+                    else self.klass.type_env.unsigned_cint_types
                 )
                 return types[size].instance
             else:
@@ -6779,7 +6843,7 @@ class CIntInstance(CInstance["CIntType"]):
 
                 if new_size <= TYPED_INT_64BIT:
                     # signs don't match, but we can promote to the next highest data type
-                    return self.klass.builtin_types.signed_cint_types[new_size].instance
+                    return self.klass.type_env.signed_cint_types[new_size].instance
 
         return None
 
@@ -6801,8 +6865,8 @@ class CIntInstance(CInstance["CIntType"]):
             isinstance(other, CIntInstance) and other.constant == TYPED_BOOL
         )
         if comparing_cbools:
-            visitor.set_type(op, self.klass.builtin_types.cbool.instance)
-            visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+            visitor.set_type(op, self.klass.type_env.cbool.instance)
+            visitor.set_type(node, self.klass.type_env.cbool.instance)
             return True
 
         compare_type = self.validate_mixed_math(other)
@@ -6810,10 +6874,10 @@ class CIntInstance(CInstance["CIntType"]):
             visitor.syntax_error(
                 f"can't compare {self.name} to {visitor.get_type(right).name}", node
             )
-            compare_type = DYNAMIC
+            compare_type = visitor.type_env.DYNAMIC
 
         visitor.set_type(op, compare_type)
-        visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+        visitor.set_type(node, self.klass.type_env.cbool.instance)
         return True
 
     def bind_reverse_compare(
@@ -6829,7 +6893,7 @@ class CIntInstance(CInstance["CIntType"]):
         visitor.visitExpectedType(left, self)
 
         visitor.set_type(op, self)
-        visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+        visitor.set_type(node, self.klass.type_env.cbool.instance)
         return True
 
     def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
@@ -6853,13 +6917,11 @@ class CIntInstance(CInstance["CIntType"]):
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
             node_type = visitor.compiler.type_env.get_literal_type(self, node.value)
-        elif (
-            type(node.value) is bool and self is self.klass.builtin_types.cbool.instance
-        ):
-            assert self is self.klass.builtin_types.cbool.instance
+        elif type(node.value) is bool and self is self.klass.type_env.cbool.instance:
+            assert self is self.klass.type_env.cbool.instance
             node_type = self
         else:
-            node_type = CONSTANT_TYPES[type(node.value)]
+            node_type = visitor.type_env.constant_types[type(node.value)]
 
         visitor.set_type(node, node_type)
 
@@ -6895,14 +6957,14 @@ class CIntInstance(CInstance["CIntType"]):
             )
         rinst = visitor.get_type(node.right)
         if rinst != self:
-            if rinst.klass == self.klass.builtin_types.list_exact:
-                visitor.set_type(node, self.klass.builtin_types.list_exact.instance)
+            if rinst.klass == self.klass.type_env.list_exact:
+                visitor.set_type(node, self.klass.type_env.list_exact.instance)
                 return True
-            if rinst.klass == self.klass.builtin_types.tuple_exact:
-                visitor.set_type(node, self.klass.builtin_types.tuple_exact.instance)
+            if rinst.klass == self.klass.type_env.tuple_exact:
+                visitor.set_type(node, self.klass.type_env.tuple_exact.instance)
                 return True
 
-            visitor.visit(node.right, type_ctx or INT64_VALUE)
+            visitor.visit(node.right, type_ctx or visitor.type_env.int64.instance)
 
         if isinstance(node.op, ast.Pow):
             # For pow, we don't support mixed math of unsigned/signed ints.
@@ -6923,7 +6985,7 @@ class CIntInstance(CInstance["CIntType"]):
                     ),
                     node,
                 )
-                type_ctx = DYNAMIC
+                type_ctx = visitor.type_env.DYNAMIC
             else:
                 visitor.set_node_data(node, BinOpCommonType, BinOpCommonType(type_ctx))
         else:
@@ -6935,7 +6997,7 @@ class CIntInstance(CInstance["CIntType"]):
                 self.binop_error("{1}", "{0}", node.op),
             )
         if isinstance(node.op, ast.Pow):
-            visitor.set_type(node, self.klass.builtin_types.double.instance)
+            visitor.set_type(node, self.klass.type_env.double.instance)
         else:
             visitor.set_type(node, type_ctx)
         return True
@@ -6952,9 +7014,9 @@ class CIntInstance(CInstance["CIntType"]):
         code_gen.visit(node)
         ty = code_gen.get_type(node)
         target_ty = (
-            self.klass.builtin_types.bool
-            if self.klass is self.klass.builtin_types.cbool
-            else self.klass.builtin_types.int
+            self.klass.type_env.bool
+            if self.klass is self.klass.type_env.cbool
+            else self.klass.type_env.int
         )
         if target_ty.can_assign_from(ty.klass):
             code_gen.emit("REFINE_TYPE", ty.klass.type_descr)
@@ -6969,7 +7031,7 @@ class CIntInstance(CInstance["CIntType"]):
             visitor.set_type(node, self)
         else:
             assert isinstance(node.op, ast.Not)
-            visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+            visitor.set_type(node, self.klass.type_env.cbool.instance)
 
     def emit_unaryop(self, node: ast.UnaryOp, code_gen: Static38CodeGenerator) -> None:
         code_gen.update_lineno(node)
@@ -7000,7 +7062,7 @@ class CIntType(CType):
     def __init__(
         self,
         constant: int,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         name_override: Optional[str] = None,
         literal_value: Optional[int] = None,
     ) -> None:
@@ -7015,13 +7077,13 @@ class CIntType(CType):
             name = name_override
         super().__init__(
             TypeName("__static__", name),
-            builtin_types,
+            type_env,
             instance=CIntInstance(self, self.constant, self.size, self.signed),
         )
 
     @property
     def boxed(self) -> Class:
-        return self.builtin_types.int
+        return self.type_env.int
 
     def can_assign_from(self, src: Class) -> bool:
         if isinstance(src, CIntType):
@@ -7060,17 +7122,18 @@ class CIntType(CType):
         return NO_EFFECT
 
     def is_valid_arg(self, arg_type: Value) -> bool:
-        if arg_type is DYNAMIC or arg_type is OBJECT:
+        if (
+            arg_type is self.klass.type_env.DYNAMIC
+            or arg_type is self.klass.type_env.OBJECT
+        ):
             return True
 
-        if self is self.builtin_types.cbool:
-            if arg_type.klass is self.builtin_types.bool:
+        if self is self.type_env.cbool:
+            if arg_type.klass is self.type_env.bool:
                 return True
             return False
 
-        if arg_type is self.builtin_types.int.instance or self.is_valid_exact_int(
-            arg_type
-        ):
+        if arg_type is self.type_env.int.instance or self.is_valid_exact_int(arg_type):
             return True
 
         if isinstance(arg_type, CIntInstance):
@@ -7158,13 +7221,13 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     ) -> bool:
         rtype = visitor.get_type(right)
         if rtype != self:
-            if rtype == self.klass.builtin_types.float_exact.instance:
+            if rtype == self.klass.type_env.float_exact.instance:
                 visitor.visitExpectedType(right, self, f"can't compare {{}} to {{}}")
             else:
                 visitor.syntax_error(f"can't compare {self.name} to {rtype.name}", node)
 
         visitor.set_type(op, self)
-        visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+        visitor.set_type(node, self.klass.type_env.cbool.instance)
         return True
 
     def bind_reverse_compare(
@@ -7178,13 +7241,13 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     ) -> bool:
         ltype = visitor.get_type(left)
         if ltype != self:
-            if ltype == self.klass.builtin_types.float_exact.instance:
+            if ltype == self.klass.type_env.float_exact.instance:
                 visitor.visitExpectedType(left, self, f"can't compare {{}} to {{}}")
             else:
                 visitor.syntax_error(f"can't compare {self.name} to {ltype.name}", node)
 
             visitor.set_type(op, self)
-            visitor.set_type(node, self.klass.builtin_types.cbool.instance)
+            visitor.set_type(node, self.klass.type_env.cbool.instance)
             return True
 
         return False
@@ -7202,7 +7265,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         if rtype != self:
             visitor.visitExpectedType(
                 node.right,
-                type_ctx or self.klass.builtin_types.double.instance,
+                type_ctx or self.klass.type_env.double.instance,
                 self.binop_error("{}", "{}", node.op),
             )
 
@@ -7228,10 +7291,10 @@ class CDoubleInstance(CInstance["CDoubleType"]):
     def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
         node_ty = code_gen.get_type(node)
-        if self.klass.builtin_types.float.can_assign_from(node_ty.klass):
+        if self.klass.type_env.float.can_assign_from(node_ty.klass):
             code_gen.emit("REFINE_TYPE", node_ty.klass.type_descr)
         else:
-            code_gen.emit("CAST", self.klass.builtin_types.float.type_descr)
+            code_gen.emit("CAST", self.klass.type_env.float.type_descr)
         code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
     def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
@@ -7240,16 +7303,16 @@ class CDoubleInstance(CInstance["CDoubleType"]):
 
 
 class CDoubleType(CType):
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
+    def __init__(self, type_env: TypeEnvironment) -> None:
         super().__init__(
             TypeName("__static__", "double"),
-            builtin_types,
+            type_env,
             instance=CDoubleInstance(self),
         )
 
     @property
     def boxed(self) -> Class:
-        return self.builtin_types.float
+        return self.type_env.float
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -7264,9 +7327,9 @@ class CDoubleType(CType):
         visitor.visit(arg, self.instance)
         arg_type = visitor.get_type(arg)
         if arg_type not in (
-            self.builtin_types.float.instance,
-            self.builtin_types.float_exact.instance,
-            self.builtin_types.dynamic.instance,
+            self.type_env.float.instance,
+            self.type_env.float_exact.instance,
+            self.type_env.DYNAMIC,
             self.instance,
         ):
             visitor.syntax_error(
@@ -7287,8 +7350,8 @@ class CDoubleType(CType):
 
 
 class ModuleType(Class):
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
-        super().__init__(TypeName("types", "ModuleType"), builtin_types)
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        super().__init__(TypeName("types", "ModuleType"), type_env)
 
 
 class ModuleInstance(Object["ModuleType"]):
@@ -7302,7 +7365,7 @@ class ModuleInstance(Object["ModuleType"]):
     def __init__(self, module_name: str, compiler: Compiler) -> None:
         self.module_name = module_name
         self.compiler = compiler
-        super().__init__(klass=compiler.builtin_types.module)
+        super().__init__(klass=compiler.type_env.module)
 
     def resolve_attr(
         self, node: ast.Attribute, visitor: ReferenceVisitor
@@ -7312,14 +7375,14 @@ class ModuleInstance(Object["ModuleType"]):
 
         module_table = self.compiler.modules.get(self.module_name)
         if module_table is None:
-            return DYNAMIC
+            return visitor.type_env.DYNAMIC
 
-        return module_table.children.get(node.attr, DYNAMIC)
+        return module_table.children.get(node.attr, visitor.type_env.DYNAMIC)
 
 
 class ProdAssertFunction(Object[Class]):
-    def __init__(self, builtin_types: BuiltinTypes) -> None:
-        super().__init__(builtin_types.function)
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        super().__init__(type_env.function)
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -7339,9 +7402,7 @@ class ProdAssertFunction(Object[Class]):
 
         effect = visitor.visit(node.args[0]) or NO_EFFECT
         if num_args == 2:
-            visitor.visitExpectedType(
-                node.args[1], self.klass.builtin_types.str.instance
-            )
+            visitor.visitExpectedType(node.args[1], self.klass.type_env.str.instance)
         effect.apply(visitor.local_types)
         return NO_EFFECT
 
@@ -7349,15 +7410,15 @@ class ProdAssertFunction(Object[Class]):
 class ContextDecoratorClass(Class):
     def __init__(
         self,
-        builtin_types: BuiltinTypes,
+        type_env: TypeEnvironment,
         name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
         subclass: bool = False,
     ) -> None:
         super().__init__(
             name or TypeName("__static__", "ContextDecorator"),
-            builtin_types,
-            bases or [builtin_types.object],
+            type_env,
+            bases or [type_env.object],
             ContextDecoratorInstance(self),
         )
         if not subclass:
@@ -7370,7 +7431,7 @@ class ContextDecoratorClass(Class):
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         if len(bases) == 1:
-            return ContextDecoratorClass(self.builtin_types, name, bases, True)
+            return ContextDecoratorClass(self.type_env, name, bases, True)
         return super().make_subclass(name, bases)
 
 
@@ -7378,9 +7439,9 @@ class ContextDecoratorInstance(Object[ContextDecoratorClass]):
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
-        if fn.klass is self.klass.builtin_types.function:
+        if fn.klass is self.klass.type_env.function:
             return ContextDecoratedMethod(
-                self.klass.builtin_types.function, fn, decorator, self
+                self.klass.type_env.function, fn, decorator, self
             )
         return None
 
@@ -7483,7 +7544,7 @@ class ContextDecoratedMethod(DecoratedMethod):
                 self.decorator,
                 ResolvedTypeRef(
                     module.compiler.type_env.get_generic_type(
-                        self.klass.builtin_types.classvar,
+                        self.klass.type_env.classvar,
                         (self.ctx_dec.klass,),
                     )
                 ),
@@ -7522,53 +7583,13 @@ class ContextDecoratedMethod(DecoratedMethod):
         return self.function.resolve_descr_get(node, inst, ctx, visitor)
 
 
-# builtin types
-BUILTIN_TYPES = BuiltinTypes()
-
-CONSTANT_TYPES: Mapping[Type[object], Value] = {
-    str: BUILTIN_TYPES.str_exact.instance,
-    int: BUILTIN_TYPES.int_exact.instance,
-    float: BUILTIN_TYPES.float_exact.instance,
-    complex: BUILTIN_TYPES.complex_exact.instance,
-    bytes: BUILTIN_TYPES.bytes.instance,
-    bool: BUILTIN_TYPES.bool.instance,
-    type(None): BUILTIN_TYPES.none.instance,
-    tuple: BUILTIN_TYPES.tuple_exact.instance,
-    type(...): BUILTIN_TYPES.ellipsis.instance,
-    frozenset: BUILTIN_TYPES.set.instance,
-}
-
-OBJECT = BUILTIN_TYPES.object.instance
-DYNAMIC = BUILTIN_TYPES.dynamic.instance
-
-NAME_TO_TYPE = {
-    "NoneType": BUILTIN_TYPES.none,
-    "object": BUILTIN_TYPES.object,
-    "str": BUILTIN_TYPES.str,
-    "__static__.int8": BUILTIN_TYPES.int8,
-    "__static__.int16": BUILTIN_TYPES.int16,
-    "__static__.int32": BUILTIN_TYPES.int32,
-    "__static__.int64": BUILTIN_TYPES.int64,
-    "__static__.uint8": BUILTIN_TYPES.uint8,
-    "__static__.uint16": BUILTIN_TYPES.uint16,
-    "__static__.uint32": BUILTIN_TYPES.uint32,
-    "__static__.uint64": BUILTIN_TYPES.uint64,
-}
-
-INT64_VALUE = BUILTIN_TYPES.int64.instance
-
 if spamobj is not None:
-    XXGENERIC_T = GenericParameter("T", 0, BUILTIN_TYPES)
-    XXGENERIC_U = GenericParameter("U", 1, BUILTIN_TYPES)
-    XXGENERIC_TYPE_NAME = GenericTypeName(
-        "xxclassloader", "XXGeneric", (XXGENERIC_T, XXGENERIC_U)
-    )
 
     class XXGeneric(GenericClass):
         def __init__(
             self,
             name: GenericTypeName,
-            builtin_types: BuiltinTypes,
+            type_env: TypeEnvironment,
             bases: Optional[List[Class]] = None,
             instance: Optional[Object[Class]] = None,
             klass: Optional[Class] = None,
@@ -7579,7 +7600,7 @@ if spamobj is not None:
         ) -> None:
             super().__init__(
                 name,
-                builtin_types,
+                type_env,
                 bases,
                 instance,
                 klass,
@@ -7596,7 +7617,7 @@ if spamobj is not None:
                     Parameter(
                         "t",
                         0,
-                        ResolvedTypeRef(XXGENERIC_T),
+                        ResolvedTypeRef(self.type_name.args[0]),
                         False,
                         None,
                         False,
@@ -7604,14 +7625,10 @@ if spamobj is not None:
                     Parameter(
                         "u",
                         0,
-                        ResolvedTypeRef(XXGENERIC_U),
+                        ResolvedTypeRef(self.type_name.args[1]),
                         False,
                         None,
                         False,
                     ),
                 ),
             )
-
-    XX_GENERIC_TYPE = XXGeneric(
-        XXGENERIC_TYPE_NAME, BUILTIN_TYPES, [BUILTIN_TYPES.object]
-    )
