@@ -461,6 +461,9 @@ class TypeEnvironment:
     def OBJECT(self) -> Value:
         return self.object.instance
 
+    def get_union(self, index: GenericTypeIndex) -> Class:
+        return self.get_generic_type(self.union, index)
+
 
 # Prefix for temporary var names. It's illegal in normal
 # Python, so there's no chance it will ever clash with a
@@ -1319,9 +1322,7 @@ class Class(Object["Class"]):
                     node,
                 )
                 return False
-            union = visitor.type_env.get_generic_type(
-                self.type_env.union, (self, rtype)
-            )
+            union = visitor.type_env.get_union((self, rtype))
             visitor.set_type(node, union)
             return True
 
@@ -4563,9 +4564,7 @@ class IsInstanceEffect(NarrowingEffect):
             type_args = tuple(
                 ta for ta in prev.klass.type_args if not inst.klass.can_assign_from(ta)
             )
-            reverse = visitor.compiler.type_env.get_generic_type(
-                visitor.compiler.type_env.union, type_args
-            ).instance
+            reverse = visitor.compiler.type_env.get_union(type_args).instance
         self.rev: Value = reverse
 
     def apply(
@@ -4619,9 +4618,8 @@ class IsInstanceFunction(Object[Class]):
             if isinstance(arg1, ast.Tuple):
                 types = tuple(visitor.get_type(el) for el in arg1.elts)
                 if all(isinstance(t, Class) for t in types):
-                    klass_type = visitor.compiler.type_env.get_generic_type(
-                        self.klass.type_env.union,
-                        cast(Tuple[Class, ...], types),
+                    klass_type = visitor.compiler.type_env.get_union(
+                        cast(Tuple[Class, ...], types)
                     )
             else:
                 arg1_type = visitor.get_type(node.args[1])
@@ -5663,17 +5661,15 @@ class UnionType(GenericClass):
 
     def exact_type(self) -> Class:
         if self.is_instantiated:
-            return self.type_env.get_generic_type(
-                self.type_env.union,
-                tuple(a.exact_type() for a in self.type_args),
+            return self.type_env.get_union(
+                tuple(a.exact_type() for a in self.type_args)
             )
         return self
 
     def inexact_type(self) -> Class:
         if self.is_instantiated:
-            return self.type_env.get_generic_type(
-                self.type_env.union,
-                tuple(a.inexact_type() for a in self.type_args),
+            return self.type_env.get_union(
+                tuple(a.inexact_type() for a in self.type_args)
             )
         return self
 
@@ -5746,9 +5742,7 @@ class UnionInstance(Object[UnionType]):
         except TypedSyntaxError as e:
             visitor.syntax_error(f"{self.name}: {e.msg}", node)
 
-        union = visitor.compiler.type_env.get_generic_type(
-            self.klass.type_env.union, tuple(result_types)
-        )
+        union = visitor.compiler.type_env.get_union(tuple(result_types))
         visitor.set_type(node, union.instance)
         return ret_types
 
@@ -7592,8 +7586,7 @@ class ContextDecoratedMethod(DecoratedMethod):
                 self.decorator,
                 ResolvedTypeRef(
                     module.compiler.type_env.get_generic_type(
-                        self.klass.type_env.classvar,
-                        (self.ctx_dec.klass,),
+                        self.klass.type_env.classvar, (self.ctx_dec.klass,)
                     )
                 ),
                 assignment=self.real_function.node,

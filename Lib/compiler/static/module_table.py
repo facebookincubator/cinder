@@ -108,9 +108,8 @@ class AnnotationVisitor(ReferenceVisitor):
             # don't optimize Python floats anyway, we accept this to maintain PEP-484 compatibility.
 
             if klass is self.type_env.float:
-                klass = self.compiler.type_env.get_generic_type(
-                    self.type_env.union,
-                    (self.type_env.float, self.type_env.int),
+                klass = self.compiler.type_env.get_union(
+                    (self.type_env.float, self.type_env.int)
                 )
 
             # TODO until we support runtime checking of unions, we must for
@@ -142,10 +141,7 @@ class AnnotationVisitor(ReferenceVisitor):
             rtype = self.resolve_annotation(node.right)
             if ltype is None or rtype is None:
                 return None
-            return self.module.compiler.type_env.get_generic_type(
-                self.module.compiler.type_env.union,
-                (ltype, rtype),
-            )
+            return self.module.compiler.type_env.get_union((ltype, rtype))
 
     def visitConstant(self, node: Constant) -> Optional[Value]:
         sval = node.value

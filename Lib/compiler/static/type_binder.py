@@ -179,10 +179,7 @@ class LocalsBranch:
         if len(types) == 1:
             return types[0]
 
-        return self.type_env.get_generic_type(
-            self.type_env.union,
-            tuple(t.inexact().klass for t in types),
-        ).instance
+        return self.type_env.get_union(tuple(t.inexact().klass for t in types)).instance
 
 
 class TypeDeclaration:
@@ -835,10 +832,7 @@ class TypeBinder(GenericVisitor):
         else_t = self.get_type(node.orelse)
         self.set_type(
             node,
-            self.type_env.get_generic_type(
-                self.type_env.union,
-                (body_t.klass, else_t.klass),
-            ).instance,
+            self.type_env.get_union((body_t.klass, else_t.klass)).instance,
         )
         return NO_EFFECT
 
@@ -869,10 +863,7 @@ class TypeBinder(GenericVisitor):
         elif existing.klass.can_assign_from(new.klass):
             return existing
 
-        res = self.type_env.get_generic_type(
-            self.type_env.union, (existing.klass, new.klass)
-        ).instance
-        return res
+        return self.type_env.get_union((existing.klass, new.klass)).instance
 
     def visitDict(
         self, node: ast.Dict, type_ctx: Optional[Class] = None
