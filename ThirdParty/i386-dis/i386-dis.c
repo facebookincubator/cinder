@@ -11805,6 +11805,10 @@ void set_att_syntax() {
   intel_syntax = 0;
 }
 
+int is_intel_syntax() {
+  return intel_syntax;
+}
+
 int
 print_insn (vma_t pc, disassemble_info *info)
 {

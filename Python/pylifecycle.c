@@ -1363,9 +1363,12 @@ _Py_FinalizeEx(int skip_cleanup)
     }
 #endif /* Py_TRACE_REFS */
 
-
     /* De-optimize any remaining objects and clean up executable memory */
     _PyJIT_Finalize();
+
+    /* Clear switchboards for types and functions */
+    _PyFunction_ClearSwitchboard();
+    _PyType_ClearSwitchboard();
 
     /* Clear interpreter state and all thread states. */
     PyInterpreterState_Clear(interp);

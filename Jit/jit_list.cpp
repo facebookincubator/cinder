@@ -15,6 +15,10 @@ void jitlist_match_line_numbers(bool v) {
   g_jitlist_match_line_numbers = v;
 }
 
+bool get_jitlist_match_line_numbers() {
+  return g_jitlist_match_line_numbers;
+}
+
 std::unique_ptr<JITList> JITList::create() {
   auto qualnames = Ref<>::steal(PyDict_New());
   if (qualnames == nullptr) {

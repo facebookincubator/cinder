@@ -44,21 +44,38 @@ using namespace jit;
 
 int64_t __strobe_CodeRuntime_py_code = CodeRuntime::kPyCodeOffset;
 
-enum InitState { JIT_NOT_INITIALIZED, JIT_INITIALIZED, JIT_FINALIZED };
-enum FrameMode { PY_FRAME = 0, SHADOW_FRAME };
-
 struct JitConfig {
-  InitState init_state{JIT_NOT_INITIALIZED};
+  InitStateJitConfig init_state{JIT_NOT_INITIALIZED};
 
   int is_enabled{0};
-  FrameMode frame_mode{PY_FRAME};
+  FrameModeJitConfig frame_mode{PY_FRAME};
   int are_type_slots_enabled{0};
   int allow_jit_list_wildcards{0};
   int compile_all_static_functions{0};
   size_t batch_compile_workers{0};
   int multithreaded_compile_test{0};
 };
-JitConfig jit_config;
+static JitConfig jit_config;
+
+void initJitConfig_() {
+  jit_config = JitConfig();
+}
+
+int _PyJIT_IsJitConfigAllow_jit_list_wildcards() {
+  return jit_config.allow_jit_list_wildcards;
+}
+
+int _PyJIT_IsJitConfigCompile_all_static_functions() {
+  return jit_config.compile_all_static_functions;
+}
+
+size_t _PyJIT_GetJitConfigBatch_compile_workers() {
+  return jit_config.batch_compile_workers;
+}
+
+int _PyJIT_IsJitConfigMultithreaded_compile_test() {
+  return jit_config.multithreaded_compile_test;
+}
 
 namespace {
 // Extra information needed to compile a PyCodeObject.
@@ -794,6 +811,8 @@ int _PyJIT_Initialize() {
     return 0;
   }
 
+  initJitConfig_();
+
   // Initialize some interned strings that can be used even when the JIT is
   // off.
 #define INTERN_STR(s)                         \
@@ -1228,6 +1247,7 @@ static void dump_jit_stats() {
   }
 
   JIT_LOG("JIT runtime stats:\n%s", PyUnicode_AsUTF8(stats_str));
+  Py_DECREF(stats_str);
 }
 
 int _PyJIT_Finalize() {
@@ -1237,6 +1257,7 @@ int _PyJIT_Finalize() {
 
   if (!g_write_profile_file.empty()) {
     writeProfileData(g_write_profile_file.c_str());
+    g_write_profile_file.clear();
   }
   clearProfileData();
 
@@ -1267,9 +1288,6 @@ int _PyJIT_Finalize() {
       opname = nullptr;
     }
   }
-
-  _PyFunction_ClearSwitchboard();
-  _PyType_ClearSwitchboard();
 
   jit::codegen::NativeGeneratorFactory::shutdown();
   return 0;
