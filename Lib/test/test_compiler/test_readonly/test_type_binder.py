@@ -185,3 +185,41 @@ class TypeBinderTest(ReadonlyTestBase):
                 "Cannot modify readonly reference 'x' via aug assign",
             ),
         )
+
+    def test_readonly_nested_func_late_declare(self) -> None:
+        code = """
+        def g():
+            def f():
+                y: int = x
+            x = readonly(1)
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("cannot assign readonly value to mutable 'y'"),
+        )
+
+    def test_readonly_nested_class_late_declare(self) -> None:
+        code = """
+        def g():
+            class C:
+                def f():
+                    y: int = x
+            x = readonly(1)
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("cannot assign readonly value to mutable 'y'"),
+        )
+
+    def test_readonly_triple_nested_function_late_declare(self) -> None:
+        code = """
+        def g():
+            def h():
+                def f():
+                    y: int = x
+            x = readonly(1)
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("cannot assign readonly value to mutable 'y'"),
+        )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 from ast import AST
-from typing import Dict, Optional, final
+from typing import Dict, Optional, final, List
 
 from ..consts import (
     SC_CELL,
@@ -32,8 +32,17 @@ class ReadonlyBindingScope:
         self.types: Dict[str, Value] = {}
         self.binder = binder
         self.parent = parent
+        self._parent_function: Optional[
+            ReadonlyBindingScope
+        ] = None  # the inner most parent function, if any
 
-    def declare(self, name: str, node: ast.AST, is_readonly: Value) -> bool:
+    def declare(
+        self,
+        name: str,
+        node: ast.AST,
+        is_readonly: Value,
+        custom_err_msg: Optional[str] = None,
+    ) -> bool:
         """
         returns False if conflicting declaration is found
         If False is returned then the scope is not changed
@@ -41,25 +50,93 @@ class ReadonlyBindingScope:
         # TODO: allow different readonliness for same name
         # in separate branches
         if self.types.get(name, is_readonly) != is_readonly:
-            self.binder.readonly_type_error(
-                f"cannot re-declare the readonliness of '{name}' to {is_readonly}", node
+            err_msg = (
+                custom_err_msg
+                or f"cannot re-declare the readonliness of '{name}' to {is_readonly}"
             )
+            self.binder.readonly_type_error(err_msg, node)
             return False
         self.types[name] = is_readonly
         return True
 
+    def get_parent_function(self) -> Optional[ReadonlyBindingScope]:
+        if self._parent_function is not None:
+            return self._parent_function
+        parent = self.parent
+        while parent is not None:
+            if isinstance(parent, ReadonlyFunctionBindingScope):
+                self._parent_function = parent
+                return parent
+            parent = parent.parent
+        return None
+
     def ignore_scope_for_readonly(self) -> bool:
+        """
+        Returns whether the scope should be ignored when looking up
+        readonliness of names.
+        Right now, only function scopes are looked up, while class and
+        module scopes are ignored
+        """
         return False
 
     def readonly_nonlocal(self) -> bool:
+        """
+        Returns whether nonlocal names in the scope are always readonly
+        """
         return False
 
     def returns_readonly(self) -> bool:
+        """
+        Returns whether this scope returns values as readonly (can only be True in
+        function scopes)
+        """
         return False
+
+    @property
+    def is_nested(self) -> bool:
+        """
+        Returns whether the scope is nested inside a function
+        """
+        return self.get_parent_function() is not None
+
+    @property
+    def is_previsit(self) -> bool:
+        """
+        Functions are visited twice in order to collect all names
+        for inner scopes.
+        In the first time, no inner scopes are visited.
+        Returns whether this scope is in a pre-visit state (i.e. inner scopes are skipped)
+        """
+        parent_func = self.get_parent_function()
+        if parent_func is not None:
+            return parent_func.is_previsit
+        return False
+
+    def store_post_visit(self, node: ast.AST) -> None:
+        """
+        Store a node for a second visit in this scope.
+        This scope should be a function, or nested inside one
+        """
+        parent_func = self.get_parent_function()
+        if parent_func is not None:
+            parent_func.store_post_visit(node)
+
+    def finish_previsit(self) -> None:
+        """
+        Indicate that inner scopes in this scope can now be visited.
+        No effect outside of function scopes.
+        """
+        pass
 
 
 class IgnoredReadonlyScope(ReadonlyBindingScope):
-    def declare(self, name: str, node: ast.AST, is_readonly: Value) -> bool:
+    def declare(
+        self,
+        name: str,
+        node: ast.AST,
+        is_readonly: Value,
+        custom_err_msg: Optional[str] = None,
+    ) -> bool:
         if is_readonly != MUTABLE:
             self.binder.readonly_type_error(
                 f"cannot declare '{name}' readonly in class/module", node
@@ -86,10 +163,13 @@ class ReadonlyFunctionBindingScope(ReadonlyBindingScope):
         parent: Optional[ReadonlyBindingScope] = None,
         returns_readonly: bool = False,
         readonly_nonlocal: bool = False,
+        pre_visit: bool = False,
     ) -> None:
         super().__init__(node, binder, parent)
         self._returns_readonly = returns_readonly
         self._readonly_nonlocal = readonly_nonlocal
+        self._pre_visit = pre_visit
+        self.post_visit: List[ast.AST] = []
 
     def readonly_nonlocal(self) -> bool:
         return self._readonly_nonlocal
@@ -97,9 +177,41 @@ class ReadonlyFunctionBindingScope(ReadonlyBindingScope):
     def returns_readonly(self) -> bool:
         return self._returns_readonly
 
+    @property
+    def is_previsit(self) -> bool:
+        return self._pre_visit
+
+    def store_post_visit(self, node: ast.AST) -> None:
+        self.post_visit.append(node)
+
+    def finish_previsit(self) -> None:
+        self._pre_visit = False
+
+
+class ImmediateReadonlyContext:
+    """
+    Used in type binder to indicate an immdieate context specifying
+    the next AST node to have certain readonliness.
+    This models readonly(expr) where expr as a whole becomes
+    readonly but not any of its subexpressions
+    """
+
+    value: Optional[Value]
+    expired: bool
+
+    def __init__(self, value: Optional[Value] = None, expired: bool = False) -> None:
+        self.value = value
+        self.expired = expired
+
 
 @final
 class ReadonlyTypeBinder(ASTVisitor):
+    """
+    Note: as_readonly is only passed to the immediate next visit method
+        if you want to pass as_readonly through generic_visit, you need to explicitly
+        implement the visit_ method for that AST node
+    """
+
     def __init__(
         self,
         node: AST,
@@ -108,7 +220,7 @@ class ReadonlyTypeBinder(ASTVisitor):
         bind_types: Optional[TReadonlyTypes] = None,
     ) -> None:
         super().__init__()
-        self.node = node
+        self.input = node
         self.symbols = symbols
         self.filename = filename
         self.scopes: Dict[AST, Scope] = symbols.scopes
@@ -124,7 +236,7 @@ class ReadonlyTypeBinder(ASTVisitor):
 
     def get_types(self) -> TReadonlyTypes:
         if not self.bind_types:
-            self.visit(self.node)
+            self.visit(self.input)
         return self.bind_types
 
     @property
@@ -139,6 +251,7 @@ class ReadonlyTypeBinder(ASTVisitor):
     def restore_scope(self) -> ReadonlyBindingScope:
         parent = self.readonly_scope.parent
         assert parent is not None
+        self.readonly_scope = parent
         return parent
 
     @property
@@ -149,8 +262,14 @@ class ReadonlyTypeBinder(ASTVisitor):
     def readonly_nonlocal(self) -> bool:
         return self.readonly_scope.readonly_nonlocal()
 
-    def declare(self, name: str, node: ast.AST, is_readonly: Value) -> bool:
-        return self.readonly_scope.declare(name, node, is_readonly)
+    def declare(
+        self,
+        name: str,
+        node: ast.AST,
+        is_readonly: Value,
+        custom_err_msg: Optional[str] = None,
+    ) -> bool:
+        return self.readonly_scope.declare(name, node, is_readonly, custom_err_msg)
 
     def store_node(self, node: AST, is_readonly: Value) -> None:
         self.bind_types[node] = is_readonly
@@ -181,10 +300,11 @@ class ReadonlyTypeBinder(ASTVisitor):
                 scope = scope.parent
 
     # -------------------------- visit methods ---------------------------
-
-    def generic_visit(self, node: AST, *args: object) -> None:
+    @final
+    # pyre-fixme[14]: inconsistent override, no variadic *args support
+    def generic_visit(self, node: AST, as_readonly: Optional[Value] = None) -> None:
         self.store_mutable(node)
-        super().generic_visit(node, *args)
+        super().generic_visit(node)
 
     # ------------------------- Expressions -------------------------------
 
@@ -210,8 +330,18 @@ class ReadonlyTypeBinder(ASTVisitor):
                 self.store_readonly(node)
             else:
                 is_readonly = self.get_name_readonly(name)
-                assert is_readonly is not None
-                self.store_node(node, is_readonly)
+                if is_readonly is not None:
+                    self.store_node(node, is_readonly)
+                else:
+                    # TODO: T109448035 when all scenarios where new names are assigned to is covered
+                    # (including for loops, comprehension, with, try...except, etc.)
+                    # this should raise an exception instead
+                    self.store_mutable(node)
+        else:
+            # TODO: T109448035 when all scenarios where new names are assigned to is covered
+            # (including for loops, comprehension, with, try...except, etc.)
+            # this should raise an exception instead
+            self.store_mutable(node)
 
     def visitCall(self, node: ast.Call, as_readonly: Optional[Value] = None) -> None:
         if is_readonly_wrapped(node.func):
@@ -239,6 +369,16 @@ class ReadonlyTypeBinder(ASTVisitor):
                     " star args when ANY argument is readonly",
                     node,
                 )
+
+    def visitLambda(
+        self, node: ast.Lambda, as_readonly: Optional[Value] = None
+    ) -> None:
+        self.store_node(node, as_readonly or MUTABLE)
+        if self.readonly_scope.is_previsit:
+            self.readonly_scope.store_post_visit(node)
+            return
+        self.visit(node.args)
+        self.visit(node.body)
 
     def visitStarred(
         self, node: ast.Starred, as_readonly: Optional[Value] = None
@@ -269,7 +409,19 @@ class ReadonlyTypeBinder(ASTVisitor):
                 # it's okay to narrow readonliness
                 pass
             else:
-                self.declare(lname, lhs, rhs_readonly)
+                err_msg = (
+                    f"cannot assign {rhs_readonly} value to {name_readonly} '{lname}'. "
+                    + "Remember to declare name as readonly explicitly"
+                )
+                self.declare(lname, lhs, rhs_readonly, custom_err_msg=err_msg)
+        elif isinstance(lhs, ast.Tuple | ast.List):
+            # taking elements of a readonly/mutable collection
+            # results in readonly/mutable respectively, so here
+            # we just assign rhs to each element on the lhs
+            for lhs_child in lhs.elts:
+                self.assign_to(lhs_child, rhs, node)
+        elif isinstance(lhs, ast.Starred):
+            self.assign_to(lhs.value, rhs, node)
         else:
             pass  # TODO check other kind of assigns
 
@@ -282,7 +434,7 @@ class ReadonlyTypeBinder(ASTVisitor):
             # var declaration
             self.declare(lhs.id, lhs, readonly_value)
         if rhs:
-            self.visit(rhs, readonly_value)
+            self.visit(rhs, READONLY if is_readonly_ann else None)
             self.assign_to(lhs, rhs, node)
 
     def visitAssign(self, node: ast.Assign) -> None:
@@ -343,23 +495,27 @@ class ReadonlyTypeBinder(ASTVisitor):
         name = node.name
         self.declare(name, node, MUTABLE)
         self.store_mutable(node)
+        if self.readonly_scope.is_previsit:
+            self.readonly_scope.store_post_visit(node)
+            return
 
         readonly_func = any(is_readonly_func(dec) for dec in node.decorator_list)
         returns_readonly = (
             return_sig := node.returns
         ) is not None and is_readonly_annotation(return_sig)
-
-        self.child_scope(
-            ReadonlyFunctionBindingScope(
-                node,
-                self,
-                returns_readonly=returns_readonly,
-                readonly_nonlocal=readonly_func,
-            )
+        func_scope = ReadonlyFunctionBindingScope(
+            node,
+            self,
+            returns_readonly=returns_readonly,
+            readonly_nonlocal=readonly_func,
+            pre_visit=True,
         )
+        self.child_scope(func_scope)
         # put parameters in scope
         self.visit(node.args)
         self.walk_list(node.body)
+        func_scope.finish_previsit()
+        self.walk_list(func_scope.post_visit)
         self.restore_scope()
         self.walk_list(node.decorator_list)
 
