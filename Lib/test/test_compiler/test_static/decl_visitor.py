@@ -1,13 +1,11 @@
 import ast
 import re
-from compiler.errors import TypedSyntaxError
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.module_table import ModuleTable
 from textwrap import dedent
 
-from .common import StaticTestBase
-from .tests import bad_ret_type
+from .common import StaticTestBase, bad_ret_type
 
 
 class DeclarationVisitorTests(StaticTestBase):

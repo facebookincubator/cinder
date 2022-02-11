@@ -26,6 +26,17 @@ from contextlib import contextmanager
 from types import CodeType
 from typing import Any, ContextManager, Generator, List, Mapping, Tuple, Type
 
+from _static import (
+    TYPED_BOOL,
+    TYPED_INT8,
+    TYPED_INT16,
+    TYPED_INT32,
+    TYPED_INT64,
+    TYPED_UINT8,
+    TYPED_UINT16,
+    TYPED_UINT32,
+    TYPED_UINT64,
+)
 from _strictmodule import (
     StrictAnalysisResult,
     NONSTRICT_MODULE_KIND,
@@ -41,6 +52,27 @@ try:
     import cinderjit
 except ImportError:
     cinderjit = None
+
+
+def type_mismatch(from_type: str, to_type: str) -> str:
+    return re.escape(f"type mismatch: {from_type} cannot be assigned to {to_type}")
+
+
+def bad_ret_type(from_type: str, to_type: str) -> str:
+    return re.escape(f"return type must be {to_type}, not {from_type}")
+
+
+PRIM_NAME_TO_TYPE = {
+    "cbool": TYPED_BOOL,
+    "int8": TYPED_INT8,
+    "int16": TYPED_INT16,
+    "int32": TYPED_INT32,
+    "int64": TYPED_INT64,
+    "uint8": TYPED_UINT8,
+    "uint16": TYPED_UINT16,
+    "uint32": TYPED_UINT32,
+    "uint64": TYPED_UINT64,
+}
 
 
 class TestCompiler(Compiler):
@@ -166,6 +198,9 @@ class TestErrors:
 
 
 class StaticTestBase(CompilerTest):
+    def shortDescription(self):
+        return None
+
     def compile(
         self,
         code,
@@ -483,7 +518,6 @@ class StaticTestsStrictModuleLoader:
     Allows running code through strict rewrite without actually doing a
     full strict analysis on it.
     """
-
     def __init__(
         self,
         _import_paths: List[str],
@@ -512,8 +546,6 @@ class StaticTestsStrictModuleLoader:
         )
 
     def check(self, _mod_name: str, /) -> StrictAnalysisResult:
-        tree = ast.parse("")
-        symbols = symtable.symtable("", _mod_name, "exec")
         return self._get_result(
             "",
             _mod_name,

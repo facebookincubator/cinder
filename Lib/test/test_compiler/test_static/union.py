@@ -4,8 +4,7 @@ from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import TypeEnvironment
 
-from .common import StaticTestBase
-from .tests import bad_ret_type
+from .common import StaticTestBase, bad_ret_type
 
 
 class UnionCompilationTests(StaticTestBase):

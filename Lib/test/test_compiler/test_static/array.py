@@ -36,8 +36,7 @@ from _static import (
     TYPED_UINT64,
 )
 
-from .common import StaticTestBase
-from .tests import type_mismatch
+from .common import StaticTestBase, type_mismatch
 
 
 prim_name_to_type: Mapping[str, int] = {

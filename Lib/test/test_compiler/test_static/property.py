@@ -1,5 +1,4 @@
-from .common import StaticTestBase
-from .tests import bad_ret_type
+from .common import StaticTestBase, bad_ret_type
 
 
 class PropertyTests(StaticTestBase):

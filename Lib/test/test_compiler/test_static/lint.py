@@ -1,5 +1,4 @@
 from .common import StaticTestBase
-from .tests import type_mismatch
 
 
 class LintTests(StaticTestBase):

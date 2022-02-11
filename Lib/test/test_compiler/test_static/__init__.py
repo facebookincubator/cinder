@@ -7,6 +7,7 @@ from .checked_list import CheckedListTests
 from .classmethod import ClassMethodTests
 from .context_decorator import ContextDecoratorTests
 from .decl_visitor import DeclarationVisitorTests
+from .double import DoubleTests
 from .dynamic_return import DynamicReturnTests
 from .elide_type_checks import ElideTypeChecksTests
 from .enum import StaticEnumTests

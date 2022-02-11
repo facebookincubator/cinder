@@ -1,9 +1,6 @@
-import inspect
-from compiler.errors import TypedSyntaxError
 from types import MemberDescriptorType
 
-from .common import StaticTestBase
-from .tests import type_mismatch
+from .common import StaticTestBase, type_mismatch
 
 
 SHADOWCODE_REPETITIONS = 100
