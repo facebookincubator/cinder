@@ -6064,6 +6064,11 @@ main_loop:
                 goto error;
             }
 
+            // Adjust index
+            if (idx < 0) {
+                idx += Py_SIZE(sequence);
+            }
+
             if (_Py_IS_TYPED_ARRAY(oparg)) {
                 if (_Py_IS_TYPED_ARRAY_SIGNED(oparg)) {
                     // Deal with signed values on the stack

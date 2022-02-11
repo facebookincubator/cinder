@@ -25,6 +25,7 @@ from .patch import StaticPatchTests
 from .primitives import PrimitivesTests
 from .property import PropertyTests
 from .return_cast_insertion import ReturnCastInsertionTests
+from .sequence import SequenceTests
 from .slots_with_default import SlotsWithDefaultTests
 from .subclass import SubclassTests
 from .tests import StaticCompilationTests, StaticRuntimeTests
