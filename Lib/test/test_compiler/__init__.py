@@ -18,3 +18,4 @@ from .test_visitor import VisitorTests
 if "cinder" in sys.version:
     from .test_static import *
     from .test_strict import *
+    from .test_readonly import *

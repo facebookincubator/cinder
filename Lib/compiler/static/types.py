@@ -354,6 +354,10 @@ class TypeEnvironment:
             GenericTypeName("typing", "ClassVar", (GenericParameter("T", 0, self),)),
             self,
         )
+        self.readonly_type = ReadonlyType(
+            GenericTypeName("builtins", "Readonly", (GenericParameter("T", 0, self),)),
+            self,
+        )
         self.named_tuple = Class(TypeName("typing", "NamedTuple"), self)
         self.protocol = Class(TypeName("typing", "Protocol"), self)
         self.annotated = AnnotatedType(TypeName("typing_extensions", "Annotated"), self)
@@ -386,9 +390,6 @@ class TypeEnvironment:
         )
         self.async_cached_property = AsyncCachedPropertyDecorator(
             TypeName("cinder", "async_cached_property"), self
-        )
-        self.identity_decorator = IdentityDecorator(
-            TypeName("__strict__", "<identity-decorator>"), self
         )
         self.constant_types: Mapping[Type[object], Value] = {
             str: self.str.exact_type().instance,
@@ -2418,7 +2419,7 @@ class ArgMapping:
     def visit_arg(
         self, visitor: TypeBinder, param: Parameter, arg: expr, arg_style: str
     ) -> Class:
-        resolved_type = param.type_ref.resolved()
+        resolved_type = param.type_ref.resolved().unwrap()
         desc = (
             f"{arg_style} arg '{param.name}'"
             if param.name
@@ -2881,8 +2882,7 @@ class Callable(Object[TClass]):
             descr_override=descr_override,
         )
         arg_mapping.bind_args(visitor)
-
-        return arg_mapping, self.return_type.resolved().instance
+        return arg_mapping, self.return_type.resolved().unwrap().instance
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -3155,7 +3155,6 @@ class Function(Callable[Class], FunctionContainer):
         res = super().bind_call(node, visitor, type_ctx)
         if self.inline and not visitor.enable_patching:
             assert isinstance(self.node.body[0], ast.Return)
-
             return self.bind_inline_call(node, visitor, type_ctx) or res
 
         return res
@@ -4687,6 +4686,28 @@ class RevealTypeFunction(Object[Class]):
         return NO_EFFECT
 
 
+class ReadonlyFunction(Object[Class]):
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        super().__init__(type_env.function)
+
+    @property
+    def name(self) -> str:
+        return "readonly function"
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        if node.keywords:
+            visitor.syntax_error("readonly() does not accept keyword arguments", node)
+        if len(node.args) != 1:
+            visitor.syntax_error("readonly() accepts exactly one argument", node)
+        arg = node.args[0]
+        visitor.visit(arg)
+        arg_type = visitor.get_type(arg)
+        visitor.set_type(node, arg_type)
+        return NO_EFFECT
+
+
 class NumClass(Class):
     def __init__(
         self,
@@ -5569,6 +5590,10 @@ class FinalClass(TypeWrapper):
 
 
 class ClassVar(TypeWrapper):
+    pass
+
+
+class ReadonlyType(TypeWrapper):
     pass
 
 

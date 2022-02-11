@@ -16,6 +16,7 @@ from _static import (
 from .. import consts
 from ..errors import ErrorSink
 from ..optimizer import AstOptimizer
+from ..readonly.type_binder import ReadonlyTypeBinder
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
 from .module_table import ModuleTable
@@ -30,6 +31,8 @@ from .types import (
     LenFunction,
     NumClass,
     Object,
+    ReadonlyFunction,
+    IdentityDecorator,
     ProdAssertFunction,
     RevealTypeFunction,
     SortedFunction,
@@ -122,7 +125,14 @@ class Compiler:
             "staticmethod": self.type_env.static_method,
             "reveal_type": RevealTypeFunction(self.type_env),
             "property": self.type_env.property,
-            "<mutable>": self.type_env.identity_decorator,
+            "<mutable>": IdentityDecorator(
+                TypeName("__strict__", "<mutable>"), self.type_env
+            ),
+            "readonly_func": IdentityDecorator(
+                TypeName("builtins", "readonly_func"), self.type_env
+            ),
+            "Readonly": self.type_env.readonly_type,
+            "readonly": ReadonlyFunction(self.type_env),
         }
         strict_builtins = StrictBuiltins(builtins_children, self.type_env)
         typing_children = {
@@ -143,10 +153,18 @@ class Compiler:
             "Annotated": self.type_env.annotated,
         }
         strict_modules_children: Dict[str, Value] = {
-            "mutable": self.type_env.identity_decorator,
-            "strict_slots": self.type_env.identity_decorator,
-            "loose_slots": self.type_env.identity_decorator,
-            "freeze_type": self.type_env.identity_decorator,
+            "mutable": IdentityDecorator(
+                TypeName("__strict__", "mutable"), self.type_env
+            ),
+            "strict_slots": IdentityDecorator(
+                TypeName("__strict__", "strict_slots"), self.type_env
+            ),
+            "loose_slots": IdentityDecorator(
+                TypeName("__strict__", "loose_slots"), self.type_env
+            ),
+            "freeze_type": IdentityDecorator(
+                TypeName("__strict__", "freeze_type"), self.type_env
+            ),
         }
 
         builtins_children["<builtins>"] = strict_builtins
@@ -355,6 +373,11 @@ class Compiler:
         tree, s = self._bind(name, filename, tree, optimize, enable_patching)
         if self.error_sink.has_errors:
             raise self.error_sink.errors[0]
+        # Analyze using readonly type binder
+        readonly_type_binder = ReadonlyTypeBinder(tree, filename, s)
+        readonly_types = readonly_type_binder.get_types()
+        if readonly_type_binder.error_sink.has_errors:
+            raise readonly_type_binder.error_sink.errors[0]
 
         # Compile the code w/ the static compiler
         graph = self.code_generator.flow_graph(
@@ -369,6 +392,7 @@ class Compiler:
             graph,
             self,
             name,
+            readonly_types=readonly_types,
             flags=0,
             optimization_lvl=optimize,
             enable_patching=enable_patching,

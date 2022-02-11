@@ -28,6 +28,7 @@ from _strictmodule import (
 
 from ..errors import TypedSyntaxError
 from ..pycodegen import compile as python_compile
+from ..readonly import readonly_compile
 from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
 from . import strict_compile
 from .class_conflict_checker import check_class_conflict
@@ -173,6 +174,15 @@ class Compiler(StaticCompiler):
             )
 
         return code, is_valid_strict
+
+    def _compile_readonly(
+        self, name: str, root: ast.Module, filename: str, optimize: int
+    ) -> CodeType:
+        """
+        TODO: this should eventually replace compile_basic once all python sources
+        are compiled through this compiler
+        """
+        return readonly_compile(name, filename, root, flags=0, optimize=optimize)
 
     def _compile_basic(
         self, root: ast.Module, filename: str, optimize: int

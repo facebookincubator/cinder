@@ -353,6 +353,7 @@ class TypeBinder(GenericVisitor):
                 continue
             else:
                 arg_type = self.type_env.dynamic
+            arg_type = arg_type.unwrap()
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
                 self.check_can_assign_from(
@@ -378,7 +379,7 @@ class TypeBinder(GenericVisitor):
                 continue
             else:
                 arg_type = self.type_env.dynamic
-
+            arg_type = arg_type.unwrap()
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
                 self.check_can_assign_from(
@@ -413,6 +414,7 @@ class TypeBinder(GenericVisitor):
                 arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
             else:
                 arg_type = self.type_env.dynamic
+            arg_type = arg_type.unwrap()
 
             if default_index >= 0:
                 default = args.kw_defaults[default_index]
@@ -1393,7 +1395,7 @@ class TypeBinder(GenericVisitor):
 
             if isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 function = self.get_func_container(func)
-                func_returns = function.return_type.resolved()
+                func_returns = function.return_type.resolved().unwrap()
                 if isinstance(func_returns, AwaitableType):
                     func_returns = func_returns.type_args[0]
                 expected = func_returns.instance
