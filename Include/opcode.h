@@ -107,6 +107,7 @@ extern "C" {
   X(LOAD_DEREF,                      136) \
   X(STORE_DEREF,                     137) \
   X(DELETE_DEREF,                    138) \
+  X(FUNC_CREDENTIAL,                 139) \
   X(CALL_FUNCTION_KW,                141) \
   X(CALL_FUNCTION_EX,                142) \
   X(SETUP_WITH,                      143) \

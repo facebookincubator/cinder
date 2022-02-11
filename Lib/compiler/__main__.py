@@ -9,7 +9,7 @@ import re
 import sys
 from dis import dis
 
-from . import pycodegen, static
+from . import pycodegen, static, readonly
 
 try:
     # pyre-ignore[21]: Could not find a module corresponding to import `cinder`.
@@ -56,6 +56,9 @@ group.add_argument(
     "--static", action="store_true", help="compile using static compiler"
 )
 group.add_argument(
+    "--readonly", action="store_true", help="compile using static compiler"
+)
+group.add_argument(
     "--builtin", action="store_true", help="compile using built-in C compiler"
 )
 argparser.add_argument(
@@ -78,6 +81,8 @@ else:
     compiler = pycodegen.CinderCodeGenerator
     if args.static:
         compiler = static.StaticCodeGenerator
+    elif args.readonly:
+        compiler = readonly.ReadonlyCodeGenerator
 
     codeobj = pycodegen.compile(
         source,

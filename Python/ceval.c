@@ -3117,6 +3117,15 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(FUNC_CREDENTIAL): {
+            PyObject *tuple = GETITEM(consts, oparg);
+            assert(tuple != NULL);
+            PyObject *func_credentials = func_cred_new(tuple);
+            PUSH(func_credentials);
+            DISPATCH();
+        }
+
+
 #define BUILD_DICT(map_size)                                                  \
                                                                               \
     for (Py_ssize_t i = map_size; i > 0; i--) {                               \

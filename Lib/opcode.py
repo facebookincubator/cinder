@@ -185,6 +185,9 @@ hasfree.append(137)
 def_op('DELETE_DEREF', 138)
 hasfree.append(138)
 
+def_op('FUNC_CREDENTIAL', 139)  # allocate function credential object
+hasconst.append(139)
+
 def_op('CALL_FUNCTION_KW', 141)  # #args + #kwargs
 def_op('CALL_FUNCTION_EX', 142)  # Flags
 

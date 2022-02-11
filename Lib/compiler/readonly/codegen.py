@@ -12,7 +12,14 @@ from ..pycodegen import (
     FuncOrLambda,
     CompNode,
 )
-from ..symbols import CinderSymbolVisitor, SymbolVisitor
+from ..symbols import (
+    ClassScope,
+    FunctionScope,
+    ModuleScope,
+    Scope,
+    CinderSymbolVisitor,
+    SymbolVisitor,
+)
 from .type_binder import ReadonlyTypeBinder, TReadonlyTypes
 
 
@@ -87,6 +94,39 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             flags=self.flags,
             optimization_lvl=self.optimization_lvl,
         )
+
+    def visitName(self, node: ast.Name) -> None:
+        if node.id != "__function_credential__":
+            super().visitName(node)
+            return
+
+        module_name = ""
+        class_name = ""
+        func_name = ""
+        scope = self.scope
+        names = []
+        collecting_function_name = True
+
+        while scope and not isinstance(scope, ModuleScope):
+            if isinstance(scope, ClassScope) and collecting_function_name:
+                func_name = ".".join(reversed(names))
+                collecting_function_name = False
+                names = [scope.name]
+            else:
+                names.append(scope.name)
+            scope = scope.parent
+
+        if collecting_function_name:
+            func_name = ".".join(reversed(names))
+        else:
+            class_name = ".".join(reversed(names))
+
+        if scope:
+            assert isinstance(scope, ModuleScope)
+            module_name = scope.name
+
+        name_tuple = (module_name, class_name, func_name)
+        self.emit("FUNC_CREDENTIAL", name_tuple)
 
 
 def readonly_compile(

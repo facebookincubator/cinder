@@ -563,6 +563,7 @@ OBJECT_OBJS=	\
 		Objects/fileobject.o \
 		Objects/floatobject.o \
 		Objects/frameobject.o \
+		Objects/funccredobject.o \
 		Objects/funcobject.o \
 		Objects/interpreteridobject.o \
 		Objects/iterobject.o \
@@ -1392,6 +1393,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/fileutils.h \
 		$(srcdir)/Include/floatobject.h \
 		$(srcdir)/Include/frameobject.h \
+		$(srcdir)/Include/funccredobject.h \
 		$(srcdir)/Include/funcobject.h \
 		$(srcdir)/Include/genobject.h \
 		$(srcdir)/Include/import.h \

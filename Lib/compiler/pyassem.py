@@ -758,6 +758,7 @@ class PyFlowGraph(FlowGraph):
         "LOAD_METHOD_SUPER": _convert_LOAD_SUPER,
         "LOAD_ATTR_SUPER": _convert_LOAD_SUPER,
         "LOAD_TYPE": _convert_LOAD_CONST,
+        "FUNC_CREDENTIAL": _convert_LOAD_CONST,
     }
 
     # Opcodes which do not add names to co_consts/co_names/co_varnames in dead code (self.do_not_emit_bytecode)

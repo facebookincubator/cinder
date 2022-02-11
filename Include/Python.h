@@ -126,6 +126,7 @@
 #include "structseq.h"
 #include "namespaceobject.h"
 #include "picklebufobject.h"
+#include "funccredobject.h"
 
 #include "codecs.h"
 #include "pyerrors.h"

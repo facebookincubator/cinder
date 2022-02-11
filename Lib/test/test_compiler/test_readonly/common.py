@@ -1,4 +1,5 @@
 import ast
+import builtins
 from compiler.readonly import (
     readonly_compile,
     ReadonlyCodeGenerator,
@@ -32,6 +33,12 @@ class ReadonlyTestBase(TestBase):
                 peephole_enabled,
                 ast_optimizer_enabled,
             )
+
+    def compile_and_run(self, code):
+        compiled = self.compile(code)
+        d = {"<builtins>": builtins.__dict__}
+        exec(compiled, d)
+        return d
 
     def static_compile(
         self,
