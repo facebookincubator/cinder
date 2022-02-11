@@ -56,7 +56,7 @@ group.add_argument(
     "--static", action="store_true", help="compile using static compiler"
 )
 group.add_argument(
-    "--readonly", action="store_true", help="compile using static compiler"
+    "--readonly", action="store_true", help="compile using readonly compiler"
 )
 group.add_argument(
     "--builtin", action="store_true", help="compile using built-in C compiler"
