@@ -9,7 +9,6 @@ from ast import (
     Assign,
     AsyncFunctionDef,
     Attribute,
-    AugAssign,
     BinOp,
     BoolOp,
     Call,
@@ -132,6 +131,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if not isinstance(node, (AsyncFunctionDef, FunctionDef, ClassDef)):
             # Static compilation can only be disabled for functions and classes.
             return False
+        if node in self.cur_mod.compile_non_static:
+            return True
         scope = self.scope
         fn = None
         if isinstance(scope, ClassScope):

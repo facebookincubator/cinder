@@ -156,7 +156,7 @@ class DeclarationVisitor(GenericVisitor[None]):
         self.parent_scope().declare_function(function)
 
     def _make_function(self, node: Union[FunctionDef, AsyncFunctionDef]) -> Function:
-        func = orig_func = Function(node, self.module, self.type_ref(node))
+        func = Function(node, self.module, self.type_ref(node))
         self.enter_scope(func)
         for item in node.body:
             self.visit(item)

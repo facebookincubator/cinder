@@ -168,6 +168,7 @@ class ModuleTable:
         self.node_data: Dict[Tuple[AST, object], object] = {}
         self.flags: Set[ModuleFlag] = set()
         self.decls: List[Tuple[AST, Optional[str], Optional[Value]]] = []
+        self.compile_non_static: Set[AST] = set()
         # TODO: final constants should be typed to literals, and
         # this should be removed in the future
         self.named_finals: Dict[str, ast.Constant] = {}

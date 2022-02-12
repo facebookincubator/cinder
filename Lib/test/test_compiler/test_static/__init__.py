@@ -24,6 +24,7 @@ from .obj_creation import StaticObjCreationTests
 from .patch import StaticPatchTests
 from .primitives import PrimitivesTests
 from .property import PropertyTests
+from .protocol import ProtocolTests
 from .return_cast_insertion import ReturnCastInsertionTests
 from .sequence import SequenceTests
 from .slots_with_default import SlotsWithDefaultTests

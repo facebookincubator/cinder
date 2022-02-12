@@ -484,17 +484,26 @@ class TypeBinder(GenericVisitor):
                 kwarg.value, self.type_env.DYNAMIC, "class kwarg cannot be a primitive"
             )
 
+        is_protocol = False
         for base in node.bases:
             self.visitExpectedType(
                 base, self.type_env.DYNAMIC, "class base cannot be a primitive"
             )
+            base_type = self.get_type(base)
+            is_protocol |= base_type is self.type_env.protocol
 
-        self.scopes.append(BindingScope(node, type_env=self.type_env))
+        # skip type-binding protocols; they can't be instantiated and their
+        # "methods" commonly won't type check anyway since they typically would
+        # have no body
+        if is_protocol:
+            self.module.compile_non_static.add(node)
+        else:
+            self.scopes.append(BindingScope(node, type_env=self.type_env))
 
-        for stmt in node.body:
-            self.visit(stmt)
+            for stmt in node.body:
+                self.visit(stmt)
 
-        self.scopes.pop()
+            self.scopes.pop()
 
         res = self.get_type(node)
         self.declare_local(node.name, res)
