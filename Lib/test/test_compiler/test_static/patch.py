@@ -1599,3 +1599,22 @@ class StaticPatchTests(StaticTestBase):
                 d = D()
                 # Next, invoke a method on the base-class (C) through the patched subclass (D)
                 self.assertEqual(d.p(), 3)
+
+    def test_patch_static_function_in_strict_module(self):
+        codestr = """
+            def f() -> int:
+                return 1
+
+            def g() -> int:
+                return f()
+        """
+        for call_first in [True, False]:
+            with self.subTest(call_first=call_first):
+                with self.in_strict_module(codestr, enable_patching=True) as mod:
+                    if call_first:
+                        self.assertEqual(mod.g(), 1)
+                    mod.patch("f", lambda: "foo")
+                    with self.assertRaisesRegex(TypeError, r"expected int, got str"):
+                        mod.g()
+                    mod.patch("f", lambda: 2)
+                    self.assertEqual(mod.g(), 2)

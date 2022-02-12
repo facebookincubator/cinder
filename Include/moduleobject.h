@@ -127,6 +127,8 @@ typedef struct {
     PyModuleObject base;
     PyObject *globals;
     PyObject *global_setter;
+    PyObject *originals;
+    PyObject *static_thunks;
 } PyStrictModuleObject;
 
 #define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)

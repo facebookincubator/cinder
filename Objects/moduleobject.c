@@ -2,6 +2,7 @@
 /* Module object implementation */
 
 #include "Python.h"
+#include "classloader.h"
 #include "pycore_pystate.h"
 #include "structmember.h"
 #include "frameobject.h"
@@ -1030,6 +1031,8 @@ PyStrictModule_New(PyTypeObject *type, PyObject *args, PyObject *kwds)
         self->global_setter = d;
         Py_XINCREF(d);
     }
+    self->originals = NULL;
+    self->static_thunks = NULL;
     return (PyObject *)self;
 }
 
@@ -1038,6 +1041,8 @@ strictmodule_dealloc(PyStrictModuleObject *m)
 {
     Py_XDECREF(m->globals);
     Py_XDECREF(m->global_setter);
+    Py_XDECREF(m->originals);
+    Py_XDECREF(m->static_thunks);
     module_dealloc((PyModuleObject *)m);
 }
 
@@ -1046,6 +1051,8 @@ strictmodule_traverse(PyStrictModuleObject *m, visitproc visit, void *arg)
 {
     Py_VISIT(m->globals);
     Py_VISIT(m->global_setter);
+    Py_VISIT(m->originals);
+    Py_VISIT(m->static_thunks);
     return 0;
 }
 
@@ -1054,6 +1061,8 @@ strictmodule_clear(PyStrictModuleObject *m)
 {
     Py_CLEAR(m->globals);
     Py_CLEAR(m->global_setter);
+    Py_CLEAR(m->originals);
+    Py_CLEAR(m->static_thunks);
     return 0;
 }
 
@@ -1250,6 +1259,13 @@ int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value) {
         return -1;
     }
 
+    if (mod->originals == NULL) {
+        mod->originals = PyDict_Copy(mod->global_setter);
+    }
+
+    if (_PyClassLoader_UpdateModuleName(mod, name, value) < 0) {
+        return -1;
+    }
 
     if (_PyObject_GenericSetAttrWithDict(self, name, value, global_setter) < 0) {
         return -1;

@@ -297,6 +297,11 @@ PyAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
 
 PyObject *
 _PyTypedDescriptorWithDefaultValue_New(PyObject *name, PyObject *type, Py_ssize_t offset, PyObject *default_value);
+
+int _PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
+                                    PyObject *name,
+                                    PyObject *new_value);
+
 int _PyClassLoader_UpdateSlot(PyTypeObject *type,
                               PyObject *name,
                               PyObject *new_value);

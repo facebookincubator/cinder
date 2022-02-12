@@ -487,17 +487,18 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
         PyObject *exc_type = PyExc_TypeError;
         if (overflow) {
             exc_type = PyExc_OverflowError;
-            msg = "unexpected return type from %s.%U, expected %s, got out-of-range %s (%R)";
+            msg = "unexpected return type from %s%s%U, expected %s, got out-of-range %s (%R)";
         } else if (rt_info->rt_optional) {
-            msg = "unexpected return type from %s.%U, expected  Optional[%s], "
+            msg = "unexpected return type from %s%s%U, expected Optional[%s], "
                   "got %s";
         } else {
-            msg = "unexpected return type from %s.%U, expected %s, got %s";
+            msg = "unexpected return type from %s%s%U, expected %s, got %s";
         }
 
         PyErr_Format(exc_type,
                      msg,
-                     cls->tp_name,
+                     cls ? cls->tp_name : "",
+                     cls ? "." : "",
                      classloader_get_func_name(rt_info->rt_name),
                      rt_info->rt_expected->tp_name,
                      Py_TYPE(ret)->tp_name,
@@ -1263,18 +1264,30 @@ thunkdealloc(_Py_StaticThunk *op)
 }
 
 
+static void
+set_thunk_type_error(_Py_StaticThunk *thunk, const char *msg) {
+    PyObject *name = thunk->thunk_tcs.tcs_rt.rt_name;
+    if (thunk->thunk_cls != NULL) {
+        name = PyUnicode_FromFormat("%s.%U", thunk->thunk_cls->tp_name, name);
+    }
+    PyErr_Format(PyExc_TypeError, msg, name);
+    if (thunk->thunk_cls != NULL) {
+        Py_DECREF(name);
+    }
+}
+
+
 PyObject *
 thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
                                     size_t nargsf, PyObject *kwnames) {
     if (thunk->thunk_tcs.tcs_value == NULL) {
-        PyErr_Format(PyExc_TypeError, "%s.%U has been deleted", thunk->thunk_cls->tp_name, thunk->thunk_tcs.tcs_rt.rt_name);
+        set_thunk_type_error(thunk, "%U has been deleted");
         return NULL;
     }
     if (thunk->thunk_classmethod) {
         Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
         if (nargs == 0) {
-            PyErr_Format(PyExc_TypeError, "%s.%U must be invoked with >= 1 arguments",
-                         thunk->thunk_cls->tp_name, thunk->thunk_tcs.tcs_rt.rt_name);
+            set_thunk_type_error(thunk, "%U must be invoked with >= 1 arguments");
             return NULL;
         }
 
@@ -1659,6 +1672,22 @@ check_if_final_method_overridden(PyTypeObject *type, PyObject *name)
         }
     }
     Py_DECREF(final_method_names);
+    return 0;
+}
+
+/* UpdateModuleName will be called on any patching of a name in a StrictModule. */
+int
+_PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
+                                PyObject *name,
+                                PyObject *new_value)
+{
+    if (mod->static_thunks != NULL) {
+        _Py_StaticThunk *thunk = (_Py_StaticThunk *)PyDict_GetItem(mod->static_thunks, name);
+        if (thunk != NULL) {
+            PyObject *previous = PyDict_GetItem(mod->originals, name);
+            update_thunk(thunk, previous, new_value);
+        }
+    }
     return 0;
 }
 
@@ -2377,6 +2406,10 @@ classloader_get_member(PyObject *path,
             d = ((PyTypeObject *)cur)->tp_dict;
         }
 
+        if (containerkey != NULL) {
+            *containerkey = name;
+        }
+
         if (d == NULL) {
             PyObject *next = PyObject_GetAttr(cur, name);
             if (next == NULL) {
@@ -2395,9 +2428,6 @@ classloader_get_member(PyObject *path,
 
         PyObject *et = NULL, *ev = NULL, *tb = NULL;
         PyObject *next;
-        if (containerkey != NULL) {
-            *containerkey = name;
-        }
         if (get_func_or_special_callable(d, name, &next)) {
             return NULL;
         }
@@ -2593,15 +2623,30 @@ _PyClassLoader_ResolveMethod(PyObject *path)
 }
 
 _Py_StaticThunk *
-get_or_make_thunk(PyObject *func, PyObject *original, PyTypeObject* type, PyObject *name) {
-    _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
-    if (vtable->vt_thunks == NULL) {
-        vtable->vt_thunks = PyDict_New();
+get_or_make_thunk(PyObject *func, PyObject *original, PyObject* container, PyObject *name) {
+    PyObject *thunks = NULL;
+    PyTypeObject *type = NULL;
+    if (PyType_Check(container)) {
+        type = (PyTypeObject *)container;
+        _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
         if (vtable->vt_thunks == NULL) {
-            return NULL;
+            vtable->vt_thunks = PyDict_New();
+            if (vtable->vt_thunks == NULL) {
+                return NULL;
+            }
         }
+        thunks = vtable->vt_thunks;
+    } else if (PyStrictModule_Check(container)) {
+        PyStrictModuleObject *mod = (PyStrictModuleObject *)container;
+        if (mod->static_thunks == NULL) {
+            mod->static_thunks = PyDict_New();
+            if (mod->static_thunks == NULL) {
+                return NULL;
+            }
+        }
+        thunks = mod->static_thunks;
     }
-    _Py_StaticThunk *thunk = (_Py_StaticThunk *)PyDict_GetItem(vtable->vt_thunks, name);
+    _Py_StaticThunk *thunk = (_Py_StaticThunk *)PyDict_GetItem(thunks, name);
     if (thunk != NULL) {
         Py_INCREF(thunk);
         return thunk;
@@ -2616,7 +2661,7 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyTypeObject* type, PyObje
     thunk->thunk_tcs.tcs_rt.rt_name = func_name;
     Py_INCREF(func_name);
     thunk->thunk_cls = type;
-    Py_INCREF(type);
+    Py_XINCREF(type);
     thunk->thunk_vectorcall = (vectorcallfunc)&thunk_vectorcall;
     if (func == original) {
         thunk->thunk_funcref = original;
@@ -2632,7 +2677,7 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyTypeObject* type, PyObje
         Py_DECREF(thunk);
         return NULL;
     }
-    if (PyDict_SetItem(vtable->vt_thunks, name, (PyObject *)thunk)) {
+    if (PyDict_SetItem(thunks, name, (PyObject *)thunk)) {
         Py_DECREF(thunk);
         return NULL;
     }
@@ -2646,19 +2691,23 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
     PyObject *func =
         classloader_get_member(path, PyTuple_GET_SIZE(path), container, &containerkey);
 
+    PyObject *originals = NULL;
     PyObject *original = NULL;
-    if (container != NULL && *container != NULL && PyType_Check(*container)) {
-        assert(containerkey != NULL);
-
-        PyTypeObject *type = (PyTypeObject *)*container;
-        if (type->tp_cache != NULL) {
-            PyObject *originals = ((_PyType_VTable *)type->tp_cache)->vt_original;
-            if (originals != NULL) {
-              original = PyDict_GetItem(originals, containerkey);
-                if (original == func) {
-                    original = NULL;
-                }
+    if (container != NULL && *container != NULL) {
+        if (PyType_Check(*container)) {
+            PyTypeObject *type = (PyTypeObject *)*container;
+            if (type->tp_cache != NULL) {
+                originals = ((_PyType_VTable *)type->tp_cache)->vt_original;
             }
+        } else if (PyStrictModule_Check(*container)) {
+            originals = ((PyStrictModuleObject *)*container)->originals;
+        }
+    }
+    if (originals != NULL) {
+        assert(containerkey != NULL);
+        original = PyDict_GetItem(originals, containerkey);
+        if (original == func) {
+            original = NULL;
         }
     }
 
@@ -2678,7 +2727,7 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
     }
 
     if (original != NULL) {
-        PyObject *res = (PyObject *)get_or_make_thunk(func, original, (PyTypeObject*)*container, containerkey);
+        PyObject *res = (PyObject *)get_or_make_thunk(func, original, *container, containerkey);
         Py_DECREF(func);
         return res;
     }
@@ -2688,28 +2737,32 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
 PyObject **
 _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *container) {
     PyObject **cache = NULL;
+    if (_PyVectorcall_Function(func) == NULL) {
+        goto done;
+    }
     PyObject *name = PyTuple_GET_ITEM(path, PyTuple_GET_SIZE(path) - 1);
-    if (PyModule_Check(container) && _PyVectorcall_Function(func) != NULL) {
+    int use_thunk = 0;
+    if (PyType_Check(container)) {
+        _PyType_VTable *vtable = _PyClassLoader_EnsureVtable((PyTypeObject *)container, 0);
+        if (vtable == NULL) {
+            return NULL;
+        }
+        use_thunk = 1;
+    } else if (PyStrictModule_Check(container)) {
+        use_thunk = 1;
+    } else if (PyModule_Check(container)) {
         /* modules have no special translation on things we invoke, so
          * we just rely upon the normal JIT dict watchers */
         PyObject *dict = PyModule_Dict(container);
         if (dict != NULL) {
             cache = _PyJIT_GetDictCache(dict, name);
         }
-    } else if (PyType_Check(container)) {
-        if (_PyVectorcall_Function(func) == NULL) {
-            goto done;
-        }
-
-        _PyType_VTable *vtable = _PyClassLoader_EnsureVtable((PyTypeObject *)container, 0);
-        if (vtable == NULL) {
-            goto done;
-        }
-
+    }
+    if (use_thunk) {
         /* we pass func in for original here.  Either the thunk will already exist
          * in which case the value has been patched, or it won't yet exist in which
          * case func is the original function in the type. */
-        _Py_StaticThunk *thunk = get_or_make_thunk(func, func, (PyTypeObject *)container, name);
+        _Py_StaticThunk *thunk = get_or_make_thunk(func, func, container, name);
         if (thunk == NULL) {
             return NULL;
         }
