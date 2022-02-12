@@ -134,3 +134,12 @@ class InferenceTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(1), 4)
+
+    def test_raise_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None) -> int:
+                if x is None:
+                    raise ValueError("x is None")
+                reveal_type(x)
+        """
+        self.type_error(codestr, r"reveal_type\(x\): 'int'")

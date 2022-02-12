@@ -191,7 +191,7 @@ class TypeDeclaration:
 class TerminalKind(IntEnum):
     NonTerminal = 0
     BreakOrContinue = 1
-    Return = 2
+    RaiseOrReturn = 2
 
 
 class TypeBinder(GenericVisitor):
@@ -1385,8 +1385,12 @@ class TypeBinder(GenericVisitor):
     def visitBreak(self, node: ast.Break) -> None:
         self.set_terminal_kind(node, TerminalKind.BreakOrContinue)
 
+    def visitRaise(self, node: ast.Raise) -> None:
+        self.set_terminal_kind(node, TerminalKind.RaiseOrReturn)
+        self.generic_visit(node)
+
     def visitReturn(self, node: Return) -> None:
-        self.set_terminal_kind(node, TerminalKind.Return)
+        self.set_terminal_kind(node, TerminalKind.RaiseOrReturn)
         value = node.value
         if value is not None:
             cur_scope = self.binding_scope
@@ -1554,7 +1558,9 @@ class TypeBinder(GenericVisitor):
         effect = self.visit(node.test) or NO_EFFECT
         effect.apply(self.local_types)
 
-        while_returns = self.visit_until_terminates(node.body) == TerminalKind.Return
+        while_returns = (
+            self.visit_until_terminates(node.body) == TerminalKind.RaiseOrReturn
+        )
         if while_returns:
             branch.restore()
             effect.reverse(self.local_types)
