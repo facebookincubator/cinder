@@ -3248,6 +3248,26 @@ class CPythonCoroutineGatherTests(CoroutineGatherTests, test_utils.TestCase):
 class IgCoroutineGatherTests(CoroutineGatherTests, test_utils.TestCase):
     gather = staticmethod(_asyncio.ig_gather)
 
+class IgGatherExceptionNormalizationTests(test_utils.TestCase):
+
+    def test_ig_gather_return_exc_normalized(self):
+        async def type_error(a, b):
+            return a + b
+
+        async def drive():
+            return await _asyncio.ig_gather_iterable_return_exceptions([
+                type_error(1, "hi"),
+            ])
+
+        results = asyncio.run(drive())
+
+        self.assertEqual(len(results), 1)
+
+        exception = results[0]
+        self.assertIsInstance(exception, TypeError)
+        self.assertIsNotNone(exception.__traceback__)
+
+
 class RunCoroutineThreadsafeTests(test_utils.TestCase):
     """Test case for asyncio.run_coroutine_threadsafe."""
 

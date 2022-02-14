@@ -7226,8 +7226,15 @@ _gather_multiple(PyObject *const*items,
                     // and exceptions should be returned as results
                     PyObject *et, *ev, *tb;
                     PyErr_Fetch(&et, &ev, &tb);
+                    if (!ev || !PyObject_TypeCheck(ev, (PyTypeObject *) et)) {
+                        PyErr_NormalizeException(&et, &ev, &tb);
+                    }
+                    if (tb != NULL) {
+                        PyException_SetTraceback(ev, tb);
+                    }
                     Py_DECREF(et);
                     Py_DECREF(tb);
+
                     // grab exception value as result
                     res = ev;
                 } else {
