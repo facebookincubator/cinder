@@ -33,6 +33,8 @@ TAGS
 gmon.out
 .coverage
 .mypy_cache/
+dist/
+cindervm.egg-info
 
 *.exe
 !Lib/distutils/command/*.exe
