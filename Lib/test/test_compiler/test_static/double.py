@@ -654,3 +654,34 @@ class DoubleTests(StaticTestBase):
             self.assertNotInBytecode(t, "CAST")
             self.assertEqual(t(), 3.14159)
             self.assert_jitted(t)
+
+    def test_unbox_double_from_dynamic(self):
+        codestr = """
+            from __static__ import double
+
+            def f(x) -> double:
+                return double(x)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "CAST")
+            self.assertEqual(mod.f(2.13), 2.13)
+            f1 = mod.f(1)
+            self.assertIs(type(f1), float)
+            self.assertEqual(f1, 1.0)
+            with self.assertRaises(TypeError):
+                mod.f("foo")
+
+    def test_unbox_double_from_int(self):
+        codestr = """
+            from __static__ import double
+
+            def f(x: int) -> double:
+                return double(x)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "CAST")
+            f1 = mod.f(1)
+            self.assertIs(type(f1), float)
+            self.assertEqual(f1, 1.0)
+            with self.assertRaises(TypeError):
+                mod.f("foo")

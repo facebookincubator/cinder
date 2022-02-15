@@ -526,8 +526,7 @@ Type outputType(
       auto& cast = static_cast<const Cast&>(instr);
       Type to_type = Type::fromType(cast.pytype()) |
           (cast.optional() ? TNoneType : TBottom);
-      Type from_type = cast.value()->type();
-      return from_type & to_type;
+      return to_type;
     }
 
     case Opcode::kTpAlloc: {

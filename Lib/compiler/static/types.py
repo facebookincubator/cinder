@@ -7395,11 +7395,10 @@ class CDoubleType(CType):
         arg = node.args[0]
         visitor.visit(arg, self.instance)
         arg_type = visitor.get_type(arg)
-        if arg_type not in (
-            self.type_env.float.instance,
-            self.type_env.float.exact_type().instance,
-            self.type_env.DYNAMIC,
-            self.instance,
+        allowed_types = [self.type_env.float, self.type_env.int, self]
+        if not (
+            arg_type is self.type_env.DYNAMIC
+            or any(typ.can_assign_from(arg_type.klass) for typ in allowed_types)
         ):
             visitor.syntax_error(
                 f"type mismatch: double cannot be created from {arg_type.name}", node
@@ -7412,7 +7411,7 @@ class CDoubleType(CType):
 
         arg = node.args[0]
         arg_type = code_gen.get_type(arg)
-        if isinstance(arg_type, CDoubleInstance):
+        if self.can_assign_from(arg_type.klass):
             code_gen.visit(arg)
         else:
             self.instance.emit_unbox(arg, code_gen)
