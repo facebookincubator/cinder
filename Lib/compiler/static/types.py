@@ -4761,27 +4761,10 @@ class NumClass(Class):
             is_final=self.is_final,
         )
 
-    def exact_type(self) -> Class:
-        if self.literal_value is None:
-            return super().exact_type()
-        if self.pytype is int:
-            return self.type_env.int.exact_type()
-        if self.pytype is float:
-            return self.type_env.float.exact_type()
-        if self.pytype is complex:
-            return self.type_env.complex.exact_type()
-        return self
-
-    def inexact_type(self) -> Class:
-        if self.literal_value is None:
-            return super().inexact_type()
-        if self.pytype is int:
-            return self.type_env.int
-        if self.pytype is float:
-            return self.type_env.float
-        if self.pytype is complex:
-            return self.type_env.complex
-        return self
+    def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
+        if self.literal_value is None or src is not self.type_env.dynamic:
+            return super().emit_type_check(src, code_gen)
+        common_literal_emit_type_check(self.literal_value, "==", code_gen)
 
 
 class NumInstance(Object[NumClass]):
@@ -4803,15 +4786,6 @@ class NumInstance(Object[NumClass]):
         else:
             assert isinstance(node.op, ast.Not)
             visitor.set_type(node, self.klass.type_env.bool.instance)
-
-    def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
-        self._bind_constant(node.value, node, visitor)
-
-    def _bind_constant(
-        self, value: object, node: ast.expr, visitor: TypeBinder
-    ) -> None:
-        value_inst = visitor.type_env.constant_types.get(type(value), self)
-        visitor.set_type(node, value_inst)
 
     def exact(self) -> Value:
         if self.klass.pytype is int:
@@ -5052,6 +5026,26 @@ def common_sequence_emit_forloop(
         if node.orelse:
             code_gen.visit(node.orelse)
         code_gen.nextBlock(after)
+
+
+def common_literal_emit_type_check(
+    literal_value: object, comp_type: str, code_gen: Static38CodeGenerator
+) -> None:
+    code_gen.emit("DUP_TOP")
+    code_gen.emit("LOAD_CONST", literal_value)
+    code_gen.emit("COMPARE_OP", comp_type)
+    end = code_gen.newBlock()
+    code_gen.emit("POP_JUMP_IF_TRUE", end)
+    code_gen.nextBlock()
+    code_gen.emit("LOAD_GLOBAL", "TypeError")
+    code_gen.emit("ROT_TWO")
+    code_gen.emit("LOAD_CONST", f"expected {literal_value}, got ")
+    code_gen.emit("ROT_TWO")
+    code_gen.emit("FORMAT_VALUE")
+    code_gen.emit("BUILD_STRING", 2)
+    code_gen.emit("CALL_FUNCTION", 1)
+    code_gen.emit("RAISE_VARARGS", 1)
+    code_gen.nextBlock(end)
 
 
 class TupleClass(Class):
@@ -5582,21 +5576,7 @@ class BoolClass(Class):
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         if self.literal_value is None or src is not self.type_env.dynamic:
             return super().emit_type_check(src, code_gen)
-        code_gen.emit("DUP_TOP")
-        code_gen.emit("LOAD_CONST", self.literal_value)
-        code_gen.emit("COMPARE_OP", "is")
-        end = code_gen.newBlock()
-        code_gen.emit("POP_JUMP_IF_TRUE", end)
-        code_gen.nextBlock()
-        code_gen.emit("LOAD_GLOBAL", "TypeError")
-        code_gen.emit("ROT_TWO")
-        code_gen.emit("LOAD_CONST", f"expected {self.literal_value}, got ")
-        code_gen.emit("ROT_TWO")
-        code_gen.emit("FORMAT_VALUE")
-        code_gen.emit("BUILD_STRING", 2)
-        code_gen.emit("CALL_FUNCTION", 1)
-        code_gen.emit("RAISE_VARARGS", 1)
-        code_gen.nextBlock(end)
+        common_literal_emit_type_check(self.literal_value, "is", code_gen)
 
 
 class BoolInstance(Object[BoolClass]):
@@ -5661,6 +5641,10 @@ class LiteralType(Class):
         if isinstance(literal_value, bool):
             return self.type_env.get_literal_type(
                 self.type_env.bool.instance, literal_value
+            ).klass
+        elif isinstance(literal_value, int):
+            return self.type_env.get_literal_type(
+                self.type_env.int.instance, literal_value
             ).klass
         # TODO support more literal types
         return visitor.type_env.DYNAMIC

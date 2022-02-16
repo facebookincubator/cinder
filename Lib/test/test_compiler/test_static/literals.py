@@ -63,6 +63,50 @@ class LiteralsTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertIs(mod.f(), False)
 
+    def test_literal_int_annotation_error(self) -> None:
+        codestr = """
+            from typing import Literal
+
+            def f(x: int) -> Literal[1]:
+                return x
+        """
+        self.type_error(codestr, r"return type must be Literal\[1\]", "return x")
+
+    def test_literal_int_annotation_runtime_cast(self) -> None:
+        codestr = """
+            from typing import Literal
+
+            def f(x) -> Literal[12000]:
+                return x
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "COMPARE_OP", "==")
+            self.assertIs(mod.f(12000), 12000)
+            with self.assertRaises(TypeError):
+                mod.f(2)
+
+    def test_literal_int_annotation_good(self) -> None:
+        codestr = """
+            from typing import Literal
+
+            def f() -> Literal[1]:
+                return 1
+        """
+        with self.in_module(codestr) as mod:
+            self.assertNotInBytecode(mod.f, "COMPARE_OP")
+            self.assertIs(mod.f(), 1)
+
+    def test_literal_int_assign_to_wrong_literal(self) -> None:
+        codestr = """
+            from typing import Literal
+
+            def f():
+                x: Literal[1] = 2
+        """
+        self.type_error(
+            codestr, r"Literal\[2\] cannot be assigned to Literal\[1\]", "2"
+        )
+
     def test_literal_int_assign_to_optional(self) -> None:
         codestr = """
             def f():
@@ -70,4 +114,4 @@ class LiteralsTests(StaticTestBase):
                 return x
         """
         with self.in_module(codestr) as mod:
-            self.assertIs(mod.f(), 1)
+            self.assertEqual(mod.f(), 1)

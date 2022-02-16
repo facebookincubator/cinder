@@ -970,7 +970,7 @@ class TypeBinder(GenericVisitor):
             if ModuleFlag.CHECKED_LISTS in self.module.flags and item_type is not None:
                 typ = self.type_env.get_generic_type(
                     self.type_env.checked_list,
-                    (item_type.klass.inexact_type(),),
+                    (item_type.nonliteral().klass.inexact_type(),),
                 ).instance
             else:
                 typ = self.type_env.list.exact_type().instance
@@ -988,7 +988,7 @@ class TypeBinder(GenericVisitor):
 
         gen_type = self.type_env.get_generic_type(
             self.type_env.checked_list,
-            (item_type.klass.inexact_type(),),
+            (item_type.nonliteral().klass.inexact_type(),),
         )
 
         self.set_type(node, type_ctx)
