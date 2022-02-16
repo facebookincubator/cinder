@@ -142,6 +142,7 @@ class Compiler:
             "List": self.type_env.list,
             "Final": self.type_env.final,
             "final": self.type_env.final_method,
+            "Literal": self.type_env.literal,
             "NamedTuple": self.type_env.named_tuple,
             "Protocol": self.type_env.protocol,
             "Optional": self.type_env.optional,

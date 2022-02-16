@@ -697,15 +697,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
     def _visitReturnValue(self, value: ast.AST, expected: Class) -> None:
         self.visit(value)
-        if (
-            expected
-            not in (
-                self.compiler.type_env.dynamic,
-                self.compiler.type_env.object,
-            )
-            and self.get_type(value) is self.compiler.type_env.DYNAMIC
-        ):
-            self.emit("CAST", expected.type_descr)
+        expected.emit_type_check(self.get_type(value).klass, self)
 
     def visitReturn(self, node: ast.Return) -> None:
         self.checkReturn(node)

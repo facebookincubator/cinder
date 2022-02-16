@@ -362,6 +362,7 @@ class TypeEnvironment:
         self.named_tuple = Class(TypeName("typing", "NamedTuple"), self)
         self.protocol = Class(TypeName("typing", "Protocol"), self)
         self.annotated = AnnotatedType(TypeName("typing_extensions", "Annotated"), self)
+        self.literal = LiteralType(TypeName("typing", "Literal"), self)
         self.base_exception = Class(
             TypeName("builtins", "BaseException"), self, pytype=BaseException
         )
@@ -5578,6 +5579,25 @@ class BoolClass(Class):
 
         super().emit_call(node, code_gen)
 
+    def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
+        if self.literal_value is None or src is not self.type_env.dynamic:
+            return super().emit_type_check(src, code_gen)
+        code_gen.emit("DUP_TOP")
+        code_gen.emit("LOAD_CONST", self.literal_value)
+        code_gen.emit("COMPARE_OP", "is")
+        end = code_gen.newBlock()
+        code_gen.emit("POP_JUMP_IF_TRUE", end)
+        code_gen.nextBlock()
+        code_gen.emit("LOAD_GLOBAL", "TypeError")
+        code_gen.emit("ROT_TWO")
+        code_gen.emit("LOAD_CONST", f"expected {self.literal_value}, got ")
+        code_gen.emit("ROT_TWO")
+        code_gen.emit("FORMAT_VALUE")
+        code_gen.emit("BUILD_STRING", 2)
+        code_gen.emit("CALL_FUNCTION", 1)
+        code_gen.emit("RAISE_VARARGS", 1)
+        code_gen.nextBlock(end)
+
 
 class BoolInstance(Object[BoolClass]):
     @property
@@ -5614,6 +5634,36 @@ class AnnotatedType(Class):
             return None
         actual_type, *annotations = val.elts
         return visitor.resolve_annotation(actual_type)
+
+
+class LiteralType(Class):
+    def resolve_subscr(
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: AnnotationVisitor,
+    ) -> Optional[Value]:
+        slice = node.slice
+
+        if not isinstance(slice, ast.Index):
+            visitor.syntax_error("can't slice generic types", node)
+            return visitor.type_env.DYNAMIC
+
+        val = slice.value
+
+        if isinstance(val, ast.Tuple):
+            # TODO support multi-value literal types
+            return visitor.type_env.DYNAMIC
+        if not isinstance(val, ast.Constant):
+            visitor.syntax_error("Literal must be parametrized by a constant", node)
+            return visitor.type_env.DYNAMIC
+        literal_value = val.value
+        if isinstance(literal_value, bool):
+            return self.type_env.get_literal_type(
+                self.type_env.bool.instance, literal_value
+            ).klass
+        # TODO support more literal types
+        return visitor.type_env.DYNAMIC
 
 
 class TypeWrapper(GenericClass):
