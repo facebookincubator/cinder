@@ -196,6 +196,9 @@ class HIRBuilder {
   void emitMakeFunction(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitFunctionCredential(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitMakeListTuple(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

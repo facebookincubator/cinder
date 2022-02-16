@@ -105,6 +105,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     FAST_LEN,
     FORMAT_VALUE,
     FOR_ITER,
+    FUNC_CREDENTIAL,
     GET_AITER,
     GET_ANEXT,
     GET_AWAITABLE,
@@ -779,6 +780,9 @@ void HIRBuilder::translate(
           emitAnyCall(irfunc.cfg, tc, bc_it, bc_instrs);
           break;
         }
+        case FUNC_CREDENTIAL:
+          emitFunctionCredential(tc, bc_instr);
+          break;
         case COMPARE_OP: {
           emitCompareOp(tc, bc_instr);
           break;
@@ -2677,6 +2681,23 @@ void HIRBuilder::emitMakeFunction(
 
   tc.emit<InitFunction>(func);
   tc.frame.stack.push(func);
+}
+
+void HIRBuilder::emitFunctionCredential(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  int oparg = bc_instr.oparg();
+  JIT_CHECK(
+      oparg < PyTuple_Size(code_->co_consts),
+      "FUNC_CREDENTIAL index out of bounds");
+  Register* fc_tuple = temps_.AllocateStack();
+  tc.emit<LoadConst>(
+      fc_tuple, Type::fromObject(PyTuple_GET_ITEM(code_->co_consts, oparg)));
+  Register* fc = temps_.AllocateStack();
+  tc.emitChecked<CallCFunc>(
+      1, fc, CallCFunc::Func::kfunc_cred_new, std::vector<Register*>{fc_tuple});
+
+  tc.frame.stack.push(fc);
 }
 
 void HIRBuilder::emitMakeListTuple(

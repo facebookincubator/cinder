@@ -3,6 +3,7 @@
 
 #include "Python.h"
 #include "code.h"
+#include "funccredobject.h"
 #include "opcode.h"
 
 #include "Jit/bytecode.h"
@@ -1412,7 +1413,8 @@ class INSTR_CLASS(CallCFunc, (TOptObject), HasOutput, Operands<>) {
   X(_PyCoro_GetAwaitableIter)   \
   X(_PyGen_yf)                  \
   X(_PyEval_GetAIter)           \
-  X(_PyEval_GetANext)
+  X(_PyEval_GetANext)           \
+  X(func_cred_new)
 
   enum class Func {
 #define ENUM_FUNC(name, ...) k##name,
