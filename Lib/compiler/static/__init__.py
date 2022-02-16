@@ -507,18 +507,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
         else:
             self.get_type(node.value).emit_attr(node, self)
 
-    def emit_type_check(self, dest: Class, src: Class, node: AST) -> None:
-        if (
-            src is self.compiler.type_env.dynamic
-            and dest is not self.compiler.type_env.object
-            and dest is not self.compiler.type_env.dynamic
-        ):
-            assert not isinstance(dest, CType)
-            self.emit("CAST", dest.type_descr)
-        else:
-
-            assert dest.can_assign_from(src)
-
     def visitAssignTarget(
         self, elt: expr, stmt: AST, value: Optional[expr] = None
     ) -> None:
@@ -531,14 +519,13 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 for target in elt.elts:
                     self.visitAssignTarget(target, stmt, None)
         else:
-            if value is not None:
-                self.emit_type_check(
-                    self.get_type(elt).klass, self.get_type(value).klass, stmt
-                )
-            else:
-                self.emit_type_check(
-                    self.get_type(elt).klass, self.compiler.type_env.dynamic, stmt
-                )
+            elt_type = self.get_type(elt).klass
+            value_type = (
+                self.compiler.type_env.dynamic
+                if value is None
+                else self.get_type(value).klass
+            )
+            elt_type.emit_type_check(value_type, self)
             self.visit(elt)
 
     def visitAssign(self, node: Assign) -> None:
@@ -558,8 +545,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
         value = node.value
         if value:
             self.visit(value)
-            self.emit_type_check(
-                self.get_type(node.target).klass, self.get_type(value).klass, node
+            self.get_type(node.target).klass.emit_type_check(
+                self.get_type(value).klass, self
             )
             self.visit(node.target)
         target = node.target

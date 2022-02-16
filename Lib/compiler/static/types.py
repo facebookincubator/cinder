@@ -1738,6 +1738,11 @@ class Class(Object["Class"]):
     def unwrap(self) -> Class:
         return self
 
+    def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
+        if src is self.type_env.dynamic:
+            code_gen.emit("CAST", self.type_descr)
+        else:
+            assert self.can_assign_from(src)
 
 class BuiltinObject(Class):
     def __init__(
@@ -1762,6 +1767,9 @@ class BuiltinObject(Class):
             is_final=is_final,
         )
         self.dynamic_builtinmethod_dispatch = True
+
+    def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
+        assert self.can_assign_from(src)
 
 
 class Variance(Enum):
@@ -2022,6 +2030,9 @@ class CType(Class):
             f"Primitive type {self.instance_name} cannot be subclassed: {name.friendly_name}",
         )
 
+    def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
+        assert self.can_assign_from(src)
+
 
 class DynamicClass(Class):
     instance: DynamicInstance
@@ -2041,6 +2052,9 @@ class DynamicClass(Class):
     def can_assign_from(self, src: Class) -> bool:
         # No automatic boxing to the dynamic type
         return not isinstance(src, CType)
+
+    def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
+        assert self.can_assign_from(src)
 
 
 class DynamicInstance(Object[DynamicClass]):
@@ -2609,11 +2623,7 @@ class PositionArg(ArgEmitter):
         arg_type = code_gen.get_type(self.argument)
         code_gen.visit(self.argument)
 
-        code_gen.emit_type_check(
-            self.type,
-            arg_type.klass,
-            node,
-        )
+        self.type.emit_type_check(arg_type.klass, code_gen)
 
     def __repr__(self) -> str:
         return f"PositionArg({to_expr(self.argument)}, {self.type})"
@@ -2662,11 +2672,7 @@ class SpilledKeywordArg(ArgEmitter):
 
     def emit(self, node: Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.emit("LOAD_FAST", self.temporary)
-        code_gen.emit_type_check(
-            self.type,
-            code_gen.compiler.type_env.dynamic,
-            node,
-        )
+        self.type.emit_type_check(code_gen.compiler.type_env.dynamic, code_gen)
 
     def __repr__(self) -> str:
         return f"SpilledKeywordArg({self.temporary})"
@@ -2679,11 +2685,7 @@ class KeywordArg(ArgEmitter):
 
     def emit(self, node: Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(self.argument)
-        code_gen.emit_type_check(
-            self.type,
-            code_gen.get_type(self.argument).klass,
-            node,
-        )
+        self.type.emit_type_check(code_gen.get_type(self.argument).klass, code_gen)
 
 
 class KeywordMappingArg(ArgEmitter):
@@ -2701,11 +2703,10 @@ class KeywordMappingArg(ArgEmitter):
             code_gen.emit("LOAD_MAPPING_ARG", 3)
         else:
             code_gen.emit("LOAD_MAPPING_ARG", 2)
-        code_gen.emit_type_check(
-            self.param.type_ref.resolved() or code_gen.compiler.type_env.dynamic,
-            code_gen.compiler.type_env.dynamic,
-            node,
+        param_type = (
+            self.param.type_ref.resolved() or code_gen.compiler.type_env.dynamic
         )
+        param_type.emit_type_check(code_gen.compiler.type_env.dynamic, code_gen)
 
 
 class DefaultArg(ArgEmitter):
