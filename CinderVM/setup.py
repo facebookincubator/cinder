@@ -11,9 +11,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="cindervm",
-    version="0.0.2",
+    version="0.0.3",
     author="Meta Platforms",
-    author_email="itamaro@fb.com",
+    author_email="cinder@fb.com",
     description="High-performance Python runtime extensions",
     long_description=long_description,
     long_description_content_type="text/markdown",
