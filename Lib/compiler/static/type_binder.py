@@ -136,7 +136,7 @@ class ModuleBindingScope(BindingScope):
         # an annotation, but we don't want to infer the exact type; should be
         # able to reassign to a subtype
         if is_inferred:
-            typ = typ.inexact()
+            typ = typ.nonliteral().inexact()
             is_inferred = False
         self.module.children[name] = typ
         return super().declare(name, typ, is_final=is_final, is_inferred=is_inferred)

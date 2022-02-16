@@ -132,6 +132,32 @@ class StaticCompilationTests(StaticTestBase):
     def tearDownClass(cls):
         del xxclassloader.XXGeneric
 
+    def test_literal_bool_assign_to_optional(self) -> None:
+        codestr = """
+            def f():
+                x: bool | None = False
+                return x
+        """
+        with self.in_module(codestr) as mod:
+            self.assertIs(mod.f(), False)
+
+    def test_literal_int_assign_to_optional(self) -> None:
+        codestr = """
+            def f():
+                x: int | None = 1
+                return x
+        """
+        with self.in_module(codestr) as mod:
+            self.assertIs(mod.f(), 1)
+
+    def test_reassign_inferred_bool_top_level(self) -> None:
+        codestr = """
+            x = True
+            x = False
+        """
+        with self.in_module(codestr) as mod:
+            self.assertIs(mod.x, False)
+
     def test_static_import_unknown(self) -> None:
         codestr = """
             from __static__ import does_not_exist
@@ -462,8 +488,8 @@ class StaticCompilationTests(StaticTestBase):
             lambda type_env: type_env.complex.exact_type().instance,
         )
         assert_expr_binds_to("None", lambda type_env: type_env.none.instance)
-        assert_expr_binds_to("True", lambda type_env: type_env.bool.instance)
-        assert_expr_binds_to("False", lambda type_env: type_env.bool.instance)
+        self.assertEqual(repr(self.bind_expr("True")[0]), "<Literal[True]>")
+        self.assertEqual(repr(self.bind_expr("False")[0]), "<Literal[False]>")
         assert_expr_binds_to(
             "...",
             lambda type_env: type_env.ellipsis.instance,

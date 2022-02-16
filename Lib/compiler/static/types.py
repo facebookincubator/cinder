@@ -165,6 +165,7 @@ class TypeEnvironment:
     def __init__(self) -> None:
         self._generic_types: GenericTypesDict = {}
         self._literal_types: Dict[Tuple[Value, object], Value] = {}
+        self._nonliteral_types: Dict[Value, Value] = {}
         self._exact_types: Dict[Class, Class] = {}
         self._inexact_types: Dict[Class, Class] = {}
         # Bringing up the type system is a little special as we have dependencies
@@ -432,8 +433,14 @@ class TypeEnvironment:
     def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
         key = (base_type, literal_value)
         if key not in self._literal_types:
-            self._literal_types[key] = base_type.make_literal(literal_value, self)
+            self._literal_types[key] = literal_type = base_type.make_literal(
+                literal_value, self
+            )
+            self._nonliteral_types[literal_type] = base_type
         return self._literal_types[key]
+
+    def get_nonliteral_type(self, literal_type: Value) -> Value:
+        return self._nonliteral_types.get(literal_type, literal_type)
 
     def get_exact_type(self, klass: Class) -> Class:
         if klass.is_exact:
@@ -590,6 +597,9 @@ class Value:
 
     def inexact(self) -> Value:
         return self
+
+    def nonliteral(self) -> Value:
+        return self.klass.type_env.get_nonliteral_type(self)
 
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
         return self
@@ -1052,8 +1062,12 @@ class Object(Value, Generic[TClass]):
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
-            node_type = visitor.compiler.type_env.get_literal_type(
+            node_type = visitor.type_env.get_literal_type(
                 visitor.type_env.int.instance, node.value
+            )
+        elif type(node.value) is bool:
+            node_type = visitor.type_env.get_literal_type(
+                visitor.type_env.bool.instance, node.value
             )
         else:
             node_type = visitor.type_env.constant_types[type(node.value)]
@@ -1421,7 +1435,6 @@ class Class(Object["Class"]):
         return NO_EFFECT
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        self_type = self.instance
         call_info = code_gen.get_node_data(node, ClassCallInfo)
 
         if call_info.dynamic_call:
@@ -1448,7 +1461,7 @@ class Class(Object["Class"]):
         implement a more efficient form of interface dispatch than doing the dictionary
         lookup for the member."""
         return src is self or (
-            not self.is_exact
+            (not self.is_exact or src.instance.nonliteral() is self.instance)
             and not isinstance(src, CType)
             and src.is_subclass_of(self)
         )
@@ -1823,7 +1836,7 @@ class GenericClass(Class):
                 node,
             )
 
-        return visitor.compiler.type_env.get_generic_type(self, index)
+        return visitor.type_env.get_generic_type(self, index)
 
     @property
     def type_args(self) -> Sequence[Class]:
@@ -2337,7 +2350,6 @@ class ArgMapping:
         assert func_args is not None
 
         spill_start = len(self.emitters)
-        seen_variadic = False
         # Process unhandled arguments which can be populated via defaults,
         # keyword arguments, or **mapping.
         cur_kw_arg = 0
@@ -3186,7 +3198,7 @@ class Function(Callable[Class], FunctionContainer):
             name = self.node.args.args[idx].arg
 
             if isinstance(arg, DefaultArg):
-                arg_replacements[name] = constant = arg.expr
+                arg_replacements[name] = arg.expr
                 continue
             elif not isinstance(arg, (PositionArg, KeywordArg)):
                 # We don't support complicated calls to inline functions
@@ -3418,7 +3430,6 @@ class UnknownDecoratedMethod(FunctionContainer):
         visitor: TypeBinder,
     ) -> None:
         if node.args.args:
-            klass = visitor.maybe_get_current_class()
             visitor.set_param(node.args.args[0], visitor.type_env.DYNAMIC, scope)
 
     def emit_function(
@@ -3426,7 +3437,6 @@ class UnknownDecoratedMethod(FunctionContainer):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        name = node.name
         if node.decorator_list:
             for decorator in node.decorator_list:
                 code_gen.visit(decorator)
@@ -4563,7 +4573,7 @@ class IsInstanceEffect(NarrowingEffect):
             type_args = tuple(
                 ta for ta in prev.klass.type_args if not inst.klass.can_assign_from(ta)
             )
-            reverse = visitor.compiler.type_env.get_union(type_args).instance
+            reverse = visitor.type_env.get_union(type_args).instance
         self.rev: Value = reverse
 
     def apply(
@@ -4617,7 +4627,7 @@ class IsInstanceFunction(Object[Class]):
             if isinstance(arg1, ast.Tuple):
                 types = tuple(visitor.get_type(el) for el in arg1.elts)
                 if all(isinstance(t, Class) for t in types):
-                    klass_type = visitor.compiler.type_env.get_union(
+                    klass_type = visitor.type_env.get_union(
                         cast(Tuple[Class, ...], types)
                     )
             else:
@@ -4734,13 +4744,10 @@ class NumClass(Class):
         )
         self.literal_value = literal_value
 
-    def can_assign_from(self, src: Class) -> bool:
-        if isinstance(src, NumClass):
-            if self.literal_value is not None:
-                return src.literal_value == self.literal_value
-            if self.is_exact and src.is_exact and self.type_descr == src.type_descr:
-                return True
-        return super().can_assign_from(src)
+    def is_subclass_of(self, src: Class) -> bool:
+        if isinstance(src, NumClass) and src.literal_value is not None:
+            return src.literal_value == self.literal_value
+        return super().is_subclass_of(src)
 
     def _create_exact_type(self) -> Class:
         return type(self)(
@@ -4754,8 +4761,6 @@ class NumClass(Class):
 
     def exact_type(self) -> Class:
         if self.literal_value is None:
-            # This is a special case: We guarantee that all non-literal NumClasses are
-            # present in the type environment after construction.
             return super().exact_type()
         if self.pytype is int:
             return self.type_env.int.exact_type()
@@ -5497,14 +5502,24 @@ class DictInstance(Object[DictClass]):
 
 
 class BoolClass(Class):
-    def __init__(self, type_env: TypeEnvironment) -> None:
+    suppress_exact = True
+
+    def __init__(
+        self, type_env: TypeEnvironment, literal_value: bool | None = None
+    ) -> None:
+        bases: List[Class] = [type_env.int]
+        if literal_value is not None:
+            bases = [type_env.bool]
         super().__init__(
             TypeName("builtins", "bool"),
             type_env,
-            [type_env.int],
+            bases,
+            instance=BoolInstance(self),
             pytype=bool,
             is_exact=True,
+            is_final=True,
         )
+        self.literal_value = literal_value
 
     def make_type_dict(self) -> None:
         super().make_type_dict()
@@ -5534,6 +5549,11 @@ class BoolClass(Class):
             ResolvedTypeRef(self),
         )
 
+    def is_subclass_of(self, src: Class) -> bool:
+        if isinstance(src, BoolClass) and src.literal_value is not None:
+            return src.literal_value == self.literal_value
+        return super().is_subclass_of(src)
+
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
@@ -5556,6 +5576,19 @@ class BoolClass(Class):
                 return
 
         super().emit_call(node, code_gen)
+
+
+class BoolInstance(Object[BoolClass]):
+    @property
+    def name(self) -> str:
+        if self.klass.literal_value is not None:
+            return f"Literal[{self.klass.literal_value}]"
+        return super().name
+
+    def make_literal(self, literal_value: object, type_env: TypeEnvironment) -> Value:
+        assert isinstance(literal_value, bool)
+        klass = BoolClass(self.klass.type_env, literal_value=literal_value)
+        return klass.instance
 
 
 class AnnotatedType(Class):
@@ -5751,6 +5784,11 @@ class UnionType(GenericClass):
 
 
 class UnionInstance(Object[UnionType]):
+    def nonliteral(self) -> Value:
+        return self.klass.type_env.get_union(
+            tuple(el.instance.nonliteral().klass for el in self.klass.type_args)
+        ).instance
+
     def _generic_bind(
         self,
         node: ast.AST,
@@ -5769,7 +5807,7 @@ class UnionInstance(Object[UnionType]):
         except TypedSyntaxError as e:
             visitor.syntax_error(f"{self.name}: {e.msg}", node)
 
-        union = visitor.compiler.type_env.get_union(tuple(result_types))
+        union = visitor.type_env.get_union(tuple(result_types))
         visitor.set_type(node, union.instance)
         return ret_types
 
@@ -6985,7 +7023,7 @@ class CIntInstance(CInstance["CIntType"]):
 
     def bind_constant(self, node: ast.Constant, visitor: TypeBinder) -> None:
         if type(node.value) is int:
-            node_type = visitor.compiler.type_env.get_literal_type(self, node.value)
+            node_type = visitor.type_env.get_literal_type(self, node.value)
         elif type(node.value) is bool and self is self.klass.type_env.cbool.instance:
             assert self is self.klass.type_env.cbool.instance
             node_type = self

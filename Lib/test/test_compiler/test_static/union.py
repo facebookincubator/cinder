@@ -21,7 +21,7 @@ class UnionCompilationTests(StaticTestBase):
         self.type_error(
             codestr,
             re.escape(
-                "type mismatch: Optional[Exact[bool]] received for positional arg 'b', expected Exact[bool]"
+                "type mismatch: Optional[bool] received for positional arg 'b', expected bool"
             ),
         )
 

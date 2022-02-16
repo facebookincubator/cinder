@@ -3086,9 +3086,7 @@ class PrimitivesTests(StaticTestBase):
         def f() -> int:
             a: int8 = True
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[bool]", "int8")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("bool", "int8")):
             self.compile(codestr)
 
     def test_inline_primitive(self):
@@ -3576,9 +3574,7 @@ class PrimitivesTests(StaticTestBase):
             else:
                 return 2
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[bool]", "cbool")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("bool", "cbool")):
             self.compile(codestr, modname="foo")
 
     def test_primitive_compare_returns_cbool(self):
