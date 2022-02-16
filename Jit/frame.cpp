@@ -260,6 +260,44 @@ BorrowedRef<PyFrameObject> materializePyFrame(
   return frame.release();
 }
 
+int getLineNo(_PyShadowFrame* shadow_frame) {
+  _PyShadowFrame_PtrKind ptr_kind = _PyShadowFrame_GetPtrKind(shadow_frame);
+  void* ptr = _PyShadowFrame_GetPtr(shadow_frame);
+  int lasti = 0;
+  PyCodeObject* code = nullptr;
+
+  switch (ptr_kind) {
+    case PYSF_CODE_RT: {
+      auto code_rt = static_cast<jit::CodeRuntime*>(ptr);
+      uintptr_t ip =
+          getIP(_PyThreadState_GET(), shadow_frame, code_rt->frame_size());
+      std::optional<int> bc_off = code_rt->getBCOffForIP(ip);
+      if (bc_off.has_value()) {
+        lasti = bc_off.value();
+      }
+      code = code_rt->GetCode();
+      break;
+    }
+    case PYSF_PYFRAME: {
+      PyFrameObject* frame = static_cast<PyFrameObject*>(ptr);
+      lasti = frame->f_lasti;
+      code = frame->f_code;
+      break;
+    }
+    case PYSF_PYCODE: {
+      // inlined code
+      code = static_cast<PyCodeObject*>(ptr);
+      break;
+    }
+    case PYSF_DUMMY:
+      JIT_CHECK(false, "Unsupported ptr kind: PYSF_DUMMY");
+  }
+
+  JIT_DCHECK(code != nullptr, "code object must be found");
+
+  return PyCode_Addr2Line(code, lasti);
+}
+
 } // namespace
 
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
@@ -396,4 +434,61 @@ PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
   PyObject* result = PyUnicode_FromFormat("%U:%U", mod_name, code->co_qualname);
   Py_DECREF(mod_name);
   return result;
+}
+
+_PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {
+  _PyShadowFrame* result;
+  if (_PyShadowFrame_HasGen(shadow_frame)) {
+    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    if (!PyCoro_CheckExact((PyObject*)gen)) {
+      // This means we have a real generator, so it cannot have awaiter frames.
+      // but we also did not fail.
+      return nullptr;
+    }
+    PyCoroObject* awaiter = ((PyCoroObject*)gen)->cr_awaiter;
+    if (!awaiter) {
+      // This is fine, not every coroutine needs to have an awaiter
+      return nullptr;
+    }
+    result = &(awaiter->cr_shadow_frame);
+    return result;
+  }
+  return nullptr;
+}
+
+int _PyShadowFrame_WalkAndPopulate(
+    PyCodeObject** async_stack,
+    int* async_linenos,
+    int async_stack_len,
+    PyCodeObject** sync_stack,
+    int* sync_linenos,
+    int sync_stack_len) {
+  _PyShadowFrame* shadow_frame = PyThreadState_GET()->shadow_frame;
+  // First walk the async stack (through awaiter pointers)
+  int i = 0;
+  _PyShadowFrame* awaiter_frame = NULL;
+  while (shadow_frame != NULL && i < async_stack_len) {
+    async_stack[i] = _PyShadowFrame_GetCode(shadow_frame);
+    async_linenos[i] = jit::getLineNo(shadow_frame);
+
+    awaiter_frame =
+        _PyShadowFrame_GetAwaiterFrame((_PyShadowFrame*)shadow_frame);
+
+    shadow_frame = shadow_frame->prev;
+    if (awaiter_frame != NULL) {
+      shadow_frame = awaiter_frame;
+    }
+    i++;
+  }
+
+  // Next walk the sync stack (shadow frames only)
+  int j = 0;
+  shadow_frame = PyThreadState_GET()->shadow_frame;
+  while (shadow_frame != NULL && j < sync_stack_len) {
+    sync_stack[j] = _PyShadowFrame_GetCode(shadow_frame);
+    sync_linenos[j] = jit::getLineNo(shadow_frame);
+    shadow_frame = shadow_frame->prev;
+    j++;
+  }
+  return 0;
 }

@@ -10,6 +10,7 @@
 
 #include "Python.h"
 #include "pycore_initconfig.h"
+#include "pycore_shadow_frame.h"
 
 
 #ifdef MS_WINDOWS
@@ -61,9 +62,105 @@ get_configs(PyObject *self, PyObject *Py_UNUSED(args))
     return dict;
 }
 
+#define _SF_STACK_SIZE 1024
+static PyObject *
+test_shadowframe_walk_and_populate(PyObject *self, PyObject *args)
+{
+    PyCodeObject* async_stack[_SF_STACK_SIZE] = {0};
+    PyCodeObject* sync_stack[_SF_STACK_SIZE] = {0};
+    int async_linenos[_SF_STACK_SIZE] = {0};
+    int sync_linenos[_SF_STACK_SIZE] = {0};
+    int res = _PyShadowFrame_WalkAndPopulate(
+        async_stack,
+        async_linenos,
+        _SF_STACK_SIZE,
+        sync_stack,
+        sync_linenos,
+        _SF_STACK_SIZE
+    );
+    if (res) {
+        PyErr_SetString(PyExc_RuntimeError, "test_shadowframe_walk_and_populate: failed");
+        return NULL;
+    }
+
+    PyObject *async_res = PyList_New(0);
+    if (!async_res) {
+        return NULL;
+    }
+
+    for (int i=0; i < _SF_STACK_SIZE; i++) {
+        PyCodeObject* code = async_stack[i];
+        if (code == NULL) {
+            // end of stack
+            break;
+        }
+        int lineno = async_linenos[i];
+        PyObject *qname = PyUnicode_FromFormat(
+                            "%U:%d:%U",
+                            code->co_filename,
+                            lineno,
+                            code->co_qualname);
+        if (!qname) {
+            Py_DECREF(async_res);
+            return NULL;
+        }
+        if (PyList_Append(async_res, qname)) {
+            Py_DECREF(async_res);
+            Py_DECREF(qname);
+            return NULL;
+        }
+        Py_DECREF(qname);
+    }
+
+    PyObject *sync_res = PyList_New(0);
+    if (!sync_res) {
+        Py_DECREF(async_res);
+        return NULL;
+    }
+
+    for (int i=0; i < _SF_STACK_SIZE; i++) {
+        PyCodeObject* code = sync_stack[i];
+        if (code == 0) {
+            // end of stack
+            break;
+        }
+        int lineno = sync_linenos[i];
+        PyObject *qname = PyUnicode_FromFormat(
+                            "%U:%d:%U",
+                            code->co_filename,
+                            lineno,
+                            code->co_qualname);
+        if (!qname) {
+            Py_DECREF(async_res);
+            Py_DECREF(sync_res);
+            return NULL;
+        }
+        if (PyList_Append(sync_res, qname)) {
+            Py_DECREF(async_res);
+            Py_DECREF(sync_res);
+            Py_DECREF(qname);
+            return NULL;
+        }
+        Py_DECREF(qname);
+    }
+
+    PyObject *result = PyTuple_New(2);
+    if (!result) {
+        Py_DECREF(async_res);
+        Py_DECREF(sync_res);
+        return NULL;
+    }
+    PyTuple_SET_ITEM(result, 0, async_res);
+    PyTuple_SET_ITEM(result, 1, sync_res);
+
+    return result;
+}
+#undef _SF_STACK_SIZE
+
 
 static PyMethodDef TestMethods[] = {
     {"get_configs", get_configs, METH_NOARGS},
+    {"test_shadowframe_walk_and_populate", test_shadowframe_walk_and_populate, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 

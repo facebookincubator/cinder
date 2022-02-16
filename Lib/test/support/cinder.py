@@ -9,3 +9,14 @@ def get_await_stack(coro):
         stack.append(awaiter)
         awaiter = cinder._get_coro_awaiter(awaiter)
     return stack
+
+def verify_stack(testcase, stack, expected):
+    n = len(expected)
+    frames = stack[-n:]
+    testcase.assertEqual(len(frames), n, "Callstack had less frames than expected")
+
+    for actual, expected in zip(frames, expected):
+        testcase.assertTrue(
+            actual.endswith(expected),
+            f"The actual frame {actual} doesn't refer to the expected function {expected}",
+        )

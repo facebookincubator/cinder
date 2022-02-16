@@ -97,6 +97,21 @@ PyCodeObject *_PyShadowFrame_GetCode(_PyShadowFrame *shadow_frame);
 /* Returns the fully qualified name of code running in the frame */
 PyObject *_PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame *shadow_frame);
 
+
+/* Populates codeobject pointers in the given arrays. Meant to only be called
+  from profiling frameworks. Both async_stack and sync_stack contain borrowed
+  references. */
+PyAPI_FUNC(int) _PyShadowFrame_WalkAndPopulate(
+  PyCodeObject** async_stack,
+  int *async_linenos,
+  int async_stack_len,
+  PyCodeObject** sync_stack,
+  int *sync_linenos,
+  int sync_stack_len);
+
+/* Looks up the awaiter shadow frame (if any) from the given shadow frame */
+_PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame *shadow_frame);
+
 #ifdef __cplusplus
 }
 #endif

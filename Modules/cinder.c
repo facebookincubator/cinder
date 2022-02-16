@@ -513,33 +513,6 @@ get_call_stack(PyObject *self, PyObject *args) {
     return stack;
 }
 
-static inline _PyShadowFrame* _get_awaiterframe_from_shadowframe(
-  _PyShadowFrame *shadow_frame, int *did_fail
-) {
-  *did_fail = 0;
-  _PyShadowFrame* result;
-  if (_PyShadowFrame_HasGen(shadow_frame)) {
-    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
-    if (!PyCoro_CheckExact((PyObject*)gen)) {
-        // This means we have a real generator, so it cannot have awaiter frames.
-        // but we also did not fail.
-        return NULL;
-    }
-    PyObject *awaiter = get_coro_awaiter(NULL, (PyObject*)gen);
-    if (!awaiter) {
-      *did_fail = 1;
-      return NULL;
-    }
-    if (awaiter != Py_None) {
-      result = &(((PyCoroObject*)awaiter)->cr_shadow_frame);
-      Py_DECREF(awaiter);
-      return result;
-    }
-    Py_DECREF(awaiter);
-  }
-  return NULL;
-}
-
 static PyObject*
 get_entire_call_stack_as_qualnames(PyObject *self, PyObject *Py_UNUSED(args)) {
   _PyShadowFrame *shadow_frame = PyThreadState_GET()->shadow_frame;
@@ -569,10 +542,7 @@ get_entire_call_stack_as_qualnames(PyObject *self, PyObject *Py_UNUSED(args)) {
     shadow_frame = shadow_frame->prev;
 
     // The awaiter stack (if it exists) should always get the preference
-    awaiter_frame = _get_awaiterframe_from_shadowframe(last, &did_fail);
-    if (did_fail) {
-      goto err;
-    }
+    awaiter_frame = _PyShadowFrame_GetAwaiterFrame(last);
     if (awaiter_frame != NULL) {
       shadow_frame = awaiter_frame;
     }

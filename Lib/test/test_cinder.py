@@ -1,15 +1,11 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import asyncio
 import asyncio.tasks
+import cinder
 import inspect
 import sys
 import unittest
 import weakref
-from functools import wraps
-from textwrap import dedent
-from types import FunctionType, GeneratorType, ModuleType, CodeType
-
-import cinder
 from cinder import (
     async_cached_property,
     async_cached_classproperty,
@@ -18,8 +14,18 @@ from cinder import (
     StrictModule,
     strict_module_patch,
 )
-from test.support import gc_collect, requires_type_collecting, temp_dir, unlink, TESTFN
-from test.support.cinder import get_await_stack
+from functools import wraps
+from textwrap import dedent
+from types import FunctionType, GeneratorType, ModuleType, CodeType
+
+from test.support import (
+    gc_collect,
+    requires_type_collecting,
+    temp_dir,
+    unlink,
+    TESTFN,
+)
+from test.support.cinder import get_await_stack, verify_stack
 from test.support.script_helper import assert_python_ok, make_script
 
 
@@ -1705,17 +1711,6 @@ class GetEntireCallStackTest(unittest.TestCase):
         self.loop.close()
         asyncio.set_event_loop_policy(None)
 
-    def verify_stack(self, stack, expected):
-        n = len(expected)
-        frames = stack[-n:]
-        self.assertEqual(len(frames), n, "Callstack had less frames than expected")
-
-        for actual, expected in zip(frames, expected):
-            self.assertTrue(
-                actual.endswith(expected),
-                f"The actual frame {actual} doesn't refer to the expected function {expected}",
-            )
-
     def test_get_entire_call_stack_as_qualnames(self):
         a1_stack = None
         a4_stack = None
@@ -1740,8 +1735,8 @@ class GetEntireCallStackTest(unittest.TestCase):
 
         asyncio.run(drive())
 
-        self.verify_stack(a1_stack, ["drive", "a2", "a1"])
-        self.verify_stack(a4_stack, ["drive", "a4"])
+        verify_stack(self, a1_stack, ["drive", "a2", "a1"])
+        verify_stack(self, a4_stack, ["drive", "a4"])
 
     def test_get_entire_call_stack_as_qualnames_long_awaiter_chain(self):
         a1_stack = None
@@ -1768,7 +1763,7 @@ class GetEntireCallStackTest(unittest.TestCase):
 
         asyncio.run(drive())
 
-        self.verify_stack(a1_stack, ["drive", "a5", "a4", "a3", "a2", "a1"])
+        verify_stack(self, a1_stack, ["drive", "a5", "a4", "a3", "a2", "a1"])
 
     def test_get_entire_call_stack_as_qualnames_mixed_awaiter_and_shadow_stacks(self):
         a1_stack = None
@@ -1796,7 +1791,7 @@ class GetEntireCallStackTest(unittest.TestCase):
 
         asyncio.run(drive())
 
-        self.verify_stack(a1_stack, ["drive", "a5", "a4", "a3", "a2", "a1"])
+        verify_stack(self, a1_stack, ["drive", "a5", "a4", "a3", "a2", "a1"])
 
     def test_get_entire_call_stack_as_qualnames_with_generator(self):
         a1_stack = None
@@ -1814,7 +1809,7 @@ class GetEntireCallStackTest(unittest.TestCase):
 
         drive()
 
-        self.verify_stack(a1_stack, ["drive", "a2", "a1"])
+        verify_stack(self, a1_stack, ["drive", "a2", "a1"])
 
     def test_get_stack_across_coro_with_no_awaiter_and_eager_invoker(self):
         # We want to test the scenario where we:
@@ -1851,7 +1846,7 @@ class GetEntireCallStackTest(unittest.TestCase):
 
         asyncio.run(drive())
 
-        self.verify_stack(stack, ["a2", "a3"])
+        verify_stack(self, stack, ["a2", "a3"])
 
 
 @unittest.skipUnderCinderJIT("Profiling only works under interpreter")
