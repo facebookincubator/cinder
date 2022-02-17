@@ -28,9 +28,15 @@ bool writeProfileData(std::ostream& stream);
 // Clear any loaded profile data.
 void clearProfileData();
 
-// Map from bytecode offset within a code object to vector of string type
-// names.
-using CodeProfileData = UnorderedMap<BytecodeOffset, std::vector<std::string>>;
+// Store a list of profiles of type names for all operands of an instruction
+using PolymorphicProfiles = std::vector<std::vector<std::string>>;
+
+// Store a list of profiles of types for all operands of an instruction
+using PolymorphicTypes = std::vector<std::vector<BorrowedRef<PyTypeObject>>>;
+
+// Map from bytecode offset within a code object to vector of vector of string
+// type names for each operand of an instruction
+using CodeProfileData = UnorderedMap<BytecodeOffset, PolymorphicProfiles>;
 
 // Look up the profile data for the given code object, returning nullptr if
 // there is none.
@@ -38,7 +44,7 @@ const CodeProfileData* getProfileData(PyCodeObject* code);
 
 // Return a list types materialized from a CodeProfileData and a
 // BytecodeOffset. The result will be empty if there's no data for bc_off.
-std::vector<BorrowedRef<PyTypeObject>> getProfiledTypes(
+PolymorphicTypes getProfiledTypes(
     const CodeProfileData& data,
     BytecodeOffset bc_off);
 

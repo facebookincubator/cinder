@@ -18,9 +18,12 @@ uint32: num_code_keys
   uint16: num_locations
   [num_locations] {
     uint16: bc_offset
-    uint8: num_types
-    [num_types] {
-      str: type
+    uint8: num_profiles
+    [num_profiles] {
+      uint8: num_types
+      [num_types] {
+        str: type
+      }
     }
   }
 }

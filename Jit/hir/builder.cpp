@@ -598,13 +598,15 @@ void HIRBuilder::emitProfiledTypes(
     return;
   }
 
-  const std::vector<BorrowedRef<PyTypeObject>> types =
+  const PolymorphicTypes types =
       getProfiledTypes(profile_data, bc_instr.offset());
-  if (types.empty() || types.size() > tc.frame.stack.size()) {
+  if (types.empty() || types[0].size() > tc.frame.stack.size()) {
     // The types are either absent or invalid (e.g., from a different version
     // of the code than what we're running now).
     return;
   }
+
+  const std::vector<BorrowedRef<PyTypeObject>> first_profile = types[0];
 
   if (bc_instr.opcode() == WITH_CLEANUP_START ||
       bc_instr.opcode() == END_FINALLY) {
@@ -627,23 +629,25 @@ void HIRBuilder::emitProfiledTypes(
     // currently the only situation where we try to give a possibly-null value
     // to GuardType; if we run into more we may want to consider making
     // GuardType null-aware.
-    if (types[0] != nullptr && types[0] == &PyType_Type) {
+    if (first_profile[0] != nullptr && first_profile[0] == &PyType_Type) {
       return;
     }
   }
 
   // Except for function calls, all instructions profile all of their inputs,
   // with deeper stack elements first.
-  size_t stack_idx = types.size() - 1;
+  size_t stack_idx = first_profile.size() - 1;
   if (bc_instr.opcode() == CALL_FUNCTION) {
     stack_idx = bc_instr.oparg();
   }
-  for (auto type : types) {
-    if (type != nullptr) {
-      Register* value = tc.frame.stack.top(stack_idx);
-      tc.emit<GuardType>(value, Type::fromTypeExact(type), value);
+  if (types.size() == 1) {
+    for (auto type : first_profile) {
+      if (type != nullptr) {
+        Register* value = tc.frame.stack.top(stack_idx);
+        tc.emit<GuardType>(value, Type::fromTypeExact(type), value);
+      }
+      stack_idx--;
     }
-    stack_idx--;
   }
 }
 

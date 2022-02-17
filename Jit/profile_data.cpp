@@ -32,6 +32,7 @@ uint32_t hashBytecode(PyCodeObject* code) {
 namespace {
 
 const uint64_t kMagicHeader = 0x7265646e6963;
+const uint64_t kMegamorphicNumber = 4;
 
 using ProfileData = UnorderedMap<CodeKey, CodeProfileData>;
 ProfileData s_profile_data;
@@ -84,13 +85,38 @@ void readVersion1(std::istream& stream) {
       auto& type_list = code_map[bc_offset];
       auto num_types = read<uint8_t>(stream);
       for (size_t k = 0; k < num_types; ++k) {
-        type_list.emplace_back(readStr(stream));
+        std::vector<std::string> single_profile{readStr(stream)};
+        type_list.emplace_back(single_profile);
       }
     }
   }
 }
 
-void writeVersion1(std::ostream& stream, const TypeProfiles& profiles) {
+void readVersion2(std::istream& stream) {
+  auto num_code_keys = read<uint32_t>(stream);
+  for (size_t i = 0; i < num_code_keys; ++i) {
+    std::string code_key = readStr(stream);
+    auto& code_map = s_profile_data[code_key];
+
+    auto num_locations = read<uint16_t>(stream);
+    for (size_t j = 0; j < num_locations; ++j) {
+      auto bc_offset = read<uint16_t>(stream);
+
+      auto& type_list = code_map[bc_offset];
+      auto num_profs = read<uint8_t>(stream);
+      for (size_t p = 0; p < num_profs; ++p) {
+        std::vector<std::string> single_profile;
+        auto num_types = read<uint8_t>(stream);
+        for (size_t k = 0; k < num_types; ++k) {
+          single_profile.emplace_back(readStr(stream));
+        }
+        type_list.emplace_back(single_profile);
+      }
+    }
+  }
+}
+
+void writeVersion2(std::ostream& stream, const TypeProfiles& profiles) {
   ProfileData data;
 
   // First, collect only monomorphic results in data.
@@ -98,18 +124,33 @@ void writeVersion1(std::ostream& stream, const TypeProfiles& profiles) {
     CodeProfileData code_data;
     for (auto& profile_pair : code_profile.typed_hits) {
       const TypeProfiler& profile = *profile_pair.second;
-      if (profile.empty() || profile.isPolymorphic()) {
+      if (profile.empty()) {
         // The profile isn't interesting. Ignore it.
         continue;
       }
       auto& vec = code_data[profile_pair.first];
-      for (int col = 0; col < profile.cols(); ++col) {
-        BorrowedRef<PyTypeObject> type = profile.type(0, col);
-        if (type == nullptr) {
-          vec.emplace_back("<NULL>");
-        } else {
-          vec.emplace_back(typeFullname(type));
+      // Store a list of profile row indices sorted by number of times seen
+      int sorted_rows[kMegamorphicNumber];
+      int num_profiles = 0;
+      while (num_profiles < profile.rows() && profile.count(num_profiles) > 0) {
+        sorted_rows[num_profiles] = num_profiles;
+        num_profiles++;
+      }
+      std::sort(
+          sorted_rows, sorted_rows + num_profiles, [&profile](int a, int b) {
+            return profile.count(a) > profile.count(b);
+          });
+      for (int row = 0; row < num_profiles; ++row) {
+        std::vector<std::string> single_profile;
+        for (int col = 0; col < profile.cols(); ++col) {
+          BorrowedRef<PyTypeObject> type = profile.type(sorted_rows[row], col);
+          if (type == nullptr) {
+            single_profile.emplace_back("<NULL>");
+          } else {
+            single_profile.emplace_back(typeFullname(type));
+          }
         }
+        vec.emplace_back(single_profile);
       }
     }
     if (!code_data.empty()) {
@@ -125,8 +166,11 @@ void writeVersion1(std::ostream& stream, const TypeProfiles& profiles) {
     for (auto& [bc_offset, type_vec] : code_data) {
       write<uint16_t>(stream, bc_offset);
       write<uint8_t>(stream, type_vec.size());
-      for (auto& type_name : type_vec) {
-        writeStr(stream, type_name);
+      for (auto& single_profile : type_vec) {
+        write<uint8_t>(stream, single_profile.size());
+        for (auto& type_name : single_profile) {
+          writeStr(stream, type_name);
+        }
       }
     }
   }
@@ -161,6 +205,8 @@ bool readProfileData(std::istream& stream) {
     auto version = read<uint32_t>(stream);
     if (version == 1) {
       readVersion1(stream);
+    } else if (version == 2) {
+      readVersion2(stream);
     } else {
       JIT_LOG("Unknown profile data version %d", version);
       return false;
@@ -196,8 +242,8 @@ bool writeProfileData(std::ostream& stream) {
   try {
     stream.exceptions(std::ios::badbit | std::ios::failbit);
     write<uint64_t>(stream, kMagicHeader);
-    write<uint32_t>(stream, 1);
-    writeVersion1(
+    write<uint32_t>(stream, 2);
+    writeVersion2(
         stream, codegen::NativeGeneratorFactory::runtime()->typeProfiles());
   } catch (const std::runtime_error& e) {
     JIT_LOG("Failed to write profile data to stream: %s", e.what());
@@ -217,7 +263,7 @@ const CodeProfileData* getProfileData(PyCodeObject* code) {
   return it == s_profile_data.end() ? nullptr : &it->second;
 }
 
-std::vector<BorrowedRef<PyTypeObject>> getProfiledTypes(
+PolymorphicTypes getProfiledTypes(
     const CodeProfileData& data,
     BytecodeOffset bc_off) {
   auto it = data.find(bc_off);
@@ -225,9 +271,13 @@ std::vector<BorrowedRef<PyTypeObject>> getProfiledTypes(
     return {};
   }
 
-  std::vector<BorrowedRef<PyTypeObject>> ret;
-  for (const std::string& type_name : it->second) {
-    ret.emplace_back(s_live_types.get(type_name));
+  PolymorphicTypes ret;
+  for (const std::vector<std::string>& profiled_types : it->second) {
+    std::vector<BorrowedRef<PyTypeObject>> single_profile;
+    for (const std::string& type_name : profiled_types) {
+      single_profile.emplace_back(s_live_types.get(type_name));
+    }
+    ret.emplace_back(single_profile);
   }
   return ret;
 }
