@@ -14,6 +14,7 @@ const size_t kAllocSize = 1024 * 1024 * 2;
 
 CodeAllocator* CodeAllocator::s_global_code_allocator_ = nullptr;
 
+std::vector<void*> CodeAllocatorCinder::s_allocations_{};
 uint8_t* CodeAllocatorCinder::s_current_alloc_ = nullptr;
 size_t CodeAllocatorCinder::s_current_alloc_free_ = 0;
 
@@ -32,6 +33,26 @@ void CodeAllocator::makeGlobalCodeAllocator() {
   } else {
     s_global_code_allocator_ = new CodeAllocatorAsmJit;
   }
+}
+
+void CodeAllocator::freeGlobalCodeAllocator() {
+  JIT_CHECK(s_global_code_allocator_ != nullptr, "Global allocator not set");
+  delete s_global_code_allocator_;
+  s_global_code_allocator_ = nullptr;
+}
+
+CodeAllocatorCinder::~CodeAllocatorCinder() {
+  for (void* alloc : s_allocations_) {
+    JIT_CHECK(munmap(alloc, kAllocSize) == 0, "Freeing code memory failed");
+  }
+  s_allocations_.clear();
+  s_current_alloc_ = nullptr;
+  s_current_alloc_free_ = 0;
+
+  s_used_bytes_ = 0;
+  s_lost_bytes_ = 0;
+  s_huge_allocs_ = 0;
+  s_fragmented_allocs_ = 0;
 }
 
 asmjit::Error CodeAllocatorCinder::addCode(
@@ -69,6 +90,7 @@ asmjit::Error CodeAllocatorCinder::addCode(
       s_huge_allocs_++;
     }
     s_current_alloc_ = static_cast<uint8_t*>(res);
+    s_allocations_.emplace_back(res);
     s_current_alloc_free_ = alloc_size;
   }
 

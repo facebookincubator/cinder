@@ -84,6 +84,11 @@ int try_flag_and_envvar_effect(
     function<void(void)> conditions_to_check,
     bool enable_JIT = false,
     bool capture_stderr = false) {
+  // As most tests don't use _PyJIT_Initialize() we allocated a global code
+  // allocator "manually" in main.cpp. We now need to deallocate it so we can
+  // call _PyJIT_Initialize safely.
+  CodeAllocator::freeGlobalCodeAllocator();
+
   reset_vars(); // reset variable state before and
   // between flag and cmd line param runs
 
@@ -129,6 +134,7 @@ int try_flag_and_envvar_effect(
 
   _PyJIT_Finalize();
   reset_vars();
+  CodeAllocator::makeGlobalCodeAllocator();
 
   return init_status;
 }

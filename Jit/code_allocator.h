@@ -5,6 +5,8 @@
 #include "Jit/log.h"
 
 #include <memory>
+#include <vector>
+#include <memory>
 
 namespace jit {
 
@@ -35,6 +37,8 @@ class CodeAllocator {
   // loaded to determine which global code allocator type to use.
   static void makeGlobalCodeAllocator();
 
+  static void freeGlobalCodeAllocator();
+
   const asmjit::CodeInfo& asmJitCodeInfo() {
     return _runtime->codeInfo();
   }
@@ -64,7 +68,7 @@ class CodeAllocatorAsmJit : public CodeAllocator {
 // A code allocator which tries to allocate all code on huge pages.
 class CodeAllocatorCinder : public CodeAllocator {
  public:
-  virtual ~CodeAllocatorCinder() {}
+  virtual ~CodeAllocatorCinder();
 
   asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept override;
 
@@ -85,6 +89,9 @@ class CodeAllocatorCinder : public CodeAllocator {
   }
 
  private:
+  // List of chunks allocated for use in deallocation
+  static std::vector<void*> s_allocations_;
+
   // Pointer to next free address in the current chunk
   static uint8_t* s_current_alloc_;
   // Free space in the current chunk

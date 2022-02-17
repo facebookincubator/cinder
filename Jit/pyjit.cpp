@@ -1340,6 +1340,7 @@ int _PyJIT_Finalize() {
   }
 
   jit::codegen::NativeGeneratorFactory::shutdown();
+  CodeAllocator::freeGlobalCodeAllocator();
   return 0;
 }
 
