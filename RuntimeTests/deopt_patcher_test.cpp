@@ -81,7 +81,7 @@ def func():
 
   // Generate machine code and link the patcher
   jit::Compiler::runPasses(*irfunc);
-  jit::codegen::NativeGenerator ngen(irfunc.get(), &rt_);
+  jit::codegen::NativeGenerator ngen(irfunc.get());
   auto jitfunc = generateCode(ngen);
   ASSERT_NE(jitfunc, nullptr);
   EXPECT_TRUE(patcher->isInitialized());

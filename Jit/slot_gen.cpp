@@ -9,6 +9,7 @@
 #include "frameobject.h"
 #include "opcode.h"
 
+#include "Jit/code_allocator.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_rt.h"
 #include "Jit/log.h"
@@ -31,10 +32,6 @@ namespace x86 = asmjit::x86;
 
 namespace jit {
 
-SlotGen::SlotGen() {
-  jit_runtime_ = std::make_unique<JitRuntime>();
-}
-
 class SimpleErrorHandler : public ErrorHandler {
  public:
   inline SimpleErrorHandler() : err(asmjit::kErrorOk) {}
@@ -51,11 +48,10 @@ class SimpleErrorHandler : public ErrorHandler {
 };
 
 void* GenFunc(
-    JitRuntime& jit,
     const char* name,
     const std::function<void(x86::Builder&)>& f) {
   asmjit::CodeHolder code;
-  code.init(jit.codeInfo());
+  code.init(CodeAllocator::get()->asmJitCodeInfo());
   SimpleErrorHandler eh;
   code.setErrorHandler(&eh);
   x86::Builder as(&code);
@@ -65,7 +61,7 @@ void* GenFunc(
   as.finalize();
 
   void* func;
-  Error err = jit.add(&func, &code);
+  Error err = CodeAllocator::get()->addCode(&func, &code);
   if (err) {
     return nullptr;
   }
@@ -151,10 +147,9 @@ static void gen_fused_call_slot(x86::Builder& as, PyObject* callfunc) {
 ternaryfunc SlotGen::genCallSlot(
     PyTypeObject* /* type */,
     PyObject* call_func) {
-  return (ternaryfunc)GenFunc(
-      *jit_runtime_, "__call__", [&](x86::Builder& as) -> void {
-        gen_fused_call_slot(as, call_func);
-      });
+  return (ternaryfunc)GenFunc("__call__", [&](x86::Builder& as) -> void {
+    gen_fused_call_slot(as, call_func);
+  });
 }
 
 static void gen_fused_reprfunc(x86::Builder& as, PyObject* repr_func) {
@@ -182,10 +177,9 @@ static void gen_fused_reprfunc(x86::Builder& as, PyObject* repr_func) {
 reprfunc SlotGen::genReprFuncSlot(
     PyTypeObject* /* type */,
     PyObject* repr_func) {
-  return (reprfunc)GenFunc(
-      *jit_runtime_, "__repr__", [&](x86::Builder& as) -> void {
-        gen_fused_reprfunc(as, repr_func);
-      });
+  return (reprfunc)GenFunc("__repr__", [&](x86::Builder& as) -> void {
+    gen_fused_reprfunc(as, repr_func);
+  });
 }
 
 PyObject* getattr_fallback(PyObject* self, PyObject* func, PyObject* name) {
@@ -232,10 +226,9 @@ static void gen_fused_getattro_slot(x86::Builder& as, PyObject* callfunc) {
 getattrofunc SlotGen::genGetAttrSlot(
     PyTypeObject* /* type */,
     PyObject* call_func) {
-  return (getattrofunc)GenFunc(
-      *jit_runtime_, "__getattr__", [&](x86::Builder& as) -> void {
-        gen_fused_getattro_slot(as, call_func);
-      });
+  return (getattrofunc)GenFunc("__getattr__", [&](x86::Builder& as) -> void {
+    gen_fused_getattro_slot(as, call_func);
+  });
 }
 
 static void gen_fused_get_slot(x86::Builder& as, PyObject* callfunc) {
@@ -284,10 +277,9 @@ descrgetfunc SlotGen::genGetDescrSlot(PyTypeObject* type, PyObject* get_func) {
   char name[181];
   snprintf(name, 181, "%s::__get__", type->tp_name);
 
-  return (descrgetfunc)GenFunc(
-      *jit_runtime_, name, [&](x86::Builder& as) -> void {
-        gen_fused_get_slot(as, get_func);
-      });
+  return (descrgetfunc)GenFunc(name, [&](x86::Builder& as) -> void {
+    gen_fused_get_slot(as, get_func);
+  });
 }
 
 } // namespace jit

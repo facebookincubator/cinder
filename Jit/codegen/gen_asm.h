@@ -23,31 +23,29 @@
 #include <vector>
 
 namespace jit {
+
 namespace codegen {
 
 // Generate the final stage trampoline that is responsible for finishing
 // execution in the interpreter and then returning the result to the caller.
-void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode);
-void* generateJitTrampoline(asmjit::JitRuntime& rt);
+void* generateDeoptTrampoline(bool generator_mode);
+void* generateJitTrampoline();
 
 class NativeGenerator {
  public:
-  NativeGenerator(const hir::Function* func, asmjit::JitRuntime* rt)
+  NativeGenerator(const hir::Function* func)
       : func_(func),
-        rt_(rt),
-        deopt_trampoline_(generateDeoptTrampoline(*rt, false)),
-        deopt_trampoline_generators_(generateDeoptTrampoline(*rt, true)),
-        jit_trampoline_(generateJitTrampoline(*rt)),
+        deopt_trampoline_(generateDeoptTrampoline(false)),
+        deopt_trampoline_generators_(generateDeoptTrampoline(true)),
+        jit_trampoline_(generateJitTrampoline()),
         frame_header_size_(calcFrameHeaderSize(func)) {}
 
   NativeGenerator(
       const hir::Function* func,
-      asmjit::JitRuntime* rt,
       void* deopt_trampoline,
       void* deopt_trampoline_generators,
       void* jit_trampoline)
       : func_(func),
-        rt_(rt),
         deopt_trampoline_(deopt_trampoline),
         deopt_trampoline_generators_(deopt_trampoline_generators),
         jit_trampoline_(jit_trampoline),
@@ -83,7 +81,6 @@ class NativeGenerator {
   const hir::Function* func_;
   void* entry_{nullptr};
   asmjit::x86::Builder* as_{nullptr};
-  asmjit::JitRuntime* rt_{nullptr};
   void* deopt_trampoline_{nullptr};
   void* deopt_trampoline_generators_{nullptr};
   void* jit_trampoline_{nullptr};
@@ -141,12 +138,9 @@ class NativeGenerator {
 class NativeGeneratorFactory {
  public:
   NativeGeneratorFactory() {
-    if (rt == nullptr) {
-      rt = new asmjit::JitRuntime;
-    }
-    deopt_trampoline_ = generateDeoptTrampoline(*rt, false);
-    deopt_trampoline_generators_ = generateDeoptTrampoline(*rt, true);
-    jit_trampoline_ = generateJitTrampoline(*rt);
+    deopt_trampoline_ = generateDeoptTrampoline(false);
+    deopt_trampoline_generators_ = generateDeoptTrampoline(true);
+    jit_trampoline_ = generateJitTrampoline();
   }
 
   static Runtime* runtime() {
@@ -159,7 +153,6 @@ class NativeGeneratorFactory {
   std::unique_ptr<NativeGenerator> operator()(const hir::Function* func) const {
     return std::make_unique<NativeGenerator>(
         func,
-        rt,
         deopt_trampoline_,
         deopt_trampoline_generators_,
         jit_trampoline_);
@@ -174,7 +167,6 @@ class NativeGeneratorFactory {
   DISALLOW_COPY_AND_ASSIGN(NativeGeneratorFactory);
 
  private:
-  static asmjit::JitRuntime* rt;
   static Runtime* s_jit_asm_code_rt_;
 
   void* deopt_trampoline_;

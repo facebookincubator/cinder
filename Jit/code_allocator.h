@@ -1,0 +1,103 @@
+#pragma once
+
+#include "asmjit/asmjit.h"
+
+#include "Jit/log.h"
+
+#include <memory>
+
+namespace jit {
+
+/*
+  A CodeAllocator allocates memory for live JIT code. This is an abstract
+  interface for now to allow us to easily switch between implementations based
+  on an AsmJIT "Runtime", or an implemenation which uses huge pages.
+
+  For now we only support one global per-process CodeAllocator, accessible via
+  ::get(). This is primarily to maximize the efficiency when using huge pages
+  by avoiding independent huge-page pools which are all a little under-utilized.
+
+  We may one day need non-global code allocators if we want to do fancy things
+  like accomodate memory pools with different allocation characteristics, or
+  have multiple threads which might compile independently.
+*/
+class CodeAllocator {
+ public:
+  virtual ~CodeAllocator();
+
+  // Get the global code allocator for this process.
+  static CodeAllocator* get() {
+    JIT_CHECK(s_global_code_allocator_ != nullptr, "No global code allocator");
+    return s_global_code_allocator_;
+  }
+
+  // To be called once by JIT initialization after enough configuration has been
+  // loaded to determine which global code allocator type to use.
+  static void makeGlobalCodeAllocator();
+
+  const asmjit::CodeInfo& asmJitCodeInfo() {
+    return _runtime->codeInfo();
+  }
+
+  virtual asmjit::Error addCode(
+      void** dst,
+      asmjit::CodeHolder* code) noexcept = 0;
+
+ protected:
+  std::unique_ptr<asmjit::JitRuntime> _runtime{
+      std::make_unique<asmjit::JitRuntime>()};
+
+ private:
+  static CodeAllocator* s_global_code_allocator_;
+};
+
+class CodeAllocatorAsmJit : public CodeAllocator {
+ public:
+  virtual ~CodeAllocatorAsmJit() {}
+
+  asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept
+      override {
+    return _runtime->add(dst, code);
+  }
+};
+
+// A code allocator which tries to allocate all code on huge pages.
+class CodeAllocatorCinder : public CodeAllocator {
+ public:
+  virtual ~CodeAllocatorCinder() {}
+
+  asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept override;
+
+  static size_t usedBytes() {
+    return s_used_bytes_;
+  }
+
+  static size_t lostBytes() {
+    return s_lost_bytes_;
+  }
+
+  static size_t fragmentedAllocs() {
+    return s_fragmented_allocs_;
+  }
+
+  static size_t hugeAllocs() {
+    return s_huge_allocs_;
+  }
+
+ private:
+  // Pointer to next free address in the current chunk
+  static uint8_t* s_current_alloc_;
+  // Free space in the current chunk
+  static size_t s_current_alloc_free_;
+
+  static size_t s_used_bytes_;
+  // Number of bytes in total lost when allocations didn't fit neatly into
+  // the bytes remaining in a chunk so a new one was allocated.
+  static size_t s_lost_bytes_;
+  // Number of chunks allocated (= to number of huge pages used)
+  static size_t s_huge_allocs_;
+  // Number of chunks allocated which did not use huge pages.
+  static size_t s_fragmented_allocs_;
+};
+
+}; // namespace jit

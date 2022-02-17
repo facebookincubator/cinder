@@ -318,6 +318,7 @@ PyAPI_FUNC(void) _PyJIT_ClearTypeProfiles(void);
 PyAPI_FUNC(void) _PyJIT_TypeModified(PyTypeObject* type);
 
 #ifdef __cplusplus
-}
+bool _PyJIT_UseHugePages();
+} /* extern "C" */
 #endif
 #endif /* Py_LIMITED_API */

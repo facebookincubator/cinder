@@ -6,6 +6,7 @@
 #include "Python.h"
 #include "internal/pycore_pystate.h"
 
+#include "Jit/code_allocator.h"
 #include "Jit/hir/builder.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"

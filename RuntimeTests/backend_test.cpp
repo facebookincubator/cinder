@@ -49,7 +49,7 @@ class BackendTest : public RuntimeTest {
     post_rewrite.run();
 
     asmjit::CodeHolder code;
-    code.init(rt_.codeInfo());
+    code.init(CodeAllocator::get()->asmJitCodeInfo());
 
     asmjit::x86::Builder as(&code);
 
@@ -82,7 +82,7 @@ class BackendTest : public RuntimeTest {
       as.sub(asmjit::x86::rsp, arg_buffer_size);
     }
 
-    NativeGenerator gen(nullptr, &rt_);
+    NativeGenerator gen(nullptr);
     gen.env_ = std::move(environ);
     gen.lir_func_.reset(lir_func);
     gen.generateAssemblyBody();
@@ -101,7 +101,7 @@ class BackendTest : public RuntimeTest {
 
     as.finalize();
     void* func = nullptr;
-    rt_.add(&func, &code);
+    CodeAllocator::get()->addCode(&func, &code);
     gen.lir_func_.release();
     return func;
   }
@@ -176,9 +176,6 @@ class BackendTest : public RuntimeTest {
     test_noerror(Py_False, &PyLong_Type);
     test_error(Py_False, &PyUnicode_Type);
   }
-
- private:
-  asmjit::JitRuntime rt_;
 };
 
 // This is a test harness for experimenting with backends

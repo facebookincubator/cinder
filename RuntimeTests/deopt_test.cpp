@@ -347,8 +347,7 @@ class DeoptStressTest : public RuntimeTest {
     Runtime* ngen_rt = NativeGeneratorFactory::runtime();
     auto pyfunc = reinterpret_cast<PyFunctionObject*>(funcobj.get());
     while (!guards.empty()) {
-      asmjit::JitRuntime rt;
-      NativeGenerator gen(irfunc.get(), &rt);
+      NativeGenerator gen(irfunc.get());
       auto jitfunc = reinterpret_cast<vectorcallfunc>(gen.GetEntryPoint());
       ASSERT_NE(jitfunc, nullptr);
       ngen_rt->setGuardFailureCallback(delete_one_deopt);
@@ -416,8 +415,7 @@ class DeoptStressTest : public RuntimeTest {
     // Recompile so we get the annotated disassembly
     auto old_disas_funcs = jit::g_dump_asm;
     jit::g_dump_asm = 1;
-    asmjit::JitRuntime rt;
-    NativeGenerator gen(&irfunc, &rt);
+    NativeGenerator gen(&irfunc);
     gen.GetEntryPoint();
     jit::g_dump_asm = old_disas_funcs;
     std::cerr << std::endl;

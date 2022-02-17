@@ -426,6 +426,7 @@ PYTHON_OBJS=	\
 JIT_OBJS=       \
 		Jit/bitvector.o \
 		Jit/bytecode.o \
+		Jit/code_allocator.o \
 		Jit/compiler.o \
 		Jit/deopt.o \
 		Jit/deopt_patcher.o \
@@ -1218,6 +1219,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/bitvector.h \
 		$(srcdir)/Jit/bytecode.h \
 		$(srcdir)/Jit/capsule.h \
+		$(srcdir)/Jit/code_allocator.h \
 		$(srcdir)/Jit/compiler.h \
 		$(srcdir)/Jit/dataflow.h \
 		$(srcdir)/Jit/deopt.h \

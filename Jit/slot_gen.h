@@ -12,7 +12,7 @@ namespace jit {
 
 class SlotGen {
  public:
-  SlotGen();
+  SlotGen() = default;
 
   /*
    * Generate a specialized slot function for a tp_call function that avoids the
@@ -35,8 +35,6 @@ class SlotGen {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SlotGen);
-
-  std::unique_ptr<asmjit::JitRuntime> jit_runtime_;
 };
 
 } // namespace jit

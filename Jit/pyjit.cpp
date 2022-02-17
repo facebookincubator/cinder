@@ -6,6 +6,7 @@
 #include "Include/internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 
+#include "Jit/code_allocator.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/inliner.h"
 #include "Jit/containers.h"
@@ -54,6 +55,7 @@ struct JitConfig {
   int compile_all_static_functions{0};
   size_t batch_compile_workers{0};
   int multithreaded_compile_test{0};
+  bool use_huge_pages{true};
 };
 static JitConfig jit_config;
 
@@ -633,6 +635,41 @@ static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
   return func_obj;
 }
 
+static PyObject* get_allocator_stats(PyObject*, PyObject*) {
+  if (!_PyJIT_UseHugePages()) {
+    Py_RETURN_NONE;
+  }
+  auto stats = Ref<>::steal(PyDict_New());
+  if (stats == NULL) {
+    return NULL;
+  }
+  auto used_bytes =
+      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::usedBytes()));
+  if (used_bytes == NULL ||
+      PyDict_SetItemString(stats, "used_bytes", used_bytes) < 0) {
+    return NULL;
+  }
+  auto lost_bytes =
+      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::lostBytes()));
+  if (lost_bytes == NULL ||
+      PyDict_SetItemString(stats, "lost_bytes", lost_bytes) < 0) {
+    return NULL;
+  }
+  auto fragmented_allocs =
+      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::fragmentedAllocs()));
+  if (fragmented_allocs == NULL ||
+      PyDict_SetItemString(stats, "fragmented_allocs", fragmented_allocs) < 0) {
+    return NULL;
+  }
+  auto huge_allocs =
+      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::hugeAllocs()));
+  if (huge_allocs == NULL ||
+      PyDict_SetItemString(stats, "huge_allocs", huge_allocs) < 0) {
+    return NULL;
+  }
+  return stats.release();
+}
+
 static PyMethodDef jit_methods[] = {
     {"disable",
      (PyCFunction)(void*)disable_jit,
@@ -716,6 +753,10 @@ static PyMethodDef jit_methods[] = {
      METH_NOARGS,
      "Return the number of milliseconds spent in batch compilation when "
      "disabling the JIT."},
+    {"get_allocator_stats",
+     get_allocator_stats,
+     METH_NOARGS,
+     "Return stats from the code allocator as a dictionary."},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {
@@ -938,6 +979,9 @@ int _PyJIT_Initialize() {
     JIT_DLOG("Disable JIT lir inlining.");
     g_disable_lir_inliner = 1;
   }
+  if (_is_flag_set("jit-disable-huge-pages", "PYTHONJITDISABLEHUGEPAGES")) {
+    jit_config.use_huge_pages = false;
+  }
 
   if (_is_flag_set(
           "jit-enable-jit-list-wildcards", "PYTHONJITENABLEJITLISTWILDCARDS")) {
@@ -1002,6 +1046,8 @@ int _PyJIT_Initialize() {
     return 0;
   }
 
+  CodeAllocator::makeGlobalCodeAllocator();
+
   jit_ctx = new _PyJITContext();
 
   PyObject* mod = PyModule_Create(&jit_module);
@@ -1045,6 +1091,10 @@ int _PyJIT_Initialize() {
   total_compliation_time = 0.0;
 
   return 0;
+}
+
+bool _PyJIT_UseHugePages() {
+  return jit_config.use_huge_pages;
 }
 
 int _PyJIT_IsEnabled() {

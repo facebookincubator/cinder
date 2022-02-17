@@ -7,6 +7,7 @@
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 
+#include "Jit/code_allocator.h"
 #include "Jit/codegen/autogen.h"
 #include "Jit/codegen/gen_asm_utils.h"
 #include "Jit/codegen/postalloc.h"
@@ -123,7 +124,6 @@ void NativeGenerator::generateEpilogueUnlinkFrame(
 // the deopt trampoline code that saves all registers.
 static const auto deopt_scratch_reg = x86::r15;
 
-JitRuntime* NativeGeneratorFactory::rt = nullptr;
 Runtime* NativeGeneratorFactory::s_jit_asm_code_rt_ = nullptr;
 
 // these functions call int returning functions and convert their output from
@@ -206,7 +206,7 @@ void* NativeGenerator::GetEntryPoint() {
   JIT_CHECK(as_ == nullptr, "x86::Builder should not have been initialized.");
 
   CodeHolder code;
-  code.init(rt_->codeInfo());
+  code.init(CodeAllocator::get()->asmJitCodeInfo());
   ThrowableErrorHandler eh;
   code.setErrorHandler(&eh);
 
@@ -1350,7 +1350,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   generateDeoptExits();
 
   ASM_CHECK_THROW(as_->finalize());
-  ASM_CHECK_THROW(rt_->add(&entry_, &codeholder));
+  ASM_CHECK_THROW(CodeAllocator::get()->addCode(&entry_, &codeholder));
 
   // ------------- orig_entry
   // ^
@@ -1606,9 +1606,9 @@ static PyObject* resumeInInterpreter(PyFrameObject* frame, int err_occurred) {
   return result;
 }
 
-void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
+void* generateDeoptTrampoline(bool generator_mode) {
   CodeHolder code;
-  code.init(rt.codeInfo());
+  code.init(CodeAllocator::get()->asmJitCodeInfo());
   x86::Builder a(&code);
   Annotations annot;
 
@@ -1784,7 +1784,7 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
       generator_mode ? "deopt_trampoline_generators" : "deopt_trampoline";
   void* result{nullptr};
   ASM_CHECK(a.finalize(), name);
-  ASM_CHECK(rt.add(&result, &code), name);
+  ASM_CHECK(CodeAllocator::get()->addCode(&result, &code), name);
   JIT_LOGIF(
       g_dump_asm,
       "Disassembly for %s\n%s",
@@ -1798,9 +1798,9 @@ void* generateDeoptTrampoline(asmjit::JitRuntime& rt, bool generator_mode) {
   return result;
 }
 
-void* generateJitTrampoline(asmjit::JitRuntime& rt) {
+void* generateJitTrampoline() {
   CodeHolder code;
-  code.init(rt.codeInfo());
+  code.init(CodeAllocator::get()->asmJitCodeInfo());
   x86::Builder a(&code);
   Annotations annot;
 
@@ -1851,7 +1851,7 @@ void* generateJitTrampoline(asmjit::JitRuntime& rt) {
   a.ret();
   ASM_CHECK(a.finalize(), name);
   void* result{nullptr};
-  ASM_CHECK(rt.add(&result, &code), name);
+  ASM_CHECK(CodeAllocator::get()->addCode(&result, &code), name);
 
   JIT_LOGIF(
       g_dump_asm,
