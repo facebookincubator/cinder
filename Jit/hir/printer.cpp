@@ -555,6 +555,23 @@ static std::string format_immediates(const Instr& instr) {
       const auto& gs = static_cast<const GuardType&>(instr);
       return fmt::format("{}", gs.target().toString());
     }
+    case Opcode::kHintType: {
+      std::ostringstream os;
+      auto profile_sep = "";
+      const auto& hint = static_cast<const HintType&>(instr);
+      os << fmt::format("{}, ", hint.NumOperands());
+      for (auto types_seen : hint.seenTypes()) {
+        os << fmt::format("{}<", profile_sep);
+        auto type_sep = "";
+        for (auto type : types_seen) {
+          os << fmt::format("{}{}", type_sep, type.toString());
+          type_sep = ", ";
+        }
+        os << ">";
+        profile_sep = ", ";
+      }
+      return os.str();
+    }
     case Opcode::kUseType: {
       const auto& gs = static_cast<const UseType&>(instr);
       return fmt::format("{}", gs.type().toString());

@@ -559,6 +559,7 @@ Type outputType(
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
     case Opcode::kGuard:
+    case Opcode::kHintType:
     case Opcode::kIncref:
     case Opcode::kInitFunction:
     case Opcode::kInitListTuple:

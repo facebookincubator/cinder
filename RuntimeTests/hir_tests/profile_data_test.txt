@@ -24,3 +24,27 @@ fun jittestmodule:test {
   }
 }
 ---
+PolymorphicOperandsTest
+---
+def test(c, i):
+  return c[i]
+test((1, 2, 3), 1)
+test([1, 2, 3], 1)
+test([1, 2, 3], 1)
+test([1, 2, 3], 1)
+test({"key": "value"}, "key")
+test({"key": "value"}, "key")
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "c">
+    v4:Object = LoadArg<1; "i">
+    HintType<2, <ListExact, LongExact>, <DictExact, UnicodeExact>, <TupleExact, LongExact>> v3 v4
+    v7:Object = BinaryOp<Subscript> v3 v4 {
+      NextInstrOffset 6
+      Locals<2> v3 v4
+    }
+    Return v7
+  }
+}
+---

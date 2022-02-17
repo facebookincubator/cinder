@@ -2448,6 +2448,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // UseTypes are purely informative
         break;
       }
+      case Opcode::kHintType: {
+        // HintTypes are purely informative
+        break;
+      }
       case Opcode::kIsTruthy: {
         auto func = reinterpret_cast<uint64_t>(&PyObject_IsTrue);
         bbb.AppendCode(

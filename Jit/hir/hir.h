@@ -285,6 +285,7 @@ struct FrameState {
   V(Guard)                      \
   V(GuardIs)                    \
   V(GuardType)                  \
+  V(HintType)                   \
   V(ImportFrom)                 \
   V(ImportName)                 \
   V(InPlaceOp)                  \
@@ -3147,6 +3148,32 @@ class INSTR_CLASS(GuardType, (TObject), HasOutput, Operands<1>, DeoptBase) {
 
  private:
   Type target_;
+};
+
+using ProfiledTypes = std::vector<std::vector<Type>>;
+
+// Stores all profiled types for a set of operands at a bytecode location.
+//
+// The top-level vector represents the different profiles seen (sorted by
+// frequency), and each inner vector represents the type of each operand for
+// that profile.
+// Used informatively - has no output and does not compile down to LIR.
+class INSTR_CLASS(HintType, (TObject), Operands<>) {
+ public:
+  HintType(ProfiledTypes op_types, const std::vector<Register*>& args)
+      : InstrT(), types_(op_types) {
+    size_t i = 0;
+    for (Register* arg : args) {
+      SetOperand(i++, arg);
+    }
+  }
+
+  ProfiledTypes seenTypes() const {
+    return types_;
+  }
+
+ private:
+  ProfiledTypes types_;
 };
 
 // Output 1, 0, if `value` is truthy or not truthy.

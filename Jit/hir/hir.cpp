@@ -127,6 +127,7 @@ bool Instr::isReplayable() const {
     case Opcode::kGuard:
     case Opcode::kGuardIs:
     case Opcode::kGuardType:
+    case Opcode::kHintType:
     case Opcode::kIntBinaryOp:
     case Opcode::kIntConvert:
     case Opcode::kIsErrStopAsyncIteration:

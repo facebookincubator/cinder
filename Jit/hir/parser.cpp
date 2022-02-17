@@ -474,6 +474,38 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(UseType, operand, ty);
+  } else if (strcmp(opcode, "HintType") == 0) {
+    ProfiledTypes types;
+    expect("<");
+    int num_args = GetNextInteger();
+    expect(",");
+    while (true) {
+      std::vector<Type> single_profile;
+      expect("<");
+      while (true) {
+        Type ty = Type::parse(env_, GetNextToken());
+        single_profile.emplace_back(ty);
+        auto token = peekNextToken();
+        if (strcmp(token, ">") == 0) {
+          GetNextToken();
+          break;
+        }
+        expect(",");
+      }
+      types.emplace_back(single_profile);
+      auto token = peekNextToken();
+      if (strcmp(token, ">") == 0) {
+        GetNextToken();
+        break;
+      }
+      expect(",");
+    }
+    std::vector<Register*> args(num_args);
+    std::generate(
+        args.begin(),
+        args.end(),
+        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
+    NEW_INSTR(HintType, num_args, types, args);
   } else if (strcmp(opcode, "RefineType") == 0) {
     expect("<");
     Type ty = Type::parse(env_, GetNextToken());

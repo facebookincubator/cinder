@@ -636,7 +636,7 @@ void HIRBuilder::emitProfiledTypes(
 
   // Except for function calls, all instructions profile all of their inputs,
   // with deeper stack elements first.
-  size_t stack_idx = first_profile.size() - 1;
+  ssize_t stack_idx = first_profile.size() - 1;
   if (bc_instr.opcode() == CALL_FUNCTION) {
     stack_idx = bc_instr.oparg();
   }
@@ -648,6 +648,22 @@ void HIRBuilder::emitProfiledTypes(
       }
       stack_idx--;
     }
+  } else {
+    ProfiledTypes all_types;
+    for (auto type_vec : types) {
+      std::vector<Type> types;
+      for (auto type : type_vec) {
+        if (type != nullptr) {
+          types.emplace_back(Type::fromTypeExact(type));
+        }
+      }
+      all_types.emplace_back(types);
+    }
+    std::vector<Register*> args;
+    while (stack_idx >= 0) {
+      args.emplace_back(tc.frame.stack.top(stack_idx--));
+    }
+    tc.emit<HintType>(args.size(), all_types, args);
   }
 }
 

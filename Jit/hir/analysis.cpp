@@ -155,6 +155,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
     case Opcode::kGuard:
+    case Opcode::kHintType:
     case Opcode::kSnapshot:
     case Opcode::kIncref:
     case Opcode::kInitFunction:
