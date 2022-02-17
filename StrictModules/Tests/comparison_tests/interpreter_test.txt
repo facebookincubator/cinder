@@ -1746,7 +1746,7 @@ from typing import NamedTuple
 Employee = NamedTuple('Employee', [('name', str), ('id', int)], name=str, id=int)
 ---
 ---
-2 11 StrictModuleUnhandledException(TypeError) 1705 12 StrictModuleUserException TypeError
+2 11 StrictModuleUnhandledException(TypeError) 1706 12 StrictModuleUserException TypeError
 ---
 test_typing_namedtuple_meta_no_get
 ---
@@ -1754,7 +1754,7 @@ from typing import NamedTupleMeta
 NamedTupleMeta('foo', (), 42)
 ---
 ---
-2 0 StrictModuleUnhandledException(AttributeError) 1619 11 StrictModuleUserException AttributeError
+2 0 StrictModuleUnhandledException(AttributeError) 1620 11 StrictModuleUserException AttributeError
 ---
 test_typing_namedtuple_inheritance
 ---
@@ -8322,7 +8322,7 @@ class C(Generic[TypeVar("T")], x):
 
 ---
 ---
-3 0 UnsafeCallException __mro_entries__ 760 15 UnknownValueAttributeException <x imported from unknown> __eq__
+3 0 UnsafeCallException __mro_entries__ 761 15 UnknownValueAttributeException <x imported from unknown> __eq__
 3 0 UnknownValueNotIterableException __mro_entries__(<_GenericAlias instance>,(<_GenericAlias instance>,<x imported from unknown>),)
 ---
 test_typing_typevar

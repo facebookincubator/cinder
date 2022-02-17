@@ -136,6 +136,7 @@ class Compiler:
         }
         strict_builtins = StrictBuiltins(builtins_children, self.type_env)
         typing_children = {
+            "Annotated": self.type_env.annotated,
             "ClassVar": self.type_env.classvar,
             # TODO: Need typed members for dict
             "Dict": self.type_env.dict,
