@@ -87,3 +87,126 @@ class PerfLintTests(StaticTestBase):
                 at="f(1)",
             ),
         )
+
+    def test_load_attr_dynamic(self) -> None:
+        codestr = """
+        a.b
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Define the object's class in a Static Python "
+                "module for more efficient attribute load",
+                at="a.b",
+            ),
+        )
+
+    def test_load_attr_dynamic_base(self) -> None:
+        codestr = """
+        class C(B):
+            pass
+
+        c = C()
+        c.a
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Make the base class of <module>.C that defines "
+                "attribute a static for more efficient attribute load",
+                at="c.a",
+            ),
+        )
+
+    def test_store_attr_dynamic(self) -> None:
+        codestr = """
+        a.b = c
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Define the object's class in a Static Python "
+                "module for more efficient attribute store",
+                at="a.b = c",
+            ),
+        )
+
+    def test_store_attr_dynamic_base(self) -> None:
+        codestr = """
+        class C(B):
+            pass
+
+        c = C()
+        c.a = 1
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Make the base class of <module>.C that defines "
+                "attribute a static for more efficient attribute store",
+                at="c.a",
+            ),
+        )
+
+    def test_nonfinal_property_load(self) -> None:
+        codestr = """
+        class C:
+            @property
+            def a(self) -> int:
+                return 0
+
+        c = C()
+        c.a
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Getter for property a can be overridden. Make method "
+                "or class final for more efficient property load",
+                at="c.a",
+            ),
+        )
+
+    def test_property_setter_no_warning(self) -> None:
+        codestr = """
+        class C:
+            @property
+            def a(self) -> int:
+                return 0
+
+            @a.setter
+            def a(self, value: int) -> None:
+                pass
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings()
+
+    def test_nonfinal_property_store(self) -> None:
+        codestr = """
+        class C:
+            @property
+            def a(self) -> int:
+                return 0
+
+            @a.setter
+            def a(self, value: int) -> None:
+                pass
+
+        c = C()
+        c.a = 1
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Setter for property a can be overridden. Make method "
+                "or class final for more efficient property store",
+                at="c.a = 1",
+            ),
+        )

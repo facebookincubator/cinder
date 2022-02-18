@@ -732,6 +732,18 @@ class Value:
     def emit_load_attr_from(
         self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
     ) -> None:
+        if klass is klass.type_env.dynamic:
+            code_gen.perf_warning(
+                "Define the object's class in a Static Python "
+                "module for more efficient attribute load",
+                node,
+            )
+        elif klass.type_env.dynamic in klass.bases:
+            code_gen.perf_warning(
+                f"Make the base class of {klass.instance_name} that defines "
+                f"attribute {node.attr} static for more efficient attribute load",
+                node,
+            )
         code_gen.emit("LOAD_ATTR", code_gen.mangle(node.attr))
 
     def emit_store_attr(
@@ -743,6 +755,18 @@ class Value:
     def emit_store_attr_to(
         self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
     ) -> None:
+        if klass is klass.type_env.dynamic:
+            code_gen.perf_warning(
+                f"Define the object's class in a Static Python "
+                "module for more efficient attribute store",
+                node,
+            )
+        elif klass.type_env.dynamic in klass.bases:
+            code_gen.perf_warning(
+                f"Make the base class of {klass.instance_name} that defines "
+                f"attribute {node.attr} static for more efficient attribute store",
+                node,
+            )
         code_gen.emit("STORE_ATTR", code_gen.mangle(node.attr))
 
     def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
@@ -1743,6 +1767,7 @@ class Class(Object["Class"]):
             code_gen.emit("CAST", self.type_descr)
         else:
             assert self.can_assign_from(src)
+
 
 class BuiltinObject(Class):
     def __init__(
@@ -3804,6 +3829,11 @@ class PropertyMethod(DecoratedMethod):
             code_gen.emit("EXTENDED_ARG", 0)
             code_gen.emit("INVOKE_FUNCTION", (self.getter_type_descr, 1))
         else:
+            code_gen.perf_warning(
+                f"Getter for property {node.attr} can be overridden. Make "
+                "method or class final for more efficient property load",
+                node,
+            )
             code_gen.emit_invoke_method(self.getter_type_descr, 0)
 
     def emit_store_attr_to(
@@ -3814,6 +3844,11 @@ class PropertyMethod(DecoratedMethod):
             code_gen.emit("EXTENDED_ARG", 0)
             code_gen.emit("INVOKE_FUNCTION", (self.setter_type_descr, 2))
         else:
+            code_gen.perf_warning(
+                f"Setter for property {node.attr} can be overridden. Make "
+                "method or class final for more efficient property store",
+                node,
+            )
             code_gen.emit_invoke_method(self.setter_type_descr, 1)
 
     @property

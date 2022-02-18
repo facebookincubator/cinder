@@ -949,5 +949,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
             # the negative sign indicates to the runtime/JIT that this is a cellvar
             return -(offset + 1)
 
+    def perf_warning(self, msg: str, node: AST) -> None:
+        return self.compiler.error_sink.perf_warning(msg, self.graph.filename, node)
+
 
 StaticCodeGenerator = Static38CodeGenerator
