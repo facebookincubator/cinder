@@ -1,3 +1,4 @@
+# flake8: noqa
 from .annotated import AnnotatedTests
 from .array import ArrayTests
 from .augassign import AugAssignTests
@@ -23,6 +24,7 @@ from .module import ModuleTests
 from .non_static_inheritance import NonStaticInheritanceTests
 from .obj_creation import StaticObjCreationTests
 from .patch import StaticPatchTests
+from .perf_lint import PerfLintTests
 from .primitives import PrimitivesTests
 from .property import PropertyTests
 from .protocol import ProtocolTests

@@ -166,6 +166,7 @@ class TestErrors:
 
     def _check(
         self,
+        kind: str,
         errors: List[TypedSyntaxError] | List[PerfWarning],
         *matchers: List[ErrorMatcher],
         loc_only: bool = False,
@@ -173,7 +174,7 @@ class TestErrors:
         self.case.assertEqual(
             len(matchers),
             len(errors),
-            f"Expected {len(matchers)} errors, got {errors}",
+            f"Expected {len(matchers)} {kind}s, got {errors}",
         )
         for exc, matcher in zip(errors, matchers):
             if not loc_only:
@@ -182,16 +183,16 @@ class TestErrors:
                 actual = self.code.split("\n")[exc.lineno - 1][exc.offset :]
                 if not actual.startswith(at):
                     self.case.fail(
-                        f"Expected error '{matcher.msg}' at '{at}', occurred at '{actual}'"
+                        f"Expected {kind} '{matcher.msg}' at '{at}', occurred at '{actual}'"
                     )
 
     def check(self, *matchers: List[ErrorMatcher], loc_only: bool = False) -> None:
-        self._check(self.errors, *matchers, loc_only=loc_only)
+        self._check("error", self.errors, *matchers, loc_only=loc_only)
 
     def check_warnings(
         self, *matchers: List[ErrorMatcher], loc_only: bool = False
     ) -> None:
-        self._check(self.warnings, *matchers, loc_only=loc_only)
+        self._check("warning", self.warnings, *matchers, loc_only=loc_only)
 
     def match(self, msg: str, at: str | None = None) -> ErrorMatcher:
         return ErrorMatcher(msg, at)
@@ -258,6 +259,22 @@ class StaticTestBase(CompilerTest):
         tree = ast.parse(code)
         compiler = Compiler(StaticCodeGenerator, errors)
         compiler.bind("<module>", "<module>.py", tree, optimize=0)
+        return TestErrors(self, code, errors.errors, errors.warnings)
+
+    def perf_lint(self, code: str) -> TestErrors:
+        errors = CollectingErrorSink()
+        code = self.clean_code(code)
+        tree = ast.parse(code)
+        compiler = Compiler(StaticCodeGenerator, errors)
+        tree, s = compiler._bind("<module>", "<module>.py", tree, optimize=0)
+        if not errors.errors:
+            graph = StaticCodeGenerator.flow_graph(
+                "<module>", "<module>.py", s.scopes[tree]
+            )
+            code_gen = StaticCodeGenerator(
+                None, tree, s, graph, compiler, "<module>", readonly_types=0
+            )
+            code_gen.visit(tree)
         return TestErrors(self, code, errors.errors, errors.warnings)
 
     @contextmanager
@@ -518,6 +535,7 @@ class StaticTestsStrictModuleLoader:
     Allows running code through strict rewrite without actually doing a
     full strict analysis on it.
     """
+
     def __init__(
         self,
         _import_paths: List[str],
