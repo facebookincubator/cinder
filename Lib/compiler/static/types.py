@@ -201,7 +201,6 @@ class TypeEnvironment:
         self.builtin_method = Class(
             TypeName("types", "BuiltinMethodType"), self, is_exact=True
         )
-        self.dynamic = DynamicClass(self)
         # We special case make_type_dict() on object for bootstrapping purposes.
         self.object.pytype = object
         self.object.make_type_dict()
