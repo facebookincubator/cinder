@@ -6,7 +6,7 @@ from .common import StaticTestBase
 class AnnotatedTests(StaticTestBase):
     def test_parse(self) -> None:
         codestr = """
-            from typing import Annotated
+            from typing_extensions import Annotated
             def foo() -> Annotated[int, "aaaaa"]:
                 return 0
             reveal_type(foo())
@@ -19,7 +19,7 @@ class AnnotatedTests(StaticTestBase):
 
     def test_type_error(self) -> None:
         codestr = """
-            from typing import Annotated
+            from typing_extensions import Annotated
             def foo() -> Annotated[str, "aaaaa"]:
                 return 0
             reveal_type(foo())
@@ -32,7 +32,8 @@ class AnnotatedTests(StaticTestBase):
 
     def test_parse_nested(self) -> None:
         codestr = """
-            from typing import Annotated, Optional
+            from typing import Optional
+            from typing_extensions import Annotated
             def foo() -> Optional[Annotated[int, "aaaaa"]]:
                 return 0
             reveal_type(foo())
@@ -45,7 +46,8 @@ class AnnotatedTests(StaticTestBase):
 
     def test_subscript_must_be_tuple(self) -> None:
         codestr = """
-            from typing import Annotated, Optional
+            from typing import Optional
+            from typing_extensions import Annotated
             def foo() -> Optional[Annotated[int]]:
                 return 0
             reveal_type(foo())
@@ -58,7 +60,8 @@ class AnnotatedTests(StaticTestBase):
 
     def test_subscript_must_be_tuple(self) -> None:
         codestr = """
-            from typing import Annotated, Optional
+            from typing import Optional
+            from typing_extensions import Annotated
             def foo() -> Optional[Annotated[int]]:
                 return 0
             reveal_type(foo())
@@ -71,7 +74,8 @@ class AnnotatedTests(StaticTestBase):
 
     def test_subscript_must_contain_annotation(self) -> None:
         codestr = """
-            from typing import Annotated, Optional
+            from typing import Optional
+            from typing_extensions import Annotated
             def foo() -> Optional[Annotated[int,]]:
                 return 0
             reveal_type(foo())

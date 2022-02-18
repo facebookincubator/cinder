@@ -361,8 +361,8 @@ class TypeEnvironment:
         )
         self.named_tuple = Class(TypeName("typing", "NamedTuple"), self)
         self.protocol = Class(TypeName("typing", "Protocol"), self)
+        self.annotated = AnnotatedType(TypeName("typing_extensions", "Annotated"), self)
         self.literal = LiteralType(TypeName("typing", "Literal"), self)
-        self.annotated = AnnotatedType(TypeName("typing", "Annotated"), self)
         self.base_exception = Class(
             TypeName("builtins", "BaseException"), self, pytype=BaseException
         )
