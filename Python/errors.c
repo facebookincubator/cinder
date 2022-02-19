@@ -1653,29 +1653,82 @@ int _PyErr_RaiseCinderWarning(const char *warning, PyObject *arg0, PyObject *arg
 }
 
 PyObject* _PyErr_ImmutableWarnHandler = NULL;
+PyObject* _PyErr_ImmutabilityWarningBuffer = NULL;
+size_t _PyErr_ImmutabilityWarningBufferSize = 50;
+size_t _PyErr_ImmutabilityWarningBufferCount = 0;
 
 int _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *arg0) {
-    if (_PyErr_ImmutableWarnHandler != NULL) {
-        PyObject* code = PyLong_FromLong(warn_code);
-        if (code == NULL) {
+    if (_PyErr_ImmutabilityWarningBuffer == NULL) {
+        _PyErr_ImmutabilityWarningBuffer = PyList_New(_PyErr_ImmutabilityWarningBufferSize);
+        if (_PyErr_ImmutabilityWarningBuffer == NULL) {
             return -1;
         }
-        PyObject* msg = PyUnicode_FromString(warning);
-        if (msg == NULL) {
-            Py_DECREF(code);
-            return -1;
-        }
+    }
 
-        PyObject* args[3] = {code, msg, arg0};
-        int arg_cnt = arg0 == NULL ? 2: 3;
-        PyObject *result = _PyObject_FastCall(_PyErr_ImmutableWarnHandler, args, arg_cnt);
+    if (_PyErr_ImmutabilityWarningBufferCount == _PyErr_ImmutabilityWarningBufferSize) {
+        if (_PyErr_FlushImmutabilityWarningsBuffer() != 0) {
+            return -1;
+        }
+    }
+
+    PyObject* code = PyLong_FromLong(warn_code);
+    if (code == NULL) {
+        return -1;
+    }
+    PyObject* msg = PyUnicode_FromString(warning);
+    if (msg == NULL) {
         Py_DECREF(code);
-        Py_DECREF(msg);
+        return -1;
+    }
+
+    PyObject* elem = NULL;
+    if (arg0 != NULL) {
+        elem = PyTuple_Pack(3, code, msg, arg0);
+    } else {
+        elem = PyTuple_Pack(2, code, msg);
+    }
+    Py_DECREF(code);
+    Py_DECREF(msg);
+    if (elem == NULL) {
+        return -1;
+    }
+
+    int res = PyList_SetItem(_PyErr_ImmutabilityWarningBuffer, _PyErr_ImmutabilityWarningBufferCount, elem);
+    if (res != 0) {
+        return -1;
+    }
+    _PyErr_ImmutabilityWarningBufferCount++;
+
+    if (_PyErr_ImmutabilityWarningBufferCount == _PyErr_ImmutabilityWarningBufferSize) {
+        if (_PyErr_FlushImmutabilityWarningsBuffer() != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int _PyErr_FlushImmutabilityWarningsBuffer() {
+    if (_PyErr_ImmutableWarnHandler != NULL) {
+        PyObject* buf = _PyErr_ImmutabilityWarningBuffer;
+        if (_PyErr_ImmutabilityWarningBufferCount != _PyErr_ImmutabilityWarningBufferSize) {
+            buf = PyList_GetSlice(buf, 0, _PyErr_ImmutabilityWarningBufferCount);
+        }
+        PyObject* args[1] = {buf};
+        PyObject *result = _PyObject_FastCall(_PyErr_ImmutableWarnHandler, args, 1);
+        if (buf != _PyErr_ImmutabilityWarningBuffer) {
+            Py_DECREF(buf);
+        }
         if (result == NULL) {
             return -1;
         }
         Py_DECREF(result);
     }
+
+    // Even if there is no handler, empty the buffer to keep things running
+    for (size_t i = 0; i < _PyErr_ImmutabilityWarningBufferCount; i++) {
+        PyList_SetItem(_PyErr_ImmutabilityWarningBuffer, i, Py_None);
+    }
+    _PyErr_ImmutabilityWarningBufferCount = 0;
     return 0;
 }
 /* facebook end */

@@ -268,6 +268,19 @@ PyDoc_STRVAR(cinder_raise_immutable_warning_doc, "raise_immutable_warn(code, msg
 \n\
 Manually raise a immutability warning.");
 
+static PyObject *
+cinder_flush_immutable_warnings(PyObject *self, PyObject *args)
+{
+    if (_PyErr_FlushImmutabilityWarningsBuffer() != 0) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(cinder_flush_immutable_warnings_doc, "flush_immutable_warnings()\n\
+\n\
+Manually flush the a immutability warning buffer.");
+
 PyAPI_FUNC(void) _PyJIT_ClearDictCaches(void);
 
 static PyObject *
@@ -590,6 +603,10 @@ static struct PyMethodDef cinder_module_methods[] = {
      cinder_raise_immutable_warning,
      METH_VARARGS,
      cinder_raise_immutable_warning_doc},
+    {"flush_immutable_warnings",
+     cinder_flush_immutable_warnings,
+     METH_NOARGS,
+     cinder_flush_immutable_warnings_doc},
     {"clear_caches",
      clear_caches,
      METH_NOARGS,

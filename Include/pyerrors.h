@@ -162,10 +162,10 @@ PyAPI_DATA(PyObject *) _PyErr_ImmutableWarnHandler;
  * arg0: optional, additional argument
  */
 PyAPI_FUNC(int) _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *arg0);
+PyAPI_FUNC(int) _PyErr_FlushImmutabilityWarningsBuffer(void);
 
 #define  _PyErr_IMMUTABLE_WARNING(c, m, a)       \
-    ((_PyErr_ImmutableWarnHandler == NULL) ? 0 : \
-    _PyErr_RaiseImmutableWarning(c, m, a))
+    _PyErr_RaiseImmutableWarning(c, m, a)
 #endif
 
 

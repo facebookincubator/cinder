@@ -17,6 +17,7 @@ from cinder import (
 from functools import wraps
 from textwrap import dedent
 from types import FunctionType, GeneratorType, ModuleType, CodeType
+from typing import List, Tuple
 
 from test.support import (
     gc_collect,
@@ -432,28 +433,30 @@ class CinderTest(unittest.TestCase):
             cinder.cinder_set_warn_handler(None)
 
     def test_raise_immutability_warning(self):
-        code = msg = value = None
+        warns = None
 
-        def log_warnings(*args):
-            nonlocal code, msg, value
-            code = args[0]
-            msg = args[1]
-            value = args[2]
+        def log_warnings(warnings: List[Tuple[int, str, object]]):
+            nonlocal warns
+            warns = warnings
 
         cinder.set_immutable_warn_handler(None)
 
         self.assertEqual(cinder.get_immutable_warn_handler(), None)
         cinder.raise_immutable_warning(0, "test", "test1")
-        self.assertEqual(code, None)
-        self.assertEqual(msg, None)
-        self.assertEqual(value, None)
+        self.assertEqual(warns, None)
 
         cinder.set_immutable_warn_handler(log_warnings)
         cinder.raise_immutable_warning(0, "test", "test2")
         self.assertEqual(cinder.get_immutable_warn_handler(), log_warnings)
-        self.assertEqual(code, 0)
-        self.assertEqual(msg, "test")
-        self.assertEqual(value, "test2")
+        self.assertEqual(warns, None)
+        cinder.flush_immutable_warnings()
+        self.assertListEqual(
+            warns,
+            [
+                (0, "test", "test1"),
+                (0, "test", "test2"),
+            ],
+        )
         cinder.set_immutable_warn_handler(None)
 
     def test_cached_property(self):
