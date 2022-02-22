@@ -223,3 +223,47 @@ class TypeBinderTest(ReadonlyTestBase):
         errors.check(
             errors.match("cannot assign readonly value to mutable 'y'"),
         )
+
+    def test_readonly_for_readonly_mutable(self) -> None:
+        code = """
+        def g(arr: List[int]):
+            y = 0
+            for a in readonly(arr):
+                y = a
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("cannot assign readonly value to mutable 'y'"),
+        )
+
+    def test_readonly_for_readonly(self) -> None:
+        code = """
+        def g(arr: List[int]):
+            y = readonly(0)
+            for a in readonly(arr):
+                y = a
+        """
+        errors = self.lint(code)
+        self.assertEqual(errors.errors, [])
+
+    def test_readonly_async_for_readonly_mutable(self) -> None:
+        code = """
+        def g(arr):
+            y = 0
+            async for a in readonly(arr):
+                y = a
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("cannot assign readonly value to mutable 'y'"),
+        )
+
+    def test_readonly_for_readonly(self) -> None:
+        code = """
+        def g(arr):
+            y = readonly(0)
+            async for a in readonly(arr):
+                y = a
+        """
+        errors = self.lint(code)
+        self.assertEqual(errors.errors, [])

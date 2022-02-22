@@ -391,7 +391,7 @@ class ReadonlyTypeBinder(ASTVisitor):
     def assign_to(self, lhs: AST, rhs: AST, node: AST) -> None:
         """
         Checks whether rhs can be assigned to lhs without
-        breaking readonly contraints
+        breaking readonly constraints
         """
         rhs_readonly = self.bind_types[rhs]
         if isinstance(lhs, ast.Name):
@@ -456,6 +456,22 @@ class ReadonlyTypeBinder(ASTVisitor):
                 node,
             )
         self.assign_to(node.target, node.value, node)
+
+    def visitForCommon(self, node: ast.For | ast.AsyncFor) -> None:
+        self.visit(node.iter)
+        # Although elements of the iterable will be what's actually assigned,
+        # the readonly-ness of the iterable itself is what determines the
+        # readonly-ness of the resulting value.
+        # We also currently ignore the type_comment on the node.
+        self.assign_to(node.target, node.iter, node)
+        self.walk_list(node.body)
+        self.walk_list(node.orelse)
+
+    def visitFor(self, node: ast.For) -> None:
+        self.visitForCommon(node)
+
+    def visitAsyncFor(self, node: ast.AsyncFor) -> None:
+        self.visitForCommon(node)
 
     def visitClassDef(self, node: ast.ClassDef) -> None:
         name = node.name
