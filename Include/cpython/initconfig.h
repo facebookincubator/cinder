@@ -345,6 +345,7 @@ typedef struct {
     int lazy_imports_all;   /* PYTHONLAZYIMPORTSALL, -X lazyimportsall */
     int lazy_imports_warmup;   /* PYTHONLAZYIMPORTSWARMUP, -X lazyimportswarmup */
     int use_py_compiler;   /* PYTHONUSEPYCOMPILER, -X usepycompiler */
+    int use_readonly_compiler; /* PYTHONUSEREADONLYCOMPILER -X usereadonlycompiler */
 
     /* Value of the --check-hash-based-pycs command line option:
 

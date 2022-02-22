@@ -361,6 +361,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         'lazy_imports_all': 0,
         'lazy_imports_warmup': 0,
         'use_py_compiler': 0,
+        'use_readonly_compiler': 0,
         'malloc_stats': 0,
 
         'filesystem_encoding': GET_DEFAULT_CONFIG,

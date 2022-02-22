@@ -213,15 +213,13 @@ init_importlib_external(PyInterpreterState *interp)
 }
 
 static int
-install_importlib_pycompile()
-{
+_install_importlib_pycompile_helper(const char* loader_installer) {
     PyObject* value;
     PyObject *py_loader_module = PyImport_ImportModule("compiler.pysourceloader");
     if (py_loader_module == NULL) {
         return -1;
     }
-    value = PyObject_CallMethod(py_loader_module,
-                                "_install_py_loader", "");
+    value = PyObject_CallMethod(py_loader_module, loader_installer, "");
     if (value == NULL) {
         PyErr_Print();
         return -1;
@@ -229,6 +227,18 @@ install_importlib_pycompile()
     Py_XDECREF(value);
     Py_XDECREF(py_loader_module);
     return 0;
+}
+
+static int
+install_importlib_pycompile()
+{
+    return _install_importlib_pycompile_helper("_install_py_loader");
+}
+
+static int
+install_importlib_readonly_compile()
+{
+    return _install_importlib_pycompile_helper("_install_readonly_loader");
 }
 
 /* Helper functions to better handle the legacy C locale
@@ -1050,6 +1060,11 @@ pyinit_main(_PyRuntimeState *runtime, PyInterpreterState *interp)
     if (config->use_py_compiler) {
         /* install the loader using Python written compiler */
         install_importlib_pycompile();
+    }
+    // note that readonly compiler overrides the python compiler
+    if (config->use_readonly_compiler) {
+        /* install the loader using Python written readonly compiler */
+        install_importlib_readonly_compile();
     }
 
 
