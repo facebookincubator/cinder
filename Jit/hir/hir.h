@@ -3647,6 +3647,10 @@ class CFG {
   // entry_block.
   std::vector<BasicBlock*> GetRPOTraversal() const;
 
+  // Return the BasicBlock in the CFG with the specified id, or nullptr if none
+  // exist
+  const BasicBlock* getBlockById(int id) const;
+
   // Return the RPO traversal of the reachable basic blocks in the CFG starting
   // from the given block.
   static std::vector<BasicBlock*> GetRPOTraversal(BasicBlock* start);

@@ -673,6 +673,15 @@ std::vector<BasicBlock*> CFG::GetRPOTraversal(BasicBlock* start) {
   return traversal;
 }
 
+const BasicBlock* CFG::getBlockById(int id) const {
+  for (auto& block : blocks) {
+    if (block.id == id) {
+      return &block;
+    }
+  }
+  return nullptr;
+}
+
 CFG::~CFG() {
   while (!blocks.IsEmpty()) {
     BasicBlock* block = &(blocks.ExtractFront());

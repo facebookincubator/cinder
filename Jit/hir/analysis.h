@@ -206,5 +206,25 @@ class AssignmentAnalysis : public ForwardDataflowAnalysis {
   bool is_definite_;
 };
 
+// Find the immediate dominator of each block, stored in a mapping from block
+// ids to blocks. The mapping returns nullptr if the block has no dominator.
+// This is the case for the entry block and any blocks not reachable from the
+// entry block.
+//
+// This implementation is based off of HHVM's implementation, which itself uses
+// Cooper, Harvey, and Kennedy's "A Simple, Fast Dominance Algorithm".
+class DominatorAnalysis {
+ public:
+  DominatorAnalysis(const Function& irfunc);
+
+  const BasicBlock* immediateDominator(const BasicBlock* block) {
+    JIT_DCHECK(block != nullptr, "Block cannot be null");
+    return idoms_[block->id];
+  }
+
+ private:
+  std::unordered_map<int, const BasicBlock*> idoms_;
+};
+
 } // namespace hir
 } // namespace jit

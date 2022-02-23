@@ -627,5 +627,61 @@ void AssignmentAnalysis::setUninitialized(
   }
 }
 
+DominatorAnalysis::DominatorAnalysis(const Function& irfunc) : idoms_{} {
+  // Calculate immediate dominators with the iterative two-finger algorithm.
+  // When it terminates, idoms_[block-id] will contain the block-id of the
+  // immediate dominator of each block.  idoms_[start] will be nullptr. This is
+  // the general algorithm but it will only loop twice for loop-free graphs.
+  std::vector<BasicBlock*> rpo = irfunc.cfg.GetRPOTraversal();
+  // Map block ids to their index in the RPO traversal
+  std::unordered_map<int, int> rpo_index{};
+  for (size_t i = 0; i < rpo.size(); i++) {
+    rpo_index[rpo[i]->id] = i;
+  }
+  auto start = rpo.begin();
+  const BasicBlock* entry = *start;
+  idoms_[entry->id] = entry;
+  start++;
+  for (bool changed = true; changed;) {
+    changed = false;
+    for (auto it = start; it != rpo.end(); it++) {
+      const BasicBlock* block = *it;
+      auto predIter = block->in_edges().begin();
+      auto predEnd = block->in_edges().end();
+      // pred1 = any already-processed predecessor
+      auto pred1 = const_cast<const BasicBlock*>((*predIter)->from());
+      while (!idoms_[pred1->id]) {
+        JIT_DCHECK(
+            predIter != predEnd,
+            "There should be an already-processed predecessor since we're "
+            "iterating in RPO");
+        pred1 = (*(++predIter))->from();
+      }
+      // for all other already-processed predecessors pred2 of block
+      for (++predIter; predIter != predEnd; ++predIter) {
+        auto pred2 = const_cast<const BasicBlock*>((*predIter)->from());
+        if (pred2 == pred1 || !idoms_[pred2->id]) {
+          continue;
+        }
+        // find earliest common predecessor of pred1 and pred2
+        // (lower RPO ids are earlier in flow and in dom-tree).
+        do {
+          while (rpo_index[pred1->id] < rpo_index[pred2->id]) {
+            pred2 = idoms_[pred2->id];
+          }
+          while (rpo_index[pred2->id] < rpo_index[pred1->id]) {
+            pred1 = idoms_[pred1->id];
+          }
+        } while (pred1 != pred2);
+      }
+      if (idoms_[block->id] != pred1) {
+        idoms_[block->id] = pred1;
+        changed = true;
+      }
+    }
+  }
+  idoms_[entry->id] = nullptr;
+}
+
 } // namespace hir
 } // namespace jit
