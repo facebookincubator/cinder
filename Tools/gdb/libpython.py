@@ -96,7 +96,8 @@ def _sizeof_void_p():
 # value computed later, see PyUnicodeObjectPtr.proxy()
 _is_pep393 = None
 
-Py_TPFLAGS_HEAPTYPE = (1 << 9)
+Py_TPFLAGS_GENERIC_TYPE_INST = (1 << 6)
+Py_TPFLAGS_HEAPTYPE          = (1 << 9)
 Py_TPFLAGS_LONG_SUBCLASS     = (1 << 24)
 Py_TPFLAGS_LIST_SUBCLASS     = (1 << 25)
 Py_TPFLAGS_TUPLE_SUBCLASS    = (1 << 26)
@@ -389,6 +390,13 @@ class PyObjectPtr(object):
             return name_map[tp_name]
 
         if tp_flags & Py_TPFLAGS_HEAPTYPE:
+            if tp_flags & Py_TPFLAGS_GENERIC_TYPE_INST:
+                _PyGenericTypeInst = gdb.lookup_type("_PyGenericTypeInst").pointer()
+                generic_type_def = t._gdbval.cast(_PyGenericTypeInst)['gti_gtd']
+                if generic_type_def == gdb.parse_and_eval("_PyCheckedDict_Type").address:
+                    return PyCheckedDictObjectPtr
+                if generic_type_def == gdb.parse_and_eval("_PyCheckedList_Type").address:
+                    return PyCheckedListObjectPtr
             return HeapTypeObjectPtr
 
         if tp_flags & Py_TPFLAGS_LONG_SUBCLASS:
@@ -801,6 +809,27 @@ class PyDictObjectPtr(PyObjectPtr):
         return ent_addr, dk_nentries
 
 
+class PyCheckedDictObjectPtr(PyDictObjectPtr):
+    def write_repr(self, out, visited):
+        # Guard against infinite loops:
+        if self.as_address() in visited:
+            out.write('{...}')
+            return
+        visited.add(self.as_address())
+
+        out.write(self.safe_tp_name())
+        out.write('({')
+        first = True
+        for pyop_key, pyop_value in self.iteritems():
+            if not first:
+                out.write(', ')
+            first = False
+            pyop_key.write_repr(out, visited)
+            out.write(': ')
+            pyop_value.write_repr(out, visited)
+        out.write('})')
+
+
 class PyListObjectPtr(PyObjectPtr):
     _typename = 'PyListObject'
 
@@ -833,6 +862,24 @@ class PyListObjectPtr(PyObjectPtr):
             element = PyObjectPtr.from_pyobject_ptr(self[i])
             element.write_repr(out, visited)
         out.write(']')
+
+
+class PyCheckedListObjectPtr(PyListObjectPtr):
+    def write_repr(self, out, visited):
+        # Guard against infinite loops:
+        if self.as_address() in visited:
+            out.write('[...]')
+            return
+        visited.add(self.as_address())
+
+        out.write(self.safe_tp_name())
+        out.write('([')
+        for i in safe_range(int_from_int(self.field('ob_size'))):
+            if i > 0:
+                out.write(', ')
+            element = PyObjectPtr.from_pyobject_ptr(self[i])
+            element.write_repr(out, visited)
+        out.write('])')
 
 class PyLongObjectPtr(PyObjectPtr):
     _typename = 'PyLongObject'
