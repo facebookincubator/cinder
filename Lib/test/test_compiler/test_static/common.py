@@ -272,7 +272,7 @@ class StaticTestBase(CompilerTest):
                 "<module>", "<module>.py", s.scopes[tree]
             )
             code_gen = StaticCodeGenerator(
-                None, tree, s, graph, compiler, "<module>", readonly_types=0
+                None, tree, s, graph, compiler, "<module>", readonly_types={}
             )
             code_gen.visit(tree)
         return TestErrors(self, code, errors.errors, errors.warnings)

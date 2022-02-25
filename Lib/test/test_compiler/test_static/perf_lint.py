@@ -210,3 +210,95 @@ class PerfLintTests(StaticTestBase):
                 at="c.a = 1",
             ),
         )
+
+    def test_nonfinal_method_call(self) -> None:
+        codestr = """
+        class C:
+            def add1(self, n: int) -> int:
+                return n + 1
+
+        c = C()
+        c.add1(10)
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Method add1 can be overridden. Make method or class final for more efficient call",
+                at="c.add1(10)",
+            )
+        )
+
+    def test_final_class_method_call(self) -> None:
+        codestr = """
+        @final
+        class C:
+            def add1(self, n: int) -> int:
+                return n + 1
+
+        c = C()
+        c.add1(10)
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings()
+
+    def test_final_method_method_call(self) -> None:
+        codestr = """
+        class C:
+            @final
+            def add1(self, n: int) -> int:
+                return n + 1
+
+        c = C()
+        c.add1(10)
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings()
+
+    def test_nonfinal_classmethod_call(self) -> None:
+        codestr = """
+        class C:
+            @classmethod
+            def add1(cls, n: int) -> int:
+                return n + 1
+
+        C.add1(10)
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "Method add1 can be overridden. Make method or class final for more efficient call",
+                at="C.add1(10)",
+            )
+        )
+
+    def test_final_class_classmethod_call(self) -> None:
+        codestr = """
+        @final
+        class C:
+            @classmethod
+            def add1(cls, n: int) -> int:
+                return n + 1
+
+        C.add1(10)
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings()
+
+    def test_final_method_classmethod_call(self) -> None:
+        codestr = """
+        class C:
+            @final
+            @classmethod
+            def add1(cls, n: int) -> int:
+                return n + 1
+
+        C.add1(10)
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings()

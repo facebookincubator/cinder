@@ -2567,6 +2567,11 @@ class ArgMapping:
         assert func_args is not None
 
         if self.needs_virtual_invoke(code_gen):
+            self.visitor.perf_warning(
+                f"Method {self.callable.func_name} can be overridden. "
+                "Make method or class final for more efficient call",
+                self.call,
+            )
             code_gen.emit_invoke_method(
                 self.callable.type_descr,
                 len(func_args) if extra_self else len(func_args) - 1,
@@ -2623,6 +2628,11 @@ class ClassMethodArgMapping(ArgMapping):
         assert func_args is not None
 
         if self.needs_virtual_invoke(code_gen):
+            self.visitor.perf_warning(
+                f"Method {self.callable.func_name} can be overridden. "
+                "Make method or class final for more efficient call",
+                self.call,
+            )
             code_gen.emit_invoke_method(
                 self.callable.type_descr,
                 len(func_args) if extra_self else len(func_args) - 1,
