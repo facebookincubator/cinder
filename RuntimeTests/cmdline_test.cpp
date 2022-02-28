@@ -42,48 +42,14 @@ class CmdLineTest : public RuntimeTest {
   }
 };
 
-const char* parseAndSetEnvVar(const char* env_name) {
-  if (strchr(env_name, '=')) {
-    const char* key = strtok(strdup(env_name), "=");
-    const char* value = strtok(NULL, "=");
-    setenv(key, value, 1);
-    return key;
-  } else {
-    setenv(env_name, env_name, 1);
-    return env_name;
-  }
-}
-
-PyObject* addToXargsDict(const wchar_t* flag) {
-  // handles 'arg=<const>' and just 'arg' flags
-  PyObject *key = NULL, *value = NULL;
-
-  PyObject* opts = PySys_GetXOptions();
-
-  const wchar_t* key_end = wcschr(flag, L'=');
-  if (!key_end) {
-    key = PyUnicode_FromWideChar(flag, -1);
-    value = Py_True;
-    Py_INCREF(value);
-  } else {
-    key = PyUnicode_FromWideChar(flag, key_end - flag);
-    value = PyUnicode_FromWideChar(key_end + 1, -1);
-  }
-
-  PyDict_SetItem(opts, key, value);
-  Py_DECREF(value);
-
-  // we will need the object later on...
-  return key;
-}
-
 int try_flag_and_envvar_effect(
     const wchar_t* flag,
     const char* env_name,
     function<void(void)> reset_vars,
     function<void(void)> conditions_to_check,
     bool enable_JIT = false,
-    bool capture_stderr = false) {
+    bool capture_stderr = false,
+    bool capture_stdout = false) {
   // As most tests don't use _PyJIT_Initialize() we allocated a global code
   // allocator "manually" in main.cpp. We now need to deallocate it so we can
   // call _PyJIT_Initialize safely.
@@ -105,6 +71,9 @@ int try_flag_and_envvar_effect(
     if (capture_stderr) {
       testing::internal::CaptureStderr();
     }
+    if (capture_stdout) {
+      testing::internal::CaptureStdout();
+    }
 
     const char* key = parseAndSetEnvVar(env_name);
     init_status = _PyJIT_Initialize();
@@ -119,6 +88,9 @@ int try_flag_and_envvar_effect(
 
   if (capture_stderr) {
     testing::internal::CaptureStderr();
+  }
+  if (capture_stdout) {
+    testing::internal::CaptureStdout();
   }
   // sneak in a command line argument
   PyObject* to_remove = addToXargsDict(flag);
@@ -289,6 +261,14 @@ TEST_F(CmdLineTest, BasicFlags) {
 
   ASSERT_EQ(
       try_flag_and_envvar_effect(
+          L"jit-disable-huge-pages",
+          "PYTHONJITDISABLEHUGEPAGES",
+          []() {},
+          []() { ASSERT_FALSE(_PyJIT_UseHugePages()); }),
+      0);
+
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
           L"jit-enable-jit-list-wildcards",
           "PYTHONJITENABLEJITLISTWILDCARDS",
           []() {},
@@ -322,7 +302,8 @@ TEST_F(CmdLineTest, JITEnable) {
       0);
 }
 
-// some flags are only set IF the JIT is enabled...
+// start of tests associated with flags the setting of which is dependant upon
+// if jit is enabled
 TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
   ASSERT_EQ(
       try_flag_and_envvar_effect(
@@ -359,26 +340,6 @@ TEST_F(CmdLineTest, JITEnabledFlags_NoTypeSlots) {
           NULL,
           []() {},
           []() { ASSERT_EQ(_PyJIT_AreTypeSlotsEnabled(), 0); },
-          true),
-      0);
-}
-
-TEST_F(CmdLineTest, JITEnabledFlags_BatchCompileWorkers) {
-  ASSERT_EQ(
-      try_flag_and_envvar_effect(
-          L"jit-batch-compile-workers=21",
-          "PYTHONJITBATCHCOMPILEWORKERS=21",
-          []() {},
-          []() { ASSERT_EQ(_PyJIT_GetJitConfigBatch_compile_workers(), 0); },
-          false),
-      0);
-
-  ASSERT_EQ(
-      try_flag_and_envvar_effect(
-          L"jit-batch-compile-workers=21",
-          "PYTHONJITBATCHCOMPILEWORKERS=21",
-          []() {},
-          []() { ASSERT_EQ(_PyJIT_GetJitConfigBatch_compile_workers(), 21); },
           true),
       0);
 }
@@ -427,6 +388,20 @@ TEST_F(CmdLineTest, JITEnabledFlags_MatchLineNumbers) {
       0);
 }
 
+// end of tests associated with flags the setting of which is dependant upon if
+// jit is enabled
+
+TEST_F(CmdLineTest, JITEnabledFlags_BatchCompileWorkers) {
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
+          L"jit-batch-compile-workers=21",
+          "PYTHONJITBATCHCOMPILEWORKERS=21",
+          []() {},
+          []() { ASSERT_EQ(_PyJIT_GetJitConfigBatch_compile_workers(), 21); },
+          true),
+      0);
+}
+
 TEST_F(CmdLineTest, ASMSyntax) {
   // default when nothing defined is AT&T, covered in prvious test
   ASSERT_EQ(
@@ -471,6 +446,25 @@ TEST_F(CmdLineTest, JITList) {
 
   delete[] xarg;
   filesystem::remove(list_file);
+}
+
+TEST_F(CmdLineTest, JITLogFile) {
+  string log_file = tmpnam(nullptr);
+  ofstream log_file_handle(log_file);
+  log_file_handle.close();
+  const wchar_t* xarg =
+      makeWideChar(const_cast<char*>(("jit-log-file=" + log_file).c_str()));
+
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
+          xarg,
+          const_cast<char*>(("PYTHONJITLOGFILE=" + log_file).c_str()),
+          []() { g_log_file = stderr; },
+          []() { ASSERT_NE(g_log_file, stderr); }),
+      0);
+
+  delete[] xarg;
+  filesystem::remove(log_file);
 }
 
 TEST_F(CmdLineTest, ExplicitJITDisable) {
@@ -527,4 +521,22 @@ TEST_F(CmdLineTest, ReadProfile) {
           false,
           true),
       0);
+}
+
+TEST_F(CmdLineTest, DisplayHelpMessage) {
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
+          L"jit-help",
+          nullptr,
+          []() {},
+          []() {
+            ASSERT_TRUE(
+                testing::internal::GetCapturedStdout().find(
+                    "-X opt : set Cinder JIT-specific option.") !=
+                std::string::npos);
+          },
+          false,
+          false,
+          true),
+      -2);
 }

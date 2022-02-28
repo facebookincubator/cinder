@@ -10,7 +10,6 @@
 #include "Jit/hir/preload.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
-#include "Jit/jit_x_options.h"
 #include "Jit/log.h"
 
 namespace jit {

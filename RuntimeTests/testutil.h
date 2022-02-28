@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Python.h"
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -44,3 +46,14 @@ struct HIRTestSuite {
 // ---
 //
 std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& path);
+
+// flag string will be added to enviroment variables and a key will be
+// returned, the key can be later used to remove the item via unsetenv
+// the key will then need to be freed
+const char* parseAndSetEnvVar(const char* env_name);
+
+// flag string will be added to XArgs dictionary and a key will be
+// returned, the key can later be used to remove the item from
+// the x args dictionary.
+// handles 'arg=<const>' (with <const> set as the value) and just 'arg' flags
+PyObject* addToXargsDict(const wchar_t* flag);

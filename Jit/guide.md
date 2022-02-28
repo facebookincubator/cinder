@@ -94,7 +94,9 @@ list. Currently there is no option to automatically compile hot functions
 based on their observed call count at runtime.
 
 These JIT options are set via `-X` options or environment variables; this
-configuration is handled in `Jit/pyjit.cpp`.
+configuration is initialized in the `initFlagProcessor()` function in
+`Jit/pyjit.cpp`. Use the option `-X jit-help` for an explanation of the
+various options.
 
 When a function is first called, if it should be JIT compiled we attempt to
 compile it (see `PyEntry_LazyInit` and related functions in

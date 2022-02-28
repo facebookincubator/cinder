@@ -993,7 +993,11 @@ pyinit_main(_PyRuntimeState *runtime, PyInterpreterState *interp)
 
     /* Initialize JIT ASAP to catch functions included in boostrap libraries.
        This needs to come after  _PySys_InitMain so we can process -X opts.*/
-    if (_PyJIT_Initialize() < 0) {
+    int pj_jit_status = _PyJIT_Initialize();
+    if (pj_jit_status < 0) {
+        if(pj_jit_status == -2){
+            return PyStatus_Exit(0);
+        }
         Py_FatalError("Py_Initialize: can't initialize jit");
     }
 

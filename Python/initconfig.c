@@ -98,6 +98,7 @@ static const char usage_3[] = "\
          -X lazyimportswarmup: Warmup lazy imports\n\
          -X usepycompiler: use python written compiler\n\
          -X usereadonlycompiler: use python written readonly compiler\n\
+         -X jit-help: print all available Cinder JIT flags and exits\n\
 \n\
 --check-hash-based-pycs always|default|never:\n\
     control how Python invalidates hash-based .pyc files\n\

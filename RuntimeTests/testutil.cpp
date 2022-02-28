@@ -205,3 +205,37 @@ std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& path) {
 
   return suite;
 }
+
+const char* parseAndSetEnvVar(const char* env_name) {
+  if (strchr(env_name, '=')) {
+    const char* key = strtok(strdup(env_name), "=");
+    const char* value = strtok(NULL, "=");
+    setenv(key, value, 1);
+    return key;
+  } else {
+    setenv(env_name, env_name, 1);
+    return env_name;
+  }
+}
+
+PyObject* addToXargsDict(const wchar_t* flag) {
+  PyObject *key = NULL, *value = NULL;
+
+  PyObject* opts = PySys_GetXOptions();
+
+  const wchar_t* key_end = wcschr(flag, L'=');
+  if (!key_end) {
+    key = PyUnicode_FromWideChar(flag, -1);
+    value = Py_True; // PyUnicode_FromWideChar(flag, -1);
+    Py_INCREF(value);
+  } else {
+    key = PyUnicode_FromWideChar(flag, key_end - flag);
+    value = PyUnicode_FromWideChar(key_end + 1, -1);
+  }
+
+  PyDict_SetItem(opts, key, value);
+  Py_DECREF(value);
+
+  // we will need the object later on...
+  return key;
+}

@@ -15,9 +15,9 @@
 #include "Jit/hir/preload.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_context.h"
+#include "Jit/jit_flag_processor.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_list.h"
-#include "Jit/jit_x_options.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
 #include "Jit/profile_data.h"
@@ -50,7 +50,7 @@ struct JitConfig {
 
   int is_enabled{0};
   FrameModeJitConfig frame_mode{PY_FRAME};
-  int are_type_slots_enabled{0};
+  int are_type_slots_enabled{1};
   int allow_jit_list_wildcards{0};
   int compile_all_static_functions{0};
   size_t batch_compile_workers{0};
@@ -162,6 +162,311 @@ struct CompilationTimer {
 
 static std::atomic<int> g_compile_workers_attempted;
 static int g_compile_workers_retries;
+
+void setJitLogFile(string log_filename) {
+  // Redirect logging to a file if configured.
+  const char* kPidMarker = "{pid}";
+  std::string pid_filename = log_filename;
+  auto marker_pos = pid_filename.find(kPidMarker);
+  if (marker_pos != std::string::npos) {
+    pid_filename.replace(
+        marker_pos, std::strlen(kPidMarker), fmt::format("{}", getpid()));
+  }
+  FILE* file = fopen(pid_filename.c_str(), "w");
+  if (file == NULL) {
+    JIT_LOG(
+        "Couldn't open log file %s (%s), logging to stderr",
+        pid_filename,
+        strerror(errno));
+  } else {
+    g_log_file = file;
+  }
+}
+
+void setASMSyntax(string asm_syntax) {
+  if (asm_syntax.compare("intel") == 0) {
+    set_intel_syntax();
+  } else if (asm_syntax.compare("att") == 0) {
+    set_att_syntax();
+  } else {
+    JIT_CHECK(false, "unknown asm syntax '%s'", asm_syntax);
+  }
+}
+
+static jit::FlagProcessor xarg_flag_processor;
+
+static int use_jit = 0;
+static int jit_help = 0;
+static string write_profile_file;
+static int jit_profile_interp = 0;
+static string jl_fn;
+
+void initFlagProcessor() {
+  use_jit = 0;
+  write_profile_file = "";
+  jit_profile_interp = 0;
+  jl_fn = "";
+  jit_help = 0;
+  if (!xarg_flag_processor.hasOptions()) {
+    // flags are inspected in order of definition below
+    xarg_flag_processor.addOption(
+        "jit", "PYTHONJIT", use_jit, "Enable the JIT");
+
+    xarg_flag_processor.addOption(
+        "jit-debug",
+        "PYTHONJITDEBUG",
+        [](string) {
+          g_debug = 1;
+          g_debug_verbose = 1;
+        },
+        "JIT debug and extra logging");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-log-file",
+            "PYTHONJITLOGFILE",
+            [](string log_filename) { setJitLogFile(log_filename); },
+            "write log entries to <filename> rather than stderr")
+        .withFlagParamName("filename");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-asm-syntax",
+            "PYTHONJITASMSYNTAX",
+            [](string asm_syntax) { setASMSyntax(asm_syntax); },
+            "set the assembly syntax used in log files")
+        .withFlagParamName("intel|att")
+        .withDebugMessageOverride("Sets the assembly syntax used in log files");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-debug-refcount",
+            "PYTHONJITDEBUGREFCOUNT",
+            g_debug_refcount,
+            "JIT refcount insertion debug mode")
+        .withDebugMessageOverride("Enabling");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-dump-hir",
+            "PYTHONJITDUMPHIR",
+            g_dump_hir,
+            "log the HIR representation of all functions after initial "
+            "lowering from bytecode")
+        .withDebugMessageOverride("Dump initial HIR of JITted functions");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-dump-hir-passes",
+            "PYTHONJITDUMPHIRPASSES",
+            g_dump_hir_passes,
+            "log the HIR after each optimization pass")
+        .withDebugMessageOverride(
+            "Dump HIR of JITted functions after each individual  optimization "
+            "pass");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-dump-final-hir",
+            "PYTHONJITDUMPFINALHIR",
+            g_dump_final_hir,
+            "log the HIR after all optimizations")
+        .withDebugMessageOverride(
+            "Dump final HIR of JITted functions after all optimizations");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-dump-lir",
+            "PYTHONJITDUMPLIR",
+            g_dump_lir,
+            "log the LIR representation of all functions after lowering from "
+            "HIR")
+        .withDebugMessageOverride("Dump initial LIR of JITted functions");
+
+    xarg_flag_processor.addOption(
+        "jit-dump-lir-no-origin",
+        "PYTHONJITDUMPLIRNOORIGIN",
+        [](string) {
+          g_dump_lir = 1;
+          g_dump_lir_no_origin = 1;
+        },
+        "JIT dump-lir mode without origin data");
+
+    xarg_flag_processor.addOption(
+        "jit-dump-c-helper",
+        "PYTHONJITDUMPCHELPER",
+        g_dump_c_helper,
+        "dump all c invocations");
+
+    xarg_flag_processor.addOption(
+        "jit-disas-funcs",
+        "PYTHONJITDISASFUNCS",
+        g_dump_asm,
+        "jit-disas-funcs/PYTHONJITDISASFUNCS are deprecated and will soon be "
+        "removed. Use jit-dump-asm and PYTHONJITDUMPASM instead");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-dump-asm",
+            "PYTHONJITDUMPASM",
+            g_dump_asm,
+            "log the final compiled code, annotated with HIR instructions")
+        .withDebugMessageOverride("Dump asm of JITted functions");
+
+    xarg_flag_processor.addOption(
+        "jit-gdb-support",
+        "PYTHONJITGDBSUPPORT",
+        [](string) {
+          g_debug = 1;
+          g_gdb_support = 1;
+        },
+        "GDB support and JIT debug mode");
+
+    xarg_flag_processor.addOption(
+        "jit-gdb-stubs-support",
+        "PYTHONJITGDBSTUBSSUPPORT",
+        g_gdb_stubs_support,
+        "GDB support for stubs");
+
+    xarg_flag_processor.addOption(
+        "jit-gdb-write-elf",
+        "PYTHONJITGDBWRITEELF",
+        [](string) {
+          g_debug = 1;
+          g_gdb_support = 1;
+          g_gdb_write_elf_objects = 1;
+        },
+        "Debugging aid, GDB support with ELF output");
+
+    xarg_flag_processor.addOption(
+        "jit-dump-stats",
+        "PYTHONJITDUMPSTATS",
+        g_dump_stats,
+        "Dump JIT runtime stats at shutdown");
+
+    xarg_flag_processor.addOption(
+        "jit-disable-lir-inliner",
+        "PYTHONJITDISABLELIRINLINER",
+        g_disable_lir_inliner,
+        "disable JIT lir inlining");
+
+    xarg_flag_processor.addOption(
+        "jit-disable-huge-pages",
+        "PYTHONJITDISABLEHUGEPAGES",
+        [](string) { jit_config.use_huge_pages = false; },
+        "disable huge page support");
+
+    xarg_flag_processor.addOption(
+        "jit-enable-jit-list-wildcards",
+        "PYTHONJITENABLEJITLISTWILDCARDS",
+        jit_config.allow_jit_list_wildcards,
+        "allow wildcards in JIT list");
+
+    xarg_flag_processor.addOption(
+        "jit-all-static-functions",
+        "PYTHONJITALLSTATICFUNCTIONS",
+        jit_config.compile_all_static_functions,
+        "JIT-compile all static functions");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-list-file",
+            "PYTHONJITLISTFILE",
+            [](string listFile) {
+              jl_fn = listFile;
+              use_jit = 1;
+            },
+            "Load list of functions to compile from <filename>")
+        .withFlagParamName("filename");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-read-profile",
+            "PYTHONJITREADPROFILE",
+            [](string read_profile_file) {
+              JIT_LOG("Loading profile data from %s", read_profile_file);
+              readProfileData(read_profile_file);
+            },
+            "Load profile data from <filename>")
+        .withFlagParamName("filename");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-write-profile",
+            "PYTHONJITWRITEPROFILE",
+            write_profile_file,
+            "Write profiling data to <filename>")
+        .withFlagParamName("filename");
+
+    xarg_flag_processor.addOption(
+        "jit-profile-interp",
+        "PYTHONJITPROFILEINTERP",
+        jit_profile_interp,
+        "interpreter profiling");
+
+    xarg_flag_processor.addOption(
+        "jit-disable",
+        "PYTHONJITDISABLE",
+        [](string) { use_jit = 0; },
+        "disable the JIT");
+
+    // these are only set if use_jit == 1
+    xarg_flag_processor.addOption(
+        "jit-shadow-frame",
+        "PYTHONJITSHADOWFRAME",
+        [](string) {
+          if (use_jit) {
+            jit_config.frame_mode = SHADOW_FRAME;
+          }
+        },
+        "enable shadow frame mode");
+
+    xarg_flag_processor.addOption(
+        "jit-no-type-slots",
+        "PYTHONJITNOTYPESLOTS",
+        [](string) {
+          if (use_jit) {
+            jit_config.are_type_slots_enabled = 0;
+          }
+        },
+        "turn off type slots");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-batch-compile-workers",
+            "PYTHONJITBATCHCOMPILEWORKERS",
+            jit_config.batch_compile_workers,
+            "set the number of batch compile workers to <COUNT>")
+        .withFlagParamName("COUNT");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-multithreaded-compile-test",
+            "PYTHONJITMULTITHREADEDCOMPILETEST",
+            [](string) {
+              if (use_jit) {
+                jit_config.multithreaded_compile_test = 1;
+              }
+            },
+            "JIT multithreaded compile test")
+        .isHiddenFlag(true);
+
+    xarg_flag_processor.addOption(
+        "jit-list-match-line-numbers",
+        "PYTHONJITLISTMATCHLINENUMBERS",
+        [](string) {
+          if (use_jit) {
+            jitlist_match_line_numbers(true);
+          }
+        },
+        "JIT list match line numbers");
+
+    xarg_flag_processor.addOption(
+        "jit-help", "", jit_help, "print all available JIT flags and exits");
+  }
+
+  xarg_flag_processor.setFlags(PySys_GetXOptions());
+}
 
 // Compile the given compilation unit, returning the result code.
 static _PyJIT_Result compileUnit(BorrowedRef<> unit) {
@@ -790,63 +1095,6 @@ int _PyJIT_OnJitList(PyFunctionObject* func) {
   return onJitListImpl(func->func_code, func->func_module, func->func_qualname);
 }
 
-// Is env var set to a value other than "0" or ""?
-int _is_env_truthy(const char* name) {
-  const char* val = Py_GETENV(name);
-  if (val == NULL || val[0] == '\0' || !strncmp(val, "0", 1)) {
-    return 0;
-  }
-  return 1;
-}
-
-int _is_flag_set(const char* xoption, const char* envname) {
-  if (PyJIT_IsXOptionSet(xoption) || _is_env_truthy(envname)) {
-    return 1;
-  }
-  return 0;
-}
-
-// If the given X option is set and is a string, return it. If not, check the
-// given environment variable for a nonempty value and return it if
-// found. Otherwise, return nullptr.
-const char* flag_string(const char* xoption, const char* envname) {
-  PyObject* pyobj = nullptr;
-  if (PyJIT_GetXOption(xoption, &pyobj) == 0 && pyobj != nullptr &&
-      PyUnicode_Check(pyobj)) {
-    return PyUnicode_AsUTF8(pyobj);
-  }
-
-  auto envval = Py_GETENV(envname);
-  if (envval != nullptr && envval[0] != '\0') {
-    return envval;
-  }
-
-  return nullptr;
-}
-
-long flag_long(const char* xoption, const char* envname, long _default) {
-  PyObject* pyobj = nullptr;
-  if (PyJIT_GetXOption(xoption, &pyobj) == 0 && pyobj != nullptr &&
-      PyUnicode_Check(pyobj)) {
-    auto val = Ref<>::steal(PyLong_FromUnicodeObject(pyobj, 10));
-    if (val != nullptr) {
-      return PyLong_AsLong(val);
-    }
-    JIT_LOG("Invalid value for %s: %s", xoption, PyUnicode_AsUTF8(pyobj));
-  }
-
-  const char* envval = Py_GETENV(envname);
-  if (envval != nullptr && envval[0] != '\0') {
-    try {
-      return std::stol(envval);
-    } catch (std::exception const&) {
-      JIT_LOG("Invalid value for %s: %s", envname, envval);
-    }
-  }
-
-  return _default;
-}
-
 int _PyJIT_Initialize() {
   if (jit_config.init_state == JIT_INITIALIZED) {
     return 0;
@@ -872,132 +1120,15 @@ int _PyJIT_Initialize() {
   PY_OPCODES(MAKE_OPNAME)
 #undef MAKE_OPNAME
 
-  int use_jit = 0;
+  initFlagProcessor();
 
-  if (_is_flag_set("jit", "PYTHONJIT")) {
-    use_jit = 1;
-  }
-
-  // Redirect logging to a file if configured.
-  const char* log_filename = flag_string("jit-log-file", "PYTHONJITLOGFILE");
-  if (log_filename != nullptr) {
-    const char* kPidMarker = "{pid}";
-    std::string pid_filename = log_filename;
-    auto marker_pos = pid_filename.find(kPidMarker);
-    if (marker_pos != std::string::npos) {
-      pid_filename.replace(
-          marker_pos, std::strlen(kPidMarker), fmt::format("{}", getpid()));
-    }
-    FILE* file = fopen(pid_filename.c_str(), "w");
-    if (file == NULL) {
-      JIT_LOG(
-          "Couldn't open log file %s (%s), logging to stderr",
-          pid_filename,
-          strerror(errno));
-    } else {
-      g_log_file = file;
-    }
-  }
-
-  const char* asm_syntax = flag_string("jit-asm-syntax", "PYTHONJITASMSYNTAX");
-  if (asm_syntax != nullptr) {
-    if (std::strcmp(asm_syntax, "intel") == 0) {
-      set_intel_syntax();
-    } else if (std::strcmp(asm_syntax, "att") == 0) {
-      set_att_syntax();
-    } else {
-      JIT_CHECK(false, "unknown asm syntax '%s'", asm_syntax);
-    }
-  } else {
-    set_att_syntax();
-  }
-
-  if (_is_flag_set("jit-debug", "PYTHONJITDEBUG")) {
-    JIT_DLOG("Enabling JIT debug and extra logging.");
-    g_debug = 1;
-    g_debug_verbose = 1;
-  }
-  if (_is_flag_set("jit-debug-refcount", "PYTHONJITDEBUGREFCOUNT")) {
-    JIT_DLOG("Enabling JIT refcount insertion debug mode.");
-    g_debug_refcount = 1;
-  }
-  if (_is_flag_set("jit-dump-hir", "PYTHONJITDUMPHIR")) {
-    JIT_DLOG("Enabling JIT dump-hir mode.");
-    g_dump_hir = 1;
-  }
-  if (_is_flag_set("jit-dump-hir-passes", "PYTHONJITDUMPHIRPASSES")) {
-    JIT_DLOG("Enabling JIT dump-hir-passes mode.");
-    g_dump_hir_passes = 1;
-  }
-  if (_is_flag_set("jit-dump-final-hir", "PYTHONJITDUMPFINALHIR")) {
-    JIT_DLOG("Enabling JIT dump-final-hir mode.");
-    g_dump_final_hir = 1;
-  }
-  if (_is_flag_set("jit-dump-lir", "PYTHONJITDUMPLIR")) {
-    JIT_DLOG("Enable JIT dump-lir mode with origin data.");
-    g_dump_lir = 1;
-  }
-  if (_is_flag_set("jit-dump-lir-no-origin", "PYTHONJITDUMPLIRNOORIGIN")) {
-    JIT_DLOG("Enable JIT dump-lir mode without origin data.");
-    g_dump_lir = 1;
-    g_dump_lir_no_origin = 1;
-  }
-  if (_is_flag_set("jit-dump-c-helper", "PYTHONJITDUMPCHELPER")) {
-    JIT_DLOG("Enable JIT dump-c-helper mode.");
-    g_dump_c_helper = 1;
-  }
-  if (_is_flag_set("jit-disas-funcs", "PYTHONJITDISASFUNCS")) {
-    JIT_DLOG(
-        "jit-disas-funcs/PYTHONJITDISASFUNCS are deprecated and will soon be "
-        "removed. Use jit-dump-asm and PYTHONJITDUMPASM instead.");
-    g_dump_asm = 1;
-  }
-  if (_is_flag_set("jit-dump-asm", "PYTHONJITDUMPASM")) {
-    JIT_DLOG("Enabling JIT dump-asm mode.");
-    g_dump_asm = 1;
-  }
-  if (_is_flag_set("jit-gdb-support", "PYTHONJITGDBSUPPORT")) {
-    JIT_DLOG("Enable GDB support and JIT debug mode.");
-    g_debug = 1;
-    g_gdb_support = 1;
-  }
-  if (_is_flag_set("jit-gdb-stubs-support", "PYTHONJITGDBSTUBSSUPPORT")) {
-    JIT_DLOG("Enable GDB support for stubs.");
-    g_gdb_stubs_support = 1;
-  }
-  if (_is_flag_set("jit-gdb-write-elf", "PYTHONJITGDBWRITEELF")) {
-    JIT_DLOG("Enable GDB support with ELF output, and JIT debug.");
-    g_debug = 1;
-    g_gdb_support = 1;
-    g_gdb_write_elf_objects = 1;
-  }
-  if (_is_flag_set("jit-dump-stats", "PYTHONJITDUMPSTATS")) {
-    JIT_DLOG("Dumping JIT runtime stats at shutdown.");
-    g_dump_stats = 1;
-  }
-  if (_is_flag_set("jit-disable-lir-inliner", "PYTHONJITDISABLELIRINLINER")) {
-    JIT_DLOG("Disable JIT lir inlining.");
-    g_disable_lir_inliner = 1;
-  }
-  if (_is_flag_set("jit-disable-huge-pages", "PYTHONJITDISABLEHUGEPAGES")) {
-    jit_config.use_huge_pages = false;
-  }
-
-  if (_is_flag_set(
-          "jit-enable-jit-list-wildcards", "PYTHONJITENABLEJITLISTWILDCARDS")) {
-    JIT_LOG("Enabling wildcards in JIT list");
-    jit_config.allow_jit_list_wildcards = 1;
-  }
-  if (_is_flag_set("jit-all-static-functions", "PYTHONJITALLSTATICFUNCTIONS")) {
-    JIT_DLOG("JIT-compiling all static functions");
-    jit_config.compile_all_static_functions = 1;
+  if (jit_help) {
+    std::cout << xarg_flag_processor.jitXOptionHelpMessage() << endl;
+    return -2;
   }
 
   std::unique_ptr<JITList> jit_list;
-  const char* jl_fn = flag_string("jit-list-file", "PYTHONJITLISTFILE");
-  if (jl_fn != NULL) {
-    use_jit = 1;
-
+  if (!jl_fn.empty()) {
     if (jit_config.allow_jit_list_wildcards) {
       jit_list = jit::WildcardJITList::create();
     } else {
@@ -1007,36 +1138,21 @@ int _PyJIT_Initialize() {
       JIT_LOG("Failed to allocate JIT list");
       return -1;
     }
-    if (!jit_list->parseFile(jl_fn)) {
+    if (!jit_list->parseFile(jl_fn.c_str())) {
       JIT_LOG("Could not parse jit-list, disabling JIT.");
       return 0;
     }
   }
 
-  const char* read_profile_file =
-      flag_string("jit-read-profile", "PYTHONJITREADPROFILE");
-  if (read_profile_file != nullptr) {
-    JIT_LOG("Loading profile data from %s", read_profile_file);
-    readProfileData(read_profile_file);
-  }
-  const char* write_profile_file =
-      flag_string("jit-write-profile", "PYTHONJITWRITEPROFILE");
-  if (write_profile_file != nullptr ||
-      _is_flag_set("jit-profile-interp", "PYTHONJITPROFILEINTERP")) {
+  if (!write_profile_file.empty() || jit_profile_interp == 1) {
     if (use_jit) {
       use_jit = 0;
       JIT_LOG("Keeping JIT disabled to enable interpreter profiling.");
     }
     g_profile_new_interp_threads = 1;
     _PyThreadState_SetProfileInterpAll(1);
-    if (write_profile_file != nullptr) {
+    if (!write_profile_file.empty()) {
       g_write_profile_file = write_profile_file;
-    }
-  }
-  if (_is_flag_set("jit-disable", "PYTHONJITDISABLE")) {
-    if (use_jit) {
-      use_jit = 0;
-      JIT_LOG("Disabling JIT.");
     }
   }
 
@@ -1072,21 +1188,6 @@ int _PyJIT_Initialize() {
   g_jit_list = jit_list.release();
   _PyThreadState_GetFrame =
       reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
-  if (_is_flag_set("jit-shadow-frame", "PYTHONJITSHADOWFRAME")) {
-    jit_config.frame_mode = SHADOW_FRAME;
-  }
-  jit_config.are_type_slots_enabled = !PyJIT_IsXOptionSet("jit-no-type-slots");
-  jit_config.batch_compile_workers =
-      flag_long("jit-batch-compile-workers", "PYTHONJITBATCHCOMPILEWORKERS", 0);
-  if (_is_flag_set(
-          "jit-multithreaded-compile-test",
-          "PYTHONJITMULTITHREADEDCOMPILETEST")) {
-    jit_config.multithreaded_compile_test = 1;
-  }
-  if (_is_flag_set(
-          "jit-list-match-line-numbers", "PYTHONJITLISTMATCHLINENUMBERS")) {
-    jitlist_match_line_numbers(true);
-  }
 
   total_compliation_time = 0.0;
 
