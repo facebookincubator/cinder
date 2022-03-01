@@ -147,32 +147,66 @@ class GenYieldPoint {
   const ptrdiff_t yieldFromOffs_;
 };
 
+class RuntimeFrameState {
+ public:
+  RuntimeFrameState(BorrowedRef<PyCodeObject> code, BorrowedRef<> globals)
+      : code_(code), globals_(globals) {}
+
+  bool isGen() const {
+    return code()->co_flags & kCoFlagsAnyGenerator;
+  }
+
+  BorrowedRef<PyCodeObject> code() const {
+    return code_;
+  }
+
+  BorrowedRef<> globals() const {
+    return globals_;
+  }
+
+  static constexpr int64_t codeOffset() {
+    return offsetof(RuntimeFrameState, code_);
+  }
+
+ private:
+  // These are owned by the CodeRuntime that owns this RuntimeFrameState.
+  BorrowedRef<PyCodeObject> code_;
+  BorrowedRef<> globals_;
+};
+
 // Runtime data for a PyCodeObject object, containing caches and any other data
 // associated with a JIT-compiled function.
 class CodeRuntime {
  public:
   explicit CodeRuntime(
-      PyCodeObject* py_code,
+      PyCodeObject* code,
       PyObject* globals,
       jit::hir::FrameMode frame_mode,
       std::size_t num_lm_caches,
       std::size_t num_la_caches,
       std::size_t num_sa_caches,
       std::size_t num_lat_caches)
-      : py_code_(py_code),
+      : frame_state_(code, globals),
         frame_mode_(frame_mode),
         load_method_cache_pool_(num_lm_caches),
         load_attr_cache_pool_(num_la_caches),
         store_attr_cache_pool_(num_sa_caches),
         load_type_attr_caches_(
-            std::make_unique<LoadTypeAttrCache[]>(num_lat_caches)),
-        globals_(globals),
-        builtins_(PyEval_GetBuiltins()) {
+            std::make_unique<LoadTypeAttrCache[]>(num_lat_caches)) {
     // TODO(T88040922): Until we work out something smarter, force code and
     // globals objects for compiled functions to live as long as the JIT is
     // initialized.
-    addReference(py_code_);
-    addReference(globals_);
+    addReference(reinterpret_cast<PyObject*>(code));
+    addReference(globals);
+  }
+
+  template <typename... Args>
+  RuntimeFrameState* allocateRuntimeFrameState(Args&&... args) {
+    // Serialize as we modify the globally shared runtimes data.
+    ThreadedCompileSerialize guard;
+    inlined_frame_states_.emplace_back(
+        std::make_unique<RuntimeFrameState>(std::forward<Args>(args)...));
+    return inlined_frame_states_.back().get();
   }
 
   ~CodeRuntime() {}
@@ -181,22 +215,12 @@ class CodeRuntime {
     return frame_mode_;
   }
 
-  bool isGen() const {
-    return GetCode()->co_flags & kCoFlagsAnyGenerator;
+  const RuntimeFrameState* frameState() const {
+    return &frame_state_;
   }
 
   // Release any references this CodeRuntime holds to Python objects.
   void releaseReferences();
-
-  PyCodeObject* GetCode() const {
-    return py_code_;
-  }
-  PyObject* GetGlobals() {
-    return globals_;
-  }
-  PyObject* GetBuiltins() {
-    return builtins_;
-  }
 
   JITRT_LoadMethodCache* AllocateLoadMethodCache() {
     return load_method_cache_pool_.AllocateEntry();
@@ -238,17 +262,20 @@ class CodeRuntime {
   // Returns the bytecode offset for the given address in generated code.
   std::optional<int> getBCOffForIP(uintptr_t ip) const;
 
+  static constexpr int64_t frameStateOffset() {
+    return offsetof(CodeRuntime, frame_state_);
+  }
+
   static const int64_t kPyCodeOffset;
 
  private:
-  BorrowedRef<PyCodeObject> py_code_;
+  RuntimeFrameState frame_state_;
+  std::vector<std::unique_ptr<RuntimeFrameState>> inlined_frame_states_;
   jit::hir::FrameMode frame_mode_;
   LoadMethodCachePool load_method_cache_pool_;
   InlineCachePool<LoadAttrCache> load_attr_cache_pool_;
   InlineCachePool<StoreAttrCache> store_attr_cache_pool_;
   std::unique_ptr<LoadTypeAttrCache[]> load_type_attr_caches_;
-  BorrowedRef<PyDictObject> globals_;
-  BorrowedRef<PyDictObject> builtins_;
 
   std::unordered_set<Ref<PyObject>> references_;
 

@@ -42,6 +42,7 @@ PyAPI_DATA(int64_t) __strobe_TCurrentState_offset;
 PyAPI_DATA(int64_t) __strobe_TLSKey_offset;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_CODE_RT;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_PYCODE;
+PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_RTFS;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_PYFRAME;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrKindMask;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrMask;

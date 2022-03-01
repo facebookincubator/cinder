@@ -306,7 +306,7 @@ struct HIRBuilder::TranslationContext {
 
 void HIRBuilder::addInitialYield(TranslationContext& tc) {
   auto out = temps_.AllocateNonStack();
-  tc.emitChecked<InitialYield>(out);
+  tc.emitChecked<InitialYield>(out, tc.frame);
 }
 
 // Add LoadArg instructions for each function argument. This ensures that the
@@ -554,7 +554,9 @@ std::unique_ptr<Function> HIRBuilder::buildHIR() {
 
   // Insert LoadArg, LoadClosureCell, and MakeCell/MakeNullCell instructions
   // for the entry block
-  TranslationContext entry_tc{entry_block, FrameState{code_}};
+  TranslationContext entry_tc{
+      entry_block,
+      FrameState{code_, preloader_.globals(), preloader_.builtins()}};
   AllocateRegistersForLocals(&irfunc->env, entry_tc.frame);
   AllocateRegistersForCells(&irfunc->env, entry_tc.frame);
 
@@ -2657,7 +2659,7 @@ void HIRBuilder::emitLoadGlobal(
     if (value == nullptr) {
       return false;
     }
-    tc.emit<LoadGlobalCached>(result, code_, name_idx);
+    tc.emit<LoadGlobalCached>(result, code_, preloader_.globals(), name_idx);
     auto guard_is = tc.emit<GuardIs>(result, value, result);
     BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
     guard_is->setDescr(fmt::format("LOAD_GLOBAL: {}", PyUnicode_AsUTF8(name)));
@@ -3261,7 +3263,7 @@ void HIRBuilder::emitAsyncForHeaderYieldFrom(
     tc.emit<SetCurrentAwaiter>(awaitable);
   }
   // Unlike emitYieldFrom() we do not use tc.emitChecked() here.
-  tc.emit<YieldFrom>(out, send_value, awaitable);
+  tc.emit<YieldFrom>(out, send_value, awaitable, tc.frame);
   tc.frame.stack.push(out);
 
   // If an exception was raised then exit the loop
@@ -3499,7 +3501,7 @@ void HIRBuilder::emitYieldFrom(TranslationContext& tc, Register* out) {
   if (code_->co_flags & CO_COROUTINE) {
     tc.emit<SetCurrentAwaiter>(iter);
   }
-  tc.emitChecked<YieldFrom>(out, send_value, iter);
+  tc.emitChecked<YieldFrom>(out, send_value, iter, tc.frame);
   stack.push(out);
 }
 
@@ -3516,7 +3518,7 @@ void HIRBuilder::emitYieldValue(TranslationContext& tc) {
     in = out;
     out = temps_.AllocateStack();
   }
-  tc.emitChecked<YieldValue>(out, in);
+  tc.emitChecked<YieldValue>(out, in, tc.frame);
   stack.push(out);
 }
 
@@ -3653,7 +3655,8 @@ void HIRBuilder::emitDispatchEagerCoroResult(
   if (code_->co_flags & CO_COROUTINE) {
     coro_block.emit<SetCurrentAwaiter>(wh_coro_or_result);
   }
-  coro_block.emitChecked<YieldAndYieldFrom>(out, wh_waiter, wh_coro_or_result);
+  coro_block.emitChecked<YieldAndYieldFrom>(
+      out, wh_waiter, wh_coro_or_result, tc.frame);
   coro_block.emit<Branch>(post_await_block);
 
   res_block.emit<Assign>(out, wh_coro_or_result);

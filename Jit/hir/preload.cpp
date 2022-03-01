@@ -264,7 +264,6 @@ std::unique_ptr<Function> Preloader::makeFunction() const {
   irfunc->fullname = fullname_;
   irfunc->setCode(code_);
   irfunc->globals.reset(globals_);
-  irfunc->builtins.reset(builtins_);
   irfunc->prim_args_info.reset(prim_args_info_);
   irfunc->return_type = return_type_;
   irfunc->has_primitive_args = has_primitive_args_;

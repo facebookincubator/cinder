@@ -17,8 +17,10 @@ static bool is_shadow_frame_for_gen(_PyShadowFrame* shadow_frame) {
   // TODO(bsimmers): This condition will need to change when we support eager
   // coroutine execution in the JIT, since there is no PyGenObject* for the
   // frame while executing eagerly (but isGen() will still return true).
+  // TODO(T110700318): Collapse into RTFS case
   bool is_jit_gen = _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT &&
       static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame))
+          ->frameState()
           ->isGen();
 
   // Note this may be JIT or interpreted.
@@ -45,10 +47,11 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       result = PyDict_GetItemString(globals, "__name__");
       break;
     }
+    // TODO(T110700318): Collapse into RTFS case
     case PYSF_CODE_RT: {
       jit::CodeRuntime* code_rt =
           static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
-      globals = code_rt->GetGlobals();
+      globals = code_rt->frameState()->globals();
       JIT_DCHECK(
           globals != nullptr,
           "JIT Runtime frame (%p) has NULL globals",
@@ -56,9 +59,16 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       result = PyDict_GetItemString(globals, "__name__");
       break;
     }
-    case PYSF_PYCODE: {
-      // TODO(emacs): Implement this once the inliner is out in prod
-      result = PyUnicode_FromStringAndSize("<inlined>", 9);
+    case PYSF_RTFS: {
+      auto frame_state =
+          static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
+      globals = frame_state->globals();
+      JIT_DCHECK(
+          globals != nullptr,
+          "JIT Runtime frame (%p) has NULL globals",
+          frame_state);
+      result = PyDict_GetItemString(globals, "__name__");
+      break;
     }
     default: {
       JIT_CHECK(false, "unknown ptr kind");
@@ -184,17 +194,25 @@ void updatePyFrame(
 Ref<PyFrameObject> createPyFrame(
     PyThreadState* tstate,
     _PyShadowFrame* shadow_frame) {
-  JIT_CHECK(
-      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
-      "Unexpected shadow frame type");
-  auto code_rt = static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
-  Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(
-      PyFrame_New(tstate, code_rt->GetCode(), code_rt->GetGlobals(), nullptr));
+  const RuntimeFrameState* frame_state;
+  // TODO(T110700318): Collapse into RTFS case
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT) {
+    frame_state = static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame))
+                      ->frameState();
+  } else {
+    JIT_CHECK(
+        _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS,
+        "Unexpected shadow frame type");
+    frame_state =
+        static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
+  }
+  Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(PyFrame_New(
+      tstate, frame_state->code(), frame_state->globals(), nullptr));
   JIT_CHECK(py_frame != nullptr, "failed allocating frame");
   // PyFrame_New links the frame into the thread stack.
   Py_CLEAR(py_frame->f_back);
   py_frame->f_executing = 1;
-  if (code_rt->isGen()) {
+  if (frame_state->isGen()) {
     // Transfer ownership of the new reference to frame to the generator
     // epilogue.  It handles detecting and unlinking the frame if the generator
     // is present in the `data` field of the shadow frame.
@@ -275,7 +293,7 @@ int getLineNo(_PyShadowFrame* shadow_frame) {
       if (bc_off.has_value()) {
         lasti = bc_off.value();
       }
-      code = code_rt->GetCode();
+      code = code_rt->frameState()->code();
       break;
     }
     case PYSF_PYFRAME: {
@@ -284,9 +302,9 @@ int getLineNo(_PyShadowFrame* shadow_frame) {
       code = frame->f_code;
       break;
     }
-    case PYSF_PYCODE: {
+    case PYSF_RTFS: {
       // inlined code
-      code = static_cast<PyCodeObject*>(ptr);
+      code = static_cast<RuntimeFrameState*>(ptr)->code();
       break;
     }
     case PYSF_DUMMY:
@@ -414,12 +432,13 @@ PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
   _PyShadowFrame_PtrKind ptr_kind = _PyShadowFrame_GetPtrKind(shadow_frame);
   void* ptr = _PyShadowFrame_GetPtr(shadow_frame);
   switch (ptr_kind) {
+    // TODO(T110700318): Collapse into RTFS case
     case PYSF_CODE_RT:
-      return static_cast<jit::CodeRuntime*>(ptr)->GetCode();
+      return static_cast<jit::CodeRuntime*>(ptr)->frameState()->code();
     case PYSF_PYFRAME:
       return static_cast<PyFrameObject*>(ptr)->f_code;
-    case PYSF_PYCODE:
-      return static_cast<PyCodeObject*>(ptr);
+    case PYSF_RTFS:
+      return static_cast<jit::RuntimeFrameState*>(ptr)->code();
     default:
       JIT_CHECK(false, "Unsupported ptr kind %d:", ptr_kind);
   }

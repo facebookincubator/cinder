@@ -395,9 +395,13 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   JIT_CHECK(env->spill_size % kPointerSize == 0, "Bad spill alignment");
   as->mov(x86::rdx, (env->spill_size / kPointerSize) + 1);
   as->mov(x86::rcx, reinterpret_cast<uint64_t>(env->code_rt));
-  if (env->code_rt->GetCode()->co_flags & CO_COROUTINE) {
+  JIT_CHECK(instr->origin()->IsInitialYield(), "expected InitialYield");
+  PyCodeObject* code = static_cast<const hir::InitialYield*>(instr->origin())
+                           ->frameState()
+                           ->code;
+  if (code->co_flags & CO_COROUTINE) {
     emitCall(*env, reinterpret_cast<uint64_t>(JITRT_MakeGenObjectCoro), instr);
-  } else if (env->code_rt->GetCode()->co_flags & CO_ASYNC_GENERATOR) {
+  } else if (code->co_flags & CO_ASYNC_GENERATOR) {
     emitCall(
         *env, reinterpret_cast<uint64_t>(JITRT_MakeGenObjectAsyncGen), instr);
   } else {

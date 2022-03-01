@@ -1269,8 +1269,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kDeleteAttr: {
         std::string tmp = GetSafeTempName();
         auto instr = static_cast<const DeleteAttr*>(&i);
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
         bbb.AppendCode(
             "Call {}:CInt32, {}, {}, {}, 0",
             tmp,
@@ -1285,8 +1285,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string tmp_id = GetSafeTempName();
         auto func = reinterpret_cast<uint64_t>(&jit::LoadAttrCache::invoke);
         auto cache = env_->code_rt->AllocateLoadAttrCache();
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
 
         bbb.AppendCode(
             "Move {0}, {1:#x}\n"
@@ -1323,8 +1323,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             env_->code_rt->getLoadTypeAttrCache(instr->cache_id()));
         auto func = reinterpret_cast<uint64_t>(&jit::LoadTypeAttrCache::invoke);
         std::string tmp_id = GetSafeTempName();
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
         bbb.AppendCode(
@@ -1340,8 +1340,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadMethod*>(&i);
 
         std::string tmp_id = GetSafeTempName();
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
 
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
@@ -1370,8 +1370,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadMethodSuper: {
         auto instr = static_cast<const LoadMethodSuper*>(&i);
         std::string tmp_id = GetSafeTempName();
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
 
@@ -1403,8 +1403,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadAttrSuper: {
         auto instr = static_cast<const LoadAttrSuper*>(&i);
         std::string tmp_id = GetSafeTempName();
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
 
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
@@ -1660,9 +1660,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadGlobalCached: {
         ThreadedCompileSerialize guard;
         auto instr = static_cast<const LoadGlobalCached*>(&i);
-        PyObject* globals = env_->code_rt->GetGlobals();
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyObject* globals = instr->globals();
+        env_->code_rt->addReference(globals);
+        PyObject* name =
+            PyTuple_GET_ITEM(instr->code()->co_names, instr->name_idx());
         auto cache = env_->rt->findGlobalCache(globals, name);
         bbb.AppendCode(
             "Load {}, {:#x}",
@@ -1672,10 +1673,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadGlobal: {
         auto instr = static_cast<const LoadGlobal*>(&i);
-        PyObject* builtins = env_->code_rt->GetBuiltins();
-        PyObject* globals = env_->code_rt->GetGlobals();
+        PyObject* builtins = instr->frameState()->builtins;
+        env_->code_rt->addReference(builtins);
+        PyObject* globals = instr->frameState()->globals;
+        env_->code_rt->addReference(globals);
         PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+            instr->frameState()->code->co_names, instr->name_idx());
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}, {}",
             instr->GetOutput(),
@@ -1690,7 +1693,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         std::string tmp_id = GetSafeTempName();
 
-        PyCodeObject* code = GetHIRFunction()->code;
+        PyCodeObject* code = instr->frameState()->code;
         auto ob_item =
             reinterpret_cast<PyTupleObject*>(code->co_names)->ob_item;
         StoreAttrCache* cache = env_->code_rt->allocateStoreAttrCache();
@@ -2349,7 +2352,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const MakeFunction*>(&i);
         auto qualname = instr->GetOperand(0);
         auto code = instr->GetOperand(1);
-        PyObject* globals = GetHIRFunction()->globals;
+        PyObject* globals = instr->frameState()->globals;
+        env_->code_rt->addReference(globals);
 
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {:#x}, {}",
@@ -2460,8 +2464,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kImportFrom: {
         auto& instr = static_cast<const ImportFrom&>(i);
-        PyObject* name =
-            PyTuple_GET_ITEM(GetHIRFunction()->code->co_names, instr.nameIdx());
+        PyCodeObject* code = instr.frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr.nameIdx());
         bbb.AppendCode(
             "Call {}, {:#x}, __asm_tstate, {}, {}",
             i.GetOutput(),
@@ -2472,8 +2476,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kImportName: {
         auto instr = static_cast<const ImportName*>(&i);
-        PyObject* name = PyTuple_GET_ITEM(
-            GetHIRFunction()->code->co_names, instr->name_idx());
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
         bbb.AppendCode(
             "Call {}, {:#x}, __asm_tstate, {}, {}, {}",
             i.GetOutput(),

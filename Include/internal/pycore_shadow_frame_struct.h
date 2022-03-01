@@ -68,8 +68,10 @@ typedef enum {
   /* Pointer holds PyFrameObject*. */
   PYSF_PYFRAME = 0b01,
 
-  /* Pointer holds PyCodeObject*. */
-  PYSF_PYCODE = 0b10,
+  /* Pointer holds jit::RuntimeFrameState*. This is sufficient to reify a
+   * PyFrameObject, access a PyCodeObject, or tell if the function is a
+   * generator. */
+  PYSF_RTFS = 0b10,
 
   /* Dummy value. The JIT assumes that a PtrKind has bit 0 set if any only if
    * data is a PyFrameObject*, so this value should be skipped if we add more

@@ -176,9 +176,15 @@ struct FrameState {
     stack = other.stack;
     block_stack = other.block_stack;
     code.reset(other.code.get());
+    globals = other.globals;
+    builtins = other.builtins;
     return *this;
   }
-  FrameState(BorrowedRef<PyCodeObject> code) : code(code) {}
+  FrameState(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> globals,
+      BorrowedRef<PyDictObject> builtins)
+      : code(code), globals(globals), builtins(builtins) {}
   explicit FrameState(int bc_off) : next_instr_offset(bc_off) {}
   FrameState(int bc_off, const OperandStack& os, const BlockStack& bs)
       : next_instr_offset(bc_off), stack(os), block_stack(bs) {}
@@ -199,6 +205,8 @@ struct FrameState {
   OperandStack stack;
   BlockStack block_stack;
   Ref<PyCodeObject> code;
+  BorrowedRef<PyDictObject> globals;
+  BorrowedRef<PyDictObject> builtins;
 
   // The bytecode offset of the current instruction, or -1 if no instruction
   // has executed. This corresponds to the `f_lasti` field of PyFrameObject.
@@ -2553,11 +2561,19 @@ class INSTR_CLASS(LoadFunctionIndirect, (), HasOutput, Operands<0>, DeoptBase) {
 // object.
 class INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
  public:
-  LoadGlobalCached(Register* dst, BorrowedRef<PyCodeObject> code, int name_idx)
-      : InstrT(dst), code_(code), name_idx_(name_idx) {}
+  LoadGlobalCached(
+      Register* dst,
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> globals,
+      int name_idx)
+      : InstrT(dst), code_(code), globals_(globals), name_idx_(name_idx) {}
 
   BorrowedRef<PyCodeObject> code() const {
     return code_;
+  }
+
+  BorrowedRef<PyDictObject> globals() const {
+    return globals_;
   }
 
   int name_idx() const {
@@ -2565,7 +2581,8 @@ class INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
   }
 
  private:
-  Ref<PyCodeObject> code_;
+  BorrowedRef<PyCodeObject> code_;
+  BorrowedRef<PyDictObject> globals_;
   int name_idx_;
 };
 
@@ -3298,7 +3315,9 @@ DEFINE_SIMPLE_INSTR(SetCurrentAwaiter, (TOptObject), Operands<1>);
 
 class YieldBase : public Instr {
  public:
-  explicit YieldBase(Opcode op) : Instr(op) {}
+  explicit YieldBase(Opcode op, const FrameState& state) : Instr(op) {
+    frame_state_ = std::make_unique<FrameState>(state);
+  }
 
   void emplaceLiveOwnedReg(Register* reg) {
     live_owned_regs_.emplace_back(reg);
@@ -3316,9 +3335,14 @@ class YieldBase : public Instr {
     return live_unowned_regs_;
   }
 
+  FrameState* frameState() const {
+    return frame_state_.get();
+  }
+
  private:
   std::vector<Register*> live_owned_regs_;
   std::vector<Register*> live_unowned_regs_;
+  std::unique_ptr<FrameState> frame_state_{nullptr};
 };
 
 DEFINE_SIMPLE_INSTR(YieldValue, (TObject), HasOutput, Operands<1>, YieldBase);
@@ -3752,7 +3776,6 @@ class Function {
 
   Ref<PyCodeObject> code;
   Ref<PyDictObject> globals;
-  Ref<PyDictObject> builtins;
 
   // for primitive args only, null if there are none
   Ref<_PyTypedArgsInfo> prim_args_info;

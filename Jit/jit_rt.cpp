@@ -1541,7 +1541,8 @@ static inline PyObject* make_gen_object(
     size_t spill_words,
     jit::CodeRuntime* code_rt) {
   PyGenObject* gen = nullptr;
-  PyCodeObject* code = code_rt->GetCode();
+  const jit::RuntimeFrameState* frame_state = code_rt->frameState();
+  PyCodeObject* code = frame_state->code();
   if (_PyJIT_ShadowFrame() || code->co_flags & CO_SHADOW_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(_PyCoro_NewNoFrame(tstate, code));
@@ -1551,7 +1552,7 @@ static inline PyObject* make_gen_object(
       gen = reinterpret_cast<PyGenObject*>(_PyGen_NewNoFrame(code));
     }
   } else {
-    PyFrameObject* f = allocateFrame(tstate, code, code_rt->GetGlobals());
+    PyFrameObject* f = allocateFrame(tstate, code, frame_state->globals());
     // This clearing of f_back only when returning a generator matches
     // CPython's generator handling in _PyEval_EvalCodeWithName; it also avoids
     // keeping the parent frame alive longer than necessary if the caller

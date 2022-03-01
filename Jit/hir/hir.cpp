@@ -902,7 +902,6 @@ Function::~Function() {
   ThreadedCompileSerialize guard;
   code.reset();
   globals.reset();
-  builtins.reset();
 }
 
 Register* Environment::addRegister(std::unique_ptr<Register> reg) {

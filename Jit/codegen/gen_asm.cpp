@@ -549,9 +549,14 @@ void NativeGenerator::loadOrGenerateLinkFrame(
         as_->push(x86::rax);
       }
 
-      as_->mov(x86::rdi, reinterpret_cast<intptr_t>(GetFunction()->code.get()));
       as_->mov(
-          x86::rsi, reinterpret_cast<intptr_t>(GetFunction()->globals.get()));
+          x86::rdi,
+          reinterpret_cast<intptr_t>(
+              codeRuntime()->frameState()->code().get()));
+      as_->mov(
+          x86::rsi,
+          reinterpret_cast<intptr_t>(
+              codeRuntime()->frameState()->globals().get()));
 
       as_->call(reinterpret_cast<uint64_t>(JITRT_AllocateAndLinkFrame));
       as_->mov(tstate_reg, x86::rax);
@@ -1562,7 +1567,7 @@ static PyFrameObject* prepareForDeopt(
 
     // Unlink frames. No unlink for generator shadow frames as this is handled
     // by the send implementation.
-    if (!deopt_meta.code_rt->isGen()) {
+    if (!deopt_meta.code_rt->frameState()->isGen()) {
       _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
     }
     JITRT_UnlinkFrame(tstate);
@@ -1575,7 +1580,7 @@ static PyFrameObject* prepareForDeopt(
   // on the shadow stack for each frame on the Python stack. Unless we are a
   // a generator, the interpreter will insert a new entry on the shadow stack
   // when execution resumes there, so we remove our entry.
-  if (!deopt_meta.code_rt->isGen()) {
+  if (!deopt_meta.code_rt->frameState()->isGen()) {
     _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
   }
 

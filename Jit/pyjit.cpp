@@ -784,7 +784,7 @@ Ref<> make_deopt_stats() {
     const DeoptMetadata& meta = runtime->getDeoptMetadata(pair.first);
     const DeoptStat& stat = pair.second;
     CodeRuntime& code_rt = *meta.code_rt;
-    BorrowedRef<PyCodeObject> code = code_rt.GetCode();
+    BorrowedRef<PyCodeObject> code = code_rt.frameState()->code();
 
     auto func_qualname = code->co_qualname;
     int lineno_raw = code->co_lnotab != nullptr
@@ -1553,12 +1553,18 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
   if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
     return _PyShadowFrame_GetPyFrame(shadow_frame)->f_globals;
   }
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS) {
+    return static_cast<jit::RuntimeFrameState*>(
+               _PyShadowFrame_GetPtr(shadow_frame))
+        ->globals();
+  }
+  // TODO(T110700318): Collapse into RTFS case
   JIT_DCHECK(
       _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
       "Unexpected shadow frame type");
   jit::CodeRuntime* code_rt =
       static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
-  return code_rt->GetGlobals();
+  return code_rt->frameState()->globals();
 }
 
 void _PyJIT_ProfileCurrentInstr(

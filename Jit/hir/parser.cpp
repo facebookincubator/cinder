@@ -279,7 +279,8 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     int name_idx = GetNextNameIdx();
     expect(">");
-    instruction = LoadGlobalCached::create(dst, /*code=*/nullptr, name_idx);
+    instruction = LoadGlobalCached::create(
+        dst, /*code=*/nullptr, /*globals=*/nullptr, name_idx);
   } else if (strcmp(opcode, "StoreAttr") == 0) {
     expect("<");
     int idx = GetNextNameIdx();
@@ -408,10 +409,10 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
       }
     }
     if (strcmp(opcode, "InitialYield") == 0) {
-      instruction = InitialYield::create(dst);
+      instruction = InitialYield::create(dst, FrameState{});
     } else {
       auto reg = ParseRegister();
-      instruction = YieldValue::create(dst, reg);
+      instruction = YieldValue::create(dst, reg, FrameState{});
     }
     YieldBase* yield_base = dynamic_cast<YieldBase*>(instruction);
     JIT_CHECK(yield_base, "Not a yield opcode");

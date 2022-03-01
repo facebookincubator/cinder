@@ -5,7 +5,8 @@
 
 namespace jit {
 
-const int64_t CodeRuntime::kPyCodeOffset = offsetof(CodeRuntime, py_code_);
+const int64_t CodeRuntime::kPyCodeOffset =
+    RuntimeFrameState::codeOffset() + CodeRuntime::frameStateOffset();
 
 int GenYieldPoint::visitRefs(PyGenObject* gen, visitproc visit, void* arg)
     const {

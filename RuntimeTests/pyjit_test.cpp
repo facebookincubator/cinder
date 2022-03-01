@@ -60,3 +60,20 @@ TEST_F(PyJITTest, PyInitialization) {
 
   _PyJIT_Finalize();
 }
+
+TEST_F(RuntimeTest, ReadingFromCodeRuntimeReadsCode) {
+  const char* src = R"(
+def test(a, b):
+  return a + b
+)";
+  Ref<PyFunctionObject> func(compileAndGet(src, "test"));
+  ASSERT_NE(func, nullptr);
+  PyCodeObject* code = func->func_code;
+  Runtime* ngen_rt = NativeGeneratorFactory::runtime();
+  CodeRuntime* code_rt = runtime.allocateCodeRuntime(
+      code, func->func_globals, FrameMode::kShadow, 0, 0, 0, 0);
+  EXPECT_EQ(
+      *reinterpret_cast<PyCodeObject**>(
+          reinterpret_cast<byte*>(code_rt) + __strobe_CodeRuntime_py_code),
+      reinterpret_cast<byte*>(code));
+}
