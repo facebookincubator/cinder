@@ -1679,7 +1679,7 @@ void HIRBuilder::emitCallMethod(
     const jit::BytecodeInstruction& bc_instr,
     bool is_awaited) {
   std::size_t num_operands = static_cast<std::size_t>(bc_instr.oparg()) + 2;
-  tc.emitVariadic<CallMethod>(temps_, num_operands, is_awaited);
+  tc.emitVariadic<CallMethod>(temps_, num_operands, is_awaited, tc.frame);
 }
 
 void HIRBuilder::emitBuildSlice(

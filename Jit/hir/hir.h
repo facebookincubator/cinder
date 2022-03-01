@@ -1503,8 +1503,6 @@ class INSTR_CLASS(Phi, (TTop), HasOutput, Operands<>) {
 // operands are arguments to the call.
 class INSTR_CLASS(CallMethod, (TOptObject), HasOutput, Operands<>, DeoptBase) {
  public:
-  CallMethod(Register* dst, bool is_awaited)
-      : InstrT(dst), is_awaited_(is_awaited) {}
   CallMethod(Register* dst, bool is_awaited, const FrameState& frame)
       : InstrT(dst, frame), is_awaited_(is_awaited) {}
 
