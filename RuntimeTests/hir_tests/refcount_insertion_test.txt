@@ -56,17 +56,15 @@ fun test {
       LiveValues<2> o:v1 o:v2
       NextInstrOffset 0
     }
-    v4:MortalDict = Assign v1
-    v5:MortalDict = Assign v4
     CondBranch<1, 3> v2
   }
 
   bb 1 (preds 0) {
-    v7:Object = BinaryOp<Add> v4 v5 {
-      LiveValues<3> o:v3 o:v4 b:v5
+    v7:Object = BinaryOp<Add> v1 v1 {
+      LiveValues<2> o:v1 o:v3
       NextInstrOffset 0
     }
-    Decref v4
+    Decref v1
     v8:Object = CheckExc v7 {
       LiveValues<2> o:v3 o:v7
       NextInstrOffset 0
@@ -76,7 +74,7 @@ fun test {
   }
 
   bb 3 (preds 0) {
-    Decref v4
+    Decref v1
     Branch<2>
   }
 

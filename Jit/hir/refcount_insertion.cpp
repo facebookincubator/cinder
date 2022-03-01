@@ -1194,6 +1194,7 @@ std::ostream& operator<<(std::ostream& os, const StateMap& regs) {
 } // namespace
 
 void RefcountInsertion::Run(Function& func) {
+  PhiElimination{}.Run(func);
   bindGuards(func);
   func.cfg.splitCriticalEdges();
 
