@@ -951,17 +951,17 @@ void HIRBuilder::translate(
         }
         case RETURN_PRIMITIVE: {
           Type type = prim_type_to_type(bc_instr.oparg());
-          if (irfunc.return_type <= TCEnum) {
+          if (preloader_.returnType() <= TCEnum) {
             JIT_CHECK(
                 type <= TCInt64,
                 "bad return type %s for enum, expected CInt64",
                 type);
           } else {
             JIT_CHECK(
-                type <= irfunc.return_type,
+                type <= preloader_.returnType(),
                 "bad return type %s, expected %s",
                 type,
-                irfunc.return_type);
+                preloader_.returnType());
           }
           Register* reg = tc.frame.stack.pop();
           tc.emit<Return>(reg, type);
@@ -969,9 +969,10 @@ void HIRBuilder::translate(
         }
         case RETURN_VALUE: {
           Register* reg = tc.frame.stack.pop();
-          // TODO add irfunc.return_type to Return instr here to validate that
-          // all values flowing to return are of correct type; will require
-          // consistency of static compiler and JIT types, see T86480663
+          // TODO add preloader_.returnType() to Return instr here to validate
+          // that all values flowing to return are of correct type; will
+          // require consistency of static compiler and JIT types, see
+          // T86480663
           JIT_CHECK(
               tc.frame.block_stack.isEmpty(),
               "Returning with non-empty block stack");

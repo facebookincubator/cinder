@@ -140,6 +140,10 @@ class Preloader {
     return fullname_;
   }
 
+  Type returnType() const {
+    return return_type_;
+  }
+
  private:
   BorrowedRef<> constArg(BytecodeInstruction& bc_instr) const;
   GlobalCache getGlobalCache(BorrowedRef<> name) const;
