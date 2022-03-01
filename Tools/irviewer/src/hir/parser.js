@@ -65,7 +65,15 @@ function parseFrameState(tokens) {
     return {};
   }
   tokens.expect("{");
-  tokens.dropWhile((t) => t.data != "}");
+  let block_depth = 1;
+  tokens.dropWhile((t) => {
+    if (t.data == "{") {
+      block_depth++;
+    } else if (t.data == "}") {
+      block_depth--;
+    }
+    return block_depth != 0;
+  });
   tokens.expect("}");
   return {};
 }
@@ -156,14 +164,22 @@ function parseBlock(registers, tokens) {
 }
 
 function parseFuncName(tokens) {
-  let name = tokens.next().data;
-  // Handle <lambda>
-  if (tokens.peek().data == "<") {
-    name += tokens
-      .nextN(3)
-      .map((t) => t.data)
-      .join("");
-  }
+  let name = "";
+  do {
+    name += tokens.next().data;
+    // Handle angle-bracketed elements e.g.: x.<foo>.y.<bar>
+    if (tokens.peek().data == "<") {
+      name += tokens
+        .nextN(3)
+        .map((t) => t.data)
+        .join("");
+      if (tokens.peek().data[0] != ".") {
+        break;
+      }
+    } else {
+      break;
+    }
+  } while (true);
   return name;
 }
 

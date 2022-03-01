@@ -83,7 +83,7 @@ fun foo {
 
 test("parses instructions", () => {
   let src = `
-fun __main__:test {
+fun __main__:CoroAsyncIOCompatTest.test_asyncio_1.<locals>.f.<lambda> {
   bb 0 {
     v4:OptObject = LoadGlobalCached<0; "print">
     CondBranch<2, 1> v4
@@ -110,6 +110,9 @@ fun __main__:test {
     Decref v8
     v11:Object = CheckExc<1, o:v10> v10 {
       NextInstrOffset 6
+      BlockStack {
+        Opcode 122 HandlerOff 40 StackLevel 1
+      }
     }
     Decref v11
     v12:NoneType = LoadConst<0>
