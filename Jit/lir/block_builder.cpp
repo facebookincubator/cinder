@@ -8,6 +8,8 @@
 
 #include <dlfcn.h>
 
+#include <sstream>
+
 // XXX: this file needs to be revisited when we optimize HIR-to-LIR translation
 // in codegen.cpp/h. Currently, this file is almost an identical copy from
 // bbbuilder.cpp with some interfaces changes so that it works with the new
@@ -60,10 +62,8 @@ BasicBlockBuilder::BasicBlockBuilder(jit::codegen::Environ* env, Function* func)
 }
 
 void BasicBlockBuilder::AppendCode(const std::string& s) {
-  auto it = s.begin();
-  do {
-    auto end = std::find(it, s.end(), '\n');
-    std::string line(it, end);
+  auto stream = std::stringstream{s};
+  for (std::string line; std::getline(stream, line, '\n');) {
     if (IsLabel(line)) {
       line.pop_back();
       auto next_bb = GetBasicBlockByLabel(line);
@@ -75,8 +75,7 @@ void BasicBlockBuilder::AppendCode(const std::string& s) {
     } else {
       AppendCodeLine(line);
     }
-    it = (end == s.end() ? s.end() : ++end);
-  } while (it != s.end());
+  }
 }
 
 std::vector<std::string> BasicBlockBuilder::Tokenize(const std::string& s) {
