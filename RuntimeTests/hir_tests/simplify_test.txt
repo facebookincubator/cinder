@@ -716,11 +716,11 @@ fun test {
       NextInstrOffset 0
     }
     v8:Bool = LongCompare<Equal> v2 v3
-    v5:CInt32 = IsTruthy v8 {
-      NextInstrOffset 4
-      Locals<2> v2 v3
-    }
-    CondBranch<2, 1> v5
+    UseType<Bool> v8
+    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v10:CBool = PrimitiveCompare<Equal> v8 v9
+    v11:CInt32 = IntConvert<CInt32> v10
+    CondBranch<2, 1> v11
   }
 
   bb 2 (preds 0) {
@@ -838,6 +838,65 @@ fun test {
   bb 2 (preds 0) {
     v3:NoneType = LoadConst<NoneType>
     Return v3
+  }
+}
+---
+IsTruthyWithObjectRemainsIsTruthy
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = Assign v1
+    v3 = IsTruthy v2
+    v4 = PrimitiveBox<CInt32> v3
+    v5 = CheckExc v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Object = Assign v1
+    v3:CInt32 = IsTruthy v2 {
+      NextInstrOffset 0
+    }
+    v4:OptLongExact = PrimitiveBox<CInt32> v3
+    v5:LongExact = CheckExc v4 {
+      NextInstrOffset 0
+    }
+    Return v5
+  }
+}
+---
+IsTruthyWithBoolRewritesToPrimitiveCompare
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = RefineType<Bool> v1
+    v3 = IsTruthy v2
+    v4 = PrimitiveBox<CInt32> v3
+    v5 = CheckExc v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Bool = RefineType<Bool> v1
+    UseType<Bool> v2
+    v6:MortalBool[True] = LoadConst<MortalBool[True]>
+    v7:CBool = PrimitiveCompare<Equal> v2 v6
+    v8:CInt32 = IntConvert<CInt32> v7
+    v4:OptLongExact = PrimitiveBox<CInt32> v8
+    v5:LongExact = CheckExc v4 {
+      NextInstrOffset 0
+    }
+    Return v5
   }
 }
 ---

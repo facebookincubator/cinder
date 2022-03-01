@@ -248,6 +248,14 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
   Type ty = instr->GetOperand(0)->type();
   PyObject* obj = ty.asObject();
   if (obj == nullptr) {
+    if (ty <= TBool) {
+      Register* left = instr->GetOperand(0);
+      env.emit<UseType>(left, TBool);
+      Register* right = env.emit<LoadConst>(Type::fromObject(Py_True));
+      Register* result =
+          env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, left, right);
+      return env.emit<IntConvert>(result, TCInt32);
+    }
     return nullptr;
   }
   // Should only consider immutable Objects
