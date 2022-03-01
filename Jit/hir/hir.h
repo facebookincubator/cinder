@@ -175,7 +175,7 @@ struct FrameState {
     cells = other.cells;
     stack = other.stack;
     block_stack = other.block_stack;
-    code.reset(other.code.get());
+    code = other.code;
     globals = other.globals;
     builtins = other.builtins;
     return *this;
@@ -204,7 +204,7 @@ struct FrameState {
 
   OperandStack stack;
   BlockStack block_stack;
-  Ref<PyCodeObject> code;
+  BorrowedRef<PyCodeObject> code;
   BorrowedRef<PyDictObject> globals;
   BorrowedRef<PyDictObject> builtins;
 
