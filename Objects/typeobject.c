@@ -1575,8 +1575,12 @@ _PyObject_LookupSpecial(PyObject *self, _Py_Identifier *attrid)
         descrgetfunc f;
         if ((f = Py_TYPE(res)->tp_descr_get) == NULL)
             Py_INCREF(res);
-        else
-            res = f(res, self, (PyObject *)(Py_TYPE(self)));
+        else {
+            PyObject* descr = res;
+            Py_INCREF(descr);
+            res = f(descr, self, (PyObject *)(Py_TYPE(self)));
+            Py_DECREF(descr);
+        }
     }
     return res;
 }
@@ -1601,7 +1605,10 @@ lookup_maybe_method(PyObject *self, _Py_Identifier *attrid, int *unbound)
             Py_INCREF(res);
         }
         else {
-            res = f(res, self, (PyObject *)(Py_TYPE(self)));
+            PyObject* descr = res;
+            Py_INCREF(descr);
+            res = f(descr, self, (PyObject *)(Py_TYPE(self)));
+            Py_DECREF(descr);
         }
     }
     return res;
