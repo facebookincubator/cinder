@@ -205,6 +205,7 @@ Ref<PyFrameObject> createPyFrame(
         "Unexpected shadow frame type");
     frame_state =
         static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
+    JIT_CHECK(!frame_state->isGen(), "unexpected generator in inlined frame");
   }
   Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(PyFrame_New(
       tstate, frame_state->code(), frame_state->globals(), nullptr));
@@ -316,23 +317,84 @@ int getLineNo(_PyShadowFrame* shadow_frame) {
   return PyCode_Addr2Line(code, lasti);
 }
 
+const char* codeName(PyCodeObject* code) {
+  if (code->co_qualname == nullptr) {
+    return "<null>";
+  }
+  return PyUnicode_AsUTF8(code->co_qualname);
+}
+
+const char* shadowFrameKind(_PyShadowFrame* sf) {
+  switch (_PyShadowFrame_GetPtrKind(sf)) {
+    case PYSF_PYFRAME:
+      return "fra";
+    case PYSF_CODE_RT:
+      return "crt";
+    case PYSF_RTFS:
+      return "inl";
+    case PYSF_DUMMY:
+      return "<dummy>";
+  }
+  JIT_CHECK(
+      false, "Unknown shadow frame kind %d", _PyShadowFrame_GetPtrKind(sf));
+}
+
 } // namespace
 
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
-  auto py_frame = Ref<PyFrameObject>::steal(
-      materializePyFrame(tstate, tstate->shadow_frame, nullptr));
-  return py_frame;
+  PyFrameObject* prev_py_frame = nullptr;
+  // Start from the deepest frame.
+  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+  // Materialize all the inlined frames.
+  while (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS) {
+    prev_py_frame = materializePyFrame(tstate, shadow_frame, prev_py_frame);
+    shadow_frame = shadow_frame->prev;
+  }
+  // If running in shadow frame mode, we need to materialize a frame for the
+  // caller of the inlined functions. Otherwise, the frame will already be
+  // there.
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT) {
+    materializePyFrame(tstate, shadow_frame, prev_py_frame);
+  }
+  if (py_debug) {
+    assertShadowCallStackConsistent(tstate);
+  }
+  return Ref<PyFrameObject>::steal(tstate->frame);
 }
 
 void assertShadowCallStackConsistent(PyThreadState* tstate) {
   PyFrameObject* py_frame = tstate->frame;
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
 
+  std::vector<_PyShadowFrame*> frames;
   while (shadow_frame) {
+    frames.push_back(shadow_frame);
     if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+      if (py_frame != _PyShadowFrame_GetPyFrame(shadow_frame)) {
+        std::fprintf(stderr, "topmost:\n");
+        for (size_t i = 0; i < frames.size(); i++) {
+          _PyShadowFrame* sf = frames.at(i);
+          Ref<> sf_name =
+              Ref<>::steal(_PyShadowFrame_GetFullyQualifiedName(sf));
+          const char* sf_name_str =
+              sf_name == nullptr ? "<null>" : PyUnicode_AsUTF8(sf_name);
+          if (sf_name_str == nullptr) {
+            sf_name_str = "<null>";
+          }
+          std::fprintf(
+              stderr,
+              "  %s prev=%p data=%p name=%s\n",
+              shadowFrameKind(sf),
+              shadow_frame->prev,
+              reinterpret_cast<void*>(shadow_frame->data),
+              sf_name_str);
+        }
+      }
       JIT_CHECK(
           py_frame == _PyShadowFrame_GetPyFrame(shadow_frame),
-          "Inconsistent shadow and py frame");
+          "Inconsistent shadow and py frame (%s vs %s)",
+          codeName(py_frame->f_code),
+          codeName(_PyShadowFrame_GetPyFrame(shadow_frame)->f_code));
       py_frame = py_frame->f_back;
     }
     shadow_frame = shadow_frame->prev;

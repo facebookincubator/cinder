@@ -5,6 +5,7 @@
 #include "frameobject.h"
 #include "internal/pycore_shadow_frame_struct.h"
 
+#include "Jit/deopt.h"
 #include "Jit/ref.h"
 
 namespace jit {
@@ -41,5 +42,7 @@ Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate);
 BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen);
+
+void assertShadowCallStackConsistent(PyThreadState* tstate);
 
 } // namespace jit
