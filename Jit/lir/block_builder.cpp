@@ -350,6 +350,14 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
     createInstr(Instruction::kBranchNZ);
     auto succ_bb = GetBasicBlockByLabel(tokens[1]);
     cur_bb_->addSuccessor(succ_bb);
+  } else if (instr_str == "BranchC") {
+    createInstr(Instruction::kBranchC);
+    auto succ_bb = GetBasicBlockByLabel(tokens[1]);
+    cur_bb_->addSuccessor(succ_bb);
+  } else if (instr_str == "BranchNC") {
+    createInstr(Instruction::kBranchNC);
+    auto succ_bb = GetBasicBlockByLabel(tokens[1]);
+    cur_bb_->addSuccessor(succ_bb);
   } else if (instr_str == "BitTest") {
     auto instr = createInstr(Instruction::kBitTest);
     CreateInstrInput(instr, tokens[1]);

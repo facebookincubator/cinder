@@ -1041,6 +1041,14 @@ BEGIN_RULES(Instruction::kBranchLE)
   GEN("b", ASM(jle, LBL(0)))
 END_RULES
 
+BEGIN_RULES(Instruction::kBranchC)
+  GEN("b", ASM(jc, LBL(0)))
+END_RULES
+
+BEGIN_RULES(Instruction::kBranchNC)
+  GEN("b", ASM(jnc, LBL(0)))
+END_RULES
+
 #define DEF_COMPARE_OP_RULES(name, fpcomp) \
 BEGIN_RULES(Instruction::name) \
   GEN("Rrr", CALL(TranslateCompare)) \

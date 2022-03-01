@@ -87,6 +87,8 @@ enum class FlagEffects {
   X(BranchL)                                                                 \
   X(BranchGE)                                                                \
   X(BranchLE)                                                                \
+  X(BranchC)                                                                 \
+  X(BranchNC)                                                                \
   X(BitTest, false, FlagEffects::kSet, kDefault, 1, {1})                     \
   X(Inc, false, FlagEffects::kSet)                                           \
   X(Dec, false, FlagEffects::kSet)                                           \
@@ -387,6 +389,8 @@ class Instruction {
 
   bool isBranchCC() const {
     switch (opcode_) {
+      case kBranchC:
+      case kBranchNC:
       case kBranchZ:
       case kBranchNZ:
       case kBranchA:
@@ -438,6 +442,7 @@ class Instruction {
   // e.g. A >= B -> !(A < B)
   static Opcode negateBranchCC(Opcode opcode) {
     switch (opcode) {
+      CASE_FLIP(kBranchC, kBranchNC)
       CASE_FLIP(kBranchZ, kBranchNZ)
       CASE_FLIP(kBranchA, kBranchBE)
       CASE_FLIP(kBranchB, kBranchAE)
