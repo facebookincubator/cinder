@@ -3,6 +3,10 @@ This is Python version 3.8.5+cinder
 
 (For more on Cinder, see ``README.rst``.)
 
+.. image:: https://img.shields.io/badge/Support-Ukraine-FFD500?style=flat&labelColor=005BBB
+   :alt: Support Ukraine - Help Provide Humanitarian Aid to Ukraine.
+   :target: https://opensource.facebook.com/support-ukraine
+
 .. image:: https://travis-ci.org/python/cpython.svg?branch=3.8
    :alt: CPython build status on Travis CI
    :target: https://travis-ci.org/python/cpython/branches
