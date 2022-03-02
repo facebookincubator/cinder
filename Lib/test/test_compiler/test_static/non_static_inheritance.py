@@ -44,7 +44,9 @@ class NonStaticInheritanceTests(StaticTestBase):
             def f(x: C):
                 return x.f()
         """
-        with self.in_strict_module(codestr, name="mymod", enable_patching=True) as mod:
+        with self.in_strict_module(
+            codestr, name="mymod", enable_patching=True, freeze=False
+        ) as mod:
             C = mod.C
             f = mod.f
 

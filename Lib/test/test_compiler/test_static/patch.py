@@ -1473,7 +1473,7 @@ class StaticPatchTests(StaticTestBase):
         def f(c: C) -> int:
             return c.x
         """
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
             setattr(mod.C, "x", 42)
             self.assertEqual(mod.C().x, 42)
             self.assertEqual(mod.f(mod.C()), 42)
@@ -1486,7 +1486,7 @@ class StaticPatchTests(StaticTestBase):
                 return 3
 
         """
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
             with self.assertRaisesRegex(
                 TypeError, "Cannot assign a str, because C.x is expected to be a int"
             ):
@@ -1505,7 +1505,7 @@ class StaticPatchTests(StaticTestBase):
         def f(c: C) -> int:
             return c.x
         """
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
             c = mod.C()
             setattr(mod.C, "x", 42)
             self.assertEqual(c.x, 42)
@@ -1523,7 +1523,7 @@ class StaticPatchTests(StaticTestBase):
         def f(c: C) -> int:
             return c.x
         """
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
             with self.assertRaisesRegex(
                 TypeError, "Cannot assign a str, because C.x is expected to be a int"
             ):
@@ -1542,7 +1542,7 @@ class StaticPatchTests(StaticTestBase):
         def f(c: C) -> int:
             return c.x
         """
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
             c = mod.C()
             setattr(mod.C, "x", 42)
             self.assertEqual(c.x, 42)
@@ -1561,7 +1561,7 @@ class StaticPatchTests(StaticTestBase):
         def f(c: C) -> Optional[int]:
             return c.x
         """
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
             c = mod.C()
             setattr(mod.C, "x", None)
             self.assertEqual(c.x, None)
@@ -1589,7 +1589,7 @@ class StaticPatchTests(StaticTestBase):
             class D(C):
                 pass
             """
-            with self.in_strict_module(codestr) as mod:
+            with self.in_strict_module(codestr, freeze=False) as mod:
                 D = mod.D
                 C = mod.C
 
@@ -1631,7 +1631,7 @@ class StaticPatchTests(StaticTestBase):
         async def f(c: C) -> int:
             return await c.x
         """
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
             setattr(mod.C, "x", "42")
 
             with self.assertRaisesRegex(
@@ -1671,7 +1671,7 @@ class StaticPatchTests(StaticTestBase):
             def __get__(self, _, __=None):
                 return self
 
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
 
             setattr(mod.C, "x", TestAwaitableProperty())
 
@@ -1710,7 +1710,7 @@ class StaticPatchTests(StaticTestBase):
             def __get__(self, _, __=None):
                 return self
 
-        with self.in_strict_module(codestr) as mod:
+        with self.in_strict_module(codestr, freeze=False) as mod:
 
             setattr(mod.C, "x", TestAwaitableProperty())
 

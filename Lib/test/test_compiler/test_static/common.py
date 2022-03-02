@@ -399,7 +399,7 @@ class StaticTestBase(CompilerTest):
         name=None,
         optimize=0,
         enable_patching=False,
-        freeze=False,
+        freeze=True,
     ):
         d = None
         if name is None:
