@@ -3905,6 +3905,17 @@ class CachedPropertyMethod(PropertyMethod):
             self.function.replace_function(func), self.decorator
         )
 
+    def emit_load_attr_from(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        code_gen.emit_invoke_method(self.getter_type_descr, 0)
+
+    def emit_store_attr_to(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        code_gen.emit("ROT_TWO")
+        code_gen.emit_invoke_method(self.setter_type_descr, 1)
+
     def emit_function(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
@@ -3929,6 +3940,17 @@ class AsyncCachedPropertyMethod(PropertyMethod):
         return AsyncCachedPropertyMethod(
             self.function.replace_function(func), self.decorator
         )
+
+    def emit_load_attr_from(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        code_gen.emit_invoke_method(self.getter_type_descr, 0)
+
+    def emit_store_attr_to(
+        self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
+    ) -> None:
+        code_gen.emit("ROT_TWO")
+        code_gen.emit_invoke_method(self.setter_type_descr, 1)
 
     def emit_function(
         self,

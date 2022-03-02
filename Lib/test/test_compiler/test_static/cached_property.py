@@ -63,6 +63,36 @@ class CachedPropertyTests(StaticTestBase):
             r = mod.f()
             self.assertEqual(r.hit_count, 1)
 
+    def test_cached_property_invoked_frozen(self):
+        codestr = """
+        from typing import final
+        from cinder import cached_property
+
+        @final
+        class C:
+            def __init__(self):
+                self.hit_count = 0
+
+            @cached_property
+            def x(self):
+                self.hit_count += 1
+                return 3
+
+        def f() -> C:
+            c = C()
+            c.x
+            c.x
+            return c
+        """
+        with self.in_strict_module(codestr, freeze=True) as mod:
+            self.assertInBytecode(
+                mod.f,
+                "INVOKE_METHOD",
+                ((mod.__name__, "C", ("x", "fget")), 0),
+            )
+            r = mod.f()
+            self.assertEqual(r.hit_count, 1)
+
     def test_multiple_cached_properties(self):
         codestr = """
         from cinder import cached_property
@@ -345,6 +375,36 @@ class CachedPropertyTests(StaticTestBase):
             return c
         """
         with self.in_strict_module(codestr) as mod:
+            self.assertInBytecode(
+                mod.f,
+                "INVOKE_METHOD",
+                ((mod.__name__, "C", ("x", "fget")), 0),
+            )
+            r = asyncio.run(mod.f())
+            self.assertEqual(r.hit_count, 1)
+
+    def test_async_cached_property_invoked_frozen(self):
+        codestr = """
+        from typing import final
+        from cinder import async_cached_property
+
+        @final
+        class C:
+            def __init__(self):
+                self.hit_count = 0
+
+            @async_cached_property
+            async def x(self):
+                self.hit_count += 1
+                return 3
+
+        async def f() -> C:
+            c = C()
+            await c.x
+            await c.x
+            return c
+        """
+        with self.in_strict_module(codestr, freeze=True) as mod:
             self.assertInBytecode(
                 mod.f,
                 "INVOKE_METHOD",
