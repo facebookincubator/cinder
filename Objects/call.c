@@ -118,6 +118,14 @@ _PyObject_FastCallDictTstate(PyThreadState *tstate, PyObject *callable, PyObject
 }
 
 PyObject *
+_PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
+                       size_t nargsf, PyObject *kwargs)
+{
+    return _PyObject_FastCallDictTstate(PyThreadState_GET(), callable, args, nargsf, kwargs);
+}
+
+
+PyObject *
 _PyObject_MakeTpCallTstate(PyThreadState *tstate, PyObject *callable, PyObject *const *args, Py_ssize_t nargs, PyObject *keywords)
 {
     /* Slow path: build a temporary tuple for positional arguments and a

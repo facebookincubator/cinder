@@ -179,13 +179,9 @@ PyAPI_FUNC(PyObject *) _PyObject_FastCallDictTstate(
     size_t nargsf,
     PyObject *kwargs);
 
-static inline PyObject *
+PyAPI_FUNC(PyObject *)
 _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
-                       size_t nargsf, PyObject *kwargs)
-{
-    return _PyObject_FastCallDictTstate(PyThreadState_GET(), callable, args, nargsf, kwargs);
-}
-
+                       size_t nargsf, PyObject *kwargs);
 
 /* Call "callable" (which must support vectorcall) with positional arguments
    "tuple" and keyword arguments "dict". "dict" may also be NULL */
