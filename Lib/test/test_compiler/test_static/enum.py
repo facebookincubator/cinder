@@ -516,3 +516,176 @@ class StaticEnumTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             self.assertEqual(mod.result1, mod.Foo.BAR)
             self.assertEqual(mod.result2, mod.Foo.BAZ)
+
+    def test_string_enum_mixins_unsupported(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(int, StringEnum):
+            pass
+        """
+        self.type_error(
+            codestr, "Static StringEnum types cannot support multiple bases"
+        )
+
+    def test_subclassing_string_enums_unsupported(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+            pass
+
+        class Bar(Foo):
+            pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "Static StringEnum types do not allow subclassing",
+        ):
+            self.compile(codestr)
+
+    def test_non_str_string_enum_unsupported(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+            FOO = "FOO"
+            BAR = 23
+        """
+        self.type_error(
+            codestr,
+            "String enum values must be str, not int",
+            at="BAR = 23",
+        )
+
+    def test_delattr_string_enum_disallowed(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+            FOO = "FOO"
+
+        def delete() -> None:
+            del Foo.FOO
+        """
+        self.type_error(
+            codestr,
+            "StringEnum values cannot be modified or deleted",
+        )
+
+    def test_setattr_string_enum_disallowed(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+            FOO = "FOO"
+
+        def bar():
+            Foo.FOO = "BAR"
+        """
+        self.type_error(
+            codestr,
+            "StringEnum values cannot be modified or deleted",
+        )
+
+    def test_compare_string_enum_to_string(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+             FOO = "FOO"
+
+        def f():
+            return (Foo.FOO == "FOO", Foo.FOO == "BAR")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), (True, False))
+
+    def test_compare_string_enum_to_string_enum(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+             FOO = "FOO"
+             BAR = "BAR"
+
+        def f():
+            return (Foo.FOO == Foo.FOO, Foo.FOO == Foo.BAR)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), (True, False))
+
+    def test_compare_string_enum_to_string_nonstatic(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+             FOO = "FOO"
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.Foo.FOO == "FOO")
+            self.assertFalse(mod.Foo.FOO == "BAR")
+
+    def test_compare_string_enum_to_string_enum_nonstatic(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+             FOO = "FOO"
+             BAR = "BAR"
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.Foo.FOO == mod.Foo.FOO)
+            self.assertFalse(mod.Foo.FOO == mod.Foo.BAR)
+
+    def test_compare_different_string_enums(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+             FOO = "FOO"
+             BAR = "BAR"
+
+        class Bar(StringEnum):
+             FOO = "FOO"
+
+        def f():
+            return Foo.FOO == Bar.FOO, Foo.BAR == Bar.FOO
+        """
+        with self.in_module(codestr) as mod:
+            # To match existing behavior, values from different enums with the same constant
+            # compare to be equal.
+            self.assertEqual(mod.f(), (True, False))
+
+    def test_compare_different_string_enums_nonstatic(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+             FOO = "FOO"
+             BAR = "BAR"
+
+        class Bar(StringEnum):
+             FOO = "FOO"
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.Foo.FOO == mod.Bar.FOO)
+            self.assertFalse(mod.Foo.BAR == mod.Bar.FOO)
+
+    def test_string_enum_instances_are_strings(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class Foo(StringEnum):
+             FOO = "FOO"
+             BAR = "BAR"
+
+        def foo(s: str) -> str:
+            return f"{s} is a string"
+
+        def bar() -> str:
+            return foo(Foo.FOO)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.bar(), "FOO is a string")
+            self.assertEqual(mod.foo(mod.Foo.BAR), "BAR is a string")

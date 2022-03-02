@@ -209,6 +209,7 @@ class Compiler:
                 "CheckedDict": self.type_env.checked_dict,
                 "CheckedList": self.type_env.checked_list,
                 "Enum": self.type_env.enum,
+                "StringEnum": self.type_env.string_enum,
                 "allow_weakrefs": self.type_env.allow_weakrefs,
                 "box": BoxFunction(self.type_env.function),
                 "cast": CastFunction(self.type_env.function),

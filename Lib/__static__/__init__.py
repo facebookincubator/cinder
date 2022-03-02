@@ -23,7 +23,7 @@ from typing import (
 )
 from weakref import WeakValueDictionary
 
-from .enum import Enum
+from .enum import Enum, StringEnum
 from .type_code import (
     type_code,
     TYPED_INT8,

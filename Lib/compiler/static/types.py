@@ -404,6 +404,7 @@ class TypeEnvironment:
             type(...): self.ellipsis.instance,
             frozenset: self.set.instance,
         }
+        self.string_enum: StringEnumType = StringEnumType(self)
         if spamobj is not None:
             T = GenericParameter("T", 0, self)
             U = GenericParameter("U", 1, self)
@@ -7788,6 +7789,145 @@ class ContextDecoratedMethod(DecoratedMethod):
         visitor: ReferenceVisitor,
     ) -> Optional[Value]:
         return self.function.resolve_descr_get(node, inst, ctx, visitor)
+
+
+class StringEnumType(Class):
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        type_name: Optional[TypeName] = None,
+        bases: Optional[List[Class]] = None,
+        is_exact: bool = False,
+    ) -> None:
+        instance = StringEnumInstance(self)
+        super().__init__(
+            type_name=(type_name or TypeName("__static__", "StringEnum")),
+            bases=bases or cast(List[Class], [type_env.str]),
+            type_env=type_env,
+            instance=instance,
+            is_exact=is_exact,
+        )
+        self.values: Dict[str, StringEnumInstance] = {}
+
+    def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
+        if len(bases) > 1:
+            raise TypedSyntaxError(
+                f"Static StringEnum types cannot support multiple bases: {bases}",
+            )
+        if bases[0] is not self.type_env.string_enum:
+            raise TypedSyntaxError("Static StringEnum types do not allow subclassing")
+        return StringEnumType(self.type_env, name, bases)
+
+    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
+        if not isinstance(const, ast.Constant):
+            raise TypedSyntaxError(f"cannot resolve enum value {const} at compile time")
+
+        value = const.value
+        if not isinstance(value, str):
+            raise TypedSyntaxError(
+                f"String enum values must be str, not {type(value).__name__}"
+            )
+
+        self.values[name.id] = StringEnumInstance(self, name.id, value)
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            visitor.syntax_error(
+                "StringEnum values cannot be modified or deleted", node
+            )
+
+        if inst := self.values.get(node.attr):
+            visitor.set_type(node, inst)
+            return
+
+        super().bind_attr(node, visitor, type_ctx)
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        if len(node.args) != 1:
+            visitor.syntax_error(
+                f"{self.name} requires a single argument ({len(node.args)} given)", node
+            )
+
+        visitor.set_type(node, self.instance)
+        arg = node.args[0]
+        visitor.visitExpectedType(
+            arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
+        )
+
+        return NO_EFFECT
+
+    def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
+        target = node.target
+        if isinstance(target, ast.Name):
+            self.add_enum_value(target, node)
+
+    def declare_variables(self, node: Assign, module: ModuleTable) -> None:
+        value = node.value
+        for target in node.targets:
+            if isinstance(target, ast.Tuple):
+                if not isinstance(value, ast.Tuple):
+                    raise TypedSyntaxError(
+                        f"cannot assign non-tuple enum value {value} "
+                        f"to multiple variables: {target}"
+                    )
+                if len(target.elts) != len(value.elts):
+                    raise TypedSyntaxError(
+                        f"arity mismatch for enum assignment {target} = {value}"
+                    )
+                for name, val in zip(target.elts, value.elts):
+                    assert isinstance(name, ast.Name)
+                    self.add_enum_value(name, val)
+            elif isinstance(target, ast.Name):
+                self.add_enum_value(target, value)
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) != 1:
+            raise code_gen.syntax_error(
+                f"{self.name} requires a single argument, given {len(node.args)}", node
+            )
+
+        arg = node.args[0]
+        arg_type = code_gen.get_type(arg)
+        if isinstance(arg_type, StringEnumInstance):
+            code_gen.visit(arg)
+        else:
+            code_gen.defaultVisit(node)
+
+
+class StringEnumInstance(Object[StringEnumType]):
+    def __init__(
+        self,
+        klass: StringEnumType,
+        name: Optional[str] = None,
+        value: Optional[str] = None,
+    ) -> None:
+        super().__init__(klass)
+        self.klass = klass
+        self.attr_name = name
+        self.value = value
+
+    @property
+    def name(self) -> str:
+        class_name = super().name
+        if self.attr_name is not None:
+            return f"<{class_name}.{self.attr_name}: {self.value}>"
+        return class_name
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            visitor.syntax_error("Enum values cannot be modified or deleted", node)
+
+        if node.attr in ("name", "value"):
+            visitor.set_type(node, visitor.type_env.str.exact_type().instance)
+            return
+
+        super().bind_attr(node, visitor, type_ctx)
 
 
 if spamobj is not None:
