@@ -145,6 +145,73 @@ cachedpropthunk_get_func(PyObject *thunk) {
     return descr->func;
 }
 
+typedef struct {
+    PyObject_HEAD;
+    PyObject *propthunk_target;
+    /* the vectorcall entry point for the thunk */
+    vectorcallfunc propthunk_vectorcall;
+} _Py_AsyncCachedPropertyThunk;
+
+
+static int
+async_cachedpropthunktraverse(_Py_AsyncCachedPropertyThunk *op, visitproc visit, void *arg)
+{
+    visit(op->propthunk_target, arg);
+    return 0;
+}
+
+static int
+async_cachedpropthunkclear(_Py_AsyncCachedPropertyThunk *op)
+{
+    Py_CLEAR(op->propthunk_target);
+    return 0;
+}
+
+static void
+async_cachedpropthunkdealloc(_Py_AsyncCachedPropertyThunk *op)
+{
+    PyObject_GC_UnTrack((PyObject *)op);
+    Py_XDECREF(op->propthunk_target);
+    PyObject_GC_Del((PyObject *)op);
+}
+
+static PyObject *
+async_cachedpropthunk_get(_Py_AsyncCachedPropertyThunk *thunk, PyObject *const *args,
+                                    size_t nargsf, PyObject *kwnames)
+{
+    size_t nargs = PyVectorcall_NARGS(nargsf);
+    if (nargs != 1) {
+        PyErr_SetString(PyExc_TypeError, "async cached property get expected 1 argument");
+        return NULL;
+    }
+
+    descrgetfunc f = PyAsyncCachedProperty_Type.tp_descr_get;
+
+    PyObject *res = f(thunk->propthunk_target, args[0], (PyObject *)Py_TYPE(args[0]));
+    return res;
+}
+
+
+PyTypeObject _PyType_AsyncCachedPropertyThunk = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) "async_cached_property_thunk",
+    sizeof(_Py_AsyncCachedPropertyThunk),
+    .tp_dealloc = (destructor)async_cachedpropthunkdealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
+        _Py_TPFLAGS_HAVE_VECTORCALL,
+    .tp_traverse = (traverseproc)async_cachedpropthunktraverse,
+    .tp_clear = (inquiry)async_cachedpropthunkclear,
+    .tp_vectorcall_offset = offsetof(_Py_AsyncCachedPropertyThunk, propthunk_vectorcall),
+    .tp_call = (ternaryfunc)thunk_call,
+};
+
+static PyObject *
+async_cachedpropthunk_get_func(PyObject *thunk) {
+    assert(Py_TYPE(thunk) == &_PyType_AsyncCachedPropertyThunk);
+    _Py_AsyncCachedPropertyThunk *t = (_Py_AsyncCachedPropertyThunk *)thunk;
+    PyAsyncCachedPropertyDescrObject *descr = (PyAsyncCachedPropertyDescrObject *)t->propthunk_target;
+    return descr->func;
+}
+
 static int
 awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
 {
@@ -980,6 +1047,15 @@ classloader_get_property_fget(PyObject *property) {
         thunk->propthunk_target = property;
         Py_INCREF(property);
         return (PyObject *)thunk;
+    } else if (Py_TYPE(property) == &PyAsyncCachedProperty_Type) {
+        _Py_AsyncCachedPropertyThunk *thunk = PyObject_GC_New(_Py_AsyncCachedPropertyThunk, &_PyType_AsyncCachedPropertyThunk);
+        if (thunk == NULL) {
+            return NULL;
+        }
+        thunk->propthunk_vectorcall = (vectorcallfunc)async_cachedpropthunk_get;
+        thunk->propthunk_target = property;
+        Py_INCREF(property);
+        return (PyObject *)thunk;
     } else {
         _Py_PropertyThunk *thunk = PyObject_GC_New(_Py_PropertyThunk, &_PyType_PropertyThunk);
         if (thunk == NULL) {
@@ -1001,7 +1077,8 @@ classloader_get_property_fset(PyObject *property) {
         }
         Py_XINCREF(func);
         return func;
-    } else if (Py_TYPE(property) == &PyCachedPropertyWithDescr_Type) {
+    } else if (Py_TYPE(property) == &PyCachedPropertyWithDescr_Type ||
+               Py_TYPE(property) == &PyAsyncCachedProperty_Type) {
         PyObject *func = classloader_get_property_missing_fset();
         Py_XINCREF(func);
         return func;
@@ -1402,8 +1479,18 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, 
         if (_PyClassLoader_IsStaticFunction(target)) {
             res = resolve_function_rettype(target, optional, coroutine);
         }
+    }  else if (Py_TYPE(func) == &_PyType_AsyncCachedPropertyThunk) {
+        PyObject *target = async_cachedpropthunk_get_func(func);
+        if (_PyClassLoader_IsStaticFunction(target)) {
+            res = resolve_function_rettype(target, optional, coroutine);
+        }
     } else if (Py_TYPE(func) == &PyCachedPropertyWithDescr_Type) {
         PyCachedPropertyDescrObject *property = (PyCachedPropertyDescrObject *)func;
+        if (_PyClassLoader_IsStaticFunction(property->func)) {
+            res = resolve_function_rettype(property->func, optional, coroutine);
+        }
+    } else if (Py_TYPE(func) == &PyAsyncCachedProperty_Type) {
+        PyAsyncCachedPropertyDescrObject *property = (PyAsyncCachedPropertyDescrObject *)func;
         if (_PyClassLoader_IsStaticFunction(property->func)) {
             res = resolve_function_rettype(property->func, optional, coroutine);
         }
@@ -1905,6 +1992,12 @@ type_vtable_setslot(PyTypeObject *tp,
                 (vectorcallfunc)cachedpropthunk_get;
             Py_INCREF(value);
             return 0;
+        } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
+            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+            vtable->vt_entries[slot].vte_entry =
+                (vectorcallfunc)async_cachedpropthunk_get;
+            Py_INCREF(value);
+            return 0;
         }
     }
 
@@ -1988,7 +2081,7 @@ type_vtable_lazyinit(PyObject *name,
     assert(vtable != NULL);
 
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(mro); i++) {
-        PyObject *value;
+        PyObject *value = NULL;
         PyTypeObject *cur_type = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
         if (get_func_or_special_callable(cur_type->tp_dict, name, &value)) {
             return NULL;
@@ -2042,6 +2135,8 @@ used_in_vtable_worker(PyObject *value) {
         return 1;
     } else if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
         return used_in_vtable_worker(cachedpropthunk_get_func(value));
+    } else if (Py_TYPE(value) == &_PyType_AsyncCachedPropertyThunk) {
+        return used_in_vtable_worker(async_cachedpropthunk_get_func(value));
     }
     return _PyClassLoader_IsStaticCallable(value);
 }
@@ -2058,7 +2153,8 @@ used_in_vtable(PyObject *value)
                used_in_vtable_worker(_PyClassMethod_GetFunc(value))) {
         return 1;
     } else if (Py_TYPE(value) == &PyProperty_Type ||
-               Py_TYPE(value) == &PyCachedPropertyWithDescr_Type) {
+               Py_TYPE(value) == &PyCachedPropertyWithDescr_Type ||
+               Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
         PyObject *getter = classloader_get_property_fget(value);
         PyObject *setter = classloader_get_property_fset(value);
         int res = used_in_vtable_worker(getter) || used_in_vtable_worker(setter);
@@ -2096,7 +2192,9 @@ _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
             return -1;
         }
         PyTypeObject *val_type = Py_TYPE(value);
-        if (val_type == &PyProperty_Type || val_type == &PyCachedPropertyWithDescr_Type) {
+        if (val_type == &PyProperty_Type ||
+                val_type == &PyCachedPropertyWithDescr_Type ||
+                val_type == &PyAsyncCachedProperty_Type) {
             PyObject *getter_index = PyLong_FromLong(slot_index++);
             PyObject *getter_tuple = get_property_getter_descr_tuple(key);
             err = PyDict_SetItem(slotmap, getter_tuple, getter_index);
