@@ -45,17 +45,13 @@ namespace codegen {
 namespace {
 
 namespace shadow_frame {
-static constexpr int kFrameSize = sizeof(_PyShadowFrame);
 // Shadow stack frames appear at the beginning of native frames for jitted
 // functions
-static constexpr x86::Mem kFramePtr = x86::ptr(x86::rbp, -kFrameSize);
-#define FIELD_OFF(field)              \
-  -kFrameSize + int {                 \
-    (offsetof(_PyShadowFrame, field)) \
-  }
-static constexpr x86::Mem kInFramePrevPtr = x86::ptr(x86::rbp, FIELD_OFF(prev));
-static constexpr x86::Mem kInFrameDataPtr = x86::ptr(x86::rbp, FIELD_OFF(data));
-#undef FIELD_OFF
+static constexpr x86::Mem kFramePtr = x86::ptr(x86::rbp, -kShadowFrameSize);
+static constexpr x86::Mem kInFramePrevPtr =
+    x86::ptr(x86::rbp, -kShadowFrameSize + SHADOW_FRAME_FIELD_OFF(prev));
+static constexpr x86::Mem kInFrameDataPtr =
+    x86::ptr(x86::rbp, -kShadowFrameSize + SHADOW_FRAME_FIELD_OFF(data));
 
 static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
   return x86::ptr(tstate_reg, offsetof(PyThreadState, shadow_frame));

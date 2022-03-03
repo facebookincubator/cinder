@@ -22,6 +22,8 @@ static const uintptr_t _PyShadowFrame_PtrMask = ~_PyShadowFrame_TagMask;
 
 #define TAG_MASK(num_bits, off) ((1 << num_bits) - 1) << off
 
+static const unsigned int kShadowFrameSize = sizeof(_PyShadowFrame);
+#define SHADOW_FRAME_FIELD_OFF(field) (int{(offsetof(_PyShadowFrame, field))})
 static const unsigned int _PyShadowFrame_NumPtrKindBits = 2;
 static const unsigned int _PyShadowFrame_PtrKindOff = 0;
 static const uintptr_t _PyShadowFrame_PtrKindMask =
