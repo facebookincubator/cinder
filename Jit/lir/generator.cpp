@@ -213,7 +213,7 @@ std::unique_ptr<jit::lir::Function> LIRGenerator::TranslateFunction() {
       case Opcode::kCondBranch:
       case Opcode::kCondBranchCheckType:
       case Opcode::kCondBranchIterNotDone: {
-        auto condbranch = static_cast<const CondBranch*>(hir_term);
+        auto condbranch = static_cast<const CondBranchBase*>(hir_term);
         auto target_lir_true_bb = bb_map[condbranch->true_bb()].first;
         auto target_lir_false_bb = bb_map[condbranch->false_bb()].first;
         last_bb->addSuccessor(target_lir_true_bb);
@@ -1222,15 +1222,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kCondBranch:
       case Opcode::kCondBranchIterNotDone: {
-        auto instr = static_cast<const CondBranch*>(&i);
+        auto instr = static_cast<const CondBranchBase*>(&i);
 
-        auto tmp = instr->reg()->name();
+        auto cond = instr->GetOperand(0);
+        auto tmp = cond->name();
 
         if (instr->opcode() == Opcode::kCondBranchIterNotDone) {
           tmp = GetSafeTempName();
           auto iter_done_addr =
               reinterpret_cast<uint64_t>(&jit::g_iterDoneSentinel);
-          bbb.AppendCode("Sub {}, {}, {}", tmp, instr->reg(), iter_done_addr);
+          bbb.AppendCode("Sub {}, {}, {}", tmp, cond, iter_done_addr);
         }
 
         bbb.AppendCode(
