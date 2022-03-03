@@ -524,6 +524,10 @@ void BasicBlockBuilder::CreateInstrIndirect(
     const std::string& name_size,
     int offset) {
   auto name = GetId(name_size);
+  if (name == "__native_frame_base") {
+    instr->allocateMemoryIndirectInput(PhyLocation::RBP, offset);
+    return;
+  }
   auto def_instr = getDefInstr(name);
 
   auto indirect = instr->allocateMemoryIndirectInput(def_instr, offset);
@@ -541,6 +545,10 @@ void BasicBlockBuilder::CreateInstrIndirectOutput(
     const std::string& name_size,
     int offset) {
   auto name = GetId(name_size);
+  if (name == "__native_frame_base") {
+    instr->output()->setMemoryIndirect(PhyLocation::RBP, offset);
+    return;
+  }
   auto def_instr = getDefInstr(name);
 
   auto output = instr->output();
