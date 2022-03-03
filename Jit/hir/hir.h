@@ -2045,8 +2045,8 @@ class INSTR_CLASS(
     DeoptBase) {
  public:
   CompareBool(
-      CompareOp op,
       Register* dst,
+      CompareOp op,
       Register* left,
       Register* right,
       const FrameState& frame)

@@ -1525,7 +1525,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kCompareBool: {
-        auto instr = static_cast<const Compare*>(&i);
+        auto instr = static_cast<const CompareBool*>(&i);
 
         if (instr->op() == CompareOp::kIn) {
           if (instr->right()->type() <= TUnicodeExact) {

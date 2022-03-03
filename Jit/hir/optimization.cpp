@@ -64,8 +64,8 @@ Instr* DynamicComparisonElimination::ReplaceCompare(
   }
 
   return CompareBool::create(
-      compare->op(),
       truthy->GetOutput(),
+      compare->op(),
       compare->GetOperand(0),
       compare->GetOperand(1),
       *get_frame_state(*truthy));
