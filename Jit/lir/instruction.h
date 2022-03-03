@@ -123,6 +123,12 @@ class Instruction {
 #undef INSTR_DECL_TYPE
   };
 
+  static constexpr const char* kOpcodeNames[] = {
+#define INSTR_DECL_TYPE(v, ...) #v,
+      FOREACH_INSTR_TYPE(INSTR_DECL_TYPE)
+#undef INSTR_DECL_TYPE
+  };
+
 #define COUNT_INSTR(...) +1
   static constexpr size_t kNumOpcodes = FOREACH_INSTR_TYPE(COUNT_INSTR);
 #undef COUNT_INSTR
@@ -287,6 +293,10 @@ class Instruction {
 
   Opcode opcode() const {
     return opcode_;
+  }
+
+  std::string opname() const {
+    return kOpcodeNames[opcode_];
   }
 
   void setOpcode(Opcode opcode) {
