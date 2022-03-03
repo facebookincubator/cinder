@@ -801,6 +801,8 @@ _PyShadow_LoadAttrType(_PyShadow_EvalState *shadow,
            ((PyObject *)entry)->ob_type ==
                &_PyShadow_InstanceCacheSplitDictMethod.type ||
            ((PyObject *)entry)->ob_type ==
+               &_PyShadow_InstanceCacheSplitDict.type ||
+           ((PyObject *)entry)->ob_type ==
                &_PyShadow_InstanceCacheSplitDictDescr.type ||
            ((PyObject *)entry)->ob_type ==
                &_PyShadow_InstanceCacheDictMethod.type ||
@@ -811,7 +813,7 @@ _PyShadow_LoadAttrType(_PyShadow_EvalState *shadow,
            ((PyObject *)entry)->ob_type ==
                &_PyShadow_InstanceCacheNoDictDescr.type);
 
-    if (tp == entry->type) {
+    if (tp == entry->type && entry->value != NULL) {
         INLINE_CACHE_TYPE_STAT(tp, "type");
         INLINE_CACHE_RECORD_STAT(LOAD_ATTR_TYPE, hits);
         res = entry->value;

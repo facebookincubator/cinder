@@ -3008,5 +3008,27 @@ def f(x):
         rc, out, err = assert_python_ok('-c', code)
         self.assertEqual(out.strip(), b'2')
 
+    def test_instance_to_type(self):
+        def f(obj, use_type):
+            # we want one initialized cache for the instance
+            # variable and one uninitialized cache that we'll
+            # hit on the first time with the type, so we pass
+            # this extra use_type flag
+            if use_type:
+                return obj.foo
+            else:
+                return obj.foo
+
+        class C:
+            def __init__(self):
+                self.foo = 42
+
+        x = C()
+        for i in range(REPETITION):
+            f(x, False)
+
+        with self.assertRaises(AttributeError):
+            f(C, True)
+
 if __name__ == "__main__":
     unittest.main()
