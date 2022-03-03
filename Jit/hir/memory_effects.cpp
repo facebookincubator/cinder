@@ -147,6 +147,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kXIncref:
       return {false, AEmpty, {inst.NumOperands()}, AOther};
 
+    case Opcode::kBatchDecref:
     case Opcode::kDecref:
     case Opcode::kXDecref:
       return {false, AEmpty, {1, 1}, AManagedHeapAny};

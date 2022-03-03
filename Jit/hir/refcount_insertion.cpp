@@ -1191,6 +1191,54 @@ std::ostream& operator<<(std::ostream& os, const StateMap& regs) {
   return os << "}";
 }
 
+void optimizeLongDecrefRuns(Function& irfunc) {
+  constexpr int kMinimumNumberOfDecrefsToOptimize = 4;
+
+  auto get_number_of_decrefs = [](auto block, auto cur_iter) {
+    int result = 0;
+    while (cur_iter != block->end()) {
+      if (!cur_iter->IsDecref()) {
+        break;
+      }
+      result++;
+      ++cur_iter;
+    }
+    return result;
+  };
+
+  for (auto& block : irfunc.cfg.GetRPOTraversal()) {
+    auto cur_iter = block->begin();
+
+    while (cur_iter != block->end()) {
+      if (!cur_iter->IsDecref()) {
+        ++cur_iter;
+        continue;
+      }
+
+      int num = get_number_of_decrefs(block, cur_iter);
+      if (num < kMinimumNumberOfDecrefsToOptimize) {
+        std::advance(cur_iter, num);
+        continue;
+      }
+
+      auto batch_decref = BatchDecref::create(num);
+      batch_decref->InsertBefore(*cur_iter);
+
+      constexpr size_t kDecrefOperandIndex = 0;
+      for (int i = 0; i < num; i++) {
+        JIT_CHECK(
+            cur_iter->IsDecref(),
+            "An unexpected non-decref instruction in a decref run.");
+
+        batch_decref->SetOperand(i, cur_iter->GetOperand(kDecrefOperandIndex));
+        auto old_instr = cur_iter++;
+        old_instr->unlink();
+        delete &(*old_instr);
+      }
+    }
+  }
+}
+
 } // namespace
 
 void RefcountInsertion::Run(Function& func) {
@@ -1261,6 +1309,9 @@ void RefcountInsertion::Run(Function& func) {
 
   // Clean up any trampoline blocks that weren't necessary.
   func.cfg.RemoveTrampolineBlocks();
+
+  // Optimize long decref runs
+  optimizeLongDecrefRuns(func);
 }
 
 } // namespace hir

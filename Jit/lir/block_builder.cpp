@@ -437,6 +437,11 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       CreateInstrInput(instr, tokens[tok_n]);
     }
     CreateInstrImmediateInput(instr, tokens[tokens.size() - 1]);
+  } else if (instr_str == "BatchDecref") {
+    auto instr = createInstr(Instruction::kBatchDecref);
+    for (size_t i = 1; i < tokens.size(); i++) {
+      CreateInstrInput(instr, tokens[i]);
+    }
   } else {
     JIT_CHECK(false, "Unknown LIR instruction: %s", instr_str);
   }

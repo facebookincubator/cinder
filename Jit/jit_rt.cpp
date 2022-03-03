@@ -2089,3 +2089,10 @@ int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op) {
 
   return PyObject_IsTrue(res);
 }
+
+/* perform a batch decref to the objects in args */
+void JITRT_BatchDecref(PyObject** args, int nargs) {
+  for (int i = 0; i < nargs; i++) {
+    Py_DECREF(args[i]);
+  }
+}

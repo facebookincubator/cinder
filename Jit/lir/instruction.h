@@ -76,6 +76,7 @@ enum class FlagEffects {
   X(Cdq, false, FlagEffects::kNone, kDefault, 1, {}, 1)                      \
   X(Cwd, false, FlagEffects::kNone, kDefault, 1, {}, 1)                      \
   X(Cqo, false, FlagEffects::kNone, kDefault, 1, {}, 1)                      \
+  X(BatchDecref, false, FlagEffects::kInvalidate, kDefault, 1, {1})          \
   X(Branch)                                                                  \
   X(BranchNZ)                                                                \
   X(BranchZ)                                                                 \
@@ -344,6 +345,13 @@ class Instruction {
     auto opnd = operand.get();
     opnd->assignToInstr(this);
     inputs_.push_back(std::move(operand));
+    return opnd;
+  }
+
+  OperandBase* prependInputOperand(std::unique_ptr<OperandBase> operand) {
+    auto opnd = operand.get();
+    opnd->assignToInstr(this);
+    inputs_.insert(inputs_.begin(), std::move(operand));
     return opnd;
   }
 

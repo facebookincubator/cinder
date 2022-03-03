@@ -270,4 +270,21 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteLoadArg(
   return kChanged;
 }
 
+Rewrite::RewriteResult PostGenerationRewrite::rewriteBatchDecrefInstrs(
+    instr_iter_t instr_iter) {
+  auto instr = instr_iter->get();
+  if (!instr->isBatchDecref()) {
+    return kUnchanged;
+  }
+
+  // we translate BatchDecref by converting it to a Call instruction
+  instr->setOpcode(Instruction::kCall);
+
+  instr->prependInputOperand(std::make_unique<Operand>(
+      nullptr,
+      Operand::k64bit,
+      Operand::kImm,
+      reinterpret_cast<uint64_t>(JITRT_BatchDecref)));
+  return kChanged;
+}
 } // namespace jit::codegen

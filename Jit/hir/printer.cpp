@@ -229,6 +229,7 @@ static std::string format_varname(const Instr& instr, int idx) {
 static std::string format_immediates(const Instr& instr) {
   switch (instr.opcode()) {
     case Opcode::kAssign:
+    case Opcode::kBatchDecref:
     case Opcode::kBuildString:
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:

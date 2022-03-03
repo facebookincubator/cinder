@@ -547,6 +547,7 @@ Type outputType(
     }
 
     // Finally, some opcodes have no destination.
+    case Opcode::kBatchDecref:
     case Opcode::kBranch:
     case Opcode::kCallStaticRetVoid:
     case Opcode::kClearError:

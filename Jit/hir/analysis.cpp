@@ -145,6 +145,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kYieldValue:
       return false;
 
+    case Opcode::kBatchDecref:
     case Opcode::kBranch:
     case Opcode::kCondBranch:
     case Opcode::kCondBranchIterNotDone:

@@ -1601,7 +1601,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         MakeDecref(bbb, i, true);
         break;
       }
+      case Opcode::kBatchDecref: {
+        auto instr = static_cast<const BatchDecref*>(&i);
 
+        std::stringstream ss;
+        ss << "BatchDecref ";
+        auto nargs = instr->NumOperands();
+        for (size_t i = 0; i < nargs; i++) {
+          ss << (i == 0 ? "" : ", ") << *instr->GetOperand(i);
+        }
+        bbb.AppendCode(ss.str());
+        break;
+      }
       case Opcode::kDeopt: {
         bbb.AppendCode(
             MakeGuard("AlwaysFail", static_cast<const DeoptBase&>(i)));

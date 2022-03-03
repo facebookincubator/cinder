@@ -31,6 +31,7 @@ class PostRegAllocRewrite : public Rewrite {
   static int rewriteGetMethodFunctionWorker(instr_iter_t instr_iter);
   static int rewriteGetMethodFunction(instr_iter_t instr_iter);
   static int rewriteGetSuperMethodFunction(instr_iter_t instr_iter);
+  static int rewriteBatchDecrefFunction(instr_iter_t instr_iter);
 
   // replaces ZEXT and SEXT with appropriate MOVE instructions
   static RewriteResult rewriteBitExtensionInstrs(instr_iter_t instr_iter);

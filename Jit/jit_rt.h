@@ -540,6 +540,9 @@ int JITRT_NotContains(PyObject* w, PyObject* v);
 
 int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op);
 
+/* perform a batch decref to the objects in args */
+void JITRT_BatchDecref(PyObject** args, int nargs);
+
 #ifdef __cplusplus
 }
 #endif

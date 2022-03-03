@@ -975,3 +975,69 @@ fun jittestmodule:test {
   }
 }
 ---
+OptimizeLongDecrefRuns
+---
+def test():
+  gen = lambda: 1
+  fun = lambda a, b, c, d, e: a + b + c + d + e
+  a = gen()
+  b = gen()
+  c = gen()
+  d = gen()
+  e = gen()
+  return fun(a, b, c, d, e)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v19:Nullptr = LoadConst<Nullptr>
+    v20:MortalCode["<lambda>"] = LoadConst<MortalCode["<lambda>"]>
+    v21:MortalUnicodeExact["test.<locals>.<lambd"...] = LoadConst<MortalUnicodeExact["test.<locals>.<lambd"...]>
+    v22:MortalFunc = MakeFunction v21 v20 {
+      LiveValues<3> unc:v19 b:v20 b:v21
+      NextInstrOffset 6
+      Locals<7> v19 v19 v19 v19 v19 v19 v19
+    }
+    InitFunction v22
+    v24:MortalCode["<lambda>"] = LoadConst<MortalCode["<lambda>"]>
+    v25:MortalUnicodeExact["test.<locals>.<lambd"...] = LoadConst<MortalUnicodeExact["test.<locals>.<lambd"...]>
+    v26:MortalFunc = MakeFunction v25 v24 {
+      LiveValues<4> unc:v19 o:v22 b:v24 b:v25
+      NextInstrOffset 14
+      Locals<7> v22 v19 v19 v19 v19 v19 v19
+    }
+    InitFunction v26
+    v29:Object = VectorCall<0> v22 {
+      LiveValues<3> unc:v19 o:v22 o:v26
+      NextInstrOffset 20
+      Locals<7> v22 v26 v19 v19 v19 v19 v19
+    }
+    v32:Object = VectorCall<0> v22 {
+      LiveValues<4> unc:v19 o:v22 o:v26 o:v29
+      NextInstrOffset 26
+      Locals<7> v22 v26 v29 v19 v19 v19 v19
+    }
+    v35:Object = VectorCall<0> v22 {
+      LiveValues<5> unc:v19 o:v22 o:v26 o:v29 o:v32
+      NextInstrOffset 32
+      Locals<7> v22 v26 v29 v32 v19 v19 v19
+    }
+    v38:Object = VectorCall<0> v22 {
+      LiveValues<6> unc:v19 o:v22 o:v26 o:v29 o:v32 o:v35
+      NextInstrOffset 38
+      Locals<7> v22 v26 v29 v32 v35 v19 v19
+    }
+    v41:Object = VectorCall<0> v22 {
+      LiveValues<7> unc:v19 o:v22 o:v26 o:v29 o:v32 o:v35 o:v38
+      NextInstrOffset 44
+      Locals<7> v22 v26 v29 v32 v35 v38 v19
+    }
+    v49:Object = VectorCall<5> v26 v29 v32 v35 v38 v41 {
+      LiveValues<7> o:v22 o:v26 o:v29 o:v32 o:v35 o:v38 o:v41
+      NextInstrOffset 60
+      Locals<7> v22 v26 v29 v32 v35 v38 v41
+    }
+    BatchDecref v22 v26 v29 v32 v35 v38 v41
+    Return v49
+  }
+}
+---

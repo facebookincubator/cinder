@@ -167,6 +167,7 @@ bool Instr::isReplayable() const {
       auto op = static_cast<const CompareBool*>(this)->op();
       return op == CompareOp::kIs || op == CompareOp::kIsNot;
     }
+    case Opcode::kBatchDecref:
     case Opcode::kBinaryOp:
     case Opcode::kBranch:
     case Opcode::kBuildSlice:

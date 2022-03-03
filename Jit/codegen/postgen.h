@@ -12,6 +12,8 @@ class PostGenerationRewrite : public Rewrite {
       : Rewrite(func, env) {
     // rewriteInlineHelper should occur before other rewrites.
     registerOneRewriteFunction(rewriteInlineHelper, 0);
+    registerOneRewriteFunction(rewriteBatchDecrefInstrs, 0);
+
     registerOneRewriteFunction(rewriteBinaryOpConstantPosition, 1);
     registerOneRewriteFunction(rewriteBinaryOpLargeConstant, 1);
     registerOneRewriteFunction(rewriteGuardLargeConstant, 1);
@@ -45,6 +47,9 @@ class PostGenerationRewrite : public Rewrite {
 
   // Rewrite LoadArg to Bind and allocate a physical register for its input.
   static RewriteResult rewriteLoadArg(instr_iter_t instr_iter, Environ* env);
+
+  // rewrite BatchDecref instructions
+  static RewriteResult rewriteBatchDecrefInstrs(instr_iter_t instr_iter);
 
   FRIEND_TEST(LIRRewriteTest, RewriteCondBranchTest);
 };

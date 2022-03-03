@@ -73,6 +73,8 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteCallInstrs(
       rsp_sub = rewriteGetMethodFunction(instr_iter);
     } else if (func == JITRT_GetMethodFromSuper) {
       rsp_sub = rewriteGetSuperMethodFunction(instr_iter);
+    } else if (func == JITRT_BatchDecref) {
+      rsp_sub = rewriteBatchDecrefFunction(instr_iter);
     } else {
       rsp_sub = rewriteRegularFunction(instr_iter);
     }
@@ -183,7 +185,7 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
 int PostRegAllocRewrite::rewriteVectorCallFunctions(instr_iter_t instr_iter) {
   auto instr = instr_iter->get();
 
-  // For vector calls there are 4 fixed areguments:
+  // For vector calls there are 4 fixed arguments:
   // * #0   - runtime helper function
   // * #1   - flags to be added to nargsf
   // * #2   - callable
@@ -302,6 +304,41 @@ int PostRegAllocRewrite::rewriteGetSuperMethodFunction(
       instr_iter->get()->getNumInputs() == 6,
       "signature for JITRT_GetMethodFromSuper changed");
   return rewriteGetMethodFunctionWorker(instr_iter);
+}
+
+int PostRegAllocRewrite::rewriteBatchDecrefFunction(instr_iter_t instr_iter) {
+  auto instr = instr_iter->get();
+  auto block = instr->basicblock();
+  constexpr int kArgStart = 1;
+  constexpr int kCallMethodSpSlot = 1;
+  constexpr PhyLocation kArgBaseReg = PhyLocation::RDI;
+  const int num_arguments =
+      instr->getNumInputs() - kArgStart + kCallMethodSpSlot;
+  const int rsp_sub =
+      ((num_arguments % 2) ? num_arguments + 1 : num_arguments) *
+      sizeof(PyObject*);
+
+  block->allocateInstrBefore(
+      instr_iter,
+      Instruction::kLea,
+      OutPhyReg(kArgBaseReg),
+      Ind(PhyLocation::RSP, sizeof(void*) * kCallMethodSpSlot));
+
+  constexpr PhyLocation TMP_REG = PhyLocation::RAX;
+  for (size_t i = kArgStart; i < instr->getNumInputs(); i++) {
+    auto arg = instr->getInput(i);
+    auto arg_offset = (i - kArgStart) * sizeof(PyObject*);
+    insertMoveToMemoryLocation(
+        block, instr_iter, kArgBaseReg, arg_offset, arg, TMP_REG);
+  }
+
+  block->allocateInstrBefore(
+      instr_iter,
+      Instruction::kMove,
+      OutPhyReg(PhyLocation::RSI, lir::OperandBase::k32bit),
+      Imm(instr->getNumInputs() - kArgStart, lir::OperandBase::k32bit));
+
+  return rsp_sub;
 }
 
 Rewrite::RewriteResult PostRegAllocRewrite::rewriteBitExtensionInstrs(
@@ -1093,5 +1130,4 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveSequence(
   }
   return changed;
 }
-
 } // namespace jit::codegen
