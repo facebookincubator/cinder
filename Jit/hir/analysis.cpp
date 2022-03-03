@@ -684,5 +684,39 @@ DominatorAnalysis::DominatorAnalysis(const Function& irfunc) : idoms_{} {
   idoms_[entry->id] = nullptr;
 }
 
+RegisterTypeHints::RegisterTypeHints(const Function& irfunc)
+    : dom_hint_{}, doms_{irfunc} {
+  for (const auto& block : irfunc.cfg.blocks) {
+    for (const auto& instr : block) {
+      if (instr.IsHintType()) {
+        for (size_t i = 0; i < instr.NumOperands(); i++) {
+          dom_hint_[instr.GetOperand(i)][block.id] = &instr;
+        }
+      } else if (instr.IsPhi()) {
+        dom_hint_[instr.GetOutput()][block.id] = &instr;
+      }
+    }
+  }
+}
+
+const Instr* RegisterTypeHints::dominatingTypeHint(
+    Register* reg,
+    const BasicBlock* block) {
+  // Make sure we don't default construct the map for untracked registers
+  auto it = dom_hint_.find(reg);
+  if (it == dom_hint_.end()) {
+    return nullptr;
+  }
+  std::unordered_map<int, const Instr*> hint_types = it->second;
+  // Look for the first type hint that dominates the passed in block
+  while (!hint_types[block->id]) {
+    block = doms_.immediateDominator(block);
+    if (block == nullptr) {
+      return nullptr;
+    }
+  }
+  return hint_types[block->id];
+}
+
 } // namespace hir
 } // namespace jit

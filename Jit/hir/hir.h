@@ -3545,6 +3545,9 @@ class BasicBlock {
   auto& front() {
     return instrs_.Front();
   }
+  auto& front() const {
+    return instrs_.Front();
+  }
   auto& back() {
     return instrs_.Back();
   }

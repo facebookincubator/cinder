@@ -494,3 +494,99 @@ fun dominators {
   EXPECT_EQ(doms.immediateDominator(bb6), bb5);
   EXPECT_EQ(doms.immediateDominator(bb7), bb1);
 }
+
+class RegisterTypeHintsTest : public RuntimeTest {};
+
+TEST_F(RegisterTypeHintsTest, CorrectlyIdentifiesDominatingHintType) {
+  const char* src = R"(
+fun type_hints {
+   bb 0 {
+     v0 = LoadArg<0>
+     Branch<1>
+   }
+
+   bb 1 {
+     HintType<1, <Tuple>, <List>> v0
+     CondBranch<2, 4> v0
+   }
+
+   bb 2 {
+     HintType<1, <Tuple>> v0
+     Branch<3>
+   }
+
+   bb 3 {
+     CondBranch<5, 7> v0
+   }
+
+   bb 4 {
+     HintType<1, <List>> v0
+     v1 = LoadArg<1>
+     Branch<5>
+   }
+
+   bb 5 {
+     v2 = Phi<3, 4> v0 v1
+     Branch<6>
+   }
+
+   bb 6 {
+     Branch<7>
+   }
+
+   bb 7 {
+     Return v0
+   }
+ }
+)";
+  std::unique_ptr<Function> func = HIRParser().ParseHIR(src);
+
+  auto bb0 = func->cfg.getBlockById(0);
+  const Instr& v0_load = bb0->front();
+  Register* v0 = v0_load.GetOutput();
+
+  auto bb1 = func->cfg.getBlockById(1);
+  const Instr& bb1_hint = bb1->front();
+
+  auto bb2 = func->cfg.getBlockById(2);
+  const Instr& bb2_hint = bb2->front();
+
+  auto bb3 = func->cfg.getBlockById(3);
+
+  auto bb4 = func->cfg.getBlockById(4);
+  auto bb4_iter = bb4->begin();
+  const Instr& bb4_hint = *(bb4_iter++);
+  const Instr& bb4_load = *bb4_iter;
+  Register* v1 = bb4_load.GetOutput();
+
+  auto bb5 = func->cfg.getBlockById(5);
+  const Instr& bb5_phi = bb5->front();
+  Register* v2 = bb5_phi.GetOutput();
+
+  auto bb6 = func->cfg.getBlockById(6);
+
+  auto bb7 = func->cfg.getBlockById(7);
+
+  RegisterTypeHints seen(*func);
+
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb0), nullptr);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb1), &bb1_hint);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb2), &bb2_hint);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb3), &bb2_hint);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb4), &bb4_hint);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb5), &bb1_hint);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb5), &bb1_hint);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb6), &bb1_hint);
+  EXPECT_EQ(seen.dominatingTypeHint(v0, bb7), &bb1_hint);
+
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb0), nullptr);
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb1), nullptr);
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb2), nullptr);
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb3), nullptr);
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb4), nullptr);
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb5), &bb5_phi);
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb6), &bb5_phi);
+  EXPECT_EQ(seen.dominatingTypeHint(v2, bb7), nullptr);
+
+  EXPECT_EQ(seen.dominatingTypeHint(v1, bb4), nullptr);
+}
