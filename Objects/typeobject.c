@@ -3105,9 +3105,9 @@ type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds)
                     Py_DECREF(descr);
 
                     if (!needs_gc) {
-                        int optional;
+                        int optional, exact;
                         PyTypeObject *resolved_type =
-                            _PyClassLoader_ResolveType(PyTuple_GET_ITEM(name, 1), &optional);
+                            _PyClassLoader_ResolveType(PyTuple_GET_ITEM(name, 1), &optional, &exact);
 
                         if (resolved_type == NULL) {
                             /* this can fail if the type isn't loaded yet, in which case

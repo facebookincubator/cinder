@@ -354,7 +354,7 @@ class StaticObjCreationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(
-                f, "INVOKE_FUNCTION", ((("builtins", "bool", "__new__"), 2))
+                f, "INVOKE_FUNCTION", ((("builtins", "bool", "!", "__new__"), 2))
             )
             self.assertEqual(f(42), True)
             self.assertEqual(f(0), False)
@@ -411,7 +411,12 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertInBytecode(
                 f,
                 "TP_ALLOC",
-                ("__static__", "chkdict", (("builtins", "str"), ("builtins", "int"))),
+                (
+                    "__static__",
+                    "chkdict",
+                    (("builtins", "str"), ("builtins", "int")),
+                    "!",
+                ),
             )
             self.assertInBytecode(
                 f,
@@ -421,6 +426,7 @@ class StaticObjCreationTests(StaticTestBase):
                         "__static__",
                         "chkdict",
                         (("builtins", "str"), ("builtins", "int")),
+                        "!",
                         "__init__",
                     ),
                     2,
@@ -440,7 +446,12 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertInBytecode(
                 f,
                 "TP_ALLOC",
-                ("__static__", "chkdict", (("builtins", "str"), ("builtins", "int"))),
+                (
+                    "__static__",
+                    "chkdict",
+                    (("builtins", "str"), ("builtins", "int")),
+                    "!",
+                ),
             )
             self.assertInBytecode(
                 f,
@@ -451,6 +462,7 @@ class StaticObjCreationTests(StaticTestBase):
                             "__static__",
                             "chkdict",
                             (("builtins", "str"), ("builtins", "int")),
+                            "!",
                             "__init__",
                         ),
                         2,

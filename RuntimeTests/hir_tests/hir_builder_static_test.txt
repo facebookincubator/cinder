@@ -1182,7 +1182,7 @@ fun jittestmodule:test {
       Locals<2> v0 v1
     }
     v13 = LoadConst<MortalLongExact[111]>
-    v13 = RefineType<Long> v13
+    v13 = RefineType<LongExact> v13
     v14 = PrimitiveUnbox<CInt64> v13
     v15 = IsNegativeAndErrOccurred v14 {
       NextInstrOffset 42
@@ -1246,7 +1246,7 @@ fun jittestmodule:test {
       Stack<1> v11
     }
     v12 = LoadConst<MortalLongExact[1]>
-    v12 = RefineType<Long> v12
+    v12 = RefineType<LongExact> v12
     v13 = PrimitiveUnbox<CInt64> v12
     v14 = IsNegativeAndErrOccurred v13 {
       NextInstrOffset 32
@@ -1288,7 +1288,7 @@ fun jittestmodule:test {
       NextInstrOffset 8
       Locals<1> v0
     }
-    v2 = RefineType<List> v2
+    v2 = RefineType<ListExact> v2
     Return v2
   }
 }

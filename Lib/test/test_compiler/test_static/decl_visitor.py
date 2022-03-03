@@ -125,7 +125,7 @@ class DeclarationVisitorTests(StaticTestBase):
         self.compiler(a=acode, b=bcode).type_error(
             "b",
             re.escape(
-                "type mismatch: Exact[str] received for positional arg 'x', expected int"
+                "type mismatch: str received for positional arg 'x', expected int"
             ),
             at="'abc'",
         )
@@ -154,7 +154,7 @@ class DeclarationVisitorTests(StaticTestBase):
         """
         self.compiler(a=acode, b=bcode).type_error(
             "b",
-            re.escape("type mismatch: Exact[str] cannot be assigned to int"),
+            re.escape("type mismatch: str cannot be assigned to int"),
             at="C().x",
         )
 

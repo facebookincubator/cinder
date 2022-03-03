@@ -35,11 +35,13 @@ from .types import (
     Class,
     ClassVar,
     DynamicClass,
+    ExactClass,
     Function,
     FunctionGroup,
     FinalClass,
     MethodType,
     TypeDescr,
+    TypeWrapper,
     UnionType,
     Value,
 )
@@ -96,10 +98,12 @@ class AnnotationVisitor(ReferenceVisitor):
                         "Class Finals are inferred ClassVar; do not nest with Final."
                     )
 
-            # Even if we know that e.g. `builtins.str` is the exact `str` type and
-            # not a subclass, and it's useful to track that knowledge, when we
-            # annotate `x: str` that annotation should not exclude subclasses.
-            klass = klass.inexact_type()
+            if isinstance(klass, ExactClass):
+                klass = klass.unwrap().exact_type()
+            elif isinstance(klass, FinalClass):
+                pass
+            else:
+                klass = klass.inexact_type()
             # PEP-484 specifies that ints should be treated as a subclass of floats,
             # even though they differ in the runtime. We need to maintain the distinction
             # between the two internally, so we should view user-specified `float` annotations
@@ -107,7 +111,7 @@ class AnnotationVisitor(ReferenceVisitor):
             # optimizations to user-specified floats, but does not affect ints. Since we
             # don't optimize Python floats anyway, we accept this to maintain PEP-484 compatibility.
 
-            if klass is self.type_env.float:
+            if klass.unwrap() is self.type_env.float:
                 klass = self.compiler.type_env.get_union(
                     (self.type_env.float, self.type_env.int)
                 )

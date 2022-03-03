@@ -216,9 +216,7 @@ class PrimitivesTests(StaticTestBase):
                         a.a0 = val
 
     def test_int_bad_assign(self):
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[str]", "int64")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("str", "int64")):
             self.compile(
                 """
             from __static__ import ssize_t
@@ -552,9 +550,7 @@ class PrimitivesTests(StaticTestBase):
             def testfunc(tst):
                 x: int8 = 1.0
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[float]", "int")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("float", "int")):
             self.compile(codestr)
 
     def test_int_assign_str_constant(self):
@@ -563,9 +559,7 @@ class PrimitivesTests(StaticTestBase):
             def testfunc(tst):
                 x: int8 = 'abc' + 'def'
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[str]", "int8")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("str", "int8")):
             self.compile(codestr)
 
     def test_int_large_int_constant(self):
@@ -1020,7 +1014,7 @@ class PrimitivesTests(StaticTestBase):
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
@@ -1072,7 +1066,7 @@ class PrimitivesTests(StaticTestBase):
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
@@ -1093,7 +1087,7 @@ class PrimitivesTests(StaticTestBase):
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
@@ -1110,7 +1104,7 @@ class PrimitivesTests(StaticTestBase):
         code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (42, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 43)
@@ -1177,7 +1171,7 @@ class PrimitivesTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "PRIMITIVE_UNBOX")
-            self.assertInBytecode(f, "CAST", ("builtins", "bool"))
+            self.assertInBytecode(f, "CAST", ("builtins", "bool", "!"))
             self.assertEqual(f(True), True)
             self.assertEqual(f(False), False)
             with self.assertRaises(TypeError):
@@ -1196,7 +1190,7 @@ class PrimitivesTests(StaticTestBase):
             self.assertEqual(f(True), True)
             self.assertEqual(f(False), False)
             self.assertInBytecode(f, "PRIMITIVE_UNBOX")
-            self.assertNotInBytecode(f, "CAST", ("builtins", "bool"))
+            self.assertNotInBytecode(f, "CAST", ("builtins", "bool", "!"))
 
     def test_unbox_cbool_typed_unsupported(self):
         codestr = """
@@ -1260,9 +1254,7 @@ class PrimitivesTests(StaticTestBase):
         box('abc')
         """
 
-        with self.assertRaisesRegex(
-            TypedSyntaxError, "can't box non-primitive: Exact\\[str\\]"
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, "can't box non-primitive: str"):
             self.compile(codestr)
 
     def test_bad_unbox(self):
@@ -1316,7 +1308,7 @@ class PrimitivesTests(StaticTestBase):
         code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (42, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 43)
@@ -2327,7 +2319,7 @@ class PrimitivesTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"type mismatch: Exact\[int\] cannot be assigned to str",
+            r"type mismatch: int cannot be assigned to str",
         ):
             self.compile(codestr, modname="foo")
 
@@ -2448,8 +2440,8 @@ class PrimitivesTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[Array[char]]",
-                "Exact[Array[int64]]",
+                "Array[char]",
+                "Array[int64]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -2466,8 +2458,8 @@ class PrimitivesTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[Array[char]]",
-                "Exact[Array[int64]]",
+                "Array[char]",
+                "Array[int64]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -3536,7 +3528,7 @@ class PrimitivesTests(StaticTestBase):
                     f = mod.f
                     self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST")
                     self.assertInBytecode(
-                        f, "STORE_LOCAL", (0, ("__static__", "cbool"))
+                        f, "STORE_LOCAL", (0, ("__static__", "cbool", "!"))
                     )
                     self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
                     self.assertEqual(f(), 1 if b == "True" else 2)

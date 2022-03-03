@@ -2777,7 +2777,7 @@ void HIRBuilder::emitBuildCheckedList(
   BorrowedRef<> descr = PyTuple_GET_ITEM(arg.get(), 0);
   Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1));
 
-  Type type = preloader_.exactType(descr);
+  Type type = preloader_.type(descr);
   JIT_CHECK(
       _PyCheckedList_TypeCheck(type.uniquePyType()),
       "expected CheckedList type");
@@ -2801,7 +2801,7 @@ void HIRBuilder::emitBuildCheckedMap(
   BorrowedRef<> descr = PyTuple_GET_ITEM(arg.get(), 0);
   Py_ssize_t dict_size = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1));
 
-  Type type = preloader_.exactType(descr);
+  Type type = preloader_.type(descr);
   JIT_CHECK(
       _PyCheckedDict_TypeCheck(type.uniquePyType()),
       "expected CheckedDict type");
@@ -3434,10 +3434,10 @@ void HIRBuilder::emitStoreField(
 void HIRBuilder::emitCast(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  auto& [pytype, opt] = preloader_.pyTypeOpt(constArg(bc_instr));
+  auto& [pytype, opt, exact] = preloader_.pyTypeOpt(constArg(bc_instr));
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<Cast>(result, value, pytype, opt, tc.frame);
+  tc.emit<Cast>(result, value, pytype, opt, exact, tc.frame);
   tc.frame.stack.push(result);
 }
 

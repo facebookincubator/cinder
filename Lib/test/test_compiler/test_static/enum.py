@@ -440,7 +440,7 @@ class StaticEnumTests(StaticTestBase):
         """
         with self.in_strict_module(codestr) as mod:
             self.assertInBytecode(
-                mod.odd, "INVOKE_FUNCTION", ((mod.__name__, "Foo", "even"), 1)
+                mod.odd, "INVOKE_FUNCTION", ((mod.__name__, "Foo", "!", "even"), 1)
             )
             self.assertNotInBytecode(mod.odd, "PRIMITIVE_BOX")
 

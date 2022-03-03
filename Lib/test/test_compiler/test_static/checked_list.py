@@ -235,7 +235,7 @@ class CheckedListTests(StaticTestBase):
             def testfunc(x: CheckedList[int]) -> CheckedList[int]:
                 return x[1]
         """
-        self.type_error(codestr, bad_ret_type("int", "Exact[chklist[int]]"))
+        self.type_error(codestr, bad_ret_type("int", "chklist[int]"))
 
     def test_checked_list_getitem_slice_bad_return_type(self):
         codestr = """
@@ -243,7 +243,7 @@ class CheckedListTests(StaticTestBase):
             def testfunc(x: CheckedList[int]) -> int:
                 return x[1:2]
         """
-        self.type_error(codestr, bad_ret_type("Exact[chklist[int]]", "int"))
+        self.type_error(codestr, bad_ret_type("chklist[int]", "int"))
 
     def test_checked_list_compile_getitem(self):
         codestr = """
@@ -284,7 +284,7 @@ class CheckedListTests(StaticTestBase):
             def assign_to_index_1(x: CheckedList[int]) -> None:
                 x[1] = "a"
         """
-        self.type_error(codestr, type_mismatch("Exact[str]", "int"))
+        self.type_error(codestr, type_mismatch("str", "int"))
 
     def test_checked_list_compile_setitem_slice(self):
         codestr = """
@@ -316,7 +316,7 @@ class CheckedListTests(StaticTestBase):
             def assign_to_slice(x: CheckedList[int]) -> None:
                 x["A"] = [2, 3]
          """
-        self.type_error(codestr, type_mismatch("Exact[str]", "int"))
+        self.type_error(codestr, type_mismatch("str", "int"))
 
     def test_checked_list_compile_jumpif(self):
         codestr = """
@@ -384,7 +384,7 @@ class CheckedListTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            type_mismatch("Exact[chklist[Union[int, str]]]", "Exact[chklist[int]]"),
+            type_mismatch("chklist[Union[int, str]]", "chklist[int]"),
         )
 
     def test_checked_list_literal_basic_unpack(self):
@@ -438,9 +438,7 @@ class CheckedListTests(StaticTestBase):
                 a: CheckedList[int] = [str(x + 1) for x in [1, 2, 3, 4]]
                 return a
         """
-        self.type_error(
-            codestr, type_mismatch("Exact[chklist[str]]", "Exact[chklist[int]]")
-        )
+        self.type_error(codestr, type_mismatch("chklist[str]", "chklist[int]"))
 
     def test_checked_list_literal_opt_in(self):
         codestr = """
@@ -467,7 +465,7 @@ class CheckedListTests(StaticTestBase):
                 a: List[int] = [1, 2, 3, 4]
                 return a
         """
-        self.type_error(codestr, type_mismatch("Exact[chklist[int]]", "list"))
+        self.type_error(codestr, type_mismatch("chklist[int]", "list"))
 
     def test_checked_list_iter(self) -> None:
         codestr = """

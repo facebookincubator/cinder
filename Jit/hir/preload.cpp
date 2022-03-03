@@ -50,8 +50,8 @@ Type prim_type_to_type(int prim_type) {
   }
 }
 
-static Type to_jit_type_impl(const PyTypeOpt& pytype_opt, bool exact) {
-  auto& [pytype, opt] = pytype_opt;
+static Type to_jit_type(const PyTypeOpt& pytype_opt) {
+  auto& [pytype, opt, exact] = pytype_opt;
   if (_PyClassLoader_IsEnum(pytype)) {
     JIT_CHECK(!opt, "static enums cannot be optional");
     return Type::fromEnum(pytype);
@@ -69,20 +69,12 @@ static Type to_jit_type_impl(const PyTypeOpt& pytype_opt, bool exact) {
   return prim_type_to_type(prim_type);
 }
 
-static Type to_jit_type(const PyTypeOpt& pytype_opt) {
-  return to_jit_type_impl(pytype_opt, false);
-}
-
-static Type to_jit_type_exact(const PyTypeOpt& pytype_opt) {
-  return to_jit_type_impl(pytype_opt, true);
-}
-
 static PyTypeOpt resolve_type_descr(BorrowedRef<> descr) {
-  int optional;
-  auto type =
-      Ref<PyTypeObject>::steal(_PyClassLoader_ResolveType(descr, &optional));
+  int optional, exact;
+  auto type = Ref<PyTypeObject>::steal(
+      _PyClassLoader_ResolveType(descr, &optional, &exact));
 
-  return {std::move(type), optional};
+  return {std::move(type), optional, exact};
 }
 
 static FieldInfo resolve_field_descr(BorrowedRef<PyTupleObject> descr) {
@@ -139,10 +131,10 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
       Ref<>::steal(_PyClassLoader_ResolveFunction(descr, &container));
   JIT_CHECK(callable != nullptr, "unknown invoke target %s", repr(descr));
 
-  int coroutine, optional, classmethod;
+  int coroutine, optional, exact, classmethod;
   auto return_pytype =
       Ref<PyTypeObject>::steal(_PyClassLoader_ResolveReturnType(
-          callable, &optional, &coroutine, &classmethod));
+          callable, &optional, &exact, &coroutine, &classmethod));
 
   target->container_is_immutable = _PyClassLoader_IsImmutable(container);
   if (return_pytype != NULL) {
@@ -150,7 +142,8 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
       // TODO properly handle coroutine returns awaitable type
       target->return_type = TObject;
     } else {
-      target->return_type = to_jit_type({std::move(return_pytype), optional});
+      target->return_type =
+          to_jit_type({std::move(return_pytype), optional, exact});
     }
   }
   target->is_statically_typed = _PyClassLoader_IsStaticCallable(callable);
@@ -209,16 +202,12 @@ Type Preloader::type(BorrowedRef<> descr) const {
   return to_jit_type(pyTypeOpt(descr));
 }
 
-Type Preloader::exactType(BorrowedRef<> descr) const {
-  return to_jit_type_exact(pyTypeOpt(descr));
-}
-
 int Preloader::primitiveTypecode(BorrowedRef<> descr) const {
   return _PyClassLoader_GetTypeCode(pyType(descr));
 }
 
 BorrowedRef<PyTypeObject> Preloader::pyType(BorrowedRef<> descr) const {
-  auto& [pytype, opt] = pyTypeOpt(descr);
+  auto& [pytype, opt, exact] = pyTypeOpt(descr);
   JIT_CHECK(!opt, "unexpected optional type");
   return pytype;
 }
@@ -270,7 +259,11 @@ std::unique_ptr<Function> Preloader::makeFunction() const {
   irfunc->has_primitive_first_arg = has_primitive_first_arg_;
   for (auto& [local, pytype_opt] : check_arg_pytypes_) {
     irfunc->typed_args.emplace_back(
-        local, pytype_opt.first, pytype_opt.second, to_jit_type(pytype_opt));
+        local,
+        std::get<0>(pytype_opt),
+        std::get<1>(pytype_opt),
+        std::get<2>(pytype_opt),
+        to_jit_type(pytype_opt));
   }
   return irfunc;
 }
@@ -322,7 +315,7 @@ void Preloader::preload() {
           PyTypeOpt pytype_opt =
               resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1));
           JIT_CHECK(
-              pytype_opt.first !=
+              std::get<0>(pytype_opt) !=
                   reinterpret_cast<PyTypeObject*>(&PyObject_Type),
               "shouldn't generate type checks for object");
           Type type = to_jit_type(pytype_opt);

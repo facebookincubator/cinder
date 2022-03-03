@@ -95,6 +95,8 @@ extern "C" {
   X(POP_JUMP_IF_FALSE,               114) \
   X(POP_JUMP_IF_TRUE,                115) \
   X(LOAD_GLOBAL,                     116) \
+  X(CAST_CACHED_EXACT,               117) \
+  X(CAST_CACHED_OPTIONAL_EXACT,      118) \
   X(SETUP_FINALLY,                   122) \
   X(LOAD_FAST,                       124) \
   X(STORE_FAST,                      125) \

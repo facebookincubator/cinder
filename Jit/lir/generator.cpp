@@ -1954,6 +1954,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           func = reinterpret_cast<uint64_t>(
               instr->optional() ? JITRT_CastToFloatOptional
                                 : JITRT_CastToFloat);
+        } else if (instr->exact()) {
+          func = reinterpret_cast<uint64_t>(
+              instr->optional() ? JITRT_CastOptionalExact : JITRT_CastExact);
         } else {
           func = reinterpret_cast<uint64_t>(
               instr->optional() ? JITRT_CastOptional : JITRT_Cast);

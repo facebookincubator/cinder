@@ -72,6 +72,7 @@ from .types import (
     CheckedListInstance,
     Class,
     ClassVar,
+    ExactClass,
     FinalClass,
     Function,
     FunctionContainer,
@@ -82,6 +83,7 @@ from .types import (
     Slot,
     TType,
     TypeEnvironment,
+    TypeWrapper,
     UnionInstance,
     UnknownDecoratedMethod,
     Value,
@@ -179,7 +181,9 @@ class LocalsBranch:
         if len(types) == 1:
             return types[0]
 
-        return self.type_env.get_union(tuple(t.inexact().klass for t in types)).instance
+        return self.type_env.get_union(
+            tuple(t.klass.inexact_type() for t in types)
+        ).instance
 
 
 class TypeDeclaration:
@@ -698,8 +702,15 @@ class TypeBinder(GenericVisitor):
         if not dest.can_assign_from(src) and (
             src is not self.type_env.dynamic or isinstance(dest, CType)
         ):
+            if dest.inexact_type().can_assign_from(src):
+                reason = reason.format(
+                    src.instance.name_with_exact, dest.instance.name_with_exact
+                )
+            else:
+                reason = reason.format(src.instance.name, dest.instance.name)
+
             self.syntax_error(
-                reason.format(src.instance.name, dest.instance.name),
+                reason,
                 node,
             )
 
@@ -783,7 +794,7 @@ class TypeBinder(GenericVisitor):
         rtype = self.get_type(node.right)
 
         tried_right = False
-        if ltype.klass in rtype.klass.mro[1:]:
+        if ltype.klass.exact_type() in rtype.klass.mro[1:]:
             if rtype.bind_reverse_binop(node, self, type_ctx):
                 return NO_EFFECT
             tried_right = True
@@ -1237,7 +1248,7 @@ class TypeBinder(GenericVisitor):
             rtype = self.get_type(comparator)
 
             tried_right = False
-            if ltype.klass in rtype.klass.mro[1:]:
+            if ltype.klass.exact_type() in rtype.klass.mro[1:]:
                 if ltype.bind_reverse_compare(
                     node, left, op, comparator, self, type_ctx
                 ):
@@ -1258,8 +1269,7 @@ class TypeBinder(GenericVisitor):
         self, node: Call, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         self.visit(node.func)
-        result = self.get_type(node.func).bind_call(node, self, type_ctx)
-        return result
+        return self.get_type(node.func).bind_call(node, self, type_ctx)
 
     def visitFormattedValue(
         self, node: FormattedValue, type_ctx: Optional[Class] = None

@@ -50,6 +50,7 @@ typedef struct {
     PyTypeObject *rt_expected;
     PyObject *rt_name;
     int rt_optional;
+    int rt_exact;
 } _PyClassLoader_RetTypeInfo;
 
 struct _PyClassLoader_Awaitable;
@@ -85,7 +86,7 @@ Py_ssize_t _PyClassLoader_ResolveMethod(PyObject *path);
 Py_ssize_t _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);
 int _PyClassLoader_ResolvePrimitiveType(PyObject *descr);
 int _PyClassLoader_GetTypeCode(PyTypeObject *type);
-PyTypeObject * _PyClassLoader_ResolveType(PyObject *descr, int *optional);
+PyTypeObject * _PyClassLoader_ResolveType(PyObject *descr, int *optional, int *exact);
 
 int _PyClassLoader_PrimitiveTypeToStructMemberType(int type);
 Py_ssize_t _PyClassLoader_PrimitiveTypeToSize(int primitive_type);
@@ -116,7 +117,7 @@ PyObject *
 _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container);
 
 PyObject *
-_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, int *classmethod);
+_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact, int *coroutine, int *classmethod);
 
 PyMethodDescrObject *
 _PyClassLoader_ResolveMethodDef(PyObject *path);
@@ -276,6 +277,7 @@ typedef struct {
     PyObject *td_type; /* tuple type reference or type object once resolved */
     Py_ssize_t td_offset;
     int td_optional;
+    int td_exact;
 } _PyTypedDescriptor;
 
 PyAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
@@ -291,6 +293,7 @@ typedef struct {
     PyObject *td_default; /* the default value to return from the get if offset is null */
     Py_ssize_t td_offset;
     int td_optional;
+    int td_exact;
 } _PyTypedDescriptorWithDefaultValue;
 
 PyAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
@@ -309,10 +312,10 @@ int _PyClassLoader_UpdateSlot(PyTypeObject *type,
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type);
 
 static inline
-int _PyObject_TypeCheckOptional(PyObject *val, PyTypeObject *type, int optional) {
+int _PyObject_TypeCheckOptional(PyObject *val, PyTypeObject *type, int optional, int exact) {
     return Py_TYPE(val) == type ||
            (optional && val == Py_None) ||
-           PyObject_TypeCheck(val, type);
+           (!exact && PyObject_TypeCheck(val, type));
 }
 
 typedef struct {
@@ -338,11 +341,12 @@ typedef struct {
   PyTypeObject* tai_type;
   int tai_argnum;
   int tai_optional;
+  int tai_exact;
 } _PyTypedArgInfo;
 
 typedef struct {
   PyObject_VAR_HEAD
-  _PyTypedArgInfo tai_args[0];
+  _PyTypedArgInfo tai_args[1];
 } _PyTypedArgsInfo;
 
 PyAPI_DATA(PyTypeObject) _PyTypedArgsInfo_Type;

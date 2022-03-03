@@ -10,7 +10,7 @@ class LintTests(StaticTestBase):
         """
         errors = self.lint(code)
         errors.check(
-            errors.match("Exact[str] cannot be assigned to int", at="'abc'"),
+            errors.match("str cannot be assigned to int", at="'abc'"),
             errors.match("Literal[42] cannot be assigned to str", at="42"),
         )
 
@@ -24,7 +24,7 @@ class LintTests(StaticTestBase):
         errors = self.lint(code)
         errors.check(
             errors.match(
-                "Exact[str] received for positional arg 'x', expected int",
+                "str received for positional arg 'x', expected int",
                 at="'abc'",
             )
         )
@@ -76,7 +76,7 @@ class LintTests(StaticTestBase):
         errors = self.lint(codestr)
         errors.check(
             errors.match(
-                "invalid union type Union[Exact[str], Literal[0]]",
+                "invalid union type Union[str, Literal[0]]",
                 at='"foo"',
             ),
         )

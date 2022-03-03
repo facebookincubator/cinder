@@ -235,7 +235,7 @@ class StaticFieldTests(StaticTestBase):
                 def __init__(self):
                     self.x: int = 'abc'
             """,
-            type_mismatch("Exact[str]", "int"),
+            type_mismatch("str", "int"),
             at="'abc'",
         )
 
@@ -531,7 +531,7 @@ class StaticFieldTests(StaticTestBase):
 
             C.x = 4
             """,
-            type_mismatch("Literal[4]", "Exact[types.MemberDescriptorType]"),
+            type_mismatch("Literal[4]", "types.MemberDescriptorType"),
             at="C.x = 4",
         )
 

@@ -99,7 +99,7 @@ class SubclassTests(StaticTestBase):
         self.assertIs(bool_or_int, self.type_env.int)
 
     def test_checkedlist_subclass(self):
-        checked_list_str = TypeEnvironment().get_generic_type(
+        checked_list_str = self.type_env.get_generic_type(
             self.type_env.checked_list,
             (self.type_env.str,),
         )

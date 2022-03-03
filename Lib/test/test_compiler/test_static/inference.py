@@ -21,10 +21,12 @@ class InferenceTests(StaticTestBase):
             x = C() if a else C()
             reveal_type(x)
         """
-        self.type_error(codestr, rf"reveal_type\(x\): '<module>.C'", at="reveal_type")
+        self.type_error(
+            codestr, rf"reveal_type\(x\): 'Exact\[<module>.C\]'", at="reveal_type"
+        )
 
     def test_type_widened_in_while_loop(self) -> None:
-        for loc, typ in [("inside", "int"), ("after", "Optional[int]")]:
+        for loc, typ in [("inside", "Literal[1]"), ("after", "Optional[Literal[1]]")]:
             with self.subTest(loc=loc, typ=typ):
                 if loc == "inside":
                     inner = "reveal_type(x)"
@@ -45,7 +47,7 @@ class InferenceTests(StaticTestBase):
                 self.type_error(codestr, rf"reveal_type\(x\): '{re.escape(typ)}'")
 
     def test_type_widened_in_for_loop(self) -> None:
-        for loc, typ in [("inside", "int"), ("after", "Optional[int]")]:
+        for loc, typ in [("inside", "Literal[1]"), ("after", "Optional[Literal[1]]")]:
             with self.subTest(loc=loc, typ=typ):
                 if loc == "inside":
                     inner = "reveal_type(x)"

@@ -547,8 +547,8 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
         }
     }
 
-    if (overflow || !((rt_info->rt_optional && ret == Py_None) ||
-                         _PyObject_RealIsInstance(ret, (PyObject *)rt_info->rt_expected))) {
+    if (overflow || !(_PyObject_TypeCheckOptional(ret, rt_info->rt_expected,
+                                                  rt_info->rt_optional, rt_info->rt_exact))) {
         /* The override returned an incompatible value, report error */
         const char *msg;
         PyObject *exc_type = PyExc_TypeError;
@@ -1133,6 +1133,7 @@ classloader_get_func_name(PyObject *name) {
 PyTypeObject *
 resolve_function_rettype(PyObject *funcobj,
                          int *optional,
+                         int *exact,
                          int *coroutine) {
     assert(PyFunction_Check(funcobj));
     PyFunctionObject *func = (PyFunctionObject *)funcobj;
@@ -1140,7 +1141,7 @@ resolve_function_rettype(PyObject *funcobj,
         *coroutine = 1;
     }
     return _PyClassLoader_ResolveType(_PyClassLoader_GetReturnTypeDescr(func),
-                                      optional);
+                                      optional, exact);
 }
 
 PyObject *
@@ -1195,6 +1196,7 @@ PyTypeObject _PyType_TypeCheckState = {
 static int
 type_vtable_setslot_typecheck(PyObject *ret_type,
                               int optional,
+                              int exact,
                               int coroutine,
                               int classmethod,
                               PyObject *name,
@@ -1215,6 +1217,7 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     state->tcs_rt.rt_expected = (PyTypeObject *)ret_type;
     Py_INCREF(ret_type);
     state->tcs_rt.rt_optional = optional;
+    state->tcs_rt.rt_exact = exact;
 
     Py_XDECREF(vtable->vt_entries[slot].vte_state);
     vtable->vt_entries[slot].vte_state = (PyObject *)state;
@@ -1377,8 +1380,10 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
     }
 
     if (thunk->thunk_coroutine) {
+        // The Py_AWAITED_CALL_MARKER is explicitly masked off as we do not yet check return types
+        // for eagerly evaluated coroutines.
         return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args,
-            nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+                                     nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
     }
 
     PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
@@ -1452,50 +1457,52 @@ classloader_get_static_type(const char* name) {
 }
 
 PyObject *
-_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, int *classmethod) {
-    *coroutine = *optional = *classmethod = 0;
+_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
+                                 int *coroutine, int *classmethod) {
+    *coroutine = *optional = *classmethod = *exact = 0;
     PyTypeObject *res = NULL;
     if (PyFunction_Check(func) && _PyClassLoader_IsStaticFunction(func)) {
-        res = resolve_function_rettype(func, optional, coroutine);
+        res = resolve_function_rettype(func, optional, exact, coroutine);
     } else if (Py_TYPE(func) == &PyStaticMethod_Type) {
         PyObject *static_func = _PyStaticMethod_GetFunc(func);
         if (_PyClassLoader_IsStaticFunction(static_func)) {
-            res = resolve_function_rettype(static_func, optional, coroutine);
+            res = resolve_function_rettype(static_func, optional, exact, coroutine);
         }
     } else if (Py_TYPE(func) == &PyClassMethod_Type) {
         PyObject *static_func = _PyClassMethod_GetFunc(func);
         if (_PyClassLoader_IsStaticFunction(static_func)) {
-            res = resolve_function_rettype(static_func, optional, coroutine);
+            res = resolve_function_rettype(static_func, optional, exact, coroutine);
         }
         *classmethod = 1;
     } else if (Py_TYPE(func) == &PyProperty_Type) {
         propertyobject *property = (propertyobject *)func;
         PyObject *fget = property->prop_get;
         if (_PyClassLoader_IsStaticFunction(fget)) {
-            res = resolve_function_rettype(fget, optional, coroutine);
+            res = resolve_function_rettype(fget, optional, exact, coroutine);
         }
     } else if (Py_TYPE(func) == &_PyType_CachedPropertyThunk) {
         PyObject *target = cachedpropthunk_get_func(func);
         if (_PyClassLoader_IsStaticFunction(target)) {
-            res = resolve_function_rettype(target, optional, coroutine);
+            res = resolve_function_rettype(target, optional, exact, coroutine);
         }
     }  else if (Py_TYPE(func) == &_PyType_AsyncCachedPropertyThunk) {
         PyObject *target = async_cachedpropthunk_get_func(func);
         if (_PyClassLoader_IsStaticFunction(target)) {
-            res = resolve_function_rettype(target, optional, coroutine);
+            res = resolve_function_rettype(target, optional, exact, coroutine);
         }
     } else if (Py_TYPE(func) == &PyCachedPropertyWithDescr_Type) {
         PyCachedPropertyDescrObject *property = (PyCachedPropertyDescrObject *)func;
         if (_PyClassLoader_IsStaticFunction(property->func)) {
-            res = resolve_function_rettype(property->func, optional, coroutine);
+            res = resolve_function_rettype(property->func, optional, exact, coroutine);
         }
     } else if (Py_TYPE(func) == &PyAsyncCachedProperty_Type) {
         PyAsyncCachedPropertyDescrObject *property = (PyAsyncCachedPropertyDescrObject *)func;
         if (_PyClassLoader_IsStaticFunction(property->func)) {
-            res = resolve_function_rettype(property->func, optional, coroutine);
+            res = resolve_function_rettype(property->func, optional, exact, coroutine);
         }
     } else {
         _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
+        *optional = 0;
         if (tmd != NULL) {
             switch(tmd->tmd_ret) {
                 case _Py_SIG_VOID:
@@ -1504,38 +1511,49 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, 
                     // produce a Python object at all, but we ensure (in
                     // _PyClassLoader_ConvertRet and in JIT HIR builder) that
                     // when we call them we produce a None.
+                    *exact = 0;
                     res = (PyTypeObject *)&_PyNone_Type;
                     break;
                 }
                 case _Py_SIG_STRING: {
+                    *exact = 0;
                     res = &PyUnicode_Type;
                     break;
                 }
                 case _Py_SIG_INT8: {
+                    *exact = 1;
                     return classloader_get_static_type("int8");
                 }
                 case _Py_SIG_INT16: {
+                    *exact = 1;
                     return classloader_get_static_type("int16");
                 }
                 case _Py_SIG_INT32: {
+                    *exact = 1;
                     return classloader_get_static_type("int32");
                 }
                 case _Py_SIG_INT64: {
+                    *exact = 1;
                     return classloader_get_static_type("int64");
                 }
                 case _Py_SIG_UINT8: {
+                    *exact = 1;
                     return classloader_get_static_type("uint8");
                 }
                 case _Py_SIG_UINT16: {
+                    *exact = 1;
                     return classloader_get_static_type("uint16");
                 }
                 case _Py_SIG_UINT32: {
+                    *exact = 1;
                     return classloader_get_static_type("uint32");
                 }
                 case _Py_SIG_UINT64: {
+                    *exact = 1;
                     return classloader_get_static_type("uint64");
                 }
                 default: {
+                    *exact = 0;
                     res = &PyBaseObject_Type;
                 }
             }
@@ -1543,6 +1561,7 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *coroutine, 
         } else if (Py_TYPE(func) == &PyMethodDescr_Type) {
             // We emit invokes to untyped builtin methods; just assume they
             // return object.
+            *exact = 0;
             res = &PyBaseObject_Type;
             Py_INCREF(res);
         }
@@ -1846,8 +1865,8 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
     assert(previous != NULL);
 
-    int cur_optional = 0, cur_coroutine = 0, cur_classmethod = 0;
-    PyObject *cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional,
+    int cur_optional = 0, cur_exact = 0, cur_coroutine = 0, cur_classmethod = 0;
+    PyObject *cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional, &cur_exact,
                                                           &cur_coroutine, &cur_classmethod);
     assert(cur_type != NULL);
 
@@ -1924,6 +1943,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         vtable->vt_entries[index].vte_entry = (vectorcallfunc)type_vtable_func_missing;
     } else if (type_vtable_setslot_typecheck(cur_type,
                                              cur_optional,
+                                             cur_exact,
                                              cur_coroutine,
                                              cur_classmethod,
                                              name,
@@ -2003,7 +2023,7 @@ type_vtable_setslot(PyTypeObject *tp,
 
     PyObject *original;
     PyObject *ret_type;
-    int optional = 0, coroutine = 0, classmethod = 0;
+    int optional = 0, exact = 0, coroutine = 0, classmethod = 0;
     if (vtable->vt_original != NULL) {
         assert(tp->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
         original = PyDict_GetItem(vtable->vt_original, name);
@@ -2020,10 +2040,10 @@ type_vtable_setslot(PyTypeObject *tp,
             Py_INCREF(original);
         }
 
-        ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
+        ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &exact, &coroutine, &classmethod);
         Py_DECREF(original);
     } else {
-        ret_type = _PyClassLoader_ResolveReturnType(value, &optional, &coroutine, &classmethod);
+        ret_type = _PyClassLoader_ResolveReturnType(value, &optional, &exact, &coroutine, &classmethod);
         if (ret_type == NULL) {
             if (_PyClassLoader_GetStaticallyInheritedMember(tp, name, &original)) {
                 return -1;
@@ -2034,7 +2054,7 @@ type_vtable_setslot(PyTypeObject *tp,
                             name, tp->tp_name);
                 return -1;
             }
-            ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &coroutine, &classmethod);
+            ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &exact, &coroutine, &classmethod);
             Py_DECREF(original);
         }
     }
@@ -2047,7 +2067,7 @@ type_vtable_setslot(PyTypeObject *tp,
     }
 
     int res = type_vtable_setslot_typecheck(
-        ret_type, optional, coroutine, classmethod, name, vtable, slot, value);
+         ret_type, optional, exact, coroutine, classmethod, name, vtable, slot, value);
     Py_DECREF(ret_type);
     return res;
 }
@@ -2402,9 +2422,9 @@ classloader_instantiate_generic(PyObject *gtd, PyObject *name, PyObject *path) {
     }
     PyObject *tmp_tuple = PyTuple_New(PyTuple_GET_SIZE(name));
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(name); i++) {
-        int optional;
+        int optional, exact;
         PyObject *param = (PyObject *)_PyClassLoader_ResolveType(
-            PyTuple_GET_ITEM(name, i), &optional);
+            PyTuple_GET_ITEM(name, i), &optional, &exact);
         if (param == NULL) {
             Py_DECREF(tmp_tuple);
             return NULL;
@@ -2478,6 +2498,13 @@ classloader_get_member(PyObject *path,
     for (Py_ssize_t i = 0; i < items; i++) {
         PyObject *d = NULL;
         PyObject *name = PyTuple_GET_ITEM(path, i);
+
+        // If we are getting a member from an exact or an optional type, simply skip these markers.
+        if (PyUnicode_Check(name) &&
+              (PyUnicode_CompareWithASCIIString(name, "?") == 0 ||
+               (PyUnicode_CompareWithASCIIString(name, "!") == 0))) {
+          continue;
+        }
 
         if (container != NULL) {
             Py_CLEAR(*container);
@@ -2581,8 +2608,8 @@ int _PyClassLoader_GetTypeCode(PyTypeObject *type) {
  * and set an error if the type cannot be resolved. */
 int
 _PyClassLoader_ResolvePrimitiveType(PyObject *descr) {
-    int optional;
-    PyTypeObject *type = _PyClassLoader_ResolveType(descr, &optional);
+    int optional, exact;
+    PyTypeObject *type = _PyClassLoader_ResolveType(descr, &optional, &exact);
     if (type == NULL) {
         return -1;
     }
@@ -2595,7 +2622,7 @@ _PyClassLoader_ResolvePrimitiveType(PyObject *descr) {
  * PyTypeObject*` and `optional` integer out param.
  */
 PyTypeObject *
-_PyClassLoader_ResolveType(PyObject *descr, int *optional)
+_PyClassLoader_ResolveType(PyObject *descr, int *optional, int *exact)
 {
     if (!PyTuple_Check(descr) || PyTuple_GET_SIZE(descr) < 2) {
         PyErr_Format(PyExc_TypeError, "unknown type %R", descr);
@@ -2605,12 +2632,19 @@ _PyClassLoader_ResolveType(PyObject *descr, int *optional)
     Py_ssize_t items = PyTuple_GET_SIZE(descr);
     PyObject *last = PyTuple_GET_ITEM(descr, items - 1);
 
-    if (PyUnicode_Check(last) &&
-        PyUnicode_CompareWithASCIIString(last, "?") == 0) {
-        *optional = 1;
+    *optional = 0;
+    *exact = 0;
+
+    while (PyUnicode_Check(last)) {
+        if (PyUnicode_CompareWithASCIIString(last, "?") == 0) {
+            *optional = 1;
+        } else if (PyUnicode_CompareWithASCIIString(last, "!") == 0) {
+            *exact = 1;
+        } else {
+            break;
+        }
         items--;
-    } else {
-        *optional = 0;
+        last = PyTuple_GET_ITEM(descr, items - 1);
     }
 
     if (classloader_cache != NULL) {
@@ -2769,6 +2803,7 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyObject* container, PyObj
     thunk->thunk_tcs.tcs_rt.rt_expected = (PyTypeObject *)_PyClassLoader_ResolveReturnType(
                                                                original,
                                                                &thunk->thunk_tcs.tcs_rt.rt_optional,
+                                                               &thunk->thunk_tcs.tcs_rt.rt_exact,
                                                                &thunk->thunk_coroutine,
                                                                &thunk->thunk_classmethod);
     if (thunk->thunk_tcs.tcs_rt.rt_expected == NULL) {
@@ -3221,7 +3256,7 @@ typed_descriptor_set(PyObject *self, PyObject *obj, PyObject *value)
     _PyTypedDescriptor *td = (_PyTypedDescriptor *)self;
     if (PyTuple_CheckExact(td->td_type)) {
         PyTypeObject *type =
-            _PyClassLoader_ResolveType(td->td_type, &td->td_optional);
+            _PyClassLoader_ResolveType(td->td_type, &td->td_optional, &td->td_exact);
         if (type == NULL) {
             assert(PyErr_Occurred());
             if (value == Py_None && td->td_optional) {
@@ -3242,8 +3277,7 @@ typed_descriptor_set(PyObject *self, PyObject *obj, PyObject *value)
     }
 
     if (value == NULL ||
-        (value == Py_None && td->td_optional) ||
-        _PyObject_RealIsInstance(value, td->td_type)) {
+        _PyObject_TypeCheckOptional(value, (PyTypeObject *) td->td_type, td->td_optional, td->td_exact)) {
         PyObject **addr = (PyObject **)(((char *)obj) + td->td_offset);
         PyObject *prev = *addr;
         *addr = value;
@@ -3288,6 +3322,7 @@ _PyTypedDescriptor_New(PyObject *name, PyObject *type, Py_ssize_t offset)
     res->td_type = type;
     res->td_offset = offset;
     res->td_optional = 0;
+    res->td_exact = 0;
     Py_INCREF(name);
     Py_INCREF(type);
     PyObject_GC_Track(res);
@@ -3352,7 +3387,7 @@ typed_descriptor_with_default_value_set(PyObject *self, PyObject *obj, PyObject 
     _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *)self;
      if (PyTuple_CheckExact(td->td_type)) {
         PyTypeObject *type =
-            _PyClassLoader_ResolveType(td->td_type, &td->td_optional);
+            _PyClassLoader_ResolveType(td->td_type, &td->td_optional, &td->td_exact);
         if (type == NULL) {
             assert(PyErr_Occurred());
             if (value == Py_None && td->td_optional) {
@@ -3373,8 +3408,7 @@ typed_descriptor_with_default_value_set(PyObject *self, PyObject *obj, PyObject 
     }
 
     if (value == NULL ||
-        (value == Py_None && td->td_optional) ||
-        _PyObject_RealIsInstance(value, td->td_type)) {
+        _PyObject_TypeCheckOptional(value, (PyTypeObject *) td->td_type, td->td_optional, td->td_exact)) {
         PyObject **addr = (PyObject **)(((char *)obj) + td->td_offset);
         PyObject *prev = *addr;
         *addr = value;
@@ -3423,6 +3457,7 @@ _PyTypedDescriptorWithDefaultValue_New(PyObject *name,
     res->td_offset = offset;
 
     res->td_optional = 0;
+    res->td_exact = 0;
     res->td_default = default_value;
     Py_INCREF(name);
     Py_INCREF(type);
@@ -3952,8 +3987,8 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
         _PyTypedArgInfo* cur_check = &arg_checks->tai_args[checki];
 
         PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);
-        int optional;
-        PyTypeObject* ref_type = _PyClassLoader_ResolveType(type_descr, &optional);
+        int optional, exact;
+        PyTypeObject* ref_type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
         if (ref_type == NULL) {
             return NULL;
         }
@@ -3963,20 +3998,24 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
         if (enum_type) {
             cur_check->tai_type = ref_type;
             cur_check->tai_optional = 0;
+            cur_check->tai_exact = 1;
         } else if (prim_type == TYPED_BOOL) {
             cur_check->tai_type = &PyBool_Type;
             cur_check->tai_optional = 0;
+            cur_check->tai_exact = 1;
             Py_INCREF(&PyBool_Type);
             Py_DECREF(ref_type);
         } else if (prim_type == TYPED_DOUBLE) {
             cur_check->tai_type = &PyFloat_Type;
             cur_check->tai_optional = 0;
+            cur_check->tai_exact = 1;
             Py_INCREF(&PyLong_Type);
             Py_DECREF(ref_type);
         } else if (prim_type != TYPED_OBJECT) {
             assert(prim_type <= TYPED_INT64);
             cur_check->tai_type = &PyLong_Type;
             cur_check->tai_optional = 0;
+            cur_check->tai_exact = 1;
             Py_INCREF(&PyLong_Type);
             Py_DECREF(ref_type);
         } else if (only_primitives) {
@@ -3985,6 +4024,7 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
         } else {
             cur_check->tai_type = ref_type;
             cur_check->tai_optional = optional;
+            cur_check->tai_exact = exact;
         }
         cur_check->tai_primitive_type = prim_type;
         cur_check->tai_argnum = PyLong_AsLong(PyTuple_GET_ITEM(checks, i));

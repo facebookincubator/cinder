@@ -324,6 +324,10 @@ PyObject* JITRT_CastToFloatOptional(PyObject* obj);
  * type or proxy behaviors against obj.__class__.
  */
 PyObject* JITRT_CastOptional(PyObject* obj, PyTypeObject* type);
+/* Performs a type check on obj, but does not allow passing a subclass of type.
+ */
+PyObject* JITRT_CastExact(PyObject* obj, PyTypeObject* type);
+PyObject* JITRT_CastOptionalExact(PyObject* obj, PyTypeObject* type);
 
 /* Helper methods to implement left shift, which wants its operand in cl */
 int64_t JITRT_ShiftLeft64(int64_t x, int64_t y);

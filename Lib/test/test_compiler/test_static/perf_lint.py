@@ -217,8 +217,8 @@ class PerfLintTests(StaticTestBase):
             def add1(self, n: int) -> int:
                 return n + 1
 
-        c = C()
-        c.add1(10)
+        def foo(c: C) -> None:
+            c.add1(10)
         """
 
         errors = self.perf_lint(codestr)
@@ -264,14 +264,16 @@ class PerfLintTests(StaticTestBase):
             def add1(cls, n: int) -> int:
                 return n + 1
 
-        C.add1(10)
+            @classmethod
+            def add2(cls, n: int) -> int:
+                return cls.add1(n) + 1
         """
 
         errors = self.perf_lint(codestr)
         errors.check_warnings(
             errors.match(
                 "Method add1 can be overridden. Make method or class final for more efficient call",
-                at="C.add1(10)",
+                at="cls.add1(n)",
             )
         )
 

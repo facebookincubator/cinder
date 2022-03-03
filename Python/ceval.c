@@ -1591,6 +1591,7 @@ main_loop:
         PyObject *name;
         long nargs;
         int optional;
+        int exact;
         PyObject *owner;
         PyObject *res;
         PyObject *self;
@@ -2978,7 +2979,7 @@ main_loop:
             PyObject *list_info = GETITEM(consts, oparg);
             PyObject *list_type = PyTuple_GET_ITEM(list_info, 0);
             Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(list_info, 1));
-            type = _PyClassLoader_ResolveType(list_type, &optional);
+            type = _PyClassLoader_ResolveType(list_type, &optional, &exact);
             assert(!optional);
 
             if (shadow.shadow != NULL) {
@@ -3160,7 +3161,7 @@ main_loop:
             PyObject *map_info = GETITEM(consts, oparg);
             PyObject *map_type = PyTuple_GET_ITEM(map_info, 0);
             Py_ssize_t map_size = PyLong_AsLong(PyTuple_GET_ITEM(map_info, 1));
-            type = _PyClassLoader_ResolveType(map_type, &optional);
+            type = _PyClassLoader_ResolveType(map_type, &optional, &exact);
             assert(!optional);
 
             if (shadow.shadow != NULL) {
@@ -4578,14 +4579,15 @@ main_loop:
             FAST_DISPATCH();
         }
 
-#define CAST_COERCE_OR_ERROR(val, type)                                     \
+#define CAST_COERCE_OR_ERROR(val, type, exact)                              \
     if (type == &PyFloat_Type && PyObject_TypeCheck(val, &PyLong_Type)) {   \
         long lval = PyLong_AsLong(val);                                     \
         Py_DECREF(val);                                                     \
         SET_TOP(PyFloat_FromDouble(lval));                                  \
     } else {                                                                \
         PyErr_Format(PyExc_TypeError,                                       \
-                    "expected '%s', got '%s'",                              \
+                    exact ? "expected exactly '%s', got '%s'"               \
+                     : "expected '%s', got '%s'",                           \
                     type->tp_name,                                          \
                     Py_TYPE(val)->tp_name);                                 \
         Py_DECREF(type);                                                    \
@@ -4594,12 +4596,12 @@ main_loop:
 
         case TARGET(CAST): {
             PyObject *val = TOP();
-            type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
+            type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional, &exact);
             if (type == NULL) {
                 goto error;
             }
-            if (!_PyObject_TypeCheckOptional(val, type, optional)) {
-                CAST_COERCE_OR_ERROR(val, type);
+            if (!_PyObject_TypeCheckOptional(val, type, optional, exact)) {
+                CAST_COERCE_OR_ERROR(val, type, exact);
             }
 
             if (shadow.shadow != NULL) {
@@ -4607,8 +4609,16 @@ main_loop:
                     _PyShadow_CacheCastType(&shadow, (PyObject *)type);
                 if (offset != -1) {
                     if (optional) {
+                        if (exact) {
+                            _PyShadow_PatchByteCode(
+                                &shadow, next_instr, CAST_CACHED_OPTIONAL_EXACT, offset);
+                        } else {
+                            _PyShadow_PatchByteCode(
+                                &shadow, next_instr, CAST_CACHED_OPTIONAL, offset);
+                        }
+                    } else if (exact) {
                         _PyShadow_PatchByteCode(
-                            &shadow, next_instr, CAST_CACHED_OPTIONAL, offset);
+                            &shadow, next_instr, CAST_CACHED_EXACT, offset);
                     } else {
                         _PyShadow_PatchByteCode(
                             &shadow, next_instr, CAST_CACHED, offset);
@@ -4623,7 +4633,7 @@ main_loop:
             PyObject *val = TOP();
             type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!PyObject_TypeCheck(val, type)) {
-                CAST_COERCE_OR_ERROR(val, type);
+                CAST_COERCE_OR_ERROR(val, type, /* exact */ 0);
             }
             FAST_DISPATCH();
         }
@@ -4631,14 +4641,32 @@ main_loop:
         case TARGET(CAST_CACHED_OPTIONAL): {
             PyObject *val = TOP();
             type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
-            if (!_PyObject_TypeCheckOptional(val, type, 1)) {
-                CAST_COERCE_OR_ERROR(val, type);
+            if (!_PyObject_TypeCheckOptional(val, type, /* opt */ 1, /* exact */ 0)) {
+                CAST_COERCE_OR_ERROR(val, type, /* exact */ 0);
+            }
+            FAST_DISPATCH();
+        }
+
+        case TARGET(CAST_CACHED_EXACT): {
+            PyObject *val = TOP();
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            if (Py_TYPE(val) != type) {
+                CAST_COERCE_OR_ERROR(val, type, /* exact */ 1);
+            }
+            FAST_DISPATCH();
+        }
+
+        case TARGET(CAST_CACHED_OPTIONAL_EXACT): {
+            PyObject *val = TOP();
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            if (!_PyObject_TypeCheckOptional(val, type, /* opt */ 1, /* exact */ 1)) {
+                CAST_COERCE_OR_ERROR(val, type, /* exact */ 1);
             }
             FAST_DISPATCH();
         }
 
         case TARGET(TP_ALLOC): {
-            type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional);
+            type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional, &exact);
             assert(!optional);
             if (type == NULL) {
                 goto error;
@@ -4702,7 +4730,7 @@ main_loop:
                     val = fastlocals[idx];
                 }
 
-                type = _PyClassLoader_ResolveType(type_descr, &optional);
+                type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
                 if (type == NULL) {
                     goto error;
                 }
@@ -4730,7 +4758,7 @@ main_loop:
                     assert(primitive == TYPED_OBJECT);
                 }
 
-                if (!_PyObject_TypeCheckOptional(val, type, optional)) {
+                if (!_PyObject_TypeCheckOptional(val, type, optional, exact)) {
                     PyErr_Format(
                         PyExc_TypeError,
                         "%U expected '%s' for argument %U, got '%s'",
@@ -4788,7 +4816,7 @@ main_loop:
                   val = fastlocals[idx];
                 }
 
-                if (!_PyObject_TypeCheckOptional(val, check->tai_type, check->tai_optional)) {
+                if (!_PyObject_TypeCheckOptional(val, check->tai_type, check->tai_optional, check->tai_exact)) {
                     PyErr_Format(
                         PyExc_TypeError,
                         "%U expected '%s' for argument %U, got '%s'",
@@ -4897,7 +4925,7 @@ main_loop:
 
         case TARGET(PRIMITIVE_BOX): {
             type_descr = GETITEM(consts, oparg);
-            type = _PyClassLoader_ResolveType(type_descr, &optional);
+            type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
             if (type == NULL) {
                 goto error;
             }
@@ -4977,7 +5005,7 @@ main_loop:
 
         case TARGET(PRIMITIVE_UNBOX): {
             type_descr = GETITEM(consts, oparg);
-            type = _PyClassLoader_ResolveType(type_descr, &optional);
+            type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
             if (type == NULL) {
                 goto error;
             }
@@ -8064,8 +8092,8 @@ static PyObject *
 _PyEntry_WrapEnum(PyObject *obj, PyFunctionObject *func)
 {
     PyObject *type_descr = _PyClassLoader_GetReturnTypeDescr(func);
-    int optional;
-    PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional);
+    int optional, exact;
+    PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
     if (type == NULL) {
         Py_DECREF(obj);
         return NULL;
@@ -8135,8 +8163,8 @@ _PyEntry_StaticEntryEnum(PyFunctionObject *func,
 static vectorcallfunc
 _PyStaticEntry_MaybeEnum(PyCodeObject *co, void *entry, void *enum_entry) {
     PyObject *type_descr = _PyClassLoader_GetCodeReturnTypeDescr(co);
-    int optional;
-    PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional);
+    int optional, exact;
+    PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
     if (type == NULL) {
         PyErr_Clear();
         return (vectorcallfunc)PyEntry_LazyInit;

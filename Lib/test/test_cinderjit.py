@@ -2196,7 +2196,7 @@ class EagerCoroutineDispatch(StaticTestBase):
 
     def test_invoke_function(self):
         codestr = f"""
-        def x() -> None:
+        async def x() -> None:
             pass
 
         async def await_x() -> None:
@@ -2238,14 +2238,14 @@ class EagerCoroutineDispatch(StaticTestBase):
     def test_invoke_method(self):
         codestr = f"""
         class X:
-            def x(self) -> None:
+            async def x(self) -> None:
                 pass
 
-        async def await_x() -> None:
-            await X().x()
+        async def await_x(x: X) -> None:
+            await x.x()
 
-        async def call_x() -> None:
-            X().x()
+        async def call_x(x: X) -> None:
+            x.x()
         """
         c = self.compile(codestr, StaticCodeGenerator, modname="test_invoke_method")
         await_x = self.find_code(c, "await_x")
@@ -2259,7 +2259,7 @@ class EagerCoroutineDispatch(StaticTestBase):
         with self.in_module(codestr) as mod:
             awaited_capturer = mod.X.x = _testcapi.TestAwaitedCall()
             self.assertIsNone(awaited_capturer.last_awaited())
-            coro = mod.await_x()
+            coro = mod.await_x(mod.X())
             with self.assertRaisesRegex(
                 TypeError, r".*can't be used in 'await' expression"
             ):
@@ -2267,7 +2267,7 @@ class EagerCoroutineDispatch(StaticTestBase):
             coro.close()
             self.assertTrue(awaited_capturer.last_awaited())
             self.assertIsNone(awaited_capturer.last_awaited())
-            coro = mod.call_x()
+            coro = mod.call_x(mod.X())
             with self.assertRaises(StopIteration):
                 coro.send(None)
             coro.close()

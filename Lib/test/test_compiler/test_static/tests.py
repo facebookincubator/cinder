@@ -623,19 +623,19 @@ class StaticCompilationTests(StaticTestBase):
         self.assertTrue(self.type_env.slice.is_exact)
         self.assertTrue(self.type_env.none.is_exact)
         self.assertTrue(self.type_env.str.exact_type().is_exact)
+        self.assertTrue(self.type_env.bool.is_exact)
         self.assertTrue(self.type_env.int.exact_type().is_exact)
         self.assertTrue(self.type_env.float.exact_type().is_exact)
         self.assertTrue(self.type_env.complex.exact_type().is_exact)
-        self.assertTrue(self.type_env.bool.is_exact)
         self.assertTrue(self.type_env.ellipsis.is_exact)
         self.assertTrue(self.type_env.dict.exact_type().is_exact)
         self.assertTrue(self.type_env.tuple.exact_type().is_exact)
         self.assertTrue(self.type_env.set.exact_type().is_exact)
         self.assertTrue(self.type_env.list.exact_type().is_exact)
+        self.assertTrue(self.type_env.dynamic.is_exact)
 
         self.assertFalse(self.type_env.type.is_exact)
         self.assertFalse(self.type_env.object.is_exact)
-        self.assertFalse(self.type_env.dynamic.is_exact)
         self.assertFalse(self.type_env.str.is_exact)
         self.assertFalse(self.type_env.int.is_exact)
         self.assertFalse(self.type_env.float.is_exact)
@@ -674,7 +674,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         acomp = self.compile_strict(code)
         x = self.find_code(acomp, "f")
-        self.assertInBytecode(x, "CAST", ("builtins", "bool"))
+        self.assertInBytecode(x, "CAST", ("builtins", "bool", "!"))
 
     def test_strict_module_constant(self) -> None:
         code = """
@@ -683,7 +683,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         acomp = self.compile_strict(code)
         x = self.find_code(acomp, "f")
-        self.assertInBytecode(x, "CAST", ("builtins", "bool"))
+        self.assertInBytecode(x, "CAST", ("builtins", "bool", "!"))
 
     def test_strict_module_isinstance(self):
         code = """
@@ -1663,7 +1663,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.func
             self.assertInBytecode(
-                f, "INVOKE_FUNCTION", (("builtins", "int", "bit_length"), 1)
+                f, "INVOKE_FUNCTION", (("builtins", "int", "!", "bit_length"), 1)
             )
             self.assertEqual(f(), 6)
 
@@ -1688,6 +1688,7 @@ class StaticCompilationTests(StaticTestBase):
                         "__static__",
                         "chkdict",
                         (("builtins", "int"), ("builtins", "int")),
+                        "!",
                         "keys",
                     ),
                     1,
@@ -1835,7 +1836,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[str\] received for positional arg 'a', expected int",
+            r"str received for positional arg 'a', expected int",
         ):
             self.compile(codestr)
 
@@ -2059,7 +2060,7 @@ class StaticCompilationTests(StaticTestBase):
             x(a="hi", b="lol")
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, r"Exact\[str\] received for keyword arg 'a', expected int"
+            TypedSyntaxError, r"str received for keyword arg 'a', expected int"
         ):
             self.compile(codestr)
 
@@ -2100,7 +2101,7 @@ class StaticCompilationTests(StaticTestBase):
             x(12, c="hi", b="lol")
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, r"Exact\[str\] received for keyword arg 'c', expected int"
+            TypedSyntaxError, r"str received for keyword arg 'c', expected int"
         ):
             self.compile(codestr)
 
@@ -2112,7 +2113,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[str\] received for positional arg 'a', expected int",
+            r"str received for positional arg 'a', expected int",
         ):
             self.compile(codestr)
 
@@ -2135,7 +2136,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[str\] received for positional arg 'a', expected int",
+            r"str received for positional arg 'a', expected int",
         ):
             self.compile(codestr)
 
@@ -2216,7 +2217,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[str\] received for positional arg 'a', expected int",
+            r"str received for positional arg 'a', expected int",
         ):
             self.compile(codestr)
 
@@ -2465,6 +2466,7 @@ class StaticCompilationTests(StaticTestBase):
                         "__static__",
                         "chkdict",
                         (("builtins", "str"), ("builtins", "str", "?")),
+                        "!",
                         "get",
                     ),
                     3,
@@ -2627,7 +2629,7 @@ class StaticCompilationTests(StaticTestBase):
         self.assertInBytecode(f, "CAST", ("builtins", "str"))
         # Currently because the tuple gets turned into a constant this is less than
         # ideal:
-        self.assertInBytecode(f, "CAST", ("builtins", "int"))
+        self.assertInBytecode(f, "CAST", ("builtins", "int", "!"))
 
     def test_if_optional(self):
         codestr = """
@@ -2802,7 +2804,7 @@ class StaticCompilationTests(StaticTestBase):
 
         code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "D", "f"), 0))
+        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "D", "f"), 1))
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(True), "abc")
@@ -2918,7 +2920,7 @@ class StaticCompilationTests(StaticTestBase):
 
         code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "D", "f"), 0))
+        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "D", "f"), 1))
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(True), "abc")
@@ -2942,7 +2944,7 @@ class StaticCompilationTests(StaticTestBase):
 
         code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
+        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "B", "f"), 1))
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(True), None)
@@ -2966,7 +2968,7 @@ class StaticCompilationTests(StaticTestBase):
 
         code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
+        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "B", "f"), 1))
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), 42)
@@ -3094,7 +3096,7 @@ class StaticCompilationTests(StaticTestBase):
 
         code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "D", "f"), 0))
+        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "D", "f"), 1))
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(False), "abc")
@@ -3504,7 +3506,7 @@ class StaticCompilationTests(StaticTestBase):
 
         code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
+        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "B", "f"), 1))
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
@@ -3554,7 +3556,7 @@ class StaticCompilationTests(StaticTestBase):
 
         code = self.compile(codestr, modname="foo")
         f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_METHOD", (("foo", "B", "f"), 0))
+        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "B", "f"), 1))
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             self.assertEqual(test(), 42)
@@ -3750,9 +3752,7 @@ class StaticCompilationTests(StaticTestBase):
                 y = x = "hello"
                 return y
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[str]", "int")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("str", "int")):
             self.compile(codestr, modname="foo")
 
     @skipIf(cinderjit is not None, "can't report error from JIT")
@@ -4358,7 +4358,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.testfunc
             self.assertEqual(f("abc", "abc"), True)
-            self.assertInBytecode(f, "CAST", ("builtins", "bool"))
+            self.assertInBytecode(f, "CAST", ("builtins", "bool", "!"))
 
     def test_bool_int(self):
         codestr = """
@@ -4489,7 +4489,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertNotInBytecode(
+            self.assertInBytecode(
                 f,
                 "INVOKE_FUNCTION",
                 ((mod.__name__, "C", "f"), 0),
@@ -4683,9 +4683,7 @@ class StaticCompilationTests(StaticTestBase):
                 global x
                 x = "foo"
         """
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("Exact[str]", "int")
-        ):
+        with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("str", "int")):
             self.compile(codestr)
 
     def test_inferred_module_global_assign_subclass(self):
@@ -4881,6 +4879,7 @@ class StaticCompilationTests(StaticTestBase):
                         "__static__",
                         "chkdict",
                         (("builtins", "int"), ("builtins", "str")),
+                        "!",
                         "__setitem__",
                     ),
                     3,
@@ -4908,6 +4907,7 @@ class StaticCompilationTests(StaticTestBase):
                         "__static__",
                         "chkdict",
                         (("builtins", "int"), ("builtins", "str")),
+                        "!",
                         "__setitem__",
                     ),
                     3,
@@ -4953,7 +4953,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[str]", "int"),
+            type_mismatch("str", "int"),
         ):
             self.compile(codestr, modname="foo")
 
@@ -5015,8 +5015,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[chkdict[str, str]]",
-                "Exact[chkdict[int, int]]",
+                "chkdict[str, str]",
+                "chkdict[int, int]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -5031,7 +5031,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch("Exact[chkdict[str, str]]", "int"),
+            type_mismatch("chkdict[str, str]", "int"),
         ):
             self.compile(codestr, modname="foo")
 
@@ -5149,8 +5149,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[chkdict[foo.B, Exact[str]]]",
-                "Exact[chkdict[foo.B, int]]",
+                "chkdict[foo.B, str]",
+                "chkdict[foo.B, int]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -5168,8 +5168,8 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[chkdict[object, Literal[42]]]",
-                "Exact[chkdict[foo.B, int]]",
+                "chkdict[object, Literal[42]]",
+                "chkdict[foo.B, int]",
             ),
         ):
             self.compile(codestr, modname="foo")
@@ -5185,7 +5185,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"Exact\[dict\] received for positional arg 'x', expected int",
+            r"dict received for positional arg 'x', expected int",
         ):
             self.compile(codestr, modname="foo")
 
@@ -5291,9 +5291,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            type_mismatch(
-                "Exact[chkdict[Exact[int], Exact[int]]]", "Exact[chkdict[int, str]]"
-            ),
+            type_mismatch("chkdict[int, int]", "chkdict[int, str]"),
         ):
             self.compile(codestr)
 
@@ -5844,7 +5842,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-
     def test_frozenset_constant(self):
         codestr = """
         from __static__ import inline
@@ -5889,36 +5886,28 @@ class StaticCompilationTests(StaticTestBase):
         def foo(x: int = "") -> int:
             return x
         """
-        self.type_error(
-            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
-        )
+        self.type_error(codestr, r"type mismatch: str cannot be assigned to int")
 
     def test_default_type_error_with_non_defaults(self):
         codestr = """
         def foo(non_default: int, x: int = "") -> int:
             return non_default + x
         """
-        self.type_error(
-            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
-        )
+        self.type_error(codestr, r"type mismatch: str cannot be assigned to int")
 
     def test_default_type_error_with_positional_only_arguments(self):
         codestr = """
         def foo(x: int = "", /) -> int:
             return x
         """
-        self.type_error(
-            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
-        )
+        self.type_error(codestr, r"type mismatch: str cannot be assigned to int")
 
     def test_default_type_error_with_keywords(self):
         codestr = """
         def foo(x: int, *, y: int, z: int = "") -> int:
             return x + y + z
         """
-        self.type_error(
-            codestr, r"type mismatch: Exact\[str\] cannot be assigned to int"
-        )
+        self.type_error(codestr, r"type mismatch: str cannot be assigned to int")
 
     def test_slotification_decorated(self):
         codestr = """
@@ -6807,8 +6796,8 @@ class StaticRuntimeTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             self.assertInBytecode(
                 mod.f,
-                "INVOKE_METHOD",
-                ((mod.__name__, "C", "g"), 0),
+                "INVOKE_FUNCTION",
+                ((mod.__name__, "C", "g"), 1),
             )
             asyncio.run(mod.f())
 
@@ -8270,7 +8259,7 @@ class StaticRuntimeTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.f
             self.assertNotInBytecode(f, "FOR_ITER")
-            self.assertInBytecode(f, "REFINE_TYPE", ("builtins", "list"))
+            self.assertInBytecode(f, "REFINE_TYPE", ("builtins", "list", "!"))
 
     def test_min(self):
         codestr = """

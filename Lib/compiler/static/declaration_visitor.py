@@ -148,7 +148,8 @@ class DeclarationVisitor(GenericVisitor[None]):
                 self.visit(item)
 
         parent_scope.declare_class(node, klass)
-        self.module.types[node] = klass
+        # We want the name corresponding to `C` to be the exact type when imported.
+        self.module.types[node] = klass.exact_type()
         self.exit_scope()
 
     def _visitFunc(self, node: Union[FunctionDef, AsyncFunctionDef]) -> None:

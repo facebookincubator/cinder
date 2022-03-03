@@ -262,7 +262,7 @@ class UnionCompilationTests(StaticTestBase):
             def f():
                 x = int | "foo"
             """,
-            r"unsupported operand type(s) for |: Type\[Exact\[int\]\] and Exact\[str\]",
+            r"unsupported operand type(s) for |: Type\[int\] and str",
         )
 
     def test_union_or_syntax_annotation_bad_type(self):

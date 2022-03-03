@@ -19,7 +19,7 @@ namespace hir {
 
 Type prim_type_to_type(int prim_type);
 
-using PyTypeOpt = std::pair<Ref<PyTypeObject>, bool>;
+using PyTypeOpt = std::tuple<Ref<PyTypeObject>, bool, bool>;
 using ArgToType = std::map<long, Type>;
 
 struct FieldInfo {
@@ -102,7 +102,6 @@ class Preloader {
   };
 
   Type type(BorrowedRef<> descr) const;
-  Type exactType(BorrowedRef<> descr) const;
   int primitiveTypecode(BorrowedRef<> descr) const;
   BorrowedRef<PyTypeObject> pyType(BorrowedRef<> descr) const;
   const PyTypeOpt& pyTypeOpt(BorrowedRef<> descr) const;

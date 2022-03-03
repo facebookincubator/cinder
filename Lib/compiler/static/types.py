@@ -24,6 +24,7 @@ from ast import (
     expr,
     copy_location,
 )
+from copy import copy
 from enum import Enum
 from functools import cached_property
 from types import (
@@ -181,7 +182,6 @@ class TypeEnvironment:
         self.type.allow_weakrefs = False
         self.type.donotcompile = False
         self.type._mro = None
-        self.type._mro_inexact = None
         self.type.pytype = type
         self.type._member_nodes = {}
         self.type.dynamic_builtinmethod_dispatch = False
@@ -357,6 +357,9 @@ class TypeEnvironment:
         self.readonly_type = ReadonlyType(
             GenericTypeName("builtins", "Readonly", (GenericParameter("T", 0, self),)),
             self,
+        )
+        self.exact = ExactClass(
+            GenericTypeName("typing", "Exact", (GenericParameter("T", 0, self),)), self
         )
         self.named_tuple = Class(TypeName("typing", "NamedTuple"), self)
         self.protocol = Class(TypeName("typing", "Protocol"), self)
@@ -592,6 +595,10 @@ class Value:
     @property
     def name(self) -> str:
         return type(self).__name__
+
+    @property
+    def name_with_exact(self) -> str:
+        return self.name
 
     def exact(self) -> Value:
         return self
@@ -961,6 +968,10 @@ class Object(Value, Generic[TClass]):
     def name(self) -> str:
         return self.klass.instance_name
 
+    @property
+    def name_with_exact(self) -> str:
+        return self.klass.instance_name_with_exact
+
     def as_oparg(self) -> int:
         return TYPED_OBJECT
 
@@ -1188,8 +1199,6 @@ class FunctionGroup(Value):
 class Class(Object["Class"]):
     """Represents a type object at compile time"""
 
-    suppress_exact = False
-
     def __init__(
         self,
         type_name: TypeName,
@@ -1209,7 +1218,6 @@ class Class(Object["Class"]):
         self.instance: Value = instance or Object(self)
         self.bases: List[Class] = self._get_bases(bases)
         self._mro: Optional[List[Class]] = None
-        self._mro_inexact: Optional[Set[Class]] = None
         # members are attributes or methods
         self.members: Dict[str, Value] = members or {}
         self.is_exact = is_exact
@@ -1267,10 +1275,18 @@ class Class(Object["Class"]):
         return f"Type[{self.instance_name}]"
 
     @property
+    def name_with_exact(self) -> str:
+        return f"Type[{self.instance_name_with_exact}]"
+
+    @property
     def instance_name(self) -> str:
+        return self.qualname
+
+    @property
+    def instance_name_with_exact(self) -> str:
         name = self.qualname
-        if self.is_exact and not self.suppress_exact:
-            name = f"Exact[{name}]"
+        if self.is_exact:
+            return f"Exact[{name}]"
         return name
 
     def declare_class(self, node: ClassDef, klass: Class) -> None:
@@ -1374,6 +1390,8 @@ class Class(Object["Class"]):
 
     @property
     def type_descr(self) -> TypeDescr:
+        if self.is_exact:
+            return self.type_name.type_descr + ("!",)
         return self.type_name.type_descr
 
     def _resolve_dunder(self, name: str) -> Tuple[Class, Optional[Value]]:
@@ -1385,7 +1403,7 @@ class Class(Object["Class"]):
             if val := klass.members.get(name):
                 return klass, val
 
-        assert klass is self.type_env.object
+        assert klass.inexact_type() is self.type_env.object
         return self.type_env.object, None
 
     def bind_call(
@@ -1399,7 +1417,7 @@ class Class(Object["Class"]):
 
         klass, new = self._resolve_dunder("__new__")
         dynamic_new = klass is self.type_env.dynamic
-        object_new = klass is self.type_env.object
+        object_new = klass.inexact_type() is self.type_env.object
 
         if not object_new and isinstance(new, Callable):
             new_mapping, self_type = new.map_call(
@@ -1420,7 +1438,7 @@ class Class(Object["Class"]):
         if not dynamic_new and self_type.klass.can_assign_from(self.instance.klass):
             klass, init = self._resolve_dunder("__init__")
             dynamic_call = dynamic_call or klass is self.type_env.dynamic
-            object_init = klass is self.type_env.object
+            object_init = klass.inexact_type() is self.type_env.object
             if not object_init and isinstance(init, Callable):
                 init_mapping = ArgMapping(init, node, visitor, None)
                 init_mapping.bind_args(visitor, True)
@@ -1488,7 +1506,7 @@ class Class(Object["Class"]):
         return src is self or (
             (not self.is_exact or src.instance.nonliteral() is self.instance)
             and not isinstance(src, CType)
-            and src.is_subclass_of(self)
+            and src.instance.nonliteral().klass.is_subclass_of(self)
         )
 
     def __repr__(self) -> str:
@@ -1507,17 +1525,25 @@ class Class(Object["Class"]):
         return self.type_env.get_inexact_type(self)
 
     def _create_exact_type(self) -> Class:
-        return type(self)(
+        instance = copy(self.instance)
+        klass = type(self)(
             type_name=self.type_name,
             type_env=self.type_env,
             bases=self.bases,
             klass=self.klass,
             members=self.members,
-            instance=self.instance,
+            instance=instance,
             is_exact=True,
             pytype=self.pytype,
             is_final=self.is_final,
         )
+        # We need to point the instance's klass to the new class we just created.
+        instance.klass = klass
+        # `donotcompile` and `allow_weakrefs` are set via decorators after construction, and we
+        # need to persist these for consistency.
+        klass.donotcompile = self.donotcompile
+        klass.allow_weakrefs = self.allow_weakrefs
+        return klass
 
     def isinstance(self, src: Value) -> bool:
         return src.klass.is_subclass_of(self)
@@ -1528,7 +1554,7 @@ class Class(Object["Class"]):
             # self < A | B if either self < A or self < B. Requiring both wouldn't be correct,
             # as we want to allow assignments of A into A | B.
             return any(self.is_subclass_of(t) for t in src.type_args)
-        return src.inexact_type() in self.mro_inexact
+        return src.exact_type() in self.mro
 
     def _check_compatible_property_override(
         self, override: Value, inherited: Value
@@ -1725,13 +1751,6 @@ class Class(Object["Class"]):
 
         return mro
 
-    @property
-    def mro_inexact(self) -> Collection[Class]:
-        cached = self._mro_inexact
-        if cached is None:
-            self._mro_inexact = cached = {b.inexact_type() for b in self.mro}
-        return cached
-
     def bind_generics(
         self,
         name: GenericTypeName,
@@ -1796,6 +1815,7 @@ class BuiltinObject(Class):
         members: Optional[Dict[str, Value]] = None,
         is_exact: bool = False,
         is_final: bool = False,
+        pytype: Optional[Type[object]] = None,
     ) -> None:
         super().__init__(
             type_name,
@@ -1825,7 +1845,7 @@ class GenericClass(Class):
 
     def __init__(
         self,
-        name: GenericTypeName,
+        type_name: GenericTypeName,
         type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
@@ -1834,11 +1854,20 @@ class GenericClass(Class):
         type_def: Optional[GenericClass] = None,
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
+        is_final: bool = False,
     ) -> None:
         super().__init__(
-            name, type_env, bases, instance, klass, members, is_exact, pytype
+            type_name,
+            type_env,
+            bases,
+            instance,
+            klass,
+            members,
+            is_exact,
+            pytype,
+            is_final,
         )
-        self.gen_name = name
+        self.gen_name = type_name
         self.type_def = type_def
 
     def bind_call(
@@ -1998,7 +2027,9 @@ class GenericParameter(Class):
         type_env: TypeEnvironment,
         variance: Variance = Variance.INVARIANT,
     ) -> None:
-        super().__init__(TypeName("", name), type_env, [], None, None, {})
+        super().__init__(
+            TypeName("", name), type_env, [], None, None, {}, is_exact=True
+        )
         self.index = index
         self.variance = variance
 
@@ -2020,8 +2051,6 @@ class GenericParameter(Class):
 
 class CType(Class):
     """base class for primitives that aren't heap allocated"""
-
-    suppress_exact = True
 
     def __init__(
         self,
@@ -2084,10 +2113,15 @@ class DynamicClass(Class):
             TypeName("builtins", "object"),
             type_env,
             instance=DynamicInstance(self),
+            is_exact=True,
         )
 
     @property
     def qualname(self) -> str:
+        return "dynamic"
+
+    @property
+    def instance_name_with_exact(self) -> str:
         return "dynamic"
 
     def can_assign_from(self, src: Class) -> bool:
@@ -2096,6 +2130,14 @@ class DynamicClass(Class):
 
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         assert self.can_assign_from(src)
+
+    @property
+    def type_descr(self) -> TypeDescr:
+        # `dynamic` is an exact type - it appears in MROs, so we want to avoid an exact/inexact
+        # version of dynamic from co-existing. However, dynamic is compatible with every type.
+        # We special case the type descr to avoid the exactness tag ("!") to ensure that thunks
+        # type check against the `(builtins, object)` descr instead of the exact one.
+        return ("builtins", "object")
 
 
 class DynamicInstance(Object[DynamicClass]):
@@ -2109,8 +2151,6 @@ class DynamicInstance(Object[DynamicClass]):
 
 
 class NoneType(Class):
-    suppress_exact = True
-
     def __init__(self, type_env: TypeEnvironment) -> None:
         super().__init__(
             TypeName("builtins", "None"),
@@ -2241,7 +2281,8 @@ def _merge(seqs: Iterable[List[Class]]) -> List[Class]:
 
 def _mro(C: Class) -> List[Class]:
     "Compute the class precedence list (mro) according to C3"
-    return _merge([[C]] + list(map(_mro, C.bases)) + [list(C.bases)])
+    bases = list(map(lambda base: base.exact_type(), C.bases))
+    return _merge([[C.exact_type()]] + list(map(_mro, bases)) + [bases])
 
 
 class Parameter:
@@ -2845,7 +2886,9 @@ class FunctionContainer(Object[Class]):
             else:
                 klass = visitor.maybe_get_current_class()
                 if klass is not None:
-                    self_type = klass.instance
+                    # Since methods can be called by subclasses, take some care to ensure self
+                    # is always inexact.
+                    self_type = klass.inexact_type().instance
 
             visitor.set_param(node.args.args[0], self_type, scope)
 
@@ -2927,7 +2970,7 @@ class Callable(Object[TClass]):
         return (self.module_name, self.func_name)
 
     def set_container_type(self, klass: Optional[Class]) -> None:
-        self.container_type = klass
+        self.container_type = klass.inexact_type() if klass is not None else klass
 
     def map_call(
         self,
@@ -3018,6 +3061,7 @@ class AwaitableType(GenericClass):
         type_env: TypeEnvironment,
         type_name: Optional[GenericTypeName] = None,
         type_def: Optional[GenericClass] = None,
+        is_exact: bool = False,
     ) -> None:
         super().__init__(
             type_name
@@ -3029,7 +3073,11 @@ class AwaitableType(GenericClass):
             type_env,
             instance=AwaitableInstance(self),
             type_def=type_def,
+            is_exact=is_exact,
         )
+
+    def _create_exact_type(self) -> Class:
+        return type(self)(self.type_env, self.type_name, self.type_def, is_exact=True)
 
     @property
     def type_descr(self) -> TypeDescr:
@@ -3802,7 +3850,7 @@ class ClassMethod(DecoratedMethod):
         if node.args.args:
             klass = visitor.maybe_get_current_class()
             if klass is not None:
-                visitor.set_param(node.args.args[0], klass, scope)
+                visitor.set_param(node.args.args[0], klass.inexact_type(), scope)
             else:
                 visitor.set_param(node.args.args[0], visitor.type_env.DYNAMIC, scope)
 
@@ -4335,7 +4383,8 @@ class BuiltinMethod(Callable[Class]):
             for arg in node.args:
                 code_gen.visit(arg)
 
-            if code_gen.get_type(self.target.value).klass.is_exact:
+            klass = code_gen.get_type(self.target.value).klass
+            if klass.is_exact or klass.is_final:
                 code_gen.emit("INVOKE_FUNCTION", (self.type_descr, len(node.args) + 1))
             else:
                 code_gen.emit_invoke_method(self.type_descr, len(node.args))
@@ -4709,7 +4758,7 @@ class IsInstanceFunction(Object[Class]):
                 return IsInstanceEffect(
                     arg0,
                     visitor.get_type(arg0),
-                    klass_type.instance.inexact(),
+                    klass_type.inexact_type().instance,
                     visitor,
                 )
 
@@ -4757,11 +4806,11 @@ class RevealTypeFunction(Object[Class]):
         arg = node.args[0]
         visitor.visit(arg)
         arg_type = visitor.get_type(arg)
-        msg = f"reveal_type({to_expr(arg)}): '{arg_type.name}'"
+        msg = f"reveal_type({to_expr(arg)}): '{arg_type.name_with_exact}'"
         if isinstance(arg, ast.Name) and arg.id in visitor.decl_types:
             decl_type = visitor.decl_types[arg.id].type
             local_type = visitor.local_types[arg.id]
-            msg += f", '{arg.id}' has declared type '{decl_type.name}' and local type '{local_type.name}'"
+            msg += f", '{arg.id}' has declared type '{decl_type.name_with_exact}' and local type '{local_type.name_with_exact}'"
         visitor.syntax_error(msg, node)
         return NO_EFFECT
 
@@ -4879,6 +4928,12 @@ class NumExactInstance(NumInstance):
         if self.klass.literal_value is not None:
             return f"Literal[{self.klass.literal_value}]"
         return super().name
+
+    @property
+    def name_with_exact(self) -> str:
+        if self.klass.literal_value is not None:
+            return f"Literal[{self.klass.literal_value}]"
+        return super().name_with_exact
 
     def bind_binop(
         self, node: ast.BinOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -5566,8 +5621,6 @@ class DictInstance(Object[DictClass]):
 
 
 class BoolClass(Class):
-    suppress_exact = True
-
     def __init__(
         self, type_env: TypeEnvironment, literal_value: bool | None = None
     ) -> None:
@@ -5681,7 +5734,18 @@ class AnnotatedType(Class):
             )
             return None
         actual_type, *annotations = val.elts
-        return visitor.resolve_annotation(actual_type)
+        actual_type = visitor.resolve_annotation(actual_type)
+        if actual_type is None:
+            return visitor.type_env.DYNAMIC
+        if (
+            len(annotations) == 1
+            and isinstance(annotations[0], ast.Constant)
+            # pyre-ignore[16]: Pyre doesn't let us refine the first element of a list.
+            and annotations[0].value == "Exact"
+            and isinstance(actual_type, Class)
+        ):
+            return self.type_env.exact.make_generic_type((actual_type,))
+        return actual_type
 
 
 class LiteralType(Class):
@@ -5728,6 +5792,15 @@ class FinalClass(TypeWrapper):
 
 
 class ClassVar(TypeWrapper):
+    pass
+
+
+class ExactClass(TypeWrapper):
+    """This type wrapper indicates a user-specified exact type annotation. Normally, we
+    relax exact types in annotations to be inexact to support passing in subclasses, but
+    this class supports the case where a user does *not* want subclasses to be allowed.
+    """
+
     pass
 
 
@@ -6176,6 +6249,7 @@ class ArrayClass(GenericClass):
         type_def: Optional[GenericClass] = None,
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
+        is_final: bool = False,
     ) -> None:
         default_bases: List[Class] = [type_env.object]
         default_instance: Object[Class] = ArrayInstance(self)
@@ -6189,6 +6263,7 @@ class ArrayClass(GenericClass):
             type_def,
             is_exact,
             pytype,
+            is_final,
         )
         self.members["__new__"] = BuiltinNewFunction(
             "__new__",
@@ -6278,7 +6353,7 @@ class VectorClass(ArrayClass):
 class CheckedDict(GenericClass):
     def __init__(
         self,
-        name: GenericTypeName,
+        type_name: GenericTypeName,
         type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
@@ -6287,11 +6362,12 @@ class CheckedDict(GenericClass):
         type_def: Optional[GenericClass] = None,
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
+        is_final: bool = True,
     ) -> None:
         if instance is None:
             instance = CheckedDictInstance(self)
         super().__init__(
-            name,
+            type_name,
             type_env,
             bases,
             instance,
@@ -6300,6 +6376,7 @@ class CheckedDict(GenericClass):
             type_def,
             is_exact,
             pytype,
+            is_final,
         )
         self.members["__init__"] = self.init_func = BuiltinFunction(
             "__init__",
@@ -6398,7 +6475,7 @@ class CheckedDictInstance(Object[CheckedDict]):
 class CheckedList(GenericClass):
     def __init__(
         self,
-        name: GenericTypeName,
+        type_name: GenericTypeName,
         type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
@@ -6407,11 +6484,12 @@ class CheckedList(GenericClass):
         type_def: Optional[GenericClass] = None,
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
+        is_final: bool = True,
     ) -> None:
         if instance is None:
             instance = CheckedListInstance(self)
         super().__init__(
-            name,
+            type_name,
             type_env,
             bases,
             instance,
@@ -6420,6 +6498,7 @@ class CheckedList(GenericClass):
             type_def,
             is_exact,
             pytype,
+            is_final,
         )
         self.members["__init__"] = self.init_func = BuiltinFunction(
             "__init__",
@@ -6586,6 +6665,10 @@ class CInstance(Value, Generic[TClass]):
     def name(self) -> str:
         return self.klass.instance_name
 
+    @property
+    def name_with_exact(self) -> str:
+        return self.klass.instance_name_with_exact
+
     def binop_error(self, left: str, right: str, op: ast.operator) -> str:
         return f"cannot {self._op_name[type(op)]} {left} and {right}"
 
@@ -6657,6 +6740,10 @@ class CEnumInstance(CInstance["CEnumType"]):
         if self.attr_name is not None:
             return f"<{class_name}.{self.attr_name}: {self.value}>"
         return class_name
+
+    @property
+    def name_with_exact(self) -> str:
+        return self.name
 
     def as_oparg(self) -> int:
         return TYPED_INT64
@@ -6918,6 +7005,7 @@ class BoxedEnumClass(Class):
             type_env,
             boxed_bases,
             BoxedEnumInstance(self),
+            is_exact=True,
         )
 
         self.values: Dict[str, BoxedEnumInstance] = {}
@@ -6949,6 +7037,10 @@ class BoxedEnumInstance(Object[BoxedEnumClass]):
             return f"Boxed<{class_name}.{self.attr_name}: {self.value}>"
         return class_name
 
+    @property
+    def name_with_exact(self) -> str:
+        return self.name
+
     def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node)
         code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
@@ -6970,6 +7062,10 @@ class CIntInstance(CInstance["CIntType"]):
         if self.klass.literal_value is not None:
             return f"Literal[{self.klass.literal_value}]"
         return super().name
+
+    @property
+    def name_with_exact(self) -> str:
+        return self.name
 
     _int_binary_opcode_signed: Mapping[Type[ast.AST], int] = {
         ast.Lt: PRIM_OP_LT_INT,
@@ -7560,7 +7656,7 @@ class CDoubleType(CType):
 
 class ModuleType(Class):
     def __init__(self, type_env: TypeEnvironment) -> None:
-        super().__init__(TypeName("types", "ModuleType"), type_env)
+        super().__init__(TypeName("types", "ModuleType"), type_env, is_exact=True)
 
 
 class ModuleInstance(Object["ModuleType"]):
@@ -7623,25 +7719,44 @@ class ContextDecoratorClass(Class):
         name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
         subclass: bool = False,
+        is_exact: bool = False,
+        members: Optional[Dict[str, Value]] = None,
     ) -> None:
         super().__init__(
             name or TypeName("__static__", "ContextDecorator"),
             type_env,
             bases or [type_env.object],
             ContextDecoratorInstance(self),
+            is_exact=is_exact,
+            members=members,
         )
+        # Self is always meant to be the inexact type here. However, since constructor can
+        # be called when creating the initial exact type, the `inexact_type()` wouldn't point
+        # to the right type yet, and we need to specify it explicitly for bootstrapping reasons.
+        self_type = self.type_env.context_decorator if is_exact else self
         if not subclass:
             self.members["_recreate_cm"] = BuiltinMethodDescriptor(
                 "_recreate_cm",
                 self,
-                (Parameter("self", 0, ResolvedTypeRef(self), False, None, False),),
-                ResolvedTypeRef(self),
+                (Parameter("self", 0, ResolvedTypeRef(self_type), False, None, False),),
+                ResolvedTypeRef(self_type),
             )
+        self.subclass = subclass
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         if len(bases) == 1:
             return ContextDecoratorClass(self.type_env, name, bases, True)
         return super().make_subclass(name, bases)
+
+    def _create_exact_type(self) -> Class:
+        return type(self)(
+            type_env=self.type_env,
+            name=self.type_name,
+            bases=self.bases,
+            subclass=self.subclass,
+            is_exact=True,
+            members=self.members,
+        )
 
 
 class ContextDecoratorInstance(Object[ContextDecoratorClass]):
@@ -7897,6 +8012,11 @@ class StringEnumType(Class):
         else:
             code_gen.defaultVisit(node)
 
+    def _create_exact_type(self) -> Class:
+        exact = type(self)(self.type_env, self.type_name, self.bases, is_exact=True)
+        exact.values = self.values
+        return exact
+
 
 class StringEnumInstance(Object[StringEnumType]):
     def __init__(
@@ -7935,7 +8055,7 @@ if spamobj is not None:
     class XXGeneric(GenericClass):
         def __init__(
             self,
-            name: GenericTypeName,
+            type_name: GenericTypeName,
             type_env: TypeEnvironment,
             bases: Optional[List[Class]] = None,
             instance: Optional[Object[Class]] = None,
@@ -7944,23 +8064,33 @@ if spamobj is not None:
             type_def: Optional[GenericClass] = None,
             is_exact: bool = False,
             pytype: Optional[Type[object]] = None,
+            is_final: bool = False,
         ) -> None:
             super().__init__(
-                name,
+                type_name,
                 type_env,
                 bases,
                 instance,
                 klass,
                 members,
                 type_def,
-                is_exact,
-                pytype,
+                is_exact=is_exact,
+                pytype=pytype,
             )
+
+            if self.is_exact:
+                self_type = self.type_env.get_generic_type(
+                    self.type_env.xx_generic, self.type_name.args
+                )
+            else:
+                self_type = self
             self.members["foo"] = BuiltinMethodDescriptor(
                 "foo",
                 self,
                 (
-                    Parameter("self", 0, ResolvedTypeRef(self), False, None, False),
+                    Parameter(
+                        "self", 0, ResolvedTypeRef(self_type), False, None, False
+                    ),
                     Parameter(
                         "t",
                         0,

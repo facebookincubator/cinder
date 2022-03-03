@@ -337,7 +337,10 @@ bool JITRT_PackStaticArgs(
       if (cur_arg->tai_primitive_type == -1) {
         if (!invoked_statically &&
             !_PyObject_TypeCheckOptional(
-                arg, cur_arg->tai_type, cur_arg->tai_optional)) {
+                arg,
+                cur_arg->tai_type,
+                cur_arg->tai_optional,
+                cur_arg->tai_exact)) {
           return true;
         }
         arg_space[i] = arg;
@@ -346,7 +349,10 @@ bool JITRT_PackStaticArgs(
         if (invoked_statically) {
           ival = JITRT_UnboxI64(arg);
         } else if (_PyObject_TypeCheckOptional(
-                       arg, cur_arg->tai_type, cur_arg->tai_optional)) {
+                       arg,
+                       cur_arg->tai_type,
+                       cur_arg->tai_optional,
+                       cur_arg->tai_exact)) {
           ival = JITRT_UnboxEnum(arg);
         } else {
           return true;
@@ -1128,13 +1134,41 @@ PyObject* JITRT_Cast(PyObject* obj, PyTypeObject* type) {
 }
 
 PyObject* JITRT_CastOptional(PyObject* obj, PyTypeObject* type) {
-  if (_PyObject_TypeCheckOptional(obj, type, 1)) {
+  if (_PyObject_TypeCheckOptional(obj, type, /* opt */ 1, /* exact */ 0)) {
     return obj;
   }
 
   PyErr_Format(
       PyExc_TypeError,
       "expected '%s', got '%s'",
+      type->tp_name,
+      Py_TYPE(obj)->tp_name);
+
+  return NULL;
+}
+
+PyObject* JITRT_CastExact(PyObject* obj, PyTypeObject* type) {
+  if (_PyObject_TypeCheckOptional(obj, type, /* opt */ 0, /* exact */ 1)) {
+    return obj;
+  }
+
+  PyErr_Format(
+      PyExc_TypeError,
+      "expected exactly '%s', got '%s'",
+      type->tp_name,
+      Py_TYPE(obj)->tp_name);
+
+  return NULL;
+}
+
+PyObject* JITRT_CastOptionalExact(PyObject* obj, PyTypeObject* type) {
+  if (_PyObject_TypeCheckOptional(obj, type, /* opt */ 1, /* exact */ 1)) {
+    return obj;
+  }
+
+  PyErr_Format(
+      PyExc_TypeError,
+      "expected exactly '%s', got '%s'",
       type->tp_name,
       Py_TYPE(obj)->tp_name);
 
@@ -1162,7 +1196,8 @@ PyObject* JITRT_CastToFloat(PyObject* obj) {
 }
 
 PyObject* JITRT_CastToFloatOptional(PyObject* obj) {
-  if (_PyObject_TypeCheckOptional(obj, &PyFloat_Type, 1)) {
+  if (_PyObject_TypeCheckOptional(
+          obj, &PyFloat_Type, /* opt */ 1, /* exact */ 0)) {
     // cast to float is not considered pass-through by refcount insertion (since
     // it may produce a new reference), so even if in fact it is pass-through
     // (because we got a float), we need to return a new reference.
@@ -1876,9 +1911,9 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
   // If we are supposed to be returning a primitive, it needs unboxing because
   // our caller expected this to be a static->static direct invoke, we just
   // failed to JIT the callee.
-  int optional;
+  int optional, exact;
   PyTypeObject* ret_type = _PyClassLoader_ResolveType(
-      _PyClassLoader_GetReturnTypeDescr(func), &optional);
+      _PyClassLoader_GetReturnTypeDescr(func), &optional, &exact);
   if (_PyClassLoader_IsEnum(ret_type)) {
     Py_DECREF(ret_type);
     void* ival = (void*)JITRT_UnboxEnum(res);

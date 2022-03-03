@@ -187,7 +187,7 @@ class ModuleTests(StaticTestBase):
                reveal_type(b.a)
         """
         compiler = self.compiler(a=acode, b=bcode, c=ccode)
-        compiler.revealed_type("c", "types.ModuleType")
+        compiler.revealed_type("c", r"Exact[types.ModuleType]")
 
     def test_repeated_import(self) -> None:
         codestr = """

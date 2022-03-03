@@ -103,7 +103,7 @@ class ArrayTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"create instances of a generic Type\[Exact\[Array\[T\]\]\]",
+            r"create instances of a generic Type\[Array\[T\]\]",
         ):
             self.compile(codestr, modname="foo")
 
@@ -117,8 +117,8 @@ class ArrayTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             type_mismatch(
-                "Exact[Array[char]]",
-                "Exact[Array[int64]]",
+                "Array[char]",
+                "Array[int64]",
             ),
         ):
             self.compile(codestr, modname="foo")

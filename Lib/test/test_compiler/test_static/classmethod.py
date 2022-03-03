@@ -3,7 +3,7 @@ from .common import StaticTestBase
 
 
 class ClassMethodTests(StaticTestBase):
-    def test_classmethod_from_non_final_class_calls_invoke_method(self):
+    def test_classmethod_from_non_final_class_calls_invoke_function(self):
         codestr = """
             class C:
                  @classmethod
@@ -15,7 +15,7 @@ class ClassMethodTests(StaticTestBase):
         with self.in_module(codestr, name="mymod") as mod:
             f = mod.f
             C = mod.C
-            self.assertInBytecode(f, "INVOKE_METHOD", (("mymod", "C", "foo"), 0, True))
+            self.assertInBytecode(f, "INVOKE_FUNCTION", (("mymod", "C", "foo"), 1))
             self.assertEqual(f(), C)
 
     def test_classmethod_from_final_class_calls_invoke_function(self):

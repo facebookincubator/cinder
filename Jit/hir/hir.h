@@ -1839,8 +1839,12 @@ class INSTR_CLASS(Cast, (TObject), HasOutput, Operands<1>, DeoptBase) {
       Register* receiver,
       PyTypeObject* pytype,
       bool optional,
+      bool exact,
       const FrameState& frame)
-      : InstrT(dst, receiver, frame), pytype_(pytype), optional_(optional) {}
+      : InstrT(dst, receiver, frame),
+        pytype_(pytype),
+        optional_(optional),
+        exact_(exact) {}
 
   Register* value() const {
     return reg();
@@ -1854,9 +1858,14 @@ class INSTR_CLASS(Cast, (TObject), HasOutput, Operands<1>, DeoptBase) {
     return optional_;
   }
 
+  bool exact() const {
+    return exact_;
+  }
+
  private:
   PyTypeObject* pytype_;
   bool optional_;
+  bool exact_;
 };
 
 class INSTR_CLASS(TpAlloc, (), HasOutput, Operands<0>, DeoptBase) {
@@ -3751,15 +3760,18 @@ struct TypedArgument {
       long locals_idx,
       BorrowedRef<PyTypeObject> pytype,
       int optional,
+      int exact,
       Type jit_type)
       : locals_idx(locals_idx),
         pytype(pytype),
         optional(optional),
+        exact(exact),
         jit_type(jit_type){};
 
   long locals_idx;
   Ref<PyTypeObject> pytype;
   int optional;
+  int exact;
   Type jit_type;
 };
 
