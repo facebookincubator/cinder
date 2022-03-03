@@ -1590,13 +1590,15 @@ class TypeBinder(GenericVisitor):
             effect.apply(self.local_types)
             terminal_level = self.visit_until_terminates(node.body)
 
-        if terminal_level == TerminalKind.RaiseOrReturn:
+        does_not_break = node not in self.loop_may_break
+
+        if terminal_level == TerminalKind.RaiseOrReturn and does_not_break:
             branch.restore()
             effect.reverse(self.local_types)
         else:
             branch.merge(effect.reverse(branch.entry_locals))
 
-        if condition_always_true and node not in self.loop_may_break:
+        if condition_always_true and does_not_break:
             self.set_terminal_kind(node, terminal_level)
         if node.orelse:
             # The or-else can happen after the while body, or without executing

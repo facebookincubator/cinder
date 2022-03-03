@@ -195,3 +195,14 @@ class InferenceTests(StaticTestBase):
                 reveal_type(ret)
         """
         self.type_error(codestr, r"reveal_type\(ret\): 'Optional\[Literal\[0\]\]'")
+
+    def test_loop_that_may_break_is_not_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None, y: bool) -> int:
+                while x is None:
+                    if y:
+                        break
+                    return 0
+                reveal_type(x)
+        """
+        self.type_error(codestr, r"reveal_type\(x\): 'Optional\[int\]'")
