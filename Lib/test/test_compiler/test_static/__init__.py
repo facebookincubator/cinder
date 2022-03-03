@@ -6,6 +6,7 @@ from .binop import BinopTests
 from .cached_property import CachedPropertyTests
 from .checked_list import CheckedListTests
 from .classmethod import ClassMethodTests
+from .compile import StaticCompilationTests
 from .context_decorator import ContextDecoratorTests
 from .decl_visitor import DeclarationVisitorTests
 from .double import DoubleTests
@@ -29,10 +30,10 @@ from .primitives import PrimitivesTests
 from .property import PropertyTests
 from .protocol import ProtocolTests
 from .return_cast_insertion import ReturnCastInsertionTests
+from .runtime import StaticRuntimeTests
 from .sequence import SequenceTests
 from .slots_with_default import SlotsWithDefaultTests
 from .subclass import SubclassTests
-from .tests import StaticCompilationTests, StaticRuntimeTests
 from .top_level import TopLevelTests
 from .union import UnionCompilationTests
 from .variadic_arg import VariadicArgTests
