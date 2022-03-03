@@ -35,7 +35,6 @@ from types import (
 from typing import (
     Callable as typingCallable,
     ClassVar as typingClassVar,
-    Collection,
     Dict,
     Generic,
     Iterable,
@@ -938,6 +937,9 @@ class Value:
 
     def emit_convert(self, from_type: Value, code_gen: Static38CodeGenerator) -> None:
         pass
+
+    def is_truthy_literal(self) -> bool:
+        return False
 
 
 def resolve_attr_instance(
@@ -4885,6 +4887,9 @@ class NumClass(Class):
 
 
 class NumInstance(Object[NumClass]):
+    def is_truthy_literal(self) -> bool:
+        return bool(self.klass.literal_value)
+
     def make_literal(self, literal_value: object, type_env: TypeEnvironment) -> Value:
         assert isinstance(literal_value, int)
         klass = NumClass(
@@ -5701,6 +5706,9 @@ class BoolClass(Class):
 
 
 class BoolInstance(Object[BoolClass]):
+    def is_truthy_literal(self) -> bool:
+        return bool(self.klass.literal_value)
+
     @property
     def name(self) -> str:
         if self.klass.literal_value is not None:

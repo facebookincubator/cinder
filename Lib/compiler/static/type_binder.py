@@ -46,12 +46,15 @@ from ast import (
     YieldFrom,
     expr,
 )
+from contextlib import contextmanager
 from enum import IntEnum
 from typing import (
     Dict,
+    Generator,
     List,
     Optional,
     Sequence,
+    Set,
     TYPE_CHECKING,
     Type,
     Union,
@@ -72,7 +75,6 @@ from .types import (
     CheckedListInstance,
     Class,
     ClassVar,
-    ExactClass,
     FinalClass,
     Function,
     FunctionContainer,
@@ -83,7 +85,6 @@ from .types import (
     Slot,
     TType,
     TypeEnvironment,
-    TypeWrapper,
     UnionInstance,
     UnknownDecoratedMethod,
     Value,
@@ -223,6 +224,8 @@ class TypeBinder(GenericVisitor):
         self.inline_depth = 0
         self.inline_calls = 0
         self.enable_patching = enable_patching
+        self.current_loop: AST | None = None
+        self.loop_may_break: Set[AST] = set()
 
     @property
     def nodes_default_dynamic(self) -> bool:
@@ -1403,6 +1406,8 @@ class TypeBinder(GenericVisitor):
 
     def visitBreak(self, node: ast.Break) -> None:
         self.set_terminal_kind(node, TerminalKind.BreakOrContinue)
+        if self.current_loop is not None:
+            self.loop_may_break.add(self.current_loop)
 
     def visitRaise(self, node: ast.Raise) -> None:
         self.set_terminal_kind(node, TerminalKind.RaiseOrReturn)
@@ -1563,29 +1568,36 @@ class TypeBinder(GenericVisitor):
                 terminates = self.visit_until_terminates(body)
                 # reset any declarations from the loop body to avoid redeclaration errors
                 self.binding_scope.decl_types = entry_decls.copy()
-                if terminates:
-                    # no need to iterate if the loop terminates
-                    branch.restore()
-                    break
             branch.merge()
+
+    @contextmanager
+    def in_loop(self, node: AST) -> Generator[None, None, None]:
+        orig = self.current_loop
+        self.current_loop = node
+        try:
+            yield
+        finally:
+            self.current_loop = orig
 
     def visitWhile(self, node: While) -> None:
         branch = self.scopes[-1].branch()
 
-        self.iterate_to_fixed_point(node.body, node.test)
+        with self.in_loop(node):
+            self.iterate_to_fixed_point(node.body, node.test)
 
-        effect = self.visit(node.test) or NO_EFFECT
-        effect.apply(self.local_types)
+            effect = self.visit(node.test) or NO_EFFECT
+            condition_always_true = self.get_type(node.test).is_truthy_literal()
+            effect.apply(self.local_types)
+            terminal_level = self.visit_until_terminates(node.body)
 
-        while_returns = (
-            self.visit_until_terminates(node.body) == TerminalKind.RaiseOrReturn
-        )
-        if while_returns:
+        if terminal_level == TerminalKind.RaiseOrReturn:
             branch.restore()
             effect.reverse(self.local_types)
         else:
             branch.merge(effect.reverse(branch.entry_locals))
 
+        if condition_always_true and node not in self.loop_may_break:
+            self.set_terminal_kind(node, terminal_level)
         if node.orelse:
             # The or-else can happen after the while body, or without executing
             # it, but it can only happen after the while condition evaluates to
@@ -1601,8 +1613,9 @@ class TypeBinder(GenericVisitor):
         self.visit(node.target)
         self.assign_value(node.target, target_type)
         branch = self.scopes[-1].branch()
-        self.iterate_to_fixed_point(node.body)
-        self.visit(node.body)
+        with self.in_loop(node):
+            self.iterate_to_fixed_point(node.body)
+            self.visit(node.body)
         self.visit(node.orelse)
         branch.merge()
 

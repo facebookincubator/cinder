@@ -145,3 +145,53 @@ class InferenceTests(StaticTestBase):
                 reveal_type(x)
         """
         self.type_error(codestr, r"reveal_type\(x\): 'int'")
+
+    def test_infinite_loop(self) -> None:
+        codestr = """
+            def f(x: int | None, y: bool) -> int:
+                if y:
+                    while True:
+                        if x is None:
+                            continue
+                        return x
+                    ret = None
+                else:
+                    ret = 0
+                reveal_type(ret)
+        """
+        self.type_error(codestr, r"reveal_type\(ret\): 'Literal\[0\]'")
+
+    def test_not_actually_infinite_loop(self) -> None:
+        codestr = """
+            def f(x: int | None, y: bool) -> int:
+                a = True
+                if y:
+                    while a:
+                        if x is None:
+                            a = False
+                            continue
+                        return x
+                    ret = None
+                else:
+                    ret = 0
+                reveal_type(ret)
+        """
+        self.type_error(codestr, r"reveal_type\(ret\): 'Optional\[Literal\[0\]\]'")
+
+    def test_infinite_loop_break(self) -> None:
+        codestr = """
+            def f(x: int | None, y: bool, z: bool) -> int:
+                if y:
+                    while True:
+                        if x is None:
+                            if z:
+                                break
+                            else:
+                                continue
+                        return x
+                    ret = None
+                else:
+                    ret = 0
+                reveal_type(ret)
+        """
+        self.type_error(codestr, r"reveal_type\(ret\): 'Optional\[Literal\[0\]\]'")
