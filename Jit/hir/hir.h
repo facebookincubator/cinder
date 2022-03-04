@@ -3580,6 +3580,7 @@ class BasicBlock {
   //     is deleted.
   Instr* Append(Instr* instr);
   void push_front(Instr* instr);
+  Instr* pop_front();
 
   // Insert the given Instr before `it'.
   void insert(Instr* instr, Instr::List::iterator it);
@@ -3755,19 +3756,8 @@ class CFG {
   // Remove block from the CFG
   void RemoveBlock(BasicBlock* block);
 
-  // Remove blocks that aren't reachable from the entry, whether or not they're
-  // empty.
-  void removeUnreachableBlocks();
-
   // Split any critical edges by inserting trampoline blocks.
   void splitCriticalEdges();
-
-  // Remove any blocks that consist of a single jump to another block
-  void RemoveTrampolineBlocks();
-
-  // Replace cond branches where both sides of branch go to the same block with
-  // a direct branch
-  void simplifyRedundantCondBranches();
 
   // Return the RPO traversal of the basic blocks in the CFG starting from
   // entry_block.

@@ -78,17 +78,8 @@ fun test {
     v7:NoneType = GuardIs<0xdeadbeef> v0
     UseType<NoneType> v7
     v8:CInt32[0] = LoadConst<CInt32[0]>
-    Branch<1>
-  }
-
-  bb 1 (preds 0) {
     v4:NoneType = LoadConst<NoneType>
-    Branch<2>
-  }
-
-  bb 2 (preds 1) {
-    v6:NoneType = Phi<1> v4
-    Return v6
+    Return v4
   }
 }
 ---

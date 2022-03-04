@@ -1308,7 +1308,9 @@ void RefcountInsertion::Run(Function& func) {
   }
 
   // Clean up any trampoline blocks that weren't necessary.
-  func.cfg.RemoveTrampolineBlocks();
+  // TODO(emacs): Investigate running the whole CleanCFG pass here or between
+  // every pass.
+  CleanCFG::RemoveTrampolineBlocks(&func.cfg);
 
   // Optimize long decref runs
   optimizeLongDecrefRuns(func);

@@ -560,9 +560,8 @@ void Simplify::Run(Function& irfunc) {
     if (changed) {
       // Perform some simple cleanup between each pass.
       CopyPropagation{}.Run(irfunc);
-      irfunc.cfg.RemoveTrampolineBlocks();
       reflowTypes(irfunc);
-      irfunc.cfg.removeUnreachableBlocks();
+      CleanCFG{}.Run(irfunc);
     }
   } while (changed);
 }

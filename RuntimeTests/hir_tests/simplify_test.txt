@@ -288,15 +288,7 @@ fun jittestmodule:test {
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<NoneType> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
-    Branch<1>
-  }
-
-  bb 1 (preds 0) {
     v13:MortalBool[False] = LoadConst<MortalBool[False]>
-    Branch<2>
-  }
-
-  bb 2 (preds 1) {
     Return v13
   }
 }
@@ -319,15 +311,7 @@ fun jittestmodule:test {
     v10:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<NoneType> v8
     v21:CInt32[0] = LoadConst<CInt32[0]>
-    Branch<1>
-  }
-
-  bb 1 (preds 0) {
     v16:MortalBool[False] = LoadConst<MortalBool[False]>
-    Branch<3>
-  }
-
-  bb 3 (preds 1) {
     Return v16
   }
 }
@@ -350,15 +334,7 @@ fun jittestmodule:test {
     v10:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<MortalBool[True]> v8
     v21:CInt32[1] = LoadConst<CInt32[1]>
-    Branch<2>
-  }
-
-  bb 2 (preds 0) {
     v14:MortalBool[True] = LoadConst<MortalBool[True]>
-    Branch<3>
-  }
-
-  bb 3 (preds 2) {
     Return v14
   }
 }
@@ -379,15 +355,7 @@ fun jittestmodule:test {
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<MortalLongExact[0]> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
-    Branch<1>
-  }
-
-  bb 1 (preds 0) {
     v13:MortalBool[False] = LoadConst<MortalBool[False]>
-    Branch<2>
-  }
-
-  bb 2 (preds 1) {
     Return v13
   }
 }
@@ -408,10 +376,6 @@ fun jittestmodule:test {
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<MortalLongExact[1]> v7
     v18:CInt32[1] = LoadConst<CInt32[1]>
-    Branch<2>
-  }
-
-  bb 2 (preds 0) {
     Return v9
   }
 }
@@ -432,15 +396,7 @@ fun jittestmodule:test {
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<MortalUnicodeExact[""]> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
-    Branch<1>
-  }
-
-  bb 1 (preds 0) {
     v13:MortalBool[False] = LoadConst<MortalBool[False]>
-    Branch<2>
-  }
-
-  bb 2 (preds 1) {
     Return v13
   }
 }
@@ -461,10 +417,6 @@ fun jittestmodule:test {
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<MortalUnicodeExact["hello"]> v7
     v18:CInt32[1] = LoadConst<CInt32[1]>
-    Branch<2>
-  }
-
-  bb 2 (preds 0) {
     Return v9
   }
 }
@@ -613,12 +565,7 @@ fun test {
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<MortalBool[True]> v9
     v10:CInt32[1] = LoadConst<CInt32[1]>
-    Branch<2>
-  }
-
-  bb 2 (preds 0) {
-    v7:NoneType = Phi<0> v1
-    Return v7
+    Return v1
   }
 }
 ---
@@ -640,10 +587,6 @@ fun jittestmodule:test {
     v16:MortalBool[False] = LoadConst<MortalBool[False]>
     UseType<MortalBool[False]> v16
     v17:CInt32[0] = LoadConst<CInt32[0]>
-    Branch<2>
-  }
-
-  bb 2 (preds 0) {
     v15:MortalBool[False] = LoadConst<MortalBool[False]>
     Return v15
   }
@@ -668,10 +611,6 @@ fun jittestmodule:test {
     v19:MortalBool[False] = LoadConst<MortalBool[False]>
     UseType<MortalBool[False]> v19
     v20:CInt32[0] = LoadConst<CInt32[0]>
-    Branch<2>
-  }
-
-  bb 2 (preds 0) {
     v18:MortalBool[False] = LoadConst<MortalBool[False]>
     Return v18
   }
@@ -760,10 +699,6 @@ fun test {
     v0:Object = LoadArg<0>
     v1:TupleExact = RefineType<TupleExact> v0
     UseType<TupleExact> v1
-    Branch<1>
-  }
-
-  bb 1 (preds 0) {
     v2:NoneType = LoadConst<NoneType>
     Return v2
   }
@@ -795,10 +730,6 @@ fun test {
     v0:Object = LoadArg<0>
     v1:NoneType = RefineType<NoneType> v0
     UseType<NoneType> v1
-    Branch<2>
-  }
-
-  bb 2 (preds 0) {
     v3:NoneType = LoadConst<NoneType>
     Return v3
   }

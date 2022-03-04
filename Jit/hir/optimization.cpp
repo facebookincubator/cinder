@@ -31,6 +31,7 @@ PassRegistry::PassRegistry() {
   addPass(RefcountInsertion::Factory);
   addPass(CopyPropagation::Factory);
   addPass(CallOptimization::Factory);
+  addPass(CleanCFG::Factory);
   addPass(DynamicComparisonElimination::Factory);
   addPass(PhiElimination::Factory);
   addPass(Simplify::Factory);
@@ -391,7 +392,9 @@ void PhiElimination::Run(Function& func) {
     CopyPropagation{}.Run(func);
   }
 
-  func.cfg.RemoveTrampolineBlocks();
+  // TODO(emacs): Investigate running the whole CleanCFG pass here or between
+  // every pass.
+  CleanCFG::RemoveTrampolineBlocks(&func.cfg);
 }
 
 static bool isUseful(Instr& instr) {
@@ -532,6 +535,183 @@ void GuardTypeRemoval::Run(Function& func) {
 
   CopyPropagation{}.Run(func);
   reflowTypes(func);
+}
+
+static bool absorbDstBlock(BasicBlock* block) {
+  auto branch = dynamic_cast<Branch*>(block->GetTerminator());
+  if (!branch) {
+    return false;
+  }
+  BasicBlock* target = branch->target();
+  if (target == block) {
+    return false;
+  }
+  if (target->in_edges().size() != 1) {
+    return false;
+  }
+  if (target == block) {
+    return false;
+  }
+  branch->unlink();
+  while (!target->empty()) {
+    Instr* instr = target->pop_front();
+    JIT_CHECK(!instr->IsPhi(), "Expected no Phi but found %s", *instr);
+    block->Append(instr);
+  }
+  // The successors to target might have Phis that still refer to target.
+  // Retarget them to refer to block.
+  Instr* old_term = block->GetTerminator();
+  JIT_CHECK(old_term != nullptr, "block must have a terminator");
+  for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
+    old_term->successor(i)->fixupPhis(
+        /*old_pred=*/target, /*new_pred=*/block);
+  }
+  // Target block becomes unreachable and gets picked up by
+  // RemoveUnreachableBlocks.
+  delete branch;
+  return true;
+}
+
+bool CleanCFG::RemoveUnreachableBlocks(CFG* cfg) {
+  std::unordered_set<BasicBlock*> visited;
+  std::vector<BasicBlock*> stack;
+  stack.emplace_back(cfg->entry_block);
+  while (!stack.empty()) {
+    BasicBlock* block = stack.back();
+    stack.pop_back();
+    if (visited.count(block)) {
+      continue;
+    }
+    visited.insert(block);
+    auto term = block->GetTerminator();
+    for (std::size_t i = 0, n = term->numEdges(); i < n; ++i) {
+      BasicBlock* succ = term->successor(i);
+      // This check isn't necessary for correctness but avoids unnecessary
+      // pushes to the stack.
+      if (!visited.count(succ)) {
+        stack.emplace_back(succ);
+      }
+    }
+  }
+
+  std::vector<BasicBlock*> unreachable;
+  for (auto it = cfg->blocks.begin(); it != cfg->blocks.end();) {
+    BasicBlock* block = &*it;
+    ++it;
+    if (!visited.count(block)) {
+      if (Instr* old_term = block->GetTerminator()) {
+        for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
+          old_term->successor(i)->removePhiPredecessor(block);
+        }
+      }
+      cfg->RemoveBlock(block);
+      block->clear();
+      unreachable.emplace_back(block);
+    }
+  }
+
+  for (BasicBlock* block : unreachable) {
+    delete block;
+  }
+
+  return unreachable.size() > 0;
+}
+
+// Replace cond branches where both sides of branch go to the same block with a
+// direct branch
+// TODO(emacs): Move to Simplify
+static void simplifyRedundantCondBranches(CFG* cfg) {
+  std::vector<BasicBlock*> to_simplify;
+  for (auto& block : cfg->blocks) {
+    if (block.empty()) {
+      continue;
+    }
+    auto term = block.GetTerminator();
+    std::size_t num_edges = term->numEdges();
+    if (num_edges < 2) {
+      continue;
+    }
+    JIT_CHECK(num_edges == 2, "only two edges are supported");
+    if (term->successor(0) != term->successor(1)) {
+      continue;
+    }
+    switch (term->opcode()) {
+      case Opcode::kCondBranch:
+      case Opcode::kCondBranchIterNotDone:
+      case Opcode::kCondBranchCheckType:
+        break;
+      default:
+        // Can't be sure that it's safe to replace the instruction with a branch
+        JIT_CHECK(
+            false, "unknown side effects of %s instruction", term->opname());
+        break;
+    }
+    to_simplify.emplace_back(&block);
+  }
+  for (auto& block : to_simplify) {
+    auto term = block->GetTerminator();
+    term->unlink();
+    auto branch = block->append<Branch>(term->successor(0));
+    branch->copyBytecodeOffset(*term);
+    delete term;
+  }
+}
+
+bool CleanCFG::RemoveTrampolineBlocks(CFG* cfg) {
+  std::vector<BasicBlock*> trampolines;
+  for (auto& block : cfg->blocks) {
+    if (!block.IsTrampoline()) {
+      continue;
+    }
+    BasicBlock* succ = block.successor(0);
+    // if this is the entry block and its successor has multiple
+    // predecessors, don't remove it; it's necessary to maintain isolated
+    // entries
+    if (&block == cfg->entry_block) {
+      if (succ->in_edges().size() > 1) {
+        continue;
+      } else {
+        cfg->entry_block = succ;
+      }
+    }
+    // Update all predecessors to jump directly to our successor
+    block.retargetPreds(succ);
+    // Finish splicing the trampoline out of the cfg
+    block.set_successor(0, nullptr);
+    trampolines.emplace_back(&block);
+  }
+  for (auto& block : trampolines) {
+    cfg->RemoveBlock(block);
+    delete block;
+  }
+  simplifyRedundantCondBranches(cfg);
+  return trampolines.size() > 0;
+}
+
+void CleanCFG::Run(Function& irfunc) {
+  bool changed = false;
+  do {
+    // Remove any trivial Phis; absorbDstBlock cannot handle them.
+    PhiElimination{}.Run(irfunc);
+    std::vector<BasicBlock*> blocks = irfunc.cfg.GetRPOTraversal();
+    for (auto block : blocks) {
+      // Ignore transient empty blocks.
+      if (block->empty()) {
+        continue;
+      }
+      // Keep working on the current block until no further changes are made.
+      for (;; changed = true) {
+        if (absorbDstBlock(block)) {
+          continue;
+        }
+        break;
+      }
+    }
+  } while (RemoveUnreachableBlocks(&irfunc.cfg));
+
+  if (changed) {
+    reflowTypes(irfunc);
+  }
 }
 
 } // namespace hir

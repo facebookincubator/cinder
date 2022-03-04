@@ -68,6 +68,7 @@ static void register_test(
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   register_test("RuntimeTests/hir_tests/call_optimization_test.txt");
+  register_test("RuntimeTests/hir_tests/cleancfg_test.txt");
   register_test(
       "RuntimeTests/hir_tests/dynamic_comparison_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/hir_builder_test.txt");

@@ -304,6 +304,12 @@ void BasicBlock::push_front(Instr* instr) {
   instr->link(this);
 }
 
+Instr* BasicBlock::pop_front() {
+  Instr* result = &(instrs_.ExtractFront());
+  result->set_block(nullptr);
+  return result;
+}
+
 void BasicBlock::insert(Instr* instr, Instr::List::iterator it) {
   instrs_.insert(*instr, it);
   instr->link(this);
@@ -471,49 +477,6 @@ void CFG::RemoveBlock(BasicBlock* block) {
   block->cfg = nullptr;
 }
 
-void CFG::removeUnreachableBlocks() {
-  std::unordered_set<BasicBlock*> visited;
-  std::vector<BasicBlock*> stack;
-  stack.emplace_back(entry_block);
-  while (!stack.empty()) {
-    BasicBlock* block = stack.back();
-    stack.pop_back();
-    if (visited.count(block)) {
-      continue;
-    }
-    visited.insert(block);
-    auto term = block->GetTerminator();
-    for (std::size_t i = 0, n = term->numEdges(); i < n; ++i) {
-      BasicBlock* succ = term->successor(i);
-      // This check isn't necessary for correctness but avoids unnecessary
-      // pushes to the stack.
-      if (!visited.count(succ)) {
-        stack.emplace_back(succ);
-      }
-    }
-  }
-
-  std::vector<BasicBlock*> unreachable;
-  for (auto it = blocks.begin(); it != blocks.end();) {
-    BasicBlock* block = &*it;
-    ++it;
-    if (!visited.count(block)) {
-      if (Instr* old_term = block->GetTerminator()) {
-        for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
-          old_term->successor(i)->removePhiPredecessor(block);
-        }
-      }
-      RemoveBlock(block);
-      block->clear();
-      unreachable.emplace_back(block);
-    }
-  }
-
-  for (BasicBlock* block : unreachable) {
-    delete block;
-  }
-}
-
 void CFG::splitCriticalEdges() {
   std::vector<Edge*> critical_edges;
 
@@ -543,73 +506,6 @@ void CFG::splitCriticalEdges() {
     br->copyBytecodeOffset(*term);
     edge->set_to(split_bb);
     to->fixupPhis(from, split_bb);
-  }
-}
-
-void CFG::RemoveTrampolineBlocks() {
-  std::vector<BasicBlock*> trampolines;
-  for (auto& block : blocks) {
-    if (!block.IsTrampoline()) {
-      continue;
-    }
-    BasicBlock* succ = block.successor(0);
-    // if this is the entry block and its successor has multiple
-    // predecessors, don't remove it; it's necessary to maintain isolated
-    // entries
-    if (&block == entry_block) {
-      if (succ->in_edges().size() > 1) {
-        continue;
-      } else {
-        entry_block = succ;
-      }
-    }
-    // Update all predecessors to jump directly to our successor
-    block.retargetPreds(succ);
-    // Finish splicing the trampoline out of the cfg
-    block.set_successor(0, nullptr);
-    trampolines.emplace_back(&block);
-  }
-  for (auto& block : trampolines) {
-    RemoveBlock(block);
-    delete block;
-  }
-  simplifyRedundantCondBranches();
-}
-
-void CFG::simplifyRedundantCondBranches() {
-  std::vector<BasicBlock*> to_simplify;
-  for (auto& block : blocks) {
-    if (block.empty()) {
-      continue;
-    }
-    auto term = block.GetTerminator();
-    std::size_t num_edges = term->numEdges();
-    if (num_edges < 2) {
-      continue;
-    }
-    JIT_CHECK(num_edges == 2, "only two edges are supported");
-    if (term->successor(0) != term->successor(1)) {
-      continue;
-    }
-    switch (term->opcode()) {
-      case Opcode::kCondBranch:
-      case Opcode::kCondBranchIterNotDone:
-      case Opcode::kCondBranchCheckType:
-        break;
-      default:
-        // Can't be sure that it's safe to replace the instruction with a branch
-        JIT_CHECK(
-            false, "unknown side effects of %s instruction", term->opname());
-        break;
-    }
-    to_simplify.emplace_back(&block);
-  }
-  for (auto& block : to_simplify) {
-    auto term = block->GetTerminator();
-    term->unlink();
-    auto branch = block->append<Branch>(term->successor(0));
-    branch->copyBytecodeOffset(*term);
-    delete term;
   }
 }
 
