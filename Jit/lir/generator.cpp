@@ -2471,6 +2471,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // HintTypes are purely informative
         break;
       }
+      case Opcode::kBeginInlinedFunction:
+      case Opcode::kEndInlinedFunction:
+        JIT_CHECK(false, "not emitted yet");
       case Opcode::kIsTruthy: {
         auto func = reinterpret_cast<uint64_t>(&PyObject_IsTrue);
         bbb.AppendCode(

@@ -590,19 +590,24 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
   return tstate;
 }
 
+void JITRT_DecrefFrame(PyFrameObject* frame) {
+  if (Py_REFCNT(frame) > 1) {
+    // If the frame escaped it needs to be tracked
+    Py_DECREF(frame);
+    if (!_PyObject_GC_IS_TRACKED(frame)) {
+      PyObject_GC_Track(frame);
+    }
+  } else {
+    Py_DECREF(frame);
+  }
+}
+
 void JITRT_UnlinkFrame(PyThreadState* tstate) {
   PyFrameObject* f = tstate->frame;
   f->f_executing = 0;
 
   tstate->frame = f->f_back;
-  if (Py_REFCNT(f) > 1) {
-    Py_DECREF(f);
-    if (!_PyObject_GC_IS_TRACKED(f)) {
-      _PyObject_GC_TRACK(f);
-    }
-  } else {
-    Py_DECREF(f);
-  }
+  JITRT_DecrefFrame(f);
 }
 
 PyObject*

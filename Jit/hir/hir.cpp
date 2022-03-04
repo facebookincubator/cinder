@@ -168,6 +168,7 @@ bool Instr::isReplayable() const {
       return op == CompareOp::kIs || op == CompareOp::kIsNot;
     }
     case Opcode::kBatchDecref:
+    case Opcode::kBeginInlinedFunction:
     case Opcode::kBinaryOp:
     case Opcode::kBranch:
     case Opcode::kBuildSlice:
@@ -186,6 +187,7 @@ bool Instr::isReplayable() const {
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
+    case Opcode::kEndInlinedFunction:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:
     case Opcode::kGetTuple:
@@ -1039,6 +1041,9 @@ std::ostream& operator<<(std::ostream& os, OperandType op) {
 const FrameState* get_frame_state(const Instr& instr) {
   if (instr.IsSnapshot()) {
     return static_cast<const Snapshot&>(instr).frameState();
+  }
+  if (instr.IsBeginInlinedFunction()) {
+    return static_cast<const BeginInlinedFunction&>(instr).callerFrameState();
   }
   if (auto db = dynamic_cast<const DeoptBase*>(&instr)) {
     return db->frameState();

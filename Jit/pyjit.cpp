@@ -782,13 +782,13 @@ Ref<> make_deopt_stats() {
 
   for (auto& pair : runtime->deoptStats()) {
     const DeoptMetadata& meta = runtime->getDeoptMetadata(pair.first);
+    const DeoptFrameMetadata& frame_meta = meta.frame_meta[meta.inline_depth];
     const DeoptStat& stat = pair.second;
-    CodeRuntime& code_rt = *meta.code_rt;
-    BorrowedRef<PyCodeObject> code = code_rt.frameState()->code();
+    BorrowedRef<PyCodeObject> code = frame_meta.code;
 
     auto func_qualname = code->co_qualname;
     int lineno_raw = code->co_lnotab != nullptr
-        ? PyCode_Addr2Line(code, meta.next_instr_offset)
+        ? PyCode_Addr2Line(code, frame_meta.next_instr_offset)
         : -1;
     auto lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
     auto reason =

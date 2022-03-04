@@ -64,60 +64,61 @@ const char* deoptReasonName(DeoptReason reason) {
   JIT_CHECK(false, "Invalid DeoptReason %d", static_cast<int>(reason));
 }
 
-namespace {
-// A simple interface for reading the contents of registers + memory
-struct MemoryView {
-  const uint64_t* regs;
-
-  // reads the value from memory and returns an object with a new
-  // ref count added. If the borrow flag is true the addition of the
-  // new ref count is skipped.
-  PyObject* read(const LiveValue& value, bool borrow = false) const {
-    uint64_t raw;
-    PhyLocation loc = value.location;
-    if (loc.is_register()) {
-      raw = regs[loc.loc];
-    } else {
-      uint64_t rbp = regs[PhyLocation::RBP];
-      // loc.loc is negative when loc is a memory location relative to RBP
-      raw = *(reinterpret_cast<uint64_t*>(rbp + loc.loc));
-    }
-
-    switch (value.value_kind) {
-      case jit::hir::ValueKind::kSigned:
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        return PyLong_FromSsize_t((Py_ssize_t)raw);
-      case jit::hir::ValueKind::kUnsigned:
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        return PyLong_FromSize_t(raw);
-      case hir::ValueKind::kDouble:
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        return PyFloat_FromDouble(raw);
-      case jit::hir::ValueKind::kBool: {
-        JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-        PyObject* res = raw ? Py_True : Py_False;
-        Py_INCREF(res);
-        return res;
-      }
-      case jit::hir::ValueKind::kObject: {
-        PyObject* res = reinterpret_cast<PyObject*>(raw);
-        if (!borrow) {
-          Py_XINCREF(res);
-        }
-        return res;
-      }
-    }
-    return nullptr;
+const char* deoptActionName(DeoptAction action) {
+  switch (action) {
+    case DeoptAction::kResumeInInterpreter:
+      return "ResumeInInterpreter";
+    case DeoptAction::kUnwind:
+      return "Unwind";
   }
-};
-} // namespace
+  JIT_CHECK(false, "Invalid DeoptAction %d", static_cast<int>(action));
+}
+
+PyObject* MemoryView::read(const LiveValue& value, bool borrow) const {
+  uint64_t raw;
+  PhyLocation loc = value.location;
+  if (loc.is_register()) {
+    raw = regs[loc.loc];
+  } else {
+    uint64_t rbp = regs[PhyLocation::RBP];
+    // loc.loc is negative when loc is a memory location relative to RBP
+    raw = *(reinterpret_cast<uint64_t*>(rbp + loc.loc));
+  }
+
+  switch (value.value_kind) {
+    case jit::hir::ValueKind::kSigned:
+      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+      return PyLong_FromSsize_t((Py_ssize_t)raw);
+    case jit::hir::ValueKind::kUnsigned:
+      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+      return PyLong_FromSize_t(raw);
+    case hir::ValueKind::kDouble:
+      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+      return PyFloat_FromDouble(raw);
+    case jit::hir::ValueKind::kBool: {
+      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
+      PyObject* res = raw ? Py_True : Py_False;
+      Py_INCREF(res);
+      return res;
+    }
+    case jit::hir::ValueKind::kObject: {
+      PyObject* res = reinterpret_cast<PyObject*>(raw);
+      if (!borrow) {
+        Py_XINCREF(res);
+      }
+      return res;
+    }
+  }
+  return nullptr;
+}
 
 static void reifyLocalsplus(
     PyFrameObject* frame,
     const DeoptMetadata& meta,
+    const DeoptFrameMetadata& frame_meta,
     const MemoryView& mem) {
-  for (std::size_t i = 0; i < meta.localsplus.size(); i++) {
-    auto value = meta.getLocalValue(i);
+  for (std::size_t i = 0; i < frame_meta.localsplus.size(); i++) {
+    auto value = meta.getLocalValue(i, frame_meta);
     if (value == nullptr) {
       // Value is dead
       Py_CLEAR(frame->f_localsplus[i]);
@@ -145,11 +146,12 @@ static bool isUnboundMethod(
 static void reifyStack(
     PyFrameObject* frame,
     const DeoptMetadata& meta,
+    const DeoptFrameMetadata& frame_meta,
     const MemoryView& mem,
     const JITRT_CallMethodKind* call_method_kind) {
-  frame->f_stacktop = frame->f_valuestack + meta.stack.size();
-  for (int i = meta.stack.size() - 1; i >= 0; i--) {
-    const auto& value = meta.getStackValue(i);
+  frame->f_stacktop = frame->f_valuestack + frame_meta.stack.size();
+  for (int i = frame_meta.stack.size() - 1; i >= 0; i--) {
+    const auto& value = meta.getStackValue(i, frame_meta);
     if (value.isLoadMethodResult()) {
       PyObject* callable = mem.read(value);
       if (isUnboundMethod(value, call_method_kind)) {
@@ -161,7 +163,7 @@ static void reifyStack(
         // arg1
         // ...
         // argN       <-- TOS
-        PyObject* receiver = mem.read(meta.getStackValue(i - 1));
+        PyObject* receiver = mem.read(meta.getStackValue(i - 1, frame_meta));
         frame->f_valuestack[i - 1] = callable;
         frame->f_valuestack[i] = receiver;
       } else {
@@ -183,7 +185,7 @@ static void reifyStack(
   }
 }
 
-static Ref<> profileDeopt(
+Ref<> profileDeopt(
     std::size_t deopt_idx,
     const DeoptMetadata& meta,
     const MemoryView& mem) {
@@ -208,29 +210,10 @@ static void reifyBlockStack(
   }
 }
 
-static void releaseRefs(
-    const std::vector<LiveValue>& live_values,
-    const MemoryView& mem) {
-  for (const auto& value : live_values) {
-    switch (value.ref_kind) {
-      case jit::hir::RefKind::kUncounted:
-      case jit::hir::RefKind::kBorrowed: {
-        continue;
-      }
-      case jit::hir::RefKind::kOwned: {
-        PyObject* obj = mem.read(value, true);
-        // Reference may be NULL if value is not definitely assigned
-        Py_XDECREF(obj);
-        break;
-      }
-    }
-  }
-}
-
-Ref<> reifyFrame(
+void reifyFrame(
     PyFrameObject* frame,
-    std::size_t deopt_idx,
     const DeoptMetadata& meta,
+    const DeoptFrameMetadata& frame_meta,
     const uint64_t* regs,
     const JITRT_CallMethodKind* call_method_kind) {
   frame->f_locals = NULL;
@@ -241,23 +224,16 @@ Ref<> reifyFrame(
   // Interpreter loop will handle filling this in
   frame->f_lineno = frame->f_code->co_firstlineno;
   // Instruction pointer
-  if (meta.next_instr_offset == 0) {
+  if (frame_meta.next_instr_offset == 0) {
     frame->f_lasti = -1;
   } else {
-    frame->f_lasti = meta.next_instr_offset - sizeof(_Py_CODEUNIT);
+    frame->f_lasti = frame_meta.next_instr_offset - sizeof(_Py_CODEUNIT);
   }
   MemoryView mem{regs};
-  reifyLocalsplus(frame, meta, mem);
-  reifyStack(frame, meta, mem, call_method_kind);
-  Ref<> guilty_obj;
-  if (deopt_idx != -1ull) {
-    guilty_obj = profileDeopt(deopt_idx, meta, mem);
-  }
-  // Clear our references now that we've transferred them to the frame
-  releaseRefs(meta.live_values, mem);
-  reifyBlockStack(frame, meta.block_stack);
+  reifyLocalsplus(frame, meta, frame_meta, mem);
+  reifyStack(frame, meta, frame_meta, mem, call_method_kind);
+  reifyBlockStack(frame, frame_meta.block_stack);
   // Generator/frame linkage happens in `materializePyFrame` in frame.cpp
-  return guilty_obj;
 }
 
 static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
@@ -345,42 +321,58 @@ DeoptMetadata DeoptMetadata::fromInstr(
     return it->second;
   };
 
-  // Translate locals and cells
-  auto fs = instr.frameState();
-  auto nlocals = fs->locals.size();
-  auto ncells = fs->cells.size();
-  meta.localsplus.resize(nlocals + ncells, -1);
-  for (std::size_t i = 0; i < nlocals; i++) {
-    meta.localsplus[i] = get_reg_idx(fs->locals[i]);
-  }
-  for (std::size_t i = 0; i < ncells; i++) {
-    meta.localsplus[nlocals + i] = get_reg_idx(fs->cells[i]);
-  }
+  auto populate_localsplus =
+      [get_reg_idx](DeoptFrameMetadata& meta, hir::FrameState* fs) {
+        std::size_t nlocals = fs->locals.size();
+        std::size_t ncells = fs->cells.size();
+        meta.localsplus.resize(nlocals + ncells, -1);
+        for (std::size_t i = 0; i < nlocals; i++) {
+          meta.localsplus[i] = get_reg_idx(fs->locals[i]);
+        }
+        for (std::size_t i = 0; i < ncells; i++) {
+          meta.localsplus[nlocals + i] = get_reg_idx(fs->cells[i]);
+        }
+      };
 
-  // Translate stack
-  std::unordered_set<jit::hir::Register*> lms_on_stack;
-  for (auto& reg : fs->stack) {
-    if (reg->instr()->IsLoadMethod()) {
-      // Our logic for reconstructing the Python stack assumes that if a value
-      // on the stack was produced by a LoadMethod instruction, it corresponds
-      // to the output of a LOAD_METHOD opcode and will eventually be consumed
-      // by a CALL_METHOD. That doesn't technically have to be true, but it's
-      // our contention that the CPython compiler will never produce bytecode
-      // that would contradict this.
-      auto result = lms_on_stack.emplace(reg);
-      JIT_CHECK(
-          result.second,
-          "load method results may only appear in one stack slot");
+  auto populate_stack = [get_reg_idx](
+                            DeoptFrameMetadata& meta, hir::FrameState* fs) {
+    std::unordered_set<jit::hir::Register*> lms_on_stack;
+    for (auto& reg : fs->stack) {
+      if (reg->instr()->IsLoadMethod()) {
+        // Our logic for reconstructing the Python stack assumes that if a
+        // value on the stack was produced by a LoadMethod instruction, it
+        // corresponds to the output of a LOAD_METHOD opcode and will
+        // eventually be consumed by a CALL_METHOD. That doesn't technically
+        // have to be true, but it's our contention that the CPython
+        // compiler will never produce bytecode that would contradict this.
+        auto result = lms_on_stack.emplace(reg);
+        JIT_CHECK(
+            result.second,
+            "load method results may only appear in one stack slot");
+      }
+      meta.stack.emplace_back(get_reg_idx(reg));
     }
-    meta.stack.emplace_back(get_reg_idx(reg));
+  };
+
+  auto fs = instr.frameState();
+
+  meta.inline_depth = fs->inlineDepth();
+  int num_frames = meta.inline_depth;
+  meta.frame_meta.resize(num_frames + 1); // +1 for caller
+  for (hir::FrameState* frame = fs; frame != NULL; frame = frame->parent) {
+    int i = num_frames--;
+    // Translate locals and cells
+    populate_localsplus(meta.frame_meta.at(i), frame);
+    populate_stack(meta.frame_meta.at(i), frame);
+    meta.frame_meta.at(i).block_stack = frame->block_stack;
+    meta.frame_meta.at(i).next_instr_offset = frame->next_instr_offset;
+    meta.frame_meta.at(i).code = frame->code.get();
   }
 
   if (hir::Register* guilty_reg = instr.guiltyReg()) {
     meta.guilty_value = get_reg_idx(guilty_reg);
   }
 
-  meta.block_stack = fs->block_stack;
-  meta.next_instr_offset = fs->next_instr_offset;
   meta.nonce = instr.nonce();
   meta.reason = getDeoptReason(instr);
   JIT_CHECK(

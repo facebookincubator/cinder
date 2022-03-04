@@ -146,6 +146,7 @@ bool isPassthrough(const Instr& instr) {
       return false;
 
     case Opcode::kBatchDecref:
+    case Opcode::kBeginInlinedFunction:
     case Opcode::kBranch:
     case Opcode::kCondBranch:
     case Opcode::kCondBranchIterNotDone:
@@ -155,6 +156,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
+    case Opcode::kEndInlinedFunction:
     case Opcode::kGuard:
     case Opcode::kHintType:
     case Opcode::kSnapshot:

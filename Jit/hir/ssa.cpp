@@ -546,8 +546,9 @@ Type outputType(
       return get_op_type(0) & type;
     }
 
-    // Finally, some opcodes have no destination.
+      // Finally, some opcodes have no destination.
     case Opcode::kBatchDecref:
+    case Opcode::kBeginInlinedFunction:
     case Opcode::kBranch:
     case Opcode::kCallStaticRetVoid:
     case Opcode::kClearError:
@@ -559,6 +560,7 @@ Type outputType(
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
+    case Opcode::kEndInlinedFunction:
     case Opcode::kGuard:
     case Opcode::kHintType:
     case Opcode::kIncref:

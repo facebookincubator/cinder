@@ -41,7 +41,11 @@ void HIRPrinter::Print(std::ostream& os, const Function& func) {
 }
 
 void HIRPrinter::Print(std::ostream& os, const CFG& cfg) {
-  std::vector<BasicBlock*> blocks = cfg.GetRPOTraversal();
+  return Print(os, cfg, cfg.entry_block);
+}
+
+void HIRPrinter::Print(std::ostream& os, const CFG& cfg, BasicBlock* start) {
+  std::vector<BasicBlock*> blocks = cfg.GetRPOTraversal(start);
   auto last_block = blocks.back();
   for (auto block : blocks) {
     Print(os, *block);
@@ -230,6 +234,7 @@ static std::string format_immediates(const Instr& instr) {
   switch (instr.opcode()) {
     case Opcode::kAssign:
     case Opcode::kBatchDecref:
+    case Opcode::kBeginInlinedFunction:
     case Opcode::kBuildString:
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:
@@ -238,6 +243,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
+    case Opcode::kEndInlinedFunction:
     case Opcode::kGetIter:
     case Opcode::kGetTuple:
     case Opcode::kGuard:

@@ -64,15 +64,17 @@ def test(a, b):
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
-  dm.localsplus = {0, 1};
-  dm.next_instr_offset = 0;
+  DeoptFrameMetadata dfm;
+  dfm.localsplus = {0, 1};
+  dfm.next_instr_offset = 0;
+  dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
   auto frame = Ref<PyFrameObject>::steal(
       PyFrame_New(tstate, code, PyFunction_GetGlobals(func), nullptr));
 
-  reifyFrame(frame, -1, dm, regs, nullptr);
+  reifyFrame(frame, dm, dfm, regs, nullptr);
 
   // Frame takes ownership of refs in a and b
   a.release();
@@ -119,16 +121,18 @@ def test(a, b):
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
-  dm.localsplus = {0, 1};
-  dm.stack = {0, 1};
-  dm.next_instr_offset = 4;
+  DeoptFrameMetadata dfm;
+  dfm.localsplus = {0, 1};
+  dfm.stack = {0, 1};
+  dfm.next_instr_offset = 4;
+  dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
   auto frame = Ref<PyFrameObject>::steal(
       PyFrame_New(tstate, code, PyFunction_GetGlobals(func), nullptr));
 
-  reifyFrame(frame, -1, dm, regs, nullptr);
+  reifyFrame(frame, dm, dfm, regs, nullptr);
 
   // Frame takes ownership of refs in a and b
   a.release();
@@ -177,9 +181,11 @@ def test(a, b):
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
-  dm.localsplus = {0, 1};
-  dm.stack = {0, 1};
-  dm.next_instr_offset = 4;
+  DeoptFrameMetadata dfm;
+  dfm.localsplus = {0, 1};
+  dfm.stack = {0, 1};
+  dfm.next_instr_offset = 4;
+  dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
@@ -187,7 +193,7 @@ def test(a, b):
   auto frame =
       Ref<PyFrameObject>::steal(PyFrame_New(tstate, code, globals, nullptr));
 
-  reifyFrame(frame, -1, dm, regs, nullptr);
+  reifyFrame(frame, dm, dfm, regs, nullptr);
 
   // Frame takes ownership of refs in a and b
   a.release();
@@ -246,9 +252,11 @@ def test(num):
 
   DeoptMetadata dm;
   dm.live_values = {num_val, fact_val, tmp_val};
-  dm.localsplus = {0, 1};
-  dm.stack = {0, 2};
-  dm.next_instr_offset = 8;
+  DeoptFrameMetadata dfm;
+  dfm.localsplus = {0, 1};
+  dfm.stack = {0, 2};
+  dfm.next_instr_offset = 8;
+  dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
@@ -256,7 +264,7 @@ def test(num):
   auto frame =
       Ref<PyFrameObject>::steal(PyFrame_New(tstate, code, globals, nullptr));
 
-  reifyFrame(frame, -1, dm, regs, nullptr);
+  reifyFrame(frame, dm, dfm, regs, nullptr);
 
   // Frame takes ownership of refs
   num.release();
@@ -306,16 +314,18 @@ def test(x, y):
 
     DeoptMetadata dm;
     dm.live_values = {a_val};
-    dm.localsplus = {0};
-    dm.stack = {0};
-    dm.next_instr_offset = jump_index;
+    DeoptFrameMetadata dfm;
+    dfm.localsplus = {0};
+    dfm.stack = {0};
+    dfm.next_instr_offset = jump_index;
+    dm.frame_meta.push_back(dfm);
     dm.code_rt = &code_rt;
 
     PyThreadState* tstate = PyThreadState_Get();
     auto frame = Ref<PyFrameObject>::steal(
         PyFrame_New(tstate, code, PyFunction_GetGlobals(func), nullptr));
 
-    reifyFrame(frame, -1, dm, regs, nullptr);
+    reifyFrame(frame, dm, dfm, regs, nullptr);
 
     auto result = Ref<>::steal(PyEval_EvalFrame(frame));
     ASSERT_NE(result, nullptr);

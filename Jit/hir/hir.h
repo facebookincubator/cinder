@@ -174,6 +174,9 @@ struct FrameState {
     locals = other.locals;
     cells = other.cells;
     stack = other.stack;
+    JIT_DCHECK(
+        this != other.parent, "FrameStates should not be self-referential");
+    parent = other.parent;
     block_stack = other.block_stack;
     code = other.code;
     globals = other.globals;
@@ -185,11 +188,33 @@ struct FrameState {
       BorrowedRef<PyDictObject> globals,
       BorrowedRef<PyDictObject> builtins)
       : code(code), globals(globals), builtins(builtins) {}
+  FrameState(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> globals,
+      BorrowedRef<PyDictObject> builtins,
+      FrameState* parent)
+      : code(code), globals(globals), builtins(builtins), parent(parent) {
+    JIT_DCHECK(this != parent, "FrameStates should not be self-referential");
+  }
+  // Used for testing only.
   explicit FrameState(int bc_off) : next_instr_offset(bc_off) {}
-  FrameState(int bc_off, const OperandStack& os, const BlockStack& bs)
-      : next_instr_offset(bc_off), stack(os), block_stack(bs) {}
-  FrameState(const OperandStack& os, const BlockStack& bs)
-      : next_instr_offset(0), stack(os), block_stack(bs) {}
+
+  // If the function is inlined into another function, the depth at which it
+  // is inlined (nested function calls may be inlined). Starts at 1. If the
+  // function is not inlined, 0.
+  int inlineDepth() {
+    int inline_depth = -1;
+    const FrameState* frame = this;
+    while (frame != nullptr) {
+      frame = frame->parent;
+      inline_depth++;
+    }
+    JIT_DCHECK(
+        inline_depth >= 0,
+        "expected positive inline depth but got %d",
+        inline_depth);
+    return inline_depth;
+  }
 
   // The bytecode offset of the next instruction to be executed once control has
   // transferred to the interpreter.
@@ -207,6 +232,10 @@ struct FrameState {
   BorrowedRef<PyCodeObject> code;
   BorrowedRef<PyDictObject> globals;
   BorrowedRef<PyDictObject> builtins;
+  // Points to the FrameState, if any, into which this was inlined. Used to
+  // construct the metadata needed to reify PyFrameObjects for inlined
+  // functions during e.g. deopt.
+  FrameState* parent{nullptr};
 
   // The bytecode offset of the current instruction, or -1 if no instruction
   // has executed. This corresponds to the `f_lasti` field of PyFrameObject.
@@ -230,6 +259,9 @@ struct FrameState {
       if (reg != nullptr && !func(reg)) {
         return false;
       }
+    }
+    if (parent != nullptr) {
+      return parent->visitUses(func);
     }
     return true;
   }
@@ -258,6 +290,7 @@ struct FrameState {
 #define FOREACH_OPCODE(V)       \
   V(Assign)                     \
   V(BatchDecref)                \
+  V(BeginInlinedFunction)       \
   V(BinaryOp)                   \
   V(Branch)                     \
   V(BuildSlice)                 \
@@ -287,6 +320,7 @@ struct FrameState {
   V(Deopt)                      \
   V(DeoptPatchpoint)            \
   V(DoubleBinaryOp)             \
+  V(EndInlinedFunction)         \
   V(FillTypeAttrCache)          \
   V(FormatValue)                \
   V(GetIter)                    \
@@ -1936,6 +1970,60 @@ class INSTR_CLASS(
 
  private:
   BinaryOpKind op_;
+};
+
+class InlineBase {
+ public:
+  virtual int inlineDepth() const = 0;
+};
+
+// Owns a FrameState that all inlined FrameState-owning instructions will point
+// to via FrameState's `parent' pointer.
+class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
+ public:
+  BeginInlinedFunction(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyObject> globals,
+      const FrameState& caller_state)
+      : InstrT(), code_(code), globals_(globals) {
+    caller_state_ = std::make_unique<FrameState>(caller_state);
+  }
+
+  FrameState* callerFrameState() const {
+    return caller_state_.get();
+  }
+
+  BorrowedRef<PyCodeObject> code() const {
+    return code_.get();
+  }
+
+  BorrowedRef<PyObject> globals() const {
+    return globals_.get();
+  }
+
+  int inlineDepth() const {
+    return caller_state_->inlineDepth() + 1;
+  }
+
+ private:
+  // BeginInlinedFunction must own the FrameState that is used for building the
+  // linked list of FrameStates as well as its parent FrameState. The parent is
+  // originally owned by the Call instruction, but that gets destroyed.
+  std::unique_ptr<FrameState> caller_state_{nullptr};
+  BorrowedRef<PyCodeObject> code_;
+  BorrowedRef<PyObject> globals_;
+};
+
+class INSTR_CLASS(EndInlinedFunction, (), Operands<0>), public InlineBase {
+ public:
+  EndInlinedFunction(int inline_depth) : InstrT(), inline_depth(inline_depth) {}
+
+  int inlineDepth() const {
+    return inline_depth;
+  }
+
+ private:
+  int inline_depth{-1};
 };
 
 enum class PrimitiveUnaryOpKind {

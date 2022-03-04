@@ -78,6 +78,28 @@ struct PhyLocation {
 #undef DECLARE_REG
   };
 
+  static const char* regName(Reg reg) {
+    JIT_CHECK(reg >= 0, "reg must be nonnegative");
+    switch (reg) {
+#define DECLARE_REG(v, ...) \
+  case v:                   \
+    return #v;
+      FOREACH_GP(DECLARE_REG)
+      FOREACH_XMM(DECLARE_REG)
+#undef DECLARE_REG
+      case REG_INVALID:
+        JIT_CHECK(false, "invalid register");
+    }
+    JIT_CHECK(false, "unknown register %d", reg);
+  }
+
+  std::string toString() const {
+    if (is_memory()) {
+      return fmt::format("[RBP{}]", loc);
+    }
+    return regName(static_cast<Reg>(loc));
+  }
+
 #define COUNT_REGS(...) +1
   static constexpr int NUM_GP_REGS = FOREACH_GP(COUNT_REGS);
   static constexpr int XMM_REG_BASE = XMM0;

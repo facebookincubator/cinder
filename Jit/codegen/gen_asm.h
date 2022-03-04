@@ -38,7 +38,8 @@ class NativeGenerator {
         deopt_trampoline_(generateDeoptTrampoline(false)),
         deopt_trampoline_generators_(generateDeoptTrampoline(true)),
         jit_trampoline_(generateJitTrampoline()),
-        frame_header_size_(calcFrameHeaderSize(func)) {}
+        frame_header_size_(calcFrameHeaderSize(func)),
+        max_inline_depth_(calcMaxInlineDepth(func)) {}
 
   NativeGenerator(
       const hir::Function* func,
@@ -49,7 +50,8 @@ class NativeGenerator {
         deopt_trampoline_(deopt_trampoline),
         deopt_trampoline_generators_(deopt_trampoline_generators),
         jit_trampoline_(jit_trampoline),
-        frame_header_size_(calcFrameHeaderSize(func)) {}
+        frame_header_size_(calcFrameHeaderSize(func)),
+        max_inline_depth_(calcMaxInlineDepth(func)) {}
 
   ~NativeGenerator() {
     if (as_ != nullptr) {
@@ -88,8 +90,10 @@ class NativeGenerator {
   int compiled_size_{-1};
   int spill_stack_size_{-1};
   int frame_header_size_;
+  int max_inline_depth_;
 
   int calcFrameHeaderSize(const hir::Function* func);
+  int calcMaxInlineDepth(const hir::Function* func);
   void generateCode(asmjit::CodeHolder& code);
   void generateFunctionEntry();
   void linkOnStackShadowFrame(

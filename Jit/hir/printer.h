@@ -26,6 +26,7 @@ class HIRPrinter {
   void Print(std::ostream& os, const BasicBlock& block);
   void Print(std::ostream& os, const Instr& instr);
   void Print(std::ostream& os, const FrameState& state);
+  void Print(std::ostream& os, const CFG& cfg, BasicBlock* start);
 
   template <class T>
   std::string ToString(const T& obj) {

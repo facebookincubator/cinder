@@ -3,6 +3,7 @@
 
 #include "Python.h"
 #include "classloader.h"
+#include "frameobject.h"
 
 namespace jit {
 class CodeRuntime;
@@ -55,6 +56,14 @@ typedef struct {
 PyThreadState* JITRT_AllocateAndLinkFrame(
     PyCodeObject* code,
     PyObject* globals);
+
+/*
+ * Helper function to decref a frame.
+ *
+ * Used by JITRT_UnlinkFrame, and designed to only be used separately if
+ * something else has already unlinked the frame.
+ */
+void JITRT_DecrefFrame(PyFrameObject* frame);
 
 /*
  * Helper function to unlink a frame.
