@@ -457,7 +457,7 @@ class ReadonlyTypeBinder(ASTVisitor):
             )
         self.assign_to(node.target, node.value, node)
 
-    def visitForCommon(self, node: ast.For | ast.AsyncFor) -> None:
+    def _visitFor(self, node: ast.For | ast.AsyncFor) -> None:
         self.visit(node.iter)
         # Although elements of the iterable will be what's actually assigned,
         # the readonly-ness of the iterable itself is what determines the
@@ -468,10 +468,61 @@ class ReadonlyTypeBinder(ASTVisitor):
         self.walk_list(node.orelse)
 
     def visitFor(self, node: ast.For) -> None:
-        self.visitForCommon(node)
+        self._visitFor(node)
 
     def visitAsyncFor(self, node: ast.AsyncFor) -> None:
-        self.visitForCommon(node)
+        self._visitFor(node)
+
+    def visitDelete(self, node: ast.Delete) -> None:
+        for t in node.targets:
+            self.visit(t)
+            if self.is_readonly(t):
+                self.readonly_type_error(
+                    f"Cannot explicitly delete readonly value '{to_expr(t)}'", node
+                )
+
+    def visitRaise(self, node: ast.Raise) -> None:
+        if node.exc:
+            e = node.exc
+            self.visit(e)
+            if self.is_readonly(e):
+                self.readonly_type_error(
+                    f"Cannot raise readonly expression '{to_expr(e)}'", node
+                )
+
+        if node.cause:
+            c = node.cause
+            self.visit(c)
+            if self.is_readonly(c):
+                self.readonly_type_error(
+                    f"Cannot raise with readonly cause '{to_expr(c)}'", node
+                )
+
+    def visitReturn(self, node: ast.Return) -> None:
+        v = node.value
+        if v:
+            self.visit(v)
+            if isinstance(self.readonly_scope, ReadonlyFunctionBindingScope):
+                parent = self.readonly_scope
+            else:
+                parent = self.readonly_scope.get_parent_function()
+
+            if not parent:
+                if isinstance(self.readonly_scope, ReadonlyModuleBindingScope):
+                    # Various tests expect a cleaner error message, and we want to reserve the
+                    # readonly specific error message for actual failures to find the parent.
+                    self.readonly_type_error(f"'return' outside function", node)
+                else:
+                    self.readonly_type_error(
+                        f"Unable to determine parent function for return statement",
+                        node,
+                    )
+                return
+            if not parent.returns_readonly() and self.is_readonly(v):
+                self.readonly_type_error(
+                    f"Cannot return readonly expression '{to_expr(v)}' from a function returning a mutable type",
+                    node,
+                )
 
     def visitClassDef(self, node: ast.ClassDef) -> None:
         name = node.name

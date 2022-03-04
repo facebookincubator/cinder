@@ -267,3 +267,61 @@ class TypeBinderTest(ReadonlyTestBase):
         """
         errors = self.lint(code)
         self.assertEqual(errors.errors, [])
+
+    def test_readonly_delete(self) -> None:
+        code = """
+        def g(arr):
+            x = 0
+            y = readonly(0)
+            del x
+            del y
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("Cannot explicitly delete readonly value 'y'"),
+        )
+
+    def test_readonly_raise(self) -> None:
+        code = """
+        def g(arr):
+            y = readonly(0)
+            raise y
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("Cannot raise readonly expression 'y'"),
+        )
+
+    def test_readonly_raise_cause(self) -> None:
+        code = """
+        def g(arr):
+            x = 0
+            y = readonly(0)
+            raise x from y
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("Cannot raise with readonly cause 'y'"),
+        )
+
+    def test_readonly_return(self) -> None:
+        code = """
+        def g(arr) -> int:
+            y = readonly(0)
+            return y
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match(
+                "Cannot return readonly expression 'y' from a function returning a mutable type"
+            ),
+        )
+
+    def test_readonly_return_good(self) -> None:
+        code = """
+        def g(arr) -> Readonly[int]:
+            y = readonly(0)
+            return y
+        """
+        errors = self.lint(code)
+        self.assertEqual(errors.errors, [])
