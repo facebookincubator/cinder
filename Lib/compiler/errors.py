@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import linecache
-from ast import Constant
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
@@ -24,7 +23,8 @@ class PerfWarning(Warning):
         offset: int,
         text: Optional[str],
     ) -> None:
-        super().__init__(msg)
+        super().__init__(msg, filename, lineno, offset, text)
+        self.msg = msg
         self.filename = filename
         self.lineno = lineno
         self.offset = offset
@@ -65,14 +65,6 @@ class ErrorSink:
             if (exc.lineno, exc.offset) == (None, None):
                 exc.lineno, exc.offset, exc.text = error_location(filename, node)
             self.error(exc)
-        except PerfWarning as warning:
-            if warning.filename is None:
-                warning.filename = filename
-            if (warning.lineno, warning.offset) == (None, None):
-                warning.lineno, warning.offset, warning.text = error_location(
-                    filename, node
-                )
-            self.warn(warning)
 
     def warn(self, warning: PerfWarning) -> None:
         pass
