@@ -1547,8 +1547,23 @@ PyDeferred_NewObject(PyObject *deferred, PyObject *name)
     if (m == NULL) {
         return NULL;
     }
-    Py_INCREF(deferred);
-    m->df_deferred = deferred;
+    PyDeferredObject *d = (PyDeferredObject *)deferred;
+    if (d->df_fromlist != NULL && d->df_fromlist != Py_None) {
+        PyObject *frmlst = PyList_New(0);
+        if (frmlst == NULL) {
+            return NULL;
+        }
+        PyList_Append(frmlst, name);
+        PyObject *frm = PyDeferredModule_NewObject(d->df_name, d->df_globals, d->df_locals, frmlst, d->df_level);
+        Py_DECREF(frmlst);
+        if (frm == NULL) {
+            return NULL;
+        }
+        m->df_deferred = frm;
+    } else {
+        Py_INCREF(deferred);
+        m->df_deferred = deferred;
+    }
     Py_INCREF(name);
     m->df_name = name;
     m->df_globals = NULL;
