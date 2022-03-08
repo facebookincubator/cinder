@@ -117,7 +117,7 @@ PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(srcdir)/I
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(srcdir)/Include -I$(srcdir)/ThirdParty/fmt-6.1.1/include -I$(srcdir)/ThirdParty/i386-dis $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1
+PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(srcdir)/Include -I$(srcdir)/ThirdParty/fmt-6.1.1/include -I$(srcdir)/ThirdParty/i386-dis -I$(srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1
 PY_LDFLAGS_NODIST=$(CONFIGURE_LDFLAGS_NODIST) $(LDFLAGS_NODIST)
 OS_NAME := $(shell uname -s)
 ifeq ($(OS_NAME), Darwin)
@@ -1363,6 +1363,8 @@ STRICTM_HEADERS = \
 I386_DASM_HEADERS = \
         $(srcdir)/ThirdParty/i386-dis/dis-asm.h
 
+JSON_HEADERS = $(srcdir)/ThirdParty/json/json.hpp
+
 PYTHON_HEADERS= \
 		$(srcdir)/Include/Python.h \
 		$(srcdir)/Include/abstract.h \
@@ -1507,7 +1509,7 @@ PYTHON_HEADERS= \
 		$(STRICTM_HEADERS) \
 		$(STRICTM_PUBLIC_HEADERS)
 
-$(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS)
+$(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS)
 
 $(JIT_OBJS): $(JIT_HEADERS)
 
