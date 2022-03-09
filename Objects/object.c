@@ -1925,6 +1925,7 @@ _PyTypes_Init(void)
     INIT_TYPE(&PySuper_Type, "super");
     INIT_TYPE(&PyRange_Type, "range");
     INIT_TYPE(&PyDict_Type, "dict");
+    INIT_TYPE(&PyIDict_Type, "ImmutableDict");
     INIT_TYPE(&PyDictKeys_Type, "dict keys");
     INIT_TYPE(&PyDictValues_Type, "dict values");
     INIT_TYPE(&PyDictItems_Type, "dict items");
