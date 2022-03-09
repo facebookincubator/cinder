@@ -540,15 +540,20 @@ _PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {
 int _PyShadowFrame_WalkAndPopulate(
     PyCodeObject** async_stack,
     int* async_linenos,
-    int async_stack_len,
     PyCodeObject** sync_stack,
     int* sync_linenos,
-    int sync_stack_len) {
+    int array_capacity,
+    int* async_stack_len_out,
+    int* sync_stack_len_out) {
   _PyShadowFrame* shadow_frame = PyThreadState_GET()->shadow_frame;
+  // Don't assume the inputs are clean
+  *async_stack_len_out = 0;
+  *sync_stack_len_out = 0;
+
   // First walk the async stack (through awaiter pointers)
   int i = 0;
   _PyShadowFrame* awaiter_frame = NULL;
-  while (shadow_frame != NULL && i < async_stack_len) {
+  while (shadow_frame != NULL && i < array_capacity) {
     async_stack[i] = _PyShadowFrame_GetCode(shadow_frame);
     async_linenos[i] = jit::getLineNo(shadow_frame);
 
@@ -561,15 +566,17 @@ int _PyShadowFrame_WalkAndPopulate(
     }
     i++;
   }
+  *async_stack_len_out = i;
 
   // Next walk the sync stack (shadow frames only)
   int j = 0;
   shadow_frame = PyThreadState_GET()->shadow_frame;
-  while (shadow_frame != NULL && j < sync_stack_len) {
+  while (shadow_frame != NULL && j < array_capacity) {
     sync_stack[j] = _PyShadowFrame_GetCode(shadow_frame);
     sync_linenos[j] = jit::getLineNo(shadow_frame);
     shadow_frame = shadow_frame->prev;
     j++;
   }
+  *sync_stack_len_out = j;
   return 0;
 }

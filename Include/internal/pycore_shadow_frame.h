@@ -102,14 +102,32 @@ PyObject *_PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame *shadow_frame);
 
 /* Populates codeobject pointers in the given arrays. Meant to only be called
   from profiling frameworks. Both async_stack and sync_stack contain borrowed
-  references. */
+  references.
+
+  `async_stack` - Contains pointers to PyCodeObject on successful run. If errors
+  occur, the contents should not be used.
+
+  `async_linenos` - Is populated with the line numbers (corresponding to each) entry
+  in `async_stack`
+
+  `sync_stack` - Similar to `async_stack`, but contains sync stack entries.
+
+  `sync_linenos` - Similar to `async_linenos`, but contains for the sync stack.
+
+  `array_len` - Assumes that all the above arrays are of the same length, which is
+  specified by this parameter.
+
+  `async_stack_len_out`, `sync_stack_len_out` - These are out parameters. On successful
+  run, they contain the lengths of the async and sync stacks respectively.
+*/
 PyAPI_FUNC(int) _PyShadowFrame_WalkAndPopulate(
-  PyCodeObject** async_stack,
-  int *async_linenos,
-  int async_stack_len,
-  PyCodeObject** sync_stack,
-  int *sync_linenos,
-  int sync_stack_len);
+    PyCodeObject** async_stack,
+    int* async_linenos,
+    PyCodeObject** sync_stack,
+    int* sync_linenos,
+    int array_capacity,
+    int* async_stack_len_out,
+    int* sync_stack_len_out);
 
 /* Looks up the awaiter shadow frame (if any) from the given shadow frame */
 _PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame *shadow_frame);

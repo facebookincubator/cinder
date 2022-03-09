@@ -70,13 +70,16 @@ test_shadowframe_walk_and_populate(PyObject *self, PyObject *args)
     PyCodeObject* sync_stack[_SF_STACK_SIZE] = {0};
     int async_linenos[_SF_STACK_SIZE] = {0};
     int sync_linenos[_SF_STACK_SIZE] = {0};
+    int async_len = 0;
+    int sync_len = 0;
     int res = _PyShadowFrame_WalkAndPopulate(
         async_stack,
         async_linenos,
-        _SF_STACK_SIZE,
         sync_stack,
         sync_linenos,
-        _SF_STACK_SIZE
+        _SF_STACK_SIZE,
+        &async_len,
+        &sync_len
     );
     if (res) {
         PyErr_SetString(PyExc_RuntimeError, "test_shadowframe_walk_and_populate: failed");
@@ -92,6 +95,13 @@ test_shadowframe_walk_and_populate(PyObject *self, PyObject *args)
         PyCodeObject* code = async_stack[i];
         if (code == NULL) {
             // end of stack
+            if (i != async_len) {
+                PyErr_Format(
+                    PyExc_RuntimeError,
+                    "Mismatch in async stack len: %d returned, %d calculated", async_len, i
+                );
+                return NULL;
+            }
             break;
         }
         int lineno = async_linenos[i];
@@ -122,6 +132,13 @@ test_shadowframe_walk_and_populate(PyObject *self, PyObject *args)
         PyCodeObject* code = sync_stack[i];
         if (code == 0) {
             // end of stack
+            if (i != sync_len) {
+                PyErr_Format(
+                    PyExc_RuntimeError,
+                    "Mismatch in sync stack len: %d returned, %d calculated", sync_len, i
+                );
+                return NULL;
+            }
             break;
         }
         int lineno = sync_linenos[i];
