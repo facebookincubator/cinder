@@ -378,7 +378,6 @@ class Compiler:
             raise self.error_sink.errors[0]
         # Analyze using readonly type binder
         readonly_type_binder = ReadonlyTypeBinder(tree, filename, s)
-        readonly_types = readonly_type_binder.get_types()
         if readonly_type_binder.error_sink.has_errors:
             raise readonly_type_binder.error_sink.errors[0]
 
@@ -395,7 +394,7 @@ class Compiler:
             graph,
             self,
             name,
-            readonly_types=readonly_types,
+            binder=readonly_type_binder,
             flags=0,
             optimization_lvl=optimize,
             enable_patching=enable_patching,

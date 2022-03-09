@@ -139,7 +139,7 @@ static void *opcode_targets[256] = {
     &&TARGET_STORE_DEREF,
     &&TARGET_DELETE_DEREF,
     &&TARGET_FUNC_CREDENTIAL,
-    &&_unknown_opcode,
+    &&TARGET_READONLY_OPERATION,
     &&TARGET_CALL_FUNCTION_KW,
     &&TARGET_CALL_FUNCTION_EX,
     &&TARGET_SETUP_WITH,

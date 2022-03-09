@@ -31,7 +31,7 @@ from ..pycodegen import (
     TRY_FINALLY,
     Entry,
 )
-from ..readonly import ReadonlyCodeGenerator, TReadonlyTypes, ReadonlyTypeBinder
+from ..readonly import ReadonlyCodeGenerator, ReadonlyTypeBinder
 from ..symbols import FunctionScope, SymbolVisitor
 from ..visitor import walk
 from .common import FIXED_MODULES
@@ -116,7 +116,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         node: AST,
         symbols: SymbolVisitor,
         graph: PyFlowGraph,
-        readonly_types: TReadonlyTypes,
+        binder: ReadonlyTypeBinder,
         flags: int = 0,
         optimization_lvl: int = 0,
         builtins: Dict[str, Any] = builtins.__dict__,
@@ -126,7 +126,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
             node,
             symbols,
             graph,
-            readonly_types,
+            binder,
             flags=flags,
             optimization_lvl=optimization_lvl,
         )
@@ -158,7 +158,6 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         walk(tree, s)
 
         binder = ReadonlyTypeBinder(tree, filename, s)
-        readonly_types = binder.get_types()
 
         graph = cls.flow_graph(
             module_name, filename, s.scopes[tree], peephole_enabled=peephole_enabled
@@ -168,7 +167,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
             tree,
             s,
             graph,
-            readonly_types,
+            binder,
             flags=flags,
             optimization_lvl=optimize,
             builtins=builtins,

@@ -46,6 +46,8 @@ struct PyFunctionObject {
     PyObject *func_annotations; /* Annotations, a dict or NULL */
     PyObject *func_qualname;    /* The qualified name */
     vectorcallfunc vectorcall;
+    uint64_t readonly_mask;
+
 
     /* Invariant:
      *     func_closure contains the bindings for func_code->co_freevars, so

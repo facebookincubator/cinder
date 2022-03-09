@@ -44,7 +44,7 @@ from ..pycodegen import (
     FuncOrLambda,
     CompNode,
 )
-from ..readonly import TReadonlyTypes
+from ..readonly import ReadonlyTypeBinder
 from ..strict import StrictCodeGenerator, FIXED_MODULES
 from ..symbols import Scope, SymbolVisitor, ClassScope
 from .compiler import Compiler
@@ -104,7 +104,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         graph: PyFlowGraph,
         compiler: Compiler,
         modname: str,
-        readonly_types: TReadonlyTypes,
+        binder: ReadonlyTypeBinder,
         flags: int = 0,
         optimization_lvl: int = 0,
         enable_patching: bool = False,
@@ -115,13 +115,14 @@ class Static38CodeGenerator(StrictCodeGenerator):
             node,
             symbols,
             graph,
-            readonly_types,
+            binder,
             flags=flags,
             optimization_lvl=optimization_lvl,
             builtins=builtins,
         )
         self.compiler = compiler
         self.modname = modname
+        self.binder = binder
         # Use this counter to allocate temporaries for loop indices
         self._tmpvar_loopidx_count = 0
         self.cur_mod: ModuleTable = self.compiler.modules[modname]
@@ -173,7 +174,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             graph,
             compiler=self.compiler,
             modname=self.modname,
-            readonly_types=self.readonly_types,
+            binder=self.binder,
             optimization_lvl=self.optimization_lvl,
             enable_patching=self.enable_patching,
         )

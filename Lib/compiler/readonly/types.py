@@ -19,5 +19,16 @@ class Value:
         return self.name
 
 
+class FunctionValue:
+    def __init__(
+        self,
+        returns_readonly: bool,
+        readonly_nonlocal: bool,
+        args: List[Value],
+    ) -> None:
+        self.returns_readonly = returns_readonly
+        self.readonly_nonlocal = readonly_nonlocal
+        self.args = args
+
 READONLY = Value(True, [], "readonly")
 MUTABLE = Value(False, [READONLY], "mutable")

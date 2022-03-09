@@ -5,7 +5,7 @@ operate on bytecodes (e.g. peephole optimizers).
 """
 
 __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
-           "haslocal", "hascompare", "hasfree", "opname", "opmap",
+           "haslocal", "hascompare", "hasfree", "opname", "opmap", "readonlyop",
            "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs"]
 
 # It's a chicken-and-egg I'm afraid:
@@ -33,6 +33,7 @@ hascompare = []
 hasfree = []
 hasnargs = [] # unused
 shadowop = set()
+readonlyop = {}
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
@@ -56,6 +57,10 @@ def jabs_op(name, op):
 def shadow_op(name, op):
     def_op(name, op)
     shadowop.add(op)
+
+def readonly_op(name, id):
+    readonlyop[name] = id
+
 
 # Instruction opcodes for compiled code
 # Blank lines correspond to available opcodes
@@ -187,6 +192,11 @@ hasfree.append(138)
 
 def_op('FUNC_CREDENTIAL', 139)  # allocate function credential object
 hasconst.append(139)
+
+def_op("READONLY_OPERATION", 140)
+hasconst.append(140)
+readonly_op("MAKE_FUNCTION", 0)
+readonly_op("CHECK_FUNCTION", 1)
 
 def_op('CALL_FUNCTION_KW', 141)  # #args + #kwargs
 def_op('CALL_FUNCTION_EX', 142)  # Flags

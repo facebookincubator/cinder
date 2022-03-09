@@ -5,6 +5,7 @@ from ast import AST
 from types import CodeType
 from typing import Optional, Type, cast
 
+from ..opcodes import opcode
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
 from ..pycodegen import (
     CodeGenerator,
@@ -21,6 +22,8 @@ from ..symbols import (
     SymbolVisitor,
 )
 from .type_binder import ReadonlyTypeBinder, TReadonlyTypes
+from .types import READONLY, FunctionValue
+from .util import calc_function_readonly_mask
 
 
 class ReadonlyCodeGenerator(CinderCodeGenerator):
@@ -33,14 +36,14 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         node: AST,
         symbols: SymbolVisitor,
         graph: PyFlowGraph,
-        readonly_types: TReadonlyTypes,
+        binder: ReadonlyTypeBinder,
         flags: int = 0,
         optimization_lvl: int = 0,
     ) -> None:
         super().__init__(
             parent, node, symbols, graph, flags=flags, optimization_lvl=optimization_lvl
         )
-        self.readonly_types = readonly_types
+        self.binder = binder
 
     @classmethod
     def make_code_gen(
@@ -56,7 +59,6 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         s = cls._SymbolVisitor()
         s.visit(tree)
         binder = ReadonlyTypeBinder(tree, filename, s)
-        readonly_types = binder.get_types()
         graph = cls.flow_graph(
             module_name,
             filename,
@@ -68,7 +70,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             tree,
             s,
             graph,
-            readonly_types,
+            binder,
             flags=flags,
             optimization_lvl=optimize,
         )
@@ -90,7 +92,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             tree,
             self.symbols,
             graph,
-            readonly_types=self.readonly_types,
+            binder=self.binder,
             flags=self.flags,
             optimization_lvl=self.optimization_lvl,
         )
@@ -128,6 +130,32 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         name_tuple = (module_name, class_name, func_name)
         self.emit("FUNC_CREDENTIAL", name_tuple)
 
+    def emit_readonly_op(self, opname: str, arg: object) -> None:
+        op = opcode.readonlyop[opname]
+        self.emit("READONLY_OPERATION", (op, arg))
+
+    def build_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+        gen: CodeGenerator,
+    ) -> None:
+        super().build_function(node, gen)
+        readonly_funcs = self.binder.read_only_funcs
+
+        if node not in readonly_funcs:
+            return
+
+        func_value = readonly_funcs[node]
+        assert isinstance(func_value, FunctionValue)
+
+        func_value_tuple = (
+            func_value.returns_readonly,
+            func_value.readonly_nonlocal,
+            tuple(x == READONLY for x in func_value.args),
+        )
+
+        mask = calc_function_readonly_mask(func_value_tuple)
+        self.emit_readonly_op("MAKE_FUNCTION", mask)
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int

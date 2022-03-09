@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ast
-from ast import AST
+from ast import AST, Name
 from typing import Dict, Optional, final, List
 
 from ..consts import (
@@ -15,8 +15,14 @@ from ..errors import CollectingErrorSink
 from ..symbols import SymbolVisitor, Scope
 from ..unparse import to_expr
 from ..visitor import ASTVisitor
-from .types import MUTABLE, READONLY, Value
-from .util import is_readonly_annotation, is_readonly_wrapped, is_readonly_func
+from .types import MUTABLE, READONLY, Value, FunctionValue
+from .util import (
+    is_readonly_annotation,
+    is_readonly_wrapped,
+    is_readonly_func,
+    is_readonly_func_nonlocal,
+    READONLY_DECORATORS,
+)
 
 TReadonlyTypes = Dict[AST, Value]
 
@@ -69,6 +75,12 @@ class ReadonlyBindingScope:
                 return parent
             parent = parent.parent
         return None
+
+    def is_name_readonly(self, name: str) -> bool:
+        """
+        Returns if a given name is readonly
+        """
+        return self.types.get(name, READONLY) == READONLY
 
     def ignore_scope_for_readonly(self) -> bool:
         """
@@ -225,10 +237,12 @@ class ReadonlyTypeBinder(ASTVisitor):
         self.filename = filename
         self.scopes: Dict[AST, Scope] = symbols.scopes
         self.bind_types: TReadonlyTypes = bind_types or {}
+        self.read_only_funcs: Dict[AST, FunctionValue] = {}
         self.readonly_scope: ReadonlyBindingScope = ReadonlyModuleBindingScope(
             node, self, None
         )
         self.error_sink = CollectingErrorSink()
+        self.get_types()
 
     # -------------------------- helpers ---------------------------
     def readonly_type_error(self, msg: str, node: AST) -> None:
@@ -279,6 +293,11 @@ class ReadonlyTypeBinder(ASTVisitor):
 
     def store_readonly(self, node: AST) -> None:
         self.store_node(node, READONLY)
+
+    def store_readonly_func(
+        self, node: AST, readonly_func_value: FunctionValue
+    ) -> None:
+        self.read_only_funcs[node] = readonly_func_value
 
     def is_readonly(self, node: AST) -> bool:
         """node is readonly"""
@@ -562,14 +581,24 @@ class ReadonlyTypeBinder(ASTVisitor):
         name = node.name
         self.declare(name, node, MUTABLE)
         self.store_mutable(node)
+
         if self.readonly_scope.is_previsit:
             self.readonly_scope.store_post_visit(node)
             return
 
         readonly_func = any(is_readonly_func(dec) for dec in node.decorator_list)
+        readonly_nonlocal = any(
+            is_readonly_func_nonlocal(dec) for dec in node.decorator_list
+        )
         returns_readonly = (
             return_sig := node.returns
         ) is not None and is_readonly_annotation(return_sig)
+        node.decorator_list = [
+            x
+            for x in node.decorator_list
+            if not isinstance(x, Name) or x.id not in READONLY_DECORATORS
+        ]
+
         func_scope = ReadonlyFunctionBindingScope(
             node,
             self,
@@ -585,6 +614,19 @@ class ReadonlyTypeBinder(ASTVisitor):
         self.walk_list(func_scope.post_visit)
         self.restore_scope()
         self.walk_list(node.decorator_list)
+
+        if not readonly_func:
+            return
+
+        # save readonly-ness of each arguments
+        arg_values = []
+        for arg in node.args.args:
+            if func_scope.is_name_readonly(name):
+                arg_values.append(READONLY)
+            else:
+                arg_values.append(MUTABLE)
+        func_value = FunctionValue(returns_readonly, readonly_nonlocal, arg_values)
+        self.store_readonly_func(node, func_value)
 
     def visitarguments(self, node: ast.arguments) -> None:
         self.walk_list(node.posonlyargs)

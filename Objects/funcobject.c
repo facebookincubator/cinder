@@ -71,6 +71,7 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
     op->func_dict = NULL;
     op->func_module = NULL;
     op->func_annotations = NULL;
+    op->readonly_mask = 0;
 
     /* __module__: If module name is in globals, use it.
        Otherwise, use None. */

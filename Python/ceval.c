@@ -3127,6 +3127,28 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(READONLY_OPERATION): {
+            PyObject *tuple = GETITEM(consts, oparg);
+            assert(tuple != NULL);
+
+            PyObject *op = PyTuple_GetItem(tuple, 0);
+            assert(op != NULL);
+            int op_val = PyLong_AsLong(op);
+
+            if (op_val == READONLY_MAKE_FUNCTION) {
+                PyFunctionObject *func = (PyFunctionObject *)(TOP());
+                assert(func != NULL);
+
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                assert(mask != NULL);
+
+                func->readonly_mask = PyLong_AsUnsignedLongLong(mask);
+            } else {
+                assert(0);
+            }
+            DISPATCH();
+        }
+
 
 #define BUILD_DICT(map_size)                                                  \
                                                                               \

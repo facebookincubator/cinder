@@ -112,6 +112,10 @@ opcode.def_op("DELETE_DEREF", 138)
 opcode.hasfree.add(138)
 opcode.def_op("FUNC_CREDENTIAL", 139)
 opcode.hasconst.add(139)
+opcode.def_op("READONLY_OPERATION", 140)
+opcode.hasconst.add(140)
+opcode.readonly_op("MAKE_FUNCTION", 0)
+opcode.readonly_op("CHECK_FUNCTION", 1)
 opcode.def_op("CALL_FUNCTION_KW", 141)  # #args + #kwargs
 opcode.def_op("CALL_FUNCTION_EX", 142)  # Flags
 opcode.jrel_op("SETUP_WITH", 143)
@@ -246,6 +250,7 @@ opcode.stack_effects.update(
     STORE_DEREF=-1,
     DELETE_DEREF=0,
     FUNC_CREDENTIAL=1,
+    READONLY_OPERATION=0,
     GET_AWAITABLE=0,
     BEFORE_ASYNC_WITH=1,
     GET_AITER=0,

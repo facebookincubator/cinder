@@ -110,6 +110,7 @@ extern "C" {
   X(STORE_DEREF,                     137) \
   X(DELETE_DEREF,                    138) \
   X(FUNC_CREDENTIAL,                 139) \
+  X(READONLY_OPERATION,              140) \
   X(CALL_FUNCTION_KW,                141) \
   X(CALL_FUNCTION_EX,                142) \
   X(SETUP_WITH,                      143) \
@@ -221,8 +222,14 @@ extern "C" {
   X(LOAD_GLOBAL_CACHED,              254) \
   X(SHADOW_NOP,                      255)
 
+/* Defines sub functions for opcode READONLY_OPERATION. */
+#define READONLY_OPERATIONS(X) \
+  X(READONLY_MAKE_FUNCTION, 0) \
+  X(READONLY_CHECK_FUNCTION, 1)
+
 #define OP(op, value) static const int op = value;
 PY_OPCODES(OP)
+READONLY_OPERATIONS(OP)
 #undef OP
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
