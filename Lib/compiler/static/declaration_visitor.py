@@ -24,7 +24,6 @@ from typing import Union, List, TYPE_CHECKING
 from .module_table import ModuleTable
 from .types import (
     AwaitableTypeRef,
-    CEnumType,
     Class,
     Function,
     ModuleInstance,
@@ -195,11 +194,15 @@ class DeclarationVisitor(GenericVisitor[None]):
             asname = name.asname
             if asname is None:
                 top_level_module = name.name.split(".")[0]
-                self.module.children[top_level_module] = ModuleInstance(
-                    top_level_module, self.compiler
+                self.module.declare_import(
+                    top_level_module,
+                    None,
+                    ModuleInstance(top_level_module, self.compiler),
                 )
             else:
-                self.module.children[asname] = ModuleInstance(name.name, self.compiler)
+                self.module.declare_import(
+                    asname, None, ModuleInstance(name.name, self.compiler)
+                )
 
     def visitImportFrom(self, node: ImportFrom) -> None:
         mod_name = node.module
@@ -212,14 +215,16 @@ class DeclarationVisitor(GenericVisitor[None]):
                 val = mod.children.get(name.name)
                 child_name = name.asname or name.name
                 if val is not None:
-                    self.module.children[child_name] = val
+                    self.module.declare_import(child_name, (mod_name, name.name), val)
                 else:
                     # We might be facing a module imported as an attribute.
                     module_as_attribute = f"{mod_name}.{name.name}"
                     self.compiler.import_module(module_as_attribute, self.optimize)
                     if module_as_attribute in self.compiler.modules:
-                        self.module.children[child_name] = ModuleInstance(
-                            module_as_attribute, self.compiler
+                        self.module.declare_import(
+                            child_name,
+                            (mod_name, name.name),
+                            ModuleInstance(module_as_attribute, self.compiler),
                         )
 
     # We don't pick up declarations in nested statements

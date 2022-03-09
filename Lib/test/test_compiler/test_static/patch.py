@@ -1619,6 +1619,52 @@ class StaticPatchTests(StaticTestBase):
                     mod.patch("f", lambda: 2)
                     self.assertEqual(mod.g(), 2)
 
+    def test_patch_static_function_in_strict_module_cross_module(self):
+        defmod_code = """
+            def f() -> int:
+                return 1
+        """
+        midmod_code = """
+            from defmod import f
+        """
+        usemod_code = """
+            from midmod import f as x
+
+            def g() -> int:
+                return x()
+        """
+        for val in [2, "foo"]:
+            for patch_mods in [
+                {"defmod"},
+                {"midmod"},
+                {"usemod"},
+                {"defmod", "usemod"},
+            ]:
+                with self.subTest(val=val, patch_mods=patch_mods):
+                    compiler = self.strict_patch_compiler(
+                        defmod=defmod_code, midmod=midmod_code, usemod=usemod_code
+                    )
+                    module_gen = compiler.gen_modules()
+                    defmod = next(module_gen)
+                    if "defmod" in patch_mods:
+                        defmod.patch("f", lambda: val)
+                    midmod = next(module_gen)
+                    if "midmod" in patch_mods:
+                        midmod.patch("f", lambda: val)
+                    usemod = next(module_gen)
+                    if "usemod" in patch_mods:
+                        usemod.patch("x", lambda: val)
+                    if isinstance(val, int):
+                        self.assertEqual(usemod.g(), val)
+                    else:
+                        with self.assertRaises(TypeError):
+                            usemod.g()
+
+    def test_patch_strict_module_previously_nonexistent_attr(self):
+        with self.in_strict_module("", enable_patching=True) as mod:
+            mod.patch("f", lambda: 1)
+            self.assertEqual(mod.f(), 1)
+
     def test_async_cached_property_patch_with_bad_type(self):
         codestr = """
         from cinder import async_cached_property

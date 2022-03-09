@@ -386,6 +386,7 @@ class Compiler:
             name, filename, s.scopes[tree], peephole_enabled=True
         )
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
+        graph.extra_consts.append(tuple(self.modules[name].imported_from.items()))
 
         code_gen = self.code_generator(
             None,

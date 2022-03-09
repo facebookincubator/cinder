@@ -1025,6 +1025,17 @@ PyStrictModule_New(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
+    self->imported_from = PyDict_New();
+    if (d != NULL) {
+        PyObject *imported_from = PyDict_GetItemString(d, "<imported-from>");
+        if (imported_from != NULL) {
+            if (PyDict_MergeFromSeq2(self->imported_from, imported_from, 1)) {
+                return NULL;
+            }
+            PyDict_DelItemString(d, "<imported-from>");
+        }
+    }
+
     self->globals = d;
     Py_XINCREF(d);
     if (enable_patching == Py_True) {
@@ -1043,6 +1054,7 @@ strictmodule_dealloc(PyStrictModuleObject *m)
     Py_XDECREF(m->global_setter);
     Py_XDECREF(m->originals);
     Py_XDECREF(m->static_thunks);
+    Py_XDECREF(m->imported_from);
     module_dealloc((PyModuleObject *)m);
 }
 
@@ -1053,6 +1065,7 @@ strictmodule_traverse(PyStrictModuleObject *m, visitproc visit, void *arg)
     Py_VISIT(m->global_setter);
     Py_VISIT(m->originals);
     Py_VISIT(m->static_thunks);
+    Py_VISIT(m->imported_from);
     return 0;
 }
 
@@ -1063,6 +1076,7 @@ strictmodule_clear(PyStrictModuleObject *m)
     Py_CLEAR(m->global_setter);
     Py_CLEAR(m->originals);
     Py_CLEAR(m->static_thunks);
+    Py_CLEAR(m->imported_from);
     return 0;
 }
 
@@ -1245,6 +1259,57 @@ strictmodule_dir(PyObject *self, PyObject *args)
     return result;
 }
 
+static PyObject *
+strictmodule_get_original(PyObject *modules, PyStrictModuleObject *self, PyObject *name)
+{
+    PyObject* original = NULL;
+    // originals dict must always contain the real original, so if we find
+    // it there we're done
+    if (self->originals != NULL) {
+        original = PyDict_GetItem(self->originals, name);
+        if (original != NULL) {
+            return original;
+        }
+    } else {
+        self->originals = PyDict_New();
+    }
+    original = PyDict_GetItem(self->globals, name);
+    if (original == NULL) {
+        // patching a name onto the module that previously didn't exist
+        return original;
+    }
+    PyObject* source = PyDict_GetItem(self->imported_from, name);
+    if (source == NULL) {
+        goto done;
+    }
+    assert(PyTuple_Check(source));
+    assert(PyTuple_Size(source) == 2);
+    PyObject* next = PyDict_GetItem(modules, PyTuple_GetItem(source, 0));
+    if (next == NULL || !PyStrictModule_Check(next)) {
+        goto done;
+    }
+    original = strictmodule_get_original(modules, (PyStrictModuleObject*)next, PyTuple_GetItem(source, 1));
+    // although strictmodule_get_original in general can return NULL, if we have
+    // imported-from metadata for a name this should never happen; there should
+    // always be an original value for that import.
+
+  done:
+    assert(original != NULL);
+    PyDict_SetItem(self->originals, name, original);
+    return original;
+}
+
+PyObject *
+PyStrictModule_GetOriginal(PyStrictModuleObject *self, PyObject *name) {
+    // Track down and return the original unpatched value for the given name in
+    // module self, and record it in self->originals. It could have been patched
+    // in the module we imported it from before we imported it, so we have to do
+    // this recursively following the imported-from metadata. We record the
+    // original value at every module along the imported-from chain, to avoid
+    // repeating lookups later. Return NULL if no original value exists.
+    return strictmodule_get_original(PyThreadState_GET()->interp->modules, self, name);
+}
+
 int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value) {
     PyStrictModuleObject *mod = (PyStrictModuleObject *) self;
     PyObject * global_setter = mod->global_setter;
@@ -1259,9 +1324,7 @@ int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value) {
         return -1;
     }
 
-    if (mod->originals == NULL) {
-        mod->originals = PyDict_Copy(mod->global_setter);
-    }
+    PyStrictModule_GetOriginal(mod, name);
 
     if (_PyClassLoader_UpdateModuleName(mod, name, value) < 0) {
         return -1;

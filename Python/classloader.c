@@ -2824,24 +2824,23 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
     PyObject *func =
         classloader_get_member(path, PyTuple_GET_SIZE(path), container, &containerkey);
 
-    PyObject *originals = NULL;
     PyObject *original = NULL;
     if (container != NULL && *container != NULL) {
+        assert(containerkey != NULL);
         if (PyType_Check(*container)) {
             PyTypeObject *type = (PyTypeObject *)*container;
             if (type->tp_cache != NULL) {
-                originals = ((_PyType_VTable *)type->tp_cache)->vt_original;
+                PyObject *originals = ((_PyType_VTable *)type->tp_cache)->vt_original;
+                if (originals != NULL) {
+                    original = PyDict_GetItem(originals, containerkey);
+                }
             }
         } else if (PyStrictModule_Check(*container)) {
-            originals = ((PyStrictModuleObject *)*container)->originals;
+            original = PyStrictModule_GetOriginal((PyStrictModuleObject*)*container, containerkey);
         }
     }
-    if (originals != NULL) {
-        assert(containerkey != NULL);
-        original = PyDict_GetItem(originals, containerkey);
-        if (original == func) {
-            original = NULL;
-        }
+    if (original == func) {
+        original = NULL;
     }
 
     if (func != NULL) {
@@ -2862,6 +2861,7 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
     if (original != NULL) {
         PyObject *res = (PyObject *)get_or_make_thunk(func, original, *container, containerkey);
         Py_DECREF(func);
+        assert(res != NULL);
         return res;
     }
     return func;

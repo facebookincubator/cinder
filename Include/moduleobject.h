@@ -129,12 +129,14 @@ typedef struct {
     PyObject *global_setter;
     PyObject *originals;
     PyObject *static_thunks;
+    PyObject *imported_from;
 } PyStrictModuleObject;
 
 #define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
 extern Py_ssize_t strictmodule_dictoffset;
 
 int strictmodule_is_unassigned(PyObject *dict, PyObject *name);
+PyObject * PyStrictModule_GetOriginal(PyStrictModuleObject *self, PyObject *name);
 int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);
 #endif
 #ifdef __cplusplus

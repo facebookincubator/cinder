@@ -4,6 +4,7 @@ from __future__ import annotations
 import builtins
 import os
 import sys
+from cinder import StrictModule
 from enum import Enum
 from importlib.abc import Loader
 from importlib.machinery import (
@@ -30,10 +31,9 @@ from typing import (
     final,
 )
 
-from cinder import StrictModule
-
+from ..consts import CO_STATICALLY_COMPILED
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
-from .compiler import NONSTRICT_MODULE_KIND, Compiler, TIMING_LOGGER_TYPE
+from .compiler import Compiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
 
 
@@ -356,6 +356,9 @@ class StrictSourceFileLoader(SourceFileLoader):
                 "<builtins>": builtins.__dict__,
                 "<init-cached-properties>": self.init_cached_properties,
             }
+            if code.co_flags & CO_STATICALLY_COMPILED:
+                new_dict["<imported-from>"] = code.co_consts[-1]
+
             new_dict.update(module.__dict__)
             strict_mod = StrictModule(new_dict, self.enable_patching)
 

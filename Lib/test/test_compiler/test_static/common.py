@@ -25,7 +25,7 @@ from compiler.strict.compiler import Compiler as StrictCompiler
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
-from typing import Any, ContextManager, Generator, List, Mapping, Tuple, Type
+from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
 from _static import (
     TYPED_BOOL,
@@ -83,9 +83,13 @@ class TestCompiler(Compiler):
         test_case: StaticTestBase,
         code_generator: Type[Static38CodeGenerator] = StaticCodeGenerator,
         error_sink: ErrorSink | None = None,
+        strict_modules: bool = False,
+        enable_patching: bool = False,
     ) -> None:
         self.source_by_name = source_by_name
         self.test_case = test_case
+        self.strict_modules = strict_modules
+        self.enable_patching = enable_patching
         super().__init__(code_generator, error_sink)
 
     def import_module(self, name: str, optimize: int = 0) -> ModuleTable | None:
@@ -108,21 +112,32 @@ class TestCompiler(Compiler):
 
     @contextmanager
     def in_module(self, modname: str, optimize: int = 0) -> Generator[Any, None, None]:
+        for mod in self.gen_modules(optimize):
+            if mod.__name__ == modname:
+                yield mod
+                break
+        else:
+            raise Exception(f"No module named '{modname}' found")
+
+    def gen_modules(self, optimize: int = 0) -> Generator[Any, None, None]:
         names = self.source_by_name.keys()
         compiled = [self.compile_module(name, optimize) for name in names]
         try:
             dicts = []
             for name, codeobj in zip(names, compiled):
-                d, m = self.test_case._in_module(name, codeobj)
+                d, m = self._in_module(name, codeobj)
                 dicts.append(d)
-                if name == modname:
-                    yield m
-                    break
-            else:
-                raise Exception(f"No module named '{modname}' found")
+                yield m
         finally:
             for name, d in zip(names, dicts):
                 self.test_case._finalize_module(name, d)
+
+    def _in_module(self, name: str, codeobj: CodeType):
+        if self.strict_modules:
+            return self.test_case._in_strict_module(
+                name, codeobj, enable_patching=self.enable_patching
+            )
+        return self.test_case._in_module(name, codeobj)
 
     def type_error(
         self, name: str, pattern: str, at: str | None = None
@@ -319,9 +334,21 @@ class StaticTestBase(CompilerTest):
         with self.revealed_type_ctx(code, type):
             self.compile(code)
 
+    def _clean_sources(self, sources: Dict[str, str]) -> Dict[str, str]:
+        return {name: self.clean_code(code) for name, code in sources.items()}
+
     def compiler(self, **sources: str) -> TestCompiler:
+        return TestCompiler(self._clean_sources(sources), self)
+
+    def strict_compiler(self, **sources: str) -> TestCompiler:
+        return TestCompiler(self._clean_sources(sources), self, strict_modules=True)
+
+    def strict_patch_compiler(self, **sources: str) -> TestCompiler:
         return TestCompiler(
-            {name: self.clean_code(code) for name, code in sources.items()}, self
+            self._clean_sources(sources),
+            self,
+            strict_modules=True,
+            enable_patching=True,
         )
 
     _temp_mod_num = 0
@@ -387,7 +414,11 @@ class StaticTestBase(CompilerTest):
         code_obj,
         enable_patching=False,
     ):
-        d = {"__name__": name, "<builtins>": builtins.__dict__}
+        d = {
+            "__name__": name,
+            "<builtins>": builtins.__dict__,
+            "<imported-from>": code_obj.co_consts[-1],
+        }
         add_fixed_module(d)
         m = StrictModule(d, enable_patching)
         sys.modules[name] = m

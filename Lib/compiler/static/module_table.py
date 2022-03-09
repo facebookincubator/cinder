@@ -41,7 +41,6 @@ from .types import (
     FinalClass,
     MethodType,
     TypeDescr,
-    TypeWrapper,
     UnionType,
     Value,
 )
@@ -173,6 +172,9 @@ class ModuleTable:
         self.flags: Set[ModuleFlag] = set()
         self.decls: List[Tuple[AST, Optional[str], Optional[Value]]] = []
         self.compile_non_static: Set[AST] = set()
+        # (source module, source name) for every name this module imports-from
+        # another static module at top level
+        self.imported_from: Dict[str, Tuple[str, str]] = {}
         # TODO: final constants should be typed to literals, and
         # this should be removed in the future
         self.named_finals: Dict[str, ast.Constant] = {}
@@ -319,6 +321,20 @@ class ModuleTable:
             )
         ):
             return final_val
+
+    def declare_import(
+        self, name: str, source: Tuple[str, str] | None, val: Value
+    ) -> None:
+        """Declare a name imported into this module.
+
+        `name` is the name in this module's namespace. `source` is a (str, str)
+        tuple of (source_module, source_name) for an `import from`. For a
+        top-level module import, `source` should be `None`.
+
+        """
+        self.children[name] = val
+        if source is not None:
+            self.imported_from[name] = source
 
     def declare_variable(self, node: ast.AnnAssign, module: ModuleTable) -> None:
         self.decls.append((node, None, None))
