@@ -1618,6 +1618,18 @@ testcinder_jit_shadowframe: @DEF_MAKE_RULE@ platform
 	# TODO re-enable when it doesn't crash on exit
 	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-shadow-frame -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py $(TESTOPTS)
 
+testcinder_jit_inliner: @DEF_MAKE_RULE@ platform
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-enable-hir-inliner $(JIT_TEST_RUNNER)
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit -X jit-enable-hir-inliner $(JIT_TEST_RUNNER)
+	# TODO re-enable when it doesn't crash on exit
+	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-enable-hir-inliner -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py
+
+testcinder_jit_shadowframe_inliner: @DEF_MAKE_RULE@ platform
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-shadow-frame -X jit-enable-hir-inliner $(JIT_TEST_RUNNER)
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit -X jit-shadow-frame -X jit-enable-hir-inliner $(JIT_TEST_RUNNER)
+	# TODO re-enable when it doesn't crash on exit
+	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit -X jit-shadow-frame -X jit-enable-hir-inliner -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py
+
 testcinder_refleak: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDER_REFLEAK_OPTS)
 	$(ASAN_TEST_ENV)$(TESTRUNNERPYCOMPILER) $(TESTCINDER_REFLEAK_OPTS)
