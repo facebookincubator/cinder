@@ -276,6 +276,14 @@ PyObject_InitVar(PyVarObject *op, PyTypeObject *tp, Py_ssize_t size)
     return op;
 }
 
+void _make_immutable(PyObject* obj){
+    // TODO Handle dict subclasses
+    if PyDict_CheckExact(obj){
+        Py_TYPE(obj) = &PyIDict_Type;
+    }
+}
+
+
 PyObject *
 _PyObject_New(PyTypeObject *tp)
 {

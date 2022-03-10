@@ -1,5 +1,5 @@
 #include "Python.h"
-#include "internal/pycore_immutable_globals.h"
+#include "immutable_globals.h"
 
 static PyObject * set_immutable_globals_creation(PyObject *self, PyObject *val) {
     if (PyBool_Check(val)) {

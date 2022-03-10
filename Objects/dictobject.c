@@ -868,6 +868,16 @@ PyDict_New(void)
     return new_dict(Py_EMPTY_KEYS, empty_values);
 }
 
+PyObject *
+PyDict_New_No_Immutable(void)
+{
+    dictkeys_incref(Py_EMPTY_KEYS);
+    PyObject * d = new_dict(Py_EMPTY_KEYS, empty_values);
+    assert((Py_TYPE(d) == &PyDict_Type || Py_TYPE(d) == &PyIDict_Type));
+    Py_TYPE(d) = &PyDict_Type;
+    return d;
+}
+
 /* Search index of hash table from offset of entry table */
 static Py_ssize_t
 lookdict_index(PyDictKeysObject *k, Py_hash_t hash, Py_ssize_t index)

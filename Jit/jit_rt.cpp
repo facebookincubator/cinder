@@ -682,7 +682,7 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
   Ref<> new_kwargs{kwargs};
   if (kwargs) {
     if (!PyDict_CheckExact(kwargs)) {
-      PyObject* d = PyDict_New();
+      PyObject* d = PyDict_New_No_Immutable();
       if (d == NULL) {
         return NULL;
       }
