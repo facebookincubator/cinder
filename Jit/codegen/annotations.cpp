@@ -13,6 +13,8 @@ namespace codegen {
 std::string Annotations::disassemble(
     void* entry,
     const asmjit::CodeHolder& code) {
+  // i386-dis is not thread-safe
+  ThreadedCompileSerialize guard;
   JIT_CHECK(
       g_dump_asm, "Annotations are not recorded without -X jit-disas-funcs");
   auto text = code.textSection();
