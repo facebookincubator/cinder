@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ast import AST, Subscript, Name, Call
-from typing import Any, Tuple, Union
+import ast
+from ast import AST, Subscript, Name, Call, Index
+from typing import Any, Optional, Tuple, Union
 
-READONLY_ANNOTATION: str = "Readonly"
 READONLY_CALL: str = "readonly"
 READONLY_FUNC: str = "readonly_func"
 READONLY_FUNC_NONLOCAL: str = "readonly_closure"
@@ -11,16 +11,16 @@ READONLY_FUNC_NONLOCAL: str = "readonly_closure"
 READONLY_DECORATORS = ("readonly_func", "readonly_closure")
 
 
-def is_readonly_annotation(node: AST) -> bool:
-    return (
-        isinstance(node, Subscript)
-        and isinstance(node.value, Name)
-        and node.value.id == READONLY_ANNOTATION
-    )
-
-
 def is_readonly_wrapped(node: AST) -> bool:
-    return isinstance(node, Name) and node.id == READONLY_CALL
+    if not isinstance(node, ast.Call):
+        return False
+    return isinstance(node.func, Name) and node.func.id == READONLY_CALL
+
+
+def is_tuple_wrapped(node: AST) -> bool:
+    if not isinstance(node, ast.Call):
+        return False
+    return isinstance(node.func, Name) and node.func.id == "tuple"
 
 
 def is_readonly_func(node: AST) -> bool:

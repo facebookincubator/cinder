@@ -1,7 +1,7 @@
 from .common import ReadonlyTestBase
 
 
-class FuncCredentialTest(ReadonlyTestBase):
+class FuncCredentialTests(ReadonlyTestBase):
     def test_simple_function(self) -> None:
         code = """
         def f():

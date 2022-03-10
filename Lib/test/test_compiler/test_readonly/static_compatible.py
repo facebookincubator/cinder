@@ -1,7 +1,7 @@
 from .common import ReadonlyTestBase
 
 
-class StaticCompatTest(ReadonlyTestBase):
+class StaticCompatTests(ReadonlyTestBase):
     def test_static_lint(self) -> None:
         code = """
             def f():
