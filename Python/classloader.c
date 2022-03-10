@@ -2911,7 +2911,7 @@ done:
 int
 _PyClassLoader_IsEnum(PyTypeObject* type) {
     if (static_enum == NULL) {
-        static_enum = (PyTypeObject *)classloader_get_static_type("Enum");
+        static_enum = (PyTypeObject *)classloader_get_static_type("Int64Enum");
         if (static_enum == NULL) {
             PyErr_Clear();
             return 0;

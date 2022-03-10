@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Iterable, Mapping, Sequence, Tuple, Type, final
+from typing import Iterable, Mapping, Sequence, Tuple, Type
 
 from .type_code import set_type_code, TYPED_INT64
 
@@ -99,10 +99,6 @@ class Enum(metaclass=EnumMeta):
     def __init__(self, value: object) -> None:
         self.value = value
 
-    def __init_subclass__(cls, /, **kwargs) -> None:
-        super().__init_subclass__(**kwargs)
-        set_type_code(cls, TYPED_INT64)
-
     def __dir__(self) -> Sequence[str]:
         return ["name", "value"]
 
@@ -116,6 +112,12 @@ class Enum(metaclass=EnumMeta):
         return self.__class__, (self.value,)
 
 
+class Int64Enum(Enum):
+    def __init_subclass__(cls, /, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        set_type_code(cls, TYPED_INT64)
+
+
 class StringEnumMeta(EnumMeta):
     """Like the regular EnumMeta, but parses string/binary inputs to __call__
     as text (to match text literals used in StringEnum)."""
@@ -126,21 +128,9 @@ class StringEnumMeta(EnumMeta):
         )
 
 
-class StringEnum(str, metaclass=StringEnumMeta):
-    def __init__(self, value: object) -> None:
-        self.value = value
-
-    def __dir__(self) -> Sequence[str]:
-        return ["name", "value"]
-
+class StringEnum(Enum, str, metaclass=StringEnumMeta):
     def __str__(self) -> str:
         return f"{self.value}"
-
-    def __repr__(self) -> str:
-        return f"<{type(self).__name__}.{self.name}: {self.value}>"
-
-    def __reduce_ex__(self, proto: int) -> Tuple[Type[object], Tuple[object]]:
-        return self.__class__, (self.value,)
 
 
 def unique(enumeration: Type[Enum]) -> Type[Enum]:

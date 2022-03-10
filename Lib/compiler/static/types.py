@@ -213,7 +213,7 @@ class TypeEnvironment:
         )
         self.bool: Class = BoolClass(self)
         self.cbool: CIntType = CIntType(TYPED_BOOL, self, name_override="cbool")
-        self.enum: CEnumType = CEnumType(self)
+        self.int64enum: CEnumType = CEnumType(self)
         self.int8: CIntType = CIntType(TYPED_INT8, self)
         self.int16: CIntType = CIntType(TYPED_INT16, self)
         self.int32: CIntType = CIntType(TYPED_INT32, self)
@@ -406,6 +406,7 @@ class TypeEnvironment:
             type(...): self.ellipsis.instance,
             frozenset: self.set.instance,
         }
+        self.enum: EnumType = EnumType(self)
         self.string_enum: StringEnumType = StringEnumType(self)
         if spamobj is not None:
             T = GenericParameter("T", 0, self)
@@ -6876,7 +6877,7 @@ class CEnumType(CType):
         bases: Optional[List[Class]] = None,
     ) -> None:
         super().__init__(
-            type_name or TypeName("__static__", "Enum"),
+            type_name or TypeName("__static__", "Int64Enum"),
             type_env,
             bases,
             CEnumInstance(self),
@@ -6892,20 +6893,20 @@ class CEnumType(CType):
         # TODO(wmeehan): handle enum subclassing and mix-ins
         if len(bases) > 1:
             raise TypedSyntaxError(
-                f"Static Enum types cannot support multiple bases: {bases}",
+                f"Int64Enum types cannot support multiple bases: {bases}",
             )
-        if bases[0] != self.type_env.enum:
-            raise TypedSyntaxError("Static Enum types do not allow subclassing")
+        if bases[0] != self.type_env.int64enum:
+            raise TypedSyntaxError("Int64Enum types do not allow subclassing")
         return CEnumType(self.type_env, name, bases)
 
     def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
         if not isinstance(const, ast.Constant):
-            raise TypedSyntaxError(f"cannot resolve enum value {const} at compile time")
+            raise TypedSyntaxError("Cannot resolve Int64Enum value at compile time")
 
         value = const.value
         if not isinstance(value, int):
             raise TypedSyntaxError(
-                f"Static enum values must be int, not {type(value).__name__}"
+                f"Int64Enum values must be int, not {type(value).__name__}"
             )
         if not self.type_env.int64.instance.is_valid_int(value):
             raise TypedSyntaxError(
@@ -7914,51 +7915,45 @@ class ContextDecoratedMethod(DecoratedMethod):
         return self.function.resolve_descr_get(node, inst, ctx, visitor)
 
 
-class StringEnumType(Class):
+class EnumType(Class):
     def __init__(
         self,
         type_env: TypeEnvironment,
         type_name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
+        instance: Optional[EnumInstance] = None,
         is_exact: bool = False,
     ) -> None:
-        instance = StringEnumInstance(self)
         super().__init__(
-            type_name=(type_name or TypeName("__static__", "StringEnum")),
-            bases=bases or cast(List[Class], [type_env.str]),
+            type_name=(type_name or TypeName("__static__", "Enum")),
+            bases=bases,
             type_env=type_env,
-            instance=instance,
+            instance=instance or EnumInstance(self),
             is_exact=is_exact,
         )
-        self.values: Dict[str, StringEnumInstance] = {}
+        self.values: Dict[str, EnumInstance] = {}
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         if len(bases) > 1:
             raise TypedSyntaxError(
-                f"Static StringEnum types cannot support multiple bases: {bases}",
+                f"Static Enum types cannot support multiple bases: {bases}",
             )
-        if bases[0] is not self.type_env.string_enum:
-            raise TypedSyntaxError("Static StringEnum types do not allow subclassing")
-        return StringEnumType(self.type_env, name, bases)
+        if bases[0] is not self.type_env.enum:
+            raise TypedSyntaxError("Static Enum types do not allow subclassing")
+        return EnumType(self.type_env, name, bases)
 
     def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
         if not isinstance(const, ast.Constant):
-            raise TypedSyntaxError(f"cannot resolve enum value {const} at compile time")
+            raise TypedSyntaxError("Cannot resolve Enum value at compile time")
 
-        value = const.value
-        if not isinstance(value, str):
-            raise TypedSyntaxError(
-                f"String enum values must be str, not {type(value).__name__}"
-            )
-
-        self.values[name.id] = StringEnumInstance(self, name.id, value)
+        self.values[name.id] = EnumInstance(self, name.id, const.value)
 
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
         if isinstance(node.ctx, (ast.Store, ast.Del)):
             visitor.syntax_error(
-                "StringEnum values cannot be modified or deleted", node
+                "Static Enum values cannot be modified or deleted", node
             )
 
         if inst := self.values.get(node.attr):
@@ -8015,7 +8010,7 @@ class StringEnumType(Class):
 
         arg = node.args[0]
         arg_type = code_gen.get_type(arg)
-        if isinstance(arg_type, StringEnumInstance):
+        if isinstance(arg_type, EnumInstance) and arg_type.klass is self:
             code_gen.visit(arg)
         else:
             code_gen.defaultVisit(node)
@@ -8026,12 +8021,12 @@ class StringEnumType(Class):
         return exact
 
 
-class StringEnumInstance(Object[StringEnumType]):
+class EnumInstance(Object[EnumType]):
     def __init__(
         self,
-        klass: StringEnumType,
+        klass: EnumType,
         name: Optional[str] = None,
-        value: Optional[str] = None,
+        value: object = None,
     ) -> None:
         super().__init__(klass)
         self.klass = klass
@@ -8044,6 +8039,76 @@ class StringEnumInstance(Object[StringEnumType]):
         if self.attr_name is not None:
             return f"<{class_name}.{self.attr_name}: {self.value}>"
         return class_name
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            visitor.syntax_error("Enum values cannot be modified or deleted", node)
+
+        if node.attr == "name":
+            visitor.set_type(node, visitor.type_env.str.exact_type().instance)
+            return
+
+        super().bind_attr(node, visitor, type_ctx)
+
+
+class StringEnumType(EnumType):
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        type_name: Optional[TypeName] = None,
+        bases: Optional[List[Class]] = None,
+        is_exact: bool = False,
+    ) -> None:
+        instance = StringEnumInstance(self)
+        super().__init__(
+            type_name=(type_name or TypeName("__static__", "StringEnum")),
+            bases=bases or cast(List[Class], [type_env.enum, type_env.str]),
+            type_env=type_env,
+            instance=instance,
+            is_exact=is_exact,
+        )
+        self.values: Dict[str, StringEnumInstance] = {}
+
+    def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
+        if len(bases) > 1:
+            raise TypedSyntaxError(
+                f"Static StringEnum types cannot support multiple bases: {bases}",
+            )
+        if bases[0] is not self.type_env.string_enum:
+            raise TypedSyntaxError("Static StringEnum types do not allow subclassing")
+        return StringEnumType(self.type_env, name, bases)
+
+    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
+        if not isinstance(const, ast.Constant):
+            raise TypedSyntaxError("Cannot resolve StringEnum value at compile time")
+
+        value = const.value
+        if not isinstance(value, str):
+            raise TypedSyntaxError(
+                f"StringEnum values must be str, not {type(value).__name__}"
+            )
+
+        self.values[name.id] = StringEnumInstance(self, name.id, value)
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) != 1:
+            raise code_gen.syntax_error(
+                f"{self.name} requires a single argument, given {len(node.args)}", node
+            )
+
+        arg = node.args[0]
+        arg_type = code_gen.get_type(arg)
+        if isinstance(arg_type, StringEnumInstance):
+            code_gen.visit(arg)
+        else:
+            code_gen.defaultVisit(node)
+
+
+class StringEnumInstance(EnumInstance):
+    klass: StringEnumType
+    value: Optional[str]
 
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]

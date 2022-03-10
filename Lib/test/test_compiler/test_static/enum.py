@@ -1,5 +1,4 @@
 import itertools
-import unittest
 from compiler.static.types import TypedSyntaxError
 
 from _static import PRIM_OP_EQ_INT, TYPED_INT64
@@ -37,47 +36,220 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    def test_non_int_unsupported(self):
+    def test_non_constant_disallowed(self):
+        codestr = """
+        from __static__ import Enum
+
+        def foo() -> int:
+            return 1
+
+        class Foo(Enum):
+            FOO = foo()
+        """
+        self.type_error(
+            codestr,
+            "Cannot resolve Enum value at compile time",
+            at="FOO = foo()",
+        )
+
+    def test_multiple_types_allowed(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+            FOO = "FOO"
+            BAR = 23
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.Foo.FOO.value, "FOO")
+            self.assertEqual(mod.Foo.BAR.value, 23)
+
+    def test_delattr_disallowed(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+            FOO = "FOO"
+            BAR = 23
+
+        def delete() -> None:
+            del Foo.FOO
+        """
+        self.type_error(
+            codestr,
+            "Static Enum values cannot be modified or deleted",
+        )
+
+    def test_setattr_disallowed(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+            FOO = "FOO"
+            BAR = 23
+
+        def bar():
+            Foo.FOO = "BAR"
+        """
+        self.type_error(
+            codestr,
+            "Static Enum values cannot be modified or deleted",
+        )
+
+    def test_compare_enum_to_values(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+            FOO = "FOO"
+            BAR = 23
+
+        def f():
+            return Foo.FOO == "FOO", Foo.BAR == 23
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), (False, False))
+
+    def test_compare_enum(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+            FOO = "FOO"
+            BAR = "FOO"
+            BAZ = "BAZ"
+
+        def f():
+            return (
+                Foo.FOO == Foo.FOO,
+                Foo.FOO == Foo.BAR,
+                Foo.FOO == Foo.BAZ,
+            )
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), (True, True, False))
+
+    def test_compare_enum_nonstatic(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+             FOO = 1
+             BAR = 1
+             BAZ = 2
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.Foo.FOO == mod.Foo.FOO)
+            self.assertTrue(mod.Foo.FOO == mod.Foo.BAR)
+            self.assertFalse(mod.Foo.FOO == mod.Foo.BAZ)
+
+    def test_compare_different_enums(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+             FOO = 1
+
+        class Bar(Enum):
+             FOO = 1
+
+        def f():
+            return Foo.FOO == Bar.FOO
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), False)
+
+    def test_compare_different_enums_nonstatic(self):
+        codestr = """
+        from __static__ import Enum
+
+        class Foo(Enum):
+             FOO = 1
+
+        class Bar(Enum):
+             FOO = 1
+        """
+        with self.in_module(codestr) as mod:
+            self.assertFalse(mod.Foo.FOO == mod.Bar.FOO)
+
+    def test_int64enum_mixins_disallowed(self):
+        codestr = """
+        from __static__ import Int64Enum
+
+        class Foo(float, Int64Enum):
+            pass
+        """
+        self.type_error(codestr, "Int64Enum types cannot support multiple bases:")
+
+    def test_int64enum_subclassing_disallowed(self):
+        codestr = """
+        from __static__ import Int64Enum
+
+        class Foo(Int64Enum):
+            pass
+
+        class Bar(Foo):
+            pass
+        """
+        self.type_error(codestr, "Int64Enum types do not allow subclassing")
+
+    def test_non_constant_int64enum_disallowed(self):
+        codestr = """
+        from __static__ import Int64Enum
+
+        def foo() -> int:
+            return 1
+
+        class Foo(Int64Enum):
+            FOO = foo()
+        """
+        self.type_error(
+            codestr,
+            "Cannot resolve Int64Enum value at compile time",
+            at="FOO = foo()",
+        )
+
+    def test_int64enum_non_int_disallowed(self):
         self.type_error(
             """
-            from __static__ import Enum
+            from __static__ import Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = "not an int"
             """,
-            "Static enum values must be int, not str",
+            "Int64Enum values must be int, not str",
             at='BAR = "not an int"',
         )
 
-    def test_int_overflow(self):
+    def test_int64enum_overflow(self):
         self.type_error(
             """
-            from __static__ import Enum
+            from __static__ import Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = 2**63
             """,
             "Value 9223372036854775808 for <module>.Foo.BAR is out of bounds",
             at="BAR = 2**63",
         )
 
-    def test_int_underflow(self):
+    def test_int64enum_underflow(self):
         self.type_error(
             """
-            from __static__ import Enum
+            from __static__ import Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = -2**63 - 1
             """,
             "Value -9223372036854775809 for <module>.Foo.BAR is out of bounds",
             at="BAR = -2**63 - 1",
         )
 
-    def test_compare_with_int_disallowed(self):
+    def test_int64enum_compare_with_int_disallowed(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Bit(Enum):
+        class Bit(Int64Enum):
             ZERO = 0
             ONE = 1
 
@@ -89,15 +261,15 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    def test_compare_different_enums_disallowed(self):
+    def test_int64enum_compare_different_enums_disallowed(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Bit(Enum):
+        class Bit(Int64Enum):
             ZERO = 0
             ONE = 1
 
-        class Color(Enum):
+        class Color(Int64Enum):
             RED = 0
             GREEN = 1
             BLUE = 2
@@ -111,11 +283,11 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    def test_reverse_compare_with_int_disallowed(self):
+    def test_int64enum_reverse_compare_with_int_disallowed(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Bit(Enum):
+        class Bit(Int64Enum):
             ZERO = 0
             ONE = 1
 
@@ -127,11 +299,11 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    def test_delattr_disallowed(self):
+    def test_int64enum_delattr_disallowed(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Direction(Enum):
+        class Direction(Int64Enum):
             NORTH = 0
             SOUTH = 1
             EAST = 2
@@ -146,11 +318,11 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    def test_setattr_disallowed(self):
+    def test_int64enum_setattr_disallowed(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Color(Enum):
+        class Color(Int64Enum):
             RED = 0
             GREEN = 1
             BLUE = 2
@@ -163,11 +335,11 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    def test_enum_function_arg_and_return_type(self):
+    def test_int64enum_function_arg_and_return_type(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Coin(Enum):
+        class Coin(Int64Enum):
             HEADS = 0
             TAILS = 1
 
@@ -182,11 +354,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.flip(mod.Coin.HEADS), mod.Coin.TAILS)
             self.assertEqual(mod.flip(mod.Coin.TAILS), mod.Coin.HEADS)
 
-    def test_function_returns_enum(self):
+    def test_function_returns_int64enum(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Sign(Enum):
+        class Sign(Int64Enum):
             NEGATIVE = -1
             ZERO = 0
             POSITIVE = 1
@@ -207,11 +379,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.sign(-42.0), mod.Sign.NEGATIVE)
             self.assertEqual(mod.sign(42.0), mod.Sign.POSITIVE)
 
-    def test_pass_enum_between_static_functions(self):
+    def test_pass_int64enum_between_static_functions(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Bit(Enum):
+        class Bit(Int64Enum):
             ZERO = 0
             ONE = 1
 
@@ -234,11 +406,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.bitwise_nor(mod.Bit.ONE, mod.Bit.ZERO), mod.Bit.ZERO)
             self.assertEqual(mod.bitwise_nor(mod.Bit.ONE, mod.Bit.ONE), mod.Bit.ZERO)
 
-    def test_call_converts_int_to_enum(self):
+    def test_call_converts_int_to_int64enum(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Bit(Enum):
+        class Bit(Int64Enum):
             ZERO = 0
             ONE = 1
 
@@ -249,11 +421,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.convert_to_bit(0), mod.Bit.ZERO)
             self.assertEqual(mod.convert_to_bit(1), mod.Bit.ONE)
 
-    def test_primitive_unbox_shadowcode(self):
+    def test_int64enum_primitive_unbox_shadowcode(self):
         codestr = """
-        from __static__ import Enum
+        from __static__ import Int64Enum
 
-        class Bit(Enum):
+        class Bit(Int64Enum):
             ZERO = 0
             ONE = 1
 
@@ -265,7 +437,7 @@ class StaticEnumTests(StaticTestBase):
                 self.assertEqual(mod.convert_to_bit(0), mod.Bit.ZERO)
                 self.assertEqual(mod.convert_to_bit(1), mod.Bit.ONE)
 
-    def test_primitive_return(self):
+    def test_int64enum_primitive_return(self):
         vals = [("Foo.BAR", 1), ("Foo.BAZ", 2)]
         tf = [True, False]
         for val, box, strict, error, unjitable in itertools.product(
@@ -273,9 +445,9 @@ class StaticEnumTests(StaticTestBase):
         ):
             unjitable_code = "class c: pass" if unjitable else ""
             codestr = f"""
-                from __static__ import box, Enum
+                from __static__ import box, Int64Enum
 
-                class Foo(Enum):
+                class Foo(Int64Enum):
                     BAR = 1
                     BAZ = 2
 
@@ -326,12 +498,12 @@ class StaticEnumTests(StaticTestBase):
                     else:
                         self.assert_jitted(f)
 
-    def test_boxed_enum_cannot_be_returned_primitive(self):
+    def test_boxed_int64enum_cannot_be_returned_primitive(self):
         self.type_error(
             """
-            from __static__ import box, Enum
+            from __static__ import box, Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = 1
                 BAZ = 2
 
@@ -342,11 +514,11 @@ class StaticEnumTests(StaticTestBase):
             at="return box(foo)",
         )
 
-    def test_boxed_enum_can_be_returned_as_object(self):
+    def test_boxed_int64enum_can_be_returned_as_object(self):
         codestr = """
-        from __static__ import box, Enum
+        from __static__ import box, Int64Enum
 
-        class Foo(Enum):
+        class Foo(Int64Enum):
             BAR = 1
             BAZ = 2
 
@@ -357,12 +529,12 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.f(mod.Foo.BAR), mod.Foo.BAR)
             self.assertEqual(mod.f(mod.Foo.BAZ), mod.Foo.BAZ)
 
-    def test_cannot_unbox_static_enum(self):
+    def test_cannot_unbox_int64enum(self):
         self.type_error(
             """
-            from __static__ import Enum
+            from __static__ import Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = 1
                 BAZ = 2
 
@@ -373,12 +545,12 @@ class StaticEnumTests(StaticTestBase):
             at="foo",
         )
 
-    def test_cannot_box_boxed_static_enum(self):
+    def test_cannot_box_boxed_int64enum(self):
         self.type_error(
             """
-            from __static__ import box, Enum
+            from __static__ import box, Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = 1
                 BAZ = 2
 
@@ -390,12 +562,12 @@ class StaticEnumTests(StaticTestBase):
             at="box(x)",
         )
 
-    def test_enum_store_attr(self):
+    def test_int64enum_store_attr(self):
         self.type_error(
             """
-            from __static__ import box, Enum
+            from __static__ import box, Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = 1
                 BAZ = 2
 
@@ -406,12 +578,12 @@ class StaticEnumTests(StaticTestBase):
             at="foo.name",
         )
 
-    def test_enum_delete_attr(self):
+    def test_int64enum_delete_attr(self):
         self.type_error(
             """
-            from __static__ import box, Enum
+            from __static__ import box, Int64Enum
 
-            class Foo(Enum):
+            class Foo(Int64Enum):
                 BAR = 1
                 BAZ = 2
 
@@ -422,11 +594,11 @@ class StaticEnumTests(StaticTestBase):
             at="foo.name",
         )
 
-    def test_enum_method(self):
+    def test_int64enum_method(self):
         codestr = """
-        from __static__ import box, Enum
+        from __static__ import box, Int64Enum
 
-        class Foo(Enum):
+        class Foo(Int64Enum):
             BAR = 1
             BAZ = 2
 
@@ -450,11 +622,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertFalse(mod.Foo.BAR.even())
             self.assertTrue(mod.Foo.BAZ.even())
 
-    def test_enum_name(self):
+    def test_int64enum_name(self):
         codestr = """
-        from __static__ import box, Enum
+        from __static__ import box, Int64Enum
 
-        class Foo(Enum):
+        class Foo(Int64Enum):
             BAR = 1
             BAZ = 2
 
@@ -465,11 +637,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.name(mod.Foo.BAR), "BAR")
             self.assertEqual(mod.name(mod.Foo.BAZ), "BAZ")
 
-    def test_enum_value(self):
+    def test_int64enum_value(self):
         codestr = """
-        from __static__ import box, Enum, int64
+        from __static__ import box, Int64Enum, int64
 
-        class Foo(Enum):
+        class Foo(Int64Enum):
             BAR = 1
             BAZ = 2
 
@@ -480,11 +652,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.value(mod.Foo.BAR), 1)
             self.assertEqual(mod.value(mod.Foo.BAZ), 2)
 
-    def test_pass_enum_from_module_level(self):
+    def test_pass_int64enum_from_module_level(self):
         codestr = """
-        from __static__ import box, Enum
+        from __static__ import box, Int64Enum
 
-        class Foo(Enum):
+        class Foo(Int64Enum):
             BAR = 1
             BAZ = 2
 
@@ -498,11 +670,11 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.result1, 1)
             self.assertEqual(mod.result2, 2)
 
-    def test_return_enum_to_module_level(self):
+    def test_return_int64enum_to_module_level(self):
         codestr = """
-        from __static__ import box, Enum
+        from __static__ import box, Int64Enum
 
-        class Foo(Enum):
+        class Foo(Int64Enum):
             BAR = 1
             BAZ = 2
 
@@ -554,7 +726,7 @@ class StaticEnumTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "String enum values must be str, not int",
+            "StringEnum values must be str, not int",
             at="BAR = 23",
         )
 
@@ -570,7 +742,7 @@ class StaticEnumTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "StringEnum values cannot be modified or deleted",
+            "Static Enum values cannot be modified or deleted",
         )
 
     def test_setattr_string_enum_disallowed(self):
@@ -585,7 +757,23 @@ class StaticEnumTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "StringEnum values cannot be modified or deleted",
+            "Static Enum values cannot be modified or deleted",
+        )
+
+    def test_non_constant_string_enum_disallowed(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        def foo() -> str:
+            return "foo"
+
+        class Foo(StringEnum):
+            FOO = foo()
+        """
+        self.type_error(
+            codestr,
+            "Cannot resolve StringEnum value at compile time",
+            at="FOO = foo()",
         )
 
     def test_compare_string_enum_to_string(self):

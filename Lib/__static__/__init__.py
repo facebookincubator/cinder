@@ -6,13 +6,11 @@ import functools
 import random
 import time
 from asyncio import iscoroutinefunction
-from functools import wraps
 from types import FunctionType, Union as typesUnion
 from typing import (
     _GenericAlias,
     Dict,
     Iterable,
-    Mapping,
     Optional,
     Type,
     TypeVar,
@@ -23,7 +21,7 @@ from typing import (
 )
 from weakref import WeakValueDictionary
 
-from .enum import Enum, StringEnum
+from .enum import Enum, Int64Enum, StringEnum  # noqa: F401
 from .type_code import (
     type_code,
     TYPED_INT8,

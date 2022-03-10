@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import __static__
 
-from __static__ import CheckedList, Enum, box, cast, cbool, clen, int64, inline
+from __static__ import CheckedList, Int64Enum, box, cast, cbool, clen, int64, inline
 from typing import final
 
 
@@ -187,7 +187,7 @@ class EditConstraint(UrnaryConstraint):
         return True
 
 
-class Direction(Enum):
+class Direction(Int64Enum):
     # Hooray for things that ought to be structs!
     NONE = 0
     FORWARD = 1
