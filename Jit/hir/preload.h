@@ -143,6 +143,16 @@ class Preloader {
     return return_type_;
   }
 
+  int numArgs() const {
+    if (code_ == nullptr) {
+      // code_ might be null if we parsed from textual ir
+      return 0;
+    }
+    return code_->co_argcount + code_->co_kwonlyargcount +
+        bool(code_->co_flags & CO_VARARGS) +
+        bool(code_->co_flags & CO_VARKEYWORDS);
+  }
+
  private:
   BorrowedRef<> constArg(BytecodeInstruction& bc_instr) const;
   GlobalCache getGlobalCache(BorrowedRef<> name) const;

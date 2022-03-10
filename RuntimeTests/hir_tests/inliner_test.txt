@@ -1,0 +1,414 @@
+InlinerTest
+---
+InlineFunctionCalls
+Simplify
+---
+Simple
+---
+def foo():
+    # Chosen by fair dice roll. Guaranteed to be random.
+    return 4
+
+def test():
+    return foo()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "foo">
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    BeginInlinedFunction<jittestmodule:foo> {
+      NextInstrOffset 4
+    }
+    v7:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    EndInlinedFunction
+    Return v7
+  }
+}
+---
+InlineMultipleFunctions
+---
+def foo():
+    return 3
+
+def bar():
+    return 4
+
+def test():
+    return foo() + bar()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:OptObject = LoadGlobalCached<0; "foo">
+    v6:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v5
+    BeginInlinedFunction<jittestmodule:foo> {
+      NextInstrOffset 4
+    }
+    v14:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    EndInlinedFunction
+    v8:OptObject = LoadGlobalCached<1; "bar">
+    v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8
+    BeginInlinedFunction<jittestmodule:bar> {
+      NextInstrOffset 8
+      Stack<1> v14
+    }
+    v18:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    EndInlinedFunction
+    v11:Object = BinaryOp<Add> v14 v18 {
+      NextInstrOffset 10
+    }
+    Return v11
+  }
+}
+---
+TypesFromCallerFlowIntoCallee
+---
+def foo(left, right):
+  return left[right]
+
+def test():
+    ls = [1, 2, 3]
+    return foo(ls, 1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v9:Nullptr = LoadConst<Nullptr>
+    v10:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v11:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v12:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v13:MortalListExact = MakeListTuple<list, 3> {
+      NextInstrOffset 8
+      Locals<1> v9
+      Stack<3> v10 v11 v12
+    }
+    InitListTuple<list, 3> v13 v10 v11 v12
+    v16:OptObject = LoadGlobalCached<0; "foo">
+    v17:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v16
+    v19:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    BeginInlinedFunction<jittestmodule:foo> {
+      NextInstrOffset 18
+      Locals<1> v13
+    }
+    v35:CInt64[1] = LoadConst<CInt64[1]>
+    v32:CInt64 = CheckSequenceBounds v13 v35 {
+      NextInstrOffset 6
+      Locals<2> v13 v19
+    }
+    UseType<ListExact> v13
+    v33:CPtr = LoadField<24, CPtr, borrowed> v13
+    v34:Object = LoadArrayItem v33 v32 v13
+    EndInlinedFunction
+    Return v34
+  }
+}
+---
+PositionalArguments
+---
+def foo(left, right):
+    return left + right
+
+def test():
+    return foo(2, 3)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "foo">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    v6:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v7:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    BeginInlinedFunction<jittestmodule:foo> {
+      NextInstrOffset 8
+    }
+    v17:Object = BinaryOp<Add> v6 v7 {
+      NextInstrOffset 6
+      Locals<2> v6 v7
+    }
+    EndInlinedFunction
+    Return v17
+  }
+}
+---
+ArgcountMismatch
+---
+def foo():
+    return 4
+
+def test():
+    return foo(1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:OptObject = LoadGlobalCached<0; "foo">
+    v4:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v3
+    v5:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v6:Object = VectorCall<1> v4 v5 {
+      NextInstrOffset 6
+    }
+    Return v6
+  }
+}
+---
+CalleeWithStarArgs
+---
+def foo(*args):
+    return args[0] + args[1]
+
+def test():
+    return foo(2, 3)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "foo">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    v6:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v7:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v8:Object = VectorCall<2> v5 v6 v7 {
+      NextInstrOffset 8
+    }
+    Return v8
+  }
+}
+---
+CalleeWithKwargs
+---
+def foo(**kwargs):
+    return 5
+
+def test():
+    return foo(2, 3)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "foo">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    v6:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v7:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v8:Object = VectorCall<2> v5 v6 v7 {
+      NextInstrOffset 8
+    }
+    Return v8
+  }
+}
+---
+CalleeCoroutine
+---
+def foo():
+  yield
+
+def test():
+    return foo()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "foo">
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v4:Object = VectorCall<0> v3 {
+      NextInstrOffset 4
+    }
+    Return v4
+  }
+}
+---
+CalleeWithCellvars
+---
+def foo():
+  local = 5
+  def inside():
+    return local
+  return inside
+
+def test():
+    return foo()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "foo">
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v4:Object = VectorCall<0> v3 {
+      NextInstrOffset 4
+    }
+    Return v4
+  }
+}
+---
+CalleeWithCellvars2
+---
+def test():
+  local = 5
+  def inside():
+    return local
+  return inside()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v11:Nullptr = LoadConst<Nullptr>
+    v12:MortalCell = MakeCell v11 {
+      NextInstrOffset 0
+      Locals<1> v11
+      Cells<1> v11
+    }
+    v13:MortalLongExact[5] = LoadConst<MortalLongExact[5]>
+    v14:OptObject = StealCellItem v12
+    SetCellItem v12 v13 v14
+    v15:MortalTupleExact = MakeListTuple<tuple, 1> {
+      NextInstrOffset 8
+      Locals<1> v11
+      Cells<1> v12
+      Stack<1> v12
+    }
+    InitListTuple<tuple, 1> v15 v12
+    v17:MortalCode["inside"] = LoadConst<MortalCode["inside"]>
+    v18:MortalUnicodeExact["test.<locals>.inside"] = LoadConst<MortalUnicodeExact["test.<locals>.inside"]>
+    v19:MortalFunc = MakeFunction v18 v17 {
+      NextInstrOffset 14
+      Locals<1> v11
+      Cells<1> v12
+      Stack<1> v15
+    }
+    SetFunctionAttr<func_closure> v15 v19
+    InitFunction v19
+    v22:Object = VectorCall<0> v19 {
+      NextInstrOffset 20
+      Locals<1> v19
+      Cells<1> v12
+    }
+    Return v22
+  }
+}
+---
+CalleeFunctionWithoutObjectSpec
+---
+def test():
+  def inside():
+    return 5
+  return inside()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    v6:MortalCode["inside"] = LoadConst<MortalCode["inside"]>
+    v7:MortalUnicodeExact["test.<locals>.inside"] = LoadConst<MortalUnicodeExact["test.<locals>.inside"]>
+    v8:MortalFunc = MakeFunction v7 v6 {
+      NextInstrOffset 6
+      Locals<1> v5
+    }
+    InitFunction v8
+    v11:Object = VectorCall<0> v8 {
+      NextInstrOffset 12
+      Locals<1> v8
+    }
+    Return v11
+  }
+}
+---
+CalleeNonFunction
+---
+class C:
+  def __call__(self):
+    pass
+
+foo = C()
+
+def test():
+    return foo()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "foo">
+    v3:MortalObjectUser[C:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v4:Object = VectorCall<0> v3 {
+      NextInstrOffset 4
+    }
+    Return v4
+  }
+}
+---
+Recursive
+---
+def test(x):
+  if x < 2:
+    return 1
+  return x * test(x - 1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v10:Object = LoadArg<0; "x">
+    v12:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v13:Object = Compare<LessThan> v10 v12 {
+      NextInstrOffset 6
+      Locals<1> v10
+    }
+    v14:CInt32 = IsTruthy v13 {
+      NextInstrOffset 8
+      Locals<1> v10
+    }
+    CondBranch<1, 2> v14
+  }
+
+  bb 1 (preds 0) {
+    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Return v15
+  }
+
+  bb 2 (preds 0) {
+    v17:OptObject = LoadGlobalCached<0; "test">
+    v18:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v17
+    v20:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v21:Object = BinaryOp<Subtract> v10 v20 {
+      NextInstrOffset 22
+      Locals<1> v10
+      Stack<2> v10 v18
+    }
+    BeginInlinedFunction<jittestmodule:test> {
+      NextInstrOffset 24
+      Locals<1> v10
+      Stack<1> v10
+    }
+    v37:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v38:Object = Compare<LessThan> v21 v37 {
+      NextInstrOffset 6
+      Locals<1> v21
+    }
+    v39:CInt32 = IsTruthy v38 {
+      NextInstrOffset 8
+      Locals<1> v21
+    }
+    CondBranch<4, 5> v39
+  }
+
+  bb 4 (preds 2) {
+    v40:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Branch<6>
+  }
+
+  bb 5 (preds 2) {
+    v43:OptObject = LoadGlobalCached<0; "test">
+    v44:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v43
+    v46:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v47:Object = BinaryOp<Subtract> v21 v46 {
+      NextInstrOffset 22
+      Locals<1> v21
+      Stack<2> v21 v44
+    }
+    v48:Object = VectorCall<1> v44 v47 {
+      NextInstrOffset 24
+      Locals<1> v21
+      Stack<1> v21
+    }
+    v49:Object = BinaryOp<Multiply> v21 v48 {
+      NextInstrOffset 26
+      Locals<1> v21
+    }
+    Branch<6>
+  }
+
+  bb 6 (preds 4, 5) {
+    v51:Object = Phi<4, 5> v40 v49
+    EndInlinedFunction
+    v23:Object = BinaryOp<Multiply> v10 v51 {
+      NextInstrOffset 26
+      Locals<1> v10
+    }
+    Return v23
+  }
+}
+---

@@ -76,6 +76,10 @@ void Compiler::runPasses(jit::hir::Function& irfunc) {
   runPass<jit::hir::GuardTypeRemoval>(irfunc);
   runPass<jit::hir::CallOptimization>(irfunc);
   runPass<jit::hir::PhiElimination>(irfunc);
+  if (_PyJIT_IsHIRInlinerEnabled()) {
+    runPass<jit::hir::InlineFunctionCalls>(irfunc);
+    runPass<jit::hir::Simplify>(irfunc);
+  }
   runPass<jit::hir::DeadCodeElimination>(irfunc);
   runPass<jit::hir::RefcountInsertion>(irfunc);
 

@@ -4,10 +4,12 @@
 #include "Python.h"
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
+#include "internal/pycore_shadow_frame.h"
 #include "listobject.h"
 
 #include "Jit/codegen/x86_64.h"
 #include "Jit/deopt.h"
+#include "Jit/frame.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/jit_rt.h"
 #include "Jit/lir/block_builder.h"
@@ -634,6 +636,14 @@ static void emitSubclassCheck(
 }
 
 #undef FOREACH_FAST_BUILTIN
+
+static ssize_t shadowFrameOffsetBefore(const InlineBase* instr) {
+  return -instr->inlineDepth() * ssize_t{kShadowFrameSize};
+}
+
+static ssize_t shadowFrameOffsetOf(const InlineBase* instr) {
+  return shadowFrameOffsetBefore(instr) - ssize_t{kShadowFrameSize};
+}
 
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     const hir::BasicBlock* hir_bb) {
@@ -2471,9 +2481,127 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // HintTypes are purely informative
         break;
       }
-      case Opcode::kBeginInlinedFunction:
-      case Opcode::kEndInlinedFunction:
-        JIT_CHECK(false, "not emitted yet");
+      case Opcode::kBeginInlinedFunction: {
+        // TODO(T109706798): Support calling from generators and inlining
+        // generators.
+        // TODO(emacs): Link all shadow frame prev pointers in function
+        // prologue, since they need not happen with every call -- just the
+        // data pointers need to be reset with every call.
+        // TODO(emacs): If we manage to optimize leaf calls to a series of
+        // non-deopting instructions, remove BeginInlinedFunction and
+        // EndInlinedFunction completely.
+        if (py_debug) {
+          bbb.AppendCode(
+              "Call {}, {:#x}, __asm_tstate",
+              GetSafeTempName(),
+              reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
+        }
+        auto instr = static_cast<const BeginInlinedFunction*>(&i);
+        auto caller_shadow_frame = GetSafeTempName();
+        bbb.AppendCode(
+            "Lea {}, __native_frame_base, {}",
+            caller_shadow_frame,
+            shadowFrameOffsetBefore(instr));
+        // There is already a shadow frame for the caller function.
+        auto callee_shadow_frame = GetSafeTempName();
+        bbb.AppendCode(
+            "Lea {}, __native_frame_base, {}",
+            callee_shadow_frame,
+            shadowFrameOffsetOf(instr));
+        bbb.AppendCode(
+            "Store {}, {}, {}",
+            caller_shadow_frame,
+            callee_shadow_frame,
+            SHADOW_FRAME_FIELD_OFF(prev));
+        // Set code object data
+        PyCodeObject* code = instr->code();
+        env_->code_rt->addReference(reinterpret_cast<PyObject*>(code));
+        PyObject* globals = instr->globals();
+        env_->code_rt->addReference(reinterpret_cast<PyObject*>(globals));
+        RuntimeFrameState* rtfs =
+            env_->code_rt->allocateRuntimeFrameState(code, globals);
+        uintptr_t data = _PyShadowFrame_MakeData(rtfs, PYSF_RTFS, PYSF_JIT);
+        auto data_reg = GetSafeTempName();
+        bbb.AppendCode("Move {}, {:#x}", data_reg, data);
+        bbb.AppendCode(
+            "Store {}, {}, {}",
+            data_reg,
+            callee_shadow_frame,
+            SHADOW_FRAME_FIELD_OFF(data));
+        // Set our shadow frame as top of shadow stack
+        bbb.AppendCode(
+            "Store {}, __asm_tstate, {}",
+            callee_shadow_frame,
+            offsetof(PyThreadState, shadow_frame));
+        if (py_debug) {
+          bbb.AppendCode(
+              "Call {}, {:#x}, __asm_tstate",
+              GetSafeTempName(),
+              reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
+        }
+        break;
+      }
+      case Opcode::kEndInlinedFunction: {
+        // TODO(T109706798): Support calling from generators and inlining
+        // generators.
+        if (py_debug) {
+          bbb.AppendCode(
+              "Call {}, {:#x}, __asm_tstate",
+              GetSafeTempName(),
+              reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
+        }
+        // callee_shadow_frame <- tstate.shadow_frame
+        auto callee_shadow_frame = GetSafeTempName();
+        bbb.AppendCode(
+            "Load {}, __asm_tstate, {}",
+            callee_shadow_frame,
+            offsetof(PyThreadState, shadow_frame));
+
+        // Check if the callee has been materialized into a PyFrame. Use the
+        // flags below.
+        static_assert(
+            PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
+            "Unexpected constants");
+        auto shadow_frame_data = GetSafeTempName();
+        bbb.AppendCode(
+            "Load {}, {}, {}",
+            shadow_frame_data,
+            callee_shadow_frame,
+            SHADOW_FRAME_FIELD_OFF(data));
+        bbb.AppendCode("BitTest {}, 0", shadow_frame_data);
+
+        // caller_shadow_frame <- callee_shadow_frame.prev
+        auto caller_shadow_frame = GetSafeTempName();
+        bbb.AppendCode(
+            "Load {}, {}, {}",
+            caller_shadow_frame,
+            callee_shadow_frame,
+            SHADOW_FRAME_FIELD_OFF(prev));
+        // caller_shadow_frame -> tstate.shadow_frame
+        bbb.AppendCode(
+            "Store {}, __asm_tstate, {}",
+            caller_shadow_frame,
+            offsetof(PyThreadState, shadow_frame));
+
+        // Unlink PyFrame if needed. Someone might have materialized all of the
+        // PyFrames via PyEval_GetFrame or similar.
+        auto done = GetSafeLabelName();
+        bbb.AppendCode("BranchNC {}", done);
+        // TODO(T109445584): Remove this unused label.
+        bbb.AppendCode("{}:", GetSafeLabelName());
+        bbb.AppendCode(
+            "Call {}, {}, __asm_tstate",
+            GetSafeTempName(),
+            reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
+        bbb.AppendCode("{}:", done);
+        if (py_debug) {
+          bbb.AppendCode(
+              "Call {}, {:#x}, __asm_tstate",
+              GetSafeTempName(),
+              reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
+        }
+        break;
+      }
       case Opcode::kIsTruthy: {
         auto func = reinterpret_cast<uint64_t>(&PyObject_IsTrue);
         bbb.AppendCode(

@@ -76,6 +76,7 @@ int main(int argc, char* argv[]) {
       "RuntimeTests/hir_tests/hir_builder_static_test.txt",
       HIRTest::kCompileStatic);
   register_test("RuntimeTests/hir_tests/guard_type_removal_test.txt");
+  register_test("RuntimeTests/hir_tests/inliner_test.txt");
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
   register_test(

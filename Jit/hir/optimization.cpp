@@ -5,12 +5,15 @@
 #include "code.h"
 #include "pycore_pystate.h"
 
+#include "Jit/compiler.h"
 #include "Jit/hir/analysis.h"
+#include "Jit/hir/builder.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/memory_effects.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/jit_rt.h"
+#include "Jit/pyjit.h"
 #include "Jit/util.h"
 
 #include <fmt/format.h>
@@ -34,6 +37,7 @@ PassRegistry::PassRegistry() {
   addPass(CleanCFG::Factory);
   addPass(DynamicComparisonElimination::Factory);
   addPass(PhiElimination::Factory);
+  addPass(InlineFunctionCalls::Factory);
   addPass(Simplify::Factory);
   addPass(DeadCodeElimination::Factory);
   addPass(GuardTypeRemoval::Factory);
@@ -712,6 +716,211 @@ void CleanCFG::Run(Function& irfunc) {
   if (changed) {
     reflowTypes(irfunc);
   }
+}
+
+// Most of these checks are only temporary and do not in perpetuity prohibit
+// inlining. They are here to simplify bringup of the inliner and can be
+// treated as TODOs.
+static bool canInline(
+    VectorCall* call_instr,
+    PyFunctionObject* func,
+    const std::string& fullname) {
+  if (func->func_defaults != nullptr) {
+    JIT_DLOG("Can't inline %s because it has defaults", fullname);
+    return false;
+  }
+  if (func->func_kwdefaults != nullptr) {
+    JIT_DLOG("Can't inline %s because it has kwdefaults", fullname);
+    return false;
+  }
+  PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
+  if (code->co_kwonlyargcount > 0) {
+    JIT_DLOG("Can't inline %s because it has keyword-only args", fullname);
+    return false;
+  }
+  if (code->co_flags & CO_VARARGS) {
+    JIT_DLOG("Can't inline %s because it has varargs", fullname);
+    return false;
+  }
+  if (code->co_flags & CO_VARKEYWORDS) {
+    JIT_DLOG("Can't inline %s because it has varkwargs", fullname);
+    return false;
+  }
+  JIT_DCHECK(code->co_argcount >= 0, "argcount must be positive");
+  if (call_instr->numArgs() != static_cast<size_t>(code->co_argcount)) {
+    JIT_DLOG(
+        "Can't inline %s because it is called with mismatched arguments",
+        fullname);
+    return false;
+  }
+  if (code->co_flags & kCoFlagsAnyGenerator) {
+    JIT_DLOG("Can't inline %s because it is a generator", fullname);
+    return false;
+  }
+  Py_ssize_t ncellvars = PyTuple_GET_SIZE(code->co_cellvars);
+  if (ncellvars > 0) {
+    JIT_DLOG("Can't inline %s because it is has cellvars", fullname);
+    return false;
+  }
+  Py_ssize_t nfreevars = PyTuple_GET_SIZE(code->co_freevars);
+  if (nfreevars > 0) {
+    JIT_DLOG("Can't inline %s because it is has freevars", fullname);
+    return false;
+  }
+  if (usesRuntimeFunc(code)) {
+    JIT_DLOG(
+        "Can't inline %s because it needs runtime access to its "
+        "PyFunctionObject",
+        fullname);
+    return false;
+  }
+  if (g_threaded_compile_context.compileRunning() && !isPreloaded(func)) {
+    JIT_DLOG(
+        "Can't inline %s because multithreaded compile is enabled and the "
+        "function is not preloaded",
+        fullname);
+    return false;
+  }
+  return true;
+}
+
+void inlineFunctionCall(Function& caller, VectorCall* call_instr) {
+  Register* target = call_instr->func();
+  if (!target->type().hasValueSpec(TFunc)) {
+    JIT_DLOG(
+        "Cannot inline non-function type %s (%s) into %s",
+        target->type(),
+        *target,
+        caller.fullname);
+    return;
+  }
+  PyObject* func_obj = target->type().objectSpec();
+  JIT_CHECK(PyFunction_Check(func_obj), "Expected PyFunctionObject");
+  PyFunctionObject* func = reinterpret_cast<PyFunctionObject*>(func_obj);
+  PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
+  JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
+  PyObject* globals = func->func_globals;
+  std::string fullname = funcFullname(func);
+  if (!PyDict_Check(globals)) {
+    JIT_DLOG(
+        "Refusing to inline %s: globals is a %.200s, not a dict",
+        fullname,
+        Py_TYPE(globals)->tp_name);
+    return;
+  }
+  PyObject* builtins = PyEval_GetBuiltins();
+  if (!PyDict_CheckExact(builtins)) {
+    JIT_DLOG(
+        "Refusing to inline %s: builtins is a %.200s, not a dict",
+        fullname,
+        Py_TYPE(builtins)->tp_name);
+    return;
+  }
+  if (!canInline(call_instr, func, fullname)) {
+    JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+    return;
+  }
+
+  auto caller_frame_state =
+      std::make_unique<FrameState>(*call_instr->frameState());
+  // Multi-threaded compilation must use an existing Preloader, whereas
+  // single-threaded compilation can make Preloaders on the fly.
+  InlineResult result;
+  if (g_threaded_compile_context.compileRunning()) {
+    HIRBuilder hir_builder(getPreloader(func));
+    result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
+  } else {
+    // This explicit temporary is necessary because HIRBuilder takes a const
+    // reference and stores it and we need to make sure the target doesn't go
+    // away.
+    Preloader preloader(func);
+    HIRBuilder hir_builder(preloader);
+    result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
+  }
+  if (result.entry == nullptr) {
+    JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+    return;
+  }
+  auto begin_inlined_function = BeginInlinedFunction::create(
+      code, globals, std::move(caller_frame_state), fullname);
+
+  BasicBlock* head = call_instr->block();
+  BasicBlock* tail = head->splitAfter(*call_instr);
+  // TODO(emacs): Emit a DeoptPatchpoint here to catch the case where someone
+  // swaps out function.__code__.
+  // VectorCall -> {BeginInlinedFunction, Branch to callee CFG}
+  auto callee_branch = Branch::create(result.entry);
+  call_instr->ExpandInto({begin_inlined_function, callee_branch});
+  tail->push_front(
+      EndInlinedFunction::create(begin_inlined_function->inlineDepth()));
+
+  // Transform LoadArg into Assign
+  for (auto it = result.entry->begin(); it != result.entry->end();) {
+    auto& instr = *it;
+    ++it;
+
+    if (instr.IsLoadArg()) {
+      auto load_arg = static_cast<LoadArg*>(&instr);
+      auto assign = Assign::create(
+          instr.GetOutput(), call_instr->arg(load_arg->arg_idx()));
+      instr.ReplaceWith(*assign);
+      delete &instr;
+    }
+  }
+
+  // Transform Return into Assign+Branch
+  auto return_instr = result.exit->GetTerminator();
+  JIT_CHECK(
+      return_instr->IsReturn(),
+      "terminator from inlined function should be Return");
+  auto assign =
+      Assign::create(call_instr->GetOutput(), return_instr->GetOperand(0));
+  auto return_branch = Branch::create(tail);
+  return_instr->ExpandInto({assign, return_branch});
+  delete return_instr;
+
+  delete call_instr;
+}
+
+void InlineFunctionCalls::Run(Function& irfunc) {
+  if (irfunc.code == nullptr) {
+    // In tests, irfunc may not have bytecode.
+    return;
+  }
+  if (irfunc.code->co_flags & kCoFlagsAnyGenerator) {
+    // TODO(T109706798): Support inlining into generators
+    JIT_DLOG(
+        "Refusing to inline functions into %s: function is a generator",
+        irfunc.fullname);
+    return;
+  }
+  std::vector<Instr*> to_inline;
+  for (auto& block : irfunc.cfg.blocks) {
+    for (auto& instr : block) {
+      // TODO(emacs): Support InvokeMethod, InvokeStaticFunction,
+      // VectorCallStatic
+      if (!instr.IsVectorCall()) {
+        continue;
+      }
+      to_inline.emplace_back(&instr);
+    }
+  }
+  if (to_inline.empty()) {
+    return;
+  }
+  for (auto instr : to_inline) {
+    inlineFunctionCall(irfunc, static_cast<VectorCall*>(instr));
+    // We need to reflow types after every inline to propagate new type
+    // information from the callee.
+    reflowTypes(irfunc);
+  }
+  // The inliner will make some blocks unreachable and we need to remove them
+  // to make the CFG valid again. While inlining might make some blocks
+  // unreachable and therefore make less work (less to inline), we cannot
+  // remove unreachable blocks in the above loop. It might delete instructions
+  // pointed to by `to_inline`.
+  CopyPropagation{}.Run(irfunc);
+  CleanCFG{}.Run(irfunc);
 }
 
 } // namespace hir

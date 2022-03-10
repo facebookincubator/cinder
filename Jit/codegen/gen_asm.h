@@ -39,7 +39,9 @@ class NativeGenerator {
         deopt_trampoline_generators_(generateDeoptTrampoline(true)),
         jit_trampoline_(generateJitTrampoline()),
         frame_header_size_(calcFrameHeaderSize(func)),
-        max_inline_depth_(calcMaxInlineDepth(func)) {}
+        max_inline_depth_(calcMaxInlineDepth(func)) {
+    env_.has_inlined_functions = max_inline_depth_ > 0;
+  }
 
   NativeGenerator(
       const hir::Function* func,
@@ -51,7 +53,9 @@ class NativeGenerator {
         deopt_trampoline_generators_(deopt_trampoline_generators),
         jit_trampoline_(jit_trampoline),
         frame_header_size_(calcFrameHeaderSize(func)),
-        max_inline_depth_(calcMaxInlineDepth(func)) {}
+        max_inline_depth_(calcMaxInlineDepth(func)) {
+    env_.has_inlined_functions = max_inline_depth_ > 0;
+  }
 
   ~NativeGenerator() {
     if (as_ != nullptr) {

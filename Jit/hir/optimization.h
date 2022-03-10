@@ -184,6 +184,17 @@ class CleanCFG : public Pass {
   }
 };
 
+class InlineFunctionCalls : public Pass {
+ public:
+  InlineFunctionCalls() : Pass("InlineFunctionCalls") {}
+
+  void Run(Function& irfunc) override;
+
+  static std::unique_ptr<InlineFunctionCalls> Factory() {
+    return std::make_unique<InlineFunctionCalls>();
+  }
+};
+
 class PassRegistry {
  public:
   PassRegistry();

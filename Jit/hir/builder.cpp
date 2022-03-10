@@ -11,6 +11,7 @@
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/preload.h"
+#include "Jit/hir/ssa.h"
 #include "Jit/hir/type.h"
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
@@ -251,7 +252,6 @@ void HIRBuilder::AllocateRegistersForCells(
 
 // Holds the current state of translation for a given basic block
 struct HIRBuilder::TranslationContext {
-  TranslationContext() = default;
   TranslationContext(BasicBlock* b, const FrameState& fs)
       : block(b), frame(fs) {}
 
@@ -536,7 +536,17 @@ std::unique_ptr<Function> HIRBuilder::buildHIR() {
   }
 
   std::unique_ptr<Function> irfunc = preloader_.makeFunction();
+  buildHIRImpl(irfunc.get(), /*frame_state=*/nullptr);
+  // Use RemoveTrampolineBlocks and RemoveUnreachableBlocks directly instead of
+  // Run because the rest of CleanCFG requires SSA.
+  CleanCFG::RemoveTrampolineBlocks(&irfunc->cfg);
+  CleanCFG::RemoveUnreachableBlocks(&irfunc->cfg);
+  return irfunc;
+}
 
+BasicBlock* HIRBuilder::buildHIRImpl(
+    Function* irfunc,
+    FrameState* frame_state) {
   temps_ = TempAllocator(&irfunc->env);
 
   BytecodeInstructionBlock bc_instrs{code_};
@@ -550,19 +560,30 @@ std::unique_ptr<Function> HIRBuilder::buildHIR() {
       break;
     }
   }
-  irfunc->cfg.entry_block = entry_block;
+  if (frame_state == nullptr) {
+    // Function is not being inlined (irfunc matches code) so set the whole
+    // CFG's entry block.
+    irfunc->cfg.entry_block = entry_block;
+  }
 
   // Insert LoadArg, LoadClosureCell, and MakeCell/MakeNullCell instructions
   // for the entry block
   TranslationContext entry_tc{
       entry_block,
-      FrameState{code_, preloader_.globals(), preloader_.builtins()}};
+      FrameState{
+          code_,
+          preloader_.globals(),
+          preloader_.builtins(),
+          /*parent=*/frame_state}};
   AllocateRegistersForLocals(&irfunc->env, entry_tc.frame);
   AllocateRegistersForCells(&irfunc->env, entry_tc.frame);
 
-  addLoadArgs(entry_tc, irfunc->numArgs());
+  addLoadArgs(entry_tc, preloader_.numArgs());
   Register* cur_func = nullptr;
-  if (irfunc->uses_runtime_func) {
+  // TODO(emacs): Check if the code object or preloader uses runtime func and
+  // drop the frame_state == nullptr check. Inlined functions should load a
+  // const instead of using LoadCurrentFunc.
+  if (frame_state == nullptr && irfunc->uses_runtime_func) {
     cur_func = temps_.AllocateNonStack();
     entry_tc.emit<LoadCurrentFunc>(cur_func);
   }
@@ -584,12 +605,7 @@ std::unique_ptr<Function> HIRBuilder::buildHIR() {
   entry_tc.block = first_block;
   translate(*irfunc, bc_instrs, entry_tc);
 
-  // Use RemoveTrampolineBlocks and RemoveUnreachableBlocks directly instead of
-  // Run because the rest of CleanCFG requires SSA.
-  CleanCFG::RemoveTrampolineBlocks(&irfunc->cfg);
-  CleanCFG::RemoveUnreachableBlocks(&irfunc->cfg);
-
-  return irfunc;
+  return entry_block;
 }
 
 void HIRBuilder::emitProfiledTypes(
@@ -669,6 +685,69 @@ void HIRBuilder::emitProfiledTypes(
     }
     tc.emit<HintType>(args.size(), all_types, args);
   }
+}
+
+InlineResult HIRBuilder::inlineHIR(
+    Function* caller,
+    FrameState* caller_frame_state) {
+  if (!can_translate(code_)) {
+    JIT_DLOG("Can't translate all opcodes in %s", preloader_.fullname());
+    return {nullptr, nullptr};
+  }
+  BasicBlock* entry_block = buildHIRImpl(caller, caller_frame_state);
+  // Make one block with a Return that merges the return branches from the
+  // callee. After SSA, it will turn into a massive Phi. The caller can find
+  // the Return and use it as the output of the call instruction.
+  Register* return_val = caller->env.AllocateRegister();
+  BasicBlock* exit_block = caller->cfg.AllocateBlock();
+  exit_block->append<Return>(return_val);
+  for (auto block : caller->cfg.GetRPOTraversal(entry_block)) {
+    auto instr = block->GetTerminator();
+    if (instr->IsReturn()) {
+      auto assign = Assign::create(return_val, instr->GetOperand(0));
+      auto branch = Branch::create(exit_block);
+      instr->ExpandInto({assign, branch});
+      delete instr;
+    }
+  }
+
+  // Map of FrameState to parent pointers. We must completely disconnect the
+  // inlined function's CFG from its caller for SSAify to run properly: it will
+  // find uses (in FrameState) before defs and insert LoadConst<Nullptr>.
+  std::unordered_map<FrameState*, FrameState*> framestate_parent;
+  for (BasicBlock* block : caller->cfg.GetRPOTraversal(entry_block)) {
+    for (Instr& instr : *block) {
+      JIT_CHECK(
+          !instr.IsBeginInlinedFunction(),
+          "there should be no BeginInlinedFunction in inlined functions");
+      JIT_CHECK(
+          !instr.IsEndInlinedFunction(),
+          "there should be no EndInlinedFunction in inlined functions");
+      FrameState* fs = nullptr;
+      if (auto db = dynamic_cast<DeoptBase*>(&instr)) {
+        fs = db->frameState();
+      } else if (auto snap = dynamic_cast<Snapshot*>(&instr)) {
+        fs = snap->frameState();
+      }
+      if (fs == nullptr || fs->parent == nullptr) {
+        continue;
+      }
+      bool inserted = framestate_parent.emplace(fs, fs->parent).second;
+      JIT_CHECK(inserted, "there should not be duplicate FrameState pointers");
+      fs->parent = nullptr;
+    }
+  }
+
+  // The caller function has already been converted to SSA form and all HIR
+  // passes require input to be in SSA form. SSAify the inlined function.
+  SSAify{}.Run(entry_block, &caller->env);
+
+  // Re-link the CFG.
+  for (auto& [fs, parent] : framestate_parent) {
+    fs->parent = parent;
+  }
+
+  return {entry_block, exit_block};
 }
 
 void HIRBuilder::translate(

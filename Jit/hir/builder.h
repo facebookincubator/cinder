@@ -95,6 +95,21 @@ std::unique_ptr<Function> buildHIR(BorrowedRef<PyFunctionObject> func);
 // analysis.
 std::unique_ptr<Function> buildHIR(const Preloader& preloader);
 
+// Inlining merges all of the different callee Returns (which terminate blocks,
+// leading to a bunch of distinct exit blocks) into Branches to one Return
+// block (one exit block), which the caller can transform into an Assign to the
+// output register of the original call instruction.
+//
+// Call InlineResult::succeeded to determine if the inline was successful.
+struct InlineResult {
+  BasicBlock* entry;
+  BasicBlock* exit;
+
+  bool succeeded() const {
+    return entry != nullptr && exit != nullptr;
+  }
+};
+
 class HIRBuilder {
  public:
   HIRBuilder(const Preloader& preloader)
@@ -112,8 +127,23 @@ class HIRBuilder {
   // for failure.
   std::unique_ptr<Function> buildHIR();
 
+  // Given the preloader for the callee (passed into the constructor),
+  // construct the CFG for the callee in the caller's CFG. Does not link the
+  // two CFGs, except for FrameState parent pointers.  Use caller_frame_state
+  // as the starting FrameState for the callee.
+  //
+  // Use InlineResult::succeeded to check if inlining succeeded.
+  InlineResult inlineHIR(Function* caller, FrameState* caller_frame_state);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(HIRBuilder);
+
+  // Used by buildHIR and inlineHIR.
+  // irfunc is the function being compiled or the caller function.
+  // frame_state should be nullptr if irfunc matches the preloader (not
+  // inlining) and non-nullptr otherwise (inlining).
+  // Returns the entry block.
+  BasicBlock* buildHIRImpl(Function* irfunc, FrameState* frame_state);
 
   struct TranslationContext;
   // Completes compilation of a finally block

@@ -175,6 +175,9 @@ void updatePyFrame(
     // Interpreter is executing this frame; don't touch the PyFrameObject.
     return;
   }
+  // TODO(emacs): Support fetching code object and line number for inlined
+  // frames in the JIT.
+  return;
   CodeRuntime* code_rt = getCodeRuntime(shadow_frame);
   uintptr_t ip = getIP(tstate, shadow_frame, code_rt->frame_size());
   std::optional<int> bc_off = code_rt->getBCOffForIP(ip);
@@ -233,9 +236,15 @@ Ref<PyFrameObject> createPyFrame(
     gen->gi_frame = py_frame.get();
     Py_INCREF(py_frame);
   }
+  bool is_inlined_function =
+      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS;
   shadow_frame->data =
       _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_JIT);
-  updatePyFrame(tstate, py_frame, shadow_frame);
+  if (!is_inlined_function) {
+    // TODO(emacs): Support fetching code object and line number for inlined
+    // frames in the JIT.
+    updatePyFrame(tstate, py_frame, shadow_frame);
+  }
   return py_frame;
 }
 

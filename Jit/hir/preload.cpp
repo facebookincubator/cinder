@@ -289,6 +289,7 @@ void Preloader::preload() {
           // invalidated and freed; we just do this here for the side effect to
           // make sure the cached value has been loaded and any side effects of
           // loading it have been exercised.
+          JIT_CHECK(name != nullptr, "name cannot be null");
           getGlobalCache(name);
           global_names_.emplace(name_idx, name);
         }

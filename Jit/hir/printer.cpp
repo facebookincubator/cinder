@@ -234,7 +234,6 @@ static std::string format_immediates(const Instr& instr) {
   switch (instr.opcode()) {
     case Opcode::kAssign:
     case Opcode::kBatchDecref:
-    case Opcode::kBeginInlinedFunction:
     case Opcode::kBuildString:
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:
@@ -286,6 +285,8 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kXIncref: {
       return "";
     }
+    case Opcode::kBeginInlinedFunction:
+      return static_cast<const BeginInlinedFunction&>(instr).fullname();
     case Opcode::kLoadArrayItem: {
       const auto& load = static_cast<const LoadArrayItem&>(instr);
       return load.offset() == 0 ? "" : fmt::format("Offset[{}]", load.offset());

@@ -8,6 +8,10 @@
 #include "Jit/pyjit_result.h"
 #include "Jit/pyjit_typeslots.h"
 
+#ifdef __cplusplus
+#include "Jit/hir/preload.h"
+#endif
+
 // Offset of the state field in jit::GenFooterData for fast access from C code.
 // This value is verified by static_assert in runtime.h.
 #define _PY_GEN_JIT_DATA_STATE_OFFSET 24
@@ -82,6 +86,16 @@ PyAPI_FUNC(int) _PyJIT_EnableTypeSlots(void);
  * Returns 1 if type slot specialization is enabled and 0 otherwise.
  */
 PyAPI_FUNC(int) _PyJIT_AreTypeSlotsEnabled(void);
+
+/*
+   Enable the HIR inliner.
+ */
+PyAPI_FUNC(void) _PyJIT_EnableHIRInliner(void);
+
+/*
+ * Returns 1 if the HIR inliner is enabled and 0 otherwise.
+ */
+PyAPI_FUNC(int) _PyJIT_IsHIRInlinerEnabled(void);
 
 /*
  * JITs slot functions for the type object, and handles setting up
@@ -321,4 +335,12 @@ PyAPI_FUNC(void) _PyJIT_TypeModified(PyTypeObject* type);
 bool _PyJIT_UseHugePages();
 } /* extern "C" */
 #endif
+
+#ifdef __cplusplus
+namespace jit {
+bool isPreloaded(BorrowedRef<PyFunctionObject> func);
+const hir::Preloader& getPreloader(BorrowedRef<PyFunctionObject> func);
+} // namespace jit
+#endif
+
 #endif /* Py_LIMITED_API */

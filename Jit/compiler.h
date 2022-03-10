@@ -61,7 +61,7 @@ class CompiledFunction {
   DISALLOW_COPY_AND_ASSIGN(CompiledFunction);
 
   vectorcallfunc entry_point_;
-  CodeRuntime* code_runtime_;
+  CodeRuntime* code_runtime_{nullptr};
   int code_size_;
   int stack_size_;
   int spill_stack_size_;

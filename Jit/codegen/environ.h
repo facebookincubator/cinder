@@ -140,6 +140,8 @@ struct Environ {
   int initial_yield_spill_size_{-1};
 
   int max_arg_buffer_size{0};
+
+  bool has_inlined_functions{false};
 };
 
 } // namespace codegen

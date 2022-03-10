@@ -186,11 +186,6 @@ struct FrameState {
   FrameState(
       BorrowedRef<PyCodeObject> code,
       BorrowedRef<PyDictObject> globals,
-      BorrowedRef<PyDictObject> builtins)
-      : code(code), globals(globals), builtins(builtins) {}
-  FrameState(
-      BorrowedRef<PyCodeObject> code,
-      BorrowedRef<PyDictObject> globals,
       BorrowedRef<PyDictObject> builtins,
       FrameState* parent)
       : code(code), globals(globals), builtins(builtins), parent(parent) {
@@ -202,7 +197,7 @@ struct FrameState {
   // If the function is inlined into another function, the depth at which it
   // is inlined (nested function calls may be inlined). Starts at 1. If the
   // function is not inlined, 0.
-  int inlineDepth() {
+  int inlineDepth() const {
     int inline_depth = -1;
     const FrameState* frame = this;
     while (frame != nullptr) {
@@ -667,6 +662,7 @@ class Instr {
 
   void ReplaceWith(Instr& instr) {
     instr.InsertBefore(*this);
+    instr.setBytecodeOffset(bytecodeOffset());
     unlink();
   }
 
@@ -674,6 +670,7 @@ class Instr {
     Instr* last = this;
     for (Instr* instr : expansion) {
       instr->InsertAfter(*last);
+      instr->setBytecodeOffset(bytecodeOffset());
       last = instr;
     }
     unlink();
@@ -1707,6 +1704,7 @@ class INSTR_CLASS(
 
 class CheckBase : public DeoptBase {
  protected:
+  // Used only for tests.
   CheckBase(Opcode op) : DeoptBase(op) {
     auto new_frame = std::make_unique<FrameState>();
     setFrameState(std::move(new_frame));
@@ -1735,6 +1733,7 @@ DEFINE_SIMPLE_INSTR(CheckNeg, (TCInt), HasOutput, Operands<1>, CheckBase);
 
 class CheckBaseWithName : public CheckBase {
  protected:
+  // Used only for tests.
   CheckBaseWithName(Opcode op, BorrowedRef<> name)
       : CheckBase(op), name_(name) {}
 
@@ -1984,17 +1983,22 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
   BeginInlinedFunction(
       BorrowedRef<PyCodeObject> code,
       BorrowedRef<PyObject> globals,
-      const FrameState& caller_state)
-      : InstrT(), code_(code), globals_(globals) {
-    caller_state_ = std::make_unique<FrameState>(caller_state);
+      std::unique_ptr<FrameState> caller_state,
+      const std::string& fullname)
+      : InstrT(), code_(code), globals_(globals), fullname_(fullname) {
+    caller_state_ = std::move(caller_state);
   }
 
-  FrameState* callerFrameState() const {
+  const FrameState* callerFrameState() const {
     return caller_state_.get();
   }
 
   BorrowedRef<PyCodeObject> code() const {
     return code_.get();
+  }
+
+  std::string fullname() const {
+    return fullname_;
   }
 
   BorrowedRef<PyObject> globals() const {
@@ -2009,9 +2013,11 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
   // BeginInlinedFunction must own the FrameState that is used for building the
   // linked list of FrameStates as well as its parent FrameState. The parent is
   // originally owned by the Call instruction, but that gets destroyed.
-  std::unique_ptr<FrameState> caller_state_{nullptr};
+  // Used for printing.
   BorrowedRef<PyCodeObject> code_;
   BorrowedRef<PyObject> globals_;
+  std::unique_ptr<FrameState> caller_state_{nullptr};
+  std::string fullname_;
 };
 
 class INSTR_CLASS(EndInlinedFunction, (), Operands<0>), public InlineBase {

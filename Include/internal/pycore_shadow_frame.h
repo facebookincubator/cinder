@@ -67,6 +67,7 @@ _PyShadowFrame_GetPyFrame(_PyShadowFrame *shadow_frame) {
 
 int _PyShadowFrame_HasGen(_PyShadowFrame *shadow_frame);
 PyGenObject *_PyShadowFrame_GetGen(_PyShadowFrame *shadow_frame);
+void _PyShadowFrame_DumpStack(PyThreadState* state);
 
 static inline uintptr_t _PyShadowFrame_MakeData(void *ptr,
                                                 _PyShadowFrame_PtrKind ptr_kind,

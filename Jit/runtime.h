@@ -95,7 +95,7 @@ typedef struct _GenDataFooter {
   PyGenObject* gen;
 
   // JIT metadata for associated code object
-  CodeRuntime* code_rt;
+  CodeRuntime* code_rt{nullptr};
 } GenDataFooter;
 
 // The state field needs to be at a fixed offset so it can be quickly accessed

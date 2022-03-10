@@ -724,6 +724,23 @@ def test(n):
   runTest(src, args, 1, result);
 }
 
+TEST_F(DeoptStressTest, Inliner) {
+  const char* src = R"(
+def bar(n):
+  return n + 1
+
+def test(n):
+  res = 0
+  res += bar(n)
+  return res
+)";
+  auto arg1 = Ref<>::steal(PyLong_FromLong(10));
+  PyObject* args[] = {arg1};
+  auto result = Ref<>::steal(PyLong_FromLong(11));
+  _PyJIT_EnableHIRInliner();
+  runTest(src, args, 1, result);
+}
+
 using DeoptTest = RuntimeTest;
 
 TEST_F(DeoptTest, ValueKind) {

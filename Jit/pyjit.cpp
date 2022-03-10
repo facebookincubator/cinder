@@ -56,6 +56,7 @@ struct JitConfig {
   size_t batch_compile_workers{0};
   int multithreaded_compile_test{0};
   bool use_huge_pages{true};
+  int hir_inliner_enabled{0};
 };
 static JitConfig jit_config;
 
@@ -102,6 +103,20 @@ static std::unordered_set<BorrowedRef<>> jit_reg_units;
 static std::unordered_map<BorrowedRef<PyCodeObject>, CodeData> jit_code_data;
 // Every unit has an entry in preloaders if we are doing multithreaded compile.
 static std::unordered_map<BorrowedRef<>, hir::Preloader> jit_preloaders;
+
+namespace jit {
+bool isPreloaded(BorrowedRef<PyFunctionObject> func) {
+  return jit_preloaders.find(func) != jit_preloaders.end();
+}
+
+const jit::hir::Preloader& getPreloader(BorrowedRef<PyFunctionObject> func) {
+  auto it = jit_preloaders.find(func);
+  if (it != jit_preloaders.end()) {
+    return it->second;
+  }
+  return map_get_strict(jit_preloaders, func->func_code);
+}
+} // namespace jit
 
 // Strong references to every function and code object that were ever
 // registered, to keep them alive for batch testing.
@@ -460,6 +475,15 @@ void initFlagProcessor() {
           }
         },
         "JIT list match line numbers");
+
+    xarg_flag_processor.addOption(
+        "jit-enable-hir-inliner",
+        "PYTHONJITENABLEHIRINLINER",
+        [](string) {
+          JIT_DLOG("Enabling the HIR inliner");
+          _PyJIT_EnableHIRInliner();
+        },
+        "Enable the JIT's HIR inliner");
 
     xarg_flag_processor.addOption(
         "jit-help", "", jit_help, "print all available JIT flags and exits");
@@ -1186,6 +1210,8 @@ int _PyJIT_Initialize() {
   jit_config.init_state = JIT_INITIALIZED;
   jit_config.is_enabled = 1;
   g_jit_list = jit_list.release();
+  // Unconditionally set this, since we might have shadow frames from
+  // CO_SHADOW_FRAME or inlined functions.
   _PyThreadState_GetFrame =
       reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
 
@@ -1209,6 +1235,14 @@ void _PyJIT_AfterFork_Child() {
 int _PyJIT_AreTypeSlotsEnabled() {
   return (jit_config.init_state == JIT_INITIALIZED) &&
       jit_config.are_type_slots_enabled;
+}
+
+void _PyJIT_EnableHIRInliner() {
+  jit_config.hir_inliner_enabled = 1;
+}
+
+int _PyJIT_IsHIRInlinerEnabled() {
+  return jit_config.hir_inliner_enabled;
 }
 
 int _PyJIT_Enable() {
