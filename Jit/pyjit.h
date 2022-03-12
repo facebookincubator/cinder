@@ -93,6 +93,11 @@ PyAPI_FUNC(int) _PyJIT_AreTypeSlotsEnabled(void);
 PyAPI_FUNC(void) _PyJIT_EnableHIRInliner(void);
 
 /*
+   Disable the HIR inliner.
+ */
+PyAPI_FUNC(void) _PyJIT_DisableHIRInliner(void);
+
+/*
  * Returns 1 if the HIR inliner is enabled and 0 otherwise.
  */
 PyAPI_FUNC(int) _PyJIT_IsHIRInlinerEnabled(void);

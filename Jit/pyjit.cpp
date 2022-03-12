@@ -999,6 +999,24 @@ static PyObject* get_allocator_stats(PyObject*, PyObject*) {
   return stats.release();
 }
 
+static PyObject* is_hir_inliner_enabled(PyObject* /* self */, PyObject*) {
+  int result = _PyJIT_IsHIRInlinerEnabled();
+  if (result) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
+static PyObject* enable_hir_inliner(PyObject* /* self */, PyObject*) {
+  _PyJIT_EnableHIRInliner();
+  Py_RETURN_NONE;
+}
+
+static PyObject* disable_hir_inliner(PyObject* /* self */, PyObject*) {
+  _PyJIT_DisableHIRInliner();
+  Py_RETURN_NONE;
+}
+
 static PyMethodDef jit_methods[] = {
     {"disable",
      (PyCFunction)(void*)disable_jit,
@@ -1086,6 +1104,18 @@ static PyMethodDef jit_methods[] = {
      get_allocator_stats,
      METH_NOARGS,
      "Return stats from the code allocator as a dictionary."},
+    {"is_hir_inliner_enabled",
+     is_hir_inliner_enabled,
+     METH_NOARGS,
+     "Return True if the HIR inliner is enabled and False otherwise."},
+    {"enable_hir_inliner",
+     enable_hir_inliner,
+     METH_NOARGS,
+     "Enable the HIR inliner."},
+    {"disable_hir_inliner",
+     disable_hir_inliner,
+     METH_NOARGS,
+     "Disable the HIR inliner."},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {
@@ -1239,6 +1269,10 @@ int _PyJIT_AreTypeSlotsEnabled() {
 
 void _PyJIT_EnableHIRInliner() {
   jit_config.hir_inliner_enabled = 1;
+}
+
+void _PyJIT_DisableHIRInliner() {
+  jit_config.hir_inliner_enabled = 0;
 }
 
 int _PyJIT_IsHIRInlinerEnabled() {
