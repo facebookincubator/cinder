@@ -4009,7 +4009,7 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
             cur_check->tai_type = &PyFloat_Type;
             cur_check->tai_optional = 0;
             cur_check->tai_exact = 1;
-            Py_INCREF(&PyLong_Type);
+            Py_INCREF(&PyFloat_Type);
             Py_DECREF(ref_type);
         } else if (prim_type != TYPED_OBJECT) {
             assert(prim_type <= TYPED_INT64);

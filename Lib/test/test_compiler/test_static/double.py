@@ -489,6 +489,22 @@ class DoubleTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(42.1, 0.1), 421.0)
 
+    def test_all_arg_regs_used_plus_one(self):
+        codestr = """
+            from __static__ import double
+
+            def g(x0: double, x1: double, x2: double, x3: double, x4: double,
+                  x5: double, x6: double, x7: double,
+                  y0: int) -> double:
+                return x0 + x1 + x2 + x3 + x4 + x5 + x6 + x7 + double(y0 + y0)
+
+            def f() -> double:
+                return g(0, 1, 2, 3, 4, 5, 6, 7, 8)
+        """
+        with self.in_strict_module(codestr) as mod:
+            f = mod.f
+            self.assertEqual(f(), 44.0)
+
     def test_primitive_float_arg_not_clobbered_all(self):
         codestr = """
             from __static__ import double
