@@ -841,16 +841,26 @@ void inlineFunctionCall(Function& caller, VectorCall* call_instr) {
     JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
     return;
   }
-  auto begin_inlined_function = BeginInlinedFunction::create(
-      code, globals, std::move(caller_frame_state), fullname);
 
   BasicBlock* head = call_instr->block();
   BasicBlock* tail = head->splitAfter(*call_instr);
   // TODO(emacs): Emit a DeoptPatchpoint here to catch the case where someone
   // swaps out function.__code__.
-  // VectorCall -> {BeginInlinedFunction, Branch to callee CFG}
+  // Check that __code__ has not been swapped out since the function was
+  // inlined.
+  // VectorCall -> {LoadField, GuardIs, BeginInlinedFunction, Branch to callee
+  // CFG}
+  Register* code_obj = caller.env.AllocateRegister();
+  auto load_code = LoadField::create(
+      code_obj, target, offsetof(PyFunctionObject, func_code), TObject);
+  Register* guarded_code = caller.env.AllocateRegister();
+  auto guard_code = GuardIs::create(
+      guarded_code, reinterpret_cast<PyObject*>(code), code_obj);
+  auto begin_inlined_function = BeginInlinedFunction::create(
+      code, globals, std::move(caller_frame_state), fullname);
   auto callee_branch = Branch::create(result.entry);
-  call_instr->ExpandInto({begin_inlined_function, callee_branch});
+  call_instr->ExpandInto(
+      {load_code, guard_code, begin_inlined_function, callee_branch});
   tail->push_front(
       EndInlinedFunction::create(begin_inlined_function->inlineDepth()));
 

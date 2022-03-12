@@ -560,3 +560,37 @@ TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
 )";
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
+
+class CppInlinerTest : public RuntimeTest {};
+
+TEST_F(CppInlinerTest, ChangingCalleeFunctionCodeCausesDeopt) {
+  const char* pycode = R"(
+def other():
+  return 2
+
+other_code = other.__code__
+
+def g():
+  return 1
+
+def f():
+  return g()
+)";
+  // Compile f
+  Ref<PyObject> pyfunc(compileAndGet(pycode, "f"));
+  ASSERT_NE(pyfunc, nullptr) << "Failed compiling func";
+  // Call f
+  Ref<PyObject> empty_tuple(PyTuple_New(0));
+  Ref<PyObject> call_result1(
+      PyObject_Call(pyfunc, empty_tuple, /*kwargs=*/nullptr));
+  EXPECT_TRUE(isIntEquals(call_result1, 1));
+  // Set __code__
+  Ref<PyObject> other_code(getGlobal("other_code"));
+  ASSERT_NE(other_code, nullptr) << "Failed to get other_code global";
+  int result = PyObject_SetAttrString(pyfunc, "__code__", other_code);
+  ASSERT_NE(result, -1) << "Failed to set __code__";
+  // Call f again
+  Ref<PyObject> call_result2(
+      PyObject_Call(pyfunc, empty_tuple, /*kwargs=*/nullptr));
+  EXPECT_TRUE(isIntEquals(call_result2, 2));
+}

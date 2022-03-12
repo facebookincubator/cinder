@@ -16,6 +16,8 @@ fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "foo">
     v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v9:Object = LoadField<16, Object, borrowed> v3
+    v10:MortalCode["foo"] = GuardIs<0xdeadbeef> v9
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 4
     }
@@ -40,6 +42,8 @@ fun jittestmodule:test {
   bb 0 {
     v5:OptObject = LoadGlobalCached<0; "foo">
     v6:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v5
+    v16:Object = LoadField<16, Object, borrowed> v6
+    v17:MortalCode["foo"] = GuardIs<0xdeadbeef> v16
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 4
     }
@@ -47,13 +51,15 @@ fun jittestmodule:test {
     EndInlinedFunction
     v8:OptObject = LoadGlobalCached<1; "bar">
     v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8
+    v22:Object = LoadField<16, Object, borrowed> v9
+    v23:MortalCode["bar"] = GuardIs<0xdeadbeef> v22
     BeginInlinedFunction<jittestmodule:bar> {
       NextInstrOffset 8
       Stack<1> v14
     }
-    v18:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    v20:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
     EndInlinedFunction
-    v11:Object = BinaryOp<Add> v14 v18 {
+    v11:Object = BinaryOp<Add> v14 v20 {
       NextInstrOffset 10
     }
     Return v11
@@ -84,20 +90,22 @@ fun jittestmodule:test {
     v16:OptObject = LoadGlobalCached<0; "foo">
     v17:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v16
     v19:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v31:Object = LoadField<16, Object, borrowed> v17
+    v32:MortalCode["foo"] = GuardIs<0xdeadbeef> v31
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 18
       Locals<1> v13
     }
-    v35:CInt64[1] = LoadConst<CInt64[1]>
-    v32:CInt64 = CheckSequenceBounds v13 v35 {
+    v37:CInt64[1] = LoadConst<CInt64[1]>
+    v34:CInt64 = CheckSequenceBounds v13 v37 {
       NextInstrOffset 6
       Locals<2> v13 v19
     }
     UseType<ListExact> v13
-    v33:CPtr = LoadField<24, CPtr, borrowed> v13
-    v34:Object = LoadArrayItem v33 v32 v13
+    v35:CPtr = LoadField<24, CPtr, borrowed> v13
+    v36:Object = LoadArrayItem v35 v34 v13
     EndInlinedFunction
-    Return v34
+    Return v36
   }
 }
 ---
@@ -115,6 +123,8 @@ fun jittestmodule:test {
     v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4
     v6:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
     v7:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v19:Object = LoadField<16, Object, borrowed> v5
+    v20:MortalCode["foo"] = GuardIs<0xdeadbeef> v19
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 8
     }
@@ -358,6 +368,8 @@ fun jittestmodule:test {
       Locals<1> v10
       Stack<2> v10 v18
     }
+    v52:Object = LoadField<16, Object, borrowed> v18
+    v53:MortalCode["test"] = GuardIs<0xdeadbeef> v52
     BeginInlinedFunction<jittestmodule:test> {
       NextInstrOffset 24
       Locals<1> v10

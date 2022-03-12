@@ -90,6 +90,19 @@ class RuntimeTest : public ::testing::Test {
     return Ref<>(obj);
   }
 
+  ::testing::AssertionResult isIntEquals(BorrowedRef<> obj, long expected) {
+    EXPECT_NE(obj, nullptr) << "object is null";
+    EXPECT_TRUE(PyLong_CheckExact(obj)) << "object is not an exact int";
+    int overflow;
+    long result = PyLong_AsLongAndOverflow(obj, &overflow);
+    EXPECT_EQ(overflow, 0) << "conversion to long overflowed";
+    if (result == expected) {
+      return ::testing::AssertionSuccess();
+    }
+    return ::testing::AssertionFailure()
+        << "expected " << expected << " but found " << result;
+  }
+
   Ref<> MakeGlobals() {
     auto module = Ref<>::steal(PyModule_New(JIT_TEST_MOD_NAME));
     if (module == nullptr) {
