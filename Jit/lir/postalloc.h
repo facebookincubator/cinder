@@ -5,12 +5,12 @@
 #include "Jit/codegen/rewrite.h"
 #include "Jit/lir/block.h"
 
-namespace jit::codegen {
+namespace jit::lir {
 
 // Rewrites after register allocation
-class PostRegAllocRewrite : public Rewrite {
+class PostRegAllocRewrite : public jit::codegen::Rewrite {
  public:
-  PostRegAllocRewrite(jit::lir::Function* func, Environ* env)
+  PostRegAllocRewrite(jit::lir::Function* func, jit::codegen::Environ* env)
       : Rewrite(func, env) {
     registerRewrites();
   }
@@ -24,7 +24,9 @@ class PostRegAllocRewrite : public Rewrite {
   //   - move function arguments to the right registers.
   //   - handle special cases such as JITRT_(Call|Invoke)Function,
   //   JITRT_(Call|Get)Method, etc.
-  static RewriteResult rewriteCallInstrs(instr_iter_t instr_iter, Environ* env);
+  static RewriteResult rewriteCallInstrs(
+      instr_iter_t instr_iter,
+      jit::codegen::Environ* env);
 
   static int rewriteRegularFunction(instr_iter_t instr_iter);
   static int rewriteVectorCallFunctions(instr_iter_t instr_iter);

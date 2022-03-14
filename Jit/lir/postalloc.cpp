@@ -1,14 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/codegen/postalloc.h"
+#include "Jit/lir/postalloc.h"
 
 #include "Jit/codegen/x86_64.h"
 #include "Jit/lir/operand.h"
 
 #include <optional>
 
-using namespace jit::lir;
+using namespace jit::codegen;
 
-namespace jit::codegen {
+namespace jit::lir {
 
 void PostRegAllocRewrite::registerRewrites() {
   registerOneRewriteFunction(rewriteCallInstrs);
