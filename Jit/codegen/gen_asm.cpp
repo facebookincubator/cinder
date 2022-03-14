@@ -272,11 +272,9 @@ void* NativeGenerator::GetEntryPoint() {
       num_sa_caches,
       num_lat_caches);
 
-  // TODO(bsimmers): If we have a good reason to violate this JIT_CHECK(), we
-  // could transfer the references to the CodeRuntime instead.
-  JIT_CHECK(
-      GetFunction()->env.references().empty(),
-      "Environment should not contain any references");
+  for (auto& ref : func->env.references()) {
+    env_.code_rt->addReference(ref);
+  }
 
   jit::lir::LIRGenerator lirgen(GetFunction(), &env_);
   auto lir_func = lirgen.TranslateFunction();

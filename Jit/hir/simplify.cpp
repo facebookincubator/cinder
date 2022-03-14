@@ -263,6 +263,18 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
           env.emit<LoadField>(obj, offsetof(PyVarObject, ob_size), TCInt64);
       return env.emit<IntConvert>(size, TCInt32);
     }
+    if (ty <= TLongExact) {
+      Register* left = instr->GetOperand(0);
+      env.emit<UseType>(left, ty);
+      // Zero is canonical as a "small int" in CPython.
+      ThreadedCompileSerialize guard;
+      auto zero = Ref<>::steal(PyLong_FromLong(0));
+      Register* right = env.emit<LoadConst>(
+          Type::fromObject(env.func.env.addReference(std::move(zero))));
+      Register* result = env.emit<PrimitiveCompare>(
+          PrimitiveCompareOp::kNotEqual, left, right);
+      return env.emit<IntConvert>(result, TCInt32);
+    }
     return nullptr;
   }
   // Should only consider immutable Objects
