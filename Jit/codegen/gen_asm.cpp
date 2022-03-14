@@ -11,7 +11,6 @@
 #include "Jit/codegen/autogen.h"
 #include "Jit/codegen/gen_asm_utils.h"
 #include "Jit/codegen/postalloc.h"
-#include "Jit/codegen/postgen.h"
 #include "Jit/codegen/regalloc.h"
 #include "Jit/frame.h"
 #include "Jit/hir/analysis.h"
@@ -21,6 +20,7 @@
 #include "Jit/jit_rt.h"
 #include "Jit/lir/dce.h"
 #include "Jit/lir/generator.h"
+#include "Jit/lir/postgen.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
 #include "Jit/pyjit.h"
@@ -38,6 +38,7 @@
 
 using namespace asmjit;
 using namespace jit::hir;
+using namespace jit::lir;
 using namespace jit::util;
 
 namespace jit {

@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/codegen/postgen.h"
+#include "Jit/lir/postgen.h"
 
 #include "Jit/codegen/inliner.h"
 
-using namespace jit::lir;
+using namespace jit::codegen;
 
-namespace jit::codegen {
+namespace jit::lir {
 
 Rewrite::RewriteResult PostGenerationRewrite::rewriteInlineHelper(
     function_rewrite_arg_t func) {
@@ -287,4 +287,4 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBatchDecrefInstrs(
       reinterpret_cast<uint64_t>(JITRT_BatchDecref)));
   return kChanged;
 }
-} // namespace jit::codegen
+} // namespace jit::lir

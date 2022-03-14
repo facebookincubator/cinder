@@ -1,15 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/postgen.h"
+#include "Jit/lir/postgen.h"
 
 #include "RuntimeTests/fixtures.h"
 #include "RuntimeTests/testutil.h"
 
 using namespace jit;
-using namespace jit::lir;
 
-namespace jit::codegen {
+namespace jit::lir {
 class LIRRewriteTest : public RuntimeTest {};
 
 TEST_F(LIRRewriteTest, RewriteCondBranchTest) {
@@ -30,4 +29,4 @@ TEST_F(LIRRewriteTest, RewriteCondBranchTest) {
   PostGenerationRewrite::rewriteCondBranch(
       std::next(basicblock.instructions().end(), -1));
 }
-} // namespace jit::codegen
+} // namespace jit::lir

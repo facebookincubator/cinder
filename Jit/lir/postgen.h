@@ -4,7 +4,9 @@
 #include "Jit/codegen/environ.h"
 #include "Jit/codegen/rewrite.h"
 
-namespace jit::codegen {
+using namespace jit::codegen;
+
+namespace jit::lir {
 // Rewrites after LIR generation
 class PostGenerationRewrite : public Rewrite {
  public:
@@ -53,4 +55,4 @@ class PostGenerationRewrite : public Rewrite {
 
   FRIEND_TEST(LIRRewriteTest, RewriteCondBranchTest);
 };
-} // namespace jit::codegen
+} // namespace jit::lir

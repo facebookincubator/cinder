@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 
 #include "Jit/codegen/environ.h"
-#include "Jit/codegen/postgen.h"
 #include "Jit/compiler.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/parser.h"
@@ -10,6 +9,7 @@
 #include "Jit/lir/lir.h"
 #include "Jit/lir/operand.h"
 #include "Jit/lir/parser.h"
+#include "Jit/lir/postgen.h"
 #include "Jit/ref.h"
 
 #include "RuntimeTests/fixtures.h"
