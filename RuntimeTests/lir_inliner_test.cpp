@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/inliner.h"
 #include "Jit/jit_rt.h"
+#include "Jit/lir/inliner.h"
 #include "Jit/lir/instruction.h"
 #include "Jit/lir/lir.h"
 #include "Jit/ref.h"
@@ -11,9 +11,9 @@
 #include "RuntimeTests/testutil.h"
 
 using namespace jit;
-using namespace jit::lir;
+using namespace jit::codegen;
 
-namespace jit::codegen {
+namespace jit::lir {
 class LIRInlinerTest : public RuntimeTest {};
 
 TEST_F(LIRInlinerTest, ResolveArgumentsTest) {

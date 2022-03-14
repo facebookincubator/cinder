@@ -10,7 +10,7 @@ namespace jit {
 
 extern int g_disable_lir_inliner;
 
-namespace codegen {
+namespace lir {
 
 class LIRInliner {
  public:

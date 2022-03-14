@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/postgen.h"
 
-#include "Jit/codegen/inliner.h"
+#include "Jit/lir/inliner.h"
 
 using namespace jit::codegen;
 

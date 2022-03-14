@@ -469,7 +469,6 @@ JIT_OBJS=       \
 		Jit/codegen/environ.o \
 		Jit/codegen/gen_asm.o \
 		Jit/codegen/gen_asm_utils.o \
-		Jit/codegen/inliner.o \
 		Jit/codegen/x86_64.o \
 		Jit/lir/block_builder.o \
 		Jit/lir/dce.o \
@@ -480,6 +479,7 @@ JIT_OBJS=       \
 		Jit/lir/c_helper_translations_auto.o \
 		Jit/lir/function.o \
 		Jit/lir/generator.o \
+		Jit/lir/inliner.o \
 		Jit/lir/instruction.o \
 		Jit/lir/operand.o \
 		Jit/lir/parser.o \
@@ -1265,7 +1265,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/codegen/copy_graph.h \
 		$(srcdir)/Jit/codegen/environ.h \
 		$(srcdir)/Jit/codegen/gen_asm.h \
-		$(srcdir)/Jit/codegen/inliner.h \
 		$(srcdir)/Jit/codegen/x86_64.h \
 		$(srcdir)/Jit/lir/block_builder.h \
 		$(srcdir)/Jit/lir/dce.h \
@@ -1276,6 +1275,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/lir/c_helper_translations_auto.h \
 		$(srcdir)/Jit/lir/function.h \
 		$(srcdir)/Jit/lir/generator.h \
+		$(srcdir)/Jit/lir/inliner.h \
 		$(srcdir)/Jit/lir/instruction.h \
 		$(srcdir)/Jit/lir/operand.h \
 		$(srcdir)/Jit/lir/parser.h \

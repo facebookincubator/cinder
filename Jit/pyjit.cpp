@@ -8,7 +8,6 @@
 
 #include "Jit/code_allocator.h"
 #include "Jit/codegen/gen_asm.h"
-#include "Jit/codegen/inliner.h"
 #include "Jit/containers.h"
 #include "Jit/frame.h"
 #include "Jit/hir/builder.h"
@@ -18,6 +17,7 @@
 #include "Jit/jit_flag_processor.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_list.h"
+#include "Jit/lir/inliner.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
 #include "Jit/profile_data.h"

@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/codegen/inliner.h"
+#include "Jit/lir/inliner.h"
 
 #include "Jit/lir/c_helper_translations.h"
 #include "Jit/lir/lir.h"
@@ -8,13 +8,13 @@
 #include <string_view>
 #include <unordered_map>
 
-using namespace jit::lir;
+using namespace jit::codegen;
 
 namespace jit {
 
 int g_disable_lir_inliner = 0;
 
-namespace codegen {
+namespace lir {
 
 bool LIRInliner::inlineCalls(Function* func) {
   bool changed = false;

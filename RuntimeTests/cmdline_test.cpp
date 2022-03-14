@@ -2,9 +2,9 @@
 #include <gtest/gtest.h>
 
 #include "Jit/codegen/copy_graph.h"
-#include "Jit/codegen/inliner.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_list.h"
+#include "Jit/lir/inliner.h"
 #include "Jit/profile_data.h"
 #include "Jit/pyjit.h"
 
@@ -29,7 +29,7 @@
 using namespace jit;
 using namespace std;
 
-using namespace jit::codegen;
+using namespace jit::lir;
 
 class CmdLineTest : public RuntimeTest {
  public:
