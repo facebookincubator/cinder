@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/codegen/rewrite.h"
+#include "Jit/lir/rewrite.h"
 
 #include "Jit/codegen/x86_64.h"
 #include "Jit/lir/block.h"
@@ -10,8 +10,9 @@
 #include <set>
 #include <unordered_set>
 
-using namespace jit::lir;
-namespace jit::codegen {
+using namespace jit::codegen;
+
+namespace jit::lir {
 
 void Rewrite::run() {
   // collect all stages
@@ -91,4 +92,4 @@ Instruction* Rewrite::findRecentFlagAffectingInstr(instr_iter_t instr_iter) {
   return nullptr;
 }
 
-} // namespace jit::codegen
+} // namespace jit::lir

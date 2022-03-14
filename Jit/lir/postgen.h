@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Jit/codegen/environ.h"
-#include "Jit/codegen/rewrite.h"
+#include "Jit/lir/rewrite.h"
 
 using namespace jit::codegen;
 

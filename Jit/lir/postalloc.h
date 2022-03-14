@@ -2,13 +2,13 @@
 #pragma once
 
 #include "Jit/codegen/environ.h"
-#include "Jit/codegen/rewrite.h"
 #include "Jit/lir/block.h"
+#include "Jit/lir/rewrite.h"
 
 namespace jit::lir {
 
 // Rewrites after register allocation
-class PostRegAllocRewrite : public jit::codegen::Rewrite {
+class PostRegAllocRewrite : public Rewrite {
  public:
   PostRegAllocRewrite(jit::lir::Function* func, jit::codegen::Environ* env)
       : Rewrite(func, env) {

@@ -471,7 +471,6 @@ JIT_OBJS=       \
 		Jit/codegen/gen_asm_utils.o \
 		Jit/codegen/inliner.o \
 		Jit/codegen/regalloc.o \
-		Jit/codegen/rewrite.o \
 		Jit/codegen/x86_64.o \
 		Jit/lir/block_builder.o \
 		Jit/lir/dce.o \
@@ -488,6 +487,7 @@ JIT_OBJS=       \
 		Jit/lir/postalloc.o \
 		Jit/lir/postgen.o \
 		Jit/lir/printer.o \
+		Jit/lir/rewrite.o \
 		Jit/lir/symbol_mapping.o
 
 I386_DASM_OBJS = \
@@ -1267,7 +1267,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/codegen/gen_asm.h \
 		$(srcdir)/Jit/codegen/inliner.h \
 		$(srcdir)/Jit/codegen/regalloc.h \
-		$(srcdir)/Jit/codegen/rewrite.h \
 		$(srcdir)/Jit/codegen/x86_64.h \
 		$(srcdir)/Jit/lir/block_builder.h \
 		$(srcdir)/Jit/lir/dce.h \
@@ -1284,6 +1283,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/lir/postalloc.h \
 		$(srcdir)/Jit/lir/postgen.h \
 		$(srcdir)/Jit/lir/printer.h \
+		$(srcdir)/Jit/lir/rewrite.h \
 		$(srcdir)/Jit/lir/symbol_mapping.h \
 		$(srcdir)/Jit/lir/x86_64.h
 

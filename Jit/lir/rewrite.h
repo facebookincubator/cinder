@@ -12,12 +12,12 @@
 #include <vector>
 
 namespace jit {
-namespace codegen {
+namespace lir {
 
 // this class implements a framework for backend rewrites
 class Rewrite {
  public:
-  Rewrite(jit::lir::Function* func, Environ* env)
+  Rewrite(jit::lir::Function* func, jit::codegen::Environ* env)
       : function_(func), env_(env) {}
 
   jit::lir::Function* function() {
@@ -27,11 +27,11 @@ class Rewrite {
     return function_;
   }
 
-  Environ* environment() {
+  jit::codegen::Environ* environment() {
     return env_;
   }
 
-  const Environ* environment() const {
+  const jit::codegen::Environ* environment() const {
     return env_;
   }
 
@@ -65,7 +65,7 @@ class Rewrite {
 
   template <typename T>
   void registerOneRewriteFunction(
-      RewriteResult (*rewrite)(T, Environ*),
+      RewriteResult (*rewrite)(T, jit::codegen::Environ*),
       int stage = 0) {
     registerOneRewriteFunction(
         function_type_t<T>(
@@ -143,7 +143,7 @@ class Rewrite {
   }
 
   jit::lir::Function* function_;
-  Environ* env_;
+  jit::codegen::Environ* env_;
 
   std::unordered_map<int, std::vector<function_type_t<function_rewrite_arg_t>>>
       function_rewrites_;
