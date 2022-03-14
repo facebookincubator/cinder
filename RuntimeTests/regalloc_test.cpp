@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/regalloc.h"
 #include "Jit/compiler.h"
 #include "Jit/lir/operand.h"
 #include "Jit/lir/parser.h"
 #include "Jit/lir/printer.h"
+#include "Jit/lir/regalloc.h"
 
 #include <fmt/ostream.h>
 
@@ -14,9 +14,8 @@
 #include <vector>
 
 using namespace jit;
-using namespace jit::lir;
 
-namespace jit::codegen {
+namespace jit::lir {
 class LinearScanAllocatorTest : public ::testing::Test {
  public:
   static bool LiveIntervalPtrLess(

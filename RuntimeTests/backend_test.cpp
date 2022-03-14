@@ -7,7 +7,6 @@
 #include "Jit/codegen/environ.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/inliner.h"
-#include "Jit/codegen/regalloc.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/jit_rt.h"
 #include "Jit/lir/instruction.h"
@@ -15,6 +14,7 @@
 #include "Jit/lir/parser.h"
 #include "Jit/lir/postalloc.h"
 #include "Jit/lir/postgen.h"
+#include "Jit/lir/regalloc.h"
 #include "Jit/ref.h"
 
 #include "RuntimeTests/fixtures.h"

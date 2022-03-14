@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "Jit/codegen/regalloc.h"
+#include "Jit/lir/regalloc.h"
 
 #include "internal/pycore_shadow_frame.h"
 
@@ -17,14 +17,14 @@
 #include <type_traits>
 #include <utility>
 
-using namespace jit::lir;
+using namespace jit::codegen;
 
 static constexpr bool g_debug_regalloc = false;
 
 #define TRACE(...) JIT_LOGIF(g_debug_regalloc, __VA_ARGS__)
 
 namespace jit {
-namespace codegen {
+namespace lir {
 
 void LiveInterval::addRange(LiveRange range) {
   constexpr int kInitRangeSize = 8;

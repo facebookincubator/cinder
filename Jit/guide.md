@@ -226,9 +226,9 @@ representation of LIR, which is then parsed into LIR instruction objects (in
 
 ## Register allocation and LIR optimizations
 
-Register allocation is implemented in `Jit/codegen/regalloc.cpp`. Other
+Register allocation is implemented in `Jit/lir/regalloc.cpp`. Other
 optimizations on LIR (some before and some after register allocation) are
-also implemented in the `Jit/codegen/` directory. These are mostly
+also implemented in the `Jit/lir/` directory. These are mostly
 coordinated in `jit::codegen::NativeGenerator::GetEntryPoint()`.
 
 To see the final LIR for our function, you can run

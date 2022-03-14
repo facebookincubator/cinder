@@ -18,7 +18,7 @@
 #include <utility>
 
 namespace jit {
-namespace codegen {
+namespace lir {
 
 // This header file contains classes implementing linear scan register
 // allocation. The algorithm employed is based on papers "Linear Scan Register
@@ -153,7 +153,7 @@ class LinearScanAllocator {
       : func_(func), initial_max_stack_slot_(-reserved_stack_space) {}
   void run();
 
-  PhyRegisterSet getChangedRegs() const {
+  jit::codegen::PhyRegisterSet getChangedRegs() const {
     return changed_regs_;
   }
 
@@ -187,7 +187,7 @@ class LinearScanAllocator {
   int max_stack_slot_;
   std::vector<int> free_stack_slots_;
 
-  PhyRegisterSet changed_regs_;
+  jit::codegen::PhyRegisterSet changed_regs_;
 
   LiveInterval& getIntervalByVReg(const lir::Operand* vreg) {
     return vreg_interval_.emplace(vreg, vreg).first->second;
@@ -202,7 +202,7 @@ class LinearScanAllocator {
 
   void spillRegistersForYield(int instr_id);
   void reserveCallerSaveRegisters(int instr_id);
-  void reserveRegisters(int instr_id, PhyRegisterSet phy_regs);
+  void reserveRegisters(int instr_id, jit::codegen::PhyRegisterSet phy_regs);
 
   struct LiveIntervalPtrGreater {
     bool operator()(const LiveInterval* lhs, const LiveInterval* rhs) const {
@@ -285,7 +285,7 @@ class LinearScanAllocator {
       const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping);
 
   using CopyGraphWithOperand =
-      CopyGraphWithType<const lir::OperandBase::DataType>;
+      jit::codegen::CopyGraphWithType<const lir::OperandBase::DataType>;
 
   // update virtual register to physical register mapping.
   // if the mapping is changed for a virtual register and copies is not nullptr,
