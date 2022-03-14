@@ -300,6 +300,14 @@ TEST_F(CmdLineTest, JITEnable) {
             ASSERT_EQ(is_intel_syntax(), 0); // default to AT&T syntax
           }),
       0);
+
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
+          L"jit=0",
+          "PYTHONJIT=0",
+          []() {},
+          []() { ASSERT_EQ(_PyJIT_IsEnabled(), 0); }),
+      0);
 }
 
 // start of tests associated with flags the setting of which is dependant upon
@@ -320,6 +328,16 @@ TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
           "PYTHONJITSHADOWFRAME",
           []() {},
           []() { ASSERT_TRUE(_PyJIT_ShadowFrame()); },
+          true),
+      0);
+
+  // Explicitly disable it.
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
+          L"jit-shadow-frame=0",
+          "PYTHONJITSHADOWFRAME=0",
+          []() {},
+          []() { ASSERT_FALSE(_PyJIT_ShadowFrame()); },
           true),
       0);
 }

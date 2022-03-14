@@ -28,6 +28,34 @@ bool FlagProcessor::hasOptions() {
 Option& FlagProcessor::addOption(
     const string cmdline_flag,
     const string environment_variable,
+    const function<void(int)> callback,
+    const string flag_description) {
+  assert(!cmdline_flag.empty());
+  assert(!flag_description.empty());
+
+  function<void(string)> int_callback =
+      [callback, &cmdline_flag, &environment_variable](string flag_value) {
+        try {
+          // The callback only gets called for empty X-options, not empty
+          // environment variables. This makes `-X foo` equivalent to `-X
+          // foo=1`, but `PYTHONFOO=` is not equivalent to `PYTHONFOO=1`.
+          callback(flag_value == "" ? 1 : std::stoi(flag_value));
+        } catch (std::exception const&) {
+          JIT_LOG(
+              "Invalid int value for %s/%s: %s",
+              cmdline_flag,
+              environment_variable,
+              flag_value);
+        }
+      };
+
+  return addOption(
+      cmdline_flag, environment_variable, int_callback, flag_description);
+}
+
+Option& FlagProcessor::addOption(
+    const string cmdline_flag,
+    const string environment_variable,
     const function<void(string)> callback,
     const string flag_description) {
   assert(!cmdline_flag.empty());
@@ -59,8 +87,8 @@ Option& FlagProcessor::addOption(
     const string environment_variable,
     int& variable_to_bind_to,
     const string flag_description) {
-  function<void(string)> setter = [&variable_to_bind_to](string /*ignored*/) {
-    variable_to_bind_to = 1;
+  function<void(int)> setter = [&variable_to_bind_to](int flag_value) {
+    variable_to_bind_to = flag_value;
   };
   return addOption(
       cmdline_flag, environment_variable, setter, flag_description);
@@ -75,10 +103,13 @@ Option& FlagProcessor::addOption(
                                    &cmdline_flag,
                                    &environment_variable](string flag_value) {
     try {
-      variable_to_bind_to = std::stol(flag_value);
+      // The callback only gets called for empty X-options, not empty
+      // environment variables. This makes `-X foo` equivalent to `-X foo=1`,
+      // but `PYTHONFOO=` is not equivalent to `PYTHONFOO=1`.
+      variable_to_bind_to = flag_value == "" ? 1 : std::stoull(flag_value);
     } catch (std::exception const&) {
       JIT_LOG(
-          "Invalid long value for %s/%s: %s",
+          "Invalid unsigned long value for %s/%s: %s",
           cmdline_flag,
           environment_variable,
           flag_value);

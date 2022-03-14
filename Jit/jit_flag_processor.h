@@ -68,6 +68,11 @@ struct FlagProcessor {
   Option& addOption(
       const string cmdline_flag,
       const string environment_variable,
+      function<void(int)> callback_on_match,
+      const string flag_description);
+  Option& addOption(
+      const string cmdline_flag,
+      const string environment_variable,
       function<void(string)> callback_on_match,
       const string flag_description);
   Option& addOption(

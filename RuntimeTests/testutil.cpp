@@ -213,7 +213,7 @@ const char* parseAndSetEnvVar(const char* env_name) {
     setenv(key, value, 1);
     return key;
   } else {
-    setenv(env_name, env_name, 1);
+    setenv(env_name, "1", 1);
     return env_name;
   }
 }

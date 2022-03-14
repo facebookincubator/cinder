@@ -422,16 +422,16 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-disable",
         "PYTHONJITDISABLE",
-        [](string) { use_jit = 0; },
+        [](int val) { use_jit = !val; },
         "disable the JIT");
 
     // these are only set if use_jit == 1
     xarg_flag_processor.addOption(
         "jit-shadow-frame",
         "PYTHONJITSHADOWFRAME",
-        [](string) {
+        [](int val) {
           if (use_jit) {
-            jit_config.frame_mode = SHADOW_FRAME;
+            jit_config.frame_mode = val ? SHADOW_FRAME : PY_FRAME;
           }
         },
         "enable shadow frame mode");
@@ -439,9 +439,9 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-no-type-slots",
         "PYTHONJITNOTYPESLOTS",
-        [](string) {
+        [](int val) {
           if (use_jit) {
-            jit_config.are_type_slots_enabled = 0;
+            jit_config.are_type_slots_enabled = !val;
           }
         },
         "turn off type slots");
@@ -458,9 +458,9 @@ void initFlagProcessor() {
         .addOption(
             "jit-multithreaded-compile-test",
             "PYTHONJITMULTITHREADEDCOMPILETEST",
-            [](string) {
+            [](int val) {
               if (use_jit) {
-                jit_config.multithreaded_compile_test = 1;
+                jit_config.multithreaded_compile_test = val;
               }
             },
             "JIT multithreaded compile test")
@@ -469,9 +469,9 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-list-match-line-numbers",
         "PYTHONJITLISTMATCHLINENUMBERS",
-        [](string) {
+        [](int val) {
           if (use_jit) {
-            jitlist_match_line_numbers(true);
+            jitlist_match_line_numbers(val);
           }
         },
         "JIT list match line numbers");
@@ -479,9 +479,10 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-enable-hir-inliner",
         "PYTHONJITENABLEHIRINLINER",
-        [](string) {
-          JIT_DLOG("Enabling the HIR inliner");
-          _PyJIT_EnableHIRInliner();
+        [](int val) {
+          if (use_jit && val) {
+            _PyJIT_EnableHIRInliner();
+          }
         },
         "Enable the JIT's HIR inliner");
 
