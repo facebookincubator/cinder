@@ -3135,16 +3135,19 @@ main_loop:
             assert(op != NULL);
             int op_val = PyLong_AsLong(op);
 
-            if (op_val == READONLY_MAKE_FUNCTION) {
-                PyFunctionObject *func = (PyFunctionObject *)(TOP());
-                assert(func != NULL);
+            switch (op_val) {
+                case READONLY_MAKE_FUNCTION: {
+                    PyFunctionObject *func = (PyFunctionObject *)(TOP());
+                    assert(func != NULL);
 
-                PyObject *mask = PyTuple_GetItem(tuple, 1);
-                assert(mask != NULL);
+                    PyObject *mask = PyTuple_GetItem(tuple, 1);
+                    assert(mask != NULL);
 
-                func->readonly_mask = PyLong_AsUnsignedLongLong(mask);
-            } else {
-                assert(0);
+                    func->readonly_mask = PyLong_AsUnsignedLongLong(mask);
+                    break;
+                }
+                default:
+                    assert(0);
             }
             DISPATCH();
         }
