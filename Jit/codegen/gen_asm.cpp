@@ -277,7 +277,12 @@ void* NativeGenerator::GetEntryPoint() {
   }
 
   jit::lir::LIRGenerator lirgen(GetFunction(), &env_);
-  auto lir_func = lirgen.TranslateFunction();
+  std::unique_ptr<jit::lir::Function> lir_func;
+
+  COMPILE_TIMER(
+      GetFunction()->compilation_phase_timer,
+      "Lowering into LIR",
+      lir_func = lirgen.TranslateFunction())
 
   JIT_LOGIF(
       g_dump_lir,
@@ -286,14 +291,23 @@ void* NativeGenerator::GetEntryPoint() {
       *lir_func);
 
   PostGenerationRewrite post_gen(lir_func.get(), &env_);
-  post_gen.run();
+  COMPILE_TIMER(
+      GetFunction()->compilation_phase_timer,
+      "LIR transformations",
+      post_gen.run())
 
-  eliminateDeadCode(lir_func.get());
+  COMPILE_TIMER(
+      GetFunction()->compilation_phase_timer,
+      "DeadCodeElimination",
+      eliminateDeadCode(lir_func.get()))
 
   LinearScanAllocator lsalloc(
       lir_func.get(),
       frame_header_size_ + max_inline_depth_ * kShadowFrameSize);
-  lsalloc.run();
+  COMPILE_TIMER(
+      GetFunction()->compilation_phase_timer,
+      "Register Allocation",
+      lsalloc.run())
 
   env_.spill_size = lsalloc.getSpillSize();
   env_.changed_regs = lsalloc.getChangedRegs();
@@ -316,7 +330,10 @@ void* NativeGenerator::GetEntryPoint() {
   setPredefined("__asm_tstate");
 
   PostRegAllocRewrite post_rewrite(lir_func.get(), &env_);
-  post_rewrite.run();
+  COMPILE_TIMER(
+      GetFunction()->compilation_phase_timer,
+      "Post Reg Alloc Rewrite",
+      post_rewrite.run())
 
   lir_func_ = std::move(lir_func);
 
@@ -327,7 +344,11 @@ void* NativeGenerator::GetEntryPoint() {
       *lir_func_);
 
   try {
-    generateCode(code);
+    COMPILE_TIMER(
+        GetFunction()->compilation_phase_timer,
+        "Code Generation",
+        generateCode(code))
+
   } catch (const AsmJitException& ex) {
     String s;
     as_->dump(s);

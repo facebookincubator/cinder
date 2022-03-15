@@ -10,6 +10,7 @@
 #include "Jit/hir/preload.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
+#include "Jit/jit_time_log.h"
 #include "Jit/log.h"
 
 namespace jit {
@@ -39,33 +40,30 @@ void CompiledFunctionDebug::PrintHIR() const {
 template <typename T>
 static void runPass(hir::Function& func) {
   T pass;
-  JIT_LOGIF(
-      g_dump_hir_passes,
-      "HIR for %s before pass %s:\n%s",
-      func.fullname,
-      pass.name(),
-      func);
-  pass.Run(func);
-  JIT_LOGIF(
-      g_dump_hir_passes,
-      "HIR for %s after pass %s:\n%s",
-      func.fullname,
-      pass.name(),
-      func);
+  COMPILE_TIMER(func.compilation_phase_timer,
+                pass.name(),
+                JIT_LOGIF(
+                    g_dump_hir_passes,
+                    "HIR for %s before pass %s:\n%s",
+                    func.fullname,
+                    pass.name(),
+                    func);
 
-  JIT_DCHECK(
-      checkFunc(func, std::cerr),
-      "Function %s failed verification after pass %s:\n%s",
-      func.fullname,
-      pass.name(),
-      func);
+                pass.Run(func);
 
-  JIT_DCHECK(
-      funcTypeChecks(func, std::cerr),
-      "Function %s failed type checking after pass %s:\n%s",
-      func.fullname,
-      pass.name(),
-      func);
+                JIT_LOGIF(
+                    g_dump_hir_passes,
+                    "HIR for %s after pass %s:\n%s",
+                    func.fullname,
+                    pass.name(),
+                    func);
+
+                JIT_DCHECK(
+                    funcTypeChecks(func, std::cerr),
+                    "Function %s failed type checking after pass %s:\n%s",
+                    func.fullname,
+                    pass.name(),
+                    func);)
 }
 
 void Compiler::runPasses(jit::hir::Function& irfunc) {
@@ -116,7 +114,19 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     return nullptr;
   }
   JIT_DLOG("Compiling %s @ %p", fullname, preloader.code());
+
+  std::unique_ptr<CompilationPhaseTimer> compilation_phase_timer{nullptr};
+
+  if (captureCompilationTimeFor(fullname)) {
+    compilation_phase_timer = std::make_unique<CompilationPhaseTimer>(fullname);
+    compilation_phase_timer->start("Overall compilation");
+    compilation_phase_timer->start("Lowering into HIR");
+  }
+
   std::unique_ptr<jit::hir::Function> irfunc(jit::hir::buildHIR(preloader));
+  if (nullptr != compilation_phase_timer) {
+    compilation_phase_timer->end();
+  }
   if (irfunc == nullptr) {
     JIT_DLOG("Lowering to HIR failed %s", fullname);
     return nullptr;
@@ -126,26 +136,42 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     JIT_LOG("Initial HIR for %s:\n%s", fullname, *irfunc);
   }
 
-  Compiler::runPasses(*irfunc);
+  if (nullptr != compilation_phase_timer) {
+    irfunc->setCompilationPhaseTimer(std::move(compilation_phase_timer));
+  }
+
+  COMPILE_TIMER(
+      irfunc->compilation_phase_timer,
+      "HIR transformations",
+      Compiler::runPasses(*irfunc))
 
   auto ngen = ngen_factory_(irfunc.get());
   if (ngen == nullptr) {
     return nullptr;
   }
 
-  auto entry = ngen->GetEntryPoint();
+  void* entry = nullptr;
+  COMPILE_TIMER(
+      irfunc->compilation_phase_timer,
+      "Native code Generation",
+      entry = ngen->GetEntryPoint())
   if (entry == nullptr) {
     JIT_DLOG("Generating native code for %s failed", fullname);
     return nullptr;
   }
 
   JIT_DLOG("Finished compiling %s", fullname);
+  if (nullptr != irfunc->compilation_phase_timer) {
+    irfunc->compilation_phase_timer->end();
+    irfunc->setCompilationPhaseTimer(nullptr);
+  }
 
   int func_size = ngen->GetCompiledFunctionSize();
   int stack_size = ngen->GetCompiledFunctionStackSize();
   int spill_stack_size = ngen->GetCompiledFunctionSpillStackSize();
 
   if (g_debug) {
+    irfunc->setCompilationPhaseTimer(nullptr);
     return std::make_unique<CompiledFunctionDebug>(
         reinterpret_cast<vectorcallfunc>(entry),
         ngen->codeRuntime(),

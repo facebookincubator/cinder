@@ -11,6 +11,7 @@
 #include "Jit/hir/type.h"
 #include "Jit/intrusive_list.h"
 #include "Jit/jit_rt.h"
+#include "Jit/jit_time_log.h"
 #include "Jit/ref.h"
 #include "Jit/stack.h"
 #include "Jit/util.h"
@@ -3906,6 +3907,9 @@ class Function {
 
   Environment env;
 
+  // optional property used to track time taken for individual compilation
+  // phases
+  std::unique_ptr<CompilationPhaseTimer> compilation_phase_timer{nullptr};
   // Return the total number of arguments (positional + kwonly + varargs +
   // varkeywords)
   int numArgs() const;
@@ -3929,6 +3933,10 @@ class Function {
   // Does this function return a primitive double?
   bool returnsPrimitiveDouble() const {
     return return_type <= TCDouble;
+  }
+
+  void setCompilationPhaseTimer(std::unique_ptr<CompilationPhaseTimer> cpt) {
+    compilation_phase_timer = std::move(cpt);
   }
 
  private:

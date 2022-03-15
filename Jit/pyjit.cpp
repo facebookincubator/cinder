@@ -17,6 +17,7 @@
 #include "Jit/jit_flag_processor.h"
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_list.h"
+#include "Jit/jit_time_log.h"
 #include "Jit/lir/inliner.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
@@ -475,6 +476,21 @@ void initFlagProcessor() {
           }
         },
         "JIT list match line numbers");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-time",
+            "",
+            [](string flag_value) { parseAndSetFuncList(flag_value); },
+            "Measure time taken in compilation phases and output summary to "
+            "stderr or approperiate logfile. Only functions in comma seperated "
+            "<function_list> list will be included. Comma seperated list may "
+            "include wildcards, * and ?. Wildcards are processed in glob "
+            "fashion and not as regex.")
+        .withFlagParamName("function_list")
+        .withDebugMessageOverride(
+            "Will capture time taken in compilation phases and output summary");
+    ;
 
     xarg_flag_processor.addOption(
         "jit-enable-hir-inliner",
