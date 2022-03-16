@@ -69,6 +69,7 @@ from .effects import NarrowingEffect, NO_EFFECT
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
     AwaitableType,
+    BoolClass,
     CInstance,
     CType,
     CheckedDictInstance,
@@ -80,7 +81,9 @@ from .types import (
     FunctionContainer,
     GenericClass,
     IsInstanceEffect,
+    MethodType,
     ModuleInstance,
+    Object,
     TypeDescr,
     Slot,
     TType,
@@ -90,6 +93,7 @@ from .types import (
     Value,
     OptionalInstance,
     TransparentDecoratedMethod,
+    resolve_instance_attr_by_name,
 )
 
 if TYPE_CHECKING:
@@ -199,7 +203,7 @@ class TerminalKind(IntEnum):
     RaiseOrReturn = 2
 
 
-class TypeBinder(GenericVisitor):
+class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     """Walks an AST and produces an optionally strongly typed AST, reporting errors when
     operations are occuring that are not sound.  Strong types are based upon places where
     annotations occur which opt-in the strong typing"""
@@ -1620,6 +1624,28 @@ class TypeBinder(GenericVisitor):
             self.visit(node.body)
         self.visit(node.orelse)
         branch.merge()
+
+    def visitWith(self, node: ast.With) -> None:
+        self.visit(node.items)
+        may_suppress_exceptions = False
+        for item in node.items:
+            expr = item.context_expr
+            typ = self.get_type(expr)
+            if isinstance(typ, Object):
+                exit_method_type = resolve_instance_attr_by_name(
+                    expr, "__exit__", typ, self
+                )
+                if isinstance(exit_method_type, MethodType):
+                    exit_ret_type = exit_method_type.function.return_type.resolved()
+                    if (
+                        isinstance(exit_ret_type, BoolClass)
+                        and exit_ret_type.literal_value is False
+                    ):
+                        continue
+            may_suppress_exceptions = True
+        terminates = self.visit_until_terminates(node.body)
+        if not may_suppress_exceptions:
+            self.set_terminal_kind(node, terminates)
 
     def visitwithitem(self, node: ast.withitem) -> None:
         self.visit(node.context_expr)

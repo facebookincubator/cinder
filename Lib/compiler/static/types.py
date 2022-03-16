@@ -143,7 +143,7 @@ from .visitor import GenericVisitor
 if TYPE_CHECKING:
     from . import Static38CodeGenerator
     from .compiler import Compiler
-    from .module_table import AnnotationVisitor, ReferenceVisitor, ModuleTable
+    from .module_table import AnnotationVisitor, ModuleTable
     from .type_binder import BindingScope, TypeBinder
 
 try:
@@ -624,7 +624,7 @@ class Value:
         raise TypeError(f"{self.name} not valid here")
 
     def resolve_attr(
-        self, node: ast.Attribute, visitor: ReferenceVisitor
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
     ) -> Optional[Value]:
         visitor.syntax_error(f"cannot load attribute from {self.name}", node)
 
@@ -663,7 +663,7 @@ class Value:
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         return self
 
@@ -943,24 +943,32 @@ class Value:
         return False
 
 
-def resolve_attr_instance(
+def resolve_instance_attr(
     node: ast.Attribute,
-    inst: Object[TClassInv],
-    klass: TClassInv,
-    visitor: ReferenceVisitor,
+    inst: Object[Class],
+    visitor: GenericVisitor[object],
 ) -> Optional[Value]:
-    for base in klass.mro:
+    for base in inst.klass.mro:
         member = base.members.get(node.attr)
         if member is not None:
-            res = member.resolve_descr_get(node, inst, klass, visitor)
+            res = member.resolve_descr_get(node, inst, inst.klass, visitor)
             if res is not None:
                 return res
 
     if node.attr == "__class__":
-        return klass
+        return inst.klass
     else:
-        return klass.type_env.DYNAMIC
+        return inst.klass.type_env.DYNAMIC
 
+
+def resolve_instance_attr_by_name(
+    base: ast.expr,
+    attr: str,
+    inst: Object[Class],
+    visitor: GenericVisitor[object],
+) -> Optional[Value]:
+    node = ast.Attribute(base, attr, ast.Load())
+    return resolve_instance_attr(node, inst, visitor)
 
 class Object(Value, Generic[TClass]):
     """Represents an instance of a type at compile time"""
@@ -999,9 +1007,9 @@ class Object(Value, Generic[TClass]):
         return self.bind_dynamic_call(node, visitor)
 
     def resolve_attr(
-        self, node: ast.Attribute, visitor: ReferenceVisitor
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
     ) -> Optional[Value]:
-        return resolve_attr_instance(node, self, self.klass, visitor)
+        return resolve_instance_attr(node, self, visitor)
 
     def emit_delete_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
@@ -1355,7 +1363,7 @@ class Class(Object["Class"]):
         return None
 
     def resolve_attr(
-        self, node: ast.Attribute, visitor: ReferenceVisitor
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
     ) -> Optional[Value]:
         for base in self.mro:
             member = base.members.get(node.attr)
@@ -3365,12 +3373,12 @@ class Function(Callable[Class], FunctionContainer):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         if inst is None:
             return self
         else:
-            return MethodType(ctx.type_name, self.node, node, self)
+            return MethodType(ctx.type_name, self.node, node.value, self)
 
     def register_arg(
         self,
@@ -3571,7 +3579,7 @@ class MethodType(Object[Class]):
         self,
         bound_type_name: TypeName,
         node: Union[AsyncFunctionDef, FunctionDef],
-        target: ast.Attribute,
+        target: ast.expr,
         function: Function,
     ) -> None:
         super().__init__(function.klass.type_env.method)
@@ -3592,9 +3600,7 @@ class MethodType(Object[Class]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
-        result = self.function.bind_call_self(
-            node, visitor, type_ctx, self.target.value
-        )
+        result = self.function.bind_call_self(node, visitor, type_ctx, self.target)
         return result
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
@@ -3603,7 +3609,7 @@ class MethodType(Object[Class]):
 
         code_gen.update_lineno(node)
 
-        self.function.emit_call_self(node, code_gen, self.target.value)
+        self.function.emit_call_self(node, code_gen, self.target)
 
 
 class StaticMethodInstanceBound(Object[Class]):
@@ -3618,7 +3624,7 @@ class StaticMethodInstanceBound(Object[Class]):
     def __init__(
         self,
         function: Function,
-        target: ast.Attribute,
+        target: ast.expr,
     ) -> None:
         super().__init__(function.klass.type_env.static_method)
         self.function = function
@@ -3627,9 +3633,7 @@ class StaticMethodInstanceBound(Object[Class]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
-        arg_mapping = ArgMapping(
-            self.function, node, visitor, self.target.value, node.args
-        )
+        arg_mapping = ArgMapping(self.function, node, visitor, self.target, node.args)
         arg_mapping.bind_args(visitor)
 
         visitor.set_type(node, self.function.return_type.resolved().instance)
@@ -3643,7 +3647,7 @@ class StaticMethodInstanceBound(Object[Class]):
         arg_mapping: ArgMapping = code_gen.get_node_data(node, ArgMapping)
         if arg_mapping.needs_virtual_invoke(code_gen):
             # we need self for virtual invoke
-            code_gen.visit(self.target.value)
+            code_gen.visit(self.target)
 
         arg_mapping.emit(code_gen, extra_self=True)
 
@@ -3743,12 +3747,12 @@ class TransparentDecoratedMethod(DecoratedMethod):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         return self.function.resolve_descr_get(node, inst, ctx, visitor)
 
     def resolve_attr(
-        self, node: ast.Attribute, visitor: ReferenceVisitor
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
     ) -> Optional[Value]:
         return self.function.resolve_attr(node, visitor)
 
@@ -3785,14 +3789,14 @@ class StaticMethod(DecoratedMethod):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         if inst is None:
             return self.function
         else:
             # Using .real_function here might not be adequate when we start getting more
             # complex signature changing decorators
-            return StaticMethodInstanceBound(self.real_function, node)
+            return StaticMethodInstanceBound(self.real_function, node.value)
 
 
 class BoundClassMethod(Object[Class]):
@@ -3862,7 +3866,7 @@ class ClassMethod(DecoratedMethod):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         return BoundClassMethod(
             self.real_function, ctx, node.value, is_instance_call=inst is not None
@@ -3892,7 +3896,7 @@ class PropertyMethod(DecoratedMethod):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         if inst is None:
             return self.klass.type_env.dynamic
@@ -4302,7 +4306,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         if inst is None:
             return self
@@ -4310,7 +4314,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
             return (
                 visitor.type_env.DYNAMIC
                 if self.dynamic_dispatch
-                else BuiltinMethod(self, node)
+                else BuiltinMethod(self, node.value)
             )
 
     def make_generic(
@@ -4332,7 +4336,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
 
 
 class BuiltinMethod(Callable[Class]):
-    def __init__(self, desc: BuiltinMethodDescriptor, target: ast.Attribute) -> None:
+    def __init__(self, desc: BuiltinMethodDescriptor, target: ast.expr) -> None:
         super().__init__(
             desc.type_env.method,
             desc.func_name,
@@ -4356,12 +4360,12 @@ class BuiltinMethod(Callable[Class]):
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
         if self.args:
-            return super().bind_call_self(node, visitor, type_ctx, self.target.value)
+            return super().bind_call_self(node, visitor, type_ctx, self.target)
         if node.keywords:
             return Object.bind_call(self, node, visitor, type_ctx)
 
         visitor.set_type(node, self.return_type.resolved().instance)
-        visitor.visit(self.target.value)
+        visitor.visit(self.target)
         for arg in node.args:
             visitor.visitExpectedType(
                 arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
@@ -4376,17 +4380,17 @@ class BuiltinMethod(Callable[Class]):
         code_gen.update_lineno(node)
 
         if self.args is not None:
-            self.desc.emit_call_self(node, code_gen, self.target.value)
+            self.desc.emit_call_self(node, code_gen, self.target)
         else:
             # Untyped method, we can still do an INVOKE_METHOD
 
-            code_gen.visit(self.target.value)
+            code_gen.visit(self.target)
 
             code_gen.update_lineno(node)
             for arg in node.args:
                 code_gen.visit(arg)
 
-            klass = code_gen.get_type(self.target.value).klass
+            klass = code_gen.get_type(self.target).klass
             if klass.is_exact or klass.is_final:
                 code_gen.emit("INVOKE_FUNCTION", (self.type_descr, len(node.args) + 1))
             else:
@@ -4440,7 +4444,7 @@ class Slot(Object[TClassInv]):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         if self.is_typed_descriptor_with_default_value():
             return self._resolved_type.instance
@@ -5366,18 +5370,18 @@ class ListAppendMethod(BuiltinMethodDescriptor):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         if inst is None:
             return self
         else:
-            return ListAppendBuiltinMethod(self, node)
+            return ListAppendBuiltinMethod(self, node.value)
 
 
 class ListAppendBuiltinMethod(BuiltinMethod):
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         if len(node.args) == 1 and not node.keywords:
-            code_gen.visit(self.target.value)
+            code_gen.visit(self.target)
             code_gen.visit(node.args[0])
             code_gen.emit("LIST_APPEND", 1)
             return
@@ -6858,9 +6862,13 @@ class CEnumInstance(CInstance["CEnumType"]):
         )
 
     def resolve_attr(
-        self, node: ast.Attribute, visitor: ReferenceVisitor
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
     ) -> Optional[Value]:
-        return resolve_attr_instance(node, self.boxed, self.klass, visitor)
+        # pyre-ignore[6]: resolve_attr_instance expects an Object, but since
+        # we're a primitive type we aren't an Object. In practice it works (for
+        # now), but this is a symptom of the conceptual weirdness of CEnums --
+        # they are primitives and yet they can have methods and attributes!?!
+        return resolve_instance_attr(node, self, visitor)
 
     def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
         code_gen.emit("PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
@@ -7682,7 +7690,7 @@ class ModuleInstance(Object["ModuleType"]):
         super().__init__(klass=compiler.type_env.module)
 
     def resolve_attr(
-        self, node: ast.Attribute, visitor: ReferenceVisitor
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
     ) -> Optional[Value]:
         if node.attr in self.SPECIAL_NAMES:
             return super().resolve_attr(node, visitor)
@@ -7910,7 +7918,7 @@ class ContextDecoratedMethod(DecoratedMethod):
         node: ast.Attribute,
         inst: Optional[Object[TClassInv]],
         ctx: TClassInv,
-        visitor: ReferenceVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         return self.function.resolve_descr_get(node, inst, ctx, visitor)
 

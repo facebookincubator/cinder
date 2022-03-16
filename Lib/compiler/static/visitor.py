@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from .types import TypeEnvironment
 
 
-TVisitRet = TypeVar("TVisitRet")
+TVisitRet = TypeVar("TVisitRet", covariant=True)
 
 
 class GenericVisitor(ASTVisitor, Generic[TVisitRet]):

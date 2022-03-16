@@ -206,3 +206,47 @@ class InferenceTests(StaticTestBase):
                 reveal_type(x)
         """
         self.type_error(codestr, r"reveal_type\(x\): 'Optional\[int\]'")
+
+    def test_context_manager_returning_literal_false_does_not_suppress(self) -> None:
+        codestr = """
+            from typing import Literal
+
+            class MyCM:
+                def __enter__(self) -> None:
+                    pass
+
+                def __exit__(self, exc_type, exc_value, exc_tb) -> Literal[False]:
+                    return False
+
+            def g() -> int:
+                return 1
+
+            def f(x: int | None) -> int:
+                if x is None:
+                    with MyCM():
+                        return g()
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_context_manager_returning_bool_may_suppress(self) -> None:
+        codestr = """
+            from typing import Literal
+
+            class MyCM:
+                def __enter__(self) -> None:
+                    pass
+
+                def __exit__(self, exc_type, exc_value, exc_tb) -> bool:
+                    return False
+
+            def g() -> int:
+                return 1
+
+            def f(x: int | None) -> int:
+                if x is None:
+                    with MyCM():
+                        return g()
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "Optional[int]")
