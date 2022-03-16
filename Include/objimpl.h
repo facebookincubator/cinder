@@ -5,7 +5,6 @@
 #ifndef Py_OBJIMPL_H
 #define Py_OBJIMPL_H
 
-#include "immutable_globals.h"
 #include "pymem.h"
 
 #ifdef __cplusplus
@@ -123,9 +122,6 @@ PyAPI_FUNC(PyVarObject *) PyObject_InitVar(PyVarObject *,
 PyAPI_FUNC(PyObject *) _PyObject_New(PyTypeObject *);
 PyAPI_FUNC(PyVarObject *) _PyObject_NewVar(PyTypeObject *, Py_ssize_t);
 
-// Helper function to make make an Object immutable
-void _make_immutable(PyObject* obj);
-
 #define PyObject_New(type, typeobj) \
                 ( (type *) _PyObject_New(typeobj) )
 #define PyObject_NewVar(type, typeobj, n) \
@@ -142,9 +138,6 @@ _PyObject_INIT(PyObject *op, PyTypeObject *typeobj)
 {
     assert(op != NULL);
     Py_TYPE(op) = typeobj;
-    if (__immutable_globals_creation) {
-        _make_immutable(op);
-    }
     if (PyType_GetFlags(typeobj) & Py_TPFLAGS_HEAPTYPE) {
         Py_INCREF(typeobj);
     }

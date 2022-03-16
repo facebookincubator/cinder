@@ -276,14 +276,6 @@ PyObject_InitVar(PyVarObject *op, PyTypeObject *tp, Py_ssize_t size)
     return op;
 }
 
-void _make_immutable(PyObject* obj){
-    // TODO Handle dict subclasses
-    if PyDict_CheckExact(obj){
-        Py_TYPE(obj) = &PyIDict_Type;
-    }
-}
-
-
 PyObject *
 _PyObject_New(PyTypeObject *tp)
 {
@@ -1933,7 +1925,6 @@ _PyTypes_Init(void)
     INIT_TYPE(&PySuper_Type, "super");
     INIT_TYPE(&PyRange_Type, "range");
     INIT_TYPE(&PyDict_Type, "dict");
-    INIT_TYPE(&PyIDict_Type, "ImmutableDict");
     INIT_TYPE(&PyDictKeys_Type, "dict keys");
     INIT_TYPE(&PyDictValues_Type, "dict values");
     INIT_TYPE(&PyDictItems_Type, "dict items");

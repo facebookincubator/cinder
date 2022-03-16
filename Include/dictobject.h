@@ -18,12 +18,7 @@ PyAPI_DATA(PyTypeObject) PyDict_Type;
                  PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_DICT_SUBCLASS)
 #define PyDict_CheckExact(op) (Py_TYPE(op) == &PyDict_Type)
 
-PyAPI_DATA(PyTypeObject) PyIDict_Type;
-
-#define PyIDict_CheckExact(op) (Py_TYPE(op) == &PyIDict_Type)
-
 PyAPI_FUNC(PyObject *) PyDict_New(void);
-PyAPI_FUNC(PyObject *) PyDict_New_No_Immutable(void);
 PyAPI_FUNC(PyObject *) PyDict_GetItem(PyObject *mp, PyObject *key);
 PyAPI_FUNC(PyObject *) PyDict_GetItemWithError(PyObject *mp, PyObject *key);
 PyAPI_FUNC(PyObject *) PyDict_GetUnresolvedItem(PyObject *mp, PyObject *key);

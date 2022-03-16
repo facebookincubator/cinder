@@ -3354,7 +3354,7 @@ main_loop:
 
         case TARGET(BUILD_MAP_UNPACK_WITH_CALL): {
             Py_ssize_t i;
-            PyObject *sum = PyDict_New_No_Immutable();
+            PyObject *sum = PyDict_New();
             if (sum == NULL)
                 goto error;
 
@@ -4164,7 +4164,7 @@ main_loop:
             if (oparg & 0x01) {
                 kwargs = POP();
                 if (!PyDict_CheckExact(kwargs)) {
-                    PyObject *d = PyDict_New_No_Immutable();
+                    PyObject *d = PyDict_New();
                     if (d == NULL)
                         goto error;
                     if (_PyDict_MergeEx(d, kwargs, 2) < 0) {

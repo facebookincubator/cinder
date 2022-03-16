@@ -173,9 +173,6 @@ int Py_LegacyWindowsStdioFlag = 0; /* Uses FileIO instead of WindowsConsoleIO */
 int Py_LazyImportsAllFlag = 0; /* Needed by ceval.c */
 int Py_LazyImportsWarmupFlag = 0; /* Needed by ceval.c */
 
-int __immutable_globals_creation = 0; /* Defines if immutable_globals compatibile immutable objects should be created */
-int __immutable_globals_detection = 0; /* Defines if mutations to immutable_globals compatible immutable objects should be reported */
-
 
 static PyObject *
 _Py_GetGlobalVariablesAsDict(void)

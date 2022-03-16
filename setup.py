@@ -758,9 +758,6 @@ class PyBuildExt(build_ext):
         self.add(Extension("_random", ["_randommodule.c"]))
         # bisect
         self.add(Extension("_bisect", ["_bisectmodule.c"]))
-        # immutable_globals
-        self.add(Extension('_immutable_globals', ['_immutable_globals.c'],
-                           extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
         # heapq
         self.add(Extension("_heapq", ["_heapqmodule.c"]))
         # C-optimized pickle replacement

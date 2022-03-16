@@ -868,16 +868,6 @@ PyDict_New(void)
     return new_dict(Py_EMPTY_KEYS, empty_values);
 }
 
-PyObject *
-PyDict_New_No_Immutable(void)
-{
-    dictkeys_incref(Py_EMPTY_KEYS);
-    PyObject * d = new_dict(Py_EMPTY_KEYS, empty_values);
-    assert((Py_TYPE(d) == &PyDict_Type || Py_TYPE(d) == &PyIDict_Type));
-    Py_TYPE(d) = &PyDict_Type;
-    return d;
-}
-
 /* Search index of hash table from offset of entry table */
 static Py_ssize_t
 lookdict_index(PyDictKeysObject *k, Py_hash_t hash, Py_ssize_t index)
@@ -4018,49 +4008,6 @@ PyDoc_STRVAR(dictionary_doc,
 PyTypeObject PyDict_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "dict",
-    sizeof(PyDictObject),
-    0,
-    (destructor)dict_dealloc,                   /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_as_async */
-    (reprfunc)dict_repr,                        /* tp_repr */
-    0,                                          /* tp_as_number */
-    &dict_as_sequence,                          /* tp_as_sequence */
-    &dict_as_mapping,                           /* tp_as_mapping */
-    PyObject_HashNotImplemented,                /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    PyObject_GenericGetAttr,                    /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-        Py_TPFLAGS_BASETYPE | Py_TPFLAGS_DICT_SUBCLASS,         /* tp_flags */
-    dictionary_doc,                             /* tp_doc */
-    dict_traverse,                              /* tp_traverse */
-    dict_tp_clear,                              /* tp_clear */
-    dict_richcompare,                           /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    (getiterfunc)dict_iter,                     /* tp_iter */
-    0,                                          /* tp_iternext */
-    mapp_methods,                               /* tp_methods */
-    0,                                          /* tp_members */
-    0,                                          /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    dict_init,                                  /* tp_init */
-    PyType_GenericAlloc,                        /* tp_alloc */
-    dict_new,                                   /* tp_new */
-    PyObject_GC_Del,                            /* tp_free */
-};
-
-PyTypeObject PyIDict_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "ImmutableDict",
     sizeof(PyDictObject),
     0,
     (destructor)dict_dealloc,                   /* tp_dealloc */
