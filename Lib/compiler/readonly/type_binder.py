@@ -700,12 +700,21 @@ class ReadonlyTypeBinder(ASTVisitor):
 
     # ------------------------- Statements --------------------------------
 
-    def assign_to(self, lhs: AST, rhs: AST, node: AST) -> None:
+    def assign_to(
+        self,
+        lhs: AST,
+        rhs: AST,
+        node: AST,
+        override_rhs_readonly: Optional[Value] = None,
+    ) -> None:
         """
         Checks whether rhs can be assigned to lhs without
         breaking readonly constraints
         """
-        rhs_readonly = self.bind_types[rhs]
+        if override_rhs_readonly:
+            rhs_readonly = override_rhs_readonly
+        else:
+            rhs_readonly = self.bind_types[rhs]
         if isinstance(lhs, ast.Name):
             lname = lhs.id
             name_scope = self.scope.check_name(lname)
@@ -900,8 +909,17 @@ class ReadonlyTypeBinder(ASTVisitor):
     def _visitWith(self, node: ast.With | ast.AsyncWith) -> None:
         for it in node.items:
             self.visit(it.context_expr)
+            readonlyness = MUTABLE
+            if is_readonly_wrapped(it.context_expr):
+                readonlyness = READONLY
+
             if it.optional_vars:
-                self.assign_to(it.optional_vars, it.context_expr, node)
+                self.assign_to(
+                    it.optional_vars,
+                    it.context_expr,
+                    node,
+                    override_rhs_readonly=readonlyness,
+                )
         self.walk_list(node.body)
 
     def visitWith(self, node: ast.With) -> None:

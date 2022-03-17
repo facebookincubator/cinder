@@ -656,11 +656,7 @@ class TypeBinderTests(ReadonlyTestBase):
                 d = c
         """
         errors = self.lint(code)
-        errors.check(
-            errors.match(
-                "cannot assign readonly value to mutable 'd'. Remember to declare name as readonly explicitly"
-            ),
-        )
+        self.assertEqual(errors.errors, [])
 
     def test_readonly_with_good(self) -> None:
         code = """
