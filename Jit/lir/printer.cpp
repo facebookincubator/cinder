@@ -153,5 +153,131 @@ void Printer::print(std::ostream& out, const MemoryIndirect& ind) {
   fmt::print(out, "]");
 }
 
+nlohmann::json JSONPrinter::print(const Function& func, const char* pass_name) {
+  nlohmann::json result;
+  result["name"] = pass_name;
+  result["type"] = "ssa";
+  nlohmann::json blocks;
+  for (auto& block : func.basicblocks()) {
+    blocks.emplace_back(print(*block));
+  }
+  result["blocks"] = blocks;
+  return result;
+}
+
+static nlohmann::json blockList(std::vector<BasicBlock*>& blocks) {
+  JIT_CHECK(!blocks.empty(), "should not add empty list");
+  nlohmann::json result;
+  for (auto block : blocks) {
+    result.emplace_back(fmt::format("BB%{}", block->id()));
+  }
+  return result;
+}
+
+static bool endsBlock(const Instruction* instr) {
+  return instr->isTerminator() || instr->isAnyBranch();
+}
+
+nlohmann::json JSONPrinter::print(const BasicBlock& block) {
+  nlohmann::json result;
+  result["name"] = fmt::format("BB%{}", block.id());
+  std::vector<BasicBlock*> preds(block.predecessors());
+  // Predecessors are already sorted; don't sort.
+  if (!preds.empty()) {
+    result["preds"] = blockList(preds);
+  }
+  nlohmann::json instrs = nlohmann::json::array();
+  for (auto& instr : block.instructions()) {
+    if (endsBlock(instr.get())) {
+      // Handle specially below
+      break;
+    }
+    instrs.emplace_back(print(*instr));
+  }
+  result["instrs"] = instrs;
+  {
+    const Instruction* instr = block.getLastInstr();
+    if (instr == nullptr || !endsBlock(instr)) {
+      nlohmann::json terminator;
+      terminator["opcode"] = "Fallthrough";
+      result["terminator"] = terminator;
+    } else {
+      result["terminator"] = print(*instr);
+    }
+    std::vector<BasicBlock*> succs(block.successors());
+    // Successors are not sorted; sort.
+    std::sort(succs.begin(), succs.end(), [](auto& a, auto& b) {
+      return a->id() < b->id();
+    });
+    if (!succs.empty()) {
+      result["succs"] = blockList(succs);
+    }
+  }
+  return result;
+}
+
+nlohmann::json JSONPrinter::print(const Instruction& instr) {
+  nlohmann::json result;
+  const Operand* output = instr.output();
+  result["line"] = instr.origin() ? instr.origin()->lineNumber() : -1;
+  if (output->type() != OperandBase::kNone) {
+    result["output"] = print(*output);
+    // TODO(emacs): Type
+  }
+  // TODO(emacs): Use Instr::opname()
+  result["opcode"] = InstrProperty::getProperties(&instr).name;
+  nlohmann::json operands = nlohmann::json::array();
+  // TODO(enacs): Maybe special case Phi
+  instr.foreachInputOperand([&operands, this](const OperandBase* operand) {
+    operands.emplace_back(print(*operand));
+  });
+  result["operands"] = operands;
+  return result;
+}
+
+std::string JSONPrinter::print(const OperandBase& operand) {
+  if (operand.isLinked()) {
+    auto linked_opnd =
+        static_cast<const LinkedOperand&>(operand).getLinkedOperand();
+    return print(*linked_opnd);
+  }
+
+  std::stringstream ss;
+  switch (operand.type()) {
+    case OperandBase::kVreg:
+      ss << "%" << operand.instr()->id();
+      break;
+    case OperandBase::kReg:
+      ss << PhyLocation(operand.getPhyRegister());
+      break;
+    case OperandBase::kStack:
+      ss << PhyLocation(operand.getStackSlot());
+      break;
+    case OperandBase::kMem:
+      ss << "[" << std::hex << operand.getMemoryAddress() << "]" << std::dec;
+      break;
+    case OperandBase::kInd:
+      ss << *operand.getMemoryIndirect();
+      break;
+    case OperandBase::kImm:
+      fmt::print(ss, "{0}({0:#x})", operand.getConstant());
+      break;
+    case OperandBase::kLabel:
+      // TODO(emacs): Fix and print as ssa-block
+      ss << "BB%" << operand.getBasicBlock()->id();
+      break;
+    case OperandBase::kNone:
+      // TODO(emacs): Fix and print as something else
+      ss << "<!!!None!!!>";
+      break;
+  }
+
+  if (!operand.isLabel()) {
+    ss << ":" << operand.getSizeName();
+  }
+
+  return ss.str();
+}
+
 } // namespace lir
 } // namespace jit

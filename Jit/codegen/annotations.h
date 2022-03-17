@@ -4,6 +4,7 @@
 #include "Jit/lir/instruction.h"
 
 #include <asmjit/asmjit.h>
+#include <json.hpp>
 
 #include <string>
 #include <vector>
@@ -41,7 +42,7 @@ class Annotations {
   // description.
   template <typename T>
   void add(T&& item, asmjit::x86::Builder* as, asmjit::BaseNode* start_cursor) {
-    if (!g_dump_asm) {
+    if (!g_dump_asm && !g_dump_hir_passes_json) {
       return;
     }
     auto end_cursor = as->cursor();
@@ -59,6 +60,12 @@ class Annotations {
 
   // Return an annotated disassembly of the given code.
   std::string disassemble(void* entry, const asmjit::CodeHolder& code);
+
+  // Disassemble JSON representation of the given code.
+  void disassembleJSON(
+      nlohmann::json& json,
+      void* entry,
+      const asmjit::CodeHolder& code);
 
  private:
   // Annotations mapping Label ranges to either an LIR instruction or a string

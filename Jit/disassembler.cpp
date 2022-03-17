@@ -62,10 +62,14 @@ Disassembler::~Disassembler() {
   ss_free(sfile_);
 }
 
+std::string Disassembler::codeAddress() {
+  return fmt::format("{:#0{}x}", vma_ + start_, addr_len_);
+}
+
 std::string Disassembler::disassembleOne(int* instr_length) {
   std::string result;
   if (print_addr_) {
-    format_to(result, "{:#0{}x}:{:8}", vma_ + start_, addr_len_, "");
+    format_to(result, "{}:{:8}", codeAddress(), "");
   }
 
   int length = print_insn(vma_ + start_, &info_);

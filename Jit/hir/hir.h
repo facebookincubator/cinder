@@ -697,6 +697,19 @@ class Instr {
     setBytecodeOffset(instr.bytecodeOffset());
   }
 
+  int lineNumber() const {
+    PyCodeObject* code = this->code();
+    if (code == nullptr) {
+      return -1;
+    }
+    return PyCode_Addr2Line(code, bytecodeOffset());
+  }
+
+  // This assumes that inlined functions have a dominating FrameState from
+  // BeginInlinedFunction to use. If we start optimizing that out for inlined
+  // functions that cannot deopt, we will have to do something different.
+  virtual BorrowedRef<PyCodeObject> code() const;
+
  protected:
   DISALLOW_COPY_AND_ASSIGN(Instr);
 
@@ -802,6 +815,15 @@ class DeoptBase : public Instr {
 
   std::unique_ptr<FrameState> takeFrameState() {
     return std::move(frame_state_);
+  }
+
+  BorrowedRef<PyCodeObject> code() const override {
+    FrameState* state = frameState();
+    if (state == nullptr) {
+      // TODO(emacs): Why does GuardIs have a null FrameState after SSAify?
+      return nullptr;
+    }
+    return state->code;
   }
 
   bool visitUses(const std::function<bool(Register*&)>& func) override {
@@ -2674,7 +2696,7 @@ class INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
       int name_idx)
       : InstrT(dst), code_(code), globals_(globals), name_idx_(name_idx) {}
 
-  BorrowedRef<PyCodeObject> code() const {
+  virtual BorrowedRef<PyCodeObject> code() const {
     return code_;
   }
 

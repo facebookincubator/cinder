@@ -655,7 +655,8 @@ static void simplifyRedundantCondBranches(CFG* cfg) {
   for (auto& block : to_simplify) {
     auto term = block->GetTerminator();
     term->unlink();
-    auto branch = block->append<Branch>(term->successor(0));
+    auto branch = block->appendWithOff<Branch>(
+        term->bytecodeOffset(), term->successor(0));
     branch->copyBytecodeOffset(*term);
     delete term;
   }

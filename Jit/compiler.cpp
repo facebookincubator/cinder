@@ -13,6 +13,11 @@
 #include "Jit/jit_time_log.h"
 #include "Jit/log.h"
 
+#include <json.hpp>
+
+#include <chrono>
+#include <fstream>
+
 namespace jit {
 
 ThreadedCompileContext g_threaded_compile_context;
@@ -37,8 +42,20 @@ void CompiledFunctionDebug::PrintHIR() const {
   printer.Print(*irfunc_.get());
 }
 
+struct PassTimer {
+  explicit PassTimer() : start(std::chrono::steady_clock::now()) {}
+
+  std::size_t finish() {
+    auto end = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
+        .count();
+  }
+
+  std::chrono::steady_clock::time_point start;
+};
+
 template <typename T>
-static void runPass(hir::Function& func) {
+static void runPass(hir::Function& func, PostPassFunction callback) {
   T pass;
   COMPILE_TIMER(func.compilation_phase_timer,
                 pass.name(),
@@ -49,7 +66,10 @@ static void runPass(hir::Function& func) {
                     pass.name(),
                     func);
 
+                PassTimer timer;
                 pass.Run(func);
+                std::size_t time_ns = timer.finish();
+                callback(func, pass.name(), time_ns);
 
                 JIT_LOGIF(
                     g_dump_hir_passes,
@@ -67,20 +87,26 @@ static void runPass(hir::Function& func) {
 }
 
 void Compiler::runPasses(jit::hir::Function& irfunc) {
-  // SSAify must come first; nothing but SSAify should ever see non-SSA HIR.
-  runPass<jit::hir::SSAify>(irfunc);
-  runPass<jit::hir::Simplify>(irfunc);
-  runPass<jit::hir::DynamicComparisonElimination>(irfunc);
-  runPass<jit::hir::GuardTypeRemoval>(irfunc);
-  runPass<jit::hir::CallOptimization>(irfunc);
-  runPass<jit::hir::PhiElimination>(irfunc);
-  if (_PyJIT_IsHIRInlinerEnabled()) {
-    runPass<jit::hir::InlineFunctionCalls>(irfunc);
-    runPass<jit::hir::Simplify>(irfunc);
-  }
-  runPass<jit::hir::DeadCodeElimination>(irfunc);
-  runPass<jit::hir::RefcountInsertion>(irfunc);
+  PostPassFunction callback = [](hir::Function&, const char*, std::size_t) {};
+  runPasses(irfunc, callback);
+}
 
+void Compiler::runPasses(
+    jit::hir::Function& irfunc,
+    PostPassFunction callback) {
+  // SSAify must come first; nothing but SSAify should ever see non-SSA HIR.
+  runPass<jit::hir::SSAify>(irfunc, callback);
+  runPass<jit::hir::Simplify>(irfunc, callback);
+  runPass<jit::hir::DynamicComparisonElimination>(irfunc, callback);
+  runPass<jit::hir::GuardTypeRemoval>(irfunc, callback);
+  runPass<jit::hir::CallOptimization>(irfunc, callback);
+  runPass<jit::hir::PhiElimination>(irfunc, callback);
+  if (_PyJIT_IsHIRInlinerEnabled()) {
+    runPass<jit::hir::InlineFunctionCalls>(irfunc, callback);
+    runPass<jit::hir::Simplify>(irfunc, callback);
+  }
+  runPass<jit::hir::DeadCodeElimination>(irfunc, callback);
+  runPass<jit::hir::RefcountInsertion>(irfunc, callback);
   JIT_LOGIF(
       g_dump_final_hir, "Optimized HIR for %s:\n%s", irfunc.fullname, irfunc);
 }
@@ -140,14 +166,40 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     irfunc->setCompilationPhaseTimer(std::move(compilation_phase_timer));
   }
 
-  COMPILE_TIMER(
-      irfunc->compilation_phase_timer,
-      "HIR transformations",
-      Compiler::runPasses(*irfunc))
+  std::unique_ptr<nlohmann::json> json{nullptr};
+  if (g_dump_hir_passes_json != nullptr) {
+    // TODO(emacs): For inlined functions, grab the sources from all the
+    // different functions inlined.
+    json.reset(new nlohmann::json());
+    nlohmann::json passes;
+    hir::JSONPrinter hir_printer;
+    passes.emplace_back(hir_printer.PrintSource(*irfunc));
+    passes.emplace_back(hir_printer.PrintBytecode(*irfunc));
+    PostPassFunction dump =
+        [&hir_printer, &passes](
+            hir::Function& func, const char* pass_name, std::size_t time_ns) {
+          hir_printer.Print(passes, func, pass_name, time_ns);
+        };
+    COMPILE_TIMER(
+        irfunc->compilation_phase_timer,
+        "HIR transformations",
+        Compiler::runPasses(*irfunc, dump))
+    (*json)["fullname"] = fullname;
+    (*json)["cols"] = passes;
+  } else {
+    COMPILE_TIMER(
+        irfunc->compilation_phase_timer,
+        "HIR transformations",
+        Compiler::runPasses(*irfunc))
+  }
 
   auto ngen = ngen_factory_(irfunc.get());
   if (ngen == nullptr) {
     return nullptr;
+  }
+
+  if (g_dump_hir_passes_json != nullptr) {
+    ngen->SetJSONOutput(json.get());
   }
 
   void* entry = nullptr;
@@ -169,6 +221,17 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   int func_size = ngen->GetCompiledFunctionSize();
   int stack_size = ngen->GetCompiledFunctionStackSize();
   int spill_stack_size = ngen->GetCompiledFunctionSpillStackSize();
+
+  if (g_dump_hir_passes_json != nullptr) {
+    std::string filename =
+        fmt::format("{}/function_{}.json", g_dump_hir_passes_json, fullname);
+    std::ofstream json_file;
+    json_file.open(
+        filename,
+        std::ios_base::out | std::ios_base::trunc | std::ios_base::binary);
+    json_file << json->dump() << std::endl;
+    json_file.close();
+  }
 
   if (g_debug) {
     irfunc->setCompilationPhaseTimer(nullptr);

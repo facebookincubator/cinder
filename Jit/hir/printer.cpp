@@ -7,8 +7,10 @@
 #include "Jit/util.h"
 
 #include <fmt/format.h>
+#include <json.hpp>
 
 #include <algorithm>
+#include <fstream>
 #include <sstream>
 #include <vector>
 
@@ -138,42 +140,23 @@ static void print_reg_states(
   }
 }
 
-static PyCodeObject* get_code(const Instr& instr) {
-  if (instr.IsLoadGlobalCached()) {
-    return static_cast<const LoadGlobalCached&>(instr).code();
-  }
-  if (auto deopt = dynamic_cast<const DeoptBase*>(&instr)) {
-    return deopt->frameState()->code;
-  }
-  if (instr.IsLoadArg()) {
-    // LoadArg does not have a FrameState because there are no snapshots, but
-    // there will only ever be LoadArgs in the current (top-level) function,
-    // even with an HIR inliner.
-    auto block = instr.block();
-    if (block == nullptr) {
-      return nullptr;
+static const int kMaxASCII = 127;
+
+static std::string escape_non_ascii(const std::string& str) {
+  std::string result;
+  for (size_t i = 0; i < str.size(); ++i) {
+    unsigned char c = str[i];
+    if (c > kMaxASCII) {
+      result += '\\';
+      result += std::to_string(c);
+    } else {
+      result += static_cast<char>(c);
     }
-    auto cfg = block->cfg;
-    if (cfg == nullptr) {
-      return nullptr;
-    }
-    auto func = cfg->func;
-    if (func == nullptr) {
-      return nullptr;
-    }
-    return func->code;
   }
-  return nullptr;
+  return result;
 }
 
-static std::string escape_unicode(PyObject* str) {
-  Py_ssize_t size;
-  const char* data = PyUnicode_AsUTF8AndSize(str, &size);
-  if (data == nullptr) {
-    PyErr_Clear();
-    return "";
-  }
-
+static std::string escape_unicode(const char* data, Py_ssize_t size) {
   std::string ret = "\"";
   for (Py_ssize_t i = 0; i < size; ++i) {
     char c = data[i];
@@ -187,12 +170,27 @@ static std::string escape_unicode(PyObject* str) {
         ret += "\\n";
         break;
       default:
-        ret += c;
+        if (static_cast<unsigned char>(c) > kMaxASCII) {
+          ret += '\\';
+          ret += std::to_string(static_cast<unsigned char>(c));
+        } else {
+          ret += c;
+        }
         break;
     }
   }
   ret += '"';
   return ret;
+}
+
+static std::string escape_unicode(PyObject* str) {
+  Py_ssize_t size;
+  const char* data = PyUnicode_AsUTF8AndSize(str, &size);
+  if (data == nullptr) {
+    PyErr_Clear();
+    return "";
+  }
+  return escape_unicode(data, size);
 }
 
 static std::string format_name_impl(int idx, PyObject* names) {
@@ -201,7 +199,7 @@ static std::string format_name_impl(int idx, PyObject* names) {
 }
 
 static std::string format_name(const Instr& instr, int idx) {
-  auto code = get_code(instr);
+  auto code = instr.code();
   if (idx < 0 || code == nullptr) {
     return fmt::format("{}", idx);
   }
@@ -210,7 +208,7 @@ static std::string format_name(const Instr& instr, int idx) {
 }
 
 static std::string format_load_super(const LoadSuperBase& load) {
-  auto code = get_code(load);
+  auto code = load.code();
   if (code == nullptr) {
     return fmt::format("{} {}", load.name_idx(), load.no_args_in_super_call());
   }
@@ -221,7 +219,7 @@ static std::string format_load_super(const LoadSuperBase& load) {
 }
 
 static std::string format_varname(const Instr& instr, int idx) {
-  auto code = get_code(instr);
+  auto code = instr.code();
   if (idx < 0 || code == nullptr) {
     return fmt::format("{}", idx);
   }
@@ -766,6 +764,189 @@ void HIRPrinter::Print(std::ostream& os, const FrameState& state) {
     Dedent();
     Indented(os) << "}" << std::endl;
   }
+}
+
+static int lastLineNumber(PyCodeObject* code) {
+  int last_line = -1;
+  for (Py_ssize_t off = 0; off < code->co_codelen;
+       off += sizeof(_Py_CODEUNIT)) {
+    last_line = std::max(last_line, PyCode_Addr2Line(code, off));
+  }
+  return last_line;
+}
+
+nlohmann::json JSONPrinter::PrintSource(const Function& func) {
+  PyCodeObject* code = func.code;
+  if (code == nullptr) {
+    // No code; must be from a test;
+    return nlohmann::json();
+  }
+  PyObject* co_filename = code->co_filename;
+  JIT_CHECK(co_filename != nullptr, "filename must not be null");
+  const char* filename = PyUnicode_AsUTF8(co_filename);
+  if (filename == nullptr) {
+    PyErr_Clear();
+    return nlohmann::json();
+  }
+  std::ifstream infile(filename);
+  if (!infile) {
+    // TODO(emacs): Does this handle nonexistent files?
+    return nlohmann::json();
+  }
+  nlohmann::json result;
+  result["name"] = "Source";
+  result["type"] = "text";
+  result["filename"] = filename;
+  int start = code->co_firstlineno;
+  result["first_line_number"] = start;
+  nlohmann::json lines;
+  int end = lastLineNumber(code);
+  std::string line;
+  int count = 0;
+  while (std::getline(infile, line)) {
+    count++;
+    if (count > end) {
+      break;
+    } // done
+    if (count < start) {
+      continue;
+    } // too early
+    lines.emplace_back(line);
+  }
+  infile.close();
+  result["lines"] = lines;
+  return result;
+}
+
+// TODO(emacs): Fake line numbers using instruction addresses to better
+// associate how instructions change over time
+// TODO(emacs): Make JSON utils so we stop copying so much stuff around
+
+#define MAKE_OPNAME(opname, opnum) {opnum, #opname},
+static std::unordered_map<unsigned, const char*> kOpnames{
+    PY_OPCODES(MAKE_OPNAME)};
+#undef MAKE_OPNAME
+
+// TODO(emacs): Write basic blocks for bytecode (using BytecodeInstructionBlock
+// and BlockMap?). Need to figure out how to allocate block IDs without
+// actually modifying the HIR function in place.
+nlohmann::json JSONPrinter::PrintBytecode(const Function& func) {
+  nlohmann::json result;
+  result["name"] = "Bytecode";
+  result["type"] = "asm";
+  nlohmann::json block;
+  block["name"] = "bb0";
+  nlohmann::json instrs_json = nlohmann::json::array();
+  PyCodeObject* code = func.code;
+  _Py_CODEUNIT* instrs = code->co_rawcode;
+  Py_ssize_t num_instrs = code->co_codelen / sizeof(_Py_CODEUNIT);
+  for (Py_ssize_t i = 0, off = 0; i < num_instrs;
+       i++, off += sizeof(_Py_CODEUNIT)) {
+    unsigned char opcode = _Py_OPCODE(instrs[i]);
+    unsigned char oparg = _Py_OPARG(instrs[i]);
+    nlohmann::json instr;
+    instr["address"] = off;
+    instr["line"] = PyCode_Addr2Line(code, off);
+    instr["opcode"] = fmt::format("{} {}", kOpnames[opcode], oparg);
+    instrs_json.emplace_back(instr);
+  }
+  block["instrs"] = instrs_json;
+  result["blocks"] = nlohmann::json::array({block});
+  return result;
+}
+
+nlohmann::json JSONPrinter::Print(const Instr& instr) {
+  nlohmann::json result;
+  result["line"] = instr.lineNumber();
+  Register* output = instr.GetOutput();
+  if (output != nullptr) {
+    result["output"] = output->name();
+    if (output->type() != TTop) {
+      // Output must be escaped since literal Python values such as \222 can be
+      // in the type.
+      result["type"] = escape_non_ascii(output->type().toString());
+    }
+  }
+  std::string opcode = instr.opname();
+  auto immed = format_immediates(instr);
+  if (!immed.empty()) {
+    // Output must be escaped since literal Python values such as \222 can be
+    // in the type.
+    opcode += "<" + escape_non_ascii(immed) + ">";
+  }
+  result["opcode"] = opcode;
+  nlohmann::json operands = nlohmann::json::array();
+  for (size_t i = 0, n = instr.NumOperands(); i < n; i++) {
+    auto op = instr.GetOperand(i);
+    if (op != nullptr) {
+      operands.emplace_back(op->name());
+    } else {
+      operands.emplace_back(nlohmann::json());
+    }
+  }
+  result["operands"] = operands;
+  return result;
+}
+
+nlohmann::json JSONPrinter::Print(const BasicBlock& block) {
+  nlohmann::json result;
+  result["name"] = fmt::format("bb{}", block.id);
+  auto& in_edges = block.in_edges();
+  nlohmann::json preds = nlohmann::json::array();
+  if (!in_edges.empty()) {
+    std::vector<const Edge*> edges(in_edges.begin(), in_edges.end());
+    std::sort(edges.begin(), edges.end(), [](auto& e1, auto& e2) {
+      return e1->from()->id < e2->from()->id;
+    });
+    for (auto edge : edges) {
+      preds.emplace_back(fmt::format("bb{}", edge->from()->id));
+    }
+  }
+  result["preds"] = preds;
+  nlohmann::json instrs = nlohmann::json::array();
+  for (auto& instr : block) {
+    if (instr.IsSnapshot()) {
+      continue;
+    }
+    if (instr.IsTerminator()) {
+      // Handle specially below
+      break;
+    }
+    instrs.emplace_back(Print(instr));
+  }
+  result["instrs"] = instrs;
+  const Instr* instr = block.GetTerminator();
+  JIT_CHECK(instr != nullptr, "expected terminator");
+  result["terminator"] = Print(*instr);
+  nlohmann::json succs = nlohmann::json::array();
+  for (std::size_t i = 0; i < instr->numEdges(); i++) {
+    BasicBlock* succ = instr->successor(i);
+    succs.emplace_back(fmt::format("bb{}", succ->id));
+  }
+  result["succs"] = succs;
+  return result;
+}
+
+nlohmann::json JSONPrinter::Print(const CFG& cfg) {
+  std::vector<BasicBlock*> blocks = cfg.GetRPOTraversal();
+  nlohmann::json result;
+  for (auto block : blocks) {
+    result.emplace_back(Print(*block));
+  }
+  return result;
+}
+
+void JSONPrinter::Print(
+    nlohmann::json& passes,
+    const Function& func,
+    const char* pass_name,
+    std::size_t time_ns) {
+  nlohmann::json result;
+  result["name"] = pass_name;
+  result["type"] = "ssa";
+  result["time_ns"] = time_ns;
+  result["blocks"] = Print(func.cfg);
+  passes.push_back(result);
 }
 
 void DebugPrint(const CFG& cfg) {

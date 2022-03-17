@@ -503,6 +503,19 @@ void initFlagProcessor() {
         "Enable the JIT's HIR inliner");
 
     xarg_flag_processor.addOption(
+        "jit-dump-hir-passes-json",
+        "PYTHONJITDUMPHIRPASSESJSON",
+        [](string json_output_dir) {
+          g_dump_hir_passes_json = ::strdup(json_output_dir.c_str());
+          int mkdir_result = ::mkdir(g_dump_hir_passes_json, 0755);
+          JIT_CHECK(
+              mkdir_result == 0 || errno == EEXIST,
+              "could not make JSON directory");
+        },
+        "Dump IR passes as JSON to the directory specified by this flag's "
+        "value");
+
+    xarg_flag_processor.addOption(
         "jit-help", "", jit_help, "print all available JIT flags and exits");
   }
 

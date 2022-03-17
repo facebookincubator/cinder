@@ -65,6 +65,35 @@ static void register_test(
   }
 }
 
+static void register_json_test(const char* path) {
+  auto suite = ReadHIRTestSuite(path);
+  if (suite == nullptr) {
+    std::exit(1);
+  }
+  for (auto& test_case : suite->test_cases) {
+    if (strncmp(
+            test_case.name.c_str(),
+            g_disabled_prefix,
+            sizeof(g_disabled_prefix) - 1) == 0) {
+      continue;
+    }
+    ::testing::RegisterTest(
+        suite->name.c_str(),
+        test_case.name.c_str(),
+        nullptr,
+        nullptr,
+        __FILE__,
+        __LINE__,
+        [=] {
+          auto test = new HIRJSONTest(
+              test_case.src,
+              // Actually JSON
+              test_case.expected_hir);
+          return test;
+        });
+  }
+}
+
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   register_test("RuntimeTests/hir_tests/call_optimization_test.txt");
@@ -95,6 +124,7 @@ int main(int argc, char* argv[]) {
       HIRTest::kCompileStatic);
   register_test(
       "RuntimeTests/hir_tests/profile_data_test.txt", HIRTest::kUseProfileData);
+  register_json_test("RuntimeTests/hir_tests/json_test.txt");
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {

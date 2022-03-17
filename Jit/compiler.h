@@ -96,6 +96,10 @@ class CompiledFunctionDebug : public CompiledFunction {
   std::unique_ptr<codegen::NativeGenerator> ngen_;
 };
 
+typedef std::function<
+    void(hir::Function& func, const char* pass_name, std::size_t time_ns)>
+    PostPassFunction;
+
 // Compiler is the high-level interface for translating Python functions into
 // native code.
 class Compiler {
@@ -109,7 +113,11 @@ class Compiler {
   // PyFunctionObject.
   std::unique_ptr<CompiledFunction> Compile(BorrowedRef<PyFunctionObject> func);
 
-  static void runPasses(jit::hir::Function& irfunc);
+  // Runs all the compiler passes on the HIR function.
+  static void runPasses(hir::Function&);
+  // Runs the compiler passes, calling callback on the HIR function after each
+  // pass.
+  static void runPasses(hir::Function& irfunc, PostPassFunction callback);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Compiler);

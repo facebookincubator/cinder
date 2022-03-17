@@ -55,3 +55,25 @@ void HIRTest::TestBody() {
   auto hir = printer.ToString(*irfunc.get());
   EXPECT_EQ(hir, expected_hir_);
 }
+
+void HIRJSONTest::TestBody() {
+  using namespace jit::hir;
+
+  std::unique_ptr<Function> irfunc;
+  irfunc = HIRParser{}.ParseHIR(src_.c_str());
+  ASSERT_NE(irfunc, nullptr);
+  ASSERT_TRUE(checkFunc(*irfunc, std::cout));
+  reflowTypes(*irfunc);
+
+  nlohmann::json expected_json_obj;
+  try {
+    expected_json_obj = nlohmann::json::parse(expected_json_);
+  } catch (nlohmann::json::exception&) {
+    ASSERT_TRUE(false) << "Could not parse JSON input";
+  }
+
+  JSONPrinter printer;
+  nlohmann::json result;
+  printer.Print(result, *irfunc.get(), "Test", 0);
+  EXPECT_EQ(result, expected_json_obj);
+}

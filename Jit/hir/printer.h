@@ -3,6 +3,8 @@
 
 #include "Jit/hir/hir.h"
 
+#include <json.hpp>
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -48,6 +50,21 @@ class HIRPrinter {
   int indent_level_{0};
   bool show_snapshots_{false};
   std::string line_prefix_;
+};
+
+// TODO(emacs): Handle no PyCodeObject
+class JSONPrinter {
+ public:
+  nlohmann::json PrintSource(const Function& func);
+  nlohmann::json PrintBytecode(const Function& func);
+  void Print(
+      nlohmann::json& passes,
+      const Function& func,
+      const char* pass_name,
+      std::size_t time_ns);
+  nlohmann::json Print(const CFG& cfg);
+  nlohmann::json Print(const BasicBlock& instr);
+  nlohmann::json Print(const Instr& instr);
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Function& func) {

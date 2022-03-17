@@ -25,6 +25,7 @@ struct Disassembler {
     print_instr_bytes_ = print;
   }
 
+  std::string codeAddress();
   std::string disassembleOne(int* instr_length = nullptr);
   std::string disassembleAll();
 

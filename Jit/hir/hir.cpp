@@ -293,6 +293,11 @@ const FrameState* Instr::getDominatingFrameState() const {
   return nullptr;
 }
 
+BorrowedRef<PyCodeObject> Instr::code() const {
+  const FrameState* fs = getDominatingFrameState();
+  return fs == nullptr ? block()->cfg->func->code : fs->code;
+}
+
 Instr* BasicBlock::Append(Instr* instr) {
   instrs_.PushBack(*instr);
   instr->link(this);
@@ -502,8 +507,7 @@ void CFG::splitCriticalEdges() {
     auto to = edge->to();
     auto split_bb = AllocateBlock();
     auto term = edge->from()->GetTerminator();
-    auto br = split_bb->append<Branch>(to);
-    br->copyBytecodeOffset(*term);
+    split_bb->appendWithOff<Branch>(term->bytecodeOffset(), to);
     edge->set_to(split_bb);
     to->fixupPhis(from, split_bb);
   }

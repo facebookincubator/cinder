@@ -238,3 +238,15 @@ class HIRTest : public RuntimeTest {
 inline HIRTest::Flags operator|(HIRTest::Flags a, HIRTest::Flags b) {
   return static_cast<HIRTest::Flags>(static_cast<int>(a) | static_cast<int>(b));
 }
+
+class HIRJSONTest : public RuntimeTest {
+ public:
+  HIRJSONTest(const std::string& src, const std::string& expected_json)
+      : RuntimeTest(), src_(src), expected_json_(expected_json) {}
+
+  void TestBody() override;
+
+ private:
+  std::string src_;
+  std::string expected_json_;
+};

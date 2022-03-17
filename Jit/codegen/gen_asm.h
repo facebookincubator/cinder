@@ -57,6 +57,11 @@ class NativeGenerator {
     env_.has_inlined_functions = max_inline_depth_ > 0;
   }
 
+  void SetJSONOutput(nlohmann::json* json) {
+    JIT_CHECK(json != nullptr, "expected non-null stream");
+    this->json = json;
+  }
+
   ~NativeGenerator() {
     if (as_ != nullptr) {
       delete as_;
@@ -141,6 +146,7 @@ class NativeGenerator {
 
   std::unique_ptr<lir::Function> lir_func_;
   Environ env_;
+  nlohmann::json* json{nullptr};
 };
 
 class NativeGeneratorFactory {

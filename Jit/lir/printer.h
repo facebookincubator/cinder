@@ -35,6 +35,14 @@ class Printer {
   hir::HIRPrinter hir_printer_{false, "# "};
 };
 
+class JSONPrinter {
+ public:
+  nlohmann::json print(const Function& func, const char* pass_name);
+  nlohmann::json print(const BasicBlock& block);
+  nlohmann::json print(const Instruction& instr);
+  std::string print(const OperandBase& operand);
+};
+
 inline std::ostream& operator<<(std::ostream& out, const Function& func) {
   Printer().print(out, func);
   return out;

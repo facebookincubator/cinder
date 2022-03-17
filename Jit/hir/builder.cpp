@@ -257,8 +257,8 @@ struct HIRBuilder::TranslationContext {
 
   template <typename T, typename... Args>
   T* emit(Args&&... args) {
-    auto instr = block->append<T>(std::forward<Args>(args)...);
-    instr->setBytecodeOffset(frame.instr_offset());
+    auto instr = block->appendWithOff<T>(
+        frame.instr_offset(), std::forward<Args>(args)...);
     return instr;
   }
 
@@ -599,7 +599,7 @@ BasicBlock* HIRBuilder::buildHIRImpl(
 
   BasicBlock* first_block = getBlockAtOff(0);
   if (entry_block != first_block) {
-    entry_block->append<Branch>(first_block);
+    entry_block->appendWithOff<Branch>(0, first_block);
   }
 
   entry_tc.block = first_block;

@@ -1,0 +1,104 @@
+HIRJSONTest
+---
+---
+Simple
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    Return v0
+  }
+}
+---
+[
+  {
+    "blocks": [
+      {
+        "instrs": [
+          {
+            "line": -1,
+            "opcode": "LoadArg<0>",
+            "operands": [],
+            "output": "v0",
+            "type": "Object"
+          }
+        ],
+        "name": "bb0",
+        "preds": [],
+        "succs": [],
+        "terminator": {
+          "line": -1,
+          "opcode": "Return",
+          "operands": [
+            "v0"
+          ]
+        }
+      }
+    ],
+    "name": "Test",
+    "time_ns": 0,
+    "type": "ssa"
+  }
+]
+---
+MultipleBlocks
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    Branch<1>
+  }
+
+  bb 1 {
+    Return v0
+  }
+}
+---
+[
+  {
+    "blocks": [
+      {
+        "instrs": [
+          {
+            "line": -1,
+            "opcode": "LoadArg<0>",
+            "operands": [],
+            "output": "v0",
+            "type": "Object"
+          }
+        ],
+        "name": "bb0",
+        "preds": [],
+        "succs": [
+          "bb1"
+        ],
+        "terminator": {
+          "line": -1,
+          "opcode": "Branch<1>",
+          "operands": []
+        }
+      },
+      {
+        "instrs": [],
+        "name": "bb1",
+        "preds": [
+          "bb0"
+        ],
+        "succs": [],
+        "terminator": {
+          "line": -1,
+          "opcode": "Return",
+          "operands": [
+            "v0"
+          ]
+        }
+      }
+    ],
+    "name": "Test",
+    "time_ns": 0,
+    "type": "ssa"
+  }
+]
+---
