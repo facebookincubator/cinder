@@ -6674,63 +6674,6 @@ static PyTypeObject _GatheringFutureType = {
 };
 
 static PyObject *
-_get_gathering_future_state(_GatheringFutureObj *gfut)
-{
-    _Py_static_string(PyId_comma, ",");
-
-    // build gathering future state debug string, e.g.: 1:A,FINISHED
-    const char* const state_map[] = {
-        [STATE_CANCELLED] = "CANCELLED",
-        [STATE_PENDING] = "PENDING",
-        [STATE_FINISHED] = "FINISHED",
-        [STATE_FAULTED] = "FAULTED"
-    };
-
-    PyObject* task_infos = PyList_New(0);
-    FOREACH_INDEX(gfut->gf_datamap, i)
-    {
-        PyObject *fut = PyList_GET_ITEM(gfut->gf_data, i);
-        PyObject *task_info;
-        if (Task_Check(fut)) {
-            TaskObj* task = (TaskObj*)fut;
-            PyObject* co_name = ((PyCodeObject *)((PyGenObject *)task->task_coro)->gi_code)->co_qualname;
-            if (co_name == NULL) {
-                co_name = ((PyCodeObject *)((PyGenObject *)task->task_coro)->gi_code)->co_name;
-            }
-            task_info = PyUnicode_FromFormat("%d:%U,%s", i, co_name, state_map[task->task_state]);
-        } else if (Future_Check(fut)) {
-            task_info = PyUnicode_FromFormat("%d:%s", i, state_map[((FutureObj*)fut)->fut_state]);
-        } else {
-            task_info = PyUnicode_FromFormat("%d:unknown", i);
-        }
-        if (task_info == NULL) {
-            Py_DECREF(task_infos);
-            return NULL;
-        }
-
-        int r = PyList_Append(task_infos, task_info);
-        Py_DECREF(task_info);
-        if (r < 0) {
-            Py_DECREF(task_infos);
-            return NULL;
-        }
-    }
-    FOREACH_INDEX_END()
-
-    PyObject* sep = _PyUnicode_FromId(&PyId_comma);
-    PyObject* task_infos_str = PyUnicode_Join(sep, task_infos);
-    Py_DECREF(task_infos);
-
-    if (task_infos_str == NULL) {
-        return NULL;
-    }
-
-    PyObject* result = PyUnicode_FromFormat("GatheringFutureState:%U", task_infos_str);
-    Py_DECREF(task_infos_str);
-    return result;
-}
-
-static PyObject *
 _GatheringFutureObj_mark_fut_error_as_retrieved(_GatheringFutureObj *gfut,
                                                 PyObject *fut)
 {
@@ -6756,22 +6699,8 @@ _GatheringFutureObj_set_cancelled_error(_GatheringFutureObj *gfut,
                                         PyObject *fut,
                                         PyMethodTableRef *t)
 {
-    _Py_IDENTIFIER(_gathering_future_state);
-
     PyObject *exc = _PyObject_CallNoArg(asyncio_CancelledError);
     if (exc == NULL) {
-        return NULL;
-    }
-
-    PyObject *gfut_state = _get_gathering_future_state(gfut);
-    if (gfut_state == NULL) {
-        return NULL;
-    }
-
-    int r = _PyObject_SetAttrId(exc, &PyId__gathering_future_state, gfut_state);
-    Py_DECREF(gfut_state);
-
-    if (r < 0) {
         return NULL;
     }
 
