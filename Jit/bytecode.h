@@ -4,6 +4,8 @@
 #include "Python.h"
 #include "opcode.h"
 
+#include "Jit/log.h"
+
 #include <iterator>
 #include <unordered_set>
 
@@ -134,21 +136,30 @@ class BytecodeInstructionBlock {
     using reference = const value_type&;
 
     Iterator(_Py_CODEUNIT* instr, Py_ssize_t idx, Py_ssize_t end_idx)
-        : instr_(instr),
-          idx_(idx),
-          end_idx_(end_idx),
-          bci_(
-              _Py_OPCODE(*instr),
-              _Py_OPARG(*instr),
-              idx * sizeof(_Py_CODEUNIT)) {
-      consumeExtendedArgs();
+        : instr_(instr), idx_(idx), end_idx_(end_idx), bci_(0, 0, 0) {
+      if (!atEnd()) {
+        // Iterator end() methods are supposed to be past the logical end
+        // of the underlying data structure and should not be accessed
+        // directly. Dereferencing instr would be a heap buffer overflow.
+        bci_ = BytecodeInstruction(
+            _Py_OPCODE(*instr), _Py_OPARG(*instr), idx * sizeof(_Py_CODEUNIT));
+        consumeExtendedArgs();
+      }
+    }
+
+    bool atEnd() const {
+      return idx_ == end_idx_;
     }
 
     reference operator*() {
+      JIT_DCHECK(
+          !atEnd(), "cannot read past the end of BytecodeInstructionBlock");
       return bci_;
     }
 
     pointer operator->() {
+      JIT_DCHECK(
+          !atEnd(), "cannot read past the end of BytecodeInstructionBlock");
       return &bci_;
     }
 
@@ -180,12 +191,12 @@ class BytecodeInstructionBlock {
    private:
     void consumeExtendedArgs() {
       int accum = 0;
-      while ((idx_ != end_idx_) && (_Py_OPCODE(*instr_) == EXTENDED_ARG)) {
+      while (!atEnd() && (_Py_OPCODE(*instr_) == EXTENDED_ARG)) {
         accum = (accum << 8) | _Py_OPARG(*instr_);
         instr_++;
         idx_++;
       }
-      if (idx_ != end_idx_) {
+      if (!atEnd()) {
         int opcode = _Py_OPCODE(*instr_);
         int oparg = (accum << 8) | _Py_OPARG(*instr_);
         bci_ = BytecodeInstruction(opcode, oparg, idx_ * sizeof(_Py_CODEUNIT));
