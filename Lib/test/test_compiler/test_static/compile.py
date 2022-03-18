@@ -36,7 +36,13 @@ from unittest.mock import patch
 
 import xxclassloader
 
-from .common import StaticTestBase, add_fixed_module, bad_ret_type, type_mismatch
+from .common import (
+    StaticTestBase,
+    add_fixed_module,
+    bad_ret_type,
+    type_mismatch,
+    disable_hir_inliner,
+)
 
 try:
     import cinderjit
@@ -5679,6 +5685,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(g(), 42)
             self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f11"), 0))
 
+    @disable_hir_inliner
     def test_invoke_strict_module_deep_unjitable(self):
         codestr = """
             def f12(): return 42

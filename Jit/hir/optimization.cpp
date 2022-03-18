@@ -719,11 +719,37 @@ void CleanCFG::Run(Function& irfunc) {
   }
 }
 
+struct AbstractCall {
+  AbstractCall(PyFunctionObject* func, size_t nargs, DeoptBase* instr)
+      : func(func), nargs(nargs), instr(instr) {}
+
+  AbstractCall(Register* target, size_t nargs, DeoptBase* instr)
+      : target(target),
+        func(reinterpret_cast<PyFunctionObject*>(target->type().objectSpec())),
+        nargs(nargs),
+        instr(instr) {}
+
+  Register* arg(std::size_t i) const {
+    if (auto f = dynamic_cast<InvokeStaticFunction*>(instr)) {
+      return f->arg(i);
+    }
+    if (auto f = dynamic_cast<VectorCallBase*>(instr)) {
+      return f->arg(i);
+    }
+    JIT_CHECK(false, "unsupported call type %s", instr->opname());
+  }
+
+  Register* target{nullptr};
+  BorrowedRef<PyFunctionObject> func{nullptr};
+  size_t nargs{0};
+  DeoptBase* instr{nullptr};
+};
+
 // Most of these checks are only temporary and do not in perpetuity prohibit
 // inlining. They are here to simplify bringup of the inliner and can be
 // treated as TODOs.
 static bool canInline(
-    VectorCall* call_instr,
+    AbstractCall* call_instr,
     PyFunctionObject* func,
     const std::string& fullname) {
   if (func->func_defaults != nullptr) {
@@ -748,7 +774,7 @@ static bool canInline(
     return false;
   }
   JIT_DCHECK(code->co_argcount >= 0, "argcount must be positive");
-  if (call_instr->numArgs() != static_cast<size_t>(code->co_argcount)) {
+  if (call_instr->nargs != static_cast<size_t>(code->co_argcount)) {
     JIT_DLOG(
         "Can't inline %s because it is called with mismatched arguments",
         fullname);
@@ -785,19 +811,8 @@ static bool canInline(
   return true;
 }
 
-void inlineFunctionCall(Function& caller, VectorCall* call_instr) {
-  Register* target = call_instr->func();
-  if (!target->type().hasValueSpec(TFunc)) {
-    JIT_DLOG(
-        "Cannot inline non-function type %s (%s) into %s",
-        target->type(),
-        *target,
-        caller.fullname);
-    return;
-  }
-  PyObject* func_obj = target->type().objectSpec();
-  JIT_CHECK(PyFunction_Check(func_obj), "Expected PyFunctionObject");
-  PyFunctionObject* func = reinterpret_cast<PyFunctionObject*>(func_obj);
+void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
+  PyFunctionObject* func = call_instr->func;
   PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
   JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
   PyObject* globals = func->func_globals;
@@ -823,7 +838,7 @@ void inlineFunctionCall(Function& caller, VectorCall* call_instr) {
   }
 
   auto caller_frame_state =
-      std::make_unique<FrameState>(*call_instr->frameState());
+      std::make_unique<FrameState>(*call_instr->instr->frameState());
   // Multi-threaded compilation must use an existing Preloader, whereas
   // single-threaded compilation can make Preloaders on the fly.
   InlineResult result;
@@ -843,25 +858,32 @@ void inlineFunctionCall(Function& caller, VectorCall* call_instr) {
     return;
   }
 
-  BasicBlock* head = call_instr->block();
-  BasicBlock* tail = head->splitAfter(*call_instr);
-  // TODO(emacs): Emit a DeoptPatchpoint here to catch the case where someone
-  // swaps out function.__code__.
-  // Check that __code__ has not been swapped out since the function was
-  // inlined.
-  // VectorCall -> {LoadField, GuardIs, BeginInlinedFunction, Branch to callee
-  // CFG}
-  Register* code_obj = caller.env.AllocateRegister();
-  auto load_code = LoadField::create(
-      code_obj, target, offsetof(PyFunctionObject, func_code), TObject);
-  Register* guarded_code = caller.env.AllocateRegister();
-  auto guard_code = GuardIs::create(
-      guarded_code, reinterpret_cast<PyObject*>(code), code_obj);
+  BasicBlock* head = call_instr->instr->block();
+  BasicBlock* tail = head->splitAfter(*call_instr->instr);
   auto begin_inlined_function = BeginInlinedFunction::create(
       code, globals, std::move(caller_frame_state), fullname);
   auto callee_branch = Branch::create(result.entry);
-  call_instr->ExpandInto(
-      {load_code, guard_code, begin_inlined_function, callee_branch});
+  if (call_instr->target != nullptr) {
+    // Not a static call. Check that __code__ has not been swapped out since
+    // the function was inlined.
+    // VectorCall -> {LoadField, GuardIs, BeginInlinedFunction, Branch to
+    // callee CFG}
+    // TODO(emacs): Emit a DeoptPatchpoint here to catch the case where someone
+    // swaps out function.__code__.
+    Register* code_obj = caller.env.AllocateRegister();
+    auto load_code = LoadField::create(
+        code_obj,
+        call_instr->target,
+        offsetof(PyFunctionObject, func_code),
+        TObject);
+    Register* guarded_code = caller.env.AllocateRegister();
+    auto guard_code = GuardIs::create(
+        guarded_code, reinterpret_cast<PyObject*>(code), code_obj);
+    call_instr->instr->ExpandInto(
+        {load_code, guard_code, begin_inlined_function, callee_branch});
+  } else {
+    call_instr->instr->ExpandInto({begin_inlined_function, callee_branch});
+  }
   tail->push_front(
       EndInlinedFunction::create(begin_inlined_function->inlineDepth()));
 
@@ -884,13 +906,13 @@ void inlineFunctionCall(Function& caller, VectorCall* call_instr) {
   JIT_CHECK(
       return_instr->IsReturn(),
       "terminator from inlined function should be Return");
-  auto assign =
-      Assign::create(call_instr->GetOutput(), return_instr->GetOperand(0));
+  auto assign = Assign::create(
+      call_instr->instr->GetOutput(), return_instr->GetOperand(0));
   auto return_branch = Branch::create(tail);
   return_instr->ExpandInto({assign, return_branch});
   delete return_instr;
 
-  delete call_instr;
+  delete call_instr->instr;
 }
 
 void InlineFunctionCalls::Run(Function& irfunc) {
@@ -905,22 +927,34 @@ void InlineFunctionCalls::Run(Function& irfunc) {
         irfunc.fullname);
     return;
   }
-  std::vector<Instr*> to_inline;
+  std::vector<AbstractCall> to_inline;
   for (auto& block : irfunc.cfg.blocks) {
     for (auto& instr : block) {
-      // TODO(emacs): Support InvokeMethod, InvokeStaticFunction,
-      // VectorCallStatic
-      if (!instr.IsVectorCall()) {
-        continue;
+      // TODO(emacs): Support InvokeMethod
+      if (instr.IsVectorCall() || instr.IsVectorCallStatic()) {
+        auto call = static_cast<VectorCallBase*>(&instr);
+        Register* target = call->func();
+        if (!target->type().hasValueSpec(TFunc)) {
+          JIT_DLOG(
+              "Cannot inline non-function type %s (%s) into %s",
+              target->type(),
+              *target,
+              irfunc.fullname);
+          continue;
+        }
+        to_inline.emplace_back(AbstractCall(target, call->numArgs(), call));
+      } else if (instr.IsInvokeStaticFunction()) {
+        auto call = static_cast<InvokeStaticFunction*>(&instr);
+        to_inline.emplace_back(
+            AbstractCall(call->func(), call->NumArgs(), call));
       }
-      to_inline.emplace_back(&instr);
     }
   }
   if (to_inline.empty()) {
     return;
   }
-  for (auto instr : to_inline) {
-    inlineFunctionCall(irfunc, static_cast<VectorCall*>(instr));
+  for (auto& instr : to_inline) {
+    inlineFunctionCall(irfunc, &instr);
     // We need to reflow types after every inline to propagate new type
     // information from the callee.
     reflowTypes(irfunc);

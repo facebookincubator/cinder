@@ -607,9 +607,10 @@ void reflowTypes(Environment* env, BasicBlock* start) {
           Type type = static_cast<const Return&>(instr).type();
           JIT_DCHECK(
               instr.GetOperand(0)->type() <= type,
-              "bad return type %s, expected %s",
+              "bad return type %s, expected %s in %s",
               instr.GetOperand(0)->type(),
-              type);
+              type,
+              *start->cfg);
         }
 
         auto dst = instr.GetOutput();

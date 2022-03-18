@@ -24,6 +24,7 @@ from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import Compiler as StrictCompiler
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
+from functools import wraps
 from types import CodeType
 from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
@@ -61,6 +62,23 @@ def type_mismatch(from_type: str, to_type: str) -> str:
 
 def bad_ret_type(from_type: str, to_type: str) -> str:
     return re.escape(f"return type must be {to_type}, not {from_type}")
+
+
+def disable_hir_inliner(f):
+    if not cinderjit:
+        return f
+
+    @wraps(f)
+    def impl(*args, **kwargs):
+        enabled = cinderjit.is_hir_inliner_enabled()
+        if enabled:
+            cinderjit.disable_hir_inliner()
+        result = f(*args, **kwargs)
+        if enabled:
+            cinderjit.enable_hir_inliner()
+        return result
+
+    return impl
 
 
 PRIM_NAME_TO_TYPE = {
