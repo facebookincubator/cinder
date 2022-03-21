@@ -1,9 +1,9 @@
 [static_python]
     type = WIKI
     srcs = static_python.rst
-    wiki_root_path = Apps/Instagram/Engineering/Server/Efficiency/Python_Performance/Public
+    wiki_root_path = Python/Cinder/External_Public
 
 [shadowcode]
     type = WIKI
     srcs = shadowcode.rst
-    wiki_root_path = Apps/Instagram/Engineering/Server/Efficiency/Python_Performance/Public
+    wiki_root_path = Python/Cinder/External_Public
