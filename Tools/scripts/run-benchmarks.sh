@@ -60,6 +60,12 @@ while test $# -gt 0; do
                     flags+=("-X jit -X jit-list-file=$1 -X jit-enable-jit-list-wildcards")
                     shift
                     ;;
+                -inl)
+                    shift
+                    abb+=("INL")
+                    flags+=("-X jit-enable-hir-inliner")
+                    shift
+                    ;;
                 -sf)
                     abb+=("SF")
                     flags+=("-X jit-shadow-frame")
@@ -123,9 +129,13 @@ do
         fi
 
     done
-    #check that SF can be valid if and only if JIT is enabled
 
+    # Check that SF can be valid if and only if JIT is enabled
     if [[ $details == *"SF"* && $details != *"JIT"* ]]; then
+        continue
+    fi
+    # Check that INL can be valid if and only if JIT is enabled
+    if [[ $details == *"INL"* && $details != *"JIT"* ]]; then
         continue
     fi
     captions+=("$caption($details)")
