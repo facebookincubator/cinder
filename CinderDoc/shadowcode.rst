@@ -1,6 +1,3 @@
-.. fbmeta::
-    hide_page_title=true
-
 Shadow Byte Code
 ################
 

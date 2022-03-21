@@ -1,6 +1,3 @@
-.. fbmeta::
-    hide_page_title=true
-
 ===============================
 Static Python (Developer Guide)
 ===============================
