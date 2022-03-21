@@ -461,7 +461,11 @@ guardNeeded(const RegUses& uses, Register* new_reg, Type relaxed_type) {
     worklist.pop();
     new_reg = args.first;
     relaxed_type = args.second;
-    for (const Instr* instr : map_get(uses, new_reg)) {
+    auto new_reg_uses = uses.find(new_reg);
+    if (new_reg_uses == uses.end()) {
+      continue;
+    }
+    for (const Instr* instr : new_reg_uses->second) {
       for (std::size_t i = 0; i < instr->NumOperands(); i++) {
         if (instr->GetOperand(i) == new_reg) {
           if ((instr->GetOutput() != nullptr) &&
