@@ -1811,10 +1811,12 @@ class INSTR_CLASS(LoadField, (TOptObject), HasOutput, Operands<1>) {
   LoadField(
       Register* dst,
       Register* receiver,
+      const std::string& name,
       std::size_t offset,
       Type type,
       bool borrowed = true)
       : InstrT(dst, receiver),
+        name_(name),
         offset_(offset),
         type_(type),
         borrowed_(borrowed) {}
@@ -1822,6 +1824,10 @@ class INSTR_CLASS(LoadField, (TOptObject), HasOutput, Operands<1>) {
   // The object we're loading the attribute from
   Register* receiver() const {
     return reg();
+  }
+
+  std::string name() const {
+    return name_;
   }
 
   // Offset where the field is stored
@@ -1838,6 +1844,7 @@ class INSTR_CLASS(LoadField, (TOptObject), HasOutput, Operands<1>) {
   }
 
  private:
+  std::string name_;
   std::size_t offset_;
   Type type_;
   bool borrowed_;
@@ -1847,11 +1854,15 @@ class INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
  public:
   StoreField(
       Register* receiver,
+      const std::string& name,
       std::size_t offset,
       Register* value,
       Type type,
       Register* previous)
-      : InstrT(receiver, value, previous), offset_(offset), type_(type) {}
+      : InstrT(receiver, value, previous),
+        name_(name),
+        offset_(offset),
+        type_(type) {}
 
   // The object we're loading the attribute from
   Register* receiver() const {
@@ -1875,6 +1886,10 @@ class INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
     return GetOperand(2);
   }
 
+  std::string name() const {
+    return name_;
+  }
+
   // Offset where the field is stored
   std::size_t offset() const {
     return offset_;
@@ -1885,6 +1900,7 @@ class INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
   }
 
  private:
+  std::string name_;
   std::size_t offset_;
   Type type_;
 };

@@ -361,14 +361,15 @@ static std::string format_immediates(const Instr& instr) {
 #endif
 
       return fmt::format(
-          "{}, {}, {}",
+          "{}@{}, {}, {}",
+          lf.name(),
           offset,
           lf.type(),
           lf.borrowed() ? "borrowed" : "owned");
     }
     case Opcode::kStoreField: {
-      const auto& call = static_cast<const StoreField&>(instr);
-      return fmt::format("{}", call.offset());
+      const auto& sf = static_cast<const StoreField&>(instr);
+      return fmt::format("{}@{}", sf.name(), sf.offset());
     }
     case Opcode::kCast: {
       const auto& cast = static_cast<const Cast&>(instr);

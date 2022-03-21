@@ -361,7 +361,11 @@ void HIRBuilder::addInitializeCells(
   JIT_CHECK(cur_func != nullptr, "No cur_func in function with freevars");
   Register* func_closure = temps_.AllocateNonStack();
   tc.emit<LoadField>(
-      func_closure, cur_func, offsetof(PyFunctionObject, func_closure), TTuple);
+      func_closure,
+      cur_func,
+      "func_closure",
+      offsetof(PyFunctionObject, func_closure),
+      TTuple);
   for (int i = 0; i < nfreevars; i++) {
     auto cell_idx = i + ncellvars;
     Register* dst = tc.frame.cells[cell_idx];
@@ -2211,7 +2215,8 @@ void HIRBuilder::emitLoadType(
     const jit::BytecodeInstruction&) {
   Register* instance = tc.frame.stack.pop();
   auto type = temps_.AllocateStack();
-  tc.emit<LoadField>(type, instance, offsetof(PyObject, ob_type), TType);
+  tc.emit<LoadField>(
+      type, instance, "ob_type", offsetof(PyObject, ob_type), TType);
   tc.frame.stack.push(type);
 }
 
@@ -2543,26 +2548,33 @@ void HIRBuilder::emitFastLen(
   auto type = TBottom;
 
   oparg &= ~FAST_LEN_INEXACT;
+  const char* name = "";
   if (oparg == FAST_LEN_LIST) {
     type = TListExact;
     offset = offsetof(PyVarObject, ob_size);
+    name = "ob_size";
   } else if (oparg == FAST_LEN_TUPLE) {
     type = TTupleExact;
     offset = offsetof(PyVarObject, ob_size);
+    name = "ob_size";
   } else if (oparg == FAST_LEN_ARRAY) {
     type = TArrayExact;
     offset = offsetof(PyVarObject, ob_size);
+    name = "ob_size";
   } else if (oparg == FAST_LEN_DICT) {
     type = TDictExact;
     offset = offsetof(PyDictObject, ma_used);
+    name = "ma_used";
   } else if (oparg == FAST_LEN_SET) {
     type = TSetExact;
     offset = offsetof(PySetObject, used);
+    name = "used";
   } else if (oparg == FAST_LEN_STR) {
     type = TUnicodeExact;
     // Note: In debug mode, the interpreter has an assert that
     // ensures the string is "ready", check PyUnicode_GET_LENGTH
     offset = offsetof(PyASCIIObject, length);
+    name = "length";
   }
   JIT_CHECK(offset > 0, "Bad oparg for FAST_LEN");
 
@@ -2581,7 +2593,7 @@ void HIRBuilder::emitFastLen(
     collection = tc.frame.stack.pop();
   }
 
-  tc.emit<LoadField>(result, collection, offset, TCInt64);
+  tc.emit<LoadField>(result, collection, name, offset, TCInt64);
   tc.frame.stack.push(result);
 }
 
@@ -2602,7 +2614,8 @@ void HIRBuilder::emitSequenceGet(
   auto oparg = bc_instr.oparg();
   if (oparg == SEQ_LIST_INEXACT) {
     auto type = temps_.AllocateStack();
-    tc.emit<LoadField>(type, sequence, offsetof(PyObject, ob_type), TType);
+    tc.emit<LoadField>(
+        type, sequence, "ob_type", offsetof(PyObject, ob_type), TType);
     tc.emit<GuardIs>(type, (PyObject*)&PyList_Type, type);
     tc.emit<RefineType>(sequence, TListExact, sequence);
   }
@@ -2628,7 +2641,7 @@ void HIRBuilder::emitSequenceGet(
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_GET: %d", oparg);
   }
-  tc.emit<LoadField>(ob_item, sequence, offset, TCPtr);
+  tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
 
   auto type = element_type_from_seq_type(oparg);
   tc.emit<LoadArrayItem>(
@@ -2715,7 +2728,8 @@ void HIRBuilder::emitSequenceSet(
   auto oparg = bc_instr.oparg();
   if (oparg == SEQ_LIST_INEXACT) {
     auto type = temps_.AllocateStack();
-    tc.emit<LoadField>(type, sequence, offsetof(PyObject, ob_type), TType);
+    tc.emit<LoadField>(
+        type, sequence, "ob_type", offsetof(PyObject, ob_type), TType);
     tc.emit<GuardIs>(type, (PyObject*)&PyList_Type, type);
     tc.emit<RefineType>(sequence, TListExact, sequence);
   }
@@ -2729,7 +2743,7 @@ void HIRBuilder::emitSequenceSet(
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_SET: %d", oparg);
   }
-  tc.emit<LoadField>(ob_item, sequence, offset, TCPtr);
+  tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
   tc.emit<StoreArrayItem>(
       ob_item,
       adjusted_idx,
@@ -3211,7 +3225,8 @@ void HIRBuilder::emitUnpackSequence(
   tc.emit<Branch>(fast_path);
 
   tc.block = list_fast_path;
-  tc.emit<LoadField>(list_mem, seq, offsetof(PyListObject, ob_item), TCPtr);
+  tc.emit<LoadField>(
+      list_mem, seq, "ob_item", offsetof(PyListObject, ob_item), TCPtr);
   tc.emit<Branch>(fast_path);
 
   tc.block = fast_path;
@@ -3493,7 +3508,12 @@ void HIRBuilder::emitLoadField(
 
   Register* receiver = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<LoadField>(result, receiver, offset, type);
+  const char* field_name = PyUnicode_AsUTF8(name);
+  if (field_name == nullptr) {
+    PyErr_Clear();
+    field_name = "";
+  }
+  tc.emit<LoadField>(result, receiver, field_name, offset, type);
   if (type.couldBe(TNullptr)) {
     CheckField* cf = tc.emit<CheckField>(result, result, name, tc.frame);
     cf->setGuiltyReg(receiver);
@@ -3505,6 +3525,11 @@ void HIRBuilder::emitStoreField(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   auto& [offset, type, name] = preloader_.fieldInfo(constArg(bc_instr));
+  const char* field_name = PyUnicode_AsUTF8(name);
+  if (field_name == nullptr) {
+    PyErr_Clear();
+    field_name = "";
+  }
 
   Register* receiver = tc.frame.stack.pop();
   Register* value = tc.frame.stack.pop();
@@ -3515,9 +3540,9 @@ void HIRBuilder::emitStoreField(
     tc.emit<IntConvert>(converted, value, type);
     value = converted;
   } else {
-    tc.emit<LoadField>(previous, receiver, offset, type, false);
+    tc.emit<LoadField>(previous, receiver, field_name, offset, type, false);
   }
-  tc.emit<StoreField>(receiver, offset, value, type, previous);
+  tc.emit<StoreField>(receiver, field_name, offset, value, type, previous);
 }
 
 void HIRBuilder::emitCast(
@@ -3632,7 +3657,8 @@ void HIRBuilder::emitGetAwaitable(
     tc.emit<CondBranch>(iter, ok_block, error_block);
     tc.block = error_block;
     Register* type = temps_.AllocateStack();
-    tc.emit<LoadField>(type, iterable, offsetof(PyObject, ob_type), TType);
+    tc.emit<LoadField>(
+        type, iterable, "ob_type", offsetof(PyObject, ob_type), TType);
     tc.emit<RaiseAwaitableError>(type, prev_op, tc.frame);
 
     tc.block = ok_block;

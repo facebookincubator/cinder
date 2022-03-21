@@ -162,7 +162,7 @@ fun jittestmodule:test {
       NextInstrOffset 4
       Locals<1> v0
     }
-    v1 = LoadField<16, OptObject, borrowed> v0
+    v1 = LoadField<x@16, OptObject, borrowed> v0
     v1 = CheckField<"x"> v1 {
       NextInstrOffset 6
       Locals<1> v0
@@ -194,8 +194,8 @@ fun jittestmodule:test {
       Locals<2> v0 v1
       Stack<1> v1
     }
-    v2 = LoadField<16, OptObject, owned> v0
-    StoreField<16> v0 v1 v2
+    v2 = LoadField<x@16, OptObject, owned> v0
+    StoreField<x@16> v0 v1 v2
     v3 = LoadConst<NoneType>
     Return v3
   }
@@ -888,7 +888,7 @@ fun jittestmodule:test {
     v9 = VectorCallStatic<2> v8 v2 v7 {
       NextInstrOffset 20
     }
-    v10 = LoadField<16, CInt64, borrowed> v9
+    v10 = LoadField<ob_size@16, CInt64, borrowed> v9
     v11 = PrimitiveBox<CInt64> v10
     v11 = CheckExc v11 {
       NextInstrOffset 24
@@ -914,7 +914,7 @@ fun jittestmodule:test {
     }
     InitListTuple<list, 3> v3 v0 v1 v2
     v4 = Assign v3
-    v5 = LoadField<16, CInt64, borrowed> v4
+    v5 = LoadField<ob_size@16, CInt64, borrowed> v4
     v6 = PrimitiveBox<CInt64> v5
     v6 = CheckExc v6 {
       NextInstrOffset 14
@@ -1193,7 +1193,7 @@ fun jittestmodule:test {
       NextInstrOffset 44
       Locals<2> v0 v1
     }
-    v17 = LoadField<24, CPtr, borrowed> v1
+    v17 = LoadField<ob_item@24, CPtr, borrowed> v1
     v18 = LoadArrayItem v17 v16 v1
     v19 = PrimitiveBox<CInt8> v18
     v19 = CheckExc v19 {
@@ -1257,7 +1257,7 @@ fun jittestmodule:test {
       NextInstrOffset 34
       Locals<1> v0
     }
-    v16 = LoadField<24, CPtr, borrowed> v0
+    v16 = LoadField<ob_item@24, CPtr, borrowed> v0
     StoreArrayItem v16 v15 v11 v0
     v0 = CheckVar<"a"> v0 {
       NextInstrOffset 36
@@ -1375,7 +1375,7 @@ fun jittestmodule:test {
       NextInstrOffset 34
       Locals<2> v0 v1
     }
-    v12 = LoadField<24, CPtr, borrowed> v0
+    v12 = LoadField<ob_item@24, CPtr, borrowed> v0
     v13 = LoadArrayItem v12 v11 v0
     Return v13
   }

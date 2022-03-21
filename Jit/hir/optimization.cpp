@@ -151,8 +151,8 @@ Instr* DynamicComparisonElimination::ReplaceVectorCall(
     auto obj_type = irfunc.env.AllocateRegister();
     auto fast_eq = irfunc.env.AllocateRegister();
 
-    auto load_type =
-        LoadField::create(obj_type, obj_op, offsetof(PyObject, ob_type), TType);
+    auto load_type = LoadField::create(
+        obj_type, obj_op, "ob_type", offsetof(PyObject, ob_type), TType);
 
     auto compare_type = PrimitiveCompare::create(
         fast_eq, PrimitiveCompareOp::kEqual, obj_type, type_op);
@@ -333,6 +333,7 @@ void CallOptimization::Run(Function& irfunc) {
           auto load_type = LoadField::create(
               instr.GetOutput(),
               instr.GetOperand(1),
+              "ob_type",
               offsetof(PyObject, ob_type),
               TType);
           instr.ReplaceWith(*load_type);
@@ -878,6 +879,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     auto load_code = LoadField::create(
         code_obj,
         call_instr->target,
+        "func_code",
         offsetof(PyFunctionObject, func_code),
         TObject);
     Register* guarded_code = caller.env.AllocateRegister();

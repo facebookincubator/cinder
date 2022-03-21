@@ -17,7 +17,7 @@ fun jittestmodule:Test.__init__ {
     v5:User[Test] = LoadArg<0; "self", User[Test]>
     v6:CInt32[0] = LoadConst<CInt32[0]>
     v8:Nullptr = LoadConst<Nullptr>
-    StoreField<16> v5 v6 v8
+    StoreField<x@16> v5 v6 v8
     v10:NoneType = LoadConst<NoneType>
     Incref v10
     Return v10
@@ -38,9 +38,9 @@ fun jittestmodule:Test.__init__ {
   bb 0 {
     v4:User[Test] = LoadArg<0; "self", User[Test]>
     v5:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
-    v7:OptObject = LoadField<16, OptObject, owned> v4
+    v7:OptObject = LoadField<x@16, OptObject, owned> v4
     Incref v5
-    StoreField<16> v4 v5 v7
+    StoreField<x@16> v4 v5 v7
     XDecref v7
     v8:NoneType = LoadConst<NoneType>
     Incref v8

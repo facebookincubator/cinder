@@ -226,7 +226,7 @@ fun jittestmodule:test {
       Locals<1> v12
     }
     UseType<ListExact> v12
-    v20:CPtr = LoadField<24, CPtr, borrowed> v12
+    v20:CPtr = LoadField<ob_item@24, CPtr, borrowed> v12
     v21:Object = LoadArrayItem v20 v19 v12
     Return v21
   }
@@ -850,7 +850,7 @@ fun test {
     v1:Object = LoadArg<0>
     v2:ListExact = RefineType<ListExact> v1
     UseType<ListExact> v2
-    v6:CInt64 = LoadField<16, CInt64, borrowed> v2
+    v6:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
     v7:CInt32 = IntConvert<CInt32> v6
     v4:OptLongExact = PrimitiveBox<CInt32> v7
     v5:LongExact = CheckExc v4 {
@@ -879,7 +879,7 @@ fun test {
     v1:Object = LoadArg<0>
     v2:TupleExact = RefineType<TupleExact> v1
     UseType<TupleExact> v2
-    v6:CInt64 = LoadField<16, CInt64, borrowed> v2
+    v6:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
     v7:CInt32 = IntConvert<CInt32> v6
     v4:OptLongExact = PrimitiveBox<CInt32> v7
     v5:LongExact = CheckExc v4 {
@@ -908,7 +908,7 @@ fun test {
     v1:Object = LoadArg<0>
     v2:ArrayExact = RefineType<ArrayExact> v1
     UseType<ArrayExact> v2
-    v6:CInt64 = LoadField<16, CInt64, borrowed> v2
+    v6:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
     v7:CInt32 = IntConvert<CInt32> v6
     v4:OptLongExact = PrimitiveBox<CInt32> v7
     v5:LongExact = CheckExc v4 {

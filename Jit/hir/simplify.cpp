@@ -259,8 +259,8 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
     if (ty <= TListExact || ty <= TTupleExact || ty <= TArray) {
       Register* obj = instr->GetOperand(0);
       env.emit<UseType>(obj, ty);
-      Register* size =
-          env.emit<LoadField>(obj, offsetof(PyVarObject, ob_size), TCInt64);
+      Register* size = env.emit<LoadField>(
+          obj, "ob_size", offsetof(PyVarObject, ob_size), TCInt64);
       return env.emit<IntConvert>(size, TCInt32);
     }
     if (ty <= TLongExact) {
@@ -332,7 +332,8 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
     // structs.
     if (lhs->isA(TListExact)) {
       env.emit<UseType>(lhs, TListExact);
-      array = env.emit<LoadField>(lhs, offsetof(PyListObject, ob_item), TCPtr);
+      array = env.emit<LoadField>(
+          lhs, "ob_item", offsetof(PyListObject, ob_item), TCPtr);
       offset = 0;
     }
     return env.emit<LoadArrayItem>(array, adjusted_idx, lhs, offset, TObject);
