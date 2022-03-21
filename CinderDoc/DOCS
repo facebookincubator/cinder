@@ -1,6 +1,6 @@
 [static_python]
     type = WIKI
-    srcs = static_python.rst
+    srcs = [static_python.rst, static_python_devguide.rst]
     wiki_root_path = Python/Cinder/External_Public
 
 [shadowcode]
