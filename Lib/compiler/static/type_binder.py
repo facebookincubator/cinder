@@ -1463,13 +1463,16 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 name: str = asname if asname is not None else alias.name
                 self.declare_local(name, self.type_env.DYNAMIC)
 
-    def visit_until_terminates(self, nodes: Sequence[ast.stmt]) -> TerminalKind:
+    def visit_check_terminal(self, nodes: Sequence[ast.stmt]) -> TerminalKind:
+        ret = TerminalKind.NonTerminal
         for stmt in nodes:
             self.visit(stmt)
-            if stmt in self.terminals:
-                return self.terminals[stmt]
+            if ret == TerminalKind.NonTerminal and stmt in self.terminals:
+                # We have concluded the remainder of `nodes` are unreachable,
+                # but we type-check them anyway for UX consistency
+                ret = self.terminals[stmt]
 
-        return TerminalKind.NonTerminal
+        return ret
 
     def visitIf(self, node: If) -> None:
         branch = self.binding_scope.branch()
@@ -1477,14 +1480,14 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         effect = self.visit(node.test) or NO_EFFECT
         effect.apply(self.local_types)
 
-        terminates = self.visit_until_terminates(node.body)
+        terminates = self.visit_check_terminal(node.body)
 
         if node.orelse:
             if_end = branch.copy()
             branch.restore()
 
             effect.reverse(self.local_types)
-            else_terminates = self.visit_until_terminates(node.orelse)
+            else_terminates = self.visit_check_terminal(node.orelse)
             if else_terminates:
                 if terminates:
                     # We're the least severe terminal of our two children
@@ -1569,7 +1572,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 if test is not None:
                     effect = self.visit(test) or NO_EFFECT
                     effect.apply(self.local_types)
-                terminates = self.visit_until_terminates(body)
+                terminates = self.visit_check_terminal(body)
                 # reset any declarations from the loop body to avoid redeclaration errors
                 self.binding_scope.decl_types = entry_decls.copy()
             branch.merge()
@@ -1592,7 +1595,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             effect = self.visit(node.test) or NO_EFFECT
             condition_always_true = self.get_type(node.test).is_truthy_literal()
             effect.apply(self.local_types)
-            terminal_level = self.visit_until_terminates(node.body)
+            terminal_level = self.visit_check_terminal(node.body)
 
         does_not_break = node not in self.loop_may_break
 
@@ -1643,7 +1646,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     ):
                         continue
             may_suppress_exceptions = True
-        terminates = self.visit_until_terminates(node.body)
+        terminates = self.visit_check_terminal(node.body)
         if not may_suppress_exceptions:
             self.set_terminal_kind(node, terminates)
 

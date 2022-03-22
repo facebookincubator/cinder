@@ -5,7 +5,7 @@ import ast
 import builtins
 from ast import AST
 from types import CodeType
-from typing import Any, cast, Optional, Dict, Tuple, Type, TYPE_CHECKING
+from typing import Any, Optional, Dict, Tuple, Type, TYPE_CHECKING
 
 from _static import (
     posix_clock_gettime_ns,

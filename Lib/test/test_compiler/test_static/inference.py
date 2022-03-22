@@ -250,3 +250,23 @@ class InferenceTests(StaticTestBase):
                 reveal_type(x)
         """
         self.revealed_type(codestr, "Optional[int]")
+
+    def test_unreachable_code(self) -> None:
+        codestr = """
+            def f():
+                while True:
+                    return 1
+                    x = 3
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), 1)
+
+    def test_unreachable_code_error(self) -> None:
+        codestr = """
+            def f():
+                while True:
+                    x: str = "foo"
+                    return 1
+                    x = 3
+        """
+        self.type_error(codestr, r"Literal\[3\] cannot be assigned to str", at="x = 3")
