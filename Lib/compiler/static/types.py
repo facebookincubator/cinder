@@ -3500,7 +3500,7 @@ class Function(Callable[Class], FunctionContainer):
             if not override_type.can_assign_from(arg_type):
                 module.syntax_error(
                     f"{override.qualname} overrides {self.qualname} inconsistently. "
-                    f"Parameter {arg.name} of type `{override_type.instance_name}` is not a subtype "
+                    f"Parameter {arg.name} of type `{override_type.instance_name}` is not a supertype "
                     f"of the overridden parameter `{arg_type.instance_name}`",
                     override.node,
                 )

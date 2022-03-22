@@ -1204,7 +1204,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             "<module>.B.m overrides <module>.A.m inconsistently. "
-            "Parameter x of type `int` is not a subtype of the overridden parameter `str`",
+            "Parameter x of type `int` is not a supertype of the overridden parameter `str`",
         ):
             self.compile(codestr)
 
@@ -4562,7 +4562,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(
             TypedSyntaxError,
             "<module>.B.m overrides <module>.A.m inconsistently. "
-            "Parameter a of type `str` is not a subtype of the overridden parameter `int`",
+            "Parameter a of type `str` is not a supertype of the overridden parameter `int`",
         ):
             self.compile(codestr)
 
