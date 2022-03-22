@@ -4663,6 +4663,20 @@ class StaticCompilationTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(test(), None)
 
+    def test_check_override_typed_builtin_method(self):
+        codestr = """
+            from xxclassloader import spamobj
+
+            class Child(spamobj):
+                def setstr(self, _s: int, /) -> None:
+                    pass
+        """
+        self.type_error(
+            codestr,
+            r"<module>.Child.setstr overrides xxclassloader.spamobj\[T\].setstr inconsistently. "
+            r"Parameter  of type `int` is not a supertype of the overridden parameter `str`",
+        )
+
     def test_assign_module_global(self):
         codestr = """
             x: int = 1

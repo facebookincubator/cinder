@@ -1650,15 +1650,14 @@ class Class(Object["Class"]):
                     self.check_incompatible_override(my_value, value)
                 if isinstance(value, Slot):
                     return None
-                elif isinstance(value, Function):
+                elif isinstance(value, Callable):
                     if value.func_name not in NON_VIRTUAL_METHODS:
                         if isinstance(my_value, TransparentDecoratedMethod):
-                            value.validate_compat_signature(
-                                my_value.real_function, module
-                            )
+                            func = my_value.real_function
                         else:
                             assert isinstance(my_value, Function)
-                            value.validate_compat_signature(my_value, module)
+                            func = my_value
+                        value.validate_compat_signature(func, module)
                 elif isinstance(value, TransparentDecoratedMethod):
                     if value.function.is_final:
                         raise TypedSyntaxError(
@@ -3009,6 +3008,87 @@ class Callable(Object[TClass]):
     def set_container_type(self, klass: Optional[Class]) -> None:
         self.container_type = klass.inexact_type() if klass is not None else klass
 
+    def validate_compat_signature(
+        self,
+        override: Function,
+        module: ModuleTable,
+        first_arg_is_implicit: bool = True,
+    ) -> None:
+        ret_type = self.return_type.resolved()
+        override_ret_type = override.return_type.resolved()
+
+        if not ret_type.can_assign_from(override_ret_type):
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"Returned type `{override_ret_type.instance_name}` is not a subtype "
+                f"of the overridden return `{ret_type.instance_name}`",
+                override.node,
+            )
+
+        args = self.args
+        if args is None:
+            # Untyped builtin method; cannot validate signature compatibility.
+            return
+
+        if len(args) != len(override.args):
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                "Number of arguments differ",
+                override.node,
+            )
+
+        start_arg = 1 if first_arg_is_implicit else 0
+        for arg, override_arg in zip(args[start_arg:], override.args[start_arg:]):
+            if not arg.is_posonly and arg.name != override_arg.name:
+                if arg.is_kwonly:
+                    arg_desc = f"Keyword only argument `{arg.name}`"
+                else:
+                    arg_desc = f"Positional argument {arg.index + 1} named `{arg.name}`"
+
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"{arg_desc} is overridden as `{override_arg.name}`",
+                    override.node,
+                )
+
+            if override_arg.is_posonly and not arg.is_posonly:
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"`{override_arg.name}` is positional-only in override, not in base",
+                    override.node,
+                )
+
+            if arg.is_kwonly != override_arg.is_kwonly:
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"`{arg.name}` differs by keyword only vs positional",
+                    override.node,
+                )
+
+            override_type = override_arg.type_ref.resolved()
+            arg_type = arg.type_ref.resolved()
+            if not override_type.can_assign_from(arg_type):
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"Parameter {arg.name} of type `{override_type.instance_name}` is not a supertype "
+                    f"of the overridden parameter `{arg_type.instance_name}`",
+                    override.node,
+                )
+
+        if self.has_vararg != override.has_vararg:
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"Functions differ by including *args",
+                override.node,
+            )
+
+        if self.has_kwarg != override.has_kwarg:
+            module.syntax_error(
+                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"Functions differ by including **kwargs",
+                override.node,
+            )
+
     def map_call(
         self,
         node: ast.Call,
@@ -3478,82 +3558,6 @@ class Function(Callable[Class], FunctionContainer):
         kwarg = arguments.kwarg
         if kwarg:
             self.has_kwarg = True
-
-    def validate_compat_signature(
-        self,
-        override: Function,
-        module: ModuleTable,
-        first_arg_is_implicit: bool = True,
-    ) -> None:
-        ret_type = self.return_type.resolved()
-        override_ret_type = override.return_type.resolved()
-
-        if not ret_type.can_assign_from(override_ret_type):
-            module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
-                f"Returned type `{override_ret_type.instance_name}` is not a subtype "
-                f"of the overridden return `{ret_type.instance_name}`",
-                override.node,
-            )
-
-        if len(self.args) != len(override.args):
-            module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
-                "Number of arguments differ",
-                override.node,
-            )
-
-        start_arg = 1 if first_arg_is_implicit else 0
-        for arg, override_arg in zip(self.args[start_arg:], override.args[start_arg:]):
-            if not arg.is_posonly and arg.name != override_arg.name:
-                if arg.is_kwonly:
-                    arg_desc = f"Keyword only argument `{arg.name}`"
-                else:
-                    arg_desc = f"Positional argument {arg.index + 1} named `{arg.name}`"
-
-                module.syntax_error(
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
-                    f"{arg_desc} is overridden as `{override_arg.name}`",
-                    override.node,
-                )
-
-            if override_arg.is_posonly and not arg.is_posonly:
-                module.syntax_error(
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
-                    f"`{override_arg.name}` is positional-only in override, not in base",
-                    override.node,
-                )
-
-            if arg.is_kwonly != override_arg.is_kwonly:
-                module.syntax_error(
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
-                    f"`{arg.name}` differs by keyword only vs positional",
-                    override.node,
-                )
-
-            override_type = override_arg.type_ref.resolved()
-            arg_type = arg.type_ref.resolved()
-            if not override_type.can_assign_from(arg_type):
-                module.syntax_error(
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
-                    f"Parameter {arg.name} of type `{override_type.instance_name}` is not a supertype "
-                    f"of the overridden parameter `{arg_type.instance_name}`",
-                    override.node,
-                )
-
-        if self.has_vararg != override.has_vararg:
-            module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
-                f"Functions differ by including *args",
-                override.node,
-            )
-
-        if self.has_kwarg != override.has_kwarg:
-            module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
-                f"Functions differ by including **kwargs",
-                override.node,
-            )
 
     def __repr__(self) -> str:
         return f"<{self.name} '{self.name}' instance, args={self.args}>"

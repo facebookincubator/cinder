@@ -371,7 +371,7 @@ class ContextDecoratorTests(StaticTestBase):
                 def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
                     calls.append("MyDecorator1.__exit__")
                     return False
-                def _recreate_cm(self):
+                def _recreate_cm(self) -> MyDecorator1:
                     return self
 
             class MyDecorator2(ContextDecorator):
@@ -383,7 +383,7 @@ class ContextDecoratorTests(StaticTestBase):
                     calls.append("MyDecorator2.__exit__")
                     return False
 
-                def _recreate_cm(self):
+                def _recreate_cm(self) -> MyDecorator2:
                     return self
 
             class C:
