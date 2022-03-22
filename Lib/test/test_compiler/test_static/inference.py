@@ -270,3 +270,184 @@ class InferenceTests(StaticTestBase):
                     x = 3
         """
         self.type_error(codestr, r"Literal\[3\] cannot be assigned to str", at="x = 3")
+
+    def test_try_except_both_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        return x
+                    except Exception:
+                        raise
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_try_terminal_but_not_except(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        return x
+                    except Exception:
+                        pass
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "Optional[int]")
+
+    def test_except_else_terminal_but_not_try(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        pass
+                    except Exception:
+                        raise
+                    else:
+                        return 1
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_one_except_terminal_but_not_all(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        return x
+                    except Exception:
+                        raise
+                    except BaseException:
+                        pass
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "Optional[int]")
+
+    def test_try_except_terminal_but_not_finally(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        return x
+                    except Exception:
+                        raise
+                    finally:
+                        pass
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_try_finally_terminal_but_not_except(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        return x
+                    except Exception:
+                        pass
+                    finally:
+                        return 0
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_only_finally_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        pass
+                    finally:
+                        return 0
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_only_finally_terminal_with_except(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        pass
+                    except Exception:
+                        pass
+                    finally:
+                        return 0
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_try_finally_both_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        return x
+                    finally:
+                        return 0
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_try_finally_except_all_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        return x
+                    except Exception:
+                        raise
+                    finally:
+                        return 0
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_try_except_lesser_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None, y: bool):
+                if y:
+                    while x is None:
+                        try:
+                            return x
+                        except Exception:
+                            continue
+                    ret = None
+                else:
+                    ret = 0
+
+                reveal_type(ret)
+        """
+        self.revealed_type(codestr, "Optional[Literal[0]]")
+
+    def test_try_multiple_except_lesser_terminal(self) -> None:
+        codestr = """
+            def f(x: int | None, y: bool):
+                if y:
+                    while x is None:
+                        try:
+                            return x
+                        except Exception:
+                            continue
+                        except BaseException:
+                            raise
+                    ret = None
+                else:
+                    ret = 0
+
+                reveal_type(ret)
+        """
+        self.revealed_type(codestr, "Optional[Literal[0]]")
+
+    def test_try_finally_finally_wins(self) -> None:
+        codestr = """
+            def f(x: int | None):
+                if x is None:
+                    try:
+                        continue
+                    finally:
+                        return 0
+
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "int")

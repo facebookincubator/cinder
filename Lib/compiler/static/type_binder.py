@@ -1505,27 +1505,39 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
     def visitTry(self, node: Try) -> None:
         branch = self.binding_scope.branch()
-        self.visit(node.body)
+        body_terminal = self.visit_check_terminal(node.body)
 
         branch.merge()
         post_try = branch.copy()
         merges = []
 
+        else_terminal = TerminalKind.NonTerminal
         if node.orelse:
-            self.visit(node.orelse)
+            else_terminal = self.visit_check_terminal(node.orelse)
             merges.append(branch.copy())
 
+        no_exception_terminal = max(body_terminal, else_terminal)
+
+        terminals = [no_exception_terminal]
         for handler in node.handlers:
             branch.restore(post_try)
             self.visit(handler)
+            terminals.append(self.terminals.get(handler, TerminalKind.NonTerminal))
             merges.append(branch.copy())
 
         branch.restore(post_try)
         for merge in merges:
             branch.merge(merge)
 
+        terminal = min(terminals)
+
         if node.finalbody:
-            self.visit(node.finalbody)
+            finally_terminal = self.visit_check_terminal(node.finalbody)
+            if finally_terminal:
+                terminal = finally_terminal
+
+        if terminal:
+            self.set_terminal_kind(node, terminal)
 
     def visitExceptHandler(self, node: ast.ExceptHandler) -> None:
         htype = node.type
@@ -1546,7 +1558,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
                 self.binding_scope.declare(hname, handler_type.instance)
 
-        self.visit(node.body)
+        terminal = self.visit_check_terminal(node.body)
+        if terminal:
+            self.set_terminal_kind(node, terminal)
         if hname is not None:
             del self.decl_types[hname]
             del self.local_types[hname]
