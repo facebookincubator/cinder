@@ -10,6 +10,7 @@
 #include "pyport.h"
 #include "structmember.h"
 #include "pycore_object.h"
+#include "pycore_tupleobject.h"
 #include "classloader.h"
 
 PyDoc_STRVAR(_static__doc__,
@@ -937,6 +938,325 @@ setup_cached_property_on_type(PyObject *Py_UNUSED(module), PyObject **args, Py_s
     Py_RETURN_NONE;
 }
 
+static int
+create_overridden_slot_descriptors_with_default(PyTypeObject *type)
+{
+    PyObject *mro = type->tp_mro;
+    if (mro == NULL) {
+        return 0;
+    }
+    Py_ssize_t mro_size = PyTuple_GET_SIZE(mro);
+    if (mro_size <= 1) {
+        return 0;
+    }
+
+    PyObject *slots_with_default = NULL;
+    PyTypeObject *next;
+    for (Py_ssize_t i = 1; i < mro_size; i++) {
+        next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
+        if (!(PyType_HasFeature(next,  Py_TPFLAGS_IS_STATICALLY_DEFINED))) {
+            continue;
+        }
+        assert(next->tp_dict != NULL);
+        slots_with_default = PyDict_GetItemString(next->tp_dict, "__slots_with_default__");
+        break;
+    }
+    if (slots_with_default == NULL) {
+        // Any class built before `__build_class__` is patched won't have a slots_with_default. In
+        // order to support bootstrapping, silently allow that to go through.
+        return 0;
+    }
+    if (!PyTuple_CheckExact(slots_with_default)) {
+        PyErr_Format(PyExc_TypeError,
+                     "The `__slots_with_default__` attribute of the class `%s` is not a tuple.",
+                     type->tp_name);
+        return -1;
+    }
+    Py_ssize_t nslots_with_default = PyTuple_GET_SIZE(slots_with_default);
+    for (Py_ssize_t i = 0; i < nslots_with_default; ++i) {
+        PyObject *name = PyTuple_GET_ITEM(slots_with_default, i);
+        PyObject *default_value = PyObject_GetAttr((PyObject *)type, name);
+        if (default_value == NULL) {
+            PyObject *exc, *val, *tb;
+            PyErr_Fetch(&exc, &val, &tb);
+            PyErr_Format(PyExc_TypeError,
+                         "The `slot_with_default` at %s is missing when creating class `%s`.",
+                         type->tp_name);
+            _PyErr_ChainExceptions(exc, val, tb);
+            return -1;
+        }
+        if (Py_TYPE(default_value)->tp_descr_get != NULL) {
+            // If the subclass overrides the base slot with a descriptor, just leave it be.
+            Py_DECREF(default_value);
+            continue;
+        }
+        PyObject *typed_descriptor = _PyType_Lookup(next, name);
+        if (typed_descriptor == NULL ||
+              Py_TYPE(typed_descriptor) != &_PyTypedDescriptorWithDefaultValue_Type) {
+            Py_DECREF(default_value);
+            PyErr_Format(PyExc_TypeError,
+                         "The slot at %R is not a typed descriptor for class `%s`.",
+                         name,
+                         next->tp_name);
+            return -1;
+        }
+        _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *) typed_descriptor;
+        PyObject *new_typed_descriptor = _PyTypedDescriptorWithDefaultValue_New(td->td_name,
+                                                                                td->td_type,
+                                                                                td->td_offset,
+                                                                                default_value);
+        PyDict_SetItem(type->tp_dict, name, new_typed_descriptor);
+        Py_DECREF(new_typed_descriptor);
+        Py_DECREF(default_value);
+    }
+    return 0;
+}
+
+_Py_IDENTIFIER(__prepare__);
+_Py_IDENTIFIER(__mro_entries__);
+_Py_IDENTIFIER(metaclass);
+
+static PyObject*
+update_bases(PyObject *bases, PyObject *const *args, Py_ssize_t nargs)
+{
+    Py_ssize_t i, j;
+    PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
+    PyObject *stack[1] = {bases};
+    assert(PyTuple_Check(bases));
+
+    for (i = 0; i < nargs; i++) {
+        base  = args[i];
+        if (PyType_Check(base)) {
+            if (new_bases) {
+                /* If we already have made a replacement, then we append every normal base,
+                   otherwise just skip it. */
+                if (PyList_Append(new_bases, base) < 0) {
+                    goto error;
+                }
+            }
+            continue;
+        }
+        if (_PyObject_LookupAttrId(base, &PyId___mro_entries__, &meth) < 0) {
+            goto error;
+        }
+        if (!meth) {
+            if (new_bases) {
+                if (PyList_Append(new_bases, base) < 0) {
+                    goto error;
+                }
+            }
+            continue;
+        }
+        new_base = _PyObject_FastCall(meth, stack, 1);
+        Py_DECREF(meth);
+        if (!new_base) {
+            goto error;
+        }
+        if (!PyTuple_Check(new_base)) {
+            PyErr_SetString(PyExc_TypeError,
+                            "__mro_entries__ must return a tuple");
+            Py_DECREF(new_base);
+            goto error;
+        }
+        if (!new_bases) {
+            /* If this is a first successful replacement, create new_bases list and
+               copy previously encountered bases. */
+            if (!(new_bases = PyList_New(i))) {
+                goto error;
+            }
+            for (j = 0; j < i; j++) {
+                base = args[j];
+                PyList_SET_ITEM(new_bases, j, base);
+                Py_INCREF(base);
+            }
+        }
+        j = PyList_GET_SIZE(new_bases);
+        if (PyList_SetSlice(new_bases, j, j, new_base) < 0) {
+            goto error;
+        }
+        Py_DECREF(new_base);
+    }
+    if (!new_bases) {
+        return bases;
+    }
+    result = PyList_AsTuple(new_bases);
+    Py_DECREF(new_bases);
+    return result;
+
+error:
+    Py_XDECREF(new_bases);
+    return NULL;
+}
+
+static PyObject *
+_static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
+                               PyObject *kwnames)
+{
+    PyObject *func, *name, *bases, *mkw, *meta, *winner, *prep, *ns, *orig_bases;
+    PyObject *cls = NULL, *cell = NULL;
+    int isclass = 0;   /* initialize to prevent gcc warning */
+
+    if (nargs < 2) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__build_cinder_class__: not enough arguments");
+        return NULL;
+    }
+    func = args[0];   /* Better be callable */
+    if (!PyFunction_Check(func)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__build_cinder_class__: func must be a function");
+        return NULL;
+    }
+    name = args[1];
+    if (!PyUnicode_Check(name)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__build_cinder_class__: name is not a string");
+        return NULL;
+    }
+    orig_bases = _PyTuple_FromArray(args + 2, nargs - 2);
+    if (orig_bases == NULL)
+        return NULL;
+
+    bases = update_bases(orig_bases, args + 2, nargs - 2);
+    if (bases == NULL) {
+        Py_DECREF(orig_bases);
+        return NULL;
+    }
+
+    if (kwnames == NULL) {
+        meta = NULL;
+        mkw = NULL;
+    }
+    else {
+        mkw = _PyStack_AsDict(args + nargs, kwnames);
+        if (mkw == NULL) {
+            Py_DECREF(bases);
+            return NULL;
+        }
+
+        meta = _PyDict_GetItemIdWithError(mkw, &PyId_metaclass);
+        if (meta != NULL) {
+            Py_INCREF(meta);
+            if (_PyDict_DelItemId(mkw, &PyId_metaclass) < 0) {
+                Py_DECREF(meta);
+                Py_DECREF(mkw);
+                Py_DECREF(bases);
+                return NULL;
+            }
+            /* metaclass is explicitly given, check if it's indeed a class */
+            isclass = PyType_Check(meta);
+        }
+        else if (PyErr_Occurred()) {
+            Py_DECREF(mkw);
+            Py_DECREF(bases);
+            return NULL;
+        }
+    }
+    if (meta == NULL) {
+        /* if there are no bases, use type: */
+        if (PyTuple_GET_SIZE(bases) == 0) {
+            meta = (PyObject *) (&PyType_Type);
+        }
+        /* else get the type of the first base */
+        else {
+            PyObject *base0 = PyTuple_GET_ITEM(bases, 0);
+            meta = (PyObject *) (base0->ob_type);
+        }
+        Py_INCREF(meta);
+        isclass = 1;  /* meta is really a class */
+    }
+
+    if (isclass) {
+        /* meta is really a class, so check for a more derived
+           metaclass, or possible metaclass conflicts: */
+        winner = (PyObject *)_PyType_CalculateMetaclass((PyTypeObject *)meta,
+                                                        bases);
+        if (winner == NULL) {
+            Py_DECREF(meta);
+            Py_XDECREF(mkw);
+            Py_DECREF(bases);
+            return NULL;
+        }
+        if (winner != meta) {
+            Py_DECREF(meta);
+            meta = winner;
+            Py_INCREF(meta);
+        }
+    }
+    /* else: meta is not a class, so we cannot do the metaclass
+       calculation, so we will use the explicitly given object as it is */
+    if (_PyObject_LookupAttrId(meta, &PyId___prepare__, &prep) < 0) {
+        ns = NULL;
+    }
+    else if (prep == NULL) {
+        ns = PyDict_New();
+    }
+    else {
+        PyObject *pargs[2] = {name, bases};
+        ns = _PyObject_FastCallDict(prep, pargs, 2, mkw);
+        Py_DECREF(prep);
+    }
+    if (ns == NULL) {
+        Py_DECREF(meta);
+        Py_XDECREF(mkw);
+        Py_DECREF(bases);
+        return NULL;
+    }
+    if (!PyMapping_Check(ns)) {
+        PyErr_Format(PyExc_TypeError,
+                     "%.200s.__prepare__() must return a mapping, not %.200s",
+                     isclass ? ((PyTypeObject *)meta)->tp_name : "<metaclass>",
+                     Py_TYPE(ns)->tp_name);
+        goto error;
+    }
+    cell = PyEval_EvalCodeEx(PyFunction_GET_CODE(func), PyFunction_GET_GLOBALS(func), ns,
+                             NULL, 0, NULL, 0, NULL, 0, NULL,
+                             PyFunction_GET_CLOSURE(func));
+    if (cell != NULL) {
+        if (bases != orig_bases) {
+            if (PyMapping_SetItemString(ns, "__orig_bases__", orig_bases) < 0) {
+                goto error;
+            }
+        }
+        PyObject *margs[3] = {name, bases, ns};
+        cls = _PyObject_FastCallDict(meta, margs, 3, mkw);
+        if (cls != NULL && PyType_Check(cls) && PyCell_Check(cell)) {
+            PyObject *cell_cls = PyCell_GET(cell);
+            if (cell_cls != cls) {
+                if (cell_cls == NULL) {
+                    const char *msg =
+                        "__class__ not set defining %.200R as %.200R. "
+                        "Was __classcell__ propagated to type.__new__?";
+                    PyErr_Format(PyExc_RuntimeError, msg, name, cls);
+                } else {
+                    const char *msg =
+                        "__class__ set to %.200R defining %.200R as %.200R";
+                    PyErr_Format(PyExc_TypeError, msg, cell_cls, name, cls);
+                }
+                Py_DECREF(cls);
+                cls = NULL;
+                goto error;
+            }
+        }
+    }
+    if (cls != NULL && create_overridden_slot_descriptors_with_default((PyTypeObject *) cls) < 0) {
+        Py_DECREF(cls);
+        cls = NULL;
+        goto error;
+    }
+error:
+    Py_XDECREF(cell);
+    Py_DECREF(ns);
+    Py_DECREF(meta);
+    Py_XDECREF(mkw);
+    Py_DECREF(bases);
+    if (bases != orig_bases) {
+        Py_DECREF(orig_bases);
+    }
+    return cls;
+}
+
+
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
@@ -952,6 +1272,10 @@ static PyMethodDef static_methods[] = {
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, METH_TYPED, ""},
     {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
     {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
+    {"__build_cinder_class__",
+     (PyCFunction)_static___build_cinder_class__,
+     METH_FASTCALL | METH_KEYWORDS,
+     ""},
     {}
 };
 

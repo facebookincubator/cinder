@@ -992,6 +992,82 @@ PyTypeObject _PyType_PropertyThunk = {
     .tp_call = (ternaryfunc)thunk_call,
 };
 
+typedef struct {
+    PyObject_HEAD;
+    PyObject *typed_descriptor_thunk_target;
+    /* the vectorcall entry point for the thunk */
+    vectorcallfunc typed_descriptor_thunk_vectorcall;
+    int is_setter;
+} _Py_TypedDescriptorThunk;
+
+
+static int
+typed_descriptor_thunk_traverse(_Py_TypedDescriptorThunk *op, visitproc visit, void *arg)
+{
+    visit(op->typed_descriptor_thunk_target, arg);
+    return 0;
+}
+
+static int
+typed_descriptor_thunk_clear(_Py_TypedDescriptorThunk *op)
+{
+    Py_CLEAR(op->typed_descriptor_thunk_target);
+    return 0;
+}
+
+static void
+typed_descriptor_thunk_dealloc(_Py_TypedDescriptorThunk *op)
+{
+    PyObject_GC_UnTrack((PyObject *)op);
+    Py_XDECREF(op->typed_descriptor_thunk_target);
+    PyObject_GC_Del((PyObject *)op);
+}
+
+static PyObject *
+typed_descriptor_thunk_get(_Py_TypedDescriptorThunk *thunk, PyObject *const *args,
+                                    size_t nargsf, PyObject *kwnames)
+{
+    size_t nargs = PyVectorcall_NARGS(nargsf);
+    if (nargs != 1) {
+        PyErr_SetString(PyExc_TypeError, "typed descriptor get expected 1 argument");
+        return NULL;
+    }
+    descrgetfunc f = _PyTypedDescriptorWithDefaultValue_Type.tp_descr_get;
+    return f(thunk->typed_descriptor_thunk_target, args[0], (PyObject *)Py_TYPE(args[0]));
+}
+
+static PyObject *
+typed_descriptor_thunk_set(_Py_TypedDescriptorThunk *thunk, PyObject *const *args,
+                                    size_t nargsf, PyObject *kwnames)
+{
+    size_t nargs = PyVectorcall_NARGS(nargsf);
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_TypeError, "typed descriptor set expected 2 arguments");
+        return NULL;
+    }
+
+    descrsetfunc f = _PyTypedDescriptorWithDefaultValue_Type.tp_descr_set;
+
+    int res = f(thunk->typed_descriptor_thunk_target, args[0], args[1]);
+    if (res != 0) {
+        return NULL;
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+PyTypeObject _PyType_TypedDescriptorThunk = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0) "typed_descriptor_with_default_value_thunk",
+    sizeof(_Py_TypedDescriptorThunk),
+    .tp_dealloc = (destructor)typed_descriptor_thunk_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
+        _Py_TPFLAGS_HAVE_VECTORCALL,
+    .tp_traverse = (traverseproc)typed_descriptor_thunk_traverse,
+    .tp_clear = (inquiry)typed_descriptor_thunk_clear,
+    .tp_vectorcall_offset = offsetof(_Py_TypedDescriptorThunk, typed_descriptor_thunk_vectorcall),
+    .tp_call = (ternaryfunc)thunk_call,
+};
+
 static PyObject *g_missing_fget = NULL;
 static PyObject *g_missing_fset = NULL;
 
@@ -1121,10 +1197,88 @@ classloader_is_property_tuple(PyTupleObject *name)
       || _PyUnicode_EqualToASCIIString(property_method_name, "fset");
 }
 
+static PyObject *
+classloader_get_typed_descriptor_get(PyObject *typed_descriptor) {
+    if (Py_TYPE(typed_descriptor) == &_PyTypedDescriptorWithDefaultValue_Type) {
+        _Py_TypedDescriptorThunk *thunk = PyObject_GC_New(_Py_TypedDescriptorThunk,
+                                                          &_PyType_TypedDescriptorThunk);
+        if (thunk == NULL) {
+            return NULL;
+        }
+        Py_INCREF(typed_descriptor);
+        thunk->typed_descriptor_thunk_target = typed_descriptor;
+        thunk->typed_descriptor_thunk_vectorcall = (vectorcallfunc) typed_descriptor_thunk_get;
+        thunk->is_setter = 0;
+        return (PyObject *) thunk;
+    }
+    // We reuse the property thunk getter, which returns the target blindly.
+    _Py_PropertyThunk *thunk = PyObject_GC_New(_Py_PropertyThunk, &_PyType_PropertyThunk);
+    if (thunk == NULL) {
+        return NULL;
+    }
+    thunk->propthunk_vectorcall = (vectorcallfunc)propthunk_get;
+    thunk->propthunk_target = typed_descriptor;
+    Py_INCREF(typed_descriptor);
+    return (PyObject *)thunk;
+}
+
+static PyObject *
+classloader_get_typed_descriptor_set(PyObject *typed_descriptor) {
+    if (Py_TYPE(typed_descriptor) == &_PyTypedDescriptorWithDefaultValue_Type) {
+        _Py_TypedDescriptorThunk *thunk = PyObject_GC_New(_Py_TypedDescriptorThunk,
+                                                          &_PyType_TypedDescriptorThunk);
+        if (thunk == NULL) {
+            return NULL;
+        }
+        Py_INCREF(typed_descriptor);
+        thunk->typed_descriptor_thunk_target = typed_descriptor;
+        thunk->typed_descriptor_thunk_vectorcall = (vectorcallfunc) typed_descriptor_thunk_set;
+        thunk->is_setter = 1;
+        return (PyObject *) thunk;
+    }
+    // We reuse the property thunk setter, which disallows assignment.
+    _Py_PropertyThunk *thunk = PyObject_GC_New(_Py_PropertyThunk, &_PyType_PropertyThunk);
+    if (thunk == NULL) {
+        return NULL;
+    }
+    thunk->propthunk_vectorcall = (vectorcallfunc)propthunk_set;
+    thunk->propthunk_target = typed_descriptor;
+    Py_INCREF(typed_descriptor);
+    return (PyObject *)thunk;
+}
+
+static PyObject *
+classloader_get_typed_descriptor_method(PyObject *typed_descriptor, PyTupleObject *name)
+{
+    PyObject *fname = PyTuple_GET_ITEM(name, 1);
+    if (_PyUnicode_EqualToASCIIString(fname, "tdget")) {
+        return classloader_get_typed_descriptor_get(typed_descriptor);
+    } else if (_PyUnicode_EqualToASCIIString(fname, "tdset")) {
+        return classloader_get_typed_descriptor_set(typed_descriptor);
+    }
+    PyErr_Format(PyExc_RuntimeError, "bad typed descriptor method name %R in classloader", fname);
+    return NULL;
+}
+
+static int
+classloader_is_typed_descriptor_tuple(PyTupleObject *name)
+{
+    if (PyTuple_GET_SIZE(name) != 2) {
+        return 0;
+    }
+    PyObject *typed_descriptor_method_name = PyTuple_GET_ITEM(name, 1);
+    if (!PyUnicode_Check(typed_descriptor_method_name)) {
+        return 0;
+    }
+    return _PyUnicode_EqualToASCIIString(typed_descriptor_method_name, "tdget")
+      || _PyUnicode_EqualToASCIIString(typed_descriptor_method_name, "tdset");
+}
+
 PyObject *
 classloader_get_func_name(PyObject *name) {
     if (PyTuple_Check(name) &&
-        classloader_is_property_tuple((PyTupleObject *)name)) {
+        (classloader_is_property_tuple((PyTupleObject *)name) ||
+         classloader_is_typed_descriptor_tuple((PyTupleObject *)name))) {
         return PyTuple_GET_ITEM(name, 0);
     }
     return name;
@@ -1500,6 +1654,42 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
         if (_PyClassLoader_IsStaticFunction(property->func)) {
             res = resolve_function_rettype(property->func, optional, exact, coroutine);
         }
+    } else if (Py_TYPE(func) == &_PyType_TypedDescriptorThunk) {
+        _Py_TypedDescriptorThunk *thunk = (_Py_TypedDescriptorThunk *)func;
+        if (thunk->is_setter) {
+            res = &_PyNone_Type;
+            Py_INCREF(res);
+        } else {
+            _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *)
+                thunk->typed_descriptor_thunk_target;
+            if (PyTuple_CheckExact(td->td_type)) {
+                res = _PyClassLoader_ResolveType(td->td_type, &td->td_optional, &td->td_exact);
+                *optional = td->td_optional;
+                *exact = td->td_exact;
+            } else { // Already resolved.
+                assert(PyType_CheckExact(td->td_type));
+                res = (PyTypeObject *) td->td_type;
+                *optional = td->td_optional;
+            }
+            if (res == NULL) {
+                return NULL;
+            }
+        }
+    } else if (Py_TYPE(func) == &_PyTypedDescriptorWithDefaultValue_Type) {
+        _PyTypedDescriptorWithDefaultValue *td = (_PyTypedDescriptorWithDefaultValue *) func;
+        if (PyTuple_CheckExact(td->td_type)) {
+            res = _PyClassLoader_ResolveType(td->td_type, &td->td_optional, &td->td_exact);
+            *optional = td->td_optional;
+            *exact = td->td_exact;
+        } else { // Already resolved.
+            assert(PyType_CheckExact(td->td_type));
+            res = (PyTypeObject *) td->td_type;
+            *optional = td->td_optional;
+            *exact = td->td_exact;
+        }
+        if (res == NULL) {
+            return NULL;
+        }
     } else {
         _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
         *optional = 0;
@@ -1571,22 +1761,33 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
 
 int
 get_func_or_special_callable(PyObject *dict, PyObject *name, PyObject **result) {
-    if (PyTuple_CheckExact(name) && classloader_is_property_tuple((PyTupleObject *) name)) {
-        PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
-        if (property == NULL) {
-            *result = NULL;
-            return 0;
+    if (PyTuple_CheckExact(name)) {
+        if (classloader_is_property_tuple((PyTupleObject *) name)) {
+             PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
+             if (property == NULL) {
+               *result = NULL;
+               return 0;
+             }
+             *result = classloader_get_property_method(property, (PyTupleObject *) name);
+             if (*result == NULL) {
+                 return -1;
+             }
+             return 0;
         }
-
-        *result = classloader_get_property_method(property,
-                                                  (PyTupleObject *) name);
-        if (*result == NULL) {
-            return -1;
+        else if (classloader_is_typed_descriptor_tuple((PyTupleObject *) name)) {
+             PyObject *typed_descriptor = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
+             if (typed_descriptor == NULL) {
+               *result = NULL;
+               return 0;
+             }
+             *result = classloader_get_typed_descriptor_method(typed_descriptor, (PyTupleObject *) name);
+             if (*result == NULL) {
+                 return -1;
+             }
+             return 0;
         }
-        return 0;
-    } else {
-        *result = PyDict_GetItem(dict, name);
     }
+    *result = PyDict_GetItem(dict, name);
     Py_XINCREF(*result);
     return 0;
 }
@@ -1631,6 +1832,18 @@ _PyClassLoader_GetStaticallyInheritedMember(PyTypeObject *type, PyObject *name, 
 
 static PyObject *g_fget = NULL;
 static PyObject *g_fset = NULL;
+static PyObject *g_tdget = NULL;
+static PyObject *g_tdset = NULL;
+
+PyObject *get_descr_tuple(PyObject *name, PyObject *accessor)
+{
+    PyObject *getter_tuple = PyTuple_New(2);
+    Py_INCREF(name);
+    PyTuple_SET_ITEM(getter_tuple, 0, name);
+    Py_INCREF(accessor);
+    PyTuple_SET_ITEM(getter_tuple, 1, accessor);
+    return getter_tuple;
+}
 
 PyObject *
 get_property_getter_descr_tuple(PyObject *name)
@@ -1638,12 +1851,7 @@ get_property_getter_descr_tuple(PyObject *name)
     if (g_fget == NULL) {
         g_fget = PyUnicode_FromStringAndSize("fget", 4);
     }
-    PyObject *getter_tuple = PyTuple_New(2);
-    Py_INCREF(name);
-    PyTuple_SET_ITEM(getter_tuple, 0, name);
-    Py_INCREF(g_fget);
-    PyTuple_SET_ITEM(getter_tuple, 1, g_fget);
-    return getter_tuple;
+    return get_descr_tuple(name, g_fget);
 }
 
 PyObject *
@@ -1652,13 +1860,27 @@ get_property_setter_descr_tuple(PyObject *name)
     if (g_fset == NULL) {
         g_fset = PyUnicode_FromStringAndSize("fset", 4);
     }
-    PyObject *setter_tuple = PyTuple_New(2);
-    Py_INCREF(name);
-    PyTuple_SET_ITEM(setter_tuple, 0, name);
-    Py_INCREF(g_fset);
-    PyTuple_SET_ITEM(setter_tuple, 1, g_fset);
-    return setter_tuple;
+    return get_descr_tuple(name, g_fset);
 }
+
+PyObject *
+get_typed_descriptor_getter_tuple(PyObject *name)
+{
+    if (g_tdget == NULL) {
+        g_tdget = PyUnicode_FromStringAndSize("tdget", 5);
+    }
+    return get_descr_tuple(name, g_tdget);
+}
+
+PyObject *
+get_typed_descriptor_setter_tuple(PyObject *name)
+{
+    if (g_tdset == NULL) {
+        g_tdset = PyUnicode_FromStringAndSize("tdset", 5);
+    }
+    return get_descr_tuple(name, g_tdset);
+}
+
 
 static void
 update_thunk(_Py_StaticThunk *thunk, PyObject *previous, PyObject *new_value)
@@ -1797,6 +2019,28 @@ _PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
     return 0;
 }
 
+int populate_getter_and_setter(PyTypeObject *type,
+                               PyObject *getter_tuple,
+                               PyObject *getter_value,
+                               PyObject *setter_tuple,
+                               PyObject *setter_value)
+{
+    int result = 0;
+    if (_PyClassLoader_UpdateSlot(type, (PyObject *)getter_tuple, getter_value)) {
+        result = -1;
+    }
+    Py_DECREF(getter_tuple);
+    Py_XDECREF(getter_value);
+
+    if (_PyClassLoader_UpdateSlot(type, (PyObject *)setter_tuple, setter_value)) {
+        result = -1;
+    }
+    Py_DECREF(setter_tuple);
+    Py_XDECREF(setter_value);
+
+    return result;
+}
+
 /* The UpdateSlot method will always get called by `tp_setattro` when one of a type's attribute
    gets changed, and serves as an entry point for handling modifications to vtables. */
 int
@@ -1891,27 +2135,38 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
                 }
             }
         }
-        PyTupleObject *getter_tuple = (PyTupleObject *)get_property_getter_descr_tuple(name);
         PyObject *new_getter = deleting ? NULL : classloader_get_property_fget(new_value);
-        if(_PyClassLoader_UpdateSlot(type, (PyObject *)getter_tuple, new_getter)) {
-            Py_DECREF(getter_tuple);
-            Py_XDECREF(new_getter);
-            Py_XDECREF(base);
-            return -1;
-        }
-        Py_XDECREF(new_getter);
-        Py_DECREF(getter_tuple);
-
-        PyTupleObject *setter_tuple = (PyTupleObject *)get_property_setter_descr_tuple(name);
         PyObject *new_setter = deleting ? NULL : classloader_get_property_fset(new_value);
-        if(_PyClassLoader_UpdateSlot(type, (PyObject *)setter_tuple, new_setter)) {
-            Py_DECREF(setter_tuple);
-            Py_XDECREF(new_setter);
+        if (populate_getter_and_setter(type,
+                                       get_property_getter_descr_tuple(name), new_getter,
+                                       get_property_setter_descr_tuple(name), new_setter) < 0) {
+              Py_XDECREF(base);
+              return -1;
+        }
+    } else if (Py_TYPE(previous) == &_PyTypedDescriptorWithDefaultValue_Type) {
+        if (new_value) {
+            // If we have a new value, and it's not a descriptor, we can type-check it
+            // at the time of assignment.
+          if (!_PyObject_TypeCheckOptional(new_value, (PyTypeObject *) cur_type, cur_optional, cur_exact)) {
+                 PyErr_Format(
+                        PyExc_TypeError, "Cannot assign a %s, because %s.%U is expected to be a %s",
+                        Py_TYPE(new_value)->tp_name,
+                        type->tp_name, name,
+                        ((PyTypeObject*) cur_type)->tp_name
+                    );
+                 Py_DECREF(cur_type);
+                 Py_XDECREF(base);
+                 return -1;
+            }
+        }
+        PyObject *new_getter = deleting ? NULL : classloader_get_typed_descriptor_get(new_value);
+        PyObject *new_setter = deleting ? NULL : classloader_get_typed_descriptor_set(new_value);
+        if (populate_getter_and_setter(type,
+                                       get_typed_descriptor_getter_tuple(name), new_getter,
+                                       get_typed_descriptor_setter_tuple(name), new_setter) < 0) {
             Py_XDECREF(base);
             return -1;
         }
-        Py_XDECREF(new_setter);
-        Py_DECREF(setter_tuple);
     }
 
     Py_ssize_t index = PyLong_AsSsize_t(slot);
@@ -2016,6 +2271,10 @@ type_vtable_setslot(PyTypeObject *tp,
             Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)async_cachedpropthunk_get;
+        } else if (Py_TYPE(value) == &_PyType_TypedDescriptorThunk) {
+            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+            vtable->vt_entries[slot].vte_entry =
+              ((_Py_TypedDescriptorThunk *) value)->typed_descriptor_thunk_vectorcall;
             Py_INCREF(value);
             return 0;
         }
@@ -2158,6 +2417,12 @@ used_in_vtable_worker(PyObject *value) {
     } else if (Py_TYPE(value) == &_PyType_AsyncCachedPropertyThunk) {
         return used_in_vtable_worker(async_cachedpropthunk_get_func(value));
     }
+    if (Py_TYPE(value) == &_PyTypedDescriptorWithDefaultValue_Type) {
+       return 1;
+    }
+    if (Py_TYPE(value) == &_PyType_TypedDescriptorThunk) {
+       return 1;
+    }
     return _PyClassLoader_IsStaticCallable(value);
 }
 
@@ -2185,6 +2450,26 @@ used_in_vtable(PyObject *value)
     return 0;
 }
 
+// Steals a reference to the `getter_tuple` and `setter_tuple` objects.
+int update_property_slot(PyObject *slotmap, int *slot_index, PyObject *getter_tuple, PyObject *setter_tuple)
+{
+    PyObject *getter_index = PyLong_FromLong((*slot_index)++);
+    int err = PyDict_SetItem(slotmap, getter_tuple, getter_index);
+    Py_DECREF(getter_index);
+    Py_DECREF(getter_tuple);
+    if (err) {
+        Py_DECREF(setter_tuple);
+        return -1;
+    }
+    PyObject *setter_index = PyLong_FromLong((*slot_index)++);
+    err = PyDict_SetItem(slotmap, setter_tuple, setter_index);
+    Py_DECREF(setter_index);
+    Py_DECREF(setter_tuple);
+    if (err) {
+        return -1;
+    }
+    return 0;
+}
 /**
     Merges the slot map of our bases with our own members, initializing the
     map with the members which are defined in the current type but not the
@@ -2230,6 +2515,13 @@ _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
             Py_DECREF(setter_tuple);
             if (err) {
                 return -1;
+            }
+        }
+        else if (Py_TYPE(value) == &_PyTypedDescriptorWithDefaultValue_Type) {
+            PyObject *getter_tuple = get_typed_descriptor_getter_tuple(key);
+            PyObject *setter_tuple = get_typed_descriptor_setter_tuple(key);
+            if (update_property_slot(slotmap, &slot_index, getter_tuple, setter_tuple) < 0) {
+              return -1;
             }
         }
     }
@@ -2513,7 +2805,8 @@ classloader_get_member(PyObject *path,
         }
 
         if (PyTuple_CheckExact(name) &&
-            !classloader_is_property_tuple((PyTupleObject *) name)) {
+            !(classloader_is_property_tuple((PyTupleObject *) name)
+              || classloader_is_typed_descriptor_tuple((PyTupleObject *) name))) {
             PyObject *next = classloader_instantiate_generic(cur, name, path);
             if (next == NULL) {
                 goto error;
@@ -3342,6 +3635,7 @@ typed_descriptor_with_default_value_dealloc(_PyTypedDescriptorWithDefaultValue *
 static int
 typed_descriptor_with_default_value_traverse(_PyTypedDescriptorWithDefaultValue *self, visitproc visit, void *arg)
 {
+    Py_VISIT(self->td_name);
     Py_VISIT(self->td_type);
     Py_VISIT(self->td_default);
     return 0;
@@ -3350,6 +3644,7 @@ typed_descriptor_with_default_value_traverse(_PyTypedDescriptorWithDefaultValue 
 static int
 typed_descriptor_with_default_value_clear(_PyTypedDescriptorWithDefaultValue *self)
 {
+    Py_CLEAR(self->td_name);
     Py_CLEAR(self->td_type);
     Py_CLEAR(self->td_default);
     return 0;

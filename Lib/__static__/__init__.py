@@ -91,6 +91,7 @@ try:
         RAND_MAX,
         rand,
         posix_clock_gettime_ns,
+        __build_cinder_class__,
     )
 except ImportError:
     RAND_MAX = (1 << 31) - 1
@@ -100,6 +101,11 @@ except ImportError:
 
     def posix_clock_gettime_ns():
         return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+
+    def create_overridden_slot_descriptors_with_default(t):
+        return None
+
+    __build_cinder_class__ = __build_class__
 
 
 try:

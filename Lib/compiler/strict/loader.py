@@ -160,6 +160,7 @@ class StrictModuleTestingPatchProxy:
 
 __builtins__: ModuleType
 
+
 class StrictSourceFileLoader(SourceFileLoader):
     strict: bool = False
     compiler: Optional[Compiler] = None
