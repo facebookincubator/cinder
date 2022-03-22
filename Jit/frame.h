@@ -13,7 +13,7 @@ namespace jit {
 class CodeRuntime;
 
 // FrameHeader lives at the beginning of the stack frame for JIT-compiled
-// functions.
+// functions. Note these will be garbage in generator objects.
 struct FrameHeader {
   _PyShadowFrame shadow_frame;
 

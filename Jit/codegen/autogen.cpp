@@ -4,6 +4,7 @@
 #include "Jit/codegen/gen_asm_utils.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/deopt_patcher.h"
+#include "Jit/frame.h"
 #include "Jit/lir/instruction.h"
 #include "Jit/util.h"
 
@@ -425,8 +426,10 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rdi, scratch_r);
 
   // Store variables spilled by this point to generator.
-  as->mov(x86::rsi, x86::rbp);
-  int current_spill_bytes = env->initial_yield_spill_size_;
+  int frame_size = sizeof(FrameHeader);
+  as->lea(x86::rsi, x86::ptr(x86::rbp, -frame_size));
+  as->sub(x86::rdi, frame_size);
+  int current_spill_bytes = env->initial_yield_spill_size_ - frame_size;
   JIT_CHECK(current_spill_bytes % kPointerSize == 0, "Bad spill alignment");
   as->mov(x86::rcx, (current_spill_bytes / kPointerSize) + 1);
   as->std();
