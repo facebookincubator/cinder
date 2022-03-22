@@ -321,13 +321,51 @@ JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
       (PyObject*)defaulted_args);
 }
 
-bool JITRT_PackStaticArgs(
+static bool pack_static_args(
     PyObject** args,
     _PyTypedArgsInfo* arg_info,
     void** arg_space,
     Py_ssize_t nargs,
+    size_t num_gp_regs_for_args,
     bool invoked_statically) {
   Py_ssize_t arg_index = 0;
+
+  // When filling in arg_space we need to put all the args which fit into
+  // machine registers first, followed by all args which need to spill into
+  // memory. This is complicated because there are two sets of registers
+  // (general purpose and floating-point), and we don't know how of each type
+  // there will be in advance.
+  //
+  // To deal with this we add args to the arg_space considering whether they are
+  // floating-point or general-purpose. If there are enough of the correct type
+  // of registers available we add the args to arg_space going forward. If there
+  // aren't enough registers left we start add it starting from the end of the
+  // arg_space. After all args have been added we then reverse the order of
+  // memory-spilled args.
+  //
+  // TODO(jbower): It's should be possible to remove the reverse operation with
+  // enough other changes in JIT code generation.
+  size_t gp_reg_index = 0;
+  size_t fp_reg_index = 0;
+  size_t arg_space_i_regs = 0;
+  size_t arg_space_i_mem = nargs - 1;
+  auto add_to_arg_space = [&](void* value, bool is_fp) {
+    if (is_fp) {
+      if (fp_reg_index == jit::codegen::FP_ARGUMENT_REG_COUNT) {
+        arg_space[arg_space_i_mem--] = value;
+      } else {
+        arg_space[arg_space_i_regs++] = value;
+        fp_reg_index++;
+      }
+    } else {
+      if (gp_reg_index == num_gp_regs_for_args) {
+        arg_space[arg_space_i_mem--] = value;
+      } else {
+        arg_space[arg_space_i_regs++] = value;
+        gp_reg_index++;
+      }
+    }
+  };
 
   for (Py_ssize_t i = 0; i < nargs; i++) {
     if (arg_index < Py_SIZE(arg_info) &&
@@ -343,7 +381,7 @@ bool JITRT_PackStaticArgs(
                 cur_arg->tai_exact)) {
           return true;
         }
-        arg_space[i] = arg;
+        add_to_arg_space(arg, false);
       } else if (_PyClassLoader_IsEnum(cur_arg->tai_type)) {
         int64_t ival;
         if (invoked_statically) {
@@ -360,24 +398,26 @@ bool JITRT_PackStaticArgs(
         JIT_DCHECK(
             ival != -1 || !PyErr_Occurred(),
             "enums are statically guaranteed to have type int64");
-        arg_space[i] = (void*)ival;
+        add_to_arg_space(reinterpret_cast<void*>(ival), false);
       } else if (cur_arg->tai_primitive_type == TYPED_BOOL) {
         if (Py_TYPE(arg) != &PyBool_Type) {
           return true;
         }
-        arg_space[i] = (void*)(arg == Py_True);
+        add_to_arg_space(reinterpret_cast<void*>(arg == Py_True), false);
       } else if (cur_arg->tai_primitive_type == TYPED_DOUBLE) {
         if (Py_TYPE(arg) != &PyFloat_Type) {
           return true;
         }
-        arg_space[i] = bit_cast<void*>(PyFloat_AsDouble(arg));
+        add_to_arg_space(bit_cast<void*>(PyFloat_AsDouble(arg)), true);
       } else if (cur_arg->tai_primitive_type <= TYPED_INT64) {
         // Primitive arg check
+        size_t val;
         if (Py_TYPE(arg) != &PyLong_Type ||
             !_PyClassLoader_OverflowCheck(
-                arg, cur_arg->tai_primitive_type, (size_t*)&arg_space[i])) {
+                arg, cur_arg->tai_primitive_type, (size_t*)&val)) {
           return true;
         }
+        add_to_arg_space(reinterpret_cast<void*>(val), false);
       } else {
         JIT_CHECK(
             false,
@@ -387,13 +427,21 @@ bool JITRT_PackStaticArgs(
       arg_index++;
       continue;
     }
-    arg_space[i] = args[i];
+    add_to_arg_space(reinterpret_cast<void*>(args[i]), false);
   }
+
+  // Reverse memory-spilled args as explained above
+  size_t i1 = arg_space_i_mem + 1;
+  size_t i2 = nargs - 1;
+  while (i1 < i2) {
+    std::swap(arg_space[i1++], arg_space[i2--]);
+  }
+
   return false;
 }
 
 template <typename TRetType, typename TVectorcall>
-TRetType JITRT_CallStaticallyWithPrimitiveSignatureWorker(
+static TRetType call_statically_with_primitive_signature_worker(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,
@@ -401,8 +449,15 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureWorker(
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
   void* arg_space[nargs];
   bool invoked_statically = (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) != 0;
-  if (JITRT_PackStaticArgs(
-          args, arg_info, arg_space, nargs, invoked_statically)) {
+  size_t num_gp_regs_for_args = jit::codegen::numGpRegsForArgs(
+      reinterpret_cast<PyCodeObject*>(func->func_code));
+  if (pack_static_args(
+          args,
+          arg_info,
+          arg_space,
+          nargs,
+          num_gp_regs_for_args,
+          invoked_statically)) {
     goto fail;
   }
 
@@ -422,7 +477,7 @@ fail:
 // we'll return an additional garbage rdx from our caller, but our caller won't
 // care about it either.
 template <typename TRetType, typename TVectorcall>
-TRetType JITRT_CallStaticallyWithPrimitiveSignatureTemplate(
+static TRetType call_statically_with_primitive_signature_template(
     PyFunctionObject* func,
     PyObject** args,
     size_t nargsf,
@@ -452,7 +507,7 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureTemplate(
             total_args,
             kwdict,
             varargs)) {
-      return JITRT_CallStaticallyWithPrimitiveSignatureWorker<
+      return call_statically_with_primitive_signature_worker<
           TRetType,
           TVectorcall>(
           func, arg_space, total_args | PyVectorcall_FLAGS(nargsf), arg_info);
@@ -462,9 +517,8 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureTemplate(
     return TRetType();
   }
 
-  return JITRT_CallStaticallyWithPrimitiveSignatureWorker<
-      TRetType,
-      TVectorcall>(func, args, nargsf, arg_info);
+  return call_statically_with_primitive_signature_worker<TRetType, TVectorcall>(
+      func, args, nargsf, arg_info);
 }
 
 JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
@@ -473,7 +527,7 @@ JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
     size_t nargsf,
     PyObject* kwnames,
     _PyTypedArgsInfo* arg_info) {
-  return JITRT_CallStaticallyWithPrimitiveSignatureTemplate<
+  return call_statically_with_primitive_signature_template<
       JITRT_StaticCallReturn,
       staticvectorcallfunc>(func, args, nargsf, kwnames, arg_info);
 }
@@ -484,7 +538,7 @@ JITRT_StaticCallFPReturn JITRT_CallStaticallyWithPrimitiveSignatureFP(
     size_t nargsf,
     PyObject* kwnames,
     _PyTypedArgsInfo* arg_info) {
-  return JITRT_CallStaticallyWithPrimitiveSignatureTemplate<
+  return call_statically_with_primitive_signature_template<
       JITRT_StaticCallFPReturn,
       staticvectorcallfuncfp>(func, args, nargsf, kwnames, arg_info);
 }

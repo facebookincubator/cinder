@@ -57,6 +57,9 @@ class LIRGeneratorTest : public RuntimeTest {
     jit::Runtime rt;
 
     env.rt = &rt;
+    for (PhyLocation arg_reg : codegen::GP_ARGUMENT_REGS) {
+      env.arg_locations.push_back(arg_reg);
+    }
 
     LIRGenerator lir_gen(irfunc.get(), &env);
 
@@ -433,6 +436,8 @@ fun foo {
   jit::Runtime rt;
 
   env.rt = &rt;
+
+  env.arg_locations.push_back(codegen::GP_ARGUMENT_REGS[0]);
 
   LIRGenerator lir_gen(irfunc.get(), &env);
 

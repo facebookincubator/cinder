@@ -129,13 +129,10 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
   auto instr = instr_iter->get();
   auto block = instr->basicblock();
 
-  constexpr int num_arg_regs = sizeof(ARGUMENT_REGS) / sizeof(ARGUMENT_REGS[0]);
-  constexpr int num_fp_arg_regs =
-      sizeof(FP_ARGUMENT_REGS) / sizeof(FP_ARGUMENT_REGS[0]);
 
   auto num_inputs = instr->getNumInputs();
-  int arg_reg = 0;
-  int fp_arg_reg = 0;
+  size_t arg_reg = 0;
+  size_t fp_arg_reg = 0;
   int stack_arg_size = 0;
 
   for (size_t i = 1; i < num_inputs; i++) {
@@ -143,7 +140,7 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
     bool operand_imm = operand->isImm();
 
     if (operand->isFp()) {
-      if (fp_arg_reg < num_fp_arg_regs) {
+      if (fp_arg_reg < std::size(FP_ARGUMENT_REGS)) {
         if (operand_imm) {
           block->allocateInstrBefore(
               instr_iter,
@@ -168,9 +165,9 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
       continue;
     }
 
-    if (arg_reg < num_arg_regs) {
+    if (arg_reg < std::size(GP_ARGUMENT_REGS)) {
       auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove);
-      move->output()->setPhyRegister(ARGUMENT_REGS[arg_reg++]);
+      move->output()->setPhyRegister(GP_ARGUMENT_REGS[arg_reg++]);
       move->appendInputOperand(instr->releaseInputOperand(i));
     } else {
       insertMoveToMemoryLocation(
@@ -271,11 +268,11 @@ int PostRegAllocRewrite::rewriteGetMethodFunctionWorker(
   auto num_inputs = instr->getNumInputs();
 
   JIT_DCHECK(
-      num_inputs <= std::size(ARGUMENT_REGS),
+      num_inputs <= std::size(GP_ARGUMENT_REGS),
       "Number of inputs is greater than available ARGUMENT_REGS");
 
   for (size_t i = CALL_OPERAND_ARG_START; i < num_inputs; i++) {
-    auto reg = ARGUMENT_REGS[i - 1];
+    auto reg = GP_ARGUMENT_REGS[i - 1];
 
     auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove);
     move->output()->setPhyRegister(reg);
@@ -285,7 +282,7 @@ int PostRegAllocRewrite::rewriteGetMethodFunctionWorker(
   block->allocateInstrBefore(
       instr_iter,
       Instruction::kMove,
-      OutPhyReg(ARGUMENT_REGS[num_inputs - 1]),
+      OutPhyReg(GP_ARGUMENT_REGS[num_inputs - 1]),
       PhyReg(PhyLocation::RSP));
 
   return 0;

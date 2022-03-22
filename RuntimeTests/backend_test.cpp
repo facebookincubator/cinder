@@ -107,8 +107,8 @@ class BackendTest : public RuntimeTest {
   }
 
   void InitEnviron(Environ& environ) {
-    for (size_t i = 0; i < ARGUMENT_REG_COUNT; i++) {
-      environ.arg_locations.push_back(ARGUMENT_REGS[i]);
+    for (PhyLocation arg_reg : GP_ARGUMENT_REGS) {
+      environ.arg_locations.push_back(arg_reg);
     }
   }
 
