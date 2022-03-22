@@ -472,19 +472,22 @@ PyObject* JITRT_MakeGenObject(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    jit::CodeRuntime* code_rt);
+    jit::CodeRuntime* code_rt,
+    PyCodeObject* code);
 
 PyObject* JITRT_MakeGenObjectAsyncGen(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    jit::CodeRuntime* code_rt);
+    jit::CodeRuntime* code_rt,
+    PyCodeObject* code);
 
 PyObject* JITRT_MakeGenObjectCoro(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    jit::CodeRuntime* code_rt);
+    jit::CodeRuntime* code_rt,
+    PyCodeObject* code);
 
 // Set the awaiter of the given awaitable to be the coroutine at the top of
 // `ts`.

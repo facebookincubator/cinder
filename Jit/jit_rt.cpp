@@ -1633,10 +1633,9 @@ static inline PyObject* make_gen_object(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    jit::CodeRuntime* code_rt) {
+    jit::CodeRuntime* code_rt,
+    PyCodeObject* code) {
   PyGenObject* gen = nullptr;
-  const jit::RuntimeFrameState* frame_state = code_rt->frameState();
-  PyCodeObject* code = frame_state->code();
   if (_PyJIT_ShadowFrame() || code->co_flags & CO_SHADOW_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(_PyCoro_NewNoFrame(tstate, code));
@@ -1646,7 +1645,8 @@ static inline PyObject* make_gen_object(
       gen = reinterpret_cast<PyGenObject*>(_PyGen_NewNoFrame(code));
     }
   } else {
-    PyFrameObject* f = allocateFrame(tstate, code, frame_state->globals());
+    PyFrameObject* f =
+        allocateFrame(tstate, code, code_rt->frameState()->globals());
     // This clearing of f_back only when returning a generator matches
     // CPython's generator handling in _PyEval_EvalCodeWithName; it also avoids
     // keeping the parent frame alive longer than necessary if the caller
@@ -1699,27 +1699,30 @@ PyObject* JITRT_MakeGenObject(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    jit::CodeRuntime* code_rt) {
+    jit::CodeRuntime* code_rt,
+    PyCodeObject* code) {
   return make_gen_object<MakeGenObjectMode::kGenerator>(
-      resume_entry, tstate, spill_words, code_rt);
+      resume_entry, tstate, spill_words, code_rt, code);
 }
 
 PyObject* JITRT_MakeGenObjectAsyncGen(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    jit::CodeRuntime* code_rt) {
+    jit::CodeRuntime* code_rt,
+    PyCodeObject* code) {
   return make_gen_object<MakeGenObjectMode::kAsyncGenerator>(
-      resume_entry, tstate, spill_words, code_rt);
+      resume_entry, tstate, spill_words, code_rt, code);
 }
 
 PyObject* JITRT_MakeGenObjectCoro(
     GenResumeFunc resume_entry,
     PyThreadState* tstate,
     size_t spill_words,
-    jit::CodeRuntime* code_rt) {
+    jit::CodeRuntime* code_rt,
+    PyCodeObject* code) {
   return make_gen_object<MakeGenObjectMode::kCoroutine>(
-      resume_entry, tstate, spill_words, code_rt);
+      resume_entry, tstate, spill_words, code_rt, code);
 }
 
 void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {

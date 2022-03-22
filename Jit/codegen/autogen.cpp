@@ -400,6 +400,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   PyCodeObject* code = static_cast<const hir::InitialYield*>(instr->origin())
                            ->frameState()
                            ->code;
+  as->mov(x86::r8, reinterpret_cast<uint64_t>(code));
   if (code->co_flags & CO_COROUTINE) {
     emitCall(*env, reinterpret_cast<uint64_t>(JITRT_MakeGenObjectCoro), instr);
   } else if (code->co_flags & CO_ASYNC_GENERATOR) {
