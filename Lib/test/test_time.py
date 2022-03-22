@@ -129,8 +129,7 @@ class TimeTestCase(unittest.TestCase):
         self.assertGreater(res, 0.0)
         self.assertLessEqual(res, 1.0)
 
-    @unittest.skipUnless(hasattr(time, 'clock_settime'),
-                         'need time.clock_settime()')
+    @unittest.skip("skip setting sys clock")
     def test_clock_settime(self):
         t = time.clock_gettime(time.CLOCK_REALTIME)
         try:
@@ -506,8 +505,7 @@ class TimeTestCase(unittest.TestCase):
         self.assertTrue(info.monotonic)
         self.assertFalse(info.adjustable)
 
-    @unittest.skipUnless(hasattr(time, 'clock_settime'),
-                         'need time.clock_settime')
+    @unittest.skip("skip setting sys clock")
     def test_monotonic_settime(self):
         t1 = time.monotonic()
         realtime = time.clock_gettime(time.CLOCK_REALTIME)
