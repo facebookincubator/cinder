@@ -296,17 +296,6 @@ void* NativeGenerator::GetEntryPoint() {
     env_.initial_yield_spill_size_ = lsalloc.initialYieldSpillSize();
   }
 
-  // TODO: need to revisit after the old backend is removed.
-  auto setPredefined = [&](const char* name) {
-    auto operand = map_get(env_.output_map, name)->output();
-    if (lsalloc.isPredefinedUsed(operand)) {
-      env_.predefined_.insert(name);
-    }
-  };
-
-  setPredefined("__asm_extra_args");
-  setPredefined("__asm_tstate");
-
   PostRegAllocRewrite post_rewrite(lir_func.get(), &env_);
   COMPILE_TIMER(
       GetFunction()->compilation_phase_timer,
@@ -1880,13 +1869,6 @@ void NativeGenerator::generateAssemblyBody() {
   }
 }
 
-bool NativeGenerator::isPredefinedUsed(const char* name) {
-  return env_.predefined_.count(name);
-}
-
-// calcFrameHeaderSize must work with nullptr HIR functions because it's valid
-// to call NativeGenerator with only LIR (e.g., from a test). In the case of an
-// LIR-only function, there is no shadow frame.
 int NativeGenerator::calcFrameHeaderSize(const hir::Function* func) {
   return func == nullptr ? 0 : sizeof(FrameHeader);
 }

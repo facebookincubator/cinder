@@ -132,10 +132,6 @@ struct Environ {
 
   std::unordered_map<jit::lir::BasicBlock*, asmjit::Label> block_label_map;
 
-  // to support checking whether a predefined variable is used.
-  // it may not be needed after the old backend is removed.
-  std::unordered_set<std::string> predefined_;
-
   hir::FrameMode frame_mode;
   int initial_yield_spill_size_{-1};
 

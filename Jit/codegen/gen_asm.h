@@ -141,11 +141,7 @@ class NativeGenerator {
   FRIEND_TEST(LinearScanAllocatorTest, RegAllocation);
   friend class BackendTest;
 
-  // XXX: the following are functions/variables for the new assembly generator.
-  // after it is complete and fully tested, need to remove the old generator.
   void generateAssemblyBody();
-
-  bool isPredefinedUsed(const char* name);
 
   std::unique_ptr<lir::Function> lir_func_;
   Environ env_;
