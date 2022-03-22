@@ -977,7 +977,7 @@ class Object(Value, Generic[TClass]):
 
     @property
     def name(self) -> str:
-        return self.klass.instance_name
+        return self.klass.qualname
 
     @property
     def name_with_exact(self) -> str:
@@ -1291,11 +1291,11 @@ class Class(Object["Class"]):
 
     @property
     def instance_name(self) -> str:
-        return self.qualname
+        return self.instance.name
 
     @property
     def instance_name_with_exact(self) -> str:
-        name = self.qualname
+        name = self.instance.name
         if self.is_exact:
             return f"Exact[{name}]"
         return name
@@ -6677,7 +6677,7 @@ class CInstance(Value, Generic[TClass]):
 
     @property
     def name(self) -> str:
-        return self.klass.instance_name
+        return self.klass.qualname
 
     @property
     def name_with_exact(self) -> str:
@@ -7028,10 +7028,6 @@ class BoxedEnumClass(Class):
 
         self.values: Dict[str, BoxedEnumInstance] = {}
 
-    @property
-    def instance_name(self) -> str:
-        return f"Boxed[{super().instance_name}]"
-
     def add_enum_value(self, name: str, value: int) -> None:
         self.values[name] = BoxedEnumInstance(self, name, value)
 
@@ -7053,7 +7049,7 @@ class BoxedEnumInstance(Object[BoxedEnumClass]):
         class_name = super().name
         if self.attr_name is not None:
             return f"Boxed<{class_name}.{self.attr_name}: {self.value}>"
-        return class_name
+        return f"Boxed[{class_name}]"
 
     @property
     def name_with_exact(self) -> str:
