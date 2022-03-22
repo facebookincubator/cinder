@@ -21,3 +21,17 @@ class InvokeTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(), 4)
+
+    def test_cannot_use_keyword_for_posonly_arg(self):
+        codestr = """
+            def f(x: int, /):
+                pass
+
+            def g():
+                f(x=1)
+        """
+        self.type_error(
+            codestr,
+            r"Missing value for positional-only arg 0",
+            at="f(x=1)",
+        )

@@ -2296,6 +2296,12 @@ def _mro(C: Class) -> List[Class]:
     return _merge([[C.exact_type()]] + list(map(_mro, bases)) + [bases])
 
 
+class ParamStyle(Enum):
+    NORMAL = 0
+    POSONLY = 1
+    KWONLY = 2
+
+
 class Parameter:
     def __init__(
         self,
@@ -2304,19 +2310,28 @@ class Parameter:
         type_ref: TypeRef,
         has_default: bool,
         default_val: object,
-        is_kwonly: bool,
+        style: ParamStyle,
     ) -> None:
         self.name = name
         self.type_ref = type_ref
         self.index = idx
         self.has_default = has_default
         self.default_val = default_val
-        self.is_kwonly = is_kwonly
+        self.style = style
+
+    @property
+    def is_kwonly(self) -> bool:
+        return self.style == ParamStyle.KWONLY
+
+    @property
+    def is_posonly(self) -> bool:
+        return self.style == ParamStyle.POSONLY
 
     def __repr__(self) -> str:
         return (
             f"<Parameter name={self.name}, ref={self.type_ref}, "
-            f"index={self.index}, has_default={self.has_default}>"
+            f"index={self.index}, has_default={self.has_default}, "
+            f"style={self.style}>"
         )
 
     def bind_generics(
@@ -2332,7 +2347,7 @@ class Parameter:
                 ResolvedTypeRef(klass),
                 self.has_default,
                 self.default_val,
-                self.is_kwonly,
+                self.style,
             )
 
         return self
@@ -2452,6 +2467,17 @@ class ArgMapping:
                 self.call,
             )
 
+    def _bind_default_value(self, param: Parameter, visitor: TypeBinder) -> None:
+        if isinstance(param.default_val, expr):
+            # We'll force these to normal calls in can_call_self, we'll add
+            # an emitter which makes sure we never try and do code gen for this
+            self.emitters.append(UnreachableArg())
+        else:
+            const = ast.Constant(param.default_val)
+            copy_location(const, self.call)
+            visitor.visit(const, param.type_ref.resolved(False).instance)
+            self.emitters.append(DefaultArg(const))
+
     def bind_kwargs(self, visitor: TypeBinder) -> None:
         func_args = self.callable.args
         assert func_args is not None
@@ -2462,6 +2488,14 @@ class ArgMapping:
         cur_kw_arg = 0
         for idx in range(self.nseen, len(func_args)):
             param = func_args[idx]
+            if param.is_posonly:
+                if param.has_default:
+                    self._bind_default_value(param, visitor)
+                    self.nseen += 1
+                    continue
+                visitor.syntax_error(
+                    f"Missing value for positional-only arg {idx}", self.call
+                )
             name = param.name
             if (
                 cur_kw_arg is not None
@@ -2511,15 +2545,7 @@ class ArgMapping:
                         KeywordMappingArg(param, f"{_TMP_VAR_PREFIX}**")
                     )
                 elif param.has_default:
-                    if isinstance(param.default_val, expr):
-                        # We'll force these to normal calls in can_call_self, we'll add
-                        # an emitter which makes sure we never try and do code gen for this
-                        self.emitters.append(UnreachableArg())
-                    else:
-                        const = ast.Constant(param.default_val)
-                        copy_location(const, self.call)
-                        visitor.visit(const, param.type_ref.resolved(False).instance)
-                        self.emitters.append(DefaultArg(const))
+                    self._bind_default_value(param, visitor)
                 else:
                     # It's an error if this arg did not have a default value in the definition
                     visitor.syntax_error(
@@ -3387,42 +3413,56 @@ class Function(Callable[Class], FunctionContainer):
         ref: TypeRef,
         has_default: bool,
         default_val: object,
-        is_kwonly: bool,
+        style: ParamStyle,
     ) -> None:
-        parameter = Parameter(name, idx, ref, has_default, default_val, is_kwonly)
+        parameter = Parameter(name, idx, ref, has_default, default_val, style)
         self.args.append(parameter)
         self.args_by_name[name] = parameter
         if not has_default:
             self.num_required_args += 1
+
+    def process_arg(
+        self: Function,
+        module: ModuleTable,
+        idx: int,
+        argument: ast.arg,
+        default: ast.expr,
+        style: ParamStyle,
+    ) -> None:
+        annotation = argument.annotation
+        default_val = None
+        has_default = False
+        if default is not None:
+            has_default = True
+            default_val = get_default_value(default)
+
+        if annotation:
+            ref = TypeRef(module, annotation)
+        elif idx == 0:
+            if self.node.name == "__new__":
+                ref = ResolvedTypeRef(self.klass.type_env.type)
+            else:
+                ref = ContainerTypeRef(self)
+        else:
+            ref = ResolvedTypeRef(self.klass.type_env.dynamic)
+
+        self.register_arg(argument.arg, idx, ref, has_default, default_val, style)
 
     def process_args(self: Function, module: ModuleTable) -> None:
         """
         Register type-refs for each function argument, assume type_env.DYNAMIC if annotation is missing.
         """
         arguments = self.node.args
-        nrequired = len(arguments.args) - len(arguments.defaults)
+        nposonly = len(arguments.posonlyargs)
+        nrequired = nposonly + len(arguments.args) - len(arguments.defaults)
+        posargs = arguments.posonlyargs + arguments.args
         no_defaults = cast(List[Optional[ast.expr]], [None] * nrequired)
         defaults = no_defaults + cast(List[Optional[ast.expr]], arguments.defaults)
+
         idx = 0
-        for idx, (argument, default) in enumerate(zip(arguments.args, defaults)):
-            annotation = argument.annotation
-            default_val = None
-            has_default = False
-            if default is not None:
-                has_default = True
-                default_val = get_default_value(default)
-
-            if annotation:
-                ref = TypeRef(module, annotation)
-            elif idx == 0:
-                if self.node.name == "__new__":
-                    ref = ResolvedTypeRef(self.klass.type_env.type)
-                else:
-                    ref = ContainerTypeRef(self)
-            else:
-                ref = ResolvedTypeRef(self.klass.type_env.dynamic)
-
-            self.register_arg(argument.arg, idx, ref, has_default, default_val, False)
+        for idx, (argument, default) in enumerate(zip(posargs, defaults)):
+            style = ParamStyle.POSONLY if idx < nposonly else ParamStyle.NORMAL
+            self.process_arg(module, idx, argument, default, style)
 
         base_idx = idx
 
@@ -3432,19 +3472,8 @@ class Function(Callable[Class], FunctionContainer):
             self.has_vararg = True
 
         for argument, default in zip(arguments.kwonlyargs, arguments.kw_defaults):
-            annotation = argument.annotation
-            default_val = None
-            has_default = default is not None
-            if default is not None:
-                default_val = get_default_value(default)
-            if annotation:
-                ref = TypeRef(module, annotation)
-            else:
-                ref = ResolvedTypeRef(self.klass.type_env.dynamic)
             base_idx += 1
-            self.register_arg(
-                argument.arg, base_idx, ref, has_default, default_val, True
-            )
+            self.process_arg(module, base_idx, argument, default, ParamStyle.KWONLY)
 
         kwarg = arguments.kwarg
         if kwarg:
@@ -3476,7 +3505,7 @@ class Function(Callable[Class], FunctionContainer):
 
         start_arg = 1 if first_arg_is_implicit else 0
         for arg, override_arg in zip(self.args[start_arg:], override.args[start_arg:]):
-            if arg.name != override_arg.name:
+            if not arg.is_posonly and arg.name != override_arg.name:
                 if arg.is_kwonly:
                     arg_desc = f"Keyword only argument `{arg.name}`"
                 else:
@@ -3485,6 +3514,13 @@ class Function(Callable[Class], FunctionContainer):
                 module.syntax_error(
                     f"{override.qualname} overrides {self.qualname} inconsistently. "
                     f"{arg_desc} is overridden as `{override_arg.name}`",
+                    override.node,
+                )
+
+            if override_arg.is_posonly and not arg.is_posonly:
+                module.syntax_error(
+                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"`{override_arg.name}` is positional-only in override, not in base",
                     override.node,
                 )
 
@@ -4996,7 +5032,7 @@ def parse_param(
         ResolvedTypeRef(parse_type(info, type_env)),
         "default" in info,
         info.get("default"),
-        False,
+        ParamStyle.POSONLY,
     )
 
 
@@ -5008,7 +5044,11 @@ def parse_typed_signature(
     args = sig["args"]
     assert isinstance(args, list)
     if klass is not None:
-        signature = [Parameter("self", 0, ResolvedTypeRef(klass), False, None, False)]
+        signature = [
+            Parameter(
+                "self", 0, ResolvedTypeRef(klass), False, None, ParamStyle.POSONLY
+            )
+        ]
     else:
         signature = []
 
@@ -5204,10 +5244,15 @@ class TupleClass(Class):
                     ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
-                    False,
+                    ParamStyle.POSONLY,
                 ),
                 Parameter(
-                    "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
+                    "x",
+                    1,
+                    ResolvedTypeRef(self.type_env.object),
+                    True,
+                    (),
+                    ParamStyle.POSONLY,
                 ),
             ],
             ResolvedTypeRef(self),
@@ -5414,16 +5459,18 @@ class ListClass(Class):
             "__init__",
             self,
             [
-                Parameter("self", 0, ResolvedTypeRef(self), False, None, False),
+                Parameter(
+                    "self", 0, ResolvedTypeRef(self), False, None, ParamStyle.POSONLY
+                ),
                 # Ideally we would mark this as Optional and allow calling without
                 # providing the argument...
                 Parameter(
                     "iterable",
-                    0,
+                    1,
                     ResolvedTypeRef(self.type_env.object),
                     True,
                     (),
-                    False,
+                    ParamStyle.POSONLY,
                 ),
             ],
             ResolvedTypeRef(self.type_env.none),
@@ -5663,15 +5710,15 @@ class BoolClass(Class):
                     ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
-                    False,
+                    ParamStyle.POSONLY,
                 ),
                 Parameter(
                     "x",
-                    0,
+                    1,
                     ResolvedTypeRef(self.type_env.object),
                     True,
                     False,
-                    False,
+                    ParamStyle.POSONLY,
                 ),
             ],
             ResolvedTypeRef(self),
@@ -6291,15 +6338,15 @@ class ArrayClass(GenericClass):
                     ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
-                    False,
+                    ParamStyle.POSONLY,
                 ),
                 Parameter(
                     "initializer",
-                    0,
+                    1,
                     ResolvedTypeRef(self.type_env.object),
                     True,
                     (),
-                    False,
+                    ParamStyle.POSONLY,
                 ),
             ],
             ResolvedTypeRef(self),
@@ -6351,14 +6398,16 @@ class VectorClass(ArrayClass):
             "append",
             self,
             [
-                Parameter("self", 0, ResolvedTypeRef(self), False, None, False),
+                Parameter(
+                    "self", 0, ResolvedTypeRef(self), False, None, ParamStyle.POSONLY
+                ),
                 Parameter(
                     "v",
-                    0,
+                    1,
                     ResolvedTypeRef(self.type_env.vector_type_param),
                     False,
                     None,
-                    False,
+                    ParamStyle.POSONLY,
                 ),
             ],
         )
@@ -6404,10 +6453,15 @@ class CheckedDict(GenericClass):
                     ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
-                    False,
+                    ParamStyle.POSONLY,
                 ),
                 Parameter(
-                    "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
+                    "x",
+                    1,
+                    ResolvedTypeRef(self.type_env.object),
+                    True,
+                    (),
+                    ParamStyle.POSONLY,
                 ),
             ],
             ResolvedTypeRef(self),
@@ -6526,10 +6580,15 @@ class CheckedList(GenericClass):
                     ResolvedTypeRef(self.type_env.type),
                     False,
                     None,
-                    False,
+                    ParamStyle.POSONLY,
                 ),
                 Parameter(
-                    "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
+                    "x",
+                    1,
+                    ResolvedTypeRef(self.type_env.object),
+                    True,
+                    (),
+                    ParamStyle.POSONLY,
                 ),
             ],
             ResolvedTypeRef(self),
@@ -7752,7 +7811,16 @@ class ContextDecoratorClass(Class):
             self.members["_recreate_cm"] = BuiltinMethodDescriptor(
                 "_recreate_cm",
                 self,
-                [Parameter("self", 0, ResolvedTypeRef(self_type), False, None, False)],
+                [
+                    Parameter(
+                        "self",
+                        0,
+                        ResolvedTypeRef(self_type),
+                        False,
+                        None,
+                        ParamStyle.POSONLY,
+                    )
+                ],
                 ResolvedTypeRef(self_type),
             )
         self.subclass = subclass
@@ -8167,23 +8235,28 @@ if spamobj is not None:
                 self,
                 [
                     Parameter(
-                        "self", 0, ResolvedTypeRef(self_type), False, None, False
+                        "self",
+                        0,
+                        ResolvedTypeRef(self_type),
+                        False,
+                        None,
+                        ParamStyle.POSONLY,
                     ),
                     Parameter(
                         "t",
-                        0,
+                        1,
                         ResolvedTypeRef(self.type_name.args[0]),
                         False,
                         None,
-                        False,
+                        ParamStyle.POSONLY,
                     ),
                     Parameter(
                         "u",
-                        0,
+                        2,
                         ResolvedTypeRef(self.type_name.args[1]),
                         False,
                         None,
-                        False,
+                        ParamStyle.POSONLY,
                     ),
                 ],
             )
