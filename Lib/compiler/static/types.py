@@ -4173,7 +4173,7 @@ class BuiltinFunction(Callable[Class]):
         module_name: str,
         klass: Optional[Class],
         type_env: TypeEnvironment,
-        args: Optional[Tuple[Parameter, ...]] = None,
+        args: Optional[List[Parameter]] = None,
         return_type: Optional[TypeRef] = None,
     ) -> None:
         assert isinstance(return_type, (TypeRef, type(None)))
@@ -4181,8 +4181,6 @@ class BuiltinFunction(Callable[Class]):
             type_env.builtin_method_desc,
             func_name,
             module_name,
-            # pyre-fixme[6]: Expected `Optional[List[Parameter]]` for 4th param but
-            #  got `Optional[typing.Tuple[Parameter, ...]]`.
             args,
             {},
             0,
@@ -4205,7 +4203,7 @@ class BuiltinFunction(Callable[Class]):
         cur_args = self.args
         cur_ret_type = self.return_type
         if cur_args is not None and cur_ret_type is not None:
-            new_args = tuple(arg.bind_generics(name, type_env) for arg in cur_args)
+            new_args = list(arg.bind_generics(name, type_env) for arg in cur_args)
             new_ret_type = cur_ret_type.resolved().bind_generics(name, type_env)
             return BuiltinFunction(
                 self.func_name,
@@ -4257,7 +4255,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
         self,
         func_name: str,
         container_type: Class,
-        args: Optional[Tuple[Parameter, ...]] = None,
+        args: Optional[List[Parameter]] = None,
         return_type: Optional[TypeRef] = None,
         dynamic_dispatch: bool = False,
     ) -> None:
@@ -4267,8 +4265,6 @@ class BuiltinMethodDescriptor(Callable[Class]):
             self.type_env.builtin_method_desc,
             func_name,
             container_type.type_name.module,
-            # pyre-fixme[6]: Expected `Optional[List[Parameter]]` for 4th param but
-            #  got `Optional[typing.Tuple[Parameter, ...]]`.
             args,
             {},
             0,
@@ -4323,7 +4319,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
         cur_args = self.args
         cur_ret_type = self.return_type
         if cur_args is not None and cur_ret_type is not None:
-            new_args = tuple(arg.bind_generics(name, type_env) for arg in cur_args)
+            new_args = list(arg.bind_generics(name, type_env) for arg in cur_args)
             new_ret_type = cur_ret_type.resolved().bind_generics(name, type_env)
             return BuiltinMethodDescriptor(
                 self.func_name,
@@ -5008,7 +5004,7 @@ def parse_typed_signature(
     sig: Dict[str, object],
     klass: Optional[Class],
     type_env: TypeEnvironment,
-) -> Tuple[Tuple[Parameter, ...], Class]:
+) -> Tuple[List[Parameter], Class]:
     args = sig["args"]
     assert isinstance(args, list)
     if klass is not None:
@@ -5021,7 +5017,7 @@ def parse_typed_signature(
     return_info = sig["return"]
     assert isinstance(return_info, dict)
     return_type = parse_type(return_info, type_env)
-    return tuple(signature), return_type
+    return signature, return_type
 
 
 def parse_type(info: Dict[str, object], type_env: TypeEnvironment) -> Class:
@@ -5201,7 +5197,7 @@ class TupleClass(Class):
             "builtins",
             self,
             self.type_env,
-            (
+            [
                 Parameter(
                     "cls",
                     0,
@@ -5213,7 +5209,7 @@ class TupleClass(Class):
                 Parameter(
                     "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
                 ),
-            ),
+            ],
             ResolvedTypeRef(self),
         )
 
@@ -5417,7 +5413,7 @@ class ListClass(Class):
         self.members["__init__"] = BuiltinMethodDescriptor(
             "__init__",
             self,
-            (
+            [
                 Parameter("self", 0, ResolvedTypeRef(self), False, None, False),
                 # Ideally we would mark this as Optional and allow calling without
                 # providing the argument...
@@ -5429,7 +5425,7 @@ class ListClass(Class):
                     (),
                     False,
                 ),
-            ),
+            ],
             ResolvedTypeRef(self.type_env.none),
         )
 
@@ -5660,7 +5656,7 @@ class BoolClass(Class):
             "builtins",
             self,
             self.type_env,
-            (
+            [
                 Parameter(
                     "cls",
                     0,
@@ -5677,7 +5673,7 @@ class BoolClass(Class):
                     False,
                     False,
                 ),
-            ),
+            ],
             ResolvedTypeRef(self),
         )
 
@@ -6288,7 +6284,7 @@ class ArrayClass(GenericClass):
             "__static__",
             self,
             self.type_env,
-            (
+            [
                 Parameter(
                     "cls",
                     0,
@@ -6305,7 +6301,7 @@ class ArrayClass(GenericClass):
                     (),
                     False,
                 ),
-            ),
+            ],
             ResolvedTypeRef(self),
         )
 
@@ -6354,7 +6350,7 @@ class VectorClass(ArrayClass):
         self.members["append"] = BuiltinMethodDescriptor(
             "append",
             self,
-            (
+            [
                 Parameter("self", 0, ResolvedTypeRef(self), False, None, False),
                 Parameter(
                     "v",
@@ -6364,7 +6360,7 @@ class VectorClass(ArrayClass):
                     None,
                     False,
                 ),
-            ),
+            ],
         )
 
 
@@ -6401,7 +6397,7 @@ class CheckedDict(GenericClass):
             "builtins",
             self,
             self.type_env,
-            (
+            [
                 Parameter(
                     "cls",
                     0,
@@ -6413,7 +6409,7 @@ class CheckedDict(GenericClass):
                 Parameter(
                     "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
                 ),
-            ),
+            ],
             ResolvedTypeRef(self),
         )
 
@@ -6523,7 +6519,7 @@ class CheckedList(GenericClass):
             "builtins",
             self,
             self.type_env,
-            (
+            [
                 Parameter(
                     "cls",
                     0,
@@ -6535,7 +6531,7 @@ class CheckedList(GenericClass):
                 Parameter(
                     "x", 0, ResolvedTypeRef(self.type_env.object), True, (), False
                 ),
-            ),
+            ],
             ResolvedTypeRef(self),
         )
 
@@ -7760,7 +7756,7 @@ class ContextDecoratorClass(Class):
             self.members["_recreate_cm"] = BuiltinMethodDescriptor(
                 "_recreate_cm",
                 self,
-                (Parameter("self", 0, ResolvedTypeRef(self_type), False, None, False),),
+                [Parameter("self", 0, ResolvedTypeRef(self_type), False, None, False)],
                 ResolvedTypeRef(self_type),
             )
         self.subclass = subclass
@@ -8173,7 +8169,7 @@ if spamobj is not None:
             self.members["foo"] = BuiltinMethodDescriptor(
                 "foo",
                 self,
-                (
+                [
                     Parameter(
                         "self", 0, ResolvedTypeRef(self_type), False, None, False
                     ),
@@ -8193,5 +8189,5 @@ if spamobj is not None:
                         None,
                         False,
                     ),
-                ),
+                ],
             )
