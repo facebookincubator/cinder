@@ -18,12 +18,12 @@
 /*--start constants--*/
 #define PY_MAJOR_VERSION        3
 #define PY_MINOR_VERSION        10
-#define PY_MICRO_VERSION        3
+#define PY_MICRO_VERSION        4
 #define PY_RELEASE_LEVEL        PY_RELEASE_LEVEL_FINAL
 #define PY_RELEASE_SERIAL       0
 
 /* Version as a string */
-#define PY_VERSION              "3.10.3+cinder"
+#define PY_VERSION              "3.10.4+cinder"
 
 #define PY_IS_CINDER
 /*--end constants--*/
