@@ -30,6 +30,7 @@ tags
 TAGS
 .vs/
 .vscode/
+!.vscode/settings.json
 gmon.out
 .coverage
 .mypy_cache/
