@@ -252,12 +252,12 @@ static PyObject *
 cinder_raise_immutable_warning(PyObject *self, PyObject *args)
 {
     int code;
-    const char* msg;
+    PyObject* msg = NULL;
     PyObject* value = NULL;
-    if (!PyArg_ParseTuple(args, "is|O", &code, &msg, &value)) {
+    if (!PyArg_ParseTuple(args, "iU|O", &code, &msg, &value)) {
         return NULL;
     }
-    if (_PyErr_IMMUTABLE_WARNING(code, msg, value) < 0) {
+    if (_PyErr_RaiseImmutableWarning(code, msg, value) < 0) {
         return NULL;
     }
 

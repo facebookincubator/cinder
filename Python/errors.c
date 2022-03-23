@@ -6,6 +6,7 @@
 #include "pycore_pyerrors.h"
 #include "pycore_pystate.h"
 #include "pycore_traceback.h"
+#include "py_immutable_error.h"
 
 #ifndef __STDC__
 #ifndef MS_WINDOWS
@@ -1657,7 +1658,72 @@ PyObject* _PyErr_ImmutabilityWarningBuffer = NULL;
 size_t _PyErr_ImmutabilityWarningBufferSize = 50;
 size_t _PyErr_ImmutabilityWarningBufferCount = 0;
 
-int _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *arg0) {
+static unsigned int _get_format_slot_count(const char* fmt_string) {
+    char c;
+    const char *p = fmt_string;
+    unsigned int count = 0;
+
+    while(*p != '\0') {
+        c = *(p++);
+        if (c != '%') {
+          continue;
+        }
+        if (*p != '%') {
+            assert(*p != '\0');
+            count++;
+        }
+        p++;
+    }
+    return count;
+}
+
+int _PyErr_RaiseImmutableWarningV (PyImmutableErrorEntry* err_entry,  ...){
+    int warn_code = err_entry->err_code;
+    const char* warning = err_entry->err_format;
+    Py_ssize_t nargs;
+    if (err_entry->nargs < 0) {
+        // lazy creation of nargs
+        nargs = _get_format_slot_count(warning);
+        err_entry->nargs = nargs;
+    } else {
+        nargs = err_entry->nargs;
+    }
+    va_list vargs, vargs2;
+    PyObject* arg_tuple;
+
+    arg_tuple = PyTuple_New(nargs);
+    if (arg_tuple == NULL) {
+        return -1;
+    }
+#ifdef HAVE_STDARG_PROTOTYPES
+    va_start(vargs, err_entry);
+#else
+    va_start(vargs);
+#endif
+    va_copy(vargs2, vargs);
+    PyObject* msg = PyUnicode_FromFormatV(warning, vargs2);
+
+    if (msg == NULL) {
+        Py_DECREF(arg_tuple);
+        return -1;
+    }
+    PyObject* arg;
+    for (Py_ssize_t i = 0; i < nargs; ++i) {
+        arg = va_arg(vargs, PyObject*);
+        Py_INCREF(arg);
+        PyTuple_SET_ITEM(arg_tuple, i, arg);
+    }
+
+    va_end(vargs);
+    va_end(vargs2);
+
+    int result = _PyErr_RaiseImmutableWarning(warn_code, msg, arg_tuple);
+    Py_DECREF(msg);
+    Py_DECREF(arg_tuple);
+    return result;
+}
+
+int _PyErr_RaiseImmutableWarning(int warn_code, PyObject *msg, PyObject *arg0) {
     if (_PyErr_ImmutabilityWarningBuffer == NULL) {
         _PyErr_ImmutabilityWarningBuffer = PyList_New(_PyErr_ImmutabilityWarningBufferSize);
         if (_PyErr_ImmutabilityWarningBuffer == NULL) {
@@ -1675,11 +1741,6 @@ int _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *a
     if (code == NULL) {
         return -1;
     }
-    PyObject* msg = PyUnicode_FromString(warning);
-    if (msg == NULL) {
-        Py_DECREF(code);
-        return -1;
-    }
 
     PyObject* elem = NULL;
     if (arg0 != NULL) {
@@ -1688,7 +1749,6 @@ int _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *a
         elem = PyTuple_Pack(2, code, msg);
     }
     Py_DECREF(code);
-    Py_DECREF(msg);
     if (elem == NULL) {
         return -1;
     }
@@ -1708,6 +1768,9 @@ int _PyErr_RaiseImmutableWarning(int warn_code, const char *warning, PyObject *a
 }
 
 int _PyErr_FlushImmutabilityWarningsBuffer() {
+    if (_PyErr_ImmutabilityWarningBuffer == NULL) {
+        return 0;
+    }
     if (_PyErr_ImmutableWarnHandler != NULL) {
         PyObject* buf = _PyErr_ImmutabilityWarningBuffer;
         if (_PyErr_ImmutabilityWarningBufferCount != _PyErr_ImmutabilityWarningBufferSize) {
