@@ -113,6 +113,91 @@ void DynamicComparisonElimination::InitBuiltins() {
   }
 }
 
+Instr* DynamicComparisonElimination::ReplaceTypeCheck(
+    Function& irfunc,
+    CondBranch& cond_branch,
+    BasicBlock& block,
+    Register* obj_op,
+    Register* type_op,
+    Instr* isinstance,
+    IsTruthy* truthy,
+    bool is_subtype,
+    bool is_optional) {
+  int bc_off = cond_branch.bytecodeOffset();
+
+  // We want to replace:
+  //  if isinstance(x, some_type):
+  // with:
+  //   if x.__class__ == some_type or PyObject_IsInstance(x, some_type):
+  // This inlines the common type check case, and eliminates
+  // the truthy case.
+
+  // We do this by updating the existing branch to be
+  // based off the fast path, and if that fails, then
+  // we insert a new basic block which handles the slow path
+  // and branches to the success or failure cases.
+
+  auto obj_type = irfunc.env.AllocateRegister();
+  auto fast_eq = irfunc.env.AllocateRegister();
+
+  auto load_type =
+      LoadField::create(obj_type, obj_op, "ob_type", offsetof(PyObject, ob_type), TType);
+
+  auto compare_type = PrimitiveCompare::create(
+      fast_eq, PrimitiveCompareOp::kEqual, obj_type, type_op);
+
+  load_type->copyBytecodeOffset(*isinstance);
+  load_type->InsertBefore(*truthy);
+
+  compare_type->copyBytecodeOffset(*isinstance);
+
+  // Slow path, check for None if optional, and call
+  // perform isintance or subtype check
+  auto slow_path = block.cfg->AllocateBlock();
+  auto prev_false_bb = cond_branch.false_bb();
+  cond_branch.set_false_bb(slow_path);
+  cond_branch.SetOperand(0, fast_eq);
+
+  if (is_optional) {
+    auto not_none_slow_path = block.cfg->AllocateBlock();
+    auto none_reg = irfunc.env.AllocateRegister();
+    slow_path->appendWithOff<LoadConst>(
+        bc_off, none_reg, Type::fromObject(Py_None));
+
+    auto none_eq = irfunc.env.AllocateRegister();
+    slow_path->appendWithOff<PrimitiveCompare>(
+        bc_off, none_eq, PrimitiveCompareOp::kEqual, obj_op, none_reg);
+
+    slow_path->appendWithOff<CondBranch>(
+        bc_off, none_eq, cond_branch.true_bb(), not_none_slow_path);
+
+    slow_path = not_none_slow_path;
+  }
+
+  if (is_subtype) {
+    slow_path->appendWithOff<IsSubtype>(
+        bc_off, truthy->GetOutput(), obj_type, type_op);
+  } else {
+    slow_path->appendWithOff<IsInstance>(
+        bc_off,
+        truthy->GetOutput(),
+        obj_op,
+        type_op,
+        *get_frame_state(*truthy));
+  }
+
+  slow_path->appendWithOff<CondBranch>(
+      bc_off, truthy->GetOutput(), cond_branch.true_bb(), prev_false_bb);
+
+  // we need to update the phis from the previous false case to now
+  // be coming from the slow path block.
+  prev_false_bb->fixupPhis(&block, slow_path);
+  // and the phis coming in on the success case now have an extra
+  // block from the slow path.
+  cond_branch.true_bb()->addPhiPredecessor(&block, slow_path);
+  return compare_type;
+}
+
 Instr* DynamicComparisonElimination::ReplaceVectorCall(
     Function& irfunc,
     CondBranch& cond_branch,
@@ -132,59 +217,16 @@ Instr* DynamicComparisonElimination::ReplaceVectorCall(
       PyCFunction_GET_FUNCTION(funcobj) == isinstance_func_ &&
       vectorcall->numArgs() == 2 &&
       vectorcall->GetOperand(2)->type() <= TType) {
-    auto obj_op = vectorcall->GetOperand(1);
-    auto type_op = vectorcall->GetOperand(2);
-    int bc_off = cond_branch.bytecodeOffset();
-
-    // We want to replace:
-    //  if isinstance(x, some_type):
-    // with:
-    //   if x.__class__ == some_type or PyObject_IsInstance(x, some_type):
-    // This inlines the common type check case, and eliminates
-    // the truthy case.
-
-    // We do this by updating the existing branch to be
-    // based off the fast path, and if that fails, then
-    // we insert a new basic block which handles the slow path
-    // and branches to the success or failure cases.
-
-    auto obj_type = irfunc.env.AllocateRegister();
-    auto fast_eq = irfunc.env.AllocateRegister();
-
-    auto load_type = LoadField::create(
-        obj_type, obj_op, "ob_type", offsetof(PyObject, ob_type), TType);
-
-    auto compare_type = PrimitiveCompare::create(
-        fast_eq, PrimitiveCompareOp::kEqual, obj_type, type_op);
-
-    load_type->copyBytecodeOffset(*vectorcall);
-    load_type->InsertBefore(*truthy);
-
-    compare_type->copyBytecodeOffset(*vectorcall);
-
-    // Slow path, call isinstance()
-    auto slow_path = block.cfg->AllocateBlock();
-    auto prev_false_bb = cond_branch.false_bb();
-    cond_branch.set_false_bb(slow_path);
-    cond_branch.SetOperand(0, fast_eq);
-
-    slow_path->appendWithOff<IsInstance>(
-        bc_off,
-        truthy->GetOutput(),
-        obj_op,
-        type_op,
-        *get_frame_state(*truthy));
-
-    slow_path->appendWithOff<CondBranch>(
-        bc_off, truthy->GetOutput(), cond_branch.true_bb(), prev_false_bb);
-
-    // we need to update the phis from the previous false case to now
-    // be coming from the slow path block.
-    prev_false_bb->fixupPhis(&block, slow_path);
-    // and the phis coming in on the success case now have an extra
-    // block from the slow path.
-    cond_branch.true_bb()->addPhiPredecessor(&block, slow_path);
-    return compare_type;
+    return ReplaceTypeCheck(
+        irfunc,
+        cond_branch,
+        block,
+        vectorcall->GetOperand(1),
+        vectorcall->GetOperand(2),
+        vectorcall,
+        truthy,
+        false,
+        false);
   }
   return nullptr;
 }
@@ -214,7 +256,8 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
 
     Instr* truthy_target = truthy->GetOperand(0)->instr();
     if (truthy_target->block() != &block ||
-        (!truthy_target->IsCompare() && !truthy_target->IsVectorCall())) {
+        (!truthy_target->IsCompare() && !truthy_target->IsVectorCall() &&
+         !truthy_target->IsCast())) {
       continue;
     }
 
@@ -266,6 +309,27 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
           block,
           vectorcall,
           static_cast<IsTruthy*>(truthy));
+    } else if (truthy_target->IsCast()) {
+      auto cast = static_cast<Cast*>(truthy_target);
+      if (!cast->iserror()) {
+        auto cast_type = irfunc.env.AllocateRegister();
+        auto init_type = LoadConst::create(
+            cast_type, Type::fromObject((PyObject*)cast->pytype()));
+
+        init_type->copyBytecodeOffset(*cast);
+        init_type->InsertBefore(*truthy);
+
+        replacement = ReplaceTypeCheck(
+            irfunc,
+            static_cast<CondBranch&>(instr),
+            block,
+            cast->GetOperand(0),
+            cast_type,
+            cast,
+            static_cast<IsTruthy*>(truthy),
+            true,
+            cast->optional());
+      }
     }
 
     if (replacement != nullptr) {

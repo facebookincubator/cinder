@@ -132,6 +132,7 @@ bool Instr::isReplayable() const {
     case Opcode::kIntConvert:
     case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kIsNegativeAndErrOccurred:
+    case Opcode::kIsSubtype:
     case Opcode::kLoadArg:
     case Opcode::kLoadArrayItem:
     case Opcode::kLoadCellItem:

@@ -85,6 +85,16 @@ class DynamicComparisonElimination : public Pass {
 
  private:
   Instr* ReplaceCompare(Compare* compare, IsTruthy* truthy);
+  Instr* ReplaceTypeCheck(
+      Function& irfunc,
+      CondBranch& cond_branch,
+      BasicBlock& block,
+      Register* obj_op,
+      Register* type_op,
+      Instr* isinstance,
+      IsTruthy* truthy,
+      bool is_subtype,
+      bool is_optional);
   Instr* ReplaceVectorCall(
       Function& irfunc,
       CondBranch& cond_branch,

@@ -456,6 +456,8 @@ Type outputType(
     // 1 if comparison is true, 0 if not, -1 on error
     case Opcode::kCompareBool:
     case Opcode::kIsInstance:
+    // 1 if is subtype, 0 if not
+    case Opcode::kIsSubtype:
     // 1, 0 if the value is truthy, not truthy
     case Opcode::kIsTruthy: {
       return TCInt32;

@@ -38,6 +38,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kGuardType:
     case Opcode::kHintType:
     case Opcode::kIntBinaryOp:
+    case Opcode::kIsSubtype:
     case Opcode::kPrimitiveUnaryOp:
     case Opcode::kPrimitiveBox:
     case Opcode::kPrimitiveCompare:

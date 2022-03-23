@@ -1497,6 +1497,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             unary_op->operand());
         break;
       }
+      case Opcode::kIsSubtype: {
+        auto instr = static_cast<const IsSubtype*>(&i);
+        bbb.AppendCode(
+            "Call {}, {:#x}, {}, {}",
+            instr->dst(),
+            reinterpret_cast<uint64_t>(PyType_IsSubtype),
+            instr->GetOperand(0),
+            instr->GetOperand(1));
+        break;
+      }
       case Opcode::kIsInstance: {
         auto instr = static_cast<const IsInstance*>(&i);
         bbb.AppendCode(
