@@ -431,15 +431,7 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
     <script type="text/javascript">
         // Contains phase names which are expanded by default. Other columns are collapsed.
-        let expandedDefault = [
-            "start",
-            "deadcode",
-            "opt",
-            "lower",
-            "late-deadcode",
-            "regalloc",
-            "genssa",
-        ];
+        let expandedDefault = @EXPANDED@;
         if (history.state === null) {
             history.pushState({
                 expandedDefault

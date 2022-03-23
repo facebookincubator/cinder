@@ -2,13 +2,46 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
 import argparse
-import json
-import os
-import sys
-import socket
 import http.server
+import json
+import mimetypes
+import os
 import re
+import shlex
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import urllib.parse
 from xml.etree import ElementTree as ET
+
+
+def run(
+    cmd,
+    verbose=True,
+    cwd=None,
+    check=True,
+    capture_output=False,
+    encoding="utf-8",
+    **kwargs,
+):
+    if verbose:
+        info = "$ "
+        if cwd is not None:
+            info += f"cd {cwd}; "
+        info += " ".join(shlex.quote(c) for c in cmd)
+        if capture_output:
+            info += " >& ..."
+        print(info)
+    return subprocess.run(
+        cmd,
+        cwd=cwd,
+        check=check,
+        capture_output=capture_output,
+        encoding=encoding,
+        **kwargs,
+    )
 
 
 def annotate_assembly(ir_json, perf_annotations):
@@ -27,9 +60,12 @@ TEMPLATE_DIR = os.path.dirname(os.path.realpath(__file__))
 TEMPLATE_FILENAME = os.path.join(TEMPLATE_DIR, "viz.html.in")
 
 
-def gen_html_from_json(ir_json):
+def gen_html_from_json(ir_json, passes=None):
     with open(TEMPLATE_FILENAME, "r") as f:
         template = f.read()
+    if not passes:
+        passes = ["Source", "Assembly"]
+    template = template.replace("@EXPANDED@", json.dumps(passes))
     return template.replace("@JSON@", json.dumps(ir_json))
 
 
@@ -199,6 +235,133 @@ def make_server_class(process_args):
     return IRServer
 
 
+def make_explorer_class(process_args):
+    runtime = args.runtime
+
+    class ExplorerServer(http.server.SimpleHTTPRequestHandler):
+        def _get_post_params(self):
+            content_length = int(self.headers["Content-Length"])
+            post_data = self.rfile.read(content_length)
+            bytes_params = urllib.parse.parse_qs(post_data)
+            str_params = {
+                param.decode("utf-8"): [value.decode("utf-8") for value in values]
+                for param, values in bytes_params.items()
+            }
+            return str_params
+
+        def do_GET(self):
+            handler = self.routes.get(self.path, self.__class__.do_404)
+            return handler(self)
+
+        def do_POST(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.params = self._get_post_params()
+            handler = self.post_routes.get(self.path, self.__class__.do_404)
+            return handler(self)
+
+        def do_404(self):
+            try:
+                static_file = os.path.join(TEMPLATE_DIR, self.path.lstrip("/"))
+                with open(static_file, "r") as f:
+                    self.send_response(200)
+                    self.send_header(
+                        "Content-type",
+                        mimetypes.guess_type(static_file)[0] or "text/html",
+                    )
+                    self.end_headers()
+                    self.wfile.write(f.read().encode("utf-8"))
+            except FileNotFoundError:
+                self.send_response(404)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(f"<b>404 not found: {self.path}</b>".encode("utf-8"))
+
+        def do_compile_get(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write(b"Waiting for input...")
+
+        def do_explore(self):
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            with open(os.path.join(TEMPLATE_DIR, "explorer.html.in"), "r") as f:
+                template = f.read()
+            try:
+                version_cmd = run(
+                    [runtime, "-c", "import sys; print(sys.version)"],
+                    capture_output=True,
+                )
+                version = version_cmd.stdout.partition("\n")[0]
+            except Exception:
+                version = "unknown"
+            template = template.replace("@VERSION@", version)
+            self.wfile.write(template.encode("utf-8"))
+
+        def _render_options(self, *options):
+            result = []
+            for option in options:
+                result.append("-X")
+                if isinstance(option, str):
+                    result.append(option)
+                else:
+                    result.append("=".join(option))
+            return result
+
+        def do_compile_post(self):
+            passes = self.params["passes"]
+            original_code = self.params["code"][0]
+            modified_code = original_code + "\nimport cinderjit\ncinderjit.disable()\n"
+            with tempfile.TemporaryDirectory() as tmp:
+                code_path = os.path.join(tmp, "main.py")
+                with open(code_path, "w+") as f:
+                    f.write(modified_code)
+                jitlist_path = os.path.join(tmp, "jitlist.txt")
+                with open(jitlist_path, "w+") as f:
+                    f.write("__main__:*\n")
+                json_dir = os.path.join(tmp, "json")
+                jit_options = self._render_options(
+                    "jit",
+                    "jit-enable-jit-list-wildcards",
+                    "jit-enable-hir-inliner",
+                    ("jit-list-file", jitlist_path),
+                    ("jit-dump-hir-passes-json", json_dir),
+                )
+                try:
+                    run(
+                        [runtime, *jit_options, code_path], capture_output=True, cwd=tmp
+                    )
+                except subprocess.CalledProcessError as e:
+                    if "SyntaxError" in e.stderr:
+                        self.wfile.write(f"<pre>{e.stderr}</pre>".encode("utf-8"))
+                        return
+                    print(e.stderr)
+                    self.wfile.write(b"Internal server error")
+                    return
+                # TODO(emacs): Render more than one function
+                func_json_filename = os.listdir(json_dir)[0]
+                with open(os.path.join(json_dir, func_json_filename), "r") as f:
+                    ir_json = json.load(f)
+            ir_json["cols"] = [col for col in ir_json["cols"] if col["name"] in passes]
+            generated_html = gen_html_from_json(ir_json, passes)
+            with_code = generated_html.replace("@CODE@", original_code)
+            self.wfile.write(with_code.encode("utf-8"))
+
+        routes = {
+            "/": do_explore,
+            "/compile": do_compile_get,
+        }
+
+        post_routes = {
+            "/compile": do_compile_post,
+        }
+
+    return ExplorerServer
+
+
 class HTTPServerIPV6(http.server.HTTPServer):
     address_family = socket.AF_INET6
 
@@ -213,12 +376,45 @@ def gen_server(args):
     httpd.serve_forever()
 
 
+def gen_explorer(args):
+    host = args.host
+    port = args.port
+    explorer_address = (host, port)
+    IRServer = make_explorer_class(args)
+    httpd = HTTPServerIPV6(explorer_address, IRServer)
+    print(f"Serving traffic on {host}:{port} ...")
+    httpd.serve_forever()
+
+
+def executable_file(arg):
+    if not shutil.which(arg, mode=os.F_OK | os.X_OK):
+        parser.error(f"The file {arg} does not exist or is not an executable file")
+    return arg
+
+
+def add_server_args(parser):
+    parser.add_argument(
+        "--host",
+        type=str,
+        help="Listen address for serving traffic",
+        default="::",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        help="Port for serving traffic",
+        default=8081,
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate an HTML visualization of Cinder IRs"
     )
     parser.add_argument("--perf", type=str, help="JSONified perf events by address")
     subparsers = parser.add_subparsers()
+
+    # Generate HTML statically from JSON
     static_parser = subparsers.add_parser(
         "static", help="Generate a single HTML page in one shot"
     )
@@ -228,28 +424,31 @@ if __name__ == "__main__":
         help="Single JSON file generated by -X jit-dump-hir-passes-json",
     )
     static_parser.set_defaults(func=gen_html)
+
+    # Run a server to dynamically generate HTML from JSON
     server_parser = subparsers.add_parser(
         "server",
         help="Serve dynamically-generated HTML pages based on continually-updating .json files",
     )
     server_parser.set_defaults(func=gen_server)
     server_parser.add_argument(
-        "--host",
-        type=str,
-        help="Listen address for serving traffic",
-        default="::",
-    )
-    server_parser.add_argument(
-        "--port",
-        type=int,
-        help="Port for serving traffic",
-        default=8081,
-    )
-    server_parser.add_argument(
         "json",
         type=str,
         help="Directory containing JSON IRs for functions",
     )
+    add_server_args(server_parser)
+
+    # Run a Godbolt-style Cinder Explorer
+    explorer_parser = subparsers.add_parser("explorer")
+    explorer_parser.add_argument(
+        "--runtime",
+        type=executable_file,
+        help="Path to Cinder runtime used for generating JSON",
+        default=os.path.expanduser("~/local/cinder/build/python"),
+    )
+    add_server_args(explorer_parser)
+    explorer_parser.set_defaults(func=gen_explorer)
+
     args = parser.parse_args()
     if not hasattr(args, "func"):
         raise Exception("Missing sub-command. See --help.")
