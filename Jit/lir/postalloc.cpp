@@ -570,23 +570,28 @@ void PostRegAllocRewrite::doRewriteCondBranch(
     auto false_block = block->getFalseSuccessor();
 
     BasicBlock* target_block = nullptr;
+    BasicBlock* fallthrough_block = nullptr;
 
     if (true_block == next_block) {
       opcode = Instruction::negateBranchCC(opcode);
       target_block = false_block;
-    } else if (false_block == next_block) {
-      target_block = true_block;
+      fallthrough_block = true_block;
     } else {
-      JIT_CHECK(
-          false,
-          "At least one successor basic block should be placed as the next "
-          "basic block.")
+      target_block = true_block;
+      fallthrough_block = false_block;
     }
 
     instr->setOpcode(opcode);
     instr->setNumInputs(0);
 
     instr->allocateLabelInput(target_block);
+
+    if (fallthrough_block != next_block) {
+      auto fallthrough_branch =
+          block->allocateInstr(Instruction::kBranch, instr->origin());
+      fallthrough_branch->allocateLabelInput(fallthrough_block);
+    }
+
   };
 
   auto flag_affecting_instr = findRecentFlagAffectingInstr(instr_iter);
@@ -676,17 +681,21 @@ void PostRegAllocRewrite::doRewriteBranchCC(
 
   auto true_bb = block->getTrueSuccessor();
   auto false_bb = block->getFalseSuccessor();
-
-  JIT_CHECK(
-      true_bb == next_block || false_bb == next_block,
-      "Either the true basic block or the false basic block needs to come "
-      "next.");
+  BasicBlock* fallthrough_bb = nullptr;
 
   if (true_bb == next_block) {
     instr->setOpcode(Instruction::negateBranchCC(instr->opcode()));
     instr->allocateLabelInput(false_bb);
+    fallthrough_bb = true_bb;
   } else {
     instr->allocateLabelInput(true_bb);
+    fallthrough_bb = false_bb;
+  }
+
+  if (fallthrough_bb != next_block) {
+    auto fallthrough_branch =
+        block->allocateInstr(Instruction::kBranch, instr->origin());
+    fallthrough_branch->allocateLabelInput(fallthrough_bb);
   }
 }
 
