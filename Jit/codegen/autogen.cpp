@@ -204,8 +204,6 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
   if (!is_double) {
     switch (kind) {
       case kNotZero: {
-        // TODO(T106113229): Add a JIT_CHECK that instr->getInput(2) is 64 bits
-        // wide.
         as->test(reg, reg);
         as->jz(deopt_label);
         break;
