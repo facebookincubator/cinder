@@ -21,6 +21,7 @@
 #include "Jit/lir/postalloc.h"
 #include "Jit/lir/postgen.h"
 #include "Jit/lir/regalloc.h"
+#include "Jit/lir/verify.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
 #include "Jit/pyjit.h"
@@ -301,6 +302,14 @@ void* NativeGenerator::GetEntryPoint() {
       GetFunction()->compilation_phase_timer,
       "Post Reg Alloc Rewrite",
       post_rewrite.run())
+
+  if (!verifyPostRegAllocInvariants(lir_func.get(), std::cerr)) {
+    JIT_CHECK(
+        false,
+        "LIR for %s failed verification:\n%s",
+        GetFunction()->fullname,
+        *lir_func);
+  }
 
   lir_func_ = std::move(lir_func);
 

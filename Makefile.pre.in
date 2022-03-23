@@ -489,6 +489,7 @@ JIT_OBJS=       \
 		Jit/lir/printer.o \
 		Jit/lir/regalloc.o \
 		Jit/lir/rewrite.o \
+		Jit/lir/verify.o \
 		Jit/lir/symbol_mapping.o
 
 I386_DASM_OBJS = \
@@ -1286,6 +1287,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/lir/printer.h \
 		$(srcdir)/Jit/lir/regalloc.h \
 		$(srcdir)/Jit/lir/rewrite.h \
+		$(srcdir)/Jit/lir/verify.h \
 		$(srcdir)/Jit/lir/symbol_mapping.h \
 		$(srcdir)/Jit/lir/x86_64.h
 
@@ -2379,6 +2381,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/lir_dce_test.o \
 	${RUNTIME_TESTS_DIR}/lir_inliner_test.o \
 	${RUNTIME_TESTS_DIR}/lir_rewrite_test.o \
+	${RUNTIME_TESTS_DIR}/lir_verify_test.o \
 	${RUNTIME_TESTS_DIR}/lir_test.o \
 	${RUNTIME_TESTS_DIR}/live_type_map_test.o \
 	${RUNTIME_TESTS_DIR}/main.o \
