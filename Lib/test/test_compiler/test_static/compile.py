@@ -662,7 +662,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         acomp = self.compile_strict(code)
         x = self.find_code(acomp, "f")
-        self.assertInBytecode(x, "CAST", ("builtins", "bool", "!"))
+        self.assertInBytecode(x, "CAST", (("builtins", "bool", "!"), True))
 
     def test_strict_module_constant(self) -> None:
         code = """
@@ -671,7 +671,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         acomp = self.compile_strict(code)
         x = self.find_code(acomp, "f")
-        self.assertInBytecode(x, "CAST", ("builtins", "bool", "!"))
+        self.assertInBytecode(x, "CAST", (("builtins", "bool", "!"), True))
 
     def test_strict_module_isinstance(self):
         code = """
@@ -1504,7 +1504,7 @@ class StaticCompilationTests(StaticTestBase):
             code = self.compile(codestr, code_gen)
             f = self.find_code(code, "f")
             if code_gen is StaticCodeGenerator:
-                self.assertInBytecode(f, "CAST", ("<module>", "C"))
+                self.assertInBytecode(f, "CAST", (("<module>", "C"), True))
             with self.in_module(codestr, code_gen=code_gen) as mod:
                 C = mod.C
                 f = mod.f
@@ -1524,7 +1524,7 @@ class StaticCompilationTests(StaticTestBase):
             code = self.compile(codestr, code_gen)
             f = self.find_code(code, "f")
             if code_gen is StaticCodeGenerator:
-                self.assertInBytecode(f, "CAST", ("<module>", "C"))
+                self.assertInBytecode(f, "CAST", (("<module>", "C"), True))
             with self.in_module(codestr) as mod:
                 with self.assertRaises(TypeError):
                     f = mod.f
@@ -1564,7 +1564,7 @@ class StaticCompilationTests(StaticTestBase):
             code = self.compile(codestr, code_gen)
             f = self.find_code(code, "f")
             if code_gen is StaticCodeGenerator:
-                self.assertInBytecode(f, "CAST", ("<module>", "C", "?"))
+                self.assertInBytecode(f, "CAST", (("<module>", "C", "?"), True))
             with self.in_module(codestr, code_gen=code_gen) as mod:
                 C = mod.C
                 f = mod.f
@@ -2069,7 +2069,7 @@ class StaticCompilationTests(StaticTestBase):
                 x(b=a)
         """
         code = self.find_code(self.compile(codestr), "g")
-        self.assertInBytecode(code, "CAST", ("builtins", "str"))
+        self.assertInBytecode(code, "CAST", (("builtins", "str"), True))
 
     def test_kwarg_nocast(self):
         codestr = """
@@ -2080,7 +2080,7 @@ class StaticCompilationTests(StaticTestBase):
                 x(b='abc')
         """
         code = self.find_code(self.compile(codestr), "g")
-        self.assertNotInBytecode(code, "CAST", ("builtins", "str"))
+        self.assertNotInBytecode(code, "CAST", (("builtins", "str"), True))
 
     def test_verify_mixed_args_kw_failure(self):
         codestr = """
@@ -2531,8 +2531,8 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         f = self.find_code(self.compile(codestr, modname="foo"))
-        self.assertInBytecode(f, "CAST", ("builtins", "str"))
-        self.assertNotInBytecode(f, "CAST", ("builtins", "int"))
+        self.assertInBytecode(f, "CAST", (("builtins", "str"), True))
+        self.assertNotInBytecode(f, "CAST", (("builtins", "int"), True))
 
     def test_typed_swap_2(self):
         codestr = """
@@ -2544,8 +2544,8 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         f = self.find_code(self.compile(codestr, modname="foo"))
-        self.assertInBytecode(f, "CAST", ("builtins", "int"))
-        self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
+        self.assertInBytecode(f, "CAST", (("builtins", "int"), True))
+        self.assertNotInBytecode(f, "CAST", (("builtins", "str"), True))
 
     def test_typed_swap_member(self):
         codestr = """
@@ -2561,8 +2561,8 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         f = self.find_code(self.compile(codestr, modname="foo"), "test")
-        self.assertInBytecode(f, "CAST", ("builtins", "int"))
-        self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
+        self.assertInBytecode(f, "CAST", (("builtins", "int"), True))
+        self.assertNotInBytecode(f, "CAST", (("builtins", "str"), True))
 
     def test_typed_swap_list(self):
         codestr = """
@@ -2573,8 +2573,8 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         f = self.find_code(self.compile(codestr, modname="foo"))
-        self.assertInBytecode(f, "CAST", ("builtins", "int"))
-        self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
+        self.assertInBytecode(f, "CAST", (("builtins", "int"), True))
+        self.assertNotInBytecode(f, "CAST", (("builtins", "str"), True))
 
     def test_typed_swap_nested(self):
         codestr = """
@@ -2586,8 +2586,8 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         f = self.find_code(self.compile(codestr, modname="foo"))
-        self.assertInBytecode(f, "CAST", ("builtins", "int"))
-        self.assertNotInBytecode(f, "CAST", ("builtins", "str"))
+        self.assertInBytecode(f, "CAST", (("builtins", "int"), True))
+        self.assertNotInBytecode(f, "CAST", (("builtins", "str"), True))
 
     def test_typed_swap_nested_2(self):
         codestr = """
@@ -2600,8 +2600,8 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         f = self.find_code(self.compile(codestr, modname="foo"))
-        self.assertInBytecode(f, "CAST", ("builtins", "str"))
-        self.assertNotInBytecode(f, "CAST", ("builtins", "int"))
+        self.assertInBytecode(f, "CAST", (("builtins", "str"), True))
+        self.assertNotInBytecode(f, "CAST", (("builtins", "int"), True))
 
     def test_typed_swap_nested_3(self):
         codestr = """
@@ -2614,10 +2614,10 @@ class StaticCompilationTests(StaticTestBase):
         """
 
         f = self.find_code(self.compile(codestr, modname="foo"))
-        self.assertInBytecode(f, "CAST", ("builtins", "str"))
+        self.assertInBytecode(f, "CAST", (("builtins", "str"), True))
         # Currently because the tuple gets turned into a constant this is less than
         # ideal:
-        self.assertInBytecode(f, "CAST", ("builtins", "int", "!"))
+        self.assertInBytecode(f, "CAST", (("builtins", "int", "!"), True))
 
     def test_if_optional(self):
         codestr = """
@@ -2811,7 +2811,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             g = mod.g
-            self.assertInBytecode(g, "CAST", ("builtins", "int"))
+            self.assertInBytecode(g, "CAST", (("builtins", "int"), True))
             self.assertInBytecode(
                 g, "INVOKE_METHOD", (("builtins", "int", "bit_length"), 0)
             )
@@ -3272,7 +3272,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
+            self.assertNotInBytecode(f, "CAST", (("builtins", "object"), True))
 
     def test_assign_num_to_dynamic(self):
         codestr = """
@@ -3282,7 +3282,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
+            self.assertNotInBytecode(f, "CAST", (("builtins", "object"), True))
 
     def test_assign_dynamic_to_object(self):
         codestr = """
@@ -3292,7 +3292,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
+            self.assertNotInBytecode(f, "CAST", (("builtins", "object"), True))
 
     def test_assign_dynamic_to_dynamic(self):
         codestr = """
@@ -3302,7 +3302,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
+            self.assertNotInBytecode(f, "CAST", (("builtins", "object"), True))
 
     def test_assign_constant_to_object(self):
         codestr = """
@@ -3312,7 +3312,7 @@ class StaticCompilationTests(StaticTestBase):
 
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertNotInBytecode(f, "CAST", ("builtins", "object"))
+            self.assertNotInBytecode(f, "CAST", (("builtins", "object"), True))
 
     def test_assign_try_except_typing(self):
         codestr = """
@@ -4346,7 +4346,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.testfunc
             self.assertEqual(f("abc", "abc"), True)
-            self.assertInBytecode(f, "CAST", ("builtins", "bool", "!"))
+            self.assertInBytecode(f, "CAST", (("builtins", "bool", "!"), True))
 
     def test_bool_int(self):
         codestr = """
@@ -6227,6 +6227,26 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.fn
             self.assertNotInBytecode(f, "TP_ALLOC")
             self.assertEqual(f().c, 1)
+
+    def test_isinstance_proxy(self):
+        codestr = """
+        class C:
+            def f(self):
+                return 42
+
+        def f(x):
+            if isinstance(x, C):
+                return x.f()
+        """
+
+        with self.in_module(codestr) as mod:
+
+            class X:
+                @property
+                def __class__(self):
+                    return mod.C
+
+            self.assertEqual(mod.f(X()), None)
 
 
 if __name__ == "__main__":

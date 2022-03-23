@@ -86,5 +86,5 @@ class DynamicReturnTests(StaticTestBase):
         """
         with self.in_strict_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CAST", ("builtins", "int"))
+            self.assertInBytecode(f, "CAST", (("builtins", "int"), True))
             self.assertEqual(f(), 3)

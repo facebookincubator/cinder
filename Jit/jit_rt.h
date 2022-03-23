@@ -307,6 +307,42 @@ JITRT_InvokeFunctionAwaited(PyObject* func, PyObject** args, Py_ssize_t nargs);
 PyObject* JITRT_LoadFunctionIndirect(PyObject** func, PyObject* descr);
 
 /*
+ * Performs a type check on an object, returning False if the object is
+ * not an instance of the specified type.  The type check is a real type
+ * check which doesn't support dynamic behaviors against the type or
+ * proxy behaviors against obj.__class__
+ */
+PyObject* JITRT_TypeCheck(PyObject* obj, PyTypeObject* type);
+
+PyObject* JITRT_TypeCheckExact(PyObject* obj, PyTypeObject* type);
+
+/*
+ * Performs a type check on an object, returning False if the object is
+ * not an instance of the specified type.  The type check is a real type
+ * check which doesn't support dynamic behaviors against the type or
+ * proxy behaviors against obj.__class__
+ */
+PyObject* JITRT_TypeCheckOptional(PyObject* obj, PyTypeObject* type);
+
+PyObject* JITRT_TypeCheckOptionalExact(PyObject* obj, PyTypeObject* type);
+
+/*
+ * Performs a type check on an object, returning False if the object is
+ * not an instance of the specified type.  This case requires extra work
+ * because Python typing pretends int is a subtype of float, so CAST
+ * needs to check two types.
+ */
+PyObject* JITRT_TypeCheckFloat(PyObject* obj);
+
+/*
+ * Performs a type check on an object, returning False if the object is
+ * not an instance of the specified type.  This case requires extra work
+ * because Python typing pretends int is a subtype of float, so CAST
+ * needs to check two types.
+ */
+PyObject* JITRT_TypeCheckFloatOptional(PyObject* obj);
+
+/*
  * Performs a type check on an object, raising an error if the object is
  * not an instance of the specified type.  The type check is a real type
  * check which doesn't support dynamic behaviors against the type or

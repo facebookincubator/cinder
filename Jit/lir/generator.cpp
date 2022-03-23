@@ -1967,17 +1967,33 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         uint64_t func;
         auto instr = static_cast<const Cast*>(&i);
         bool pass_type = true;
-        if (instr->pytype() == &PyFloat_Type) {
-          pass_type = false;
-          func = reinterpret_cast<uint64_t>(
-              instr->optional() ? JITRT_CastToFloatOptional
-                                : JITRT_CastToFloat);
-        } else if (instr->exact()) {
-          func = reinterpret_cast<uint64_t>(
-              instr->optional() ? JITRT_CastOptionalExact : JITRT_CastExact);
+        if (instr->iserror()) {
+          if (instr->pytype() == &PyFloat_Type) {
+            pass_type = false;
+            func = reinterpret_cast<uint64_t>(
+                instr->optional() ? JITRT_CastToFloatOptional
+                                  : JITRT_CastToFloat);
+          } else if (instr->exact()) {
+            func = reinterpret_cast<uint64_t>(
+                instr->optional() ? JITRT_CastOptionalExact : JITRT_CastExact);
+          } else {
+            func = reinterpret_cast<uint64_t>(
+                instr->optional() ? JITRT_CastOptional : JITRT_Cast);
+          }
         } else {
-          func = reinterpret_cast<uint64_t>(
-              instr->optional() ? JITRT_CastOptional : JITRT_Cast);
+          if (instr->pytype() == &PyFloat_Type) {
+            pass_type = false;
+            func = reinterpret_cast<uint64_t>(
+                instr->optional() ? JITRT_TypeCheckFloatOptional
+                                  : JITRT_TypeCheckFloat);
+          } else if (instr->exact()) {
+            func = reinterpret_cast<uint64_t>(
+                instr->optional() ? JITRT_TypeCheckOptionalExact
+                                  : JITRT_TypeCheckExact);
+          } else {
+            func = reinterpret_cast<uint64_t>(
+                instr->optional() ? JITRT_TypeCheckOptional : JITRT_TypeCheck);
+          }
         }
 
         if (pass_type) {

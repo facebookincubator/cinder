@@ -31,7 +31,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kAssign:
     case Opcode::kBuildSlice:
     case Opcode::kBuildString:
-    case Opcode::kCast:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
     case Opcode::kDoubleBinaryOp:
@@ -250,6 +249,15 @@ MemoryEffects memoryEffects(const Instr& inst) {
     // and steals the value it yields to the caller.
     case Opcode::kYieldAndYieldFrom: {
       return {false, AEmpty, {2, 1}, AAny};
+    }
+
+    case Opcode::kCast: {
+      auto& cast = static_cast<const Cast&>(inst);
+      if (cast.iserror()) {
+        return commonEffects(inst, AEmpty);
+      }
+      // returns borrowed ref to Py_True/Py_False
+      return borrowFrom(inst, AGlobal);
     }
 
     case Opcode::kCallCFunc:

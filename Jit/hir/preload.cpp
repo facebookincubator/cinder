@@ -331,13 +331,13 @@ void Preloader::preload() {
         }
         break;
       }
+      case CAST:
       case BUILD_CHECKED_LIST:
       case BUILD_CHECKED_MAP: {
         BorrowedRef<> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         types_.emplace(descr, resolve_type_descr(descr));
         break;
       }
-      case CAST:
       case PRIMITIVE_BOX:
       case PRIMITIVE_UNBOX:
       case REFINE_TYPE:

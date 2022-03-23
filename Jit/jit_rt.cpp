@@ -1176,6 +1176,50 @@ PyObject* JITRT_InvokeClassMethod(
       kwnames);
 }
 
+PyObject* JITRT_TypeCheck(PyObject* obj, PyTypeObject* type) {
+  if (PyObject_TypeCheck(obj, type)) {
+    return Py_True;
+  }
+  return Py_False;
+}
+
+PyObject* JITRT_TypeCheckExact(PyObject* obj, PyTypeObject* type) {
+  if (_PyObject_TypeCheckOptional(obj, type, /* opt */ 1, /* exact */ 1)) {
+    return Py_True;
+  }
+  return Py_False;
+}
+
+PyObject* JITRT_TypeCheckFloat(PyObject* obj) {
+  if (PyObject_TypeCheck(obj, &PyFloat_Type) ||
+      PyObject_TypeCheck(obj, &PyLong_Type)) {
+    return Py_True;
+  }
+  return Py_False;
+}
+
+PyObject* JITRT_TypeCheckOptional(PyObject* obj, PyTypeObject* type) {
+  if (_PyObject_TypeCheckOptional(obj, type, /* opt */ 1, /* exact */ 0)) {
+    return Py_True;
+  }
+  return Py_False;
+}
+
+PyObject* JITRT_TypeCheckOptionalExact(PyObject* obj, PyTypeObject* type) {
+  if (_PyObject_TypeCheckOptional(obj, type, /* opt */ 1, /* exact */ 1)) {
+    return Py_True;
+  }
+  return Py_False;
+}
+
+PyObject* JITRT_TypeCheckFloatOptional(PyObject* obj) {
+  if (obj == Py_None || PyObject_TypeCheck(obj, &PyFloat_Type) ||
+      PyObject_TypeCheck(obj, &PyLong_Type)) {
+    return Py_True;
+  }
+  return Py_False;
+}
+
 /* This function is inlined to LIR via kCHelpersManual, so changes here will
  * have no effect. */
 PyObject* JITRT_Cast(PyObject* obj, PyTypeObject* type) {

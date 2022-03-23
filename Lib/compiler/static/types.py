@@ -1809,7 +1809,7 @@ class Class(Object["Class"]):
 
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         if src is self.type_env.dynamic:
-            code_gen.emit("CAST", self.type_descr)
+            code_gen.emit("CAST", (self.type_descr, True))
         else:
             assert self.can_assign_from(src)
 
@@ -2773,7 +2773,7 @@ class StarredArg(ArgEmitter):
                 and param.type_ref.resolved() is not code_gen.compiler.type_env.DYNAMIC
             ):
                 code_gen.emit("ROT_TWO")
-                code_gen.emit("CAST", param.type_ref.resolved().type_descr)
+                code_gen.emit("CAST", (param.type_ref.resolved().type_descr, True))
                 code_gen.emit("ROT_TWO")
 
         # Remove the tuple from TOS
@@ -4789,19 +4789,7 @@ class IsInstanceFunction(Object[Class]):
             if not isinstance(arg0, ast.Name):
                 return NO_EFFECT
 
-            arg1 = node.args[1]
-            klass_type: Optional[Class] = None
-            if isinstance(arg1, ast.Tuple):
-                types = tuple(visitor.get_type(el) for el in arg1.elts)
-                if all(isinstance(t, Class) for t in types):
-                    klass_type = visitor.type_env.get_union(
-                        cast(Tuple[Class, ...], types)
-                    )
-            else:
-                arg1_type = visitor.get_type(node.args[1])
-                if isinstance(arg1_type, Class):
-                    klass_type = arg1_type.inexact()
-
+            klass_type = self.get_narrowed_type(node.args[1], visitor, visitor.type_env)
             if klass_type is not None:
                 return IsInstanceEffect(
                     arg0,
@@ -4811,6 +4799,59 @@ class IsInstanceFunction(Object[Class]):
                 )
 
         return NO_EFFECT
+
+    def get_narrowed_type(
+        self,
+        class_expr: expr,
+        type_provider: Static38CodeGenerator | TypeBinder,
+        type_env: TypeEnvironment,
+    ) -> Optional[Class]:
+        klass_type = None
+        if isinstance(class_expr, ast.Tuple):
+            types = tuple(type_provider.get_type(el) for el in class_expr.elts)
+            if all(isinstance(t, Class) for t in types):
+                klass_type = type_env.get_union(cast(Tuple[Class, ...], types))
+        else:
+            arg1_type = type_provider.get_type(class_expr)
+            if isinstance(arg1_type, Class):
+                klass_type = arg1_type.inexact_type()
+
+        if klass_type is type_env.dynamic:
+            klass_type = None
+
+        return klass_type
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) == 2 and not node.keywords:
+            klass_type = self.get_narrowed_type(
+                node.args[1], code_gen, code_gen.compiler.type_env
+            )
+            if klass_type is None:
+                return super().emit_call(node, code_gen)
+
+            code_gen.visit(node.args[0])
+
+            # If we have a complex union we'll emit a series of type checks.  If we
+            # have a simple Optional[T] though we can just emit a check which includes
+            # the optional.
+            if isinstance(klass_type, UnionType) and klass_type.opt_type is None:
+                true = code_gen.newBlock()
+                end = code_gen.newBlock()
+                for t in klass_type.type_args:
+                    code_gen.emit("DUP_TOP")
+                    code_gen.emit("CAST", (t.type_descr, False))
+                    code_gen.emit("POP_JUMP_IF_TRUE", true)
+                code_gen.emit("POP_TOP")  # remove value
+                code_gen.emit("LOAD_CONST", False)
+                code_gen.emit("JUMP_ABSOLUTE", end)
+                code_gen.nextBlock(true)
+                code_gen.emit("POP_TOP")
+                code_gen.emit("LOAD_CONST", True)
+                code_gen.nextBlock(end)
+            else:
+                code_gen.emit("CAST", (klass_type.type_descr, False))
+        else:
+            super().emit_call(node, code_gen)
 
 
 class IsSubclassFunction(Object[Class]):
@@ -6719,7 +6760,7 @@ class CastFunction(Object[Class]):
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.visit(node.args[1])
-        code_gen.emit("CAST", code_gen.get_type(node).klass.type_descr)
+        code_gen.emit("CAST", (code_gen.get_type(node).klass.type_descr, True))
 
 
 class CInstance(Value, Generic[TClass]):
@@ -7404,7 +7445,7 @@ class CIntInstance(CInstance["CIntType"]):
         if target_ty.can_assign_from(ty.klass):
             code_gen.emit("REFINE_TYPE", ty.klass.type_descr)
         else:
-            code_gen.emit("CAST", target_ty.type_descr)
+            code_gen.emit("CAST", (target_ty.type_descr, True))
         code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
     def bind_unaryop(
@@ -7677,7 +7718,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         if self.klass.type_env.float.can_assign_from(node_ty.klass):
             code_gen.emit("REFINE_TYPE", node_ty.klass.type_descr)
         else:
-            code_gen.emit("CAST", self.klass.type_env.float.type_descr)
+            code_gen.emit("CAST", (self.klass.type_env.float.type_descr, True))
         code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
     def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:

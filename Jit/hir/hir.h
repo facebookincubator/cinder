@@ -1913,11 +1913,13 @@ class INSTR_CLASS(Cast, (TObject), HasOutput, Operands<1>, DeoptBase) {
       PyTypeObject* pytype,
       bool optional,
       bool exact,
+      bool iserror,
       const FrameState& frame)
       : InstrT(dst, receiver, frame),
         pytype_(pytype),
         optional_(optional),
-        exact_(exact) {}
+        exact_(exact),
+        iserror_(iserror) {}
 
   Register* value() const {
     return reg();
@@ -1935,10 +1937,13 @@ class INSTR_CLASS(Cast, (TObject), HasOutput, Operands<1>, DeoptBase) {
     return exact_;
   }
 
+  bool iserror() const {
+    return iserror_;
+  }
+
  private:
   PyTypeObject* pytype_;
-  bool optional_;
-  bool exact_;
+  bool optional_, exact_, iserror_;
 };
 
 class INSTR_CLASS(TpAlloc, (), HasOutput, Operands<0>, DeoptBase) {
