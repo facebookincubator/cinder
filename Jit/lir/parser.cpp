@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/parser.h"
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/lir/operand.h"
 #include "Jit/lir/symbol_mapping.h"
@@ -148,6 +149,7 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
           auto pair = block_index_map_.emplace(id, block_);
           expect(pair.second, cur, "Duplicated basic block id.");
 
+          setSection(std::string(cur, token.length), block_);
           setSuccessorBlocks(std::string(cur, token.length), block_);
 
           state = INSTR_OUTPUT;
@@ -316,6 +318,21 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
   fixUnknownIds();
 
   return func;
+}
+
+void Parser::setSection(const std::string& bbdef, BasicBlock* bb) {
+  std::regex section_re = std::regex("- section: (hot|cold)");
+  std::cmatch section_m;
+  if (std::regex_search(bbdef.c_str(), section_m, section_re) &&
+      section_m.size() > 1) {
+    std::string section = section_m.str(1);
+    if (section == "hot") {
+      bb->setSection(codegen::CodeSection::kHot);
+    } else {
+      JIT_CHECK(section == "cold", "Code section must be hot or cold.");
+      bb->setSection(codegen::CodeSection::kCold);
+    }
+  }
 }
 
 void Parser::setSuccessorBlocks(const std::string& bbdef, BasicBlock* bb) {

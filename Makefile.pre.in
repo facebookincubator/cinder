@@ -1265,6 +1265,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/util.h \
 		$(srcdir)/Jit/codegen/annotations.h \
 		$(srcdir)/Jit/codegen/autogen.h \
+		$(srcdir)/Jit/codegen/code_section.h \
 		$(srcdir)/Jit/codegen/copy_graph.h \
 		$(srcdir)/Jit/codegen/environ.h \
 		$(srcdir)/Jit/codegen/gen_asm.h \

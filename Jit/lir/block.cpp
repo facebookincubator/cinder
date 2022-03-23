@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/block.h"
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/lir/function.h"
 #include "Jit/lir/printer.h"
 
@@ -10,7 +11,10 @@
 namespace jit {
 namespace lir {
 
-BasicBlock::BasicBlock(Function* func) : id_(func->allocateId()), func_(func) {}
+BasicBlock::BasicBlock(Function* func)
+    : id_(func->allocateId()),
+      func_(func),
+      section_(jit::codegen::CodeSection::kHot) {}
 
 BasicBlock* BasicBlock::insertBasicBlockBetween(BasicBlock* block) {
   auto i = std::find(successors_.begin(), successors_.end(), block);

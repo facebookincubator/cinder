@@ -43,6 +43,7 @@ class Parser {
   }
 
  private:
+  void setSection(const std::string& bbdef, BasicBlock* bb);
   void setSuccessorBlocks(const std::string& bbdef, BasicBlock* bb);
 
   OperandBase::DataType getOperandDataType(const std::string& name) const;

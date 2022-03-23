@@ -384,6 +384,35 @@ bool MemoryIndirectTestCase(std::string_view expected, Args&&... args) {
   return output == expected;
 }
 
+TEST_F(LIRGeneratorTest, ParserSectionTest) {
+  auto lir_str = fmt::format(R"(Function:
+BB %0 - section: hot
+         %1:8bit = Bind RDI:8bit
+        %2:32bit = Bind RSI:32bit
+        %3:16bit = Bind R9:16bit
+        %4:64bit = Bind R10:64bit
+       %5:Object = Move 0(0x0):Object
+                   CondBranch %5:Object, BB%7, BB%10
+
+BB %7 - preds: %0 - succs: %10 - section: cold
+       %8:Object = Move [0x5]:Object
+                   Return %8:Object
+
+BB %10 - preds: %0 %7 - section: hot
+
+)");
+
+  Parser parser;
+  auto parsed_func = parser.parse(lir_str);
+  ASSERT_EQ(parsed_func->basicblocks().size(), 3);
+  ASSERT_EQ(
+      parsed_func->basicblocks()[0]->section(), codegen::CodeSection::kHot);
+  ASSERT_EQ(
+      parsed_func->basicblocks()[1]->section(), codegen::CodeSection::kCold);
+  ASSERT_EQ(
+      parsed_func->basicblocks()[2]->section(), codegen::CodeSection::kHot);
+}
+
 TEST(LIRTest, MemoryIndirectTests) {
   ASSERT_TRUE(MemoryIndirectTestCase("[RCX:Object]", PhyLocation::RCX));
   ASSERT_TRUE(MemoryIndirectTestCase(

@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/lir/instruction.h"
 
 #include <algorithm>
@@ -185,6 +186,10 @@ class BasicBlock {
   // Replace any references to old_pred in this block's Phis with new_pred.
   void fixupPhis(BasicBlock* old_pred, BasicBlock* new_pred);
 
+  jit::codegen::CodeSection section() {
+    return section_;
+  }
+
  private:
   int id_;
   Function* func_;
@@ -197,10 +202,18 @@ class BasicBlock {
     id_ = id;
   }
 
+  // We currently only allow changing the code section being emitted within the
+  // parser.
+  void setSection(jit::codegen::CodeSection section) {
+    section_ = section;
+  }
+
   friend class Parser;
 
   // TODO(tiansi): consider using IntrusiveList as in HIR
   InstrList instrs_;
+
+  jit::codegen::CodeSection section_;
 };
 
 } // namespace lir
