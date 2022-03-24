@@ -653,9 +653,7 @@ void HIRBuilder::emitProfiledTypes(
     // currently the only situation where we try to give a possibly-null value
     // to GuardType; if we run into more we may want to consider making
     // GuardType null-aware.
-    if (first_profile[0] != nullptr && first_profile[0] == &PyType_Type) {
-      return;
-    }
+    return;
   }
   // TODO(T115140951): Add a more robust method of determining what type
   // information differs between interpreter runs and static JITted bytecode
