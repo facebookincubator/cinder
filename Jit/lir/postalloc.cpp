@@ -269,7 +269,7 @@ int PostRegAllocRewrite::rewriteGetMethodFunctionWorker(
 
   JIT_DCHECK(
       num_inputs <= std::size(GP_ARGUMENT_REGS),
-      "Number of inputs is greater than available ARGUMENT_REGS");
+      "Number of inputs is greater than available GP_ARGUMENT_REGS");
 
   for (size_t i = CALL_OPERAND_ARG_START; i < num_inputs; i++) {
     auto reg = GP_ARGUMENT_REGS[i - 1];
