@@ -41,7 +41,10 @@ namespace hir {
 namespace {
 
 struct Env {
-  Env(Function& f) : func{f} {}
+  Env(Function& f)
+      : func{f},
+        type_object(
+            Type::fromObject(reinterpret_cast<PyObject*>(&PyType_Type))) {}
 
   // The current function.
   Function& func;
@@ -63,6 +66,9 @@ struct Env {
   // Set to true by emit<T>() to indicate that the original instruction should
   // be removed.
   bool optimized{false};
+
+  // The object that corresponds to "type".
+  Type type_object{TTop};
 
   // Create and insert the specified instruction. If the instruction has an
   // output, a new Register* will be created and returned.
@@ -443,6 +449,17 @@ Register* simplifyIsNegativeAndErrOccurred(
   return env.emit<LoadConst>(Type::fromCInt(0, output_type));
 }
 
+Register* simplifyVectorCall(Env& env, const VectorCall* instr) {
+  Register* target = instr->GetOperand(0);
+  Type target_type = target->type();
+  if (target_type == env.type_object && instr->NumOperands() == 2) {
+    env.emit<UseType>(target, env.type_object);
+    return env.emit<LoadField>(
+        instr->GetOperand(1), "ob_type", offsetof(PyObject, ob_type), TType);
+  }
+  return nullptr;
+}
+
 Register* simplifyInstr(Env& env, const Instr* instr) {
   switch (instr->opcode()) {
     case Opcode::kCheckVar:
@@ -487,6 +504,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kIsNegativeAndErrOccurred:
       return simplifyIsNegativeAndErrOccurred(
           env, static_cast<const IsNegativeAndErrOccurred*>(instr));
+
+    case Opcode::kVectorCall:
+      return simplifyVectorCall(env, static_cast<const VectorCall*>(instr));
     default:
       return nullptr;
   }

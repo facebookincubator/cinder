@@ -33,7 +33,6 @@ PassRegistry::PassRegistry() {
   };
   addPass(RefcountInsertion::Factory);
   addPass(CopyPropagation::Factory);
-  addPass(CallOptimization::Factory);
   addPass(CleanCFG::Factory);
   addPass(DynamicComparisonElimination::Factory);
   addPass(PhiElimination::Factory);
@@ -381,32 +380,6 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
   }
 
   reflowTypes(irfunc);
-}
-
-void CallOptimization::Run(Function& irfunc) {
-  std::vector<Instr*> cond_branches;
-
-  for (auto& block : irfunc.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end();) {
-      auto& instr = *it;
-      ++it;
-
-      if (instr.IsVectorCall()) {
-        auto target = instr.GetOperand(0);
-        if (target->type() == type_type_ && instr.NumOperands() == 2) {
-          auto load_type = LoadField::create(
-              instr.GetOutput(),
-              instr.GetOperand(1),
-              "ob_type",
-              offsetof(PyObject, ob_type),
-              TType);
-          instr.ReplaceWith(*load_type);
-
-          delete &instr;
-        }
-      }
-    }
-  }
 }
 
 void CopyPropagation::Run(Function& irfunc) {

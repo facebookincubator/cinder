@@ -109,23 +109,6 @@ class DynamicComparisonElimination : public Pass {
   PyCFunction isinstance_func_{nullptr};
 };
 
-class CallOptimization : public Pass {
- public:
-  CallOptimization() : Pass("CallOptimization") {
-    type_type_ = Type::fromObject((PyObject*)&PyType_Type);
-  }
-
-  void Run(Function& irfunc) override;
-
-  static std::unique_ptr<CallOptimization> Factory() {
-    return std::make_unique<CallOptimization>();
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CallOptimization);
-  Type type_type_{TTop};
-};
-
 // Eliminate Assign instructions by propagating copies.
 class CopyPropagation : public Pass {
  public:
