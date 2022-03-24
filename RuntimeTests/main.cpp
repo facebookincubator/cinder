@@ -126,6 +126,9 @@ int main(int argc, char* argv[]) {
       HIRTest::kCompileStatic);
   register_test(
       "RuntimeTests/hir_tests/profile_data_test.txt", HIRTest::kUseProfileData);
+  register_test(
+      "RuntimeTests/hir_tests/profile_data_static_test.txt",
+      HIRTest::kUseProfileData | HIRTest::kCompileStatic);
   register_json_test("RuntimeTests/hir_tests/json_test.txt");
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);

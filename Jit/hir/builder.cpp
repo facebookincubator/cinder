@@ -657,6 +657,14 @@ void HIRBuilder::emitProfiledTypes(
       return;
     }
   }
+  // TODO(T115140951): Add a more robust method of determining what type
+  // information differs between interpreter runs and static JITted bytecode
+  if (bc_instr.opcode() == STORE_FIELD) {
+    auto& [offset, type, name] = preloader_.fieldInfo(constArg(bc_instr));
+    if (type <= TPrimitive) {
+      return;
+    }
+  }
 
   // Except for function calls, all instructions profile all of their inputs,
   // with deeper stack elements first.

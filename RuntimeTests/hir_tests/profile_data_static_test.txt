@@ -1,0 +1,28 @@
+ProfileDataStaticTest
+---
+Simplify
+---
+StoreFieldWithPrimitive
+---
+from __static__ import cbool
+class A:
+  def __init__(self):
+    self._field : cbool = True
+
+def test(self : A):
+  self._field : cbool = True
+
+test(A())
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:User[A] = LoadArg<0; "self", User[A]>
+    v6:CBool[true] = LoadConst<CBool[true]>
+    v8:Nullptr = LoadConst<Nullptr>
+    UseType<CBool> v6
+    StoreField<_field@16> v5 v6 v8
+    v10:NoneType = LoadConst<NoneType>
+    Return v10
+  }
+}
+---

@@ -13,7 +13,11 @@ void HIRTest::TestBody() {
     // the profile data.
     _PyJIT_Disable();
     _PyThreadState_SetProfileInterpAll(1);
-    ASSERT_TRUE(runCode(src_.c_str()));
+    if (compile_static_) {
+      ASSERT_TRUE(runStaticCode(src_.c_str()));
+    } else {
+      ASSERT_TRUE(runCode(src_.c_str()));
+    }
     std::stringstream data;
     ASSERT_TRUE(jit::writeProfileData(data));
     data.seekg(0);
