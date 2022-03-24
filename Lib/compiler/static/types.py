@@ -5483,6 +5483,9 @@ class ListAppendBuiltinMethod(BuiltinMethod):
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         if len(node.args) == 1 and not node.keywords:
             code_gen.visit(self.target)
+            code_gen.emit(
+                "REFINE_TYPE", code_gen.get_type(self.target).klass.type_descr
+            )
             code_gen.visit(node.args[0])
             code_gen.emit("LIST_APPEND", 1)
             return
