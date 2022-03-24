@@ -1552,6 +1552,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 ):
                     handler_type = self.type_env.dynamic
 
+                handler_type = handler_type.inexact_type()
                 decl_type = self.decl_types.get(hname)
                 if decl_type and decl_type.is_final:
                     self.syntax_error("Cannot assign to a Final variable", node)

@@ -76,7 +76,9 @@ def init_xxclassloader():
         class XXGeneric(Generic[T, U]):
             d = {}
 
-            def foo(self, t: T, u: U) -> str:
+            # __class_getitem__ doesn't properly re-write the code so
+            # we want CHECK_ARGS to not check for the plain generic type
+            def foo(self: object, t: T, u: U) -> str:
                 return str(t) + str(u)
 
             @classmethod
@@ -567,7 +569,7 @@ class StaticCompilationTests(StaticTestBase):
             getter=body_get,
         )
 
-        assert_expr_binds_to("object", lambda type_env: type_env.object)
+        assert_expr_binds_to("object", lambda type_env: type_env.object.exact_type())
 
         self.assertEqual(
             repr(self.bind_expr("1 + 2", optimize=True)[0]),
@@ -1790,15 +1792,16 @@ class StaticCompilationTests(StaticTestBase):
 
             self.assertInBytecode(
                 f,
-                "INVOKE_METHOD",
+                "INVOKE_FUNCTION",
                 (
                     (
                         "xxclassloader",
                         "spamobj",
                         (("builtins", "int"),),
+                        "!",
                         "setstate_untyped",
                     ),
-                    1,
+                    2,
                 ),
             )
             self.assertEqual(f(), 42)
@@ -3261,7 +3264,9 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.f
             self.assertEqual(type(f()), Exception)
             self.assertInBytecode(
-                f, "INVOKE_METHOD", (("builtins", "BaseException", "with_traceback"), 1)
+                f,
+                "INVOKE_FUNCTION",
+                (("builtins", "BaseException", "with_traceback"), 2),
             )
 
     def test_assign_num_to_object(self):
@@ -4634,8 +4639,19 @@ class StaticCompilationTests(StaticTestBase):
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(
             f,
-            "INVOKE_METHOD",
-            ((("xxclassloader", "spamobj", (("builtins", "str"),), "setstate"), 1)),
+            "INVOKE_FUNCTION",
+            (
+                (
+                    (
+                        "xxclassloader",
+                        "spamobj",
+                        (("builtins", "str"),),
+                        "!",
+                        "setstate",
+                    ),
+                    2,
+                )
+            ),
         )
         with self.in_module(codestr) as mod:
             test = mod.testfunc
@@ -4656,8 +4672,19 @@ class StaticCompilationTests(StaticTestBase):
         f = self.find_code(code, "testfunc")
         self.assertInBytecode(
             f,
-            "INVOKE_METHOD",
-            ((("xxclassloader", "spamobj", (("builtins", "str"),), "setstate"), 1)),
+            "INVOKE_FUNCTION",
+            (
+                (
+                    (
+                        "xxclassloader",
+                        "spamobj",
+                        (("builtins", "str"),),
+                        "!",
+                        "setstate",
+                    ),
+                    2,
+                )
+            ),
         )
         with self.in_module(codestr) as mod:
             test = mod.testfunc
@@ -6212,6 +6239,19 @@ class StaticCompilationTests(StaticTestBase):
                             c: ClassVar[int] = 3
         """
         self.compile(codestr)
+
+    def test_except_inexact(self):
+        codestr = """
+        def f():
+            try:
+                raise Exception()
+            except Exception as e:
+                e = SyntaxError()
+                return e
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "CAST", (("builtins", "Exception"), True))
+            self.assertEqual(type(mod.f()), SyntaxError)
 
     def test_compile_nested_class_in_fn(self):
         codestr = """

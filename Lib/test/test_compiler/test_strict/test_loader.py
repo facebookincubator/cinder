@@ -478,7 +478,7 @@ class StrictLoaderTest(StrictTestBase):
             out = io.StringIO()
             dis.dis(mod.f, file=out)
             self.assertIn("CHECK_ARGS", out.getvalue())
-            self.assertIn("INVOKE_METHOD", out.getvalue())
+            self.assertIn("INVOKE_FUNCTION", out.getvalue())
 
             out = io.StringIO()
             dis.dis(amod.C.f, file=out)

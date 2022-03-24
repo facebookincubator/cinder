@@ -571,3 +571,23 @@ class StaticObjCreationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(type(mod.l), chklist[object])
+
+    def test_class_method_call(self):
+        codestr = """
+            from __static__ import CheckedList
+            class B:
+                def __init__(self, a):
+                    self.a = a
+
+                @classmethod
+                def f(cls, *args):
+                    return cls(42)
+
+            class D:
+                def __init__(self, a, b):
+                    self.a = a
+                    self.b = b
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.B.f, "CALL_FUNCTION", 1)
+            self.assertNotInBytecode(mod.B.f, "TP_ALLOC")

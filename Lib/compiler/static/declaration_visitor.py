@@ -146,7 +146,7 @@ class DeclarationVisitor(GenericVisitor[None]):
             with self.compiler.error_sink.error_context(self.filename, item):
                 self.visit(item)
 
-        parent_scope.declare_class(node, klass)
+        parent_scope.declare_class(node, klass.exact_type())
         # We want the name corresponding to `C` to be the exact type when imported.
         self.module.types[node] = klass.exact_type()
         self.exit_scope()

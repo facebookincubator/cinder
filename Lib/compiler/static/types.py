@@ -1469,6 +1469,9 @@ class Class(Object["Class"]):
             # temporaries, but this is pretty rare.
             dynamic_call = True
 
+        if not self.is_exact and not self.is_final:
+            dynamic_call = True
+
         visitor.set_type(node, self_type)
         visitor.set_node_data(
             node, ClassCallInfo, ClassCallInfo(new_mapping, init_mapping, dynamic_call)
@@ -1637,7 +1640,7 @@ class Class(Object["Class"]):
     def _finish_bind_one(
         self, name: str, my_value: Value, module: ModuleTable
     ) -> Value | None:
-        node = self._member_nodes.get(name, None)
+        node = self.inexact_type()._member_nodes.get(name, None)
         with module.error_context(node):
             new_value = my_value.finish_bind(module, self)
             if new_value is None:
@@ -1952,7 +1955,13 @@ class GenericClass(Class):
 
     def is_subclass_of(self, src: Class) -> bool:
         type_def = self.generic_type_def
-        if src.generic_type_def is not type_def:
+        src_type_def = src.generic_type_def
+
+        if (
+            src_type_def is None
+            or type_def is None
+            or not type_def.is_subclass_of(src_type_def)
+        ):
             return super().is_subclass_of(src)
 
         assert isinstance(type_def, GenericClass)
@@ -1973,6 +1982,7 @@ class GenericClass(Class):
             else:
                 if src_arg.is_subclass_of(self_arg):
                     continue
+
             return False
 
         return True
@@ -8269,12 +8279,6 @@ if spamobj is not None:
                 pytype=pytype,
             )
 
-            if self.is_exact:
-                self_type = self.type_env.get_generic_type(
-                    self.type_env.xx_generic, self.type_name.args
-                )
-            else:
-                self_type = self
             self.members["foo"] = BuiltinMethodDescriptor(
                 "foo",
                 self,
@@ -8282,7 +8286,7 @@ if spamobj is not None:
                     Parameter(
                         "self",
                         0,
-                        ResolvedTypeRef(self_type),
+                        ResolvedTypeRef(self),
                         False,
                         None,
                         ParamStyle.POSONLY,

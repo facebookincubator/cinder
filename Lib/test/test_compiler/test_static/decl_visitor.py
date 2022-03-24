@@ -24,7 +24,7 @@ class DeclarationVisitorTests(StaticTestBase):
         """
         bcomp = self.compiler(a=acode, b=bcode).compile_module("b")
         x = self.find_code(bcomp, "f")
-        self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
+        self.assertInBytecode(x, "INVOKE_FUNCTION", (("a", "C", "f"), 1))
 
     def test_cross_module_nested(self) -> None:
         for parent, close in [
@@ -183,7 +183,7 @@ class DeclarationVisitorTests(StaticTestBase):
         """
         bcomp = self.compiler(a=acode, b=bcode).compile_module("b")
         x = self.find_code(bcomp, "f")
-        self.assertInBytecode(x, "INVOKE_METHOD", (("a", "C", "f"), 0))
+        self.assertInBytecode(x, "INVOKE_FUNCTION", (("a", "C", "f"), 1))
 
     def test_cross_module_type_checking(self) -> None:
         acode = """
