@@ -742,6 +742,19 @@ class TypeBinderTests(ReadonlyTestBase):
         errors = self.lint(code)
         self.assertEqual(errors.errors, [])
 
+    def test_import_local_multipart(self) -> None:
+        code = """
+        import e
+
+        def somefunc():
+            import d.f
+            le = e
+            ld = d
+            le = d.f
+        """
+        errors = self.lint(code)
+        self.assertEqual(errors.errors, [])
+
     def test_readonly_walrus(self) -> None:
         code = """
         def g(arr):

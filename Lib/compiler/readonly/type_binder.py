@@ -1056,10 +1056,15 @@ class ReadonlyTypeBinder(ASTVisitor):
         self.declare(node.arg, node, readonly_value)
 
     def visitalias(self, node: ast.alias) -> None:
+        root_visible_name = node.name
         if node.asname:
-            self.declare(node.asname, node, MUTABLE)
-        else:
-            self.declare(node.name, node, MUTABLE)
+            root_visible_name = node.asname
+
+        # If this is a multi-part import, make the root name
+        # visible in the current scope.
+        if (loc := root_visible_name.find(".")) != -1:
+            root_visible_name = root_visible_name[:loc]
+        self.declare(root_visible_name, node, MUTABLE)
 
     def visitModule(self, node: ast.Module) -> None:
         self.child_scope(ReadonlyModuleBindingScope(node, self))
