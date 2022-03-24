@@ -1,0 +1,1 @@
+richards_static_lib:*

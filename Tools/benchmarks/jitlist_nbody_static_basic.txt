@@ -1,0 +1,1 @@
+nbody_static_basic_lib:*

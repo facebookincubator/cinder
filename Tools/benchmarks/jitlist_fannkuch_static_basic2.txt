@@ -1,0 +1,1 @@
+fannkuch_static_basic2_lib:*

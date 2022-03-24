@@ -1,0 +1,1 @@
+nqueens_static_lib:*
