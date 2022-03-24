@@ -1,5 +1,7 @@
 #ifndef Py_IMMUTABLE_ERRORS_H
 #define Py_IMMUTABLE_ERRORS_H
+#include "Python.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,11 +17,15 @@ typedef struct PyImmutableErrorEntry {
 } PyImmutableErrorEntry;
 
 #define _PyErr_IMMUTABLE_ERR(err, ...) \
-    (_PyErr_RaiseImmutableWarningV((err), __VA_ARGS__))
+    (_PyErr_RaiseImmutableWarningV(&(err), ## __VA_ARGS__))
+
 PyAPI_FUNC(int) _PyErr_RaiseImmutableWarningV(PyImmutableErrorEntry* err_entry, ...);
 
-#define DEF_ERROR(name, code, fmt_string)                                      \
-    PyImmutableErrorEntry name = {code, fmt_string, -1};
+#ifdef _CINDER_DEFINE_IMMUTABLE_ERRORS
+#define DEF_ERROR(name, code, fmt_string) PyImmutableErrorEntry name = {code, fmt_string, -1};
+#else
+#define DEF_ERROR(name, code, fmt_string) extern PyImmutableErrorEntry name;
+#endif
 
 DEF_ERROR(ImmutableDictError, 0, "%U on immutable dict");
 

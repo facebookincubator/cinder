@@ -6,7 +6,10 @@
 #include "pycore_pyerrors.h"
 #include "pycore_pystate.h"
 #include "pycore_traceback.h"
+
+#define _CINDER_DEFINE_IMMUTABLE_ERRORS
 #include "py_immutable_error.h"
+#undef _CINDER_DEFINE_IMMUTABLE_ERRORS
 
 #ifndef __STDC__
 #ifndef MS_WINDOWS
