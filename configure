@@ -696,7 +696,6 @@ LLVM_AR
 PROFILE_TASK
 DEF_MAKE_RULE
 DEF_MAKE_ALL_RULE
-DYNASM_DEFINES
 ABIFLAGS
 LN
 MKDIR_P
@@ -6302,9 +6301,6 @@ fi
 
 ABIFLAGS=""
 
-
-DYNASM_DEFINES=
-
 # Check for --with-pydebug
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-pydebug" >&5
 $as_echo_n "checking for --with-pydebug... " >&6; }
@@ -6321,7 +6317,6 @@ $as_echo "#define Py_DEBUG 1" >>confdefs.h
 $as_echo "yes" >&6; };
   Py_DEBUG='true'
   ABIFLAGS="${ABIFLAGS}d"
-  DYNASM_DEFINES='-D Py_DEBUG'
 else { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }; Py_DEBUG='false'
 fi
@@ -16695,7 +16690,6 @@ SRCDIRS="Parser Objects Python Modules Programs \
     StrictModules/Tests \
     ThirdParty/googletest-1.8.1/googletest \
     ThirdParty/i386-dis \
-    ThirdParty/dynasm \
     ThirdParty/asmjit/src/asmjit/core \
     ThirdParty/asmjit/src/asmjit/x86"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for build directories" >&5

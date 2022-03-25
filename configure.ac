@@ -1190,9 +1190,6 @@ fi
 AC_SUBST(ABIFLAGS)
 ABIFLAGS=""
 
-AC_SUBST(DYNASM_DEFINES)
-DYNASM_DEFINES=
-
 # Check for --with-pydebug
 AC_MSG_CHECKING(for --with-pydebug)
 AC_ARG_WITH(pydebug,
@@ -1205,7 +1202,6 @@ then
   AC_MSG_RESULT(yes);
   Py_DEBUG='true'
   ABIFLAGS="${ABIFLAGS}d"
-  DYNASM_DEFINES='-D Py_DEBUG'
 else AC_MSG_RESULT(no); Py_DEBUG='false'
 fi],
 [AC_MSG_RESULT(no)])
@@ -5371,7 +5367,6 @@ SRCDIRS="Parser Objects Python Modules Programs \
     StrictModules/Tests \
     ThirdParty/googletest-1.8.1/googletest \
     ThirdParty/i386-dis \
-    ThirdParty/dynasm \
     ThirdParty/asmjit/src/asmjit/core \
     ThirdParty/asmjit/src/asmjit/x86"
 AC_MSG_CHECKING(for build directories)
