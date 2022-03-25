@@ -398,22 +398,19 @@ class Base(object):
 class NonCallableMock(Base):
     """A non-callable version of `Mock`"""
 
-    def __new__(cls, /, *args, **kw):
+    def __new__(cls, spec=None, wraps=None, name=None, spec_set=None,
+            parent=None, _spec_state=None, _new_name='', _new_parent=None,
+            _spec_as_instance=False, _eat_self=None, unsafe=False, **kwargs):
         # every instance has its own class
         # so we can create magic methods on the
         # class without stomping on other mocks
         bases = (cls,)
         if not issubclass(cls, AsyncMock):
             # Check if spec is an async object or function
-            sig = inspect.signature(NonCallableMock.__init__)
-            bound_args = sig.bind_partial(cls, *args, **kw).arguments
-            spec_arg = [
-                arg for arg in bound_args.keys()
-                if arg.startswith('spec')
-            ]
-            if spec_arg:
+            spec_arg = spec_set or spec
+            if spec_arg is not None:
                 # what if spec_set is different than spec?
-                if _is_async_obj(bound_args[spec_arg[0]]):
+                if _is_async_obj(spec_arg):
                     bases = (AsyncMockMixin, cls,)
         new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
         instance = _safe_super(NonCallableMock, cls).__new__(new)
@@ -494,10 +491,6 @@ class NonCallableMock(Base):
         _spec_class = None
         _spec_signature = None
         _spec_asyncs = []
-
-        for attr in dir(spec):
-            if asyncio.iscoroutinefunction(getattr(spec, attr, None)):
-                _spec_asyncs.append(attr)
 
         if spec is not None and not _is_list(spec):
             if isinstance(spec, type):
@@ -995,7 +988,8 @@ class NonCallableMock(Base):
         For non-callable mocks the callable variant will be used (rather than
         any custom subclass)."""
         _new_name = kw.get("_new_name")
-        if _new_name in self.__dict__['_spec_asyncs']:
+        if (_new_name in self.__dict__['_spec_asyncs'] or
+            asyncio.iscoroutinefunction(getattr(self.__dict__['_spec_class'], _new_name, None))):
             return AsyncMock(**kw)
 
         _type = type(self)
@@ -1036,7 +1030,6 @@ class NonCallableMock(Base):
         if not self.mock_calls:
             return ""
         return f"\n{prefix}: {safe_repr(self.mock_calls)}."
-
 
 
 def _try_iter(obj):
@@ -2044,10 +2037,7 @@ class NonCallableMagicMock(MagicMixin, NonCallableMock):
 
 
 class AsyncMagicMixin(MagicMixin):
-    def __init__(self, /, *args, **kw):
-        self._mock_set_magics()  # make magic work for kwargs in init
-        _safe_super(AsyncMagicMixin, self).__init__(*args, **kw)
-        self._mock_set_magics()  # fix magic broken by upper level init
+    pass
 
 class MagicMock(MagicMixin, Mock):
     """
@@ -2106,9 +2096,7 @@ class AsyncMockMixin(Base):
         self.__dict__['_mock_await_count'] = 0
         self.__dict__['_mock_await_args'] = None
         self.__dict__['_mock_await_args_list'] = _CallList()
-        code_mock = NonCallableMock(spec_set=CodeType)
-        code_mock.co_flags = inspect.CO_COROUTINE
-        self.__dict__['__code__'] = code_mock
+        self.__dict__['__code__'] = _CODE_DUMMY
 
     async def _execute_mock_call(self, /, *args, **kwargs):
         # This is nearly just like super(), except for sepcial handling
@@ -2725,6 +2713,10 @@ FunctionTypes = (
 
 
 file_spec = None
+
+
+async def _dummy_async(): pass
+_CODE_DUMMY = _dummy_async.__code__
 
 
 def _to_stream(read_data):
