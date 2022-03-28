@@ -118,6 +118,10 @@ class Int64Enum(Enum):
         set_type_code(cls, TYPED_INT64)
 
 
+class IntEnum(Enum, int):
+    pass
+
+
 class StringEnumMeta(EnumMeta):
     """Like the regular EnumMeta, but parses string/binary inputs to __call__
     as text (to match text literals used in StringEnum)."""

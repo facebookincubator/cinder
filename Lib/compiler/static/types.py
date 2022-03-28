@@ -407,6 +407,7 @@ class TypeEnvironment:
             frozenset: self.set.instance,
         }
         self.enum: EnumType = EnumType(self)
+        self.int_enum: IntEnumType = IntEnumType(self)
         self.string_enum: StringEnumType = StringEnumType(self)
         if spamobj is not None:
             T = GenericParameter("T", 0, self)
@@ -8179,6 +8180,79 @@ class EnumInstance(Object[EnumType]):
 
         if node.attr == "name":
             visitor.set_type(node, visitor.type_env.str.exact_type().instance)
+            return
+
+        super().bind_attr(node, visitor, type_ctx)
+
+
+class IntEnumType(EnumType):
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        type_name: Optional[TypeName] = None,
+        bases: Optional[List[Class]] = None,
+        is_exact: bool = False,
+    ) -> None:
+        instance = IntEnumInstance(self)
+        super().__init__(
+            type_name=(type_name or TypeName("__static__", "IntEnum")),
+            bases=bases or cast(List[Class], [type_env.enum, type_env.int]),
+            type_env=type_env,
+            instance=instance,
+            is_exact=is_exact,
+        )
+        self.values: Dict[str, IntEnumInstance] = {}
+
+    def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
+        if len(bases) > 1:
+            raise TypedSyntaxError(
+                f"Static IntEnum types cannot support multiple bases: {bases}",
+            )
+        if bases[0] is not self.type_env.int_enum:
+            raise TypedSyntaxError("Static IntEnum types do not allow subclassing")
+        return IntEnumType(self.type_env, name, bases)
+
+    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
+        if not isinstance(const, ast.Constant):
+            raise TypedSyntaxError("Cannot resolve IntEnum value at compile time")
+
+        value = const.value
+        if not isinstance(value, int):
+            raise TypedSyntaxError(
+                f"IntEnum values must be int, not {type(value).__name__}"
+            )
+
+        self.values[name.id] = IntEnumInstance(self, name.id, value)
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) != 1:
+            raise code_gen.syntax_error(
+                f"{self.name} requires a single argument, given {len(node.args)}", node
+            )
+
+        arg = node.args[0]
+        arg_type = code_gen.get_type(arg)
+        if isinstance(arg_type, IntEnumInstance):
+            code_gen.visit(arg)
+        else:
+            code_gen.defaultVisit(node)
+
+
+class IntEnumInstance(EnumInstance):
+    klass: IntEnumType
+    value: Optional[int]
+
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            visitor.syntax_error("Enum values cannot be modified or deleted", node)
+
+        if node.attr == "name":
+            visitor.set_type(node, visitor.type_env.str.exact_type().instance)
+            return
+        if node.attr == "value":
+            visitor.set_type(node, visitor.type_env.int.exact_type().instance)
             return
 
         super().bind_attr(node, visitor, type_ctx)

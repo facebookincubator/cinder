@@ -21,7 +21,7 @@ from typing import (
 )
 from weakref import WeakValueDictionary
 
-from .enum import Enum, Int64Enum, StringEnum  # noqa: F401
+from .enum import Enum, Int64Enum, IntEnum, StringEnum  # noqa: F401
 from .type_code import (
     type_code,
     TYPED_INT8,

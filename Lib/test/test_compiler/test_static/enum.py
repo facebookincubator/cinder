@@ -689,6 +689,193 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.result1, mod.Foo.BAR)
             self.assertEqual(mod.result2, mod.Foo.BAZ)
 
+    def test_int_enum_mixins_unsupported(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(str, IntEnum):
+            pass
+        """
+        self.type_error(codestr, "Static IntEnum types cannot support multiple bases")
+
+    def test_subclassing_int_enum_unsupported(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+            pass
+
+        class Bar(Foo):
+            pass
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            "Static IntEnum types do not allow subclassing",
+        ):
+            self.compile(codestr)
+
+    def test_non_int_int_enum_unsupported(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+            FOO = 1
+            BAR = "BAR"
+        """
+        self.type_error(
+            codestr,
+            "IntEnum values must be int, not str",
+            at='BAR = "BAR"',
+        )
+
+    def test_delattr_int_enum_disallowed(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+            FOO = 1
+
+        def delete() -> None:
+            del Foo.FOO
+        """
+        self.type_error(
+            codestr,
+            "Static Enum values cannot be modified or deleted",
+        )
+
+    def test_setattr_int_enum_disallowed(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+            FOO = 1
+
+        def bar():
+            Foo.FOO = 2
+        """
+        self.type_error(
+            codestr,
+            "Static Enum values cannot be modified or deleted",
+        )
+
+    def test_non_constant_int_enum_disallowed(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        def foo() -> int:
+            return 1
+
+        class Foo(IntEnum):
+            FOO = foo()
+        """
+        self.type_error(
+            codestr,
+            "Cannot resolve IntEnum value at compile time",
+            at="FOO = foo()",
+        )
+
+    def test_compare_int_enum_to_int(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+             FOO = 1
+
+        def f():
+            return (Foo.FOO == 1, Foo.FOO == 2)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), (True, False))
+
+    def test_compare_int_enum_to_int_enum(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+             FOO = 1
+             BAR = 2
+
+        def f():
+            return (Foo.FOO == Foo.FOO, Foo.FOO == Foo.BAR)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), (True, False))
+
+    def test_compare_int_enum_to_int_nonstatic(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+             FOO = 1
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.Foo.FOO == 1)
+            self.assertFalse(mod.Foo.FOO == 2)
+
+    def test_compare_int_enum_to_int_enum_nonstatic(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+             FOO = 1
+             BAR = 2
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.Foo.FOO == mod.Foo.FOO)
+            self.assertFalse(mod.Foo.FOO == mod.Foo.BAR)
+
+    def test_compare_different_int_enums(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+             FOO = 1
+             BAR = 2
+
+        class Bar(IntEnum):
+             FOO = 1
+
+        def f():
+            return Foo.FOO == Bar.FOO, Foo.BAR == Bar.FOO
+        """
+        with self.in_module(codestr) as mod:
+            # To match existing behavior, values from different enums with the same constant
+            # compare to be equal.
+            self.assertEqual(mod.f(), (True, False))
+
+    def test_compare_different_int_enums_nonstatic(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+             FOO = 1
+             BAR = 2
+
+        class Bar(IntEnum):
+             FOO = 1
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.Foo.FOO == mod.Bar.FOO)
+            self.assertFalse(mod.Foo.BAR == mod.Bar.FOO)
+
+    def test_int_enum_instances_are_ints(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class Foo(IntEnum):
+             FOO = 1
+             BAR = 2
+
+        def foo(s: int) -> str:
+            return f"{s} is an int"
+
+        def bar() -> str:
+            return foo(Foo.FOO)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.bar(), "Foo.FOO is an int")
+            self.assertEqual(mod.foo(mod.Foo.BAR), "Foo.BAR is an int")
+
     def test_string_enum_mixins_unsupported(self):
         codestr = """
         from __static__ import StringEnum
