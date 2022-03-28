@@ -14,6 +14,8 @@ fun jittestmodule:test {
     v4:Object = LoadArg<1; "i">
     v7:TupleExact = GuardType<TupleExact> v3
     v8:LongExact = GuardType<LongExact> v4
+    UseType<TupleExact> v7
+    UseType<LongExact> v8
     v10:CInt64 = PrimitiveUnbox<CInt64> v8
     v11:CInt64 = CheckSequenceBounds v7 v10 {
       NextInstrOffset 6

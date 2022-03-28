@@ -391,6 +391,13 @@ Type outputType(
       return TMortalFunc;
     case Opcode::kMakeSet:
       return TMortalSet;
+    case Opcode::kLongBinaryOp: {
+      auto& binop = static_cast<const LongBinaryOp&>(instr);
+      if (binop.op() == BinaryOpKind::kTrueDivide) {
+        return TFloatExact;
+      }
+      return TLongExact;
+    }
     case Opcode::kLongCompare:
     case Opcode::kRunPeriodicTasks:
       return TBool;

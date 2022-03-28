@@ -307,6 +307,13 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     instruction = newInstr<BinaryOp>(dst, op, left, right);
+  } else if (strcmp(opcode, "LongBinaryOp") == 0) {
+    expect("<");
+    BinaryOpKind op = ParseBinaryOpName(GetNextToken());
+    expect(">");
+    auto left = ParseRegister();
+    auto right = ParseRegister();
+    instruction = newInstr<LongBinaryOp>(dst, op, left, right);
   } else if (strcmp(opcode, "IntBinaryOp") == 0) {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());

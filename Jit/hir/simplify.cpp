@@ -318,31 +318,41 @@ Register* simplifyLoadTupleItem(Env& env, const LoadTupleItem* instr) {
 }
 
 Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
-  if (instr->op() != BinaryOpKind::kSubscript) {
-    return nullptr;
-  }
   Register* lhs = instr->left();
   Register* rhs = instr->right();
-  if (!rhs->isA(TLongExact)) {
-    return nullptr;
-  }
-  if (lhs->isA(TListExact) || lhs->isA(TTupleExact)) {
-    // TODO(T93509109): Replace TCInt64 with a less platform-specific
-    // representation of the type, which should be analagous to Py_ssize_t.
-    Register* right_index = env.emit<PrimitiveUnbox>(rhs, TCInt64);
-    Register* adjusted_idx =
-        env.emit<CheckSequenceBounds>(lhs, right_index, *instr->frameState());
-    ssize_t offset = offsetof(PyTupleObject, ob_item);
-    Register* array = lhs;
-    // Lists carry a nested array of ob_item whereas tuples are variable-sized
-    // structs.
-    if (lhs->isA(TListExact)) {
-      env.emit<UseType>(lhs, TListExact);
-      array = env.emit<LoadField>(
-          lhs, "ob_item", offsetof(PyListObject, ob_item), TCPtr);
-      offset = 0;
+  if (instr->op() == BinaryOpKind::kSubscript) {
+    if (!rhs->isA(TLongExact)) {
+      return nullptr;
     }
-    return env.emit<LoadArrayItem>(array, adjusted_idx, lhs, offset, TObject);
+    if (lhs->isA(TListExact) || lhs->isA(TTupleExact)) {
+      // TODO(T93509109): Replace TCInt64 with a less platform-specific
+      // representation of the type, which should be analagous to Py_ssize_t.
+      env.emit<UseType>(lhs, lhs->isA(TListExact) ? TListExact : TTupleExact);
+      env.emit<UseType>(rhs, TLongExact);
+      Register* right_index = env.emit<PrimitiveUnbox>(rhs, TCInt64);
+      Register* adjusted_idx =
+          env.emit<CheckSequenceBounds>(lhs, right_index, *instr->frameState());
+      ssize_t offset = offsetof(PyTupleObject, ob_item);
+      Register* array = lhs;
+      // Lists carry a nested array of ob_item whereas tuples are variable-sized
+      // structs.
+      if (lhs->isA(TListExact)) {
+        array = env.emit<LoadField>(
+            lhs, "ob_item", offsetof(PyListObject, ob_item), TCPtr);
+        offset = 0;
+      }
+      return env.emit<LoadArrayItem>(array, adjusted_idx, lhs, offset, TObject);
+    }
+  }
+  if (lhs->isA(TLongExact) && rhs->isA(TLongExact)) {
+    if (instr->op() == BinaryOpKind::kMatrixMultiply &&
+        instr->op() == BinaryOpKind::kSubscript) {
+      // These will generate an error at runtime.
+      return nullptr;
+    }
+    env.emit<UseType>(lhs, TLongExact);
+    env.emit<UseType>(rhs, TLongExact);
+    return env.emit<LongBinaryOp>(instr->op(), lhs, rhs, *instr->frameState());
   }
   // Unsupported case.
   return nullptr;

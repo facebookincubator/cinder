@@ -212,6 +212,7 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadGlobal:
     case Opcode::kLoadMethod:
     case Opcode::kLoadMethodSuper:
+    case Opcode::kLongBinaryOp:
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
     case Opcode::kMakeCheckedList:

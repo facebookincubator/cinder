@@ -220,12 +220,13 @@ fun jittestmodule:test {
     }
     InitListTuple<list, 3> v12 v9 v10 v11
     v16:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    UseType<ListExact> v12
+    UseType<LongExact> v16
     v22:CInt64[1] = LoadConst<CInt64[1]>
     v19:CInt64 = CheckSequenceBounds v12 v22 {
       NextInstrOffset 16
       Locals<1> v12
     }
-    UseType<ListExact> v12
     v20:CPtr = LoadField<ob_item@24, CPtr, borrowed> v12
     v21:Object = LoadArrayItem v20 v19 v12
     Return v21
@@ -262,6 +263,8 @@ fun jittestmodule:test {
     v4:Nullptr = LoadConst<Nullptr>
     v5:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    UseType<TupleExact> v5
+    UseType<LongExact> v8
     v13:CInt64[1] = LoadConst<CInt64[1]>
     v11:CInt64 = CheckSequenceBounds v5 v13 {
       NextInstrOffset 10
@@ -961,6 +964,64 @@ fun jittestmodule:test {
     UseType<MortalTypeExact[type:obj]> v5
     v8:Type = LoadField<ob_type@8, Type, borrowed> v3
     Return v8
+  }
+}
+---
+BinaryOpWithLeftAndRightLongExactTurnsIntoLongBinaryOp
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = LoadArg<1>
+    v3 = RefineType<LongExact> v1
+    v4 = RefineType<LongExact> v2
+    v5 = BinaryOp<Add> v3 v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Object = LoadArg<1>
+    v3:LongExact = RefineType<LongExact> v1
+    v4:LongExact = RefineType<LongExact> v2
+    UseType<LongExact> v3
+    UseType<LongExact> v4
+    v6:LongExact = LongBinaryOp<Add> v3 v4 {
+      NextInstrOffset 0
+    }
+    Return v6
+  }
+}
+---
+BinaryOpTrueDivideWithLeftAndRightLongExactTurnsIntoLongBinaryOpFloat
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = LoadArg<1>
+    v3 = RefineType<LongExact> v1
+    v4 = RefineType<LongExact> v2
+    v5 = BinaryOp<TrueDivide> v3 v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Object = LoadArg<1>
+    v3:LongExact = RefineType<LongExact> v1
+    v4:LongExact = RefineType<LongExact> v2
+    UseType<LongExact> v3
+    UseType<LongExact> v4
+    v6:FloatExact = LongBinaryOp<TrueDivide> v3 v4 {
+      NextInstrOffset 0
+    }
+    Return v6
   }
 }
 ---

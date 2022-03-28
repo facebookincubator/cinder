@@ -59,10 +59,12 @@ fun jittestmodule:test {
     }
     v20:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
     EndInlinedFunction
-    v11:Object = BinaryOp<Add> v14 v20 {
+    UseType<LongExact> v14
+    UseType<LongExact> v20
+    v24:LongExact = LongBinaryOp<Add> v14 v20 {
       NextInstrOffset 10
     }
-    Return v11
+    Return v24
   }
 }
 ---
@@ -96,12 +98,13 @@ fun jittestmodule:test {
       NextInstrOffset 18
       Locals<1> v13
     }
+    UseType<ListExact> v13
+    UseType<LongExact> v19
     v37:CInt64[1] = LoadConst<CInt64[1]>
     v34:CInt64 = CheckSequenceBounds v13 v37 {
       NextInstrOffset 6
       Locals<2> v13 v19
     }
-    UseType<ListExact> v13
     v35:CPtr = LoadField<ob_item@24, CPtr, borrowed> v13
     v36:Object = LoadArrayItem v35 v34 v13
     EndInlinedFunction
@@ -128,12 +131,14 @@ fun jittestmodule:test {
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 8
     }
-    v17:Object = BinaryOp<Add> v6 v7 {
+    UseType<LongExact> v6
+    UseType<LongExact> v7
+    v21:LongExact = LongBinaryOp<Add> v6 v7 {
       NextInstrOffset 6
       Locals<2> v6 v7
     }
     EndInlinedFunction
-    Return v17
+    Return v21
   }
 }
 ---

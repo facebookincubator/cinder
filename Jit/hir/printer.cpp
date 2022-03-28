@@ -392,6 +392,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& cmp = static_cast<const LongCompare&>(instr);
       return GetCompareOpName(cmp.op());
     }
+    case Opcode::kLongBinaryOp: {
+      const auto& bin = static_cast<const LongBinaryOp&>(instr);
+      return GetBinaryOpName(bin.op());
+    }
     case Opcode::kCompareBool: {
       const auto& cmp = static_cast<const Compare&>(instr);
       return GetCompareOpName(cmp.op());

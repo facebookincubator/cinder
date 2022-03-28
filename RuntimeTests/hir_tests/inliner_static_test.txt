@@ -39,11 +39,13 @@ fun jittestmodule:test {
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 10
     }
-    v16:Object = BinaryOp<Add> v4 v5 {
+    UseType<LongExact> v4
+    UseType<LongExact> v5
+    v19:LongExact = LongBinaryOp<Add> v4 v5 {
       NextInstrOffset 8
       Locals<2> v4 v5
     }
-    v17:Long = Cast<int> v16 {
+    v17:Long = Cast<int> v19 {
       NextInstrOffset 10
       Locals<2> v4 v5
     }

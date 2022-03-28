@@ -766,7 +766,7 @@ fun jittestmodule:test {
       Locals<2> v11 v18
     }
     v22:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v23:Object = BinaryOp<Add> v21 v22 {
+    v36:LongExact = LongBinaryOp<Add> v21 v22 {
       LiveValues<3> b:v11 b:v21 b:v22
       NextInstrOffset 18
       Locals<2> v11 v21
@@ -780,7 +780,7 @@ fun jittestmodule:test {
   }
 
   bb 4 (preds 3, 8) {
-    v26:OptObject = Phi<3, 8> v23 v18
+    v26:OptLongExact = Phi<3, 8> v36 v18
     v28:CInt32 = IsTruthy v11 {
       LiveValues<2> b:v11 o:v26
       NextInstrOffset 24
@@ -797,7 +797,7 @@ fun jittestmodule:test {
       NextInstrOffset 24
       Locals<2> v11 v26
     }
-    v31:Object = CheckVar<"total_time"> v26 {
+    v31:LongExact = CheckVar<"total_time"> v26 {
       LiveValues<3> b:v11 o:v26 b:v30
       NextInstrOffset 28
       Locals<2> v11 v26

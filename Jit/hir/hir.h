@@ -368,6 +368,7 @@ struct FrameState {
   V(LoadTypeAttrCacheItem)      \
   V(LoadVarObjectSize)          \
   V(LongCompare)                \
+  V(LongBinaryOp)               \
   V(MakeCheckedDict)            \
   V(MakeCheckedList)            \
   V(MakeCell)                   \
@@ -2182,6 +2183,38 @@ class INSTR_CLASS(
 
  private:
   CompareOp op_;
+};
+
+// Perform the operation indicated by op
+class INSTR_CLASS(
+    LongBinaryOp,
+    (TLongExact, TLongExact),
+    HasOutput,
+    Operands<2>,
+    DeoptBase) {
+ public:
+  LongBinaryOp(
+      Register* dst,
+      BinaryOpKind op,
+      Register* left,
+      Register* right,
+      const FrameState& frame)
+      : InstrT(dst, left, right, frame), op_(op) {}
+
+  BinaryOpKind op() const {
+    return op_;
+  }
+
+  Register* left() const {
+    return GetOperand(0);
+  }
+
+  Register* right() const {
+    return GetOperand(1);
+  }
+
+ private:
+  BinaryOpKind op_;
 };
 
 // Like Compare but has an Int32 output so it can be used to replace
