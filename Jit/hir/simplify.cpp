@@ -269,6 +269,28 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
           obj, "ob_size", offsetof(PyVarObject, ob_size), TCInt64);
       return env.emit<IntConvert>(size, TCInt32);
     }
+    if (ty <= TDictExact || ty <= TSetExact || ty <= TUnicodeExact) {
+      Register* obj = instr->GetOperand(0);
+      env.emit<UseType>(obj, ty.unspecialized());
+      std::size_t offset = 0;
+      const char* name = nullptr;
+      if (ty <= TDictExact) {
+        offset = offsetof(PyDictObject, ma_used);
+        name = "ma_used";
+      } else if (ty <= TSetExact) {
+        offset = offsetof(PySetObject, used);
+        name = "used";
+      } else if (ty <= TUnicodeExact) {
+        // Note: In debug mode, the interpreter has an assert that ensures the
+        // string is "ready", check PyUnicode_GET_LENGTH for strings.
+        offset = offsetof(PyASCIIObject, length);
+        name = "length";
+      } else {
+        JIT_CHECK(false, "unexpected type");
+      }
+      Register* size = env.emit<LoadField>(obj, name, offset, TCInt64);
+      return env.emit<IntConvert>(size, TCInt32);
+    }
     if (ty <= TLongExact) {
       Register* left = instr->GetOperand(0);
       env.emit<UseType>(left, ty);

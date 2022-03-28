@@ -921,6 +921,93 @@ fun test {
   }
 }
 ---
+IsTruthyWithDictExactRewritesToLoadField
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = RefineType<DictExact> v1
+    v3 = IsTruthy v2
+    v4 = PrimitiveBox<CInt32> v3
+    v5 = CheckExc v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:DictExact = RefineType<DictExact> v1
+    UseType<DictExact> v2
+    v6:CInt64 = LoadField<ma_used@16, CInt64, borrowed> v2
+    v7:CInt32 = IntConvert<CInt32> v6
+    v4:OptLongExact = PrimitiveBox<CInt32> v7
+    v5:LongExact = CheckExc v4 {
+      NextInstrOffset 0
+    }
+    Return v5
+  }
+}
+---
+IsTruthyWithSetExactRewritesToLoadField
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = RefineType<SetExact> v1
+    v3 = IsTruthy v2
+    v4 = PrimitiveBox<CInt32> v3
+    v5 = CheckExc v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:SetExact = RefineType<SetExact> v1
+    UseType<SetExact> v2
+    v6:CInt64 = LoadField<used@24, CInt64, borrowed> v2
+    v7:CInt32 = IntConvert<CInt32> v6
+    v4:OptLongExact = PrimitiveBox<CInt32> v7
+    v5:LongExact = CheckExc v4 {
+      NextInstrOffset 0
+    }
+    Return v5
+  }
+}
+---
+IsTruthyWithUnicodeExactRewritesToLoadField
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = RefineType<UnicodeExact> v1
+    v3 = IsTruthy v2
+    v4 = PrimitiveBox<CInt32> v3
+    v5 = CheckExc v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:UnicodeExact = RefineType<UnicodeExact> v1
+    UseType<UnicodeExact> v2
+    v6:CInt64 = LoadField<length@16, CInt64, borrowed> v2
+    v7:CInt32 = IntConvert<CInt32> v6
+    v4:OptLongExact = PrimitiveBox<CInt32> v7
+    v5:LongExact = CheckExc v4 {
+      NextInstrOffset 0
+    }
+    Return v5
+  }
+}
+---
 IsTruthyWithLongExactRewritesToPrimitiveCompare
 ---
 # HIR
