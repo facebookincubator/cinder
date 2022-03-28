@@ -254,24 +254,32 @@ fun jittestmodule:test {
 ---
 BinaryOpSubscriptFromTupleIsSpecialized
 ---
-def test():
-  ls = (1, 2, 3)
-  return ls[1]
----
-fun jittestmodule:test {
+# HIR
+fun test {
   bb 0 {
-    v4:Nullptr = LoadConst<Nullptr>
-    v5:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
-    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    UseType<TupleExact> v5
-    UseType<LongExact> v8
-    v13:CInt64[1] = LoadConst<CInt64[1]>
-    v11:CInt64 = CheckSequenceBounds v5 v13 {
-      NextInstrOffset 10
-      Locals<1> v5
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = RefineType<TupleExact> v0
+    v3 = RefineType<LongExact> v1
+    v4 = BinaryOp<Subscript> v2 v3
+    Return v4
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v2:TupleExact = RefineType<TupleExact> v0
+    v3:LongExact = RefineType<LongExact> v1
+    UseType<TupleExact> v2
+    UseType<LongExact> v3
+    v5:CInt64 = PrimitiveUnbox<CInt64> v3
+    v6:CInt64 = CheckSequenceBounds v2 v5 {
+      NextInstrOffset 0
     }
-    v12:Object = LoadArrayItem<Offset[24]> v5 v11 v5
-    Return v12
+    v7:Object = LoadArrayItem<Offset[24]> v2 v6 v2
+    Return v7
   }
 }
 ---
@@ -1109,6 +1117,28 @@ fun test {
       NextInstrOffset 0
     }
     Return v6
+  }
+}
+---
+BinarySubscrWithConstTupleAndObjectSpecIndexSimplifiesToLoadConst
+---
+def test():
+  tup = (1,(2,3,4),5)
+  return tup[1][2]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
+    v10:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    UseType<MortalTupleExact[tuple:0xdeadbeef]> v7
+    UseType<MortalLongExact[1]> v10
+    v14:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
+    v12:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
+    UseType<MortalLongExact[2]> v12
+    v15:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    Return v15
   }
 }
 ---

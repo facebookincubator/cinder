@@ -346,6 +346,27 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
     if (!rhs->isA(TLongExact)) {
       return nullptr;
     }
+    Type lhs_type = lhs->type();
+    Type rhs_type = rhs->type();
+    if (lhs_type <= TTupleExact && lhs_type.hasObjectSpec() &&
+        rhs_type.hasObjectSpec()) {
+      int overflow;
+      Py_ssize_t index =
+          PyLong_AsLongAndOverflow(rhs_type.objectSpec(), &overflow);
+      if (!overflow) {
+        PyObject* lhs_obj = lhs_type.objectSpec();
+        if (index >= 0 && index < PyTuple_GET_SIZE(lhs_obj)) {
+          ThreadedCompileSerialize guard;
+          PyObject* item = PyTuple_GET_ITEM(lhs_obj, index);
+          env.emit<UseType>(lhs, lhs_type);
+          env.emit<UseType>(rhs, rhs_type);
+          return env.emit<LoadConst>(
+              Type::fromObject(env.func.env.addReference(Ref(item))));
+        }
+        // Fallthrough
+      }
+      // Fallthrough
+    }
     if (lhs->isA(TListExact) || lhs->isA(TTupleExact)) {
       // TODO(T93509109): Replace TCInt64 with a less platform-specific
       // representation of the type, which should be analagous to Py_ssize_t.
