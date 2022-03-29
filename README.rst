@@ -17,11 +17,14 @@
 Welcome to Cinder!
 ==================
 
-Cinder is Instagram's internal performance-oriented production version of
+Cinder is Meta's internal performance-oriented production version of
 CPython 3.8. It contains a number of performance optimizations, including
 bytecode inline caching, eager evaluation of coroutines, a method-at-a-time
 JIT, and an experimental bytecode compiler that uses type annotations to emit
 type-specialized bytecode that performs better in the JIT.
+
+Cinder is powering Instagram, where it started, and is increasingly
+used across more and more Python applications in Meta.
 
 For more information on CPython, see ``README.cpython.rst``.
 
@@ -35,14 +38,13 @@ about potentially upstreaming some of this work to CPython and to reduce
 duplication of effort among people working on CPython performance.
 
 Cinder is not polished or documented for anyone else's use. We don't have the
-capacity to support Cinder as an independent open-source project, nor any
 desire for it to become an alternative to CPython. Our goal in making this
 code available is a unified faster CPython. So while we do run Cinder in
 production, if you choose to do so you are on your own. We can't commit to
 fixing external bug reports or reviewing pull requests. We make sure Cinder
-is sufficiently stable and fast for our production workload, but we make no
-assurances about its stability or correctness or performance for any other
-workload or use.
+is sufficiently stable and fast for our production workloads, but we make no
+assurances about its stability or correctness or performance for any external
+workloads or use-cases.
 
 That said, if you have experience in dynamic language runtimes and have ideas
 to make Cinder faster; or if you work on CPython and want to use Cinder as
@@ -55,7 +57,7 @@ How do I build it?
 
 Cinder should build just like CPython; ``configure`` and ``make -j``. However
 as most development and usage of Cinder occurs in the highly specific context of
-Instagram we do not exercise it much in other environments. As such, the most
+Meta we do not exercise it much in other environments. As such, the most
 reliable way to build and run Cinder is to re-use the Docker-based setup from
 our GitHub CI workflow. A rough guide is as follows:
 
@@ -119,23 +121,39 @@ counting when this feature is enabled.
 Shadowcode
 ~~~~~~~~~~
 
-"Shadowcode" or "shadow bytecode" is our inline caching implementation. It
-observes particular optimizable cases in the execution of generic Python
-opcodes and (for hot functions) dynamically replaces those opcodes with
-specialized versions. The core of shadowcode lives in
+"Shadowcode" or "shadow bytecode" is our implementation of a specializing
+interpreter. It observes particular optimizable cases in the execution of
+generic Python opcodes and (for hot functions) dynamically replaces those
+opcodes with specialized versions. The core of shadowcode lives in
 ``Python/shadowcode.c``, though the implementations for the specialized
 bytecodes are in ``Python/ceval.c`` with the rest of the eval loop.
 Shadowcode-specific tests are in ``Lib/test/test_shadowcode.py``.
 
-Eager coroutine evaluation
+It is similar in spirit to the specializing adaptive interpreter (PEP-659)
+that will be built into CPython 3.11.
+
+Await-aware function calls
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If a call to an async function is immediately awaited, we immediately execute
-the called function up to its first ``await``. If the called function reaches
-a ``return`` without needing to await, we will be able to return that value
-directly without ever even creating a coroutine object or deferring to the
-event loop. This is a significant (~5%) CPU optimization in our async-heavy
-workload.
+The Instagram Server is an async-heavy workload, where each web request may
+trigger hundreds of thousands of async tasks, many of which can be completed
+without suspension (e.g. thanks to memoized values).
+
+We extended the vectorcall protocol to pass a new flag,
+``_Py_AWAITED_CALL_MARKER``, indicating the caller is immediately awaiting
+this call.
+
+When used with async function calls that are immediately awaited, we can
+immediately (eagerly) evaluate the called function, up to completion, or up
+to its first suspension. If the function completes without suspending, we are
+able to return the value immediately, with no extra heap allocations.
+
+When used with async gather, we can immediately (eagerly) evaluate the set of
+passed awaitables, potentially avoiding the cost of creation and scheduling of
+multiple tasks for coroutines that could be completed synchronously, completed
+futures, memoized values, etc.
+
+These optimizations resulted in a significant (~5%) CPU efficiency improvement.
 
 This is mostly implemented in ``Python/ceval.c``, via a new vectorcall flag
 ``_Py_AWAITED_CALL_MARKER``, indicating the caller is immediately awaiting
@@ -223,22 +241,18 @@ mode (via an ``import __strict__`` at the top of the module), analyzing them
 to validate no import side effects, and populating them in ``sys.modules`` as
 a ``StrictModule`` object.
 
-The version of strict modules that we currently use in production is written
-in Python and is not part of Cinder. The ``StrictModules/`` directory in
-Cinder is an in-progress C++ rewrite of the import side effects analyzer.
-
 Static Python
 ~~~~~~~~~~~~~
 
-Static Python is an experimental bytecode compiler that makes use of type
-annotations to emit type-specialized and type-checked Python bytecode. Used
-along with the Cinder JIT, it can deliver performance similar to `MyPyC`_ or
-`Cython`_ in many cases, while offering a pure-Python developer experience
-(normal Python syntax, no extra compilation step). Static Python plus Cinder
-JIT achieves 7x the performance of stock CPython on a typed version of the
-Richards benchmark. At Instagram we have successfully used Static Python in
-production to replace the majority of the Cython modules in our primary
-webserver codebase, with no performance regression.
+Static Python is a bytecode compiler that makes use of type annotations to
+emit type-specialized and type-checked Python bytecode. Used along with the
+Cinder JIT, it can deliver performance similar to `MyPyC`_ or `Cython`_ in
+many cases, while offering a pure-Python developer experience (normal Python
+syntax, no extra compilation step). Static Python plus Cinder JIT achieves
+18x the performance of stock CPython on a typed version of the Richards
+benchmark. At Instagram we have successfully used Static Python in production
+to replace all Cython modules in our primary webserver codebase, with no
+performance regression.
 
 The Static Python compiler is built on top of the Python ``compiler`` module
 that was removed from the standard library in Python 3 and has since been

@@ -27,7 +27,7 @@ and values smaller than 1 represent slowdown in that benchmark configuration.
 The graph is in log scale.
 
 .. image:: images/static_python_normalized_speedups.png
-   :alt: Cinder build status on GitHub Actions
+   :alt: Static Python Normalized Benchmarks Results
 
 Raw data (normalized speedups) behind the graph:
 
