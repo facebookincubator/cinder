@@ -203,6 +203,12 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
       bool truthy = (op == CompareOp::kIs) == same_obj;
       return env.emit<LoadConst>(Type::fromObject(truthy ? Py_True : Py_False));
     }
+    auto cbool = env.emit<PrimitiveCompare>(
+        instr->op() == CompareOp::kIs ? PrimitiveCompareOp::kEqual
+                                      : PrimitiveCompareOp::kNotEqual,
+        instr->left(),
+        instr->right());
+    return env.emit<PrimitiveBox>(cbool, TCBool);
   }
   if (left->isA(TNoneType) && right->isA(TNoneType)) {
     if (op == CompareOp::kEqual || op == CompareOp::kNotEqual) {

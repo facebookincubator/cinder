@@ -350,35 +350,6 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
     }
   }
 
-  // Optimize the more general case of "x is y" used outside "if"
-  for (auto& block : irfunc.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end();) {
-      auto& instr = *it;
-      ++it;
-
-      if (!instr.IsCompare()) {
-        continue;
-      }
-      auto compare = static_cast<Compare*>(&instr);
-      if (compare->op() != CompareOp::kIs &&
-          compare->op() != CompareOp::kIsNot) {
-        continue;
-      }
-      auto cbool = irfunc.env.AllocateRegister();
-      auto primitive_compare = PrimitiveCompare::create(
-          cbool,
-          compare->op() == CompareOp::kIs ? PrimitiveCompareOp::kEqual
-                                          : PrimitiveCompareOp::kNotEqual,
-          compare->left(),
-          compare->right());
-      auto box = PrimitiveBox::create(compare->dst(), cbool, TCBool);
-      primitive_compare->copyBytecodeOffset(instr);
-      box->copyBytecodeOffset(instr);
-      compare->ExpandInto({primitive_compare, box});
-      delete compare;
-    }
-  }
-
   reflowTypes(irfunc);
 }
 
