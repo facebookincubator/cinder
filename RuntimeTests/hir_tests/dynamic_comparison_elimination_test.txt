@@ -4,51 +4,85 @@ DynamicComparisonElimination
 ---
 IsBecomesComparison
 ---
-def test(x, y):
-  if x is y:
-    return 1
----
-fun jittestmodule:test {
+# HIR
+fun test {
   bb 0 {
-    v6:Object = LoadArg<0; "x">
-    v7:Object = LoadArg<1; "y">
-    v11:CBool = PrimitiveCompare<Equal> v6 v7
-    CondBranch<1, 2> v11
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = Compare<Is> v0 v1
+    v3 = IsTruthy v2
+    CondBranch<1, 2> v3
+  }
+
+  bb 1 {
+    v4 = LoadConst<LongExact[1]>
+    Return v4
+  }
+
+  bb 2 {
+    v5 = LoadConst<NoneType>
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v3:CBool = PrimitiveCompare<Equal> v0 v1
+    CondBranch<1, 2> v3
   }
 
   bb 1 (preds 0) {
-    v12:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    Return v12
+    v4:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Return v4
   }
 
   bb 2 (preds 0) {
-    v13:NoneType = LoadConst<NoneType>
-    Return v13
+    v5:NoneType = LoadConst<NoneType>
+    Return v5
   }
 }
 ---
 IsNotBecomesComparison
 ---
-def test(x, y):
-  if x is not y:
-    return 1
----
-fun jittestmodule:test {
+# HIR
+fun test {
   bb 0 {
-    v6:Object = LoadArg<0; "x">
-    v7:Object = LoadArg<1; "y">
-    v11:CBool = PrimitiveCompare<NotEqual> v6 v7
-    CondBranch<1, 2> v11
+    v0 = LoadArg<0>
+    v1 = LoadArg<1>
+    v2 = Compare<IsNot> v0 v1
+    v3 = IsTruthy v2
+    CondBranch<1, 2> v3
+  }
+
+  bb 1 {
+    v4 = LoadConst<LongExact[1]>
+    Return v4
+  }
+
+  bb 2 {
+    v5 = LoadConst<NoneType>
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Object = LoadArg<1>
+    v3:CBool = PrimitiveCompare<NotEqual> v0 v1
+    CondBranch<1, 2> v3
   }
 
   bb 1 (preds 0) {
-    v12:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    Return v12
+    v4:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Return v4
   }
 
   bb 2 (preds 0) {
-    v13:NoneType = LoadConst<NoneType>
-    Return v13
+    v5:NoneType = LoadConst<NoneType>
+    Return v5
   }
 }
 ---

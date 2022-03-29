@@ -235,20 +235,24 @@ fun jittestmodule:test {
 ---
 BinaryOpSubscriptFromNonListEmitsBinaryOp
 ---
-ls = object()
-
-def test():
-  return ls[1]
----
-fun jittestmodule:test {
+# HIR
+fun test {
   bb 0 {
-    v3:OptObject = LoadGlobalCached<0; "ls">
-    v4:MortalObjectExact[object:0xdeadbeef] = GuardIs<0xdeadbeef> v3
-    v5:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v6:Object = BinaryOp<Subscript> v4 v5 {
-      NextInstrOffset 6
+    v0 = LoadArg<0>
+    v1 = LoadConst<LongExact[1]>
+    v2 = BinaryOp<Subscript> v0 v1
+    Return v2
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v2:Object = BinaryOp<Subscript> v0 v1 {
+      NextInstrOffset 0
     }
-    Return v6
+    Return v2
   }
 }
 ---
@@ -283,24 +287,33 @@ fun test {
   }
 }
 ---
-CondBranchOfIsTruthyWithNoneTurnsToBranch
+CondBranchOfIsTruthyWithNoneRemovesCondBranch
 ---
-def test():
-  x = None
-  y = True
-  if not x:
-    y = False
-  return y
----
-fun jittestmodule:test {
+# HIR
+fun test {
   bb 0 {
-    v6:Nullptr = LoadConst<Nullptr>
-    v7:NoneType = LoadConst<NoneType>
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
-    UseType<NoneType> v7
-    v18:CInt32[0] = LoadConst<CInt32[0]>
-    v13:MortalBool[False] = LoadConst<MortalBool[False]>
-    Return v13
+    v0 = LoadArg<0>
+    v1 = RefineType<NoneType> v0
+    v2 = IsTruthy v1
+    CondBranch<1, 2> v2
+  }
+
+  bb 1 {
+    Return v1
+  }
+
+  bb 2 {
+    Return v1
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:NoneType = RefineType<NoneType> v0
+    UseType<NoneType> v1
+    v3:CInt32[0] = LoadConst<CInt32[0]>
+    Return v1
   }
 }
 ---
