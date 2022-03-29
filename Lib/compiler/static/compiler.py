@@ -216,6 +216,7 @@ class Compiler:
                 "box": BoxFunction(self.type_env.function),
                 "cast": CastFunction(self.type_env.function),
                 "clen": LenFunction(self.type_env.function, boxed=False),
+                "ExcContextDecorator": self.type_env.exc_context_decorator.exact_type(),
                 "ContextDecorator": self.type_env.context_decorator.exact_type(),
                 "dynamic_return": self.type_env.dynamic_return,
                 "size_t": self.type_env.uint64.exact_type(),

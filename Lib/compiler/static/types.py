@@ -318,8 +318,6 @@ class TypeEnvironment:
             "__static__", "Vector", (self.vector_type_param,)
         )
         self.vector = VectorClass(self.vector_type_name, self, is_exact=True)
-        self.context_decorator = ContextDecoratorClass(self)
-
         self.allowed_array_types: List[Class] = [
             self.int8,
             self.int16,
@@ -409,6 +407,15 @@ class TypeEnvironment:
         self.enum: EnumType = EnumType(self)
         self.int_enum: IntEnumType = IntEnumType(self)
         self.string_enum: StringEnumType = StringEnumType(self)
+        self.exc_context_decorator = ContextDecoratorClass(
+            self, TypeName("__static__", "ExcContextDecorator")
+        )
+        self.context_decorator = ContextDecoratorClass(
+            self,
+            TypeName("__static__", "ContextDecorator"),
+            bases=[self.exc_context_decorator],
+        )
+
         if spamobj is not None:
             T = GenericParameter("T", 0, self)
             U = GenericParameter("U", 1, self)
@@ -500,17 +507,17 @@ class TypeRef:
     as well as the annotation"""
 
     def __init__(self, module: ModuleTable, ref: ast.expr) -> None:
-        self.module = module
-        self.ref = ref
+        self._module = module
+        self._ref = ref
 
     def resolved(self, is_declaration: bool = False) -> Class:
-        res = self.module.resolve_annotation(self.ref, is_declaration=is_declaration)
+        res = self._module.resolve_annotation(self._ref, is_declaration=is_declaration)
         if res is None:
-            return self.module.compiler.type_env.dynamic
+            return self._module.compiler.type_env.dynamic
         return res
 
     def __repr__(self) -> str:
-        return f"TypeRef({self.module.name}, {ast.dump(self.ref)})"
+        return f"TypeRef({self._module.name}, {ast.dump(self._ref)})"
 
 
 class ResolvedTypeRef(TypeRef):
@@ -522,6 +529,19 @@ class ResolvedTypeRef(TypeRef):
 
     def __repr__(self) -> str:
         return f"ResolvedTypeRef({self.resolved()})"
+
+
+class SelfTypeRef(TypeRef):
+    """Marker for return type of methods that return SelfType."""
+
+    def __init__(self, bound: Class) -> None:
+        self._bound = bound
+
+    def resolved(self, is_declaration: bool = False) -> Class:
+        return self._bound
+
+    def __repr__(self) -> str:
+        return f"SelfTypeRef({self.resolved()})"
 
 
 # Pyre doesn't support recursive generics, so we can't represent the recursively
@@ -4358,11 +4378,15 @@ class BuiltinMethodDescriptor(Callable[Class]):
         if inst is None:
             return self
         else:
-            return (
-                visitor.type_env.DYNAMIC
-                if self.dynamic_dispatch
-                else BuiltinMethod(self, node.value)
-            )
+            if self.dynamic_dispatch:
+                return visitor.type_env.DYNAMIC
+            if isinstance(self.return_type, SelfTypeRef):
+                ret_type = ResolvedTypeRef(inst.klass)
+                bound = self.return_type.resolved()
+                assert bound.can_assign_from(inst.klass)
+            else:
+                ret_type = self.return_type
+            return BuiltinMethod(self, node.value, ret_type)
 
     def make_generic(
         self, new_type: Class, name: GenericTypeName, type_env: TypeEnvironment
@@ -4383,7 +4407,12 @@ class BuiltinMethodDescriptor(Callable[Class]):
 
 
 class BuiltinMethod(Callable[Class]):
-    def __init__(self, desc: BuiltinMethodDescriptor, target: ast.expr) -> None:
+    def __init__(
+        self,
+        desc: BuiltinMethodDescriptor,
+        target: ast.expr,
+        return_type: TypeRef | None = None,
+    ) -> None:
         super().__init__(
             desc.type_env.method,
             desc.func_name,
@@ -4393,7 +4422,7 @@ class BuiltinMethod(Callable[Class]):
             0,
             None,
             None,
-            desc.return_type,
+            return_type or desc.return_type,
         )
         self.desc = desc
         self.target = target
@@ -7848,46 +7877,112 @@ class ContextDecoratorClass(Class):
     def __init__(
         self,
         type_env: TypeEnvironment,
-        name: Optional[TypeName] = None,
+        name: TypeName,
         bases: Optional[List[Class]] = None,
         subclass: bool = False,
         is_exact: bool = False,
         members: Optional[Dict[str, Value]] = None,
     ) -> None:
         super().__init__(
-            name or TypeName("__static__", "ContextDecorator"),
+            name,
             type_env,
             bases or [type_env.object],
             ContextDecoratorInstance(self),
             is_exact=is_exact,
             members=members,
         )
-        # Self is always meant to be the inexact type here. However, since constructor can
-        # be called when creating the initial exact type, the `inexact_type()` wouldn't point
-        # to the right type yet, and we need to specify it explicitly for bootstrapping reasons.
-        self_type = self.type_env.context_decorator if is_exact else self
-        if not subclass:
-            self.members["_recreate_cm"] = BuiltinMethodDescriptor(
-                "_recreate_cm",
+        self.subclass = subclass
+        if (
+            not subclass and not is_exact
+        ):  # exact versions copy members dict, no need to redefine methods
+            may_suppress = False
+            if name.name == "ExcContextDecorator":
+                may_suppress = True
+                # only the base ExcContextDecorator needs this, ContextDecorator inherits
+                self.members["_recreate_cm"] = BuiltinMethodDescriptor(
+                    "_recreate_cm",
+                    self,
+                    [
+                        Parameter(
+                            "self",
+                            0,
+                            ResolvedTypeRef(self),
+                            False,
+                            None,
+                            ParamStyle.POSONLY,
+                        )
+                    ],
+                    SelfTypeRef(self),
+                )
+            self.members["__exit__"] = BuiltinMethodDescriptor(
+                "__exit__",
                 self,
                 [
                     Parameter(
                         "self",
                         0,
-                        ResolvedTypeRef(self_type),
+                        ResolvedTypeRef(self),
                         False,
                         None,
                         ParamStyle.POSONLY,
-                    )
+                    ),
+                    Parameter(
+                        "exc_type",
+                        1,
+                        ResolvedTypeRef(self.type_env.dynamic),
+                        False,
+                        None,
+                        ParamStyle.POSONLY,
+                    ),
+                    Parameter(
+                        "exc_value",
+                        2,
+                        ResolvedTypeRef(
+                            self.type_env.get_union(
+                                (self.type_env.base_exception, self.type_env.none)
+                            )
+                        ),
+                        False,
+                        None,
+                        ParamStyle.POSONLY,
+                    ),
+                    Parameter(
+                        "traceback",
+                        3,
+                        ResolvedTypeRef(self.type_env.dynamic),
+                        False,
+                        None,
+                        ParamStyle.POSONLY,
+                    ),
                 ],
-                ResolvedTypeRef(self_type),
+                ResolvedTypeRef(
+                    self.type_env.bool
+                    if may_suppress
+                    else self.type_env.get_literal_type(
+                        self.type_env.bool.instance, False
+                    ).klass
+                ),
             )
-        self.subclass = subclass
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         if len(bases) == 1:
-            return ContextDecoratorClass(self.type_env, name, bases, True)
+            return ContextDecoratorClass(self.type_env, name, bases, subclass=True)
         return super().make_subclass(name, bases)
+
+    @property
+    def may_suppress(self) -> bool:
+        for base in self.mro:
+            exit_method = base.members.get("__exit__")
+            if exit_method:
+                if isinstance(exit_method, Callable):
+                    exit_ret_type = exit_method.return_type.resolved()
+                    if (
+                        isinstance(exit_ret_type, BoolClass)
+                        and exit_ret_type.literal_value == False
+                    ):
+                        return False
+                return True
+        return True
 
     def _create_exact_type(self) -> Class:
         return type(self)(
@@ -7921,9 +8016,24 @@ class ContextDecoratedMethod(DecoratedMethod):
     ) -> None:
         super().__init__(klass, function, decorator)
         self.ctx_dec = ctx_dec
+        if isinstance(function, DecoratedMethod):
+            real_func = function.real_function
+        else:
+            real_func = function
         self.body: List[ast.stmt] = self.make_function_body(
-            function.get_function_body(), function, decorator
+            function.get_function_body(), real_func, decorator
         )
+        if ctx_dec.klass.may_suppress:
+            # If we might suppress exceptions, then the return type of our
+            # wrapped function needs to be Optional; not only the outward-facing
+            # return type (for that we'd just override `return_type`) but also
+            # the inward-facing one for type-checking the function body, since
+            # we rewrite the body of the method and it may now return None
+            real_func.return_type = ResolvedTypeRef(
+                klass.type_env.get_union(
+                    (real_func.return_type.resolved(), klass.type_env.none)
+                )
+            )
 
     @staticmethod
     def get_temp_name(function: Function, decorator: expr) -> str:
@@ -7941,19 +8051,15 @@ class ContextDecoratedMethod(DecoratedMethod):
 
     @staticmethod
     def make_function_body(
-        body: List[ast.stmt], fn: Function | DecoratedMethod, decorator: expr
+        body: List[ast.stmt], fn: Function, decorator: expr
     ) -> List[ast.stmt]:
-        if isinstance(fn, DecoratedMethod):
-            real_func = fn.real_function
-        else:
-            real_func = fn
 
-        node = real_func.node
-        klass = real_func.container_type
-        dec_name = ContextDecoratedMethod.get_temp_name(real_func, decorator)
+        node = fn.node
+        klass = fn.container_type
+        dec_name = ContextDecoratedMethod.get_temp_name(fn, decorator)
 
         if klass is not None:
-            if ContextDecoratedMethod.can_load_from_class(klass, real_func):
+            if ContextDecoratedMethod.can_load_from_class(klass, fn):
                 load_name = ast.Name(node.args.args[0].arg, ast.Load())
             else:
                 load_name = ast.Name(klass.type_name.name, ast.Load())

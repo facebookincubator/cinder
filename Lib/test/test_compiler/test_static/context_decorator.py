@@ -27,7 +27,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.f,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             self.assertEqual(C().f(), 42)
 
@@ -59,7 +59,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.f,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             a = C().f()
             self.assertEqual(mod.calls, 0)
@@ -87,7 +87,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.f.fget,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             self.assertEqual(C().f, 42)
 
@@ -98,11 +98,7 @@ class ContextDecoratorTests(StaticTestBase):
             from cinder import cached_property
 
             class MyDecorator(ContextDecorator):
-                def __enter__(self) -> MyDecorator:
-                    return self
-
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
-                    return False
+                pass
 
             X = 42
             class C:
@@ -118,7 +114,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.f.func,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             c = C()
             self.assertEqual(c.f, 43)
@@ -131,11 +127,7 @@ class ContextDecoratorTests(StaticTestBase):
             from cinder import async_cached_property
 
             class MyDecorator(ContextDecorator):
-                def __enter__(self) -> MyDecorator:
-                    return self
-
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
-                    return False
+                pass
 
             X = 42
             class C:
@@ -151,7 +143,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.f.func,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             c = C()
             x = c.f.__await__()
@@ -170,11 +162,7 @@ class ContextDecoratorTests(StaticTestBase):
             from __future__ import annotations
             from __static__ import ContextDecorator
             class MyDecorator(ContextDecorator):
-                def __enter__(self) -> MyDecorator:
-                    return self
-
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
-                    return False
+                pass
 
             class C:
                 @staticmethod
@@ -188,7 +176,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.__dict__["f"].__func__,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             self.assertEqual(C().f(), 42)
             self.assertEqual(C.f(), 42)
@@ -198,11 +186,7 @@ class ContextDecoratorTests(StaticTestBase):
             from __future__ import annotations
             from __static__ import ContextDecorator
             class MyDecorator(ContextDecorator):
-                def __enter__(self) -> MyDecorator:
-                    return self
-
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
-                    return False
+                pass
 
             class C:
                 @staticmethod
@@ -217,7 +201,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.__dict__["f"].__func__,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
 
     def test_static_method_compat_with_arg(self):
@@ -225,11 +209,7 @@ class ContextDecoratorTests(StaticTestBase):
             from __future__ import annotations
             from __static__ import ContextDecorator
             class MyDecorator(ContextDecorator):
-                def __enter__(self) -> MyDecorator:
-                    return self
-
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
-                    return False
+                pass
 
             class C:
                 @staticmethod
@@ -244,7 +224,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.__dict__["f"].__func__,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             self.assertEqual(C().f(C()), 42)
             self.assertEqual(C.f(C()), 42)
@@ -260,9 +240,6 @@ class ContextDecoratorTests(StaticTestBase):
                     global calls
                     calls += 1
                     return self
-
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
-                    return False
 
             @final
             class C:
@@ -281,7 +258,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 C.__dict__["f"].__func__,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             f = mod.f
             self.assertEqual(f(C()), 42)
@@ -305,7 +282,7 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertInBytecode(
                 f,
                 "INVOKE_FUNCTION",
-                ((("__static__", "ContextDecorator", "_recreate_cm"), 1)),
+                ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
             self.assertEqual(f(), 42)
 
@@ -363,12 +340,13 @@ class ContextDecoratorTests(StaticTestBase):
         codestr = """
             from __future__ import annotations
             from __static__ import ContextDecorator
+            from typing import Literal
             calls = []
             class MyDecorator1(ContextDecorator):
                 def __enter__(self) -> MyDecorator1:
                     calls.append("MyDecorator1.__enter__")
                     return self
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> Literal[False]:
                     calls.append("MyDecorator1.__exit__")
                     return False
                 def _recreate_cm(self) -> MyDecorator1:
@@ -379,7 +357,7 @@ class ContextDecoratorTests(StaticTestBase):
                     calls.append("MyDecorator2.__enter__")
                     return self
 
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
+                def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> Literal[False]:
                     calls.append("MyDecorator2.__exit__")
                     return False
 
@@ -497,10 +475,6 @@ class ContextDecoratorTests(StaticTestBase):
                     global calls
                     calls += 1
                     return self
-
-
-                def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool:
-                    return False
         """
         bcode = """
             from a import wrapper
@@ -519,7 +493,7 @@ class ContextDecoratorTests(StaticTestBase):
         self.assertInBytecode(
             f,
             "INVOKE_METHOD",
-            ((("__static__", "ContextDecorator", "_recreate_cm"), 0)),
+            ((("__static__", "ExcContextDecorator", "_recreate_cm"), 0)),
         )
 
     def test_nonstatic_base(self):
@@ -1075,3 +1049,73 @@ class ContextDecoratorTests(StaticTestBase):
         compiler.load_compiled_module_from_source(
             self.clean_code(codestr), "mod.py", "mod", 1
         )
+
+    def test_may_suppress_makes_ret_type_optional(self):
+        codestr = """
+            from __static__ import ExcContextDecorator
+            class MyDecorator(ExcContextDecorator):
+                pass
+
+            class C:
+                @MyDecorator()
+                def f(self) -> int:
+                    return 42
+
+            def f(c: C):
+                reveal_type(c.f())
+        """
+        self.revealed_type(codestr, "Optional[int]")
+
+    def test_default_does_not_make_ret_type_optional(self):
+        codestr = """
+            from __static__ import ContextDecorator
+            class MyDecorator(ContextDecorator):
+                pass
+
+            class C:
+                @MyDecorator()
+                def f(self) -> int:
+                    return 42
+
+            def f(c: C):
+                reveal_type(c.f())
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_cannot_wrongly_override_exit_return_type(self):
+        codestr = """
+            from __static__ import ContextDecorator
+
+            class MyDecorator(ContextDecorator):
+                def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> bool:
+                    return False
+        """
+        self.type_error(
+            codestr,
+            r"Returned type `bool` is not a subtype of the overridden return `Literal\[False\]`",
+            "def __exit__",
+        )
+
+    def test_can_override_exit_return_type(self):
+        codestr = """
+            from __static__ import ExcContextDecorator
+            from types import TracebackType
+            from typing import Literal, Type
+
+            class MyDecorator(ExcContextDecorator):
+                def __exit__(
+                    self,
+                    exc_type: Type[BaseException] | None,
+                    exc_value: BaseException | None,
+                    traceback: TracebackType | None,
+                ) -> Literal[False]:
+                    return False
+
+            @MyDecorator()
+            def g() -> int:
+                return 1
+
+            def f():
+                reveal_type(g())
+        """
+        self.revealed_type(codestr, "int")

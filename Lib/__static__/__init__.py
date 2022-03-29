@@ -11,6 +11,7 @@ from typing import (
     _GenericAlias,
     Dict,
     Iterable,
+    Literal,
     Optional,
     Type,
     TypeVar,
@@ -539,7 +540,7 @@ async def _return_none():
     pass
 
 
-class ContextDecorator:
+class ExcContextDecorator:
     def __enter__(self) -> None:
         return self
 
@@ -568,5 +569,17 @@ class ContextDecorator:
         return _static.make_context_decorator_wrapper(self, _no_profile_inner, func)
 
 
-ContextDecorator._recreate_cm = make_recreate_cm(ContextDecorator)
+ExcContextDecorator._recreate_cm = make_recreate_cm(ExcContextDecorator)
+set_type_static(ExcContextDecorator)
+
+
+class ContextDecorator(ExcContextDecorator):
+    """A ContextDecorator which cannot suppress exceptions."""
+
+    def __exit__(
+        self, exc_type: object, exc_value: object, traceback: object
+    ) -> Literal[False]:
+        return False
+
+
 set_type_static(ContextDecorator)

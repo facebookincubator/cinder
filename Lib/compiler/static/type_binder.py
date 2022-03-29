@@ -70,6 +70,7 @@ from .module_table import ModuleTable, ModuleFlag
 from .types import (
     AwaitableType,
     BoolClass,
+    Callable,
     CInstance,
     CType,
     CheckedDictInstance,
@@ -1653,8 +1654,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 exit_method_type = resolve_instance_attr_by_name(
                     expr, "__exit__", typ, self
                 )
+                # TODO probably MethodType should itself be a Callable
                 if isinstance(exit_method_type, MethodType):
-                    exit_ret_type = exit_method_type.function.return_type.resolved()
+                    exit_method_type = exit_method_type.function
+                if isinstance(exit_method_type, Callable):
+                    exit_ret_type = exit_method_type.return_type.resolved()
                     if (
                         isinstance(exit_ret_type, BoolClass)
                         and exit_ret_type.literal_value is False
