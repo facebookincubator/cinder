@@ -884,6 +884,35 @@ fun test {
   }
 }
 ---
+IsTruthyWithListExactWithObjSpecRewritesToLoadField
+---
+a = [1,2,3]
+def test():
+  if a:
+    return 1
+  return 2
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "a">
+    v5:MortalListExact[list:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    UseType<MortalListExact[list:0xdeadbeef]> v5
+    v9:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v5
+    v10:CInt32 = IntConvert<CInt32> v9
+    CondBranch<1, 2> v10
+  }
+
+  bb 1 (preds 0) {
+    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Return v7
+  }
+
+  bb 2 (preds 0) {
+    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    Return v8
+  }
+}
+---
 IsTruthyWithTupleExactRewritesToLoadField
 ---
 # HIR

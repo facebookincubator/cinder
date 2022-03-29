@@ -259,77 +259,76 @@ Register* simplifyCondBranchCheckType(
 Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
   Type ty = instr->GetOperand(0)->type();
   PyObject* obj = ty.asObject();
-  if (obj == nullptr) {
-    if (ty <= TBool) {
-      Register* left = instr->GetOperand(0);
-      env.emit<UseType>(left, TBool);
-      Register* right = env.emit<LoadConst>(Type::fromObject(Py_True));
-      Register* result =
-          env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, left, right);
-      return env.emit<IntConvert>(result, TCInt32);
+  if (obj != nullptr) {
+    // Should only consider immutable Objects
+    static const std::unordered_set<PyTypeObject*> kTrustedTypes{
+        &PyBool_Type,
+        &PyFloat_Type,
+        &PyLong_Type,
+        &PyFrozenSet_Type,
+        &PySlice_Type,
+        &PyTuple_Type,
+        &PyUnicode_Type,
+        &_PyNone_Type,
+    };
+    if (kTrustedTypes.count(Py_TYPE(obj))) {
+      int res = PyObject_IsTrue(obj);
+      JIT_CHECK(res >= 0, "PyObject_IsTrue failed on trusted type");
+      // Since we no longer use instr->GetOperand(0), we need to make sure that
+      // we don't lose any associated type checks
+      env.emit<UseType>(instr->GetOperand(0), ty);
+      Type output_type = instr->GetOutput()->type();
+      return env.emit<LoadConst>(Type::fromCInt(res, output_type));
     }
-    if (ty <= TListExact || ty <= TTupleExact || ty <= TArray) {
-      Register* obj = instr->GetOperand(0);
-      env.emit<UseType>(obj, ty);
-      Register* size = env.emit<LoadField>(
-          obj, "ob_size", offsetof(PyVarObject, ob_size), TCInt64);
-      return env.emit<IntConvert>(size, TCInt32);
-    }
-    if (ty <= TDictExact || ty <= TSetExact || ty <= TUnicodeExact) {
-      Register* obj = instr->GetOperand(0);
-      env.emit<UseType>(obj, ty.unspecialized());
-      std::size_t offset = 0;
-      const char* name = nullptr;
-      if (ty <= TDictExact) {
-        offset = offsetof(PyDictObject, ma_used);
-        name = "ma_used";
-      } else if (ty <= TSetExact) {
-        offset = offsetof(PySetObject, used);
-        name = "used";
-      } else if (ty <= TUnicodeExact) {
-        // Note: In debug mode, the interpreter has an assert that ensures the
-        // string is "ready", check PyUnicode_GET_LENGTH for strings.
-        offset = offsetof(PyASCIIObject, length);
-        name = "length";
-      } else {
-        JIT_CHECK(false, "unexpected type");
-      }
-      Register* size = env.emit<LoadField>(obj, name, offset, TCInt64);
-      return env.emit<IntConvert>(size, TCInt32);
-    }
-    if (ty <= TLongExact) {
-      Register* left = instr->GetOperand(0);
-      env.emit<UseType>(left, ty);
-      // Zero is canonical as a "small int" in CPython.
-      ThreadedCompileSerialize guard;
-      auto zero = Ref<>::steal(PyLong_FromLong(0));
-      Register* right = env.emit<LoadConst>(
-          Type::fromObject(env.func.env.addReference(std::move(zero))));
-      Register* result = env.emit<PrimitiveCompare>(
-          PrimitiveCompareOp::kNotEqual, left, right);
-      return env.emit<IntConvert>(result, TCInt32);
-    }
-    return nullptr;
   }
-  // Should only consider immutable Objects
-  static const std::unordered_set<PyTypeObject*> kTrustedTypes{
-      &PyBool_Type,
-      &PyFloat_Type,
-      &PyLong_Type,
-      &PyFrozenSet_Type,
-      &PySlice_Type,
-      &PyTuple_Type,
-      &PyUnicode_Type,
-      &_PyNone_Type,
-  };
-  if (kTrustedTypes.count(Py_TYPE(obj))) {
-    int res = PyObject_IsTrue(obj);
-    JIT_CHECK(res >= 0, "PyObject_IsTrue failed on trusted type");
-    // Since we no longer use instr->GetOperand(0), we need to make sure that
-    // we don't lose any associated type checks
-    env.emit<UseType>(instr->GetOperand(0), ty);
-    Type output_type = instr->GetOutput()->type();
-    return env.emit<LoadConst>(Type::fromCInt(res, output_type));
+  if (ty <= TBool) {
+    Register* left = instr->GetOperand(0);
+    env.emit<UseType>(left, TBool);
+    Register* right = env.emit<LoadConst>(Type::fromObject(Py_True));
+    Register* result =
+        env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, left, right);
+    return env.emit<IntConvert>(result, TCInt32);
+  }
+  if (ty <= TListExact || ty <= TTupleExact || ty <= TArray) {
+    Register* obj = instr->GetOperand(0);
+    env.emit<UseType>(obj, ty);
+    Register* size = env.emit<LoadField>(
+        obj, "ob_size", offsetof(PyVarObject, ob_size), TCInt64);
+    return env.emit<IntConvert>(size, TCInt32);
+  }
+  if (ty <= TDictExact || ty <= TSetExact || ty <= TUnicodeExact) {
+    Register* obj = instr->GetOperand(0);
+    env.emit<UseType>(obj, ty.unspecialized());
+    std::size_t offset = 0;
+    const char* name = nullptr;
+    if (ty <= TDictExact) {
+      offset = offsetof(PyDictObject, ma_used);
+      name = "ma_used";
+    } else if (ty <= TSetExact) {
+      offset = offsetof(PySetObject, used);
+      name = "used";
+    } else if (ty <= TUnicodeExact) {
+      // Note: In debug mode, the interpreter has an assert that ensures the
+      // string is "ready", check PyUnicode_GET_LENGTH for strings.
+      offset = offsetof(PyASCIIObject, length);
+      name = "length";
+    } else {
+      JIT_CHECK(false, "unexpected type");
+    }
+    Register* size = env.emit<LoadField>(obj, name, offset, TCInt64);
+    return env.emit<IntConvert>(size, TCInt32);
+  }
+  if (ty <= TLongExact) {
+    Register* left = instr->GetOperand(0);
+    env.emit<UseType>(left, ty);
+    // Zero is canonical as a "small int" in CPython.
+    ThreadedCompileSerialize guard;
+    auto zero = Ref<>::steal(PyLong_FromLong(0));
+    Register* right = env.emit<LoadConst>(
+        Type::fromObject(env.func.env.addReference(std::move(zero))));
+    Register* result =
+        env.emit<PrimitiveCompare>(PrimitiveCompareOp::kNotEqual, left, right);
+    return env.emit<IntConvert>(result, TCInt32);
   }
   return nullptr;
 }
