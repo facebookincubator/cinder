@@ -215,4 +215,4 @@ TEST_F(LIRInlinerTest, FindFunctionFailureTest) {
   ASSERT_EQ(callee, nullptr);
 }
 
-} // namespace jit::codegen
+} // namespace jit::lir

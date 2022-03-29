@@ -340,4 +340,4 @@ TEST_F(LinearScanAllocatorTest, CallWithSideEffectTest) {
   ASSERT_TRUE(a->opcode() == Instruction::kCall);
   ASSERT_TRUE(a->output()->type() == lir::Operand::kNone);
 }
-} // namespace jit::codegen
+} // namespace jit::lir

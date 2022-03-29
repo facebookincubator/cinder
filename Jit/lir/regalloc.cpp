@@ -1526,5 +1526,5 @@ void LinearScanAllocator::printAllVregIntervals() const {
   }
 }
 
-} // namespace codegen
+} // namespace lir
 } // namespace jit

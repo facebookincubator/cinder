@@ -100,5 +100,5 @@ class LIRInliner {
   FRIEND_TEST(LIRInlinerTest, FindFunctionFailureTest);
 };
 
-} // namespace codegen
+} // namespace lir
 } // namespace jit

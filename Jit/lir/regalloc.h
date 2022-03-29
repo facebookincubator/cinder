@@ -332,5 +332,5 @@ class LinearScanAllocator {
 std::ostream& operator<<(std::ostream& out, const LiveRange& rhs);
 std::ostream& operator<<(std::ostream& out, const LiveInterval& rhs);
 
-} // namespace codegen
+} // namespace lir
 } // namespace jit

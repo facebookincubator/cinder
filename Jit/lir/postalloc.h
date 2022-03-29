@@ -99,4 +99,4 @@ class PostRegAllocRewrite : public Rewrite {
       PhyLocation location);
 };
 
-} // namespace jit::codegen
+} // namespace jit::lir

@@ -139,8 +139,8 @@ Instr* DynamicComparisonElimination::ReplaceTypeCheck(
   auto obj_type = irfunc.env.AllocateRegister();
   auto fast_eq = irfunc.env.AllocateRegister();
 
-  auto load_type =
-      LoadField::create(obj_type, obj_op, "ob_type", offsetof(PyObject, ob_type), TType);
+  auto load_type = LoadField::create(
+      obj_type, obj_op, "ob_type", offsetof(PyObject, ob_type), TType);
 
   auto compare_type = PrimitiveCompare::create(
       fast_eq, PrimitiveCompareOp::kEqual, obj_type, type_op);

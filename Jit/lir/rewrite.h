@@ -157,5 +157,5 @@ class Rewrite {
       instruction_rewrites_;
 };
 
-} // namespace codegen
+} // namespace lir
 } // namespace jit

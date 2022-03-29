@@ -356,5 +356,5 @@ void LIRInliner::resolveReturnValue() {
   }
 }
 
-} // namespace codegen
+} // namespace lir
 } // namespace jit

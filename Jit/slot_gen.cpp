@@ -47,9 +47,7 @@ class SimpleErrorHandler : public ErrorHandler {
   Error err;
 };
 
-void* GenFunc(
-    const char* name,
-    const std::function<void(x86::Builder&)>& f) {
+void* GenFunc(const char* name, const std::function<void(x86::Builder&)>& f) {
   asmjit::CodeHolder code;
   code.init(CodeAllocator::get()->asmJitCodeInfo());
   SimpleErrorHandler eh;

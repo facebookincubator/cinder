@@ -14,8 +14,7 @@ namespace jit {
 namespace codegen {
 
 struct Environ {
-  Environ() {
-  };
+  Environ(){};
 
   // Metadata for annotated disassembly.
   Annotations annotations;

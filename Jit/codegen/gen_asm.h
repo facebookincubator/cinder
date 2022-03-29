@@ -165,10 +165,7 @@ class NativeGeneratorFactory {
 
   std::unique_ptr<NativeGenerator> operator()(const hir::Function* func) const {
     return std::make_unique<NativeGenerator>(
-        func,
-        deopt_trampoline_,
-        deopt_trampoline_generators_,
-        jit_trampoline_);
+        func, deopt_trampoline_, deopt_trampoline_generators_, jit_trampoline_);
   }
 
   static void shutdown() {

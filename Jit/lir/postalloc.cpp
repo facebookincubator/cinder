@@ -129,7 +129,6 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
   auto instr = instr_iter->get();
   auto block = instr->basicblock();
 
-
   auto num_inputs = instr->getNumInputs();
   size_t arg_reg = 0;
   size_t fp_arg_reg = 0;
@@ -591,7 +590,6 @@ void PostRegAllocRewrite::doRewriteCondBranch(
           block->allocateInstr(Instruction::kBranch, instr->origin());
       fallthrough_branch->allocateLabelInput(fallthrough_block);
     }
-
   };
 
   auto flag_affecting_instr = findRecentFlagAffectingInstr(instr_iter);
@@ -1136,4 +1134,4 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveSequence(
   }
   return changed;
 }
-} // namespace jit::codegen
+} // namespace jit::lir
