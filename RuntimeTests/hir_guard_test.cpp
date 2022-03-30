@@ -45,7 +45,9 @@ fun test {
     v1:Object = LoadArg<1>
     Guard v1 {
       LiveValues<1> b:v1
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Incref v1
     Return v1
@@ -67,8 +69,10 @@ TEST_F(GuardTest, BindFrameStateFromInstr) {
     }
     v1 = LoadGlobal<0>
     CheckExc v1 {
-      NextInstrOffset 2
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 2
+        Stack<1> v1
+      }
     }
     Snapshot {
       NextInstrOffset 2
@@ -82,17 +86,23 @@ TEST_F(GuardTest, BindFrameStateFromInstr) {
   const char* expected = R"(fun test {
   bb 0 {
     v1:Object = LoadGlobal<0> {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     CheckExc v1 {
       LiveValues<1> o:v1
-      NextInstrOffset 2
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 2
+        Stack<1> v1
+      }
     }
     Guard v1 {
       LiveValues<1> o:v1
-      NextInstrOffset 2
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 2
+        Stack<1> v1
+      }
     }
     Return v1
   }
@@ -113,14 +123,18 @@ fun __main__:test {
       }
     }
     CheckVar<"foo"> v0 {
-      NextInstrOffset 6
-      Stack<0>
+      FrameState {
+        NextInstrOffset 6
+        Stack<0>
+      }
     }
     v1 = LoadConst<NoneType>
     v2 = LoadGlobal<0>
     CheckExc v2 {
-      NextInstrOffset 6
-      Stack<0>
+      FrameState {
+        NextInstrOffset 6
+        Stack<0>
+      }
     }
     Snapshot {
       NextInstrOffset 6
@@ -129,8 +143,10 @@ fun __main__:test {
     Guard v2
     v3 = VectorCall<2> v0 v1 v2
     CheckExc v3 {
-      NextInstrOffset 8
-      Stack<0>
+      FrameState {
+        NextInstrOffset 8
+        Stack<0>
+      }
     }
     Snapshot {
       NextInstrOffset 8
@@ -145,30 +161,42 @@ fun __main__:test {
     v0:Object = LoadArg<0>
     CheckVar<"foo"> v0 {
       LiveValues<1> b:v0
-      NextInstrOffset 6
+      FrameState {
+        NextInstrOffset 6
+      }
     }
     v1:NoneType = LoadConst<NoneType>
     v2:Object = LoadGlobal<0> {
       LiveValues<2> b:v0 b:v1
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     CheckExc v2 {
       LiveValues<3> b:v0 b:v1 o:v2
-      NextInstrOffset 6
+      FrameState {
+        NextInstrOffset 6
+      }
     }
     Guard v2 {
       LiveValues<3> b:v0 b:v1 o:v2
-      NextInstrOffset 6
-      Stack<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 6
+        Stack<3> v0 v1 v2
+      }
     }
     v3:Object = VectorCall<2> v0 v1 v2 {
       LiveValues<3> b:v0 b:v1 o:v2
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Decref v2
     CheckExc v3 {
       LiveValues<1> o:v3
-      NextInstrOffset 8
+      FrameState {
+        NextInstrOffset 8
+      }
     }
     Return v3
   }

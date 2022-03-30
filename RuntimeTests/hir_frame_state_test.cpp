@@ -36,7 +36,9 @@ def test():
       NextInstrOffset 0
     }
     v0 = LoadGlobal<0; "foo"> {
-      NextInstrOffset 2
+      FrameState {
+        NextInstrOffset 2
+      }
     }
     Snapshot {
       NextInstrOffset 2
@@ -65,8 +67,10 @@ def test(fs):
       Locals<2> v0 v1
     }
     v2 = LoadGlobal<0; "xs"> {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 2
@@ -74,8 +78,10 @@ def test(fs):
       Stack<1> v2
     }
     v3 = GetIter v2 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 4
@@ -98,9 +104,11 @@ def test(fs):
       Stack<1> v2
     }
     v7 = RunPeriodicTasks {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     Branch<1>
   }
@@ -112,9 +120,11 @@ def test(fs):
       Stack<1> v2
     }
     v4 = InvokeIterNext v2 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     v3 = Assign v4
     CondBranchIterNotDone<2, 3> v3
@@ -162,13 +172,17 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v3 = Assign v0
     CondBranch<1, 2> v2
@@ -180,8 +194,10 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v3 = Assign v1
     Branch<2>
@@ -219,13 +235,17 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v3 = Assign v0
     CondBranch<2, 1> v2
@@ -237,8 +257,10 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v3 = Assign v1
     Branch<2>
@@ -273,17 +295,23 @@ def test(f, a):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"f"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"a"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = VectorCall<1> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 6
@@ -313,13 +341,17 @@ def test(f, a):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"f"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = LoadMethod<0; "bar"> v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     Snapshot {
       NextInstrOffset 4
@@ -327,13 +359,17 @@ def test(f, a):
       Stack<2> v0 v2
     }
     v1 = CheckVar<"a"> v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<2> v0 v2
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v0 v2
+      }
     }
     v3 = CallMethod<3> v0 v2 v1 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 8
@@ -362,12 +398,16 @@ def test(f):
       Locals<1> v0
     }
     v0 = CheckVar<"f"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadAttr<0; "a"> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Snapshot {
       NextInstrOffset 4
@@ -375,8 +415,10 @@ def test(f):
       Stack<1> v1
     }
     v2 = LoadAttr<1; "b"> v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Snapshot {
       NextInstrOffset 6
@@ -406,17 +448,23 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Xor> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 6
@@ -448,17 +496,23 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Add> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 6
@@ -487,12 +541,16 @@ def test(x):
       Locals<1> v0
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = UnaryOp<Not> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Snapshot {
       NextInstrOffset 4
@@ -522,17 +580,23 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v1
+      }
     }
     v2 = StoreAttr<0; "foo"> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 6
@@ -562,18 +626,24 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v1
+      }
     }
     v2 = LoadConst<MortalLongExact[1]>
     v3 = StoreSubscr v0 v2 v1 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 8
@@ -603,31 +673,41 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v3 = MakeDict<2> {
-      NextInstrOffset 8
-      Locals<2> v0 v1
-      Stack<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+        Stack<3> v0 v1 v2
+      }
     }
     v4 = LoadTupleItem<0> v2
     v5 = SetDictItem v3 v4 v0 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+        Stack<2> v0 v1
+      }
     }
     v6 = LoadTupleItem<1> v2
     v7 = SetDictItem v3 v6 v1 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+        Stack<2> v0 v1
+      }
     }
     Snapshot {
       NextInstrOffset 8
@@ -657,18 +737,24 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = MakeListTuple<list, 2> {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v0 v1
+      }
     }
     InitListTuple<list, 2> v2 v0 v1
     v3 = Assign v2
@@ -700,18 +786,24 @@ def test(x, y):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = MakeListTuple<tuple, 2> {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v0 v1
+      }
     }
     InitListTuple<tuple, 2> v2 v0 v1
     v3 = Assign v2
@@ -744,13 +836,17 @@ def test(x):
       Locals<2> v0 v1
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = MakeListTuple<tuple, 1> {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     InitListTuple<tuple, 1> v2 v0
     v3 = Assign v2
@@ -762,9 +858,11 @@ def test(x):
     v4 = LoadConst<MortalCode["foo"]>
     v5 = LoadConst<MortalUnicodeExact["test.<locals>.foo"]>
     v6 = MakeFunction v5 v4 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
-      Stack<1> v3
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+        Stack<1> v3
+      }
     }
     SetFunctionAttr<func_defaults> v3 v6
     InitFunction v6
@@ -775,8 +873,10 @@ def test(x):
     }
     v1 = Assign v6
     v1 = CheckVar<"foo"> v1 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+      }
     }
     Return v1
   }

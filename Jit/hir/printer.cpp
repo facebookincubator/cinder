@@ -704,7 +704,11 @@ void HIRPrinter::Print(std::ostream& os, const Instr& instr) {
       os << std::endl;
     }
     if (fs != nullptr) {
+      Indented(os) << "FrameState {" << std::endl;
+      Indent();
       Print(os, *fs);
+      Dedent();
+      Indented(os) << "}" << std::endl;
     }
     Dedent();
     Indented(os) << "}";

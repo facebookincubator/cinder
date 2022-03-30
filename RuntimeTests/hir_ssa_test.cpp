@@ -45,11 +45,13 @@ fun test {
 }
 )";
   const char* expected_err =
-      "ERROR: Operand 'v100' of instruction 'v1 = UnaryOp<Not> v100 {\n  "
-      "NextInstrOffset 0\n}' not "
-      "defined "
-      "at use in bb 0\nERROR: Operand 'v3' of instruction 'Return v3' not "
-      "defined at use in bb 3\n";
+      R"(ERROR: Operand 'v100' of instruction 'v1 = UnaryOp<Not> v100 {
+  FrameState {
+    NextInstrOffset 0
+  }
+}' not defined at use in bb 0
+ERROR: Operand 'v3' of instruction 'Return v3' not defined at use in bb 3
+)";
   EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
 }
 
@@ -406,7 +408,9 @@ fun test {
   bb 2 (preds 1) {
     v7:NoneType = LoadConst<NoneType>
     v8:Object = InPlaceOp<Subtract> v6 v7 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     v9:Object = Assign v8
     Branch<1>
@@ -469,7 +473,9 @@ fun test {
   bb 3 (preds 2) {
     v8:NoneType = LoadConst<NoneType>
     v9:Object = InPlaceOp<Subtract> v7 v8 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     v10:Object = Assign v9
     Branch<2>
@@ -530,7 +536,9 @@ fun test {
 
   bb 2 (preds 1) {
     CheckVar<"a"> v2 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Branch<3>
   }
@@ -541,7 +549,9 @@ fun test {
 
   bb 4 (preds 3) {
     CheckVar<"a"> v2 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Branch<3>
   }
@@ -605,7 +615,9 @@ fun test {
 
   bb 1 (preds 0, 2) {
     CheckVar<"a"> v2 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     v6:NoneType = LoadConst<NoneType>
     Branch<4>
@@ -617,7 +629,9 @@ fun test {
 
   bb 3 (preds 2) {
     CheckVar<"a"> v2 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Branch<2>
   }
@@ -693,7 +707,9 @@ fun test {
 
   bb 2 (preds 1) {
     CheckVar<"a"> v3 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Branch<3>
   }
@@ -796,11 +812,15 @@ fun test {
 
   bb 2 (preds 1) {
     v12:Object = BinaryOp<Subscript> v6 v8 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     v13:NoneType = LoadConst<NoneType>
     v14:Object = BinaryOp<Add> v12 v13 {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Decref v12
     CondBranch<1, 3> v14

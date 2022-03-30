@@ -198,9 +198,11 @@ fun test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
     v2 = MakeListTuple<list, 2> {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v0 v1
+      }
     }
     InitListTuple<list, 2> v2 v0 v1
     v3 = Assign v2
@@ -218,9 +220,11 @@ fun test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
     v2 = MakeListTuple<list, 2> {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v0 v1
+      }
     }
     InitListTuple<tuple, 2> v2 v0 v1
     v3 = Assign v2
@@ -228,12 +232,15 @@ fun test {
   }
 }
 )";
-  const char* expected_err =
-      "TYPE MISMATCH in bb 0 of 'test'\nInstr 'InitListTuple<tuple, 2> v2 v0 "
-      "v1' expected operand 0 to be of type "
-      "Tuple but got MortalListExact from 'v2:MortalListExact = "
-      "MakeListTuple<list, 2> {\n  NextInstrOffset 6\n  Locals<2> v0 v1\n  "
-      "Stack<2> v0 v1\n}'\n";
+  const char* expected_err = R"(TYPE MISMATCH in bb 0 of 'test'
+Instr 'InitListTuple<tuple, 2> v2 v0 v1' expected operand 0 to be of type Tuple but got MortalListExact from 'v2:MortalListExact = MakeListTuple<list, 2> {
+  FrameState {
+    NextInstrOffset 6
+    Locals<2> v0 v1
+    Stack<2> v0 v1
+  }
+}'
+)";
   EXPECT_NO_FATAL_FAILURE(funcTypeCheckFails(hir_source, expected_err));
 }
 

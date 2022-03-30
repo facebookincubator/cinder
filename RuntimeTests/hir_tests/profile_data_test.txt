@@ -20,8 +20,10 @@ fun jittestmodule:test {
     UseType<LongExact> v8
     v10:CInt64 = PrimitiveUnbox<CInt64> v8
     v11:CInt64 = CheckSequenceBounds v7 v10 {
-      NextInstrOffset 6
-      Locals<2> v7 v8
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v7 v8
+      }
     }
     v12:Object = LoadArrayItem<Offset[24]> v7 v11 v7
     Return v12
@@ -45,8 +47,10 @@ fun jittestmodule:test {
     v4:Object = LoadArg<1; "i">
     HintType<2, <ListExact, LongExact>, <DictExact, UnicodeExact>, <TupleExact, LongExact>> v3 v4
     v7:Object = BinaryOp<Subscript> v3 v4 {
-      NextInstrOffset 6
-      Locals<2> v3 v4
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v3 v4
+      }
     }
     Return v7
   }

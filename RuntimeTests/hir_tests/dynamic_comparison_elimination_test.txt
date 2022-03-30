@@ -110,8 +110,10 @@ fun jittestmodule:test {
 
   bb 3 (preds 0) {
     v14:CInt32 = IsInstance v7 v12 {
-      NextInstrOffset 10
-      Locals<1> v7
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v7
+      }
     }
     CondBranch<1, 2> v14
   }

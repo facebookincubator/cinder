@@ -20,8 +20,10 @@ fun jittestmodule:test {
     v16:CInt64 = IntBinaryOp<FloorDivide> v11 v20
     v18:OptLongExact = PrimitiveBox<CInt64> v16
     v19:LongExact = CheckExc v18 {
-      NextInstrOffset 22
-      Locals<1> v16
+      FrameState {
+        NextInstrOffset 22
+        Locals<1> v16
+      }
     }
     Return v19
   }
@@ -121,8 +123,10 @@ fun jittestmodule:test {
     v5:MortalLongExact[10000] = LoadConst<MortalLongExact[10000]>
     v7:CInt8 = PrimitiveUnbox<CInt8> v5
     v8:CInt64 = IsNegativeAndErrOccurred v7 {
-      NextInstrOffset 8
-      Locals<1> v4
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v4
+      }
     }
     Return<CInt8> v7
   }

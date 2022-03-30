@@ -22,8 +22,10 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     Return v0
   }
@@ -39,17 +41,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = Compare<Is> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -66,12 +74,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
     }
     CondBranch<1, 2> v2
   }
@@ -84,8 +96,10 @@ fun jittestmodule:test {
 
   bb 2 (preds 0, 1) {
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+      }
     }
     Return v1
   }
@@ -100,12 +114,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self">
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadAttr<0; "foo"> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Return v1
   }
@@ -122,12 +140,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     CondBranch<1, 2> v1
   }
@@ -155,27 +177,37 @@ fun jittestmodule:test {
     v2 = LoadArg<2; "y">
     v3 = LoadArg<3; "z">
     v0 = CheckVar<"f"> v0 {
-      NextInstrOffset 2
-      Locals<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 2
+        Locals<4> v0 v1 v2 v3
+      }
     }
     v1 = CheckVar<"x"> v1 {
-      NextInstrOffset 4
-      Locals<4> v0 v1 v2 v3
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<4> v0 v1 v2 v3
+        Stack<1> v0
+      }
     }
     v2 = CheckVar<"y"> v2 {
-      NextInstrOffset 6
-      Locals<4> v0 v1 v2 v3
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<4> v0 v1 v2 v3
+        Stack<2> v0 v1
+      }
     }
     v3 = CheckVar<"z"> v3 {
-      NextInstrOffset 8
-      Locals<4> v0 v1 v2 v3
-      Stack<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 8
+        Locals<4> v0 v1 v2 v3
+        Stack<3> v0 v1 v2
+      }
     }
     v4 = VectorCall<3> v0 v1 v2 v3 {
-      NextInstrOffset 10
-      Locals<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 10
+        Locals<4> v0 v1 v2 v3
+      }
     }
     Return v4
   }
@@ -192,8 +224,10 @@ fun jittestmodule:test {
     v1 = LoadConst<MortalLongExact[100]>
     v0 = Assign v1
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v0
   }
@@ -210,12 +244,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
     }
     CondBranch<1, 2> v2
   }
@@ -228,8 +266,10 @@ fun jittestmodule:test {
 
   bb 2 (preds 0, 1) {
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+      }
     }
     Return v1
   }
@@ -245,12 +285,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
     }
     CondBranch<1, 2> v2
   }
@@ -269,8 +313,10 @@ fun jittestmodule:test {
   bb 3 (preds 1, 2) {
     v1 = Assign v3
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+      }
     }
     Return v1
   }
@@ -287,20 +333,26 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 2
+        Locals<3> v0 v1 v2
+      }
     }
     v3 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 4
+        Locals<3> v0 v1 v2
+      }
     }
     CondBranch<1, 2> v3
   }
 
   bb 1 (preds 0) {
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 6
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 6
+        Locals<3> v0 v1 v2
+      }
     }
     v4 = Assign v0
     Branch<3>
@@ -308,8 +360,10 @@ fun jittestmodule:test {
 
   bb 2 (preds 0) {
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 10
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 10
+        Locals<3> v0 v1 v2
+      }
     }
     v4 = Assign v1
     Branch<3>
@@ -318,8 +372,10 @@ fun jittestmodule:test {
   bb 3 (preds 1, 2) {
     v2 = Assign v4
     v2 = CheckVar<"z"> v2 {
-      NextInstrOffset 14
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 14
+        Locals<3> v0 v1 v2
+      }
     }
     Return v2
   }
@@ -335,13 +391,17 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v3 = Assign v0
     CondBranch<1, 2> v2
@@ -349,8 +409,10 @@ fun jittestmodule:test {
 
   bb 1 (preds 0) {
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v3 = Assign v1
     Branch<2>
@@ -371,13 +433,17 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v3 = Assign v0
     CondBranch<2, 1> v2
@@ -385,8 +451,10 @@ fun jittestmodule:test {
 
   bb 1 (preds 0) {
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v3 = Assign v1
     Branch<2>
@@ -422,17 +490,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "val">
     v1 = CheckVar<"val"> v1 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v1
+      }
     }
     v2 = StoreAttr<0; "foo"> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v3 = LoadConst<NoneType>
     Return v3
@@ -449,17 +523,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "f">
     v1 = LoadArg<1; "x">
     v0 = CheckVar<"f"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"x"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = VectorCall<1> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v3 = LoadConst<NoneType>
     Return v3
@@ -477,12 +557,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     CondBranch<2, 1> v1
   }
@@ -516,117 +600,161 @@ fun jittestmodule:test {
     v1 = LoadArg<1; "p">
     v2 = LoadArg<2; "old">
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 2
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 2
+        Locals<3> v0 v1 v2
+      }
     }
     v3 = LoadAttr<0; "input"> v0 {
-      NextInstrOffset 4
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 4
+        Locals<3> v0 v1 v2
+      }
     }
     v4 = LoadConst<NoneType>
     v5 = Compare<Is> v3 v4 {
-      NextInstrOffset 8
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 8
+        Locals<3> v0 v1 v2
+      }
     }
     v6 = IsTruthy v5 {
-      NextInstrOffset 10
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 10
+        Locals<3> v0 v1 v2
+      }
     }
     CondBranch<1, 3> v6
   }
 
   bb 1 (preds 0) {
     v1 = CheckVar<"p"> v1 {
-      NextInstrOffset 12
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 12
+        Locals<3> v0 v1 v2
+      }
     }
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 14
-      Locals<3> v0 v1 v2
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 14
+        Locals<3> v0 v1 v2
+        Stack<1> v1
+      }
     }
     v7 = StoreAttr<0; "input"> v0 v1 {
-      NextInstrOffset 16
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 16
+        Locals<3> v0 v1 v2
+      }
     }
     v8 = LoadConst<MortalBool[True]>
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 20
-      Locals<3> v0 v1 v2
-      Stack<1> v8
+      FrameState {
+        NextInstrOffset 20
+        Locals<3> v0 v1 v2
+        Stack<1> v8
+      }
     }
     v9 = StoreAttr<1; "packet_pending"> v0 v8 {
-      NextInstrOffset 22
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 22
+        Locals<3> v0 v1 v2
+      }
     }
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 24
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 24
+        Locals<3> v0 v1 v2
+      }
     }
     v10 = LoadAttr<2; "priority"> v0 {
-      NextInstrOffset 26
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 26
+        Locals<3> v0 v1 v2
+      }
     }
     v2 = CheckVar<"old"> v2 {
-      NextInstrOffset 28
-      Locals<3> v0 v1 v2
-      Stack<1> v10
+      FrameState {
+        NextInstrOffset 28
+        Locals<3> v0 v1 v2
+        Stack<1> v10
+      }
     }
     v11 = LoadAttr<2; "priority"> v2 {
-      NextInstrOffset 30
-      Locals<3> v0 v1 v2
-      Stack<1> v10
+      FrameState {
+        NextInstrOffset 30
+        Locals<3> v0 v1 v2
+        Stack<1> v10
+      }
     }
     v12 = Compare<GreaterThan> v10 v11 {
-      NextInstrOffset 32
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 32
+        Locals<3> v0 v1 v2
+      }
     }
     v13 = IsTruthy v12 {
-      NextInstrOffset 34
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 34
+        Locals<3> v0 v1 v2
+      }
     }
     CondBranch<2, 4> v13
   }
 
   bb 2 (preds 1) {
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 36
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 36
+        Locals<3> v0 v1 v2
+      }
     }
     Return v0
   }
 
   bb 3 (preds 0) {
     v1 = CheckVar<"p"> v1 {
-      NextInstrOffset 40
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 40
+        Locals<3> v0 v1 v2
+      }
     }
     v14 = LoadMethod<3; "append_to"> v1 {
-      NextInstrOffset 42
-      Locals<3> v0 v1 v2
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 42
+        Locals<3> v0 v1 v2
+        Stack<1> v1
+      }
     }
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 44
-      Locals<3> v0 v1 v2
-      Stack<2> v1 v14
+      FrameState {
+        NextInstrOffset 44
+        Locals<3> v0 v1 v2
+        Stack<2> v1 v14
+      }
     }
     v15 = LoadAttr<0; "input"> v0 {
-      NextInstrOffset 46
-      Locals<3> v0 v1 v2
-      Stack<2> v1 v14
+      FrameState {
+        NextInstrOffset 46
+        Locals<3> v0 v1 v2
+        Stack<2> v1 v14
+      }
     }
     v16 = CallMethod<3> v1 v14 v15 {
-      NextInstrOffset 48
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 48
+        Locals<3> v0 v1 v2
+      }
     }
     Branch<4>
   }
 
   bb 4 (preds 1, 3) {
     v2 = CheckVar<"old"> v2 {
-      NextInstrOffset 52
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 52
+        Locals<3> v0 v1 v2
+      }
     }
     Return v2
   }
@@ -652,32 +780,42 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v6 = RunPeriodicTasks {
-      NextInstrOffset 0
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 0
+        Locals<2> v0 v1
+      }
     }
     Branch<0>
   }
 
   bb 0 (preds 4, 5) {
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
     }
     CondBranch<1, 2> v2
   }
 
   bb 1 (preds 0) {
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v3 = VectorCall<0> v1 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v3
     Branch<4>
@@ -701,12 +839,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self">
     v0 = CheckVar<"self"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = IsTruthy v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     CondBranch<4, 1> v1
   }
@@ -718,8 +860,10 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v5 = RunPeriodicTasks {
-      NextInstrOffset 8
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v0
+      }
     }
     Branch<2>
   }
@@ -755,8 +899,10 @@ fun jittestmodule:test {
 
   bb 4 (preds 3) {
     v3 = RunPeriodicTasks {
-      NextInstrOffset 0
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 0
+        Locals<1> v0
+      }
     }
     Branch<0>
   }
@@ -777,13 +923,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<GreaterThan> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -798,13 +948,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<GreaterThanEqual> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -819,13 +973,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<LessThan> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -840,13 +998,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<LessThanEqual> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -861,13 +1023,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<Equal> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -882,13 +1048,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[1]>
     v2 = Compare<NotEqual> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -904,17 +1074,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "s">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"s"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = Compare<In> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -930,17 +1106,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "s">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"s"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = Compare<NotIn> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -955,13 +1137,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<NoneType>
     v2 = Compare<Is> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -976,13 +1162,17 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<NoneType>
     v2 = Compare<IsNot> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     Return v2
   }
@@ -998,17 +1188,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Add> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1024,17 +1220,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<And> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1050,17 +1252,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<FloorDivide> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1076,17 +1284,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<LShift> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1102,17 +1316,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Modulo> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1128,17 +1348,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Multiply> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1154,17 +1380,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Or> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1180,17 +1412,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Power> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1206,17 +1444,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<RShift> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1232,17 +1476,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Subscript> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1258,17 +1508,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Subtract> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1284,17 +1540,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<TrueDivide> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1310,17 +1572,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = BinaryOp<Xor> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     Return v2
   }
@@ -1335,23 +1603,31 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+        Stack<1> v0
+      }
     }
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 6
-      Locals<1> v0
-      Stack<2> v0 v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+        Stack<2> v0 v0
+      }
     }
     v1 = MakeListTuple<tuple, 3> {
-      NextInstrOffset 8
-      Locals<1> v0
-      Stack<3> v0 v0 v0
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v0
+        Stack<3> v0 v0 v0
+      }
     }
     InitListTuple<tuple, 3> v1 v0 v0 v0
     v2 = Assign v1
@@ -1368,23 +1644,31 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+        Stack<1> v0
+      }
     }
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 6
-      Locals<1> v0
-      Stack<2> v0 v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+        Stack<2> v0 v0
+      }
     }
     v1 = MakeListTuple<list, 3> {
-      NextInstrOffset 8
-      Locals<1> v0
-      Stack<3> v0 v0 v0
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v0
+        Stack<3> v0 v0 v0
+      }
     }
     InitListTuple<list, 3> v1 v0 v0 v0
     v2 = Assign v1
@@ -1401,12 +1685,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = UnaryOp<Not> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Return v1
   }
@@ -1421,12 +1709,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = UnaryOp<Positive> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Return v1
   }
@@ -1441,12 +1733,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = UnaryOp<Negative> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Return v1
   }
@@ -1461,12 +1757,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = UnaryOp<Invert> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Return v1
   }
@@ -1483,22 +1783,30 @@ fun jittestmodule:test {
     v1 = LoadArg<1; "s">
     v2 = LoadArg<2; "v">
     v2 = CheckVar<"v"> v2 {
-      NextInstrOffset 2
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 2
+        Locals<3> v0 v1 v2
+      }
     }
     v0 = CheckVar<"c"> v0 {
-      NextInstrOffset 4
-      Locals<3> v0 v1 v2
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 4
+        Locals<3> v0 v1 v2
+        Stack<1> v2
+      }
     }
     v1 = CheckVar<"s"> v1 {
-      NextInstrOffset 6
-      Locals<3> v0 v1 v2
-      Stack<2> v2 v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<3> v0 v1 v2
+        Stack<2> v2 v0
+      }
     }
     v3 = StoreSubscr v0 v1 v2 {
-      NextInstrOffset 8
-      Locals<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 8
+        Locals<3> v0 v1 v2
+      }
     }
     v4 = LoadConst<NoneType>
     Return v4
@@ -1515,17 +1823,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Add> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1543,17 +1857,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<And> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1571,17 +1891,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<FloorDivide> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1599,17 +1925,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<LShift> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1627,17 +1959,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<MatrixMultiply> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1655,17 +1993,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Modulo> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1683,17 +2027,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Or> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1711,17 +2061,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Power> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1739,17 +2095,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<RShift> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1767,17 +2129,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Subtract> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1795,17 +2163,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<TrueDivide> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1823,17 +2197,23 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Xor> v0 v1 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1849,17 +2229,23 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadGlobal<0; "b"> {
-      NextInstrOffset 4
-      Locals<1> v0
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+        Stack<1> v0
+      }
     }
     v2 = InPlaceOp<Add> v0 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     v0 = Assign v2
     v3 = LoadConst<NoneType>
@@ -1877,30 +2263,40 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "k">
     v1 = LoadArg<1; "v">
     v0 = CheckVar<"k"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"v"> v1 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v2 = LoadConst<MortalLongExact[12]>
     v3 = LoadConst<MortalLongExact[34]>
     v4 = MakeDict<2> {
-      NextInstrOffset 10
-      Locals<2> v0 v1
-      Stack<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+        Stack<4> v0 v1 v2 v3
+      }
     }
     v5 = SetDictItem v4 v0 v1 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
-      Stack<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+        Stack<4> v0 v1 v2 v3
+      }
     }
     v6 = SetDictItem v4 v2 v3 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
-      Stack<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+        Stack<4> v0 v1 v2 v3
+      }
     }
     Return v4
   }
@@ -1917,18 +2313,24 @@ fun jittestmodule:test {
     v1 = LoadConst<MortalLongExact[48879]>
     v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v3 = MakeDict<2> {
-      NextInstrOffset 8
-      Stack<3> v0 v1 v2
+      FrameState {
+        NextInstrOffset 8
+        Stack<3> v0 v1 v2
+      }
     }
     v4 = LoadTupleItem<0> v2
     v5 = SetDictItem v3 v4 v0 {
-      NextInstrOffset 8
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Stack<2> v0 v1
+      }
     }
     v6 = LoadTupleItem<1> v2
     v7 = SetDictItem v3 v6 v1 {
-      NextInstrOffset 8
-      Stack<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Stack<2> v0 v1
+      }
     }
     Return v3
   }
@@ -2227,8 +2629,10 @@ fun jittestmodule:test {
     v258 = LoadConst<MortalLongExact[1337]>
     v256 = Assign v258
     v256 = CheckVar<"a256"> v256 {
-      NextInstrOffset 14
-      Locals<257> v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 v16 v17 v18 v19 v20 v21 v22 v23 v24 v25 v26 v27 v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v41 v42 v43 v44 v45 v46 v47 v48 v49 v50 v51 v52 v53 v54 v55 v56 v57 v58 v59 v60 v61 v62 v63 v64 v65 v66 v67 v68 v69 v70 v71 v72 v73 v74 v75 v76 v77 v78 v79 v80 v81 v82 v83 v84 v85 v86 v87 v88 v89 v90 v91 v92 v93 v94 v95 v96 v97 v98 v99 v100 v101 v102 v103 v104 v105 v106 v107 v108 v109 v110 v111 v112 v113 v114 v115 v116 v117 v118 v119 v120 v121 v122 v123 v124 v125 v126 v127 v128 v129 v130 v131 v132 v133 v134 v135 v136 v137 v138 v139 v140 v141 v142 v143 v144 v145 v146 v147 v148 v149 v150 v151 v152 v153 v154 v155 v156 v157 v158 v159 v160 v161 v162 v163 v164 v165 v166 v167 v168 v169 v170 v171 v172 v173 v174 v175 v176 v177 v178 v179 v180 v181 v182 v183 v184 v185 v186 v187 v188 v189 v190 v191 v192 v193 v194 v195 v196 v197 v198 v199 v200 v201 v202 v203 v204 v205 v206 v207 v208 v209 v210 v211 v212 v213 v214 v215 v216 v217 v218 v219 v220 v221 v222 v223 v224 v225 v226 v227 v228 v229 v230 v231 v232 v233 v234 v235 v236 v237 v238 v239 v240 v241 v242 v243 v244 v245 v246 v247 v248 v249 v250 v251 v252 v253 v254 v255 v256
+      FrameState {
+        NextInstrOffset 14
+        Locals<257> v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 v16 v17 v18 v19 v20 v21 v22 v23 v24 v25 v26 v27 v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v41 v42 v43 v44 v45 v46 v47 v48 v49 v50 v51 v52 v53 v54 v55 v56 v57 v58 v59 v60 v61 v62 v63 v64 v65 v66 v67 v68 v69 v70 v71 v72 v73 v74 v75 v76 v77 v78 v79 v80 v81 v82 v83 v84 v85 v86 v87 v88 v89 v90 v91 v92 v93 v94 v95 v96 v97 v98 v99 v100 v101 v102 v103 v104 v105 v106 v107 v108 v109 v110 v111 v112 v113 v114 v115 v116 v117 v118 v119 v120 v121 v122 v123 v124 v125 v126 v127 v128 v129 v130 v131 v132 v133 v134 v135 v136 v137 v138 v139 v140 v141 v142 v143 v144 v145 v146 v147 v148 v149 v150 v151 v152 v153 v154 v155 v156 v157 v158 v159 v160 v161 v162 v163 v164 v165 v166 v167 v168 v169 v170 v171 v172 v173 v174 v175 v176 v177 v178 v179 v180 v181 v182 v183 v184 v185 v186 v187 v188 v189 v190 v191 v192 v193 v194 v195 v196 v197 v198 v199 v200 v201 v202 v203 v204 v205 v206 v207 v208 v209 v210 v211 v212 v213 v214 v215 v216 v217 v218 v219 v220 v221 v222 v223 v224 v225 v226 v227 v228 v229 v230 v231 v232 v233 v234 v235 v236 v237 v238 v239 v240 v241 v242 v243 v244 v245 v246 v247 v248 v249 v250 v251 v252 v253 v254 v255 v256
+      }
     }
     Return v256
   }
@@ -2243,19 +2647,25 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[1]>
     v2 = LoadConst<MortalLongExact[5]>
     v3 = BuildSlice<2> v1 v2 {
-      NextInstrOffset 8
-      Locals<1> v0
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v0
+        Stack<1> v0
+      }
     }
     v4 = BinaryOp<Subscript> v0 v3 {
-      NextInstrOffset 10
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v0
+      }
     }
     Return v4
   }
@@ -2270,20 +2680,26 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<MortalLongExact[100]>
     v2 = LoadConst<MortalLongExact[20]>
     v3 = LoadConst<MortalLongExact[-2]>
     v4 = BuildSlice<3> v1 v2 v3 {
-      NextInstrOffset 10
-      Locals<1> v0
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v0
+        Stack<1> v0
+      }
     }
     v5 = BinaryOp<Subscript> v0 v4 {
-      NextInstrOffset 12
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v0
+      }
     }
     Return v5
   }
@@ -2299,13 +2715,17 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v1
+      }
     }
     v2 = Assign v0
     v0 = Assign v1
@@ -2334,7 +2754,9 @@ fun jittestmodule:test {
 
   bb 4 (preds 3) {
     v1 = RunPeriodicTasks {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Branch<3>
   }
@@ -2350,12 +2772,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "xs">
     v0 = CheckVar<"xs"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = GetIter v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
     }
     Branch<4>
   }
@@ -2367,18 +2793,22 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v8 = RunPeriodicTasks {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     Branch<1>
   }
 
   bb 1 (preds 4, 5) {
     v3 = InvokeIterNext v2 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     CondBranchIterNotDone<2, 3> v3
   }
@@ -2390,14 +2820,18 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: print'
     }
     v1 = CheckVar<"x"> v1 {
-      NextInstrOffset 12
-      Locals<2> v0 v1
-      Stack<2> v2 v4
+      FrameState {
+        NextInstrOffset 12
+        Locals<2> v0 v1
+        Stack<2> v2 v4
+      }
     }
     v5 = VectorCall<1> v4 v1 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     Branch<4>
   }
@@ -2417,20 +2851,26 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v2 = MakeListTuple<list, 0> {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     InitListTuple<list, 0> v2
     v3 = Assign v2
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v3
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v3
+      }
     }
     v4 = GetIter v0 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<1> v3
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<1> v3
+      }
     }
     v2 = Assign v3
     v3 = Assign v4
@@ -2444,18 +2884,22 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v8 = RunPeriodicTasks {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     Branch<1>
   }
 
   bb 1 (preds 4, 5) {
     v5 = InvokeIterNext v3 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     v4 = Assign v5
     CondBranchIterNotDone<2, 3> v4
@@ -2464,14 +2908,18 @@ fun jittestmodule:test {
   bb 2 (preds 1) {
     v1 = Assign v4
     v1 = CheckVar<"i"> v1 {
-      NextInstrOffset 12
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 12
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     v6 = ListAppend v2 v1 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     Branch<4>
   }
@@ -2493,29 +2941,37 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = MakeListTuple<tuple, 1> {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     InitListTuple<tuple, 1> v2 v0
     v3 = Assign v2
     v4 = LoadConst<MortalCode["nested"]>
     v5 = LoadConst<MortalUnicodeExact["test.<locals>.nested"]>
     v6 = MakeFunction v5 v4 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
-      Stack<1> v3
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+        Stack<1> v3
+      }
     }
     SetFunctionAttr<func_defaults> v3 v6
     InitFunction v6
     v1 = Assign v6
     v1 = CheckVar<"nested"> v1 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+      }
     }
     Return v1
   }
@@ -2532,36 +2988,44 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v1 = MakeCell v2 {
-      NextInstrOffset 0
-      Locals<1> v0
-      Cells<1> v1
+      FrameState {
+        NextInstrOffset 0
+        Locals<1> v0
+        Cells<1> v1
+      }
     }
     v3 = LoadConst<MortalLongExact[1]>
     v4 = StealCellItem v1
     SetCellItem v1 v3 v4
     v5 = MakeListTuple<tuple, 1> {
-      NextInstrOffset 8
-      Locals<1> v0
-      Cells<1> v1
-      Stack<1> v1
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v0
+        Cells<1> v1
+        Stack<1> v1
+      }
     }
     InitListTuple<tuple, 1> v5 v1
     v6 = Assign v5
     v7 = LoadConst<MortalCode["g"]>
     v8 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v9 = MakeFunction v8 v7 {
-      NextInstrOffset 14
-      Locals<1> v0
-      Cells<1> v1
-      Stack<1> v6
+      FrameState {
+        NextInstrOffset 14
+        Locals<1> v0
+        Cells<1> v1
+        Stack<1> v6
+      }
     }
     SetFunctionAttr<func_closure> v6 v9
     InitFunction v9
     v0 = Assign v9
     v0 = CheckVar<"g"> v0 {
-      NextInstrOffset 18
-      Locals<1> v0
-      Cells<1> v1
+      FrameState {
+        NextInstrOffset 18
+        Locals<1> v0
+        Cells<1> v1
+      }
     }
     Return v0
   }
@@ -2578,33 +3042,41 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v2 = MakeCell v0 {
-      NextInstrOffset 0
-      Locals<2> v0 v1
-      Cells<1> v2
+      FrameState {
+        NextInstrOffset 0
+        Locals<2> v0 v1
+        Cells<1> v2
+      }
     }
     v4 = MakeListTuple<tuple, 1> {
-      NextInstrOffset 4
-      Locals<2> v3 v1
-      Cells<1> v2
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v3 v1
+        Cells<1> v2
+        Stack<1> v2
+      }
     }
     InitListTuple<tuple, 1> v4 v2
     v5 = Assign v4
     v6 = LoadConst<MortalCode["g"]>
     v7 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v8 = MakeFunction v7 v6 {
-      NextInstrOffset 10
-      Locals<2> v3 v1
-      Cells<1> v2
-      Stack<1> v5
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v3 v1
+        Cells<1> v2
+        Stack<1> v5
+      }
     }
     SetFunctionAttr<func_closure> v5 v8
     InitFunction v8
     v1 = Assign v8
     v1 = CheckVar<"g"> v1 {
-      NextInstrOffset 14
-      Locals<2> v3 v1
-      Cells<1> v2
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v3 v1
+        Cells<1> v2
+      }
     }
     Return v1
   }
@@ -2622,43 +3094,55 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v3 = MakeCell v0 {
-      NextInstrOffset 0
-      Locals<3> v0 v1 v2
-      Cells<1> v3
+      FrameState {
+        NextInstrOffset 0
+        Locals<3> v0 v1 v2
+        Cells<1> v3
+      }
     }
     v5 = MakeListTuple<tuple, 1> {
-      NextInstrOffset 4
-      Locals<3> v4 v1 v2
-      Cells<1> v3
-      Stack<1> v3
+      FrameState {
+        NextInstrOffset 4
+        Locals<3> v4 v1 v2
+        Cells<1> v3
+        Stack<1> v3
+      }
     }
     InitListTuple<tuple, 1> v5 v3
     v6 = Assign v5
     v7 = LoadConst<MortalCode["g"]>
     v8 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v9 = MakeFunction v8 v7 {
-      NextInstrOffset 10
-      Locals<3> v4 v1 v2
-      Cells<1> v3
-      Stack<1> v6
+      FrameState {
+        NextInstrOffset 10
+        Locals<3> v4 v1 v2
+        Cells<1> v3
+        Stack<1> v6
+      }
     }
     SetFunctionAttr<func_closure> v6 v9
     InitFunction v9
     v1 = Assign v9
     v1 = CheckVar<"g"> v1 {
-      NextInstrOffset 14
-      Locals<3> v4 v1 v2
-      Cells<1> v3
+      FrameState {
+        NextInstrOffset 14
+        Locals<3> v4 v1 v2
+        Cells<1> v3
+      }
     }
     v10 = VectorCall<0> v1 {
-      NextInstrOffset 16
-      Locals<3> v4 v1 v2
-      Cells<1> v3
+      FrameState {
+        NextInstrOffset 16
+        Locals<3> v4 v1 v2
+        Cells<1> v3
+      }
     }
     v11 = GetIter v10 {
-      NextInstrOffset 18
-      Locals<3> v4 v1 v2
-      Cells<1> v3
+      FrameState {
+        NextInstrOffset 18
+        Locals<3> v4 v1 v2
+        Cells<1> v3
+      }
     }
     v5 = Assign v11
     Branch<4>
@@ -2671,20 +3155,24 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v15 = RunPeriodicTasks {
-      NextInstrOffset 18
-      Locals<3> v4 v1 v2
-      Cells<1> v3
-      Stack<1> v5
+      FrameState {
+        NextInstrOffset 18
+        Locals<3> v4 v1 v2
+        Cells<1> v3
+        Stack<1> v5
+      }
     }
     Branch<1>
   }
 
   bb 1 (preds 4, 5) {
     v12 = InvokeIterNext v5 {
-      NextInstrOffset 20
-      Locals<3> v4 v1 v2
-      Cells<1> v3
-      Stack<1> v5
+      FrameState {
+        NextInstrOffset 20
+        Locals<3> v4 v1 v2
+        Cells<1> v3
+        Stack<1> v5
+      }
     }
     v6 = Assign v12
     CondBranchIterNotDone<2, 3> v6
@@ -2736,59 +3224,79 @@ fun jittestmodule:test {
 
   bb 7 (preds 6) {
     v11 = RunPeriodicTasks {
-      NextInstrOffset 0
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 0
+        Locals<2> v0 v1
+      }
     }
     Branch<0>
   }
 
   bb 0 (preds 6, 7) {
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     v2 = LoadConst<MortalLongExact[10]>
     v3 = Compare<LessThan> v0 v2 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
     }
     v4 = IsTruthy v3 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+      }
     }
     CondBranch<1, 4> v4
   }
 
   bb 1 (preds 0) {
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+      }
     }
     v1 = CheckVar<"y"> v1 {
-      NextInstrOffset 12
-      Locals<2> v0 v1
-      Stack<1> v0
+      FrameState {
+        NextInstrOffset 12
+        Locals<2> v0 v1
+        Stack<1> v0
+      }
     }
     v5 = Compare<Equal> v0 v1 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+      }
     }
     v6 = IsTruthy v5 {
-      NextInstrOffset 16
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 16
+        Locals<2> v0 v1
+      }
     }
     CondBranch<4, 3> v6
   }
 
   bb 3 (preds 1) {
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 20
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 20
+        Locals<2> v0 v1
+      }
     }
     v8 = LoadConst<MortalLongExact[1]>
     v9 = InPlaceOp<Add> v0 v8 {
-      NextInstrOffset 24
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 24
+        Locals<2> v0 v1
+      }
     }
     v0 = Assign v9
     Branch<6>
@@ -2812,8 +3320,10 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v3 = GetIter v2 {
-      NextInstrOffset 4
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
     }
     v2 = Assign v3
     Branch<6>
@@ -2826,18 +3336,22 @@ fun jittestmodule:test {
 
   bb 7 (preds 6) {
     v9 = RunPeriodicTasks {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     Branch<1>
   }
 
   bb 1 (preds 6, 7) {
     v4 = InvokeIterNext v2 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     v3 = Assign v4
     CondBranchIterNotDone<2, 5> v3
@@ -2846,24 +3360,32 @@ fun jittestmodule:test {
   bb 2 (preds 1) {
     v1 = Assign v3
     v1 = CheckVar<"i"> v1 {
-      NextInstrOffset 10
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 12
-      Locals<2> v0 v1
-      Stack<2> v2 v1
+      FrameState {
+        NextInstrOffset 12
+        Locals<2> v0 v1
+        Stack<2> v2 v1
+      }
     }
     v5 = Compare<GreaterThan> v1 v0 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     v6 = IsTruthy v5 {
-      NextInstrOffset 16
-      Locals<2> v0 v1
-      Stack<1> v2
+      FrameState {
+        NextInstrOffset 16
+        Locals<2> v0 v1
+        Stack<1> v2
+      }
     }
     CondBranch<5, 6> v6
   }
@@ -2884,8 +3406,10 @@ fun jittestmodule:test {
     v1 = LoadConst<MortalLongExact[0]>
     v2 = LoadConst<NoneType>
     v3 = ImportName<0; "test_import"> v2 v1 {
-      NextInstrOffset 6
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
     }
     v0 = Assign v3
     v4 = LoadConst<NoneType>
@@ -2923,12 +3447,16 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadAttr<0; "a\nrea\\lly\n\"weird\"\nname"> v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Return v1
   }
@@ -2954,28 +3482,36 @@ fun jittestmodule:test {
 
   bb 7 (preds 6) {
     v13 = RunPeriodicTasks {
-      NextInstrOffset 0
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 0
+        Locals<2> v0 v1
+      }
     }
     Branch<0>
   }
 
   bb 0 (preds 6, 7) {
     v2 = MakeListTuple<list, 0> {
-      NextInstrOffset 2
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
     }
     InitListTuple<list, 0> v2
     v3 = Assign v2
     v4 = LoadGlobal<0; "warnopts"> {
-      NextInstrOffset 4
-      Locals<2> v0 v1
-      Stack<1> v3
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+        Stack<1> v3
+      }
     }
     v5 = GetIter v4 {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<1> v3
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<1> v3
+      }
     }
     v2 = Assign v3
     v3 = Assign v5
@@ -2989,18 +3525,22 @@ fun jittestmodule:test {
 
   bb 9 (preds 8) {
     v15 = RunPeriodicTasks {
-      NextInstrOffset 6
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     Branch<1>
   }
 
   bb 1 (preds 8, 9) {
     v6 = InvokeIterNext v3 {
-      NextInstrOffset 8
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     v4 = Assign v6
     CondBranchIterNotDone<2, 3> v4
@@ -3010,19 +3550,25 @@ fun jittestmodule:test {
     v0 = Assign v4
     v7 = LoadConst<MortalUnicodeExact["-W%s"]>
     v0 = CheckVar<"o"> v0 {
-      NextInstrOffset 14
-      Locals<2> v0 v1
-      Stack<3> v2 v3 v7
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+        Stack<3> v2 v3 v7
+      }
     }
     v8 = BinaryOp<Modulo> v7 v0 {
-      NextInstrOffset 16
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 16
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     v9 = ListAppend v2 v8 {
-      NextInstrOffset 18
-      Locals<2> v0 v1
-      Stack<2> v2 v3
+      FrameState {
+        NextInstrOffset 18
+        Locals<2> v0 v1
+        Stack<2> v2 v3
+      }
     }
     Branch<8>
   }
@@ -3031,12 +3577,16 @@ fun jittestmodule:test {
     v0 = LoadConst<Nullptr>
     v1 = Assign v2
     v1 = CheckVar<"args"> v1 {
-      NextInstrOffset 26
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 26
+        Locals<2> v0 v1
+      }
     }
     v10 = IsTruthy v1 {
-      NextInstrOffset 28
-      Locals<2> v0 v1
+      FrameState {
+        NextInstrOffset 28
+        Locals<2> v0 v1
+      }
     }
     CondBranch<4, 6> v10
   }
@@ -3067,42 +3617,56 @@ fun jittestmodule:test {
 
   bb 4 (preds 3) {
     v7 = RunPeriodicTasks {
-      NextInstrOffset 0
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 0
+        Locals<1> v0
+      }
     }
     Branch<0>
   }
 
   bb 0 (preds 3, 4) {
     v1 = LoadGlobal<0; "foo"> {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v2 = VectorCall<0> v1 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     v0 = Assign v2
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 8
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v0
+      }
     }
     v3 = LoadConst<MortalLongExact[0]>
     v4 = Compare<NotEqual> v0 v3 {
-      NextInstrOffset 12
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v0
+      }
     }
     v5 = IsTruthy v4 {
-      NextInstrOffset 14
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 14
+        Locals<1> v0
+      }
     }
     CondBranch<1, 3> v5
   }
 
   bb 1 (preds 0) {
     v0 = CheckVar<"x"> v0 {
-      NextInstrOffset 16
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 16
+        Locals<1> v0
+      }
     }
     Return v0
   }
@@ -3119,23 +3683,31 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
     v0 = CheckVar<"a"> v0 {
-      NextInstrOffset 2
-      Locals<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 2
+        Locals<4> v0 v1 v2 v3
+      }
     }
     v4 = LoadConst<Nullptr>
     v5 = FormatValue<None> v4 v0 {
-      NextInstrOffset 4
-      Locals<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 4
+        Locals<4> v0 v1 v2 v3
+      }
     }
     v2 = Assign v5
     v1 = CheckVar<"b"> v1 {
-      NextInstrOffset 8
-      Locals<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 8
+        Locals<4> v0 v1 v2 v3
+      }
     }
     v6 = LoadConst<MortalUnicodeExact["02"]>
     v7 = FormatValue<None> v6 v1 {
-      NextInstrOffset 12
-      Locals<4> v0 v1 v2 v3
+      FrameState {
+        NextInstrOffset 12
+        Locals<4> v0 v1 v2 v3
+      }
     }
     v3 = Assign v7
     v8 = LoadConst<NoneType>

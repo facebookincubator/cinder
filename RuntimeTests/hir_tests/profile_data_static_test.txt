@@ -45,11 +45,13 @@ fun jittestmodule:test {
 
   bb 5 (preds 0) {
     v9:Bool = RunPeriodicTasks {
-      NextInstrOffset 8
-      Locals<1> v6
-      Stack<1> v6
-      BlockStack {
-        Opcode 122 HandlerOff 12 StackLevel 0
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v6
+        Stack<1> v6
+        BlockStack {
+          Opcode 122 HandlerOff 12 StackLevel 0
+        }
       }
     }
     Branch<4>
@@ -61,9 +63,11 @@ fun jittestmodule:test {
     v16:LongExact = GuardType<LongExact> v6 {
     }
     v18:Object = InPlaceOp<Add> v16 v15 {
-      NextInstrOffset 18
-      Locals<1> v16
-      Stack<2> v6 v11
+      FrameState {
+        NextInstrOffset 18
+        Locals<1> v16
+        Stack<2> v6 v11
+      }
     }
     Return v6
   }

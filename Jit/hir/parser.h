@@ -84,7 +84,12 @@ class HIRParser {
       expect("LiveValues");
       reg_states = parseRegStates();
     }
-    FrameState fs = parseFrameState();
+    FrameState fs;
+    if (strcmp(peekNextToken(), "FrameState") == 0) {
+      expect("FrameState");
+      fs = parseFrameState();
+    }
+    expect("}");
     auto instr = T::create(std::forward<Args>(args)..., fs);
     for (auto& rs : reg_states) {
       instr->emplaceLiveReg(rs);

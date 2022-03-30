@@ -532,7 +532,6 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
   } else if (strcmp(opcode, "Snapshot") == 0) {
     auto snapshot = Snapshot::create();
     if (strcmp(peekNextToken(), "{") == 0) {
-      expect("{");
       snapshot->setFrameState(parseFrameState());
     }
     instruction = snapshot;
@@ -616,6 +615,7 @@ std::vector<RegState> HIRParser::parseRegStates() {
 
 FrameState HIRParser::parseFrameState() {
   FrameState fs;
+  expect("{");
   auto token = GetNextToken();
   while (strcmp(token, "}") != 0) {
     if (strcmp(token, "NextInstrOffset") == 0) {

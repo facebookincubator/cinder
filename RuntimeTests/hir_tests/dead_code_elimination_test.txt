@@ -33,8 +33,10 @@ fun jittestmodule:test {
     v13:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     v15:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v16:Object = GetIter v15 {
-      NextInstrOffset 12
-      Locals<3> v11 v13 v10
+      FrameState {
+        NextInstrOffset 12
+        Locals<3> v11 v13 v10
+      }
     }
     Branch<4>
   }
@@ -48,18 +50,22 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v23:Bool = RunPeriodicTasks {
-      NextInstrOffset 12
-      Locals<3> v11 v21 v22
-      Stack<1> v16
+      FrameState {
+        NextInstrOffset 12
+        Locals<3> v11 v21 v22
+        Stack<1> v16
+      }
     }
     Branch<1>
   }
 
   bb 1 (preds 4, 5) {
     v28:Object = InvokeIterNext v16 {
-      NextInstrOffset 14
-      Locals<3> v11 v21 v22
-      Stack<1> v16
+      FrameState {
+        NextInstrOffset 14
+        Locals<3> v11 v21 v22
+        Stack<1> v16
+      }
     }
     CondBranchIterNotDone<2, 3> v28
   }
@@ -86,13 +92,17 @@ fun jittestmodule:test {
     v7:MortalCode["inner"] = LoadConst<MortalCode["inner"]>
     v8:MortalUnicodeExact["test.<locals>.inner"] = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
     v9:MortalFunc = MakeFunction v8 v7 {
-      NextInstrOffset 6
-      Locals<1> v6
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v6
+      }
     }
     InitFunction v9
     v12:Object = VectorCall<0> v9 {
-      NextInstrOffset 12
-      Locals<1> v9
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v9
+      }
     }
     v13:NoneType = LoadConst<NoneType>
     Return v13

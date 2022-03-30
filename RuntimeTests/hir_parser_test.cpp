@@ -316,7 +316,9 @@ fun test {
   bb 0 {
     v0 = LoadArg<0>
     v1 = InvokeStaticFunction<os._exists, 0, Long> {
-      NextInstrOffset 0
+      FrameState {
+        NextInstrOffset 0
+      }
     }
     Return v1
   }
@@ -330,13 +332,17 @@ TEST_F(HIRParserTest, FormatValue) {
   bb 0 {
     v0 = LoadArg<0>
     v0 = CheckVar<"bar"> v0 {
-      NextInstrOffset 2
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
     }
     v1 = LoadConst<Nullptr>
     v2 = FormatValue<None> v1 v0 {
-      NextInstrOffset 4
-      Locals<1> v0
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
     }
     Return v2
   }
