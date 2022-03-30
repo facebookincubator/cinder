@@ -1,16 +1,33 @@
 import ast
 import builtins
+import cinder
 from compiler.readonly import (
     readonly_compile,
     ReadonlyCodeGenerator,
     ReadonlyTypeBinder,
 )
 from compiler.static import StaticCodeGenerator
+from contextlib import contextmanager
 
 from ..test_static.common import StaticTestBase as TestBase, TestErrors
 
 
+@contextmanager
+def with_detection(detection_func):
+    old_handler = cinder.get_immutable_warn_handler()
+    cinder.set_immutable_warn_handler(detection_func)
+    yield
+    cinder.set_immutable_warn_handler(old_handler)
+    return
+
+
 class ReadonlyTestBase(TestBase):
+    def setUp(self):
+        cinder.flush_immutable_warnings()  # make sure no existing warnings interfere with tests
+
+    def tearDown(self):
+        cinder.flush_immutable_warnings()
+
     def compile(
         self,
         code,
@@ -35,6 +52,12 @@ class ReadonlyTestBase(TestBase):
             )
 
     def compile_and_run(self, code):
+        # find out indent
+        index = 0
+        while code[index].isspace():
+            index += 1
+
+        code = code[:index] + "from __future__ import annotations\n" + code
         compiled = self.compile(code)
         d = {"<builtins>": builtins.__dict__}
         exec(compiled, d)
@@ -71,3 +94,34 @@ class ReadonlyTestBase(TestBase):
 
     def static_lint(self, code: str) -> TestErrors:
         return super().lint(code)
+
+    def get_detection_func(self, errors):
+        def detection_func(arg):
+            errors.extend(arg)
+
+        return detection_func
+
+    @contextmanager
+    def assertNoImmutableErrors(self):
+        errors = []
+        with with_detection(self.get_detection_func(errors)):
+            yield
+            cinder.flush_immutable_warnings()
+            msg = (
+                ""
+                if len(errors) == 0
+                else f"expected no errors but see error {errors[0][1]}"
+            )
+            self.assertFalse(errors, msg)
+
+    @contextmanager
+    def assertImmutableErrors(self, errorcode, msg, arg=None):
+        errors = []
+        with with_detection(self.get_detection_func(errors)):
+            yield
+            cinder.flush_immutable_warnings()
+            self.assertTrue(len(errors) > 0, "expected errors but no errors found")
+            self.assertEqual(errors[0][0], errorcode)
+            self.assertEqual(errors[0][1], msg)
+            if arg is not None:
+                self.assertEqual(errors[0][2], arg)

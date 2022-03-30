@@ -140,6 +140,8 @@ PyAPI_DATA(PyTypeObject) PyStaticMethod_Type;
 PyAPI_FUNC(PyObject *) PyClassMethod_New(PyObject *);
 PyAPI_FUNC(PyObject *) PyStaticMethod_New(PyObject *);
 
+PyAPI_FUNC(void) PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_mask);
+
 #ifdef __cplusplus
 }
 #endif

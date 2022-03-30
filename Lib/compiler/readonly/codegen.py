@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from ast import AST
 from types import CodeType
-from typing import Optional, Type, cast
+from typing import Optional, Type, cast, Union
 
 from ..opcodes import opcode
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
@@ -141,21 +141,61 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
     ) -> None:
         super().build_function(node, gen)
         readonly_funcs = self.binder.read_only_funcs
-
         if node not in readonly_funcs:
             return
 
         func_value = readonly_funcs[node]
         assert isinstance(func_value, FunctionValue)
 
-        func_value_tuple = (
-            func_value.returns_readonly,
-            func_value.readonly_nonlocal,
-            tuple(x == READONLY for x in func_value.args),
+        mask = calc_function_readonly_mask(
+            returns_readonly=func_value.returns_readonly,
+            readonly_nonlocal=func_value.readonly_nonlocal,
+            arg_tuple=tuple(x == READONLY for x in func_value.args),
+        )
+        self.emit_readonly_op("MAKE_FUNCTION", mask)
+
+    def _get_containing_function(
+        self,
+    ) -> Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda]]:
+        cur_gen = self
+        while cur_gen and not isinstance(
+            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+        ):
+            cur_gen = cur_gen.parent_code_gen
+
+        if not cur_gen:
+            return None
+
+        assert isinstance(
+            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+        )
+        return cur_gen.tree
+
+    def insertReadonlyCheck(self, node: Optional[ast.Call], nargs: int) -> None:
+        # node is None when the this function is (indirectly) called by any functions
+        # other than visitCall().
+        if not node:
+            return
+
+        binder = self.binder
+
+        # skip in a non-readonly function
+        cur_func = self._get_containing_function()
+        if not cur_func:
+            return
+
+        cur_func_value = binder.read_only_funcs.get(cur_func)
+
+        if not cur_func_value:
+            return
+
+        mask = calc_function_readonly_mask(
+            returns_readonly=binder.is_readonly(node),
+            readonly_nonlocal=cur_func_value.readonly_nonlocal,
+            arg_tuple=tuple(x == READONLY for x in node.args),
         )
 
-        mask = calc_function_readonly_mask(func_value_tuple)
-        self.emit_readonly_op("MAKE_FUNCTION", mask)
+        self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask))
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int

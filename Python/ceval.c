@@ -3131,23 +3131,47 @@ main_loop:
             PyObject *tuple = GETITEM(consts, oparg);
             assert(tuple != NULL);
 
-            PyObject *op = PyTuple_GetItem(tuple, 0);
+            PyObject *op = PyTuple_GET_ITEM(tuple, 0);
             assert(op != NULL);
             int op_val = PyLong_AsLong(op);
 
             switch (op_val) {
-                case READONLY_MAKE_FUNCTION: {
-                    PyFunctionObject *func = (PyFunctionObject *)(TOP());
-                    assert(func != NULL);
+            case READONLY_MAKE_FUNCTION: {
+                PyFunctionObject *func = (PyFunctionObject *)(TOP());
+                assert(func != NULL);
 
-                    PyObject *mask = PyTuple_GetItem(tuple, 1);
-                    assert(mask != NULL);
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                assert(mask != NULL);
 
-                    func->readonly_mask = PyLong_AsUnsignedLongLong(mask);
-                    break;
+                func->readonly_mask = PyLong_AsUnsignedLongLong(mask);
+                break;
+            }
+            case READONLY_CHECK_FUNCTION: {
+                PyObject *arg_tuple = PyTuple_GET_ITEM(tuple, 1);
+                assert(arg_tuple != NULL);
+
+                PyObject *nargs = PyTuple_GET_ITEM(arg_tuple, 0);
+                assert(nargs != NULL);
+
+                PyFunctionObject *func = (PyFunctionObject *)(PEEK(PyLong_AsUnsignedLongLong(nargs) + 1));
+                assert(func != NULL);
+
+                uint64_t func_mask = func->readonly_mask;
+
+                PyObject *call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
+                uint64_t call_mask = PyLong_AsUnsignedLongLong(call_mask_obj);
+
+                // is_readonly_func: error if 1 in callsite but 0 in callable
+                // is_readonly_closure: error if 1 in callsite but 0 in callable
+                // returns or accepts readonly: error if 1 in callsite (accept mutable) but 0 in callable (returns readonly)
+                // arg (each bit): error if 1 in callsite but 0 in callable
+                if (call_mask & ~func_mask) {
+                    PyFunction_ReportReadonlyErr((PyObject *)func, func_mask, call_mask);
                 }
-                default:
-                    assert(0);
+                break;
+            }
+            default:
+                assert(0);
             }
             DISPATCH();
         }

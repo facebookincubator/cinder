@@ -6,6 +6,8 @@
 #include "pycore_pymem.h"
 #include "pycore_pystate.h"
 #include "pycore_tupleobject.h"
+#include "pyerrors.h"
+#include "py_immutable_error.h"
 #include "code.h"
 #include "structmember.h"
 #include "switchboard.h"
@@ -1217,4 +1219,70 @@ PyObject *
 _PyFunction_GetBuiltins(PyFunctionObject *func)
 {
     return PyThreadState_GET()->interp->builtins;
+}
+
+/*
+ * reports readonly errors at a function call. this function must be called
+ * when there are errors, i.e., call_mask & ~func_mask.
+ */
+void
+PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_mask) {
+    // should not be called when there is no error
+    assert(call_mask & ~func_mask);
+
+    const uint64_t READONLY_FUNC_MASK = 1ULL << 63;
+    const uint64_t RETURNS_READONLY_MASK = 1ULL << 62;
+    const uint64_t READONLY_NONLOCAL = 1ULL << 61;
+
+#define READONLY_FUNC(x) ((x) & READONLY_FUNC_MASK)
+#define RETURNS_READNOLY(x) (!((x) & RETURNS_READONLY_MASK))
+#define READONLY_NONLOCAL(x) ((x) & READONLY_NONLOCAL)
+#define CLEAR_NONARG_MASK(x) ((x) & ~(READONLY_FUNC_MASK | RETURNS_READONLY_MASK | READONLY_NONLOCAL))
+
+    // if the caller is not a readonly function, it shouldn't
+    // reach here, because CHECK_FUNCTION operation should not
+    // be generated in the first place.
+    assert(READONLY_FUNC(call_mask) != 0);
+
+    if (!READONLY_FUNC(func_mask)) {
+        _PyErr_IMMUTABLE_ERR(ReadonlyFunctionCallError);
+    }
+
+    if (READONLY_NONLOCAL(call_mask) && !READONLY_NONLOCAL(func_mask)) {
+        // error: readonly_closure function cannot call non-readonly_closure function
+        // TODO: fix the warning code
+        _PyErr_IMMUTABLE_ERR(ReadonlyNonlocalError);
+    }
+
+    if (!RETURNS_READNOLY(call_mask) && RETURNS_READNOLY(func_mask)) {
+        _PyErr_IMMUTABLE_ERR(ReadonlyAssignmentError);
+    }
+
+    func_mask = CLEAR_NONARG_MASK(func_mask);
+    call_mask = CLEAR_NONARG_MASK(call_mask);
+
+    int arg_index = 0;
+    while (call_mask != 0 || func_mask != 0) {
+        int func_bit = func_mask & (1ULL << arg_index);
+        int call_bit = call_mask & (1ULL << arg_index);
+
+        if (call_bit == 0 && func_bit != 0) {
+            // error: readonly passes to mutable
+            _PyErr_IMMUTABLE_ERR(ReadonlyArgumentError, arg_index);
+        }
+
+        if (func_bit != 0) {
+            func_mask &= (func_mask - 1);
+        }
+
+        if (call_bit != 0) {
+            call_mask &= (call_mask - 1);
+        }
+
+        arg_index ++;
+    }
+#undef READONLY_FUNC
+#undef RETURNS_READNOLY
+#undef READONLY_NONLOCAL
+#undef CLEAR_NONARG_MASK
 }

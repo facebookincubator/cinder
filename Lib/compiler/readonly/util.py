@@ -16,26 +16,28 @@ def is_readonly_wrapped(node: AST) -> bool:
         return False
     return isinstance(node.func, Name) and node.func.id == READONLY_CALL
 
-
 def is_tuple_wrapped(node: AST) -> bool:
     if not isinstance(node, ast.Call):
         return False
     return isinstance(node.func, Name) and node.func.id == "tuple"
 
-
 def is_readonly_func(node: AST) -> bool:
     return isinstance(node, Name) and node.id == READONLY_FUNC
-
 
 def is_readonly_func_nonlocal(node: AST) -> bool:
     return isinstance(node, Name) and node.id == READONLY_FUNC_NONLOCAL
 
 
-def calc_function_readonly_mask(args: Tuple[bool, bool, Tuple[bool, ...]]) -> int:
-    returns_readonly, readonly_nonlocal, arg_tuple = args
-
-    # must be readonly function - set the msb to 1
-    mask = 0x8000000000000000
+def calc_function_readonly_mask(
+    *,
+    readonly_func: bool = True,
+    returns_readonly: bool,
+    readonly_nonlocal: bool,
+    arg_tuple: Tuple[bool, ...]
+) -> int:
+    mask = 0
+    if readonly_func:
+        mask = mask | 0x8000000000000000
     bit = 1
 
     for readonly_arg in arg_tuple:
@@ -44,7 +46,7 @@ def calc_function_readonly_mask(args: Tuple[bool, bool, Tuple[bool, ...]]) -> in
 
         bit = bit << 1
 
-    if returns_readonly:
+    if not returns_readonly:
         mask = mask | 0x4000000000000000
 
     if readonly_nonlocal:

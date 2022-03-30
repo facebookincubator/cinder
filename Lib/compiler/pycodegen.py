@@ -228,6 +228,7 @@ class CodeGenerator(ASTVisitor):
         self.__with_count = 0
         self.did_setup_annotations = False
         self._qual_name = None
+        self.parent_code_gen = parent
 
     def _setupGraphDelegation(self):
         self.emit = self.graph.emit
@@ -590,7 +591,7 @@ class CodeGenerator(ASTVisitor):
         self._makeClosure(gen, 0)
         self.emit("LOAD_CONST", node.name)
 
-        self._call_helper(2, node.bases, node.keywords)
+        self._call_helper(2, None, node.bases, node.keywords)
 
         for _ in range(len(node.decorator_list)):
             self.emit("CALL_FUNCTION", 1)
@@ -1678,7 +1679,7 @@ class CodeGenerator(ASTVisitor):
                 self.visit(kwargs[i].value)
             self.emit("BUILD_MAP", nkwargs)
 
-    def _call_helper(self, argcnt, args, kwargs):
+    def _call_helper(self, argcnt, node, args, kwargs):
         mustdictunpack = any(arg.arg is None for arg in kwargs)
         nelts = len(args)
         nkwelts = len(kwargs)
@@ -1730,6 +1731,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("LOAD_CONST", tuple(arg.arg for arg in kwargs))
             self.emit("CALL_FUNCTION_KW", nelts + nkwelts + argcnt)
         else:
+            self.insertReadonlyCheck(node, nelts + argcnt)
             self.emit("CALL_FUNCTION", nelts + argcnt)
 
     def visitCall(self, node):
@@ -1741,7 +1743,7 @@ class CodeGenerator(ASTVisitor):
         ):
             # We cannot optimize this call
             self.visit(node.func)
-            self._call_helper(0, node.args, node.keywords)
+            self._call_helper(0, node, node.args, node.keywords)
             return
 
         self.update_lineno(node)
@@ -1749,7 +1751,12 @@ class CodeGenerator(ASTVisitor):
         self.emit("LOAD_METHOD", self.mangle(node.func.attr))
         for arg in node.args:
             self.visit(arg)
-        self.emit("CALL_METHOD", len(node.args))
+        nargs = len(node.args)
+        self.insertReadonlyCheck(node, nargs)
+        self.emit("CALL_METHOD", nargs)
+
+    def insertReadonlyCheck(self, node, nargs):
+        pass
 
     def visitPrint(self, node, newline=0):
         self.set_lineno(node)
