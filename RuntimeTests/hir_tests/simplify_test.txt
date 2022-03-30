@@ -53,7 +53,9 @@ fun jittestmodule:test {
     v4:Nullptr = LoadConst<Nullptr>
     v5:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     v7:OptObject = LoadGlobalCached<0; "box">
-    v8:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v7
+    v8:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v7 {
+      Descr 'LOAD_GLOBAL: box'
+    }
     v10:Object = VectorCall<1> v8 v5 {
       NextInstrOffset 10
       Locals<1> v5
@@ -456,7 +458,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "Foo">
-    v3:MortalTypeExact[Foo:obj] = GuardIs<0xdeadbeef> v2
+    v3:MortalTypeExact[Foo:obj] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: Foo'
+    }
     UseType<Type> v3
     v5:OptObject = LoadTypeAttrCacheItem<0, 0>
     v6:CBool = PrimitiveCompare<Equal> v5 v3
@@ -489,7 +493,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "int">
-    v3:MortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v2
+    v3:MortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: int'
+    }
     UseType<Type> v3
     v5:OptObject = LoadTypeAttrCacheItem<0, 0>
     v6:CBool = PrimitiveCompare<Equal> v5 v3
@@ -524,7 +530,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "sys">
-    v3:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v3:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: sys'
+    }
     v4:Object = LoadAttr<1; "path"> v3 {
       NextInstrOffset 4
     }
@@ -583,7 +591,8 @@ fun test {
   bb 0 {
     v0:Object = LoadArg<0>
     v1:NoneType = LoadConst<NoneType>
-    v8:NoneType = GuardIs<0xdeadbeef> v0
+    v8:NoneType = GuardIs<0xdeadbeef> v0 {
+    }
     UseType<NoneType> v1
     UseType<NoneType> v8
     v9:MortalBool[True] = LoadConst<MortalBool[True]>
@@ -895,7 +904,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v4:OptObject = LoadGlobalCached<0; "a">
-    v5:MortalListExact[list:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    v5:MortalListExact[list:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: a'
+    }
     UseType<MortalListExact[list:0xdeadbeef]> v5
     v9:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v5
     v10:CInt32 = IntConvert<CInt32> v9
@@ -1097,7 +1108,9 @@ fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "x">
     v4:OptObject = LoadGlobalCached<0; "type">
-    v5:MortalTypeExact[type:obj] = GuardIs<0xdeadbeef> v4
+    v5:MortalTypeExact[type:obj] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: type'
+    }
     UseType<MortalTypeExact[type:obj]> v5
     v8:Type = LoadField<ob_type@8, Type, borrowed> v3
     Return v8

@@ -405,7 +405,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadGlobalCached<0; "len">
-    v0 = GuardIs<0xdeadbeef> v0
+    v0 = GuardIs<0xdeadbeef> v0 {
+      Descr 'LOAD_GLOBAL: len'
+    }
     Return v0
   }
 }
@@ -2384,7 +2386,9 @@ fun jittestmodule:test {
   bb 2 (preds 1) {
     v1 = Assign v3
     v4 = LoadGlobalCached<0; "print">
-    v4 = GuardIs<0xdeadbeef> v4
+    v4 = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: print'
+    }
     v1 = CheckVar<"x"> v1 {
       NextInstrOffset 12
       Locals<2> v0 v1

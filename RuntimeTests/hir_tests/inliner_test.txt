@@ -15,9 +15,12 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "foo">
-    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v9:Object = LoadField<func_code@16, Object, borrowed> v3
-    v10:MortalCode["foo"] = GuardIs<0xdeadbeef> v9
+    v10:MortalCode["foo"] = GuardIs<0xdeadbeef> v9 {
+    }
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 4
     }
@@ -41,18 +44,24 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v5:OptObject = LoadGlobalCached<0; "foo">
-    v6:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v5
+    v6:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v5 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v16:Object = LoadField<func_code@16, Object, borrowed> v6
-    v17:MortalCode["foo"] = GuardIs<0xdeadbeef> v16
+    v17:MortalCode["foo"] = GuardIs<0xdeadbeef> v16 {
+    }
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 4
     }
     v14:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     EndInlinedFunction
     v8:OptObject = LoadGlobalCached<1; "bar">
-    v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8
+    v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
+      Descr 'LOAD_GLOBAL: bar'
+    }
     v22:Object = LoadField<func_code@16, Object, borrowed> v9
-    v23:MortalCode["bar"] = GuardIs<0xdeadbeef> v22
+    v23:MortalCode["bar"] = GuardIs<0xdeadbeef> v22 {
+    }
     BeginInlinedFunction<jittestmodule:bar> {
       NextInstrOffset 8
       Stack<1> v14
@@ -90,10 +99,13 @@ fun jittestmodule:test {
     }
     InitListTuple<list, 3> v13 v10 v11 v12
     v16:OptObject = LoadGlobalCached<0; "foo">
-    v17:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v16
+    v17:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v16 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v19:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v31:Object = LoadField<func_code@16, Object, borrowed> v17
-    v32:MortalCode["foo"] = GuardIs<0xdeadbeef> v31
+    v32:MortalCode["foo"] = GuardIs<0xdeadbeef> v31 {
+    }
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 18
       Locals<1> v13
@@ -123,11 +135,14 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v4:OptObject = LoadGlobalCached<0; "foo">
-    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v6:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
     v7:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v19:Object = LoadField<func_code@16, Object, borrowed> v5
-    v20:MortalCode["foo"] = GuardIs<0xdeadbeef> v19
+    v20:MortalCode["foo"] = GuardIs<0xdeadbeef> v19 {
+    }
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 8
     }
@@ -153,7 +168,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v3:OptObject = LoadGlobalCached<0; "foo">
-    v4:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v3
+    v4:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v3 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v5:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v6:Object = VectorCall<1> v4 v5 {
       NextInstrOffset 6
@@ -173,7 +190,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v4:OptObject = LoadGlobalCached<0; "foo">
-    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v6:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
     v7:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v8:Object = VectorCall<2> v5 v6 v7 {
@@ -194,7 +213,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v4:OptObject = LoadGlobalCached<0; "foo">
-    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v6:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
     v7:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v8:Object = VectorCall<2> v5 v6 v7 {
@@ -215,7 +236,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "foo">
-    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v4:Object = VectorCall<0> v3 {
       NextInstrOffset 4
     }
@@ -237,7 +260,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "foo">
-    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v4:Object = VectorCall<0> v3 {
       NextInstrOffset 4
     }
@@ -329,7 +354,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "foo">
-    v3:MortalObjectUser[C:0xdeadbeef] = GuardIs<0xdeadbeef> v2
+    v3:MortalObjectUser[C:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
     v4:Object = VectorCall<0> v3 {
       NextInstrOffset 4
     }
@@ -366,7 +393,9 @@ fun jittestmodule:test {
 
   bb 2 (preds 0) {
     v17:OptObject = LoadGlobalCached<0; "test">
-    v18:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v17
+    v18:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v17 {
+      Descr 'LOAD_GLOBAL: test'
+    }
     v20:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v21:Object = BinaryOp<Subtract> v10 v20 {
       NextInstrOffset 22
@@ -374,7 +403,8 @@ fun jittestmodule:test {
       Stack<2> v10 v18
     }
     v52:Object = LoadField<func_code@16, Object, borrowed> v18
-    v53:MortalCode["test"] = GuardIs<0xdeadbeef> v52
+    v53:MortalCode["test"] = GuardIs<0xdeadbeef> v52 {
+    }
     BeginInlinedFunction<jittestmodule:test> {
       NextInstrOffset 24
       Locals<1> v10
@@ -399,7 +429,9 @@ fun jittestmodule:test {
 
   bb 5 (preds 2) {
     v43:OptObject = LoadGlobalCached<0; "test">
-    v44:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v43
+    v44:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v43 {
+      Descr 'LOAD_GLOBAL: test'
+    }
     v46:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v47:Object = BinaryOp<Subtract> v21 v46 {
       NextInstrOffset 22

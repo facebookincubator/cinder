@@ -16,7 +16,9 @@ fun jittestmodule:A.f {
     v1 = LoadTupleItem<0> v3
     v4 = LoadConst<MortalLongExact[1]>
     v5 = LoadGlobalCached<0; "super">
-    v5 = GuardIs<0xdeadbeef> v5
+    v5 = GuardIs<0xdeadbeef> v5 {
+      Descr 'LOAD_GLOBAL: super'
+    }
     v6 = VectorCall<0> v5 {
       NextInstrOffset 8
       Locals<1> v0
@@ -47,7 +49,9 @@ fun jittestmodule:A.f {
     v3 = LoadField<func_closure@48, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
     v4 = LoadGlobalCached<0; "super">
-    v4 = GuardIs<0xdeadbeef> v4
+    v4 = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: super'
+    }
     v5 = LoadCellItem v1
     v5 = CheckVar<"__class__"> v5 {
       NextInstrOffset 6
@@ -84,7 +88,9 @@ fun jittestmodule:A.f {
     v3 = LoadField<func_closure@48, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
     v4 = LoadGlobalCached<0; "super">
-    v4 = GuardIs<0xdeadbeef> v4
+    v4 = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: super'
+    }
     v5 = LoadCellItem v1
     v5 = CheckVar<"__class__"> v5 {
       NextInstrOffset 6
@@ -129,7 +135,9 @@ fun jittestmodule:A.f {
     v3 = LoadField<func_closure@48, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
     v4 = LoadGlobalCached<0; "super">
-    v4 = GuardIs<0xdeadbeef> v4
+    v4 = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: super'
+    }
     v5 = LoadCellItem v1
     v5 = CheckVar<"__class__"> v5 {
       NextInstrOffset 6

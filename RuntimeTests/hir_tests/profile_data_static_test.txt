@@ -58,7 +58,8 @@ fun jittestmodule:test {
   bb 4 (preds 0, 5) {
     v11:CInt64[10] = LoadConst<CInt64[10]>
     v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v16:LongExact = GuardType<LongExact> v6
+    v16:LongExact = GuardType<LongExact> v6 {
+    }
     v18:Object = InPlaceOp<Add> v16 v15 {
       NextInstrOffset 18
       Locals<1> v16

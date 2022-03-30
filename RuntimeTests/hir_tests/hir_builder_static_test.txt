@@ -164,6 +164,7 @@ fun jittestmodule:test {
     }
     v1 = LoadField<x@16, OptObject, borrowed> v0
     v1 = CheckField<"x"> v1 {
+      GuiltyReg v0
       NextInstrOffset 6
       Locals<1> v0
     }
@@ -869,9 +870,13 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadGlobalCached<0; "Array">
-    v0 = GuardIs<0xdeadbeef> v0
+    v0 = GuardIs<0xdeadbeef> v0 {
+      Descr 'LOAD_GLOBAL: Array'
+    }
     v1 = LoadGlobalCached<1; "int64">
-    v1 = GuardIs<0xdeadbeef> v1
+    v1 = GuardIs<0xdeadbeef> v1 {
+      Descr 'LOAD_GLOBAL: int64'
+    }
     v2 = BinaryOp<Subscript> v0 v1 {
       NextInstrOffset 8
     }
@@ -1144,7 +1149,9 @@ fun jittestmodule:test {
       Locals<2> v0 v1
     }
     v3 = LoadGlobalCached<0; "range">
-    v3 = GuardIs<0xdeadbeef> v3
+    v3 = GuardIs<0xdeadbeef> v3 {
+      Descr 'LOAD_GLOBAL: range'
+    }
     v4 = LoadConst<MortalLongExact[255]>
     v5 = VectorCall<1> v3 v4 {
       NextInstrOffset 12
@@ -1159,9 +1166,13 @@ fun jittestmodule:test {
     }
     v0 = Assign v2
     v8 = LoadGlobalCached<1; "Array">
-    v8 = GuardIs<0xdeadbeef> v8
+    v8 = GuardIs<0xdeadbeef> v8 {
+      Descr 'LOAD_GLOBAL: Array'
+    }
     v9 = LoadGlobalCached<2; "int8">
-    v9 = GuardIs<0xdeadbeef> v9
+    v9 = GuardIs<0xdeadbeef> v9 {
+      Descr 'LOAD_GLOBAL: int8'
+    }
     v10 = BinaryOp<Subscript> v8 v9 {
       NextInstrOffset 26
       Locals<2> v0 v1
@@ -1216,9 +1227,13 @@ def test() -> Array[int8]:
 fun jittestmodule:test {
   bb 0 {
     v1 = LoadGlobalCached<0; "Array">
-    v1 = GuardIs<0xdeadbeef> v1
+    v1 = GuardIs<0xdeadbeef> v1 {
+      Descr 'LOAD_GLOBAL: Array'
+    }
     v2 = LoadGlobalCached<1; "int8">
-    v2 = GuardIs<0xdeadbeef> v2
+    v2 = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: int8'
+    }
     v3 = BinaryOp<Subscript> v1 v2 {
       NextInstrOffset 8
       Locals<1> v0
@@ -1278,7 +1293,9 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "it">
     v1 = LoadGlobalCached<0; "sorted">
-    v1 = GuardIs<0xdeadbeef> v1
+    v1 = GuardIs<0xdeadbeef> v1 {
+      Descr 'LOAD_GLOBAL: sorted'
+    }
     v0 = CheckVar<"it"> v0 {
       NextInstrOffset 6
       Locals<1> v0
@@ -1398,7 +1415,9 @@ fun jittestmodule:test {
     }
     v4 = LoadConst<MortalUnicodeExact["return"]>
     v5 = LoadGlobalCached<0; "int">
-    v5 = GuardIs<0xdeadbeef> v5
+    v5 = GuardIs<0xdeadbeef> v5 {
+      Descr 'LOAD_GLOBAL: int'
+    }
     v6 = MakeListTuple<tuple, 2> {
       NextInstrOffset 8
       Locals<2> v3 v1
@@ -1461,6 +1480,7 @@ fun jittestmodule:test {
     }
     v1 = LoadField<_field@16, OptObject, borrowed> v0
     v1 = CheckField<"_field"> v1 {
+      GuiltyReg v0
       NextInstrOffset 6
       Locals<1> v0
     }

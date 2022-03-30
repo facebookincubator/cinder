@@ -689,7 +689,7 @@ void HIRPrinter::Print(std::ostream& os, const Instr& instr) {
 
   auto fs = get_frame_state(instr);
   auto db = dynamic_cast<const DeoptBase*>(&instr);
-  if (db != nullptr && db->live_regs().size() > 0) {
+  if (db != nullptr) {
     os << " {" << std::endl;
     Indent();
     if (!db->descr().empty()) {
