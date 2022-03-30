@@ -1266,9 +1266,11 @@ PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_m
         int func_bit = func_mask & (1ULL << arg_index);
         int call_bit = call_mask & (1ULL << arg_index);
 
-        if (call_bit == 0 && func_bit != 0) {
+        if (call_bit != 0 && func_bit == 0) {
             // error: readonly passes to mutable
-            _PyErr_IMMUTABLE_ERR(ReadonlyArgumentError, arg_index);
+            PyObject *index_obj = PyLong_FromLong(arg_index);
+            _PyErr_IMMUTABLE_ERR(ReadonlyArgumentError, index_obj);
+            Py_DECREF(index_obj);
         }
 
         if (func_bit != 0) {

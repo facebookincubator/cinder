@@ -192,7 +192,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         mask = calc_function_readonly_mask(
             returns_readonly=binder.is_readonly(node),
             readonly_nonlocal=cur_func_value.readonly_nonlocal,
-            arg_tuple=tuple(x == READONLY for x in node.args),
+            arg_tuple=tuple(binder.is_readonly(x) for x in node.args),
         )
 
         self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask))

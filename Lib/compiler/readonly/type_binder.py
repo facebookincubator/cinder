@@ -1027,7 +1027,8 @@ class ReadonlyTypeBinder(ASTVisitor):
         # save readonly-ness of each arguments
         arg_values = []
         for arg in node.args.args:
-            if func_scope.is_name_readonly(name):
+            arg_name = arg.arg
+            if func_scope.is_name_readonly(arg_name):
                 arg_values.append(READONLY)
             else:
                 arg_values.append(MUTABLE)

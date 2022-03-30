@@ -73,7 +73,6 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertNoImmutableErrors():
             self._compile_and_run(code, "f")
 
-    @unittest.skip("Argument readonly-ness is not correctly parsed yet.")
     def test_arguments(self) -> None:
         code = """
         @readonly_func
@@ -82,10 +81,13 @@ class FuncCallTests(ReadonlyTestBase):
 
         @readonly_func
         def f():
-            t = g(1, 2, 3)
+            c: Readonly[int] = 3
+            t = g(1, 2, c)
             return t
         """
-        with self.assertImmutableErrors(4, ""):
+        with self.assertImmutableErrors(
+            4, "Passing a readonly variable to Argument 2, which is mutable."
+        ):
             self._compile_and_run(code, "f")
 
     def test_readonly_closure_no_error(self) -> None:
