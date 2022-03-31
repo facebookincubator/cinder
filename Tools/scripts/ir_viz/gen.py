@@ -313,15 +313,25 @@ def make_explorer_class(process_args):
 
         def do_compile_post(self):
             passes = self.params["passes"]
-            original_code = self.params["code"][0]
-            modified_code = original_code + "\nimport cinderjit\ncinderjit.disable()\n"
+            user_code = self.params["code"][0]
+            use_static_python = (
+                "static-python" in self.params
+                and self.params["static-python"][0] == "on"
+            )
             with tempfile.TemporaryDirectory() as tmp:
-                code_path = os.path.join(tmp, "main.py")
-                with open(code_path, "w+") as f:
-                    f.write(modified_code)
+                lib_name = "explorer_lib"
+                with open(os.path.join(tmp, f"{lib_name}.py"), "w+") as f:
+                    f.write(user_code)
+                main_code_path = os.path.join(tmp, "main.py")
+                with open(main_code_path, "w+") as f:
+                    f.write(
+                        f"from {lib_name} import *\n"
+                        "import cinderjit\n"
+                        "cinderjit.disable()\n"
+                    )
                 jitlist_path = os.path.join(tmp, "jitlist.txt")
                 with open(jitlist_path, "w+") as f:
-                    f.write("__main__:*\n")
+                    f.write(f"{lib_name}:*\n")
                 json_dir = os.path.join(tmp, "json")
                 jit_options = self._render_options(
                     "jit",
@@ -330,9 +340,13 @@ def make_explorer_class(process_args):
                     ("jit-list-file", jitlist_path),
                     ("jit-dump-hir-passes-json", json_dir),
                 )
+                if use_static_python:
+                    jit_options += ["-X", "install-strict-loader"]
                 try:
                     run(
-                        [runtime, *jit_options, code_path], capture_output=True, cwd=tmp
+                        [runtime, *jit_options, main_code_path],
+                        capture_output=True,
+                        cwd=tmp,
                     )
                 except subprocess.CalledProcessError as e:
                     if "SyntaxError" in e.stderr:
@@ -347,7 +361,7 @@ def make_explorer_class(process_args):
                     ir_json = json.load(f)
             ir_json["cols"] = [col for col in ir_json["cols"] if col["name"] in passes]
             generated_html = gen_html_from_json(ir_json, passes)
-            with_code = generated_html.replace("@CODE@", original_code)
+            with_code = generated_html.replace("@CODE@", user_code)
             self.wfile.write(with_code.encode("utf-8"))
 
         routes = {

@@ -44,45 +44,91 @@
     <script src="vendor/highlight.min.js"></script>
     <script type="module">
       import Yace from "./vendor/yace.min.js";
-      function loadSavedCode() {
-        const code = window.localStorage.getItem('code');
-        if (code === null) {
-          return document.querySelector('#code').innerHTML;
+      function tryParse(str, default_) {
+        if (str === null || str === undefined) {
+          return default_;
         }
-        return code;
+        return JSON.parse(str);
       }
-      function storeSavedCode(code) {
+      function loadSavedState() {
+        const default_code = "a = 1\ndef foo():\n  return a";
+        const code = window.localStorage.getItem('code') || default_code;
+        const passes = tryParse(window.localStorage.getItem('passes'), ["Assembly"]);
+        const use_static_python = tryParse(window.localStorage.getItem('use_static_python'), false);
+        return {code, passes, use_static_python};
+      }
+      function saveCode(code) {
         window.localStorage.setItem('code', code);
       }
-      function updateFormField(code) {
-        document.querySelector('#code').innerHTML = code;
+      function savePasses(passes) {
+        window.localStorage.setItem('passes', JSON.stringify(passes));
       }
+      function saveUseStaticPython(use_static_python) {
+        window.localStorage.setItem('use_static_python', use_static_python);
+      }
+      function highlighter(value) {
+        return hljs.highlight(value, {language: "python"}).value;
+      }
+      function submitForm() {
+        document.querySelector('#explorer').submit();
+      };
       window.onload = function() {
         Split(['#input-box', '#results-box'], {
           sizes: [30, 70],
         });
-        const code = loadSavedCode();
-        updateFormField(code);
-        document.querySelector('#explorer').submit();
-        function highlighter(value) {
-          return hljs.highlight(value, {language: "python"}).value;
-        }
+        // Restore saved state
+        const { code, passes, use_static_python } = loadSavedState();
+        document.querySelector("#static-python").checked = use_static_python;
+        const passesElement = document.querySelector("#passes").options;
+        passes.forEach(function(pass) {
+          for (let j = 0; j < passesElement.length; j++) {
+            passesElement[j].selected = passesElement[j].selected || pass === passesElement[j].text;
+          }
+        });
         const editor = new Yace("#editor", {
           value: code,
           lineNumbers: true,
           highlighter: highlighter,
         });
-        editor.textarea.spellcheck = false;
-        const submitForm = function() {
-          document.querySelector('#explorer').submit();
-        };
-        const setCode = debounce(function(value) {
-          storeSavedCode(value);
-          updateFormField(value);
+        // Auto-submit when code is modified
+        editor.onUpdate(debounce(function(value) {
+          saveCode(value);
           submitForm();
-        }, 500 /* ms */);
-        editor.onUpdate(setCode);
-        document.querySelector('#passes').addEventListener("change", submitForm);
+        }, 500 /* ms */));
+        // Make the editor's private textarea the one that submits in the form
+        editor.textarea.setAttribute("id", "code");
+        editor.textarea.setAttribute("name", "code");
+        // Don't red-underline non-words
+        editor.textarea.spellcheck = false;
+        // Kick off the initial page render
+        submitForm();
+        document.querySelector('#static-python').addEventListener("change", function() {
+          // If enabling Static Python, add the right import. Otherwise, remove
+          // it.
+          const prefix = "import __static__\n";
+          const use_static_python = document.querySelector("#static-python").checked === true;
+          saveUseStaticPython(use_static_python);
+          let new_code = editor.value;
+          if (use_static_python) {
+            if (!editor.value.startsWith(prefix)) {
+              new_code = prefix + editor.value;
+            }
+          } else {
+            if (editor.value.startsWith(prefix)) {
+              new_code = editor.value.slice(prefix.length);
+            }
+          }
+          editor.update({"value": new_code});
+          saveCode(new_code);
+          // Don't submit the form; changing the text will submit the form on
+          // its own.
+        });
+        document.querySelector('#passes').addEventListener("change", function() {
+          const selected = document.querySelector("#passes").selectedOptions;
+          const passes = [...selected].map(option => option.innerText);
+          savePasses(passes);
+          submitForm();
+        });
       };
     </script>
   </head>
@@ -108,19 +154,18 @@
             <option>RefcountInsertion</option>
             <option>Initial LIR</option>
             <option>Register-allocated LIR</option>
-            <option selected>Assembly</option>
+            <option>Assembly</option>
           </select>
+          <br />
+          <br />
+          <label for="static-python">Use the Static Python compiler</label>
+          <input id="static-python" name="static-python" type="checkbox">
           <br />
           <br />
           <label for="code">Put some Python in the box. Currently only one
             function is supported.</label>
           <br />
           <div id="editor"></div>
-          <textarea id="code" name="code" style="display: none;">
-a = 1
-
-def foo():
-  return a</textarea>
         </form>
       </div>
       <div id="results-box">
