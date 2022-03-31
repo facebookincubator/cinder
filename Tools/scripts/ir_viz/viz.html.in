@@ -166,6 +166,10 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
             margin-left: 4em;
         }
 
+        .generic-instruction {
+          background-color: #F08080;
+        }
+
         .dead-value {
             color: gray;
         }
@@ -853,6 +857,40 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
           return result;
         }
 
+        const GENERIC_OPCODES = [
+          "BinaryOp",
+          "Compare",
+          "CompareBool",
+          "DeleteAttr",
+          "DeleteSubscr",
+          "GetIter",
+          "InPlaceOp",
+          "InvokeIterNext",
+          "IsInstance",
+          "IsTruthy",
+          "LoadAttr",
+          "LoadAttrSpecial",
+          "LoadGlobal",
+          "LoadMethod",
+          "StoreAttr",
+          "StoreSubscr",
+          "UnaryOp",
+          "UnpackExToTuple",
+        ];
+
+        function isGeneric(instr) {
+          const first_bracket = instr.indexOf("<");
+          if (first_bracket != -1) {
+            instr = instr.substr(0, first_bracket);
+          }
+          for (const generic of GENERIC_OPCODES) {
+            if (instr == generic) {
+              return true;
+            }
+          }
+          return false;
+        }
+
         function formatInstr(instr) {
           const result = document.createElement("li");
           result.setAttribute("class", "ssa-long-value");
@@ -873,7 +911,14 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
             result.appendChild(long_value);
             result.appendChild(document.createTextNode(" = "));
           }
-          result.appendChild(document.createTextNode(instr.opcode));
+          if (isGeneric(instr.opcode)) {
+            const generic = document.createElement("span");
+            generic.setAttribute("class", "generic-instruction");
+            generic.appendChild(document.createTextNode(instr.opcode));
+            result.appendChild(generic);
+          } else {
+            result.appendChild(document.createTextNode(instr.opcode));
+          }
           if (instr.operands !== undefined) {
             for (const op of instr.operands) {
               const op_node = document.createElement("span");
