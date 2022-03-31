@@ -159,5 +159,6 @@
 #include "fileutils.h"
 #include "pyfpe.h"
 #include "tracemalloc.h"
+#include "immutable_global.h"
 
 #endif /* !Py_PYTHON_H */

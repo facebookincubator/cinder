@@ -385,6 +385,7 @@ PYTHON_OBJS=	\
 		@IMPORT_MAYBE_PROBED@ \
 		Python/importdl.o \
 		Python/initconfig.o \
+		Python/immutable_global.o \
 		Python/marshal.o \
 		Python/modsupport.o \
 		Python/mysnprintf.o \
@@ -1405,6 +1406,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/funccredobject.h \
 		$(srcdir)/Include/funcobject.h \
 		$(srcdir)/Include/genobject.h \
+		$(srcdir)/Include/immutable_global.h \
 		$(srcdir)/Include/import.h \
 		$(srcdir)/Include/interpreteridobject.h \
 		$(srcdir)/Include/intrcheck.h \
