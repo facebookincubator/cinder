@@ -3153,20 +3153,23 @@ main_loop:
                 PyObject *nargs = PyTuple_GET_ITEM(arg_tuple, 0);
                 assert(nargs != NULL);
 
-                PyFunctionObject *func = (PyFunctionObject *)(PEEK(PyLong_AsUnsignedLongLong(nargs) + 1));
-                assert(func != NULL);
+                PyObject *funcObj = PEEK(PyLong_AsUnsignedLongLong(nargs) + 1);
+                if (PyFunction_Check(funcObj)) {
+                    PyFunctionObject *func = (PyFunctionObject *)funcObj;
+                    assert(func != NULL);
 
-                uint64_t func_mask = func->readonly_mask;
+                    uint64_t func_mask = func->readonly_mask;
 
-                PyObject *call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
-                uint64_t call_mask = PyLong_AsUnsignedLongLong(call_mask_obj);
+                    PyObject *call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
+                    uint64_t call_mask = PyLong_AsUnsignedLongLong(call_mask_obj);
 
-                // is_readonly_func: error if 1 in callsite but 0 in callable
-                // is_readonly_closure: error if 1 in callsite but 0 in callable
-                // returns or accepts readonly: error if 1 in callsite (accept mutable) but 0 in callable (returns readonly)
-                // arg (each bit): error if 1 in callsite but 0 in callable
-                if (call_mask & ~func_mask) {
-                    PyFunction_ReportReadonlyErr((PyObject *)func, func_mask, call_mask);
+                    // is_readonly_func: error if 1 in callsite but 0 in callable
+                    // is_readonly_closure: error if 1 in callsite but 0 in callable
+                    // returns or accepts readonly: error if 1 in callsite (accept mutable) but 0 in callable (returns readonly)
+                    // arg (each bit): error if 1 in callsite but 0 in callable
+                    if (call_mask & ~func_mask) {
+                        PyFunction_ReportReadonlyErr((PyObject *)func, func_mask, call_mask);
+                    }
                 }
                 break;
             }
