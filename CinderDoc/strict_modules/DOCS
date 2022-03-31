@@ -1,6 +1,0 @@
-[strict_modules]
-  type = WIKI
-  srcs = [
-      glob(*.rst)
-    ]
-  wiki_root_path = Python/Cinder/External_Public/Strict_Modules

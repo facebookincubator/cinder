@@ -46,4 +46,4 @@ first example to always set `self.f` in the constructor, just sometimes setting
 it to the default value.
 
 For additional information see the section on
-:doc:`/guide/limitations/class_attrs`.
+:doc:`/strict_modules/guide/limitations/class_attrs`.

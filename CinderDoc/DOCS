@@ -1,9 +1,4 @@
-[static_python]
+[cinder]
     type = WIKI
-    srcs = [static_python.rst, static_python_devguide.rst]
-    wiki_root_path = Python/Cinder/External_Public
-
-[shadowcode]
-    type = WIKI
-    srcs = shadowcode.rst
+    srcs = [glob(**/*.rst), glob(**/*.png)]
     wiki_root_path = Python/Cinder/External_Public

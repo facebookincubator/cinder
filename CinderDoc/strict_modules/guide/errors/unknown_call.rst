@@ -41,7 +41,7 @@ In this case we're attempting to call a built-in function which strict
 modules don't support. Printing is typically a side effect so we don't
 currently support it at module level. There are a number of other built-ins
 which aren't currently supported as well. For the full list of supported
-builtins see :doc:`/guide/limitations/builtins`.
+builtins see :doc:`/strict_modules/guide/limitations/builtins`.
 
 We can fix this case by removing the usage of the built-in at the top-level.
 

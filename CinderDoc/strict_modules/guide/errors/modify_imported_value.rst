@@ -10,6 +10,6 @@ that would impact another module or non-determinism based upon the order of
 imports.
 
 For additional information see the section on
-:doc:`/guide/limitations/ownership`.
+:doc:`/strict_modules/guide/limitations/ownership`.
 
-For guidance on how to fix this see :doc:`/guide/conversion/external_modification`.
+For guidance on how to fix this see :doc:`/strict_modules/guide/conversion/external_modification`.

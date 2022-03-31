@@ -20,4 +20,4 @@ To work around this explicitly import the values that you intend to use from
 the module.
 
 For additional information see the section on
-:doc:`/guide/limitations/imports`.
+:doc:`/strict_modules/guide/limitations/imports`.
