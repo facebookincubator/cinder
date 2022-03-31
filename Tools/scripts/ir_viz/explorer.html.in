@@ -44,6 +44,7 @@
     <script src="vendor/highlight.min.js"></script>
     <script type="module">
       import Yace from "./vendor/yace.min.js";
+      import YaceTab from "./vendor/tab.js";
       function tryParse(str, default_) {
         if (str === null || str === undefined) {
           return default_;
@@ -89,6 +90,7 @@
           value: code,
           lineNumbers: true,
           highlighter: highlighter,
+          plugins: [YaceTab()],
         });
         // Auto-submit when code is modified
         editor.onUpdate(debounce(function(value) {
