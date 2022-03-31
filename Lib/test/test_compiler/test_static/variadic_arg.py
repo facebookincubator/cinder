@@ -213,7 +213,7 @@ class VariadicArgTests(StaticTestBase):
             return bool(a == 1 and b == 3 and c == "hello")
 
         class C:
-            def __getitem__(self, key: str) -> str:
+            def __getitem__(self, key: str) -> str | None:
                 if key == "c":
                     return "hi"
 

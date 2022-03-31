@@ -197,7 +197,7 @@ class PropertyTests(StaticTestBase):
                 def foo(self, value) -> None:
                     pass
 
-            def bar(c: C) -> int:
+            def bar(c: C):
                 c.foo = 42
         """
         with self.in_module(codestr) as mod:
@@ -226,7 +226,7 @@ class PropertyTests(StaticTestBase):
                 def foo(self, value: int):
                     self.value = value
 
-            def bar(c: C) -> int:
+            def bar(c: C):
                 c.foo = 42
         """
         with self.in_module(codestr) as mod:

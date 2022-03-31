@@ -68,7 +68,6 @@ from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
-    AwaitableType,
     BoolClass,
     Callable,
     CInstance,
@@ -1428,10 +1427,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
             if isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 function = self.get_func_container(func)
-                func_returns = function.return_type.resolved().unwrap()
-                if isinstance(func_returns, AwaitableType):
-                    func_returns = func_returns.type_args[0]
-                expected = func_returns.instance
+                expected = function.get_expected_return()
 
             self.visit(value, expected)
             returned = self.get_type(value).klass

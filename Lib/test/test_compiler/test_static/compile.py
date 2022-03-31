@@ -2695,12 +2695,9 @@ class StaticCompilationTests(StaticTestBase):
                         return g(x)
                 else:
                     return g(x)
-
-
-                return None
         """
 
-        self.compile(codestr, modname="foo")
+        self.compile(codestr)
 
     def test_if_else_optional_return(self):
         codestr = """
@@ -3068,8 +3065,9 @@ class StaticCompilationTests(StaticTestBase):
                     if x is None:
                         break
                     return x
+                return ""
         """
-        self.compile(codestr, modname="foo")
+        self.compile(codestr)
 
     def test_assign_but_annotated(self):
         codestr = """
@@ -4309,6 +4307,7 @@ class StaticCompilationTests(StaticTestBase):
                     if x is None:
                         break
                     return x
+                return 0
         """
         self.compile(codestr)
 

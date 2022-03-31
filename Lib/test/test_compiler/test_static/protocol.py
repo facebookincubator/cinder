@@ -23,9 +23,7 @@ class ProtocolTests(StaticTestBase):
             from typing import Protocol
 
             class MyProtocol(Protocol):
-                def foo(self) -> int:
-                    # TODO replace with ... or pass once we validate implicit returns
-                    return None
+                def foo(self) -> int: ...
         """
         # compiles without error
         self.compile(codestr)

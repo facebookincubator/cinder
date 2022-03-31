@@ -2910,8 +2910,16 @@ class FunctionContainer(Object[Class]):
 
         visitor.scopes.append(scope)
 
-        for stmt in self.get_function_body():
-            visitor.visit(stmt)
+        terminates = visitor.visit_check_terminal(self.get_function_body())
+
+        if not terminates:
+            expected = self.get_expected_return()
+            if not expected.klass.can_assign_from(visitor.type_env.none):
+                raise TypedSyntaxError(
+                    f"Function has declared return type '{expected.name}' "
+                    "but can implicitly return None."
+                )
+
 
         visitor.scopes.pop()
 
@@ -2983,6 +2991,12 @@ class FunctionContainer(Object[Class]):
         code_gen.build_function(node, gen)
 
         return gen
+
+    def get_expected_return(self) -> Value:
+        func_returns = self.return_type.resolved().unwrap()
+        if isinstance(func_returns, AwaitableType):
+            func_returns = func_returns.type_args[0]
+        return func_returns.instance
 
     @property
     def return_type(self) -> TypeRef:
