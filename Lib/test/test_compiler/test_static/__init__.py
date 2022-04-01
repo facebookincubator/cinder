@@ -8,6 +8,7 @@ from .checked_list import CheckedListTests
 from .classmethod import ClassMethodTests
 from .compile import StaticCompilationTests
 from .context_decorator import ContextDecoratorTests
+from .dataclass import DataclassTests
 from .decl_visitor import DeclarationVisitorTests
 from .double import DoubleTests
 from .dynamic_return import DynamicReturnTests
