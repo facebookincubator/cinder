@@ -1032,7 +1032,13 @@ class ReadonlyTypeBinder(ASTVisitor):
                 arg_values.append(READONLY)
             else:
                 arg_values.append(MUTABLE)
-        func_value = FunctionValue(returns_readonly, readonly_nonlocal, arg_values)
+        func_value = FunctionValue(
+            readonly_nonlocal,
+            returns_readonly,
+            yields_readonly,
+            sends_readonly,
+            arg_values,
+        )
         self.store_readonly_func(node, func_value)
 
     def visitarguments(self, node: ast.arguments) -> None:

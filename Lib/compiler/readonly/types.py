@@ -22,12 +22,16 @@ class Value:
 class FunctionValue:
     def __init__(
         self,
-        returns_readonly: bool,
         readonly_nonlocal: bool,
+        returns_readonly: bool,
+        yields_readonly: bool,
+        sends_readonly: bool,
         args: List[Value],
     ) -> None:
-        self.returns_readonly = returns_readonly
         self.readonly_nonlocal = readonly_nonlocal
+        self.returns_readonly = returns_readonly
+        self.yields_readonly = yields_readonly
+        self.sends_readonly = sends_readonly
         self.args = args
 
 READONLY = Value(True, [], "readonly")

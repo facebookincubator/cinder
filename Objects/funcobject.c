@@ -1231,13 +1231,17 @@ PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_m
     assert(call_mask & ~func_mask);
 
     const uint64_t READONLY_FUNC_MASK = 1ULL << 63;
-    const uint64_t RETURNS_READONLY_MASK = 1ULL << 62;
-    const uint64_t READONLY_NONLOCAL = 1ULL << 61;
+    const uint64_t READONLY_NONLOCAL_MASK = 1ULL << 62;
+    const uint64_t RETURNS_READONLY_MASK = 1ULL << 61;
+    const uint64_t YIELDS_READONLY_MASK = 1ULL << 60;
+    const uint64_t SENDS_READONLY_MASK = 1ULL << 59;
 
 #define READONLY_FUNC(x) ((x) & READONLY_FUNC_MASK)
-#define RETURNS_READNOLY(x) (!((x) & RETURNS_READONLY_MASK))
-#define READONLY_NONLOCAL(x) ((x) & READONLY_NONLOCAL)
-#define CLEAR_NONARG_MASK(x) ((x) & ~(READONLY_FUNC_MASK | RETURNS_READONLY_MASK | READONLY_NONLOCAL))
+#define READONLY_NONLOCAL(x) ((x) & READONLY_NONLOCAL_MASK)
+#define RETURNS_READONLY(x) (!((x) & RETURNS_READONLY_MASK))
+#define YIELDS_READONLY(x) (((x) & YIELDS_READONLY_MASK))
+#define SENDS_READONLY(x) (((x) & SENDS_READONLY_MASK))
+#define CLEAR_NONARG_MASK(x) ((x) & ~(READONLY_FUNC_MASK | READONLY_NONLOCAL_MASK | RETURNS_READONLY_MASK | YIELDS_READONLY_MASK | SENDS_READONLY_MASK))
 
     // if the caller is not a readonly function, it shouldn't
     // reach here, because CHECK_FUNCTION operation should not
@@ -1254,8 +1258,16 @@ PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_m
         _PyErr_IMMUTABLE_ERR(ReadonlyNonlocalError);
     }
 
-    if (!RETURNS_READNOLY(call_mask) && RETURNS_READNOLY(func_mask)) {
+    if (!RETURNS_READONLY(call_mask) && RETURNS_READONLY(func_mask)) {
         _PyErr_IMMUTABLE_ERR(ReadonlyAssignmentError);
+    }
+
+    if (!YIELDS_READONLY(call_mask) && YIELDS_READONLY(func_mask)) {
+        _PyErr_IMMUTABLE_ERR(ReadonlyYieldError);
+    }
+
+    if (SENDS_READONLY(call_mask) && !SENDS_READONLY(func_mask)) {
+        _PyErr_IMMUTABLE_ERR(ReadonlySendError);
     }
 
     func_mask = CLEAR_NONARG_MASK(func_mask);

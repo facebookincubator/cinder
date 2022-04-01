@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from ast import AST
 from types import CodeType
-from typing import Optional, Type, cast, Union
+from typing import Optional, Tuple, Type, cast, Union
 
 from ..opcodes import opcode
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
@@ -23,7 +23,6 @@ from ..symbols import (
 )
 from .type_binder import ReadonlyTypeBinder, TReadonlyTypes
 from .types import READONLY, FunctionValue
-from .util import calc_function_readonly_mask
 
 
 class ReadonlyCodeGenerator(CinderCodeGenerator):
@@ -134,6 +133,46 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         op = opcode.readonlyop[opname]
         self.emit("READONLY_OPERATION", (op, arg))
 
+    def calc_function_readonly_mask(
+        self,
+        node: AST,
+        is_readonly_func: bool,
+        returns_readonly: bool,
+        readonly_nonlocal: bool,
+        yields_readonly: Optional[bool],
+        sends_readonly: Optional[bool],
+        args: Tuple[bool, ...],
+    ) -> int:
+        # must be readonly function - set the msb to 1
+        mask = 0
+        if is_readonly_func:
+            mask = mask | 0x8000_0000_0000_0000
+        if readonly_nonlocal:
+            mask = mask | 0x4000_0000_0000_0000
+        if not returns_readonly:
+            mask = mask | 0x2000_0000_0000_0000
+        if not yields_readonly:
+            mask = mask | 0x1000_0000_0000_0000
+        if sends_readonly:
+            mask = mask | 0x0800_0000_0000_0000
+
+        # Technically this can go higher, but at 50 separate readonly arguments
+        # the python code being compiled should be refactored instead.
+        if len(args) >= 50:
+            raise SyntaxError(
+                "Cannot define more than 50 arguments on a readonly function.",
+                self.syntax_error_position(node),
+            )
+
+        bit = 1
+        for readonly_arg in args:
+            if readonly_arg:
+                mask = mask | bit
+
+            bit = bit << 1
+
+        return mask
+
     def build_function(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
@@ -147,10 +186,14 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         func_value = readonly_funcs[node]
         assert isinstance(func_value, FunctionValue)
 
-        mask = calc_function_readonly_mask(
+        mask = self.calc_function_readonly_mask(
+            node,
+            is_readonly_func=True,
             returns_readonly=func_value.returns_readonly,
             readonly_nonlocal=func_value.readonly_nonlocal,
-            arg_tuple=tuple(x == READONLY for x in func_value.args),
+            yields_readonly=func_value.yields_readonly,
+            sends_readonly=func_value.sends_readonly,
+            args=tuple(x == READONLY for x in func_value.args),
         )
         self.emit_readonly_op("MAKE_FUNCTION", mask)
 
@@ -189,10 +232,14 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         if not cur_func_value:
             return
 
-        mask = calc_function_readonly_mask(
+        mask = self.calc_function_readonly_mask(
+            node,
+            is_readonly_func=True,
             returns_readonly=binder.is_readonly(node),
             readonly_nonlocal=cur_func_value.readonly_nonlocal,
-            arg_tuple=tuple(binder.is_readonly(x) for x in node.args),
+            yields_readonly=None,
+            sends_readonly=None,
+            args=tuple(binder.is_readonly(x) for x in node.args),
         )
 
         self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask))

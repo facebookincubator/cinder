@@ -26,30 +26,3 @@ def is_readonly_func(node: AST) -> bool:
 
 def is_readonly_func_nonlocal(node: AST) -> bool:
     return isinstance(node, Name) and node.id == READONLY_FUNC_NONLOCAL
-
-
-def calc_function_readonly_mask(
-    *,
-    readonly_func: bool = True,
-    returns_readonly: bool,
-    readonly_nonlocal: bool,
-    arg_tuple: Tuple[bool, ...]
-) -> int:
-    mask = 0
-    if readonly_func:
-        mask = mask | 0x8000000000000000
-    bit = 1
-
-    for readonly_arg in arg_tuple:
-        if readonly_arg:
-            mask = mask | bit
-
-        bit = bit << 1
-
-    if not returns_readonly:
-        mask = mask | 0x4000000000000000
-
-    if readonly_nonlocal:
-        mask = mask | 0x2000000000000000
-
-    return mask

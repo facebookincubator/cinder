@@ -32,6 +32,8 @@ DEF_ERROR(ReadonlyFunctionCallError, 1,"A mutable function cannot be called in a
 DEF_ERROR(ReadonlyNonlocalError, 2, "A function decorated with @readonly_closure cannot call another fuction without @readonly_closure decorated.")
 DEF_ERROR(ReadonlyAssignmentError, 3, "Cannot assign a readonly value to a mutable variable.")
 DEF_ERROR(ReadonlyArgumentError, 4, "Passing a readonly variable to Argument %S, which is mutable.")
+DEF_ERROR(ReadonlyYieldError, 5, "Generator yields a readonly value, but expected it to yield a mutable value.")
+DEF_ERROR(ReadonlySendError, 6, "Cannot send a readonly value to a mutable generator.")
 
 #undef DEF_ERROR
 
