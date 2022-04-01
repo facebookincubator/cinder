@@ -17,6 +17,9 @@ import urllib.parse
 from xml.etree import ElementTree as ET
 
 
+TIMEOUT_SEC = 5
+
+
 def run(
     cmd,
     verbose=True,
@@ -346,8 +349,12 @@ def make_explorer_class(process_args):
                     run(
                         [runtime, *jit_options, main_code_path],
                         capture_output=True,
+                        timeout=TIMEOUT_SEC,
                         cwd=tmp,
                     )
+                except subprocess.TimeoutExpired as e:
+                    self.wfile.write(b"<pre>Command timed out</pre>")
+                    return
                 except subprocess.CalledProcessError as e:
                     if "SyntaxError" in e.stderr:
                         self.wfile.write(f"<pre>{e.stderr}</pre>".encode("utf-8"))
