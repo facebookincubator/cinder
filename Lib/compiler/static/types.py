@@ -991,6 +991,7 @@ def resolve_instance_attr_by_name(
     node = ast.Attribute(base, attr, ast.Load())
     return resolve_instance_attr(node, inst, visitor)
 
+
 class Object(Value, Generic[TClass]):
     """Represents an instance of a type at compile time"""
 
@@ -2919,7 +2920,6 @@ class FunctionContainer(Object[Class]):
                     f"Function has declared return type '{expected.name}' "
                     "but can implicitly return None."
                 )
-
 
         visitor.scopes.pop()
 
