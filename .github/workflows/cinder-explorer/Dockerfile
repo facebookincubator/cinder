@@ -2,16 +2,18 @@ FROM ghcr.io/facebookincubator/cinder/python-build-env:latest
 
 RUN dnf install -y python3
 
-# Build Cinder
+# Build Cinder as root so the runtime is not modifiable from user code
 # RUN git clone https://github.com/facebookincubator/cinder
-COPY . cinder
+COPY --chmod=r . cinder
 WORKDIR cinder
-RUN mkdir -p build
 WORKDIR build
 RUN ../configure
 RUN make -j$(nproc) VERBOSE=1
+RUN chmod +x python
 
-# Run server
-WORKDIR ..
-RUN mkdir json
-CMD ./Tools/scripts/ir_viz/gen.py explorer --port 8000 --runtime /cinder/build/python
+# Run server as appuser
+RUN groupadd -g 1001 appuser
+RUN useradd --create-home --shell /bin/bash --gid appuser appuser
+USER appuser
+WORKDIR /home/appuser
+CMD /cinder/Tools/scripts/ir_viz/gen.py explorer --port 8000 --runtime /cinder/build/python
