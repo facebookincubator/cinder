@@ -82,3 +82,26 @@ typedef struct {
 
 PyAPI_FUNC(PyObject *) _PyDictView_New(PyObject *, PyTypeObject *);
 PyAPI_FUNC(PyObject *) _PyDictView_Intersect(PyObject* self, PyObject *other);
+
+/* Dict watchers */
+
+/* Return 1 if the given dict has unicode-only keys and can be watched, or 0
+ * otherwise. */
+int _PyDict_CanWatch(PyObject *);
+
+/* Return 1 if the given dict is watched, or 0 otherwise. */
+int _PyDict_IsWatched(PyObject *);
+
+/* Watch the given dict for changes, calling
+ * _PyJIT_NotifyDict{Key,Clear,Unwatch}() as appropriate for any
+ * changes to it. */
+void _PyDict_Watch(PyObject *);
+
+/* Stop watching the given dict. */
+void _PyDict_Unwatch(PyObject *);
+
+/* Increment the given dict's version tag for a set operation, notifying any
+ * watchers of the new value.
+ */
+void
+_PyDict_IncVersionForSet(PyDictObject *dp, PyObject *key, PyObject *value);

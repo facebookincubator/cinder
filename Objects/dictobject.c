@@ -243,12 +243,84 @@ static PyObject* dict_iter(PyDictObject *dict);
 
 /*Global counter used to set ma_version_tag field of dictionary.
  * It is incremented each time that a dictionary is created and each
- * time that a dictionary is modified. */
+ * time that a dictionary is modified.
+ *
+ * Modifications for JIT dict watching support: the global version is
+ * incremented by 2 with each modification, and the low bit is reserved to
+ * indicate dicts that are being watched. */
 static uint64_t pydict_global_version = 0;
 
-#define DICT_NEXT_VERSION() (++pydict_global_version)
+#define DICT_NEXT_VERSION() (pydict_global_version += 2)
+
+static const uint64_t PyDict_VERSION_WATCH_TAG = 1;
+
+#define DICT_NEXT_WATCHED_VERSION()                                           \
+    (DICT_NEXT_VERSION() | PyDict_VERSION_WATCH_TAG)
+
+#define UNLIKELY(x) __builtin_expect((x), 0)
+
+static inline int
+dict_is_watched(PyDictObject *dict)
+{
+    return (dict->ma_version_tag & PyDict_VERSION_WATCH_TAG) != 0;
+}
+
+static inline void
+dict_modify_key(PyDictObject *dict, PyObject *key, PyObject *new_value)
+{
+    if (UNLIKELY(dict_is_watched(dict))) {
+        dict->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
+        // TODO uncomment when this JIT API exists
+        //_PyJIT_NotifyDictKey((PyObject *)dict, key, new_value);
+    } else {
+        dict->ma_version_tag = DICT_NEXT_VERSION();
+    }
+}
+
+static inline void
+dict_set_lookup(PyDictObject *dict, dict_lookup_func new_lookup)
+{
+    if (UNLIKELY(dict_is_watched(dict))) {
+        // TODO uncomment when this JIT API exists
+        //_PyJIT_NotifyDictUnwatch((PyObject *)dict);
+        dict->ma_version_tag = DICT_NEXT_VERSION();
+    }
+    dict->ma_keys->dk_lookup = new_lookup;
+}
 
 #include "clinic/dictobject.c.h"
+
+void
+_PyDict_IncVersionForSet(PyDictObject *d, PyObject *key, PyObject *value)
+{
+    dict_modify_key(d, key, value);
+}
+
+int
+_PyDict_CanWatch(PyObject *dict)
+{
+    return ((PyDictObject *)dict)->ma_keys->dk_lookup != lookdict;
+}
+
+int
+_PyDict_IsWatched(PyObject *dict)
+{
+    return dict_is_watched((PyDictObject *)dict);
+}
+
+void
+_PyDict_Watch(PyObject *dict)
+{
+    assert(_PyDict_CanWatch(dict));
+    ((PyDictObject *)dict)->ma_version_tag |= PyDict_VERSION_WATCH_TAG;
+}
+
+void
+_PyDict_Unwatch(PyObject *dict)
+{
+    assert(_PyDict_IsWatched(dict));
+    ((PyDictObject *)dict)->ma_version_tag = DICT_NEXT_VERSION();
+}
 
 
 static struct _Py_dict_state *
@@ -1104,7 +1176,7 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
                 goto Fail;
         }
         if (!PyUnicode_CheckExact(key) && mp->ma_keys->dk_lookup != lookdict) {
-            mp->ma_keys->dk_lookup = lookdict;
+            dict_set_lookup(mp, lookdict);
         }
         Py_ssize_t hashpos = find_empty_slot(mp->ma_keys, hash);
         ep = &DK_ENTRIES(mp->ma_keys)[mp->ma_keys->dk_nentries];
@@ -1119,9 +1191,9 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
             ep->me_value = value;
         }
         mp->ma_used++;
-        mp->ma_version_tag = DICT_NEXT_VERSION();
         mp->ma_keys->dk_usable--;
         mp->ma_keys->dk_nentries++;
+        dict_modify_key(mp, key, value);
         assert(mp->ma_keys->dk_usable >= 0);
         ASSERT_CONSISTENT(mp);
         return 0;
@@ -1140,7 +1212,7 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
             assert(old_value != NULL);
             DK_ENTRIES(mp->ma_keys)[ix].me_value = value;
         }
-        mp->ma_version_tag = DICT_NEXT_VERSION();
+        dict_modify_key(mp, key, value);
     }
     Py_XDECREF(old_value); /* which **CAN** re-enter (see issue #22653) */
     ASSERT_CONSISTENT(mp);
@@ -1182,7 +1254,7 @@ insert_to_emptydict(PyDictObject *mp, PyObject *key, Py_hash_t hash,
     ep->me_hash = hash;
     ep->me_value = value;
     mp->ma_used++;
-    mp->ma_version_tag = DICT_NEXT_VERSION();
+    dict_modify_key(mp, key, value);
     mp->ma_keys->dk_usable--;
     mp->ma_keys->dk_nentries++;
     return 0;
@@ -1656,13 +1728,13 @@ delitem_common(PyDictObject *mp, Py_hash_t hash, Py_ssize_t ix,
     assert(hashpos >= 0);
 
     mp->ma_used--;
-    mp->ma_version_tag = DICT_NEXT_VERSION();
     ep = &DK_ENTRIES(mp->ma_keys)[ix];
     dictkeys_set_index(mp->ma_keys, hashpos, DKIX_DUMMY);
     ENSURE_ALLOWS_DELETIONS(mp);
     old_key = ep->me_key;
     ep->me_key = NULL;
     ep->me_value = NULL;
+    dict_modify_key(mp, old_key, NULL);
     Py_DECREF(old_key);
     Py_DECREF(old_value);
 
@@ -1788,12 +1860,18 @@ PyDict_Clear(PyObject *op)
     oldvalues = mp->ma_values;
     if (oldvalues == empty_values)
         return;
+    if (UNLIKELY(dict_is_watched(mp))) {
+        mp->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
+        // TODO uncomment when this JIT API exists
+        //_PyJIT_NotifyDictClear((PyObject *)mp);
+    } else {
+        mp->ma_version_tag = DICT_NEXT_VERSION();
+    }
     /* Empty the dict... */
     dictkeys_incref(Py_EMPTY_KEYS);
     mp->ma_keys = Py_EMPTY_KEYS;
     mp->ma_values = empty_values;
     mp->ma_used = 0;
-    mp->ma_version_tag = DICT_NEXT_VERSION();
     /* ...then clear the keys and values */
     if (oldvalues != NULL) {
         n = oldkeys->dk_nentries;
@@ -1927,13 +2005,13 @@ _PyDict_Pop_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject *d
     assert(hashpos >= 0);
     assert(old_value != NULL);
     mp->ma_used--;
-    mp->ma_version_tag = DICT_NEXT_VERSION();
     dictkeys_set_index(mp->ma_keys, hashpos, DKIX_DUMMY);
     ep = &DK_ENTRIES(mp->ma_keys)[ix];
     ENSURE_ALLOWS_DELETIONS(mp);
     old_key = ep->me_key;
     ep->me_key = NULL;
     ep->me_value = NULL;
+    dict_modify_key(mp, old_key, NULL);
     Py_DECREF(old_key);
 
     ASSERT_CONSISTENT(mp);
@@ -2058,6 +2136,11 @@ dict_dealloc(PyDictObject *mp)
     PyObject **values = mp->ma_values;
     PyDictKeysObject *keys = mp->ma_keys;
     Py_ssize_t i, n;
+
+    if (UNLIKELY(dict_is_watched(mp))) {
+        // TODO uncomment when this JIT API exists
+        //_PyJIT_NotifyDictUnwatch((PyObject *)mp);
+    }
 
     /* bpo-31095: UnTrack is needed before calling any callbacks */
     PyObject_GC_UnTrack(mp);
@@ -3088,9 +3171,9 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
             ep->me_value = value;
         }
         mp->ma_used++;
-        mp->ma_version_tag = DICT_NEXT_VERSION();
         mp->ma_keys->dk_usable--;
         mp->ma_keys->dk_nentries++;
+        dict_modify_key(mp, key, value);
         assert(mp->ma_keys->dk_usable >= 0);
     }
     else if (value == NULL) {
@@ -3101,7 +3184,7 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
         MAINTAIN_TRACKING(mp, key, value);
         mp->ma_values[ix] = value;
         mp->ma_used++;
-        mp->ma_version_tag = DICT_NEXT_VERSION();
+        dict_modify_key(mp, key, value);
     }
 
     ASSERT_CONSISTENT(mp);
@@ -3216,14 +3299,15 @@ dict_popitem_impl(PyDictObject *self)
     assert(dictkeys_get_index(self->ma_keys, j) == i);
     dictkeys_set_index(self->ma_keys, j, DKIX_DUMMY);
 
-    PyTuple_SET_ITEM(res, 0, ep->me_key);
+    PyObject *old_key = ep->me_key;
+    PyTuple_SET_ITEM(res, 0, old_key);
     PyTuple_SET_ITEM(res, 1, ep->me_value);
     ep->me_key = NULL;
     ep->me_value = NULL;
     /* We can't dk_usable++ since there is DKIX_DUMMY in indices */
     self->ma_keys->dk_nentries = i;
     self->ma_used--;
-    self->ma_version_tag = DICT_NEXT_VERSION();
+    dict_modify_key(self, old_key, NULL);
     ASSERT_CONSISTENT(self);
     return res;
 }
