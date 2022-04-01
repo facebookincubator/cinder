@@ -5023,6 +5023,13 @@ _PyObjectDict_SetItem(PyTypeObject *tp, PyObject **dictptr,
         assert(dictptr != NULL);
         dict = *dictptr;
         if (dict == NULL) {
+            if (tp->tp_flags & Py_TPFLAGS_WARN_ON_SETATTR &&
+                _PyErr_RaiseCinderWarning(
+                    "WARN001: Dictionary created for flagged instance",
+                    (PyObject *)tp,
+                    key)) {
+                return -1;
+            }
             dictkeys_incref(cached);
             dict = new_dict_with_shared_keys(cached);
             if (dict == NULL)
