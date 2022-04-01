@@ -124,7 +124,7 @@ class FuncCallTests(ReadonlyTestBase):
         """
         with self.assertImmutableErrors(
             2,
-            "A function decorated with @readonly_closure cannot call another fuction without @readonly_closure decorated.",
+            "A function decorated with @readonly_closure cannot call another function without the @readonly_closure decoration.",
         ):
             self._compile_and_run(code, "f")
 

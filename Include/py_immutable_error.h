@@ -29,7 +29,7 @@ PyAPI_FUNC(int) _PyErr_RaiseImmutableWarningV(PyImmutableErrorEntry* err_entry, 
 
 DEF_ERROR(ImmutableDictError, 0, "%U on immutable dict");
 DEF_ERROR(ReadonlyFunctionCallError, 1,"A mutable function cannot be called in a readonly function.")
-DEF_ERROR(ReadonlyNonlocalError, 2, "A function decorated with @readonly_closure cannot call another fuction without @readonly_closure decorated.")
+DEF_ERROR(ReadonlyNonlocalError, 2, "A function decorated with @readonly_closure cannot call another function without the @readonly_closure decoration.")
 DEF_ERROR(ReadonlyAssignmentError, 3, "Cannot assign a readonly value to a mutable variable.")
 DEF_ERROR(ReadonlyArgumentError, 4, "Passing a readonly variable to Argument %S, which is mutable.")
 DEF_ERROR(ReadonlyYieldError, 5, "Generator yields a readonly value, but expected it to yield a mutable value.")
