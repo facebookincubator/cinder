@@ -121,6 +121,10 @@ void _PyDict_Watch(PyObject *);
 /* Stop watching the given dict. */
 void _PyDict_Unwatch(PyObject *);
 
+/* Return false if PyDict_Lookup() on the given dict is guaranteed to not cause
+ * any heap mutations. */
+int _PyDict_HasUnsafeKeys(PyObject *);
+
 /* Return 1 if the given dict has deferred objects, or 0 otherwise. */
 int _PyDict_HasDeferredObjects(PyObject *);
 
