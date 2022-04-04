@@ -96,6 +96,19 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             optimization_lvl=self.optimization_lvl,
         )
 
+    def visitCall(self, node: ast.Call) -> None:
+        if (
+            isinstance(node.func, ast.Name)
+            and node.func.id == "readonly"
+            and len(node.args) == 1
+            and len(node.keywords) == 0
+        ):
+            # Don't emit an actual call to readonly(), instead just emit its contents.
+            self.visit(node.args[0])
+            return
+
+        super().visitCall(node)
+
     def visitName(self, node: ast.Name) -> None:
         if node.id != "__function_credential__":
             super().visitName(node)
