@@ -168,6 +168,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     PRIMITIVE_UNARY_OP,
     PRIMITIVE_UNBOX,
     RAISE_VARARGS,
+    READONLY_OPERATION,
     REFINE_TYPE,
     RETURN_PRIMITIVE,
     RETURN_VALUE,
@@ -990,6 +991,10 @@ void HIRBuilder::translate(
         }
         case FAST_LEN: {
           emitFastLen(irfunc.cfg, tc, bc_instr);
+          break;
+        }
+        case READONLY_OPERATION: {
+          emitReadonlyOperation(tc, bc_instr);
           break;
         }
         case REFINE_TYPE: {
@@ -2601,6 +2606,69 @@ void HIRBuilder::emitFastLen(
 
   tc.emit<LoadField>(result, collection, name, offset, TCInt64);
   tc.frame.stack.push(result);
+}
+
+void HIRBuilder::emitReadonlyOperation(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  int oparg = bc_instr.oparg();
+  PyObject* op_tuple = PyTuple_GET_ITEM(code_->co_consts, oparg);
+  assert(op_tuple != nullptr);
+
+  PyObject* opobj = PyTuple_GET_ITEM(op_tuple, 0);
+  assert(opobj != nullptr);
+
+  int op = PyLong_AsLong(opobj);
+  constexpr size_t kFunctionMaskOffset =
+      offsetof(PyFunctionObject, readonly_mask);
+  switch (op) {
+    case READONLY_MAKE_FUNCTION: {
+      Register* func = tc.frame.stack.top();
+
+      Register* mask_obj = temps_.AllocateStack();
+      tc.emit<LoadConst>(
+          mask_obj, Type::fromObject(PyTuple_GET_ITEM(op_tuple, 1)));
+
+      Register* mask = temps_.AllocateStack();
+      tc.emit<PrimitiveUnbox>(mask, mask_obj, TCUInt64);
+      Register* previous = temps_.AllocateStack();
+      tc.emit<LoadConst>(previous, TNullptr);
+
+      tc.emit<StoreField>(
+          func, "readonly_mask", kFunctionMaskOffset, mask, TCUInt64, previous);
+
+      break;
+    }
+    case READONLY_CHECK_FUNCTION: {
+      PyObject* arg_tuple = PyTuple_GET_ITEM(op_tuple, 1);
+      assert(arg_tuple != nullptr);
+
+      PyObject* nargs_obj = PyTuple_GET_ITEM(arg_tuple, 0);
+      assert(nargs_obj != nullptr);
+
+      uint64_t nargs = PyLong_AsUnsignedLongLong(nargs_obj);
+
+      Register* func = tc.frame.stack.peek(nargs + 1);
+
+      Register* func_mask_reg = temps_.AllocateStack();
+      tc.emit<LoadField>(
+          func_mask_reg, func, "readonly_mask", kFunctionMaskOffset, TCUInt64);
+
+      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
+      uint64_t call_mask = PyLong_AsUnsignedLong(call_mask_obj);
+      Register* call_mask_reg = temps_.AllocateStack();
+      tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(call_mask, TCUInt64));
+
+      Register* args[] = {func, func_mask_reg, call_mask_reg};
+      constexpr int kNumArgs = sizeof(args) / sizeof(Register*);
+      auto static_call = tc.emit<CallStaticRetVoid>(
+          kNumArgs, reinterpret_cast<void*>(PyFunction_ReportReadonlyErr));
+      for (int i = 0; i < kNumArgs; i++) {
+        static_call->SetOperand(i, args[i]);
+      }
+      break;
+    }
+  }
 }
 
 void HIRBuilder::emitRefineType(

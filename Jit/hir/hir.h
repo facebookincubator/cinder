@@ -1471,7 +1471,7 @@ class INSTR_CLASS(
 
 // Call to one of the C functions defined by CallCFunc_FUNCS. We have a static
 // set of functions so we can (one day) safely (de)serialize HIR fully.
-class INSTR_CLASS(CallCFunc, (TOptObject), HasOutput, Operands<>) {
+class INSTR_CLASS(CallCFunc, (TOptObject | TCUInt64), HasOutput, Operands<>) {
  public:
 // List of allowed functions
 #define CallCFunc_FUNCS(X)      \
@@ -1860,7 +1860,9 @@ class INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
       std::size_t offset,
       Register* value,
       Type type,
-      Register* previous)
+      Register* previous // for keeping the prevous value of the field alive
+                         // (for refcount insertion) until after the store.
+      )
       : InstrT(receiver, value, previous),
         name_(name),
         offset_(offset),
@@ -1882,10 +1884,6 @@ class INSTR_CLASS(StoreField, (TObject, TTop, TOptObject), Operands<3>) {
 
   void set_value(Register* value) {
     SetOperand(1, value);
-  }
-
-  Register* previous() const {
-    return GetOperand(2);
   }
 
   std::string name() const {

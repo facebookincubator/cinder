@@ -1227,8 +1227,13 @@ _PyFunction_GetBuiltins(PyFunctionObject *func)
  */
 void
 PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_mask) {
-    // should not be called when there is no error
-    assert(call_mask & ~func_mask);
+    // is_readonly_func: error if 1 in callsite but 0 in callable
+    // is_readonly_closure: error if 1 in callsite but 0 in callable
+    // returns or accepts readonly: error if 1 in callsite (accept mutable) but 0 in callable (returns readonly)
+    // arg (each bit): error if 1 in callsite but 0 in callable
+    if (!(call_mask & ~func_mask)) {
+        return;
+    }
 
     const uint64_t READONLY_FUNC_MASK = 1ULL << 63;
     const uint64_t READONLY_NONLOCAL_MASK = 1ULL << 62;
