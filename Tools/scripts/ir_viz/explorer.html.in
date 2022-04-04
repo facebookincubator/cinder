@@ -149,7 +149,6 @@
             <option>Simplify</option>
             <option>DynamicComparisonElimination</option>
             <option>GuardTypeRemoval</option>
-            <option>CallOptimization</option>
             <option>PhiElimination</option>
             <option>InlineFunctionCalls</option>
             <option>DeadCodeElimination</option>
