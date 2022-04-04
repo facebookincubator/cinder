@@ -26,7 +26,10 @@ class FuncCallTests(ReadonlyTestBase):
             return g()
         """
         with self.assertImmutableErrors(
-            1, "A mutable function cannot be called in a readonly function."
+            [
+                (1, "A mutable function cannot be called in a readonly function.", ()),
+                (3, "Cannot assign a readonly value to a mutable variable.", ()),
+            ]
         ):
             self._compile_and_run(code, "f")
 
@@ -55,7 +58,7 @@ class FuncCallTests(ReadonlyTestBase):
             return t
         """
         with self.assertImmutableErrors(
-            3, "Cannot assign a readonly value to a mutable variable."
+            [(3, "Cannot assign a readonly value to a mutable variable.", ())]
         ):
             self._compile_and_run(code, "f")
 
@@ -66,7 +69,7 @@ class FuncCallTests(ReadonlyTestBase):
             return 1
 
         @readonly_func
-        def f():
+        def f() -> Readonly[int]:
             t: Readonly[int] = g()
             return t
         """
@@ -86,7 +89,7 @@ class FuncCallTests(ReadonlyTestBase):
             return t
         """
         with self.assertImmutableErrors(
-            4, "Passing a readonly variable to Argument 2, which is mutable."
+            [(4, "Passing a readonly variable to Argument 2, which is mutable.", (2,))]
         ):
             self._compile_and_run(code, "f")
 
@@ -123,8 +126,13 @@ class FuncCallTests(ReadonlyTestBase):
             g()
         """
         with self.assertImmutableErrors(
-            2,
-            "A function decorated with @readonly_closure cannot call another function without the @readonly_closure decoration.",
+            [
+                (
+                    2,
+                    "A function decorated with @readonly_closure cannot call another function without the @readonly_closure decoration.",
+                    (),
+                )
+            ]
         ):
             self._compile_and_run(code, "f")
 

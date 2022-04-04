@@ -8,6 +8,7 @@ from compiler.readonly import (
 )
 from compiler.static import StaticCodeGenerator
 from contextlib import contextmanager
+from typing import Any, List, NewType, Optional, Tuple
 
 from ..test_static.common import StaticTestBase as TestBase, TestErrors
 
@@ -19,6 +20,9 @@ def with_detection(detection_func):
     yield
     cinder.set_immutable_warn_handler(old_handler)
     return
+
+
+Readonly = NewType("Readonly", object)
 
 
 class ReadonlyTestBase(TestBase):
@@ -58,8 +62,12 @@ class ReadonlyTestBase(TestBase):
             index += 1
 
         code = code[:index] + "from __future__ import annotations\n" + code
+        errors = self.lint(code)
+        self.assertEqual(errors.errors, [])
         compiled = self.compile(code)
-        d = {"<builtins>": builtins.__dict__}
+        builts = builtins.__dict__
+        builts["Readonly"] = Readonly
+        d = {"<builtins>": builts}
         exec(compiled, d)
         return d
 
@@ -115,13 +123,12 @@ class ReadonlyTestBase(TestBase):
             self.assertFalse(errors, msg)
 
     @contextmanager
-    def assertImmutableErrors(self, errorcode, msg, arg=None):
+    def assertImmutableErrors(
+        self, expected_errors: List[Tuple[int, str, Optional[object]]]
+    ):
         errors = []
         with with_detection(self.get_detection_func(errors)):
             yield
             cinder.flush_immutable_warnings()
             self.assertTrue(len(errors) > 0, "expected errors but no errors found")
-            self.assertEqual(errors[0][0], errorcode)
-            self.assertEqual(errors[0][1], msg)
-            if arg is not None:
-                self.assertEqual(errors[0][2], arg)
+            self.assertEqual(errors, expected_errors)
