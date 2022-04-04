@@ -16,6 +16,7 @@ from ast import (
     Constant,
     FunctionDef,
     NameConstant,
+    Name,
     Num,
     Return,
     Starred,
@@ -213,6 +214,10 @@ class TypeEnvironment:
         )
         self.bool: Class = BoolClass(self)
         self.cbool: CIntType = CIntType(TYPED_BOOL, self, name_override="cbool")
+        self.range: Class = Class(
+            TypeName("builtins", "range"), self, [self.object], pytype=range
+        )
+
         self.int64enum: CEnumType = CEnumType(self)
         self.int8: CIntType = CIntType(TYPED_INT8, self)
         self.int16: CIntType = CIntType(TYPED_INT16, self)
@@ -301,6 +306,7 @@ class TypeEnvironment:
         self.dict = DictClass(self, is_exact=False)
         self.list = ListClass(self)
         self.set = SetClass(self, is_exact=False)
+        self.frozenset = FrozenSetClass(self, is_exact=False)
         self.tuple = TupleClass(self)
         self.function = Class(TypeName("types", "FunctionType"), self, is_exact=True)
         self.method = Class(TypeName("types", "MethodType"), self, is_exact=True)
@@ -370,6 +376,54 @@ class TypeEnvironment:
             self,
             bases=[self.base_exception],
             pytype=Exception,
+        )
+        self.value_error = Class(
+            TypeName("builtins", "ValueError"),
+            self,
+            bases=[self.exception],
+            pytype=ValueError,
+        )
+        self.index_error = Class(
+            TypeName("builtins", "IndexError"),
+            self,
+            bases=[self.exception],
+            pytype=IndexError,
+        )
+        self.io_error = Class(
+            TypeName("builtins", "IOError"),
+            self,
+            bases=[self.exception],
+            pytype=IOError,
+        )
+        self.import_error = Class(
+            TypeName("builtins", "ImportError"),
+            self,
+            bases=[self.exception],
+            pytype=ImportError,
+        )
+        self.type_error = Class(
+            TypeName("builtins", "TypeError"),
+            self,
+            bases=[self.exception],
+            pytype=TypeError,
+        )
+        self.runtime_error = Class(
+            TypeName("builtins", "RuntimeError"),
+            self,
+            bases=[self.exception],
+            pytype=RuntimeError,
+        )
+        self.not_implemented = Class(
+            TypeName("builtins", "NotImplementedType"),
+            self,
+            bases=[self.object],
+            pytype=type(NotImplemented),
+        )
+        self.stop_iteration = Class(
+            TypeName("builtins", "StopIteration"),
+            self,
+            bases=[self.exception],
+            pytype=StopIteration,
         )
         self.allow_weakrefs = AllowWeakrefsDecorator(
             TypeName("__static__", "allow_weakrefs"), self
@@ -5429,6 +5483,18 @@ class TupleExactInstance(TupleInstance):
 
         return common_sequence_emit_forloop(node, code_gen, SEQ_TUPLE)
 
+
+class FrozenSetClass(Class):
+    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
+        super().__init__(
+            type_name=TypeName("builtins", "frozenset"),
+            type_env=type_env,
+            is_exact=is_exact,
+            pytype=frozenset,
+        )
+
+    def _create_exact_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=True)
 
 class SetClass(Class):
     def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:

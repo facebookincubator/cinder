@@ -105,26 +105,47 @@ class Compiler:
             "type": self.type_env.type.exact_type(),
             "None": self.type_env.none.instance,
             "int": self.type_env.int.exact_type(),
+            "dict": self.type_env.dict.exact_type(),
             "classmethod": self.type_env.class_method,
+            # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
+            "chr": reflect_builtin_function(chr, None, self.type_env),
             "complex": self.type_env.complex.exact_type(),
             "str": self.type_env.str.exact_type(),
             "bytes": self.type_env.bytes.exact_type(),
             "bool": self.type_env.bool.exact_type(),
             "float": self.type_env.float.exact_type(),
             "len": LenFunction(self.type_env.function, boxed=True),
+            "list": self.type_env.list.exact_type(),
             "min": ExtremumFunction(self.type_env.function, is_min=True),
             "max": ExtremumFunction(self.type_env.function, is_min=False),
-            "list": self.type_env.list.exact_type(),
+            "range": self.type_env.range,
+            # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
+            "repr": reflect_builtin_function(repr, None, self.type_env),
+            "open": reflect_builtin_function(open, None, self.type_env),
+            # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
+            "ord": reflect_builtin_function(ord, None, self.type_env),
             "tuple": self.type_env.tuple.exact_type(),
             "set": self.type_env.set.exact_type(),
+            "frozenset": self.type_env.frozenset.exact_type(),
+            "super": self.type_env.dynamic,
             "sorted": SortedFunction(self.type_env.function),
             "Exception": self.type_env.exception.exact_type(),
             "BaseException": self.type_env.base_exception.exact_type(),
+            "ValueError": self.type_env.value_error,
+            "ImportError": self.type_env.import_error,
+            "IOError": self.type_env.io_error,
+            "IndexError": self.type_env.index_error,
+            "RuntimeError": self.type_env.runtime_error,
+            "TypeError": self.type_env.type_error,
+            "NotImplemented": self.type_env.not_implemented,
+            "StopIteration": self.type_env.stop_iteration,
             "isinstance": IsInstanceFunction(self.type_env),
             "issubclass": IsSubclassFunction(self.type_env),
             "staticmethod": self.type_env.static_method,
             "reveal_type": RevealTypeFunction(self.type_env),
             "property": self.type_env.property.exact_type(),
+            # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
+            "print": reflect_builtin_function(print, None, self.type_env),
             "<mutable>": IdentityDecorator(
                 TypeName("__strict__", "<mutable>"), self.type_env
             ),
@@ -133,26 +154,39 @@ class Compiler:
             ),
             "Readonly": self.type_env.readonly_type,
             "readonly": ReadonlyFunction(self.type_env),
+            "getattr": self.type_env.dynamic,
+            "setattr": self.type_env.dynamic,
         }
         strict_builtins = StrictBuiltins(builtins_children, self.type_env)
         typing_children = {
             "Annotated": self.type_env.annotated,
+            "Any": self.type_env.dynamic,
+            "Awaitable": self.type_env.dynamic,
+            "Callable": self.type_env.dynamic,
+            "Coroutine": self.type_env.dynamic,
             "ClassVar": self.type_env.classvar,
+            "Collection": self.type_env.dynamic,
             # TODO: Need typed members for dict
             "Dict": self.type_env.dict,
             "List": self.type_env.list,
             "Final": self.type_env.final,
             "final": self.type_env.final_method,
+            "Generic": self.type_env.dynamic,
+            "Iterable": self.type_env.dynamic,
+            "Iterator": self.type_env.dynamic,
             "Literal": self.type_env.literal,
             "NamedTuple": self.type_env.named_tuple,
             "Protocol": self.type_env.protocol,
             "Optional": self.type_env.optional,
             "Union": self.type_env.union,
             "Tuple": self.type_env.tuple,
+            "Type": self.type_env.dynamic,
+            "TypeVar": self.type_env.dynamic,
             "TYPE_CHECKING": self.type_env.bool.instance,
         }
         typing_extensions_children: Dict[str, Value] = {
             "Annotated": self.type_env.annotated,
+            "Protocol": self.type_env.protocol,
         }
         strict_modules_children: Dict[str, Value] = {
             "mutable": IdentityDecorator(
