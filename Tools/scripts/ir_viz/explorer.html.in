@@ -164,7 +164,7 @@
           <br />
           <br />
           <label for="code">Put some Python in the box. Currently only one
-            function is supported.</label>
+            function, <code>test</code>, is supported.</label>
           <br />
           <div id="editor"></div>
         </form>

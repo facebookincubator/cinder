@@ -334,7 +334,7 @@ def make_explorer_class(process_args):
                     )
                 jitlist_path = os.path.join(tmp, "jitlist.txt")
                 with open(jitlist_path, "w+") as f:
-                    f.write(f"{lib_name}:*\n")
+                    f.write(f"{lib_name}:test\n")
                 json_dir = os.path.join(tmp, "json")
                 jit_options = self._render_options(
                     "jit",
