@@ -356,7 +356,7 @@ def make_explorer_class(process_args):
                     self.wfile.write(b"<pre>Command timed out</pre>")
                     return
                 except subprocess.CalledProcessError as e:
-                    if "SyntaxError" in e.stderr:
+                    if "SyntaxError" in e.stderr or "StrictModuleError" in e.stderr:
                         self.wfile.write(f"<pre>{e.stderr}</pre>".encode("utf-8"))
                         return
                     print(e.stderr)
