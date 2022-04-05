@@ -994,7 +994,7 @@ void HIRBuilder::translate(
           break;
         }
         case READONLY_OPERATION: {
-          emitReadonlyOperation(tc, bc_instr);
+          emitReadonlyOperation(irfunc.cfg, tc, bc_instr);
           break;
         }
         case REFINE_TYPE: {
@@ -2609,6 +2609,7 @@ void HIRBuilder::emitFastLen(
 }
 
 void HIRBuilder::emitReadonlyOperation(
+    CFG& cfg,
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   int oparg = bc_instr.oparg();
@@ -2650,6 +2651,14 @@ void HIRBuilder::emitReadonlyOperation(
 
       Register* func = tc.frame.stack.peek(nargs + 1);
 
+      BasicBlock* done_block = cfg.AllocateBlock();
+      BasicBlock* func_block = cfg.AllocateBlock();
+
+      tc.emit<CondBranchCheckType>(func, TFunc, func_block, done_block);
+
+      tc.block = func_block;
+      // TODO(T105038867): Remove once we have RefineTypeInsertion
+      tc.emit<RefineType>(func, TFunc, func);
       Register* func_mask_reg = temps_.AllocateStack();
       tc.emit<LoadField>(
           func_mask_reg, func, "readonly_mask", kFunctionMaskOffset, TCUInt64);
@@ -2666,6 +2675,9 @@ void HIRBuilder::emitReadonlyOperation(
       for (int i = 0; i < kNumArgs; i++) {
         static_call->SetOperand(i, args[i]);
       }
+      tc.emit<Branch>(done_block);
+
+      tc.block = done_block;
       break;
     }
   }

@@ -449,6 +449,7 @@ class HIRBuilder {
       const jit::BytecodeInstruction& bc_instr);
 
   void emitReadonlyOperation(
+      CFG& cfg,
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
 
