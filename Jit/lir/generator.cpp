@@ -1093,15 +1093,21 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const IsNegativeAndErrOccurred*>(&i);
         std::string src_name = instr->reg()->name();
         Type src_type = instr->reg()->type();
-        uint64_t func = 0;
 
+        // if (src == -1 && tstate->curexc_type != nullptr) { return -1; }
+        // else { return 0; }
+        auto is_not_negative = GetSafeTempName();
         // Because a failed unbox to unsigned smuggles the bit pattern for a
         // signed -1 in the unsigned value, we can likewise just treat unsigned
         // as signed for purposes of checking for -1 here.
         if (src_type <= (TCInt64 | TCUInt64)) {
-          func = reinterpret_cast<uint64_t>(JITRT_IsNegativeAndErrOccurred_64);
+          bbb.AppendCode(
+              "NotEqual {}, {}:{}, {:#x}",
+              is_not_negative,
+              src_name,
+              TCInt64,
+              static_cast<uint64_t>(-1));
         } else {
-          func = reinterpret_cast<uint64_t>(JITRT_IsNegativeAndErrOccurred_32);
           // We do have to widen to at least 32 bits due to calling convention
           // always passing a minimum of 32 bits.
           if (src_type <= (TCBool | TCInt8 | TCUInt8 | TCInt16 | TCUInt16)) {
@@ -1109,11 +1115,32 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             bbb.AppendCode(
                 "Convert {}:CInt32, {}:{}", tmp_name, src_name, src_type);
             src_name = tmp_name;
-            src_type = TCInt32;
           }
+          bbb.AppendCode(
+              "NotEqual {}, {}:{}, {:#x}",
+              is_not_negative,
+              src_name,
+              TCInt32,
+              static_cast<uint32_t>(-1));
         }
+        bbb.AppendCode("Move {}, {:#x}", instr->dst(), 0);
+        auto done = GetSafeLabelName();
+        auto check_err = GetSafeLabelName();
+        bbb.AppendCode("JumpIf {}, {}, {}", is_not_negative, done, check_err);
+        bbb.AppendCode("{}:", check_err);
+        auto curexc_type = GetSafeTempName();
         bbb.AppendCode(
-            "Call {}, {:#x}, {}:{}", instr->dst(), func, src_name, src_type);
+            "Load {}, __asm_tstate, {}",
+            curexc_type,
+            offsetof(PyThreadState, curexc_type));
+        auto is_no_err_set = GetSafeTempName();
+        bbb.AppendCode("Equal {}, {}, {:#x}", is_no_err_set, curexc_type, 0);
+        auto set_err = GetSafeLabelName();
+        bbb.AppendCode("JumpIf {}, {}, {}", is_no_err_set, done, set_err);
+        bbb.AppendCode("{}:", set_err);
+        // Set to -1 in the error case
+        bbb.AppendCode("Dec {}", instr->dst());
+        bbb.AppendCode("{}:", done);
         break;
       }
 

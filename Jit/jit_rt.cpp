@@ -1386,14 +1386,6 @@ PyObject* JITRT_BoxEnum(int64_t i, uint64_t t) {
   return ret;
 }
 
-uint64_t JITRT_IsNegativeAndErrOccurred_64(int64_t i) {
-  return (i == -1 && _PyErr_OCCURRED()) ? -1 : 0;
-}
-
-uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i) {
-  return (i == -1 && _PyErr_OCCURRED()) ? -1 : 0;
-}
-
 double JITRT_PowerDouble(double x, double y) {
   return pow(x, y);
 }

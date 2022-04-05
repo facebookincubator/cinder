@@ -404,9 +404,6 @@ PyObject* JITRT_BoxU64(uint64_t i);
 PyObject* JITRT_BoxDouble(double_t d);
 PyObject* JITRT_BoxEnum(int64_t i, uint64_t t);
 
-uint64_t JITRT_IsNegativeAndErrOccurred_64(int64_t i);
-uint64_t JITRT_IsNegativeAndErrOccurred_32(int32_t i);
-
 double JITRT_PowerDouble(double x, double y);
 double JITRT_Power32(int32_t x, int32_t y);
 double JITRT_PowerUnsigned32(uint32_t x, uint32_t y);
