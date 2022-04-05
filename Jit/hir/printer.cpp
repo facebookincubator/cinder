@@ -840,6 +840,50 @@ static std::unordered_map<unsigned, const char*> kOpnames{
     PY_OPCODES(MAKE_OPNAME)};
 #undef MAKE_OPNAME
 
+static std::string
+reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
+  switch (opcode) {
+    case BUILD_CHECKED_LIST:
+    case BUILD_CHECKED_MAP:
+    case CAST:
+    case CHECK_ARGS:
+    case FUNC_CREDENTIAL:
+    case INVOKE_FUNCTION:
+    case INVOKE_METHOD:
+    case LOAD_ATTR_SUPER:
+    case LOAD_CONST:
+    case LOAD_FIELD:
+    case LOAD_LOCAL:
+    case LOAD_METHOD_SUPER:
+    case LOAD_TYPE:
+    case PRIMITIVE_BOX:
+    case PRIMITIVE_LOAD_CONST:
+    case PRIMITIVE_UNBOX:
+    case READONLY_OPERATION:
+    case REFINE_TYPE:
+    case STORE_FIELD:
+    case STORE_LOCAL:
+    case TP_ALLOC: {
+      PyObject* const_obj = PyTuple_GetItem(code->co_consts, oparg);
+      JIT_DCHECK(const_obj != nullptr, "bad constant");
+      PyObject* repr = PyObject_Repr(const_obj);
+      if (repr == nullptr) {
+        PyErr_Clear();
+        return fmt::format("{}: (error printing constant)", oparg);
+      }
+      const char* str = PyUnicode_AsUTF8(repr);
+      if (str == nullptr) {
+        PyErr_Clear();
+        return fmt::format("{}: (error printing constant)", oparg);
+      }
+      return fmt::format("{}: {}", oparg, str);
+    }
+    default:
+      return std::to_string(oparg);
+  }
+  JIT_CHECK(false, "unreachable");
+}
+
 // TODO(emacs): Write basic blocks for bytecode (using BytecodeInstructionBlock
 // and BlockMap?). Need to figure out how to allocate block IDs without
 // actually modifying the HIR function in place.
@@ -860,7 +904,8 @@ nlohmann::json JSONPrinter::PrintBytecode(const Function& func) {
     nlohmann::json instr;
     instr["address"] = off;
     instr["line"] = PyCode_Addr2Line(code, off);
-    instr["opcode"] = fmt::format("{} {}", kOpnames[opcode], oparg);
+    instr["opcode"] =
+        fmt::format("{} {}", kOpnames[opcode], reprArg(code, opcode, oparg));
     instrs_json.emplace_back(instr);
   }
   block["instrs"] = instrs_json;
