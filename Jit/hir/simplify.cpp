@@ -172,6 +172,22 @@ Register* simplifyRefineType(const RefineType* instr) {
   return nullptr;
 }
 
+Register* simplifyCast(const Cast* instr) {
+  Register* input = instr->GetOperand(0);
+  Type type = instr->exact() ? Type::fromTypeExact(instr->pytype())
+                             : Type::fromType(instr->pytype());
+  if (instr->optional()) {
+    type |= TNoneType;
+  }
+  if (input->isA(type)) {
+    // No UseType for the same reason as GuardType above: Cast itself
+    // doesn't care about the input's type, only users of its output do, and
+    // they're unchanged.
+    return input;
+  }
+  return nullptr;
+}
+
 Register* simplifyIntConvert(Env& env, const IntConvert* instr) {
   Register* src = instr->GetOperand(0);
   if (src->isA(instr->type())) {
@@ -528,6 +544,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
       return simplifyGuardType(env, static_cast<const GuardType*>(instr));
     case Opcode::kRefineType:
       return simplifyRefineType(static_cast<const RefineType*>(instr));
+    case Opcode::kCast:
+      return simplifyCast(static_cast<const Cast*>(instr));
 
     case Opcode::kCompare:
       return simplifyCompare(env, static_cast<const Compare*>(instr));

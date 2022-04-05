@@ -132,3 +132,66 @@ fun jittestmodule:test {
   }
 }
 ---
+CastOfKnownInexactTypeIsEliminated
+---
+from __static__ import cast
+
+def test(x: int):
+    return cast(int, x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Long = LoadArg<0; "x", Long>
+    Return v2
+  }
+}
+---
+CastOfKnownInexactOptionalTypeIsEliminated
+---
+from __static__ import cast
+from typing import Optional
+
+def test():
+    return cast(Optional[int], None)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:NoneType = LoadConst<NoneType>
+    Return v2
+  }
+}
+---
+CastOfKnownExactTypeIsEliminated
+---
+from __static__ import cast
+
+def test(x: bool):
+    return cast(bool, x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Bool = LoadArg<0; "x", Bool>
+    Return v2
+  }
+}
+---
+CastOfUnknownExactTypeIsNotEliminated
+---
+from __static__ import cast
+
+def test(x):
+    return cast(bool, x)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Object = LoadArg<0; "x">
+    v4:Bool = Cast<Exact[bool]> v2 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v2
+      }
+    }
+    Return v4
+  }
+}
+---

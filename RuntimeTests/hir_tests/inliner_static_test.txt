@@ -47,14 +47,8 @@ fun jittestmodule:test {
         Locals<2> v4 v5
       }
     }
-    v17:Long = Cast<int> v19 {
-      FrameState {
-        NextInstrOffset 10
-        Locals<2> v4 v5
-      }
-    }
     EndInlinedFunction
-    Return v17
+    Return v19
   }
 }
 ---

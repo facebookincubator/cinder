@@ -374,11 +374,14 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kCast: {
       const auto& cast = static_cast<const Cast&>(instr);
-      if (cast.optional()) {
-        return fmt::format("Optional[{}]", cast.pytype()->tp_name);
-      } else {
-        return fmt::format("{}", cast.pytype()->tp_name);
+      std::string result = cast.pytype()->tp_name;
+      if (cast.exact()) {
+        result = fmt::format("Exact[{}]", result);
       }
+      if (cast.optional()) {
+        result = fmt::format("Optional[{}]", result);
+      }
+      return result;
     }
     case Opcode::kTpAlloc: {
       const auto& tp_alloc = static_cast<const TpAlloc&>(instr);
