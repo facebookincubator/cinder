@@ -1,4 +1,4 @@
-/.github
-/.dockerignore
-/copilot
-/build*
+.github
+copilot
+build*
+.git
