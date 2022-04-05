@@ -470,6 +470,8 @@ class TypeEnvironment:
             bases=[self.exc_context_decorator],
         )
 
+        self.str.exact_type().patch_reflected_method_types(self)
+
         if spamobj is not None:
             T = GenericParameter("T", 0, self)
             U = GenericParameter("U", 1, self)
@@ -1396,6 +1398,15 @@ class Class(Object["Class"]):
 
     def declare_variables(self, node: Assign, module: ModuleTable) -> None:
         pass
+
+    def reflected_method_types(self, type_env: TypeEnvironment) -> Dict[str, Class]:
+        return {}
+
+    def patch_reflected_method_types(self, type_env: TypeEnvironment) -> None:
+        for name, return_type in self.reflected_method_types(type_env).items():
+            member = self.members[name]
+            assert isinstance(member, BuiltinMethodDescriptor)
+            member.return_type = ResolvedTypeRef(return_type)
 
     def resolve_name(self, name: str) -> Optional[Value]:
         return self.members.get(name)
@@ -4397,6 +4408,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
         args: Optional[List[Parameter]] = None,
         return_type: Optional[TypeRef] = None,
         dynamic_dispatch: bool = False,
+        valid_on_subclasses: bool = False,
     ) -> None:
         assert isinstance(return_type, (TypeRef, type(None)))
         self.type_env: TypeEnvironment = container_type.type_env
@@ -4415,6 +4427,7 @@ class BuiltinMethodDescriptor(Callable[Class]):
         # method.
         self.dynamic_dispatch = dynamic_dispatch
         self.set_container_type(container_type)
+        self.valid_on_subclasses = valid_on_subclasses
 
     def bind_call_self(
         self,
@@ -4454,6 +4467,10 @@ class BuiltinMethodDescriptor(Callable[Class]):
                 assert bound.can_assign_from(inst.klass)
             else:
                 ret_type = self.return_type
+            # Type must either match exactly or the method must be explicitly
+            # annotated as being valid on arbitrary subclasses, too.
+            if not (inst.klass.is_exact or self.valid_on_subclasses):
+                ret_type = ResolvedTypeRef(visitor.type_env.dynamic)
             return BuiltinMethod(self, node.value, ret_type)
 
     def make_generic(
@@ -4539,6 +4556,9 @@ class BuiltinMethod(Callable[Class]):
                 code_gen.emit("INVOKE_FUNCTION", (self.type_descr, len(node.args) + 1))
             else:
                 code_gen.emit_invoke_method(self.type_descr, len(node.args))
+            return_type_descr = self.return_type.resolved().type_descr
+            if return_type_descr != ("builtins", "object"):
+                code_gen.emit("REFINE_TYPE", return_type_descr)
 
 
 def get_default_value(default: expr) -> object:
@@ -5772,6 +5792,15 @@ class StrClass(Class):
             is_exact=is_exact,
             pytype=str,
         )
+
+    def reflected_method_types(self, type_env: TypeEnvironment) -> Dict[str, Class]:
+        str_exact = type_env.str.exact_type()
+        return {
+            "isdigit": type_env.bool,
+            "join": str_exact,
+            "lower": str_exact,
+            "upper": str_exact,
+        }
 
     def _create_exact_type(self) -> Class:
         return type(self)(self.type_env, is_exact=True)
@@ -7993,6 +8022,7 @@ class ContextDecoratorClass(Class):
                         )
                     ],
                     SelfTypeRef(self),
+                    valid_on_subclasses=True,
                 )
             self.members["__exit__"] = BuiltinMethodDescriptor(
                 "__exit__",
@@ -8042,6 +8072,8 @@ class ContextDecoratorClass(Class):
                         self.type_env.bool.instance, False
                     ).klass
                 ),
+                # TODO(T116056907): Don't mark __exit__ valid on subclasses
+                valid_on_subclasses=True,
             )
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
