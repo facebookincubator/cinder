@@ -139,19 +139,12 @@ class DeclarationVisitor(GenericVisitor[None]):
                 self.visit(item)
         self.exit_scope()
 
-        if klass is not self.type_env.dynamic:
-            orig_klass = klass
-            for d in reversed(node.decorator_list):
-                with self.compiler.error_sink.error_context(self.filename, d):
-                    decorator = (
-                        self.module.resolve_decorator(d) or self.type_env.dynamic
-                    )
-                    klass = decorator.resolve_decorate_class(klass)
-                    if klass is self.type_env.dynamic:
-                        # clear out any members that might have been declared
-                        orig_klass.members.clear()
-                        orig_klass._member_nodes.clear()
-                        break
+        for d in reversed(node.decorator_list):
+            if klass is self.type_env.dynamic:
+                break
+            with self.compiler.error_sink.error_context(self.filename, d):
+                decorator = self.module.resolve_decorator(d) or self.type_env.dynamic
+                klass = decorator.resolve_decorate_class(klass)
 
         parent_scope.declare_class(node, klass.exact_type())
         # We want the name corresponding to `C` to be the exact type when imported.
