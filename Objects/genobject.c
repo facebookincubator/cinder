@@ -563,6 +563,19 @@ gen_throw(PyGenObject *gen, PyObject *args)
     return _gen_throw(gen, 1, typ, val, tb);
 }
 
+static PyObject *
+gen_throw_fastcall(PyGenObject *gen, PyObject **args, Py_ssize_t nargs)
+{
+    PyObject *typ;
+    PyObject *tb = NULL;
+    PyObject *val = NULL;
+
+    if (!_PyArg_UnpackStack(args, nargs, "throw", 1, 3, &typ, &val, &tb)) {
+        return NULL;
+    }
+
+    return _gen_throw(gen, 1, typ, val, tb);
+}
 
 static PyObject *
 gen_iternext(PyGenObject *gen)
@@ -761,7 +774,7 @@ static PyMemberDef gen_memberlist[] = {
 
 static PyMethodDef gen_methods[] = {
     {"send",(PyCFunction)gen_send, METH_O, send_doc},
-    {"throw",(PyCFunction)gen_throw, METH_VARARGS, throw_doc},
+    {"throw",(PyCFunction)gen_throw_fastcall, METH_FASTCALL, throw_doc},
     {"close",(PyCFunction)gen_close, METH_NOARGS, close_doc},
     {NULL, NULL}        /* Sentinel */
 };
@@ -1009,7 +1022,7 @@ PyDoc_STRVAR(coro_close_doc,
 
 static PyMethodDef coro_methods[] = {
     {"send",(PyCFunction)gen_send, METH_O, coro_send_doc},
-    {"throw",(PyCFunction)gen_throw, METH_VARARGS, coro_throw_doc},
+    {"throw",(PyCFunction)gen_throw_fastcall, METH_FASTCALL, coro_throw_doc},
     {"close",(PyCFunction)gen_close, METH_NOARGS, coro_close_doc},
     {NULL, NULL}        /* Sentinel */
 };
