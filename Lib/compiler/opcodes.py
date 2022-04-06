@@ -116,6 +116,23 @@ opcode.def_op("READONLY_OPERATION", 140)
 opcode.hasconst.add(140)
 opcode.readonly_op("MAKE_FUNCTION", 0)
 opcode.readonly_op("CHECK_FUNCTION", 1)
+opcode.readonly_op("BINARY_ADD", 2)
+opcode.readonly_op("BINARY_SUBTRACT", 3)
+opcode.readonly_op("BINARY_MULTIPLY", 4)
+opcode.readonly_op("BINARY_MATRIX_MULTIPLY", 5)
+opcode.readonly_op("BINARY_TRUE_DIVIDE", 6)
+opcode.readonly_op("BINARY_FLOOR_DIVIDE", 7)
+opcode.readonly_op("BINARY_MODULO", 8)
+opcode.readonly_op("BINARY_POWER", 9)
+opcode.readonly_op("BINARY_LSHIFT", 10)
+opcode.readonly_op("BINARY_RSHIFT", 11)
+opcode.readonly_op("BINARY_OR", 12)
+opcode.readonly_op("BINARY_XOR", 13)
+opcode.readonly_op("BINARY_AND", 14)
+opcode.readonly_op("UNARY_INVERT", 15)
+opcode.readonly_op("UNARY_NEGATIVE", 16)
+opcode.readonly_op("UNARY_POSITIVE", 17)
+opcode.readonly_op("UNARY_NOT", 18)
 opcode.def_op("CALL_FUNCTION_KW", 141)  # #args + #kwargs
 opcode.def_op("CALL_FUNCTION_EX", 142)  # Flags
 opcode.jrel_op("SETUP_WITH", 143)
@@ -250,7 +267,7 @@ opcode.stack_effects.update(
     STORE_DEREF=-1,
     DELETE_DEREF=0,
     FUNC_CREDENTIAL=1,
-    READONLY_OPERATION=0,
+    READONLY_OPERATION=lambda oparg, jmp=0: -1 if oparg[0] >= 2 and oparg[0] <= 14 else 0,
     GET_AWAITABLE=0,
     BEFORE_ASYNC_WITH=1,
     GET_AITER=0,

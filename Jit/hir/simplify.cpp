@@ -1,4 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include "Python.h"
+#include "pyreadonly.h"
+
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
@@ -364,6 +367,13 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   Register* lhs = instr->left();
   Register* rhs = instr->right();
   if (instr->op() == BinaryOpKind::kSubscript) {
+    // All types being specialized on here require a readonly return if
+    // any param is readonly, so fail to specialize if that's not the case.
+    if (instr->readonly_flags() != 0 &&
+        !PyReadonly_IsTransitiveReadonlyOperationValid(
+            instr->readonly_flags(), 2)) {
+      return nullptr;
+    }
     if (!rhs->isA(TLongExact)) {
       return nullptr;
     }
@@ -409,6 +419,8 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
     }
   }
   if (lhs->isA(TLongExact) && rhs->isA(TLongExact)) {
+    // All binary ops on TLong's return mutable and accept readonly, so can
+    // be freely simplified with no explicit checks.
     if (instr->op() == BinaryOpKind::kMatrixMultiply &&
         instr->op() == BinaryOpKind::kSubscript) {
       // These will generate an error at runtime.

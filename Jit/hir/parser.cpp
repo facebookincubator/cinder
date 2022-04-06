@@ -303,10 +303,15 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
   } else if (strcmp(opcode, "BinaryOp") == 0) {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
+    uint8_t readonly_flags = 0;
+    if (strcmp(peekNextToken(), ",") == 0) {
+      expect(",");
+      readonly_flags = GetNextInteger();
+    }
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    instruction = newInstr<BinaryOp>(dst, op, left, right);
+    instruction = newInstr<BinaryOp>(dst, op, readonly_flags, left, right);
   } else if (strcmp(opcode, "LongBinaryOp") == 0) {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
@@ -372,9 +377,14 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
   } else if (strcmp(opcode, "UnaryOp") == 0) {
     expect("<");
     UnaryOpKind op = ParseUnaryOpName(GetNextToken());
+    uint8_t readonly_flags = 0;
+    if (strcmp(peekNextToken(), ",") == 0) {
+      expect(",");
+      readonly_flags = GetNextInteger();
+    }
     expect(">");
     auto operand = ParseRegister();
-    instruction = newInstr<UnaryOp>(dst, op, operand);
+    instruction = newInstr<UnaryOp>(dst, op, readonly_flags, operand);
   } else if (strcmp(opcode, "RaiseAwaitableError") == 0) {
     expect("<");
     auto tok = GetNextToken();

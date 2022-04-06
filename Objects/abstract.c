@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include "structmember.h" /* we need the offsetof() macro from there */
 #include "longintrepr.h"
+#include "pyreadonly.h"
 #include "pycore_unionobject.h" // _Py_UnionType && _Py_Union()
 #include "structmember.h"       /* we need the offsetof() macro from there */
 #include <ctype.h>
@@ -801,20 +802,35 @@ binary_op1(PyObject *v, PyObject *w, const int op_slot)
     if (slotv) {
         if (slotw && PyType_IsSubtype(w->ob_type, v->ob_type)) {
             x = slotw(v, w);
-            if (x != Py_NotImplemented)
+            if (x != Py_NotImplemented) {
+                if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+                    Py_DECREF(x);
+                    return NULL;
+                }
                 return x;
+            }
             Py_DECREF(x); /* can't do it */
             slotw = NULL;
         }
         x = slotv(v, w);
-        if (x != Py_NotImplemented)
+        if (x != Py_NotImplemented) {
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+                Py_DECREF(x);
+                return NULL;
+            }
             return x;
+        }
         Py_DECREF(x); /* can't do it */
     }
     if (slotw) {
         x = slotw(v, w);
-        if (x != Py_NotImplemented)
+        if (x != Py_NotImplemented) {
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+                Py_DECREF(x);
+                return NULL;
+            }
             return x;
+        }
         Py_DECREF(x); /* can't do it */
     }
     Py_RETURN_NOTIMPLEMENTED;
@@ -892,20 +908,35 @@ ternary_op(PyObject *v,
     if (slotv) {
         if (slotw && PyType_IsSubtype(w->ob_type, v->ob_type)) {
             x = slotw(v, w, z);
-            if (x != Py_NotImplemented)
+            if (x != Py_NotImplemented) {
+                if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK3(1, 1, 1), 0) != 0) {
+                    Py_DECREF(x);
+                    return NULL;
+                }
                 return x;
+            }
             Py_DECREF(x); /* can't do it */
             slotw = NULL;
         }
         x = slotv(v, w, z);
-        if (x != Py_NotImplemented)
+        if (x != Py_NotImplemented) {
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK3(1, 1, 1), 0) != 0) {
+                Py_DECREF(x);
+                return NULL;
+            }
             return x;
+        }
         Py_DECREF(x); /* can't do it */
     }
     if (slotw) {
         x = slotw(v, w, z);
-        if (x != Py_NotImplemented)
+        if (x != Py_NotImplemented) {
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK3(1, 1, 1), 0) != 0) {
+                Py_DECREF(x);
+                return NULL;
+            }
             return x;
+        }
         Py_DECREF(x); /* can't do it */
     }
     mz = z->ob_type->tp_as_number;
@@ -915,8 +946,13 @@ ternary_op(PyObject *v,
             slotz = NULL;
         if (slotz) {
             x = slotz(v, w, z);
-            if (x != Py_NotImplemented)
+            if (x != Py_NotImplemented) {
+                if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK3(1, 1, 1), 0) != 0) {
+                    Py_DECREF(x);
+                    return NULL;
+                }
                 return x;
+            }
             Py_DECREF(x); /* can't do it */
         }
     }
@@ -971,6 +1007,7 @@ PyNumber_Add(PyObject *v, PyObject *w)
 static PyObject *
 sequence_repeat(ssizeargfunc repeatfunc, PyObject *seq, PyObject *n)
 {
+    PyObject* x = NULL;
     Py_ssize_t count;
     if (PyIndex_Check(n)) {
         count = PyNumber_AsSsize_t(n, PyExc_OverflowError);
@@ -981,7 +1018,14 @@ sequence_repeat(ssizeargfunc repeatfunc, PyObject *seq, PyObject *n)
         return type_error("can't multiply sequence by "
                           "non-int of type '%.200s'", n);
     }
-    return (*repeatfunc)(seq, count);
+    x = (*repeatfunc)(seq, count);
+    if (x != Py_NotImplemented) {
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+            Py_DECREF(x);
+            return NULL;
+        }
+    }
+    return x;
 }
 
 PyObject *

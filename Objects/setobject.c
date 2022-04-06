@@ -35,6 +35,7 @@
 #include "pycore_object.h"
 #include "pycore_pystate.h"
 #include "structmember.h"
+#include "pyreadonly.h"
 
 /* Object used as dummy key to fill deleted entries */
 static PyObject _dummy_struct;
@@ -1210,6 +1211,8 @@ set_or(PySetObject *so, PyObject *other)
     if (!PyAnySet_Check(so) || !PyAnySet_Check(other))
         Py_RETURN_NOTIMPLEMENTED;
 
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     result = (PySetObject *)set_copy(so, NULL);
     if (result == NULL)
         return NULL;
@@ -1371,6 +1374,9 @@ set_and(PySetObject *so, PyObject *other)
 {
     if (!PyAnySet_Check(so) || !PyAnySet_Check(other))
         Py_RETURN_NOTIMPLEMENTED;
+
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     return set_intersection(so, other);
 }
 
@@ -1621,6 +1627,9 @@ set_sub(PySetObject *so, PyObject *other)
 {
     if (!PyAnySet_Check(so) || !PyAnySet_Check(other))
         Py_RETURN_NOTIMPLEMENTED;
+
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     return set_difference(so, other);
 }
 
@@ -1727,6 +1736,9 @@ set_xor(PySetObject *so, PyObject *other)
 {
     if (!PyAnySet_Check(so) || !PyAnySet_Check(other))
         Py_RETURN_NOTIMPLEMENTED;
+
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     return set_symmetric_difference(so, other);
 }
 
@@ -2546,4 +2558,3 @@ static PyObject _dummy_struct = {
   _PyObject_EXTRA_INIT
   2, &_PySetDummy_Type
 };
-

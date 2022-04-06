@@ -267,6 +267,29 @@ void JITRT_Dealloc(PyObject* obj);
  */
 PyObject* JITRT_UnaryNot(PyObject* value);
 
+/*
+ * Wraps a readonly unary op with the correct checks.
+ */
+PyObject*
+JITRT_ReadonlyUnaryOp(PyObject* a, uint64_t operation_ptr, int readonly_mask);
+/*
+ * Wraps a readonly binary op with the correct checks.
+ */
+PyObject* JITRT_ReadonlyBinaryOp(
+    PyObject* a,
+    PyObject* b,
+    uint64_t operation_ptr,
+    int readonly_mask);
+/*
+ * Wraps a readonly ternary op with the correct checks.
+ */
+PyObject* JITRT_ReadonlyTernaryOp(
+    PyObject* a,
+    PyObject* b,
+    PyObject* c,
+    uint64_t operation_ptr,
+    int readonly_mask);
+
 void JITRT_InitLoadMethodCache(JITRT_LoadMethodCache* cache);
 
 /*

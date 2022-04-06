@@ -705,6 +705,7 @@ _PyFrame_NewWithBuiltins_NoTrack(PyThreadState *tstate, PyCodeObject *code,
     f->f_gen = NULL;
     f->f_trace_opcodes = 0;
     f->f_trace_lines = 1;
+    f->f_readonly_operation_mask = 0;
 
     return f;
 }

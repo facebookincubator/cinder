@@ -5,6 +5,7 @@
 #include "pycore_object.h"
 #include "pycore_pystate.h"
 #include "pycore_accu.h"
+#include "pyreadonly.h"
 
 /*[clinic input]
 class tuple "PyTupleObject *" "&PyTuple_Type"
@@ -502,6 +503,9 @@ tupleconcat(PyTupleObject *a, PyObject *bb)
     Py_ssize_t i;
     PyObject **src, **dest;
     PyTupleObject *np;
+
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     if (Py_SIZE(a) == 0 && PyTuple_CheckExact(bb)) {
         Py_INCREF(bb);
         return bb;
@@ -549,6 +553,9 @@ tuplerepeat(PyTupleObject *a, Py_ssize_t n)
     Py_ssize_t size;
     PyTupleObject *np;
     PyObject **p, **items;
+
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     if (n < 0)
         n = 0;
     if (Py_SIZE(a) == 0 || n == 1) {

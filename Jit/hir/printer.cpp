@@ -304,11 +304,21 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kBinaryOp: {
       const auto& bin_op = static_cast<const BinaryOp&>(instr);
-      return GetBinaryOpName(bin_op.op());
+      if (bin_op.readonly_flags() != 0) {
+        return fmt::format(
+            "{}, {}", GetBinaryOpName(bin_op.op()), bin_op.readonly_flags());
+      } else {
+        return GetBinaryOpName(bin_op.op());
+      }
     }
     case Opcode::kUnaryOp: {
       const auto& unary_op = static_cast<const UnaryOp&>(instr);
-      return GetUnaryOpName(unary_op.op());
+      if (unary_op.readonly_flags() != 0) {
+        return fmt::format(
+            "{}, {}", GetUnaryOpName(unary_op.op()), unary_op.readonly_flags());
+      } else {
+        return GetUnaryOpName(unary_op.op());
+      }
     }
     case Opcode::kBranch: {
       const auto& branch = static_cast<const Branch&>(instr);

@@ -11,7 +11,7 @@ import sys
 from ast import AST, ClassDef
 from builtins import compile as builtin_compile
 from contextlib import contextmanager
-from typing import Union
+from typing import Dict, Union
 
 from . import consts, future, misc, pyassem, symbols
 from .consts import (
@@ -1874,7 +1874,7 @@ class CodeGenerator(ASTVisitor):
         self.visit(node.right)
         self.emit(op)
 
-    _binary_opcode = {
+    _binary_opcode: Dict[Type, str] = {
         ast.Add: "BINARY_ADD",
         ast.Sub: "BINARY_SUBTRACT",
         ast.Mult: "BINARY_MULTIPLY",
@@ -1903,7 +1903,7 @@ class CodeGenerator(ASTVisitor):
         self.visit(node.operand)
         self.emit(op)
 
-    _unary_opcode = {
+    _unary_opcode: Dict[Type, str] = {
         ast.Invert: "UNARY_INVERT",
         ast.USub: "UNARY_NEGATIVE",
         ast.UAdd: "UNARY_POSITIVE",

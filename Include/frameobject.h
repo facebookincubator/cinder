@@ -29,6 +29,11 @@ typedef struct _frame {
     char f_trace_lines;         /* Emit per-line trace events? */
     char f_trace_opcodes;       /* Emit per-opcode trace events? */
 
+    /* Mask used when performing operator calls when readonly is involved.
+       Tiny because operators can only have up to 3 arguments, and this
+       field is being put in the implicit padding before f_gen */
+    unsigned char f_readonly_operation_mask;
+
     /* Borrowed reference to a generator, or NULL */
     PyObject *f_gen;
 
@@ -44,7 +49,6 @@ typedef struct _frame {
     PyTryBlock f_blockstack[CO_MAXBLOCKS]; /* for try and loop blocks */
     PyObject *f_localsplus[1];  /* locals+stack, dynamically sized */
 } PyFrameObject;
-
 
 /* Standard object interface */
 

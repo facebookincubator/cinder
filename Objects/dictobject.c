@@ -119,6 +119,7 @@ converting the dict to the combined table.
 
 #include "Jit/pyjit.h"
 #include "classloader.h"
+#include "pyreadonly.h"
 
 /*[clinic input]
 class dict "PyDictObject *" "&PyDict_Type"
@@ -4960,6 +4961,9 @@ static PySequenceMethods dictkeys_as_sequence = {
 static PyObject*
 dictviews_sub(PyObject* self, PyObject *other)
 {
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
+
     PyObject *result = PySet_New(self);
     PyObject *tmp;
     _Py_IDENTIFIER(difference_update);
@@ -4980,6 +4984,9 @@ dictviews_sub(PyObject* self, PyObject *other)
 PyObject*
 _PyDictView_Intersect(PyObject* self, PyObject *other)
 {
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
+
     PyObject *result = PySet_New(self);
     PyObject *tmp;
     _Py_IDENTIFIER(intersection_update);
@@ -5000,6 +5007,9 @@ _PyDictView_Intersect(PyObject* self, PyObject *other)
 static PyObject*
 dictviews_or(PyObject* self, PyObject *other)
 {
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
+
     PyObject *result = PySet_New(self);
     PyObject *tmp;
     _Py_IDENTIFIER(update);
@@ -5020,6 +5030,9 @@ dictviews_or(PyObject* self, PyObject *other)
 static PyObject*
 dictviews_xor(PyObject* self, PyObject *other)
 {
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
+
     PyObject *result = PySet_New(self);
     PyObject *tmp;
     _Py_IDENTIFIER(symmetric_difference_update);

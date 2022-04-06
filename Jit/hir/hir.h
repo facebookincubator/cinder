@@ -1108,10 +1108,13 @@ class INSTR_CLASS(
   BinaryOp(
       Register* dst,
       BinaryOpKind op,
+      uint8_t readonly_flags,
       Register* left,
       Register* right,
       const FrameState& frame)
-      : InstrT(dst, left, right, frame), op_(op) {}
+      : InstrT(dst, left, right, frame),
+        op_(op),
+        readonly_flags_(readonly_flags) {}
 
   BinaryOpKind op() const {
     return op_;
@@ -1125,8 +1128,13 @@ class INSTR_CLASS(
     return GetOperand(1);
   }
 
+  uint8_t readonly_flags() const {
+    return readonly_flags_;
+  }
+
  private:
   BinaryOpKind op_;
+  uint8_t readonly_flags_;
 };
 
 enum class UnaryOpKind {
@@ -1145,9 +1153,10 @@ class INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
   UnaryOp(
       Register* dst,
       UnaryOpKind op,
+      uint8_t readonly_flags,
       Register* operand,
       const FrameState& frame)
-      : InstrT(dst, operand, frame), op_(op) {}
+      : InstrT(dst, operand, frame), op_(op), readonly_flags_(readonly_flags) {}
 
   UnaryOpKind op() const {
     return op_;
@@ -1157,8 +1166,13 @@ class INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
     return GetOperand(0);
   }
 
+  uint8_t readonly_flags() const {
+    return readonly_flags_;
+  }
+
  private:
   UnaryOpKind op_;
+  uint8_t readonly_flags_;
 };
 
 enum class InPlaceOpKind {

@@ -6,6 +6,7 @@
 #include "pycore_tupleobject.h"
 #include "pycore_accu.h"
 #include "classloader.h"
+#include "pyreadonly.h"
 
 #ifdef STDC_HEADERS
 #include <stddef.h>
@@ -541,6 +542,9 @@ list_concat(PyListObject *a, PyObject *bb)
     Py_ssize_t i;
     PyObject **src, **dest;
     PyListObject *np;
+
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     if (!PyList_Check(bb)) {
         PyErr_Format(PyExc_TypeError,
                   "can only concatenate list (not \"%.200s\") to list",
@@ -582,6 +586,9 @@ list_repeat(PyListObject *a, Py_ssize_t n)
     PyListObject *np;
     PyObject **p, **items;
     PyObject *elem;
+
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     if (n < 0)
         n = 0;
     if (n > 0 && Py_SIZE(a) > PY_SSIZE_T_MAX / n)

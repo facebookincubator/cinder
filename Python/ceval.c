@@ -30,6 +30,7 @@
 #include "setobject.h"
 #include "structmember.h"
 #include "moduleobject.h"
+#include "pyreadonly.h"
 #include "Jit/pyjit.h"
 #include <ctype.h>
 
@@ -3172,6 +3173,168 @@ main_loop:
                     }
                 }
                 break;
+            }
+            case READONLY_BINARY_ADD:
+            case READONLY_BINARY_SUBTRACT:
+            case READONLY_BINARY_MULTIPLY:
+            case READONLY_BINARY_MATRIX_MULTIPLY:
+            case READONLY_BINARY_TRUE_DIVIDE:
+            case READONLY_BINARY_FLOOR_DIVIDE:
+            case READONLY_BINARY_MODULO:
+            case READONLY_BINARY_POWER:
+            case READONLY_BINARY_LSHIFT:
+            case READONLY_BINARY_RSHIFT:
+            case READONLY_BINARY_OR:
+            case READONLY_BINARY_XOR:
+            case READONLY_BINARY_AND: {
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                assert(mask != NULL);
+
+                PyObject *right = POP();
+                PyObject *left = TOP();
+                PyObject *res = NULL;
+                // unicode_concatenate and unicode_format both don't touch
+                // their args and return a new copied value, so there is no
+                // actual check required for them.
+                if (op_val == READONLY_BINARY_ADD && (PyUnicode_CheckExact(left) &&
+                        PyUnicode_CheckExact(right))) {
+                    res = unicode_concatenate(tstate, left, right, f, next_instr);
+                    /* unicode_concatenate consumed the ref to left */
+                }
+                else if (op_val == READONLY_BINARY_MODULO && (PyUnicode_CheckExact(left) && (
+                    !PyUnicode_Check(right) || PyUnicode_CheckExact(right)))) {
+                    // fast path; string formatting, but not if the RHS is a str subclass
+                    // (see issue28598)
+                    res = PyUnicode_Format(left, right);
+                    Py_DECREF(left);
+                }
+                else {
+                    if (PyReadonly_BeginReadonlyOperation(PyLong_AsUnsignedLongLong(mask)) != 0) {
+                        goto error;
+                    }
+                    switch (op_val) {
+                    case READONLY_BINARY_ADD:
+                        res = PyNumber_Add(left, right);
+                        break;
+                    case READONLY_BINARY_SUBTRACT:
+                        res = PyNumber_Subtract(left, right);
+                        break;
+                    case READONLY_BINARY_MULTIPLY:
+                        res = PyNumber_Multiply(left, right);
+                        break;
+                    case READONLY_BINARY_MATRIX_MULTIPLY:
+                        res = PyNumber_MatrixMultiply(left, right);
+                        break;
+                    case READONLY_BINARY_TRUE_DIVIDE:
+                        res = PyNumber_TrueDivide(left, right);
+                        break;
+                    case READONLY_BINARY_FLOOR_DIVIDE:
+                        res = PyNumber_FloorDivide(left, right);
+                        break;
+                    case READONLY_BINARY_MODULO:
+                        res = PyNumber_Remainder(left, right);
+                        break;
+                    case READONLY_BINARY_POWER:
+                        res = PyNumber_Power(left, right, Py_None);
+                        break;
+                    case READONLY_BINARY_LSHIFT:
+                        res = PyNumber_Lshift(left, right);
+                        break;
+                    case READONLY_BINARY_RSHIFT:
+                        res = PyNumber_Rshift(left, right);
+                        break;
+                    case READONLY_BINARY_OR:
+                        res = PyNumber_Or(left, right);
+                        break;
+                    case READONLY_BINARY_XOR:
+                        res = PyNumber_Xor(left, right);
+                        break;
+                    case READONLY_BINARY_AND:
+                        res = PyNumber_And(left, right);
+                        break;
+                    default:
+                        assert(0);
+                    }
+
+                    // Ensure the readonly check actually happened.
+                    if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+                        res = NULL;
+                    }
+
+                    Py_DECREF(left);
+                }
+                Py_DECREF(right);
+                SET_TOP(res);
+
+                if (res == NULL)
+                    goto error;
+                DISPATCH();
+            }
+            case READONLY_UNARY_INVERT:
+            case READONLY_UNARY_NEGATIVE:
+            case READONLY_UNARY_POSITIVE: {
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                assert(mask != NULL);
+                if (PyReadonly_BeginReadonlyOperation(PyLong_AsUnsignedLongLong(mask)) != 0) {
+                    goto error;
+                }
+
+                PyObject *value = TOP();
+                PyObject *res = NULL;
+
+                switch (op_val) {
+                case READONLY_UNARY_INVERT:
+                    res = PyNumber_Invert(value);
+                    break;
+                case READONLY_UNARY_NEGATIVE:
+                    res = PyNumber_Negative(value);
+                    break;
+                case READONLY_UNARY_POSITIVE:
+                    res = PyNumber_Positive(value);
+                    break;
+                default:
+                    assert(0);
+                }
+
+                // Ensure the readonly check actually happened.
+                if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+                    res = NULL;
+                }
+
+                Py_DECREF(value);
+                SET_TOP(res);
+                if (res == NULL)
+                    goto error;
+                DISPATCH();
+            }
+            case READONLY_UNARY_NOT: {
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                assert(mask != NULL);
+                if (PyReadonly_BeginReadonlyOperation(PyLong_AsUnsignedLongLong(mask)) != 0) {
+                    goto error;
+                }
+
+                PyObject *value = TOP();
+                int err = PyObject_IsTrue(value);
+
+                // Ensure the readonly check actually happened.
+                if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+                    err = -1;
+                }
+
+                Py_DECREF(value);
+                if (err == 0) {
+                    Py_INCREF(Py_True);
+                    SET_TOP(Py_True);
+                    DISPATCH();
+                }
+                else if (err > 0) {
+                    Py_INCREF(Py_False);
+                    SET_TOP(Py_False);
+                    DISPATCH();
+                }
+                STACK_SHRINK(1);
+                goto error;
             }
             default:
                 assert(0);

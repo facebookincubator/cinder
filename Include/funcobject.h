@@ -31,6 +31,9 @@ PyObject *PyEntry_LazyInit(PyFunctionObject *func,
 void PyEntry_init(PyFunctionObject *func);
 /* FB_entry_END */
 
+#define PYFUNCTION_READONLY_ARGS_MASK (~0xF800000000000000)
+#define PYFUNCTION_READONLY_RETURN_MASK 0x2000000000000000
+
 struct PyFunctionObject {
     PyObject_HEAD
     PyObject *func_code;        /* A code object, the __code__ attribute */

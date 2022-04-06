@@ -1644,7 +1644,69 @@ void HIRBuilder::emitBinaryOp(
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   BinaryOpKind op_kind = get_bin_op_kind(bc_instr);
-  tc.emit<BinaryOp>(result, op_kind, left, right, tc.frame);
+  tc.emit<BinaryOp>(result, op_kind, 0, left, right, tc.frame);
+  stack.push(result);
+}
+
+static inline BinaryOpKind get_readonly_bin_op_kind(int readonly_op) {
+  switch (readonly_op) {
+    case READONLY_BINARY_ADD: {
+      return BinaryOpKind::kAdd;
+    }
+    case READONLY_BINARY_AND: {
+      return BinaryOpKind::kAnd;
+    }
+    case READONLY_BINARY_FLOOR_DIVIDE: {
+      return BinaryOpKind::kFloorDivide;
+    }
+    case READONLY_BINARY_LSHIFT: {
+      return BinaryOpKind::kLShift;
+    }
+    case READONLY_BINARY_MATRIX_MULTIPLY: {
+      return BinaryOpKind::kMatrixMultiply;
+    }
+    case READONLY_BINARY_MODULO: {
+      return BinaryOpKind::kModulo;
+    }
+    case READONLY_BINARY_MULTIPLY: {
+      return BinaryOpKind::kMultiply;
+    }
+    case READONLY_BINARY_OR: {
+      return BinaryOpKind::kOr;
+    }
+    case READONLY_BINARY_POWER: {
+      return BinaryOpKind::kPower;
+    }
+    case READONLY_BINARY_RSHIFT: {
+      return BinaryOpKind::kRShift;
+    }
+    case READONLY_BINARY_SUBTRACT: {
+      return BinaryOpKind::kSubtract;
+    }
+    case READONLY_BINARY_TRUE_DIVIDE: {
+      return BinaryOpKind::kTrueDivide;
+    }
+    case READONLY_BINARY_XOR: {
+      return BinaryOpKind::kXor;
+    }
+    default: {
+      JIT_CHECK(false, "unhandled readonly binary op %d", readonly_op);
+      // NOTREACHED
+      break;
+    }
+  }
+}
+
+void HIRBuilder::emitReadonlyBinaryOp(
+    TranslationContext& tc,
+    int readonly_op,
+    uint8_t readonly_flags) {
+  auto& stack = tc.frame.stack;
+  Register* right = stack.pop();
+  Register* left = stack.pop();
+  Register* result = temps_.AllocateStack();
+  BinaryOpKind op_kind = get_readonly_bin_op_kind(readonly_op);
+  tc.emit<BinaryOp>(result, op_kind, readonly_flags, left, right, tc.frame);
   stack.push(result);
 }
 
@@ -1738,7 +1800,39 @@ void HIRBuilder::emitUnaryOp(
   Register* operand = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
   UnaryOpKind op_kind = get_unary_op_kind(bc_instr);
-  tc.emit<UnaryOp>(result, op_kind, operand, tc.frame);
+  tc.emit<UnaryOp>(result, op_kind, 0, operand, tc.frame);
+  tc.frame.stack.push(result);
+}
+
+static inline UnaryOpKind get_readonly_unary_op_kind(int readonly_op) {
+  switch (readonly_op) {
+    case READONLY_UNARY_NOT:
+      return UnaryOpKind::kNot;
+
+    case READONLY_UNARY_NEGATIVE:
+      return UnaryOpKind::kPositive;
+
+    case READONLY_UNARY_POSITIVE:
+      return UnaryOpKind::kNegate;
+
+    case READONLY_UNARY_INVERT:
+      return UnaryOpKind::kInvert;
+
+    default:
+      JIT_CHECK(false, "unhandled readonly unary op %d", readonly_op);
+      // NOTREACHED
+      break;
+  }
+}
+
+void HIRBuilder::emitReadonlyUnaryOp(
+    TranslationContext& tc,
+    int readonly_op,
+    uint8_t readonly_flags) {
+  Register* operand = tc.frame.stack.pop();
+  Register* result = temps_.AllocateStack();
+  UnaryOpKind op_kind = get_readonly_unary_op_kind(readonly_op);
+  tc.emit<UnaryOp>(result, op_kind, readonly_flags, operand, tc.frame);
   tc.frame.stack.push(result);
 }
 
@@ -1836,7 +1930,7 @@ void HIRBuilder::emitLoadIterableArg(
   tc.emit<LoadConst>(tmp, Type::fromCInt(bc_instr.oparg(), TCInt64));
   tc.emitChecked<PrimitiveBox>(tup_idx, tmp, TCInt64);
   tc.emit<BinaryOp>(
-      element, BinaryOpKind::kSubscript, tuple, tup_idx, tc.frame);
+      element, BinaryOpKind::kSubscript, 0, tuple, tup_idx, tc.frame);
   tc.frame.stack.push(element);
   tc.frame.stack.push(tuple);
 }
@@ -2678,6 +2772,33 @@ void HIRBuilder::emitReadonlyOperation(
       tc.emit<Branch>(done_block);
 
       tc.block = done_block;
+      break;
+    }
+    case READONLY_BINARY_ADD:
+    case READONLY_BINARY_SUBTRACT:
+    case READONLY_BINARY_MULTIPLY:
+    case READONLY_BINARY_MATRIX_MULTIPLY:
+    case READONLY_BINARY_TRUE_DIVIDE:
+    case READONLY_BINARY_FLOOR_DIVIDE:
+    case READONLY_BINARY_MODULO:
+    case READONLY_BINARY_POWER:
+    case READONLY_BINARY_LSHIFT:
+    case READONLY_BINARY_RSHIFT:
+    case READONLY_BINARY_OR:
+    case READONLY_BINARY_XOR:
+    case READONLY_BINARY_AND: {
+      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
+      assert(mask != nullptr);
+      emitReadonlyBinaryOp(tc, op, PyLong_AsUnsignedLongLong(mask));
+      break;
+    }
+    case READONLY_UNARY_INVERT:
+    case READONLY_UNARY_NEGATIVE:
+    case READONLY_UNARY_POSITIVE:
+    case READONLY_UNARY_NOT: {
+      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
+      assert(mask != nullptr);
+      emitReadonlyUnaryOp(tc, op, PyLong_AsUnsignedLongLong(mask));
       break;
     }
   }

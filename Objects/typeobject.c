@@ -14,6 +14,7 @@
 #include "pycore_unionobject.h" // _Py_Union()
 #include "structmember.h"
 #include "switchboard.h"
+#include "pyreadonly.h"
 #include "Include/folly/tracing/StaticTracepoint.h"
 
 #include <ctype.h>
@@ -1679,6 +1680,11 @@ call_maybe(PyObject *obj, _Py_Identifier *name,
     if (func == NULL) {
         if (!PyErr_Occurred())
             Py_RETURN_NOTIMPLEMENTED;
+        return NULL;
+    }
+
+    if (PyReadonly_CheckReadonlyOperationOnCallable(func) != 0) {
+        Py_DECREF(func);
         return NULL;
     }
 

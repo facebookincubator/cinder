@@ -399,6 +399,7 @@ PYTHON_OBJS=	\
 		Python/pyhash.o \
 		Python/pylifecycle.o \
 		Python/pymath.o \
+		Python/pyreadonly.o \
 		Python/pystate.o \
 		Python/pythonrun.o \
 		Python/pytime.o \
@@ -1444,6 +1445,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/pymath.h \
 		$(srcdir)/Include/pymem.h \
 		$(srcdir)/Include/pyport.h \
+		$(srcdir)/Include/pyreadonly.h \
 		$(srcdir)/Include/pystate.h \
 		$(srcdir)/Include/pystrcmp.h \
 		$(srcdir)/Include/pystrhex.h \

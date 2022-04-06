@@ -162,9 +162,17 @@ class HIRBuilder {
   void emitBinaryOp(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitReadonlyBinaryOp(
+      TranslationContext& tc,
+      int readonly_op,
+      uint8_t readonly_flags);
   void emitUnaryOp(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitReadonlyUnaryOp(
+      TranslationContext& tc,
+      int readonly_op,
+      uint8_t readonly_flags);
   void emitAnyCall(
       CFG& cfg,
       TranslationContext& tc,

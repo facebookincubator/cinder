@@ -1,5 +1,6 @@
 #include "Python.h"
 #include "structmember.h"
+#include "pyreadonly.h"
 
 #ifdef STDC_HEADERS
 #include <stddef.h>
@@ -535,6 +536,8 @@ deque_concat(dequeobject *deque, PyObject *other)
     PyObject *new_deque, *result;
     int rv;
 
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     rv = PyObject_IsInstance(other, (PyObject *)&deque_type);
     if (rv <= 0) {
         if (rv == 0) {
@@ -737,6 +740,8 @@ deque_repeat(dequeobject *deque, Py_ssize_t n)
     dequeobject *new_deque;
     PyObject *rv;
 
+    if (PyReadonly_CheckTransitiveReadonlyOperation(2) != 0)
+        return NULL;
     new_deque = (dequeobject *)deque_copy((PyObject *) deque, NULL);
     if (new_deque == NULL)
         return NULL;

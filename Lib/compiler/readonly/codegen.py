@@ -29,6 +29,23 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
     flow_graph = PyFlowGraphCinder
     _SymbolVisitor = CinderSymbolVisitor
 
+    def _get_containing_function(
+        self,
+    ) -> Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda]]:
+        cur_gen = self
+        while cur_gen and not isinstance(
+            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+        ):
+            cur_gen = cur_gen.parent_code_gen
+
+        if not cur_gen:
+            return None
+
+        assert isinstance(
+            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+        )
+        return cur_gen.tree
+
     def __init__(
         self,
         parent: Optional[CodeGenerator],
@@ -43,6 +60,17 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             parent, node, symbols, graph, flags=flags, optimization_lvl=optimization_lvl
         )
         self.binder = binder
+        self.emit_readonly_checks: bool = False
+        self.current_function_is_readonly_nonlocal: bool = False
+
+        cur_func = self._get_containing_function()
+        if cur_func:
+            cur_func_val = self.binder.read_only_funcs.get(cur_func)
+            self.emit_readonly_checks = cur_func_val != None
+            if cur_func_val:
+                self.current_function_is_readonly_nonlocal = (
+                    cur_func_val.readonly_nonlocal
+                )
 
     @classmethod
     def make_code_gen(
@@ -108,6 +136,43 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             return
 
         super().visitCall(node)
+
+    def visitUnaryOp(self, node: ast.UnaryOp) -> None:
+        if not self.emit_readonly_checks:
+            super().visitUnaryOp(node)
+            return
+
+        self.update_lineno(node)
+        self.visit(node.operand)
+        op = self._unary_opcode[type(node.op)]
+
+        readonlyMask = 0x80
+        if self.binder.is_readonly(node):
+            readonlyMask |= 0x40
+        if self.binder.is_readonly(node.operand):
+            readonlyMask |= 0x01
+
+        self.emit_readonly_op(op, readonlyMask)
+
+    def visitBinOp(self, node: ast.BinOp) -> None:
+        if not self.emit_readonly_checks:
+            super().visitBinOp(node)
+            return
+
+        self.update_lineno(node)
+        self.visit(node.left)
+        self.visit(node.right)
+        op = self._binary_opcode[type(node.op)]
+
+        readonlyMask = 0x80
+        if self.binder.is_readonly(node):
+            readonlyMask |= 0x40
+        if self.binder.is_readonly(node.left):
+            readonlyMask |= 0x01
+        if self.binder.is_readonly(node.right):
+            readonlyMask |= 0x02
+
+        self.emit_readonly_op(op, readonlyMask)
 
     def visitName(self, node: ast.Name) -> None:
         if node.id != "__function_credential__":
@@ -210,49 +275,21 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         )
         self.emit_readonly_op("MAKE_FUNCTION", mask)
 
-    def _get_containing_function(
-        self,
-    ) -> Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda]]:
-        cur_gen = self
-        while cur_gen and not isinstance(
-            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
-        ):
-            cur_gen = cur_gen.parent_code_gen
-
-        if not cur_gen:
-            return None
-
-        assert isinstance(
-            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
-        )
-        return cur_gen.tree
-
     def insertReadonlyCheck(self, node: Optional[ast.Call], nargs: int) -> None:
         # node is None when the this function is (indirectly) called by any functions
         # other than visitCall().
-        if not node:
-            return
-
-        binder = self.binder
-
-        # skip in a non-readonly function
-        cur_func = self._get_containing_function()
-        if not cur_func:
-            return
-
-        cur_func_value = binder.read_only_funcs.get(cur_func)
-
-        if not cur_func_value:
+        # Also skip the check in a non-readonly function
+        if not node or not self.emit_readonly_checks:
             return
 
         mask = self.calc_function_readonly_mask(
             node,
             is_readonly_func=True,
-            returns_readonly=binder.is_readonly(node),
-            readonly_nonlocal=cur_func_value.readonly_nonlocal,
+            returns_readonly=self.binder.is_readonly(node),
+            readonly_nonlocal=self.current_function_is_readonly_nonlocal,
             yields_readonly=None,
             sends_readonly=None,
-            args=tuple(binder.is_readonly(x) for x in node.args),
+            args=tuple(self.binder.is_readonly(x) for x in node.args),
         )
 
         self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask))

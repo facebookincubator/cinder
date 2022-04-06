@@ -35,6 +35,13 @@ DEF_ERROR(ReadonlyArgumentError, 4, "Passing a readonly variable to Argument %S,
 DEF_ERROR(ReadonlyYieldError, 5, "Generator yields a readonly value, but expected it to yield a mutable value.")
 DEF_ERROR(ReadonlySendError, 6, "Cannot send a readonly value to a mutable generator.")
 
+DEF_ERROR(ReadonlyOperatorCheckNotRan, 10, "Attempted to perform a readonly operator call, but no check was actually performed. Remaining mask: 0x%02X");
+DEF_ERROR(ReadonlyOperatorAlreadyInProgress, 11, "Attempted to begin a readonly operation in a frame that's already performing a readonly operation. Old mask: 0x%02X New mask: 0x%02X");
+DEF_ERROR(ReadonlyOperatorInNonFrameContext, 12, "Attempted to set the readonly operation mask in a context where no frames exist. (eg. constant folding)");
+DEF_ERROR(ReadonlyOperatorArgumentReadonlyMismatch, 13, "Attempted to pass a readonly arguments to an operation that expects mutable parameters.");
+DEF_ERROR(ReadonlyOperatorReturnsReadonlyMismatch, 14, "Operator returns readonly, but expected mutable.");
+DEF_ERROR(ReadonlyOperatorCallOnUnknownCallableType, 15, "Attempted to perform a readonly operator call, but was unable to determine what kind of callable object was used. No check was performed.");
+
 #undef DEF_ERROR
 
 #ifdef __cplusplus

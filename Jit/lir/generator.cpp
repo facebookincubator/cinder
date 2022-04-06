@@ -1483,21 +1483,44 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "unsupported binop");
         auto op_kind = static_cast<int>(bin_op->op());
 
-        if (bin_op->op() != BinaryOpKind::kPower) {
-          bbb.AppendCode(
-              "Call {}, {:#x}, {}, {}",
-              bin_op->dst(),
-              helpers[op_kind],
-              bin_op->left(),
-              bin_op->right());
+        if (bin_op->readonly_flags() != 0) {
+          if (bin_op->op() != BinaryOpKind::kPower) {
+            bbb.AppendCode(
+                "Call {}, {:#x}, {}, {}, {:#x}, {}",
+                bin_op->dst(),
+                reinterpret_cast<uint64_t>(JITRT_ReadonlyBinaryOp),
+                bin_op->left(),
+                bin_op->right(),
+                helpers[op_kind],
+                static_cast<int>(bin_op->readonly_flags()));
+          } else {
+            bbb.AppendCode(
+                "Call {}, {:#x}, {}, {}, {:#x}, {:#x}, {}",
+                bin_op->dst(),
+                reinterpret_cast<uint64_t>(JITRT_ReadonlyTernaryOp),
+                bin_op->left(),
+                bin_op->right(),
+                reinterpret_cast<uint64_t>(Py_None),
+                helpers[op_kind],
+                static_cast<int>(bin_op->readonly_flags()));
+          }
         } else {
-          bbb.AppendCode(
-              "Call {}, {:#x}, {}, {}, {:#x}",
-              bin_op->dst(),
-              helpers[op_kind],
-              bin_op->left(),
-              bin_op->right(),
-              reinterpret_cast<uint64_t>(Py_None));
+          if (bin_op->op() != BinaryOpKind::kPower) {
+            bbb.AppendCode(
+                "Call {}, {:#x}, {}, {}",
+                bin_op->dst(),
+                helpers[op_kind],
+                bin_op->left(),
+                bin_op->right());
+          } else {
+            bbb.AppendCode(
+                "Call {}, {:#x}, {}, {}, {:#x}",
+                bin_op->dst(),
+                helpers[op_kind],
+                bin_op->left(),
+                bin_op->right(),
+                reinterpret_cast<uint64_t>(Py_None));
+          }
         }
         break;
       }
@@ -1562,11 +1585,21 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "unsupported unaryop");
 
         auto op_kind = static_cast<int>(unary_op->op());
-        bbb.AppendCode(
-            "Call {}, {:#x}, {}",
-            unary_op->dst(),
-            helpers[op_kind],
-            unary_op->operand());
+        if (unary_op->readonly_flags() != 0) {
+          bbb.AppendCode(
+              "Call {}, {:#x}, {}, {:#x}, {}",
+              unary_op->dst(),
+              reinterpret_cast<uint64_t>(JITRT_ReadonlyUnaryOp),
+              unary_op->operand(),
+              helpers[op_kind],
+              static_cast<int>(unary_op->readonly_flags()));
+        } else {
+          bbb.AppendCode(
+              "Call {}, {:#x}, {}",
+              unary_op->dst(),
+              helpers[op_kind],
+              unary_op->operand());
+        }
         break;
       }
       case Opcode::kIsSubtype: {
