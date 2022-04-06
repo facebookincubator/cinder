@@ -481,6 +481,18 @@ int _PyJITContext_GetSpillStackSize(
   return jitfunc->GetSpillStackSize();
 }
 
+int _PyJITContext_GetNumInlinedFunctions(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::CompiledFunction* jitfunc =
+      lookupCompiledCode(ctx, func->func_code, func->func_globals);
+  if (jitfunc == nullptr) {
+    return -1;
+  }
+
+  return jitfunc->GetNumInlinedFunctions();
+}
+
 PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx) {
   auto funcs = Ref<>::steal(PyList_New(0));
   if (funcs == nullptr) {

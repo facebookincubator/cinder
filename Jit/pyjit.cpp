@@ -809,6 +809,14 @@ static PyObject* get_function_compilation_time(
   return res;
 }
 
+static PyObject* get_num_inlined_functions(PyObject*, PyObject* func) {
+  if (jit_ctx == NULL) {
+    return PyLong_FromLong(0);
+  }
+  int size = _PyJITContext_GetNumInlinedFunctions(jit_ctx, func);
+  return PyLong_FromLong(size);
+}
+
 namespace {
 
 // Simple wrapper functions to turn NULL or -1 return values from C-API
@@ -1146,6 +1154,10 @@ static PyMethodDef jit_methods[] = {
      disable_hir_inliner,
      METH_NOARGS,
      "Disable the HIR inliner."},
+    {"get_num_inlined_functions",
+     get_num_inlined_functions,
+     METH_O,
+     "Return the number of inline sites in this function."},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {

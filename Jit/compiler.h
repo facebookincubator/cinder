@@ -23,12 +23,14 @@ class CompiledFunction {
       CodeRuntime* code_runtime,
       int func_size,
       int stack_size,
-      int spill_stack_size)
+      int spill_stack_size,
+      int num_inlined_functions)
       : entry_point_(entry),
         code_runtime_(code_runtime),
         code_size_(func_size),
         stack_size_(stack_size),
-        spill_stack_size_(spill_stack_size) {}
+        spill_stack_size_(spill_stack_size),
+        num_inlined_functions_(num_inlined_functions) {}
 
   virtual ~CompiledFunction() {}
 
@@ -56,6 +58,9 @@ class CompiledFunction {
   int GetSpillStackSize() const {
     return spill_stack_size_;
   }
+  int GetNumInlinedFunctions() const {
+    return num_inlined_functions_;
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CompiledFunction);
@@ -65,6 +70,7 @@ class CompiledFunction {
   int code_size_;
   int stack_size_;
   int spill_stack_size_;
+  int num_inlined_functions_;
 };
 
 // same as CompiledFunction class but keeps HIR and LIR classes for debug
@@ -77,6 +83,7 @@ class CompiledFunctionDebug : public CompiledFunction {
       int func_size,
       int stack_size,
       int spill_stack_size,
+      int num_inlined_functions,
       std::unique_ptr<hir::Function> irfunc,
       std::unique_ptr<codegen::NativeGenerator> ngen)
       : CompiledFunction(
@@ -84,7 +91,8 @@ class CompiledFunctionDebug : public CompiledFunction {
             code_runtime,
             func_size,
             stack_size,
-            spill_stack_size),
+            spill_stack_size,
+            num_inlined_functions),
         irfunc_(std::move(irfunc)),
         ngen_(std::move(ngen)) {}
 

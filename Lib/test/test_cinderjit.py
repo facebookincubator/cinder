@@ -3040,6 +3040,31 @@ class CinderJitModuleTests(StaticTestBase):
             self.assertFalse(cinderjit.is_jit_compiled(f))
             self.assertTrue(cinderjit.is_jit_compiled(g))
 
+    @unittest.skipIf(
+        not cinderjit or not cinderjit.is_hir_inliner_enabled(),
+        "meaningless without HIR inliner enabled",
+    )
+    def test_num_inlined_functions(self):
+        codestr = f"""
+            import cinderjit
+
+            @cinderjit.jit_suppress
+            def f():
+                return True
+
+            def g():
+                return f()
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            g = mod.g
+            self.assertTrue(g())
+
+            self.assertFalse(cinderjit.is_jit_compiled(f))
+            self.assertTrue(cinderjit.is_jit_compiled(g))
+
+            self.assertEqual(cinderjit.get_num_inlined_functions(g), 1)
+
 
 @jit_suppress
 def _inner(*args, **kwargs):

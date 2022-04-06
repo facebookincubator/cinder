@@ -27,7 +27,8 @@ class DeoptPatcherTest : public RuntimeTest {
         ngen.codeRuntime(),
         func_size,
         stack_size,
-        spill_stack_size);
+        spill_stack_size,
+        /*num_inlined_functions=*/0);
   }
 
  protected:

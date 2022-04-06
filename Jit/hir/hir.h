@@ -3991,6 +3991,9 @@ class Function {
   // is the first argument a primitive?
   bool has_primitive_first_arg{false};
 
+  // How many functions have been inlined into this function?
+  int num_inlined_functions{0};
+
   // vector of {locals_idx, type, optional}
   // in argument order, may have gaps for unchecked args
   std::vector<TypedArgument> typed_args;

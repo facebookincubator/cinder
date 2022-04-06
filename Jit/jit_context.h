@@ -226,6 +226,16 @@ int _PyJITContext_GetSpillStackSize(
     BorrowedRef<PyFunctionObject> func);
 
 /*
+ * Returns the number of functions inlined into a specified JIT-compiled
+ * function.
+ *
+ * Returns -1 if an error occurred.
+ */
+int _PyJITContext_GetNumInlinedFunctions(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
+
+/*
  * Return a list of functions that are currently JIT-compiled.
  *
  * Returns a new reference.

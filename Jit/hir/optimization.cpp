@@ -927,6 +927,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   delete return_instr;
 
   delete call_instr->instr;
+  caller.num_inlined_functions++;
 }
 
 void InlineFunctionCalls::Run(Function& irfunc) {
