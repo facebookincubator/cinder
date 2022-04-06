@@ -73,7 +73,7 @@ def func():
   ASSERT_TRUE(term->IsReturn());
 
   // Insert a patchpoint immediately before the return
-  jit::Runtime* jit_rt = jit::codegen::NativeGeneratorFactory::runtime();
+  jit::Runtime* jit_rt = jit::Runtime::get();
   auto patcher = jit_rt->allocateDeoptPatcher<MyDeoptPatcher>(123);
   EXPECT_EQ(patcher->id(), 123);
   auto patchpoint = jit::hir::DeoptPatchpoint::create(patcher);

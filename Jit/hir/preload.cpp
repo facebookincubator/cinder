@@ -233,8 +233,7 @@ Type Preloader::checkArgType(long local_idx) const {
 }
 
 GlobalCache Preloader::getGlobalCache(BorrowedRef<> name) const {
-  return jit::codegen::NativeGeneratorFactory::runtime()->findGlobalCache(
-      globals_, name);
+  return jit::Runtime::get()->findGlobalCache(globals_, name);
 }
 
 BorrowedRef<> Preloader::global(int name_idx) const {

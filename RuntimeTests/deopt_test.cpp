@@ -354,7 +354,7 @@ class DeoptStressTest : public RuntimeTest {
       delete it->second;
       guards.erase(it);
     };
-    Runtime* ngen_rt = NativeGeneratorFactory::runtime();
+    Runtime* ngen_rt = Runtime::get();
     auto pyfunc = reinterpret_cast<PyFunctionObject*>(funcobj.get());
     while (!guards.empty()) {
       NativeGenerator gen(irfunc.get());

@@ -156,29 +156,14 @@ class NativeGeneratorFactory {
     jit_trampoline_ = generateJitTrampoline();
   }
 
-  static Runtime* runtime() {
-    if (s_jit_asm_code_rt_ == nullptr) {
-      s_jit_asm_code_rt_ = new Runtime;
-    }
-    return s_jit_asm_code_rt_;
-  }
-
   std::unique_ptr<NativeGenerator> operator()(const hir::Function* func) const {
     return std::make_unique<NativeGenerator>(
         func, deopt_trampoline_, deopt_trampoline_generators_, jit_trampoline_);
   }
 
-  static void shutdown() {
-    _PyJIT_ClearDictCaches();
-    delete s_jit_asm_code_rt_;
-    s_jit_asm_code_rt_ = nullptr;
-  }
-
   DISALLOW_COPY_AND_ASSIGN(NativeGeneratorFactory);
 
  private:
-  static Runtime* s_jit_asm_code_rt_;
-
   void* deopt_trampoline_;
   void* deopt_trampoline_generators_;
   void* jit_trampoline_;

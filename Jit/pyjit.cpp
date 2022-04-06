@@ -831,7 +831,7 @@ int check(int ret) {
 }
 
 Ref<> make_deopt_stats() {
-  Runtime* runtime = codegen::NativeGeneratorFactory::runtime();
+  Runtime* runtime = Runtime::get();
   auto stats = Ref<>::steal(check(PyList_New(0)));
 
   for (auto& pair : runtime->deoptStats()) {
@@ -909,7 +909,7 @@ static PyObject* get_and_clear_runtime_stats(PyObject* /* self */, PyObject*) {
 }
 
 static PyObject* clear_runtime_stats(PyObject* /* self */, PyObject*) {
-  codegen::NativeGeneratorFactory::runtime()->clearDeoptStats();
+  Runtime::get()->clearDeoptStats();
   Py_RETURN_NONE;
 }
 
@@ -1512,8 +1512,8 @@ int _PyJIT_Finalize() {
 
   // Always release references from Runtime objects: C++ clients may have
   // invoked the JIT directly without initializing a full _PyJITContext.
-  jit::codegen::NativeGeneratorFactory::runtime()->clearDeoptStats();
-  jit::codegen::NativeGeneratorFactory::runtime()->releaseReferences();
+  jit::Runtime::get()->clearDeoptStats();
+  jit::Runtime::get()->releaseReferences();
 
   if (jit_config.init_state != JIT_INITIALIZED) {
     return 0;
@@ -1538,7 +1538,7 @@ int _PyJIT_Finalize() {
     }
   }
 
-  jit::codegen::NativeGeneratorFactory::shutdown();
+  Runtime::shutdown();
   CodeAllocator::freeGlobalCodeAllocator();
   return 0;
 }
@@ -1672,8 +1672,7 @@ void _PyJIT_ProfileCurrentInstr(
     int oparg) {
   auto profile_stack = [&](auto... stack_offsets) {
     CodeProfile& code_profile =
-        jit::codegen::NativeGeneratorFactory::runtime()
-            ->typeProfiles()[Ref<PyCodeObject>{frame->f_code}];
+        jit::Runtime::get()->typeProfiles()[Ref<PyCodeObject>{frame->f_code}];
     int opcode_offset = frame->f_lasti;
 
     auto pair = code_profile.typed_hits.emplace(opcode_offset, nullptr);
@@ -1777,9 +1776,8 @@ void _PyJIT_ProfileCurrentInstr(
 }
 
 void _PyJIT_CountProfiledInstrs(PyCodeObject* code, Py_ssize_t count) {
-  jit::codegen::NativeGeneratorFactory::runtime()
-      ->typeProfiles()[Ref<PyCodeObject>{code}]
-      .total_hits += count;
+  jit::Runtime::get()->typeProfiles()[Ref<PyCodeObject>{code}].total_hits +=
+      count;
 }
 
 namespace {
@@ -1917,8 +1915,7 @@ void build_profile(ProfileEnv& env, TypeProfiles& profiles) {
 } // namespace
 
 PyObject* _PyJIT_GetAndClearTypeProfiles() {
-  auto& profiles =
-      jit::codegen::NativeGeneratorFactory::runtime()->typeProfiles();
+  auto& profiles = jit::Runtime::get()->typeProfiles();
   ProfileEnv env;
 
   try {
@@ -1933,5 +1930,5 @@ PyObject* _PyJIT_GetAndClearTypeProfiles() {
 }
 
 void _PyJIT_ClearTypeProfiles() {
-  jit::codegen::NativeGeneratorFactory::runtime()->typeProfiles().clear();
+  jit::Runtime::get()->typeProfiles().clear();
 }

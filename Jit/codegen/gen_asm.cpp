@@ -123,8 +123,6 @@ void NativeGenerator::generateEpilogueUnlinkFrame(
 // the deopt trampoline code that saves all registers.
 static const auto deopt_scratch_reg = x86::r15;
 
-Runtime* NativeGeneratorFactory::s_jit_asm_code_rt_ = nullptr;
-
 // these functions call int returning functions and convert their output from
 // int (32 bits) to uint64_t (64 bits). This is solely because the code
 // generator cannot support an operand size other than 64 bits at this moment. A
@@ -229,7 +227,7 @@ void* NativeGenerator::GetEntryPoint() {
       func->CountInstrs([](const Instr& instr) { return instr.IsStoreAttr(); });
   auto num_lat_caches = func->env.numLoadAttrCaches();
 
-  env_.rt = NativeGeneratorFactory::runtime();
+  env_.rt = Runtime::get();
   PyCodeObject* code_obj = func->code;
   env_.code_rt = env_.rt->allocateCodeRuntime(
       code_obj,
@@ -1707,8 +1705,7 @@ void* generateDeoptTrampoline(bool generator_mode) {
   // of deopt metadata, and the call method kind.
   annot_cursor = a.cursor();
   a.mov(x86::rdi, x86::rsp);
-  a.mov(
-      x86::rsi, reinterpret_cast<uint64_t>(NativeGeneratorFactory::runtime()));
+  a.mov(x86::rsi, reinterpret_cast<uint64_t>(Runtime::get()));
   a.mov(x86::rdx, deopt_meta_addr);
   auto call_method_kind_addr = x86::ptr(x86::rbp, 2 * kPointerSize);
   a.lea(x86::rcx, call_method_kind_addr);
@@ -1740,8 +1737,7 @@ void* generateDeoptTrampoline(bool generator_mode) {
   // First argument: frame returned from prepareForDeopt.
   a.mov(x86::rdi, x86::rax);
   // Second argument: runtime.
-  a.mov(
-      x86::rsi, reinterpret_cast<uint64_t>(NativeGeneratorFactory::runtime()));
+  a.mov(x86::rsi, reinterpret_cast<uint64_t>(Runtime::get()));
   // Third argument: DeoptMetadata index.
   a.mov(x86::rdx, x86::ptr(x86::rsp, kPointerSize));
   static_assert(

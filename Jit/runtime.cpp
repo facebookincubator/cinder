@@ -58,6 +58,14 @@ PyObject* GenYieldPoint::yieldFromValue(GenDataFooter* gen_footer) const {
       *(reinterpret_cast<uint64_t*>(gen_footer) + yieldFromOffs_));
 }
 
+Runtime* Runtime::s_runtime_{nullptr};
+
+void Runtime::shutdown() {
+  _PyJIT_ClearDictCaches();
+  delete s_runtime_;
+  s_runtime_ = nullptr;
+}
+
 GlobalCache Runtime::findGlobalCache(PyObject* globals, PyObject* name) {
   JIT_CHECK(PyUnicode_CheckExact(name), "Name must be a str");
   JIT_CHECK(PyUnicode_CHECK_INTERNED(name), "Name must be interned");

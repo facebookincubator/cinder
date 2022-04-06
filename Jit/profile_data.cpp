@@ -243,8 +243,7 @@ bool writeProfileData(std::ostream& stream) {
     stream.exceptions(std::ios::badbit | std::ios::failbit);
     write<uint64_t>(stream, kMagicHeader);
     write<uint32_t>(stream, 2);
-    writeVersion2(
-        stream, codegen::NativeGeneratorFactory::runtime()->typeProfiles());
+    writeVersion2(stream, Runtime::get()->typeProfiles());
   } catch (const std::runtime_error& e) {
     JIT_LOG("Failed to write profile data to stream: %s", e.what());
     return false;

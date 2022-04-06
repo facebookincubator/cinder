@@ -192,8 +192,7 @@ Ref<> profileDeopt(
   const LiveValue* live_val = meta.getGuiltyValue();
   auto guilty_obj =
       Ref<>::steal(live_val == nullptr ? nullptr : mem.read(*live_val, false));
-  codegen::NativeGeneratorFactory::runtime()->recordDeopt(
-      deopt_idx, guilty_obj.get());
+  Runtime::get()->recordDeopt(deopt_idx, guilty_obj.get());
   return guilty_obj;
 }
 

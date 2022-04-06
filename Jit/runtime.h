@@ -310,10 +310,20 @@ struct CodeProfile {
 
 using TypeProfiles = std::unordered_map<Ref<PyCodeObject>, CodeProfile>;
 
-// this class collects all the data needed for JIT at runtime
-// it maps a PyCodeObject to the runtime info the PyCodeObject needs.
+// Runtime owns all metadata created by the JIT.
 class Runtime {
  public:
+  // Return the singleton Runtime, creating it first if necessary.
+  static Runtime* get() {
+    if (s_runtime_ == nullptr) {
+      s_runtime_ = new Runtime();
+    }
+    return s_runtime_;
+  }
+
+  // Destroy the singleton Runtime, performing any related cleanup as needed.
+  static void shutdown();
+
   template <typename... Args>
   CodeRuntime* allocateCodeRuntime(Args&&... args) {
     // Serialize as we modify the globally shared runtimes data.
@@ -383,6 +393,8 @@ class Runtime {
   }
 
  private:
+  static Runtime* s_runtime_;
+
   std::vector<std::unique_ptr<CodeRuntime>> runtimes_;
   GlobalCacheMap global_caches_;
   FunctionEntryCacheMap function_entry_caches_;
