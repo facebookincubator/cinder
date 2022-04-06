@@ -267,14 +267,14 @@ def make_explorer_class(process_args):
         def do_404(self):
             try:
                 static_file = os.path.join(TEMPLATE_DIR, self.path.lstrip("/"))
-                with open(static_file, "r") as f:
+                with open(static_file, "rb") as f:
                     self.send_response(200)
                     self.send_header(
                         "Content-type",
                         mimetypes.guess_type(static_file)[0] or "text/html",
                     )
                     self.end_headers()
-                    self.wfile.write(f.read().encode("utf-8"))
+                    self.wfile.write(f.read())
             except FileNotFoundError:
                 self.send_response(404)
                 self.send_header("Content-type", "text/html")
