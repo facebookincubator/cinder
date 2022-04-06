@@ -40,6 +40,7 @@ PassRegistry::PassRegistry() {
   addPass(Simplify::Factory);
   addPass(DeadCodeElimination::Factory);
   addPass(GuardTypeRemoval::Factory);
+  addPass(BeginInlinedFunctionElimination::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
@@ -898,8 +899,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   } else {
     call_instr->instr->ExpandInto({begin_inlined_function, callee_branch});
   }
-  tail->push_front(
-      EndInlinedFunction::create(begin_inlined_function->inlineDepth()));
+  tail->push_front(EndInlinedFunction::create(begin_inlined_function));
 
   // Transform LoadArg into Assign
   for (auto it = result.entry->begin(); it != result.entry->end();) {
@@ -980,6 +980,50 @@ void InlineFunctionCalls::Run(Function& irfunc) {
   // pointed to by `to_inline`.
   CopyPropagation{}.Run(irfunc);
   CleanCFG{}.Run(irfunc);
+}
+
+static void tryEliminateBeginEnd(EndInlinedFunction* end) {
+  BeginInlinedFunction* begin = end->matchingBegin();
+  if (begin->block() != end->block()) {
+    // TODO(emacs): Support elimination across basic blocks
+    return;
+  }
+  auto it = begin->block()->iterator_to(*begin);
+  it++;
+  std::vector<Instr*> to_delete{begin, end};
+  for (; &*it != end; it++) {
+    // Snapshots reference the FrameState owned by BeginInlinedFunction and, if
+    // not removed, will contain bad pointers.
+    if (it->IsSnapshot()) {
+      to_delete.push_back(&*it);
+      continue;
+    }
+    // Instructions that either deopt or otherwise materialize a PyFrameObject
+    // need the shadow frames to exist. Everything that materializes a
+    // PyFrameObject should also be marked as deopting.
+    if (dynamic_cast<DeoptBase*>(&*it)) {
+      return;
+    }
+  }
+  for (Instr* instr : to_delete) {
+    instr->unlink();
+    delete instr;
+  }
+}
+
+void BeginInlinedFunctionElimination::Run(Function& irfunc) {
+  std::vector<EndInlinedFunction*> ends;
+  for (auto& block : irfunc.cfg.blocks) {
+    for (auto& instr : block) {
+      if (!instr.IsEndInlinedFunction()) {
+        continue;
+      }
+      ends.push_back(static_cast<EndInlinedFunction*>(&instr));
+    }
+  }
+  for (EndInlinedFunction* end : ends) {
+    tryEliminateBeginEnd(end);
+  }
 }
 
 } // namespace hir

@@ -103,6 +103,7 @@ void Compiler::runPasses(
   if (_PyJIT_IsHIRInlinerEnabled()) {
     runPass<jit::hir::InlineFunctionCalls>(irfunc, callback);
     runPass<jit::hir::Simplify>(irfunc, callback);
+    runPass<jit::hir::BeginInlinedFunctionElimination>(irfunc, callback);
   }
   runPass<jit::hir::DeadCodeElimination>(irfunc, callback);
   runPass<jit::hir::RefcountInsertion>(irfunc, callback);

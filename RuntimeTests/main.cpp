@@ -108,6 +108,10 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/inliner_static_test.txt",
       HIRTest::kCompileStatic);
+  register_test("RuntimeTests/hir_tests/inliner_elimination_test.txt");
+  register_test(
+      "RuntimeTests/hir_tests/inliner_elimination_static_test.txt",
+      HIRTest::kCompileStatic);
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
   register_test(

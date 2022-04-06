@@ -188,6 +188,17 @@ class InlineFunctionCalls : public Pass {
   }
 };
 
+class BeginInlinedFunctionElimination : public Pass {
+ public:
+  BeginInlinedFunctionElimination() : Pass("BeginInlinedFunctionElimination") {}
+
+  void Run(Function& irfunc) override;
+
+  static std::unique_ptr<BeginInlinedFunctionElimination> Factory() {
+    return std::make_unique<BeginInlinedFunctionElimination>();
+  }
+};
+
 class PassRegistry {
  public:
   PassRegistry();

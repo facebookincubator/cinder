@@ -2080,14 +2080,20 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
 
 class INSTR_CLASS(EndInlinedFunction, (), Operands<0>), public InlineBase {
  public:
-  EndInlinedFunction(int inline_depth) : InstrT(), inline_depth(inline_depth) {}
+  EndInlinedFunction(BeginInlinedFunction * begin)
+      : InstrT(), begin_(begin), inline_depth_(begin->inlineDepth()) {}
+
+  BeginInlinedFunction* matchingBegin() const {
+    return begin_;
+  }
 
   int inlineDepth() const {
-    return inline_depth;
+    return inline_depth_;
   }
 
  private:
-  int inline_depth{-1};
+  BeginInlinedFunction* begin_{nullptr};
+  int inline_depth_{-1};
 };
 
 enum class PrimitiveUnaryOpKind {
