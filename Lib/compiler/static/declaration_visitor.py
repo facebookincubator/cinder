@@ -209,22 +209,25 @@ class DeclarationVisitor(GenericVisitor[None]):
             raise NotImplementedError("relative imports aren't supported")
         self.compiler.import_module(mod_name, self.optimize)
         mod = self.compiler.modules.get(mod_name)
-        if mod is not None:
-            for name in node.names:
-                val = mod.children.get(name.name)
-                child_name = name.asname or name.name
-                if val is not None:
-                    self.module.declare_import(child_name, (mod_name, name.name), val)
-                else:
-                    # We might be facing a module imported as an attribute.
-                    module_as_attribute = f"{mod_name}.{name.name}"
-                    self.compiler.import_module(module_as_attribute, self.optimize)
-                    if module_as_attribute in self.compiler.modules:
-                        self.module.declare_import(
-                            child_name,
-                            (mod_name, name.name),
-                            ModuleInstance(module_as_attribute, self.compiler),
-                        )
+        for name in node.names:
+            child_name = name.asname or name.name
+            if mod is None:
+                self.module.declare_import(child_name, None, self.type_env.DYNAMIC)
+                continue
+            val = mod.children.get(name.name)
+            if val is not None:
+                self.module.declare_import(child_name, (mod_name, name.name), val)
+            else:
+                # We might be facing a module imported as an attribute.
+                module_as_attribute = f"{mod_name}.{name.name}"
+                self.compiler.import_module(module_as_attribute, self.optimize)
+                # Even if the static compiler doesn't understand an annotation,
+                # declare it as dynamic to ensure we don't throw spurious unknown
+                # name errors.
+                typ = self.type_env.DYNAMIC
+                if module_as_attribute in self.compiler.modules:
+                    typ = ModuleInstance(module_as_attribute, self.compiler)
+                self.module.declare_import(child_name, (mod_name, name.name), typ)
 
     # We don't pick up declarations in nested statements
     def visitFor(self, node: For) -> None:
