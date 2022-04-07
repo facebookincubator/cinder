@@ -18,8 +18,9 @@ class InferenceTests(StaticTestBase):
         codestr = """
             class C: pass
 
-            x = C() if a else C()
-            reveal_type(x)
+            def foo(a):
+                x = C() if a else C()
+                reveal_type(x)
         """
         self.type_error(
             codestr, rf"reveal_type\(x\): 'Exact\[<module>.C\]'", at="reveal_type"

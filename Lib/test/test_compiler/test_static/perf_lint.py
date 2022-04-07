@@ -90,6 +90,9 @@ class PerfLintTests(StaticTestBase):
 
     def test_load_attr_dynamic(self) -> None:
         codestr = """
+        def foo():
+            return 42
+        a = foo()
         a.b
         """
 
@@ -104,6 +107,9 @@ class PerfLintTests(StaticTestBase):
 
     def test_load_attr_dynamic_base(self) -> None:
         codestr = """
+        def foo():
+            return 42
+        B = foo()
         class C(B):
             pass
 
@@ -122,6 +128,9 @@ class PerfLintTests(StaticTestBase):
 
     def test_store_attr_dynamic(self) -> None:
         codestr = """
+        def foo():
+            return 0
+        a, c = foo(), foo()
         a.b = c
         """
 
@@ -136,6 +145,9 @@ class PerfLintTests(StaticTestBase):
 
     def test_store_attr_dynamic_base(self) -> None:
         codestr = """
+        def foo():
+            return 0
+        B = foo()
         class C(B):
             pass
 

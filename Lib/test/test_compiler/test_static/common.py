@@ -554,9 +554,8 @@ class StaticTestBase(CompilerTest):
         getter=lambda stmt: stmt,
     ) -> Tuple[ast.stmt, Compiler]:
         mod, comp = self.bind_module(code, optimize)
-        assert len(mod.body) == 1
         types = comp.modules["foo"].types
-        return types[getter(mod.body[0])], comp
+        return types[getter(mod.body[-1])], comp
 
     def bind_expr(
         self,
@@ -564,9 +563,8 @@ class StaticTestBase(CompilerTest):
         optimize: bool = False,
     ) -> Tuple[Value, Compiler]:
         mod, comp = self.bind_module(code, optimize)
-        assert len(mod.body) == 1
         types = comp.modules["foo"].types
-        return types[mod.body[0].value], comp
+        return types[mod.body[-1].value], comp
 
     def bind_module(
         self,

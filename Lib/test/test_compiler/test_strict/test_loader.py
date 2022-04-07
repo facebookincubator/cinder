@@ -2145,22 +2145,6 @@ class StrictLoaderTest(StrictTestBase):
         with self.sbx.in_strict_module("a") as mod:
             self.assertIs(mod.List, List)
 
-    def test_static_python_try_aliases_builtin(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __static__
-                try:
-                    foo
-                except NameError as int:
-                    pass
-                def f():
-                    return int('3')
-            """,
-        )
-        with self.sbx.in_strict_module("a") as mod:
-            self.assertEqual(mod.f(), 3)
-
     def test_static_python_final_globals_patch(self) -> None:
         self.sbx.write_file(
             "a.py",

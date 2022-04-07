@@ -57,7 +57,7 @@ class UnionCompilationTests(StaticTestBase):
     def test_optional_union_syntax(self):
         self.revealed_type(
             """
-            from typing import Union
+            from typing import Optional, Union
             class B: pass
             class C(B): pass
 
@@ -548,6 +548,7 @@ class UnionCompilationTests(StaticTestBase):
             self.assertInBytecode(mod.f, "CAST", (("builtins", "int", "?"), False))
             self.assertEqual(mod.f(42), 42)
             self.assertEqual(mod.f(None), None)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -474,13 +474,40 @@ class StaticCompilationTests(StaticTestBase):
             lambda type_env: type_env.str.exact_type().instance,
         )
         assert_expr_binds_to(
-            "f'{x}'",
+            """
+            x = 3
+            f'{x}'
+            """,
             lambda type_env: type_env.str.exact_type().instance,
         )
 
-        assert_expr_binds_to("a", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("a.b", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("a + b", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 541
+            a = foo()
+            a
+            """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 541
+            a = foo()
+            a.b
+            """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+         def foo():
+             return 541
+         a, b = foo(), foo()
+         a + b
+         """,
+            lambda type_env: type_env.DYNAMIC,
+        )
 
         self.assertEqual(repr(self.bind_expr("1 + 2")[0]), "<Literal[3]>")
         self.assertEqual(repr(self.bind_expr("1 - 2")[0]), "<Literal[-1]>")
@@ -499,22 +526,117 @@ class StaticCompilationTests(StaticTestBase):
 
         self.assertEqual(repr(self.bind_stmt("x = 1")[0]), "<Literal[1]>")
         # self.assertEqual(self.bind_stmt("x: foo = 1").target.comp_type, DYNAMIC)
-        assert_stmt_binds_to("x += 1", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("a or b", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("+a", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("not a", lambda type_env: type_env.bool.instance)
-        assert_expr_binds_to("lambda: 42", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to(
-            "a if b else c",
+        assert_stmt_binds_to(
+            """
+            def foo():
+                 return 4
+            x = foo()
+            x += 1
+            """,
             lambda type_env: type_env.DYNAMIC,
         )
-        assert_expr_binds_to("x > y", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("x()", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("x(y)", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("x[y]", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("x[1:2]", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("x[1:2:3]", lambda type_env: type_env.DYNAMIC)
-        assert_expr_binds_to("x[:]", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            a, b = foo(), foo()
+            a or b
+            """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            a = foo()
+            +a
+            """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            a = foo()
+            not a
+           """,
+            lambda type_env: type_env.bool.instance,
+        )
+        assert_expr_binds_to("lambda: 42", lambda type_env: type_env.DYNAMIC)
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            a, b, c = foo(), foo(), foo()
+            a if b else c
+            """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+               return 4
+            a, b = foo(), foo()
+            a > b
+            """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            x = foo()
+            x()
+        """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            x, y = foo()
+            x(y)
+        """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            x, y = foo()
+            x[y]
+        """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            x, y = foo()
+            x[1:2]
+        """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            x, y = foo()
+            x[1:2:3]
+        """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+        assert_expr_binds_to(
+            """
+            def foo():
+                return 4
+            x, y = foo()
+            x[:]
+        """,
+            lambda type_env: type_env.DYNAMIC,
+        )
+
         assert_expr_binds_to(
             "{}",
             lambda type_env: type_env.dict.exact_type().instance,
@@ -541,19 +663,19 @@ class StaticCompilationTests(StaticTestBase):
         )
 
         assert_expr_binds_to(
-            "[x for x in y]",
+            "[x for x in [1,2,3]]",
             lambda type_env: type_env.list.exact_type().instance,
         )
         assert_expr_binds_to(
-            "{x for x in y}",
+            "{x for x in [1,2,3]}",
             lambda type_env: type_env.set.exact_type().instance,
         )
         assert_expr_binds_to(
-            "{x:y for x in y}",
+            "{x:x for x in [1,2,3]}",
             lambda type_env: type_env.dict.exact_type().instance,
         )
         assert_expr_binds_to(
-            "(x for x in y)",
+            "(x for x in [1,2,3])",
             lambda type_env: type_env.DYNAMIC,
         )
 
@@ -1162,14 +1284,15 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_untyped_attr(self):
         codestr = """
-        y = x.load
-        x.store = 42
-        del x.delete
+        def foo(x):
+            y = x.load
+            x.store = 42
+            del x.delete
         """
-        code = self.compile(codestr, modname="foo")
-        self.assertInBytecode(code, "LOAD_ATTR", "load")
-        self.assertInBytecode(code, "STORE_ATTR", "store")
-        self.assertInBytecode(code, "DELETE_ATTR", "delete")
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.foo, "LOAD_ATTR", "load")
+            self.assertInBytecode(mod.foo, "STORE_ATTR", "store")
+            self.assertInBytecode(mod.foo, "DELETE_ATTR", "delete")
 
     def test_incompat_override_method_ret_type(self):
         codestr = """
@@ -1952,6 +2075,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_verify_arg_unknown_type(self):
         codestr = """
+            from unknown import foo
             def x(x:foo):
                 return b
             x('abc')
@@ -1990,8 +2114,9 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_verify_kwarg_unknown_type(self):
         codestr = """
+            from unknown import foo
             def x(x:foo):
-                return b
+                return 0
             x(x='abc')
         """
         module = self.compile(codestr)
@@ -2045,7 +2170,9 @@ class StaticCompilationTests(StaticTestBase):
     def test_call_function_unknown_ret_type(self):
         codestr = """
             from __future__ import annotations
-            def g() -> foo:
+            from builtins import open
+
+            def g() -> open:
                 return 42
 
             def testfunc():
@@ -3592,6 +3719,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_if_optional_reassign(self):
         codestr = """
+        from typing import Optional
         class C: pass
 
         def testfunc(abc: Optional[C]):
