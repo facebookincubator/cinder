@@ -774,7 +774,7 @@ static PyMemberDef gen_memberlist[] = {
 
 static PyMethodDef gen_methods[] = {
     {"send",(PyCFunction)gen_send, METH_O, send_doc},
-    {"throw",(PyCFunction)gen_throw_fastcall, METH_FASTCALL, throw_doc},
+    {"throw",(PyCFunction)(void(*)(void))gen_throw_fastcall, METH_FASTCALL, throw_doc},
     {"close",(PyCFunction)gen_close, METH_NOARGS, close_doc},
     {NULL, NULL}        /* Sentinel */
 };
@@ -1022,7 +1022,7 @@ PyDoc_STRVAR(coro_close_doc,
 
 static PyMethodDef coro_methods[] = {
     {"send",(PyCFunction)gen_send, METH_O, coro_send_doc},
-    {"throw",(PyCFunction)gen_throw_fastcall, METH_FASTCALL, coro_throw_doc},
+    {"throw",(PyCFunction)(void(*)(void))gen_throw_fastcall, METH_FASTCALL, coro_throw_doc},
     {"close",(PyCFunction)gen_close, METH_NOARGS, coro_close_doc},
     {NULL, NULL}        /* Sentinel */
 };
