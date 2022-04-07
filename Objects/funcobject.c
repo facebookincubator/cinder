@@ -76,7 +76,7 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
     op->func_weakreflist = NULL;
     op->func_module = module;
     op->func_annotations = NULL;
-    op->vectorcall = _PyFunction_Vectorcall;
+    op->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
 
     _PyObject_GC_TRACK(op);
     return (PyObject *)op;
@@ -422,6 +422,7 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
 
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
+    PyEntry_init(op);
     return 0;
 }
 
@@ -613,6 +614,8 @@ func_new_impl(PyTypeObject *type, PyCodeObject *code, PyObject *globals,
         Py_INCREF(closure);
         newfunc->func_closure = closure;
     }
+
+    PyEntry_init(newfunc);
 
     return (PyObject *)newfunc;
 }

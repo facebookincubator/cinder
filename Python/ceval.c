@@ -4316,6 +4316,8 @@ main_loop:
                 func->func_defaults = POP();
             }
 
+            PyEntry_init(func);
+
             PUSH((PyObject *)func);
             DISPATCH();
         }
@@ -5917,6 +5919,33 @@ do_call_core(PyThreadState *tstate,
         }
     }
     return PyObject_Call(func, callargs, kwdict);
+}
+
+void
+PyEntry_initnow(PyFunctionObject *func)
+{
+    // Check that func hasn't already been initialized.
+    assert(func->vectorcall == (vectorcallfunc)PyEntry_LazyInit);
+
+    func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+}
+
+PyObject *
+PyEntry_LazyInit(PyFunctionObject *func,
+                 PyObject **stack,
+                 Py_ssize_t nargsf,
+                 PyObject *kwnames)
+{
+    PyEntry_initnow(func);
+    assert(func->vectorcall != (vectorcallfunc)PyEntry_LazyInit);
+    return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
+}
+
+void
+PyEntry_init(PyFunctionObject *func)
+{
+    func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
+    PyEntry_initnow(func);
 }
 
 /* Extract a slice index from a PyLong or an object with the

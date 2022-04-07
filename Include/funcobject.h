@@ -50,6 +50,13 @@ typedef struct {
      */
 } PyFunctionObject;
 
+PyObject *PyEntry_LazyInit(PyFunctionObject *func,
+                           PyObject **stack,
+                           Py_ssize_t nargsf,
+                           PyObject *kwnames);
+
+void PyEntry_init(PyFunctionObject *func);
+
 PyAPI_DATA(PyTypeObject) PyFunction_Type;
 
 #define PyFunction_Check(op) Py_IS_TYPE(op, &PyFunction_Type)
