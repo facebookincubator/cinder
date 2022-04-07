@@ -13,6 +13,12 @@ from unittest import TestCase
 from .common import get_repo_root, glob_test
 
 
+# This must match the same global in runtest.py. Unfortuantely there isn't
+# a place to put this which can be imported by both users without either
+# disrupting tests with unexpected imports, or being unavailable in some of our
+# CI setups.
+N_SBS_TEST_CLASSES = 10
+
 IGNORE_PATTERNS = (
     # Not a valid Python3 syntax
     "lib2to3/tests/data",
@@ -22,14 +28,18 @@ IGNORE_PATTERNS = (
     "test/test_compiler/testcorpus",
 )
 
+SbsCompileTests = []
 
-class SbsCompileTests(TestCase):
-    pass
+for i in range(N_SBS_TEST_CLASSES):
+    class_name = f"SbsCompileTests{i}"
+    new_class = type(class_name, (TestCase,), {})
+    SbsCompileTests.append(new_class)
+    globals()[class_name] = new_class
 
 
 # Add a test case for each standard library file to SbsCompileTests.  Individual
 # tests can be run with:
-#  python -m test.test_compiler SbsCompileTests.test_Lib_test_test_unary
+#  python -m test.test_compiler SbsCompileTestsN.test_Lib_test_test_unary
 def add_test(modname, fname):
     assert fname.startswith(libpath + "/")
     for p in IGNORE_PATTERNS:
@@ -64,8 +74,10 @@ def add_test(modname, fname):
                     f.write(newdump.getvalue())
                 raise
 
-    test_stdlib.__name__ = "test_stdlib_" + modname.replace("/", "_")[:-3]
-    setattr(SbsCompileTests, test_stdlib.__name__, test_stdlib)
+    name = "test_stdlib_" + modname.replace("/", "_")[:-3]
+    test_stdlib.__name__ = name
+    n = hash(name) % N_SBS_TEST_CLASSES
+    setattr(SbsCompileTests[n], test_stdlib.__name__, test_stdlib)
 
 
 REPO_ROOT = path.join(path.dirname(__file__), "..", "..", "..")

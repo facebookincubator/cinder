@@ -15,6 +15,11 @@ from test.libregrtest.refleak import dash_R, clear_caches
 from test.libregrtest.save_env import saved_test_environment
 from test.libregrtest.utils import format_duration, print_warning
 
+# This must match the same global in test_sbs_stdlib. Unfortunately there isn't
+# a place to put this which can be imported by both users without either
+# disrupting tests with unexpected imports, or being unavailable in some of our
+# CI setups.
+N_SBS_TEST_CLASSES = 10
 
 # Test result constants.
 PASSED = 1
@@ -70,6 +75,16 @@ SPLITTESTDIRS = {
     "test_compiler",
 }
 
+# Remap named tests to other names during `findtests()`. This is useful for
+# translating "virtual"/generated tests into multiple named tests so they can be
+# run in parallel.
+REMAP_TESTS = {
+    "test_sbs_stdlib": [
+        f"test_compiler.test_sbs_stdlib.SbsCompileTests{i}"
+        for i in range(N_SBS_TEST_CLASSES)
+    ]
+}
+
 # used by --findleaks, store for gc.garbage
 FOUND_GARBAGE = []
 
@@ -109,7 +124,9 @@ def findtests(
     others = set(stdtests) | nottests
     for name in names:
         mod, ext = os.path.splitext(name)
-        if mod[:5] == "test_" and mod not in others:
+        if mod in REMAP_TESTS.keys():
+            tests.extend(REMAP_TESTS[mod])
+        elif mod[:5] == "test_" and mod not in others:
             if mod in splittestdirs:
                 subdir = os.path.join(testdir, mod)
                 if len(base_mod):
@@ -240,13 +257,24 @@ def _runtest_inner2(ns, test_name):
     # remove the module from sys.module to reload it if it was already imported
     support.unload(abstest)
 
-    the_module = importlib.import_module(abstest)
+    try:
+        the_module = importlib.import_module(abstest)
 
-    # If the test has a test_main, that will run the appropriate
-    # tests.  If not, use normal unittest test loading.
-    test_runner = getattr(the_module, "test_main", None)
-    if test_runner is None:
-        test_runner = functools.partial(_test_module, the_module)
+        # If the test has a test_main, that will run the appropriate
+        # tests.  If not, use normal unittest test loading.
+        test_runner = getattr(the_module, "test_main", None)
+        if test_runner is None:
+            test_runner = functools.partial(_test_module, the_module)
+    except ModuleNotFoundError:
+
+        def test_runner():
+            loader = unittest.TestLoader()
+            tests = loader.loadTestsFromName(abstest)
+            for error in loader.errors:
+                print(error, file=sys.stderr)
+            if loader.errors:
+                raise Exception("errors while loading tests")
+            support.run_unittest(tests)
 
     try:
         if ns.huntrleaks:
