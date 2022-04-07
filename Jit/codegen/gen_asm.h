@@ -103,9 +103,6 @@ class NativeGenerator {
 
   int calcFrameHeaderSize(const hir::Function* func);
   int calcMaxInlineDepth(const hir::Function* func);
-  size_t numGpRegsForArgs() const;
-  bool forEachArgumentRegInfo(
-      std::function<void(std::optional<asmjit::x86::Reg>, size_t)> cb) const;
   void generateCode(asmjit::CodeHolder& code);
   void generateFunctionEntry();
   void linkOnStackShadowFrame(
@@ -121,7 +118,7 @@ class NativeGenerator {
   void loadOrGenerateLinkFrame(
       asmjit::x86::Gp tstate_reg,
       const std::vector<
-          std::pair<const asmjit::x86::Reg, const asmjit::x86::Reg>>&
+          std::pair<const asmjit::x86::Reg&, const asmjit::x86::Reg&>>&
           save_regs);
   void generateEpilogue(asmjit::BaseNode* epilogue_cursor);
   void generateEpilogueUnlinkFrame(asmjit::x86::Gp tstate_reg, bool is_gen);

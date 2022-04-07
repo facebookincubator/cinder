@@ -572,37 +572,6 @@ class PrimitivesTests(StaticTestBase):
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0x80000000, TYPED_INT64))
 
-    def test_all_arg_regs_used_mixed_gp_and_fp(self):
-        for n_fp in range(8, 10):
-            for n_gp in range(6, 8):
-                g_args = ", ".join(f"x{n}: double" for n in range(n_fp))
-                g_args += ", " + (", ".join(f"y{n}: int" for n in range(n_gp)))
-                fp_sum = " + ".join(f"x{n}" for n in range(n_fp))
-                gp_sum = " + ".join(f"y{n}" for n in range(n_gp))
-                test_args = ", ".join(str(n) for n in range(n_gp + n_fp))
-                expected_result = (
-                    float(sum(range(n_fp))),
-                    sum(range(n_fp, n_fp + n_gp)),
-                )
-                codestr = f"""
-                    from __static__ import box, double
-                    from typing import Tuple
-
-                    # def g(x0: double, x1: double ..., y1: int, y2: int...)
-                    def g({g_args}) -> Tuple[double, int]:
-                        # return x0 + x1 ..., y1 + y2 ...
-                        return box({fp_sum}), {gp_sum}
-
-                    def f() -> Tuple[double, int]:
-                        # return g(0, 1, 2, ...)
-                        return g({test_args})
-                """
-                with self.in_strict_module(codestr) as mod:
-                    f = mod.f
-                    self.assertEqual(
-                        f(), expected_result, f"n_fp: {n_fp}, n_gp: {n_gp}"
-                    )
-
     def test_int_int_constant(self):
         codestr = """
             from __static__ import int64

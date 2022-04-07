@@ -655,15 +655,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     switch (opcode) {
       case Opcode::kLoadArg: {
         auto instr = static_cast<const LoadArg*>(&i);
-        JIT_DCHECK(
-            instr->arg_idx() < env_->arg_locations.size(),
-            "Inconsistent number of args");
-        PhyLocation phy_loc = env_->arg_locations[instr->arg_idx()];
-        if (phy_loc.is_memory()) {
+        if (instr->arg_idx() >= env_->arg_locations.size() ||
+            env_->arg_locations[instr->arg_idx()] == PhyLocation::REG_INVALID) {
+          size_t reg_count = env_->arg_locations.size();
+          for (auto loc : env_->arg_locations) {
+            if (loc == PhyLocation::REG_INVALID) {
+              reg_count--;
+            }
+          }
           bbb.AppendCode(
               "Load {}, __asm_extra_args, {}",
               instr->dst(),
-              -(phy_loc + 1) * kPointerSize);
+              (instr->arg_idx() - reg_count) * kPointerSize);
         } else {
           bbb.AppendCode("LoadArg {} {}", instr->dst(), instr->arg_idx());
         }

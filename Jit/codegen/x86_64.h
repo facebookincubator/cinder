@@ -231,13 +231,15 @@ static constexpr PhyRegisterSet CALLER_SAVE_REGS =
 static constexpr PhyRegisterSet CALLEE_SAVE_REGS =
     INIT_REGISTERS - CALLER_SAVE_REGS;
 
-static constexpr PhyLocation GP_ARGUMENT_REGS[] = {
+static constexpr PhyLocation ARGUMENT_REGS[] = {
     PhyLocation::RDI,
     PhyLocation::RSI,
     PhyLocation::RDX,
     PhyLocation::RCX,
     PhyLocation::R8,
     PhyLocation::R9};
+
+static constexpr size_t ARGUMENT_REG_COUNT = ARRAYSIZE(ARGUMENT_REGS);
 
 static constexpr PhyLocation FP_ARGUMENT_REGS[] = {
     PhyLocation::XMM0,
@@ -250,17 +252,6 @@ static constexpr PhyLocation FP_ARGUMENT_REGS[] = {
     PhyLocation::XMM7};
 
 static constexpr size_t FP_ARGUMENT_REG_COUNT = ARRAYSIZE(FP_ARGUMENT_REGS);
-
-// For coroutines, we want to unify on the "awaited" flag being in the 3rd
-// argument register. This avoids having to spill it to memory during a JIT
-// function prologue and then immediately pulling it back out. It's the 3rd
-// argument because this is where this value will necessarily be for
-// vector-called functions (i.e. nargsf).
-static constexpr size_t CORO_NARGSF_ARG_IDX = 2;
-
-inline size_t numGpRegsForArgs(const PyCodeObject* code) {
-  return std::size(GP_ARGUMENT_REGS) - (code->co_flags & CO_COROUTINE ? 1 : 0);
-}
 
 } // namespace codegen
 } // namespace jit

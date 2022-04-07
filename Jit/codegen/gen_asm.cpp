@@ -184,6 +184,16 @@ extern "C" void ___debug_helper(const char* name) {
 }
 #endif
 
+
+PhyLocation get_arg_location_phy_location(int arg) {
+  if (static_cast<size_t>(arg) < ARGUMENT_REG_COUNT) {
+    return ARGUMENT_REGS[arg];
+  }
+
+  JIT_CHECK(false, "only six first registers should be used");
+  return 0;
+}
+
 void* NativeGenerator::GetEntryPoint() {
   if (entry_ != nullptr) {
     // already compiled
@@ -207,15 +217,38 @@ void* NativeGenerator::GetEntryPoint() {
   // uses general purpose registers while available for non-floating
   // point values, and floating point values while available for fp
   // arguments.
-  int non_reg_arg_idx = -1;
-  forEachArgumentRegInfo([&](std::optional<x86::Reg> r, size_t) {
-    if (r) {
-      env_.arg_locations.push_back(
-          r->id() + (r->isXmm() ? PhyLocation::XMM_REG_BASE : 0));
-    } else {
-      env_.arg_locations.push_back(non_reg_arg_idx--);
+  const std::vector<TypedArgument>& checks = GetFunction()->typed_args;
+
+  for (size_t i = 0, check_index = 0, gp_index = 0, fp_index = 0;
+       i < static_cast<size_t>(GetFunction()->numArgs());
+       i++) {
+    auto add_gp = [&]() {
+      if (gp_index < ARGUMENT_REG_COUNT) {
+        env_.arg_locations.push_back(ARGUMENT_REGS[gp_index++]);
+      } else {
+        env_.arg_locations.push_back(PhyLocation::REG_INVALID);
+      }
+    };
+
+    if (check_index < checks.size() &&
+        checks[check_index].locals_idx == static_cast<int>(i)) {
+      if (checks[check_index].jit_type <= TCDouble) {
+        if (fp_index < FP_ARGUMENT_REG_COUNT) {
+          env_.arg_locations.push_back(FP_ARGUMENT_REGS[fp_index++]);
+        } else {
+          // The register will come in on the stack, and the backend
+          // will access it via __asm_extra_args.
+          env_.arg_locations.push_back(PhyLocation::REG_INVALID);
+        }
+      } else {
+        add_gp();
+      }
+      check_index++;
+      continue;
     }
-  });
+
+    add_gp();
+  }
 
   CollectOptimizableLoadMethods();
   auto num_lm_caches = env_.optimizable_load_call_methods_.size() / 2;
@@ -489,10 +522,21 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   return load_method_scratch;
 }
 
+x86::Gp get_arg_location(int arg) {
+  auto phyloc = get_arg_location_phy_location(arg);
+
+  if (phyloc.is_register()) {
+    return x86::gpq(phyloc);
+  }
+
+  JIT_CHECK(false, "should only be used with first six args");
+}
+
 void NativeGenerator::loadOrGenerateLinkFrame(
     asmjit::x86::Gp tstate_reg,
     const std::vector<
-        std::pair<const asmjit::x86::Reg, const asmjit::x86::Reg>>& save_regs) {
+        std::pair<const asmjit::x86::Reg&, const asmjit::x86::Reg&>>&
+        save_regs) {
   auto load_tstate_and_move = [&]() {
     loadTState(tstate_reg);
     for (const auto& pair : save_regs) {
@@ -603,7 +647,7 @@ void NativeGenerator::generatePrologue(
     generateFunctionEntry();
     if (returns_enum) {
       as_->push(x86::rdx);
-      as_->push(x86::rdx); // extra push to maintain alignment
+      as_->push(0xdeadbeef); // extra push to maintain alignment
       annot.add("saveRegisters", as_, entry_cursor);
     }
     as_->call(generic_entry);
@@ -794,46 +838,38 @@ void NativeGenerator::generatePrologue(
   auto frame_cursor = as_->cursor();
   as_->bind(setup_frame);
 
-  constexpr auto kNargsfReg = x86::rdx;
   constexpr auto kFuncPtrReg = x86::rax;
   constexpr auto kArgsReg = x86::r10;
-  constexpr auto kArgsOverflowBaseReg = kArgsReg;
+  constexpr auto kArgsPastSixReg = kArgsReg;
 
   loadOrGenerateLinkFrame(
       x86::r11,
       {
-          {kNargsfReg, kNargsfReg},
           {x86::rdi, kFuncPtrReg}, // func
           {x86::rsi, kArgsReg} // args
       });
 
-  // Move arguments into their expected registers and then use r10 as the base
-  // for additional args. Note for coroutines we leave nargsf in RDX.
-  size_t num_fp_regs = 0;
-  size_t num_gp_regs = 0;
-  size_t args_without_regs = 0;
-  const bool not_enough_regs_for_args =
-      forEachArgumentRegInfo([&](std::optional<x86::Reg> r, size_t i) {
-        if (!r) {
-          args_without_regs++;
-          return;
-        }
-        x86::Mem arg_ptr =
-            x86::ptr(kArgsReg, (i - args_without_regs) * kPointerSize);
-        if (r->isXmm() && num_fp_regs != FP_ARGUMENT_REG_COUNT) {
-          as_->movsd(x86::Xmm(r->id()), arg_ptr);
-          num_fp_regs++;
-        } else if (num_gp_regs != numGpRegsForArgs()) {
-          as_->mov(x86::Gpq(r->id()), arg_ptr);
-          num_gp_regs++;
-        }
-      });
-  if (not_enough_regs_for_args) {
+  // Move arguments into their expected registers and then
+  // use r10 as the base for additional args.
+  bool has_extra_args = false;
+  for (size_t i = 0; i < env_.arg_locations.size(); i++) {
+    PhyLocation arg = env_.arg_locations[i];
+    if (arg == PhyLocation::REG_INVALID) {
+      has_extra_args = true;
+      continue;
+    }
+    if (arg.is_gp_register()) {
+      as_->mov(x86::gpq(arg), x86::ptr(kArgsReg, i * sizeof(void*)));
+    } else {
+      as_->movsd(x86::xmm(arg), x86::ptr(kArgsReg, i * sizeof(void*)));
+    }
+  }
+  if (has_extra_args) {
     // load the location of the remaining args, the backend will
     // deal with loading them from here...
     as_->lea(
-        kArgsOverflowBaseReg,
-        x86::ptr(kArgsReg, (num_fp_regs + num_gp_regs) * kPointerSize));
+        kArgsPastSixReg,
+        x86::ptr(kArgsReg, ARGUMENT_REG_COUNT * sizeof(void*)));
   }
 
   // Finally allocate the saved space required for the actual function
@@ -1198,25 +1234,78 @@ void NativeGenerator::generateStaticEntryPoint(
 
   generateFunctionEntry();
 
-  // Save incoming args across link call in loadOrGenerateLinkFrame. This is not
-  // needed for generators as they do not link a frame at this stage.
-  std::vector<std::pair<const x86::Reg, const x86::Reg>> save_regs;
-  bool not_enough_regs_for_args;
-  if (isGen()) {
-    not_enough_regs_for_args =
-        forEachArgumentRegInfo([&](std::optional<x86::Reg>, size_t) {});
-  } else {
-    not_enough_regs_for_args =
-        forEachArgumentRegInfo([&](std::optional<x86::Reg> r, size_t) {
-          if (r) {
-            save_regs.emplace_back(*r, *r);
+  // Save incoming args across link call...
+  size_t total_args = (size_t)GetFunction()->numArgs();
+
+  const std::vector<TypedArgument>& checks = GetFunction()->typed_args;
+  std::vector<std::pair<const x86::Reg&, const x86::Reg&>> save_regs;
+
+  if (!isGen()) {
+    for (size_t i = 0, check_index = 0, arg_index = 0, fp_index = 0;
+         i < total_args;
+         i++) {
+      if (check_index < checks.size() &&
+          checks[check_index].locals_idx == (int)i) {
+        if (checks[check_index++].jit_type <= TCDouble &&
+            fp_index < FP_ARGUMENT_REG_COUNT) {
+          switch (FP_ARGUMENT_REGS[fp_index++]) {
+            case PhyLocation::XMM0:
+              save_regs.emplace_back(x86::xmm0, x86::xmm0);
+              break;
+            case PhyLocation::XMM1:
+              save_regs.emplace_back(x86::xmm1, x86::xmm1);
+              break;
+            case PhyLocation::XMM2:
+              save_regs.emplace_back(x86::xmm2, x86::xmm2);
+              break;
+            case PhyLocation::XMM3:
+              save_regs.emplace_back(x86::xmm3, x86::xmm3);
+              break;
+            case PhyLocation::XMM4:
+              save_regs.emplace_back(x86::xmm4, x86::xmm4);
+              break;
+            case PhyLocation::XMM5:
+              save_regs.emplace_back(x86::xmm5, x86::xmm5);
+              break;
+            case PhyLocation::XMM6:
+              save_regs.emplace_back(x86::xmm6, x86::xmm6);
+              break;
+            case PhyLocation::XMM7:
+              save_regs.emplace_back(x86::xmm7, x86::xmm7);
+              break;
           }
-        });
+          continue;
+        }
+      }
+
+      if (arg_index < ARGUMENT_REG_COUNT) {
+        switch (ARGUMENT_REGS[arg_index++]) {
+          case PhyLocation::RDI:
+            save_regs.emplace_back(x86::rdi, x86::rdi);
+            break;
+          case PhyLocation::RSI:
+            save_regs.emplace_back(x86::rsi, x86::rsi);
+            break;
+          case PhyLocation::RDX:
+            save_regs.emplace_back(x86::rdx, x86::rdx);
+            break;
+          case PhyLocation::RCX:
+            save_regs.emplace_back(x86::rcx, x86::rcx);
+            break;
+          case PhyLocation::R8:
+            save_regs.emplace_back(x86::r8, x86::r8);
+            break;
+          case PhyLocation::R9:
+            save_regs.emplace_back(x86::r9, x86::r9);
+            break;
+        }
+      }
+    }
   }
 
   loadOrGenerateLinkFrame(x86::r11, save_regs);
 
-  if (not_enough_regs_for_args) {
+  if (total_args > ARGUMENT_REG_COUNT) {
     as_->lea(x86::r10, x86::ptr(x86::rbp, 16));
   }
   as_->jmp(native_entry_point);
@@ -1897,53 +1986,6 @@ int NativeGenerator::calcMaxInlineDepth(const hir::Function* func) {
     }
   }
   return result;
-}
-
-size_t NativeGenerator::numGpRegsForArgs() const {
-  return codegen::numGpRegsForArgs(GetFunction()->code);
-}
-
-// Calls cb() once for each function argument. If that argument is initially
-// allocated to a register, provides that register.
-// Returns true if there are any arguments that cannot initially be mapped to
-// registers. Registers/arguments can a mixture of general purpose and floating-
-// point (XMMx).
-bool NativeGenerator::forEachArgumentRegInfo(
-    std::function<void(std::optional<asmjit::x86::Reg>, size_t)> cb) const {
-  size_t total_args = (size_t)GetFunction()->numArgs();
-  const std::vector<TypedArgument>& checks = GetFunction()->typed_args;
-
-  size_t gp_index = 0, fp_index = 0;
-  for (size_t i = 0, check_index = 0; i < total_args; i++) {
-    if (check_index < checks.size() &&
-        checks[check_index].locals_idx == (int)i &&
-        checks[check_index++].jit_type <= TCDouble) {
-      if (fp_index < FP_ARGUMENT_REG_COUNT) {
-        cb(x86::xmm(FP_ARGUMENT_REGS[fp_index++] - PhyLocation::XMM_REG_BASE),
-           i);
-      } else {
-        cb({}, i);
-      }
-      continue;
-    }
-
-    if (gp_index < numGpRegsForArgs()) {
-      PhyLocation phy_reg;
-      if (GetFunction()->code->co_flags & CO_COROUTINE &&
-          gp_index >= CORO_NARGSF_ARG_IDX) {
-        // Skip RDX which holds the the awaited flag from nargsf for coroutines.
-        phy_reg = GP_ARGUMENT_REGS[1 + gp_index];
-      } else {
-        phy_reg = GP_ARGUMENT_REGS[gp_index];
-      }
-      cb(x86::gpq(phy_reg), i);
-      gp_index++;
-    } else {
-      cb({}, i);
-    }
-  }
-
-  return gp_index >= numGpRegsForArgs() || fp_index >= FP_ARGUMENT_REG_COUNT;
 }
 
 } // namespace codegen
