@@ -178,6 +178,7 @@ class Compiler:
             "NamedTuple": self.type_env.named_tuple,
             "Protocol": self.type_env.protocol,
             "Optional": self.type_env.optional,
+            "overload": self.type_env.overload,
             "Union": self.type_env.union,
             "Tuple": self.type_env.tuple,
             "Type": self.type_env.dynamic,

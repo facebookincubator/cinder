@@ -265,6 +265,17 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.assertReturns(codestr, "Optional[int]")
 
+    def test_typing_overload_type(self) -> None:
+        """Typing overloads are explicitly understood by the static compiler."""
+        codestr = """
+            from typing import overload
+
+            reveal_type(overload)
+
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, r"Type\[overload\]"):
+            self.compile(codestr)
+
     def test_duplicate_function_replaces_class(self) -> None:
         codestr = """
             class X: pass

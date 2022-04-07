@@ -440,6 +440,10 @@ class TypeEnvironment:
             self,
             pytype=property,
         )
+        self.overload = OverloadDecorator(
+            TypeName("typing", "overload"),
+            self,
+        )
         self.cached_property = CachedPropertyDecorator(
             TypeName("cinder", "cached_property"), self
         )
@@ -1271,7 +1275,8 @@ class FunctionGroup(Value):
         known_funcs = []
         for func in self.functions:
             new_func = func.finish_bind(module, klass)
-            if new_func is not None:
+
+            if new_func is not None and not isinstance(new_func, OverloadedFunction):
                 known_funcs.append(new_func)
 
         if known_funcs and len(known_funcs) > 1:
@@ -2978,7 +2983,9 @@ class FunctionContainer(Object[Class]):
 
         terminates = visitor.visit_check_terminal(self.get_function_body())
 
-        if not terminates:
+        if not terminates and not isinstance(
+            visitor.get_type(node), OverloadedFunction
+        ):
             expected = self.get_expected_return()
             if not expected.klass.can_assign_from(visitor.type_env.none):
                 raise TypedSyntaxError(
@@ -3038,6 +3045,26 @@ class FunctionContainer(Object[Class]):
         code_gen: Static38CodeGenerator,
     ) -> str:
         raise NotImplementedError()
+
+    def emit_function_with_decorators(
+        self,
+        func: Function,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+    ) -> str:
+        if node.decorator_list:
+            for decorator in node.decorator_list:
+                code_gen.visit(decorator)
+            first_lineno = node.decorator_list[0].lineno
+        else:
+            first_lineno = node.lineno
+
+        func.emit_function_body(node, code_gen, first_lineno, func.get_function_body())
+
+        for _ in range(len(node.decorator_list)):
+            code_gen.emit("CALL_FUNCTION", 1)
+
+        return node.name
 
     def emit_function_body(
         self,
@@ -3698,21 +3725,7 @@ class UnknownDecoratedMethod(FunctionContainer):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        if node.decorator_list:
-            for decorator in node.decorator_list:
-                code_gen.visit(decorator)
-            first_lineno = node.decorator_list[0].lineno
-        else:
-            first_lineno = node.lineno
-
-        self.func.emit_function_body(
-            node, code_gen, first_lineno, self.func.get_function_body()
-        )
-
-        for _ in range(len(node.decorator_list)):
-            code_gen.emit("CALL_FUNCTION", 1)
-
-        return node.name
+        return self.emit_function_with_decorators(self.func, node, code_gen)
 
     @property
     def return_type(self) -> TypeRef:
@@ -4314,6 +4327,30 @@ class IdentityDecorator(Class):
 
     def resolve_decorate_class(self, klass: Class) -> Class:
         return klass
+
+
+class OverloadDecorator(Class):
+    def resolve_decorate_function(
+        self, fn: Function | DecoratedMethod, decorator: expr
+    ) -> Optional[Function | DecoratedMethod]:
+        if fn.klass is not self.type_env.function:
+            return None
+        return OverloadedFunction(fn, decorator)
+
+    def resolve_decorate_class(self, klass: Class) -> Class:
+        raise TypedSyntaxError(f"Cannot decorate a class with @overload")
+
+
+class OverloadedFunction(DecoratedMethod):
+    def __init__(self, fn: Function | DecoratedMethod, decorator: expr) -> None:
+        super().__init__(fn.klass, fn, decorator)
+
+    def emit_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+    ) -> str:
+        return self.emit_function_with_decorators(self.real_function, node, code_gen)
 
 
 class BuiltinFunction(Callable[Class]):
@@ -5515,6 +5552,7 @@ class FrozenSetClass(Class):
 
     def _create_exact_type(self) -> Class:
         return type(self)(self.type_env, is_exact=True)
+
 
 class SetClass(Class):
     def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
