@@ -2110,6 +2110,7 @@ class StrictLoaderTest(StrictTestBase):
             "a.py",
             """
                 import __static__
+                from typing import Optional
                 class C:
                     def __init__(self):
                         self.x: Optional[C] = None

@@ -692,12 +692,12 @@ class StaticCompilationTests(StaticTestBase):
             getter=body_get,
         )
         assert_stmt_binds_to(
-            "def f(): yield from x",
+            "def f(x): yield from x",
             lambda type_env: type_env.DYNAMIC,
             getter=body_get,
         )
         assert_stmt_binds_to(
-            "async def f(): await x",
+            "async def f(x): await x",
             lambda type_env: type_env.DYNAMIC,
             getter=body_get,
         )
@@ -1244,6 +1244,8 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_unknown_annotation(self):
         codestr = """
+            def foo():
+               return 3
             def f(a):
                 x: foo = a
                 return x.bar
@@ -2077,7 +2079,7 @@ class StaticCompilationTests(StaticTestBase):
         codestr = """
             from unknown import foo
             def x(x:foo):
-                return b
+                return 3
             x('abc')
         """
         module = self.compile(codestr)
@@ -2859,7 +2861,7 @@ class StaticCompilationTests(StaticTestBase):
                 def __init__(self):
                     self.field = self
 
-            def f(x: Optional[C]):
+            def f(x: Optional[C], a):
                 if x is None:
                     if a:
                         return 0
@@ -3417,6 +3419,9 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_assign_num_to_dynamic(self):
         codestr = """
+            def foo():
+                return 3
+
             def f():
                 x: foo = 42
         """
@@ -3437,6 +3442,9 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_assign_dynamic_to_dynamic(self):
         codestr = """
+            def unknown():
+                return 3
+
             def f(C):
                 x: unknown = C()
         """
@@ -3525,11 +3533,11 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_assign_try_except_redeclare_unknown_type(self):
         codestr = """
-            def testfunc():
+            def testfunc(unknown_exception):
                 e: int
                 try:
                     pass
-                except UnknownException as e:
+                except unknown_exception as e:
                     pass
                 return 42
         """
@@ -3889,6 +3897,7 @@ class StaticCompilationTests(StaticTestBase):
     def test_load_uninit_module(self):
         """verify we don't crash if we receive a module w/o a dictionary"""
         codestr = """
+        from typing import Optional
         class C:
             def __init__(self):
                 self.x: Optional[C] = None
@@ -3913,6 +3922,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_module_subclass(self):
         codestr = """
+        from typing import Optional
         class C:
             def __init__(self):
                 self.x: Optional[C] = None
@@ -6388,7 +6398,6 @@ class StaticCompilationTests(StaticTestBase):
                 return e
         """
         with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.f, "CAST", (("builtins", "Exception"), True))
             self.assertEqual(type(mod.f(SyntaxError)), SyntaxError)
 
     def test_compile_nested_class_in_fn(self):

@@ -696,12 +696,12 @@ class FinalTests(StaticTestBase):
             @final
             @staticmethod
             def foo():
-                return self
+                return 0
 
             @staticmethod
             @final
             def bar():
-                return self
+                return 0
         """
         with self.in_module(codestr) as mod:
             with self.assertRaisesRegex(

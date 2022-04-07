@@ -42,6 +42,7 @@ from .types import (
     MethodType,
     TypeDescr,
     UnionType,
+    UnknownDecoratedMethod,
     Value,
 )
 from .visitor import GenericVisitor
@@ -236,7 +237,12 @@ class ModuleTable:
                     assert name is not None
                     new_value = value.finish_bind(self, None)
                     if new_value is None:
-                        del self.children[name]
+                        # We still need to maintain a name for unknown decorated methods since they
+                        # will bind to some name, and we want to avoid throwing unknown name errors.
+                        if isinstance(self.types[node], UnknownDecoratedMethod):
+                            self.children[name] = self.compiler.type_env.DYNAMIC
+                        else:
+                            del self.children[name]
                     elif new_value is not value:
                         self.children[name] = new_value
 

@@ -24,6 +24,7 @@ from ast import (
     GeneratorExp,
     If,
     IfExp,
+    Import,
     ImportFrom,
     Index,
     Is,
@@ -61,7 +62,7 @@ from typing import (
     cast,
 )
 
-from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL
+from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL, SC_FREE, SC_CELL
 from ..errors import CollectingErrorSink, TypedSyntaxError
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
@@ -231,6 +232,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.enable_patching = enable_patching
         self.current_loop: AST | None = None
         self.loop_may_break: Set[AST] = set()
+        self.visiting_assignment_target = False
 
     @property
     def nodes_default_dynamic(self) -> bool:
@@ -638,7 +640,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.declare_local(target.id, declared_type, is_final)
             self.set_type(target, declared_type)
 
-        self.visit(target)
+        with self.in_target():
+            self.visit(target)
         value = node.value
         if value and not is_dynamic_final:
             self.visitExpectedType(value, declared_type)
@@ -657,9 +660,19 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.visit(node.value, target_type)
         self.set_type(node, target_type)
 
+    @contextmanager
+    def in_target(self) -> Generator[None, None, None]:
+        prev = self.visiting_assignment_target
+        self.visiting_assignment_target = True
+        try:
+            yield
+        finally:
+            self.visiting_assignment_target = prev
+
     def visitNamedExpr(self, node: ast.NamedExpr) -> None:
         target = node.target
-        self.visit(target)
+        with self.in_target():
+            self.visit(target)
         target_type = self.get_type(target)
         self.visit(node.value, target_type)
         value_type = self.get_type(node.value)
@@ -681,7 +694,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             elif isinstance(target, (ast.Tuple, ast.List)):
                 # TODO: We should walk into the tuple/list and use it to infer
                 # types down on the RHS if we can
-                self.visit(target)
+                with self.in_target():
+                    self.visit(target)
             else:
                 # This is an attribute or subscript, the assignment can't change the type
                 self.visit(target)
@@ -1341,9 +1355,12 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     def visitName(
         self, node: Name, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
+        found_name = self.visiting_assignment_target
         cur_scope = self.symbols.scopes[self.scope]
         scope = cur_scope.check_name(node.id)
         if scope == SC_LOCAL and not isinstance(self.scope, Module):
+            if node.id in self.local_types:
+                found_name = True
             var_type = self.local_types.get(node.id, self.type_env.DYNAMIC)
             self.set_type(node, var_type)
         else:
@@ -1351,7 +1368,25 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.set_type(node, typ or self.type_env.DYNAMIC)
             if descr is not None:
                 self.set_node_data(node, TypeDescr, descr)
+            if typ is not None:
+                found_name = True
 
+        if not found_name:
+            if scope == SC_FREE:
+                # Search for the name in outer scopes - resolve_name_with_descr simply checks the module
+                # table for globals. We currently set the type to dynamic still for safety, as the inner
+                # scope might override the outer type.
+                for scope in reversed(self.scopes):
+                    if node.id in scope.local_types:
+                        found_name = True
+                        break
+            elif scope == SC_CELL:
+                # If a name is a cell var, we currently don't resolve it to a type due to soundness
+                # holes with nested types. Do this search to avoid erroring, still.
+                found_name = node.id in self.scopes[-1].local_types
+
+        if not found_name:
+            raise TypedSyntaxError(f"Name `{node.id}` is not defined.")
         type = self.get_type(node)
         if (
             isinstance(type, UnionInstance)
@@ -1442,6 +1477,21 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     node,
                 )
 
+    def visitImport(self, node: Import) -> None:
+        # If we're doing an import within a function, we need to declare the import to retain type
+        # information.
+        if isinstance(self.scope, (FunctionDef, AsyncFunctionDef)):
+            for name in node.names:
+                import_name = (
+                    name.name.split(".")[0] if name.asname is None else name.name
+                )
+                declaration_name = name.asname or import_name.split(".")[0]
+                if import_name in self.compiler.modules:
+                    typ = ModuleInstance(import_name, self.compiler)
+                else:
+                    typ = self.type_env.DYNAMIC
+                self.declare_local(declaration_name, typ)
+
     def visitImportFrom(self, node: ImportFrom) -> None:
         mod_name = node.module
         if node.level or not mod_name:
@@ -1460,6 +1510,18 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 asname = alias.asname
                 name: str = asname if asname is not None else alias.name
                 self.declare_local(name, self.type_env.DYNAMIC)
+        # If we're doing an import within a function, we need to declare the import to retain type
+        # information.
+        elif isinstance(self.scope, (FunctionDef, AsyncFunctionDef)):
+            for alias in node.names:
+                asname = alias.asname
+                name: str = asname if asname is not None else alias.name
+                self.declare_local(
+                    name,
+                    self.compiler.modules[mod_name].children.get(
+                        alias.name, self.type_env.DYNAMIC
+                    ),
+                )
 
     def visit_check_terminal(self, nodes: Sequence[ast.stmt]) -> TerminalKind:
         ret = TerminalKind.NonTerminal
@@ -1632,7 +1694,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     def visitFor(self, node: For) -> None:
         self.visit(node.iter)
         target_type = self.get_type(node.iter).get_iter_type(node.iter, self)
-        self.visit(node.target)
+        with self.in_target():
+            self.visit(node.target)
         self.assign_value(node.target, target_type)
         branch = self.scopes[-1].branch()
         with self.in_loop(node):
@@ -1670,5 +1733,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.visit(node.context_expr)
         optional_vars = node.optional_vars
         if optional_vars:
-            self.visit(optional_vars)
+            with self.in_target():
+                self.visit(optional_vars)
             self.assign_value(optional_vars, self.type_env.DYNAMIC)
