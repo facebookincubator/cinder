@@ -1207,15 +1207,15 @@ compute_cr_origin(int origin_depth)
     return cr_origin;
 }
 
-PyObject *
-PyCoro_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
+static PyObject *
+coro_new(PyThreadState *tstate, PyFrameObject *f,
+         PyObject *name, PyObject *qualname)
 {
     PyObject *coro = gen_new_with_qualname(&PyCoro_Type, f, name, qualname);
     if (!coro) {
         return NULL;
     }
 
-    PyThreadState *tstate = _PyThreadState_GET();
     int origin_depth = tstate->coroutine_origin_tracking_depth;
 
     if (origin_depth == 0) {
@@ -1232,6 +1232,18 @@ PyCoro_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
     return coro;
 }
 
+PyObject *
+PyCoro_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
+{
+    return coro_new(PyThreadState_GET(), f, name, qualname);
+}
+
+PyObject *
+_PyCoro_NewTstate(PyThreadState *tstate, PyFrameObject *f,
+                  PyObject *name, PyObject *qualname)
+{
+    return coro_new(tstate, f, name, qualname);
+}
 
 /* ========= Asynchronous Generators ========= */
 
