@@ -368,6 +368,12 @@ class TypeEnvironment:
         self.protocol = Class(TypeName("typing", "Protocol"), self)
         self.literal = LiteralType(TypeName("typing", "Literal"), self)
         self.annotated = AnnotatedType(TypeName("typing", "Annotated"), self)
+        self.not_implemented = Class(
+            TypeName("builtins", "NotImplementedType"),
+            self,
+            bases=[self.object],
+            pytype=type(NotImplemented),
+        )
         self.base_exception = Class(
             TypeName("builtins", "BaseException"), self, pytype=BaseException
         )
@@ -377,54 +383,156 @@ class TypeEnvironment:
             bases=[self.base_exception],
             pytype=Exception,
         )
-        self.value_error = Class(
-            TypeName("builtins", "ValueError"),
-            self,
-            bases=[self.exception],
-            pytype=ValueError,
+        self.value_error: Class = self._builtin_exception_class(ValueError)
+        self.os_error: Class = self._builtin_exception_class(OSError)
+        self.runtime_error: Class = self._builtin_exception_class(RuntimeError)
+        self.syntax_error: Class = self._builtin_exception_class(SyntaxError)
+        self.arithmetic_error: Class = self._builtin_exception_class(ArithmeticError)
+        self.assertion_error: Class = self._builtin_exception_class(AssertionError)
+        self.attribute_error: Class = self._builtin_exception_class(AttributeError)
+        self.blocking_io_error: Class = self._builtin_exception_class(
+            BlockingIOError, base=self.os_error
         )
-        self.index_error = Class(
-            TypeName("builtins", "IndexError"),
-            self,
-            bases=[self.exception],
-            pytype=IndexError,
+        self.buffer_error: Class = self._builtin_exception_class(BufferError)
+        self.child_process_error: Class = self._builtin_exception_class(
+            ChildProcessError, base=self.os_error
         )
-        self.io_error = Class(
-            TypeName("builtins", "IOError"),
-            self,
-            bases=[self.exception],
-            pytype=IOError,
+        self.connection_error: Class = self._builtin_exception_class(
+            ConnectionError, base=self.os_error
         )
-        self.import_error = Class(
-            TypeName("builtins", "ImportError"),
-            self,
-            bases=[self.exception],
-            pytype=ImportError,
+        self.broken_pipe_error: Class = self._builtin_exception_class(
+            BrokenPipeError, self.connection_error
         )
-        self.type_error = Class(
-            TypeName("builtins", "TypeError"),
-            self,
-            bases=[self.exception],
-            pytype=TypeError,
+        self.connection_aborted_error: Class = self._builtin_exception_class(
+            ConnectionAbortedError, base=self.connection_error
         )
-        self.runtime_error = Class(
-            TypeName("builtins", "RuntimeError"),
-            self,
-            bases=[self.exception],
-            pytype=RuntimeError,
+        self.connection_refused_error: Class = self._builtin_exception_class(
+            ConnectionRefusedError, base=self.connection_error
         )
-        self.not_implemented = Class(
-            TypeName("builtins", "NotImplementedType"),
-            self,
-            bases=[self.object],
-            pytype=type(NotImplemented),
+        self.connection_reset_error: Class = self._builtin_exception_class(
+            ConnectionResetError, base=self.connection_error
         )
-        self.stop_iteration = Class(
-            TypeName("builtins", "StopIteration"),
-            self,
-            bases=[self.exception],
-            pytype=StopIteration,
+        self.environment_error: Class = self._builtin_exception_class(EnvironmentError)
+        self.eof_error: Class = self._builtin_exception_class(EOFError)
+        self.file_exists_error: Class = self._builtin_exception_class(
+            FileExistsError, base=self.os_error
         )
+        self.file_not_found_error: Class = self._builtin_exception_class(
+            FileNotFoundError, base=self.os_error
+        )
+        self.floating_point_error: Class = self._builtin_exception_class(
+            FloatingPointError, base=self.arithmetic_error
+        )
+        self.generator_exit: Class = self._builtin_exception_class(
+            GeneratorExit, base=self.base_exception
+        )
+        self.import_error: Class = self._builtin_exception_class(ImportError)
+        self.indentation_error: Class = self._builtin_exception_class(
+            IndentationError, base=self.syntax_error
+        )
+        self.index_error: Class = self._builtin_exception_class(IndexError)
+        self.interrupted_error: Class = self._builtin_exception_class(
+            InterruptedError, base=self.os_error
+        )
+        self.io_error: Class = self._builtin_exception_class(IOError)
+        self.is_a_directory_error: Class = self._builtin_exception_class(
+            IsADirectoryError, base=self.os_error
+        )
+        self.key_error: Class = self._builtin_exception_class(KeyError)
+        self.keyboard_interrupt: Class = self._builtin_exception_class(
+            KeyboardInterrupt, base=self.base_exception
+        )
+        self.lookup_error: Class = self._builtin_exception_class(LookupError)
+        self.memory_error: Class = self._builtin_exception_class(MemoryError)
+        self.module_not_found_error: Class = self._builtin_exception_class(
+            ModuleNotFoundError, base=self.import_error
+        )
+        self.name_error: Class = self._builtin_exception_class(NameError)
+        self.not_a_directory_error: Class = self._builtin_exception_class(
+            NotADirectoryError, base=self.os_error
+        )
+        self.not_implemented_error: Class = self._builtin_exception_class(
+            NotImplementedError, base=self.runtime_error
+        )
+        self.overflow_error: Class = self._builtin_exception_class(
+            OverflowError, base=self.arithmetic_error
+        )
+        self.permission_error: Class = self._builtin_exception_class(
+            PermissionError, base=self.os_error
+        )
+        self.process_lookup_error: Class = self._builtin_exception_class(
+            ProcessLookupError, base=self.os_error
+        )
+        self.recursion_error: Class = self._builtin_exception_class(
+            RecursionError, base=self.runtime_error
+        )
+        self.reference_error: Class = self._builtin_exception_class(ReferenceError)
+        self.stop_async_iteration: Class = self._builtin_exception_class(
+            StopAsyncIteration
+        )
+        self.stop_iteration: Class = self._builtin_exception_class(StopIteration)
+        self.system_error: Class = self._builtin_exception_class(SystemError)
+        self.system_exit: Class = self._builtin_exception_class(
+            SystemExit, base=self.base_exception
+        )
+        self.tab_error: Class = self._builtin_exception_class(
+            TabError, base=self.indentation_error
+        )
+        self.timeout_error: Class = self._builtin_exception_class(
+            TimeoutError, base=self.os_error
+        )
+        self.type_error: Class = self._builtin_exception_class(TypeError)
+        self.unicode_error: Class = self._builtin_exception_class(
+            UnicodeError, base=self.value_error
+        )
+        self.unbound_local_error: Class = self._builtin_exception_class(
+            UnboundLocalError, base=self.name_error
+        )
+        self.unicode_decode_error: Class = self._builtin_exception_class(
+            UnicodeDecodeError, base=self.unicode_error
+        )
+        self.unicode_encode_error: Class = self._builtin_exception_class(
+            UnicodeEncodeError, base=self.unicode_error
+        )
+        self.unicode_translate_error: Class = self._builtin_exception_class(
+            UnicodeTranslateError, base=self.unicode_error
+        )
+        self.zero_division_error: Class = self._builtin_exception_class(
+            ZeroDivisionError, base=self.arithmetic_error
+        )
+
+        self.warning: Class = self._builtin_exception_class(Warning)
+        self.bytes_warning: Class = self._builtin_exception_class(
+            BytesWarning, base=self.warning
+        )
+        self.deprecation_warning: Class = self._builtin_exception_class(
+            DeprecationWarning, base=self.warning
+        )
+        self.future_warning: Class = self._builtin_exception_class(
+            FutureWarning, base=self.warning
+        )
+        self.import_warning: Class = self._builtin_exception_class(
+            ImportWarning, base=self.warning
+        )
+        self.pending_deprecation_warning: Class = self._builtin_exception_class(
+            PendingDeprecationWarning, base=self.warning
+        )
+        self.resource_warning: Class = self._builtin_exception_class(
+            ResourceWarning, base=self.warning
+        )
+        self.runtime_warning: Class = self._builtin_exception_class(
+            RuntimeWarning, base=self.warning
+        )
+        self.syntax_warning: Class = self._builtin_exception_class(
+            SyntaxWarning, base=self.warning
+        )
+        self.unicode_warning: Class = self._builtin_exception_class(
+            UnicodeWarning, base=self.warning
+        )
+        self.user_warning: Class = self._builtin_exception_class(
+            UserWarning, base=self.warning
+        )
+
         self.allow_weakrefs = AllowWeakrefsDecorator(
             TypeName("__static__", "allow_weakrefs"), self
         )
@@ -483,6 +591,18 @@ class TypeEnvironment:
             self.xx_generic: XXGeneric = XXGeneric(
                 XXGENERIC_TYPE_NAME, self, [self.object]
             )
+
+    def _builtin_exception_class(
+        self, exception_type: Type[object], base: Optional[Class] = None
+    ) -> Class:
+        if base is None:
+            base = self.exception
+        return Class(
+            TypeName("builtins", exception_type.__name__),
+            self,
+            bases=[base],
+            pytype=exception_type,
+        )
 
     def get_generic_type(
         self, generic_type: GenericClass, index: GenericTypeIndex

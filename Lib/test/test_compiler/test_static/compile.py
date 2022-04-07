@@ -6380,16 +6380,16 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_except_inexact(self):
         codestr = """
-        def f():
+        def f(unknown_exception):
             try:
                 raise Exception()
             except Exception as e:
-                e = SyntaxError()
+                e = unknown_exception()
                 return e
         """
         with self.in_module(codestr) as mod:
             self.assertInBytecode(mod.f, "CAST", (("builtins", "Exception"), True))
-            self.assertEqual(type(mod.f()), SyntaxError)
+            self.assertEqual(type(mod.f(SyntaxError)), SyntaxError)
 
     def test_compile_nested_class_in_fn(self):
         codestr = """
