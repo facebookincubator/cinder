@@ -61,8 +61,11 @@ class ReferenceVisitor(GenericVisitor[Optional[Value]]):
         super().__init__(module)
         self.types: Dict[AST, Value] = {}
         self.subscr_nesting = 0
+        self.local_names: Dict[str, Value] = {}
 
     def visitName(self, node: Name) -> Optional[Value]:
+        if node.id in self.local_names:
+            return self.local_names[node.id]
         return self.module.children.get(
             node.id
         ) or self.module.compiler.builtins.children.get(node.id)
@@ -71,6 +74,12 @@ class ReferenceVisitor(GenericVisitor[Optional[Value]]):
         val = self.visit(node.value)
         if val is not None:
             return val.resolve_attr(node, self)
+
+    def add_local_name(self, name: str, value: Value) -> None:
+        self.local_names[name] = value
+
+    def clear_local_names(self) -> None:
+        self.local_names = {}
 
 
 class AnnotationVisitor(ReferenceVisitor):

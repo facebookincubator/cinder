@@ -1276,8 +1276,17 @@ class FunctionGroup(Value):
         for func in self.functions:
             new_func = func.finish_bind(module, klass)
 
-            if new_func is not None and not isinstance(new_func, OverloadedFunction):
+            underlying_func = new_func
+            while isinstance(underlying_func, TransparentDecoratedMethod):
+                underlying_func = underlying_func.function
+
+            if new_func is not None and not isinstance(
+                underlying_func, TransientDecoratedMethod
+            ):
                 known_funcs.append(new_func)
+                module.ref_visitor.add_local_name(new_func.node.name, new_func)
+
+        module.ref_visitor.clear_local_names()
 
         if known_funcs and len(known_funcs) > 1:
             with module.error_context(known_funcs[1].node):
@@ -1288,6 +1297,11 @@ class FunctionGroup(Value):
             return None
 
         return known_funcs[0]
+
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
+    ) -> Optional[Value]:
+        visitor.syntax_error(f"cannot load attribute from {self.name}", node)
 
 
 class Class(Object["Class"]):
@@ -1374,6 +1388,9 @@ class Class(Object["Class"]):
 
     @property
     def instance_name(self) -> str:
+        # We need to break the loop for `builtins.type`, as `builtins.type`'s instance is a Class.
+        if type(self.instance) == Class:
+            return "type"
         return self.instance.name
 
     @property
@@ -2984,7 +3001,7 @@ class FunctionContainer(Object[Class]):
         terminates = visitor.visit_check_terminal(self.get_function_body())
 
         if not terminates and not isinstance(
-            visitor.get_type(node), OverloadedFunction
+            visitor.get_type(node), TransientDecoratedMethod
         ):
             expected = self.get_expected_return()
             if not expected.klass.can_assign_from(visitor.type_env.none):
@@ -3882,6 +3899,10 @@ class DecoratedMethod(FunctionContainer):
     def donotcompile(self) -> bool:
         return self.function.donotcompile
 
+    @property
+    def node(self) -> Union[FunctionDef, AsyncFunctionDef]:
+        return self.real_function.node
+
     def set_container_type(self, container_type: Optional[Class]) -> None:
         self.function.set_container_type(container_type)
 
@@ -4110,6 +4131,15 @@ class PropertyMethod(DecoratedMethod):
     def setter_type_descr(self) -> TypeDescr:
         return self.container_descr + ((self.function.func_name, "fset"),)
 
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
+    ) -> Optional[Value]:
+        if node.attr == "setter":
+            return PropertySetterDecorator(
+                TypeName("builtins", "property"), self.real_function.klass.type_env
+            )
+        return super().resolve_attr(node, visitor)
+
 
 class CachedPropertyMethod(PropertyMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
@@ -4335,13 +4365,19 @@ class OverloadDecorator(Class):
     ) -> Optional[Function | DecoratedMethod]:
         if fn.klass is not self.type_env.function:
             return None
-        return OverloadedFunction(fn, decorator)
+        return TransientDecoratedMethod(fn, decorator)
 
     def resolve_decorate_class(self, klass: Class) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @overload")
 
 
-class OverloadedFunction(DecoratedMethod):
+# The transient name here is meant to imply that even though we understand the decorated method
+# statically, the runtime will have no record of it. The common situations where this concept
+# is useful is for `typing.overload`, where the overloads are shadowed in the runtime, and
+# `property.setter`, where the application of the decorator returns the same property object
+# that decorates the function. In the rest of the type checker, we refrain from declaring these
+# functions, and they should never be visible externally.
+class TransientDecoratedMethod(DecoratedMethod):
     def __init__(self, fn: Function | DecoratedMethod, decorator: expr) -> None:
         super().__init__(fn.klass, fn, decorator)
 
@@ -4351,6 +4387,18 @@ class OverloadedFunction(DecoratedMethod):
         code_gen: Static38CodeGenerator,
     ) -> str:
         return self.emit_function_with_decorators(self.real_function, node, code_gen)
+
+
+class PropertySetterDecorator(Class):
+    def resolve_decorate_function(
+        self, fn: Function | DecoratedMethod, decorator: expr
+    ) -> Optional[Function | DecoratedMethod]:
+        if fn.klass is not self.type_env.function:
+            return None
+        return TransientDecoratedMethod(fn, decorator)
+
+    def resolve_decorate_class(self, klass: Class) -> Class:
+        raise TypedSyntaxError(f"Cannot decorate a class with @property.setter")
 
 
 class BuiltinFunction(Callable[Class]):

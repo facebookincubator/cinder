@@ -88,9 +88,9 @@ from .types import (
     Slot,
     TType,
     TypeEnvironment,
+    TransientDecoratedMethod,
     UnionInstance,
     UnknownDecoratedMethod,
-    OverloadedFunction,
     Value,
     OptionalInstance,
     TransparentDecoratedMethod,
@@ -472,9 +472,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         typ = self.get_type(node)
         # avoid declaring unknown-decorateds as locals in order to support
         # @overload and @property.setter
-        if not isinstance(typ, UnknownDecoratedMethod) and not isinstance(
-            typ, OverloadedFunction
-        ):
+        if not isinstance(typ, TransientDecoratedMethod):
             if isinstance(self.scope, (FunctionDef, AsyncFunctionDef)):
                 # nested functions can't be invoked against; to ensure we
                 # don't, declare them as dynamic type
