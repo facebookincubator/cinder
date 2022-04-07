@@ -41,23 +41,28 @@ from .type_code import (
 
 try:
     import _static
+    from _static import (
+        RAND_MAX,
+        __build_cinder_class__,
+        chkdict,
+        chklist,
+        is_type_static,
+        make_recreate_cm,
+        posix_clock_gettime_ns,
+        rand,
+        set_type_final,
+        set_type_static,
+        set_type_static_final,
+    )
 except ImportError:
-
-    def is_type_static(_t):
-        return False
-
-    def set_type_static(_t):
-        return _t
-
-    def set_type_static_final(_t):
-        return _t
-
-    def set_type_final(_t):
-        return _t
-
+    RAND_MAX = (1 << 31) - 1
+    __build_cinder_class__ = __build_class__
     _static = None
     chkdict = dict
     chklist = list
+
+    def is_type_static(_t):
+        return False
 
     def make_recreate_cm(_typ):
         def _recreate_cm(self):
@@ -65,48 +70,20 @@ except ImportError:
 
         return _recreate_cm
 
-
-else:
-    chkdict = _static.chkdict
-    chklist = _static.chklist
-    is_type_static = _static.is_type_static
-    set_type_static = _static.set_type_static
-    set_type_static_final = _static.set_type_static_final
-    set_type_final = _static.set_type_final
-    make_recreate_cm = _static.make_recreate_cm
-
-try:
-    from _static import (
-        TYPED_INT8,
-        TYPED_INT16,
-        TYPED_INT32,
-        TYPED_INT64,
-        TYPED_UINT8,
-        TYPED_UINT16,
-        TYPED_UINT32,
-        TYPED_UINT64,
-        TYPED_DOUBLE,
-        TYPED_SINGLE,
-        TYPED_BOOL,
-        TYPED_CHAR,
-        RAND_MAX,
-        rand,
-        posix_clock_gettime_ns,
-        __build_cinder_class__,
-    )
-except ImportError:
-    RAND_MAX = (1 << 31) - 1
+    def posix_clock_gettime_ns():
+        return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
 
     def rand():
         return random.randint(0, RAND_MAX)
 
-    def posix_clock_gettime_ns():
-        return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+    def set_type_final(_t):
+        return _t
 
-    def create_overridden_slot_descriptors_with_default(t):
-        return None
+    def set_type_static(_t):
+        return _t
 
-    __build_cinder_class__ = __build_class__
+    def set_type_static_final(_t):
+        return _t
 
 
 try:
