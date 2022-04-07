@@ -222,8 +222,15 @@ class DominatorAnalysis {
     return idoms_[block->id];
   }
 
+  const std::unordered_set<const BasicBlock*>& getBlocksDominatedBy(
+      const BasicBlock* block) {
+    JIT_DCHECK(block != nullptr, "Block cannot be null");
+    return dom_sets_[block->id];
+  }
+
  private:
   std::unordered_map<int, const BasicBlock*> idoms_;
+  std::unordered_map<int, std::unordered_set<const BasicBlock*>> dom_sets_;
 };
 
 // Stores type information about registers that doesn't get stored in the

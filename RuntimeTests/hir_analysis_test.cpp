@@ -493,6 +493,53 @@ fun dominators {
   EXPECT_EQ(doms.immediateDominator(bb5), bb1);
   EXPECT_EQ(doms.immediateDominator(bb6), bb5);
   EXPECT_EQ(doms.immediateDominator(bb7), bb1);
+
+  std::unordered_set<const BasicBlock*> dommed = doms.getBlocksDominatedBy(bb7);
+  EXPECT_EQ(dommed.size(), 1);
+  EXPECT_EQ(dommed.count(bb7), 1);
+
+  dommed = doms.getBlocksDominatedBy(bb6);
+  EXPECT_EQ(dommed.size(), 1);
+  EXPECT_EQ(dommed.count(bb6), 1);
+
+  dommed = doms.getBlocksDominatedBy(bb5);
+  EXPECT_EQ(dommed.size(), 2);
+  EXPECT_EQ(dommed.count(bb5), 1);
+  EXPECT_EQ(dommed.count(bb6), 1);
+
+  dommed = doms.getBlocksDominatedBy(bb4);
+  EXPECT_EQ(dommed.size(), 1);
+  EXPECT_EQ(dommed.count(bb4), 1);
+
+  dommed = doms.getBlocksDominatedBy(bb3);
+  EXPECT_EQ(dommed.size(), 1);
+  EXPECT_EQ(dommed.count(bb3), 1);
+
+  dommed = doms.getBlocksDominatedBy(bb2);
+  EXPECT_EQ(dommed.size(), 2);
+  EXPECT_EQ(dommed.count(bb2), 1);
+  EXPECT_EQ(dommed.count(bb3), 1);
+
+  dommed = doms.getBlocksDominatedBy(bb1);
+  EXPECT_EQ(dommed.size(), 7);
+  EXPECT_EQ(dommed.count(bb1), 1);
+  EXPECT_EQ(dommed.count(bb2), 1);
+  EXPECT_EQ(dommed.count(bb3), 1);
+  EXPECT_EQ(dommed.count(bb4), 1);
+  EXPECT_EQ(dommed.count(bb5), 1);
+  EXPECT_EQ(dommed.count(bb6), 1);
+  EXPECT_EQ(dommed.count(bb7), 1);
+
+  dommed = doms.getBlocksDominatedBy(bb0);
+  EXPECT_EQ(dommed.size(), 8);
+  EXPECT_EQ(dommed.count(bb0), 1);
+  EXPECT_EQ(dommed.count(bb1), 1);
+  EXPECT_EQ(dommed.count(bb2), 1);
+  EXPECT_EQ(dommed.count(bb3), 1);
+  EXPECT_EQ(dommed.count(bb4), 1);
+  EXPECT_EQ(dommed.count(bb5), 1);
+  EXPECT_EQ(dommed.count(bb6), 1);
+  EXPECT_EQ(dommed.count(bb7), 1);
 }
 
 class RegisterTypeHintsTest : public RuntimeTest {};

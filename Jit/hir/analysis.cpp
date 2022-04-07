@@ -635,7 +635,8 @@ void AssignmentAnalysis::setUninitialized(
   }
 }
 
-DominatorAnalysis::DominatorAnalysis(const Function& irfunc) : idoms_{} {
+DominatorAnalysis::DominatorAnalysis(const Function& irfunc)
+    : idoms_{}, dom_sets_{} {
   // Calculate immediate dominators with the iterative two-finger algorithm.
   // When it terminates, idoms_[block-id] will contain the block-id of the
   // immediate dominator of each block.  idoms_[start] will be nullptr. This is
@@ -689,6 +690,16 @@ DominatorAnalysis::DominatorAnalysis(const Function& irfunc) : idoms_{} {
     }
   }
   idoms_[entry->id] = nullptr;
+  for (auto it = rpo.rbegin(); it != rpo.rend(); ++it) {
+    const BasicBlock* block = *it;
+    auto& block_dom_set_ = dom_sets_[block->id];
+    block_dom_set_.insert(block);
+    const BasicBlock* block_dom = idoms_[block->id];
+    if (block_dom != nullptr) {
+      dom_sets_[block_dom->id].insert(
+          block_dom_set_.begin(), block_dom_set_.end());
+    }
+  }
 }
 
 RegisterTypeHints::RegisterTypeHints(const Function& irfunc)
