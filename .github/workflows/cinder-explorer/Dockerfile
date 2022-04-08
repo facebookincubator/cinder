@@ -1,15 +1,6 @@
-FROM ghcr.io/facebookincubator/cinder/python-build-env:latest
+FROM ghcr.io/facebookincubator/cinder:latest
 
 RUN dnf install -y python3
-
-# Build Cinder as root so the runtime is not modifiable from user code
-# RUN git clone https://github.com/facebookincubator/cinder
-COPY --chmod=r . cinder
-WORKDIR cinder
-WORKDIR build
-RUN ../configure
-RUN make -j$(nproc) VERBOSE=1
-RUN chmod +x python
 
 # Run server as appuser
 RUN groupadd -g 1001 appuser
