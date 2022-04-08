@@ -2186,12 +2186,22 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kCheckSequenceBounds: {
         auto instr = static_cast<const CheckSequenceBounds*>(&i);
+        auto type = instr->GetOperand(1)->type();
+        std::string src = instr->GetOperand(1)->name();
+        std::string tmp = GetSafeTempName();
+        if (type <= (TCInt8 | TCInt16 | TCInt32)) {
+          bbb.AppendCode("Convert {}:CInt64, {}:{}", tmp, src, type);
+          src = tmp;
+        } else if (type <= (TCUInt8 | TCUInt16 | TCUInt32)) {
+          bbb.AppendCode("Convert {}:CUInt64, {}:{}", tmp, src, type);
+          src = tmp;
+        }
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}",
             instr->dst(),
             reinterpret_cast<uint64_t>(_PySequence_CheckBounds),
             instr->GetOperand(0),
-            instr->GetOperand(1));
+            src);
         break;
       }
       case Opcode::kLoadArrayItem: {

@@ -27,11 +27,6 @@ from unittest import skipIf
 
 from _static import TYPED_INT16, TYPED_INT32, TYPED_INT64
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
-
 
 class PrimitivesTests(StaticTestBase):
     def test_primitive_context_ifexp(self) -> None:
@@ -2594,19 +2589,49 @@ class PrimitivesTests(StaticTestBase):
             res = f([1, 2, 3])
             self.assertEqual(res, 3)
 
-    @skipIf(cinderjit is not None, "This is a JIT bug, tracked in T116224490")
-    def test_inexact_list_negative_small_int(self):
+    def test_inexact_list_negative_int8(self):
         codestr = """
-            from __static__ import int8, box, clen
+            from __static__ import int8
 
             def f(x: list):
                 i: int8 = 1
                 return x[-i]
         """
         with self.in_module(codestr) as mod:
-            f = mod.f
-            res = f([1, 2, 3])
-            self.assertEqual(res, 3)
+            self.assertEqual(mod.f([1, 2, 3]), 3)
+
+    def test_inexact_list_negative_int16(self):
+        codestr = """
+            from __static__ import int16
+
+            def f(x: list):
+                i: int16 = 1
+                return x[-i]
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f([1, 2, 3]), 3)
+
+    def test_inexact_list_negative_int32(self):
+        codestr = """
+            from __static__ import int32
+
+            def f(x: list):
+                i: int32 = 1
+                return x[-i]
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f([1, 2, 3]), 3)
+
+    def test_inexact_list_negative_int64(self):
+        codestr = """
+            from __static__ import int64
+
+            def f(x: list):
+                i: int64 = 1
+                return x[-i]
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f([1, 2, 3]), 3)
 
     def test_inexact_list_large_unsigned(self):
         codestr = """
