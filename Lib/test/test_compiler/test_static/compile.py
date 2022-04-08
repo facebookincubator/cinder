@@ -6435,6 +6435,17 @@ class StaticCompilationTests(StaticTestBase):
 
             self.assertEqual(mod.f(X()), None)
 
+    def test_nested_comprehension_compiles(self):
+        codestr = """
+        def foo():
+            return [[1, [2,3]]]
+
+        def bar():
+            return [(a + b + c) for (a, [b, c]) in foo()]
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.bar(), [6])
+
 
 if __name__ == "__main__":
     unittest.main()

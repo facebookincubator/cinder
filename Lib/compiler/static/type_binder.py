@@ -1174,6 +1174,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             generators[0].iter, self
         )
 
+        with self.in_target():
+            self.visit(generators[0].target)
         self.assign_value(generators[0].target, iter_type)
         for if_ in generators[0].ifs:
             self.visit(if_)
@@ -1181,6 +1183,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         for gen in generators[1:]:
             self.visit(gen.iter)
             iter_type = self.get_type(gen.iter).get_iter_type(gen.iter, self)
+
+            with self.in_target():
+                self.visit(gen.target)
             self.assign_value(gen.target, iter_type)
             for if_ in gen.ifs:
                 self.visit(if_)
