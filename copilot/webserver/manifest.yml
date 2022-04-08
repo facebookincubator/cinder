@@ -12,7 +12,7 @@ http:
   # To match all requests you can use the "/" path.
   path: '/'
   # You can specify a custom health check path. The default is "/".
-  # healthcheck: '/'
+  healthcheck: '/helth'
 
 # Configuration for your containers and service.
 image:
@@ -25,7 +25,9 @@ image:
 
 cpu: 256       # Number of CPU units for the task.
 memory: 512    # Amount of memory in MiB used by the task.
-count: 1       # Number of tasks that should be running in your service.
+count:
+  range: 1-10  # Specify a range for how many tasks you'd like to run in your service.
+  cpu_percentage: 70     # To scale on average CPU.
 exec: true     # Enable running commands in your container.
 
 # Optional fields for more advanced use-cases.

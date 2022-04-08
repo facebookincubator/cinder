@@ -287,6 +287,11 @@ def make_explorer_class(process_args):
             self.end_headers()
             self.wfile.write(b"Waiting for input...")
 
+        def do_helth(self):
+            self._begin_response(200, "text/plain")
+            self.end_headers()
+            self.wfile.write(b"I'm not dead yet")
+
         def do_explore(self):
             self.send_response(200)
             self.send_header("Content-type", "text/html")
@@ -374,6 +379,7 @@ def make_explorer_class(process_args):
         routes = {
             "/": do_explore,
             "/compile": do_compile_get,
+            "/helth": do_helth,
         }
 
         post_routes = {
