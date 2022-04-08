@@ -947,6 +947,17 @@ class GCImmortalizeTests(unittest.TestCase):
         rc, out, err = assert_python_ok('-c', code)
         self.assertEqual(out.strip(), b'True')
 
+    def test_non_gc_tracked_object_is_immortal(self):
+        code = """if 1:
+            import gc
+            non_gc_tracked_dict = {'bcd': 'efg'}
+            gc_tracked_dict = {'abc' : non_gc_tracked_dict}
+            gc.immortalize_heap()
+            print(gc.is_immortal(non_gc_tracked_dict['bcd']))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'True')
+
     def test_post_immortalize(self):
         code = """if 1:
             import gc
