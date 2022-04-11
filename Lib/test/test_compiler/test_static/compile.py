@@ -1519,6 +1519,16 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
+    def test_optional_no_error(self):
+        codestr = """
+            def f():
+                x: Optional[Exception] = None
+                return x.__class__
+        """
+
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(), type(None))
+
     def test_optional_subscript_error(self) -> None:
         codestr = """
             from typing import Optional

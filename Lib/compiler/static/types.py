@@ -30,6 +30,7 @@ from enum import Enum
 from functools import cached_property
 from types import (
     BuiltinFunctionType,
+    GetSetDescriptorType,
     MethodDescriptorType,
     WrapperDescriptorType,
 )
@@ -201,10 +202,16 @@ class TypeEnvironment:
         self.builtin_method = Class(
             TypeName("types", "BuiltinMethodType"), self, is_exact=True
         )
+        self.getset_descriptor: Class = Class(
+            TypeName("builtins", "getset_descriptor"), self, [self.object]
+        )
         # We special case make_type_dict() on object for bootstrapping purposes.
         self.object.pytype = object
+        self.object.members["__class__"] = ClassGetSetDescriptor(self.getset_descriptor)
         self.object.make_type_dict()
         self.type.make_type_dict()
+        self.getset_descriptor.pytype = GetSetDescriptorType
+        self.getset_descriptor.make_type_dict()
         self.str = StrClass(self)
         self.int = NumClass(TypeName("builtins", "int"), self, pytype=int)
         self.float = NumClass(TypeName("builtins", "float"), self, pytype=float)
@@ -1156,10 +1163,7 @@ def resolve_instance_attr(
             if res is not None:
                 return res
 
-    if node.attr == "__class__":
-        return inst.klass
-    else:
-        return inst.klass.type_env.DYNAMIC
+    return inst.klass.type_env.DYNAMIC
 
 
 def resolve_instance_attr_by_name(
@@ -1484,7 +1488,7 @@ class Class(Object["Class"]):
             if k in self.members:
                 continue
             try:
-                obj = getattr(pytype, k)
+                obj = pytype.__dict__[k]
             except AttributeError:
                 continue
 
@@ -1492,6 +1496,8 @@ class Class(Object["Class"]):
                 result[k] = reflect_method_desc(obj, self, self.type_env)
             elif isinstance(obj, BuiltinFunctionType):
                 result[k] = reflect_builtin_function(obj, self, self.type_env)
+            elif isinstance(obj, GetSetDescriptorType):
+                result[k] = GetSetDescriptor(self.type_env.getset_descriptor)
 
         self.members.update(result)
 
@@ -2417,6 +2423,8 @@ class NoneInstance(Object[NoneType]):
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> None:
+        if node.attr in visitor.type_env.object.members:
+            return super().bind_attr(node, visitor, type_ctx)
         visitor.syntax_error(f"'NoneType' object has no attribute '{node.attr}'", node)
 
     def bind_call(
@@ -4171,6 +4179,24 @@ class ClassMethod(DecoratedMethod):
         return BoundClassMethod(
             self.real_function, ctx, node.value, is_instance_call=inst is not None
         )
+
+
+class GetSetDescriptor(Object[Class]):
+    pass
+
+
+class ClassGetSetDescriptor(GetSetDescriptor):
+    def resolve_descr_get(
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: GenericVisitor[object],
+    ) -> Optional[Value]:
+        if inst is not None:
+            return inst.klass
+        else:
+            return self
 
 
 class PropertyMethod(DecoratedMethod):
