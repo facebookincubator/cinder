@@ -1924,7 +1924,6 @@ class Class(Object["Class"]):
         assignment: Optional[AST] = None,
         declared_on_class: bool = False,
     ) -> None:
-        assigned_on_class = declared_on_class and bool(assignment)
         existing = self.members.get(name)
         if existing is None:
             self._member_nodes[name] = node
@@ -1933,7 +1932,7 @@ class Class(Object["Class"]):
                 name,
                 self,
                 assignment,
-                assigned_on_class=assigned_on_class,
+                declared_on_class=declared_on_class,
             )
         elif isinstance(existing, Slot):
             if not existing.type_ref:
@@ -1943,10 +1942,7 @@ class Class(Object["Class"]):
                 raise TypedSyntaxError(
                     f"Cannot re-declare member '{name}' in '{self.instance.name}'"
                 )
-            if not existing.assignment:
-                existing.assignment = assignment
-            if not existing.assigned_on_class:
-                existing.assigned_on_class = assigned_on_class
+            existing.update(assignment, declared_on_class)
         else:
             raise TypedSyntaxError(
                 f"slot conflicts with other member {name} in {self.name}"
@@ -4786,20 +4782,31 @@ def get_default_value(default: expr) -> object:
 
 
 class Slot(Object[TClassInv]):
+    assignment: Optional[AST] = None
+    declared_on_class: bool = False
+    assigned_on_class: bool = False
+
     def __init__(
         self,
         type_ref: Optional[TypeRef],
         name: str,
         container_type: Class,
         assignment: Optional[AST] = None,
-        assigned_on_class: bool = False,
+        declared_on_class: bool = False,
     ) -> None:
         super().__init__(container_type.type_env.member)
         self.container_type = container_type
         self.slot_name = name
         self.type_ref = type_ref
-        self.assignment = assignment
-        self.assigned_on_class = assigned_on_class
+        self.update(assignment, declared_on_class)
+
+    def update(self, assignment: Optional[AST], declared_on_class: bool) -> None:
+        if not self.assignment:
+            self.assignment = assignment
+        if not self.declared_on_class:
+            self.declared_on_class = declared_on_class
+        if not self.assigned_on_class:
+            self.assigned_on_class: bool = declared_on_class and bool(assignment)
 
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Value:
         if self.is_final and not self.assignment:
