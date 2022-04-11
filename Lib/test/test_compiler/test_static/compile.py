@@ -1521,6 +1521,8 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_optional_no_error(self):
         codestr = """
+            from typing import Optional
+
             def f():
                 x: Optional[Exception] = None
                 return x.__class__
