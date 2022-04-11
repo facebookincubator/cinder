@@ -4894,7 +4894,7 @@ class Slot(Object[TClassInv]):
     def emit_load_from_slot(self, code_gen: Static38CodeGenerator) -> None:
         if self.is_typed_descriptor_with_default_value():
             code_gen.emit_invoke_method(
-                self.container_type.type_descr + ((self.slot_name, "tdget"),), 0
+                self.container_type.type_descr + ((self.slot_name, "fget"),), 0
             )
             return
 
@@ -4906,7 +4906,7 @@ class Slot(Object[TClassInv]):
         if self.is_typed_descriptor_with_default_value():
             code_gen.emit("ROT_TWO")
             code_gen.emit_invoke_method(
-                self.container_type.type_descr + ((self.slot_name, "tdset"),), 1
+                self.container_type.type_descr + ((self.slot_name, "fset"),), 1
             )
             return
 
