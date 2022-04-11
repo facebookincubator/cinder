@@ -405,6 +405,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& cmp = static_cast<const LongCompare&>(instr);
       return GetCompareOpName(cmp.op());
     }
+    case Opcode::kUnicodeCompare: {
+      const auto& cmp = static_cast<const UnicodeCompare&>(instr);
+      return GetCompareOpName(cmp.op());
+    }
     case Opcode::kLongBinaryOp: {
       const auto& bin = static_cast<const LongBinaryOp&>(instr);
       return GetBinaryOpName(bin.op());

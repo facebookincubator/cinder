@@ -401,6 +401,7 @@ struct FrameState {
   V(StoreSubscr)                \
   V(TpAlloc)                    \
   V(UnaryOp)                    \
+  V(UnicodeCompare)             \
   V(UnpackExToTuple)            \
   V(UseType)                    \
   V(VectorCall)                 \
@@ -2185,6 +2186,32 @@ class INSTR_CLASS(
     Operands<2>) {
  public:
   LongCompare(Register* dst, CompareOp op, Register* left, Register* right)
+      : InstrT(dst, left, right), op_(op) {}
+
+  CompareOp op() const {
+    return op_;
+  }
+
+  Register* left() const {
+    return GetOperand(0);
+  }
+
+  Register* right() const {
+    return GetOperand(1);
+  }
+
+ private:
+  CompareOp op_;
+};
+
+// Perform the comparison indicated by op between two strings
+class INSTR_CLASS(
+    UnicodeCompare,
+    (TUnicodeExact, TUnicodeExact),
+    HasOutput,
+    Operands<2>) {
+ public:
+  UnicodeCompare(Register* dst, CompareOp op, Register* left, Register* right)
       : InstrT(dst, left, right), op_(op) {}
 
   CompareOp op() const {

@@ -155,6 +155,7 @@ bool Instr::isReplayable() const {
     case Opcode::kRaiseStatic:
     case Opcode::kRefineType:
     case Opcode::kStealCellItem:
+    case Opcode::kUnicodeCompare:
     case Opcode::kUseType:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter: {

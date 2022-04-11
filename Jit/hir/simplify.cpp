@@ -244,6 +244,11 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
         op == CompareOp::kExcMatch)) {
     return env.emit<LongCompare>(instr->op(), left, right);
   }
+  if (left->isA(TUnicodeExact) && right->isA(TUnicodeExact) &&
+      !(op == CompareOp::kIn || op == CompareOp::kNotIn ||
+        op == CompareOp::kExcMatch)) {
+    return env.emit<UnicodeCompare>(instr->op(), left, right);
+  }
   return nullptr;
 }
 

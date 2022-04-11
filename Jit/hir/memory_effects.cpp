@@ -60,6 +60,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kRefineType:
     case Opcode::kSnapshot:
     case Opcode::kTpAlloc:
+    case Opcode::kUnicodeCompare:
     case Opcode::kUseType:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:

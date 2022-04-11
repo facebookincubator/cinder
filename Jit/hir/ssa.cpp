@@ -399,6 +399,7 @@ Type outputType(
       return TLongExact;
     }
     case Opcode::kLongCompare:
+    case Opcode::kUnicodeCompare:
     case Opcode::kRunPeriodicTasks:
       return TBool;
 

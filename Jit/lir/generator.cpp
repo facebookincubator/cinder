@@ -1649,6 +1649,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             static_cast<int>(instr->op()));
         break;
       }
+      case Opcode::kUnicodeCompare: {
+        auto instr = static_cast<const UnicodeCompare*>(&i);
+
+        bbb.AppendCode(
+            "Call {}, {:#x}, {}, {}, {}",
+            instr->dst(),
+            reinterpret_cast<uint64_t>(PyUnicode_Type.tp_richcompare),
+            instr->left(),
+            instr->right(),
+            static_cast<int>(instr->op()));
+        break;
+      }
       case Opcode::kCompareBool: {
         auto instr = static_cast<const CompareBool*>(&i);
 
