@@ -238,10 +238,35 @@ def make_server_class(process_args):
     return IRServer
 
 
-def make_explorer_class(process_args):
+def make_explorer_class(process_args, prod_hostname=None):
     runtime = args.runtime
+    # args.host is for listen address, whereas prod_hostname is for CSP header.
+    # If it's set and non-empty, we're in a prod deployment.
+    security_headers = {
+        "X-Frame-Options": "SAMEORIGIN",
+        "X-XSS-Protection": "1; mode=block",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if prod_hostname:
+        print("Running a prod deployment...")
+        # Don't set HSTS or CSP for local development
+        security_headers["Content-Security-Policy"] = (
+            f"default-src https://{prod_hostname}/vendor/ http://{prod_hostname}/vendor/ 'self'; "
+            "img-src data: 'self';"
+            "style-src 'self' 'unsafe-inline';"
+            "script-src 'self' 'unsafe-inline'"
+        )
+        security_headers[
+            "Strict-Transport-Security"
+        ] = "max-age=31536000; includeSubDomains; preload"
 
     class ExplorerServer(http.server.SimpleHTTPRequestHandler):
+        def _begin_response(self, code, content_type):
+            self.send_response(code)
+            self.send_header("Content-type", content_type)
+            for header, value in security_headers.items():
+                self.send_header(header, value)
+
         def _get_post_params(self):
             content_length = int(self.headers["Content-Length"])
             post_data = self.rfile.read(content_length)
@@ -257,9 +282,6 @@ def make_explorer_class(process_args):
             return handler(self)
 
         def do_POST(self):
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
             self.params = self._get_post_params()
             handler = self.post_routes.get(self.path, self.__class__.do_404)
             return handler(self)
@@ -267,23 +289,18 @@ def make_explorer_class(process_args):
         def do_404(self):
             try:
                 static_file = os.path.join(TEMPLATE_DIR, self.path.lstrip("/"))
+                content_type = mimetypes.guess_type(static_file)[0] or "text/html"
                 with open(static_file, "rb") as f:
-                    self.send_response(200)
-                    self.send_header(
-                        "Content-type",
-                        mimetypes.guess_type(static_file)[0] or "text/html",
-                    )
+                    self._begin_response(200, content_type)
                     self.end_headers()
                     self.wfile.write(f.read())
             except FileNotFoundError:
-                self.send_response(404)
-                self.send_header("Content-type", "text/html")
+                self._begin_response(404, "text/html")
                 self.end_headers()
                 self.wfile.write(f"<b>404 not found: {self.path}</b>".encode("utf-8"))
 
         def do_compile_get(self):
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
+            self._begin_response(200, "text/html")
             self.end_headers()
             self.wfile.write(b"Waiting for input...")
 
@@ -293,8 +310,7 @@ def make_explorer_class(process_args):
             self.wfile.write(b"I'm not dead yet")
 
         def do_explore(self):
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
+            self._begin_response(200, "text/html")
             self.end_headers()
             with open(os.path.join(TEMPLATE_DIR, "explorer.html.in"), "r") as f:
                 template = f.read()
@@ -320,6 +336,8 @@ def make_explorer_class(process_args):
             return result
 
         def do_compile_post(self):
+            self._begin_response(200, "text/html")
+            self.end_headers()
             passes = self.params["passes"]
             user_code = self.params["code"][0]
             use_static_python = (
@@ -407,7 +425,8 @@ def gen_explorer(args):
     host = args.host
     port = args.port
     explorer_address = (host, port)
-    IRServer = make_explorer_class(args)
+    prod_hostname = os.getenv("CINDER_EXPLORER_HOSTNAME")
+    IRServer = make_explorer_class(args, prod_hostname)
     httpd = HTTPServerIPV6(explorer_address, IRServer)
     print(f"Serving traffic on {host}:{port} ...")
     httpd.serve_forever()
