@@ -1007,7 +1007,7 @@ class ReadonlyTypeBinder(ASTVisitor):
             returns_readonly=returns_readonly,
             yields_readonly=yields_readonly,
             sends_readonly=sends_readonly,
-            readonly_nonlocal=readonly_func,
+            readonly_nonlocal=readonly_nonlocal,
             pre_visit=True,
         )
         self.child_scope(func_scope)

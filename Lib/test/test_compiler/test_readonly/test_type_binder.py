@@ -142,6 +142,7 @@ class TypeBinderTests(ReadonlyTestBase):
         code = """
         def g():
             x = 1
+            @readonly_closure
             @readonly_func
             def f():
                 nonlocal x
@@ -161,6 +162,7 @@ class TypeBinderTests(ReadonlyTestBase):
         code = """
         def g():
             x = 1
+            @readonly_closure
             @readonly_func
             def f():
                 nonlocal x
@@ -1845,6 +1847,19 @@ class TypeBinderTests(ReadonlyTestBase):
         def testfunc():
             x: Dict[int, object] = {int(i): object() for i in range(1, 5)}
             return x
+        """
+        errors = self.lint(code)
+        self.assertEqual(errors.errors, [])
+
+    def test_allow_closure_modification(self) -> None:
+        code = """
+        @readonly_func
+        def f():
+            x: List[int] = []
+            @readonly_func
+            def g():
+                nonlocal x
+                x = [1]
         """
         errors = self.lint(code)
         self.assertEqual(errors.errors, [])
