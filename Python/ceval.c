@@ -3155,13 +3155,17 @@ main_loop:
                 assert(nargs != NULL);
 
                 PyObject *funcObj = PEEK(PyLong_AsUnsignedLongLong(nargs) + 1);
+                if (PyMethod_Check(funcObj)) {
+                    funcObj = ((PyMethodObject *)funcObj)->im_func;
+                }
+
                 if (PyFunction_Check(funcObj)) {
                     PyFunctionObject *func = (PyFunctionObject *)funcObj;
                     assert(func != NULL);
 
                     uint64_t func_mask = func->readonly_mask;
 
-                    PyObject *call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
+                    PyObject *call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 2);
                     uint64_t call_mask = PyLong_AsUnsignedLongLong(call_mask_obj);
 
                     // is_readonly_func: error if 1 in callsite but 0 in callable

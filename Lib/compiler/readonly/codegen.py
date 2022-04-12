@@ -275,12 +275,38 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         )
         self.emit_readonly_op("MAKE_FUNCTION", mask)
 
-    def insertReadonlyCheck(self, node: Optional[ast.Call], nargs: int) -> None:
+    def _get_containing_function(
+        self,
+    ) -> Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda]]:
+        cur_gen = self
+        while cur_gen and not isinstance(
+            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+        ):
+            cur_gen = cur_gen.parent_code_gen
+
+        if not cur_gen:
+            return None
+
+        assert isinstance(
+            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+        )
+        return cur_gen.tree
+
+    def insertReadonlyCheck(
+        self, node: Optional[ast.Call], nargs: int, call_method: bool
+    ) -> None:
         # node is None when the this function is (indirectly) called by any functions
         # other than visitCall().
         # Also skip the check in a non-readonly function
         if not node or not self.emit_readonly_checks:
             return
+
+        arg_readonly = list(self.binder.is_readonly(x) for x in node.args)
+
+        if call_method:
+            assert isinstance(node.func, ast.Attribute)
+            self_readonly = self.binder.is_readonly(node.func.value)
+            arg_readonly.insert(0, self_readonly)
 
         mask = self.calc_function_readonly_mask(
             node,
@@ -289,10 +315,10 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             readonly_nonlocal=self.current_function_is_readonly_nonlocal,
             yields_readonly=None,
             sends_readonly=None,
-            args=tuple(self.binder.is_readonly(x) for x in node.args),
+            args=tuple(arg_readonly),
         )
 
-        self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask))
+        self.emit_readonly_op("CHECK_FUNCTION", (nargs, call_method, mask))
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int

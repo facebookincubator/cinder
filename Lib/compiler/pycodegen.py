@@ -1679,6 +1679,9 @@ class CodeGenerator(ASTVisitor):
                 self.visit(kwargs[i].value)
             self.emit("BUILD_MAP", nkwargs)
 
+    def insertReadonlyCheck(self, node, nargs, call_method):
+        pass
+
     def _call_helper(self, argcnt, node, args, kwargs):
         mustdictunpack = any(arg.arg is None for arg in kwargs)
         nelts = len(args)
@@ -1731,7 +1734,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("LOAD_CONST", tuple(arg.arg for arg in kwargs))
             self.emit("CALL_FUNCTION_KW", nelts + nkwelts + argcnt)
         else:
-            self.insertReadonlyCheck(node, nelts + argcnt)
+            self.insertReadonlyCheck(node, nelts + argcnt, False)
             self.emit("CALL_FUNCTION", nelts + argcnt)
 
     def visitCall(self, node):
@@ -1752,11 +1755,8 @@ class CodeGenerator(ASTVisitor):
         for arg in node.args:
             self.visit(arg)
         nargs = len(node.args)
-        self.insertReadonlyCheck(node, nargs)
+        self.insertReadonlyCheck(node, nargs + 1, True)
         self.emit("CALL_METHOD", nargs)
-
-    def insertReadonlyCheck(self, node, nargs):
-        pass
 
     def visitPrint(self, node, newline=0):
         self.set_lineno(node)
@@ -2484,8 +2484,9 @@ class CinderCodeGenerator(CodeGenerator):
         self.emit("LOAD_METHOD", self.mangle(node.func.attr))
         for arg in node.args:
             self.visit(arg)
-
-        self.emit("CALL_METHOD", len(node.args))
+        nargs = len(node.args)
+        self.insertReadonlyCheck(node, nargs + 1, True)
+        self.emit("CALL_METHOD", nargs)
 
     def findFutures(self, node):
         future_flags = super().findFutures(node)
@@ -2573,7 +2574,6 @@ class CinderCodeGenerator(CodeGenerator):
             return True
 
         return False
-
 
 def get_default_generator():
 

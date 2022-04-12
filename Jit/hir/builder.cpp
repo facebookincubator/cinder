@@ -201,6 +201,31 @@ const std::unordered_set<int> kSupportedOpcodes = {
     YIELD_VALUE,
 };
 
+const std::unordered_set<int> kSupportedReadonlyOperations = {
+    READONLY_BINARY_SUBTRACT,
+    READONLY_BINARY_MULTIPLY,
+    READONLY_BINARY_MATRIX_MULTIPLY,
+    READONLY_BINARY_TRUE_DIVIDE,
+    READONLY_BINARY_FLOOR_DIVIDE,
+    READONLY_BINARY_MODULO,
+    READONLY_BINARY_POWER,
+    READONLY_BINARY_ADD,
+    READONLY_BINARY_LSHIFT,
+    READONLY_BINARY_RSHIFT,
+    READONLY_BINARY_OR,
+    READONLY_BINARY_XOR,
+    READONLY_BINARY_AND,
+    READONLY_UNARY_INVERT,
+    READONLY_UNARY_NEGATIVE,
+    READONLY_UNARY_POSITIVE,
+    READONLY_UNARY_NOT,
+};
+
+#define NAMES(op, value) {value, #op},
+const std::unordered_map<int, const char*> kReadonlyOperationNames = {
+    READONLY_OPERATIONS(NAMES)};
+#undef NAMES
+
 static bool can_translate(PyCodeObject* code) {
   static const std::unordered_set<std::string> kBannedNames{
       "eval", "exec", "locals"};
@@ -223,6 +248,20 @@ static bool can_translate(PyCodeObject* code) {
     } else if (opcode == LOAD_GLOBAL && banned_name_ids.count(oparg)) {
       JIT_DLOG("'%s' unsupported", name_at(oparg));
       return false;
+    } else if (opcode == READONLY_OPERATION) {
+      int oparg = bci.oparg();
+      PyObject* op_tuple = PyTuple_GET_ITEM(code->co_consts, oparg);
+
+      PyObject* opobj = PyTuple_GET_ITEM(op_tuple, 0);
+      assert(opobj != nullptr);
+      int op = PyLong_AsLong(opobj);
+
+      if (!kSupportedReadonlyOperations.count(op)) {
+        JIT_DLOG(
+            "Readonly operation '%s' unsupported.",
+            kReadonlyOperationNames.at(op));
+        return false;
+      }
     }
   }
   return true;
@@ -2738,12 +2777,19 @@ void HIRBuilder::emitReadonlyOperation(
       PyObject* arg_tuple = PyTuple_GET_ITEM(op_tuple, 1);
       assert(arg_tuple != nullptr);
 
+      PyObject* is_call_method_obj = PyTuple_GET_ITEM(arg_tuple, 1);
+      assert(is_call_method_obj != nullptr);
+      bool is_call_method = (is_call_method_obj == Py_True);
+
       PyObject* nargs_obj = PyTuple_GET_ITEM(arg_tuple, 0);
       assert(nargs_obj != nullptr);
 
-      uint64_t nargs = PyLong_AsUnsignedLongLong(nargs_obj);
+      // please note that the frame stack layout is different in jit than in the
+      // interpreter loop equivalent after LoadMethod
+      uint64_t objs_above_func =
+          PyLong_AsUnsignedLongLong(nargs_obj) - (is_call_method ? 1 : 0);
 
-      Register* func = tc.frame.stack.peek(nargs + 1);
+      Register* func = tc.frame.stack.peek(objs_above_func + 1);
 
       BasicBlock* done_block = cfg.AllocateBlock();
       BasicBlock* func_block = cfg.AllocateBlock();
@@ -2751,13 +2797,13 @@ void HIRBuilder::emitReadonlyOperation(
       tc.emit<CondBranchCheckType>(func, TFunc, func_block, done_block);
 
       tc.block = func_block;
-      // TODO(T105038867): Remove once we have RefineTypeInsertion
+
       tc.emit<RefineType>(func, TFunc, func);
       Register* func_mask_reg = temps_.AllocateStack();
       tc.emit<LoadField>(
           func_mask_reg, func, "readonly_mask", kFunctionMaskOffset, TCUInt64);
 
-      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
+      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 2);
       uint64_t call_mask = PyLong_AsUnsignedLong(call_mask_obj);
       Register* call_mask_reg = temps_.AllocateStack();
       tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(call_mask, TCUInt64));

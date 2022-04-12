@@ -136,6 +136,92 @@ class FuncCallTests(ReadonlyTestBase):
         ):
             self._compile_and_run(code, "f")
 
+    @unittest.skipUnderCinderJIT("Not implemented yet.")
+    def test_method_call_nro_ro(self) -> None:
+        code = """
+        class C:
+            @readonly_func
+            def g(self):
+                return 1
+
+        def f():
+            return C().g()
+        """
+        with self.assertNoImmutableErrors():
+            self._compile_and_run(code, "f")
+
+    @unittest.skipUnderCinderJIT("Not implemented yet.")
+    def test_method_call_ro_nro(self) -> None:
+        code = """
+        class C:
+            def g(self):
+                return 1
+
+        @readonly_func
+        def f():
+            return C().g()
+        """
+        with self.assertImmutableErrors(
+            [
+                (1, "A mutable function cannot be called in a readonly function.", ()),
+                (3, "Cannot assign a readonly value to a mutable variable.", ()),
+            ]
+        ):
+            self._compile_and_run(code, "f")
+
+    @unittest.skipUnderCinderJIT("Not implemented yet.")
+    def test_method_call_ro_ro(self) -> None:
+        code = """
+        class C:
+            @readonly_func
+            def g(self):
+                return 1
+
+        @readonly_func
+        def f():
+            return C().g()
+        """
+        with self.assertNoImmutableErrors():
+            self._compile_and_run(code, "f")
+
+    @unittest.skipUnderCinderJIT("Not implemented yet.")
+    def test_method_call_arguments(self) -> None:
+        code = """
+        class C:
+            @readonly_func
+            def g(self: Readonly[C], a, b: Readonly[int], c):
+                return 1
+
+        @readonly_func
+        def f():
+            c: Readonly[int] = 3
+            t = C().g(1, 2, c)
+            return t
+        """
+        with self.assertImmutableErrors(
+            [(4, "Passing a readonly variable to Argument 3, which is mutable.", (3,))]
+        ):
+            self._compile_and_run(code, "f")
+
+    @unittest.skipUnderCinderJIT("Not implemented yet.")
+    def test_method_check_self(self) -> None:
+        code = """
+        class C:
+            @readonly_func
+            def g(self, a, b: Readonly[int], c):
+                return 1
+
+        @readonly_func
+        def f():
+            c: Readonly[C] = C()
+            t = c.g(1, 2, 3)
+            return t
+        """
+        with self.assertImmutableErrors(
+            [(4, "Passing a readonly variable to Argument 0, which is mutable.", (0,))]
+        ):
+            self._compile_and_run(code, "f")
+
     def _compile_and_run(self, code: str, func: str) -> None:
         f = self.compile_and_run(code)[func]
         return f()
