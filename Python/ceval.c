@@ -2840,9 +2840,9 @@ main_loop:
         }
 
         case TARGET(LOAD_TYPE): {
-          PyObject *instance = POP();
+          PyObject *instance = TOP();
           Py_INCREF(Py_TYPE(instance));
-          PUSH((PyObject *)Py_TYPE(instance));
+          SET_TOP((PyObject *)Py_TYPE(instance));
           Py_DECREF(instance);
           FAST_DISPATCH();
         }
