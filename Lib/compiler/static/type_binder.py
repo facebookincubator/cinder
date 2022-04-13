@@ -1131,6 +1131,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             node.generators[0].iter, self
         )
 
+        with self.in_target():
+            self.visit(node.generators[0].target)
         self.assign_value(node.generators[0].target, iter_type)
         for if_ in node.generators[0].ifs:
             self.visit(if_)
