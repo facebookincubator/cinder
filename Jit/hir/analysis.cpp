@@ -88,7 +88,6 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kInvokeStaticFunction:
     case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kIsInstance:
-    case Opcode::kIsSubtype:
     case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kIsTruthy:
     case Opcode::kListAppend:

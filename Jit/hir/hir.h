@@ -341,7 +341,6 @@ struct FrameState {
   V(InvokeIterNext)             \
   V(InvokeMethod)               \
   V(IsInstance)                 \
-  V(IsSubtype)                  \
   V(InvokeStaticFunction)       \
   V(IsErrStopAsyncIteration)    \
   V(IsNegativeAndErrOccurred)   \
@@ -3430,8 +3429,6 @@ DEFINE_SIMPLE_INSTR(
     HasOutput,
     Operands<2>,
     DeoptBase);
-
-DEFINE_SIMPLE_INSTR(IsSubtype, (TType, TType), HasOutput, Operands<2>);
 
 class INSTR_CLASS(ImportFrom, (TObject), HasOutput, Operands<1>, DeoptBase) {
  public:

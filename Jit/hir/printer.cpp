@@ -250,7 +250,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kIsInstance:
     case Opcode::kIsNegativeAndErrOccurred:
-    case Opcode::kIsSubtype:
     case Opcode::kIsTruthy:
     case Opcode::kListAppend:
     case Opcode::kListExtend:
