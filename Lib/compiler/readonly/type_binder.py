@@ -29,6 +29,7 @@ TReadonlyTypes = Dict[AST, Value]
 
 READONLY_ANNOTATION: str = "Readonly"
 
+
 class ReadonlyBindingScope:
     def __init__(
         self,
@@ -148,6 +149,7 @@ class NameLookupOnlyScope(ReadonlyBindingScope):
     Scopes which only exist for name lookup. Names declared
     in these scopes cannot be marked readonly()
     """
+
     def declare(
         self,
         name: str,
@@ -741,6 +743,7 @@ class ReadonlyTypeBinder(ASTVisitor):
                 self.store_node(lhs, rhs_readonly)
         elif isinstance(lhs, ast.Subscript):
             self.visit(lhs.value)
+            self.visit(lhs.slice)  # TODO maybe error when slice is reaodnly?
             if self.is_readonly(lhs.value):
                 self.readonly_type_error(
                     f"Cannot modify readonly expression '{to_expr(lhs.value)}' via subscript",

@@ -222,6 +222,38 @@ class FuncCallTests(ReadonlyTestBase):
         ):
             self._compile_and_run(code, "f")
 
+    def test_call_in_subscr(self) -> None:
+        code = """
+        @readonly_func
+        def f():
+            return 0
+
+        @readonly_func
+        def g():
+            l = [0]
+            l[f()] = 1
+            return l
+        """
+        with self.assertNoImmutableErrors():
+            self._compile_and_run(code, "g")
+
+    def test_disallowed_call_in_subscr(self) -> None:
+        code = """
+        @readonly_func
+        def f(x: int) -> int:
+            return 0
+
+        @readonly_func
+        def g():
+            l = [0]
+            l[f(readonly(2))] = 1
+            return l
+        """
+        with self.assertImmutableErrors(
+            [(4, "Passing a readonly variable to Argument 0, which is mutable.", (0,))]
+        ):
+            self._compile_and_run(code, "g")
+
     def _compile_and_run(self, code: str, func: str) -> None:
         f = self.compile_and_run(code)[func]
         return f()
