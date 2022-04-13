@@ -495,7 +495,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         for key, value in effect_types.items():
             if value.klass is not self.compiler.type_env.DYNAMIC:
                 value.emit_name(effect_name_nodes[key], self)
-                self.emit("CAST", (value.klass.type_descr, True))
+                self.emit("CAST", value.klass.type_descr)
                 self.emit("POP_TOP")
 
     def visitAttribute(self, node: Attribute) -> None:
@@ -506,18 +506,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
             self.emit("LOAD_ATTR_SUPER", load_arg)
         else:
             self.get_type(node.value).emit_attr(node, self)
-
-    def emit_type_check(self, dest: Class, src: Class, node: AST) -> None:
-        if (
-            src is self.compiler.type_env.dynamic
-            and dest is not self.compiler.type_env.object
-            and dest is not self.compiler.type_env.dynamic
-        ):
-            assert not isinstance(dest, CType)
-            self.emit("CAST", (dest.type_descr, True))
-        else:
-
-            assert dest.can_assign_from(src)
 
     def visitAssignTarget(
         self, elt: expr, stmt: AST, value: Optional[expr] = None

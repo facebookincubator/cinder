@@ -4804,35 +4804,23 @@ main_loop:
         Py_DECREF(val);                                                     \
         SET_TOP(PyFloat_FromDouble(lval));                                  \
     } else {                                                                \
-        if (error) {                                                        \
-            PyErr_Format(PyExc_TypeError,                                   \
-                        exact ? "expected exactly '%s', got '%s'"           \
-                              : "expected '%s', got '%s'",                  \
-                        type->tp_name,                                      \
-                        Py_TYPE(val)->tp_name);                             \
-            Py_DECREF(type);                                                \
-            goto error;                                                     \
-        } else {                                                            \
-            Py_DECREF(val);                                                 \
-            SET_TOP(Py_False);                                              \
-            Py_INCREF(Py_False);                                            \
-        }                                                                   \
+        PyErr_Format(PyExc_TypeError,                                       \
+                    exact ? "expected exactly '%s', got '%s'"               \
+                     : "expected '%s', got '%s'",                           \
+                    type->tp_name,                                          \
+                    Py_TYPE(val)->tp_name);                                 \
+        Py_DECREF(type);                                                    \
+        goto error;                                                         \
     }
 
         case TARGET(CAST): {
             PyObject *val = TOP();
-            PyObject *cast_info = GETITEM(consts, oparg);
-            int error = PyTuple_GET_ITEM(cast_info, 1) == Py_True;
-            type = _PyClassLoader_ResolveType(PyTuple_GET_ITEM(cast_info, 0), &optional, &exact);
+            type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional, &exact);
             if (type == NULL) {
                 goto error;
             }
             if (!_PyObject_TypeCheckOptional(val, type, optional, exact)) {
                 CAST_COERCE_OR_ERROR(val, type, exact);
-            } else if (!error) {
-                Py_DECREF(val);
-                SET_TOP(Py_True);
-                Py_INCREF(Py_True);
             }
 
             if (shadow.shadow != NULL) {
@@ -4842,17 +4830,17 @@ main_loop:
                     if (optional) {
                         if (exact) {
                             _PyShadow_PatchByteCode(
-                                &shadow, next_instr, CAST_CACHED_OPTIONAL_EXACT, (offset << 1) | error);
+                                &shadow, next_instr, CAST_CACHED_OPTIONAL_EXACT, offset);
                         } else {
                             _PyShadow_PatchByteCode(
-                                &shadow, next_instr, CAST_CACHED_OPTIONAL, (offset << 1) | error);
+                                &shadow, next_instr, CAST_CACHED_OPTIONAL, offset);
                         }
                     } else if (exact) {
                         _PyShadow_PatchByteCode(
-                            &shadow, next_instr, CAST_CACHED_EXACT, (offset << 1) | error);
+                            &shadow, next_instr, CAST_CACHED_EXACT, offset);
                     } else {
                         _PyShadow_PatchByteCode(
-                            &shadow, next_instr, CAST_CACHED, (offset << 1) | error);
+                            &shadow, next_instr, CAST_CACHED, offset);
                     }
                 }
             }
@@ -4862,58 +4850,37 @@ main_loop:
 
         case TARGET(CAST_CACHED): {
             PyObject *val = TOP();
-            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg >> 1);
-            int error = oparg & 1;
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!PyObject_TypeCheck(val, type)) {
                 CAST_COERCE_OR_ERROR(val, type, /* exact */ 0);
-            } else if (!error) {
-                Py_DECREF(val);
-                SET_TOP(Py_True);
-                Py_INCREF(Py_True);
             }
             FAST_DISPATCH();
         }
 
         case TARGET(CAST_CACHED_OPTIONAL): {
             PyObject *val = TOP();
-            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg >> 1);
-            int error = oparg & 1;
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!_PyObject_TypeCheckOptional(val, type, /* opt */ 1, /* exact */ 0)) {
                 CAST_COERCE_OR_ERROR(val, type, /* exact */ 0);
-            } else if (!error) {
-                Py_DECREF(val);
-                SET_TOP(Py_True);
-                Py_INCREF(Py_True);
             }
             FAST_DISPATCH();
         }
 
         case TARGET(CAST_CACHED_EXACT): {
             PyObject *val = TOP();
-            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg >> 1);
-            int error = oparg & 1;
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (Py_TYPE(val) != type) {
                 CAST_COERCE_OR_ERROR(val, type, /* exact */ 1);
-            } else if (!error) {
-                Py_DECREF(val);
-                SET_TOP(Py_True);
-                Py_INCREF(Py_True);
             }
             FAST_DISPATCH();
         }
 
         case TARGET(CAST_CACHED_OPTIONAL_EXACT): {
             PyObject *val = TOP();
-            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg >> 1);
-            int error = oparg & 1;
+            type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
             if (!_PyObject_TypeCheckOptional(val, type, /* opt */ 1, /* exact */ 1)) {
                 CAST_COERCE_OR_ERROR(val, type, /* exact */ 1);
-            } else if (!error) {
-                Py_DECREF(val);
-                SET_TOP(Py_True);
-                Py_INCREF(Py_True);
             }
-
             FAST_DISPATCH();
         }
 

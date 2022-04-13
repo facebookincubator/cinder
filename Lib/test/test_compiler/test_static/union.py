@@ -407,7 +407,7 @@ class UnionCompilationTests(StaticTestBase):
             # no arg check for the union, it's just dynamic
             self.assertInBytecode(f, "CHECK_ARGS", ())
             # so we do have to check the return value
-            self.assertInBytecode(f, "CAST", (("builtins", "int"), True))
+            self.assertInBytecode(f, "CAST", ("builtins", "int"))
             # runtime type error comes from return, not argument
             with self.assertRaisesRegex(TypeError, "expected 'int', got 'list'"):
                 f([])
@@ -468,86 +468,6 @@ class UnionCompilationTests(StaticTestBase):
                 self.assertEqual(mod.f(1), 1.0)
                 self.assertEqual(mod.f(MyInt(1)), 1.0)
 
-    def test_isinstance_narrows_optional_or(self):
-        codestr = """
-            def f(x):
-                if isinstance(x, int | None):
-                    return x
-                return 'abc'
-        """
-        with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.f, "CAST", (("builtins", "int", "?"), False))
-            self.assertEqual(mod.f(42), 42)
-            self.assertEqual(mod.f(None), None)
-
-    def test_isinstance_narrows_union_of_types(self):
-        codestr = """
-            def f(x):
-                if isinstance(x, int | str):
-                    return x
-                return 'abc'
-        """
-        with self.in_module(codestr) as mod:
-            self.assertEqual(mod.f(42), 42)
-            self.assertEqual(mod.f("foo"), "foo")
-            self.assertEqual(mod.f(None), "abc")
-
-    def test_isinstance_narrows_union_of_types_in_loop(self):
-        codestr = """
-            def f(x):
-                for i in range(10):
-                    if isinstance(x, int | str):
-                        return x
-                return 'abc'
-        """
-        with self.in_module(codestr) as mod:
-            self.assertEqual(mod.f(42), 42)
-            self.assertEqual(mod.f("foo"), "foo")
-            self.assertEqual(mod.f(None), "abc")
-
-    def test_isinstance_narrows_union_of_types_unknown_type(self):
-        codestr = """
-            from threading import Thread
-            def f(x):
-                if isinstance(x, int | Thread):
-                    return x
-                return 'abc'
-        """
-        with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.f, "LOAD_GLOBAL", "isinstance")
-            self.assertEqual(mod.f(42), 42)
-            self.assertEqual(mod.f(None), "abc")
-
-    def test_isinstance_narrows_union_of_types_unknown_type_tuple(self):
-        codestr = """
-            from threading import Thread
-            def f(x):
-                if isinstance(x, (int, int | Thread)):
-                    return x
-                return 'abc'
-        """
-        with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.f, "LOAD_GLOBAL", "isinstance")
-            self.assertEqual(mod.f(42), 42)
-            self.assertEqual(mod.f(None), "abc")
-
-    def test_isinstance_narrows_optional_union(self):
-        """This is actually a TypeError in non-static Python but
-        we currently allow it because we don't differentiate between
-        typing.Union and types.Union, in Python 3.10 this will be
-        allowed in both forms though"""
-
-        codestr = """
-            from typing import Union
-            def f(x):
-                if isinstance(x, Union[int, None]):
-                    return x
-                return 'abc'
-        """
-        with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.f, "CAST", (("builtins", "int", "?"), False))
-            self.assertEqual(mod.f(42), 42)
-            self.assertEqual(mod.f(None), None)
 
 
 if __name__ == "__main__":

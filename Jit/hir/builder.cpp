@@ -3801,18 +3801,10 @@ void HIRBuilder::emitStoreField(
 void HIRBuilder::emitCast(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  auto& [pytype, opt, exact] =
-      preloader_.pyTypeOpt(PyTuple_GetItem(constArg(bc_instr), 0));
+  auto& [pytype, opt, exact] = preloader_.pyTypeOpt(constArg(bc_instr));
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<Cast>(
-      result,
-      value,
-      pytype,
-      opt,
-      exact,
-      PyTuple_GetItem(constArg(bc_instr), 1) == Py_True,
-      tc.frame);
+  tc.emit<Cast>(result, value, pytype, opt, exact, tc.frame);
   tc.frame.stack.push(result);
 }
 

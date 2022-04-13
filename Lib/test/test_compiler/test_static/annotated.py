@@ -280,7 +280,7 @@ class AnnotatedTests(StaticTestBase):
                 cast(Annotated[C, "Exact"], c)
         """
         with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.foo, "CAST", ((mod.__name__, "C", "!"), True))
+            self.assertInBytecode(mod.foo, "CAST", (mod.__name__, "C", "!"))
 
             self.assertEqual(mod.foo(mod.C()), None)
             with self.assertRaisesRegex(TypeError, "expected exactly 'C', got 'D'"):

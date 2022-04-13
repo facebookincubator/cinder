@@ -1171,7 +1171,7 @@ class PrimitivesTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.f
             self.assertInBytecode(f, "PRIMITIVE_UNBOX")
-            self.assertInBytecode(f, "CAST", (("builtins", "bool", "!"), True))
+            self.assertInBytecode(f, "CAST", ("builtins", "bool", "!"))
             self.assertEqual(f(True), True)
             self.assertEqual(f(False), False)
             with self.assertRaises(TypeError):

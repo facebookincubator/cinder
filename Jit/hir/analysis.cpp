@@ -50,12 +50,9 @@ bool isPassthrough(const Instr& instr) {
       return false;
 
     // Cast is pass-through except when we are casting to float, in which case
-    // we may coerce an incoming int to a new float.  It's also not a pass
-    // thru when we return True/False to indicate success/failure.
-    case Opcode::kCast: {
-      auto& cast = static_cast<const Cast&>(instr);
-      return cast.pytype() != &PyFloat_Type && cast.iserror();
-    }
+    // we may coerce an incoming int to a new float.
+    case Opcode::kCast:
+      return (static_cast<const Cast*>(&instr))->pytype() != &PyFloat_Type;
 
     case Opcode::kBinaryOp:
     case Opcode::kBuildSlice:
