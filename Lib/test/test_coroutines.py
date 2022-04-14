@@ -2567,7 +2567,7 @@ class TestEagerExecution(unittest.TestCase):
     def test_suspended_await_no_error(self):
         self._do_test_no_err(self._raise_IndexError_suspended)
 
-    def test_suspended_await_in_catch(self):
+    def test_suspended_pass_catch(self):
         self._do_test_exc_handler(self._raise_IndexError_eager)
 
     def test_suspended_await_in_catch(self):
