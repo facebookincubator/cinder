@@ -270,3 +270,61 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_strict_module(codestr) as mod:
             self.assertNotInBytecode(mod.C.foo, "LOAD_FIELD")
+
+    def test_dataclass_eq_static(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+            y: int
+
+        class D:
+            def __init__(self, x: str, y: int) -> None:
+                self.x = x
+                self.y = y
+
+        c1 = C("foo", 1)
+        c2 = C("foo", 1)
+        c3 = C("bar", 1)
+        c4 = C("foo", 2)
+        d = D("foo", 1)
+
+        res = (
+            c1 == c1,
+            c1 == c2,
+            c1 == c3,
+            c1 == c4,
+            c1 == d,
+        )
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertTupleEqual(mod.res, (True, True, False, False, False))
+
+    def test_dataclass_eq_nonstatic(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+            y: int
+
+        class D:
+            def __init__(self, x: str, y: int) -> None:
+                self.x = x
+                self.y = y
+
+        c1 = C("foo", 1)
+        c2 = C("foo", 1)
+        c3 = C("bar", 1)
+        c4 = C("foo", 2)
+        d = D("foo", 1)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.c1, mod.c1)
+            self.assertEqual(mod.c1, mod.c2)
+            self.assertNotEqual(mod.c1, mod.c3)
+            self.assertNotEqual(mod.c1, mod.c4)
+            self.assertNotEqual(mod.c1, mod.d)

@@ -4789,6 +4789,37 @@ class Dataclass(Class):
         code_gen.emit("MAKE_FUNCTION", oparg)
         code_gen.emit("STORE_NAME", graph.name)
 
+    def emit_dunder_eq(self, code_gen: Static38CodeGenerator) -> None:
+        graph = self.flow_graph(code_gen, "__eq__", ("self", "other"))
+        false = graph.newBlock()
+
+        inexact_descr = self.inexact_type().type_descr
+        graph.emit("CHECK_ARGS", (0, inexact_descr))
+        graph.emit("LOAD_FAST", "other")
+        graph.emit("LOAD_TYPE")
+        graph.emit("LOAD_FAST", "self")
+        graph.emit("LOAD_TYPE")
+        graph.emit("COMPARE_OP", "is")
+        graph.emit("JUMP_IF_FALSE_OR_POP", false)
+
+        for name in self.field_names:
+            graph.emit("LOAD_FAST", "self")
+            graph.emit("LOAD_FIELD", (*inexact_descr, name))
+        graph.emit("BUILD_TUPLE", len(self.field_names))
+
+        # Since Py_TYPE(self) is Py_TYPE(other), we can depend on slots
+        for name in self.field_names:
+            graph.emit("LOAD_FAST", "other")
+            graph.emit("LOAD_FIELD", (*inexact_descr, name))
+        graph.emit("BUILD_TUPLE", len(self.field_names))
+
+        graph.emit("COMPARE_OP", "==")
+
+        graph.nextBlock(false)
+        graph.emit("RETURN_VALUE")
+
+        self.emit_method(code_gen, graph, 0)
+
     def emit_dunder_init(self, code_gen: Static38CodeGenerator) -> None:
         self_name = "__dataclass_self__" if "self" in self.field_names else "self"
 
@@ -4833,6 +4864,9 @@ class Dataclass(Class):
     def emit_extra_methods(self, code_gen: Static38CodeGenerator) -> None:
         if self.generate_init:
             self.emit_dunder_init(code_gen)
+
+        if self.generate_eq:
+            self.emit_dunder_eq(code_gen)
 
     def _create_exact_type(self) -> Class:
         return type(self)(
