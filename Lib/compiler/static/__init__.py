@@ -59,6 +59,7 @@ from .types import (
     CInstance,
     CType,
     Class,
+    DataclassDecorator,
     DecoratedMethod,
     Function,
     FunctionContainer,
@@ -413,6 +414,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if not klass:
             return
 
+        assert isinstance(gen, Static38CodeGenerator)
+        klass.emit_extra_methods(gen)
+
         class_mems = [
             name
             for name, value in klass.members.items()
@@ -458,6 +462,16 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if count:
             gen.emit("BUILD_MAP", count)
             gen.emit("STORE_NAME", "__slot_types__")
+
+    def visit_decorator(self, node: AST) -> None:
+        d = self.get_type(node)
+        if isinstance(d, DataclassDecorator):
+            return
+
+        super().visit_decorator(node)
+
+    def emit_decorator_call(self, node: AST) -> None:
+        self.get_type(node).emit_decorator_call(self)
 
     def emit_load_builtin(self, name: str) -> None:
         if name == "dict" and ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:

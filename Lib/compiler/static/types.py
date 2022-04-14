@@ -16,7 +16,6 @@ from ast import (
     Constant,
     FunctionDef,
     NameConstant,
-    Name,
     Num,
     Return,
     Starred,
@@ -137,13 +136,14 @@ from ..errors import TypedSyntaxError
 from ..optimizer import AstOptimizer
 from ..pyassem import Block
 from ..pycodegen import FOR_LOOP, CodeGenerator
+from ..symbols import FunctionScope
 from ..unparse import to_expr
 from ..visitor import ASTRewriter, TAst
 from .effects import NarrowingEffect, NO_EFFECT
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
-    from . import Static38CodeGenerator
+    from . import PyFlowGraph38Static, Static38CodeGenerator
     from .compiler import Compiler
     from .module_table import AnnotationVisitor, ModuleTable
     from .type_binder import BindingScope, TypeBinder
@@ -565,6 +565,7 @@ class TypeEnvironment:
         self.async_cached_property = AsyncCachedPropertyDecorator(
             TypeName("cinder", "async_cached_property"), self
         )
+        self.dataclass = DataclassDecorator(self)
         self.constant_types: Mapping[Type[object], Value] = {
             str: self.str.exact_type().instance,
             int: self.int.exact_type().instance,
@@ -880,7 +881,9 @@ class Value:
     ) -> Optional[Function | DecoratedMethod]:
         return None
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         return self.klass.type_env.dynamic
 
     def bind_subscr(
@@ -933,6 +936,9 @@ class Value:
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultVisit(node)
+
+    def emit_decorator_call(self, code_gen: Static38CodeGenerator) -> None:
+        code_gen.emit("CALL_FUNCTION", 1)
 
     def emit_delete_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
@@ -2046,6 +2052,9 @@ class Class(Object["Class"]):
             code_gen.emit("CAST", self.type_descr)
         else:
             assert self.can_assign_from(src)
+
+    def emit_extra_methods(self, code_gen: Static38CodeGenerator) -> None:
+        pass
 
 
 class BuiltinObject(Class):
@@ -4365,13 +4374,17 @@ class TypingFinalDecorator(Class):
             fn.is_final = True
         return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         klass.is_final = True
         return klass
 
 
 class AllowWeakrefsDecorator(Class):
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         klass.allow_weakrefs = True
         return klass
 
@@ -4450,7 +4463,9 @@ class DoNotCompileDecorator(Class):
         real_fn.donotcompile = True
         return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         klass.donotcompile = True
         return klass
 
@@ -4463,7 +4478,9 @@ class PropertyDecorator(Class):
             return None
         return PropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property")
 
 
@@ -4475,7 +4492,9 @@ class CachedPropertyDecorator(Class):
             return None
         return CachedPropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @cached_property")
 
 
@@ -4487,7 +4506,9 @@ class AsyncCachedPropertyDecorator(Class):
             return None
         return AsyncCachedPropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @async_cached_property")
 
 
@@ -4497,7 +4518,9 @@ class IdentityDecorator(Class):
     ) -> Optional[Function | DecoratedMethod]:
         return fn
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         return klass
 
 
@@ -4509,7 +4532,9 @@ class OverloadDecorator(Class):
             return None
         return TransientDecoratedMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @overload")
 
 
@@ -4539,8 +4564,288 @@ class PropertySetterDecorator(Class):
             return None
         return TransientDecoratedMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class) -> Class:
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property.setter")
+
+
+class DataclassDecorator(Callable[Class]):
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        params = [
+            Parameter(
+                "cls", 0, ResolvedTypeRef(type_env.type), True, None, ParamStyle.POSONLY
+            ),
+            Parameter(
+                "init", 1, ResolvedTypeRef(type_env.bool), True, True, ParamStyle.KWONLY
+            ),
+            Parameter(
+                "repr", 2, ResolvedTypeRef(type_env.bool), True, True, ParamStyle.KWONLY
+            ),
+            Parameter(
+                "eq", 3, ResolvedTypeRef(type_env.bool), True, True, ParamStyle.KWONLY
+            ),
+            Parameter(
+                "order",
+                4,
+                ResolvedTypeRef(type_env.bool),
+                True,
+                False,
+                ParamStyle.KWONLY,
+            ),
+            Parameter(
+                "unsafe_hash",
+                5,
+                ResolvedTypeRef(type_env.bool),
+                True,
+                False,
+                ParamStyle.KWONLY,
+            ),
+            Parameter(
+                "frozen",
+                6,
+                ResolvedTypeRef(type_env.bool),
+                True,
+                False,
+                ParamStyle.KWONLY,
+            ),
+        ]
+        super().__init__(
+            type_env.function,
+            "dataclass",
+            "__static__",
+            params,
+            {param.name: param for param in params},
+            0,
+            None,
+            None,
+            ResolvedTypeRef(type_env.dynamic),
+        )
+        self.type_env = type_env
+
+    def resolve_decorate_function(
+        self, fn: Function | DecoratedMethod, decorator: expr
+    ) -> Optional[Function | DecoratedMethod]:
+        raise TypedSyntaxError(f"Cannot decorate a function or method with @dataclass")
+
+    def resolve_decorate_class(
+        self, klass: Class, node: ClassDef, decorator: expr
+    ) -> Class:
+        if not isinstance(decorator, ast.Call):
+            return Dataclass(self.type_env, klass, node)
+
+        if decorator.args:
+            raise TypedSyntaxError("dataclass() takes no positional arguments")
+
+        kwargs = {
+            "init": True,
+            "repr": True,
+            "eq": True,
+            "order": False,
+            "unsafe_hash": False,
+            "frozen": False,
+        }
+
+        for kw in decorator.keywords:
+            name, val = kw.arg, kw.value
+            if name not in kwargs:
+                raise TypedSyntaxError(
+                    f"dataclass() got an unexpected keyword argument '{name}'"
+                )
+            if not isinstance(val, ast.Constant) or not isinstance(val.value, bool):
+                raise TypedSyntaxError(
+                    "dataclass() arguments must be boolean constants"
+                )
+            kwargs[name] = val.value
+
+        return Dataclass(self.type_env, klass, node, **kwargs)
+
+    def emit_decorator_call(self, code_gen: Static38CodeGenerator) -> None:
+        # There's no need to emit any code for this decorator,
+        # since we handle its effects statically.
+        pass
+
+
+class Dataclass(Class):
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        klass: Class,
+        node: ClassDef,
+        init: bool = True,
+        repr: bool = True,
+        eq: bool = True,
+        order: bool = False,
+        unsafe_hash: bool = False,
+        frozen: bool = False,
+    ) -> None:
+        super().__init__(
+            type_name=klass.type_name,
+            type_env=type_env,
+            bases=klass.bases,
+            instance=klass.instance,
+            klass=klass.klass,
+            members=copy(klass.members),
+            is_exact=klass.is_exact,
+            pytype=klass.pytype,
+            is_final=klass.is_final,
+        )
+        self.wrapped_class = klass
+
+        # TODO(T96281456): support non-default arguments to @dataclass
+        if order:
+            raise TypedSyntaxError("Static dataclasses do not support order yet")
+        if unsafe_hash:
+            raise TypedSyntaxError("Static dataclasses do not support hashing yet")
+        if frozen:
+            raise TypedSyntaxError("Static dataclasses cannot be frozen yet")
+
+        self.node = node
+        self.init = init
+        self.repr = repr
+        self.eq = eq
+        self.order = order
+        self.unsafe_hash = unsafe_hash
+        self.frozen = frozen
+
+        self.fields: List[Slot[Class]] = [
+            val
+            for name, val in self.members.items()
+            if isinstance(val, Slot) and val.declared_on_class
+        ]
+        self.field_names: List[str] = [field.slot_name for field in self.fields]
+
+        if init:
+            init_params = [
+                Parameter(
+                    "self", 0, ResolvedTypeRef(self), False, None, ParamStyle.POSONLY
+                )
+            ]
+
+            seen_default = False
+            for i, field in enumerate(self.fields):
+                if has_default := field.assigned_on_class:
+                    seen_default = True
+                elif seen_default:
+                    raise TypedSyntaxError(
+                        f"non-default argument {field.slot_name} follows default argument"
+                    )
+
+                type_ref = field.type_ref
+                assert type_ref is not None
+                init_params.append(
+                    Parameter(
+                        field.slot_name,
+                        i + 1,
+                        type_ref,
+                        has_default,
+                        ast.Name(field.slot_name, ast.Load()) if has_default else None,
+                        ParamStyle.NORMAL,
+                    )
+                )
+
+            if "__init__" not in self.members:
+                self.members["__init__"] = BuiltinMethodDescriptor(
+                    "__init__",
+                    self,
+                    init_params,
+                    ResolvedTypeRef(self.type_env.none),
+                )
+
+    @property
+    def generate_eq(self) -> bool:
+        return self.eq and "__eq__" not in self.wrapped_class.members
+
+    @property
+    def generate_init(self) -> bool:
+        return self.init and "__init__" not in self.wrapped_class.members
+
+    @property
+    def generate_repr(self) -> bool:
+        return self.repr and "__repr__" not in self.wrapped_class.members
+
+    def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
+        # TODO(T96281456): support subclassing
+        raise TypedSyntaxError("Cannot subclass static dataclasses")
+
+    def flow_graph(
+        self,
+        code_gen: Static38CodeGenerator,
+        func: str,
+        args: Tuple[str, ...],
+    ) -> PyFlowGraph38Static:
+        scope = FunctionScope(func, code_gen.cur_mod, code_gen.scope.klass)
+        scope.parent = code_gen.scope
+        return code_gen.flow_graph(func, code_gen.graph.filename, scope, args=args)
+
+    def emit_method(
+        self,
+        code_gen: Static38CodeGenerator,
+        graph: PyFlowGraph38Static,
+        oparg: int,
+    ) -> None:
+        code_gen.emit("LOAD_CONST", graph)
+        code_gen.emit("LOAD_CONST", f"{self.type_name.name}.{graph.name}")
+        code_gen.emit("MAKE_FUNCTION", oparg)
+        code_gen.emit("STORE_NAME", graph.name)
+
+    def emit_dunder_init(self, code_gen: Static38CodeGenerator) -> None:
+        self_name = "__dataclass_self__" if "self" in self.field_names else "self"
+
+        graph = self.flow_graph(
+            code_gen,
+            "__init__",
+            args=(self_name, *self.field_names),
+        )
+
+        inexact_descr = self.inexact_type().type_descr
+        args = [0, inexact_descr]
+        for i, field in enumerate(self.fields):
+            args.append(i + 1)
+            args.append(field.type_descr)
+        graph.emit("CHECK_ARGS", tuple(args))
+
+        for name in self.field_names:
+            graph.emit("LOAD_FAST", name)
+            graph.emit("LOAD_FAST", self_name)
+            graph.emit("STORE_FIELD", (*inexact_descr, name))
+
+        if "__post_init__" in self.wrapped_class.members:
+            # TODO(T117031799): pass InitVar fields as arguments to __post_init__
+            graph.emit("LOAD_FAST", self_name)
+            graph.emit("LOAD_METHOD", "__post_init__")
+            graph.emit("CALL_METHOD")
+            graph.emit("POP_TOP")
+
+        graph.emit("LOAD_CONST", None)
+        graph.emit("RETURN_VALUE")
+
+        defaults = [field for field in self.fields if field.assigned_on_class]
+        if defaults:
+            for field in defaults:
+                code_gen.emit("LOAD_NAME", field.slot_name)
+            code_gen.emit("BUILD_TUPLE", len(defaults))
+
+            self.emit_method(code_gen, graph, 1)
+        else:
+            self.emit_method(code_gen, graph, 0)
+
+    def emit_extra_methods(self, code_gen: Static38CodeGenerator) -> None:
+        if self.generate_init:
+            self.emit_dunder_init(code_gen)
+
+    def _create_exact_type(self) -> Class:
+        return type(self)(
+            type_env=self.type_env,
+            klass=self.wrapped_class.exact_type(),
+            node=self.node,
+            init=self.init,
+            repr=self.repr,
+            eq=self.eq,
+            order=self.order,
+            unsafe_hash=self.unsafe_hash,
+            frozen=self.frozen,
+        )
 
 
 class BuiltinFunction(Callable[Class]):

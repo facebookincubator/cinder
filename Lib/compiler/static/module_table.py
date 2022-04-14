@@ -34,6 +34,7 @@ from .types import (
     Callable,
     Class,
     ClassVar,
+    DataclassDecorator,
     DynamicClass,
     ExactClass,
     Function,
@@ -290,6 +291,8 @@ class ModuleTable:
             func = self.ref_visitor.visit(node.func)
             if isinstance(func, Class):
                 return func.instance
+            elif isinstance(func, DataclassDecorator):
+                return func
             elif isinstance(func, Callable):
                 return func.return_type.resolved().instance
             elif isinstance(func, MethodType):

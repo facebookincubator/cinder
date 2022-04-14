@@ -1,5 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from asyncio import iscoroutinefunction
+from dataclasses import dataclass
 from typing import Dict, Generic, List, TypeVar
 
 RAND_MAX = (1 << 31) - 1

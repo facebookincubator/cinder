@@ -144,7 +144,7 @@ class DeclarationVisitor(GenericVisitor[None]):
                 break
             with self.compiler.error_sink.error_context(self.filename, d):
                 decorator = self.module.resolve_decorator(d) or self.type_env.dynamic
-                klass = decorator.resolve_decorate_class(klass)
+                klass = decorator.resolve_decorate_class(klass, node, d)
 
         parent_scope.declare_class(node, klass.exact_type())
         # We want the name corresponding to `C` to be the exact type when imported.
