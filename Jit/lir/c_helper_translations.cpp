@@ -9,8 +9,15 @@
 namespace jit {
 namespace lir {
 
+#ifndef Py_TRACE_REFS
+static_assert(offsetof(PyObject, ob_type) == 0x8);
+static_assert(offsetof(PyTypeObject, tp_name) == 0x18);
+#endif
+
 static const std::initializer_list<std::pair<const uint64_t, std::string>>
     kCHelpersManual = {
+// Hardcoded offset for PyObject::ob_type is invalid if Py_TRACE_REFS enabled
+#ifndef Py_TRACE_REFS
         {reinterpret_cast<uint64_t>(JITRT_Cast), R"(Function:
 BB %0 - succs: %2 %1
        %5:Object = LoadArg 0(0x0):Object
@@ -35,6 +42,7 @@ BB %3 - preds: %1 - succs: %4
 
 BB %4 - preds: %2 %3
 )"},
+#endif
         {reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray), R"(Function:
 BB %0 - succs: %7
        %1:Object = LoadArg 0(0x0):Object
