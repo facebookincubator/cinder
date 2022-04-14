@@ -179,7 +179,7 @@ struct CompilationTimer {
 static std::atomic<int> g_compile_workers_attempted;
 static int g_compile_workers_retries;
 
-void setJitLogFile(string log_filename) {
+void setJitLogFile(std::string log_filename) {
   // Redirect logging to a file if configured.
   const char* kPidMarker = "{pid}";
   std::string pid_filename = log_filename;
@@ -199,7 +199,7 @@ void setJitLogFile(string log_filename) {
   }
 }
 
-void setASMSyntax(string asm_syntax) {
+void setASMSyntax(std::string asm_syntax) {
   if (asm_syntax.compare("intel") == 0) {
     set_intel_syntax();
   } else if (asm_syntax.compare("att") == 0) {
@@ -213,9 +213,9 @@ static jit::FlagProcessor xarg_flag_processor;
 
 static int use_jit = 0;
 static int jit_help = 0;
-static string write_profile_file;
+static std::string write_profile_file;
 static int jit_profile_interp = 0;
-static string jl_fn;
+static std::string jl_fn;
 
 void initFlagProcessor() {
   use_jit = 0;
@@ -231,7 +231,7 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-debug",
         "PYTHONJITDEBUG",
-        [](string) {
+        [](std::string) {
           g_debug = 1;
           g_debug_verbose = 1;
         },
@@ -241,7 +241,7 @@ void initFlagProcessor() {
         .addOption(
             "jit-log-file",
             "PYTHONJITLOGFILE",
-            [](string log_filename) { setJitLogFile(log_filename); },
+            [](std::string log_filename) { setJitLogFile(log_filename); },
             "write log entries to <filename> rather than stderr")
         .withFlagParamName("filename");
 
@@ -249,7 +249,7 @@ void initFlagProcessor() {
         .addOption(
             "jit-asm-syntax",
             "PYTHONJITASMSYNTAX",
-            [](string asm_syntax) { setASMSyntax(asm_syntax); },
+            [](std::string asm_syntax) { setASMSyntax(asm_syntax); },
             "set the assembly syntax used in log files")
         .withFlagParamName("intel|att")
         .withDebugMessageOverride("Sets the assembly syntax used in log files");
@@ -302,7 +302,7 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-dump-lir-no-origin",
         "PYTHONJITDUMPLIRNOORIGIN",
-        [](string) {
+        [](std::string) {
           g_dump_lir = 1;
           g_dump_lir_no_origin = 1;
         },
@@ -332,7 +332,7 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-gdb-support",
         "PYTHONJITGDBSUPPORT",
-        [](string) {
+        [](std::string) {
           g_debug = 1;
           g_gdb_support = 1;
         },
@@ -347,7 +347,7 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-gdb-write-elf",
         "PYTHONJITGDBWRITEELF",
-        [](string) {
+        [](std::string) {
           g_debug = 1;
           g_gdb_support = 1;
           g_gdb_write_elf_objects = 1;
@@ -369,7 +369,7 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-disable-huge-pages",
         "PYTHONJITDISABLEHUGEPAGES",
-        [](string) { jit_config.use_huge_pages = false; },
+        [](std::string) { jit_config.use_huge_pages = false; },
         "disable huge page support");
 
     xarg_flag_processor.addOption(
@@ -388,7 +388,7 @@ void initFlagProcessor() {
         .addOption(
             "jit-list-file",
             "PYTHONJITLISTFILE",
-            [](string listFile) {
+            [](std::string listFile) {
               jl_fn = listFile;
               use_jit = 1;
             },
@@ -399,7 +399,7 @@ void initFlagProcessor() {
         .addOption(
             "jit-read-profile",
             "PYTHONJITREADPROFILE",
-            [](string read_profile_file) {
+            [](std::string read_profile_file) {
               JIT_LOG("Loading profile data from %s", read_profile_file);
               readProfileData(read_profile_file);
             },
@@ -481,7 +481,7 @@ void initFlagProcessor() {
         .addOption(
             "jit-time",
             "",
-            [](string flag_value) { parseAndSetFuncList(flag_value); },
+            [](std::string flag_value) { parseAndSetFuncList(flag_value); },
             "Measure time taken in compilation phases and output summary to "
             "stderr or approperiate logfile. Only functions in comma seperated "
             "<function_list> list will be included. Comma seperated list may "
@@ -505,7 +505,7 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-dump-hir-passes-json",
         "PYTHONJITDUMPHIRPASSESJSON",
-        [](string json_output_dir) {
+        [](std::string json_output_dir) {
           g_dump_hir_passes_json = ::strdup(json_output_dir.c_str());
           int mkdir_result = ::mkdir(g_dump_hir_passes_json, 0755);
           JIT_CHECK(
@@ -1219,7 +1219,7 @@ int _PyJIT_Initialize() {
   initFlagProcessor();
 
   if (jit_help) {
-    std::cout << xarg_flag_processor.jitXOptionHelpMessage() << endl;
+    std::cout << xarg_flag_processor.jitXOptionHelpMessage() << std::endl;
     return -2;
   }
 

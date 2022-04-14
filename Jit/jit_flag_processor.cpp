@@ -12,8 +12,9 @@
 #include <sstream>
 #include <string>
 
-using namespace std;
-using namespace jit;
+using std::function;
+using std::string;
+using std::vector;
 
 namespace jit {
 
@@ -61,7 +62,7 @@ Option& FlagProcessor::addOption(
   assert(!cmdline_flag.empty());
   assert(!flag_description.empty());
 
-  auto option = make_unique<Option>(
+  auto option = std::make_unique<Option>(
       cmdline_flag, environment_variable, callback, flag_description);
   Option& optref = *option;
 
@@ -161,7 +162,7 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
 static string multi_line_split_(string src_string) {
   vector<string> temp_result(1);
 
-  stringstream stm(src_string);
+  std::stringstream stm(src_string);
 
   string word;
   bool addIndent = false;

@@ -8,31 +8,30 @@
 #include <string>
 #include <vector>
 
-using namespace std;
 namespace jit {
 
 struct Option {
   // required
-  string cmdline_flag;
-  string environment_variable;
-  function<void(string)> callback_on_match;
-  string flag_description;
+  std::string cmdline_flag;
+  std::string environment_variable;
+  std::function<void(std::string)> callback_on_match;
+  std::string flag_description;
 
   // optional
-  string flag_param_name;
-  string debug_message;
+  std::string flag_param_name;
+  std::string debug_message;
   bool hidden_flag = false;
 
   Option(){};
 
-  string getFormatted_cmdline_flag();
-  string getFormatted_environment_variable();
+  std::string getFormatted_cmdline_flag();
+  std::string getFormatted_environment_variable();
 
   Option(
-      const string cmdline_flag,
-      const string environment_variable,
-      function<void(string)> callback_on_match,
-      const string flag_description) {
+      const std::string cmdline_flag,
+      const std::string environment_variable,
+      std::function<void(std::string)> callback_on_match,
+      const std::string flag_description) {
     this->cmdline_flag = cmdline_flag;
     this->environment_variable = environment_variable;
     this->callback_on_match = callback_on_match;
@@ -42,14 +41,14 @@ struct Option {
   // Normally, when the relevant flag is set a debug log message
   // will be generated. By setting the debug message here, this
   // auto generated message will be overriden
-  Option& withDebugMessageOverride(const string debug_message) {
+  Option& withDebugMessageOverride(const std::string debug_message) {
     this->debug_message = debug_message;
     return *this;
   }
 
   // Allows the definition of a flag parameter name which will
   // apear on the expanded help message for the Option
-  Option& withFlagParamName(const string flag_param_name) {
+  Option& withFlagParamName(const std::string flag_param_name) {
     this->flag_param_name = flag_param_name;
     return *this;
   }
@@ -61,35 +60,35 @@ struct Option {
   }
 
  private:
-  string getFormatted(string);
+  std::string getFormatted(std::string);
 };
 
 struct FlagProcessor {
   Option& addOption(
-      const string cmdline_flag,
-      const string environment_variable,
-      function<void(int)> callback_on_match,
-      const string flag_description);
+      const std::string cmdline_flag,
+      const std::string environment_variable,
+      std::function<void(int)> callback_on_match,
+      const std::string flag_description);
   Option& addOption(
-      const string cmdline_flag,
-      const string environment_variable,
-      function<void(string)> callback_on_match,
-      const string flag_description);
+      const std::string cmdline_flag,
+      const std::string environment_variable,
+      std::function<void(std::string)> callback_on_match,
+      const std::string flag_description);
   Option& addOption(
-      const string cmdline_flag,
-      const string environment_variable,
+      const std::string cmdline_flag,
+      const std::string environment_variable,
       int& variable_to_bind_to,
-      const string flag_description);
+      const std::string flag_description);
   Option& addOption(
-      const string cmdline_flag,
-      const string environment_variable,
+      const std::string cmdline_flag,
+      const std::string environment_variable,
       size_t& variable_to_bind_to,
-      const string flag_description);
+      const std::string flag_description);
   Option& addOption(
-      const string cmdline_flag,
-      const string environment_variable,
-      string& variable_to_bind_to,
-      const string flag_description);
+      const std::string cmdline_flag,
+      const std::string environment_variable,
+      std::string& variable_to_bind_to,
+      const std::string flag_description);
 
   // passing the xoptions dict from the command line will result in the
   // associated 'variable_to_bind_to' previously passed being assigned with the
@@ -106,12 +105,12 @@ struct FlagProcessor {
 
   // Generates a nicely formatted representation of the added Option
   // flag_description's previously registered
-  string jitXOptionHelpMessage();
+  std::string jitXOptionHelpMessage();
 
   // Return true if one or more flags have been registered
   bool hasOptions();
 
  private:
-  vector<std::unique_ptr<Option>> options_;
+  std::vector<std::unique_ptr<Option>> options_;
 };
 } // namespace jit
