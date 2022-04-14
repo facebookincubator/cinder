@@ -18,10 +18,6 @@
 namespace jit {
 namespace lir {
 
-static inline uint64_t stoull(std::string& s) {
-  return std::stoull(s, 0, 0);
-}
-
 static inline std::string GetId(const std::string& s) {
   size_t colon;
   if ((colon = s.find(':')) != std::string::npos) {
@@ -112,9 +108,10 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
     auto instr = createInstr(Instruction::kMove);
 
     if (tokens.size() == 3) {
-      instr->allocateAddressInput(reinterpret_cast<void*>(stoull(tokens[2])));
+      instr->allocateAddressInput(
+          reinterpret_cast<void*>(std::stoull(tokens[2], nullptr, 0)));
     } else {
-      CreateInstrIndirect(instr, tokens[2], stoull(tokens[3]));
+      CreateInstrIndirect(instr, tokens[2], std::stoull(tokens[3], nullptr, 0));
     }
     CreateInstrOutput(instr, tokens[1]);
   } else if (instr_str == "LoadArg") {
@@ -136,9 +133,10 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
     }
     if (tokens.size() == 3) {
       instr->output()->setMemoryAddress(
-          reinterpret_cast<void*>(stoull(tokens[2])));
+          reinterpret_cast<void*>(std::stoull(tokens[2], nullptr, 0)));
     } else {
-      CreateInstrIndirectOutput(instr, tokens[2], stoull(tokens[3]));
+      CreateInstrIndirectOutput(
+          instr, tokens[2], std::stoull(tokens[3], nullptr, 0));
     }
     instr->output()->setDataType(instr->getInput(0)->dataType());
   } else if (instr_str == "Move") {
@@ -161,7 +159,7 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
         tokens[1].c_str());
     auto instr = createInstr(Instruction::kLea);
 
-    CreateInstrIndirect(instr, tokens[2], stoull(tokens[3]));
+    CreateInstrIndirect(instr, tokens[2], std::stoull(tokens[3], nullptr, 0));
     CreateInstrOutput(instr, tokens[1]);
   } else if (instr_str == "Return") {
     auto instr = createInstr(Instruction::kReturn);
@@ -288,7 +286,7 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       size_t dest_idx = is_invoke ? 1 : 2;
       if (dest_idx < tokens.size() && IsConstant(tokens[dest_idx])) {
         std::string helper_id = GetId(tokens[dest_idx]);
-        uint64_t helper_addr = stoull(helper_id);
+        uint64_t helper_addr = std::stoull(helper_id, nullptr, 0);
         Dl_info helper_info;
         if (dladdr(reinterpret_cast<void*>(helper_addr), &helper_info) != 0 &&
             helper_info.dli_sname != NULL) {
@@ -415,7 +413,7 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
     JIT_CHECK((tokens.size() & 1) == 0, "Expected even number of tokens");
     for (size_t i = 2; i < tokens.size() - 1; i += 2) {
       instr->allocateLabelInput(
-          reinterpret_cast<BasicBlock*>(stoull(tokens[i])));
+          reinterpret_cast<BasicBlock*>(std::stoull(tokens[i], nullptr, 0)));
       CreateInstrInput(instr, tokens[i + 1]);
     }
     CreateInstrOutput(instr, tokens[1]);
@@ -467,7 +465,7 @@ void BasicBlockBuilder::CreateInstrImmediateInput(
   if (type == Operand::kDouble) {
     instr->allocateImmediateInput(bit_cast<uint64_t>(stod(sval)), type);
   } else {
-    instr->allocateImmediateInput(stoull(sval), type);
+    instr->allocateImmediateInput(std::stoull(sval, nullptr, 0), type);
   }
 }
 
