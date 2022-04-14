@@ -275,23 +275,6 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         )
         self.emit_readonly_op("MAKE_FUNCTION", mask)
 
-    def _get_containing_function(
-        self,
-    ) -> Optional[Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda]]:
-        cur_gen = self
-        while cur_gen and not isinstance(
-            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
-        ):
-            cur_gen = cur_gen.parent_code_gen
-
-        if not cur_gen:
-            return None
-
-        assert isinstance(
-            cur_gen.tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
-        )
-        return cur_gen.tree
-
     def insertReadonlyCheck(
         self, node: Optional[ast.Call], nargs: int, call_method: bool
     ) -> None:
