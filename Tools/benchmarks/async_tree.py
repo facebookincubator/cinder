@@ -3,7 +3,8 @@
 Benchmark script for recursive async tree workloads. This script includes the
 following microbenchmark scenarios:
 
-1. "no_suspension": No suspension in the async tree.
+1) "no_suspension": No suspension in the async tree.
+2) "suspense_all": Suspension (simulating IO) at all leaf nodes in the async tree.
 
 Use the commandline flag or pass microbenchmark scenario name to run_microbenchmark()
 to determine which microbenchmark scenario to run.
@@ -17,6 +18,7 @@ from argparse import ArgumentParser
 
 NUM_RECURSE_LEVELS = 6
 NUM_RECURSE_BRANCHES = 6
+IO_SLEEP_TIME = 0.05
 
 
 def parse_args():
@@ -30,9 +32,13 @@ to print the results.
     parser.add_argument(
         "-s",
         "--scenario",
-        choices=["no_suspension"],
+        choices=["no_suspension", "suspense_all"],
         default="no_suspension",
-        help="Determines which microbenchmark scenario to run. Defaults to no_suspension.",
+        help="""\
+Determines which microbenchmark scenario to run. Defaults to no_suspension. Options:
+1) "no_suspension": No suspension in the async tree.
+2) "suspense_all": Suspension (simulating IO) at all leaf nodes in the async tree.
+""",
     )
     parser.add_argument(
         "-p",
@@ -65,10 +71,15 @@ class AsyncTree:
             ]
         )
 
+    async def suspense_all_suspense_func(self):
+        await asyncio.sleep(IO_SLEEP_TIME)
+
     def run_microbenchmark(self, scenario="no_suspension"):
-        suspense_func = None
-        # suspense_func to be determined by the type of scenario passed in when
-        # more types are added.
+        suspense_funcs = {
+            "no_suspension": None,
+            "suspense_all": self.suspense_all_suspense_func,
+        }
+        suspense_func = suspense_funcs[scenario]
 
         loop = asyncio.new_event_loop()
         loop.set_task_factory(self.create_task)
@@ -77,13 +88,15 @@ class AsyncTree:
 
 if __name__ == "__main__":
     args = parse_args()
+    scenario = args.scenario
     async_tree = AsyncTree()
 
     start_time = time.perf_counter()
-    async_tree.run_microbenchmark(args.scenario)
+    async_tree.run_microbenchmark(scenario)
     end_time = time.perf_counter()
 
     if args.print:
+        print(f"Scenario: {scenario}")
         print(f"Time: {end_time - start_time} s")
         print(f"{async_tree.task_count} tasks created")
 
