@@ -832,6 +832,9 @@ class Value:
     def as_oparg(self) -> int:
         raise TypeError(f"{self.name} not valid here")
 
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        return type(self) == type(override)
+
     def resolve_attr(
         self, node: ast.Attribute, visitor: GenericVisitor[object]
     ) -> Optional[Value]:
@@ -1825,37 +1828,16 @@ class Class(Object["Class"]):
 
         return valid_sync_override or valid_async_override
 
-    def check_incompatible_override(self, override: Value, inherited: Value) -> None:
+    def check_incompatible_override(
+        self, override: Value, inherited: Value, module: ModuleTable
+    ) -> None:
         # TODO: There's more checking we should be doing to ensure
         # this is a compatible override
         if isinstance(override, TransparentDecoratedMethod):
             override = override.function
 
-        if isinstance(inherited, TransparentDecoratedMethod):
-            inherited = inherited.function
-
-        if self._check_compatible_property_override(override, inherited):
-            assert isinstance(override, PropertyMethod) and isinstance(
-                inherited, PropertyMethod
-            )
-
-            # In this case, we just look at whether the underlying functions are compatible
-            override = override.function
-            inherited = inherited.function
-
-        if type(override) != type(inherited) and (
-            type(override) is not Function
-            or not isinstance(inherited, (BuiltinFunction, BuiltinMethodDescriptor))
-        ):
+        if not inherited.can_override(override, self, module):
             raise TypedSyntaxError(f"class cannot hide inherited member: {inherited!r}")
-        if isinstance(override, Slot) and isinstance(inherited, Slot):
-            # TODO we could allow covariant type overrides for Final attributes
-            ot = override.type_ref
-            it = inherited.type_ref
-            if ot and it and ot.resolved(True) != (itr := it.resolved(True)):
-                raise TypedSyntaxError(
-                    f"Cannot change type of inherited attribute (inherited type '{itr.instance.name}')"
-                )
 
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
         todo = set(self.members.keys())
@@ -1891,40 +1873,11 @@ class Class(Object["Class"]):
             for base in self.mro[1:]:
                 value = base.members.get(name)
                 if value is not None:
-                    self.check_incompatible_override(my_value, value)
+                    self.check_incompatible_override(my_value, value, module)
+
                 if isinstance(value, Slot):
+                    # use the base class slot
                     return None
-                elif isinstance(value, Callable):
-                    if value.func_name not in NON_VIRTUAL_METHODS:
-                        if isinstance(my_value, TransparentDecoratedMethod):
-                            func = my_value.real_function
-                        else:
-                            assert isinstance(my_value, Function)
-                            func = my_value
-                        value.validate_compat_signature(func, module)
-                elif isinstance(value, TransparentDecoratedMethod):
-                    if value.function.is_final:
-                        raise TypedSyntaxError(
-                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
-                        )
-                elif isinstance(value, StaticMethod):
-                    if value.is_final:
-                        raise TypedSyntaxError(
-                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
-                        )
-                    assert isinstance(my_value, DecoratedMethod)
-                    value.real_function.validate_compat_signature(
-                        my_value.real_function, module, first_arg_is_implicit=False
-                    )
-                elif isinstance(value, PropertyMethod):
-                    if value.is_final:
-                        raise TypedSyntaxError(
-                            f"Cannot assign to a Final attribute of {self.instance.name}:{name}"
-                        )
-                    assert isinstance(my_value, PropertyMethod)
-                    value.real_function.validate_compat_signature(
-                        my_value.real_function, module
-                    )
 
         return my_value
 
@@ -3270,6 +3223,27 @@ class Callable(Object[TClass]):
         self._return_type = return_type
         self.is_final = False
 
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        if self.is_final:
+            raise TypedSyntaxError(
+                f"Cannot assign to a Final attribute of {klass.instance.name}:{self.name}"
+            )
+
+        if self.func_name not in NON_VIRTUAL_METHODS:
+            if isinstance(override, TransparentDecoratedMethod):
+                func = override.real_function
+            else:
+                assert isinstance(override, Function)
+                func = override
+            self.validate_compat_signature(func, module)
+
+            return True
+
+        if isinstance(override, Function):
+            return True
+
+        return super().can_override(override, klass, module)
+
     @property
     def return_type(self) -> TypeRef:
         return self._return_type
@@ -4046,6 +4020,9 @@ class TransparentDecoratedMethod(DecoratedMethod):
     ) -> NarrowingEffect:
         return self.function.bind_call(node, visitor, type_ctx)
 
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        return self.function.can_override(override, klass, module)
+
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         return self.function.emit_call(node, code_gen)
 
@@ -4085,6 +4062,17 @@ class TransparentDecoratedMethod(DecoratedMethod):
 class StaticMethod(DecoratedMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
         super().__init__(function.klass.type_env.static_method, function, decorator)
+
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        if self.is_final:
+            raise TypedSyntaxError(
+                f"Cannot assign to a Final attribute of {klass.instance.name}:{self.real_function.qualname}"
+            )
+        assert isinstance(override, DecoratedMethod)
+        self.real_function.validate_compat_signature(
+            override.real_function, module, first_arg_is_implicit=False
+        )
+        return True
 
     @property
     def name(self) -> str:
@@ -4218,6 +4206,27 @@ class PropertyMethod(DecoratedMethod):
         super().__init__(
             property_type or function.klass.type_env.property, function, decorator
         )
+
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        if self.is_final:
+            raise TypedSyntaxError(
+                f"Cannot assign to a Final attribute of {klass.instance.name}:{self.name}"
+            )
+
+        if isinstance(override, PropertyMethod):
+            self.real_function.validate_compat_signature(override.real_function, module)
+            return True
+        elif isinstance(override, Slot):
+            it = self.return_type
+            ot = override.type_ref
+            if ot and it and ot.resolved(True) != (itr := it.resolved(True)):
+                raise TypedSyntaxError(
+                    f"Cannot change type of inherited attribute (inherited type '{itr.instance.name}')"
+                )
+
+            return True
+
+        return super().can_override(override, klass, module)
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
         return PropertyMethod(self.function.replace_function(func), self.decorator)
@@ -4906,6 +4915,12 @@ class BuiltinFunction(Callable[Class]):
         )
         self.set_container_type(klass)
 
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        if not isinstance(override, Function):
+            raise TypedSyntaxError(f"class cannot hide inherited member: {self!r}")
+
+        return super().can_override(override, klass, module)
+
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         if node.keywords:
             return super().emit_call(node, code_gen)
@@ -4994,6 +5009,13 @@ class BuiltinMethodDescriptor(Callable[Class]):
         self.dynamic_dispatch = dynamic_dispatch
         self.set_container_type(container_type)
         self.valid_on_subclasses = valid_on_subclasses
+
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        if not isinstance(override, Function):
+            print("override is", override)
+            raise TypedSyntaxError(f"class cannot hide inherited member: {self!r}")
+
+        return super().can_override(override, klass, module)
 
     def bind_call_self(
         self,
@@ -5172,6 +5194,29 @@ class Slot(Object[TClassInv]):
             self.declared_on_class = declared_on_class
         if not self.assigned_on_class:
             self.assigned_on_class: bool = declared_on_class and bool(assignment)
+
+    def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
+        if isinstance(override, Slot):
+            # TODO we could allow covariant type overrides for Final attributes
+            ot = override.type_ref
+            it = self.type_ref
+            if ot and it and ot.resolved(True) != (itr := it.resolved(True)):
+                raise TypedSyntaxError(
+                    f"Cannot change type of inherited attribute (inherited type '{itr.instance.name}')"
+                )
+
+            return True
+        elif isinstance(override, PropertyMethod):
+            ot = override.function.return_type
+            it = self.type_ref
+            if ot and it and ot.resolved(True) != (itr := it.resolved(True)):
+                raise TypedSyntaxError(
+                    f"Cannot change type of inherited attribute (inherited type '{itr.instance.name}')"
+                )
+
+            return True
+
+        return super().can_override(override, klass, module)
 
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Value:
         if self.is_final and not self.assignment:
