@@ -5,6 +5,8 @@ following microbenchmark scenarios:
 
 1) "no_suspension": No suspension in the async tree.
 2) "suspense_all": Suspension (simulating IO) at all leaf nodes in the async tree.
+3) "memoization": Simulated IO calls at all leaf nodes, but with memoization. Only
+                  un-memoized IO calls will result in suspensions.
 
 Use the commandline flag or pass microbenchmark scenario name to run_microbenchmark()
 to determine which microbenchmark scenario to run.
@@ -12,6 +14,7 @@ to determine which microbenchmark scenario to run.
 
 
 import asyncio
+import random
 import time
 from argparse import ArgumentParser
 
@@ -19,6 +22,7 @@ from argparse import ArgumentParser
 NUM_RECURSE_LEVELS = 6
 NUM_RECURSE_BRANCHES = 6
 IO_SLEEP_TIME = 0.05
+DEFAULT_MEMOIZABLE_PERCENTAGE = 90
 
 
 def parse_args():
@@ -32,12 +36,24 @@ to print the results.
     parser.add_argument(
         "-s",
         "--scenario",
-        choices=["no_suspension", "suspense_all"],
+        choices=["no_suspension", "suspense_all", "memoization"],
         default="no_suspension",
         help="""\
 Determines which microbenchmark scenario to run. Defaults to no_suspension. Options:
 1) "no_suspension": No suspension in the async tree.
 2) "suspense_all": Suspension (simulating IO) at all leaf nodes in the async tree.
+3) "memoization": Simulated IO calls at all leaf nodes, but with memoization. Only
+                  un-memoized IO calls will result in suspensions.
+""",
+    )
+    parser.add_argument(
+        "-m",
+        "--memoizable-percentage",
+        type=int,
+        default=DEFAULT_MEMOIZABLE_PERCENTAGE,
+        help="""\
+Sets the percentage (0-100) of the data that should be memoized, defaults to 90. For
+example, at the default 90 percent, data 1-90 will be memoized and data 91-100 will not.
 """,
     )
     parser.add_argument(
@@ -51,8 +67,17 @@ Determines which microbenchmark scenario to run. Defaults to no_suspension. Opti
 
 
 class AsyncTree:
-    def __init__(self):
+    def __init__(self, memoizable_percentage=DEFAULT_MEMOIZABLE_PERCENTAGE):
+        self.suspense_count = 0
         self.task_count = 0
+        self.memoizable_percentage = memoizable_percentage
+        self.cache = {}
+        # set to deterministic random, so that the results are reproducible
+        random.seed(0)
+
+    async def mock_io_call(self):
+        self.suspense_count += 1
+        await asyncio.sleep(IO_SLEEP_TIME)
 
     def create_task(self, loop, coro):
         self.task_count += 1
@@ -72,12 +97,26 @@ class AsyncTree:
         )
 
     async def suspense_all_suspense_func(self):
-        await asyncio.sleep(IO_SLEEP_TIME)
+        await self.mock_io_call()
+
+    async def memoization_suspense_func(self):
+        # deterministic random (seed preset)
+        data = random.randint(1, 100)
+
+        if data <= self.memoizable_percentage:
+            if self.cache.get(data):
+                return data
+
+            self.cache[data] = True
+
+        await self.mock_io_call()
+        return data
 
     def run_microbenchmark(self, scenario="no_suspension"):
         suspense_funcs = {
             "no_suspension": None,
             "suspense_all": self.suspense_all_suspense_func,
+            "memoization": self.memoization_suspense_func,
         }
         suspense_func = suspense_funcs[scenario]
 
@@ -89,7 +128,7 @@ class AsyncTree:
 if __name__ == "__main__":
     args = parse_args()
     scenario = args.scenario
-    async_tree = AsyncTree()
+    async_tree = AsyncTree(args.memoizable_percentage)
 
     start_time = time.perf_counter()
     async_tree.run_microbenchmark(scenario)
@@ -98,5 +137,6 @@ if __name__ == "__main__":
     if args.print:
         print(f"Scenario: {scenario}")
         print(f"Time: {end_time - start_time} s")
-        print(f"{async_tree.task_count} tasks created")
+        print(f"Tasks created: {async_tree.task_count}")
+        print(f"Suspense called: {async_tree.suspense_count}")
 
