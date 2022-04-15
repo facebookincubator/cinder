@@ -6674,6 +6674,46 @@ static PyTypeObject _GatheringFutureType = {
 };
 
 static PyObject *
+_get_gathering_future_state(_GatheringFutureObj *gfut)
+{
+    // state is a map from child index to current state (integer)
+    PyObject* task_states = PyDict_New();
+    if (task_states == NULL) {
+        return NULL;
+    }
+
+    FOREACH_INDEX(gfut->gf_datamap, i)
+    {
+        PyObject *fut = PyList_GET_ITEM(gfut->gf_data, i);
+        PyObject *task_state;
+        if (Task_Check(fut)) {
+            task_state = PyLong_FromLong(((TaskObj*)fut)->task_state);
+        } else if (Future_Check(fut)) {
+            task_state = PyLong_FromLong(((FutureObj*)fut)->fut_state);
+        } else {
+            task_state = PyLong_FromLong(-1);
+        }
+        if (task_state == NULL) {
+            Py_DECREF(task_states);
+            return NULL;
+        }
+
+        PyObject *task_index = PyLong_FromLong(i);
+        int r = PyDict_SetItem(task_states, task_index, task_state);
+        Py_DECREF(task_index);
+        Py_DECREF(task_state);
+        if (r < 0) {
+            Py_DECREF(task_states);
+            return NULL;
+        }
+    }
+    FOREACH_INDEX_END()
+
+    return task_states;
+}
+
+
+static PyObject *
 _GatheringFutureObj_mark_fut_error_as_retrieved(_GatheringFutureObj *gfut,
                                                 PyObject *fut)
 {
@@ -6699,8 +6739,22 @@ _GatheringFutureObj_set_cancelled_error(_GatheringFutureObj *gfut,
                                         PyObject *fut,
                                         PyMethodTableRef *t)
 {
+    _Py_IDENTIFIER(_gathering_future_state);
+
     PyObject *exc = _PyObject_CallNoArg(asyncio_CancelledError);
     if (exc == NULL) {
+        return NULL;
+    }
+
+    PyObject *gfut_state = _get_gathering_future_state(gfut);
+    if (gfut_state == NULL) {
+        return NULL;
+    }
+
+    int r = _PyObject_SetAttrId(exc, &PyId__gathering_future_state, gfut_state);
+    Py_DECREF(gfut_state);
+
+    if (r < 0) {
         return NULL;
     }
 
