@@ -94,12 +94,13 @@ strict modules (see below).
 How do I explore it?
 --------------------
 
-[Cinder Explorer](https://trycinder.com) is a live playground, where you can
+`Cinder Explorer`_ is a live playground, where you can
 see how Cinder compiles Python code from source to assembly -- you're welcome
 to try it out! Feel free to file feature requests and bug reports. Keep in mind
 that the Cinder Explorer, like the rest of this, "supported" on a best-effort
 basis.
 
+.. _Cinder Explorer: https://trycinder.com
 
 What's here?
 ------------
