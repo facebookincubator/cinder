@@ -572,17 +572,27 @@ bool isTypeWithReasonablePointerEq(Type t) {
       t <= TGen || t <= TNoneType || t <= TSlice;
 }
 
-static void append_yield_live_regs(
-    std::stringstream& ss,
-    const YieldBase* yield) {
-  for (const auto& reg : yield->liveUnownedRegs()) {
-    ss << ", " << reg->name();
+namespace {
+void appendYieldLiveRegs(std::stringstream& ss, const DeoptBase* instr) {
+  int num_live_owned_regs = 0;
+  std::stringstream live_owned_regs;
+  for (const RegState& rs : instr->live_regs()) {
+    switch (rs.ref_kind) {
+      case RefKind::kBorrowed:
+      case RefKind::kUncounted: {
+        ss << ", " << rs.reg->name();
+        break;
+      }
+      case RefKind::kOwned: {
+        live_owned_regs << ", " << rs.reg->name();
+        num_live_owned_regs++;
+        break;
+      }
+    }
   }
-  for (const auto& reg : yield->liveOwnedRegs()) {
-    ss << ", " << reg->name();
-  }
-  ss << ", " << yield->liveOwnedRegs().size();
+  ss << live_owned_regs.str() << ", " << num_live_owned_regs;
 }
+} // namespace
 
 static int bytes_from_cint_type(Type type) {
   if (type <= TCInt8 || type <= TCUInt8) {
@@ -1229,7 +1239,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::stringstream ss;
         ss << "YieldValue " << instr->dst()->name() << ", __asm_tstate,"
            << instr->reg()->name();
-        append_yield_live_regs(ss, instr);
+        appendYieldLiveRegs(ss, instr);
         bbb.AppendCode(ss.str());
         break;
       }
@@ -1237,18 +1247,24 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const InitialYield*>(&i);
         std::stringstream ss;
         ss << "YieldInitial " << instr->dst()->name() << ", __asm_tstate, ";
-        append_yield_live_regs(ss, instr);
+        appendYieldLiveRegs(ss, instr);
         bbb.AppendCode(ss.str());
         break;
       }
       case Opcode::kYieldAndYieldFrom:
-      case Opcode::kYieldFrom: {
+      case Opcode::kYieldFrom:
+      case Opcode::kYieldFromHandleStopAsyncIteration: {
         std::stringstream ss;
-        ss << (opcode == Opcode::kYieldFrom ? "YieldFrom "
-                                            : "YieldFromSkipInitialSend ")
-           << i.GetOutput()->name() << ", __asm_tstate, "
+        if (opcode == Opcode::kYieldAndYieldFrom) {
+          ss << "YieldFromSkipInitialSend ";
+        } else if (opcode == Opcode::kYieldFrom) {
+          ss << "YieldFrom ";
+        } else {
+          ss << "YieldFromHandleStopAsyncIteration ";
+        }
+        ss << i.GetOutput()->name() << ", __asm_tstate, "
            << i.GetOperand(0)->name() << ", " << i.GetOperand(1)->name();
-        append_yield_live_regs(ss, static_cast<const YieldBase*>(&i));
+        appendYieldLiveRegs(ss, static_cast<const DeoptBase*>(&i));
         bbb.AppendCode(ss.str());
         break;
       }
@@ -2878,21 +2894,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->seq(),
             instr->before(),
             instr->after());
-        break;
-      }
-      case Opcode::kIsErrStopAsyncIteration: {
-        auto instr = static_cast<const IsErrStopAsyncIteration*>(&i);
-        bbb.AppendCode(
-            "Call {}, {:#x}, __asm_tstate, {:#x}",
-            instr->dst(),
-            reinterpret_cast<uint64_t>(_PyErr_ExceptionMatches),
-            reinterpret_cast<uint64_t>(PyExc_StopAsyncIteration));
-        break;
-      }
-      case Opcode::kClearError: {
-        bbb.AppendCode(
-            "Invoke {:#x}, __asm_tstate",
-            reinterpret_cast<uint64_t>(_PyErr_Clear));
         break;
       }
     }

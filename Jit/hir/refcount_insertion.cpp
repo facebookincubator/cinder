@@ -905,26 +905,6 @@ void fillDeoptLiveRegs(const StateMap& live_regs, Instr& instr) {
   }
 }
 
-// If the given instruction is a yield, record registers which are currently
-// live and owned. These may be used in GC operations like deallocate and
-// traverse while generator execution is suspended.
-static void fillYieldLiveRegs(const StateMap& live_regs, Instr& instr) {
-  auto yield = dynamic_cast<YieldBase*>(&instr);
-  if (yield == nullptr) {
-    return;
-  }
-
-  for (auto& pair : live_regs) {
-    auto& rstate = pair.second;
-    auto kind = rstate.kind();
-    if (kind == RefKind::kOwned) {
-      yield->emplaceLiveOwnedReg(rstate.copy(0));
-    } else {
-      yield->emplaceLiveUnownedReg(rstate.copy(0));
-    }
-  }
-}
-
 // Process any operands stolen by the given instruction.
 void stealInputs(
     Env& env,
@@ -1043,7 +1023,6 @@ void processInstr(Env& env, Instr& instr) {
 
   if (env.mutate) {
     fillDeoptLiveRegs(env.live_regs, instr);
-    fillYieldLiveRegs(env.live_regs, instr);
   }
 
   if (instr.IsTerminator()) {

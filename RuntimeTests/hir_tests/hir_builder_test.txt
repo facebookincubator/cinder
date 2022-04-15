@@ -3715,3 +3715,129 @@ fun jittestmodule:test {
   }
 }
 ---
+TestAsyncFor
+---
+async def test(asyncgen):
+  async for y in asyncgen:
+    print(y)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "asyncgen">
+    v2 = InitialYield {
+      FrameState {
+        NextInstrOffset 0
+        Locals<2> v0 v1
+      }
+    }
+    v0 = CheckVar<"asyncgen"> v0 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<2> v0 v1
+      }
+    }
+    v3 = CallCFunc<_PyEval_GetAIter> v0
+    v3 = CheckExc v3 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
+    }
+    Branch<6>
+  }
+
+  bb 6 (preds 0, 4) {
+    v12 = LoadEvalBreaker
+    CondBranch<7, 1> v12
+  }
+
+  bb 7 (preds 6) {
+    v13 = RunPeriodicTasks {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<1> v3
+        BlockStack {
+          Opcode 122 HandlerOff 26 StackLevel 1
+        }
+      }
+    }
+    Branch<1>
+  }
+
+  bb 1 (preds 6, 7) {
+    v4 = CallCFunc<_PyEval_GetANext> v3
+    v4 = CheckExc v4 {
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+        Stack<1> v3
+        BlockStack {
+          Opcode 122 HandlerOff 26 StackLevel 1
+        }
+      }
+    }
+    v5 = LoadConst<NoneType>
+    SetCurrentAwaiter v4
+    v6 = YieldFromHandleStopAsyncIteration v5 v4 {
+      FrameState {
+        NextInstrOffset 12
+        Locals<2> v0 v1
+        Stack<1> v3
+        BlockStack {
+          Opcode 122 HandlerOff 26 StackLevel 1
+        }
+      }
+    }
+    v4 = Assign v6
+    CondBranchIterNotDone<2, 3> v4
+  }
+
+  bb 2 (preds 1) {
+    v7 = LoadEvalBreaker
+    CondBranch<5, 4> v7
+  }
+
+  bb 5 (preds 2) {
+    v8 = RunPeriodicTasks {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+        Stack<2> v3 v4
+        BlockStack {
+          Opcode 122 HandlerOff 26 StackLevel 1
+        }
+      }
+    }
+    Branch<4>
+  }
+
+  bb 4 (preds 2, 5) {
+    v1 = Assign v4
+    v9 = LoadGlobalCached<0; "print">
+    v9 = GuardIs<0xdeadbeef> v9 {
+      Descr 'LOAD_GLOBAL: print'
+    }
+    v1 = CheckVar<"y"> v1 {
+      FrameState {
+        NextInstrOffset 20
+        Locals<2> v0 v1
+        Stack<2> v3 v9
+      }
+    }
+    v10 = VectorCall<1> v9 v1 {
+      FrameState {
+        NextInstrOffset 22
+        Locals<2> v0 v1
+        Stack<1> v3
+      }
+    }
+    Branch<6>
+  }
+
+  bb 3 (preds 1) {
+    v11 = LoadConst<NoneType>
+    Return v11
+  }
+}
+---

@@ -419,7 +419,8 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
     CreateInstrOutput(instr, tokens[1]);
   } else if (
       instr_str == "YieldInitial" || instr_str == "YieldValue" ||
-      instr_str == "YieldFrom" || instr_str == "YieldFromSkipInitialSend") {
+      instr_str == "YieldFrom" || instr_str == "YieldFromSkipInitialSend" ||
+      instr_str == "YieldFromHandleStopAsyncIteration") {
     Instruction* instr;
     if (instr_str == "YieldInitial") {
       instr = createInstr(Instruction::kYieldInitial);
@@ -427,6 +428,8 @@ void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
       instr = createInstr(Instruction::kYieldValue);
     } else if (instr_str == "YieldFromSkipInitialSend") {
       instr = createInstr(Instruction::kYieldFromSkipInitialSend);
+    } else if (instr_str == "YieldFromHandleStopAsyncIteration") {
+      instr = createInstr(Instruction::kYieldFromHandleStopAsyncIteration);
     } else {
       instr = createInstr(Instruction::kYieldFrom);
     }

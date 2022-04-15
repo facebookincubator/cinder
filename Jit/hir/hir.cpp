@@ -130,7 +130,6 @@ bool Instr::isReplayable() const {
     case Opcode::kHintType:
     case Opcode::kIntBinaryOp:
     case Opcode::kIntConvert:
-    case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kLoadArg:
     case Opcode::kLoadArrayItem:
@@ -179,7 +178,6 @@ bool Instr::isReplayable() const {
     case Opcode::kCallMethod:
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
-    case Opcode::kClearError:
     case Opcode::kCondBranch:
     case Opcode::kCondBranchIterNotDone:
     case Opcode::kCondBranchCheckType:
@@ -248,6 +246,7 @@ bool Instr::isReplayable() const {
     case Opcode::kWaitHandleRelease:
     case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
+    case Opcode::kYieldFromHandleStopAsyncIteration:
     case Opcode::kYieldValue:
     case Opcode::kXDecref:
     case Opcode::kXIncref: {

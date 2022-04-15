@@ -108,6 +108,13 @@ enum class FlagEffects {
     0,                                                                       \
     {},                                                                      \
     1)                                                                       \
+  X(YieldFromHandleStopAsyncIteration,                                       \
+    true,                                                                    \
+    FlagEffects::kInvalidate,                                                \
+    kDefault,                                                                \
+    0,                                                                       \
+    {},                                                                      \
+    1)                                                                       \
   X(YieldValue, true, FlagEffects::kInvalidate, kDefault, 0, {}, 1)
 
 // Instruction class defines instructions in LIR.
@@ -441,6 +448,7 @@ class Instruction {
   bool isAnyYield() const {
     switch (opcode_) {
       case kYieldFrom:
+      case kYieldFromHandleStopAsyncIteration:
       case kYieldFromSkipInitialSend:
       case kYieldInitial:
       case kYieldValue:

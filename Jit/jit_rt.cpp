@@ -18,6 +18,7 @@
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
 #include "Jit/runtime.h"
+#include "Jit/runtime_support.h"
 #include "Jit/util.h"
 
 // clang-format off
@@ -1747,6 +1748,21 @@ JITRT_YieldFromRes JITRT_YieldFrom(
   }
   JIT_DCHECK(gen_status == PYGEN_NEXT, "Unexpected gen_status:", gen_status);
   return {retval, 0};
+}
+
+JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
+    PyObject* gen,
+    PyObject* v,
+    PyThreadState* tstate,
+    uint64_t finish_yield_from) {
+  JITRT_YieldFromRes res = JITRT_YieldFrom(gen, v, tstate, finish_yield_from);
+  if ((res.retval == NULL) && (res.done == 1) &&
+      PyErr_ExceptionMatches(PyExc_StopAsyncIteration)) {
+    _PyErr_Clear(tstate);
+    Py_INCREF(&jit::g_iterDoneSentinel);
+    res.retval = &jit::g_iterDoneSentinel;
+  }
+  return res;
 }
 
 PyObject* JITRT_FormatValue(

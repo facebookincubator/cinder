@@ -417,33 +417,11 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     }
     auto var = ParseRegister();
     NEW_INSTR(Return, var);
-  } else if (
-      strcmp(opcode, "YieldValue") == 0 ||
-      strcmp(opcode, "InitialYield") == 0) {
-    std::vector<Register*> live_owned_registers;
-    if (strcmp(peekNextToken(), "<") == 0) {
-      GetNextToken();
-      while (true) {
-        live_owned_registers.push_back(ParseRegister());
-        auto token = peekNextToken();
-        if (strcmp(token, ">") == 0) {
-          GetNextToken();
-          break;
-        }
-        expect(",");
-      }
-    }
-    if (strcmp(opcode, "InitialYield") == 0) {
-      instruction = InitialYield::create(dst, FrameState{});
-    } else {
-      auto reg = ParseRegister();
-      instruction = YieldValue::create(dst, reg, FrameState{});
-    }
-    YieldBase* yield_base = dynamic_cast<YieldBase*>(instruction);
-    JIT_CHECK(yield_base, "Not a yield opcode");
-    for (auto reg : live_owned_registers) {
-      yield_base->emplaceLiveOwnedReg(reg);
-    }
+  } else if (strcmp(opcode, "YieldValue") == 0) {
+    Register* value = ParseRegister();
+    instruction = newInstr<YieldValue>(dst, value);
+  } else if (strcmp(opcode, "InitialYield") == 0) {
+    instruction = newInstr<InitialYield>(dst);
   } else if (strcmp(opcode, "GetIter") == 0) {
     auto iterable = ParseRegister();
     instruction = newInstr<GetIter>(dst, iterable);
@@ -586,10 +564,6 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
 
     instruction = newInstr<InvokeStaticFunction>(argcount, dst, func, ty);
-  } else if (strcmp(opcode, "IsErrStopAsyncIteration") == 0) {
-    NEW_INSTR(IsErrStopAsyncIteration, dst);
-  } else if (strcmp(opcode, "ClearError") == 0) {
-    NEW_INSTR(ClearError);
   } else if (strcmp(opcode, "LoadCurrentFunc") == 0) {
     NEW_INSTR(LoadCurrentFunc, dst);
   } else if (strcmp(opcode, "RepeatList") == 0) {

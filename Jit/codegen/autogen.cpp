@@ -324,8 +324,9 @@ void emitStoreGenYieldPoint(
     asmjit::Label resume_label,
     x86::Gp suspend_data_r,
     x86::Gp scratch_r) {
-  bool is_yield_from =
-      yield->isYieldFrom() || yield->isYieldFromSkipInitialSend();
+  bool is_yield_from = yield->isYieldFrom() ||
+      yield->isYieldFromSkipInitialSend() ||
+      yield->isYieldFromHandleStopAsyncIteration();
 
   auto calc_spill_offset = [&](size_t live_input_n) {
     int mem_loc = yield->getInput(live_input_n)->getPhyRegOrStackSlot();
@@ -521,10 +522,17 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
 
   // Load sub-iterator into RDI
   int iter_loc = instr->getInput(2)->getPhyRegOrStackSlot();
-  JIT_CHECK(iter_loc < 0, "Iter should be spilled");
+  JIT_CHECK(
+      iter_loc < 0,
+      "Iter should be spilled. Instead it's in %s",
+      PhyLocation(iter_loc).toString().c_str());
   as->mov(x86::rdi, x86::ptr(x86::rbp, iter_loc));
 
-  emitCall(*env, reinterpret_cast<uint64_t>(JITRT_YieldFrom), instr);
+  uint64_t func = reinterpret_cast<uint64_t>(
+      instr->isYieldFromHandleStopAsyncIteration()
+          ? JITRT_YieldFromHandleStopAsyncIteration
+          : JITRT_YieldFrom);
+  emitCall(*env, func, instr);
   // Yielded or final result value now in RAX. If the result was NULL then
   // done will be set so we'll correctly jump to the following CheckExc.
   const auto yf_result_phys_reg = PhyLocation::RAX;
@@ -1096,6 +1104,10 @@ BEGIN_RULES(Instruction::kYieldFrom)
 END_RULES
 
 BEGIN_RULES(Instruction::kYieldFromSkipInitialSend)
+  GEN(ANY, CALL(translateYieldFrom))
+END_RULES
+
+BEGIN_RULES(Instruction::kYieldFromHandleStopAsyncIteration)
   GEN(ANY, CALL(translateYieldFrom))
 END_RULES
 

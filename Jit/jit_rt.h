@@ -529,6 +529,19 @@ JITRT_YieldFromRes JITRT_YieldFrom(
     PyThreadState* tstate,
     uint64_t finish_yield_from);
 
+// Used for the `YIELD_FROM` that appears in the bytecode of the header for
+// an `async for` loop.
+//
+// This is identical to JITRT_YieldFrom with the addition that it detects when
+// PyExc_StopAsyncIteration has been raised. In such cases the function clears
+// the error and returns a sentinel value indicating that iteration has
+// finished.
+JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
+    PyObject* gen,
+    PyObject* v,
+    PyThreadState* tstate,
+    uint64_t finish_yield_from);
+
 /* Unpack a sequence as in unpack_iterable(), and save the
  * results in a tuple.
  */

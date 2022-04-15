@@ -25,8 +25,12 @@ TEST_F(HIRParserTest, ParsesHIR) {
               CheckExc v1 {
               }
               Incref v1
-              v0 = YieldValue<v1> v2
-              v0 = YieldValue<v1, v3> v2
+              v0 = YieldValue v2 {
+                LiveValues<1> o:v1
+              }
+              v0 = YieldValue v2 {
+                LiveValues<2> o:v1 o:v3
+              }
               CondBranch<1, 2> v0
             }
             bb 1 {
@@ -77,7 +81,7 @@ TEST_F(HIRParserTest, ParsesHIR) {
   ASSERT_EQ(it->opcode(), Opcode::kInitialYield);
   {
     auto& initial_yield = static_cast<InitialYield&>(*it);
-    ASSERT_EQ(initial_yield.liveOwnedRegs().size(), 0);
+    ASSERT_EQ(initial_yield.live_regs().size(), 0);
     ASSERT_EQ(initial_yield.GetOutput()->name(), "v0");
   }
   ++it;
@@ -96,8 +100,10 @@ TEST_F(HIRParserTest, ParsesHIR) {
   ASSERT_EQ(it->opcode(), Opcode::kYieldValue);
   {
     auto& yield_value = static_cast<YieldValue&>(*it);
-    ASSERT_EQ(yield_value.liveOwnedRegs().size(), 1);
-    ASSERT_EQ(yield_value.liveOwnedRegs().at(0)->name(), "v1");
+    const auto& reg_states = yield_value.live_regs();
+    ASSERT_EQ(reg_states.size(), 1);
+    ASSERT_EQ(reg_states.at(0).reg->name(), "v1");
+    ASSERT_EQ(reg_states.at(0).ref_kind, RefKind::kOwned);
     ASSERT_EQ(yield_value.GetOutput()->name(), "v0");
     ASSERT_EQ(yield_value.reg()->name(), "v2");
   }
@@ -106,9 +112,12 @@ TEST_F(HIRParserTest, ParsesHIR) {
   ASSERT_EQ(it->opcode(), Opcode::kYieldValue);
   {
     auto& yield_value = static_cast<YieldValue&>(*it);
-    ASSERT_EQ(yield_value.liveOwnedRegs().size(), 2);
-    ASSERT_EQ(yield_value.liveOwnedRegs().at(0)->name(), "v1");
-    ASSERT_EQ(yield_value.liveOwnedRegs().at(1)->name(), "v3");
+    const auto& reg_states = yield_value.live_regs();
+    ASSERT_EQ(reg_states.size(), 2);
+    ASSERT_EQ(reg_states.at(0).reg->name(), "v1");
+    ASSERT_EQ(reg_states.at(0).ref_kind, RefKind::kOwned);
+    ASSERT_EQ(reg_states.at(1).reg->name(), "v3");
+    ASSERT_EQ(reg_states.at(1).ref_kind, RefKind::kOwned);
     ASSERT_EQ(yield_value.GetOutput()->name(), "v0");
     ASSERT_EQ(yield_value.reg()->name(), "v2");
   }

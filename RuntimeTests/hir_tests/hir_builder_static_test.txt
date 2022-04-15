@@ -42,8 +42,7 @@ async def test(c: C):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
-    v1 = InitialYield
-    v1 = CheckExc v1 {
+    v1 = InitialYield {
       FrameState {
         NextInstrOffset 0
         Locals<1> v0
@@ -73,8 +72,7 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     SetCurrentAwaiter v4
-    v3 = YieldAndYieldFrom v5 v4
-    v3 = CheckExc v3 {
+    v3 = YieldAndYieldFrom v5 v4 {
       FrameState {
         NextInstrOffset 8
         Locals<1> v0
@@ -117,8 +115,7 @@ fun jittestmodule:test {
   bb 8 (preds 2, 7) {
     v8 = LoadConst<NoneType>
     SetCurrentAwaiter v6
-    v3 = YieldFrom v8 v6
-    v3 = CheckExc v3 {
+    v3 = YieldFrom v8 v6 {
       FrameState {
         NextInstrOffset 8
         Locals<1> v0
@@ -1009,8 +1006,7 @@ async def test() -> str:
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = InitialYield
-    v0 = CheckExc v0 {
+    v0 = InitialYield {
       FrameState {
         NextInstrOffset 0
       }
@@ -1047,8 +1043,7 @@ fun jittestmodule:test {
   bb 3 (preds 0, 2) {
     v7 = LoadConst<NoneType>
     SetCurrentAwaiter v5
-    v8 = YieldFrom v7 v5
-    v8 = CheckExc v8 {
+    v8 = YieldFrom v7 v5 {
       FrameState {
         NextInstrOffset 16
       }

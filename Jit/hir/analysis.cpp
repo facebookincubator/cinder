@@ -64,7 +64,6 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
     case Opcode::kCheckSequenceBounds:
-    case Opcode::kClearError:
     case Opcode::kCompare:
     case Opcode::kCompareBool:
     case Opcode::kDoubleBinaryOp:
@@ -83,7 +82,6 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeMethod:
     case Opcode::kInvokeStaticFunction:
-    case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kIsInstance:
     case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kIsTruthy:
@@ -144,6 +142,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kWaitHandleLoadWaiter:
     case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
+    case Opcode::kYieldFromHandleStopAsyncIteration:
     case Opcode::kYieldValue:
       return false;
 

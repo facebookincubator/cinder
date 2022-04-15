@@ -236,7 +236,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:
     case Opcode::kCheckSequenceBounds:
-    case Opcode::kClearError:
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
@@ -245,9 +244,9 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kGetTuple:
     case Opcode::kGuard:
     case Opcode::kIncref:
+    case Opcode::kInitialYield:
     case Opcode::kInitFunction:
     case Opcode::kInvokeIterNext:
-    case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kIsInstance:
     case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kIsTruthy:
@@ -280,7 +279,11 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kWaitHandleLoadWaiter:
     case Opcode::kWaitHandleRelease:
     case Opcode::kXDecref:
-    case Opcode::kXIncref: {
+    case Opcode::kXIncref:
+    case Opcode::kYieldAndYieldFrom:
+    case Opcode::kYieldFrom:
+    case Opcode::kYieldFromHandleStopAsyncIteration:
+    case Opcode::kYieldValue: {
       return "";
     }
     case Opcode::kBeginInlinedFunction:
@@ -623,23 +626,6 @@ static std::string format_immediates(const Instr& instr) {
           PyExceptionClass_Name(pyerr.excType()),
           pyerr.fmt(),
           os.str());
-    }
-    case Opcode::kInitialYield:
-    case Opcode::kYieldValue:
-    case Opcode::kYieldAndYieldFrom:
-    case Opcode::kYieldFrom: {
-      std::ostringstream os;
-      auto sep = "";
-      for (auto reg : dynamic_cast<const YieldBase*>(&instr)->liveOwnedRegs()) {
-        os << fmt::format("{}o:{}", sep, reg->name());
-        sep = ", ";
-      }
-      for (auto reg :
-           dynamic_cast<const YieldBase*>(&instr)->liveUnownedRegs()) {
-        os << fmt::format("{}u:{}", sep, reg->name());
-        sep = ", ";
-      }
-      return os.str();
     }
     case Opcode::kImportFrom: {
       const auto& import_from = static_cast<const ImportFrom&>(instr);

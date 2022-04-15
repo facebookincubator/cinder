@@ -300,6 +300,10 @@ Type outputType(
     case Opcode::kVectorCallKW:
     case Opcode::kVectorCallStatic:
     case Opcode::kWaitHandleLoadCoroOrResult:
+    case Opcode::kYieldAndYieldFrom:
+    case Opcode::kYieldFrom:
+    case Opcode::kYieldFromHandleStopAsyncIteration:
+    case Opcode::kYieldValue:
       return TObject;
     case Opcode::kBuildString:
       return TMortalUnicode;
@@ -311,9 +315,6 @@ Type outputType(
     case Opcode::kLoadGlobalCached:
     case Opcode::kStealCellItem:
     case Opcode::kWaitHandleLoadWaiter:
-    case Opcode::kYieldAndYieldFrom:
-    case Opcode::kYieldFrom:
-    case Opcode::kYieldValue:
       return TOptObject;
 
     case Opcode::kFormatValue:
@@ -417,9 +418,6 @@ Type outputType(
     case Opcode::kSetSetItem:
     case Opcode::kSetDictItem:
     case Opcode::kStoreSubscr:
-      return TCInt32;
-
-    case Opcode::kIsErrStopAsyncIteration:
       return TCInt32;
 
     case Opcode::kIsNegativeAndErrOccurred:
@@ -559,7 +557,6 @@ Type outputType(
     case Opcode::kBeginInlinedFunction:
     case Opcode::kBranch:
     case Opcode::kCallStaticRetVoid:
-    case Opcode::kClearError:
     case Opcode::kCondBranch:
     case Opcode::kCondBranchCheckType:
     case Opcode::kCondBranchIterNotDone:

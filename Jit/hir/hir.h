@@ -283,136 +283,135 @@ struct FrameState {
   }
 };
 
-#define FOREACH_OPCODE(V)       \
-  V(Assign)                     \
-  V(BatchDecref)                \
-  V(BeginInlinedFunction)       \
-  V(BinaryOp)                   \
-  V(Branch)                     \
-  V(BuildSlice)                 \
-  V(BuildString)                \
-  V(CallCFunc)                  \
-  V(CallEx)                     \
-  V(CallExKw)                   \
-  V(CallMethod)                 \
-  V(CallStatic)                 \
-  V(CallStaticRetVoid)          \
-  V(Cast)                       \
-  V(CheckSequenceBounds)        \
-  V(CheckExc)                   \
-  V(CheckNeg)                   \
-  V(CheckVar)                   \
-  V(CheckFreevar)               \
-  V(CheckField)                 \
-  V(ClearError)                 \
-  V(Compare)                    \
-  V(CompareBool)                \
-  V(CondBranch)                 \
-  V(CondBranchIterNotDone)      \
-  V(CondBranchCheckType)        \
-  V(Decref)                     \
-  V(DeleteAttr)                 \
-  V(DeleteSubscr)               \
-  V(Deopt)                      \
-  V(DeoptPatchpoint)            \
-  V(DoubleBinaryOp)             \
-  V(EndInlinedFunction)         \
-  V(FillTypeAttrCache)          \
-  V(FormatValue)                \
-  V(GetIter)                    \
-  V(GetTuple)                   \
-  V(Guard)                      \
-  V(GuardIs)                    \
-  V(GuardType)                  \
-  V(HintType)                   \
-  V(ImportFrom)                 \
-  V(ImportName)                 \
-  V(InPlaceOp)                  \
-  V(Incref)                     \
-  V(InitFunction)               \
-  V(InitListTuple)              \
-  V(InitialYield)               \
-  V(IntBinaryOp)                \
-  V(PrimitiveBox)               \
-  V(PrimitiveCompare)           \
-  V(IntConvert)                 \
-  V(PrimitiveUnaryOp)           \
-  V(PrimitiveUnbox)             \
-  V(InvokeIterNext)             \
-  V(InvokeMethod)               \
-  V(IsInstance)                 \
-  V(InvokeStaticFunction)       \
-  V(IsErrStopAsyncIteration)    \
-  V(IsNegativeAndErrOccurred)   \
-  V(IsTruthy)                   \
-  V(ListAppend)                 \
-  V(ListExtend)                 \
-  V(LoadArrayItem)              \
-  V(LoadFieldAddress)           \
-  V(LoadArg)                    \
-  V(LoadAttr)                   \
-  V(LoadAttrSpecial)            \
-  V(LoadAttrSuper)              \
-  V(LoadCellItem)               \
-  V(LoadConst)                  \
-  V(LoadCurrentFunc)            \
-  V(LoadEvalBreaker)            \
-  V(LoadField)                  \
-  V(LoadFunctionIndirect)       \
-  V(LoadGlobalCached)           \
-  V(LoadGlobal)                 \
-  V(LoadMethod)                 \
-  V(LoadMethodSuper)            \
-  V(LoadTupleItem)              \
-  V(LoadTypeAttrCacheItem)      \
-  V(LoadVarObjectSize)          \
-  V(LongCompare)                \
-  V(LongBinaryOp)               \
-  V(MakeCheckedDict)            \
-  V(MakeCheckedList)            \
-  V(MakeCell)                   \
-  V(MakeDict)                   \
-  V(MakeFunction)               \
-  V(MakeListTuple)              \
-  V(MakeSet)                    \
-  V(MakeTupleFromList)          \
-  V(MergeDictUnpack)            \
-  V(MergeSetUnpack)             \
-  V(Phi)                        \
-  V(Raise)                      \
-  V(RaiseStatic)                \
-  V(RaiseAwaitableError)        \
-  V(RefineType)                 \
-  V(RepeatList)                 \
-  V(RepeatTuple)                \
-  V(Return)                     \
-  V(RunPeriodicTasks)           \
-  V(SetCellItem)                \
-  V(SetCurrentAwaiter)          \
-  V(SetDictItem)                \
-  V(SetFunctionAttr)            \
-  V(SetSetItem)                 \
-  V(Snapshot)                   \
-  V(StealCellItem)              \
-  V(StoreArrayItem)             \
-  V(StoreAttr)                  \
-  V(StoreField)                 \
-  V(StoreSubscr)                \
-  V(TpAlloc)                    \
-  V(UnaryOp)                    \
-  V(UnicodeCompare)             \
-  V(UnpackExToTuple)            \
-  V(UseType)                    \
-  V(VectorCall)                 \
-  V(VectorCallStatic)           \
-  V(VectorCallKW)               \
-  V(WaitHandleLoadCoroOrResult) \
-  V(WaitHandleLoadWaiter)       \
-  V(WaitHandleRelease)          \
-  V(XDecref)                    \
-  V(XIncref)                    \
-  V(YieldAndYieldFrom)          \
-  V(YieldFrom)                  \
+#define FOREACH_OPCODE(V)              \
+  V(Assign)                            \
+  V(BatchDecref)                       \
+  V(BeginInlinedFunction)              \
+  V(BinaryOp)                          \
+  V(Branch)                            \
+  V(BuildSlice)                        \
+  V(BuildString)                       \
+  V(CallCFunc)                         \
+  V(CallEx)                            \
+  V(CallExKw)                          \
+  V(CallMethod)                        \
+  V(CallStatic)                        \
+  V(CallStaticRetVoid)                 \
+  V(Cast)                              \
+  V(CheckSequenceBounds)               \
+  V(CheckExc)                          \
+  V(CheckNeg)                          \
+  V(CheckVar)                          \
+  V(CheckFreevar)                      \
+  V(CheckField)                        \
+  V(Compare)                           \
+  V(CompareBool)                       \
+  V(CondBranch)                        \
+  V(CondBranchIterNotDone)             \
+  V(CondBranchCheckType)               \
+  V(Decref)                            \
+  V(DeleteAttr)                        \
+  V(DeleteSubscr)                      \
+  V(Deopt)                             \
+  V(DeoptPatchpoint)                   \
+  V(DoubleBinaryOp)                    \
+  V(EndInlinedFunction)                \
+  V(FillTypeAttrCache)                 \
+  V(FormatValue)                       \
+  V(GetIter)                           \
+  V(GetTuple)                          \
+  V(Guard)                             \
+  V(GuardIs)                           \
+  V(GuardType)                         \
+  V(HintType)                          \
+  V(ImportFrom)                        \
+  V(ImportName)                        \
+  V(InPlaceOp)                         \
+  V(Incref)                            \
+  V(InitFunction)                      \
+  V(InitListTuple)                     \
+  V(InitialYield)                      \
+  V(IntBinaryOp)                       \
+  V(PrimitiveBox)                      \
+  V(PrimitiveCompare)                  \
+  V(IntConvert)                        \
+  V(PrimitiveUnaryOp)                  \
+  V(PrimitiveUnbox)                    \
+  V(InvokeIterNext)                    \
+  V(InvokeMethod)                      \
+  V(IsInstance)                        \
+  V(InvokeStaticFunction)              \
+  V(IsNegativeAndErrOccurred)          \
+  V(IsTruthy)                          \
+  V(ListAppend)                        \
+  V(ListExtend)                        \
+  V(LoadArrayItem)                     \
+  V(LoadFieldAddress)                  \
+  V(LoadArg)                           \
+  V(LoadAttr)                          \
+  V(LoadAttrSpecial)                   \
+  V(LoadAttrSuper)                     \
+  V(LoadCellItem)                      \
+  V(LoadConst)                         \
+  V(LoadCurrentFunc)                   \
+  V(LoadEvalBreaker)                   \
+  V(LoadField)                         \
+  V(LoadFunctionIndirect)              \
+  V(LoadGlobalCached)                  \
+  V(LoadGlobal)                        \
+  V(LoadMethod)                        \
+  V(LoadMethodSuper)                   \
+  V(LoadTupleItem)                     \
+  V(LoadTypeAttrCacheItem)             \
+  V(LoadVarObjectSize)                 \
+  V(LongCompare)                       \
+  V(LongBinaryOp)                      \
+  V(MakeCheckedDict)                   \
+  V(MakeCheckedList)                   \
+  V(MakeCell)                          \
+  V(MakeDict)                          \
+  V(MakeFunction)                      \
+  V(MakeListTuple)                     \
+  V(MakeSet)                           \
+  V(MakeTupleFromList)                 \
+  V(MergeDictUnpack)                   \
+  V(MergeSetUnpack)                    \
+  V(Phi)                               \
+  V(Raise)                             \
+  V(RaiseStatic)                       \
+  V(RaiseAwaitableError)               \
+  V(RefineType)                        \
+  V(RepeatList)                        \
+  V(RepeatTuple)                       \
+  V(Return)                            \
+  V(RunPeriodicTasks)                  \
+  V(SetCellItem)                       \
+  V(SetCurrentAwaiter)                 \
+  V(SetDictItem)                       \
+  V(SetFunctionAttr)                   \
+  V(SetSetItem)                        \
+  V(Snapshot)                          \
+  V(StealCellItem)                     \
+  V(StoreArrayItem)                    \
+  V(StoreAttr)                         \
+  V(StoreField)                        \
+  V(StoreSubscr)                       \
+  V(TpAlloc)                           \
+  V(UnaryOp)                           \
+  V(UnicodeCompare)                    \
+  V(UnpackExToTuple)                   \
+  V(UseType)                           \
+  V(VectorCall)                        \
+  V(VectorCallStatic)                  \
+  V(VectorCallKW)                      \
+  V(WaitHandleLoadCoroOrResult)        \
+  V(WaitHandleLoadWaiter)              \
+  V(WaitHandleRelease)                 \
+  V(XDecref)                           \
+  V(XIncref)                           \
+  V(YieldAndYieldFrom)                 \
+  V(YieldFrom)                         \
+  V(YieldFromHandleStopAsyncIteration) \
   V(YieldValue)
 
 enum class Opcode {
@@ -3535,44 +3534,12 @@ class INSTR_CLASS(RaiseStatic, (TObject), Operands<>, DeoptBase) {
 
 DEFINE_SIMPLE_INSTR(SetCurrentAwaiter, (TOptObject), Operands<1>);
 
-class YieldBase : public Instr {
- public:
-  explicit YieldBase(Opcode op, const FrameState& state) : Instr(op) {
-    frame_state_ = std::make_unique<FrameState>(state);
-  }
-
-  void emplaceLiveOwnedReg(Register* reg) {
-    live_owned_regs_.emplace_back(reg);
-  }
-
-  void emplaceLiveUnownedReg(Register* reg) {
-    live_unowned_regs_.emplace_back(reg);
-  }
-
-  const std::vector<Register*>& liveOwnedRegs() const {
-    return live_owned_regs_;
-  }
-
-  const std::vector<Register*>& liveUnownedRegs() const {
-    return live_unowned_regs_;
-  }
-
-  FrameState* frameState() const {
-    return frame_state_.get();
-  }
-
- private:
-  std::vector<Register*> live_owned_regs_;
-  std::vector<Register*> live_unowned_regs_;
-  std::unique_ptr<FrameState> frame_state_{nullptr};
-};
-
-DEFINE_SIMPLE_INSTR(YieldValue, (TObject), HasOutput, Operands<1>, YieldBase);
+DEFINE_SIMPLE_INSTR(YieldValue, (TObject), HasOutput, Operands<1>, DeoptBase);
 
 // InitialYield causes a generator function to suspend and return a new
 // 'PyGenObject' object holding its state. This should only appear in generator
 // functions and there should be exactly one instance before execution begins.
-DEFINE_SIMPLE_INSTR(InitialYield, (), HasOutput, Operands<0>, YieldBase);
+DEFINE_SIMPLE_INSTR(InitialYield, (), HasOutput, Operands<0>, DeoptBase);
 
 // Send the value in operand 0 to the subiterator in operand 1, forwarding
 // yielded values from the subiterator back to our caller until it is
@@ -3582,7 +3549,7 @@ DEFINE_SIMPLE_INSTR(
     (TObject, TOptObject),
     HasOutput,
     Operands<2>,
-    YieldBase);
+    DeoptBase);
 
 // A more compact (in terms of emitted code) equivalent to YieldValue followed
 // by YieldFrom.
@@ -3591,7 +3558,17 @@ DEFINE_SIMPLE_INSTR(
     (TOptObject, TObject),
     HasOutput,
     Operands<2>,
-    YieldBase);
+    DeoptBase);
+
+// Like YieldFrom but instead of propagating StopAsyncIteration it instead
+// yields the sentinel value indicating that iteration has completed. Used to
+// implement `async for` loops.
+DEFINE_SIMPLE_INSTR(
+    YieldFromHandleStopAsyncIteration,
+    (TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBase);
 
 // Implements BUILD_STRING opcode.
 DEFINE_SIMPLE_INSTR(BuildString, (TUnicode), HasOutput, Operands<>, DeoptBase);
@@ -3664,10 +3641,6 @@ DEFINE_SIMPLE_INSTR(
     Operands<1>);
 DEFINE_SIMPLE_INSTR(WaitHandleLoadWaiter, (TObject), HasOutput, Operands<1>);
 DEFINE_SIMPLE_INSTR(WaitHandleRelease, (TObject), Operands<1>);
-
-DEFINE_SIMPLE_INSTR(IsErrStopAsyncIteration, (), HasOutput, Operands<0>);
-
-DEFINE_SIMPLE_INSTR(ClearError, (), Operands<0>);
 
 class CFG;
 

@@ -45,7 +45,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kIntConvert:
     case Opcode::kPrimitiveUnbox:
     case Opcode::kIsNegativeAndErrOccurred:
-    case Opcode::kIsErrStopAsyncIteration:
     case Opcode::kLoadEvalBreaker:
     case Opcode::kLoadVarObjectSize:
     case Opcode::kLongCompare:
@@ -96,7 +95,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kCallMethod:
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
-    case Opcode::kClearError:
     case Opcode::kCompare:
     case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
@@ -245,7 +243,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
 
     // YieldFrom's output is either the yielded value from the subiter or the
     // final result from a StopIteration, and is owned in either case.
-    case Opcode::kYieldFrom: {
+    case Opcode::kYieldFrom:
+    case Opcode::kYieldFromHandleStopAsyncIteration: {
       return commonEffects(inst, AAny);
     }
     // YieldAndYieldFrom is equivalent to YieldFrom composed with YieldValue,

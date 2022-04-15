@@ -346,7 +346,7 @@ struct HIRBuilder::TranslationContext {
 
 void HIRBuilder::addInitialYield(TranslationContext& tc) {
   auto out = temps_.AllocateNonStack();
-  tc.emitChecked<InitialYield>(out, tc.frame);
+  tc.emit<InitialYield>(out, tc.frame);
 }
 
 // Add LoadArg instructions for each function argument. This ensures that the
@@ -1131,7 +1131,7 @@ void HIRBuilder::translate(
           break;
         }
         case END_ASYNC_FOR: {
-          emitEndAsyncFor(tc, bc_instr);
+          emitEndAsyncFor(tc);
           break;
         }
         case END_FINALLY: {
@@ -1427,10 +1427,11 @@ void HIRBuilder::translate(
         if (last_bc_instr.opcode() == YIELD_FROM &&
             is_in_async_for_header_block()) {
           JIT_CHECK(
-              last_instr->IsCondBranch(),
-              "Async-for header should end with CondBranch");
-          auto condbr = static_cast<CondBranch*>(last_instr);
+              last_instr->IsCondBranchIterNotDone(),
+              "Async-for header should end with CondBranchIterNotDone");
+          auto condbr = static_cast<CondBranchIterNotDone*>(last_instr);
           FrameState new_frame = tc.frame;
+          // Pop sentinel value signaling that iteration is complete
           new_frame.stack.pop();
           queue.emplace_back(condbr->true_bb(), tc.frame);
           queue.emplace_back(condbr->false_bb(), std::move(new_frame));
@@ -3620,29 +3621,17 @@ void HIRBuilder::emitAsyncForHeaderYieldFrom(
   if (code_->co_flags & CO_COROUTINE) {
     tc.emit<SetCurrentAwaiter>(awaitable);
   }
-  // Unlike emitYieldFrom() we do not use tc.emitChecked() here.
-  tc.emit<YieldFrom>(out, send_value, awaitable, tc.frame);
+  tc.emit<YieldFromHandleStopAsyncIteration>(
+      out, send_value, awaitable, tc.frame);
   tc.frame.stack.push(out);
 
-  // If an exception was raised then exit the loop
   BasicBlock* yf_cont_block = getBlockAtOff(bc_instr.NextInstrOffset());
   int handler_off = tc.frame.block_stack.top().handler_off;
-  int handler_idx = handler_off / sizeof(_Py_CODEUNIT);
-  BasicBlock* yf_exc_block = getBlockAtOff(handler_off);
-  end_async_for_frame_state_.emplace(handler_idx, tc.frame);
-  tc.emit<CondBranch>(out, yf_cont_block, yf_exc_block);
+  BasicBlock* yf_done_block = getBlockAtOff(handler_off);
+  tc.emit<CondBranchIterNotDone>(out, yf_cont_block, yf_done_block);
 }
 
-void HIRBuilder::emitEndAsyncFor(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
-  Register* is_stop = temps_.AllocateStack();
-  tc.emit<IsErrStopAsyncIteration>(is_stop);
-  FrameState& yield_from_frame =
-      end_async_for_frame_state_.at(bc_instr.index());
-  tc.emit<CheckExc>(is_stop, is_stop, yield_from_frame);
-  tc.emit<ClearError>();
-
+void HIRBuilder::emitEndAsyncFor(TranslationContext& tc) {
   // Pop finally block and discard exhausted async iterator.
   const ExecutionBlock& b = tc.frame.block_stack.top();
   JIT_CHECK(
@@ -3869,7 +3858,7 @@ void HIRBuilder::emitYieldFrom(TranslationContext& tc, Register* out) {
   if (code_->co_flags & CO_COROUTINE) {
     tc.emit<SetCurrentAwaiter>(iter);
   }
-  tc.emitChecked<YieldFrom>(out, send_value, iter, tc.frame);
+  tc.emit<YieldFrom>(out, send_value, iter, tc.frame);
   stack.push(out);
 }
 
@@ -3886,7 +3875,7 @@ void HIRBuilder::emitYieldValue(TranslationContext& tc) {
     in = out;
     out = temps_.AllocateStack();
   }
-  tc.emitChecked<YieldValue>(out, in, tc.frame);
+  tc.emit<YieldValue>(out, in, tc.frame);
   stack.push(out);
 }
 
@@ -4024,7 +4013,7 @@ void HIRBuilder::emitDispatchEagerCoroResult(
   if (code_->co_flags & CO_COROUTINE) {
     coro_block.emit<SetCurrentAwaiter>(wh_coro_or_result);
   }
-  coro_block.emitChecked<YieldAndYieldFrom>(
+  coro_block.emit<YieldAndYieldFrom>(
       out, wh_waiter, wh_coro_or_result, tc.frame);
   coro_block.emit<Branch>(post_await_block);
 

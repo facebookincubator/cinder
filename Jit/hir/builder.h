@@ -415,9 +415,7 @@ class HIRBuilder {
   void emitAsyncForHeaderYieldFrom(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitEndAsyncFor(
-      TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr);
+  void emitEndAsyncFor(TranslationContext& tc);
   void emitGetAIter(TranslationContext& tc);
   void emitGetANext(TranslationContext& tc);
   Register* emitSetupWithCommon(
@@ -512,9 +510,6 @@ class HIRBuilder {
   BorrowedRef<PyCodeObject> code_;
   BlockMap block_map_;
   const Preloader& preloader_;
-
-  // Map index of END_ASYNC_FOR bytecodes to FrameState of paired YIELD_FROMs
-  std::unordered_map<size_t, FrameState> end_async_for_frame_state_;
 
   TempAllocator temps_{nullptr};
 };
