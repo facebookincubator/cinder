@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -33,7 +34,7 @@ class BasicBlockBuilder {
   void AppendCode(const std::string& s);
 
   template <typename... T>
-  void AppendCode(const char* s, T&&... args) {
+  void AppendCode(std::string_view s, T&&... args) {
     AppendCode(fmt::format(s, std::forward<T>(args)...));
   }
 
