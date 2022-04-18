@@ -116,4 +116,23 @@ BB %2 - preds: %0 %1
   ASSERT_EQ(verifyPostRegAllocInvariants(parsed_func.get(), std::cout), true);
 }
 
+TEST_F(LIRVerifyTest, TestFallthroughToBlockInDifferentSectionDisallowed) {
+  auto lir_input_str = fmt::format(R"(Function:
+BB %0 - succs: %1 - section: hot
+       %2:Object = Move[0x5]:Object
+BB %1 - preds: %0 - section: cold
+       %3:Object = Move [0x5]:Object
+                   Return %2:Object
+)");
+  Parser parser;
+  auto parsed_func = parser.parse(lir_input_str);
+  testing::internal::CaptureStdout();
+  ASSERT_EQ(verifyPostRegAllocInvariants(parsed_func.get(), std::cout), false);
+  std::string output = testing::internal::GetCapturedStdout();
+  ASSERT_TRUE(
+      output ==
+      "ERROR: Basic block 0 does not contain a jump to non-immediate successor "
+      "1.\n");
+}
+
 } // namespace jit::lir

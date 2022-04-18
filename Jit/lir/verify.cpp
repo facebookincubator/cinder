@@ -31,9 +31,9 @@ bool verifyPostRegAllocInvariants(Function* func, std::ostream& err) {
     for (const auto& succ : succs) {
       // Go through the instructions and ensure that each successor has a
       // matching jump.
-      if (succ == next_block) {
-        // If a successor is physically the next block in the block order, we
-        // don't need a branch.
+      if (succ == next_block && next_block->section() == block->section()) {
+        // If a successor is physically the next block in the block order and
+        // the blocks are emitted to the same section, we don't need a branch.
         continue;
       }
       // Ensure that a jump to the successor exists.
