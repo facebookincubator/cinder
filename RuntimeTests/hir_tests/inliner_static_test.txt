@@ -41,14 +41,11 @@ fun jittestmodule:test {
     }
     UseType<LongExact> v4
     UseType<LongExact> v5
-    v19:LongExact = LongBinaryOp<Add> v4 v5 {
-      FrameState {
-        NextInstrOffset 8
-        Locals<2> v4 v5
-      }
-    }
+    UseType<MortalLongExact[1]> v4
+    UseType<MortalLongExact[2]> v5
+    v20:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     EndInlinedFunction
-    Return v19
+    Return v20
   }
 }
 ---

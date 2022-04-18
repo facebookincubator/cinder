@@ -439,6 +439,31 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   return nullptr;
 }
 
+Register* simplifyLongBinaryOp(Env& env, const LongBinaryOp* instr) {
+  Type left_type = instr->left()->type();
+  Type right_type = instr->right()->type();
+  if (left_type.hasObjectSpec() && right_type.hasObjectSpec()) {
+    ThreadedCompileSerialize guard;
+    PyObject* result;
+    if (instr->op() == BinaryOpKind::kPower) {
+      Ref<> none(Py_None);
+      result =
+          PyNumber_Power(left_type.objectSpec(), right_type.objectSpec(), none);
+    } else {
+      binaryfunc helper = instr->slotMethod();
+      result = (*helper)(left_type.objectSpec(), right_type.objectSpec());
+    }
+    if (result == nullptr) {
+      PyErr_Clear();
+      return nullptr;
+    }
+    env.emit<UseType>(instr->left(), left_type);
+    env.emit<UseType>(instr->right(), right_type);
+    return env.emit<LoadConst>(Type::fromObject(result));
+  }
+  return nullptr;
+}
+
 Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   Register* unboxed_value = instr->GetOperand(0);
   Type unbox_output_type = instr->GetOutput()->type();
@@ -589,6 +614,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
 
     case Opcode::kBinaryOp:
       return simplifyBinaryOp(env, static_cast<const BinaryOp*>(instr));
+    case Opcode::kLongBinaryOp:
+      return simplifyLongBinaryOp(env, static_cast<const LongBinaryOp*>(instr));
 
     case Opcode::kPrimitiveUnbox:
       return simplifyPrimitiveUnbox(

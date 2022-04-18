@@ -1545,31 +1545,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLongBinaryOp: {
         auto instr = static_cast<const LongBinaryOp*>(&i);
-
-        // NB: This needs to be in the order that the values appear in the
-        // BinaryOpKind enum
-        static const uint64_t helpers[] = {
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_add),
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_and),
-            reinterpret_cast<uint64_t>(
-                PyLong_Type.tp_as_number->nb_floor_divide),
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_lshift),
-            0, // unsupported: matrix multiply
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_remainder),
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_multiply),
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_or),
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_power),
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_rshift),
-            0, // unsupported: getitem
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_subtract),
-            reinterpret_cast<uint64_t>(
-                PyLong_Type.tp_as_number->nb_true_divide),
-            reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_xor),
-        };
-        auto op_kind = static_cast<unsigned long>(instr->op());
-        JIT_CHECK(op_kind < sizeof(helpers), "unsupported binop");
-        uint64_t helper = helpers[op_kind];
-        JIT_CHECK(helper != 0, "unsupported binop");
+        uint64_t helper = reinterpret_cast<uint64_t>(instr->slotMethod());
         if (instr->op() == BinaryOpKind::kPower) {
           bbb.AppendCode(
               "Call {}, {:#x}, {}, {}, {:#x}",

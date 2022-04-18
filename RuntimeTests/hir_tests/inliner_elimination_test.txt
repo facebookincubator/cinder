@@ -58,12 +58,10 @@ fun jittestmodule:test {
     v20:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
     UseType<LongExact> v14
     UseType<LongExact> v20
-    v24:LongExact = LongBinaryOp<Add> v14 v20 {
-      FrameState {
-        NextInstrOffset 10
-      }
-    }
-    Return v24
+    UseType<MortalLongExact[3]> v14
+    UseType<MortalLongExact[4]> v20
+    v25:MortalLongExact[7] = LoadConst<MortalLongExact[7]>
+    Return v25
   }
 }
 ---
@@ -73,7 +71,7 @@ def add(x, y):
   return x + y
 
 def test():
-    return add(3, 4)
+    return add(3, "x")
 ---
 fun jittestmodule:test {
   bb 0 {
@@ -82,23 +80,21 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: add'
     }
     v6:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
-    v7:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    v7:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
     v19:Object = LoadField<func_code@16, Object, borrowed> v5
     v20:MortalCode["add"] = GuardIs<0xdeadbeef> v19 {
     }
     BeginInlinedFunction<jittestmodule:add> {
       NextInstrOffset 8
     }
-    UseType<LongExact> v6
-    UseType<LongExact> v7
-    v21:LongExact = LongBinaryOp<Add> v6 v7 {
+    v17:Object = BinaryOp<Add> v6 v7 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v6 v7
       }
     }
     EndInlinedFunction
-    Return v21
+    Return v17
   }
 }
 ---

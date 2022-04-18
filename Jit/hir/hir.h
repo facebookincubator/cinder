@@ -2223,6 +2223,26 @@ class INSTR_CLASS(
   CompareOp op_;
 };
 
+// NB: This needs to be in the order that the values appear in the
+// BinaryOpKind enum
+static const binaryfunc kLongBinaryOpSlotMethods[] = {
+    PyLong_Type.tp_as_number->nb_add,
+    PyLong_Type.tp_as_number->nb_and,
+
+    PyLong_Type.tp_as_number->nb_floor_divide,
+    PyLong_Type.tp_as_number->nb_lshift,
+    0, // unsupported: matrix multiply
+    PyLong_Type.tp_as_number->nb_remainder,
+    PyLong_Type.tp_as_number->nb_multiply,
+    PyLong_Type.tp_as_number->nb_or,
+    0, // power is ternary and handled specially
+    PyLong_Type.tp_as_number->nb_rshift,
+    0, // unsupported: getitem
+    PyLong_Type.tp_as_number->nb_subtract,
+    PyLong_Type.tp_as_number->nb_true_divide,
+    PyLong_Type.tp_as_number->nb_xor,
+};
+
 // Perform the operation indicated by op
 class INSTR_CLASS(
     LongBinaryOp,
@@ -2241,6 +2261,15 @@ class INSTR_CLASS(
 
   BinaryOpKind op() const {
     return op_;
+  }
+
+  binaryfunc slotMethod() const {
+    auto op_kind = static_cast<unsigned long>(op());
+    JIT_CHECK(
+        op_kind < ARRAYSIZE(kLongBinaryOpSlotMethods), "unsupported binop");
+    binaryfunc helper = kLongBinaryOpSlotMethods[op_kind];
+    JIT_DCHECK(helper != nullptr, "unsupported slot method");
+    return helper;
   }
 
   Register* left() const {
