@@ -190,6 +190,10 @@ class BasicBlock {
     return section_;
   }
 
+  void setSection(jit::codegen::CodeSection section) {
+    section_ = section;
+  }
+
  private:
   int id_;
   Function* func_;
@@ -200,12 +204,6 @@ class BasicBlock {
   // used in parser, expect unique id
   void setId(int id) {
     id_ = id;
-  }
-
-  // We currently only allow changing the code section being emitted within the
-  // parser.
-  void setSection(jit::codegen::CodeSection section) {
-    section_ = section;
   }
 
   friend class Parser;

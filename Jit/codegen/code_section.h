@@ -25,6 +25,9 @@ class CodeHolderMetadata {
  public:
   CodeHolderMetadata(CodeSection section) : section_(section) {}
 
+  void setSection(CodeSection section) {
+    section_ = section;
+  }
  private:
   friend class CodeSectionOverride;
 

@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/codegen/environ.h"
 #include "Jit/hir/hir.h"
 #include "Jit/lir/lir.h"
@@ -56,6 +57,9 @@ class BasicBlockBuilder {
       Instruction* instr,
       const std::string& name_size,
       int offset);
+  void SetBlockSection(
+      const std::string& label,
+      codegen::CodeSection section);
 
   std::vector<BasicBlock*> Generate() {
     return bbs_;

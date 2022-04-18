@@ -85,7 +85,7 @@ class BackendTest : public RuntimeTest {
     NativeGenerator gen(nullptr);
     gen.env_ = std::move(environ);
     gen.lir_func_.reset(lir_func);
-    gen.generateAssemblyBody();
+    gen.generateAssemblyBody(code);
 
     if (arg_buffer_size > 0) {
       as.add(asmjit::x86::rsp, arg_buffer_size);

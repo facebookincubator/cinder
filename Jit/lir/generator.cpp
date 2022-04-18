@@ -550,6 +550,9 @@ void LIRGenerator::MakeDecref(
       "{}:",
       end_decref,
       dealloc);
+  if (_PyJIT_MultipleCodeSectionsEnabled()) {
+    bbb.SetBlockSection(dealloc, codegen::CodeSection::kCold);
+  }
 
   bbb.AppendCode(
       "Invoke {:#x}, {}\n"

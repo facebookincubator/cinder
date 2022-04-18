@@ -567,5 +567,15 @@ void BasicBlockBuilder::CreateInstrIndirectOutput(
     env_->operand_to_fix[name].push_back(static_cast<LinkedOperand*>(ind_opnd));
   }
 }
+
+void BasicBlockBuilder::SetBlockSection(
+    const std::string& label,
+    codegen::CodeSection section) {
+  BasicBlock* block = GetBasicBlockByLabel(label);
+  if (block == nullptr) {
+    return;
+  }
+  block->setSection(section);
+}
 } // namespace lir
 } // namespace jit

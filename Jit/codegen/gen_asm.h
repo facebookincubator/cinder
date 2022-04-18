@@ -139,7 +139,7 @@ class NativeGenerator {
   FRIEND_TEST(LinearScanAllocatorTest, RegAllocation);
   friend class BackendTest;
 
-  void generateAssemblyBody();
+  void generateAssemblyBody(const asmjit::CodeHolder& code);
 
   std::unique_ptr<lir::Function> lir_func_;
   Environ env_;

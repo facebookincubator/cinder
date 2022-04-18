@@ -1338,7 +1338,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // The body must be generated before the prologue to determine how much spill
   // space to allocate.
   auto prologue_cursor = as_->cursor();
-  generateAssemblyBody();
+  generateAssemblyBody(codeholder);
 
   auto epilogue_cursor = as_->cursor();
 
@@ -1975,7 +1975,7 @@ void* generateJitTrampoline() {
   return result;
 }
 
-void NativeGenerator::generateAssemblyBody() {
+void NativeGenerator::generateAssemblyBody(const asmjit::CodeHolder& code) {
   auto as = env_.as;
   auto& blocks = lir_func_->basicblocks();
   for (auto& basicblock : blocks) {
@@ -1983,6 +1983,8 @@ void NativeGenerator::generateAssemblyBody() {
   }
 
   for (lir::BasicBlock* basicblock : blocks) {
+    CodeSection section = basicblock->section();
+    CodeSectionOverride section_override{as, &code, &metadata_, section};
     as->bind(map_get(env_.block_label_map, basicblock));
     for (auto& instr : basicblock->instructions()) {
       asmjit::BaseNode* cursor = as->cursor();
