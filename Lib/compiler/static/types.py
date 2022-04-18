@@ -139,7 +139,7 @@ from ..pycodegen import FOR_LOOP, CodeGenerator
 from ..symbols import FunctionScope
 from ..unparse import to_expr
 from ..visitor import ASTRewriter, TAst
-from .effects import NarrowingEffect, NO_EFFECT
+from .effects import TypeState, NarrowingEffect, NO_EFFECT
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
@@ -5434,10 +5434,13 @@ class ExtremumFunction(Object[Class]):
 
 class IsInstanceEffect(NarrowingEffect):
     def __init__(
-        self, name: ast.Name, prev: Value, inst: Value, visitor: TypeBinder
+        self,
+        node: ast.AST,
+        prev: Value,
+        inst: Value,
+        visitor: TypeBinder,
     ) -> None:
-        self.var: str = name.id
-        self.name = name
+        self.node = node
         self.prev = prev
         self.inst = inst
         reverse = prev
@@ -5450,24 +5453,52 @@ class IsInstanceEffect(NarrowingEffect):
 
     def apply(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
-        local_types[self.var] = self.inst
-        if local_name_nodes is not None:
-            local_name_nodes[self.var] = self.name
+        self._refine_type(type_state, type_state_nodes, self.inst)
 
-    def undo(self, local_types: Dict[str, Value]) -> None:
-        local_types[self.var] = self.prev
+    def undo(self, type_state: TypeState) -> None:
+        self._refine_type(type_state, None, self.prev)
 
     def reverse(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
-        local_types[self.var] = self.rev
-        if local_name_nodes is not None:
-            local_name_nodes[self.var] = self.name
+        self._refine_type(type_state, type_state_nodes, self.rev)
+
+    def _refine_type(
+        self,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]],
+        to: Value,
+    ) -> None:
+        # When accessing self.x.y, build an access path stack of the form ["y", "x", "self"].
+        access_path = self.access_path
+        if len(access_path) == 0:
+            return None
+        if type_state_nodes is not None:
+            type_state_nodes[".".join(access_path)] = self.node
+        if len(access_path) == 1:
+            # We're just refining a local name.
+            type_state.local_types[access_path[0]] = to
+        else:
+            assert len(access_path) == 2
+            attr, base = access_path
+            type_state.refined_fields.setdefault(base, {})[attr] = (to, self.node)
+
+    @cached_property
+    def access_path(self) -> List[str]:
+        path = []
+        node = self.node
+        while not isinstance(node, ast.Name):
+            if not isinstance(node, ast.Attribute):
+                return []
+            path.append(node.attr)
+            node = node.value
+        path.append(node.id)
+        return path
 
 
 class IsInstanceFunction(Object[Class]):
@@ -5491,7 +5522,7 @@ class IsInstanceFunction(Object[Class]):
         visitor.set_type(node, self.klass.type_env.bool.instance)
         if len(node.args) == 2:
             arg0 = node.args[0]
-            if not isinstance(arg0, ast.Name):
+            if not visitor.is_refinable(arg0):
                 return NO_EFFECT
 
             arg1 = node.args[1]
@@ -5562,7 +5593,7 @@ class RevealTypeFunction(Object[Class]):
         msg = f"reveal_type({to_expr(arg)}): '{arg_type.name_with_exact}'"
         if isinstance(arg, ast.Name) and arg.id in visitor.decl_types:
             decl_type = visitor.decl_types[arg.id].type
-            local_type = visitor.local_types[arg.id]
+            local_type = visitor.type_state.local_types[arg.id]
             msg += f", '{arg.id}' has declared type '{decl_type.name_with_exact}' and local type '{local_type.name_with_exact}'"
         visitor.syntax_error(msg, node)
         return NO_EFFECT
@@ -8515,7 +8546,7 @@ class ProdAssertFunction(Object[Class]):
         effect = visitor.visit(node.args[0]) or NO_EFFECT
         if num_args == 2:
             visitor.visitExpectedType(node.args[1], self.klass.type_env.str.instance)
-        effect.apply(visitor.local_types)
+        effect.apply(visitor.type_state)
         return NO_EFFECT
 
 

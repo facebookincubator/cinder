@@ -49,8 +49,9 @@ from ..strict import StrictCodeGenerator, FIXED_MODULES
 from ..symbols import Scope, SymbolVisitor, ClassScope
 from .compiler import Compiler
 from .definite_assignment_checker import DefiniteAssignmentVisitor
-from .effects import NarrowingEffect
+from .effects import NarrowingEffect, TypeState
 from .module_table import ModuleTable, ModuleFlag
+from .type_binder import UsedRefinementField
 from .types import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     AsyncCachedPropertyMethod,
@@ -503,23 +504,33 @@ class Static38CodeGenerator(StrictCodeGenerator):
         effect = self.get_node_data(node, NarrowingEffect)
         # As all of our effects store the final type, we can apply the effects on
         # an empty dictionary to get an overapproximation of what we need to cast.
-        effect_types: Dict[str, Value] = {}
-        effect_name_nodes: Dict[str, ast.Name] = {}
-        effect.apply(effect_types, effect_name_nodes)
-        for key, value in effect_types.items():
+        type_state = TypeState()
+        effect_nodes: Dict[str, ast.AST] = {}
+        effect.apply(type_state, effect_nodes)
+        # TODO(T116828043) we need to add explicit casts here once we support refining
+        # fields in asserts. Once that's in, we can keep field refinements from asserts.
+        for key, value in type_state.local_types.items():
             if value.klass is not self.compiler.type_env.DYNAMIC:
-                value.emit_name(effect_name_nodes[key], self)
+                self.visit(effect_nodes[key])
                 self.emit("CAST", value.klass.type_descr)
                 self.emit("POP_TOP")
 
     def visitAttribute(self, node: Attribute) -> None:
         self.update_lineno(node)
+        data = self.get_opt_node_data(node, UsedRefinementField)
+        if data is not None and not data.is_source:
+            self.emit("LOAD_FAST", data.name)
+            return
         if isinstance(node.ctx, ast.Load) and self._is_super_call(node.value):
             self.emit("LOAD_GLOBAL", "super")
             load_arg = self._emit_args_for_super(node.value, node.attr)
             self.emit("LOAD_ATTR_SUPER", load_arg)
         else:
             self.get_type(node.value).emit_attr(node, self)
+
+        if data is not None and data.is_source:
+            self.emit("DUP_TOP")
+            self.emit("STORE_FAST", data.name)
 
     def visitAssignTarget(
         self, elt: expr, stmt: AST, value: Optional[expr] = None

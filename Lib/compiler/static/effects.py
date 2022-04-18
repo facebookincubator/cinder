@@ -2,11 +2,28 @@
 from __future__ import annotations
 
 import ast
-from typing import Dict, Optional, Sequence, TYPE_CHECKING
+from typing import Dict, Optional, Sequence, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .type_binder import TypeBinder
     from .types import Value
+
+    RefinedFields = Dict[str, Tuple[Value, ast.AST]]
+
+# A refined field consists of a refined type in addition to the node that
+# refined the field. The node information is used to hoist reads during codegen.
+
+
+class TypeState:
+    def __init__(self) -> None:
+        self.local_types: Dict[str, Value] = {}
+        self.refined_fields: Dict[str, RefinedFields] = {}
+
+    def copy(self) -> TypeState:
+        type_state = TypeState()
+        type_state.local_types = dict(self.local_types)
+        type_state.refined_fields = dict(self.refined_fields)
+        return type_state
 
 
 class NarrowingEffect:
@@ -29,25 +46,25 @@ class NarrowingEffect:
 
     def apply(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
-        """applies the given effect in the target scope. if `local_name_nodes` is passed, populates
-        it with the underlying name nodes"""
+        """applies the given effect in the target scope. if `type_state_nodes` is passed, populates
+        it with the underlying name or attribute nodes"""
         pass
 
-    def undo(self, local_types: Dict[str, Value]) -> None:
+    def undo(self, type_state: TypeState) -> None:
         """restores the type to its original value"""
         pass
 
     def reverse(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
         """applies the reverse of the scope or reverts it if
         there is no reverse"""
-        self.undo(local_types)
+        self.undo(type_state)
 
 
 class AndEffect(NarrowingEffect):
@@ -64,16 +81,16 @@ class AndEffect(NarrowingEffect):
 
     def apply(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
         for effect in self.effects:
-            effect.apply(local_types, local_name_nodes)
+            effect.apply(type_state, type_state_nodes)
 
-    def undo(self, local_types: Dict[str, Value]) -> None:
+    def undo(self, type_state: TypeState) -> None:
         """restores the type to its original value"""
         for effect in self.effects:
-            effect.undo(local_types)
+            effect.undo(type_state)
 
 
 class OrEffect(NarrowingEffect):
@@ -90,16 +107,16 @@ class OrEffect(NarrowingEffect):
 
     def reverse(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
         for effect in self.effects:
-            effect.reverse(local_types, local_name_nodes)
+            effect.reverse(type_state, type_state_nodes)
 
-    def undo(self, local_types: Dict[str, Value]) -> None:
+    def undo(self, type_state: TypeState) -> None:
         """restores the type to its original value"""
         for effect in self.effects:
-            effect.undo(local_types)
+            effect.undo(type_state)
 
 
 class NoEffect(NarrowingEffect):
@@ -120,17 +137,17 @@ class NegationEffect(NarrowingEffect):
 
     def apply(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
-        self.negated.reverse(local_types, local_name_nodes)
+        self.negated.reverse(type_state, type_state_nodes)
 
-    def undo(self, local_types: Dict[str, Value]) -> None:
-        self.negated.undo(local_types)
+    def undo(self, type_state: TypeState) -> None:
+        self.negated.undo(type_state)
 
     def reverse(
         self,
-        local_types: Dict[str, Value],
-        local_name_nodes: Optional[Dict[str, ast.Name]] = None,
+        type_state: TypeState,
+        type_state_nodes: Optional[Dict[str, ast.AST]] = None,
     ) -> None:
-        self.negated.apply(local_types, local_name_nodes)
+        self.negated.apply(type_state, type_state_nodes)

@@ -66,7 +66,7 @@ from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL, SC_FREE, 
 from ..errors import CollectingErrorSink, TypedSyntaxError
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
-from .effects import NarrowingEffect, NO_EFFECT
+from .effects import TypeState, NarrowingEffect, NO_EFFECT
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
     BoolClass,
@@ -96,10 +96,24 @@ from .types import (
     OptionalInstance,
     TransparentDecoratedMethod,
     resolve_instance_attr_by_name,
+    _TMP_VAR_PREFIX,
 )
 
 if TYPE_CHECKING:
     from .compiler import Compiler
+
+
+class PreserveRefinedFields:
+    pass
+
+
+class UsedRefinementField:
+    def __init__(self, name: str, is_source: bool) -> None:
+        self.name = name
+        self.is_source = is_source
+
+
+PRESERVE_REFINED_FIELDS = PreserveRefinedFields()
 
 
 class BindingScope:
@@ -109,7 +123,7 @@ class BindingScope:
         type_env: TypeEnvironment,
     ) -> None:
         self.node = node
-        self.local_types: Dict[str, Value] = {}
+        self.type_state = TypeState()
         self.decl_types: Dict[str, TypeDeclaration] = {}
         self.type_env: TypeEnvironment = type_env
 
@@ -124,7 +138,7 @@ class BindingScope:
         # assigned later, so `x = None; if flag: x = "foo"` works.
         decl = TypeDeclaration(self.type_env.DYNAMIC if is_inferred else typ, is_final)
         self.decl_types[name] = decl
-        self.local_types[name] = typ
+        self.type_state.local_types[name] = typ
         return decl
 
 
@@ -157,32 +171,38 @@ class LocalsBranch:
     def __init__(self, scope: BindingScope) -> None:
         self.scope = scope
         self.type_env: TypeEnvironment = scope.type_env
-        self.entry_locals: Dict[str, Value] = dict(scope.local_types)
+        self.entry_type_state: TypeState = scope.type_state.copy()
 
-    def copy(self) -> Dict[str, Value]:
+    def copy(self) -> TypeState:
         """Make a copy of the current local state"""
-        return dict(self.scope.local_types)
+        return self.scope.type_state.copy()
 
-    def restore(self, state: Optional[Dict[str, Value]] = None) -> None:
+    def restore(self, state: Optional[TypeState] = None) -> None:
         """Restore the locals to the state when we entered"""
-        self.scope.local_types.clear()
-        self.scope.local_types.update(state or self.entry_locals)
+        self.scope.type_state = state or self.entry_type_state
 
-    def merge(self, entry_locals: Optional[Dict[str, Value]] = None) -> None:
+    def merge(self, entry_type_state: Optional[TypeState] = None) -> None:
         """Merge the entry locals, or a specific copy, into the current locals"""
         # TODO: What about del's?
-        if entry_locals is None:
-            entry_locals = self.entry_locals
+        if entry_type_state is None:
+            entry_type_state = self.entry_type_state
 
-        local_types = self.scope.local_types
-        for key, value in entry_locals.items():
+        # TODO(T116955021): For now, clear all field refinements when merging local branches for
+        # soundness. In the future, we will to support field refinements for loops, etc.,
+        # in which case the `changed()` function will also need to be adjusted to handle these.
+        self.scope.type_state.refined_fields.clear()
+
+        local_types = self.scope.type_state.local_types
+        for key, value in entry_type_state.local_types.items():
             if key in local_types:
                 if value != local_types[key]:
                     local_types[key] = self._join(value, local_types[key])
                 continue
 
     def changed(self) -> bool:
-        return self.entry_locals != self.scope.local_types
+        # Since we currently clear all field refinements, ignore them when seeing whether the locals
+        # changed in the analysis of this branch.
+        return self.entry_type_state.local_types != self.scope.type_state.local_types
 
     def _join(self, *types: Value) -> Value:
         if len(types) == 1:
@@ -233,6 +253,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.current_loop: AST | None = None
         self.loop_may_break: Set[AST] = set()
         self.visiting_assignment_target = False
+        self._tmpvar_refined_local_count = 0
 
     @property
     def nodes_default_dynamic(self) -> bool:
@@ -241,8 +262,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         return not self.error_sink.throwing
 
     @property
-    def local_types(self) -> Dict[str, Value]:
-        return self.binding_scope.local_types
+    def type_state(self) -> TypeState:
+        return self.binding_scope.type_state
 
     @property
     def decl_types(self) -> Dict[str, TypeDeclaration]:
@@ -262,7 +283,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         decl_type = decl.type
         if local_type is self.type_env.DYNAMIC or not decl_type.klass.can_be_narrowed:
             local_type = decl_type
-        self.local_types[name] = local_type
+        self.type_state.local_types[name] = local_type
         return local_type
 
     def maybe_get_current_class(self) -> Optional[Class]:
@@ -277,6 +298,13 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     ) -> Optional[NarrowingEffect]:
         """This override is only here to give Pyre the return type information."""
         ret = super().visit(node, *args)
+        if (
+            len(self.scopes) > 0
+            and isinstance(node, AST)
+            and not self.get_opt_node_data(node, PreserveRefinedFields)
+        ):
+            self.type_state.refined_fields.clear()
+
         if ret is not None:
             assert isinstance(ret, NarrowingEffect)
             return ret
@@ -684,6 +712,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         # correctly.  So we compute the narrowest target type. (Other checks do happen later).
         # e.g: `x: int8 = 1` means we need `1` to be of type `int8`
         narrowest_target_type = None
+        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            # In simple cases (i.e. a = expr), we know that the act of assignment won't execute
+            # arbitrary code. There are some more complex cases we can handle (self.x = y where we
+            # know self.x is a slot), but ignore these for now for safety.
+            self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
         for target in reversed(node.targets):
             cur_type = None
             if isinstance(target, ast.Name):
@@ -714,6 +747,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
         self.set_type(node, value_type)
 
+    def visitPass(self, node: ast.Pass) -> None:
+        self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
+
     def check_can_assign_from(
         self,
         dest: Class,
@@ -736,9 +772,19 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 node,
             )
 
+    def clear_refinements_for_nonbool_test(self, test_node: ast.AST) -> None:
+        # If we visit an expression of an unknown type in a test context, such as
+        # `if x: ...`, `x.__bool__()` will be called if `x` is not a boolean. Since
+        # `x.__bool__()` can execute arbitrary code, it may also contain side effects
+        # which affect field refinements. For safety, we clear them if we know that
+        # `__bool__()` can be called.
+        if self.get_type(test_node).klass is not self.type_env.bool:
+            self.type_state.refined_fields.clear()
+
     def visitAssert(self, node: ast.Assert) -> None:
         effect = self.visit(node.test) or NO_EFFECT
-        effect.apply(self.local_types)
+        effect.apply(self.type_state)
+        self.clear_refinements_for_nonbool_test(node.test)
         self.set_node_data(node, NarrowingEffect, effect)
         message = node.msg
         if message:
@@ -759,12 +805,12 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
                 # apply the new effect as short circuiting would
                 # eliminate it.
-                new_effect.apply(self.local_types)
+                new_effect.apply(self.type_state)
 
             # we undo the effect as we have no clue what context we're in
             # but then we return the combined effect in case we're being used
             # in a conditional context
-            effect.undo(self.local_types)
+            effect.undo(self.type_state)
         elif isinstance(node.op, ast.Or):
             for value in node.values[:-1]:
                 new_effect = self.visit(value) or NO_EFFECT
@@ -773,9 +819,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 old_type = self.get_type(value)
                 # The or expression will only return the `value` we're visiting if it's
                 # effect holds, so we visit it assuming that the narrowing effects apply.
-                new_effect.apply(self.local_types)
+                new_effect.apply(self.type_state)
                 self.visit(value)
-                new_effect.undo(self.local_types)
+                new_effect.undo(self.type_state)
 
                 final_type = self.widen(
                     final_type,
@@ -786,12 +832,12 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 )
                 self.set_type(value, old_type)
 
-                new_effect.reverse(self.local_types)
+                new_effect.reverse(self.type_state)
             # We know nothing about the last node of an or, so we simply widen with its type.
             new_effect = self.visit(node.values[-1]) or NO_EFFECT
             final_type = self.widen(final_type, self.get_type(node.values[-1]))
 
-            effect.undo(self.local_types)
+            effect.undo(self.type_state)
             effect = effect.or_(new_effect)
         else:
             for value in node.values:
@@ -864,11 +910,13 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self, node: IfExp, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         effect = self.visit(node.test) or NO_EFFECT
-        effect.apply(self.local_types)
+        effect.apply(self.type_state)
+        self.clear_refinements_for_nonbool_test(node.test)
+
         self.visit(node.body, type_ctx)
-        effect.reverse(self.local_types)
+        effect.reverse(self.type_state)
         self.visit(node.orelse, type_ctx)
-        effect.undo(self.local_types)
+        effect.undo(self.type_state)
 
         # Select the most compatible types that we can, or fallback to
         # dynamic if we can coerce to dynamic, otherwise report an error.
@@ -1239,6 +1287,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self, node: Compare, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
         if len(node.ops) == 1 and isinstance(node.ops[0], (Is, IsNot)):
+            self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
             left = node.left
             right = node.comparators[0]
             other = None
@@ -1254,15 +1303,19 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             elif isinstance(right, (Constant, NameConstant)) and right.value is None:
                 other = left
 
-            if other is not None and isinstance(other, Name):
+            if other is not None and self.is_refinable(other):
                 var_type = self.get_type(other)
-
                 if (
                     isinstance(var_type, UnionInstance)
                     and not var_type.klass.is_generic_type_definition
                 ):
+                    # This is handled by the is_refinable call. The assert's here to make the type checker happy.
+                    assert isinstance(other, (ast.Name, ast.Attribute))
                     effect = IsInstanceEffect(
-                        other, var_type, self.type_env.none.instance, self
+                        other,
+                        var_type,
+                        self.type_env.none.instance,
+                        self,
                     )
                     if isinstance(node.ops[0], IsNot):
                         effect = effect.not_()
@@ -1332,11 +1385,43 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     def visitAttribute(
         self, node: Attribute, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        self.visit(node.value)
-        base = self.get_type(node.value)
+        value = node.value
+        self.visit(value)
+        base = self.get_type(value)
         base.bind_attr(node, self, type_ctx)
+        if (
+            isinstance(value, ast.Name)
+            and value.id in self.type_state.refined_fields
+            and node.attr in self.type_state.refined_fields[value.id]
+        ):
+            if isinstance(node.ctx, ast.Load):
+                typ, source_node = self.type_state.refined_fields[value.id][node.attr]
+                self.set_type(node, typ)
+                source_data = self.get_opt_node_data(source_node, UsedRefinementField)
+                if source_data is not None:
+                    temp_name = source_data.name
+                else:
+                    temp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.{self._tmpvar_refined_local_count}"
+
+                    self.set_node_data(
+                        source_node,
+                        UsedRefinementField,
+                        UsedRefinementField(temp_name, True),
+                    )
+                    self._tmpvar_refined_local_count += 1
+                self.set_node_data(
+                    node,
+                    UsedRefinementField,
+                    UsedRefinementField(temp_name, False),
+                )
+            elif node.attr in self.type_state.refined_fields[value.id]:
+                # Ensure we don't keep stale refinement information around when setting/deleting an
+                # attr.
+                del self.type_state.refined_fields[value.id][node.attr]
         if isinstance(base, ModuleInstance):
             self.set_node_data(node, TypeDescr, (base.module_name, node.attr))
+        if self.is_refinable(node):
+            self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
         return NO_EFFECT
 
     def visitSubscript(
@@ -1362,13 +1447,14 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     def visitName(
         self, node: Name, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
+        self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
         found_name = self.visiting_assignment_target
         cur_scope = self.symbols.scopes[self.scope]
         scope = cur_scope.check_name(node.id)
         if scope == SC_LOCAL and not isinstance(self.scope, Module):
-            if node.id in self.local_types:
+            if node.id in self.type_state.local_types:
                 found_name = True
-            var_type = self.local_types.get(node.id, self.type_env.DYNAMIC)
+            var_type = self.type_state.local_types.get(node.id, self.type_env.DYNAMIC)
             self.set_type(node, var_type)
         else:
             typ, descr = self.module.resolve_name_with_descr(node.id)
@@ -1384,13 +1470,13 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 # table for globals. We currently set the type to dynamic still for safety, as the inner
                 # scope might override the outer type.
                 for scope in reversed(self.scopes):
-                    if node.id in scope.local_types:
+                    if node.id in scope.type_state.local_types:
                         found_name = True
                         break
             elif scope == SC_CELL:
                 # If a name is a cell var, we currently don't resolve it to a type due to soundness
                 # holes with nested types. Do this search to avoid erroring, still.
-                found_name = node.id in self.scopes[-1].local_types
+                found_name = node.id in self.scopes[-1].type_state.local_types
 
         if not found_name:
             raise TypedSyntaxError(f"Name `{node.id}` is not defined.")
@@ -1545,7 +1631,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         branch = self.binding_scope.branch()
 
         effect = self.visit(node.test) or NO_EFFECT
-        effect.apply(self.local_types)
+        effect.apply(self.type_state)
+        self.clear_refinements_for_nonbool_test(node.test)
 
         terminates = self.visit_check_terminal(node.body)
 
@@ -1553,7 +1640,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             if_end = branch.copy()
             branch.restore()
 
-            effect.reverse(self.local_types)
+            effect.reverse(self.type_state)
             else_terminates = self.visit_check_terminal(node.orelse)
             if else_terminates:
                 if terminates:
@@ -1565,10 +1652,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 # Merge end of orelse with end of if
                 branch.merge(if_end)
         elif terminates:
-            effect.reverse(self.local_types)
+            effect.reverse(self.type_state)
         else:
             # Merge end of if w/ opening (with test effect reversed)
-            branch.merge(effect.reverse(branch.entry_locals))
+            branch.merge(effect.reverse(branch.entry_type_state))
 
     def visitTry(self, node: Try) -> None:
         branch = self.binding_scope.branch()
@@ -1587,7 +1674,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
         terminals = [no_exception_terminal]
         for handler in node.handlers:
-            branch.restore(post_try)
+            branch.restore(post_try.copy())
             self.visit(handler)
             terminals.append(self.terminals.get(handler, TerminalKind.NonTerminal))
             merges.append(branch.copy())
@@ -1631,7 +1718,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.set_terminal_kind(node, terminal)
         if hname is not None:
             del self.decl_types[hname]
-            del self.local_types[hname]
+            del self.type_state.local_types[hname]
 
     def iterate_to_fixed_point(
         self, body: Sequence[ast.stmt], test: ast.expr | None = None
@@ -1653,7 +1740,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             with self.temporary_error_sink(CollectingErrorSink()):
                 if test is not None:
                     effect = self.visit(test) or NO_EFFECT
-                    effect.apply(self.local_types)
+                    effect.apply(self.type_state)
+                    self.clear_refinements_for_nonbool_test(test)
+
                 terminates = self.visit_check_terminal(body)
                 # reset any declarations from the loop body to avoid redeclaration errors
                 self.binding_scope.decl_types = entry_decls.copy()
@@ -1676,16 +1765,18 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
             effect = self.visit(node.test) or NO_EFFECT
             condition_always_true = self.get_type(node.test).is_truthy_literal()
-            effect.apply(self.local_types)
+            effect.apply(self.type_state)
             terminal_level = self.visit_check_terminal(node.body)
+
+        self.clear_refinements_for_nonbool_test(node.test)
 
         does_not_break = node not in self.loop_may_break
 
         if terminal_level == TerminalKind.RaiseOrReturn and does_not_break:
             branch.restore()
-            effect.reverse(self.local_types)
+            effect.reverse(self.type_state)
         else:
-            branch.merge(effect.reverse(branch.entry_locals))
+            branch.merge(effect.reverse(branch.entry_type_state))
 
         if condition_always_true and does_not_break:
             self.set_terminal_kind(node, terminal_level)
@@ -1693,7 +1784,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             # The or-else can happen after the while body, or without executing
             # it, but it can only happen after the while condition evaluates to
             # False.
-            effect.reverse(self.local_types)
+            effect.reverse(self.type_state)
             self.visit(node.orelse)
 
             branch.merge()
@@ -1743,3 +1834,13 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             with self.in_target():
                 self.visit(optional_vars)
             self.assign_value(optional_vars, self.type_env.DYNAMIC)
+
+    def is_refinable(self, node: ast.AST) -> bool:
+        if isinstance(node, Name):
+            return True
+        elif isinstance(node, ast.Attribute) and isinstance(node.value, Name):
+            typ = self.get_type(node.value)
+            slot = typ.klass.find_slot(node)
+            if slot:
+                return True
+        return False
