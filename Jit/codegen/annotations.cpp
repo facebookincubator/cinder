@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/annotations.h"
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/disassembler.h"
 #include "Jit/hir/printer.h"
 
@@ -10,22 +11,30 @@
 namespace jit {
 namespace codegen {
 
-std::string Annotations::disassemble(
+std::string Annotations::disassembleSection(
     void* entry,
-    const asmjit::CodeHolder& code) {
+    const asmjit::CodeHolder& code,
+    CodeSection section) {
   // i386-dis is not thread-safe
-  ThreadedCompileSerialize guard;
   JIT_CHECK(
       g_dump_asm, "Annotations are not recorded without -X jit-disas-funcs");
-  auto text = code.textSection();
-  JIT_DCHECK(text->offset() == 0, "Unexpected .text section offset");
+  auto text = code.sectionByName(codeSectionName(section));
+  if (text == nullptr) {
+    return "";
+  }
   auto base = static_cast<const char*>(entry);
+  auto section_start = base + text->offset();
   auto size = text->realSize();
 
   std::map<const char*, std::pair<Annotation*, const char*>> annot_bounds;
   for (auto& annot : annotations_) {
     auto begin = base + code.labelOffsetFromBase(annot.begin);
     auto end = base + code.labelOffsetFromBase(annot.end);
+    if (begin < section_start || end > section_start + size) {
+      // Ensure that we only consider annotations that correspond to the section
+      // we're looking at.
+      continue;
+    }
     auto inserted =
         annot_bounds.emplace(begin, std::make_pair(&annot, end)).second;
     JIT_DCHECK(inserted, "Duplicate start address for annotation");
@@ -36,9 +45,9 @@ std::string Annotations::disassemble(
   const char* annot_end = nullptr;
 
   std::string result;
-  Disassembler dis(base, size);
+  Disassembler dis(section_start, size);
   dis.setPrintInstBytes(false);
-  for (auto cursor = base, end = cursor + size; cursor < end;) {
+  for (auto cursor = section_start, end = cursor + size; cursor < end;) {
     auto new_annot = prev_annot;
     // If we're not out of annotations and we've crossed the start of the next
     // one, switch to it.
@@ -85,24 +94,43 @@ std::string Annotations::disassemble(
   return result;
 }
 
-void Annotations::disassembleJSON(
-    nlohmann::json& json,
+std::string Annotations::disassemble(
     void* entry,
     const asmjit::CodeHolder& code) {
-  // i386-dis is not thread-safe
   ThreadedCompileSerialize guard;
-  nlohmann::json result;
-  result["name"] = "Assembly";
-  result["type"] = "asm";
-  asmjit::Section* text = code.textSection();
-  JIT_DCHECK(text->offset() == 0, "Unexpected .text section offset");
+  JIT_CHECK(code.hasBaseAddress(), "code not generated!");
+  std::string result;
+  forEachSection([&](CodeSection section) {
+    result += disassembleSection(entry, code, section);
+  });
+  return result;
+}
+
+/* Disassembles the section of the code at the given section, writing results
+   to the `blocks` parameter.
+ */
+void Annotations::disassembleSectionJSON(
+    nlohmann::json& blocks,
+    void* entry,
+    const asmjit::CodeHolder& code,
+    CodeSection section) {
+  asmjit::Section* text = code.sectionByName(codeSectionName(section));
+  if (text == nullptr) {
+    return;
+  }
   auto base = static_cast<const char*>(entry);
+  auto section_start = base + text->offset();
   uint64_t size = text->realSize();
 
   std::map<const char*, std::pair<Annotation*, const char*>> annot_bounds;
   for (auto& annot : annotations_) {
     auto begin = base + code.labelOffsetFromBase(annot.begin);
     auto end = base + code.labelOffsetFromBase(annot.end);
+    if (begin < section_start || end > section_start + size) {
+      // Ensure that we only consider annotations that correspond to the section
+      // we're looking at.
+      continue;
+    }
     auto inserted =
         annot_bounds.emplace(begin, std::make_pair(&annot, end)).second;
     JIT_DCHECK(inserted, "Duplicate start address for annotation");
@@ -112,12 +140,12 @@ void Annotations::disassembleJSON(
   auto annot_it = annot_bounds.begin();
   const char* annot_end = nullptr;
 
-  Disassembler dis(base, size);
+  Disassembler dis(section_start, size);
   dis.setPrintAddr(false);
   dis.setPrintInstBytes(false);
-  nlohmann::json blocks;
   nlohmann::json block;
-  for (const char *cursor = base, *end = cursor + size; cursor < end;) {
+  for (const char *cursor = section_start, *end = cursor + size;
+       cursor < end;) {
     auto new_annot = prev_annot;
     // If we're not out of annotations and we've crossed the start of the next
     // one, switch to it.
@@ -184,7 +212,29 @@ void Annotations::disassembleJSON(
     cursor += length;
     prev_annot = new_annot;
   }
+  // There might be a leftover block that we need to add.
+  if (block["instrs"].size() > 0) {
+    blocks.emplace_back(block);
+  }
+}
+
+void Annotations::disassembleJSON(
+    nlohmann::json& json,
+    void* entry,
+    const asmjit::CodeHolder& code) {
+  // i386-dis is not thread-safe
+  ThreadedCompileSerialize guard;
+  nlohmann::json blocks;
+
+  forEachSection([&](CodeSection section) {
+    disassembleSectionJSON(blocks, entry, code, section);
+  });
+
+  nlohmann::json result;
+  result["name"] = "Assembly";
+  result["type"] = "asm";
   result["blocks"] = blocks;
+
   json["cols"].emplace_back(result);
 }
 

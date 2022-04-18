@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/lir/instruction.h"
 
 #include <asmjit/asmjit.h>
@@ -78,6 +79,17 @@ class Annotations {
   static const hir::Instr* canonicalize(const lir::Instruction* instr) {
     return instr->origin();
   }
+
+  std::string disassembleSection(
+      void* entry,
+      const asmjit::CodeHolder& code,
+      CodeSection section);
+
+  void disassembleSectionJSON(
+      nlohmann::json& json,
+      void* entry,
+      const asmjit::CodeHolder& code,
+      CodeSection section);
 };
 
 } // namespace codegen
