@@ -589,7 +589,8 @@ void PostRegAllocRewrite::doRewriteCondBranch(
 
     instr->allocateLabelInput(target_block);
 
-    if (fallthrough_block != next_block) {
+    if (fallthrough_block != next_block ||
+        block->section() != next_block->section()) {
       auto fallthrough_branch =
           block->allocateInstr(Instruction::kBranch, instr->origin());
       fallthrough_branch->allocateLabelInput(fallthrough_block);
@@ -694,7 +695,8 @@ void PostRegAllocRewrite::doRewriteBranchCC(
     fallthrough_bb = false_bb;
   }
 
-  if (fallthrough_bb != next_block) {
+  if (fallthrough_bb != next_block ||
+      block->section() != next_block->section()) {
     auto fallthrough_branch =
         block->allocateInstr(Instruction::kBranch, instr->origin());
     fallthrough_branch->allocateLabelInput(fallthrough_bb);
