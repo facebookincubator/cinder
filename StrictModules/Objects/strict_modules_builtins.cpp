@@ -47,7 +47,6 @@ std::shared_ptr<BaseStrictObject> extraSlot(
   if (nameStr) {
     checkExternalModification(value, caller);
     auto& attrs = value->ensureRewriterAttrs();
-    attrs.setSlotsEnabled(true);
     attrs.addExtraSlots(nameStr->getValue());
   }
   return value;

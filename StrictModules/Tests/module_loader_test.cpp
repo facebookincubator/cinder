@@ -125,6 +125,32 @@ TEST_F(ModuleLoaderTest, ASTPreprocessExtraSlots) {
   loader->loadStrictModuleModule();
   std::string source =
       "import __strict__\n"
+      "from __strict__ import extra_slot, strict_slots\n"
+      "@strict_slots\n"
+      "class C:\n"
+      "    pass\n"
+      "extra_slot(C, 'a')\n"
+      "extra_slot(C, 'b')";
+
+  std::string astStrPreprocessedExpected =
+      "ClassDef(name='C', bases=[], keywords=[], "
+      "body=[Pass()], decorator_list=[Name(id='strict_slots', ctx=Load()), "
+      "Call(func=Name(id='<extra_slots>', "
+      "ctx=Load()), args=[Constant(value='a', kind=None), Constant(value='b', "
+      "kind=None)], keywords=[]), Name(id='<enable_slots>', ctx=Load())]), ";
+
+  Ref<> astStr = getPreprocessedASTDump(source, "m", "m.py");
+
+  std::string preprocessedStr = PyUnicode_AsUTF8(astStr);
+  std::size_t found = preprocessedStr.find(astStrPreprocessedExpected);
+  ASSERT_NE(found, std::string::npos);
+}
+
+TEST_F(ModuleLoaderTest, ASTPreprocessExtraSlotsNoSlots) {
+  std::unique_ptr<strictmod::compiler::ModuleLoader> loader = getLoader("", "");
+  loader->loadStrictModuleModule();
+  std::string source =
+      "import __strict__\n"
       "from __strict__ import extra_slot\n"
       "class C:\n"
       "    pass\n"
@@ -135,7 +161,7 @@ TEST_F(ModuleLoaderTest, ASTPreprocessExtraSlots) {
       "ClassDef(name='C', bases=[], keywords=[], "
       "body=[Pass()], decorator_list=[Call(func=Name(id='<extra_slots>', "
       "ctx=Load()), args=[Constant(value='a', kind=None), Constant(value='b', "
-      "kind=None)], keywords=[]), Name(id='<enable_slots>', ctx=Load())]), ";
+      "kind=None)], keywords=[])]), ";
 
   Ref<> astStr = getPreprocessedASTDump(source, "m", "m.py");
 
