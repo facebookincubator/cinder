@@ -225,6 +225,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   if (g_dump_hir_passes_json != nullptr) {
     std::string filename =
         fmt::format("{}/function_{}.json", g_dump_hir_passes_json, fullname);
+    JIT_DLOG("Dumping JSON for %s to %s", fullname, filename);
     std::ofstream json_file;
     json_file.open(
         filename,
