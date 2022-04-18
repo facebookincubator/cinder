@@ -2,6 +2,7 @@
 
 #include "asmjit/asmjit.h"
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/log.h"
 
 #include <memory>
@@ -105,5 +106,29 @@ class CodeAllocatorCinder : public CodeAllocator {
   // Number of chunks allocated which did not use huge pages.
   static size_t s_fragmented_allocs_;
 };
+
+class MultipleSectionCodeAllocator : public CodeAllocator {
+ public:
+  MultipleSectionCodeAllocator()
+      : total_allocation_size_{0}, code_alloc_{nullptr} {}
+  virtual ~MultipleSectionCodeAllocator();
+
+  asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept override;
+
+ private:
+  void createSlabs() noexcept;
+
+  std::unordered_map<jit::codegen::CodeSection, uint8_t*> code_sections_;
+  std::unordered_map<jit::codegen::CodeSection, size_t>
+      code_section_free_sizes_;
+
+  size_t total_allocation_size_;
+  uint8_t* code_alloc_;
+};
+
+void populateCodeSections(
+    std::vector<std::pair<void*, std::size_t>>& output_vector,
+    asmjit::CodeHolder& code,
+    void* entry);
 
 }; // namespace jit

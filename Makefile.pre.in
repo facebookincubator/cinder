@@ -468,6 +468,7 @@ JIT_OBJS=       \
 		Jit/util.o \
 		Jit/codegen/annotations.o \
 		Jit/codegen/autogen.o \
+		Jit/codegen/code_section.o \
 		Jit/codegen/copy_graph.o \
 		Jit/codegen/environ.o \
 		Jit/codegen/gen_asm.o \

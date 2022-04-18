@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <string>
+#include <vector>
 
 namespace jit {
 namespace perf {
@@ -20,8 +21,7 @@ extern const std::string kShadowFrameSymbolPrefix;
 // JIT_DUMPDIR: If non-empty, must be an absolute path to a directory that
 //              exists. A perf jitdump file will be written to this directory.
 void registerFunction(
-    void* code,
-    std::size_t size,
+    const std::vector<std::pair<void*, std::size_t>>& code_sections,
     const std::string& name,
     const std::string& prefix = kDefaultSymbolPrefix);
 

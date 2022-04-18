@@ -9,6 +9,7 @@
 
 #include "Jit/code_allocator.h"
 #include "Jit/codegen/autogen.h"
+#include "Jit/codegen/code_section.h"
 #include "Jit/codegen/gen_asm_utils.h"
 #include "Jit/frame.h"
 #include "Jit/hir/analysis.h"
@@ -206,6 +207,16 @@ void* NativeGenerator::GetEntryPoint() {
   code.init(CodeAllocator::get()->asmJitCodeInfo());
   ThrowableErrorHandler eh;
   code.setErrorHandler(&eh);
+
+  if (_PyJIT_MultipleCodeSectionsEnabled()) {
+    Section* cold_text;
+    code.newSection(
+        &cold_text,
+        codeSectionName(CodeSection::kCold),
+        SIZE_MAX,
+        code.textSection()->flags(),
+        code.textSection()->alignment());
+  }
 
   as_ = new x86::Builder(&code);
 
@@ -1078,10 +1089,14 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   }
 }
 
-void NativeGenerator::generateDeoptExits() {
+void NativeGenerator::generateDeoptExits(const asmjit::CodeHolder& code) {
   if (env_.deopt_exits.empty()) {
     return;
   }
+
+  // Always place the deopt exit call to the cold section, and revert to the
+  // previous section at the end of this scope.
+  CodeSectionOverride override{as_, &code, &metadata_, CodeSection::kCold};
 
   auto& deopt_exits = env_.deopt_exits;
 
@@ -1154,8 +1169,8 @@ void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
   JIT_CHECK(code.hasBaseAddress(), "code not generated!");
   uint64_t base = code.baseAddress();
   for (const auto& udp : env_.pending_deopt_patchers) {
-    uint64_t patchpoint = base + code.labelOffset(udp.patchpoint);
-    uint64_t deopt_exit = base + code.labelOffset(udp.deopt_exit);
+    uint64_t patchpoint = base + code.labelOffsetFromBase(udp.patchpoint);
+    uint64_t deopt_exit = base + code.labelOffsetFromBase(udp.deopt_exit);
     udp.patcher->link(patchpoint, deopt_exit);
   }
 }
@@ -1388,7 +1403,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
         "Static argument typecheck failure stub", static_typecheck_cursor);
   }
 
-  generateDeoptExits();
+  generateDeoptExits(codeholder);
 
   ASM_CHECK_THROW(as_->finalize());
   ASM_CHECK_THROW(CodeAllocator::get()->addCode(&entry_, &codeholder));
@@ -1402,11 +1417,12 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   void* orig_entry = entry_;
   if (has_static_entry) {
     JIT_CHECK(
-        codeholder.labelOffset(static_jmp_location) ==
-            codeholder.labelOffset(entry_label) + JITRT_STATIC_ENTRY_OFFSET,
+        codeholder.labelOffsetFromBase(static_jmp_location) ==
+            codeholder.labelOffsetFromBase(entry_label) +
+                JITRT_STATIC_ENTRY_OFFSET,
         "bad static-entry offset %d ",
-        codeholder.labelOffset(entry_label) -
-            codeholder.labelOffset(static_jmp_location));
+        codeholder.labelOffsetFromBase(entry_label) -
+            codeholder.labelOffsetFromBase(static_jmp_location));
   }
   JIT_CHECK(
       codeholder.labelOffset(correct_args_entry) ==
@@ -1416,7 +1432,8 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   linkDeoptPatchers(codeholder);
   linkIPtoBCMappings(codeholder);
 
-  entry_ = ((char*)entry_) + codeholder.labelOffset(entry_label);
+  entry_ =
+      static_cast<char*>(entry_) + codeholder.labelOffsetFromBase(entry_label);
 
   for (auto& entry : env_.unresolved_gen_entry_labels) {
     entry.first->setResumeTarget(
@@ -1443,8 +1460,8 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
 
   for (auto& x : env_.function_indirections) {
     Label trampoline = x.second.trampoline;
-    *x.second.indirect =
-        (void*)(codeholder.labelOffset(trampoline) + codeholder.baseAddress());
+    *x.second.indirect = reinterpret_cast<void*>(
+        codeholder.labelOffsetFromBase(trampoline) + codeholder.baseAddress());
   }
 
   const hir::Function* func = GetFunction();
@@ -1458,9 +1475,10 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
     JIT_CHECK(false, "Invalid frame mode");
   }();
   // For perf, we want only the size of the code, so we get that directly from
-  // the .text section.
-  perf::registerFunction(
-      entry_, codeholder.textSection()->realSize(), func->fullname, prefix);
+  // the text sections.
+  std::vector<std::pair<void*, std::size_t>> code_sections;
+  populateCodeSections(code_sections, codeholder, entry_);
+  perf::registerFunction(code_sections, func->fullname, prefix);
 }
 
 void NativeGenerator::CollectOptimizableLoadMethods() {
@@ -1869,10 +1887,13 @@ void* generateDeoptTrampoline(bool generator_mode) {
       name,
       annot.disassemble(result, code));
 
-  auto code_size = code.textSection()->realSize();
+  auto code_size = code.codeSize();
   register_raw_debug_symbol(name, __FILE__, __LINE__, result, code_size, 0);
-  perf::registerFunction(result, code_size, name);
 
+  std::vector<std::pair<void*, std::size_t>> code_sections;
+  populateCodeSections(code_sections, code, result);
+  code_sections.emplace_back(result, code_size);
+  perf::registerFunction(code_sections, name);
   return result;
 }
 
@@ -1939,7 +1960,17 @@ void* generateJitTrampoline() {
 
   auto code_size = code.textSection()->realSize();
   register_raw_debug_symbol(name, __FILE__, __LINE__, result, code_size, 0);
-  perf::registerFunction(result, code_size, name);
+  std::vector<std::pair<void*, std::size_t>> code_sections;
+  forEachSection([&](CodeSection section) {
+    auto asmjit_section = code.sectionByName(codeSectionName(section));
+    if (asmjit_section == nullptr || asmjit_section->realSize() == 0) {
+      return;
+    }
+    auto section_start = static_cast<char*>(result) + asmjit_section->offset();
+    code_sections.emplace_back(
+        reinterpret_cast<void*>(section_start), asmjit_section->realSize());
+  });
+  perf::registerFunction(code_sections, name);
 
   return result;
 }

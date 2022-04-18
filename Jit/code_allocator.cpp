@@ -7,6 +7,8 @@
 
 #include <cstring>
 
+using namespace jit::codegen;
+
 namespace jit {
 
 // 2MiB to match Linux's huge-page size.
@@ -28,7 +30,9 @@ CodeAllocator::~CodeAllocator() {}
 void CodeAllocator::makeGlobalCodeAllocator() {
   JIT_CHECK(
       s_global_code_allocator_ == nullptr, "Global allocator already set");
-  if (_PyJIT_UseHugePages()) {
+  if (_PyJIT_MultipleCodeSectionsEnabled()) {
+    s_global_code_allocator_ = new MultipleSectionCodeAllocator;
+  } else if (_PyJIT_UseHugePages()) {
     s_global_code_allocator_ = new CodeAllocatorCinder;
   } else {
     s_global_code_allocator_ = new CodeAllocatorAsmJit;
@@ -123,6 +127,125 @@ asmjit::Error CodeAllocatorCinder::addCode(
   s_current_alloc_ += actual_code_size;
   s_current_alloc_free_ -= actual_code_size;
   s_used_bytes_ += actual_code_size;
+
+  return asmjit::kErrorOk;
+}
+
+MultipleSectionCodeAllocator::~MultipleSectionCodeAllocator() {
+  if (code_alloc_ == nullptr) {
+    return;
+  }
+  int result = munmap(code_alloc_, total_allocation_size_);
+  JIT_CHECK(result == 0, "Freeing sections failed");
+}
+
+/*
+ * At startup, we allocate a contiguous chunk of memory for all code sections
+ * equal to the sum of individual section sizes and subdivide internally. The
+ * code is contiguously allocated internally, but logically has pointers into
+ * each CodeSection.
+ */
+void MultipleSectionCodeAllocator::createSlabs() noexcept {
+  // Linux's huge-page sizes are 2 MiB.
+  const size_t kHugePageSize = 1024 * 1024 * 2;
+  size_t hot_section_size =
+      asmjit::Support::alignUp(_PyJIT_HotCodeSectionSize(), kHugePageSize);
+  JIT_CHECK(
+      hot_section_size > 0,
+      "Hot code section must have non-zero size when using multiple sections.");
+  code_section_free_sizes_[CodeSection::kHot] = hot_section_size;
+
+  size_t cold_section_size = _PyJIT_ColdCodeSectionSize();
+  JIT_CHECK(
+      cold_section_size > 0,
+      "Cold code section must have non-zero size when using multiple "
+      "sections.");
+  code_section_free_sizes_[CodeSection::kCold] = cold_section_size;
+
+  total_allocation_size_ = hot_section_size + cold_section_size;
+
+  auto region = static_cast<uint8_t*>(mmap(
+      NULL,
+      total_allocation_size_,
+      PROT_EXEC | PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS,
+      -1,
+      0));
+  JIT_CHECK(region != MAP_FAILED, "Allocating the code sections failed.");
+
+  if (madvise(region, hot_section_size, MADV_HUGEPAGE) == -1) {
+    JIT_LOG("Was unable to use huge pages for the hot code section.");
+  }
+
+  code_alloc_ = region;
+  code_sections_[CodeSection::kHot] = region;
+  region += hot_section_size;
+  code_sections_[CodeSection::kCold] = region;
+}
+
+asmjit::Error MultipleSectionCodeAllocator::addCode(
+    void** dst,
+    asmjit::CodeHolder* code) noexcept {
+  ThreadedCompileSerialize guard;
+
+  if (code_sections_.empty()) {
+    createSlabs();
+  }
+  *dst = nullptr;
+
+  size_t potential_code_size = code->codeSize();
+  // We fall back to the default size of code allocation if the
+  // code doesn't fit into either section, and we can make this check more
+  // granular by comparing sizes section-by-section.
+  if (code_section_free_sizes_[CodeSection::kHot] < potential_code_size ||
+      code_section_free_sizes_[CodeSection::kCold] < potential_code_size) {
+    JIT_LOG(
+        "Not enough memory to split code across sections, falling back to "
+        "normal allocation.");
+    return _runtime->add(dst, code);
+  }
+  // Fix up the offsets for each code section before resolving links.
+  // Both the `.text` and `.addrtab` sections are written to the hot section,
+  // and we need to resolve offsets between them properly.
+  // In order to properly keep track of multiple text sections corresponding to
+  // the same physical section to allocate to, we keep a map from
+  // section->offset from start of hot section.
+  std::unordered_map<CodeSection, uint64_t> offsets;
+  offsets[CodeSection::kHot] = 0;
+  offsets[CodeSection::kCold] =
+      code_sections_[CodeSection::kCold] - code_sections_[CodeSection::kHot];
+
+  for (asmjit::Section* section : code->sections()) {
+    CodeSection code_section = codeSectionFromName(section->name());
+    uint64_t offset = offsets[code_section];
+    uint64_t realSize = section->realSize();
+    section->setOffset(offset);
+    // Since all sections lie on a contiguous slab, we rely on setting the
+    // offsets of sections to allow AsmJit to properly resolve links across
+    // different sections (offset 0 being the start of the hot code section).
+    offsets[code_section] = offset + realSize;
+  }
+
+  // Assuming that the offsets are set properly, relocating all code to be
+  // relative to the start of the hot code will ensure jumps are correct.
+  ASMJIT_PROPAGATE(code->resolveUnresolvedLinks());
+  ASMJIT_PROPAGATE(
+      code->relocateToBase(uintptr_t(code_sections_[CodeSection::kHot])));
+
+  // We assume that the hot section of the code is non-empty. This would be
+  // incorrect for a completely cold function.
+  JIT_CHECK(
+      code->textSection()->realSize() > 0,
+      "Every function must have a non-empty hot section.");
+  *dst = code_sections_[CodeSection::kHot];
+
+  for (asmjit::Section* section : code->_sections) {
+    size_t buffer_size = section->bufferSize();
+    CodeSection code_section = codeSectionFromName(section->name());
+    code_section_free_sizes_[code_section] -= buffer_size;
+    std::memcpy(code_sections_[code_section], section->data(), buffer_size);
+    code_sections_[code_section] += buffer_size;
+  }
 
   return asmjit::kErrorOk;
 }

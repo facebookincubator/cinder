@@ -92,6 +92,7 @@ class NativeGenerator {
   const hir::Function* func_;
   void* entry_{nullptr};
   asmjit::x86::Builder* as_{nullptr};
+  CodeHolderMetadata metadata_{CodeSection::kHot};
   void* deopt_trampoline_{nullptr};
   void* deopt_trampoline_generators_{nullptr};
   void* jit_trampoline_{nullptr};
@@ -122,7 +123,7 @@ class NativeGenerator {
           save_regs);
   void generateEpilogue(asmjit::BaseNode* epilogue_cursor);
   void generateEpilogueUnlinkFrame(asmjit::x86::Gp tstate_reg, bool is_gen);
-  void generateDeoptExits();
+  void generateDeoptExits(const asmjit::CodeHolder& code);
   void linkDeoptPatchers(const asmjit::CodeHolder& code);
   void linkIPtoBCMappings(const asmjit::CodeHolder& code);
   void generateResumeEntry();

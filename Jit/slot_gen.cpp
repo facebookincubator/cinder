@@ -70,8 +70,10 @@ void* GenFunc(const char* name, const std::function<void(x86::Builder&)>& f) {
         name, __FILE__, __LINE__, (void*)func, code_size, 0);
   }
 
+  std::vector<std::pair<void*, std::size_t>> code_sections;
+  codegen::populateCodeSections(code_sections, code, func);
   jit::perf::registerFunction(
-      func, code_size, name, jit::perf::kFuncSymbolPrefix);
+      code_sections, name, jit::perf::kFuncSymbolPrefix);
 
   return func;
 }

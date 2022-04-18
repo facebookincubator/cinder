@@ -342,8 +342,7 @@ void copyJitdumpFile() {
 } // namespace
 
 void registerFunction(
-    void* code,
-    std::size_t size,
+    const std::vector<std::pair<void*, std::size_t>>& code_sections,
     const std::string& name,
     const std::string& prefix) {
   ThreadedCompileSerialize guard;
@@ -351,14 +350,18 @@ void registerFunction(
   initFiles();
 
   if (auto file = g_pid_map.file) {
-    fmt::print(
-        file,
-        "{:x} {:x} {}:{}\n",
-        reinterpret_cast<uintptr_t>(code),
-        size,
-        prefix,
-        name);
-    std::fflush(file);
+    for (auto& section_and_size : code_sections) {
+      void* code = section_and_size.first;
+      std::size_t size = section_and_size.second;
+      fmt::print(
+          file,
+          "{:x} {:x} {}:{}\n",
+          reinterpret_cast<uintptr_t>(code),
+          size,
+          prefix,
+          name);
+      std::fflush(file);
+    }
   }
 
   if (auto file = g_jitdump_file.file) {
@@ -366,21 +369,26 @@ void registerFunction(
     ExclusiveFileLock write_lock(file);
 
     static uint64_t code_index = 0;
-    auto const prefixed_name = prefix + ":" + name;
+    for (auto& section_and_size : code_sections) {
+      auto const prefixed_name = prefix + ":" + name;
 
-    CodeLoadRecord record;
-    record.type = JIT_CODE_LOAD;
-    record.total_size = sizeof(record) + prefixed_name.size() + 1 + size;
-    record.timestamp = getTimestamp();
-    record.pid = getpid();
-    record.tid = gettid();
-    record.vma = record.code_addr = reinterpret_cast<uint64_t>(code);
-    record.code_size = size;
-    record.code_index = code_index++;
+      void* code = section_and_size.first;
+      std::size_t size = section_and_size.second;
+      CodeLoadRecord record;
+      record.type = JIT_CODE_LOAD;
 
-    std::fwrite(&record, sizeof(record), 1, file);
-    std::fwrite(prefixed_name.data(), 1, prefixed_name.size() + 1, file);
-    std::fwrite(code, 1, size, file);
+      record.total_size = sizeof(record) + prefixed_name.size() + 1 + size;
+      record.timestamp = getTimestamp();
+      record.pid = getpid();
+      record.tid = gettid();
+      record.vma = record.code_addr = reinterpret_cast<uint64_t>(code);
+      record.code_size = size;
+      record.code_index = code_index++;
+
+      std::fwrite(&record, sizeof(record), 1, file);
+      std::fwrite(prefixed_name.data(), 1, prefixed_name.size() + 1, file);
+      std::fwrite(code, 1, size, file);
+    }
     std::fflush(file);
   }
 }

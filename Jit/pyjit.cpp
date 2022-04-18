@@ -57,6 +57,9 @@ struct JitConfig {
   size_t batch_compile_workers{0};
   int multithreaded_compile_test{0};
   bool use_huge_pages{true};
+  bool multiple_code_sections{false};
+  size_t hot_code_section_size{0};
+  size_t cold_code_section_size{0};
   int hir_inliner_enabled{0};
 };
 static JitConfig jit_config;
@@ -514,6 +517,35 @@ void initFlagProcessor() {
         },
         "Dump IR passes as JSON to the directory specified by this flag's "
         "value");
+    xarg_flag_processor.addOption(
+        "jit-multiple-code-sections",
+        "PYTHONJITMULTIPLECODESECTIONS",
+        [](int val) {
+          if (use_jit) {
+            jit_config.multiple_code_sections = val;
+          }
+        },
+        "Enable emitting code into multiple code sections.");
+
+    xarg_flag_processor.addOption(
+        "jit-hot-code-section-size",
+        "PYTHONJITHOTCODESECTIONSIZE",
+        [](size_t val) {
+          if (use_jit) {
+            jit_config.hot_code_section_size = val;
+          }
+        },
+        "Enable emitting code into multiple code sections.");
+
+    xarg_flag_processor.addOption(
+        "jit-cold-code-section-size",
+        "PYTHONJITCOLDCODESECTIONSIZE",
+        [](size_t val) {
+          if (use_jit) {
+            jit_config.cold_code_section_size = val;
+          }
+        },
+        "Enable emitting code into multiple code sections.");
 
     xarg_flag_processor.addOption(
         "jit-help", "", jit_help, "print all available JIT flags and exits");
@@ -1319,6 +1351,24 @@ void _PyJIT_DisableHIRInliner() {
 
 int _PyJIT_IsHIRInlinerEnabled() {
   return jit_config.hir_inliner_enabled;
+}
+
+int _PyJIT_MultipleCodeSectionsEnabled() {
+  return jit_config.multiple_code_sections;
+}
+
+int _PyJIT_HotCodeSectionSize() {
+  if (!_PyJIT_MultipleCodeSectionsEnabled()) {
+    return 0;
+  }
+  return jit_config.hot_code_section_size;
+}
+
+int _PyJIT_ColdCodeSectionSize() {
+  if (!_PyJIT_MultipleCodeSectionsEnabled()) {
+    return 0;
+  }
+  return jit_config.cold_code_section_size;
 }
 
 int _PyJIT_Enable() {

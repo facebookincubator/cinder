@@ -103,6 +103,24 @@ PyAPI_FUNC(void) _PyJIT_DisableHIRInliner(void);
 PyAPI_FUNC(int) _PyJIT_IsHIRInlinerEnabled(void);
 
 /*
+ * Returns 1 if the JIT will split code emission across multiple sections and 0
+ * otherwise.
+ */
+PyAPI_FUNC(int) _PyJIT_MultipleCodeSectionsEnabled(void);
+
+/*
+ * Returns the size (in bytes) of the hot code section. Returns 0 if multiple
+ * code sections aren't enabled.
+ */
+PyAPI_FUNC(int) _PyJIT_HotCodeSectionSize(void);
+
+/*
+ * Returns the size (in bytes) of the hot code section. Returns 0 if multiple
+ * code sections aren't enabled.
+ */
+PyAPI_FUNC(int) _PyJIT_ColdCodeSectionSize(void);
+
+/*
  * JITs slot functions for the type object, and handles setting up
  * deoptimization support for the type. The caller provides the type object and
  * a struct containing the pointers to the current slot functions.
