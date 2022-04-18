@@ -2635,8 +2635,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // EndInlinedFunction completely.
         if (py_debug) {
           bbb.AppendCode(
-              "Call {}, {:#x}, __asm_tstate",
-              GetSafeTempName(),
+              "Invoke {:#x}, __asm_tstate",
               reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
         }
         auto instr = static_cast<const BeginInlinedFunction*>(&i);
@@ -2678,8 +2677,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             offsetof(PyThreadState, shadow_frame));
         if (py_debug) {
           bbb.AppendCode(
-              "Call {}, {:#x}, __asm_tstate",
-              GetSafeTempName(),
+              "Invoke {:#x}, __asm_tstate",
               reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
         }
         break;
@@ -2689,8 +2687,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // generators.
         if (py_debug) {
           bbb.AppendCode(
-              "Call {}, {:#x}, __asm_tstate",
-              GetSafeTempName(),
+              "Invoke {:#x}, __asm_tstate",
               reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
         }
         // callee_shadow_frame <- tstate.shadow_frame
@@ -2733,14 +2730,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // TODO(T109445584): Remove this unused label.
         bbb.AppendCode("{}:", GetSafeLabelName());
         bbb.AppendCode(
-            "Call {}, {}, __asm_tstate",
-            GetSafeTempName(),
+            "Invoke {}, __asm_tstate",
             reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
         bbb.AppendCode("{}:", done);
         if (py_debug) {
           bbb.AppendCode(
-              "Call {}, {:#x}, __asm_tstate",
-              GetSafeTempName(),
+              "Invoke {:#x}, __asm_tstate",
               reinterpret_cast<uint64_t>(assertShadowCallStackConsistent));
         }
         break;
@@ -2790,7 +2785,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             exc = instr.GetOperand(0)->name();
         }
         bbb.AppendCode(
-            "Invoke {:#x}, __asm_tstate, {}, {}",
+            "Call {}, {:#x}, __asm_tstate, {}, {}",
+            GetSafeTempName(),
             reinterpret_cast<uint64_t>(&_Py_DoRaise),
             exc,
             cause);
