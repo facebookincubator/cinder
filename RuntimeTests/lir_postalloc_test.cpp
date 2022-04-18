@@ -68,9 +68,9 @@ TEST_F(
     LIRPostAllocRewriteTest,
     TestInsertBranchForSuccessorsInCondBranchDifferentSection) {
   auto lir_input_str = fmt::format(R"(Function:
-BB %0 - succs: %1 %2 - section: hot
+BB %0 - succs: %1 %2 - section: .text
        CondBranch RAX:Object, BB%1, BB%2
-BB %1 - preds: %0 - section: cold
+BB %1 - preds: %0 - section: .coldtext
        RAX:Object = Move R13:Object
 BB %2 - preds: %0
        RAX:Object = Move RDI:Object
@@ -92,7 +92,7 @@ BB %0 - succs: %1 %2
                    BranchZ BB%2
                    Branch BB%1
 
-BB %1 - preds: %0
+BB %1 - preds: %0 - section: .coldtext
       RAX:Object = Move R13:Object
 
 BB %2 - preds: %0
@@ -105,9 +105,9 @@ BB %2 - preds: %0
 
 TEST_F(LIRPostAllocRewriteTest, TestInsertBranchInDifferentSection) {
   auto lir_input_str = fmt::format(R"(Function:
-BB %0 - succs: %1 - section: hot
+BB %0 - succs: %1 - section: .text
        RAX:Object = Move R13:Object
-BB %1 - preds: %0 - section: cold
+BB %1 - preds: %0 - section: .coldtext
        RAX:Object = Move RDI:Object
 )");
 
@@ -126,7 +126,7 @@ BB %0 - succs: %1
       RAX:Object = Move R13:Object
                    Branch BB%1
 
-BB %1 - preds: %0
+BB %1 - preds: %0 - section: .coldtext
       RAX:Object = Move RDI:Object
 
 )");

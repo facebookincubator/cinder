@@ -118,9 +118,9 @@ BB %2 - preds: %0 %1
 
 TEST_F(LIRVerifyTest, TestFallthroughToBlockInDifferentSectionDisallowed) {
   auto lir_input_str = fmt::format(R"(Function:
-BB %0 - succs: %1 - section: hot
+BB %0 - succs: %1 - section: .text
        %2:Object = Move[0x5]:Object
-BB %1 - preds: %0 - section: cold
+BB %1 - preds: %0 - section: .coldtext
        %3:Object = Move [0x5]:Object
                    Return %2:Object
 )");

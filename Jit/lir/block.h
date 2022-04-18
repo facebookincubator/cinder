@@ -186,7 +186,7 @@ class BasicBlock {
   // Replace any references to old_pred in this block's Phis with new_pred.
   void fixupPhis(BasicBlock* old_pred, BasicBlock* new_pred);
 
-  jit::codegen::CodeSection section() {
+  jit::codegen::CodeSection section() const {
     return section_;
   }
 

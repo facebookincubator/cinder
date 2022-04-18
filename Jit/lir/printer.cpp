@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/printer.h"
 
+#include "Jit/codegen/code_section.h"
 #include "Jit/lir/operand.h"
 #include "Jit/lir/printer.h"
 #include "Jit/lir/x86_64.h"
@@ -41,6 +42,11 @@ void Printer::print(std::ostream& out, const BasicBlock& block) {
 
   print_blocks(" - preds:", block.predecessors());
   print_blocks(" - succs:", block.successors(), false);
+  auto section = block.section();
+  // Avoid printing hot sections to keep the printouts a bit less noisy.
+  if (section != codegen::CodeSection::kHot) {
+    out << " - section: " << codeSectionName(section);
+  }
   out << std::endl;
 
   const hir::Instr* prev_instr = nullptr;

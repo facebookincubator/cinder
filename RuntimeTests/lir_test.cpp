@@ -391,7 +391,7 @@ BB %0 - section: hot
        %5:Object = Move 0(0x0):Object
                    CondBranch %5:Object, BB%7, BB%10
 
-BB %7 - preds: %0 - succs: %10 - section: cold
+BB %7 - preds: %0 - succs: %10 - section: .coldtext
        %8:Object = Move [0x5]:Object
                    Return %8:Object
 

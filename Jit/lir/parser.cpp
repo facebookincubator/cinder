@@ -321,15 +321,16 @@ std::unique_ptr<Function> Parser::parse(const std::string& code) {
 }
 
 void Parser::setSection(const std::string& bbdef, BasicBlock* bb) {
-  std::regex section_re = std::regex("- section: (hot|cold)");
+  std::regex section_re = std::regex("- section: (.text|.coldtext)");
   std::cmatch section_m;
   if (std::regex_search(bbdef.c_str(), section_m, section_re) &&
       section_m.size() > 1) {
     std::string section = section_m.str(1);
-    if (section == "hot") {
+    if (section == ".text") {
       bb->setSection(codegen::CodeSection::kHot);
     } else {
-      JIT_CHECK(section == "cold", "Code section must be hot or cold.");
+      JIT_CHECK(
+          section == ".coldtext", "Code section must be .text or .coldtext.");
       bb->setSection(codegen::CodeSection::kCold);
     }
   }
