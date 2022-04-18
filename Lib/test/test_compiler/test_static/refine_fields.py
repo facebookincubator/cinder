@@ -223,3 +223,38 @@ class RefineFieldsTests(StaticTestBase):
                        reveal_type(self.x)
         """
         self.revealed_type(codestr, "Optional[int]")
+
+    def test_refined_field_assert_unoptimized(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self) -> int:
+                   assert self.x is not None
+                   return self.x
+        """
+        with self.in_module(codestr) as mod:
+            # Write to the temp.
+            self.assertInBytecode(mod.C.f, "STORE_FAST")
+            # Load from the temp directly in the second read.
+            self.assertInBytecode(mod.C.f, "LOAD_FAST")
+            self.assertEqual(mod.C(21).f(), 21)
+
+    def test_refined_field_assert_optimized(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self) -> int:
+                   assert self.x is not None
+                   return self.x
+        """
+        with self.in_module(codestr, optimize=2) as mod:
+            # Write to the temp.
+            self.assertInBytecode(mod.C.f, "STORE_FAST")
+            # Load from the temp directly in the second read.
+            self.assertInBytecode(mod.C.f, "LOAD_FAST")
+            self.assertInBytecode(mod.C.f, "CAST")
+            self.assertEqual(mod.C(21).f(), 21)

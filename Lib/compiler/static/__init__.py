@@ -507,13 +507,18 @@ class Static38CodeGenerator(StrictCodeGenerator):
         type_state = TypeState()
         effect_nodes: Dict[str, ast.AST] = {}
         effect.apply(type_state, effect_nodes)
-        # TODO(T116828043) we need to add explicit casts here once we support refining
-        # fields in asserts. Once that's in, we can keep field refinements from asserts.
         for key, value in type_state.local_types.items():
             if value.klass is not self.compiler.type_env.DYNAMIC:
                 self.visit(effect_nodes[key])
                 self.emit("CAST", value.klass.type_descr)
                 self.emit("POP_TOP")
+        for base, refinement_dict in type_state.refined_fields.items():
+            for attr, (value, _) in refinement_dict.items():
+                if value.klass is not self.compiler.type_env.DYNAMIC:
+                    key = f"{base}.{attr}"
+                    self.visit(effect_nodes[key])
+                    self.emit("CAST", value.klass.type_descr)
+                    self.emit("POP_TOP")
 
     def visitAttribute(self, node: Attribute) -> None:
         self.update_lineno(node)

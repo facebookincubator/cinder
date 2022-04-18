@@ -5474,7 +5474,7 @@ class IsInstanceEffect(NarrowingEffect):
         type_state_nodes: Optional[Dict[str, ast.AST]],
         to: Value,
     ) -> None:
-        # When accessing self.x.y, build an access path stack of the form ["y", "x", "self"].
+        # When accessing self.x.y, build an access path stack of the form ["self", "x", "y"].
         access_path = self.access_path
         if len(access_path) == 0:
             return None
@@ -5485,7 +5485,7 @@ class IsInstanceEffect(NarrowingEffect):
             type_state.local_types[access_path[0]] = to
         else:
             assert len(access_path) == 2
-            attr, base = access_path
+            base, attr = access_path
             type_state.refined_fields.setdefault(base, {})[attr] = (to, self.node)
 
     @cached_property
@@ -5498,7 +5498,7 @@ class IsInstanceEffect(NarrowingEffect):
             path.append(node.attr)
             node = node.value
         path.append(node.id)
-        return path
+        return list(reversed(path))
 
 
 class IsInstanceFunction(Object[Class]):

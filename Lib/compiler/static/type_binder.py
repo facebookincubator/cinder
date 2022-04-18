@@ -786,6 +786,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         effect.apply(self.type_state)
         self.clear_refinements_for_nonbool_test(node.test)
         self.set_node_data(node, NarrowingEffect, effect)
+        self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
         message = node.msg
         if message:
             self.visitExpectedType(
