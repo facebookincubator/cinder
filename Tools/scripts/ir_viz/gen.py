@@ -388,7 +388,13 @@ def make_explorer_class(process_args, prod_hostname=None):
                     self.wfile.write(b"Internal server error")
                     return
                 # TODO(emacs): Render more than one function
-                func_json_filename = os.listdir(json_dir)[0]
+                files = os.listdir(json_dir)
+                if not files:
+                    self.wfile.write(
+                        b"No compiled code found. Did you remember to name your function <code>test</code>?"
+                    )
+                    return
+                func_json_filename = files[0]
                 with open(os.path.join(json_dir, func_json_filename), "r") as f:
                     ir_json = json.load(f)
             ir_json["cols"] = [col for col in ir_json["cols"] if col["name"] in passes]
