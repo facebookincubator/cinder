@@ -863,14 +863,15 @@ PyObject* JITRT_UnaryNot(PyObject* value) {
   return NULL;
 }
 
-PyObject*
-JITRT_ReadonlyUnaryOp(PyObject* a, uint64_t operation_ptr, int readonly_mask) {
-  unaryfunc op_func = (unaryfunc)operation_ptr;
+PyObject* JITRT_ReadonlyUnaryOp(
+    PyObject* a,
+    unaryfunc operation_func,
+    int readonly_mask) {
   if (PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
     return NULL;
   }
 
-  PyObject* ret = op_func(a);
+  PyObject* ret = operation_func(a);
   if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
     Py_DECREF(ret);
     return NULL;
@@ -881,14 +882,13 @@ JITRT_ReadonlyUnaryOp(PyObject* a, uint64_t operation_ptr, int readonly_mask) {
 PyObject* JITRT_ReadonlyBinaryOp(
     PyObject* a,
     PyObject* b,
-    uint64_t operation_ptr,
+    binaryfunc operation_func,
     int readonly_mask) {
-  binaryfunc op_func = (binaryfunc)operation_ptr;
   if (PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
     return NULL;
   }
 
-  PyObject* ret = op_func(a, b);
+  PyObject* ret = operation_func(a, b);
   if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
     Py_DECREF(ret);
     return NULL;
@@ -900,14 +900,13 @@ PyObject* JITRT_ReadonlyTernaryOp(
     PyObject* a,
     PyObject* b,
     PyObject* c,
-    uint64_t operation_ptr,
+    ternaryfunc operation_func,
     int readonly_mask) {
-  ternaryfunc op_func = (ternaryfunc)operation_ptr;
   if (PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
     return NULL;
   }
 
-  PyObject* ret = op_func(a, b, c);
+  PyObject* ret = operation_func(a, b, c);
   if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
     Py_DECREF(ret);
     return NULL;

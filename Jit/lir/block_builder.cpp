@@ -98,11 +98,10 @@ Instruction* BasicBlockBuilder::createInstr(Instruction::Opcode opcode) {
   return cur_bb_->allocateInstr(opcode, cur_hir_instr_);
 }
 
-void BasicBlockBuilder::AppendCodeLine(const std::string& s) {
+void BasicBlockBuilder::AppendTokenizedCodeLine(
+    const std::vector<std::string>& tokens) {
   // this function assumes that input is syntactically correct.
   // there is very limited syntax checking in the following parsing process.
-  std::vector<std::string> tokens = Tokenize(s);
-
   const std::string& instr_str = tokens[0];
   if (instr_str == "Load") {
     auto instr = createInstr(Instruction::kMove);
