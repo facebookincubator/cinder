@@ -61,7 +61,8 @@ def test():
         const code = window.localStorage.getItem('code') || default_code;
         const passes = tryParse(window.localStorage.getItem('passes'), ["Assembly"]);
         const use_static_python = tryParse(window.localStorage.getItem('use_static_python'), false);
-        return {code, passes, use_static_python};
+        const asm_syntax = window.localStorage.getItem('asm_syntax') || 'intel';
+        return {code, passes, use_static_python, asm_syntax};
       }
       function saveCode(code) {
         window.localStorage.setItem('code', code);
@@ -71,6 +72,9 @@ def test():
       }
       function saveUseStaticPython(use_static_python) {
         window.localStorage.setItem('use_static_python', use_static_python);
+      }
+      function saveAsmSyntax(asm_syntax) {
+        window.localStorage.setItem('asm_syntax', asm_syntax);
       }
       function highlighter(value) {
         return hljs.highlight(value, {language: "python"}).value;
@@ -83,8 +87,9 @@ def test():
           sizes: [30, 70],
         });
         // Restore saved state
-        const { code, passes, use_static_python } = loadSavedState();
+        const { code, passes, use_static_python, asm_syntax } = loadSavedState();
         document.querySelector("#static-python").checked = use_static_python;
+        document.querySelector("#asm-"+asm_syntax).checked = true;
         const passesElement = document.querySelector("#passes").options;
         passes.forEach(function(pass) {
           for (let j = 0; j < passesElement.length; j++) {
@@ -136,6 +141,13 @@ def test():
           savePasses(passes);
           submitForm();
         });
+        function updateAsmSyntax(event) {
+        console.log(event.currentTarget);
+          saveAsmSyntax(event.currentTarget.value);
+          submitForm();
+        }
+        document.querySelector('#asm-intel').addEventListener('click', updateAsmSyntax);
+        document.querySelector('#asm-att').addEventListener('click', updateAsmSyntax);
       };
     </script>
   </head>
@@ -166,6 +178,13 @@ def test():
           <br />
           <label for="static-python">Use the Static Python compiler</label>
           <input id="static-python" name="static-python" type="checkbox">
+          <br />
+          <br />
+          <span>Assembly syntax:</span>
+          <input type="radio" id="asm-intel" name="asm-syntax" value="intel">
+          <label for="asm-intel">Intel</label>
+          <input type="radio" id="asm-att" name="asm-syntax" value="att">
+          <label for="asm-att">AT&amp;T</label>
           <br />
           <br />
           <label for="code">Put some Python in the box. Currently only one

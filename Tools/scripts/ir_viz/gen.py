@@ -344,6 +344,7 @@ def make_explorer_class(process_args, prod_hostname=None):
                 "static-python" in self.params
                 and self.params["static-python"][0] == "on"
             )
+            asm_syntax = self.params["asm-syntax"][0]
             with tempfile.TemporaryDirectory() as tmp:
                 lib_name = "explorer_lib"
                 with open(os.path.join(tmp, f"{lib_name}.py"), "w+") as f:
@@ -365,6 +366,7 @@ def make_explorer_class(process_args, prod_hostname=None):
                     "jit-enable-hir-inliner",
                     ("jit-list-file", jitlist_path),
                     ("jit-dump-hir-passes-json", json_dir),
+                    ("jit-asm-syntax", asm_syntax),
                 )
                 if use_static_python:
                     jit_options += ["-X", "install-strict-loader"]
