@@ -877,6 +877,46 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
       }
       return fmt::format("{}: {}", oparg, str);
     }
+    case LOAD_FAST:
+    case STORE_FAST:
+    case DELETE_FAST: {
+      PyObject* name_obj = PyTuple_GetItem(code->co_varnames, oparg);
+      JIT_DCHECK(name_obj != nullptr, "bad name");
+      const char* name = PyUnicode_AsUTF8(name_obj);
+      if (name == nullptr) {
+        PyErr_Clear();
+        return fmt::format("{}: (error printing varname)", oparg);
+      }
+      return fmt::format("{}: {}", oparg, name);
+    }
+    case LOAD_DEREF:
+    case STORE_DEREF:
+    case DELETE_DEREF: {
+      PyObject* name_obj = PyTuple_GetItem(code->co_freevars, oparg);
+      JIT_DCHECK(name_obj != nullptr, "bad name");
+      const char* name = PyUnicode_AsUTF8(name_obj);
+      if (name == nullptr) {
+        PyErr_Clear();
+        return fmt::format("{}: (error printing freevar)", oparg);
+      }
+      return fmt::format("{}: {}", oparg, name);
+    }
+    case LOAD_ATTR:
+    case STORE_ATTR:
+    case DELETE_ATTR:
+    case LOAD_METHOD:
+    case LOAD_GLOBAL:
+    case STORE_GLOBAL:
+    case DELETE_GLOBAL: {
+      PyObject* name_obj = PyTuple_GetItem(code->co_names, oparg);
+      JIT_DCHECK(name_obj != nullptr, "bad name");
+      const char* name = PyUnicode_AsUTF8(name_obj);
+      if (name == nullptr) {
+        PyErr_Clear();
+        return fmt::format("{}: (error printing name)", oparg);
+      }
+      return fmt::format("{}: {}", oparg, name);
+    }
     default:
       return std::to_string(oparg);
   }
