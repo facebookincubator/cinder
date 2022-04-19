@@ -52,7 +52,12 @@
         return JSON.parse(str);
       }
       function loadSavedState() {
-        const default_code = "a = 1\ndef test():\n  return a";
+        const default_code = `\
+def add(left, right):
+  return left + right
+
+def test():
+  return 1 + add(2, 3)`;
         const code = window.localStorage.getItem('code') || default_code;
         const passes = tryParse(window.localStorage.getItem('passes'), ["Assembly"]);
         const use_static_python = tryParse(window.localStorage.getItem('use_static_python'), false);
