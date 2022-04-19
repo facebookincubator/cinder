@@ -1553,7 +1553,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           bbb.AppendCode(
               "Call {}, {:#x}, {}, {}, {:#x}",
               instr->dst(),
-              helper,
+              reinterpret_cast<uint64_t>(PyLong_Type.tp_as_number->nb_power),
               instr->left(),
               instr->right(),
               reinterpret_cast<uint64_t>(Py_None));
