@@ -1931,7 +1931,7 @@ class CodeGenerator(ASTVisitor):
             if isinstance(elt, ast.Starred):
                 if starred is not None:
                     raise SyntaxError(
-                        "two starred expressions in assignment",
+                        "multiple starred expressions in assignment",
                         self.syntax_error_position(elt),
                     )
                 elif before >= 256 or len(node.elts) - before - 1 >= (1 << 31) >> 8:

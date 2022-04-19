@@ -149,7 +149,7 @@ class ErrorTests(CompilerTest):
 
     def test_double_star_in_assignment(self):
         with self.assertRaisesRegex(
-            SyntaxError, "two starred expressions in assignment"
+            SyntaxError, "multiple starred expressions in assignment"
         ):
             self.compile("*x, *y = 1, 2")
 
