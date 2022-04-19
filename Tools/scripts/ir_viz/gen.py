@@ -368,19 +368,19 @@ def make_explorer_class(process_args, prod_hostname=None):
                     ("jit-dump-hir-passes-json", json_dir),
                     ("jit-asm-syntax", asm_syntax),
                 )
+                timeout = ["timeout", "--signal=KILL", f"{TIMEOUT_SEC}s"]
                 if use_static_python:
                     jit_options += ["-X", "install-strict-loader"]
                 try:
                     run(
-                        [runtime, *jit_options, main_code_path],
+                        [*timeout, runtime, *jit_options, main_code_path],
                         capture_output=True,
-                        timeout=TIMEOUT_SEC,
                         cwd=tmp,
                     )
-                except subprocess.TimeoutExpired as e:
-                    self.wfile.write(b"<pre>Command timed out</pre>")
-                    return
                 except subprocess.CalledProcessError as e:
+                    if e.returncode == -9:
+                        self.wfile.write(b"Command timed out")
+                        return
                     if "SyntaxError" in e.stderr or "StrictModuleError" in e.stderr:
                         self.wfile.write(f"<pre>{e.stderr}</pre>".encode("utf-8"))
                         return
