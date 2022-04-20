@@ -112,7 +112,7 @@ class NativeGenerator {
   void initializeFrameHeader(
       asmjit::x86::Gp tstate_reg,
       asmjit::x86::Gp scratch_reg);
-  int setupFrameAndSaveCallerRegisters(asmjit::x86::Gp tstate_reg);
+  void setupFrameAndSaveCallerRegisters(asmjit::x86::Gp tstate_reg);
   void generatePrologue(
       asmjit::Label correct_arg_count,
       asmjit::Label native_entry_point);
@@ -133,8 +133,6 @@ class NativeGenerator {
       asmjit::Label static_jmp_location);
   void generateTypedArgumentInfo();
   void loadTState(asmjit::x86::Gp dst_reg);
-
-  void CollectOptimizableLoadMethods();
 
   FRIEND_TEST(LinearScanAllocatorTest, RegAllocation);
   friend class BackendTest;

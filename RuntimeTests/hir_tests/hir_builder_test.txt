@@ -723,24 +723,24 @@ fun jittestmodule:test {
       FrameState {
         NextInstrOffset 42
         Locals<3> v0 v1 v2
-        Stack<1> v1
       }
     }
+    v15 = GetLoadMethodInstance<1> v1
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 44
         Locals<3> v0 v1 v2
-        Stack<2> v1 v14
+        Stack<2> v14 v15
       }
     }
-    v15 = LoadAttr<0; "input"> v0 {
+    v16 = LoadAttr<0; "input"> v0 {
       FrameState {
         NextInstrOffset 46
         Locals<3> v0 v1 v2
-        Stack<2> v1 v14
+        Stack<2> v14 v15
       }
     }
-    v16 = CallMethod<3> v1 v14 v15 {
+    v17 = CallMethod<3> v14 v15 v16 {
       FrameState {
         NextInstrOffset 48
         Locals<3> v0 v1 v2

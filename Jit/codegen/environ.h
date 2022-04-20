@@ -83,10 +83,6 @@ struct Environ {
       asmjit::Label label,
       const jit::lir::Instruction* instr);
 
-  // Load/Call method instructions for which we can avoid allocating a bound
-  // method.
-  std::unordered_set<const jit::hir::Instr*> optimizable_load_call_methods_;
-
   // Location of incoming arguments
   std::vector<PhyLocation> arg_locations;
 

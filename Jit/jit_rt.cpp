@@ -782,50 +782,22 @@ static inline PyObject* call_method(
     PyObject* callable,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject* kwnames,
-    JITRT_CallMethodKind call_kind) {
+    PyObject* kwnames) {
   size_t is_awaited_flag = is_awaited ? _Py_AWAITED_CALL_MARKER : 0;
-  switch (call_kind) {
-    case JITRT_CALL_KIND_FUNC: {
-      PyFunctionObject* func = (PyFunctionObject*)callable;
-      return func->vectorcall(
-          callable,
-          args,
-          nargs | _Py_VECTORCALL_INVOKED_METHOD | is_awaited_flag,
-          kwnames);
-    }
-    case JITRT_CALL_KIND_METHOD_DESCR: {
-      PyMethodDescrObject* func = (PyMethodDescrObject*)callable;
-      return func->vectorcall(
-          callable,
-          args,
-          nargs | _Py_VECTORCALL_INVOKED_METHOD | is_awaited_flag,
-          kwnames);
-    }
-    case JITRT_CALL_KIND_METHOD_LIKE: {
-      return _PyObject_Vectorcall(
-          callable,
-          args,
-          nargs | _Py_VECTORCALL_INVOKED_METHOD | is_awaited_flag,
-          kwnames);
-    }
-    case JITRT_CALL_KIND_WRAPPER_DESCR: {
-      PyWrapperDescrObject* func = (PyWrapperDescrObject*)callable;
-      return func->d_vectorcall(
-          callable,
-          args,
-          nargs | _Py_VECTORCALL_INVOKED_METHOD | is_awaited_flag,
-          kwnames);
-    }
-    default: {
-      // Slow path, should rarely get here
-      JIT_DCHECK(kwnames == nullptr, "kwnames not supported yet");
-      return _PyObject_Vectorcall(
-          callable,
-          args + 1,
-          (nargs - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET | is_awaited_flag,
-          kwnames);
-    }
+  if (callable != Py_None) {
+    PyObject* res = _PyObject_Vectorcall(
+        callable,
+        args,
+        (nargs) | PY_VECTORCALL_ARGUMENTS_OFFSET | is_awaited_flag,
+        kwnames);
+    return res;
+  } else {
+    PyObject* res = _PyObject_Vectorcall(
+        args[0],
+        args + 1,
+        (nargs - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET | is_awaited_flag,
+        kwnames);
+    return res;
   }
 }
 
@@ -833,18 +805,16 @@ PyObject* JITRT_CallMethod(
     PyObject* callable,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject* kwnames,
-    JITRT_CallMethodKind call_kind) {
-  return call_method<false>(callable, args, nargs, kwnames, call_kind);
+    PyObject* kwnames) {
+  return call_method<false>(callable, args, nargs, kwnames);
 }
 
 PyObject* JITRT_CallMethodAwaited(
     PyObject* callable,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject* kwnames,
-    JITRT_CallMethodKind call_kind) {
-  return call_method<true>(callable, args, nargs, kwnames, call_kind);
+    PyObject* kwnames) {
+  return call_method<true>(callable, args, nargs, kwnames);
 }
 
 void JITRT_Dealloc(PyObject* obj) {
@@ -931,7 +901,6 @@ static void invalidate_load_method_cache(
         (((PyTypeObject*)modified_type) == cache->entries[i].type)) {
       cache->entries[i].type = NULL;
       cache->entries[i].value = NULL;
-      cache->entries[i].call_kind = JITRT_CALL_KIND_OTHER;
     }
   }
 
@@ -942,8 +911,7 @@ static void fill_method_cache(
     JITRT_LoadMethodCache* cache,
     PyObject* /* obj */,
     PyTypeObject* type,
-    PyObject* value,
-    JITRT_CallMethodKind call_kind) {
+    PyObject* value) {
   JITRT_LoadMethodCacheEntry* to_fill = NULL;
   if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
     // The type must have a valid version tag in order for us to be able to
@@ -983,45 +951,43 @@ static void fill_method_cache(
 
   to_fill->type = type;
   to_fill->value = value;
-  to_fill->call_kind = call_kind;
 }
 
-static PyObject* __attribute__((noinline)) get_method_slow_path(
+static JITRT_LoadMethodResult __attribute__((noinline)) get_method_slow_path(
     PyObject* obj,
     PyObject* name,
-    JITRT_LoadMethodCache* cache,
-    JITRT_CallMethodKind* call_kind) {
+    JITRT_LoadMethodCache* cache) {
   PyTypeObject* tp = Py_TYPE(obj);
   PyObject* descr;
   descrgetfunc f = NULL;
   PyObject **dictptr, *dict;
   PyObject* attr;
-  JITRT_CallMethodKind found_kind = JITRT_CALL_KIND_OTHER;
+  bool is_method = false;
 
   if ((tp->tp_getattro != PyObject_GenericGetAttr)) {
-    *call_kind = JITRT_CALL_KIND_OTHER;
-    return PyObject_GetAttr(obj, name);
+    PyObject* res = PyObject_GetAttr(obj, name);
+    if (res != NULL) {
+      Py_INCREF(Py_None);
+      return {Py_None, res};
+    }
+    return {nullptr, nullptr};
   } else if (tp->tp_dict == NULL && PyType_Ready(tp) < 0) {
-    return NULL;
+    return {NULL, nullptr};
   }
 
   descr = _PyType_Lookup(tp, name);
   if (descr != NULL) {
     Py_INCREF(descr);
-    if (PyFunction_Check(descr)) {
-      found_kind = JITRT_CALL_KIND_FUNC;
-    } else if (Py_TYPE(descr) == &PyMethodDescr_Type) {
-      found_kind = JITRT_CALL_KIND_METHOD_DESCR;
-    } else if (PyType_HasFeature(
-                   Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
-      found_kind = JITRT_CALL_KIND_METHOD_LIKE;
+    if (PyFunction_Check(descr) || Py_TYPE(descr) == &PyMethodDescr_Type ||
+        PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
+      is_method = true;
     } else {
       f = descr->ob_type->tp_descr_get;
       if (f != NULL && PyDescr_IsData(descr)) {
         PyObject* result = f(descr, obj, (PyObject*)obj->ob_type);
         Py_DECREF(descr);
-        *call_kind = JITRT_CALL_KIND_OTHER;
-        return result;
+        Py_INCREF(Py_None);
+        return {Py_None, result};
       }
     }
   }
@@ -1034,30 +1000,28 @@ static PyObject* __attribute__((noinline)) get_method_slow_path(
       Py_INCREF(attr);
       Py_DECREF(dict);
       Py_XDECREF(descr);
-      *call_kind = JITRT_CALL_KIND_OTHER;
-      return attr;
+      Py_INCREF(Py_None);
+      return {Py_None, attr};
     }
     Py_DECREF(dict);
   }
 
-  if (found_kind == JITRT_CALL_KIND_FUNC ||
-      found_kind == JITRT_CALL_KIND_METHOD_DESCR ||
-      found_kind == JITRT_CALL_KIND_METHOD_LIKE) {
-    *call_kind = found_kind;
-    fill_method_cache(cache, obj, tp, descr, found_kind);
-    return descr;
+  if (is_method) {
+    fill_method_cache(cache, obj, tp, descr);
+    Py_INCREF(obj);
+    return {descr, obj};
   }
 
   if (f != NULL) {
     PyObject* result = f(descr, obj, (PyObject*)Py_TYPE(obj));
     Py_DECREF(descr);
-    *call_kind = JITRT_CALL_KIND_OTHER;
-    return result;
+    Py_INCREF(Py_None);
+    return {Py_None, result};
   }
 
   if (descr != NULL) {
-    *call_kind = JITRT_CALL_KIND_OTHER;
-    return descr;
+    Py_INCREF(Py_None);
+    return {Py_None, descr};
   }
 
   PyErr_Format(
@@ -1065,35 +1029,31 @@ static PyObject* __attribute__((noinline)) get_method_slow_path(
       "'%.50s' object has no attribute '%U'",
       tp->tp_name,
       name);
-  return NULL;
+  return {NULL, nullptr};
 }
 
-PyObject* __attribute__((hot)) JITRT_GetMethod(
-    PyObject* obj,
-    PyObject* name,
-    JITRT_LoadMethodCache* cache,
-    JITRT_CallMethodKind* call_kind) {
+JITRT_LoadMethodResult __attribute__((hot))
+JITRT_GetMethod(PyObject* obj, PyObject* name, JITRT_LoadMethodCache* cache) {
   PyTypeObject* tp = Py_TYPE(obj);
 
   for (int i = 0; i < LOAD_METHOD_CACHE_SIZE; i++) {
     if (cache->entries[i].type == tp) {
       PyObject* result = cache->entries[i].value;
       Py_INCREF(result);
-      *call_kind = cache->entries[i].call_kind;
-      return result;
+      Py_INCREF(obj);
+      return {result, obj};
     }
   }
 
-  return get_method_slow_path(obj, name, cache, call_kind);
+  return get_method_slow_path(obj, name, cache);
 }
 
-PyObject* JITRT_GetMethodFromSuper(
+JITRT_LoadMethodResult JITRT_GetMethodFromSuper(
     PyObject* global_super,
     PyObject* type,
     PyObject* self,
     PyObject* name,
-    bool no_args_in_super_call,
-    JITRT_CallMethodKind* call_kind) {
+    bool no_args_in_super_call) {
   int meth_found = 0;
   PyObject* result = _PyEval_SuperLookupMethodOrAttr(
       PyThreadState_GET(),
@@ -1104,25 +1064,23 @@ PyObject* JITRT_GetMethodFromSuper(
       no_args_in_super_call,
       &meth_found);
   if (result == NULL) {
-    return NULL;
+    return {NULL, nullptr};
   }
   if (meth_found) {
-    if (PyFunction_Check(result)) {
-      *call_kind = JITRT_CALL_KIND_FUNC;
-    } else if (Py_TYPE(result) == &PyMethodDescr_Type) {
-      *call_kind = JITRT_CALL_KIND_METHOD_DESCR;
-    } else if (Py_TYPE(result) == &PyWrapperDescr_Type) {
-      *call_kind = JITRT_CALL_KIND_WRAPPER_DESCR;
-    } else if (PyType_HasFeature(
-                   Py_TYPE(result), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
-      *call_kind = JITRT_CALL_KIND_METHOD_LIKE;
-    } else {
-      *call_kind = JITRT_CALL_KIND_OTHER;
+    if (!(PyFunction_Check(result) || Py_TYPE(result) == &PyMethodDescr_Type ||
+          Py_TYPE(result) == &PyWrapperDescr_Type ||
+          PyType_HasFeature(Py_TYPE(result), Py_TPFLAGS_METHOD_DESCRIPTOR))) {
+      meth_found = 0;
     }
   } else {
-    *call_kind = JITRT_CALL_KIND_OTHER;
+    meth_found = 0;
   }
-  return result;
+  if (meth_found) {
+    Py_INCREF(self);
+    return {result, self};
+  }
+  Py_INCREF(Py_None);
+  return {Py_None, result};
 }
 
 PyObject* JITRT_GetAttrFromSuper(

@@ -8,6 +8,7 @@
 
 #include "Jit/bitvector.h"
 #include "Jit/bytecode.h"
+#include "Jit/codegen/environ.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/preload.h"
@@ -957,7 +958,7 @@ void HIRBuilder::translate(
           break;
         }
         case LOAD_METHOD: {
-          emitLoadMethod(tc, bc_instr);
+          emitLoadMethod(tc, irfunc.env, bc_instr);
           break;
         }
         case LOAD_METHOD_SUPER: {
@@ -2247,11 +2248,17 @@ void HIRBuilder::emitLoadAttr(
 
 void HIRBuilder::emitLoadMethod(
     TranslationContext& tc,
+    Environment& env,
     const jit::BytecodeInstruction& bc_instr) {
-  Register* receiver = tc.frame.stack.top();
+  Register* receiver = tc.frame.stack.pop();
+  env.allocateLoadMethodCache();
   Register* result = temps_.AllocateStack();
+  Register* method_instance = temps_.AllocateStack();
   tc.emit<LoadMethod>(result, receiver, bc_instr.oparg(), tc.frame);
+  tc.emit<GetLoadMethodInstance>(
+      1, method_instance, std::vector<Register*>{receiver});
   tc.frame.stack.push(result);
+  tc.frame.stack.push(method_instance);
 }
 
 void HIRBuilder::emitLoadMethodOrAttrSuper(
@@ -2266,7 +2273,7 @@ void HIRBuilder::emitLoadMethodOrAttrSuper(
   int name_idx = PyLong_AsLong(PyTuple_GET_ITEM(oparg, 0));
   bool no_args_in_super_call = PyTuple_GET_ITEM(oparg, 1) == Py_True;
   if (load_method) {
-    tc.frame.stack.push(receiver);
+    Register* method_instance = temps_.AllocateStack();
     tc.emit<LoadMethodSuper>(
         result,
         global_super,
@@ -2275,6 +2282,12 @@ void HIRBuilder::emitLoadMethodOrAttrSuper(
         name_idx,
         no_args_in_super_call,
         tc.frame);
+    tc.emit<GetLoadMethodInstance>(
+        3,
+        method_instance,
+        std::vector<Register*>{receiver, global_super, type});
+    tc.frame.stack.push(result);
+    tc.frame.stack.push(method_instance);
   } else {
     tc.emit<LoadAttrSuper>(
         result,
@@ -2284,8 +2297,8 @@ void HIRBuilder::emitLoadMethodOrAttrSuper(
         name_idx,
         no_args_in_super_call,
         tc.frame);
+    tc.frame.stack.push(result);
   }
-  tc.frame.stack.push(result);
 }
 
 void HIRBuilder::emitLoadDeref(

@@ -129,55 +129,26 @@ static void reifyLocalsplus(
   }
 }
 
-// When we are deoptimizing a JIT-compiled function that contains an
-// optimizable LoadMethod, we need to be able to know whether or not the
-// LoadMethod returned a bound method object in order to properly reconstruct
-// the stack for the interpreter. Unfortunately, this can only be determined at
-// runtime, and can be inferred from the value pointed to by call_method_kind.
-static bool isUnboundMethod(
-    const LiveValue& value,
-    const JITRT_CallMethodKind* call_method_kind) {
-  if (value.source != LiveValue::Source::kOptimizableLoadMethod) {
-    return false;
-  }
-  return *call_method_kind != JITRT_CALL_KIND_OTHER;
-}
-
 static void reifyStack(
     PyFrameObject* frame,
     const DeoptMetadata& meta,
     const DeoptFrameMetadata& frame_meta,
-    const MemoryView& mem,
-    const JITRT_CallMethodKind* call_method_kind) {
+    const MemoryView& mem) {
   frame->f_stacktop = frame->f_valuestack + frame_meta.stack.size();
   for (int i = frame_meta.stack.size() - 1; i >= 0; i--) {
     const auto& value = meta.getStackValue(i, frame_meta);
     if (value.isLoadMethodResult()) {
-      PyObject* callable = mem.read(value);
-      if (isUnboundMethod(value, call_method_kind)) {
-        // We avoided creating a bound method object. The interpreter
-        // expects the stack to look like:
-        //
-        // callable
-        // self
-        // arg1
-        // ...
-        // argN       <-- TOS
-        PyObject* receiver = mem.read(meta.getStackValue(i - 1, frame_meta));
-        frame->f_valuestack[i - 1] = callable;
-        frame->f_valuestack[i] = receiver;
+      // When we are deoptimizing a JIT-compiled function that contains an
+      // optimizable LoadMethod, we need to be able to know whether or not the
+      // LoadMethod returned a bound method object in order to properly
+      // reconstruct the stack for the interpreter. We use Py_None as the
+      // LoadMethodResult to indicate that it was a non-method like object,
+      // which we need to replace with NULL to match the interpreter semantics.
+      if (mem.read(value) == Py_None) {
+        frame->f_valuestack[i] = nullptr;
       } else {
-        // Otherwise, the interpreter expects the stack look like:
-        //
-        // nullptr
-        // bound_method
-        // arg1
-        // ...
-        // argN       <-- TOS
-        frame->f_valuestack[i - 1] = nullptr;
-        frame->f_valuestack[i] = callable;
+        frame->f_valuestack[i] = mem.read(value);
       }
-      i--;
     } else {
       PyObject* obj = mem.read(value);
       frame->f_valuestack[i] = obj;
@@ -213,8 +184,7 @@ void reifyFrame(
     PyFrameObject* frame,
     const DeoptMetadata& meta,
     const DeoptFrameMetadata& frame_meta,
-    const uint64_t* regs,
-    const JITRT_CallMethodKind* call_method_kind) {
+    const uint64_t* regs) {
   frame->f_locals = NULL;
   frame->f_trace = NULL;
   frame->f_trace_opcodes = 0;
@@ -230,7 +200,7 @@ void reifyFrame(
   }
   MemoryView mem{regs};
   reifyLocalsplus(frame, meta, frame_meta, mem);
-  reifyStack(frame, meta, frame_meta, mem, call_method_kind);
+  reifyStack(frame, meta, frame_meta, mem);
   reifyBlockStack(frame, frame_meta.block_stack);
   // Generator/frame linkage happens in `materializePyFrame` in frame.cpp
 }
@@ -275,17 +245,12 @@ static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
 
 DeoptMetadata DeoptMetadata::fromInstr(
     const jit::hir::DeoptBase& instr,
-    const std::unordered_set<const jit::hir::Instr*>& optimizable_lms,
     CodeRuntime* code_rt) {
   auto get_source = [&](jit::hir::Register* reg) {
     reg = hir::modelReg(reg);
     auto instr = reg->instr();
     if (instr->IsLoadMethod()) {
-      if (optimizable_lms.count(instr)) {
-        return LiveValue::Source::kOptimizableLoadMethod;
-      } else {
-        return LiveValue::Source::kUnoptimizableLoadMethod;
-      }
+      return LiveValue::Source::kLoadMethod;
     }
     return LiveValue::Source::kUnknown;
   };

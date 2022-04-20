@@ -751,72 +751,73 @@ def test(a):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v12:Object = LoadArg<0; "a">
-    v13:Nullptr = LoadConst<Nullptr>
-    v14:MortalCell = MakeCell v12 {
-      LiveValues<2> b:v12 unc:v13
+    v13:Object = LoadArg<0; "a">
+    v14:Nullptr = LoadConst<Nullptr>
+    v15:MortalCell = MakeCell v13 {
+      LiveValues<2> b:v13 unc:v14
       FrameState {
         NextInstrOffset 0
-        Locals<2> v12 v13
-        Cells<1> v13
+        Locals<2> v13 v14
+        Cells<1> v14
       }
     }
-    v15:OptObject = LoadCellItem v14
-    v16:Object = CheckVar<"a"> v15 {
-      LiveValues<3> unc:v13 o:v14 b:v15
+    v16:OptObject = LoadCellItem v15
+    v17:Object = CheckVar<"a"> v16 {
+      LiveValues<3> unc:v14 o:v15 b:v16
       FrameState {
         NextInstrOffset 2
-        Locals<2> v13 v13
-        Cells<1> v14
+        Locals<2> v14 v14
+        Cells<1> v15
       }
     }
-    Incref v16
-    v17:Object = LoadMethod<0; "foo"> v16 {
-      LiveValues<3> unc:v13 o:v14 o:v16
+    Incref v17
+    v18:Object = LoadMethod<0; "foo"> v17 {
+      LiveValues<3> unc:v14 o:v15 o:v17
       FrameState {
         NextInstrOffset 4
-        Locals<2> v13 v13
-        Cells<1> v14
-        Stack<1> v16
+        Locals<2> v14 v14
+        Cells<1> v15
       }
     }
-    v18:Object = CallMethod<2> v16 v17 {
-      LiveValues<4> unc:v13 o:v14 o:v16 o:v17
+    v19:OptObject = GetLoadMethodInstance<1> v17
+    Decref v17
+    v20:Object = CallMethod<2> v18 v19 {
+      LiveValues<4> unc:v14 o:v15 o:v18 o:v19
       FrameState {
         NextInstrOffset 6
-        Locals<2> v13 v13
-        Cells<1> v14
+        Locals<2> v14 v14
+        Cells<1> v15
       }
     }
-    Decref v16
-    Decref v17
     Decref v18
-    v19:MortalTupleExact = MakeListTuple<tuple, 1> {
-      LiveValues<2> unc:v13 o:v14
+    XDecref v19
+    Decref v20
+    v21:MortalTupleExact = MakeListTuple<tuple, 1> {
+      LiveValues<2> unc:v14 o:v15
       FrameState {
         NextInstrOffset 12
-        Locals<2> v13 v13
-        Cells<1> v14
-        Stack<1> v14
+        Locals<2> v14 v14
+        Cells<1> v15
+        Stack<1> v15
       }
     }
-    Incref v14
-    InitListTuple<tuple, 1> v19 v14
-    v21:MortalCode["g"] = LoadConst<MortalCode["g"]>
-    v22:MortalUnicodeExact["test.<locals>.g"] = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
-    v23:MortalFunc = MakeFunction v22 v21 {
-      LiveValues<5> unc:v13 o:v14 o:v19 b:v21 b:v22
+    Incref v15
+    InitListTuple<tuple, 1> v21 v15
+    v23:MortalCode["g"] = LoadConst<MortalCode["g"]>
+    v24:MortalUnicodeExact["test.<locals>.g"] = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
+    v25:MortalFunc = MakeFunction v24 v23 {
+      LiveValues<5> unc:v14 o:v15 o:v21 b:v23 b:v24
       FrameState {
         NextInstrOffset 18
-        Locals<2> v13 v13
-        Cells<1> v14
-        Stack<1> v19
+        Locals<2> v14 v14
+        Cells<1> v15
+        Stack<1> v21
       }
     }
-    Decref v14
-    SetFunctionAttr<func_closure> v19 v23
-    InitFunction v23
-    Return v23
+    Decref v15
+    SetFunctionAttr<func_closure> v21 v25
+    InitFunction v25
+    Return v25
   }
 }
 ---

@@ -178,18 +178,18 @@ fun jittestmodule:A.f {
         NextInstrOffset 10
         Locals<1> v0
         Cells<1> v1
-        Stack<1> v0
       }
     }
-    v7 = CallMethod<2> v0 v6 {
+    v7 = GetLoadMethodInstance<3> v0 v4 v5
+    v8 = CallMethod<2> v6 v7 {
       FrameState {
         NextInstrOffset 12
         Locals<1> v0
         Cells<1> v1
       }
     }
-    v8 = LoadConst<NoneType>
-    Return v8
+    v9 = LoadConst<NoneType>
+    Return v9
   }
 }
 ---

@@ -55,25 +55,10 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteCallInstrs(
   auto block = instr->basicblock();
 
   if (instr->isVectorCall()) {
-    if (instr->getInput(0)->isImm()) {
-      void* func = reinterpret_cast<void*>(instr->getInput(0)->getConstant());
-      if (func == JITRT_CallMethod) {
-        // mov r8, [rsp]
-        block->allocateInstrBefore(
-            instr_iter,
-            Instruction::kMove,
-            OutPhyReg(PhyLocation::R8),
-            Ind(PhyLocation::RSP));
-      }
-    }
     rsp_sub = rewriteVectorCallFunctions(instr_iter);
   } else if (instr->getInput(0)->isImm()) {
     void* func = reinterpret_cast<void*>(instr->getInput(0)->getConstant());
-    if (func == JITRT_GetMethod) {
-      rsp_sub = rewriteGetMethodFunction(instr_iter);
-    } else if (func == JITRT_GetMethodFromSuper) {
-      rsp_sub = rewriteGetSuperMethodFunction(instr_iter);
-    } else if (func == JITRT_BatchDecref) {
+    if (func == JITRT_BatchDecref) {
       rsp_sub = rewriteBatchDecrefFunction(instr_iter);
     } else {
       rsp_sub = rewriteRegularFunction(instr_iter);

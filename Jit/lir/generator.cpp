@@ -243,8 +243,7 @@ std::string LIRGenerator::MakeGuard(
     const std::string& kind,
     const DeoptBase& instr,
     const std::string& guard_var) {
-  auto deopt_meta = jit::DeoptMetadata::fromInstr(
-      instr, env_->optimizable_load_call_methods_, env_->code_rt);
+  auto deopt_meta = jit::DeoptMetadata::fromInstr(instr, env_->code_rt);
   auto id = env_->rt->addDeoptMetadata(std::move(deopt_meta));
 
   std::stringstream ss;
@@ -1354,20 +1353,20 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
 
-        if (env_->optimizable_load_call_methods_.count(instr)) {
-          auto cache_entry = env_->code_rt->AllocateLoadMethodCache();
-          // The final argument to JITRT_GetMethod will be populated later.
-          bbb.AppendCode(
-              "Call {}, {:#x}, {}, {}, {:#x}\n",
-              instr->dst(),
-              reinterpret_cast<uint64_t>(JITRT_GetMethod),
-              instr->receiver(),
-              tmp_id,
-              reinterpret_cast<uint64_t>(cache_entry));
-        } else {
-          bbb.AppendCall(
-              instr->dst(), PyObject_GetAttr, instr->receiver(), tmp_id);
-        }
+        auto func = reinterpret_cast<uint64_t>(JITRT_GetMethod);
+        auto cache_entry = env_->code_rt->AllocateLoadMethodCache();
+        bbb.AppendCode(
+            "Call {}, {:#x}, {}, {}, {:#x}\n",
+            instr->dst(),
+            func,
+            instr->receiver(),
+            tmp_id,
+            reinterpret_cast<uint64_t>(cache_entry));
+
+        break;
+      }
+      case Opcode::kGetLoadMethodInstance: {
+        bbb.AppendCode("Load2ndCallResult {}\n", i.GetOutput());
         break;
       }
       case Opcode::kLoadMethodSuper: {
@@ -1378,27 +1377,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
 
-        if (env_->optimizable_load_call_methods_.count(instr)) {
-          // The final arg to JITRT_GetMethodFromSuper will be populated later.
-          bbb.AppendCode(
-              "Call {}, {:#x}, {}, {}, {}, {}, {}\n",
-              instr->dst(),
-              reinterpret_cast<uint64_t>(JITRT_GetMethodFromSuper),
-              instr->global_super(),
-              instr->type(),
-              instr->receiver(),
-              tmp_id,
-              instr->no_args_in_super_call() ? 1 : 0);
-        } else {
-          bbb.AppendCall(
-              instr->dst(),
-              JITRT_GetAttrFromSuper,
-              instr->global_super(),
-              instr->type(),
-              instr->receiver(),
-              tmp_id,
-              instr->no_args_in_super_call());
-        }
+        auto func = reinterpret_cast<uint64_t>(JITRT_GetMethodFromSuper);
+        bbb.AppendCode(
+            "Call {}, {:#x}, {}, {}, {}, {}, {}\n",
+            instr->dst(),
+            func,
+            instr->global_super(),
+            instr->type(),
+            instr->receiver(),
+            tmp_id,
+            instr->no_args_in_super_call() ? 1 : 0);
         break;
       }
       case Opcode::kLoadAttrSuper: {
@@ -1658,8 +1646,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kDeoptPatchpoint: {
         const auto& instr = static_cast<const DeoptPatchpoint&>(i);
-        auto deopt_meta = jit::DeoptMetadata::fromInstr(
-            instr, env_->optimizable_load_call_methods_, env_->code_rt);
+        auto deopt_meta = jit::DeoptMetadata::fromInstr(instr, env_->code_rt);
         auto id = env_->rt->addDeoptMetadata(std::move(deopt_meta));
         std::stringstream ss;
         ss << "DeoptPatchpoint " << static_cast<void*>(instr.patcher()) << ", "
@@ -1812,22 +1799,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         std::string s = fmt::format("Vectorcall {}", *instr->dst());
         size_t flags = instr->isAwaited() ? _Py_AWAITED_CALL_MARKER : 0;
-        if (env_->optimizable_load_call_methods_.count(instr)) {
-          format_to(
-              s,
-              ", {}, {}, {}, {}",
-              reinterpret_cast<uint64_t>(JITRT_CallMethod),
-              flags,
-              *instr->func(),
-              *instr->self());
-        } else {
-          format_to(
-              s,
-              ", {}, {}, {}",
-              reinterpret_cast<uint64_t>(_PyObject_Vectorcall),
-              flags,
-              *instr->func());
-        }
+        format_to(
+            s,
+            ", {}, {}, {}, {}",
+            reinterpret_cast<uint64_t>(JITRT_CallMethod),
+            flags,
+            *instr->func(),
+            *instr->self());
+
         for (size_t i = 0, nargs = instr->NumArgs(); i < nargs; i++) {
           format_to(s, ", {}", *instr->arg(i));
         }

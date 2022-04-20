@@ -42,16 +42,13 @@ struct LiveValue {
   // form expected by the interpreter. To do so, we tag the `LiveValue` for
   // the stack slot that contains `<callable>` with this field.
   enum class Source {
-    kOptimizableLoadMethod,
-    kUnoptimizableLoadMethod,
+    kLoadMethod,
     kUnknown,
   };
   static const char* sourceName(Source source) {
     switch (source) {
-      case Source::kOptimizableLoadMethod:
-        return "OptimizableLoadMethod";
-      case Source::kUnoptimizableLoadMethod:
-        return "UnoptimizableLoadMethod";
+      case Source::kLoadMethod:
+        return "LoadMethod";
       case Source::kUnknown:
         return "Unknown";
     }
@@ -60,8 +57,7 @@ struct LiveValue {
   Source source;
 
   bool isLoadMethodResult() const {
-    return (source == Source::kOptimizableLoadMethod) ||
-        (source == Source::kUnoptimizableLoadMethod);
+    return source == Source::kLoadMethod;
   }
 
   std::string toString() const {
@@ -206,7 +202,6 @@ struct DeoptMetadata {
   // we were able to generate optimized code.
   static DeoptMetadata fromInstr(
       const jit::hir::DeoptBase& instr,
-      const std::unordered_set<const jit::hir::Instr*>& optimizable_lms,
       CodeRuntime* code_rt);
 };
 
@@ -231,8 +226,7 @@ void reifyFrame(
     PyFrameObject* frame,
     const DeoptMetadata& meta,
     const DeoptFrameMetadata& frame_meta,
-    const uint64_t* regs,
-    const JITRT_CallMethodKind* call_method_kind);
+    const uint64_t* regs);
 
 // A simple interface for reading the contents of registers + memory
 struct MemoryView {

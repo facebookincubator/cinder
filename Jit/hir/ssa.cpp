@@ -311,6 +311,7 @@ Type outputType(
     // be further specialized based on the input types in the hopefully near
     // future.
     case Opcode::kCallCFunc:
+    case Opcode::kGetLoadMethodInstance:
     case Opcode::kLoadCellItem:
     case Opcode::kLoadGlobalCached:
     case Opcode::kStealCellItem:

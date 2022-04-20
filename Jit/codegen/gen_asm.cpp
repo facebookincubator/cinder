@@ -261,10 +261,9 @@ void* NativeGenerator::GetEntryPoint() {
     add_gp();
   }
 
-  CollectOptimizableLoadMethods();
-  auto num_lm_caches = env_.optimizable_load_call_methods_.size() / 2;
-
   auto func = GetFunction();
+
+  auto num_lm_caches = func->env.numLoadMethodCaches();
   auto num_la_caches =
       func->CountInstrs([](const Instr& instr) { return instr.IsLoadAttr(); });
   auto num_sa_caches =
@@ -468,7 +467,7 @@ void NativeGenerator::initializeFrameHeader(
   }
 }
 
-int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
+void NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   // During execution, the stack looks like the diagram below. The column to
   // left indicates how many words on the stack each line occupies.
   //
@@ -502,8 +501,7 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   // env_.spill_size.
   int spill_stack = std::max(spill_stack_size_, 8);
 
-  int load_method_scratch = env_.optimizable_load_call_methods_.empty() ? 0 : 8;
-  int arg_buffer_size = std::max(load_method_scratch, env_.max_arg_buffer_size);
+  int arg_buffer_size = env_.max_arg_buffer_size;
 
   if ((spill_stack + saved_regs_size + arg_buffer_size) % 16 != 0) {
     spill_stack += 8;
@@ -529,8 +527,6 @@ int NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   }
 
   env_.frame_size = spill_stack + saved_regs_size + arg_buffer_size;
-
-  return load_method_scratch;
 }
 
 x86::Gp get_arg_location(int arg) {
@@ -1481,46 +1477,6 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   perf::registerFunction(code_sections, func->fullname, prefix);
 }
 
-void NativeGenerator::CollectOptimizableLoadMethods() {
-  auto func = GetFunction();
-  for (auto& block : func->cfg.blocks) {
-    const Instr* candidate = nullptr;
-
-    for (auto& instr : block) {
-      auto output = instr.GetOutput();
-      if (output == nullptr) {
-        continue;
-      }
-
-      switch (instr.opcode()) {
-        case Opcode::kLoadMethod: {
-          candidate = reinterpret_cast<const LoadMethod*>(&instr);
-          break;
-        }
-        case Opcode::kLoadMethodSuper: {
-          candidate = reinterpret_cast<const LoadMethodSuper*>(&instr);
-          break;
-        }
-        case Opcode::kCallMethod: {
-          if (candidate != nullptr &&
-              hir::modelReg(instr.GetOperand(1)) == candidate->GetOutput()) {
-            env_.optimizable_load_call_methods_.emplace(candidate);
-            env_.optimizable_load_call_methods_.emplace(&instr);
-            candidate = nullptr;
-          }
-          break;
-        }
-        default: {
-          if (candidate != nullptr && output == candidate->GetOutput()) {
-            candidate = nullptr;
-          }
-          break;
-        }
-      }
-    }
-  }
-}
-
 #ifdef __ASM_DEBUG
 const char* NativeGenerator::GetPyFunctionName() const {
   return PyUnicode_AsUTF8(GetFunction()->code->co_name);
@@ -1572,11 +1528,8 @@ static void releaseRefs(
   }
 }
 
-static PyFrameObject* prepareForDeopt(
-    const uint64_t* regs,
-    Runtime* runtime,
-    std::size_t deopt_idx,
-    const JITRT_CallMethodKind* call_method_kind) {
+static PyFrameObject*
+prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
   JIT_CHECK(deopt_idx != -1ull, "deopt_idx must be valid");
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
@@ -1590,12 +1543,7 @@ static PyFrameObject* prepareForDeopt(
     // Python frame will be ignored during future attempts to materialize the
     // stack.
     _PyShadowFrame_SetOwner(sf_iter, PYSF_INTERP);
-    reifyFrame(
-        frame_iter,
-        deopt_meta,
-        deopt_meta.frame_meta.at(i),
-        regs,
-        call_method_kind);
+    reifyFrame(frame_iter, deopt_meta, deopt_meta.frame_meta.at(i), regs);
     frame_iter = frame_iter->f_back;
     sf_iter = sf_iter->prev;
   }
@@ -1814,16 +1762,10 @@ void* generateDeoptTrampoline(bool generator_mode) {
   a.mov(x86::rdi, x86::rsp);
   a.mov(x86::rsi, reinterpret_cast<uint64_t>(Runtime::get()));
   a.mov(x86::rdx, deopt_meta_addr);
-  auto call_method_kind_addr = x86::ptr(x86::rbp, 2 * kPointerSize);
-  a.lea(x86::rcx, call_method_kind_addr);
   static_assert(
       std::is_same_v<
           decltype(prepareForDeopt),
-          PyFrameObject*(
-              const uint64_t*,
-              Runtime*,
-              std::size_t,
-              const JITRT_CallMethodKind*)>,
+          PyFrameObject*(const uint64_t*, Runtime*, std::size_t)>,
       "prepareForDeopt has unexpected signature");
   a.call(reinterpret_cast<uint64_t>(prepareForDeopt));
 

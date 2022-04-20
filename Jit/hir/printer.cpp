@@ -515,6 +515,9 @@ static std::string format_immediates(const Instr& instr) {
       return fmt::format(
           "{}, {}", initlt.is_tuple() ? "tuple" : "list", initlt.num_args());
     }
+    case Opcode::kGetLoadMethodInstance: {
+      return fmt::format("{}", instr.NumOperands());
+    }
     case Opcode::kLoadTupleItem: {
       const auto& loaditem = static_cast<const LoadTupleItem&>(instr);
       return fmt::format("{}", loaditem.idx());

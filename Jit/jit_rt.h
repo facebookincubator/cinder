@@ -13,19 +13,15 @@ class CodeRuntime;
 extern "C" {
 #endif
 
-typedef enum {
-  JITRT_CALL_KIND_FUNC = 0,
-  JITRT_CALL_KIND_METHOD_DESCR,
-  JITRT_CALL_KIND_METHOD_LIKE,
-  JITRT_CALL_KIND_WRAPPER_DESCR,
-  JITRT_CALL_KIND_OTHER
-} JITRT_CallMethodKind;
-
 typedef struct {
   PyTypeObject* type;
   PyObject* value;
-  JITRT_CallMethodKind call_kind;
 } JITRT_LoadMethodCacheEntry;
+
+typedef struct {
+  PyObject* func;
+  PyObject* inst;
+} JITRT_LoadMethodResult;
 
 // static->static call convention for primitive returns is to return error flag
 // in rdx (null means error occurred); for C helpers that need to implement this
@@ -189,22 +185,12 @@ JITRT_CallFunctionExAwaited(PyObject* func, PyObject* pargs, PyObject* kwargs);
  * args[0] is expected to point to the receiver of the method lookup (e.g.
  * `self` in the example above) args[1] through args[nargs - 1] are expected to
  * point to the arguments to the call.
- *
- * call_kind indicates the type of thing being called:
- *
- *   - JITRT_CALL_KIND_FUNC  - We're calling a PyFunctionObject that was
- * returned instead of creating a bound method.
- *   - JITRT_CALL_KIND_CFUNC - We're calling a C function (PyMethodDef) that was
- * returned instead of creating a bound method.
- *   - JITRT_CALL_KIND_OTHER - We're calling something else. Bound method
- * creation was not deferred.
  */
 PyObject* JITRT_CallMethod(
     PyObject* callable,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject* kwnames,
-    JITRT_CallMethodKind call_kind);
+    PyObject* kwnames);
 
 /*
  * As JITRT_CallMethod but eagerly starts coroutines.
@@ -213,38 +199,29 @@ PyObject* JITRT_CallMethodAwaited(
     PyObject* callable,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject* kwnames,
-    JITRT_CallMethodKind call_kind);
+    PyObject* kwnames);
 
 /*
  * Perform an attribute lookup.
  *
  * This is used to avoid bound method creation for attribute lookups that
  * correspond to method calls (e.g. `self.foo()`).
- *
- * call_kind indicates whether or not bound method creation was deferred.
  */
-PyObject* JITRT_GetMethod(
-    PyObject* obj,
-    PyObject* name,
-    JITRT_LoadMethodCache* cache,
-    JITRT_CallMethodKind* call_kind);
+JITRT_LoadMethodResult
+JITRT_GetMethod(PyObject* obj, PyObject* name, JITRT_LoadMethodCache* cache);
 
 /*
  * Perform an attribute lookup in a super class
  *
  * This is used to avoid bound method creation for attribute lookups that
  * correspond to method calls (e.g. `self.foo()`).
- *
- * call_kind indicates whether or not bound method creation was deferred.
  */
-PyObject* JITRT_GetMethodFromSuper(
+JITRT_LoadMethodResult JITRT_GetMethodFromSuper(
     PyObject* global_super,
     PyObject* type,
     PyObject* self,
     PyObject* name,
-    bool no_args_in_super_call,
-    JITRT_CallMethodKind* call_kind);
+    bool no_args_in_super_call);
 
 /*
  * Perform an attribute lookup in a super class

@@ -218,8 +218,9 @@ class TestTracemallocEnabled(unittest.TestCase):
         self.assertGreaterEqual(peak_size2, peak_size)
 
         # clear_traces() must reset traced memory counters
+        ae = self.assertEqual
         tracemalloc.clear_traces()
-        self.assertEqual(tracemalloc.get_traced_memory(), (0, 0))
+        ae(tracemalloc.get_traced_memory(), (0, 0))
 
         # allocate another object
         obj, obj_traceback = allocate_bytes(obj_size)

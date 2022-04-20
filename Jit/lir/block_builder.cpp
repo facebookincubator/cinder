@@ -406,6 +406,11 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
         CreateInstrInput(instr, tokens[i]);
       }
     }
+  } else if (instr_str == "Load2ndCallResult") {
+    auto instr = createInstr(Instruction::kMove);
+
+    instr->allocatePhyRegisterInput(PhyLocation::RDX);
+    CreateInstrOutput(instr, tokens[1]);
   } else if (instr_str == "Phi") {
     auto instr = createInstr(Instruction::kPhi);
 

@@ -319,6 +319,7 @@ struct FrameState {
   V(FillTypeAttrCache)                 \
   V(FormatValue)                       \
   V(GetIter)                           \
+  V(GetLoadMethodInstance)             \
   V(GetTuple)                          \
   V(Guard)                             \
   V(GuardIs)                           \
@@ -1578,12 +1579,12 @@ class INSTR_CLASS(CallMethod, (TOptObject), HasOutput, Operands<>, DeoptBase) {
 
   // The function to call
   Register* func() const {
-    return GetOperand(1);
+    return GetOperand(0);
   }
 
   // The register containing the receiver used to perform the method lookup
   Register* self() const {
-    return GetOperand(0);
+    return GetOperand(1);
   }
 
   std::size_t NumArgs() const {
@@ -1768,6 +1769,20 @@ DEFINE_SIMPLE_INSTR(
 // Check if an exception has occurred as indicated by a negative
 // return code.
 DEFINE_SIMPLE_INSTR(CheckNeg, (TCInt), HasOutput, Operands<1>, CheckBase);
+
+// DEFINE_SIMPLE_INSTR(GetLoadMethodInstance, (TOptObject), HasOutput,
+// Operands<>);
+
+class INSTR_CLASS(GetLoadMethodInstance, (TOptObject), HasOutput, Operands<>) {
+ public:
+  GetLoadMethodInstance(Register* dst, const std::vector<Register*>& args)
+      : InstrT(dst) {
+    size_t i = 0;
+    for (Register* arg : args) {
+      SetOperand(i++, arg);
+    }
+  }
+};
 
 class CheckBaseWithName : public CheckBase {
  protected:
@@ -3951,6 +3966,14 @@ class Environment {
     return next_load_attr_cache_;
   }
 
+  int allocateLoadMethodCache() {
+    return next_load_method_cache_++;
+  }
+
+  int numLoadMethodCaches() const {
+    return next_load_method_cache_;
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Environment);
 
@@ -3958,6 +3981,7 @@ class Environment {
   ReferenceSet references_;
   int next_register_id_{0};
   int next_load_attr_cache_{0};
+  int next_load_method_cache_{0};
 };
 
 enum class FrameMode {

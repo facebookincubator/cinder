@@ -350,22 +350,22 @@ def test(f, a):
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
-        Stack<1> v0
       }
     }
+    v3 = GetLoadMethodInstance<1> v0
     Snapshot {
       NextInstrOffset 4
       Locals<2> v0 v1
-      Stack<2> v0 v2
+      Stack<2> v2 v3
     }
     v1 = CheckVar<"a"> v1 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
-        Stack<2> v0 v2
+        Stack<2> v2 v3
       }
     }
-    v3 = CallMethod<3> v0 v2 v1 {
+    v4 = CallMethod<3> v2 v3 v1 {
       FrameState {
         NextInstrOffset 8
         Locals<2> v0 v1
@@ -374,9 +374,9 @@ def test(f, a):
     Snapshot {
       NextInstrOffset 8
       Locals<2> v0 v1
-      Stack<1> v3
+      Stack<1> v4
     }
-    Return v3
+    Return v4
   }
 }
 )";

@@ -208,6 +208,7 @@ class HIRBuilder {
       const jit::BytecodeInstruction& bc_instr);
   void emitLoadMethod(
       TranslationContext& tc,
+      Environment& env,
       const jit::BytecodeInstruction& bc_instr);
   void emitLoadMethodOrAttrSuper(
       TranslationContext& tc,
