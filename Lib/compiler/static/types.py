@@ -4685,8 +4685,6 @@ class Dataclass(Class):
         self.wrapped_class = klass
 
         # TODO(T96281456): support non-default arguments to @dataclass
-        if order:
-            raise TypedSyntaxError("Static dataclasses do not support order yet")
         if unsafe_hash:
             raise TypedSyntaxError("Static dataclasses do not support hashing yet")
         if frozen:
@@ -4743,6 +4741,14 @@ class Dataclass(Class):
                     ResolvedTypeRef(self.type_env.none),
                 )
 
+        if order:
+            for name in ("__lt__", "__le__", "__gt__", "__ge__"):
+                if name in self.wrapped_class.members:
+                    raise TypedSyntaxError(
+                        f"Cannot overwrite attribute {name} in class {self.type_name.name}. "
+                        "Consider using functools.total_ordering"
+                    )
+
     @property
     def generate_eq(self) -> bool:
         return self.eq and "__eq__" not in self.wrapped_class.members
@@ -4780,8 +4786,10 @@ class Dataclass(Class):
         code_gen.emit("MAKE_FUNCTION", oparg)
         code_gen.emit("STORE_NAME", graph.name)
 
-    def emit_dunder_eq(self, code_gen: Static38CodeGenerator) -> None:
-        graph = self.flow_graph(code_gen, "__eq__", ("self", "other"))
+    def emit_dunder_comparison(
+        self, code_gen: Static38CodeGenerator, method_name: str, op: str
+    ) -> None:
+        graph = self.flow_graph(code_gen, method_name, ("self", "other"))
         false = graph.newBlock()
 
         inexact_descr = self.inexact_type().type_descr
@@ -4791,7 +4799,7 @@ class Dataclass(Class):
         graph.emit("LOAD_FAST", "self")
         graph.emit("LOAD_TYPE")
         graph.emit("COMPARE_OP", "is")
-        graph.emit("JUMP_IF_FALSE_OR_POP", false)
+        graph.emit("POP_JUMP_IF_FALSE", false)
 
         for name in self.field_names:
             graph.emit("LOAD_FAST", "self")
@@ -4804,9 +4812,11 @@ class Dataclass(Class):
             graph.emit("LOAD_FIELD", (*inexact_descr, name))
         graph.emit("BUILD_TUPLE", len(self.field_names))
 
-        graph.emit("COMPARE_OP", "==")
+        graph.emit("COMPARE_OP", op)
+        graph.emit("RETURN_VALUE")
 
         graph.nextBlock(false)
+        graph.emit("LOAD_GLOBAL", "NotImplemented")
         graph.emit("RETURN_VALUE")
 
         self.emit_method(code_gen, graph, 0)
@@ -4857,7 +4867,13 @@ class Dataclass(Class):
             self.emit_dunder_init(code_gen)
 
         if self.generate_eq:
-            self.emit_dunder_eq(code_gen)
+            self.emit_dunder_comparison(code_gen, "__eq__", "==")
+
+        if self.order:
+            self.emit_dunder_comparison(code_gen, "__lt__", "<")
+            self.emit_dunder_comparison(code_gen, "__le__", "<=")
+            self.emit_dunder_comparison(code_gen, "__gt__", ">")
+            self.emit_dunder_comparison(code_gen, "__ge__", ">=")
 
     def _create_exact_type(self) -> Class:
         return type(self)(

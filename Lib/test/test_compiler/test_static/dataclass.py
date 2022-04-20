@@ -346,3 +346,127 @@ class DataclassTests(StaticTestBase):
             self.assertNotEqual(mod.c1, mod.c3)
             self.assertNotEqual(mod.c1, mod.c4)
             self.assertNotEqual(mod.c1, mod.d)
+
+    def test_dataclass_eq_does_not_overwrite(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+
+            def __eq__(self, other):
+                return True
+
+        c1 = C(1)
+        c2 = C(2)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.c1, mod.c2)
+
+    def test_dataclass_eq_false_does_not_generate_dunder_eq(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(eq=False)
+        class C:
+            x: int
+
+        c1 = C(1)
+        c2 = C(1)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.c1, mod.c1)
+            self.assertNotEqual(mod.c1, mod.c2)
+            self.assertEqual(mod.c2, mod.c2)
+
+    def test_dataclass_eq_with_different_type_delegates_to_other(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+
+        class EqualsEverything:
+            def __eq__(self, other) -> bool:
+                return True
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.C(1), mod.EqualsEverything())
+
+    def test_order_with_dunder_defined_raises_syntax_error(self) -> None:
+        methods = ("__lt__", "__le__", "__gt__", "__ge__")
+        for method in methods:
+            with self.subTest(method=method):
+                codestr = f"""
+                from __static__ import dataclass
+
+                @dataclass(order=True)
+                class C:
+                    x: int
+                    y: str
+
+                    def {method}(self, other) -> bool:
+                        return False
+                """
+                self.type_error(
+                    codestr,
+                    f"Cannot overwrite attribute {method} in class C. "
+                    "Consider using functools.total_ordering",
+                    at="dataclass",
+                )
+
+    def test_comparison_subclass_returns_not_implemented(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(order=True)
+        class C:
+            x: int
+            y: str
+        """
+        with self.in_strict_module(codestr) as mod:
+
+            class D(mod.C):
+                pass
+
+            c = mod.C(1, "foo")
+            d = D(2, "bar")
+
+            self.assertEqual(c.__eq__(d), NotImplemented)
+            self.assertEqual(c.__ne__(d), NotImplemented)
+            self.assertEqual(c.__lt__(d), NotImplemented)
+            self.assertEqual(c.__le__(d), NotImplemented)
+            self.assertEqual(c.__gt__(d), NotImplemented)
+            self.assertEqual(c.__ge__(d), NotImplemented)
+
+    def test_order_uses_tuple_order(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(order=True)
+        class C:
+            x: str
+            y: int
+
+        c1 = C("foo", 1)
+        c2 = C("foo", 1)
+        c3 = C("bar", 1)
+        c4 = C("foo", 2)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertFalse(mod.c1 < mod.c2)
+            self.assertTrue(mod.c1 <= mod.c2)
+            self.assertFalse(mod.c1 > mod.c2)
+            self.assertTrue(mod.c1 >= mod.c2)
+
+            self.assertFalse(mod.c1 < mod.c3)
+            self.assertFalse(mod.c1 <= mod.c3)
+            self.assertTrue(mod.c1 > mod.c3)
+            self.assertTrue(mod.c1 >= mod.c3)
+
+            self.assertTrue(mod.c1 < mod.c4)
+            self.assertTrue(mod.c1 <= mod.c4)
+            self.assertFalse(mod.c1 > mod.c4)
+            self.assertFalse(mod.c1 >= mod.c4)
