@@ -1,5 +1,6 @@
 import builtins
 from cinder import cached_property
+from compiler.static.types import TypedSyntaxError
 from unittest.mock import Mock, patch
 
 from .common import StaticTestBase
@@ -222,19 +223,180 @@ class SlotsWithDefaultTests(StaticTestBase):
 
             self.assertEqual(mod.f(D()), (3, 2, 3))
 
-    def test_static_property_override_type_error(
+    def test_static_property_override(
         self,
     ) -> None:
         codestr = """
         class C:
             x: int = 1
+            def get_x(self):
+                return self.x
 
         class D(C):
             @property
             def x(self) -> int:
                 return 2
         """
-        self.type_error(codestr, "class cannot hide inherited member")
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C().get_x(), 1)
+            self.assertEqual(mod.D().get_x(), 2)
+
+    def test_static_property_override_bad_type(
+        self,
+    ) -> None:
+        codestr = """
+        class C:
+            x: int = 1
+            def get_x(self):
+                return self.x.val
+
+        class D(C):
+            @property
+            def x(self) -> str:
+                return 'abc'
+        """
+
+        self.type_error(codestr, "Cannot change type of inherited attribute")
+
+    def test_static_property_override_no_type(
+        self,
+    ) -> None:
+        codestr = """
+        class X:
+            def __init__(self, val: int):
+                self.val = val
+
+            def f(self):
+                pass
+
+        class C:
+            x: X = X(1)
+            def get_x(self):
+                return self.x.val
+
+        class D(C):
+            @property
+            def x(self):
+                return 'abc'
+        """
+        self.type_error(codestr, "Cannot change type of inherited attribute")
+
+    def test_override_property_with_slot(
+        self,
+    ) -> None:
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 2
+            def get_x(self):
+                return self.x
+
+        class D(C):
+            x: int = 1
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C().get_x(), 2)
+            self.assertEqual(mod.D().get_x(), 1)
+
+    def test_override_property_with_slot_non_static(
+        self,
+    ) -> None:
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 2
+            def get_x(self):
+                return self.x
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+                x: int = 1
+
+            self.assertEqual(mod.C().get_x(), 2)
+            self.assertEqual(D().get_x(), 1)
+
+    def test_override_property_with_slot_no_value(
+        self,
+    ) -> None:
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 2
+            def get_x(self):
+                return self.x
+
+        class D(C):
+            x: int
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C().get_x(), 2)
+            # this differs from the non-static case because we create a slot
+            # which never gets initialized.
+            with self.assertRaises(AttributeError):
+                mod.D().get_x()
+
+    def test_override_property_with_slot_no_value_non_static(
+        self,
+    ) -> None:
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 2
+            def get_x(self):
+                return self.x
+
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+
+                x: int
+
+            self.assertEqual(mod.C().get_x(), 2)
+            self.assertEqual(D().get_x(), 2)
+
+    def test_override_property_with_slot_non_static_slots(
+        self,
+    ) -> None:
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 2
+            def get_x(self):
+                return self.x
+
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+
+                __slots__ = "x"
+
+            self.assertEqual(mod.C().get_x(), 2)
+            with self.assertRaises(AttributeError):
+                D().get_x()
+
+    def test_override_property_with_slot_bad_type(
+        self,
+    ) -> None:
+        codestr = """
+        class C:
+            @property
+            def x(self) -> int:
+                return 2
+            def get_x(self):
+                return self.x.val
+
+        class D(C):
+            x: str = 'abc'
+        """
+        self.type_error(codestr, "Cannot change type of inherited attribute")
 
     def test_nonstatic_property_override(
         self,
