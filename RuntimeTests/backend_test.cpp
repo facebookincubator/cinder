@@ -115,37 +115,37 @@ class BackendTest : public RuntimeTest {
   void CheckFromArray(Function* lir_func) {
     auto func = (uint64_t(*)(char*, int64_t, ssize_t))SimpleCompile(lir_func);
 
-    long a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
+    int64_t a[6] = {-1, 0, 1, 128, -2147483646, 214748367};
     ASSERT_EQ(
         func((char*)a, 0, 0),
-        JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/0));
+        JITRT_GetI64_FromArray((char*)a, 0, /*offset=*/0));
     ASSERT_EQ(
         func((char*)a, 1, 0),
-        JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/0));
+        JITRT_GetI64_FromArray((char*)a, 1, /*offset=*/0));
     ASSERT_EQ(
         func((char*)a, 2, 0),
-        JITRT_GetI32_FromArray((char*)a, 2, /*offset=*/0));
+        JITRT_GetI64_FromArray((char*)a, 2, /*offset=*/0));
     ASSERT_EQ(
         func((char*)a, 3, 0),
-        JITRT_GetI32_FromArray((char*)a, 3, /*offset=*/0));
+        JITRT_GetI64_FromArray((char*)a, 3, /*offset=*/0));
     ASSERT_EQ(
         func((char*)a, 4, 0),
-        JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/0));
+        JITRT_GetI64_FromArray((char*)a, 4, /*offset=*/0));
     ASSERT_EQ(
         func((char*)a, 5, 0),
-        JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/0));
+        JITRT_GetI64_FromArray((char*)a, 5, /*offset=*/0));
     ASSERT_EQ(
         func((char*)a, 0, 16),
-        JITRT_GetI32_FromArray((char*)a, 0, /*offset=*/16));
+        JITRT_GetI64_FromArray((char*)a, 0, /*offset=*/16));
     ASSERT_EQ(
         func((char*)a, 1, 24),
-        JITRT_GetI32_FromArray((char*)a, 1, /*offset=*/24));
+        JITRT_GetI64_FromArray((char*)a, 1, /*offset=*/24));
     ASSERT_EQ(
         func((char*)a, 4, -24),
-        JITRT_GetI32_FromArray((char*)a, 4, /*offset=*/-24));
+        JITRT_GetI64_FromArray((char*)a, 4, /*offset=*/-24));
     ASSERT_EQ(
         func((char*)a, 5, -16),
-        JITRT_GetI32_FromArray((char*)a, 5, /*offset=*/-16));
+        JITRT_GetI64_FromArray((char*)a, 5, /*offset=*/-16));
   }
 
   void CheckCast(Function* lir_func) {
@@ -687,7 +687,7 @@ TEST_F(BackendTest, CastTest) {
 }
 
 TEST_F(BackendTest, ParserGetI32FromArrayTest) {
-  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI32_FromArray.lir");
+  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir");
   std::stringstream buffer;
   buffer << t.rdbuf();
   Parser parser;
@@ -794,7 +794,7 @@ TEST_F(BackendTest, SplitBasicBlockTest) {
 }
 
 TEST_F(BackendTest, CopyFromArrayTest) {
-  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI32_FromArray.lir");
+  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir");
   std::stringstream buffer;
   buffer << t.rdbuf();
   Parser parser;

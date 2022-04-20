@@ -1320,39 +1320,35 @@ double JITRT_PowerUnsigned64(uint64_t x, uint64_t y) {
 }
 
 uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  long result = (arr + offset)[idx];
-  if (result >= 128)
-    result -= 256;
-  return result;
+  return (uint64_t)(int64_t)((int8_t*)(arr + offset))[idx];
 }
 
 uint64_t JITRT_GetU8_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  long result = ((unsigned char*)(arr + offset))[idx];
-  return result;
+  return (uint64_t)((uint8_t*)(arr + offset))[idx];
 }
 
 uint64_t JITRT_GetI16_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (long)((short*)(arr + offset))[idx];
+  return (uint64_t)(int64_t)((int16_t*)(arr + offset))[idx];
 }
 
 uint64_t JITRT_GetU16_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (long)((unsigned short*)(arr + offset))[idx];
+  return (uint64_t)((uint16_t*)(arr + offset))[idx];
 }
 
 uint64_t JITRT_GetI32_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return ((long*)(arr + offset))[idx];
+  return (uint64_t)(int64_t)((int32_t*)(arr + offset))[idx];
 }
 
 uint64_t JITRT_GetU32_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return ((unsigned long*)(arr + offset))[idx];
+  return (uint64_t)((uint32_t*)(arr + offset))[idx];
 }
 
 uint64_t JITRT_GetI64_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return ((long long*)(arr + offset))[idx];
+  return (uint64_t)((int64_t*)(arr + offset))[idx];
 }
 
 uint64_t JITRT_GetU64_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return ((unsigned long long*)(arr + offset))[idx];
+  return ((uint64_t*)(arr + offset))[idx];
 }
 
 PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx, ssize_t offset) {
@@ -1360,35 +1356,35 @@ PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx, ssize_t offset) {
 }
 
 void JITRT_SetI8_InArray(char* arr, uint64_t val, int64_t idx) {
-  arr[idx] = (char)val;
+  arr[idx] = (int8_t)val;
 }
 
 void JITRT_SetU8_InArray(char* arr, uint64_t val, int64_t idx) {
-  arr[idx] = (unsigned char)val;
+  arr[idx] = (uint8_t)val;
 }
 
 void JITRT_SetI16_InArray(char* arr, uint64_t val, int64_t idx) {
-  ((short*)arr)[idx] = (short)val;
+  ((int16_t*)arr)[idx] = (int16_t)val;
 }
 
 void JITRT_SetU16_InArray(char* arr, uint64_t val, int64_t idx) {
-  ((unsigned short*)arr)[idx] = (unsigned short)val;
+  ((uint16_t*)arr)[idx] = (uint16_t)val;
 }
 
 void JITRT_SetI32_InArray(char* arr, uint64_t val, int64_t idx) {
-  ((int*)arr)[idx] = (int)val;
+  ((int32_t*)arr)[idx] = (int32_t)val;
 }
 
 void JITRT_SetU32_InArray(char* arr, uint64_t val, int64_t idx) {
-  ((unsigned int*)arr)[idx] = (unsigned int)val;
+  ((uint32_t*)arr)[idx] = (uint32_t)val;
 }
 
 void JITRT_SetI64_InArray(char* arr, uint64_t val, int64_t idx) {
-  ((long*)arr)[idx] = (long)val;
+  ((int64_t*)arr)[idx] = (int64_t)val;
 }
 
 void JITRT_SetU64_InArray(char* arr, uint64_t val, int64_t idx) {
-  ((unsigned long*)arr)[idx] = (unsigned long)val;
+  ((uint64_t*)arr)[idx] = (uint64_t)val;
 }
 
 void JITRT_SetObj_InArray(char* arr, uint64_t val, int64_t idx) {
