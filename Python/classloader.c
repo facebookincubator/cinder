@@ -1417,8 +1417,8 @@ static int
 thunktraverse(_Py_StaticThunk *op, visitproc visit, void *arg)
 {
     rettype_check_traverse((_PyClassLoader_RetTypeInfo *)op, visit, arg);
-    visit(op->thunk_tcs.tcs_value, arg);
-    visit((PyObject *)op->thunk_cls, arg);
+    Py_VISIT(op->thunk_tcs.tcs_value);
+    Py_VISIT((PyObject *)op->thunk_cls);
     return 0;
 }
 

@@ -2,6 +2,7 @@
 #include "Python.h"
 #include "classloader.h"
 #include "structmember.h"
+#include "pycore_initconfig.h"
 
 PyDoc_STRVAR(xxclassloader__doc__,
              "xxclassloader contains helpers for testing the class loader\n");
@@ -458,10 +459,63 @@ xxclassloader_neg(PyObject *self)
 
 _Py_TYPED_SIGNATURE(xxclassloader_neg, _Py_SIG_INT64, NULL);
 
+
+static int no_op_visit(PyObject *obj, PyObject *Py_UNUSED(args)) {
+    if (PyObject_IS_GC(obj) && _PyObject_GC_IS_TRACKED(obj)) {
+        return 0;
+    }
+
+    /* visit objects not discoverable through GC  */
+    if (Py_TYPE(obj)->tp_traverse == 0) {
+        return 0;
+    }
+
+    /* tp_traverse can not be called for non-heap type object  */
+    if (PyType_Check(obj) && !PyType_HasFeature((PyTypeObject*)(obj), Py_TPFLAGS_HEAPTYPE)) {
+        return 0;
+    }
+
+    Py_TYPE(obj)->tp_traverse(obj, (visitproc)no_op_visit, NULL);
+
+    return 0;
+}
+
+#define FROM_GC(g) ((PyObject *)(((PyGC_Head *)g)+1))
+#define GEN_HEAD(state, n) (&(state)->generations[n].head)
+PyObject* visit_heap(PyObject *module)
+{
+
+    struct _gc_runtime_state *state = &_PyRuntime.gc;
+
+    for (int i = 0; i < NUM_GENERATIONS; i++) {
+        PyGC_Head *gc, *list;
+
+        list = GEN_HEAD(state, i);
+        for (gc = _PyGCHead_NEXT(list); gc != list; gc = _PyGCHead_NEXT(gc)) {
+            no_op_visit(FROM_GC(gc), NULL);
+            Py_TYPE(FROM_GC(gc))->tp_traverse(
+                FROM_GC(gc), (visitproc)no_op_visit, NULL);
+        }
+
+    }
+    Py_RETURN_NONE;
+}
+#undef GEN_HEAD
+#undef FROM_GC
+
+static PyObject *
+traverse_heap(PyObject *self, PyObject *Py_UNUSED(args))
+{
+    visit_heap(self);
+    Py_RETURN_NONE;
+}
+
+
 static PyMethodDef xxclassloader_methods[] = {
     {"foo", (PyCFunction)&xxclassloader_foo_def, METH_TYPED, ""},
     {"bar", (PyCFunction)&xxclassloader_bar_def, METH_TYPED, ""},
     {"neg", (PyCFunction)&xxclassloader_neg_def, METH_TYPED, ""},
+    {"traverse_heap", traverse_heap, METH_NOARGS},
     {}
 };
 

@@ -3,7 +3,12 @@ import re
 from compiler.pycodegen import PythonCodeGenerator
 from unittest.mock import Mock, patch
 
+from test.support import import_module
+
 from .common import StaticTestBase
+
+
+xxclassloader = import_module("xxclassloader")
 
 
 class StaticPatchTests(StaticTestBase):
@@ -1766,3 +1771,22 @@ class StaticPatchTests(StaticTestBase):
                 return await c.x
 
             self.assertEqual(asyncio.run(awaiter(mod.C())), 131)
+
+    def test_thunk_traversal(self):
+        codestr = """
+            def f():
+                return 42
+
+            def g():
+                return f()
+        """
+        with self.in_strict_module(codestr, enable_patching=True) as mod:
+            g = mod.g
+            self.assertEqual(g(), 42)
+
+            # Causes a thunk to be created
+            mod.patch("f", Mock(return_value=100))
+            self.assertEqual(g(), 100)
+
+            # This triggers a traversal of the thunk using its tp_traverse
+            xxclassloader.traverse_heap()
