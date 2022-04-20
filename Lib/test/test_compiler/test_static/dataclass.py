@@ -12,7 +12,25 @@ class DataclassTests(StaticTestBase):
 
         reveal_type(C)
         """
-        self.type_error(codestr, r"reveal_type\(C\): 'Type\[dynamic\]'")
+        self.revealed_type(codestr, "Type[dynamic]")
+
+    def test_static_dataclass_is_not_dynamic(self) -> None:
+        for call in [True, False]:
+            with self.subTest(call=call):
+                insert = "(init=True)" if call else ""
+                codestr = f"""
+                from __static__ import dataclass
+
+                @dataclass{insert}
+                class C:
+                    x: str
+                """
+                self.revealed_type(
+                    codestr + "reveal_type(C)", "Type[Exact[<module>.C]]"
+                )
+                # check we don't call the decorator at runtime
+                code = self.compile(codestr)
+                self.assertNotInBytecode(code, "LOAD_NAME", "dataclass")
 
     def test_dataclass_bans_subclassing(self) -> None:
         codestr = """

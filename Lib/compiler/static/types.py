@@ -884,9 +884,7 @@ class Value:
     ) -> Optional[Function | DecoratedMethod]:
         return None
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         return self.klass.type_env.dynamic
 
     def bind_subscr(
@@ -4383,17 +4381,13 @@ class TypingFinalDecorator(Class):
             fn.is_final = True
         return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         klass.is_final = True
         return klass
 
 
 class AllowWeakrefsDecorator(Class):
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         klass.allow_weakrefs = True
         return klass
 
@@ -4472,9 +4466,7 @@ class DoNotCompileDecorator(Class):
         real_fn.donotcompile = True
         return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         klass.donotcompile = True
         return klass
 
@@ -4487,9 +4479,7 @@ class PropertyDecorator(Class):
             return None
         return PropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property")
 
 
@@ -4501,9 +4491,7 @@ class CachedPropertyDecorator(Class):
             return None
         return CachedPropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @cached_property")
 
 
@@ -4515,9 +4503,7 @@ class AsyncCachedPropertyDecorator(Class):
             return None
         return AsyncCachedPropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @async_cached_property")
 
 
@@ -4527,9 +4513,7 @@ class IdentityDecorator(Class):
     ) -> Optional[Function | DecoratedMethod]:
         return fn
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         return klass
 
 
@@ -4541,9 +4525,7 @@ class OverloadDecorator(Class):
             return None
         return TransientDecoratedMethod(fn, decorator)
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @overload")
 
 
@@ -4573,9 +4555,7 @@ class PropertySetterDecorator(Class):
             return None
         return TransientDecoratedMethod(fn, decorator)
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property.setter")
 
 
@@ -4637,11 +4617,9 @@ class DataclassDecorator(Callable[Class]):
     ) -> Optional[Function | DecoratedMethod]:
         raise TypedSyntaxError(f"Cannot decorate a function or method with @dataclass")
 
-    def resolve_decorate_class(
-        self, klass: Class, node: ClassDef, decorator: expr
-    ) -> Class:
+    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
         if not isinstance(decorator, ast.Call):
-            return Dataclass(self.type_env, klass, node)
+            return Dataclass(self.type_env, klass)
 
         if decorator.args:
             raise TypedSyntaxError("dataclass() takes no positional arguments")
@@ -4667,7 +4645,13 @@ class DataclassDecorator(Callable[Class]):
                 )
             kwargs[name] = val.value
 
-        return Dataclass(self.type_env, klass, node, **kwargs)
+        return Dataclass(self.type_env, klass, **kwargs)
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        visitor.set_type(node, self)
+        return NO_EFFECT
 
     def emit_decorator_call(self, code_gen: Static38CodeGenerator) -> None:
         # There's no need to emit any code for this decorator,
@@ -4680,7 +4664,6 @@ class Dataclass(Class):
         self,
         type_env: TypeEnvironment,
         klass: Class,
-        node: ClassDef,
         init: bool = True,
         repr: bool = True,
         eq: bool = True,
@@ -4709,7 +4692,6 @@ class Dataclass(Class):
         if frozen:
             raise TypedSyntaxError("Static dataclasses cannot be frozen yet")
 
-        self.node = node
         self.init = init
         self.repr = repr
         self.eq = eq
@@ -4881,7 +4863,6 @@ class Dataclass(Class):
         return type(self)(
             type_env=self.type_env,
             klass=self.wrapped_class.exact_type(),
-            node=self.node,
             init=self.init,
             repr=self.repr,
             eq=self.eq,
