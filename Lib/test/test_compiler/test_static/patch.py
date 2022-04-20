@@ -1790,3 +1790,51 @@ class StaticPatchTests(StaticTestBase):
 
             # This triggers a traversal of the thunk using its tp_traverse
             xxclassloader.traverse_heap()
+
+    def test_patch_staticmethod(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                @staticmethod
+                def f(x: int):
+                    return 42 + x
+
+            def g():
+                return C.f(3)
+        """
+        with self.in_strict_module(codestr, freeze=False, enable_patching=True) as mod:
+            r = mod.g()
+            self.assertEqual(r, 45)
+
+            with patch(f"{mod.__name__}.C.f", return_value=100):
+                r = mod.g()
+                self.assertEqual(r, 100)
+
+            r = mod.g()
+            self.assertEqual(r, 45)
+
+    def test_patch_classmethod_2(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                @classmethod
+                def f(cls, x: int):
+                    return 42 + x
+
+            def g():
+                return C().f(3)
+        """
+        with self.in_strict_module(codestr, freeze=False, enable_patching=True) as mod:
+            r = mod.g()
+            self.assertEqual(r, 45)
+
+            with patch(f"{mod.__name__}.C.f", return_value=100):
+                r = mod.g()
+                self.assertEqual(r, 100)
+
+            r = mod.g()
+            self.assertEqual(r, 45)

@@ -1088,6 +1088,24 @@ classloader_get_property_missing_fget() {
     return g_missing_fget;
 }
 
+static PyObject*
+classloader_maybe_unwrap_callable(PyObject *func) {
+    if (func != NULL) {
+        PyObject *res;
+        if (Py_TYPE(func) == &PyStaticMethod_Type) {
+            res = _PyStaticMethod_GetFunc(func);
+            Py_INCREF(res);
+            return res;
+        }
+        else if (Py_TYPE(func) == &PyClassMethod_Type) {
+            res = _PyClassMethod_GetFunc(func);
+            Py_INCREF(res);
+            return res;
+        }
+    }
+    return NULL;
+}
+
 static PyObject *
 classloader_get_property_missing_fset() {
     if (g_missing_fset == NULL) {
@@ -1801,10 +1819,18 @@ update_thunk(_Py_StaticThunk *thunk, PyObject *previous, PyObject *new_value)
         thunk->thunk_tcs.tcs_value = new_value;
         Py_INCREF(new_value);
     }
+    PyObject *funcref;
     if (new_value == previous) {
-        thunk->thunk_funcref = previous;
+        funcref = previous;
     } else {
-        thunk->thunk_funcref = (PyObject *)thunk;
+        funcref = (PyObject *)thunk;
+    }
+    PyObject *unwrapped = classloader_maybe_unwrap_callable(funcref);
+    if (unwrapped != NULL) {
+        thunk->thunk_funcref = unwrapped;
+        Py_DECREF(unwrapped);
+    } else {
+        thunk->thunk_funcref = funcref;
     }
 }
 
@@ -2998,11 +3024,21 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyObject* container, PyObj
     thunk->thunk_cls = type;
     Py_XINCREF(type);
     thunk->thunk_vectorcall = (vectorcallfunc)&thunk_vectorcall;
+
+    PyObject *funcref;
     if (func == original) {
-        thunk->thunk_funcref = original;
+        funcref = original;
     } else {
-        thunk->thunk_funcref = (PyObject *)thunk;
+        funcref = (PyObject *)thunk;
     }
+    PyObject *unwrapped = classloader_maybe_unwrap_callable(funcref);
+    if (unwrapped != NULL) {
+        thunk->thunk_funcref = unwrapped;
+        Py_DECREF(unwrapped);
+    } else {
+        thunk->thunk_funcref = funcref;
+    }
+
     thunk->thunk_tcs.tcs_rt.rt_expected = (PyTypeObject *)_PyClassLoader_ResolveReturnType(
                                                                original,
                                                                &thunk->thunk_tcs.tcs_rt.rt_optional,
