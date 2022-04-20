@@ -444,14 +444,14 @@ Register* simplifyLongBinaryOp(Env& env, const LongBinaryOp* instr) {
   Type right_type = instr->right()->type();
   if (left_type.hasObjectSpec() && right_type.hasObjectSpec()) {
     ThreadedCompileSerialize guard;
-    PyObject* result;
+    Ref<> result;
     if (instr->op() == BinaryOpKind::kPower) {
-      Ref<> none(Py_None);
-      result =
-          PyNumber_Power(left_type.objectSpec(), right_type.objectSpec(), none);
+      result = Ref<>::steal(PyLong_Type.tp_as_number->nb_power(
+          left_type.objectSpec(), right_type.objectSpec(), Py_None));
     } else {
       binaryfunc helper = instr->slotMethod();
-      result = (*helper)(left_type.objectSpec(), right_type.objectSpec());
+      result = Ref<>::steal(
+          (*helper)(left_type.objectSpec(), right_type.objectSpec()));
     }
     if (result == nullptr) {
       PyErr_Clear();
@@ -459,7 +459,8 @@ Register* simplifyLongBinaryOp(Env& env, const LongBinaryOp* instr) {
     }
     env.emit<UseType>(instr->left(), left_type);
     env.emit<UseType>(instr->right(), right_type);
-    return env.emit<LoadConst>(Type::fromObject(result));
+    return env.emit<LoadConst>(
+        Type::fromObject(env.func.env.addReference(std::move(result))));
   }
   return nullptr;
 }
