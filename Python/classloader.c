@@ -2198,23 +2198,25 @@ type_vtable_setslot(PyTypeObject *tp,
                 ((PyMethodDescrObject *)value)->vectorcall;
             Py_INCREF(value);
             return 0;
-        } else if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
-            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-            vtable->vt_entries[slot].vte_entry =
-                (vectorcallfunc)cachedpropthunk_get;
-            Py_INCREF(value);
-            return 0;
-        } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
-            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-            vtable->vt_entries[slot].vte_entry =
-                (vectorcallfunc)async_cachedpropthunk_get;
-        } else if (Py_TYPE(value) == &_PyType_TypedDescriptorThunk) {
-            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-            vtable->vt_entries[slot].vte_entry =
-              ((_Py_TypedDescriptorThunk *) value)->typed_descriptor_thunk_vectorcall;
-            Py_INCREF(value);
-            return 0;
         }
+    }
+
+    if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
+        Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+        vtable->vt_entries[slot].vte_entry =
+            (vectorcallfunc)cachedpropthunk_get;
+        Py_INCREF(value);
+        return 0;
+    } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
+        Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+        vtable->vt_entries[slot].vte_entry =
+            (vectorcallfunc)async_cachedpropthunk_get;
+    } else if (Py_TYPE(value) == &_PyType_TypedDescriptorThunk) {
+        Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+        vtable->vt_entries[slot].vte_entry =
+            ((_Py_TypedDescriptorThunk *) value)->typed_descriptor_thunk_vectorcall;
+        Py_INCREF(value);
+        return 0;
     }
 
     PyObject *original;
