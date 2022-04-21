@@ -198,6 +198,7 @@ void LinearScanAllocator::initialize() {
   vreg_phy_uses_.clear();
   regalloc_blocks_.clear();
   vreg_last_use_.clear();
+  vreg_global_last_use_.clear();
 
   max_stack_slot_ = initial_max_stack_slot_;
   free_stack_slots_.clear();
@@ -558,6 +559,10 @@ void LinearScanAllocator::linearScan() {
       continue;
     }
     auto new_interval = std::make_unique<LiveInterval>(vi.second);
+
+    // save the last use location of a virtual register
+    vreg_global_last_use_.emplace(vi.first, new_interval->endLocation());
+
     // all the LiveInterval objects will end up in allocated_, so
     // putting them to allocated_ now even if they are currently
     // not allocated. all the intervals are guaranteed to be allocated
@@ -597,12 +602,13 @@ void LinearScanAllocator::linearScan() {
     auto end_iter = stack_intervals.begin();
     while (end_iter != stack_intervals.end()) {
       auto interval = *end_iter;
-      if (interval->endLocation() > position) {
-        // We've hit spilled intervals that aren't finished yet.
-        break;
+      auto vreg = interval->vreg;
+      auto iter = vreg_global_last_use_.find(vreg);
+
+      if (iter != vreg_global_last_use_.end() && iter->second <= position) {
+        freeStackSlot(vreg);
       }
 
-      freeStackSlot(interval->vreg);
       ++end_iter;
     }
     stack_intervals.erase(stack_intervals.begin(), end_iter);

@@ -181,6 +181,9 @@ class LinearScanAllocator {
       UnorderedMap<const lir::LinkedOperand*, LIRLocation>>
       vreg_last_use_;
 
+  // the global last use of an operand (vreg)
+  UnorderedMap<const lir::Operand*, LIRLocation> vreg_global_last_use_;
+
   int initial_max_stack_slot_;
   // stack slot number always starts from -8, and it's up to the code generator
   // to translate stack slot number into the form of (RBP - offset).
