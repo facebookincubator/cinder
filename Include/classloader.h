@@ -33,6 +33,9 @@ typedef struct {
     /* Dict[str | tuple, Callable] A thunk is a wrapper over Python callables. We use
       them for a number of purposes, e.g: enforcing return type checks on patched functions */
     PyObject *vt_thunks;
+    /* Dict[tuple[...], special_thunk] A special thunk is a wrapper around a v-table slot
+     * for a getter or a setter, stored under the special name (name, "fget"/"fset" )*/
+    PyObject *vt_specials;
     /* Size of the vtable */
     Py_ssize_t vt_size;
     _PyType_VTableEntry vt_entries[1];

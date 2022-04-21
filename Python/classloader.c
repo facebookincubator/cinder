@@ -19,6 +19,7 @@ vtabledealloc(_PyType_VTable *op)
     Py_XDECREF(op->vt_slotmap);
     Py_XDECREF(op->vt_thunks);
     Py_XDECREF(op->vt_original);
+    Py_XDECREF(op->vt_specials);
 
     for (Py_ssize_t i = 0; i < op->vt_size; i++) {
         Py_XDECREF(op->vt_entries[i].vte_state);
@@ -34,6 +35,7 @@ vtabletraverse(_PyType_VTable *op, visitproc visit, void *arg)
     }
     Py_VISIT(op->vt_original);
     Py_VISIT(op->vt_thunks);
+    Py_VISIT(op->vt_specials);
     return 0;
 }
 
@@ -45,6 +47,7 @@ vtableclear(_PyType_VTable *op)
     }
     Py_CLEAR(op->vt_original);
     Py_CLEAR(op->vt_thunks);
+    Py_CLEAR(op->vt_specials);
     return 0;
 }
 
@@ -1175,8 +1178,45 @@ classloader_get_property_missing_fset() {
     return g_missing_fset;
 }
 
+static
+PyObject *
+classloader_ensure_specials_cache(PyTypeObject *type) {
+    _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(type, 0);
+    if (vtable == NULL) {
+        return NULL;
+    }
+    PyObject *specials = vtable->vt_specials;
+    if (specials == NULL) {
+        specials = vtable->vt_specials = PyDict_New();
+        if (specials == NULL) {
+            return NULL;
+        }
+    }
+
+    return specials;
+}
+
+/* Stores a newly created special thunk in the special thunk cache.  If it fails
+ * to store decref the thunk and return NULL */
 static PyObject *
-classloader_get_property_fget(PyObject *property) {
+classloader_cache_new_special(PyTypeObject *type, PyObject *name, PyObject *special) {
+    if (type == NULL) {
+        return special;
+    }
+    PyObject *specials = classloader_ensure_specials_cache(type);
+    if (specials == NULL) {
+        return NULL;
+    }
+
+    if (PyDict_SetItem(specials, name, special)) {
+        Py_DECREF(special);
+        return NULL;
+    }
+    return special;
+}
+
+static PyObject *
+classloader_get_property_fget(PyTypeObject *type, PyObject *name, PyObject *property) {
     if (Py_TYPE(property) == &PyProperty_Type) {
         PyObject *func = ((propertyobject *)property)->prop_get;
         if (func == NULL) {
@@ -1192,7 +1232,7 @@ classloader_get_property_fget(PyObject *property) {
         thunk->propthunk_vectorcall = (vectorcallfunc)cachedpropthunk_get;
         thunk->propthunk_target = property;
         Py_INCREF(property);
-        return (PyObject *)thunk;
+        return classloader_cache_new_special(type, name, (PyObject *)thunk);
     } else if (Py_TYPE(property) == &PyAsyncCachedProperty_Type) {
         _Py_AsyncCachedPropertyThunk *thunk = PyObject_GC_New(_Py_AsyncCachedPropertyThunk, &_PyType_AsyncCachedPropertyThunk);
         if (thunk == NULL) {
@@ -1201,7 +1241,7 @@ classloader_get_property_fget(PyObject *property) {
         thunk->propthunk_vectorcall = (vectorcallfunc)async_cachedpropthunk_get;
         thunk->propthunk_target = property;
         Py_INCREF(property);
-        return (PyObject *)thunk;
+        return classloader_cache_new_special(type, name, (PyObject *)thunk);
     } else if (Py_TYPE(property) == &_PyTypedDescriptorWithDefaultValue_Type) {
         _Py_TypedDescriptorThunk *thunk = PyObject_GC_New(_Py_TypedDescriptorThunk,
                                                           &_PyType_TypedDescriptorThunk);
@@ -1212,7 +1252,7 @@ classloader_get_property_fget(PyObject *property) {
         thunk->typed_descriptor_thunk_target = property;
         thunk->typed_descriptor_thunk_vectorcall = (vectorcallfunc) typed_descriptor_thunk_get;
         thunk->is_setter = 0;
-        return (PyObject *) thunk;
+        return classloader_cache_new_special(type, name, (PyObject *)thunk);
     } else {
         _Py_PropertyThunk *thunk = PyObject_GC_New(_Py_PropertyThunk, &_PyType_PropertyThunk);
         if (thunk == NULL) {
@@ -1221,12 +1261,12 @@ classloader_get_property_fget(PyObject *property) {
         thunk->propthunk_vectorcall = (vectorcallfunc)propthunk_get;
         thunk->propthunk_target = property;
         Py_INCREF(property);
-        return (PyObject *)thunk;
+        return classloader_cache_new_special(type, name, (PyObject *)thunk);
     }
 }
 
 static PyObject *
-classloader_get_property_fset(PyObject *property) {
+classloader_get_property_fset(PyTypeObject *type, PyObject *name, PyObject *property) {
     if (Py_TYPE(property) == &PyProperty_Type) {
         PyObject *func = ((propertyobject *)property)->prop_set;
         if (func == NULL) {
@@ -1249,7 +1289,7 @@ classloader_get_property_fset(PyObject *property) {
         thunk->typed_descriptor_thunk_target = property;
         thunk->typed_descriptor_thunk_vectorcall = (vectorcallfunc) typed_descriptor_thunk_set;
         thunk->is_setter = 1;
-        return (PyObject *) thunk;
+        return classloader_cache_new_special(type, name, (PyObject *)thunk);
     } else {
         _Py_PropertyThunk *thunk = PyObject_GC_New(_Py_PropertyThunk, &_PyType_PropertyThunk);
         if (thunk == NULL) {
@@ -1258,18 +1298,18 @@ classloader_get_property_fset(PyObject *property) {
         thunk->propthunk_vectorcall = (vectorcallfunc)propthunk_set;
         thunk->propthunk_target = property;
         Py_INCREF(property);
-        return (PyObject *)thunk;
+        return classloader_cache_new_special(type, name, (PyObject *)thunk);
     }
 }
 
 static PyObject *
-classloader_get_property_method(PyObject *property, PyTupleObject *name)
+classloader_get_property_method(PyTypeObject *type, PyObject *property, PyTupleObject *name)
 {
     PyObject *fname = PyTuple_GET_ITEM(name, 1);
     if (_PyUnicode_EqualToASCIIString(fname, "fget")) {
-        return classloader_get_property_fget(property);
+        return classloader_get_property_fget(type, (PyObject *)name, property);
     } else if (_PyUnicode_EqualToASCIIString(fname, "fset")) {
-        return classloader_get_property_fset(property);
+        return classloader_get_property_fset(type, (PyObject *)name, property);
     }
     PyErr_Format(PyExc_RuntimeError, "bad property method name %R in classloader", fname);
     return NULL;
@@ -1582,7 +1622,7 @@ PyTypeObject _PyType_StaticThunk = {
 };
 
 int
-get_func_or_special_callable(PyObject *dict, PyObject *name, PyObject **result);
+get_func_or_special_callable(PyTypeObject *type, PyObject *name, PyObject **result);
 
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
@@ -1600,7 +1640,7 @@ int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
 
     Py_ssize_t i = 0;
     while (PyDict_Next(slotmap, &i, &name, &slot)) {
-        if (get_func_or_special_callable(type->tp_dict, name, &clsitem)) {
+        if (get_func_or_special_callable(type, name, &clsitem)) {
              return -1;
         }
         if (clsitem != NULL) {
@@ -1777,19 +1817,32 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
 }
 
 int
-get_func_or_special_callable(PyObject *dict, PyObject *name, PyObject **result) {
+get_func_or_special_callable(PyTypeObject *type, PyObject *name, PyObject **result) {
+    PyObject *dict = type->tp_dict;
     if (PyTuple_CheckExact(name)) {
         if (classloader_is_property_tuple((PyTupleObject *) name)) {
-             PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
-             if (property == NULL) {
-               *result = NULL;
-               return 0;
-             }
-             *result = classloader_get_property_method(property, (PyTupleObject *) name);
-             if (*result == NULL) {
-                 return -1;
-             }
-             return 0;
+            _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
+            if (vtable != NULL) {
+                PyObject *specials = vtable->vt_specials;
+                if (specials != NULL) {
+                    *result = PyDict_GetItem(specials, name);
+                    if (*result != NULL) {
+                        Py_INCREF(*result);
+                        return 0;
+                    }
+                }
+            }
+
+            PyObject *property = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
+            if (property == NULL) {
+                *result = NULL;
+                return 0;
+            }
+            *result = classloader_get_property_method(type, property, (PyTupleObject *) name);
+            if (*result == NULL) {
+                return -1;
+            }
+            return 0;
         }
     }
     *result = PyDict_GetItem(dict, name);
@@ -1808,20 +1861,24 @@ _PyClassLoader_GetStaticallyInheritedMember(PyTypeObject *type, PyObject *name, 
 
     for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
         PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(type->tp_mro, i);
-        PyObject *dict;
         if (next->tp_cache != NULL &&
                 ((_PyType_VTable *)next->tp_cache)->vt_original != NULL) {
-            dict = ((_PyType_VTable *)next->tp_cache)->vt_original;
-        } else {
-            dict = next->tp_dict;
-        }
-        if (dict == NULL) {
+            /* if we've initialized originals it contains all of our possible slot values
+             * including special callables. */
+            base = PyDict_GetItem(((_PyType_VTable *)next->tp_cache)->vt_original, name);
+            if (base == NULL) {
+                continue;
+            }
+            assert(used_in_vtable(base));
+            Py_INCREF(base);
+            *result = base;
+            return 0;
+        } else if (next->tp_dict == NULL) {
             continue;
-        }
-
-        if (get_func_or_special_callable(dict, name, &base)) {
+        } else if (get_func_or_special_callable(next, name, &base)) {
             return -1;
         }
+
         if (base != NULL) {
             if (!used_in_vtable(base)) {
                 Py_DECREF(base);
@@ -2016,8 +2073,8 @@ int populate_getter_and_setter(PyTypeObject *type,
                                PyObject *new_value)
 {
 
-    PyObject *getter_value = new_value == NULL ? NULL : classloader_get_property_fget(new_value);
-    PyObject *setter_value = new_value == NULL ? NULL : classloader_get_property_fset(new_value);
+    PyObject *getter_value = new_value == NULL ? NULL : classloader_get_property_fget(type, name, new_value);
+    PyObject *setter_value = new_value == NULL ? NULL : classloader_get_property_fset(type, name, new_value);
 
     PyObject *getter_tuple = get_property_getter_descr_tuple(name);
     PyObject *setter_tuple = get_property_setter_descr_tuple(name);
@@ -2332,7 +2389,7 @@ type_vtable_lazyinit(PyObject *name,
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(mro); i++) {
         PyObject *value = NULL;
         PyTypeObject *cur_type = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
-        if (get_func_or_special_callable(cur_type->tp_dict, name, &value)) {
+        if (get_func_or_special_callable(cur_type, name, &value)) {
             return NULL;
         }
         if (value != NULL) {
@@ -2615,6 +2672,7 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
     vtable->vt_size = slot_count;
     vtable->vt_thunks = NULL;
     vtable->vt_original = NULL;
+    vtable->vt_specials = NULL;
     vtable->vt_slotmap = slotmap;
     self->tp_cache = (PyObject *)vtable;
 
@@ -2826,8 +2884,13 @@ classloader_get_member(PyObject *path,
 
         PyObject *et = NULL, *ev = NULL, *tb = NULL;
         PyObject *next;
-        if (get_func_or_special_callable(d, name, &next)) {
-            return NULL;
+        if (PyType_Check(cur)) {
+            if (get_func_or_special_callable((PyTypeObject *)cur, name, &next)) {
+                return NULL;
+            }
+        } else {
+            next = PyDict_GetItem(d, name);
+            Py_XINCREF(next);
         }
 
         if (next == NULL && d == tstate->interp->modules) {
