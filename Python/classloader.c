@@ -2431,16 +2431,27 @@ used_in_vtable(PyObject *value)
     } else if (Py_TYPE(value) == &PyClassMethod_Type &&
                used_in_vtable_worker(_PyClassMethod_GetFunc(value))) {
         return 1;
-    } else if (Py_TYPE(value) == &PyProperty_Type ||
-               Py_TYPE(value) == &PyCachedPropertyWithDescr_Type ||
-               Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
-        PyObject *getter = classloader_get_property_fget(value);
-        PyObject *setter = classloader_get_property_fset(value);
-        int res = used_in_vtable_worker(getter) || used_in_vtable_worker(setter);
-        Py_XDECREF(getter);
-        Py_XDECREF(setter);
-        return res;
+    } else if (Py_TYPE(value) == &PyProperty_Type) {
+        PyObject *func = ((propertyobject *)value)->prop_get;
+        if (func != NULL && used_in_vtable_worker(func)) {
+            return 1;
+        }
+        func = ((propertyobject *)value)->prop_set;
+        if (func != NULL && used_in_vtable_worker(func)) {
+            return 1;
+        }
+    } else if (Py_TYPE(value) == &PyCachedPropertyWithDescr_Type) {
+        PyObject *func = ((PyCachedPropertyDescrObject *)value)->func;
+        if (used_in_vtable_worker(func)) {
+            return 1;
+        }
+    } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
+        PyObject *func = ((PyAsyncCachedPropertyDescrObject *)value)->func;
+        if (used_in_vtable_worker(func)) {
+            return 1;
+        }
     }
+
     return 0;
 }
 
