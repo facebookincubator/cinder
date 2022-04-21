@@ -10,8 +10,8 @@ following microbenchmark scenarios:
 4) "cpu_io_mixed": A mix of CPU-bound workload and IO-bound workload (with
                    memoization) at the leaf nodes.
 
-Use the commandline flag or pass microbenchmark scenario name to run_microbenchmark()
-to determine which microbenchmark scenario to run.
+Use the commandline flag or choose the corresponding <Scenario>AsyncTree class
+to run the desired microbenchmark scenario.
 """
 
 
@@ -106,23 +106,38 @@ class AsyncTree:
         self.task_count += 1
         return asyncio.Task(coro, loop=loop)
 
-    async def recurse(self, recurse_level, suspense_func):
+    async def suspense_func(self):
+        raise NotImplementedError(
+            "To be implemented by each microbenchmark's derived class."
+        )
+
+    async def recurse(self, recurse_level):
         if recurse_level == 0:
-            if suspense_func is not None:
-                await suspense_func()
+            await self.suspense_func()
             return
 
         await asyncio.gather(
-            *[
-                self.recurse(recurse_level - 1, suspense_func)
-                for _ in range(NUM_RECURSE_BRANCHES)
-            ]
+            *[self.recurse(recurse_level - 1) for _ in range(NUM_RECURSE_BRANCHES)]
         )
 
-    async def suspense_all_suspense_func(self):
+    def run(self):
+        loop = asyncio.new_event_loop()
+        loop.set_task_factory(self.create_task)
+        loop.run_until_complete(self.recurse(NUM_RECURSE_LEVELS))
+
+
+class NoSuspensionAsyncTree(AsyncTree):
+    async def suspense_func(self):
+        return
+
+
+class SuspenseAllAsyncTree(AsyncTree):
+    async def suspense_func(self):
         await self.mock_io_call()
 
-    async def memoization_suspense_func(self):
+
+class MemoizationAsyncTree(AsyncTree):
+    async def suspense_func(self):
         # deterministic random (seed preset)
         data = random.randint(1, 100)
 
@@ -135,34 +150,31 @@ class AsyncTree:
         await self.mock_io_call()
         return data
 
-    async def cpu_io_mixed_suspense_func(self):
+
+class CpuIoMixedAsyncTree(MemoizationAsyncTree):
+    async def suspense_func(self):
         if random.random() < self.cpu_probability:
             # mock cpu-bound call
             return math.factorial(FACTORIAL_N)
         else:
-            return await self.memoization_suspense_func()
-
-    def run_microbenchmark(self, scenario="no_suspension"):
-        suspense_funcs = {
-            "no_suspension": None,
-            "suspense_all": self.suspense_all_suspense_func,
-            "memoization": self.memoization_suspense_func,
-            "cpu_io_mixed": self.cpu_io_mixed_suspense_func,
-        }
-        suspense_func = suspense_funcs[scenario]
-
-        loop = asyncio.new_event_loop()
-        loop.set_task_factory(self.create_task)
-        loop.run_until_complete(self.recurse(NUM_RECURSE_LEVELS, suspense_func))
+            return await MemoizationAsyncTree.suspense_func(self)
 
 
 if __name__ == "__main__":
     args = parse_args()
     scenario = args.scenario
-    async_tree = AsyncTree(args.memoizable_percentage, args.cpu_probability)
+
+    trees = {
+        "no_suspension": NoSuspensionAsyncTree,
+        "suspense_all": SuspenseAllAsyncTree,
+        "memoization": MemoizationAsyncTree,
+        "cpu_io_mixed": CpuIoMixedAsyncTree,
+    }
+    async_tree_class = trees[scenario]
+    async_tree = async_tree_class(args.memoizable_percentage, args.cpu_probability)
 
     start_time = time.perf_counter()
-    async_tree.run_microbenchmark(scenario)
+    async_tree.run()
     end_time = time.perf_counter()
 
     if args.print:
