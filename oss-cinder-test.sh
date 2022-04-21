@@ -5,11 +5,8 @@ set -xe
 
 env
 
-SRC_ROOT="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")"
-
-mkdir build
 cd build
-"$SRC_ROOT/configure"
+./python -VV
 make -j 4 VERBOSE=1 testcinder_jit
 make -j 4 VERBOSE=1 testruntime
 make -j 4 VERBOSE=1 testcinder

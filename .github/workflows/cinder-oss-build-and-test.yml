@@ -1,15 +1,37 @@
 name: Cinder OSS Build and Test
+
 on: [push]
+
+env:
+  REGISTRY: ghcr.io
+  CINDER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder
 
 jobs:
   cinder-oss-build-and-test-job:
     runs-on: ubuntu-latest
-    container:
-      # Image built from .github/workflows/python-build-env/Dockerfile
-      image: ghcr.io/facebookincubator/cinder/python-build-env:latest
-      options: --cpus 2
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Run Build and Test
-        run: ./oss-build-and-test.sh
+        uses: actions/checkout@v3
+      - name: Log in to the GitHub container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata for pre-test Cinder Docker image
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ env.CINDER_IMAGE_NAME }}
+          # we publish the [untested] image using the branch + sha (e.g. "cinder-3.8.162db45") for debuggability
+          # note: `/` in the branch name (e.g "cinder/3.8") are auto-converted to `-` by this action
+          tags: type=sha,prefix={{branch}}.
+      - name: Build and push Cinder Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          tags: ${{ steps.meta.outputs.tags }}
+          push: true
+          file: .github/workflows/cinder/Dockerfile
+      - name: Run Cinder Tests
+        run: docker run --rm -w /cinder ${{ steps.meta.outputs.tags }} ./oss-cinder-test.sh
