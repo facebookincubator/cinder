@@ -1,6 +1,9 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
 #include "classloader.h"
+#include "descrobject.h"
+#include "dictobject.h"
+#include "object.h"
 #include "opcode.h"
 #include "structmember.h"
 #include "Jit/pyjit.h"
@@ -1415,7 +1418,6 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     _PyClassLoader_TypeCheckState *state = PyObject_GC_New(
         _PyClassLoader_TypeCheckState, &_PyType_TypeCheckState);
     if (state == NULL) {
-        Py_XDECREF(ret_type);
         return -1;
     }
     state->tcs_value = value;
@@ -1851,6 +1853,10 @@ get_func_or_special_callable(PyTypeObject *type, PyObject *name, PyObject **resu
 }
 
 
+int
+is_static_type(PyTypeObject *type);
+
+
 /*
     Looks up through parent classes to find a member specified by the name. If a parent class attribute
     has been patched, that is ignored, i.e it goes through the originally defined members.
@@ -1861,6 +1867,9 @@ _PyClassLoader_GetStaticallyInheritedMember(PyTypeObject *type, PyObject *name, 
 
     for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
         PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(type->tp_mro, i);
+        if (!is_static_type(next)) {
+            continue;
+        }
         if (next->tp_cache != NULL &&
                 ((_PyType_VTable *)next->tp_cache)->vt_original != NULL) {
             /* if we've initialized originals it contains all of our possible slot values
@@ -1880,10 +1889,6 @@ _PyClassLoader_GetStaticallyInheritedMember(PyTypeObject *type, PyObject *name, 
         }
 
         if (base != NULL) {
-            if (!used_in_vtable(base)) {
-                Py_DECREF(base);
-                continue;
-            }
             *result = base;
             return 0;
         }
@@ -2072,7 +2077,6 @@ int populate_getter_and_setter(PyTypeObject *type,
                                PyObject *name,
                                PyObject *new_value)
 {
-
     PyObject *getter_value = new_value == NULL ? NULL : classloader_get_property_fget(type, name, new_value);
     PyObject *setter_value = new_value == NULL ? NULL : classloader_get_property_fset(type, name, new_value);
 
@@ -2094,6 +2098,41 @@ int populate_getter_and_setter(PyTypeObject *type,
 
     return result;
 }
+
+static int
+classloader_get_original_static_def(PyTypeObject *tp, PyObject *name, PyObject **original)
+{
+    _PyType_VTable *vtable = (_PyType_VTable *)tp->tp_cache;
+    *original = NULL;
+    if (is_static_type(tp)) {
+        if (vtable->vt_original != NULL) {
+            *original = PyDict_GetItem(vtable->vt_original, name);
+            if (*original != NULL) {
+                Py_INCREF(*original);
+                return 0;
+            }
+        } else if (get_func_or_special_callable(tp, name, original)) {
+            return -1;
+        }
+    }
+
+    if (*original == NULL) {
+        // The member was actually defined in one of the parent classes, so try to look it up from there.
+        // TODO: It might be possible to avoid the type-check in this situation, because while `tp` was patched,
+        // the parent Static classes may not be.
+        if (_PyClassLoader_GetStaticallyInheritedMember(tp, name, original)) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int
+type_vtable_setslot(PyTypeObject *tp,
+                    PyObject *name,
+                    Py_ssize_t slot,
+                    PyObject *value,
+                    PyObject *original);
 
 /* The UpdateSlot method will always get called by `tp_setattro` when one of a type's attribute
    gets changed, and serves as an entry point for handling modifications to vtables. */
@@ -2118,14 +2157,30 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         return 0;
     }
 
-    PyObject *previous;
-    if (vtable->vt_original != NULL) {
-        assert(type->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
-        previous = PyDict_GetItem(vtable->vt_original, name);
-    } else {
-        /* non-static type can't influence our original static return type */
-        assert(!(type->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED));
-        previous = NULL;
+    PyObject *original;
+    if (classloader_get_original_static_def(type, name, &original)) {
+        return -1;
+    }
+
+    /* we need to search in the MRO if we don't contain the
+     * item directly or we're currently deleting the current value */
+    if (new_value == NULL) {
+        /* We need to look for an item explicitly declared in our parent if we're inheriting.
+         * Note we don't care about static vs non-static, and we don't want to look at the
+         * original values either.  The new value is simply whatever the currently inherited value
+         * is. */
+        PyObject *mro = type->tp_mro;
+
+        for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
+            PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(type->tp_mro, i);
+            if (next->tp_dict == NULL) {
+                continue;
+            }
+            new_value = PyDict_GetItem(next->tp_dict, name);
+            if (new_value != NULL) {
+                break;
+            }
+        }
     }
 
     /* update the value that exists in our thunks for performing indirections
@@ -2133,44 +2188,22 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     if (vtable->vt_thunks != NULL) {
         _Py_StaticThunk *thunk = (_Py_StaticThunk *)PyDict_GetItem(vtable->vt_thunks, name);
         if (thunk != NULL) {
-            update_thunk(thunk, previous, new_value);
+            update_thunk(thunk, original, new_value);
         }
     }
 
-    /* we need to search in the MRO if we don't contain the
-     * item directly or we're currently deleting the current value */
-    PyObject *base = NULL;
-    if (previous == NULL || new_value == NULL) {
-        if (_PyClassLoader_GetStaticallyInheritedMember(type, name, &base)) {
-            return -1;
-        }
-
-        assert(base != NULL || previous != NULL);
-
-        if (base != NULL) {
-            if (previous == NULL) {
-                /* we use the inherited member as the current member for this class */
-                previous = base;
-            }
-            if (new_value == NULL) {
-                /* after deletion we pick up the inherited member as our current value */
-                new_value = base;
-            }
-        }
-    }
-
-    assert(previous != NULL);
+    assert(original != NULL);
 
     int cur_optional = 0, cur_exact = 0, cur_coroutine = 0, cur_classmethod = 0;
-    PyObject *cur_type = _PyClassLoader_ResolveReturnType(previous, &cur_optional, &cur_exact,
+    PyObject *cur_type = _PyClassLoader_ResolveReturnType(original, &cur_optional, &cur_exact,
                                                           &cur_coroutine, &cur_classmethod);
     assert(cur_type != NULL);
 
     // if this is a property slot, also update the getter and setter slots
-    if (Py_TYPE(previous) == &PyProperty_Type ||
-        Py_TYPE(previous) == &PyCachedPropertyWithDescr_Type ||
-        Py_TYPE(previous) == &PyAsyncCachedProperty_Type ||
-        Py_TYPE(previous) == &_PyTypedDescriptorWithDefaultValue_Type) {
+    if (Py_TYPE(original) == &PyProperty_Type ||
+        Py_TYPE(original) == &PyCachedPropertyWithDescr_Type ||
+        Py_TYPE(original) == &PyAsyncCachedProperty_Type ||
+        Py_TYPE(original) == &_PyTypedDescriptorWithDefaultValue_Type) {
         if (new_value) {
             // If we have a new value, and it's not a descriptor, we can type-check it
             // at the time of assignment.
@@ -2184,58 +2217,25 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
                         ((PyTypeObject*) cur_type)->tp_name
                 );
                 Py_DECREF(cur_type);
-                Py_XDECREF(base);
+                Py_DECREF(original);
                 return -1;
             }
         }
-         if (populate_getter_and_setter(type, name, new_value) < 0) {
-            Py_XDECREF(base);
+        if (populate_getter_and_setter(type, name, new_value) < 0) {
+            Py_DECREF(original);
             return -1;
         }
     }
+    Py_DECREF(cur_type);
 
     Py_ssize_t index = PyLong_AsSsize_t(slot);
 
-    /* we make no attempts to keep things efficient when types start getting
-     * mutated.  We always install the less efficient type checked functions,
-     * rather than having to deal with a proliferation of states */
-    if (new_value == NULL) {
-        /* The value is deleted, and we didn't find one in a base class.
-         * We'll put in a value which raises AttributeError */
-        PyObject *missing_state = PyTuple_New(3);
-        if (missing_state == NULL) {
-            Py_DECREF(cur_type);
-            Py_XDECREF(base);
-            return -1;
-        }
-
-        PyObject *func_name = classloader_get_func_name(name);
-        PyTuple_SET_ITEM(missing_state, 0, func_name);
-        PyTuple_SET_ITEM(missing_state, 1, cur_type);
-        PyObject *optional = cur_optional ? Py_True : Py_False;
-        PyTuple_SET_ITEM(missing_state, 2, optional);
-        Py_INCREF(func_name);
-        Py_INCREF(cur_type);
-        Py_INCREF(optional);
-
-        Py_XDECREF(vtable->vt_entries[index].vte_state);
-        vtable->vt_entries[index].vte_state = missing_state;
-        vtable->vt_entries[index].vte_entry = (vectorcallfunc)type_vtable_func_missing;
-    } else if (type_vtable_setslot_typecheck(cur_type,
-                                             cur_optional,
-                                             cur_exact,
-                                             cur_coroutine,
-                                             cur_classmethod,
-                                             name,
-                                             vtable,
-                                             index,
-                                             new_value)) {
-        Py_DECREF(cur_type);
-        Py_XDECREF(base);
+    if (type_vtable_setslot(type, name, index, new_value, original)) {
+        Py_DECREF(original);
         return -1;
     }
-    Py_DECREF(cur_type);
-    Py_XDECREF(base);
+
+    Py_DECREF(original);
 
     /* propagate slot update to derived classes that don't override
      * the function (but first, ensure they have initialized vtables) */
@@ -2258,98 +2258,96 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
 static int
 type_vtable_setslot(PyTypeObject *tp,
                     PyObject *name,
-                    _PyType_VTable *vtable,
                     Py_ssize_t slot,
-                    PyObject *value)
+                    PyObject *value,
+                    PyObject *original)
 {
-    if (tp->tp_dictoffset == 0) {
-        // These cases mean that the type instances don't have a __dict__ slot,
-        // meaning our compile time type-checks are valid (nothing's been patched)
-        // meaning we can omit return type checks at runtime.
-        if (_PyClassLoader_IsStaticFunction(value)) {
-            return type_vtable_set_opt_slot(tp, name, vtable, slot, value);
-        } else if (Py_TYPE(value) == &PyStaticMethod_Type &&
-                _PyClassLoader_IsStaticFunction(_PyStaticMethod_GetFunc(value))) {
-            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-            vtable->vt_entries[slot].vte_entry = type_vtable_staticmethod;
-            Py_INCREF(value);
-            return 0;
-        } else if (Py_TYPE(value) == &PyClassMethod_Type &&
-                   _PyClassLoader_IsStaticFunction(_PyClassMethod_GetFunc(value))) {
-            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-            vtable->vt_entries[slot].vte_entry = type_vtable_classmethod;
-            Py_INCREF(value);
-            return 0;
-        } else if (Py_TYPE(value) == &PyMethodDescr_Type) {
+    _PyType_VTable *vtable = (_PyType_VTable *)tp->tp_cache;
+    assert(original != NULL);
+
+    if (original == value) {
+        if (tp->tp_dictoffset == 0) {
+            // These cases mean that the type instances don't have a __dict__ slot,
+            // meaning our compile time type-checks are valid (nothing's been patched)
+            // meaning we can omit return type checks at runtime.
+            if (_PyClassLoader_IsStaticFunction(value)) {
+                return type_vtable_set_opt_slot(tp, name, vtable, slot, value);
+            } else if (Py_TYPE(value) == &PyStaticMethod_Type &&
+                    _PyClassLoader_IsStaticFunction(_PyStaticMethod_GetFunc(value))) {
+                Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+                vtable->vt_entries[slot].vte_entry = type_vtable_staticmethod;
+                Py_INCREF(value);
+                return 0;
+            } else if (Py_TYPE(value) == &PyClassMethod_Type &&
+                    _PyClassLoader_IsStaticFunction(_PyClassMethod_GetFunc(value))) {
+                Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+                vtable->vt_entries[slot].vte_entry = type_vtable_classmethod;
+                Py_INCREF(value);
+                return 0;
+            } else if (Py_TYPE(value) == &PyMethodDescr_Type) {
+                Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+                vtable->vt_entries[slot].vte_entry =
+                    ((PyMethodDescrObject *)value)->vectorcall;
+                Py_INCREF(value);
+                return 0;
+            } else if (Py_TYPE(value) == &_PyType_PropertyThunk) {
+                Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+                vtable->vt_entries[slot].vte_entry = (vectorcallfunc)propthunk_get;
+                Py_INCREF(value);
+                return 0;
+            }
+        }
+
+        if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
             Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
             vtable->vt_entries[slot].vte_entry =
-                ((PyMethodDescrObject *)value)->vectorcall;
+                (vectorcallfunc)cachedpropthunk_get;
+            Py_INCREF(value);
+            return 0;
+        } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
+            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+            vtable->vt_entries[slot].vte_entry =
+                (vectorcallfunc)async_cachedpropthunk_get;
+        } else if (Py_TYPE(value) == &_PyType_TypedDescriptorThunk) {
+            Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+            vtable->vt_entries[slot].vte_entry =
+                ((_Py_TypedDescriptorThunk *) value)->typed_descriptor_thunk_vectorcall;
             Py_INCREF(value);
             return 0;
         }
     }
 
-    if (Py_TYPE(value) == &_PyType_CachedPropertyThunk) {
-        Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-        vtable->vt_entries[slot].vte_entry =
-            (vectorcallfunc)cachedpropthunk_get;
-        Py_INCREF(value);
-        return 0;
-    } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
-        Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-        vtable->vt_entries[slot].vte_entry =
-            (vectorcallfunc)async_cachedpropthunk_get;
-    } else if (Py_TYPE(value) == &_PyType_TypedDescriptorThunk) {
-        Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
-        vtable->vt_entries[slot].vte_entry =
-            ((_Py_TypedDescriptorThunk *) value)->typed_descriptor_thunk_vectorcall;
-        Py_INCREF(value);
-        return 0;
-    }
-
-    PyObject *original;
-    PyObject *ret_type;
     int optional = 0, exact = 0, coroutine = 0, classmethod = 0;
-    if (vtable->vt_original != NULL) {
-        assert(tp->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED);
-        original = PyDict_GetItem(vtable->vt_original, name);
-
-        if (!original) {
-            // The member was actually defined in one of the parent classes, so try to look it up from there.
-            // TODO: It might be possible to avoid the type-check in this situation, because while `tp` was patched,
-            // the parent Static classes may not be.
-            int res = _PyClassLoader_GetStaticallyInheritedMember(tp, name, &original);
-            if (res != 0) {
-                return -1;
-            }
-        } else {
-            Py_INCREF(original);
-        }
-
-        ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &exact, &coroutine, &classmethod);
-        Py_DECREF(original);
-    } else {
-        ret_type = _PyClassLoader_ResolveReturnType(value, &optional, &exact, &coroutine, &classmethod);
-        if (ret_type == NULL) {
-            if (_PyClassLoader_GetStaticallyInheritedMember(tp, name, &original)) {
-                return -1;
-            }
-            if (original == NULL) {
-                PyErr_Format(PyExc_RuntimeError,
-                            "unable to resolve base method for %R in %s",
-                            name, tp->tp_name);
-                return -1;
-            }
-            ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &exact, &coroutine, &classmethod);
-            Py_DECREF(original);
-        }
-    }
+    PyObject *ret_type = _PyClassLoader_ResolveReturnType(original, &optional, &exact, &coroutine, &classmethod);
 
     if (ret_type == NULL) {
         PyErr_Format(PyExc_RuntimeError,
                     "missing type annotation on static compiled method %R of %s",
                     name, tp->tp_name);
         return -1;
+    }
+
+    if (value == NULL) {
+        PyObject *missing_state = PyTuple_New(3);
+        if (missing_state == NULL) {
+            Py_DECREF(ret_type);
+            return -1;
+        }
+
+        PyObject *func_name = classloader_get_func_name(name);
+        PyTuple_SET_ITEM(missing_state, 0, func_name);
+        PyTuple_SET_ITEM(missing_state, 1, (PyObject *)tp);
+        PyObject *optional_obj = optional ? Py_True : Py_False;
+        PyTuple_SET_ITEM(missing_state, 2, optional_obj);
+        Py_INCREF(func_name);
+        Py_INCREF(tp);
+        Py_INCREF(optional_obj);
+
+        Py_XDECREF(vtable->vt_entries[slot].vte_state);
+        vtable->vt_entries[slot].vte_state = missing_state;
+        vtable->vt_entries[slot].vte_entry = (vectorcallfunc)type_vtable_func_missing;
+        Py_DECREF(ret_type);
+        return 0;
     }
 
     int res = type_vtable_setslot_typecheck(
@@ -2393,9 +2391,17 @@ type_vtable_lazyinit(PyObject *name,
             return NULL;
         }
         if (value != NULL) {
-            if (type_vtable_setslot(type, name, vtable, slot, value)) {
+            PyObject *original = NULL;
+            if (classloader_get_original_static_def(type, name, &original)) {
+                Py_DECREF(value);
                 return NULL;
             }
+            if (type_vtable_setslot(type, name, slot, value, original)) {
+                Py_XDECREF(original);
+                Py_DECREF(value);
+                return NULL;
+            }
+            Py_XDECREF(original);
             Py_DECREF(value);
 
             return vtable->vt_entries[slot].vte_entry(

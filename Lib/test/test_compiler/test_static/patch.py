@@ -363,6 +363,76 @@ class StaticPatchTests(StaticTestBase):
             C.f = orig
             self.assertEqual(g(), None)
 
+    def test_patch_property_with_instance_and_override_dict(self):
+        codestr = """
+            class C:
+                @property
+                def f(self):
+                    return 42
+
+                def get_f(self):
+                    return self.f
+        """
+
+        with self.in_module(codestr) as mod:
+            C = mod.C
+
+            class D(C):
+                pass
+
+            C.f = 42
+            a = D()
+            a.f = 100
+            self.assertEqual(a.get_f(), 100)
+
+    def test_patch_static_to_static(self):
+        codestr = """
+            class C:
+                def f(self) -> str:
+                    return 'ABC'
+
+                def g(self) -> int:
+                    return 42
+
+                def get_lower_f(self):
+                    return self.f().lower()
+        """
+
+        with self.in_module(codestr) as mod:
+            C = mod.C
+            C.f = C.g
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from C.f, expected str, got int"
+            ):
+                self.assertEqual(C().get_lower_f(), "ABC")
+
+    def test_static_not_inherited_from_nonstatic(self):
+        codestr = """
+            class C:
+                def f(self) -> str:
+                    return 'ABC'
+
+                def g(self) -> int:
+                    return 42
+
+                def get_lower_f(self):
+                    return self.f().lower()
+        """
+
+        with self.in_module(codestr) as mod:
+            C = mod.C
+
+            class D(C):
+                f = C.g
+
+            class E(D):
+                pass
+
+            with self.assertRaisesRegex(
+                TypeError, "unexpected return type from E.f, expected str, got int"
+            ):
+                self.assertEqual(E().get_lower_f(), "ABC")
+
     def test_patch_method_mock(self):
         codestr = """
             class C:
@@ -689,6 +759,36 @@ class StaticPatchTests(StaticTestBase):
             self.assertEqual(f(b), b)
             self.assertEqual(f(d), d)
             del B.f
+
+            with self.assertRaises(AttributeError):
+                f(b)
+            with self.assertRaises(AttributeError):
+                f(d)
+
+    def test_override_remove_overridden_base_method(self):
+        codestr = """
+        from typing import Optional
+        class B:
+            def f(self) -> "B":
+                return self
+
+        class D(B):
+            def f(self) -> "B":
+                return self
+
+        def f(x: B):
+            return x.f()
+        """
+        with self.in_module(codestr) as mod:
+            B = mod.B
+            D = mod.D
+            f = mod.f
+            b = B()
+            d = D()
+            self.assertEqual(f(b), b)
+            self.assertEqual(f(d), d)
+            del B.f
+            del D.f
 
             with self.assertRaises(AttributeError):
                 f(b)
@@ -1739,7 +1839,6 @@ class StaticPatchTests(StaticTestBase):
                 return self
 
         with self.in_strict_module(codestr, freeze=False) as mod:
-
             setattr(mod.C, "x", TestAwaitableProperty())
 
             with self.assertRaisesRegex(
