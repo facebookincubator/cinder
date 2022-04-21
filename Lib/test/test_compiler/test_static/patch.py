@@ -363,6 +363,23 @@ class StaticPatchTests(StaticTestBase):
             C.f = orig
             self.assertEqual(g(), None)
 
+    def test_patch_method_mock(self):
+        codestr = """
+            class C:
+                def f(self, a):
+                    pass
+
+                def g(self):
+                    return self.f(42)
+        """
+
+        with self.in_module(codestr) as mod:
+            C = mod.C
+            orig = C.f
+            with patch(f"{mod.__name__}.C.f") as p:
+                C().g()
+                self.assertEqual(p.call_args_list[0][0], (42,))
+
     def test_patch_method_ret_none_error(self):
         codestr = """
             class C:

@@ -633,6 +633,58 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
 }
 
 static PyObject *
+type_vtable_nonfunc_property(_PyClassLoader_TypeCheckState *state,
+                             PyObject **args,
+                             size_t nargsf,
+                             PyObject *kwnames)
+{
+
+    PyObject *self = args[0];
+    PyObject *descr = state->tcs_value;
+    PyObject *name = state->tcs_rt.rt_name;
+    PyObject *res;
+
+    /* we have to perform the descriptor checks at runtime because the
+     * descriptor type can be modified preventing us from being able to have
+     * more optimized fast paths */
+    if (!PyDescr_IsData(descr)) {
+        PyObject **dictptr = _PyObject_GetDictPtr(self);
+        if (dictptr != NULL) {
+            PyObject *dict = *dictptr;
+            if (dict != NULL) {
+                res = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
+                if (res != NULL) {
+                    Py_INCREF(res);
+                    goto done;
+                }
+            }
+        }
+    }
+
+    if (Py_TYPE(descr)->tp_descr_get != NULL) {
+        PyObject *self = args[0];
+        PyObject *get = Py_TYPE(descr)->tp_descr_get(
+            descr, self, (PyObject *)Py_TYPE(self));
+        if (get == NULL) {
+            return NULL;
+        }
+
+        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+
+        res =
+            _PyObject_Vectorcall(get,
+                                 args + 1,
+                                 (nargs - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET,
+                                 kwnames);
+        Py_DECREF(get);
+        goto done;
+    }
+    res = _PyObject_Vectorcall(descr, args, nargsf, kwnames);
+done:
+    return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
+}
+
+static PyObject *
 type_vtable_nonfunc(_PyClassLoader_TypeCheckState *state,
                     PyObject **args,
                     size_t nargsf,
@@ -679,7 +731,7 @@ type_vtable_nonfunc(_PyClassLoader_TypeCheckState *state,
         Py_DECREF(get);
         goto done;
     }
-    res = _PyObject_Vectorcall(descr, args, nargsf, kwnames);
+    res = _PyObject_Vectorcall(descr, args + 1, nargsf - 1, kwnames);
 done:
     return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
 }
@@ -1343,6 +1395,9 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     } else if (PyFunction_Check(value)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_func_overridable;
+    } else if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
+        vtable->vt_entries[slot].vte_entry =
+            (vectorcallfunc)type_vtable_nonfunc_property;
     } else if (classmethod) {
         vtable->vt_entries[slot].vte_entry = (vectorcallfunc)type_vtable_classmethod_overridable;
     } else {

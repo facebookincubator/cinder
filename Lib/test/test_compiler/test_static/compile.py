@@ -969,20 +969,21 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
-        with self.in_module(codestr) as mod:
-            x, C = mod.x, mod.C
-            self.assertEqual(x(C()), 2)
+        for compiler in [PythonCodeGenerator, StaticCodeGenerator]:
+            with self.in_module(codestr, code_gen=compiler) as mod:
+                x, C = mod.x, mod.C
+                self.assertEqual(x(C()), 2)
 
-            class Callable:
-                def __call__(self_, obj):
-                    self.assertTrue(isinstance(obj, D))
-                    return 42
+                class Callable:
+                    def __call__(self_, obj=None):
+                        self.assertEqual(obj, None)
+                        return 42
 
-            class D(C):
-                f = Callable()
+                class D(C):
+                    f = Callable()
 
-            d = D()
-            self.assertEqual(x(d), 84)
+                d = D()
+                self.assertEqual(x(d), 84)
 
     def test_invoke_new_derived_nonfunc_slots(self):
         codestr = """
@@ -1000,21 +1001,22 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
-        with self.in_module(codestr) as mod:
-            x, C = mod.x, mod.C
-            self.assertEqual(x(C()), 2)
+        for compiler in [PythonCodeGenerator, StaticCodeGenerator]:
+            with self.in_module(codestr, code_gen=compiler) as mod:
+                x, C = mod.x, mod.C
+                self.assertEqual(x(C()), 2)
 
-            class Callable:
-                def __call__(self_, obj):
-                    self.assertTrue(isinstance(obj, D))
-                    return 42
+                class Callable:
+                    def __call__(self_, obj=None):
+                        self.assertEqual(obj, None)
+                        return 42
 
-            class D(C):
-                __slots__ = ()
-                f = Callable()
+                class D(C):
+                    __slots__ = ()
+                    f = Callable()
 
-            d = D()
-            self.assertEqual(x(d), 84)
+                d = D()
+                self.assertEqual(x(d), 84)
 
     def test_invoke_new_derived_nonfunc_descriptor(self):
         codestr = """
@@ -1139,28 +1141,29 @@ class StaticCompilationTests(StaticTestBase):
         x = self.find_code(code, "x")
         self.assertInBytecode(x, "INVOKE_METHOD", (("foo", "C", "f"), 0))
 
-        with self.in_module(codestr) as mod:
-            x, C = mod.x, mod.C
-            self.assertEqual(x(C()), 2)
+        for compiler in [PythonCodeGenerator, StaticCodeGenerator]:
+            with self.in_module(codestr, code_gen=compiler) as mod:
+                x, C = mod.x, mod.C
+                self.assertEqual(x(C()), 2)
 
-            class Callable:
-                def __call__(self):
-                    return 42
+                class Callable:
+                    def __call__(self):
+                        return 42
 
-            class Descr:
-                def __get__(self, inst, ctx):
-                    return Callable()
+                class Descr:
+                    def __get__(self, inst, ctx):
+                        return Callable()
 
-                def __call__(self, arg):
-                    return 23
+                    def __call__(self):
+                        return 23
 
-            class D(C):
-                f = Descr()
+                class D(C):
+                    f = Descr()
 
-            d = D()
-            self.assertEqual(x(d), 84)
-            del Descr.__get__
-            self.assertEqual(x(d), 46)
+                d = D()
+                self.assertEqual(x(d), 84)
+                del Descr.__get__
+                self.assertEqual(x(d), 46)
 
     def test_invoke_dict_override(self):
         codestr = """
