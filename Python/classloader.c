@@ -2012,11 +2012,16 @@ _PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
 }
 
 int populate_getter_and_setter(PyTypeObject *type,
-                               PyObject *getter_tuple,
-                               PyObject *getter_value,
-                               PyObject *setter_tuple,
-                               PyObject *setter_value)
+                               PyObject *name,
+                               PyObject *new_value)
 {
+
+    PyObject *getter_value = new_value == NULL ? NULL : classloader_get_property_fget(new_value);
+    PyObject *setter_value = new_value == NULL ? NULL : classloader_get_property_fset(new_value);
+
+    PyObject *getter_tuple = get_property_getter_descr_tuple(name);
+    PyObject *setter_tuple = get_property_setter_descr_tuple(name);
+
     int result = 0;
     if (_PyClassLoader_UpdateSlot(type, (PyObject *)getter_tuple, getter_value)) {
         result = -1;
@@ -2075,8 +2080,6 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
         }
     }
 
-    int deleting = new_value == NULL;
-
     /* we need to search in the MRO if we don't contain the
      * item directly or we're currently deleting the current value */
     PyObject *base = NULL;
@@ -2107,55 +2110,28 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     assert(cur_type != NULL);
 
     // if this is a property slot, also update the getter and setter slots
-    if (Py_TYPE(previous) == &PyProperty_Type || Py_TYPE(previous) == &PyCachedPropertyWithDescr_Type) {
+    if (Py_TYPE(previous) == &PyProperty_Type ||
+        Py_TYPE(previous) == &PyCachedPropertyWithDescr_Type ||
+        Py_TYPE(previous) == &PyAsyncCachedProperty_Type ||
+        Py_TYPE(previous) == &_PyTypedDescriptorWithDefaultValue_Type) {
         if (new_value) {
             // If we have a new value, and it's not a descriptor, we can type-check it
             // at the time of assignment.
             PyTypeObject *new_value_type = Py_TYPE(new_value);
-            if (new_value_type->tp_descr_get == NULL && !(cur_optional && new_value == Py_None)) {
-                int check_res = _PyObject_RealIsInstance(new_value, cur_type);
-                if (check_res == -1) {
-                    Py_DECREF(cur_type);
-                    return -1;
-                } else if (check_res == 0) {
-                    PyErr_Format(
-                        PyExc_TypeError, "Cannot assign a %s, because %s.%U is expected to be a %s",
-                        new_value_type->tp_name, type->tp_name, name, ((PyTypeObject*)cur_type)->tp_name
-                    );
-                    Py_DECREF(cur_type);
-                    return -1;
-                }
-            }
-        }
-        PyObject *new_getter = deleting ? NULL : classloader_get_property_fget(new_value);
-        PyObject *new_setter = deleting ? NULL : classloader_get_property_fset(new_value);
-        if (populate_getter_and_setter(type,
-                                       get_property_getter_descr_tuple(name), new_getter,
-                                       get_property_setter_descr_tuple(name), new_setter) < 0) {
-              Py_XDECREF(base);
-              return -1;
-        }
-    } else if (Py_TYPE(previous) == &_PyTypedDescriptorWithDefaultValue_Type) {
-        if (new_value) {
-            // If we have a new value, and it's not a descriptor, we can type-check it
-            // at the time of assignment.
-          if (!_PyObject_TypeCheckOptional(new_value, (PyTypeObject *) cur_type, cur_optional, cur_exact)) {
-                 PyErr_Format(
+            if (new_value_type->tp_descr_get == NULL &&
+                !_PyObject_TypeCheckOptional(new_value, (PyTypeObject *) cur_type, cur_optional, cur_exact)) {
+                PyErr_Format(
                         PyExc_TypeError, "Cannot assign a %s, because %s.%U is expected to be a %s",
                         Py_TYPE(new_value)->tp_name,
                         type->tp_name, name,
                         ((PyTypeObject*) cur_type)->tp_name
-                    );
-                 Py_DECREF(cur_type);
-                 Py_XDECREF(base);
-                 return -1;
+                );
+                Py_DECREF(cur_type);
+                Py_XDECREF(base);
+                return -1;
             }
         }
-        PyObject *new_getter = deleting ? NULL : classloader_get_property_fget(new_value);
-        PyObject *new_setter = deleting ? NULL : classloader_get_property_fset(new_value);
-        if (populate_getter_and_setter(type,
-                                       get_property_getter_descr_tuple(name), new_getter,
-                                       get_property_setter_descr_tuple(name), new_setter) < 0) {
+         if (populate_getter_and_setter(type, name, new_value) < 0) {
             Py_XDECREF(base);
             return -1;
         }

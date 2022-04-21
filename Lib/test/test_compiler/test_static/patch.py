@@ -1700,12 +1700,11 @@ class StaticPatchTests(StaticTestBase):
             return await c.x
         """
         with self.in_strict_module(codestr, freeze=False) as mod:
-            setattr(mod.C, "x", "42")
 
             with self.assertRaisesRegex(
-                TypeError, "object str can't be used in 'await' expression"
+                TypeError, "Cannot assign a str, because C.x is expected to be a int"
             ):
-                asyncio.run(mod.f(mod.C()))
+                setattr(mod.C, "x", "42")
 
         # Ensure the exact same behavior in non-static code
         with self.in_module(codestr, code_gen=PythonCodeGenerator) as mod:
@@ -1779,6 +1778,40 @@ class StaticPatchTests(StaticTestBase):
                 return self
 
         with self.in_strict_module(codestr, freeze=False) as mod:
+            setattr(mod.C, "x", TestAwaitableProperty())
+
+            self.assertEqual(asyncio.run(mod.f(mod.C())), 131)
+
+            async def awaiter(c):
+                return await c.x
+
+            self.assertEqual(asyncio.run(awaiter(mod.C())), 131)
+
+    def test_async_cached_property_patch_with_good_return_type_already_invoked(self):
+        codestr = """
+        from cinder import async_cached_property
+
+        class C:
+            @async_cached_property
+            async def x(self) -> int:
+                return 3
+
+        async def f(c: C) -> int:
+            return await c.x
+        """
+
+        class TestAwaitableProperty:
+            def __next__(self):
+                raise StopIteration(131)
+
+            def __await__(self):
+                return self
+
+            def __get__(self, _, __=None):
+                return self
+
+        with self.in_strict_module(codestr, freeze=False) as mod:
+            self.assertEqual(asyncio.run(mod.f(mod.C())), 3)
 
             setattr(mod.C, "x", TestAwaitableProperty())
 
