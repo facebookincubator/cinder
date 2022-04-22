@@ -3154,7 +3154,7 @@ main_loop:
                 PyObject *nargs = PyTuple_GET_ITEM(arg_tuple, 0);
                 assert(nargs != NULL);
 
-                PyObject *funcObj = PEEK(PyLong_AsUnsignedLongLong(nargs) + 1);
+                PyObject *funcObj = PEEK(PyLong_AsLongLong(nargs) + 1);
                 if (PyMethod_Check(funcObj)) {
                     funcObj = ((PyMethodObject *)funcObj)->im_func;
                 }
