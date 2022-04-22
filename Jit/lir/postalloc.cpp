@@ -247,50 +247,6 @@ int PostRegAllocRewrite::rewriteVectorCallFunctions(instr_iter_t instr_iter) {
   return rsp_sub;
 }
 
-int PostRegAllocRewrite::rewriteGetMethodFunctionWorker(
-    instr_iter_t instr_iter) {
-  auto instr = instr_iter->get();
-  auto block = instr->basicblock();
-  // the first input operand is always JITRT_GetMethod/JITRT_GetMethodFromSuper
-  constexpr int CALL_OPERAND_ARG_START = 1;
-  auto num_inputs = instr->getNumInputs();
-
-  JIT_DCHECK(
-      num_inputs <= std::size(ARGUMENT_REGS),
-      "Number of inputs is greater than available GP_ARGUMENT_REGS");
-
-  for (size_t i = CALL_OPERAND_ARG_START; i < num_inputs; i++) {
-    auto reg = ARGUMENT_REGS[i - 1];
-
-    auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove);
-    move->output()->setPhyRegister(reg);
-    move->appendInputOperand(instr->releaseInputOperand(i));
-  }
-
-  block->allocateInstrBefore(
-      instr_iter,
-      Instruction::kMove,
-      OutPhyReg(ARGUMENT_REGS[num_inputs - 1]),
-      PhyReg(PhyLocation::RSP));
-
-  return 0;
-}
-
-int PostRegAllocRewrite::rewriteGetMethodFunction(instr_iter_t instr_iter) {
-  JIT_DCHECK(
-      instr_iter->get()->getNumInputs() == 4,
-      "signature for JITRT_GetMethod changed");
-  return rewriteGetMethodFunctionWorker(instr_iter);
-}
-
-int PostRegAllocRewrite::rewriteGetSuperMethodFunction(
-    instr_iter_t instr_iter) {
-  JIT_DCHECK(
-      instr_iter->get()->getNumInputs() == 6,
-      "signature for JITRT_GetMethodFromSuper changed");
-  return rewriteGetMethodFunctionWorker(instr_iter);
-}
-
 int PostRegAllocRewrite::rewriteBatchDecrefFunction(instr_iter_t instr_iter) {
   auto instr = instr_iter->get();
   auto block = instr->basicblock();
