@@ -1571,18 +1571,18 @@ int _PyJIT_Finalize() {
   jit::Runtime::get()->clearDeoptStats();
   jit::Runtime::get()->releaseReferences();
 
-  if (jit_config.init_state != JIT_INITIALIZED) {
-    return 0;
+  if (jit_config.init_state == JIT_INITIALIZED) {
+    delete g_jit_list;
+    g_jit_list = nullptr;
+
+    jit_config.init_state = JIT_FINALIZED;
+
+    JIT_CHECK(jit_ctx != nullptr, "jit_ctx not initialized");
+    delete jit_ctx;
+    jit_ctx = nullptr;
+
+    CodeAllocator::freeGlobalCodeAllocator();
   }
-
-  delete g_jit_list;
-  g_jit_list = nullptr;
-
-  jit_config.init_state = JIT_FINALIZED;
-
-  JIT_CHECK(jit_ctx != nullptr, "jit_ctx not initialized");
-  delete jit_ctx;
-  jit_ctx = nullptr;
 
 #define CLEAR_STR(s) Py_CLEAR(s_str_##s);
   INTERNED_STRINGS(CLEAR_STR)
@@ -1595,7 +1595,6 @@ int _PyJIT_Finalize() {
   }
 
   Runtime::shutdown();
-  CodeAllocator::freeGlobalCodeAllocator();
   return 0;
 }
 

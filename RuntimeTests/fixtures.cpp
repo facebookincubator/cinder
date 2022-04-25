@@ -24,7 +24,7 @@ void HIRTest::TestBody() {
 
     TearDown();
     SetUp();
-    jit::readProfileData(data);
+    ASSERT_TRUE(jit::readProfileData(data));
   }
 
   std::unique_ptr<Function> irfunc;
