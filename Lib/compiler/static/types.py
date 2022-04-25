@@ -4684,10 +4684,6 @@ class Dataclass(Class):
         )
         self.wrapped_class = klass
 
-        # TODO(T96281456): support non-default arguments to @dataclass
-        if unsafe_hash:
-            raise TypedSyntaxError("Static dataclasses do not support hashing yet")
-
         self.init = init
         self.repr = repr
         self.eq = eq
@@ -4754,6 +4750,11 @@ class Dataclass(Class):
                         f"Cannot overwrite attribute {name} in class {self.type_name.name}"
                     )
 
+        if unsafe_hash and self.has_explicit_hash:
+            raise TypedSyntaxError(
+                f"Cannot overwrite attribute __hash__ in class {self.type_name.name}"
+            )
+
     @property
     def generate_eq(self) -> bool:
         return self.eq and "__eq__" not in self.wrapped_class.members
@@ -4765,6 +4766,13 @@ class Dataclass(Class):
     @property
     def generate_repr(self) -> bool:
         return self.repr and "__repr__" not in self.wrapped_class.members
+
+    @property
+    def has_explicit_hash(self) -> bool:
+        return "__hash__" in self.wrapped_class.members and not (
+            self.wrapped_class.members["__hash__"] is None
+            and "__eq__" in self.wrapped_class.members
+        )
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         # TODO(T96281456): support subclassing
@@ -4888,6 +4896,25 @@ class Dataclass(Class):
 
         self.emit_method(code_gen, graph, 0)
 
+    def emit_dunder_hash(self, code_gen: Static38CodeGenerator) -> None:
+        graph = self.flow_graph(code_gen, "__hash__", ("self",))
+        inexact_descr = self.inexact_type().type_descr
+        graph.emit("CHECK_ARGS", (0, inexact_descr))
+        graph.emit("LOAD_GLOBAL", "hash")
+
+        if self.field_names:
+            for name in self.field_names:
+                graph.emit("LOAD_FAST", "self")
+                graph.emit("LOAD_FIELD", (*inexact_descr, name))
+            graph.emit("BUILD_TUPLE", len(self.field_names))
+        else:
+            graph.emit("LOAD_CONST", ())
+
+        graph.emit("CALL_FUNCTION", 1)
+        graph.emit("RETURN_VALUE")
+
+        self.emit_method(code_gen, graph, 0)
+
     def emit_dunder_init(self, code_gen: Static38CodeGenerator) -> None:
         self_name = "__dataclass_self__" if "self" in self.field_names else "self"
 
@@ -4991,6 +5018,15 @@ class Dataclass(Class):
 
             self.emit_dunder_delattr_or_setattr(code_gen, delete=False)
             self.emit_dunder_delattr_or_setattr(code_gen, delete=True)
+
+        if self.unsafe_hash:
+            self.emit_dunder_hash(code_gen)
+        elif self.eq and "__hash__" not in self.wrapped_class.members:
+            if self.frozen:
+                self.emit_dunder_hash(code_gen)
+            else:
+                code_gen.emit("LOAD_CONST", None)
+                code_gen.emit("STORE_NAME", "__hash__")
 
     def _create_exact_type(self) -> Class:
         return type(self)(

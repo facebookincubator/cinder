@@ -816,3 +816,108 @@ class DataclassTests(StaticTestBase):
 
             d = D(1, "foo", 2)
             self.assertRegex(repr(d), r"D\(x=1, y='foo'\)")
+
+    def test_default_dataclass_has_none_hash(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+            y: int
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertIn("__hash__", mod.C.__dict__)
+            self.assertEqual(mod.C.__hash__, None)
+
+    def test_explicit_hash(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+            y: int
+
+            def __hash__(self) -> int:
+                return 42
+
+        c = C("foo", 2)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(hash(mod.c), 42)
+
+    def test_frozen_dataclass_generates_dunder_hash(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+            y: int
+
+        c = C("foo", 2)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertIn("__hash__", mod.C.__dict__)
+            self.assertEqual(hash(mod.c), hash(("foo", 2)))
+
+    def test_dataclass_hash_no_fields(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            pass
+
+        c = C()
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertIn("__hash__", mod.C.__dict__)
+            self.assertEqual(hash(mod.c), hash(()))
+
+    def test_frozen_dataclass_without_eq_does_not_generate_hash(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(eq=False, frozen=True)
+        class C:
+            x: str
+            y: int
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertNotIn("__hash__", mod.C.__dict__)
+
+    def test_unsafe_hash_cannot_overwrite_explicit_hash(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(unsafe_hash=True)
+        class C:
+            x: str
+            y: int
+
+            def __hash__(self) -> int:
+                return 42
+        """
+        self.type_error(
+            codestr, "Cannot overwrite attribute __hash__ in class C", at="dataclass"
+        )
+
+    def test_unsafe_hash_cannot_overwrite_explicit_hash(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(unsafe_hash=True)
+        class C:
+            x: str
+            y: int
+
+        c = C("foo", 2)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertIn("__hash__", mod.C.__dict__)
+            self.assertEqual(hash(mod.c), hash(("foo", 2)))
+
+            mod.c.x = "bar"
+            self.assertEqual(hash(mod.c), hash(("bar", 2)))
