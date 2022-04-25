@@ -1617,6 +1617,11 @@ testcinder: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDEROPTS)
 	$(ASAN_TEST_ENV)$(TESTRUNNERPYCOMPILER) $(TESTCINDEROPTS)
 
+define RUN_TESTCINDERJIT_PROFILE
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit-write-profile=test_cinderjit_profile.types $(1) -mtest test_cinderjit_profile
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit-read-profile=test_cinderjit_profile.types -X jit $(1) -mtest test_cinderjit_profile
+endef
+
 define RUN_TESTCINDERJIT
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
@@ -1627,14 +1632,26 @@ endef
 testcinder_jit: @DEF_MAKE_RULE@ platform
 	$(call RUN_TESTCINDERJIT,)
 
+testcinder_jit_profile: @DEF_MAKE_RULE@ platform
+	$(call RUN_TESTCINDERJIT_PROFILE,)
+
 testcinder_jit_shadowframe: @DEF_MAKE_RULE@ platform
 	$(call RUN_TESTCINDERJIT,-X jit-shadow-frame)
+
+testcinder_jit_shadowframe_profile: @DEF_MAKE_RULE@ platform
+	$(call RUN_TESTCINDERJIT_PROFILE,-X jit-shadow-frame)
 
 testcinder_jit_inliner: @DEF_MAKE_RULE@ platform
 	$(call RUN_TESTCINDERJIT,-X jit-enable-hir-inliner)
 
+testcinder_jit_inliner_profile: @DEF_MAKE_RULE@ platform
+	$(call RUN_TESTCINDERJIT_PROFILE,-X jit-enable-hir-inliner)
+
 testcinder_jit_shadowframe_inliner: @DEF_MAKE_RULE@ platform
 	$(call RUN_TESTCINDERJIT,-X jit-shadow-frame -X jit-enable-hir-inliner)
+
+testcinder_jit_shadowframe_inliner_profile: @DEF_MAKE_RULE@ platform
+	$(call RUN_TESTCINDERJIT_PROFILE,-X jit-shadow-frame -X jit-enable-hir-inliner)
 
 testcinder_refleak: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDER_REFLEAK_OPTS)
