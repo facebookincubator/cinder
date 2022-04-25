@@ -584,6 +584,73 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
 }
 
 static PyObject *
+type_vtable_coroutine_property(_PyClassLoader_TypeCheckState *state,
+                    PyObject **args,
+                    size_t nargsf,
+                    PyObject *kwnames)
+{
+
+    PyObject *self = args[0];
+    PyObject *descr = state->tcs_value;
+    PyObject *name = state->tcs_rt.rt_name;
+    PyObject *coro;
+    int eager;
+
+    /* we have to perform the descriptor checks at runtime because the
+     * descriptor type can be modified preventing us from being able to have
+     * more optimized fast paths */
+    if (!PyDescr_IsData(descr)) {
+        PyObject **dictptr = _PyObject_GetDictPtr(self);
+        if (dictptr != NULL) {
+            PyObject *dict = *dictptr;
+            if (dict != NULL) {
+                coro = PyDict_GetItem(dict, PyTuple_GET_ITEM(name, 0));
+                if (coro != NULL) {
+                    Py_INCREF(coro);
+                    eager = 0;
+                    goto done;
+                }
+            }
+        }
+    }
+
+    if (Py_TYPE(descr)->tp_descr_get != NULL) {
+        PyObject *self = args[0];
+        PyObject *get = Py_TYPE(descr)->tp_descr_get(
+            descr, self, (PyObject *)Py_TYPE(self));
+        if (get == NULL) {
+            return NULL;
+        }
+
+        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+
+        coro =
+            _PyObject_Vectorcall(get,
+                                 args + 1,
+                                 (nargs - 1),
+                                 kwnames);
+        Py_DECREF(get);
+    } else {
+        coro = _PyObject_Vectorcall(descr, args, nargsf, kwnames);
+    }
+
+    eager = _PyWaitHandle_CheckExact(coro);
+    if (eager) {
+        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
+        if (handle->wh_waiter == NULL) {
+            if (rettype_check(Py_TYPE(descr),
+                    handle->wh_coro_or_result, (_PyClassLoader_RetTypeInfo *)state)) {
+                return coro;
+            }
+            _PyWaitHandle_Release(coro);
+            return NULL;
+        }
+    }
+done:
+    return _PyClassLoader_NewAwaitableWrapper(coro, eager, (PyObject *)state, rettype_cb, NULL);
+}
+
+static PyObject *
 type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
                        PyObject *const *args,
                        size_t nargsf,
@@ -616,7 +683,28 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
                                     (PyVectorcall_NARGS(nargsf) - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET | awaited,
                                     kwnames);
     } else {
-        coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+        if (PyFunction_Check(callable)) {
+            coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+        } else if (Py_TYPE(callable)->tp_descr_get != NULL) {
+            PyObject *self = args[0];
+            PyObject *get = Py_TYPE(callable)->tp_descr_get(
+                callable, self, (PyObject *)Py_TYPE(self));
+            if (get == NULL) {
+                return NULL;
+            }
+
+            Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+
+            coro =
+                _PyObject_Vectorcall(get,
+                                    args + 1,
+                                    (nargs - 1),
+                                    kwnames);
+            Py_DECREF(get);
+        } else {
+            // self isn't passed if we're not a descriptor
+            coro = _PyObject_Vectorcall(callable, args + 1, nargsf - 1, kwnames);
+        }
     }
     if (coro == NULL) {
         return NULL;
@@ -1432,8 +1520,13 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     Py_XDECREF(vtable->vt_entries[slot].vte_state);
     vtable->vt_entries[slot].vte_state = (PyObject *)state;
     if (coroutine) {
+        if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
         vtable->vt_entries[slot].vte_entry =
-            (vectorcallfunc)type_vtable_coroutine;
+            (vectorcallfunc)type_vtable_coroutine_property;
+        } else {
+            vtable->vt_entries[slot].vte_entry =
+                (vectorcallfunc)type_vtable_coroutine;
+        }
     } else if (PyFunction_Check(value)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_func_overridable;
@@ -1585,18 +1678,17 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
         }
 
         if (thunk->thunk_coroutine) {
-          return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args + 1,
-                                       nargs - 1, kwnames);
+          return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args,
+                                       nargs, kwnames);
         }
         PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args + 1, nargs - 1, kwnames);
         return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
     }
 
     if (thunk->thunk_coroutine) {
-        // The Py_AWAITED_CALL_MARKER is explicitly masked off as we do not yet check return types
-        // for eagerly evaluated coroutines.
-        return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args,
-                                     nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+        PyObject *coro = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+
+        return _PyClassLoader_NewAwaitableWrapper(coro, 0, (PyObject *)thunk, rettype_cb, NULL);
     }
 
     PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);

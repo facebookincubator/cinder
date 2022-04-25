@@ -450,6 +450,65 @@ class StaticPatchTests(StaticTestBase):
                 C().g()
                 self.assertEqual(p.call_args_list[0][0], (42,))
 
+    def test_patch_async_method_mock(self):
+        codestr = """
+            class C:
+                async def f(self, a):
+                    pass
+
+                async def g(self):
+                    return await self.f(42)
+        """
+
+        with self.in_module(codestr) as mod:
+            C = mod.C
+            with patch(f"{mod.__name__}.C.f") as p:
+                asyncio.run(C().g())
+                self.assertEqual(p.call_args_list[0][0], (42,))
+
+    def test_patch_async_method_descr(self):
+        codestr = """
+            class C:
+                async def f(self, a):
+                    return 'abc'
+
+                async def g(self):
+                    return await self.f(42)
+        """
+
+        with self.in_module(codestr) as mod:
+            C = mod.C
+
+            class Descr:
+                def __get__(self, inst, ctx):
+                    return self.f
+
+                async def f(self, a):
+                    return a
+
+            C.f = Descr()
+            self.assertEqual(asyncio.run(C().g()), 42)
+
+    def test_patch_async_static_method(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                @staticmethod
+                async def f():
+                    return 'abc'
+
+                async def g(self):
+                    return await self.f()
+        """
+
+        with self.in_module(codestr) as mod:
+            C = mod.C
+            with patch(f"{mod.__name__}.C.f") as p:
+                asyncio.run(C().g())
+                self.assertEqual(p.call_args_list[0][0], ())
+
     def test_patch_method_ret_none_error(self):
         codestr = """
             class C:
