@@ -4773,7 +4773,9 @@ class Dataclass(Class):
     ) -> PyFlowGraph38Static:
         scope = FunctionScope(func, code_gen.cur_mod, code_gen.scope.klass)
         scope.parent = code_gen.scope
-        return code_gen.flow_graph(func, code_gen.graph.filename, scope, args=args)
+        return code_gen.flow_graph(
+            func, code_gen.graph.filename, scope, args=args, optimized=1
+        )
 
     def emit_method(
         self,

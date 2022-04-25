@@ -60,6 +60,19 @@ class DataclassTests(StaticTestBase):
             self.assertEqual(mod.c.x, "foo")
             self.assertEqual(mod.c.y, 42)
 
+    def test_dataclass_no_fields(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            pass
+
+        c = C()
+        """
+        with self.in_strict_module(codestr):
+            pass
+
     def test_dataclass_too_few_args(self) -> None:
         codestr = """
         from __static__ import dataclass
