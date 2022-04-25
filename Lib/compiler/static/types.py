@@ -4929,9 +4929,47 @@ class Dataclass(Class):
         else:
             self.emit_method(code_gen, graph, 0)
 
+    def emit_dunder_repr(self, code_gen: Static38CodeGenerator) -> None:
+        graph = self.flow_graph(code_gen, "__repr__", ("self",))
+        graph.emit("LOAD_FAST", "self")
+        graph.emit("LOAD_TYPE")
+        graph.emit("LOAD_ATTR", "__qualname__")
+        graph.emit("REFINE_TYPE", self.type_env.str.type_descr)
+
+        if not self.fields:
+            graph.emit("LOAD_CONST", "()")
+        else:
+            inexact_descr = self.inexact_type().type_descr
+            for i, name in enumerate(self.field_names):
+                graph.emit("LOAD_CONST", f", {name}=" if i else f"({name}=")
+                graph.emit("LOAD_FAST", "self")
+                graph.emit("LOAD_FIELD", (*inexact_descr, name))
+                graph.emit("FORMAT_VALUE", FVC_REPR)
+            graph.emit("LOAD_CONST", ")")
+
+        graph.emit("BUILD_STRING", 2 + 2 * len(self.fields))
+        graph.emit("RETURN_VALUE")
+
+        # Wrap the simple __repr__ function with reprlib.recursive_repr
+        # to prevent infinite loops if any field contains a cycle
+        code_gen.emit("LOAD_CONST", 0)
+        code_gen.emit("LOAD_CONST", ("recursive_repr",))
+        code_gen.emit("IMPORT_NAME", "reprlib")
+        code_gen.emit("IMPORT_FROM", "recursive_repr")
+        code_gen.emit("CALL_FUNCTION", 0)
+        code_gen.emit("LOAD_CONST", graph)
+        code_gen.emit("LOAD_CONST", f"{self.type_name.name}.{graph.name}")
+        code_gen.emit("MAKE_FUNCTION", 0)
+        code_gen.emit("CALL_FUNCTION", 1)
+        code_gen.emit("STORE_NAME", "__repr__")
+        code_gen.emit("POP_TOP")
+
     def emit_extra_methods(self, code_gen: Static38CodeGenerator) -> None:
         if self.generate_init:
             self.emit_dunder_init(code_gen)
+
+        if self.generate_repr:
+            self.emit_dunder_repr(code_gen)
 
         if self.generate_eq:
             self.emit_dunder_comparison(code_gen, "__eq__", "==")

@@ -741,3 +741,78 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_strict_module(codestr) as mod:
             self.assertFalse(hasattr(mod.c, "x"))
+
+    def test_repr_empty(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            pass
+
+        c = C()
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(repr(mod.c), "C()")
+
+    def test_repr_one_field(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+
+        c = C(1)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(repr(mod.c), "C(x=1)")
+
+    def test_repr_multiple_fields(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+            y: str
+
+        c = C(1, "foo")
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(repr(mod.c), "C(x=1, y='foo')")
+
+    def test_repr_recursive(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from typing import Optional
+
+        @dataclass
+        class Node:
+            val: int
+            next: Optional["Node"] = None
+
+        node = Node(1)
+        node.next = node
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(repr(mod.node), "Node(val=1, next=...)")
+
+    def test_repr_subclass(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+            y: str
+        """
+        with self.in_strict_module(codestr) as mod:
+
+            class D(mod.C):
+                def __init__(self, x: int, y: str, z: int) -> None:
+                    super().__init__(x, y)
+                    self.z: int = z
+
+            d = D(1, "foo", 2)
+            self.assertRegex(repr(d), r"D\(x=1, y='foo'\)")
