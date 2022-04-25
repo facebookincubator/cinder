@@ -122,9 +122,6 @@ const jit::hir::Preloader& getPreloader(BorrowedRef<PyFunctionObject> func) {
 }
 } // namespace jit
 
-// Strong references to every function and code object that were ever
-// registered, to keep them alive for batch testing.
-static std::vector<Ref<>> test_multithreaded_units;
 static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
     jit_time_functions;
 
@@ -587,26 +584,32 @@ static void compile_worker_thread() {
   JIT_DLOG("Finished compile worker in thread %d", std::this_thread::get_id());
 }
 
-static void multithread_compile_all(std::vector<BorrowedRef<>>&& work_units) {
+static void multithread_compile_all() {
   JIT_CHECK(jit_ctx, "JIT not initialized");
 
+  std::vector<BorrowedRef<>> compilation_units;
   // first we have to preload everything we are going to compile
-  for (auto unit : work_units) {
-    if (PyFunction_Check(unit)) {
-      BorrowedRef<PyFunctionObject> func(unit);
-      jit_preloaders.emplace(unit, func);
-    } else {
-      JIT_CHECK(PyCode_Check(unit), "Expected function or code object");
-      BorrowedRef<PyCodeObject> code(unit);
-      const CodeData& data = map_get(jit_code_data, code);
-      jit_preloaders.emplace(
-          std::piecewise_construct,
-          std::forward_as_tuple(unit),
-          std::forward_as_tuple(
-              code, data.globals, codeFullname(data.module, code)));
+  while (jit_reg_units.size() > 0) {
+    std::vector<BorrowedRef<>> preload_units = {
+        jit_reg_units.begin(), jit_reg_units.end()};
+    jit_reg_units.clear();
+    for (auto unit : preload_units) {
+      compilation_units.push_back(unit);
+      if (PyFunction_Check(unit)) {
+        BorrowedRef<PyFunctionObject> func(unit);
+        jit_preloaders.emplace(unit, func);
+      } else {
+        JIT_CHECK(PyCode_Check(unit), "Expected function or code object");
+        BorrowedRef<PyCodeObject> code(unit);
+        const CodeData& data = map_get(jit_code_data, code);
+        jit_preloaders.emplace(
+            std::piecewise_construct,
+            std::forward_as_tuple(unit),
+            std::forward_as_tuple(
+                code, data.globals, codeFullname(data.module, code)));
+      }
     }
   }
-
   // Disable checks for using GIL protected data across threads.
   // Conceptually what we're doing here is saying we're taking our own
   // responsibility for managing locking of CPython runtime data structures.
@@ -619,7 +622,7 @@ static void multithread_compile_all(std::vector<BorrowedRef<>>&& work_units) {
   int old_gil_check_enabled = _PyGILState_check_enabled;
   _PyGILState_check_enabled = 0;
 
-  g_threaded_compile_context.startCompile(std::move(work_units));
+  g_threaded_compile_context.startCompile(std::move(compilation_units));
   std::vector<std::thread> worker_threads;
   JIT_CHECK(jit_config.batch_compile_workers, "Zero workers for compile");
   {
@@ -633,6 +636,7 @@ static void multithread_compile_all(std::vector<BorrowedRef<>>&& work_units) {
   for (std::thread& worker_thread : worker_threads) {
     worker_thread.join();
   }
+
   std::vector<BorrowedRef<>> retry_list{
       g_threaded_compile_context.endCompile()};
   for (auto unit : retry_list) {
@@ -650,11 +654,10 @@ static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
   }
   g_compile_workers_attempted = 0;
   g_compile_workers_retries = 0;
-  JIT_LOG("(Re)compiling %d units", test_multithreaded_units.size());
+  JIT_LOG("(Re)compiling %d units", jit_reg_units.size());
   _PyJITContext_ClearCache(jit_ctx);
   std::chrono::time_point time_start = std::chrono::steady_clock::now();
-  multithread_compile_all(
-      {test_multithreaded_units.begin(), test_multithreaded_units.end()});
+  multithread_compile_all();
   std::chrono::time_point time_end = std::chrono::steady_clock::now();
   JIT_LOG(
       "Took %d ms, compiles attempted: %d, compiles retried: %d",
@@ -663,7 +666,6 @@ static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
           .count(),
       g_compile_workers_attempted,
       g_compile_workers_retries);
-  test_multithreaded_units.clear();
   Py_RETURN_NONE;
 }
 
@@ -690,8 +692,7 @@ disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
     // Compile all of the pending functions/codes before shutting down
     std::chrono::time_point start = std::chrono::steady_clock::now();
     if (jit_config.batch_compile_workers > 0) {
-      multithread_compile_all({jit_reg_units.begin(), jit_reg_units.end()});
-      jit_reg_units.clear();
+      multithread_compile_all();
     } else {
       std::unordered_set<BorrowedRef<>> units;
       units.swap(jit_reg_units);
@@ -1470,15 +1471,8 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
       !g_threaded_compile_context.compileRunning(),
       "Not intended for using during threaded compilation");
   int result = 0;
-  auto register_unit = [](BorrowedRef<> unit) {
-    if (jit_config.multithreaded_compile_test) {
-      test_multithreaded_units.emplace_back(unit);
-    }
-    jit_reg_units.emplace(unit);
-  };
-
   if (_PyJIT_OnJitList(func)) {
-    register_unit(reinterpret_cast<PyObject*>(func));
+    jit_reg_units.emplace(reinterpret_cast<PyObject*>(func));
     result = 1;
   }
 
@@ -1491,7 +1485,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
     for (auto code : findNestedCodes(
              module,
              reinterpret_cast<PyCodeObject*>(func->func_code)->co_consts)) {
-      register_unit(reinterpret_cast<PyObject*>(code.get()));
+      jit_reg_units.emplace(reinterpret_cast<PyObject*>(code.get()));
       jit_code_data.emplace(
           std::piecewise_construct,
           std::forward_as_tuple(code),
