@@ -1,0 +1,16 @@
+{
+  "logger": "/usr/local/bin/scribe_cat",
+  "version": "940f637f05f755ba0ba3f3cef53f9722ab1ff871",
+  "source_directories": [
+    "Lib/compiler",
+    "Tools/scripts/facebook/perf",
+    "Tools/scripts/facebook/workflow",
+    "Tools/scripts/typed"
+  ],
+  "search_path": [
+    "Lib/cinder_stubs"
+  ],
+  "unstable_client": "Tools/scripts/pyre/pyre_client",
+  "stable_client": "Tools/scripts/pyre/pyre_client",
+  "strict": true
+}
