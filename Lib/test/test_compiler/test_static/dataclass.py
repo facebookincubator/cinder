@@ -1,3 +1,5 @@
+from dataclasses import FrozenInstanceError
+
 from .common import StaticTestBase
 
 
@@ -483,3 +485,259 @@ class DataclassTests(StaticTestBase):
             self.assertTrue(mod.c1 <= mod.c4)
             self.assertFalse(mod.c1 > mod.c4)
             self.assertFalse(mod.c1 >= mod.c4)
+
+    def test_assign_to_non_frozen_field(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+            y: int
+
+        c = C("foo", 1)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.c.x, "foo")
+            self.assertEqual(mod.c.y, 1)
+
+            mod.c.x = "bar"
+            mod.c.y = 2
+            self.assertEqual(mod.c.x, "bar")
+            self.assertEqual(mod.c.y, 2)
+
+            del mod.c.x
+            del mod.c.y
+            self.assertFalse(hasattr(mod.c, "x"))
+            self.assertFalse(hasattr(mod.c, "y"))
+
+    def test_frozen_with_dunder_defined_raises_syntax_error(self) -> None:
+        for delete in (False, True):
+            method = "__delattr__" if delete else "__setattr__"
+            args = "self, name" if delete else "self, name, args"
+            with self.subTest(method=method):
+                codestr = f"""
+                from __static__ import dataclass
+
+                @dataclass(frozen=True)
+                class C:
+                    x: int
+                    y: str
+
+                    def {method}({args}) -> None:
+                        return
+                """
+                self.type_error(
+                    codestr,
+                    f"Cannot overwrite attribute {method} in class C",
+                    at="dataclass",
+                )
+
+    def test_assign_to_non_field_on_frozen_dataclass(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+            y: int
+
+        c = C("foo", 1)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertRaisesRegex(
+                FrozenInstanceError,
+                "cannot assign to field 'z'",
+                mod.c.__setattr__,
+                "z",
+                "bar",
+            )
+
+    def test_cannot_assign_incorrect_type(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+
+        c = C("foo")
+        c.x = 1
+        """
+        self.type_error(
+            codestr,
+            r"type mismatch: Literal\[1\] cannot be assigned to str",
+            at="c.x = 1",
+        )
+
+    def test_cannot_assign_incorrect_type_setattr(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+
+        c = C("foo")
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertRaisesRegex(
+                TypeError,
+                "expected 'str', got 'int' for attribute 'x'",
+                mod.c.__setattr__,
+                "x",
+                1,
+            )
+
+    def test_cannot_assign_to_frozen_dataclass_field(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        c = C("foo")
+        c.x = "bar"
+        """
+        self.type_error(
+            codestr,
+            "cannot assign to field 'x' of frozen dataclass '<module>.C'",
+            at='c.x = "bar"',
+        )
+
+    def test_cannot_delete_frozen_dataclass_field(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        c = C("foo")
+        del c.x
+        """
+        self.type_error(
+            codestr,
+            "cannot delete field 'x' of frozen dataclass '<module>.C'",
+            at="c.x",
+        )
+
+    def test_frozen_field_subclass(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+        """
+        with self.in_strict_module(codestr) as mod:
+
+            class D(mod.C):
+                pass
+
+            d = D("foo")
+            self.assertRaisesRegex(
+                FrozenInstanceError,
+                "cannot assign to field 'x'",
+                d.__setattr__,
+                "x",
+                "bar",
+            )
+
+            d.y = "bar"
+            self.assertEqual(d.y, "bar")
+            del d.y
+            self.assertFalse(hasattr(d, "y"))
+
+    def test_frozen_no_fields(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            pass
+        """
+        with self.in_strict_module(codestr) as mod:
+            c = mod.C()
+            self.assertRaisesRegex(
+                FrozenInstanceError,
+                "cannot assign to field 'x'",
+                c.__setattr__,
+                "x",
+                "foo",
+            )
+
+            class D(mod.C):
+                pass
+
+            d = D()
+            d.x = "foo"
+            self.assertEqual(d.x, "foo")
+            del d.x
+            self.assertFalse(hasattr(d, "x"))
+
+    def test_dunder_setattr_raises_frozen_instance_error(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        c = C("foo")
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertRaisesRegex(
+                FrozenInstanceError,
+                "cannot assign to field 'x'",
+                mod.c.__setattr__,
+                "x",
+                "bar",
+            )
+
+    def test_dunder_delattr_raises_frozen_instance_error(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        c = C("foo")
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertRaisesRegex(
+                FrozenInstanceError,
+                "cannot delete field 'x'",
+                mod.c.__delattr__,
+                "x",
+            )
+
+    def test_set_frozen_fields_with_object_setattr(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        c = C("foo")
+        object.__setattr__(c, "x", "bar")
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.c.x, "bar")
+
+    def test_delete_frozen_fields_with_object_setattr(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        c = C("foo")
+        object.__delattr__(c, "x")
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertFalse(hasattr(mod.c, "x"))

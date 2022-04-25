@@ -134,7 +134,7 @@ from _static import (  # noqa: F401
 
 from ..errors import TypedSyntaxError
 from ..optimizer import AstOptimizer
-from ..pyassem import Block
+from ..pyassem import Block, FVC_REPR
 from ..pycodegen import FOR_LOOP, CodeGenerator
 from ..symbols import FunctionScope
 from ..unparse import to_expr
@@ -4675,7 +4675,7 @@ class Dataclass(Class):
             type_name=klass.type_name,
             type_env=type_env,
             bases=klass.bases,
-            instance=klass.instance,
+            instance=DataclassInstance(self),
             klass=klass.klass,
             members=copy(klass.members),
             is_exact=klass.is_exact,
@@ -4687,8 +4687,6 @@ class Dataclass(Class):
         # TODO(T96281456): support non-default arguments to @dataclass
         if unsafe_hash:
             raise TypedSyntaxError("Static dataclasses do not support hashing yet")
-        if frozen:
-            raise TypedSyntaxError("Static dataclasses cannot be frozen yet")
 
         self.init = init
         self.repr = repr
@@ -4747,6 +4745,13 @@ class Dataclass(Class):
                     raise TypedSyntaxError(
                         f"Cannot overwrite attribute {name} in class {self.type_name.name}. "
                         "Consider using functools.total_ordering"
+                    )
+
+        if frozen:
+            for name in ("__setattr__", "__delattr__"):
+                if name in self.wrapped_class.members:
+                    raise TypedSyntaxError(
+                        f"Cannot overwrite attribute {name} in class {self.type_name.name}"
                     )
 
     @property
@@ -4823,6 +4828,66 @@ class Dataclass(Class):
 
         self.emit_method(code_gen, graph, 0)
 
+    def emit_dunder_delattr_or_setattr(
+        self, code_gen: Static38CodeGenerator, delete: bool
+    ) -> None:
+        if delete:
+            method_name = "__delattr__"
+            args = ("self", "name")
+            msg = "cannot delete field "
+        else:
+            method_name = "__setattr__"
+            args = ("self", "name", "value")
+            msg = "cannot assign to field "
+
+        graph = self.flow_graph(code_gen, method_name, args)
+        error = graph.newBlock()
+        super_call = graph.newBlock()
+
+        graph.emit(
+            "CHECK_ARGS",
+            (0, self.inexact_type().type_descr, 1, self.type_env.str.type_descr),
+        )
+        graph.emit("LOAD_FAST", "self")
+        # TODO(T92470300): graph.emit("CAST", (self.exact_type().type_descr, False))
+        graph.emit("LOAD_TYPE")
+        graph.emit("LOAD_GLOBAL", self.type_name.name)
+        graph.emit("COMPARE_OP", "is")
+        graph.emit("POP_JUMP_IF_TRUE", error)
+
+        graph.nextBlock()
+        graph.emit("LOAD_FAST", "name")
+        graph.emit("LOAD_CONST", tuple(self.field_names))
+        graph.emit("COMPARE_OP", "in")
+        graph.emit("POP_JUMP_IF_FALSE", super_call)
+
+        graph.nextBlock(error)
+        graph.emit("LOAD_GLOBAL", self.type_name.name)
+        graph.emit("LOAD_METHOD", "_FrozenInstanceError")
+        graph.emit("LOAD_CONST", msg)
+        graph.emit("LOAD_FAST", "name")
+        graph.emit("FORMAT_VALUE", FVC_REPR)
+        graph.emit("BUILD_STRING", 2)
+        graph.emit("CALL_METHOD", 1)
+        graph.emit("RAISE_VARARGS", 1)
+
+        graph.nextBlock(super_call)
+        graph.emit("LOAD_GLOBAL", "super")
+        graph.emit("LOAD_GLOBAL", self.type_name.name)
+        graph.emit("LOAD_FAST", "self")
+        graph.emit("LOAD_METHOD_SUPER", (method_name, False))
+        graph.emit("LOAD_FAST", "name")
+        if delete:
+            graph.emit("CALL_METHOD", 1)
+        else:
+            graph.emit("LOAD_FAST", "value")
+            graph.emit("CALL_METHOD", 2)
+        graph.emit("POP_TOP")
+        graph.emit("LOAD_CONST", None)
+        graph.emit("RETURN_VALUE")
+
+        self.emit_method(code_gen, graph, 0)
+
     def emit_dunder_init(self, code_gen: Static38CodeGenerator) -> None:
         self_name = "__dataclass_self__" if "self" in self.field_names else "self"
 
@@ -4877,6 +4942,18 @@ class Dataclass(Class):
             self.emit_dunder_comparison(code_gen, "__gt__", ">")
             self.emit_dunder_comparison(code_gen, "__ge__", ">=")
 
+        if self.frozen:
+            # save dataclasses.FrozenInstanceError on the class object
+            code_gen.emit("LOAD_CONST", 0)
+            code_gen.emit("LOAD_CONST", ("FrozenInstanceError",))
+            code_gen.emit("IMPORT_NAME", "dataclasses")
+            code_gen.emit("IMPORT_FROM", "FrozenInstanceError")
+            code_gen.emit("STORE_NAME", "_FrozenInstanceError")
+            code_gen.emit("POP_TOP")
+
+            self.emit_dunder_delattr_or_setattr(code_gen, delete=False)
+            self.emit_dunder_delattr_or_setattr(code_gen, delete=True)
+
     def _create_exact_type(self) -> Class:
         return type(self)(
             type_env=self.type_env,
@@ -4888,6 +4965,27 @@ class Dataclass(Class):
             unsafe_hash=self.unsafe_hash,
             frozen=self.frozen,
         )
+
+
+class DataclassInstance(Object[Dataclass]):
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        store = isinstance(node.ctx, ast.Store)
+        delete = isinstance(node.ctx, ast.Del)
+        if (
+            self.klass.frozen
+            and (store or delete)
+            and any(field.slot_name == node.attr for field in self.klass.fields)
+        ):
+            msg = "assign to" if store else "delete"
+            visitor.syntax_error(
+                f"cannot {msg} field {node.attr!r} "
+                f"of frozen dataclass {self.klass.instance_name!r}",
+                node,
+            )
+
+        super().bind_attr(node, visitor, type_ctx)
 
 
 class BuiltinFunction(Callable[Class]):
