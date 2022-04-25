@@ -426,7 +426,7 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   if (lhs->isA(TLongExact) && rhs->isA(TLongExact)) {
     // All binary ops on TLong's return mutable and accept readonly, so can
     // be freely simplified with no explicit checks.
-    if (instr->op() == BinaryOpKind::kMatrixMultiply &&
+    if (instr->op() == BinaryOpKind::kMatrixMultiply ||
         instr->op() == BinaryOpKind::kSubscript) {
       // These will generate an error at runtime.
       return nullptr;
