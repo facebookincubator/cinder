@@ -372,8 +372,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBranchInstrs(
     }
 
     auto successor = succs[0];
-    if (successor == next_block &&
-        next_block->section() == block->section()) {
+    if (successor == next_block && next_block->section() == block->section()) {
       continue;
     }
 

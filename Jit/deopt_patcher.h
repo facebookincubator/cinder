@@ -54,7 +54,7 @@ class DeoptPatcher {
 
  protected:
   // Perform any initialization needed (e.g. subscribing to changes).
-  virtual void init() {}
+  virtual void init() = 0;
 
  private:
   // Where in the code we should patch

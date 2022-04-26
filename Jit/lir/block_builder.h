@@ -84,9 +84,7 @@ class BasicBlockBuilder {
       Instruction* instr,
       const std::string& name_size,
       int offset);
-  void SetBlockSection(
-      const std::string& label,
-      codegen::CodeSection section);
+  void SetBlockSection(const std::string& label, codegen::CodeSection section);
 
   std::vector<BasicBlock*> Generate() {
     return bbs_;

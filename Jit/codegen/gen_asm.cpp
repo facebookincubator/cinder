@@ -185,7 +185,6 @@ extern "C" void ___debug_helper(const char* name) {
 }
 #endif
 
-
 PhyLocation get_arg_location_phy_location(int arg) {
   if (static_cast<size_t>(arg) < ARGUMENT_REG_COUNT) {
     return ARGUMENT_REGS[arg];

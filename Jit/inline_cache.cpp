@@ -493,8 +493,9 @@ LoadAttrCache::invokeSlowPath(PyObject* obj, PyObject* name) {
     return PyObject_GetAttr(obj, name);
   }
   if (tp->tp_dict == nullptr) {
-    if (PyType_Ready(tp) < 0)
+    if (PyType_Ready(tp) < 0) {
       return nullptr;
+    }
   }
 
   Ref<> name_guard(name);
