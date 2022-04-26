@@ -69,6 +69,7 @@ from .declaration_visitor import GenericVisitor
 from .effects import TypeState, NarrowingEffect, NO_EFFECT
 from .module_table import ModuleTable, ModuleFlag
 from .types import (
+    access_path,
     BoolClass,
     Callable,
     CInstance,
@@ -108,9 +109,10 @@ class PreserveRefinedFields:
 
 
 class UsedRefinementField:
-    def __init__(self, name: str, is_source: bool) -> None:
+    def __init__(self, name: str, is_source: bool, is_used: bool) -> None:
         self.name = name
         self.is_source = is_source
+        self.is_used = is_used
 
 
 PRESERVE_REFINED_FIELDS = PreserveRefinedFields()
@@ -742,11 +744,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         # correctly.  So we compute the narrowest target type. (Other checks do happen later).
         # e.g: `x: int8 = 1` means we need `1` to be of type `int8`
         narrowest_target_type = None
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            # In simple cases (i.e. a = expr), we know that the act of assignment won't execute
-            # arbitrary code. There are some more complex cases we can handle (self.x = y where we
-            # know self.x is a slot), but ignore these for now for safety.
-            self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
         for target in reversed(node.targets):
             cur_type = None
             if isinstance(target, ast.Name):
@@ -774,6 +771,26 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         value_type = self.get_type(node.value)
         for target in reversed(node.targets):
             self.assign_value(target, value_type, src=node.value, assignment=node)
+
+        if len(node.targets) == 1 and self.is_refinable(node.targets[0]):
+            # In simple cases (i.e. a = expr), we know that the act of assignment won't execute
+            # arbitrary code. There are some more complex cases we can handle (self.x = y where we
+            # know self.x is a slot), but ignore these for now for safety.
+            self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
+            target = node.targets[0]
+            if (
+                isinstance(target, ast.Attribute)
+                and narrowest_target_type != value_type
+                and self.type_env.dynamic.can_assign_from(value_type.klass)
+            ):
+                assert isinstance(target.value, ast.Name)
+                self.type_state.refined_fields.setdefault(target.value.id, {})[
+                    target.attr
+                ] = (
+                    value_type,
+                    self.refined_field_index(access_path(target)),
+                    {target},
+                )
 
         self.set_type(node, value_type)
 
@@ -1431,26 +1448,40 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     node.attr
                 ]
                 self.set_type(node, typ)
-                temp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.{idx}"
+                temp_name = self._refined_field_name(idx)
                 for source_node in source_nodes:
                     self.set_node_data(
                         source_node,
                         UsedRefinementField,
-                        UsedRefinementField(temp_name, True),
+                        UsedRefinementField(temp_name, True, True),
                     )
                 self.set_node_data(
                     node,
                     UsedRefinementField,
-                    UsedRefinementField(temp_name, False),
+                    UsedRefinementField(temp_name, False, True),
                 )
-            elif node.attr in self.type_state.refined_fields[value.id]:
-                # Ensure we don't keep stale refinement information around when setting/deleting an
-                # attr.
-                del self.type_state.refined_fields[value.id][node.attr]
+            else:
+                if node.attr in self.type_state.refined_fields[value.id]:
+                    # Ensure we don't keep stale refinement information around when setting/deleting an
+                    # attr.
+                    del self.type_state.refined_fields[value.id][node.attr]
+
         if isinstance(base, ModuleInstance):
             self.set_node_data(node, TypeDescr, (base.module_name, node.attr))
         if self.is_refinable(node):
             self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
+            # If we're storing a field at a refinable position, mark it so that codegen
+            # can hoist reads and the store at this point.
+            if isinstance(node.ctx, ast.Store):
+                temp_name = self._refined_field_name(
+                    self.refined_field_index(access_path(node))
+                )
+                self.set_node_data(
+                    node,
+                    UsedRefinementField,
+                    UsedRefinementField(temp_name, True, False),
+                )
+
         return NO_EFFECT
 
     def visitSubscript(
@@ -1884,3 +1915,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         next_index = len(self._refined_tmpvar_indices)
         self._refined_tmpvar_indices[key] = next_index
         return self._refined_tmpvar_indices[key]
+
+    def _refined_field_name(self, idx: int) -> str:
+        return f"{_TMP_VAR_PREFIX}.__refined_field__.{idx}"

@@ -531,11 +531,15 @@ class Static38CodeGenerator(StrictCodeGenerator):
             load_arg = self._emit_args_for_super(node.value, node.attr)
             self.emit("LOAD_ATTR_SUPER", load_arg)
         else:
+            if isinstance(node.ctx, ast.Store) and data is not None and data.is_used:
+                self.emit("DUP_TOP")
+                self.emit("STORE_FAST", data.name)
+
             self.get_type(node.value).emit_attr(node, self)
 
-        if data is not None and data.is_source:
-            self.emit("DUP_TOP")
-            self.emit("STORE_FAST", data.name)
+            if isinstance(node.ctx, ast.Load) and data is not None and data.is_source:
+                self.emit("DUP_TOP")
+                self.emit("STORE_FAST", data.name)
 
     def visitAssignTarget(
         self, elt: expr, stmt: AST, value: Optional[expr] = None

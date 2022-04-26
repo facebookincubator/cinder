@@ -54,9 +54,23 @@ class RefineFieldsTests(StaticTestBase):
                        self.x = None
                        reveal_type(self.x)
         """
+        self.revealed_type(codestr, "Exact[None]")
+
+    def test_refinements_restored_after_write_with_interfering_calls(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self) -> None:
+                    self.x: int | None = None
+
+                def f(self) -> None:
+                   if self.x is not None:
+                       self.x = None
+                       open("a.py")
+                       reveal_type(self.x)
+        """
         self.revealed_type(codestr, "Optional[int]")
 
-    def test_refinements_are_invalidated_with_unrelated_attr_stores(self) -> None:
+    def test_refinements_are_not_invalidated_with_known_safe_attr_stores(self) -> None:
         codestr = """
             class C:
                 def __init__(self) -> None:
@@ -66,6 +80,19 @@ class RefineFieldsTests(StaticTestBase):
                 def f(self) -> None:
                    if self.x is not None:
                        self.y = None
+                       reveal_type(self.x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_refinements_are_invalidated_with_unknown_attr_stores(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self) -> None:
+                    self.x: int | None = None
+
+                def f(self, other) -> None:
+                   if self.x is not None:
+                       other.y = None
                        reveal_type(self.x)
         """
         self.revealed_type(codestr, "Optional[int]")
@@ -167,8 +194,7 @@ class RefineFieldsTests(StaticTestBase):
         """
         self.revealed_type(codestr, "Optional[<module>.D]")
 
-    def test_type_not_refined_after_if_branch(self) -> None:
-        # TODO(T116955021): We want to infer int here for self.x
+    def test_type_refined_after_if_branch(self) -> None:
         codestr = """
             class C:
                 def __init__(self) -> None:
@@ -179,7 +205,7 @@ class RefineFieldsTests(StaticTestBase):
                       self.x = 4
                    reveal_type(self.x)
         """
-        self.revealed_type(codestr, "Optional[int]")
+        self.revealed_type(codestr, "int")
 
     def test_refined_field_codegen(self) -> None:
         codestr = """
@@ -330,7 +356,7 @@ class RefineFieldsTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             refined_write_count = 0
-            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.1"
+            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.0"
             for instr in dis.get_instructions(mod.C.f):
                 if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
                     refined_write_count += 1
@@ -353,7 +379,7 @@ class RefineFieldsTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             refined_write_count = 0
-            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.1"
+            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.0"
             for instr in dis.get_instructions(mod.C.f):
                 if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
                     refined_write_count += 1
@@ -401,3 +427,19 @@ class RefineFieldsTests(StaticTestBase):
                    reveal_type(self.x)
         """
         self.revealed_type(codestr, "int")
+
+    def test_refined_field_when_storing(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, x: int) -> int:
+                   self.x = x
+                   return self.x
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C(21)
+            self.assertEqual(c.x, 21)
+            self.assertEqual(c.f(42), 42)
+            self.assertEqual(c.x, 42)

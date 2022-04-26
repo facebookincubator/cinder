@@ -5710,15 +5710,7 @@ class IsInstanceEffect(NarrowingEffect):
 
     @cached_property
     def access_path(self) -> List[str]:
-        path = []
-        node = self.node
-        while not isinstance(node, ast.Name):
-            if not isinstance(node, ast.Attribute):
-                return []
-            path.append(node.attr)
-            node = node.value
-        path.append(node.id)
-        return list(reversed(path))
+        return access_path(self.node)
 
 
 class IsInstanceFunction(Object[Class]):
@@ -9392,3 +9384,14 @@ if spamobj is not None:
                     ),
                 ],
             )
+
+
+def access_path(node: ast.AST) -> List[str]:
+    path = []
+    while not isinstance(node, ast.Name):
+        if not isinstance(node, ast.Attribute):
+            return []
+        path.append(node.attr)
+        node = node.value
+    path.append(node.id)
+    return list(reversed(path))
