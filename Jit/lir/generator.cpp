@@ -1190,8 +1190,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kSetCurrentAwaiter: {
-        bbb.AppendInvoke(
-            JITRT_SetCurrentAwaiter, i.GetOperand(0), "__asm_tstate");
+        if (i.GetOperand(0)->type() <= TCoroutine) {
+          bbb.AppendInvoke(
+              JITRT_SetCurrentAwaiterCoroutine,
+              i.GetOperand(0),
+              "__asm_tstate");
+        } else {
+          bbb.AppendInvoke(
+              JITRT_SetCurrentAwaiter, i.GetOperand(0), "__asm_tstate");
+        }
         break;
       }
       case Opcode::kYieldValue: {
@@ -1218,7 +1225,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (opcode == Opcode::kYieldAndYieldFrom) {
           ss << "YieldFromSkipInitialSend ";
         } else if (opcode == Opcode::kYieldFrom) {
-          ss << "YieldFrom ";
+          ss
+              << ((i.GetOperand(1)->type() <= TCoroutine)
+                      ? "YieldFromCoroutine "
+                      : "YieldFrom ");
         } else {
           ss << "YieldFromHandleStopAsyncIteration ";
         }

@@ -477,6 +477,7 @@ void translateYieldValue(Environ* env, const Instruction* instr) {
 void translateYieldFrom(Environ* env, const Instruction* instr) {
   asmjit::x86::Builder* as = env->as;
   bool skip_initial_send = instr->isYieldFromSkipInitialSend();
+  bool is_coroutine = instr->isYieldFromCoroutine();
 
   // Make sure tstate is in RDI for use in epilogue and here.
   int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
@@ -528,11 +529,17 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
       PhyLocation(iter_loc).toString().c_str());
   as->mov(x86::rdi, x86::ptr(x86::rbp, iter_loc));
 
-  uint64_t func = reinterpret_cast<uint64_t>(
-      instr->isYieldFromHandleStopAsyncIteration()
-          ? JITRT_YieldFromHandleStopAsyncIteration
-          : JITRT_YieldFrom);
-  emitCall(*env, func, instr);
+  if (is_coroutine) {
+    emitCall(*env, reinterpret_cast<uint64_t>(JITRT_YieldFromCoroutine), instr);
+  } else if (instr->isYieldFromHandleStopAsyncIteration()) {
+    emitCall(
+        *env,
+        reinterpret_cast<uint64_t>(JITRT_YieldFromHandleStopAsyncIteration),
+        instr);
+  } else {
+    emitCall(*env, reinterpret_cast<uint64_t>(JITRT_YieldFrom), instr);
+  }
+
   // Yielded or final result value now in RAX. If the result was NULL then
   // done will be set so we'll correctly jump to the following CheckExc.
   const auto yf_result_phys_reg = PhyLocation::RAX;
@@ -1100,6 +1107,10 @@ BEGIN_RULES(Instruction::kYieldInitial)
 END_RULES
 
 BEGIN_RULES(Instruction::kYieldFrom)
+  GEN(ANY, CALL(translateYieldFrom))
+END_RULES
+
+BEGIN_RULES(Instruction::kYieldFromCoroutine)
   GEN(ANY, CALL(translateYieldFrom))
 END_RULES
 

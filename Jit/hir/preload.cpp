@@ -139,8 +139,7 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   target->container_is_immutable = _PyClassLoader_IsImmutable(container);
   if (return_pytype != NULL) {
     if (coroutine) {
-      // TODO properly handle coroutine returns awaitable type
-      target->return_type = TObject;
+      target->return_type = TCoroutine;
     } else {
       target->return_type =
           to_jit_type({std::move(return_pytype), optional, exact});

@@ -45,6 +45,7 @@ BASIC_FINAL_TYPES: List[str] = [
     "Bool",
     "Cell",
     "Code",
+    "Coroutine",
     "Frame",
     "Func",
     "Gen",

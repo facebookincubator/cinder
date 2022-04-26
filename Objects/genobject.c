@@ -411,7 +411,7 @@ _PyGen_IsSuspended(PyGenObject *gen)
     }
 }
 
-static PySendResult
+PySendResult
 _PyGen_DoSend(PyThreadState *tstate,
               PyGenObject *gen,
               PyObject *arg,
@@ -1315,8 +1315,8 @@ coro_is_creator(PyCoroObject *coro, PyObject *frame) {
   Py_RETURN_FALSE;
 }
 
-static void
-coro_set_awaiter(PyCoroObject *coro, PyCoroObject *awaiter) {
+void
+_PyCoro_SetAwaiter(PyCoroObject *coro, PyCoroObject *awaiter) {
     assert(awaiter == NULL || PyCoro_CheckExact(awaiter));
     if (!gen_is_completed((PyGenObject *)coro)) {
         coro->cr_awaiter = awaiter;
@@ -1372,7 +1372,7 @@ static PyAsyncMethodsWithExtra coro_as_async = {
         0,                                          /* am_anext */
     },
     .ame_send = (sendfunc)_PyGen_DoSend,
-    .ame_setawaiter = (setawaiterfunc)coro_set_awaiter,
+    .ame_setawaiter = (setawaiterfunc)_PyCoro_SetAwaiter,
 };
 
 PyTypeObject PyCoro_Type = {

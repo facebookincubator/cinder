@@ -1490,7 +1490,7 @@ class INSTR_CLASS(CallCFunc, (TOptObject | TCUInt64), HasOutput, Operands<>) {
 // List of allowed functions
 #define CallCFunc_FUNCS(X)      \
   X(_PyAsyncGenValueWrapperNew) \
-  X(_PyCoro_GetAwaitableIter)   \
+  X(JITRT_GetAwaitableIter)     \
   X(_PyGen_yf)                  \
   X(_PyEval_GetAIter)           \
   X(_PyEval_GetANext)           \
@@ -1516,6 +1516,10 @@ class INSTR_CLASS(CallCFunc, (TOptObject | TCUInt64), HasOutput, Operands<>) {
 
   const char* funcName() const {
     return kFuncNames[static_cast<size_t>(func_)];
+  }
+
+  Func func() const {
+    return func_;
   }
 
  private:
