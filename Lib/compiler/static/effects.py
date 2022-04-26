@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import ast
-from typing import Dict, Optional, Sequence, Tuple, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Dict, Optional, Sequence, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .type_binder import TypeBinder
     from .types import Value
 
-    RefinedFields = Dict[str, Tuple[Value, ast.AST]]
+    RefinedFields = Dict[str, Tuple[Value, int, Set[ast.AST]]]
+
 
 # A refined field consists of a refined type in addition to the node that
 # refined the field. The node information is used to hoist reads during codegen.

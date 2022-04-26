@@ -1,3 +1,4 @@
+import dis
 from compiler.static.types import TypedSyntaxError, _TMP_VAR_PREFIX
 
 from .common import StaticTestBase
@@ -258,3 +259,145 @@ class RefineFieldsTests(StaticTestBase):
             self.assertInBytecode(mod.C.f, "LOAD_FAST")
             self.assertInBytecode(mod.C.f, "CAST")
             self.assertEqual(mod.C(21).f(), 21)
+
+    def test_field_not_refined_if_one_branch_is_unrefined(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b) -> int:
+                   if b:
+                       assert self.x is not None
+                   reveal_type(self.x)
+        """
+        self.revealed_type(codestr, "Optional[int]")
+
+    def test_refined_field_if_merge_branch_to_default(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b: bool) -> int:
+                   assert self.x is not None
+                   if b:
+                       assert self.x is not None
+                   reveal_type(self.x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_fields_not_refined_if_dunder_bool_called_in_if(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b) -> int:
+                   assert self.x is not None
+                   if b:
+                       assert self.x is not None
+                   reveal_type(self.x)
+        """
+        self.revealed_type(codestr, "Optional[int]")
+
+    def test_refined_field_if_merge_branch_to_orelse(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b) -> int:
+                   if b:
+                       assert self.x is not None
+                   else:
+                       assert self.x is not None
+                   reveal_type(self.x)
+        """
+        self.revealed_type(codestr, "int")
+
+    def test_refined_field_if_merge_branch_to_default_codegen(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b: bool) -> int:
+                   if self.x is None:
+                       open("a.py") # Add a call to clear refinements.
+                       assert self.x is not None
+                   return self.x
+        """
+        with self.in_module(codestr) as mod:
+            refined_write_count = 0
+            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.1"
+            for instr in dis.get_instructions(mod.C.f):
+                if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
+                    refined_write_count += 1
+            # Ensure that we have a refined write in both branches.
+            self.assertEqual(refined_write_count, 2)
+            self.assertInBytecode(mod.C.f, "LOAD_FAST", tmp_name)
+
+    def test_refined_field_if_merge_branch_to_orelse_codegen(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b) -> int:
+                   if b:
+                       assert self.x is not None
+                   else:
+                       assert self.x is not None
+                   return self.x
+        """
+        with self.in_module(codestr) as mod:
+            refined_write_count = 0
+            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.1"
+            for instr in dis.get_instructions(mod.C.f):
+                if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
+                    refined_write_count += 1
+            # Ensure that we have a refined write in both branches.
+            self.assertEqual(refined_write_count, 2)
+            self.assertInBytecode(mod.C.f, "LOAD_FAST", tmp_name)
+
+    def test_refined_field_if_merge_branch_to_orelse_no_refinement(self) -> None:
+        codestr = """
+            from typing import Optional
+            class C:
+
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b) -> Optional[int]:
+                   if b:
+                       assert self.x is not None
+                   else:
+                       assert self.x is not None
+                   open("a.py")
+                   return self.x
+        """
+        with self.in_module(codestr) as mod:
+            refined_write_count = 0
+            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.1"
+            for instr in dis.get_instructions(mod.C.f):
+                if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
+                    refined_write_count += 1
+            # Ensure that we don't have any refinements without usees.
+            self.assertEqual(refined_write_count, 0)
+            self.assertNotInBytecode(mod.C.f, "LOAD_FAST", tmp_name)
+
+    def test_refined_field_while_merge_branch(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+
+                def f(self, b) -> int:
+                   assert self.x is not None
+                   while b is not None:
+                       b = not b
+                       assert self.x is not None
+                   reveal_type(self.x)
+        """
+        self.revealed_type(codestr, "int")

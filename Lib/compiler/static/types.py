@@ -5665,6 +5665,7 @@ class IsInstanceEffect(NarrowingEffect):
             )
             reverse = visitor.type_env.get_union(type_args).instance
         self.rev: Value = reverse
+        self.tmp_idx: int = visitor.refined_field_index(self.access_path)
 
     def apply(
         self,
@@ -5701,7 +5702,11 @@ class IsInstanceEffect(NarrowingEffect):
         else:
             assert len(access_path) == 2
             base, attr = access_path
-            type_state.refined_fields.setdefault(base, {})[attr] = (to, self.node)
+            type_state.refined_fields.setdefault(base, {})[attr] = (
+                to,
+                self.tmp_idx,
+                {self.node},
+            )
 
     @cached_property
     def access_path(self) -> List[str]:

@@ -513,7 +513,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 self.emit("CAST", value.klass.type_descr)
                 self.emit("POP_TOP")
         for base, refinement_dict in type_state.refined_fields.items():
-            for attr, (value, _) in refinement_dict.items():
+            for attr, (value, _, _) in refinement_dict.items():
                 if value.klass is not self.compiler.type_env.DYNAMIC:
                     key = f"{base}.{attr}"
                     self.visit(effect_nodes[key])

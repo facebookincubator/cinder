@@ -182,26 +182,56 @@ class LocalsBranch:
         self.scope.type_state = state or self.entry_type_state
 
     def merge(self, entry_type_state: Optional[TypeState] = None) -> None:
-        """Merge the entry locals, or a specific copy, into the current locals"""
+        """Merge the entry type state, or a specific copy, into the current type state"""
         # TODO: What about del's?
         if entry_type_state is None:
             entry_type_state = self.entry_type_state
 
-        # TODO(T116955021): For now, clear all field refinements when merging local branches for
-        # soundness. In the future, we will to support field refinements for loops, etc.,
-        # in which case the `changed()` function will also need to be adjusted to handle these.
-        self.scope.type_state.refined_fields.clear()
-
         local_types = self.scope.type_state.local_types
+        refined_fields = self.scope.type_state.refined_fields
         for key, value in entry_type_state.local_types.items():
             if key in local_types:
                 if value != local_types[key]:
                     local_types[key] = self._join(value, local_types[key])
                 continue
 
+        keys_to_remove = [
+            key for key in refined_fields if key not in entry_type_state.refined_fields
+        ]
+
+        # Unlike local types, we can't simply join the types here, since absence of
+        # a refined field indicates that we should use the coarser type. Instead, remove the
+        # refinement if something isn't refined at the entry.
+        for key in keys_to_remove:
+            del refined_fields[key]
+        for key in refined_fields:
+            entry_refinement_dict = entry_type_state.refined_fields[key]
+            refinement_dict = refined_fields[key]
+            keys_to_remove = [
+                key for key in refinement_dict if key not in entry_refinement_dict
+            ]
+            for key in keys_to_remove:
+                del refinement_dict[key]
+            for key in refinement_dict:
+                # Every key in here is now also in the entry dict.
+                (entry_typ, _, entry_nodes) = entry_refinement_dict[key]
+                (typ, idx, nodes) = refinement_dict[key]
+                refinement_dict[key] = (
+                    self._join(entry_typ, typ),
+                    idx,
+                    entry_nodes | nodes,
+                )
+
     def changed(self) -> bool:
-        # Since we currently clear all field refinements, ignore them when seeing whether the locals
-        # changed in the analysis of this branch.
+        for key in self.entry_type_state.refined_fields:
+            if (
+                key in self.scope.type_state.refined_fields
+                and self.scope.type_state.refined_fields[key]
+                != self.entry_type_state.refined_fields[key]
+            ):
+                return True
+            # Refined fields not in the entry state aren't considered.
+
         return self.entry_type_state.local_types != self.scope.type_state.local_types
 
     def _join(self, *types: Value) -> Value:
@@ -253,7 +283,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.current_loop: AST | None = None
         self.loop_may_break: Set[AST] = set()
         self.visiting_assignment_target = False
-        self._tmpvar_refined_local_count = 0
+        self._refined_tmpvar_indices: Dict[str, int] = {}
 
     @property
     def nodes_default_dynamic(self) -> bool:
@@ -1377,6 +1407,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     def visitConstant(
         self, node: Constant, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
+        self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
         if type_ctx is not None:
             type_ctx.bind_constant(node, self)
         else:
@@ -1396,20 +1427,17 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             and node.attr in self.type_state.refined_fields[value.id]
         ):
             if isinstance(node.ctx, ast.Load):
-                typ, source_node = self.type_state.refined_fields[value.id][node.attr]
+                typ, idx, source_nodes = self.type_state.refined_fields[value.id][
+                    node.attr
+                ]
                 self.set_type(node, typ)
-                source_data = self.get_opt_node_data(source_node, UsedRefinementField)
-                if source_data is not None:
-                    temp_name = source_data.name
-                else:
-                    temp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.{self._tmpvar_refined_local_count}"
-
+                temp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.{idx}"
+                for source_node in source_nodes:
                     self.set_node_data(
                         source_node,
                         UsedRefinementField,
                         UsedRefinementField(temp_name, True),
                     )
-                    self._tmpvar_refined_local_count += 1
                 self.set_node_data(
                     node,
                     UsedRefinementField,
@@ -1629,11 +1657,12 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         return ret
 
     def visitIf(self, node: If) -> None:
-        branch = self.binding_scope.branch()
+        self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
 
         effect = self.visit(node.test) or NO_EFFECT
-        effect.apply(self.type_state)
         self.clear_refinements_for_nonbool_test(node.test)
+        branch = self.binding_scope.branch()
+        effect.apply(self.type_state)
 
         terminates = self.visit_check_terminal(node.body)
 
@@ -1759,6 +1788,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.current_loop = orig
 
     def visitWhile(self, node: While) -> None:
+        self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
+
         branch = self.scopes[-1].branch()
 
         with self.in_loop(node):
@@ -1845,3 +1876,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             if slot:
                 return True
         return False
+
+    def refined_field_index(self, access_path: List[str]) -> int:
+        key = ".".join(access_path)
+        if key in self._refined_tmpvar_indices:
+            return self._refined_tmpvar_indices[key]
+        next_index = len(self._refined_tmpvar_indices)
+        self._refined_tmpvar_indices[key] = next_index
+        return self._refined_tmpvar_indices[key]
