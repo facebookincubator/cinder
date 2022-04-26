@@ -31,6 +31,8 @@ from typing import (
     final,
 )
 
+from _static import __build_cinder_class__
+
 from ..consts import CO_STATICALLY_COMPILED
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import Compiler, TIMING_LOGGER_TYPE
@@ -320,6 +322,11 @@ class StrictSourceFileLoader(SourceFileLoader):
 
         return code
 
+    def _ensure_build_class_patched(self) -> None:
+        # pyre-ignore[61]: __build_class__ isn't exposed in builtins.pyi.
+        if builtins.__build_class__ is not __build_cinder_class__:
+            builtins.__build_class__ = __build_cinder_class__
+
     def exec_module(self, module: ModuleType) -> None:
         # This ends up being slightly convoluted, because create_module
         # gets called, then source_to_code gets called, so we don't know if
@@ -358,6 +365,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 "<init-cached-properties>": self.init_cached_properties,
             }
             if code.co_flags & CO_STATICALLY_COMPILED:
+                self._ensure_build_class_patched()
                 new_dict["<imported-from>"] = code.co_consts[-1]
 
             new_dict.update(module.__dict__)

@@ -9,6 +9,8 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from cinder import cinder_set_warn_handler
+from cinder import get_warn_handler
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import StrictModuleError
 from compiler.strict.loader import (
@@ -40,9 +42,6 @@ from typing import (
     final,
 )
 from unittest.mock import patch
-
-from cinder import cinder_set_warn_handler
-from cinder import get_warn_handler
 
 from . import sandbox as base_sandbox
 from .common import StrictTestBase, init_cached_properties
@@ -2677,3 +2676,68 @@ class StrictLoaderTest(StrictTestBase):
         self.assertIn(
             "ValueError: Strict module stubs path does not exist: /nonexistent", output
         )
+
+    def test_static_module_patches_build_class(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+            import b
+            import builtins
+
+            print(builtins.__build_class__)
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+            import __static__
+
+            class C: pass
+            """,
+        )
+        with tempfile.TemporaryDirectory(
+            prefix="staticpython_tests_bc"
+        ) as bytecode_path:
+            env = os.environ.copy()
+            env.update({"PYTHONPYCACHEPREFIX": bytecode_path})
+
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "install-strict-loader",
+                    "a.py",
+                ],
+                env=env,
+                cwd=str(self.sbx.root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+
+            b_pyc_file = bytecode_path + str(self.sbx.root) + "/b.cpython-38.strict.pyc"
+
+            # Ensure that compilation was done
+            self.assertTrue(pathlib.Path(b_pyc_file).is_file())
+
+            # the thing printed by `a.py` above should be the patched version
+            output = res.stdout.decode()
+            self.assertEqual(output, "<built-in function __build_cinder_class__>\n")
+
+            # Run again, but this time, we will re-use the cached bytecode
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "install-strict-loader",
+                    "a.py",
+                ],
+                env=env,
+                cwd=str(self.sbx.root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+
+            output = res.stdout.decode()
+
+            # the thing printed by `a.py` above should be the patched version
+            self.assertEqual(output, "<built-in function __build_cinder_class__>\n")
