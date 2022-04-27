@@ -435,7 +435,13 @@ class BasicBlock;
 class Edge {
  public:
   Edge() = default;
+  Edge(const Edge& other) {
+    set_from(other.from_);
+    set_to(other.to_);
+  }
   ~Edge();
+
+  Edge& operator=(const Edge&) = delete;
 
   BasicBlock* from() const {
     return from_;
@@ -448,8 +454,6 @@ class Edge {
   void set_to(BasicBlock* to);
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Edge);
-
   BasicBlock* from_{nullptr};
   BasicBlock* to_{nullptr};
 };
@@ -638,6 +642,8 @@ class Instr {
     return const_cast<Instr*>(this)->edge(i);
   }
 
+  virtual Instr* clone() const = 0;
+
   // Get or set the i-th successor.
   BasicBlock* successor(std::size_t i) const {
     return edge(i)->to();
@@ -713,9 +719,13 @@ class Instr {
   virtual BorrowedRef<PyCodeObject> code() const;
 
  protected:
-  DISALLOW_COPY_AND_ASSIGN(Instr);
+  Instr& operator=(const Instr&) = delete;
 
   explicit Instr(Opcode opcode) : opcode_(opcode) {}
+  Instr(const Instr& other)
+      : opcode_(other.opcode()),
+        output_{other.GetOutput()},
+        bytecode_offset_{other.bytecodeOffset()} {}
 
   void* operator new(std::size_t count, void* ptr) {
     return ::operator new(count, ptr);
@@ -776,6 +786,11 @@ struct RegState {
   RegState(Register* reg, RefKind ref_kind, ValueKind value_kind)
       : reg{reg}, ref_kind{ref_kind}, value_kind{value_kind} {}
 
+  bool operator==(const RegState& other) const {
+    return (reg == other.reg) && (ref_kind == other.ref_kind) &&
+        (value_kind == other.value_kind);
+  }
+
   Register* reg{nullptr};
   RefKind ref_kind{RefKind::kUncounted};
   ValueKind value_kind{ValueKind::kObject};
@@ -786,6 +801,17 @@ class DeoptBase : public Instr {
   explicit DeoptBase(Opcode op) : Instr(op) {}
   DeoptBase(Opcode op, const FrameState& frame) : Instr(op) {
     setFrameState(frame);
+  }
+
+  DeoptBase(const DeoptBase& other)
+      : Instr(other),
+        live_regs_{other.live_regs()},
+        guilty_reg_{other.guiltyReg()},
+        nonce_{other.nonce()},
+        descr_{other.descr()} {
+    if (FrameState* copy_fs = other.frameState()) {
+      setFrameState(std::make_unique<FrameState>(*copy_fs));
+    }
   }
 
   template <typename... Args>
@@ -921,6 +947,17 @@ class InstrT<T, opc, Base, Tys...> : public Base {
   static_assert(
       sizeof...(Tys) == 0,
       "base type must appear as last template parameter");
+
+  InstrT(const InstrT& other) : Base(other) {
+    for (size_t i = 0; i < other.NumOperands(); i++) {
+      this->SetOperand(i, other.GetOperand(i));
+    }
+  }
+
+  Instr* clone() const override {
+    auto ptr = Instr::allocate(sizeof(T), this->NumOperands());
+    return new (ptr) T(*static_cast<const T*>(this));
+  }
 
   template <typename... Args>
   InstrT(Args&&... args) : Base(opc, std::forward<Args>(args)...) {}
@@ -2058,6 +2095,16 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
       const std::string& fullname)
       : InstrT(), code_(code), globals_(globals), fullname_(fullname) {
     caller_state_ = std::move(caller_state);
+  }
+
+  // Note: The copy constructor creates a new FrameState - this means that
+  // inlined FrameStates will not point to the copied FrameState as their parent
+  BeginInlinedFunction(const BeginInlinedFunction& other)
+      : InstrT(),
+        code_(other.code()),
+        globals_(other.globals()),
+        fullname_(other.fullname()) {
+    caller_state_ = std::make_unique<FrameState>(*other.callerFrameState());
   }
 
   const FrameState* callerFrameState() const {
@@ -3349,6 +3396,14 @@ class INSTR_CLASS(Snapshot, (), Operands<0>) {
     setFrameState(frame_state);
   }
   Snapshot() : InstrT() {}
+
+  // Make sure we call InstrT's copy constructor and not InstrT's Args
+  // constructor
+  Snapshot(const Snapshot& other) : InstrT(static_cast<const InstrT&>(other)) {
+    if (FrameState* copy_fs = other.frameState()) {
+      setFrameState(std::make_unique<FrameState>(*copy_fs));
+    }
+  }
 
   // Set/get the metadata needed to reconstruct the state of the interpreter
   // after this instruction executes.

@@ -5,6 +5,7 @@
 #include "opcode.h"
 
 #include "Jit/hir/hir.h"
+#include "Jit/hir/optimization.h"
 #include "Jit/hir/parser.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
@@ -593,4 +594,156 @@ def f():
   Ref<PyObject> call_result2(
       PyObject_Call(pyfunc, empty_tuple, /*kwargs=*/nullptr));
   EXPECT_TRUE(isIntEquals(call_result2, 2));
+}
+
+class HIRCloneTest : public RuntimeTest {};
+
+TEST_F(HIRCloneTest, CanCloneInstrs) {
+  Environment env;
+  auto v0 = env.AllocateRegister();
+  std::unique_ptr<Instr> load_const(
+      LoadConst::create(v0, Type::fromObject(Py_False)));
+  std::unique_ptr<Instr> new_load(load_const->clone());
+  ASSERT_TRUE(new_load->IsLoadConst());
+  EXPECT_TRUE(
+      static_cast<LoadConst*>(new_load.get())->type() ==
+      static_cast<LoadConst*>(load_const.get())->type());
+  EXPECT_NE(load_const, new_load);
+  EXPECT_EQ(load_const->GetOutput()->instr(), load_const.get());
+  EXPECT_EQ(new_load->GetOutput()->instr(), load_const.get());
+}
+
+TEST_F(HIRCloneTest, CanCloneBranches) {
+  Environment env;
+  CFG cfg;
+  BasicBlock* from = cfg.AllocateBlock();
+  BasicBlock* to = cfg.AllocateBlock();
+  cfg.entry_block = from;
+  from->append<Branch>(to);
+  Instr* branch = from->GetTerminator();
+  std::unique_ptr<Instr> new_branch(branch->clone());
+  ASSERT_TRUE(new_branch->IsBranch());
+  EXPECT_EQ(branch->block(), from);
+  EXPECT_EQ(new_branch->block(), nullptr);
+
+  Edge* orig_edge = static_cast<Branch*>(branch)->edge(0);
+  // Make sure that the two edges are different pointers with the same fields
+  Edge* dup_edge = static_cast<Branch*>(new_branch.get())->edge(0);
+  EXPECT_NE(orig_edge, dup_edge);
+
+  EXPECT_EQ(orig_edge->from(), dup_edge->from());
+  EXPECT_EQ(from->out_edges().count(orig_edge), 1);
+  EXPECT_EQ(from->out_edges().count(dup_edge), 1);
+
+  EXPECT_EQ(orig_edge->to(), dup_edge->to());
+  EXPECT_EQ(to->in_edges().count(orig_edge), 1);
+  EXPECT_EQ(to->in_edges().count(dup_edge), 1);
+}
+
+TEST_F(HIRCloneTest, CanCloneBorrwedRefFields) {
+  Environment env;
+  auto v0 = env.AllocateRegister();
+  auto name = Ref<>::steal(PyUnicode_FromString("test"));
+  std::unique_ptr<Instr> check(CheckVar::create(v0, v0, name));
+  std::unique_ptr<Instr> new_check(check->clone());
+  ASSERT_TRUE(new_check->IsCheckVar());
+  BorrowedRef<> orig_name = static_cast<CheckVar*>(check.get())->name();
+  BorrowedRef<> dup_name = static_cast<CheckVar*>(new_check.get())->name();
+  EXPECT_EQ(orig_name, dup_name);
+}
+
+TEST_F(HIRCloneTest, CanCloneVariadicOpInstr) {
+  Environment env;
+  auto v0 = env.AllocateRegister();
+  FrameState raise_fs{10};
+  std::unique_ptr<Instr> raise_exc(Raise::create(1, raise_fs, v0));
+  std::unique_ptr<Instr> new_raise_exc(raise_exc->clone());
+  ASSERT_NE(raise_exc.get(), new_raise_exc.get());
+  ASSERT_TRUE(new_raise_exc->IsRaise());
+
+  Raise* orig_raise = static_cast<Raise*>(raise_exc.get());
+  Raise* dup_raise = static_cast<Raise*>(new_raise_exc.get());
+  EXPECT_EQ(orig_raise->kind(), dup_raise->kind());
+  EXPECT_EQ(orig_raise->GetOperand(0), dup_raise->GetOperand(0));
+  FrameState* orig_raise_fs = orig_raise->frameState();
+  EXPECT_EQ(orig_raise_fs->next_instr_offset, 10);
+  EXPECT_NE(orig_raise_fs, dup_raise->frameState());
+
+  std::unique_ptr<Instr> raise_exc_cause(Raise::create(2, raise_fs, v0, v0));
+  std::unique_ptr<Instr> new_raise_exc_cause(raise_exc_cause->clone());
+  ASSERT_NE(raise_exc_cause.get(), new_raise_exc_cause.get());
+  ASSERT_TRUE(new_raise_exc_cause->IsRaise());
+
+  orig_raise = static_cast<Raise*>(raise_exc_cause.get());
+  dup_raise = static_cast<Raise*>(new_raise_exc_cause.get());
+  EXPECT_EQ(orig_raise->kind(), dup_raise->kind());
+  EXPECT_EQ(orig_raise->GetOperand(0), dup_raise->GetOperand(0));
+  EXPECT_EQ(orig_raise->GetOperand(1), dup_raise->GetOperand(1));
+}
+
+TEST_F(HIRCloneTest, CanCloneDeoptBase) {
+  const char* hir = R"(fun jittestmodule:test {
+  bb 0 {
+    Snapshot {
+      NextInstrOffset 0
+      Locals<1> v0
+    }
+    v1 = LoadConst<MortalLongExact[1]>
+    v0 = Assign v1
+    v2 = LoadGlobal<0; "foo"> {
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+      }
+    }
+    Snapshot {
+      NextInstrOffset 6
+      Locals<1> v0
+      Stack<1> v2
+    }
+    Return v2
+  }
+}
+)";
+  auto irfunc = HIRParser().ParseHIR(hir);
+  ASSERT_NE(irfunc, nullptr);
+  ASSERT_TRUE(checkFunc(*irfunc, std::cout));
+  reflowTypes(*irfunc);
+  RefcountInsertion().Run(*irfunc);
+  const char* expected = R"(fun jittestmodule:test {
+  bb 0 {
+    v1:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v2:Object = LoadGlobal<0> {
+      LiveValues<1> b:v1
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v1
+      }
+    }
+    Return v2
+  }
+}
+)";
+  ASSERT_EQ(HIRPrinter(true).ToString(*irfunc), expected);
+  BasicBlock* bb0 = irfunc->cfg.entry_block;
+  Instr& load_global = *(++(bb0->rbegin()));
+  ASSERT_TRUE(load_global.IsLoadGlobal());
+
+  std::unique_ptr<Instr> dup_load(load_global.clone());
+  ASSERT_TRUE(dup_load->IsLoadGlobal());
+
+  LoadGlobal* orig = static_cast<LoadGlobal*>(&load_global);
+  LoadGlobal* dup = static_cast<LoadGlobal*>(dup_load.get());
+
+  EXPECT_EQ(orig->GetOutput(), dup->GetOutput());
+  EXPECT_EQ(orig->name_idx(), dup->name_idx());
+
+  FrameState* orig_fs = orig->frameState();
+  FrameState* dup_fs = dup->frameState();
+  // Should not be pointer equal, but have equal contents
+  EXPECT_NE(orig_fs, dup_fs);
+  EXPECT_TRUE(*orig_fs == *dup_fs);
+
+  // Should have equal contents
+  EXPECT_TRUE(orig->live_regs() == dup->live_regs());
 }
