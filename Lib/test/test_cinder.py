@@ -1956,6 +1956,48 @@ class Rendez:
         self.barrier = asyncio.Future()
 
 
+class TestClearAwaiter(unittest.TestCase):
+    def setUp(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
+    @async_test
+    async def test_clear_on_throw(self):
+        """Awaiter should be cleared when a coroutine completes because an exception
+        was thrown into it.
+        """
+
+        class MyException(Exception):
+            pass
+
+        async def inner(rendez):
+            rendez.started.set_result(None)
+            await rendez.barrier
+            raise MyException("Hello!")
+
+        async def outer(rendez):
+            return await asyncio.create_task(inner(rendez))
+
+        inner_rendez = Rendez()
+        outer_coro = outer(inner_rendez)
+        task = asyncio.create_task(outer_coro)
+
+        # Wait for the inner coroutine to start running before unblocking
+        # it
+        await inner_rendez.started
+        inner_rendez.barrier.set_result(None)
+
+        with self.assertRaises(MyException):
+            await task
+
+        self.assertIs(cinder._get_coro_awaiter(outer_coro), None)
+
+
 class TestAwaiterForNonExceptingGatheredTask(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()

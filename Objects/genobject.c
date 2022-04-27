@@ -376,6 +376,9 @@ gen_send_ex_with_finish_yf(PyGenObject *gen,
     }
 
     if (!result || gen_is_completed(gen)) {
+        if (PyCoro_CheckExact(gen)) {
+            ((PyCoroObject *)gen)->cr_awaiter = NULL;
+        }
         /* generator can't be rerun, so release the frame */
         /* first clean reference cycle through stored exception traceback */
         exc_state_clear(&gen->gi_exc_state);
