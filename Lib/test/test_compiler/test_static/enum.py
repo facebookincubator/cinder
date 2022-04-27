@@ -36,7 +36,7 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    def test_non_constant_disallowed(self):
+    def test_non_constant_allowed(self):
         codestr = """
         from __static__ import Enum
 
@@ -46,11 +46,8 @@ class StaticEnumTests(StaticTestBase):
         class Foo(Enum):
             FOO = foo()
         """
-        self.type_error(
-            codestr,
-            "Cannot resolve Enum value at compile time",
-            at="FOO = foo()",
-        )
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.Foo.FOO.value, 1)
 
     def test_multiple_types_allowed(self):
         codestr = """
@@ -171,6 +168,33 @@ class StaticEnumTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertFalse(mod.Foo.FOO == mod.Bar.FOO)
+
+    def test_enum_with_annotations(self):
+        codestr = """
+        from __static__ import Enum
+
+        class C(Enum):
+            FOO: int = 1
+            BAR: str = "bar"
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.C.FOO.value, 1)
+            self.assertEqual(mod.C.BAR.value, "bar")
+
+    def test_enum_defined_in_terms_of_other_enum(self):
+        codestr = """
+        from __static__ import Enum
+
+        class C(Enum):
+            FOO = "FOO"
+
+        class D(Enum):
+            FOO = C.FOO
+
+        reveal_type(D.FOO.value)
+        """
+        # Make sure we're binding to the enum type and not the value
+        self.revealed_type(codestr, "Exact[<module>.C]")
 
     def test_int64enum_mixins_disallowed(self):
         codestr = """
@@ -689,6 +713,18 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.result1, mod.Foo.BAR)
             self.assertEqual(mod.result2, mod.Foo.BAZ)
 
+    def test_int64enum_with_annotations(self):
+        codestr = """
+        from __static__ import Int64Enum
+
+        class C(Int64Enum):
+            FOO: int = 1
+            BAR: int = 2
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C.FOO.value, 1)
+            self.assertEqual(mod.C.BAR.value, 2)
+
     def test_int_enum_mixins_unsupported(self):
         codestr = """
         from __static__ import IntEnum
@@ -758,7 +794,7 @@ class StaticEnumTests(StaticTestBase):
             "Static Enum values cannot be modified or deleted",
         )
 
-    def test_non_constant_int_enum_disallowed(self):
+    def test_non_constant_int_enum_allowed(self):
         codestr = """
         from __static__ import IntEnum
 
@@ -768,11 +804,8 @@ class StaticEnumTests(StaticTestBase):
         class Foo(IntEnum):
             FOO = foo()
         """
-        self.type_error(
-            codestr,
-            "Cannot resolve IntEnum value at compile time",
-            at="FOO = foo()",
-        )
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.Foo.FOO, 1)
 
     def test_compare_int_enum_to_int(self):
         codestr = """
@@ -876,6 +909,34 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.bar(), "Foo.FOO is an int")
             self.assertEqual(mod.foo(mod.Foo.BAR), "Foo.BAR is an int")
 
+    def test_int_enum_with_annotations(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class C(IntEnum):
+            FOO: int = 1
+            BAR: int = 2
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C.FOO, 1)
+            self.assertEqual(mod.C.BAR, 2)
+
+    def test_int_enum_defined_in_terms_of_other_enum(self):
+        codestr = """
+        from __static__ import IntEnum
+
+        class C(IntEnum):
+            FOO = 1
+            BAR = 2
+
+        class D(IntEnum):
+            FOO = C.FOO
+            BAR = C.BAR
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.D.FOO, 1)
+            self.assertEqual(mod.D.BAR, 2)
+
     def test_string_enum_mixins_unsupported(self):
         codestr = """
         from __static__ import StringEnum
@@ -913,7 +974,7 @@ class StaticEnumTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "StringEnum values must be str, not int",
+            r"StringEnum values must be str, not Literal\[23\]",
             at="BAR = 23",
         )
 
@@ -947,7 +1008,7 @@ class StaticEnumTests(StaticTestBase):
             "Static Enum values cannot be modified or deleted",
         )
 
-    def test_non_constant_string_enum_disallowed(self):
+    def test_non_constant_string_enum_allowed(self):
         codestr = """
         from __static__ import StringEnum
 
@@ -957,11 +1018,8 @@ class StaticEnumTests(StaticTestBase):
         class Foo(StringEnum):
             FOO = foo()
         """
-        self.type_error(
-            codestr,
-            "Cannot resolve StringEnum value at compile time",
-            at="FOO = foo()",
-        )
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.Foo.FOO, "foo")
 
     def test_compare_string_enum_to_string(self):
         codestr = """
@@ -1064,3 +1122,31 @@ class StaticEnumTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.bar(), "FOO is a string")
             self.assertEqual(mod.foo(mod.Foo.BAR), "BAR is a string")
+
+    def test_string_enum_with_annotations(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class C(StringEnum):
+            FOO: str = "FOO"
+            BAR: str = "BAR"
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C.FOO, "FOO")
+            self.assertEqual(mod.C.BAR, "BAR")
+
+    def test_string_enum_defined_in_terms_of_other_enum(self):
+        codestr = """
+        from __static__ import StringEnum
+
+        class C(StringEnum):
+            FOO = "FOO"
+            BAR = "BAR"
+
+        class D(StringEnum):
+            FOO = C.FOO
+            BAR = C.BAR
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.D.FOO, "FOO")
+            self.assertEqual(mod.D.BAR, "BAR")

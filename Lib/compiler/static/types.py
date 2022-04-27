@@ -7991,8 +7991,8 @@ class CEnumType(CType):
 
     def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
         target = node.target
-        if isinstance(target, ast.Name):
-            self.add_enum_value(target, node)
+        if isinstance(target, ast.Name) and node.value is not None:
+            self.add_enum_value(target, node.value)
 
     def declare_variables(self, node: Assign, module: ModuleTable) -> None:
         value = node.value
@@ -9051,14 +9051,13 @@ class EnumType(Class):
         type_env: TypeEnvironment,
         type_name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
-        instance: Optional[EnumInstance] = None,
         is_exact: bool = False,
     ) -> None:
         super().__init__(
             type_name=(type_name or TypeName("__static__", "Enum")),
             bases=bases,
             type_env=type_env,
-            instance=instance or EnumInstance(self),
+            instance=EnumInstance(self),
             is_exact=is_exact,
         )
         self.values: Dict[str, EnumInstance] = {}
@@ -9071,12 +9070,6 @@ class EnumType(Class):
         if bases[0] is not self.type_env.enum:
             raise TypedSyntaxError("Static Enum types do not allow subclassing")
         return EnumType(self.type_env, name, bases)
-
-    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
-        if not isinstance(const, ast.Constant):
-            raise TypedSyntaxError("Cannot resolve Enum value at compile time")
-
-        self.values[name.id] = EnumInstance(self, name.id, const.value)
 
     def bind_attr(
         self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -9108,29 +9101,8 @@ class EnumType(Class):
 
         return NO_EFFECT
 
-    def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
-        target = node.target
-        if isinstance(target, ast.Name):
-            self.add_enum_value(target, node)
-
-    def declare_variables(self, node: Assign, module: ModuleTable) -> None:
-        value = node.value
-        for target in node.targets:
-            if isinstance(target, ast.Tuple):
-                if not isinstance(value, ast.Tuple):
-                    raise TypedSyntaxError(
-                        f"cannot assign non-tuple enum value {value} "
-                        f"to multiple variables: {target}"
-                    )
-                if len(target.elts) != len(value.elts):
-                    raise TypedSyntaxError(
-                        f"arity mismatch for enum assignment {target} = {value}"
-                    )
-                for name, val in zip(target.elts, value.elts):
-                    assert isinstance(name, ast.Name)
-                    self.add_enum_value(name, val)
-            elif isinstance(target, ast.Name):
-                self.add_enum_value(target, value)
+    def bind_enum_value(self, name: str, typ: Value) -> None:
+        self.values[name] = EnumInstance(self, name, typ)
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         if len(node.args) != 1:
@@ -9156,7 +9128,7 @@ class EnumInstance(Object[EnumType]):
         self,
         klass: EnumType,
         name: Optional[str] = None,
-        value: object = None,
+        value: Optional[Value] = None,
     ) -> None:
         super().__init__(klass)
         self.klass = klass
@@ -9179,6 +9151,10 @@ class EnumInstance(Object[EnumType]):
         if node.attr == "name":
             visitor.set_type(node, visitor.type_env.str.exact_type().instance)
             return
+        if node.attr == "value":
+            assert self.value is not None
+            visitor.set_type(node, self.value)
+            return
 
         super().bind_attr(node, visitor, type_ctx)
 
@@ -9191,15 +9167,12 @@ class IntEnumType(EnumType):
         bases: Optional[List[Class]] = None,
         is_exact: bool = False,
     ) -> None:
-        instance = IntEnumInstance(self)
         super().__init__(
             type_name=(type_name or TypeName("__static__", "IntEnum")),
             bases=bases or cast(List[Class], [type_env.enum, type_env.int]),
             type_env=type_env,
-            instance=instance,
             is_exact=is_exact,
         )
-        self.values: Dict[str, IntEnumInstance] = {}
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         if len(bases) > 1:
@@ -9210,50 +9183,10 @@ class IntEnumType(EnumType):
             raise TypedSyntaxError("Static IntEnum types do not allow subclassing")
         return IntEnumType(self.type_env, name, bases)
 
-    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
-        if not isinstance(const, ast.Constant):
-            raise TypedSyntaxError("Cannot resolve IntEnum value at compile time")
-
-        value = const.value
-        if not isinstance(value, int):
-            raise TypedSyntaxError(
-                f"IntEnum values must be int, not {type(value).__name__}"
-            )
-
-        self.values[name.id] = IntEnumInstance(self, name.id, value)
-
-    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if len(node.args) != 1:
-            raise code_gen.syntax_error(
-                f"{self.name} requires a single argument, given {len(node.args)}", node
-            )
-
-        arg = node.args[0]
-        arg_type = code_gen.get_type(arg)
-        if isinstance(arg_type, IntEnumInstance):
-            code_gen.visit(arg)
-        else:
-            code_gen.defaultVisit(node)
-
-
-class IntEnumInstance(EnumInstance):
-    klass: IntEnumType
-    value: Optional[int]
-
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
-        if isinstance(node.ctx, (ast.Store, ast.Del)):
-            visitor.syntax_error("Enum values cannot be modified or deleted", node)
-
-        if node.attr == "name":
-            visitor.set_type(node, visitor.type_env.str.exact_type().instance)
-            return
-        if node.attr == "value":
-            visitor.set_type(node, visitor.type_env.int.exact_type().instance)
-            return
-
-        super().bind_attr(node, visitor, type_ctx)
+    def bind_enum_value(self, name: str, typ: Value) -> None:
+        if not self.type_env.int.can_assign_from(typ.klass):
+            raise TypedSyntaxError(f"IntEnum values must be int, not {typ.name}")
+        self.values[name] = EnumInstance(self, name, typ)
 
 
 class StringEnumType(EnumType):
@@ -9264,15 +9197,12 @@ class StringEnumType(EnumType):
         bases: Optional[List[Class]] = None,
         is_exact: bool = False,
     ) -> None:
-        instance = StringEnumInstance(self)
         super().__init__(
             type_name=(type_name or TypeName("__static__", "StringEnum")),
             bases=bases or cast(List[Class], [type_env.enum, type_env.str]),
             type_env=type_env,
-            instance=instance,
             is_exact=is_exact,
         )
-        self.values: Dict[str, StringEnumInstance] = {}
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         if len(bases) > 1:
@@ -9283,47 +9213,10 @@ class StringEnumType(EnumType):
             raise TypedSyntaxError("Static StringEnum types do not allow subclassing")
         return StringEnumType(self.type_env, name, bases)
 
-    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
-        if not isinstance(const, ast.Constant):
-            raise TypedSyntaxError("Cannot resolve StringEnum value at compile time")
-
-        value = const.value
-        if not isinstance(value, str):
-            raise TypedSyntaxError(
-                f"StringEnum values must be str, not {type(value).__name__}"
-            )
-
-        self.values[name.id] = StringEnumInstance(self, name.id, value)
-
-    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if len(node.args) != 1:
-            raise code_gen.syntax_error(
-                f"{self.name} requires a single argument, given {len(node.args)}", node
-            )
-
-        arg = node.args[0]
-        arg_type = code_gen.get_type(arg)
-        if isinstance(arg_type, StringEnumInstance):
-            code_gen.visit(arg)
-        else:
-            code_gen.defaultVisit(node)
-
-
-class StringEnumInstance(EnumInstance):
-    klass: StringEnumType
-    value: Optional[str]
-
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
-        if isinstance(node.ctx, (ast.Store, ast.Del)):
-            visitor.syntax_error("Enum values cannot be modified or deleted", node)
-
-        if node.attr in ("name", "value"):
-            visitor.set_type(node, visitor.type_env.str.exact_type().instance)
-            return
-
-        super().bind_attr(node, visitor, type_ctx)
+    def bind_enum_value(self, name: str, typ: Value) -> None:
+        if not self.type_env.str.can_assign_from(typ.klass):
+            raise TypedSyntaxError(f"StringEnum values must be str, not {typ.name}")
+        self.values[name] = EnumInstance(self, name, typ)
 
 
 if spamobj is not None:

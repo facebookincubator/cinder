@@ -78,6 +78,7 @@ from .types import (
     CheckedListInstance,
     Class,
     ClassVar,
+    EnumType,
     FinalClass,
     Function,
     FunctionContainer,
@@ -92,7 +93,6 @@ from .types import (
     TypeEnvironment,
     TransientDecoratedMethod,
     UnionInstance,
-    UnknownDecoratedMethod,
     Value,
     OptionalInstance,
     TransparentDecoratedMethod,
@@ -142,6 +142,23 @@ class BindingScope:
         self.decl_types[name] = decl
         self.type_state.local_types[name] = typ
         return decl
+
+
+class EnumBindingScope(BindingScope):
+    def __init__(
+        self,
+        node: AST,
+        type_env: TypeEnvironment,
+        enum_type: EnumType,
+    ) -> None:
+        super().__init__(node, type_env)
+        self.enum_type = enum_type
+
+    def declare(
+        self, name: str, typ: Value, is_final: bool = False, is_inferred: bool = False
+    ) -> TypeDeclaration:
+        self.enum_type.bind_enum_value(name, typ)
+        return super().declare(name, typ, is_final, is_inferred)
 
 
 class ModuleBindingScope(BindingScope):
@@ -569,17 +586,21 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         # skip type-binding protocols; they can't be instantiated and their
         # "methods" commonly won't type check anyway since they typically would
         # have no body
+        res = self.get_type(node)
         if is_protocol:
             self.module.compile_non_static.add(node)
         else:
-            self.scopes.append(BindingScope(node, type_env=self.type_env))
+            if isinstance(res, EnumType):
+                scope = EnumBindingScope(node, self.type_env, res)
+            else:
+                scope = BindingScope(node, self.type_env)
+            self.scopes.append(scope)
 
             for stmt in node.body:
                 self.visit(stmt)
 
             self.scopes.pop()
 
-        res = self.get_type(node)
         self.declare_local(node.name, res)
 
     def set_type(
