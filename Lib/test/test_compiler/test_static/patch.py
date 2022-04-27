@@ -2046,3 +2046,38 @@ class StaticPatchTests(StaticTestBase):
 
             r = mod.g()
             self.assertEqual(r, 45)
+
+    def test_patch_parent_class(self):
+        static_codestr = """
+            from abc import ABCMeta
+            from typing import final
+
+            class C(metaclass=ABCMeta):
+                @staticmethod
+                def f(a: int):
+                    return 42 + a
+
+            class D(C, metaclass=ABCMeta):
+                pass
+
+            @final
+            class E(D):
+                def g(self) -> None:
+                    pass
+
+            def p():
+                return E().g()
+        """
+        with self.in_strict_module(
+            static_codestr, freeze=False, enable_patching=True
+        ) as mod:
+
+            class F(mod.D):
+                pass
+
+            # This should trigger creation of v-table for E, D & C, and F
+            mod.p()
+
+            # Try patching C's staticmethod. This will crash if F's v-table
+            # isn't initialized.
+            setattr(mod.C, "f", lambda x: 100)

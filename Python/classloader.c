@@ -3320,7 +3320,7 @@ _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *containe
     PyObject *name = PyTuple_GET_ITEM(path, PyTuple_GET_SIZE(path) - 1);
     int use_thunk = 0;
     if (PyType_Check(container)) {
-        _PyType_VTable *vtable = _PyClassLoader_EnsureVtable((PyTypeObject *)container, 0);
+        _PyType_VTable *vtable = _PyClassLoader_EnsureVtable((PyTypeObject *)container, 1);
         if (vtable == NULL) {
             return NULL;
         }
