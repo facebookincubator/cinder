@@ -203,6 +203,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
 };
 
 const std::unordered_set<int> kSupportedReadonlyOperations = {
+    READONLY_MAKE_FUNCTION,
+    READONLY_CHECK_FUNCTION,
     READONLY_BINARY_SUBTRACT,
     READONLY_BINARY_MULTIPLY,
     READONLY_BINARY_MATRIX_MULTIPLY,
@@ -2791,18 +2793,13 @@ void HIRBuilder::emitReadonlyOperation(
       PyObject* arg_tuple = PyTuple_GET_ITEM(op_tuple, 1);
       assert(arg_tuple != nullptr);
 
-      PyObject* is_call_method_obj = PyTuple_GET_ITEM(arg_tuple, 1);
-      assert(is_call_method_obj != nullptr);
-      bool is_call_method = (is_call_method_obj == Py_True);
+      constexpr size_t kArgTupleNArgsIndex = 0;
+      constexpr size_t kArgTupleMaskIndex = 1;
 
-      PyObject* nargs_obj = PyTuple_GET_ITEM(arg_tuple, 0);
+      PyObject* nargs_obj = PyTuple_GET_ITEM(arg_tuple, kArgTupleNArgsIndex);
       assert(nargs_obj != nullptr);
 
-      // please note that the frame stack layout is different in jit than in the
-      // interpreter loop equivalent after LoadMethod
-      uint64_t objs_above_func =
-          PyLong_AsUnsignedLongLong(nargs_obj) - (is_call_method ? 1 : 0);
-
+      uint64_t objs_above_func = PyLong_AsUnsignedLongLong(nargs_obj);
       Register* func = tc.frame.stack.peek(objs_above_func + 1);
 
       BasicBlock* done_block = cfg.AllocateBlock();
@@ -2817,7 +2814,7 @@ void HIRBuilder::emitReadonlyOperation(
       tc.emit<LoadField>(
           func_mask_reg, func, "readonly_mask", kFunctionMaskOffset, TCUInt64);
 
-      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 2);
+      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, kArgTupleMaskIndex);
       uint64_t call_mask = PyLong_AsUnsignedLong(call_mask_obj);
       Register* call_mask_reg = temps_.AllocateStack();
       tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(call_mask, TCUInt64));

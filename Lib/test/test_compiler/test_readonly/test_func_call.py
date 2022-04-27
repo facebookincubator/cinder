@@ -136,7 +136,6 @@ class FuncCallTests(ReadonlyTestBase):
         ):
             self._compile_and_run(code, "f")
 
-    @unittest.skipUnderCinderJIT("Not implemented yet.")
     def test_method_call_nro_ro(self) -> None:
         code = """
         class C:
@@ -150,7 +149,6 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertNoImmutableErrors():
             self._compile_and_run(code, "f")
 
-    @unittest.skipUnderCinderJIT("Not implemented yet.")
     def test_method_call_ro_nro(self) -> None:
         code = """
         class C:
@@ -169,7 +167,6 @@ class FuncCallTests(ReadonlyTestBase):
         ):
             self._compile_and_run(code, "f")
 
-    @unittest.skipUnderCinderJIT("Not implemented yet.")
     def test_method_call_ro_ro(self) -> None:
         code = """
         class C:
@@ -184,7 +181,6 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertNoImmutableErrors():
             self._compile_and_run(code, "f")
 
-    @unittest.skipUnderCinderJIT("Not implemented yet.")
     def test_method_call_arguments(self) -> None:
         code = """
         class C:
@@ -203,7 +199,6 @@ class FuncCallTests(ReadonlyTestBase):
         ):
             self._compile_and_run(code, "f")
 
-    @unittest.skipUnderCinderJIT("Not implemented yet.")
     def test_method_check_self(self) -> None:
         code = """
         class C:

@@ -301,7 +301,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             args=tuple(arg_readonly),
         )
 
-        self.emit_readonly_op("CHECK_FUNCTION", (nargs, call_method, mask))
+        self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask))
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int
