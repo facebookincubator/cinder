@@ -424,8 +424,7 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
   } else if (
       instr_str == "YieldInitial" || instr_str == "YieldValue" ||
       instr_str == "YieldFrom" || instr_str == "YieldFromSkipInitialSend" ||
-      instr_str == "YieldFromHandleStopAsyncIteration" ||
-      instr_str == "YieldFromCoroutine") {
+      instr_str == "YieldFromHandleStopAsyncIteration") {
     Instruction* instr;
     if (instr_str == "YieldInitial") {
       instr = createInstr(Instruction::kYieldInitial);
@@ -435,8 +434,6 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
       instr = createInstr(Instruction::kYieldFromSkipInitialSend);
     } else if (instr_str == "YieldFromHandleStopAsyncIteration") {
       instr = createInstr(Instruction::kYieldFromHandleStopAsyncIteration);
-    } else if (instr_str == "YieldFromCoroutine") {
-      instr = createInstr(Instruction::kYieldFromCoroutine);
     } else {
       instr = createInstr(Instruction::kYieldFrom);
     }

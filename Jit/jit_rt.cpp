@@ -1670,33 +1670,15 @@ PyObject* JITRT_MakeGenObjectCoro(
       resume_entry, tstate, spill_words, code_rt, code);
 }
 
-enum class AwaitableKind { kAwaitable, kCoroutine };
-
-template <AwaitableKind akind>
-void setCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {
+void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {
   _PyShadowFrame* sf = ts->shadow_frame;
   // TODO(bsimmers): This may need to change when we support eager evaluation
   // of coroutines.
   auto awaiter = reinterpret_cast<PyObject*>(_PyShadowFrame_GetGen(sf));
-  if constexpr (akind == AwaitableKind::kAwaitable) {
-    _PyAwaitable_SetAwaiter(awaitable, awaiter);
-    return;
-  }
-  _PyCoro_SetAwaiter(
-      reinterpret_cast<PyCoroObject*>(awaitable),
-      reinterpret_cast<PyCoroObject*>(awaiter));
+  _PyAwaitable_SetAwaiter(awaitable, awaiter);
 }
 
-void JITRT_SetCurrentAwaiterCoroutine(PyObject* awaitable, PyThreadState* ts) {
-  setCurrentAwaiter<AwaitableKind::kCoroutine>(awaitable, ts);
-}
-
-void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {
-  setCurrentAwaiter<AwaitableKind::kAwaitable>(awaitable, ts);
-}
-
-template <AwaitableKind akind>
-JITRT_YieldFromRes doYieldFrom(
+JITRT_YieldFromRes JITRT_YieldFrom(
     PyObject* gen,
     PyObject* v,
     PyThreadState* tstate,
@@ -1709,13 +1691,7 @@ JITRT_YieldFromRes doYieldFrom(
     return {v, 1};
   }
   PyObject* retval;
-  int gen_status;
-  if constexpr (akind == AwaitableKind::kAwaitable) {
-    gen_status = PyIter_Send(tstate, gen, v, &retval);
-  } else {
-    gen_status =
-        _PyGen_DoSend(tstate, reinterpret_cast<PyGenObject*>(gen), v, &retval);
-  }
+  auto gen_status = PyIter_Send(tstate, gen, v, &retval);
 
   if (gen_status == PYGEN_RETURN) {
     return {retval, 1};
@@ -1725,24 +1701,6 @@ JITRT_YieldFromRes doYieldFrom(
   }
   JIT_DCHECK(gen_status == PYGEN_NEXT, "Unexpected gen_status:", gen_status);
   return {retval, 0};
-}
-
-JITRT_YieldFromRes JITRT_YieldFrom(
-    PyObject* gen,
-    PyObject* v,
-    PyThreadState* tstate,
-    uint64_t finish_yield_from) {
-  return doYieldFrom<AwaitableKind::kAwaitable>(
-      gen, v, tstate, finish_yield_from);
-}
-
-JITRT_YieldFromRes JITRT_YieldFromCoroutine(
-    PyObject* gen,
-    PyObject* v,
-    PyThreadState* tstate,
-    uint64_t finish_yield_from) {
-  return doYieldFrom<AwaitableKind::kCoroutine>(
-      gen, v, tstate, finish_yield_from);
 }
 
 JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
@@ -1758,75 +1716,6 @@ JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
     res.retval = &jit::g_iterDoneSentinel;
   }
   return res;
-}
-
-static int gen_is_coroutine(PyObject* o) {
-  if (PyGen_CheckExact(o)) {
-    PyCodeObject* code = (PyCodeObject*)((PyGenObject*)o)->gi_code;
-    if (code->co_flags & CO_ITERABLE_COROUTINE) {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-// Like _PyCoro_GetAwaitableIter, but embeds the PyGen_yf check when
-// we have a coroutine object.  This simplifies the code gen and
-// at the same time allows us to optimize away this call entirely when
-// we have a newly created coroutine.
-PyObject* JITRT_GetAwaitableIter(PyObject* o) {
-  unaryfunc getter = NULL;
-  PyTypeObject* ot;
-
-  if (PyCoro_CheckExact(o)) {
-    /* 'o' is a coroutine. */
-    PyObject* yf = _PyGen_yf(reinterpret_cast<PyGenObject*>(o));
-    if (yf != NULL) {
-      /* `o` is a coroutine object that is being
-          awaited, `yf` is a pointer to the current awaitable
-          being awaited on. */
-      Py_DECREF(yf);
-      _PyErr_SetString(
-          PyThreadState_Get(),
-          PyExc_RuntimeError,
-          "coroutine is being awaited already");
-      return NULL;
-    }
-    Py_INCREF(o);
-    return o;
-  } else if (gen_is_coroutine(o)) {
-    Py_INCREF(o);
-    return o;
-  }
-  ot = Py_TYPE(o);
-  if (ot->tp_as_async != NULL) {
-    getter = ot->tp_as_async->am_await;
-  }
-  if (getter != NULL) {
-    PyObject* res = (*getter)(o);
-    if (res != NULL) {
-      if (PyCoro_CheckExact(res) || gen_is_coroutine(res)) {
-        /* __await__ must return an *iterator*, not
-           a coroutine or another awaitable (see PEP 492) */
-        PyErr_SetString(PyExc_TypeError, "__await__() returned a coroutine");
-        Py_CLEAR(res);
-      } else if (!PyIter_Check(res)) {
-        PyErr_Format(
-            PyExc_TypeError,
-            "__await__() returned non-iterator "
-            "of type '%.100s'",
-            Py_TYPE(res)->tp_name);
-        Py_CLEAR(res);
-      }
-    }
-    return res;
-  }
-
-  PyErr_Format(
-      PyExc_TypeError,
-      "object %.100s can't be used in 'await' expression",
-      ot->tp_name);
-  return NULL;
 }
 
 PyObject* JITRT_FormatValue(

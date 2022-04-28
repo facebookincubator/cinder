@@ -31,7 +31,6 @@ const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
         {TBytes, &PyBytes_Type},
         {TCell, &PyCell_Type},
         {TCode, &PyCode_Type},
-        {TCoroutine, &PyCoro_Type},
         {TDict, &PyDict_Type},
         {TBaseException, reinterpret_cast<PyTypeObject*>(PyExc_BaseException)},
         {TFloat, &PyFloat_Type},

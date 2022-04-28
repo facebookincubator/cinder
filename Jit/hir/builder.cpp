@@ -3901,7 +3901,7 @@ void HIRBuilder::emitGetAwaitable(
   tc.emit<CallCFunc>(
       1,
       iter,
-      CallCFunc::Func::kJITRT_GetAwaitableIter,
+      CallCFunc::Func::k_PyCoro_GetAwaitableIter,
       std::vector<Register*>{iterable});
   if (prev_op == BEFORE_ASYNC_WITH || prev_op == WITH_CLEANUP_START) {
     BasicBlock* error_block = cfg.AllocateBlock();
@@ -3918,7 +3918,28 @@ void HIRBuilder::emitGetAwaitable(
     tc.emit<CheckExc>(iter, iter, tc.frame);
   }
 
+  // For coroutines only, runtime assert it isn't already awaiting by checking
+  // if it has a sub-iterator using _PyGen_yf().
+  TranslationContext block_assert_not_awaited_coro{
+      cfg.AllocateBlock(), tc.frame};
+  TranslationContext block_done{cfg.AllocateBlock(), tc.frame};
+  tc.emit<CondBranchCheckType>(
+      iter,
+      Type::fromTypeExact(&PyCoro_Type),
+      block_assert_not_awaited_coro.block,
+      block_done.block);
+  Register* yf = temps_.AllocateStack();
+  block_assert_not_awaited_coro.emit<CallCFunc>(
+      1, yf, CallCFunc::Func::k_PyGen_yf, std::vector<Register*>{iter});
+  TranslationContext block_coro_already_awaited{cfg.AllocateBlock(), tc.frame};
+  block_assert_not_awaited_coro.emit<CondBranch>(
+      yf, block_coro_already_awaited.block, block_done.block);
+  block_coro_already_awaited.emit<RaiseStatic>(
+      0, PyExc_RuntimeError, "coroutine is being awaited already", tc.frame);
+
   stack.push(iter);
+
+  tc.block = block_done.block;
 }
 
 void HIRBuilder::emitBuildString(

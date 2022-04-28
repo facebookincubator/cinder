@@ -101,7 +101,6 @@ enum class FlagEffects {
   X(MovSXD)                                                                  \
   X(YieldInitial, true, FlagEffects::kInvalidate, kDefault, 0, {}, 1)        \
   X(YieldFrom, true, FlagEffects::kInvalidate, kDefault, 0, {}, 1)           \
-  X(YieldFromCoroutine, true, FlagEffects::kInvalidate, kDefault, 0, {}, 1)  \
   X(YieldFromSkipInitialSend,                                                \
     true,                                                                    \
     FlagEffects::kInvalidate,                                                \
@@ -453,7 +452,6 @@ class Instruction {
       case kYieldFromSkipInitialSend:
       case kYieldInitial:
       case kYieldValue:
-      case kYieldFromCoroutine:
         return true;
       default:
         return false;

@@ -35,7 +35,6 @@ PassRegistry::PassRegistry() {
   addPass(CopyPropagation::Factory);
   addPass(CleanCFG::Factory);
   addPass(DynamicComparisonElimination::Factory);
-  addPass(AwaitOptimization::Factory);
   addPass(PhiElimination::Factory);
   addPass(InlineFunctionCalls::Factory);
   addPass(Simplify::Factory);
@@ -288,70 +287,6 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
     }
   }
 
-  reflowTypes(irfunc);
-}
-
-void AwaitOptimization::Run(Function& irfunc) {
-  if (irfunc.code && !(irfunc.code->co_flags & CO_COROUTINE)) {
-    // Skip in non-async functions
-    return;
-  }
-
-  LivenessAnalysis liveness{irfunc};
-  liveness.Run();
-  auto last_uses = liveness.GetLastUses();
-
-  std::vector<Instr*> removals;
-  for (auto& block : irfunc.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end();) {
-      auto& instr = *it;
-      ++it;
-      if (!instr.IsCallCFunc()) {
-        continue;
-      }
-
-      auto& callc = static_cast<CallCFunc&>(instr);
-      if (callc.func() != CallCFunc::Func::kJITRT_GetAwaitableIter) {
-        continue;
-      }
-
-      auto input_instr = modelReg(callc.GetOperand(0))->instr();
-      if (!input_instr->IsInvokeStaticFunction()) {
-        continue;
-      }
-
-      auto invoke = static_cast<InvokeStaticFunction*>(input_instr);
-      if (((reinterpret_cast<PyCodeObject*>(invoke->func()->func_code))
-               ->co_flags &
-           CO_COROUTINE) == 0) {
-        continue;
-      }
-
-      auto& dying_regs = map_get(last_uses, &callc, kEmptyRegSet);
-      if (dying_regs.count(callc.GetOperand(0)) == 0) {
-        // Invoke output lives after GetAwaitableIterable, can't re-write
-        // because this isn't just a simple "await invoke()"
-        continue;
-      }
-
-      removals.push_back(&callc);
-      auto assign = Assign::create(callc.GetOutput(), callc.GetOperand(0));
-      assign->InsertBefore(callc);
-
-      ++it;
-      auto& next = *it;
-      if (next.IsCheckExc()) {
-        removals.push_back(&next);
-        auto assign = Assign::create(next.GetOutput(), next.GetOperand(0));
-        assign->InsertBefore(next);
-      }
-    }
-  }
-
-  for (auto instr : removals) {
-    instr->unlink();
-    delete instr;
-  }
   reflowTypes(irfunc);
 }
 

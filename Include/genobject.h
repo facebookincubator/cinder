@@ -140,15 +140,6 @@ static inline void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter
     }
 }
 
-void
-_PyCoro_SetAwaiter(PyCoroObject *coro, PyCoroObject *awaiter);
-
-PySendResult
-_PyGen_DoSend(PyThreadState *tstate,
-              PyGenObject *gen,
-              PyObject *arg,
-              PyObject **pResult);
-
 /* Asynchronous Generators */
 
 typedef struct {

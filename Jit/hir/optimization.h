@@ -99,20 +99,6 @@ class DynamicComparisonElimination : public Pass {
   PyCFunction isinstance_func_{nullptr};
 };
 
-class AwaitOptimization : public Pass {
- public:
-  AwaitOptimization() : Pass("AwaitOptimization") {}
-
-  void Run(Function& irfunc) override;
-
-  static std::unique_ptr<AwaitOptimization> Factory() {
-    return std::make_unique<AwaitOptimization>();
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AwaitOptimization);
-};
-
 // Eliminate Assign instructions by propagating copies.
 class CopyPropagation : public Pass {
  public:

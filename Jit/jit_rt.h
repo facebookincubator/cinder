@@ -490,10 +490,6 @@ PyObject* JITRT_MakeGenObjectCoro(
 // `ts`.
 void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts);
 
-// Set the awaiter of the given coroutine to be the coroutine at the top of
-// `ts`.
-void JITRT_SetCurrentAwaiterCoroutine(PyObject* awaitable, PyThreadState* ts);
-
 // Mostly the same implementation as YIELD_FROM in ceval.c with slight tweaks to
 // make it stand alone. The argument 'v' is stolen.
 //
@@ -522,14 +518,6 @@ JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
     PyObject* v,
     PyThreadState* tstate,
     uint64_t finish_yield_from);
-
-JITRT_YieldFromRes JITRT_YieldFromCoroutine(
-    PyObject* gen,
-    PyObject* v,
-    PyThreadState* tstate,
-    uint64_t finish_yield_from);
-
-PyObject* JITRT_GetAwaitableIter(PyObject* o);
 
 /* Unpack a sequence as in unpack_iterable(), and save the
  * results in a tuple.
