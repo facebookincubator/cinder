@@ -422,6 +422,10 @@ class StrictSet final : public StrictSetLike {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> arg = nullptr);
 
+  static std::shared_ptr<BaseStrictObject> setPop(
+      std::shared_ptr<StrictSet> self,
+      const CallerContext& caller);
+
   static std::shared_ptr<BaseStrictObject> setUpdate(
       std::shared_ptr<StrictSet> self,
       const CallerContext& caller,

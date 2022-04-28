@@ -1002,6 +1002,19 @@ std::shared_ptr<BaseStrictObject> StrictSet::set__init__(
   return NoneObject();
 }
 
+std::shared_ptr<BaseStrictObject> StrictSet::setPop(
+    std::shared_ptr<StrictSet> self,
+    const CallerContext& caller) {
+  checkExternalModification(self, caller);
+  if(self->data_.empty()) {
+    caller.raiseExceptionStr(KeyErrorType(), "pop from an empty set");
+  }
+  auto iter = self->data_.begin();
+  auto result = std::move(*iter);
+  self->data_.erase(iter);
+  return result;
+}
+
 std::shared_ptr<BaseStrictObject> StrictSet::setUpdate(
     std::shared_ptr<StrictSet> self,
     const CallerContext& caller,
@@ -1047,6 +1060,7 @@ void StrictSetType::addMethods() {
   StrictSetLikeType::addMethods();
   addMethod("add", StrictSet::setAdd);
   addMethodDefault("__init__", StrictSet::set__init__, nullptr);
+  addMethod("pop", StrictSet::setPop);
   addMethod("update", StrictSet::setUpdate);
   addPyWrappedMethodObj<>(
       kDunderRepr,

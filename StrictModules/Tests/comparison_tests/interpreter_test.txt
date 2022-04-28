@@ -3680,11 +3680,13 @@ s.update([5, 6])
 l4 = len(s)
 s.update([5, 6])
 l5 = len(s)
+s.pop()  # cannot guarantee the same element popped
+l6 = len(s)
 b1 = set().issubset(s)
 b2 = set() <= s
 b3 = s <= set()
 ---
-l1 l2 l3 l4 l5 b1 b2 b3
+l1 l2 l3 l4 l5 l6 b1 b2 b3
 ---
 ---
 test_frozenset_init
