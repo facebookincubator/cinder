@@ -114,6 +114,7 @@ enum class RefKind {
   // A PyObject* that owns a reference.
   kOwned,
 };
+std::ostream& operator<<(std::ostream& os, RefKind kind);
 
 // The kind of value held in a Register.
 enum class ValueKind {
@@ -128,8 +129,7 @@ enum class ValueKind {
   // A C Double
   kDouble,
 };
-
-std::ostream& operator<<(std::ostream& os, RefKind kind);
+std::ostream& operator<<(std::ostream& os, ValueKind kind);
 
 // An entry in the CPython block stack
 struct ExecutionBlock {

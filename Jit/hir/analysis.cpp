@@ -6,6 +6,9 @@
 #include "Jit/hir/memory_effects.h"
 #include "Jit/hir/printer.h"
 
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+
 #include <memory>
 
 namespace jit {

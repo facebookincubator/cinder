@@ -91,7 +91,7 @@ register_elf_ctx(ELFObjectContext* ctx, const char* type, void* ptr) {
     int fd;
     if ((fd = open(ss_get_string(filename), O_CREAT | O_RDWR, 0600))) {
       if (write(fd, elf_object_start, elf_object_size) < 0) {
-        JIT_DLOG("Failed to write to %s", filename);
+        JIT_DLOG("Failed to write to %s", ss_get_string(filename));
       }
       close(fd);
     }
@@ -151,7 +151,7 @@ int register_raw_debug_symbol(
 
   JIT_DLOG(
       "Registered debug symbol at %p (%zd bytes) for %s at %p (%d bytes)",
-      elfctx_get_object_ptr(ctx),
+      reinterpret_cast<void*>(elfctx_get_object_ptr(ctx)),
       elfctx_get_object_size(ctx),
       function_name,
       code_addr,
@@ -220,7 +220,7 @@ int register_pycode_debug_symbol(
   JIT_DLOG(
       "Registered debug symbol at %p (%zd bytes) for a function at %p "
       "(%d bytes)",
-      elfctx_get_object_ptr(ctx),
+      reinterpret_cast<void*>(elfctx_get_object_ptr(ctx)),
       elfctx_get_object_size(ctx),
       code,
       code_size);

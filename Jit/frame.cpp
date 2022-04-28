@@ -43,7 +43,9 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
           static_cast<PyFrameObject*>(_PyShadowFrame_GetPtr(shadow_frame));
       globals = pyframe->f_globals;
       JIT_DCHECK(
-          globals != nullptr, "Python frame (%p) has NULL globals", pyframe);
+          globals != nullptr,
+          "Python frame (%p) has NULL globals",
+          reinterpret_cast<void*>(pyframe));
       result = PyDict_GetItemString(globals, "__name__");
       break;
     }
@@ -55,7 +57,7 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       JIT_DCHECK(
           globals != nullptr,
           "JIT Runtime frame (%p) has NULL globals",
-          code_rt);
+          reinterpret_cast<void*>(code_rt));
       result = PyDict_GetItemString(globals, "__name__");
       break;
     }
@@ -66,7 +68,7 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       JIT_DCHECK(
           globals != nullptr,
           "JIT Runtime frame (%p) has NULL globals",
-          frame_state);
+          reinterpret_cast<void*>(frame_state));
       result = PyDict_GetItemString(globals, "__name__");
       break;
     }
@@ -394,7 +396,7 @@ void assertShadowCallStackConsistent(PyThreadState* tstate) {
               stderr,
               "  %s prev=%p data=%p name=%s\n",
               shadowFrameKind(sf),
-              shadow_frame->prev,
+              reinterpret_cast<void*>(shadow_frame->prev),
               reinterpret_cast<void*>(shadow_frame->data),
               sf_name_str);
         }

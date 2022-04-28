@@ -21,7 +21,10 @@ static void deopt_type(_PyJITContext* ctx, BorrowedRef<PyTypeObject> type) {
     return;
   }
 
-  JIT_DLOG("Deoptimizing type name=%s type=%p", type->tp_name, type);
+  JIT_DLOG(
+      "Deoptimizing type name=%s type=%p",
+      type->tp_name,
+      reinterpret_cast<void*>(type.get()));
   TypeDeoptInfo& deopt_info = it->second;
 
   /* Reset slots back to their original values */

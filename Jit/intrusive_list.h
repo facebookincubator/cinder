@@ -209,8 +209,8 @@ class IntrusiveList {
     JIT_DCHECK(
         it.list() == this,
         "iterator is for list %p, this == %p",
-        it.list(),
-        this);
+        reinterpret_cast<void*>(it.list()),
+        reinterpret_cast<void*>(this));
     (r.*node_member).InsertBefore(it.node());
   }
 

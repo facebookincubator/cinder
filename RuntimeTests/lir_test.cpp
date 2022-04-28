@@ -184,7 +184,7 @@ BB %3 - preds: %0 - succs: %12
         %4:64bit = Move 4607812922747849277(0x3ff23d70a3d70a3d):Object
        %5:Double = Move %4:64bit
 
-# v9:CDouble[2.0] = LoadConst<CDouble[2.0]>
+# v9:CDouble[2] = LoadConst<CDouble[2]>
         %6:64bit = Move 4611686018427387904(0x4000000000000000):Object
        %7:Double = Move %6:64bit
 

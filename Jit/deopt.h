@@ -7,6 +7,9 @@
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
 
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <vector>

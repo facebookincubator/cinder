@@ -7,6 +7,7 @@
 #include "Jit/lir/lir.h"
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <cctype>
 #include <cstdint>
@@ -37,7 +38,7 @@ class BasicBlockBuilder {
   void AppendCode(const std::string& s);
 
   template <typename... T>
-  void AppendCode(std::string_view s, T&&... args) {
+  void AppendCode(fmt::format_string<T...> s, T&&... args) {
     AppendCode(fmt::format(s, std::forward<T>(args)...));
   }
 

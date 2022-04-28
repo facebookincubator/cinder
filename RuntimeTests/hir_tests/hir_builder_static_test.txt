@@ -1428,7 +1428,7 @@ fun jittestmodule:test {
   bb 0 {
     v2 = LoadConst<CDouble[1.14]>
     v0 = Assign v2
-    v3 = LoadConst<CDouble[2.0]>
+    v3 = LoadConst<CDouble[2]>
     v1 = Assign v3
     v4 = DoubleBinaryOp<Add> v0 v1
     v5 = PrimitiveBox<CDouble> v4

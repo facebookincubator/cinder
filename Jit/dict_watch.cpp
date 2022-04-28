@@ -87,7 +87,9 @@ void _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
 
   auto dict_it = jit::g_dict_watchers.find(dict);
   JIT_CHECK(
-      dict_it != jit::g_dict_watchers.end(), "dict %p has no watchers", dict);
+      dict_it != jit::g_dict_watchers.end(),
+      "dict %p has no watchers",
+      reinterpret_cast<void*>(dict));
   auto key_it = dict_it->second.find(key);
   if (key_it == dict_it->second.end()) {
     return;
@@ -102,7 +104,9 @@ void _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
 void _PyJIT_NotifyDictUnwatch(PyObject* dict) {
   auto dict_it = jit::g_dict_watchers.find(dict);
   JIT_CHECK(
-      dict_it != jit::g_dict_watchers.end(), "dict %p has no watchers", dict);
+      dict_it != jit::g_dict_watchers.end(),
+      "dict %p has no watchers",
+      reinterpret_cast<void*>(dict));
   for (auto& pair : dict_it->second) {
     for (auto cache : pair.second) {
       // Unsubscribe from the corresponding globals/builtins dict if needed.
@@ -130,7 +134,9 @@ void _PyJIT_NotifyDictUnwatch(PyObject* dict) {
 void _PyJIT_NotifyDictClear(PyObject* dict) {
   auto dict_it = jit::g_dict_watchers.find(dict);
   JIT_CHECK(
-      dict_it != jit::g_dict_watchers.end(), "dict %p has no watchers", dict);
+      dict_it != jit::g_dict_watchers.end(),
+      "dict %p has no watchers",
+      reinterpret_cast<void*>(dict));
   std::vector<jit::GlobalCache> to_disable;
   for (auto& key_pair : dict_it->second) {
     for (auto& cache : key_pair.second) {

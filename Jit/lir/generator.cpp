@@ -19,6 +19,9 @@
 #include "Jit/threaded_compile.h"
 #include "Jit/util.h"
 
+#include <fmt/format.h>
+#include <fmt/ostream.h>
+
 #include <functional>
 #include <sstream>
 
@@ -2312,8 +2315,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const Phi*>(&i);
 
         std::stringstream ss;
-        fmt::print(ss, "Phi {}", instr->GetOutput());
-        // ss << "Phi " << *instr->GetOutput();
+        ss << "Phi " << fmt::format("{}", instr->GetOutput());
 
         for (size_t i = 0; i < instr->NumOperands(); i++) {
           fmt::print(

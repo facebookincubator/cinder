@@ -5,6 +5,7 @@
 #include "Jit/log.h"
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <algorithm>
 #include <cstring>
@@ -427,7 +428,7 @@ Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {
       type->tp_mro != nullptr,
       "Type %s(%p) has a null mro",
       type->tp_name,
-      type);
+      reinterpret_cast<void*>(type));
 
   PyObject* mro = type->tp_mro;
   for (ssize_t i = 0; i < PyTuple_GET_SIZE(mro); ++i) {
@@ -439,7 +440,10 @@ Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {
     }
   }
   JIT_CHECK(
-      false, "Type %s(%p) doesn't have object in its mro", type->tp_name, type);
+      false,
+      "Type %s(%p) doesn't have object in its mro",
+      type->tp_name,
+      reinterpret_cast<void*>(type));
 }
 
 Type Type::fromType(PyTypeObject* type) {

@@ -6,6 +6,8 @@
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 
+#include <fmt/ostream.h>
+
 namespace jit {
 namespace hir {
 

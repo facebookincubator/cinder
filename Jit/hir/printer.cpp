@@ -7,6 +7,7 @@
 #include "Jit/util.h"
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 #include <json.hpp>
 
 #include <algorithm>

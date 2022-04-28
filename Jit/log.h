@@ -8,10 +8,12 @@
 #include "Jit/threaded_compile.h"
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 #include <fmt/printf.h>
 
 #include <cstdio>
 #include <iterator>
+#include <string_view>
 
 namespace jit {
 
@@ -45,7 +47,7 @@ std::string repr(BorrowedRef<> obj);
 // this wrapper is used to contain any exceptions rather than aborting during a
 // JIT_LOG() or unwinding the stack after a failed JIT_CHECK().
 template <typename... Args>
-void protected_fprintf(std::FILE* file, const char* fmt, Args&&... args) {
+void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
   try {
     fmt::fprintf(file, fmt, std::forward<Args>(args)...);
   } catch (const fmt::format_error& fe) {
