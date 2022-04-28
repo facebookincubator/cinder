@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 typedef struct _dictkeysobject PyDictKeysObject;
+typedef struct _dictkeyentry PyDictKeyEntry;
 
 /* The ma_values pointer is NULL for a combined table
  * or points to an array of PyObject* for a split table
@@ -65,6 +66,14 @@ PyObject *_PyDict_FromKeys(PyObject *, PyObject *, PyObject *);
 Py_ssize_t
 _PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key);
 /* facebook end t39538061 */
+
+void
+_PyDictKeys_DecRef(PyDictKeysObject *keys);
+PyDictKeysObject *
+_PyDict_MakeKeysShared(PyObject *dict);
+
+PyDictKeyEntry *
+_PyDictKeys_GetEntries(PyDictKeysObject *keys);
 
 PyAPI_FUNC(int) PyDict_ClearFreeList(void);
 

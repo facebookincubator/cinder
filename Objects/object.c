@@ -10,6 +10,7 @@
 #include "frameobject.h"
 #include "interpreteridobject.h"
 #include "pyreadonly.h"
+#include "dict-common.h"
 
 #ifdef __cplusplus
 extern "C" {
