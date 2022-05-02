@@ -1041,24 +1041,24 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           // load zero
           bbb.AppendCall(instr->GetOutput(), JITRT_BoxI64, int64_t{0});
           break;
-        } else if (src_type <= (TCUInt64 | TNullptr)) {
+        } else if (src_type <= TCUInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxU64);
-        } else if (src_type <= (TCInt64 | TNullptr)) {
+        } else if (src_type <= TCInt64) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxI64);
-        } else if (src_type <= (TCUInt32 | TNullptr)) {
+        } else if (src_type <= TCUInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxU32);
-        } else if (src_type <= (TCInt32 | TNullptr)) {
+        } else if (src_type <= TCInt32) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxI32);
-        } else if (src_type <= (TCDouble)) {
+        } else if (src_type <= TCDouble) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
-        } else if (src_type <= (TCBool | TCUInt8 | TCUInt16 | TNullptr)) {
+        } else if (src_type <= (TCBool | TCUInt8 | TCUInt16)) {
           bbb.AppendCode(
               "ConvertUnsigned {}:CUInt32, {}:{}", tmp, src, src_type);
           src = tmp;
           func = reinterpret_cast<uint64_t>(
               (src_type <= TCBool) ? JITRT_BoxBool : JITRT_BoxU32);
           src_type = TCUInt32;
-        } else if (src_type <= (TCInt8 | TCInt16 | TNullptr)) {
+        } else if (src_type <= (TCInt8 | TCInt16)) {
           bbb.AppendCode("Convert {}:CInt32, {}:{}", tmp, src, src_type);
           src = tmp;
           src_type = TCInt32;
