@@ -24,6 +24,9 @@ static const uintptr_t _PyShadowFrame_PtrMask = ~_PyShadowFrame_TagMask;
 
 static const unsigned int kShadowFrameSize = sizeof(_PyShadowFrame);
 #define SHADOW_FRAME_FIELD_OFF(field) (int{(offsetof(_PyShadowFrame, field))})
+static const unsigned int kJITShadowFrameSize = sizeof(JITShadowFrame);
+#define JIT_SHADOW_FRAME_FIELD_OFF(field)                                      \
+  (int{(offsetof(JITShadowFrame, field))})
 static const unsigned int _PyShadowFrame_NumPtrKindBits = 2;
 static const unsigned int _PyShadowFrame_PtrKindOff = 0;
 static const uintptr_t _PyShadowFrame_PtrKindMask =
@@ -91,6 +94,41 @@ static inline void _PyShadowFrame_Pop(PyThreadState *tstate,
   assert(tstate->shadow_frame == shadow_frame);
   tstate->shadow_frame = shadow_frame->prev;
   shadow_frame->prev = NULL;
+}
+
+static inline void *JITShadowFrame_GetOrigPtr(JITShadowFrame *jit_sf) {
+  return (void *)(jit_sf->orig_data & _PyShadowFrame_PtrMask);
+}
+
+static inline _PyShadowFrame_PtrKind
+JITShadowFrame_GetOrigPtrKind(JITShadowFrame *jit_sf) {
+  return (_PyShadowFrame_PtrKind)(jit_sf->orig_data &
+                                  _PyShadowFrame_PtrKindMask);
+}
+
+/*
+ * Return the kind of runtime pointer (PYSF_RTFS or PYSF_CODE_RT) held by
+ * jit_sf.
+ */
+static inline _PyShadowFrame_PtrKind
+JITShadowFrame_GetRTPtrKind(JITShadowFrame *jit_sf) {
+  _PyShadowFrame_PtrKind kind = _PyShadowFrame_GetPtrKind(&jit_sf->sf);
+  if (kind == PYSF_PYFRAME) {
+    return JITShadowFrame_GetOrigPtrKind(jit_sf);
+  }
+  return kind;
+}
+
+/*
+ * Return the runtime pointer (jit::CodeRuntime* or jit::RuntimeFrameState*)
+ * held by jit_sf.
+ */
+static inline void *JITShadowFrame_GetRTPtr(JITShadowFrame *jit_sf) {
+  _PyShadowFrame_PtrKind kind = _PyShadowFrame_GetPtrKind(&jit_sf->sf);
+  if (kind == PYSF_PYFRAME) {
+    return JITShadowFrame_GetOrigPtr(jit_sf);
+  }
+  return _PyShadowFrame_GetPtr((_PyShadowFrame *)jit_sf);
 }
 
 /* Return a borrowed reference to the code object for shadow_frame */

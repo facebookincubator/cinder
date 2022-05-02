@@ -636,11 +636,11 @@ static void emitSubclassCheck(
 #undef FOREACH_FAST_BUILTIN
 
 static ssize_t shadowFrameOffsetBefore(const InlineBase* instr) {
-  return -instr->inlineDepth() * ssize_t{kShadowFrameSize};
+  return -instr->inlineDepth() * ssize_t{kJITShadowFrameSize};
 }
 
 static ssize_t shadowFrameOffsetOf(const InlineBase* instr) {
-  return shadowFrameOffsetBefore(instr) - ssize_t{kShadowFrameSize};
+  return shadowFrameOffsetBefore(instr) - ssize_t{kJITShadowFrameSize};
 }
 
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
@@ -2463,6 +2463,17 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             data_reg,
             callee_shadow_frame,
             SHADOW_FRAME_FIELD_OFF(data));
+        // Set orig_data
+        // This is only necessary when in normal-frame mode because the frame
+        // is already materialized on function entry. It is lazily filled when
+        // the frame is materialized in shadow-frame mode.
+        if (func_->frameMode == jit::hir::FrameMode::kNormal) {
+          bbb.AppendCode(
+              "Store {}, {}, {}",
+              data_reg,
+              callee_shadow_frame,
+              JIT_SHADOW_FRAME_FIELD_OFF(orig_data));
+        }
         // Set our shadow frame as top of shadow stack
         bbb.AppendCode(
             "Store {}, __asm_tstate, {}",

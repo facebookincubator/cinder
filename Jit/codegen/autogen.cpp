@@ -233,7 +233,7 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
   // skip the first four inputs in Guard, which are
   // kind, deopt_meta id, guard var, and target.
   fillLiveValueLocations(deopt_meta, instr, 4);
-  env->deopt_exits.emplace_back(index, deopt_label);
+  env->deopt_exits.emplace_back(index, deopt_label, instr);
 }
 
 void TranslateDeoptPatchpoint(Environ* env, const Instruction* instr) {
@@ -250,7 +250,7 @@ void TranslateDeoptPatchpoint(Environ* env, const Instruction* instr) {
   // skip the first two inputs which are the patcher and deopt metadata id
   fillLiveValueLocations(deopt_meta, instr, 2);
   auto deopt_label = as->newLabel();
-  env->deopt_exits.emplace_back(index, deopt_label);
+  env->deopt_exits.emplace_back(index, deopt_label, instr);
 
   // The runtime will link the patcher to the appropriate point in the code
   // once code generation has completed.
@@ -348,7 +348,9 @@ void emitStoreGenYieldPoint(
       GenYieldPoint{std::move(pyobj_offs), is_yield_from, yield_from_offset});
 
   env->unresolved_gen_entry_labels.emplace(gen_yield_point, resume_label);
-  env->addIPToBCMapping(resume_label, yield);
+  if (yield->origin()) {
+    env->pending_debug_locs.emplace_back(resume_label, yield->origin());
+  }
 
   as->mov(scratch_r, reinterpret_cast<uint64_t>(gen_yield_point));
   auto yieldPointOffset = offsetof(GenDataFooter, yieldPoint);
@@ -761,11 +763,13 @@ struct RuleActions<> {
   static void eval(Environ*, const Instruction*) {}
 };
 
-struct AddIPToBCMappingAction {
+struct AddDebugEntryAction {
   static void eval(Environ* env, const Instruction* instr) {
     asmjit::Label label = env->as->newLabel();
     env->as->bind(label);
-    env->addIPToBCMapping(label, instr);
+    if (instr->origin()) {
+      env->pending_debug_locs.emplace_back(label, instr->origin());
+    }
   }
 };
 
@@ -779,7 +783,7 @@ struct AddIPToBCMappingAction {
 
 #define CALL(func) CallAction<func>
 
-#define ADDIPMAPPING() AddIPToBCMappingAction
+#define ADDDEBUGENTRY() AddDebugEntryAction
 
 #define BEGIN_RULE_TABLE void AutoTranslator::initTable() {
 #define END_RULE_TABLE }
@@ -858,11 +862,11 @@ BEGIN_RULES(Instruction::kLea)
 END_RULES
 
 BEGIN_RULES(Instruction::kCall)
-  GEN("Ri", ASM(call, OP(1)), ADDIPMAPPING())
-  GEN("Rr", ASM(call, OP(1)), ADDIPMAPPING())
-  GEN("i", ASM(call, OP(0)), ADDIPMAPPING())
-  GEN("r", ASM(call, OP(0)), ADDIPMAPPING())
-  GEN("m", ASM(call, STK(0)), ADDIPMAPPING())
+  GEN("Ri", ASM(call, OP(1)), ADDDEBUGENTRY())
+  GEN("Rr", ASM(call, OP(1)), ADDDEBUGENTRY())
+  GEN("i", ASM(call, OP(0)), ADDDEBUGENTRY())
+  GEN("r", ASM(call, OP(0)), ADDDEBUGENTRY())
+  GEN("m", ASM(call, STK(0)), ADDDEBUGENTRY())
 END_RULES
 
 BEGIN_RULES(Instruction::kMove)

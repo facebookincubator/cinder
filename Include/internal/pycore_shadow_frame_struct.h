@@ -53,11 +53,30 @@ typedef struct _PyShadowFrame {
    * - owner        - _PyShadowFrameOwner
    * - pointer_kind - _PyShadowFrame_PtrKind
    *
-   * The contents of `pointer` depends on the value of `pointer_kind`. See below
-   * in the definition of _PyShadowFrame_PtrKind for details.
+   * The contents of `pointer` depends on the value of `pointer_kind`. See
+   * below in the definition of _PyShadowFrame_PtrKind for details.
    */
   uintptr_t data;
 } _PyShadowFrame;
+
+/*
+ * JITShadowFrames are allocated on the stack for each activation (non-inlined
+ * + inlined) inside a non-generator unit.
+ */
+typedef struct JITShadowFrame {
+  _PyShadowFrame sf;
+
+  /*
+   * This field is set to the original value of `sf.data` (which contained a
+   * tagged jit::CodeRuntime* or jit::RuntimeFrameState*) when the
+   * PyFrameObject is materialized. Its value is otherwise undefined.
+   *
+   * This allows the JIT to retrieve the runtime pointer for a shadow frame,
+   * even if the PyFrameObject has been materialized. It's lazily initialized
+   * to avoid bloating the prologue.
+   */
+  uintptr_t orig_data;
+} JITShadowFrame;
 
 typedef enum {
   /* Pointer holds jit::CodeRuntime*. The frame refers to a JIT function which
@@ -81,15 +100,28 @@ typedef enum {
 
 /* Who is responsible for unlinking the frame.
  *
- * This is used by the JIT to determine which, if any, pre-existing
- * PyFrameObjects it needs to update when user code requests a frame. There may
- * be shadow frames for JIT-compiled functions that are on the call stack for
- * which corresponding PyFrameObjects have already been allocated. Those
+ * This is used by the JIT for a couple of different purposes.
+ *
+ * First, it's used to identify which pre-existing PyFrameObjects need to be
+ * updated when something calls `sys.getframe()` or `PyEval_GetFrame()`. There
+ * may be shadow frames for JIT-compiled functions that are on the call stack
+ * for which corresponding PyFrameObjects have already been materialized. Those
  * PyFrameObjects should be updated to reflect the current execution state of
  * the corresponding Python function. However, we want to ignore PyFrameObjects
  * for shadow frames that are owned by the interpreter. Both cases will have a
  * `pointer_kind` of `PYSF_PYFRAME`; we use the `owner` field to disambiguate
  * between the two.
+ *
+ * Second, it determines when it is safe to cast a `_PyShadowFrame` to a
+ * `JITShadowFrame`. A shadow frame with PYSF_JIT as its owner flag will be a
+ * JITShadowFrame if and only if it's not a generator. JIT generators do not
+ * have a JITShadowFrame to avoid bloating non-JIT generator objects as the
+ * shadow frame is embedded directly in the generator. There are plans to move
+ * the shadow frame out of the generator, at which point we'll allocate a
+ * JITShadowFrame for generators too, and remove the special case.
+ *
+ * TODO(T118377200) - Rename to _PyShadowFrameKind once JIT generators
+ * have a JITShadowFrame.
  */
 typedef enum {
   PYSF_JIT = 0,

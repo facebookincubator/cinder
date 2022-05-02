@@ -125,7 +125,6 @@ class NativeGenerator {
   void generateEpilogueUnlinkFrame(asmjit::x86::Gp tstate_reg, bool is_gen);
   void generateDeoptExits(const asmjit::CodeHolder& code);
   void linkDeoptPatchers(const asmjit::CodeHolder& code);
-  void linkIPtoBCMappings(const asmjit::CodeHolder& code);
   void generateResumeEntry();
   void generateStaticMethodTypeChecks(asmjit::Label setup_frame);
   void generateStaticEntryPoint(

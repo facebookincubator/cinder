@@ -430,6 +430,7 @@ JIT_OBJS=       \
 		Jit/bytecode.o \
 		Jit/code_allocator.o \
 		Jit/compiler.o \
+		Jit/debug_info.o \
 		Jit/deopt.o \
 		Jit/deopt_patcher.o \
 		Jit/dict_watch.o \
@@ -470,7 +471,6 @@ JIT_OBJS=       \
 		Jit/codegen/autogen.o \
 		Jit/codegen/code_section.o \
 		Jit/codegen/copy_graph.o \
-		Jit/codegen/environ.o \
 		Jit/codegen/gen_asm.o \
 		Jit/codegen/gen_asm_utils.o \
 		Jit/codegen/x86_64.o \
@@ -1227,6 +1227,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/code_allocator.h \
 		$(srcdir)/Jit/compiler.h \
 		$(srcdir)/Jit/dataflow.h \
+		$(srcdir)/Jit/debug_info.h \
 		$(srcdir)/Jit/deopt.h \
 		$(srcdir)/Jit/deopt_patcher.h \
 		$(srcdir)/Jit/dict_watch.h \

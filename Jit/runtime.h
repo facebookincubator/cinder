@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Jit/containers.h"
+#include "Jit/debug_info.h"
 #include "Jit/deopt.h"
 #include "Jit/fixed_type_profiler.h"
 #include "Jit/inline_cache.h"
@@ -255,12 +256,9 @@ class CodeRuntime {
     return frame_size_;
   }
 
-  // Add or lookup a mapping from a point in generated code to corresponding
-  // bytecode offset.
-  void addIPtoBCOff(uintptr_t ip, int bc_off);
-
-  // Returns the bytecode offset for the given address in generated code.
-  std::optional<int> getBCOffForIP(uintptr_t ip) const;
+  DebugInfo* debug_info() {
+    return &debug_info_;
+  }
 
   static constexpr int64_t frameStateOffset() {
     return offsetof(CodeRuntime, frame_state_);
@@ -284,8 +282,7 @@ class CodeRuntime {
 
   int frame_size_{-1};
 
-  // Map of address in compiled code to bytecode offset
-  std::unordered_map<uintptr_t, int> ip_to_bc_off_;
+  DebugInfo debug_info_;
 };
 
 // Information about the runtime behavior of a single deopt point: how often

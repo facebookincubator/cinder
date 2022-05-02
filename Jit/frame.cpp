@@ -5,11 +5,13 @@
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 
-#include "Jit/codegen/gen_asm.h"
+#include "Jit/debug_info.h"
 #include "Jit/log.h"
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
+#include <algorithm>
+#include <functional>
 #include <optional>
 #include <unordered_set>
 
@@ -33,6 +35,13 @@ static bool is_shadow_frame_for_gen(_PyShadowFrame* shadow_frame) {
 namespace jit {
 
 namespace {
+
+const char* codeName(PyCodeObject* code) {
+  if (code->co_qualname == nullptr) {
+    return "<null>";
+  }
+  return PyUnicode_AsUTF8(code->co_qualname);
+}
 
 PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
   PyObject* globals;
@@ -85,7 +94,7 @@ uintptr_t getFrameBaseFromOnStackShadowFrame(_PyShadowFrame* shadow_frame) {
   // The shadow frame is embedded in the frame header at the beginning of the
   // stack frame.
   return reinterpret_cast<uintptr_t>(shadow_frame) +
-      offsetof(FrameHeader, shadow_frame) + sizeof(_PyShadowFrame);
+      offsetof(FrameHeader, shadow_frame) + sizeof(JITShadowFrame);
 }
 
 CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
@@ -98,14 +107,11 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     return reinterpret_cast<GenDataFooter*>(gen->gi_jit_data)->code_rt;
   }
-  // The shadow frame belongs to a JIT-compiled function that is on the stack;
-  // read the CodeRuntime from the stack.
-  uintptr_t frame_base = getFrameBaseFromOnStackShadowFrame(shadow_frame);
-  CodeRuntime* ret = nullptr;
-  uintptr_t code_rt_loc =
-      frame_base - offsetof(FrameHeader, code_rt) - kPointerSize;
-  memcpy(&ret, reinterpret_cast<CodeRuntime*>(code_rt_loc), kPointerSize);
-  return ret;
+  auto jit_sf = reinterpret_cast<JITShadowFrame*>(shadow_frame);
+  _PyShadowFrame_PtrKind rt_ptr_kind = JITShadowFrame_GetRTPtrKind(jit_sf);
+  JIT_CHECK(
+      rt_ptr_kind == PYSF_CODE_RT, "unexpected ptr kind: %d", rt_ptr_kind);
+  return reinterpret_cast<jit::CodeRuntime*>(JITShadowFrame_GetRTPtr(jit_sf));
 }
 
 // Find a shadow frame in the call stack. If the frame was found, returns the
@@ -167,34 +173,6 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
   return ip;
 }
 
-// If shadow_frame is being executed by the JIT, update py_frame to reflect the
-// state of the Python function being executed.
-void updatePyFrame(
-    PyThreadState* tstate,
-    BorrowedRef<PyFrameObject> py_frame,
-    _PyShadowFrame* shadow_frame) {
-  if (_PyShadowFrame_GetOwner(shadow_frame) != PYSF_JIT) {
-    // Interpreter is executing this frame; don't touch the PyFrameObject.
-    return;
-  }
-  // TODO(emacs): Support fetching code object and line number for inlined
-  // frames in the JIT.
-  return;
-  CodeRuntime* code_rt = getCodeRuntime(shadow_frame);
-  uintptr_t ip = getIP(tstate, shadow_frame, code_rt->frame_size());
-  std::optional<int> bc_off = code_rt->getBCOffForIP(ip);
-  if (!bc_off.has_value()) {
-    // This can happen if we forget to record the address following a call made
-    // by JIT-compiled code. Just emit a warning instead of crashing since this
-    // should only result in incorrect bytecode offsets being reported.
-    auto qn = Ref<>::steal(_PyShadowFrame_GetFullyQualifiedName(shadow_frame));
-    const char* fqname = qn != nullptr ? PyUnicode_AsUTF8(qn) : "<unknown>";
-    JIT_LOG("WARNING: Couldn't find bc off for ip %lx in %s", ip, fqname);
-    return;
-  }
-  py_frame->f_lasti = bc_off.value();
-}
-
 // Create an unlinked PyFrameObject for the given shadow frame.
 Ref<PyFrameObject> createPyFrame(
     PyThreadState* tstate,
@@ -217,7 +195,6 @@ Ref<PyFrameObject> createPyFrame(
   JIT_CHECK(py_frame != nullptr, "failed allocating frame");
   // PyFrame_New links the frame into the thread stack.
   Py_CLEAR(py_frame->f_back);
-  py_frame->f_executing = 1;
   if (frame_state->isGen()) {
     // Transfer ownership of the new reference to frame to the generator
     // epilogue.  It handles detecting and unlinking the frame if the generator
@@ -232,21 +209,21 @@ Ref<PyFrameObject> createPyFrame(
     // deopts, the interpreter loop. In the future we may refactor things so
     // that `_PyJIT_GenSend` handles both linking and unlinking.
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    py_frame->f_executing = gen->gi_running;
     // f_gen is borrowed
     py_frame->f_gen = reinterpret_cast<PyObject*>(gen);
     // gi_frame is owned
     gen->gi_frame = py_frame.get();
     Py_INCREF(py_frame);
+  } else {
+    py_frame->f_executing = 1;
+    // Save the original data field so that we can recover the the
+    // CodeRuntime/RuntimeFrameState pointer if we need to later on.
+    reinterpret_cast<JITShadowFrame*>(shadow_frame)->orig_data =
+        shadow_frame->data;
   }
-  bool is_inlined_function =
-      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS;
   shadow_frame->data =
       _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_JIT);
-  if (!is_inlined_function) {
-    // TODO(emacs): Support fetching code object and line number for inlined
-    // frames in the JIT.
-    updatePyFrame(tstate, py_frame, shadow_frame);
-  }
   return py_frame;
 }
 
@@ -270,69 +247,303 @@ void insertPyFrameBefore(
   cursor->f_back = frame;
 }
 
-// Get the PyFrameObject for shadow_frame or create and insert one before
-// cursor if no PyFrameObject exists.
+// Ensure that a PyFrameObject with f_lasti equal to last_instr_offset exists
+// for shadow_frame. If a new PyFrameObject is created it will be inserted
+// at the position specified by cursor:
+//
+//   - nullptr      - Top of stack
+//   - not-nullptr  - Immediately before cursor
+//   - std::nullopt - Not inserted
+//
+// TODO(mpage): Use std::variant to represent the insertion position.
 BorrowedRef<PyFrameObject> materializePyFrame(
     PyThreadState* tstate,
     _PyShadowFrame* shadow_frame,
-    PyFrameObject* cursor) {
+    int last_instr_offset,
+    std::optional<BorrowedRef<PyFrameObject>> cursor) {
   if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
     PyFrameObject* py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
-    updatePyFrame(tstate, py_frame, shadow_frame);
+    py_frame->f_lasti = last_instr_offset;
     return py_frame;
   }
   // Python frame doesn't exist yet, create it and insert it into the
   // call stack.
   Ref<PyFrameObject> frame = createPyFrame(tstate, shadow_frame);
-  insertPyFrameBefore(tstate, frame, cursor);
+  if (cursor.has_value()) {
+    insertPyFrameBefore(tstate, frame, cursor.value());
+  }
+  frame->f_lasti = last_instr_offset;
   // Ownership of the new reference is transferred to whomever unlinks the
   // frame (either the JIT epilogue or the interpreter loop).
   return frame.release();
 }
 
-int getLineNo(_PyShadowFrame* shadow_frame) {
-  _PyShadowFrame_PtrKind ptr_kind = _PyShadowFrame_GetPtrKind(shadow_frame);
-  void* ptr = _PyShadowFrame_GetPtr(shadow_frame);
-  int lasti = 0;
-  PyCodeObject* code = nullptr;
-
-  switch (ptr_kind) {
-    case PYSF_CODE_RT: {
-      auto code_rt = static_cast<jit::CodeRuntime*>(ptr);
-      uintptr_t ip =
-          getIP(_PyThreadState_GET(), shadow_frame, code_rt->frame_size());
-      std::optional<int> bc_off = code_rt->getBCOffForIP(ip);
-      if (bc_off.has_value()) {
-        lasti = bc_off.value();
-      }
-      code = code_rt->frameState()->code();
-      break;
-    }
-    case PYSF_PYFRAME: {
-      PyFrameObject* frame = static_cast<PyFrameObject*>(ptr);
-      lasti = frame->f_lasti;
-      code = frame->f_code;
-      break;
-    }
-    case PYSF_RTFS: {
-      // inlined code
-      code = static_cast<RuntimeFrameState*>(ptr)->code();
-      break;
-    }
-    case PYSF_DUMMY:
-      JIT_CHECK(false, "Unsupported ptr kind: PYSF_DUMMY");
+bool isInlined(_PyShadowFrame* shadow_frame) {
+  if (_PyShadowFrame_GetOwner(shadow_frame) == PYSF_INTERP) {
+    return false;
   }
-
-  JIT_DCHECK(code != nullptr, "code object must be found");
-
-  return PyCode_Addr2Line(code, lasti);
+  if (is_shadow_frame_for_gen(shadow_frame)) {
+    return false;
+  }
+  auto jit_sf = reinterpret_cast<JITShadowFrame*>(shadow_frame);
+  _PyShadowFrame_PtrKind rt_kind = JITShadowFrame_GetRTPtrKind(jit_sf);
+  switch (rt_kind) {
+    case PYSF_RTFS: {
+      return true;
+    }
+    case PYSF_CODE_RT: {
+      return false;
+    }
+    default: {
+      JIT_CHECK(false, "invalid ptr kind %d for rt", rt_kind);
+    }
+  }
 }
 
-const char* codeName(PyCodeObject* code) {
-  if (code->co_qualname == nullptr) {
-    return "<null>";
+struct ShadowFrameAndLoc {
+  ShadowFrameAndLoc(_PyShadowFrame* sf, const CodeObjLoc& l)
+      : shadow_frame(sf), loc(l) {}
+  _PyShadowFrame* shadow_frame;
+  CodeObjLoc loc;
+};
+
+// Collect all the shadow frames in the unit, with the shadow frame for the
+// non-inlined function as the first element in the return vector.
+std::vector<_PyShadowFrame*> getUnitFrames(_PyShadowFrame* shadow_frame) {
+  JIT_CHECK(
+      _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
+      "must pass jit-owned shadow frame");
+  std::vector<_PyShadowFrame*> frames;
+  while (shadow_frame != nullptr) {
+    _PyShadowFrame_Owner owner = _PyShadowFrame_GetOwner(shadow_frame);
+    switch (owner) {
+      case PYSF_INTERP: {
+        // We've reached an interpreter frame before finding the non-inlined
+        // frame.
+        JIT_CHECK(false, "couldn't find non-inlined frame");
+      }
+      case PYSF_JIT: {
+        frames.emplace_back(shadow_frame);
+        if (!isInlined(shadow_frame)) {
+          std::reverse(frames.begin(), frames.end());
+          return frames;
+        }
+        break;
+      }
+    }
+    shadow_frame = shadow_frame->prev;
   }
-  return PyUnicode_AsUTF8(code->co_qualname);
+  // We've walked entire stack without finding the non-inlined frame.
+  JIT_CHECK(false, "couldn't find non-inlined frame");
+}
+
+// The shadow frames (non-inlined + inlined) and their respective code
+// locations for a JIT unit. The non-inlined frame is the first element in
+// the vector.
+using UnitState = std::vector<ShadowFrameAndLoc>;
+
+// Get the unit state for the JIT unit beginning at shadow_frame.
+UnitState getUnitState(PyThreadState* tstate, _PyShadowFrame* shadow_frame) {
+  JIT_CHECK(
+      _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
+      "must pass jit-owned shadow frame");
+  std::vector<_PyShadowFrame*> unit_frames = getUnitFrames(shadow_frame);
+  auto logUnitFrames = [&unit_frames] {
+    JIT_LOG("Unit shadow frames (increasing order of inline depth):");
+    for (_PyShadowFrame* sf : unit_frames) {
+      JIT_LOG("code=%s", codeName(_PyShadowFrame_GetCode(sf)));
+    }
+  };
+  // Look up bytecode offsets for the frames in the unit.
+  //
+  // This is accomplished by combining a few different things:
+  //
+  // 1. For each unit, the JIT maintains a mapping of addresses in the
+  //    generated code to code locations (code object, bytecode offset) for
+  //    each active Python frame at that point, including frames for inlined
+  //    functions.
+  // 2. Every unit has a fixed-size native stack frame whose size is known at
+  //    compile-time. This is recorded in the CodeRuntime for the unit.
+  // 3. We can recover the CodeRuntime for a unit from its shadow frames.
+  // 4. We can recover the base of a unit's native stack frame from its shadow
+  //    frames. Shadow frames for non-generator units are stored in the unit's
+  //    native frame at a fixed offset from the base, while the frame base is
+  //    stored directly in the JIT data for the generator.
+  //
+  UnitState unit_state;
+  _PyShadowFrame* non_inlined_sf = unit_frames[0];
+  CodeRuntime* code_rt = getCodeRuntime(non_inlined_sf);
+  uintptr_t ip = getIP(tstate, non_inlined_sf, code_rt->frame_size());
+  std::optional<UnitCallStack> locs =
+      code_rt->debug_info()->getUnitCallStack(ip);
+  if (locs.has_value()) {
+    if (locs->size() != unit_frames.size()) {
+      JIT_LOG("DebugInfo frames:");
+      for (const CodeObjLoc& col : locs.value()) {
+        JIT_LOG("code=%s bc_off=%d", codeName(col.code), col.instr_offset);
+      }
+      logUnitFrames();
+      JIT_CHECK(
+          false,
+          "size mismatch: expected %zu frames but got %zu",
+          locs->size(),
+          unit_frames.size());
+    }
+    for (std::size_t i = 0; i < unit_frames.size(); i++) {
+      unit_state.emplace_back(unit_frames[i], locs->at(i));
+    }
+  } else {
+    // We might not have debug info for a number of reasons (e.g. we've read
+    // the return address incorrectly or there's a bug with how we're
+    // generating the information). The consequences of getting this wrong
+    // (incorrect line numbers) don't warrant aborting in production, but it is
+    // worth investigating. Leave some breadcrumbs to help with debugging.
+    JIT_LOG("No debug info for addr %x", ip);
+    logUnitFrames();
+    JIT_DCHECK(false, "No debug info for addr %x", ip);
+    for (std::size_t i = 0; i < unit_frames.size(); i++) {
+      _PyShadowFrame* sf = unit_frames[i];
+      unit_state.emplace_back(sf, CodeObjLoc{_PyShadowFrame_GetCode(sf), -1});
+    }
+  }
+
+  return unit_state;
+}
+
+// Ensure that PyFrameObjects exist for each shadow frame in the unit, and that
+// each PyFrameObject's f_lasti is updated to the offset for the corresponding
+// shadow frame.
+//
+// If created, the PyFrameObjects are linked together, and the
+// PyFrameObject for the innermost shadow frame is linked to cursor, if one is
+// provided.
+//
+// Returns the PyFrameObject for the non-inlined shadow frame.
+BorrowedRef<PyFrameObject> materializePyFrames(
+    PyThreadState* tstate,
+    const UnitState& unit_state,
+    std::optional<BorrowedRef<PyFrameObject>> cursor) {
+  for (auto it = unit_state.rbegin(); it != unit_state.rend(); ++it) {
+    cursor = materializePyFrame(
+        tstate, it->shadow_frame, it->loc.instr_offset, cursor);
+  }
+  return cursor.value();
+}
+
+// Produces a PyFrameObject for the current shadow frame in the stack walk.
+using PyFrameMaterializer = std::function<BorrowedRef<PyFrameObject>(void)>;
+
+// Called during stack walking for each item on the call stack. Returns false
+// to terminate stack walking.
+using FrameHandler =
+    std::function<bool(const CodeObjLoc&, PyFrameMaterializer)>;
+
+void doShadowStackWalk(PyThreadState* tstate, FrameHandler handler) {
+  BorrowedRef<PyFrameObject> prev_py_frame;
+  for (_PyShadowFrame* shadow_frame = tstate->shadow_frame;
+       shadow_frame != nullptr;
+       shadow_frame = shadow_frame->prev) {
+    _PyShadowFrame_Owner owner = _PyShadowFrame_GetOwner(shadow_frame);
+    switch (owner) {
+      case PYSF_INTERP: {
+        BorrowedRef<PyFrameObject> py_frame =
+            _PyShadowFrame_GetPyFrame(shadow_frame);
+        auto materializer = [&]() { return py_frame; };
+        if (!handler(CodeObjLoc(py_frame), materializer)) {
+          return;
+        }
+        prev_py_frame = py_frame;
+        break;
+      }
+      case PYSF_JIT: {
+        UnitState unit_state = getUnitState(tstate, shadow_frame);
+        // We want to materialize PyFrameObjects for all the shadow frames
+        // in the unit if the handler materializes a PyFrameObject for
+        // any shadow frame in the unit. For example, if we were in the
+        // middle of iterating over a unit whose shadow frames looked like
+        //
+        //   foo <- bar <- baz
+        //          ^
+        //          |
+        //          +-- iteration is here
+        //
+        // and the handler materialized a PyFrameObject for bar, then
+        // we would also need to materialize the PyFrameObjects for foo
+        // and baz.
+        bool materialized = false;
+        auto materializeUnitPyFrames = [&] {
+          if (materialized) {
+            return;
+          }
+          prev_py_frame =
+              materializePyFrames(tstate, unit_state, prev_py_frame);
+          materialized = true;
+        };
+        // Process all the frames (inlined + non-inlined) in the unit as a
+        // single chunk, starting with innermost inlined frame.
+        for (auto it = unit_state.rbegin(); it != unit_state.rend(); ++it) {
+          shadow_frame = it->shadow_frame;
+          auto materializer = [&] {
+            materializeUnitPyFrames();
+            return _PyShadowFrame_GetPyFrame(shadow_frame);
+          };
+          if (!handler(it->loc, materializer)) {
+            return;
+          }
+        }
+        break;
+      }
+    }
+  }
+}
+
+// Invoke handler for each frame on the shadow stack
+void walkShadowStack(PyThreadState* tstate, FrameHandler handler) {
+  doShadowStackWalk(tstate, handler);
+  if (py_debug) {
+    assertShadowCallStackConsistent(tstate);
+  }
+}
+
+// Called during stack walking for each item on the async stack. Returns false
+// to terminate stack walking.
+using AsyncFrameHandler = std::function<bool(const CodeObjLoc&)>;
+
+// Invoke handler for each shadow frame on the async stack.
+void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
+  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+  while (shadow_frame != nullptr) {
+    _PyShadowFrame_Owner owner = _PyShadowFrame_GetOwner(shadow_frame);
+    switch (owner) {
+      case PYSF_INTERP: {
+        PyFrameObject* py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+        if (!handler(CodeObjLoc(py_frame))) {
+          return;
+        }
+        break;
+      }
+      case PYSF_JIT: {
+        // Process all the frames (inlined + non-inlined) in the unit as a
+        // single chunk, starting with innermost inlined frame.
+        UnitState unit_state = getUnitState(tstate, shadow_frame);
+        for (auto it = unit_state.rbegin(); it != unit_state.rend(); ++it) {
+          if (!handler(it->loc)) {
+            return;
+          }
+        }
+        // Set current shadow frame to the non-inlined frame.
+        shadow_frame = unit_state[0].shadow_frame;
+        break;
+      }
+    }
+    _PyShadowFrame* awaiter_frame =
+        _PyShadowFrame_GetAwaiterFrame(shadow_frame);
+    if (awaiter_frame != NULL) {
+      shadow_frame = awaiter_frame;
+    } else {
+      shadow_frame = shadow_frame->prev;
+    }
+  }
 }
 
 const char* shadowFrameKind(_PyShadowFrame* sf) {
@@ -353,23 +564,8 @@ const char* shadowFrameKind(_PyShadowFrame* sf) {
 } // namespace
 
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
-  PyFrameObject* prev_py_frame = nullptr;
-  // Start from the deepest frame.
-  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
-  // Materialize all the inlined frames.
-  while (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS) {
-    prev_py_frame = materializePyFrame(tstate, shadow_frame, prev_py_frame);
-    shadow_frame = shadow_frame->prev;
-  }
-  // If running in shadow frame mode, we need to materialize a frame for the
-  // caller of the inlined functions. Otherwise, the frame will already be
-  // there.
-  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT) {
-    materializePyFrame(tstate, shadow_frame, prev_py_frame);
-  }
-  if (py_debug) {
-    assertShadowCallStackConsistent(tstate);
-  }
+  UnitState unit_state = getUnitState(tstate, tstate->shadow_frame);
+  materializePyFrames(tstate, unit_state, nullptr);
   return Ref<PyFrameObject>::steal(tstate->frame);
 }
 
@@ -426,61 +622,44 @@ void assertShadowCallStackConsistent(PyThreadState* tstate) {
 }
 
 BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
-  PyFrameObject* prev_py_frame = nullptr;
-  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
-
-  while (shadow_frame) {
-    prev_py_frame = materializePyFrame(tstate, shadow_frame, prev_py_frame);
-    shadow_frame = shadow_frame->prev;
-  }
-
-  if (py_debug) {
-    assertShadowCallStackConsistent(tstate);
-  }
-
+  walkShadowStack(
+      tstate, [](const CodeObjLoc&, PyFrameMaterializer makePyFrame) {
+        makePyFrame();
+        return true;
+      });
   return tstate->frame;
 }
 
 BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen) {
+  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  if (gen_footer->state == _PyJitGenState_Completed) {
+    return nullptr;
+  }
+
   _PyShadowFrame* shadow_frame = &gen->gi_shadow_frame;
-  if (gen->gi_frame) {
-    updatePyFrame(tstate, gen->gi_frame, shadow_frame);
-    return gen->gi_frame;
+  UnitState unit_state = getUnitState(tstate, shadow_frame);
+  // TODO(T116587512): Support inlined frames in generator objects
+  JIT_CHECK(
+      unit_state.size() == 1, "unexpected inlined frames found for generator");
+  std::optional<BorrowedRef<PyFrameObject>> cursor;
+  if (gen->gi_running && !gen->gi_frame) {
+    // Check if the generator's shadow frame is on the call stack. The generator
+    // will be marked as running but will not be on the stack when it appears as
+    // a predecessor in a chain of generators into which an exception was
+    // thrown. For example, given an "await stack" of coroutines like the
+    // following, where ` a <- b` indicates a `a` awaits `b`,
+    //
+    //   coro0 <- coro1 <- coro2
+    //
+    // if someone does `coro0.throw(...)`, then `coro0` and `coro1` will be
+    // marked as running but will not appear on the stack while `coro2` is
+    // handling the exception.
+    cursor = findInnermostPyFrameForShadowFrame(tstate, shadow_frame);
   }
 
-  if (!gen->gi_running) {
-    auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-    if (gen_footer->state == _PyJitGenState_Completed) {
-      return nullptr;
-    }
-    Ref<PyFrameObject> py_frame = createPyFrame(tstate, shadow_frame);
-    py_frame->f_executing = 0;
-    // It's safe to destroy our reference to the frame; gen holds a strong
-    // reference to the frame which keeps the frame alive.
-    return py_frame;
-  }
-
-  // Check if the generator's shadow frame is on the call stack. The generator
-  // will be marked as running but will not be on the stack when it appears as
-  // a predecessor in a chain of generators into which an exception was
-  // thrown. For example, given an "await stack" of coroutines like the
-  // following, where ` a <- b` indicates a `a` awaits `b`,
-  //
-  //   coro0 <- coro1 <- coro2
-  //
-  // if someone does `coro0.throw(...)`, then `coro0` and `coro1` will be
-  // marked as running but will not appear on the stack while `coro2` is
-  // handling the exception.
-  std::optional<PyFrameObject*> cursor =
-      findInnermostPyFrameForShadowFrame(tstate, shadow_frame);
-  if (cursor.has_value()) {
-    return materializePyFrame(tstate, shadow_frame, cursor.value());
-  }
-  // It's safe to destroy our reference to the frame; gen holds a strong
-  // reference to the frame which keeps the frame alive.
-  return createPyFrame(tstate, shadow_frame);
+  return materializePyFrames(tstate, unit_state, cursor);
 }
 
 } // namespace jit
@@ -556,38 +735,29 @@ int _PyShadowFrame_WalkAndPopulate(
     int array_capacity,
     int* async_stack_len_out,
     int* sync_stack_len_out) {
-  _PyShadowFrame* shadow_frame = PyThreadState_GET()->shadow_frame;
+  PyThreadState* tstate = PyThreadState_GET();
   // Don't assume the inputs are clean
   *async_stack_len_out = 0;
   *sync_stack_len_out = 0;
 
-  // First walk the async stack (through awaiter pointers)
-  int i = 0;
-  _PyShadowFrame* awaiter_frame = NULL;
-  while (shadow_frame != NULL && i < array_capacity) {
-    async_stack[i] = _PyShadowFrame_GetCode(shadow_frame);
-    async_linenos[i] = jit::getLineNo(shadow_frame);
+  // First walk the async stack
+  jit::walkAsyncShadowStack(tstate, [&](const jit::CodeObjLoc& loc) {
+    int idx = *async_stack_len_out;
+    async_stack[idx] = loc.code;
+    async_linenos[idx] = loc.lineNo();
+    (*async_stack_len_out)++;
+    return *async_stack_len_out < array_capacity;
+  });
 
-    awaiter_frame =
-        _PyShadowFrame_GetAwaiterFrame((_PyShadowFrame*)shadow_frame);
+  // Next walk the sync stack
+  jit::walkShadowStack(
+      tstate, [&](const jit::CodeObjLoc& loc, jit::PyFrameMaterializer) {
+        int idx = *sync_stack_len_out;
+        sync_stack[idx] = loc.code;
+        sync_linenos[idx] = loc.lineNo();
+        (*sync_stack_len_out)++;
+        return *sync_stack_len_out < array_capacity;
+      });
 
-    shadow_frame = shadow_frame->prev;
-    if (awaiter_frame != NULL) {
-      shadow_frame = awaiter_frame;
-    }
-    i++;
-  }
-  *async_stack_len_out = i;
-
-  // Next walk the sync stack (shadow frames only)
-  int j = 0;
-  shadow_frame = PyThreadState_GET()->shadow_frame;
-  while (shadow_frame != NULL && j < array_capacity) {
-    sync_stack[j] = _PyShadowFrame_GetCode(shadow_frame);
-    sync_linenos[j] = jit::getLineNo(shadow_frame);
-    shadow_frame = shadow_frame->prev;
-    j++;
-  }
-  *sync_stack_len_out = j;
   return 0;
 }

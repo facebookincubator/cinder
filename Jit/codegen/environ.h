@@ -3,6 +3,7 @@
 
 #include "Jit/codegen/annotations.h"
 #include "Jit/codegen/x86_64.h"
+#include "Jit/debug_info.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
 #include "Jit/lir/lir.h"
@@ -45,10 +46,11 @@ struct Environ {
 
   // Deopt exits. One per guard.
   struct DeoptExit {
-    DeoptExit(size_t idx, asmjit::Label lbl)
-        : deopt_meta_index(idx), label(lbl) {}
+    DeoptExit(size_t idx, asmjit::Label lbl, const jit::lir::Instruction* ins)
+        : deopt_meta_index(idx), label(lbl), instr(ins) {}
     size_t deopt_meta_index;
     asmjit::Label label;
+    const jit::lir::Instruction* instr;
   };
   std::vector<DeoptExit> deopt_exits;
 
@@ -65,23 +67,7 @@ struct Environ {
   };
   std::vector<PendingDeoptPatcher> pending_deopt_patchers;
 
-  // Maps points in the compiled code to bytecode offsets in the code object
-  struct PendingIPtoBCOff {
-    PendingIPtoBCOff(asmjit::Label ip_, int bc_off_)
-        : ip(ip_), bc_off(bc_off_) {}
-
-    // Point in the compiled code
-    asmjit::Label ip;
-
-    int bc_off;
-  };
-  std::vector<PendingIPtoBCOff> pending_ip_to_bc_offs;
-
-  // Record that label corresponds to the bytcode offset that was ultimately
-  // lowered into the supplied lir instruction.
-  void addIPToBCMapping(
-      asmjit::Label label,
-      const jit::lir::Instruction* instr);
+  std::vector<PendingDebugLoc> pending_debug_locs;
 
   // Location of incoming arguments
   std::vector<PhyLocation> arg_locations;

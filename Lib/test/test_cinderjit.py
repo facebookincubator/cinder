@@ -7,6 +7,7 @@ import gc
 import sys
 import tempfile
 import threading
+import traceback
 import types
 import unittest
 import warnings
@@ -37,7 +38,6 @@ except:
         return func
 
 
-@unittest.skip("Temporarily disabled until line numbers work with the inliner")
 class GetFrameLineNumberTests(unittest.TestCase):
     def assert_code_and_lineno(self, frame, func, lineno):
         self.assertEqual(frame.f_code, func.__code__)
@@ -50,7 +50,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
         def g():
             return sys._getframe()
 
-        self.assert_code_and_lineno(g(), g, 50)
+        self.assert_code_and_lineno(g(), g, 51)
 
     def test_line_numbers_for_running_generators(self):
         """Verify that line numbers are correct for running generator functions"""
@@ -62,7 +62,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield sys._getframe()
             yield z
 
-        initial_lineno = 59
+        initial_lineno = 60
         gen = g(1, 2)
         frame = next(gen)
         self.assert_code_and_lineno(frame, g, initial_lineno)
@@ -81,7 +81,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield z
 
         gen = g(0)
-        initial_lineno = 75
+        initial_lineno = 76
         self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno)
         v = next(gen)
         self.assertEqual(v, 1)
@@ -122,9 +122,128 @@ class GetFrameLineNumberTests(unittest.TestCase):
         gen1.send(None)
         with self.assertRaises(TestException):
             gen1.throw(TestException())
-        initial_lineno = 99
+        initial_lineno = 100
         self.assert_code_and_lineno(gen1_frame, f1, initial_lineno)
         self.assert_code_and_lineno(gen2_frame, f2, initial_lineno + 4)
+
+    def test_line_numbers_from_finalizers(self):
+        """Make sure we can get accurate line numbers from finalizers"""
+        stack = None
+
+        class StackGetter:
+            def __del__(self):
+                nonlocal stack
+                stack = traceback.extract_stack()
+
+        @unittest.failUnlessJITCompiled
+        def double(x):
+            ret = x
+            tmp = StackGetter()
+            del tmp
+            ret += x
+            return ret
+
+        res = double(5)
+        self.assertEqual(res, 10)
+        self.assertEqual(stack[-1].lineno, 136)
+        self.assertEqual(stack[-2].lineno, 142)
+
+
+@unittest.failUnlessJITCompiled
+def get_stack():
+    z = 1 + 1
+    stack = traceback.extract_stack()
+    return stack
+
+
+@unittest.failUnlessJITCompiled
+def get_stack_twice():
+    stacks = []
+    stacks.append(get_stack())
+    stacks.append(get_stack())
+    return stacks
+
+
+@unittest.failUnlessJITCompiled
+def get_stack2():
+    z = 2 + 2
+    stack = traceback.extract_stack()
+    return stack
+
+
+@unittest.failUnlessJITCompiled
+def get_stack_siblings():
+    return [get_stack(), get_stack2()]
+
+
+@unittest.failUnlessJITCompiled
+def get_stack_multi():
+    stacks = []
+    stacks.append(traceback.extract_stack())
+    z = 1 + 1
+    stacks.append(traceback.extract_stack())
+    return stacks
+
+
+@unittest.failUnlessJITCompiled
+def call_get_stack_multi():
+    x = 1 + 1
+    return get_stack_multi()
+
+
+class InlinedFunctionLineNumberTests(unittest.TestCase):
+    @jit_suppress
+    @unittest.skipIf(
+        not cinderjit or not cinderjit.is_hir_inliner_enabled(),
+        "meaningless without HIR inliner enabled",
+    )
+    def test_line_numbers_with_sibling_inlined_functions(self):
+        """Verify that line numbers are correct when function calls are inlined in the same
+        expression"""
+        # Calls to get_stack and get_stack2 should be inlined
+        self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_siblings), 2)
+        stacks = get_stack_siblings()
+        # Call to get_stack
+        self.assertEqual(stacks[0][-1].lineno, 155)
+        self.assertEqual(stacks[0][-2].lineno, 176)
+        # Call to get_stack2
+        self.assertEqual(stacks[1][-1].lineno, 170)
+        self.assertEqual(stacks[1][-2].lineno, 176)
+
+    @jit_suppress
+    @unittest.skipIf(
+        not cinderjit or not cinderjit.is_hir_inliner_enabled(),
+        "meaningless without HIR inliner enabled",
+    )
+    def test_line_numbers_at_multiple_points_in_inlined_functions(self):
+        """Verify that line numbers are are correct at different points in an inlined
+        function"""
+        # Call to get_stack_multi should be inlined
+        self.assertEqual(cinderjit.get_num_inlined_functions(call_get_stack_multi), 1)
+        stacks = call_get_stack_multi()
+        self.assertEqual(stacks[0][-1].lineno, 182)
+        self.assertEqual(stacks[0][-2].lineno, 191)
+        self.assertEqual(stacks[1][-1].lineno, 184)
+        self.assertEqual(stacks[1][-2].lineno, 191)
+
+    @jit_suppress
+    @unittest.skipIf(
+        not cinderjit or not cinderjit.is_hir_inliner_enabled(),
+        "meaningless without HIR inliner enabled",
+    )
+    def test_line_numbers_with_multiple_inlined_calls(self):
+        """Verify that line numbers are correct for inlined calls that appear
+        in different statements
+        """
+        # Call to get_stack should be inlined twice
+        self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_twice), 2)
+        stacks = get_stack_twice()
+        # First call to double
+        self.assertEqual(stacks[0][-1].lineno, 155)
+        self.assertEqual(stacks[0][-2].lineno, 162)
+        # Second call to double
+        self.assertEqual(stacks[1][-1].lineno, 155)
+        self.assertEqual(stacks[1][-2].lineno, 163)
 
 
 # Decorator to return a new version of the function with an alternate globals

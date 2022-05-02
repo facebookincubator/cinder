@@ -5,7 +5,6 @@
 #include "frameobject.h"
 #include "internal/pycore_shadow_frame_struct.h"
 
-#include "Jit/deopt.h"
 #include "Jit/ref.h"
 
 namespace jit {
@@ -15,10 +14,7 @@ class CodeRuntime;
 // FrameHeader lives at the beginning of the stack frame for JIT-compiled
 // functions. Note these will be garbage in generator objects.
 struct FrameHeader {
-  _PyShadowFrame shadow_frame;
-
-  // The CodeRuntime for the function that is executing.
-  CodeRuntime* code_rt;
+  JITShadowFrame shadow_frame;
 };
 
 // Materialize all the Python frames for the shadow stack associated with

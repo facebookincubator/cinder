@@ -51,11 +51,14 @@ namespace {
 namespace shadow_frame {
 // Shadow stack frames appear at the beginning of native frames for jitted
 // functions
-static constexpr x86::Mem kFramePtr = x86::ptr(x86::rbp, -kShadowFrameSize);
+static constexpr x86::Mem kFramePtr = x86::ptr(x86::rbp, -kJITShadowFrameSize);
 static constexpr x86::Mem kInFramePrevPtr =
-    x86::ptr(x86::rbp, -kShadowFrameSize + SHADOW_FRAME_FIELD_OFF(prev));
+    x86::ptr(x86::rbp, -kJITShadowFrameSize + SHADOW_FRAME_FIELD_OFF(prev));
 static constexpr x86::Mem kInFrameDataPtr =
-    x86::ptr(x86::rbp, -kShadowFrameSize + SHADOW_FRAME_FIELD_OFF(data));
+    x86::ptr(x86::rbp, -kJITShadowFrameSize + SHADOW_FRAME_FIELD_OFF(data));
+static constexpr x86::Mem kInFrameOrigDataPtr = x86::ptr(
+    x86::rbp,
+    -kJITShadowFrameSize + JIT_SHADOW_FRAME_FIELD_OFF(orig_data));
 
 static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
   return x86::ptr(tstate_reg, offsetof(PyThreadState, shadow_frame));
@@ -316,7 +319,7 @@ void* NativeGenerator::GetEntryPoint() {
 
   LinearScanAllocator lsalloc(
       lir_func.get(),
-      frame_header_size_ + max_inline_depth_ * kShadowFrameSize);
+      frame_header_size_ + max_inline_depth_ * kJITShadowFrameSize);
   COMPILE_TIMER(
       GetFunction()->compilation_phase_timer,
       "Register Allocation",
@@ -424,6 +427,8 @@ void NativeGenerator::linkOnStackShadowFrame(
   jit::hir::FrameMode frame_mode = func->frameMode;
   using namespace shadow_frame;
   x86::Mem shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
+  uintptr_t data =
+      _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, PYSF_JIT);
   // Save old top of shadow stack
   as_->mov(scratch_reg, shadow_stack_top_ptr);
   as_->mov(kInFramePrevPtr, scratch_reg);
@@ -435,11 +440,17 @@ void NativeGenerator::linkOnStackShadowFrame(
         "Unexpected constant");
     as_->bts(scratch_reg, 0);
   } else {
-    uintptr_t data =
-        _PyShadowFrame_MakeData(env_.code_rt, PYSF_CODE_RT, PYSF_JIT);
     as_->mov(scratch_reg, data);
   }
   as_->mov(kInFrameDataPtr, scratch_reg);
+  // Set orig_data
+  // This is only necessary when in normal-frame mode because the frame is
+  // already materialized on function entry. It is lazily filled when the frame
+  // is materialized in shadow-frame mode.
+  if (frame_mode == jit::hir::FrameMode::kNormal) {
+    as_->mov(scratch_reg, data);
+    as_->mov(shadow_frame::kInFrameOrigDataPtr, scratch_reg);
+  }
   // Set our shadow frame as top of shadow stack
   as_->lea(scratch_reg, kFramePtr);
   as_->mov(shadow_stack_top_ptr, scratch_reg);
@@ -448,17 +459,6 @@ void NativeGenerator::linkOnStackShadowFrame(
 void NativeGenerator::initializeFrameHeader(
     x86::Gp tstate_reg,
     x86::Gp scratch_reg) {
-  // Save pointer to the CodeRuntime
-  // TODO(mpage) - This is only necessary in the prologue when in normal-frame
-  // mode. We can lazily fill this when the frame is materialized in
-  // shadow-frame mode. Not sure if the added complexity is worth the two
-  // instructions we would save...
-  as_->mov(scratch_reg, reinterpret_cast<uintptr_t>(env_.code_rt));
-  as_->mov(
-      x86::ptr(
-          x86::rbp,
-          -static_cast<int>(offsetof(FrameHeader, code_rt)) - kPointerSize),
-      scratch_reg);
   // Generator shadow frames live in generator objects and only get linked in
   // on the first resume.
   if (!isGen()) {
@@ -1105,12 +1105,7 @@ void NativeGenerator::generateDeoptExits(const asmjit::CodeHolder& code) {
   for (const auto& exit : deopt_exits) {
     as_->bind(exit.label);
     as_->push(exit.deopt_meta_index);
-    const auto& deopt_meta = env_.rt->getDeoptMetadata(exit.deopt_meta_index);
-    int deepest_frame_idx = deopt_meta.frame_meta.size() - 1;
-    emitCall(
-        env_,
-        deopt_exit,
-        deopt_meta.frame_meta[deepest_frame_idx].instr_offset());
+    emitCall(env_, deopt_exit, exit.instr);
   }
   // Generate the stage 2 trampoline (one per function). This saves the address
   // of the final part of the JIT-epilogue that is responsible for restoring
@@ -1167,15 +1162,6 @@ void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
     uint64_t patchpoint = base + code.labelOffsetFromBase(udp.patchpoint);
     uint64_t deopt_exit = base + code.labelOffsetFromBase(udp.deopt_exit);
     udp.patcher->link(patchpoint, deopt_exit);
-  }
-}
-
-void NativeGenerator::linkIPtoBCMappings(const asmjit::CodeHolder& code) {
-  JIT_CHECK(code.hasBaseAddress(), "code not generated!");
-  uint64_t base = code.baseAddress();
-  for (const auto& mapping : env_.pending_ip_to_bc_offs) {
-    uintptr_t ip = base + code.labelOffsetFromBase(mapping.ip);
-    env_.code_rt->addIPtoBCOff(ip, mapping.bc_off);
   }
 }
 
@@ -1425,7 +1411,8 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       "bad re-entry offset");
 
   linkDeoptPatchers(codeholder);
-  linkIPtoBCMappings(codeholder);
+  env_.code_rt->debug_info()->resolvePending(
+      env_.pending_debug_locs, *GetFunction(), codeholder);
 
   entry_ =
       static_cast<char*>(entry_) + codeholder.labelOffsetFromBase(entry_label);
