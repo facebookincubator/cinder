@@ -1231,7 +1231,9 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
                   end_block.setAttribute("class", "ssa-end-block");
                   const terminator = document.createElement("span");
                   terminator.setAttribute("class", `${block.name} ssa-block`);
-                  terminator.appendChild(formatInstr(block.terminator));
+                  const terminator_ul = document.createElement("ul");
+                  terminator_ul.appendChild(formatInstr(block.terminator));
+                  terminator.appendChild(terminator_ul);
                   end_block.appendChild(terminator);
                   if (block.succs !== undefined && block.succs.length > 0) {
                     end_block.appendChild(document.createTextNode(" (succs "));
