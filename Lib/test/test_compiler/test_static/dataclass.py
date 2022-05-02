@@ -921,3 +921,14 @@ class DataclassTests(StaticTestBase):
 
             mod.c.x = "bar"
             self.assertEqual(hash(mod.c), hash(("bar", 2)))
+
+    def test_dataclass_order_requires_eq(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(eq=False, order=True)
+        class C:
+            x: str
+            y: int
+        """
+        self.type_error(codestr, "eq must be true if order is true")

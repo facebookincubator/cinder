@@ -4718,6 +4718,9 @@ class Dataclass(Class):
         ]
         self.field_names: List[str] = [field.slot_name for field in self.fields]
 
+        if order and not eq:
+            raise TypedSyntaxError("eq must be true if order is true")
+
         if init:
             init_params = [
                 Parameter(
