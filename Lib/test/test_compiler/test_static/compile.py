@@ -5856,6 +5856,17 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.bar(), {1: 5})
 
+    def test_dunder_name(self):
+        codestr = """
+        class MyClass:
+            @property
+            def name(self) -> str:
+                return type(self).__name__
+        """
+        with self.in_module(codestr) as mod:
+            self.assertNotInBytecode(mod.MyClass.name.fget, "CAST")
+            self.assertEqual(mod.MyClass().name, "MyClass")
+
 
 if __name__ == "__main__":
     unittest.main()

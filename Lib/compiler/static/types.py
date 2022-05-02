@@ -209,7 +209,12 @@ class TypeEnvironment:
         self.object.pytype = object
         self.object.members["__class__"] = ClassGetSetDescriptor(self.getset_descriptor)
         self.object.make_type_dict()
+
         self.type.make_type_dict()
+        self.type.members["__name__"] = TypeDunderNameGetSetDescriptor(
+            self.getset_descriptor, self
+        )
+
         self.getset_descriptor.pytype = GetSetDescriptorType
         self.getset_descriptor.make_type_dict()
         self.str = StrClass(self)
@@ -4192,6 +4197,21 @@ class ClassGetSetDescriptor(GetSetDescriptor):
             return inst.klass
         else:
             return self
+
+
+class TypeDunderNameGetSetDescriptor(GetSetDescriptor):
+    def __init__(self, klass: Class, type_env: TypeEnvironment) -> None:
+        super().__init__(klass)
+        self.type_env = type_env
+
+    def resolve_descr_get(
+        self,
+        node: ast.Attribute,
+        inst: Optional[Object[TClassInv]],
+        ctx: TClassInv,
+        visitor: GenericVisitor[object],
+    ) -> Optional[Value]:
+        return self.type_env.str.instance
 
 
 class PropertyMethod(DecoratedMethod):
