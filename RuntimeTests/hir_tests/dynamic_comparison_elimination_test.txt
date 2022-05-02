@@ -96,7 +96,7 @@ fun jittestmodule:test {
   bb 0 {
     v7:Object = LoadArg<0; "x">
     v8:OptObject = LoadGlobalCached<0; "isinstance">
-    v9:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
+    v9:MortalObjectUser[builtin_function_or_method:isinstance:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
       Descr 'LOAD_GLOBAL: isinstance'
     }
     v11:OptObject = LoadGlobalCached<1; "str">

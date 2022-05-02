@@ -317,6 +317,14 @@ TEST_F(HIRTypeTest, ToString) {
   ASSERT_NE(my_pyobj, nullptr);
   auto my_obj = Type::fromObject(my_pyobj);
   EXPECT_EQ(my_obj.toString(), "MortalObjectUser[MyClass:0xdeadbeef]");
+
+  ASSERT_TRUE(runCode("obj = len"));
+  Ref<> len_func(getGlobal("obj"));
+  ASSERT_NE(len_func, nullptr);
+  auto len_func_type = Type::fromObject(len_func);
+  EXPECT_EQ(
+      len_func_type.toString(),
+      "MortalObjectUser[builtin_function_or_method:len:0xdeadbeef]");
 }
 
 static ::testing::AssertionResult

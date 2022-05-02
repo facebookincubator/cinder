@@ -164,6 +164,17 @@ std::string Type::specString() const {
     return truncatedStr(utf8, size, '"');
   }
 
+  if (typeSpec() == &PyCFunction_Type) {
+    PyCFunctionObject* func =
+        reinterpret_cast<PyCFunctionObject*>(objectSpec());
+    const char* func_name = func->m_ml->ml_name;
+    return fmt::format(
+        "{}:{}:{}",
+        typeSpec()->tp_name,
+        func_name,
+        getStablePointer(objectSpec()));
+  }
+
   if (*this <= TType) {
     return fmt::format(
         "{}:obj", reinterpret_cast<PyTypeObject*>(objectSpec())->tp_name);

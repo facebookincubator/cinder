@@ -321,7 +321,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v38:OptObject = LoadGlobalCached<0; "print">
-    v39:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v38 {
+    v39:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v38 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<8> b:v14 b:v15 b:v16 o:v21 b:v27 o:v28 o:v36 b:v38
       FrameState {
@@ -456,7 +456,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v48:OptObject = LoadGlobalCached<2; "print">
-    v49:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v48 {
+    v49:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v48 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<8> b:v18 o:v21 o:v24 o:v29 b:v36 o:v37 o:v45 b:v48
       FrameState {
@@ -575,7 +575,7 @@ fun jittestmodule:test {
 
   bb 2 (preds 1) {
     v35:OptObject = LoadGlobalCached<1; "print">
-    v36:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v35 {
+    v36:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v35 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<6> b:v14 o:v20 o:v25 o:v26 o:v32 b:v35
       FrameState {
@@ -904,7 +904,7 @@ fun jittestmodule:test {
 
   bb 5 (preds 4) {
     v29:OptObject = LoadGlobalCached<0; "print">
-    v30:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v29 {
+    v30:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v29 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<3> b:v11 o:v26 b:v29
       FrameState {
@@ -1001,7 +1001,7 @@ fun jittestmodule:test {
   bb 2 (preds 1, 5) {
     v27:Object = Phi<1, 5> v21 v15
     v31:OptObject = LoadGlobalCached<1; "print">
-    v32:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v31 {
+    v32:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v31 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<5> b:v16 b:v17 o:v21 b:v27 b:v31
       FrameState {
@@ -1043,7 +1043,7 @@ fun jittestmodule:test {
     v44:Object = Phi<3, 6> v39 v21
     v45:NoneType = LoadConst<NoneType>
     v47:OptObject = LoadGlobalCached<1; "print">
-    v48:MortalObjectUser[builtin_function_or_method:0xdeadbeef] = GuardIs<0xdeadbeef> v47 {
+    v48:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v47 {
       Descr 'LOAD_GLOBAL: print'
       LiveValues<6> b:v17 b:v27 o:v42 o:v44 b:v45 b:v47
       FrameState {
