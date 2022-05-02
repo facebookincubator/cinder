@@ -5867,6 +5867,46 @@ class StaticCompilationTests(StaticTestBase):
             self.assertNotInBytecode(mod.MyClass.name.fget, "CAST")
             self.assertEqual(mod.MyClass().name, "MyClass")
 
+    def test_unbox_binop_lhs_literal(self):
+        nonstatic_codestr = """
+        def f():
+            return 42
+        """
+        with self.in_module(
+            nonstatic_codestr, code_gen=PythonCodeGenerator
+        ) as nonstatic_mod:
+            codestr = f"""
+            from __static__ import int64, box
+
+            import {nonstatic_mod.__name__}
+
+            def g() -> int:
+                r = int64(1 + int({nonstatic_mod.__name__}.f()))
+                return box(r)
+            """
+            with self.in_module(codestr) as mod:
+                self.assertEqual(mod.g(), 43)
+
+    def test_unbox_binop_rhs_literal(self):
+        nonstatic_codestr = """
+        def f():
+            return 42
+        """
+        with self.in_module(
+            nonstatic_codestr, code_gen=PythonCodeGenerator
+        ) as nonstatic_mod:
+            codestr = f"""
+            from __static__ import int64, box
+
+            import {nonstatic_mod.__name__}
+
+            def g() -> int:
+                r = int64(int({nonstatic_mod.__name__}.f()) - 1)
+                return box(r)
+            """
+            with self.in_module(codestr) as mod:
+                self.assertEqual(mod.g(), 41)
+
 
 if __name__ == "__main__":
     unittest.main()

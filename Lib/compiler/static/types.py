@@ -8489,7 +8489,12 @@ class CIntType(CType):
         # so we don't pass the type context.
         visitor.set_type(node, self.instance)
         arg = node.args[0]
-        visitor.visit(arg, self.instance)
+        if isinstance(arg, ast.Constant):
+            # for numeric literals, set the type context to self.instance,
+            # so they're properly inferred as a primitive type
+            visitor.visit(arg, self.instance)
+        else:
+            visitor.visit(arg)
 
         arg_type = visitor.get_type(arg)
         if not self.is_valid_arg(arg_type):
