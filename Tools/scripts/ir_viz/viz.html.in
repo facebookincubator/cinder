@@ -36,14 +36,12 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
         table {
             border: 1px solid black;
             table-layout: fixed;
-            width: 300px;
         }
 
         th,
         td {
             border: 1px solid black;
-            overflow: hidden;
-            width: 500px;
+            white-space: nowrap;
             vertical-align: top;
             padding: 5px;
         }
