@@ -16,10 +16,15 @@ extern const std::string kShadowFrameSymbolPrefix;
 // Write out perf metadata for the given compiled function, depending on what's
 // enabled in the environment:
 //
-// JIT_PERFMAP: If non-empty, write out /tmp/perf-<pid>.map for JIT symbols.
+// jit_perfmap: If != 0, write out /tmp/perf-<pid>.map for JIT symbols.
 //
-// JIT_DUMPDIR: If non-empty, must be an absolute path to a directory that
-//              exists. A perf jitdump file will be written to this directory.
+extern int jit_perfmap;
+
+// perf_jitdump_dir: If non-empty, must be an absolute path to a directory that
+//                   exists. A perf jitdump file will be written to this
+//                   directory.
+extern std::string perf_jitdump_dir;
+
 void registerFunction(
     const std::vector<std::pair<void*, std::size_t>>& code_sections,
     const std::string& name,

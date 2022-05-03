@@ -5,6 +5,7 @@
 #include "Jit/jit_gdb_support.h"
 #include "Jit/jit_list.h"
 #include "Jit/lir/inliner.h"
+#include "Jit/perf_jitdump.h"
 #include "Jit/profile_data.h"
 #include "Jit/pyjit.h"
 
@@ -283,6 +284,22 @@ TEST_F(CmdLineTest, BasicFlags) {
           []() {
             ASSERT_EQ(_PyJIT_IsJitConfigCompile_all_static_functions(), 1);
           }),
+      0);
+
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
+          L"jit-perfmap",
+          "JIT_PERFMAP",
+          []() { perf::jit_perfmap = 0; },
+          []() { ASSERT_EQ(perf::jit_perfmap, 1); }),
+      0);
+
+  ASSERT_EQ(
+      try_flag_and_envvar_effect(
+          L"jit-perf-dumpdir=/tmp/",
+          "JIT_DUMPDIR=/tmp/",
+          []() { perf::perf_jitdump_dir = ""; },
+          []() { ASSERT_EQ(perf::perf_jitdump_dir, "/tmp/"); }),
       0);
 }
 

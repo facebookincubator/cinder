@@ -545,6 +545,21 @@ void initFlagProcessor() {
         "Enable emitting code into multiple code sections.");
 
     xarg_flag_processor.addOption(
+        "jit-perfmap",
+        "JIT_PERFMAP",
+        perf::jit_perfmap,
+        "write out /tmp/perf-<pid>.map for JIT symbols");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-perf-dumpdir",
+            "JIT_DUMPDIR",
+            perf::perf_jitdump_dir,
+            "absolute path to a <DIRECTORY> that exists. A perf jitdump file "
+            "will be written to this directory")
+        .withFlagParamName("DIRECTORY");
+
+    xarg_flag_processor.addOption(
         "jit-help", "", jit_help, "print all available JIT flags and exits");
   }
 

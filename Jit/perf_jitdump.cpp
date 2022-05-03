@@ -36,6 +36,8 @@ namespace perf {
 const std::string kDefaultSymbolPrefix{"__CINDER_INFRA_JIT"};
 const std::string kFuncSymbolPrefix{"__CINDER_JIT"};
 const std::string kShadowFrameSymbolPrefix{"__CINDER_SHDW_FRAME_JIT"};
+int jit_perfmap = 0;
+std::string perf_jitdump_dir;
 
 namespace {
 
@@ -173,8 +175,7 @@ FileInfo openFileInfo(std::string filename_format) {
 }
 
 FileInfo openPidMap() {
-  auto env = Py_GETENV("JIT_PERFMAP");
-  if (env == nullptr || env[0] == '\0') {
+  if (!jit_perfmap) {
     return {};
   }
 
@@ -185,13 +186,13 @@ FileInfo openPidMap() {
 
 // If enabled, open the jitdump file, and write out its header.
 FileInfo openJitdumpFile() {
-  auto dumpdir = Py_GETENV("JIT_DUMPDIR");
-  if (dumpdir == nullptr || dumpdir[0] == '\0') {
+  if (perf_jitdump_dir.empty()) {
     return {};
   }
 
-  JIT_CHECK(dumpdir[0] == '/', "jitdump directory path isn't absolute");
-  auto info = openFileInfo(fmt::format("{}/jit-{{}}.dump", dumpdir));
+  JIT_CHECK(
+      perf_jitdump_dir.at(0) == '/', "jitdump directory path isn't absolute");
+  auto info = openFileInfo(fmt::format("{}/jit-{{}}.dump", perf_jitdump_dir));
   if (info.file == nullptr) {
     return {};
   }
