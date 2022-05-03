@@ -32,10 +32,12 @@
    and the small letter tells about the operand size.  Refer to
    the Intel manual for details.  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>
 #include <string.h>
+#include <dlfcn.h>
 
 #include "dis-asm.h"
 #include "i386.h"
@@ -11809,6 +11811,13 @@ int is_intel_syntax() {
   return intel_syntax;
 }
 
+void print_symbol(vma_t addr, disassemble_info* info) {
+  Dl_info dl_info;
+  if (dladdr((void*)addr, &dl_info) != 0 && dl_info.dli_sname != NULL) {
+    (*info->print_symbol_func) (dl_info.dli_sname, info);
+  }
+}
+
 int
 print_insn (vma_t pc, disassemble_info *info)
 {
@@ -12130,8 +12139,11 @@ print_insn (vma_t pc, disassemble_info *info)
       {
 	if (needcomma)
 	  (*info->fprintf_func) (info->stream, ",");
-	if (op_index[i] != -1 && !op_riprel[i])
-	  (*info->print_address_func) ((vma_t) op_address[op_index[i]], info);
+	if (op_index[i] != -1 && !op_riprel[i]) {
+    vma_t addr = (vma_t) op_address[op_index[i]];
+	  (*info->print_address_func) (addr, info);
+    print_symbol (addr, info);
+  }
 	else
 	  (*info->fprintf_func) (info->stream, "%s", op_txt[i]);
 	needcomma = 1;
@@ -12141,8 +12153,11 @@ print_insn (vma_t pc, disassemble_info *info)
     if (op_index[i] != -1 && op_riprel[i])
       {
 	(*info->fprintf_func) (info->stream, "        # ");
-	(*info->print_address_func) ((vma_t) (start_pc + (codep - start_codep)
-						+ op_address[op_index[i]]), info);
+  vma_t addr = (vma_t) (start_pc + (codep - start_codep)
+						+ op_address[op_index[i]]);
+	(*info->print_address_func) (addr, info);
+  // addr is a pointer into data near the instruction stream; dereference
+  print_symbol (*(vma_t*)addr, info);
 	break;
       }
   return codep - priv.the_buffer;

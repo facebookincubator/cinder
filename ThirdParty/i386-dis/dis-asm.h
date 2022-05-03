@@ -126,6 +126,10 @@ typedef struct disassemble_info
   void (*print_address_func)
     (vma_t addr, struct disassemble_info *dinfo);
 
+  /* Function called to print name corresponding to ADDR if RIP-relative.  */
+  void (*print_symbol_func)
+    (const char* symbol, struct disassemble_info *dinfo);
+
   /* Function called to determine if there is a symbol at the given ADDR.
      If there is, the function returns 1, otherwise it returns 0.
      This is used by ports which support an overlay manager where

@@ -30,6 +30,13 @@ void print_address(vma_t vma, disassemble_info* info) {
       vma);
 }
 
+void print_symbol(const char* symbol, disassemble_info* info) {
+  // This currently uses dladdr and works okay right now but at some point in
+  // the future we may want a more complete solution like
+  // https://github.com/facebook/hhvm/blob/0ff8dca4f1174f3ffa9c5d282ae1f5b5523fe56c/hphp/util/abi-cxx.cpp#L64
+  info->fprintf_func(info->stream, " (%s)", symbol);
+}
+
 } // namespace
 
 Disassembler::Disassembler(const char* buf, long size)
@@ -50,6 +57,7 @@ Disassembler::Disassembler(const char* buf, long size, vma_t vma)
   info_.read_memory_func = buffer_read_memory;
   info_.memory_error_func = perror_memory;
   info_.print_address_func = print_address;
+  info_.print_symbol_func = print_symbol;
   info_.stop_vma = (uintptr_t)vma_ + size;
   info_.buffer = (unsigned char*)buf;
   info_.buffer_length = size;
