@@ -6859,15 +6859,6 @@ _GatheringFutureObj_child_done(PyObject *self,
         if (cancelled < 0) {
             return NULL;
         }
-        // Clear the awaiter for all gathered futures since they may no longer
-        // be awaited. Any non-excepting tasks that were gathered will continue
-        // running after the gather completes. They will have a borrowed
-        // reference to the coroutine that was awaiting the gather, if any, set
-        // as their awaiter. Since the references are borrowed, they won't keep
-        // the coroutine awaiting the gather alive if the coroutine completes
-        // after the gather returns. This would leave a pointer to an
-        // already-freed coroutine as the awaiter for any non-excepting tasks.
-        _GatheringFutureObj_set_awaiter(gfut, NULL);
         if (cancelled) {
             // Check if 'fut' is cancelled first, as
             //'fut.exception()' will *raise* a CancelledError
