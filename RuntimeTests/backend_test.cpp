@@ -933,7 +933,7 @@ TEST_F(BackendTest, InlineJITRTFromArrayTest) {
       Instruction::kCall,
       nullptr,
       OutVReg(),
-      Imm(reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray)),
+      Imm(reinterpret_cast<uint64_t>(JITRT_GetI64_FromArray)),
       VReg(r1),
       VReg(r2),
       VReg(r3));
@@ -952,7 +952,7 @@ BB %0 - succs: %8
 
 BB %8 - preds: %0 - succs: %9
        %13:64bit = Add %1:Object, %3:Object
-       %14:64bit = Move [%13:64bit + %2:Object * 8]:Object
+       %14:64bit = Move [%13:64bit + %2:Object * 8]:64bit
 
 BB %9 - preds: %8 - succs: %7
       %16:Object = Phi (BB%8, %14:64bit)
@@ -1056,7 +1056,7 @@ TEST_F(BackendTest, PostgenJITRTFromArrayTest) {
       Instruction::kCall,
       nullptr,
       OutVReg(),
-      Imm(reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray)),
+      Imm(reinterpret_cast<uint64_t>(JITRT_GetI64_FromArray)),
       VReg(r1),
       VReg(r2),
       VReg(r3));
@@ -1079,7 +1079,7 @@ BB %0 - succs: %8
 
 BB %8 - preds: %0 - succs: %9
        %13:64bit = Add %1:Object, %3:Object
-       %14:64bit = Move [%13:64bit + %2:Object * 8]:Object
+       %14:64bit = Move [%13:64bit + %2:Object * 8]:64bit
 
 BB %9 - preds: %8 - succs: %7
       %16:Object = Phi (BB%8, %14:64bit)
