@@ -416,7 +416,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return
 
         assert isinstance(gen, Static38CodeGenerator)
-        klass.emit_extra_methods(gen)
+        klass.emit_extra_members(gen)
 
         class_mems = [
             name

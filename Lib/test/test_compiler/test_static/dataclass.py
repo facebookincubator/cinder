@@ -1,4 +1,4 @@
-from dataclasses import FrozenInstanceError
+from dataclasses import _DataclassParams, FrozenInstanceError
 
 from .common import StaticTestBase
 
@@ -932,3 +932,22 @@ class DataclassTests(StaticTestBase):
             y: int
         """
         self.type_error(codestr, "eq must be true if order is true")
+
+    def test_dataclass_has_params_attribute(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+            y: int
+        """
+        with self.in_strict_module(codestr) as mod:
+            params = mod.C.__dataclass_params__
+            self.assertIsInstance(params, _DataclassParams)
+            self.assertTrue(params.init)
+            self.assertTrue(params.repr)
+            self.assertTrue(params.eq)
+            self.assertFalse(params.order)
+            self.assertFalse(params.unsafe_hash)
+            self.assertFalse(params.frozen)

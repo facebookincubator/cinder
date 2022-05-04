@@ -2009,7 +2009,7 @@ class Class(Object["Class"]):
         else:
             assert self.can_assign_from(src)
 
-    def emit_extra_methods(self, code_gen: Static38CodeGenerator) -> None:
+    def emit_extra_members(self, code_gen: Static38CodeGenerator) -> None:
         pass
 
 
@@ -5014,7 +5014,22 @@ class Dataclass(Class):
         code_gen.emit("STORE_NAME", "__repr__")
         code_gen.emit("POP_TOP")
 
-    def emit_extra_methods(self, code_gen: Static38CodeGenerator) -> None:
+    def emit_extra_members(self, code_gen: Static38CodeGenerator) -> None:
+        # set __dataclass_params__ with the arguments to @dataclass()
+        code_gen.emit("LOAD_CONST", 0)
+        code_gen.emit("LOAD_CONST", ("_DataclassParams",))
+        code_gen.emit("IMPORT_NAME", "dataclasses")
+        code_gen.emit("IMPORT_FROM", "_DataclassParams")
+        code_gen.emit("LOAD_CONST", self.init)
+        code_gen.emit("LOAD_CONST", self.repr)
+        code_gen.emit("LOAD_CONST", self.eq)
+        code_gen.emit("LOAD_CONST", self.order)
+        code_gen.emit("LOAD_CONST", self.unsafe_hash)
+        code_gen.emit("LOAD_CONST", self.frozen)
+        code_gen.emit("CALL_FUNCTION", 6)
+        code_gen.emit("STORE_NAME", "__dataclass_params__")
+        code_gen.emit("POP_TOP")
+
         if self.generate_init:
             self.emit_dunder_init(code_gen)
 
