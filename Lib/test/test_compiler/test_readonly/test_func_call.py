@@ -28,7 +28,6 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [
                 (1, "A mutable function cannot be called in a readonly function.", ()),
-                (3, "Cannot assign a readonly value to a mutable variable.", ()),
             ]
         ):
             self._compile_and_run(code, "f")
@@ -162,7 +161,6 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [
                 (1, "A mutable function cannot be called in a readonly function.", ()),
-                (3, "Cannot assign a readonly value to a mutable variable.", ()),
             ]
         ):
             self._compile_and_run(code, "f")

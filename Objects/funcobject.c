@@ -1243,6 +1243,11 @@ PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_m
 
     if (!READONLY_FUNC(func_mask)) {
         _PyErr_IMMUTABLE_ERR(ReadonlyFunctionCallError);
+
+        // no need to check further because the callee function
+        // is not a readonly function and the other bits in the mask
+        // are undefined.
+        return;
     }
 
     if (READONLY_NONLOCAL(call_mask) && !READONLY_NONLOCAL(func_mask)) {
