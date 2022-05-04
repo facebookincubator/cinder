@@ -186,8 +186,8 @@ int PyReadonly_CheckReadonlyOperationOnCallable(PyObject* callable) {
 
     if (PyFunction_Check(callable)) {
         PyFunctionObject *funcObj = (PyFunctionObject*)callable;
-        int functionArgsMask = funcObj->readonly_mask & PYFUNCTION_READONLY_ARGS_MASK;
-        int functionReturnsReadonly = (funcObj->readonly_mask & PYFUNCTION_READONLY_RETURN_MASK) == 0;
+        int functionArgsMask = CLEAR_NONARG_READONLY_MASK(funcObj->readonly_mask);
+        int functionReturnsReadonly = RETURNS_READONLY(funcObj->readonly_mask);
         return _PyReadonly_DoReadonlyCheck(PYREADONLY_RAISE_ERRORS, operationMask, functionArgsMask, functionReturnsReadonly);
     } else {
         _PyErr_IMMUTABLE_ERR(ReadonlyOperatorCallOnUnknownCallableType);

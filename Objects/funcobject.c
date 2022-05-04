@@ -7,6 +7,7 @@
 #include "pycore_pystate.h"
 #include "pycore_tupleobject.h"
 #include "pyerrors.h"
+#include "pyreadonly.h"
 #include "py_immutable_error.h"
 #include "code.h"
 #include "structmember.h"
@@ -1235,19 +1236,6 @@ PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_m
         return;
     }
 
-    const uint64_t READONLY_FUNC_MASK = 1ULL << 63;
-    const uint64_t READONLY_NONLOCAL_MASK = 1ULL << 62;
-    const uint64_t RETURNS_READONLY_MASK = 1ULL << 61;
-    const uint64_t YIELDS_READONLY_MASK = 1ULL << 60;
-    const uint64_t SENDS_READONLY_MASK = 1ULL << 59;
-
-#define READONLY_FUNC(x) ((x) & READONLY_FUNC_MASK)
-#define READONLY_NONLOCAL(x) ((x) & READONLY_NONLOCAL_MASK)
-#define RETURNS_READONLY(x) (!((x) & RETURNS_READONLY_MASK))
-#define YIELDS_READONLY(x) (((x) & YIELDS_READONLY_MASK))
-#define SENDS_READONLY(x) (((x) & SENDS_READONLY_MASK))
-#define CLEAR_NONARG_MASK(x) ((x) & ~(READONLY_FUNC_MASK | READONLY_NONLOCAL_MASK | RETURNS_READONLY_MASK | YIELDS_READONLY_MASK | SENDS_READONLY_MASK))
-
     // if the caller is not a readonly function, it shouldn't
     // reach here, because CHECK_FUNCTION operation should not
     // be generated in the first place.
@@ -1275,8 +1263,8 @@ PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_m
         _PyErr_IMMUTABLE_ERR(ReadonlySendError);
     }
 
-    func_mask = CLEAR_NONARG_MASK(func_mask);
-    call_mask = CLEAR_NONARG_MASK(call_mask);
+    func_mask = CLEAR_NONARG_READONLY_MASK(func_mask);
+    call_mask = CLEAR_NONARG_READONLY_MASK(call_mask);
 
     int arg_index = 0;
     while (call_mask != 0 || func_mask != 0) {
@@ -1300,8 +1288,4 @@ PyFunction_ReportReadonlyErr(PyObject *func, uint64_t func_mask, uint64_t call_m
 
         arg_index ++;
     }
-#undef READONLY_FUNC
-#undef RETURNS_READNOLY
-#undef READONLY_NONLOCAL
-#undef CLEAR_NONARG_MASK
 }

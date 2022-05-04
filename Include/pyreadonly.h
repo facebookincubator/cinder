@@ -10,6 +10,23 @@ extern "C" {
 #define PYREADONLY_BUILD_FUNCMASK3(arg1_readonly, arg2_readonly, arg3_readonly) \
     (((arg1_readonly) != 0 ? 1 : 0) | (((arg2_readonly) != 0 ? 1 : 0) << 1) | (((arg3_readonly) != 0 ? 1 : 0) << 2))
 
+/* readonly function masks */
+#define PYFUNCTION_READONLY_FUNC_MASK (1ULL << 63)
+#define PYFUNCTION_READONLY_NONLOCAL_MASK (1ULL << 62)
+#define PYFUNCTION_RETURNS_READONLY (1ULL << 61)
+#define PYFUNCTION_YIELDS_READONLY_MASK (1ULL << 60)
+#define PYFUNCTION_SENDS_READONLY_MASK (1ULL << 59)
+
+#define READONLY_FUNC(x) ((x)&PYFUNCTION_READONLY_FUNC_MASK)
+#define READONLY_NONLOCAL(x) ((x)&PYFUNCTION_READONLY_NONLOCAL_MASK)
+#define RETURNS_READONLY(x) (!((x)&PYFUNCTION_RETURNS_READONLY))
+#define YIELDS_READONLY(x) (((x)&PYFUNCTION_YIELDS_READONLY_MASK))
+#define SENDS_READONLY(x) (((x)&PYFUNCTION_SENDS_READONLY_MASK))
+#define CLEAR_NONARG_READONLY_MASK(x)                                                   \
+  ((x) & ~(PYFUNCTION_READONLY_FUNC_MASK | PYFUNCTION_READONLY_NONLOCAL_MASK | \
+           PYFUNCTION_RETURNS_READONLY | PYFUNCTION_YIELDS_READONLY_MASK |     \
+           PYFUNCTION_SENDS_READONLY_MASK))
+
 // This is disabled for now until we can get proper performance measurements
 // done to verify the size of the regression.
 //#define PYREADONLY_ENABLED
