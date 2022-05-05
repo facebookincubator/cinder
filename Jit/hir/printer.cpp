@@ -845,6 +845,7 @@ static std::unordered_map<unsigned, const char*> kOpnames{
 
 static std::string
 reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
+  ThreadedCompileSerialize guard;
   switch (opcode) {
     case BUILD_CHECKED_LIST:
     case BUILD_CHECKED_MAP:
