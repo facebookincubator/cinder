@@ -208,11 +208,17 @@ class LocalsBranch:
 
         local_types = self.scope.type_state.local_types
         refined_fields = self.scope.type_state.refined_fields
-        for key, value in entry_type_state.local_types.items():
-            if key in local_types:
-                if value != local_types[key]:
-                    local_types[key] = self._join(value, local_types[key])
-                continue
+        keys_to_remove = []
+        for key, value in local_types.items():
+            if key in entry_type_state.local_types:
+                if value != entry_type_state.local_types[key]:
+                    local_types[key] = self._join(
+                        value, entry_type_state.local_types[key]
+                    )
+            else:
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            del local_types[key]
 
         keys_to_remove = [
             key for key in refined_fields if key not in entry_type_state.refined_fields
@@ -1740,26 +1746,37 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             branch.merge(effect.reverse(branch.entry_type_state))
 
     def visitTry(self, node: Try) -> None:
+        # There's a bit of a subtlety here: When executing each exception handler,
+        # we need to account for any statement in the try branch being either executed
+        # or not executed. We capture this in the `body_maybe_executed` branch.
+        # However, when later merging the branches, the end of try branch needs to be merged
+        # with the handlers, as if the handlers did not execute, that means that the try branch
+        # successfully ran completely.
         branch = self.binding_scope.branch()
         body_terminal = self.visit_check_terminal(node.body)
+        post_try = branch.copy()
 
         branch.merge()
-        post_try = branch.copy()
+        body_maybe_executed = branch.copy()
         merges = []
 
         else_terminal = TerminalKind.NonTerminal
         if node.orelse:
+            branch.restore(post_try)
             else_terminal = self.visit_check_terminal(node.orelse)
-            merges.append(branch.copy())
+            post_try = branch.copy()
 
         no_exception_terminal = max(body_terminal, else_terminal)
 
         terminals = [no_exception_terminal]
         for handler in node.handlers:
-            branch.restore(post_try.copy())
+            branch.restore(body_maybe_executed.copy())
             self.visit(handler)
-            terminals.append(self.terminals.get(handler, TerminalKind.NonTerminal))
-            merges.append(branch.copy())
+            terminal = self.terminals.get(handler, TerminalKind.NonTerminal)
+            terminals.append(terminal)
+            # The types in the terminal branches should not influence the later type inference.
+            if terminal == TerminalKind.NonTerminal:
+                merges.append(branch.copy())
 
         branch.restore(post_try)
         for merge in merges:

@@ -3050,12 +3050,7 @@ class StaticCompilationTests(StaticTestBase):
                 return x.f()
         """
 
-        code = self.compile(codestr, modname="foo")
-        f = self.find_code(code, "testfunc")
-        self.assertInBytecode(f, "INVOKE_FUNCTION", (("foo", "B", "f"), 1))
-        with self.in_module(codestr) as mod:
-            test = mod.testfunc
-            self.assertEqual(test(False), 42)
+        self.type_error(codestr, "Name `x` is not defined.")
 
     def test_assign_test_var(self):
         codestr = """

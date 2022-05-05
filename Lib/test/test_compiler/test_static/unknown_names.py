@@ -128,3 +128,71 @@ class UnknownNameTests(StaticTestBase):
                 return nested
         """
         self.compile(codestr)
+
+    def test_name_defined_in_except_and_else_known(self) -> None:
+        codestr = """
+            def foo(self):
+                try:
+                    pass
+                except Exception:
+                    a = None
+                else:
+                    a = None
+                return a
+        """
+        self.compile(codestr)
+
+    def test_name_defined_only_in_else_unknown(self) -> None:
+        codestr = """
+            def foo(self):
+                try:
+                    pass
+                except Exception:
+                    pass
+                else:
+                    a = None
+                return a
+        """
+        self.type_error(codestr, r"Name `a` is not defined.")
+
+    def test_name_defined_only_in_if_unknown(self) -> None:
+        codestr = """
+            def foo(self, p):
+                if p:
+                    a = None
+                return a
+        """
+        self.type_error(codestr, r"Name `a` is not defined.")
+
+    def test_name_defined_only_in_else_unknown(self) -> None:
+        codestr = """
+            def foo(self, p):
+                if p:
+                    pass
+                else:
+                    a = None
+                return a
+        """
+        self.type_error(codestr, r"Name `a` is not defined.")
+
+    def test_name_defined_terminal_except_raises(self) -> None:
+        codestr = """
+            def foo(self):
+                try:
+                    a = None
+                except:
+                    raise Exception
+                return a
+        """
+        self.compile(codestr)
+
+    def test_name_defined_terminal_except_returns(self) -> None:
+        codestr = """
+            def foo(self):
+                try:
+                    a = None
+                except:
+                    return None
+                return a
+        """
+        self.compile(codestr)

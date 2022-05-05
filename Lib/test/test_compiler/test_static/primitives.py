@@ -1245,8 +1245,7 @@ class PrimitivesTests(StaticTestBase):
                 y:int64 = 42
             return box(y)
         """
-        f = self.run_code(codestr)["testfunc"]
-        self.assertEqual(f(False), 0)
+        self.type_error(codestr, "Name `y` is not defined.")
 
     def test_bad_box(self):
         codestr = """
