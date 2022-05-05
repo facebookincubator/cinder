@@ -692,8 +692,18 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
     auto block = bb.first;
     auto ssablock = bb.second;
 
+    // Collect and sort to stabilize IR ordering.
+    std::vector<Phi*> phis;
     for (auto& pair : ssablock->phi_nodes) {
-      block->push_front(pair.second);
+      phis.push_back(pair.second);
+    }
+    std::sort(phis.begin(), phis.end(), [](const Phi* a, const Phi* b) -> bool {
+      // Sort using > instead of the typical < because we're effectively
+      // reversing by looping push_front below.
+      return a->GetOutput()->id() > b->GetOutput()->id();
+    });
+    for (auto& phi : phis) {
+      block->push_front(phi);
     }
 
     delete ssablock;
