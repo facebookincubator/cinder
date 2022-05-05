@@ -182,21 +182,15 @@ def _format_binaryop(node: ast.BinOp, level: int) -> str:
 
 
 def _format_subscript(node: ast.Subscript, level: int) -> str:
-    return f"{to_expr(node.value, PR_ATOM)}[{to_expr(node.slice)}]"
-
-
-def _format_index(node: ast.Index, level: int) -> str:
-    return to_expr(node.value, PR_TUPLE)
+    return f"{to_expr(node.value, PR_ATOM)}[{to_expr(node.slice, PR_TUPLE)}]"
 
 
 def _format_yield(node: ast.Yield, level: int) -> str:
-    if node.value:
-        return "(yield " + to_expr(node.value) + ")"
-    return "(yield)"
+    raise SyntaxError("'yield expression' can not be used within an annotation")
 
 
 def _format_yield_from(node: ast.YieldFrom, level: int) -> str:
-    return "(yield from " + to_expr(node.value) + ")"
+    raise SyntaxError("'yield expression' can not be used within an annotation")
 
 
 def _format_dict(node: ast.Dict, level: int) -> str:
@@ -379,10 +373,6 @@ def _format_slice(node: ast.Slice, level: int):
     return res
 
 
-def _format_extslice(node: ast.ExtSlice, level: int):
-    return ", ".join(to_expr(d) for d in node.dims)
-
-
 def _format_constant(node: ast.Constant, level: int):
     if node.value is Ellipsis:
         return "..."
@@ -422,8 +412,6 @@ _FORMATTERS: Dict[Type, Callable[[Any, int], str]] = {
     ast.List: _format_list,
     ast.Tuple: _format_tuple,
     ast.Slice: _format_slice,
-    ast.ExtSlice: _format_extslice,
-    ast.Index: _format_index,
 }
 
 
