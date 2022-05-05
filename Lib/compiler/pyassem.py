@@ -791,6 +791,10 @@ class PyFlowGraph(FlowGraph):
             if oparg > 0xFF:
                 lnotab.addCode(self.opcode.EXTENDED_ARG, (oparg >> 8) & 0xFF)
             lnotab.addCode(self.opcode.opmap[t.opname], oparg & 0xFF)
+
+        # Since the linetable format writes the end offset of bytecodes, we can't commit the
+        # last write until all the instructions are iterated over.
+        lnotab.emitCurrentLine()
         self.stage = DONE
 
     def newCodeObject(self):
@@ -858,13 +862,13 @@ class PyFlowGraph(FlowGraph):
 class LineAddrTable:
     """lnotab
 
-    This class builds the lnotab, which is documented in compile.c.
+    This class builds the linetable, which is documented in Objects/lnotab_notes.txt.
     Here's a brief recap:
 
     For each SET_LINENO instruction after the first one, two bytes are
-    added to lnotab.  (In some cases, multiple two-byte entries are
+    added to the linetable.  (In some cases, multiple two-byte entries are
     added.)  The first byte is the distance in bytes between the
-    instruction for the last SET_LINENO and the current SET_LINENO.
+    instruction for the current SET_LINENO and the next SET_LINENO.
     The second byte is offset in line numbers.  If either offset is
     greater than 255, multiple two-byte entries are added -- see
     compile.c for the delicate details.
@@ -872,62 +876,63 @@ class LineAddrTable:
 
     def __init__(self, opcode):
         self.code = []
-        self.codeOffset = 0
-        self.firstline = 0
-        self.lastline = 0
-        self.lastoff = 0
-        self.lnotab = []
+        self.current_start = 0
+        self.current_end = 0
+        self.current_line = 0
+        self.prev_line = 0
+        self.linetable = []
         self.opcode = opcode
 
     def setFirstLine(self, lineno):
-        self.firstline = lineno
-        self.lastline = lineno
+        self.current_line = lineno
+        self.prev_line = lineno
 
     def addCode(self, opcode, oparg):
         self.code.append(opcode)
         self.code.append(oparg)
-        self.codeOffset += self.opcode.CODEUNIT_SIZE
+        self.current_end += self.opcode.CODEUNIT_SIZE
 
     def nextLine(self, lineno):
-        if self.firstline == 0:
-            self.firstline = lineno
-            self.lastline = lineno
+        self.emitCurrentLine()
+
+        self.current_start = self.current_end
+        self.prev_line = self.current_line
+        self.current_line = lineno
+
+    def emitCurrentLine(self):
+        # compute deltas
+        addr_delta = self.current_end - self.current_start
+        if not addr_delta:
+            return
+        if self.current_line < 0:
+            line_delta = -128
         else:
-            # compute deltas
-            addr_delta = self.codeOffset - self.lastoff
-            line_delta = lineno - self.lastline
-            if not addr_delta and not line_delta:
+            line_delta = self.current_line - self.prev_line
+            if not line_delta:
                 return
 
-            push = self.lnotab.append
-            while addr_delta > 255:
-                push(255)
-                push(0)
-                addr_delta -= 255
-            if line_delta < -128 or 127 < line_delta:
+            while line_delta < -127 or 127 < line_delta:
                 if line_delta < 0:
-                    k = -128
-                    ncodes = (-line_delta) // 128
+                    k = -127
                 else:
                     k = 127
-                    ncodes = line_delta // 127
-                line_delta -= ncodes * k
-                push(addr_delta)
-                push(cast_signed_byte_to_unsigned(k))
-                addr_delta = 0
-                for _ in range(ncodes - 1):
-                    push(0)
-                    push(cast_signed_byte_to_unsigned(k))
+                self.push_entry(0, k)
+                line_delta -= k
 
-            assert -128 <= line_delta and line_delta <= 127
-            push(addr_delta)
-            push(cast_signed_byte_to_unsigned(line_delta))
+        while addr_delta > 254:
+            self.push_entry(254, line_delta)
+            line_delta = -128 if self.current_line < 0 else 0
+            addr_delta -= 254
 
-            self.lastline = lineno
-            self.lastoff = self.codeOffset
+        assert -128 <= line_delta and line_delta <= 127
+        self.push_entry(addr_delta, line_delta)
 
     def getCode(self):
         return bytes(self.code)
 
     def getTable(self):
-        return bytes(self.lnotab)
+        return bytes(self.linetable)
+
+    def push_entry(self, addr_delta, line_delta):
+        self.linetable.append(addr_delta)
+        self.linetable.append(cast_signed_byte_to_unsigned(line_delta))
