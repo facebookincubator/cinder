@@ -805,6 +805,7 @@ void NativeGenerator::generatePrologue(
     // check that we have a valid number of args
     if (!(code->co_flags & (CO_VARARGS | CO_VARKEYWORDS))) {
       as_->bind(argCheck);
+      asmjit::BaseNode* arg_check_cursor = as_->cursor();
       as_->cmp(x86::edx, GetFunction()->numArgs());
 
       // We don't have the correct number of arguments. Call a helper to either
@@ -818,6 +819,8 @@ void NativeGenerator::generatePrologue(
                : reinterpret_cast<uint64_t>(JITRT_CallWithIncorrectArgcount)));
       as_->leave();
       as_->ret();
+      env_.addAnnotation(
+          "Check if called with correct argcount", arg_check_cursor);
     }
   }
 
