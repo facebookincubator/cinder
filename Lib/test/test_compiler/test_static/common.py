@@ -96,6 +96,10 @@ PRIM_NAME_TO_TYPE = {
 }
 
 
+def dis(code):
+    Disassembler().dump_code(code, file=sys.stdout)
+
+
 class TestCompiler(Compiler):
     def __init__(
         self,
@@ -413,6 +417,7 @@ class StaticTestBase(CompilerTest):
         optimize=0,
         freeze=False,
         enable_patching=False,
+        dump_bytecode=False,
     ):
         d = None
         if name is None:
@@ -422,6 +427,8 @@ class StaticTestBase(CompilerTest):
             compiled = self.compile(
                 code, code_gen, name, optimize, enable_patching=enable_patching
             )
+            if dump_bytecode:
+                dis(compiled)
             d, m = self._in_module(name, compiled)
             yield m
         finally:
@@ -453,6 +460,7 @@ class StaticTestBase(CompilerTest):
         optimize=0,
         enable_patching=False,
         freeze=True,
+        dump_bytecode=False,
     ):
         d = None
         if name is None:
@@ -462,6 +470,8 @@ class StaticTestBase(CompilerTest):
             compiled = self.compile_strict(
                 code, name, optimize, enable_patching=enable_patching
             )
+            if dump_bytecode:
+                dis(compiled)
             d, m = self._in_strict_module(name, compiled, enable_patching)
             yield m
         finally:
