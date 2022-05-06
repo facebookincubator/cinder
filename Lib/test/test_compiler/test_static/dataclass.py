@@ -1,3 +1,4 @@
+from compiler.pycodegen import PythonCodeGenerator
 from dataclasses import _DataclassParams, FrozenInstanceError
 
 from .common import StaticTestBase
@@ -951,3 +952,26 @@ class DataclassTests(StaticTestBase):
             self.assertFalse(params.order)
             self.assertFalse(params.unsafe_hash)
             self.assertFalse(params.frozen)
+
+    def test_dataclass_subclass_dynamic_is_dynamic(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+        """
+        with self.in_module(codestr, code_gen=PythonCodeGenerator) as nonstatic_mod:
+            codestr = f"""
+            from __static__ import dataclass
+            from {nonstatic_mod.__name__} import C
+
+            @dataclass
+            class D(C):
+                y: int
+            """
+            self.revealed_type(codestr + "reveal_type(D)", "Type[dynamic]")
+            with self.in_module(codestr) as mod:
+                d = mod.D("foo", 2)
+                self.assertEqual(d.x, "foo")
+                self.assertEqual(d.y, 2)

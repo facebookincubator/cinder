@@ -943,7 +943,9 @@ class Value:
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultVisit(node)
 
-    def emit_decorator_call(self, code_gen: Static38CodeGenerator) -> None:
+    def emit_decorator_call(
+        self, class_def: ClassDef, code_gen: Static38CodeGenerator
+    ) -> None:
         code_gen.emit("CALL_FUNCTION", 1)
 
     def emit_delete_attr(
@@ -4638,6 +4640,12 @@ class DataclassDecorator(Callable[Class]):
         raise TypedSyntaxError(f"Cannot decorate a function or method with @dataclass")
 
     def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+        for base in klass.mro:
+            # any dynamic superclass might be a dataclass
+            # fall back to dynamic behavior to pick up __dataclass_fields__ at runtime
+            if base is self.type_env.dynamic:
+                return self.type_env.dynamic
+
         if not isinstance(decorator, ast.Call):
             return Dataclass(self.type_env, klass)
 
@@ -4673,10 +4681,14 @@ class DataclassDecorator(Callable[Class]):
         visitor.set_type(node, self)
         return NO_EFFECT
 
-    def emit_decorator_call(self, code_gen: Static38CodeGenerator) -> None:
-        # There's no need to emit any code for this decorator,
-        # since we handle its effects statically.
-        pass
+    def emit_decorator_call(
+        self, class_def: ClassDef, code_gen: Static38CodeGenerator
+    ) -> None:
+        # If we were able to resolve the class def,
+        # then there's no need to emit any code for this decorator,
+        # since we already handled its effects statically.
+        if code_gen.get_type(class_def) is self.type_env.dynamic:
+            super().emit_decorator_call(class_def, code_gen)
 
 
 class Dataclass(Class):

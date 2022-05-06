@@ -559,7 +559,7 @@ class CodeGenerator(ASTVisitor):
         for decorator in node.decorator_list:
             if first_lineno is None:
                 first_lineno = decorator.lineno
-            self.visit_decorator(decorator)
+            self.visit_decorator(decorator, node)
 
         gen = self.make_class_codegen(node, first_lineno or node.lineno)
         gen.emit("LOAD_NAME", "__name__")
@@ -594,7 +594,7 @@ class CodeGenerator(ASTVisitor):
         self._call_helper(2, None, node.bases, node.keywords)
 
         for d in reversed(node.decorator_list):
-            self.emit_decorator_call(d)
+            self.emit_decorator_call(d, node)
 
         self.register_immutability(node, immutability_flag)
         self.post_process_and_store_name(node)
@@ -602,10 +602,10 @@ class CodeGenerator(ASTVisitor):
     def find_immutability_flag(self, node: ClassDef) -> bool:
         return False
 
-    def visit_decorator(self, node: AST) -> None:
-        self.visit(node)
+    def visit_decorator(self, decorator: AST, class_def: ClassDef) -> None:
+        self.visit(decorator)
 
-    def emit_decorator_call(self, node: AST) -> None:
+    def emit_decorator_call(self, decorator: AST, class_def: ClassDef) -> None:
         self.emit("CALL_FUNCTION", 1)
 
     def register_immutability(self, node: ClassDef, flag: bool) -> None:

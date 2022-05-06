@@ -464,15 +464,18 @@ class Static38CodeGenerator(StrictCodeGenerator):
             gen.emit("BUILD_MAP", count)
             gen.emit("STORE_NAME", "__slot_types__")
 
-    def visit_decorator(self, node: AST) -> None:
-        d = self.get_type(node)
-        if isinstance(d, DataclassDecorator):
+    def visit_decorator(self, decorator: AST, class_def: ClassDef) -> None:
+        d = self.get_type(decorator)
+        if (
+            isinstance(d, DataclassDecorator)
+            and self.get_type(class_def) is not self.compiler.type_env.dynamic
+        ):
             return
 
-        super().visit_decorator(node)
+        super().visit_decorator(decorator, class_def)
 
-    def emit_decorator_call(self, node: AST) -> None:
-        self.get_type(node).emit_decorator_call(self)
+    def emit_decorator_call(self, decorator: AST, class_def: ClassDef) -> None:
+        self.get_type(decorator).emit_decorator_call(class_def, self)
 
     def emit_load_builtin(self, name: str) -> None:
         if name == "dict" and ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:
