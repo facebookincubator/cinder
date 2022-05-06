@@ -264,6 +264,8 @@ class Block:
         self.offset = 0
         self.seen = False  # visited during stack depth calculation
         self.startdepth = -1
+        self.is_exit = False
+        self.no_fallthrough = False
 
     def __repr__(self):
         data = []
@@ -287,13 +289,6 @@ class Block:
             self.returns = True
 
         self.insts.append(instr)
-
-    def is_exit_block(self) -> bool:
-        return self.insts and self.insts[-1].opname in (
-            "RETURN_VALUE",
-            "RAISE_VARARGS",
-            "RERAISE",
-        )
 
     def getInstructions(self):
         return self.insts
@@ -343,14 +338,6 @@ class Block:
             if hasattr(op, "graph"):
                 contained.append(op.graph)
         return contained
-
-    def isFallthrough(self):
-        if len(self.insts) == 0:
-            return True
-        return not self.is_exit_block() and self.insts[-1].opname not in (
-            "JUMP_FORWARD",
-            "JUMP_ABSOLUTE",
-        )
 
 
 # flags for code objects
@@ -873,6 +860,9 @@ class PyFlowGraph(FlowGraph):
             optimizer.cleanBlock(block)
 
         for block in self.ordered_blocks:
+            optimizer.normalizeBlock(block)
+
+        for block in self.ordered_blocks:
             optimizer.extendBlock(block)
 
         self.removeUnreachableBlocks()
@@ -893,7 +883,7 @@ class PyFlowGraph(FlowGraph):
                 if target is not None:
                     worklist.append(target)
 
-            if entry.isFallthrough():
+            if not entry.no_fallthrough:
                 worklist.append(entry.next)
 
         self.ordered_blocks = [
