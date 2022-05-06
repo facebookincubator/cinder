@@ -75,8 +75,8 @@ except:
     def test_compile_unoptimized(self):
         src_code = "assert True"
         code = compile(src_code, "foo", "single", optimize=0)
-        self.assertInBytecode(code, "LOAD_GLOBAL", "AssertionError")
-        self.assertInBytecode(code, "RAISE_VARARGS")
+        self.assertNotInBytecode(code, "LOAD_GLOBAL", "AssertionError")
+        self.assertNotInBytecode(code, "RAISE_VARARGS")
 
     def test_compile_optimized(self):
         src_code = "assert True"

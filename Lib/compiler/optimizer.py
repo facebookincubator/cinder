@@ -66,7 +66,7 @@ def safe_lshift(left, right, limits=DefaultLimits):
     return left << right
 
 
-def check_complexity(obj, limit):
+def check_complexity(obj: object, limit: int) -> int:
     if isinstance(obj, (frozenset, tuple)):
         limit -= len(obj)
         for item in obj:

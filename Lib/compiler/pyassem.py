@@ -10,6 +10,7 @@ from typing import Generator, List, Optional
 
 from . import opcodes
 from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
+from .flow_graph_optimizer import FlowGraphOptimizer
 
 try:
     import cinder
@@ -74,6 +75,12 @@ class Instruction:
             args.append(f"{self.target!r}")
 
         return f"Instruction({', '.join(args)})"
+
+    def is_jump(self) -> bool:
+        if self.opname == "SET_LINENO":
+            return False
+        op = opcodes.opcode.opmap[self.opname]
+        return opcodes.opcode.has_jump(op)
 
 
 class CompileScope:
@@ -281,6 +288,13 @@ class Block:
 
         self.insts.append(instr)
 
+    def is_exit_block(self) -> bool:
+        return self.insts and self.insts[-1].opname in (
+            "RETURN_VALUE",
+            "RAISE_VARARGS",
+            "RERAISE",
+        )
+
     def getInstructions(self):
         return self.insts
 
@@ -288,16 +302,22 @@ class Block:
         self.outEdges.add(block)
 
     def addNext(self, block):
-        assert self.next is None, next
+        assert self.next is None, self.next
         self.next = block
         assert block.prev is None, block.prev
         block.prev = self
+
+    def removeNext(self):
+        assert self.next is not None
+        next = self.next
+        next.prev = None
+        self.next = None
 
     def has_return(self):
         return self.insts and self.insts[-1].opname == "RETURN_VALUE"
 
     def get_children(self):
-        return list(self.outEdges) + [self.next]
+        return list(self.outEdges) + ([self.next] if self.next is not None else [])
 
     def get_followers(self):
         """Get the whole list of followers, including the next block."""
@@ -324,12 +344,21 @@ class Block:
                 contained.append(op.graph)
         return contained
 
+    def isFallthrough(self):
+        if len(self.insts) == 0:
+            return True
+        return not self.is_exit_block() and self.insts[-1].opname not in (
+            "JUMP_FORWARD",
+            "JUMP_ABSOLUTE",
+        )
+
 
 # flags for code objects
 
 # the FlowGraph is transformed in place; it exists in one of these states
 ACTIVE = "ACTIVE"  # accepting calls to .emit()
 CLOSED = "CLOSED"  # closed to new instructions, ready for codegen
+OPTIMIZED = "OPTIMIZED"  # peephole optimizations have been run
 FLAT = "FLAT"  # flattened
 DONE = "DONE"
 
@@ -486,8 +515,13 @@ class PyFlowGraph(FlowGraph):
         """Get a Python code object"""
         assert self.stage == ACTIVE, self.stage
         self.stage = CLOSED
+        self.optimizeCFG()
+        assert self.stage == OPTIMIZED, self.stage
+
+        # assert self.stage == OPTIMIZED, self.stage
         self.computeStackDepth()
         self.flattenGraph()
+
         assert self.stage == FLAT, self.stage
         self.makeByteCode()
         assert self.stage == DONE, self.stage
@@ -588,7 +622,7 @@ class PyFlowGraph(FlowGraph):
         Find the flow path that needs the largest stack.  We assume that
         cycles in the flow graph have no net effect on the stack depth.
         """
-        assert self.stage == CLOSED, self.stage
+        assert self.stage == OPTIMIZED, self.stage
         for block in self.getBlocksInOrder():
             # We need to get to the first block which actually has instructions
             if block.getInstructions():
@@ -597,8 +631,8 @@ class PyFlowGraph(FlowGraph):
 
     def flattenGraph(self):
         """Arrange the blocks in order and resolve jumps"""
-        assert self.stage == CLOSED, self.stage
-        # This is an awful hack that could hurt performance, but
+        assert self.stage == OPTIMIZED, self.stage
+        # This is an awf/ul hack that could hurt performance, but
         # on the bright side it should work until we come up
         # with a better solution.
         #
@@ -828,6 +862,43 @@ class PyFlowGraph(FlowGraph):
         return tuple(
             const[1] for const, idx in sorted(self.consts.items(), key=lambda o: o[1])
         )
+
+    def optimizeCFG(self):
+        """Optimize a well-formed CFG."""
+        assert self.stage == CLOSED, self.stage
+
+        optimizer = FlowGraphOptimizer(self.consts)
+        for block in self.ordered_blocks:
+            optimizer.optimizeBlock(block)
+            optimizer.cleanBlock(block)
+
+        for block in self.ordered_blocks:
+            optimizer.extendBlock(block)
+
+        self.removeUnreachableBlocks()
+
+        self.stage = OPTIMIZED
+
+    def removeUnreachableBlocks(self):
+        # mark all reachable blocks
+        reachable_blocks = set()
+        worklist = [self.entry]
+        while worklist:
+            entry = worklist.pop()
+            if entry.bid in reachable_blocks:
+                continue
+            reachable_blocks.add(entry.bid)
+            for instruction in entry.getInstructions():
+                target = instruction.target
+                if target is not None:
+                    worklist.append(target)
+
+            if entry.isFallthrough():
+                worklist.append(entry.next)
+
+        self.ordered_blocks = [
+            block for block in self.ordered_blocks if block.bid in reachable_blocks
+        ]
 
 
 class LineAddrTable:
