@@ -71,7 +71,6 @@ class CompilerTest(TestCase):
         generator=None,
         modname="<module>",
         optimize=0,
-        peephole_enabled=True,
         ast_optimizer_enabled=True,
     ):
         gen = make_compiler(
@@ -81,14 +80,15 @@ class CompilerTest(TestCase):
             generator=generator,
             modname=modname,
             optimize=optimize,
-            peephole_enabled=peephole_enabled,
             ast_optimizer_enabled=ast_optimizer_enabled,
         )
         return gen.getCode()
 
-    def run_code(self, code, generator=None, modname="<module>", peephole_enabled=True):
+    def run_code(self, code, generator=None, modname="<module>"):
         compiled = self.compile(
-            code, generator, modname, peephole_enabled=peephole_enabled
+            code,
+            generator,
+            modname,
         )
         d = {}
         exec(compiled, d)
