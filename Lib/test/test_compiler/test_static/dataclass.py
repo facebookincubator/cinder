@@ -1,5 +1,6 @@
 from compiler.pycodegen import PythonCodeGenerator
-from dataclasses import _DataclassParams, FrozenInstanceError
+from dataclasses import _DataclassParams, _FIELD, Field, FrozenInstanceError, MISSING
+from typing import Mapping
 
 from .common import StaticTestBase
 
@@ -1161,3 +1162,63 @@ class DataclassTests(StaticTestBase):
         self.type_error(
             codestr, "cannot specify both default and default_factory", at="class C:"
         )
+
+    def test_dataclass_has_fields_attribute(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        class SomeField:
+            pass
+
+        @dataclass
+        class C:
+            x: str
+            y: int
+            z: SomeField
+        """
+        with self.in_strict_module(codestr) as mod:
+            fields = mod.C.__dataclass_fields__
+            self.assertIsInstance(fields, dict)
+            self.assertEqual(len(fields), 3)
+
+            for name, type in (
+                ("x", str),
+                ("y", int),
+                ("z", mod.SomeField),
+            ):
+                with self.subTest(name=name, type=type):
+                    self.assertIn(name, fields)
+                    field = fields[name]
+                    self.assertIsInstance(field, Field)
+                    self.assertEqual(field.name, name)
+                    self.assertEqual(field.type, type.__name__)
+                    self.assertIs(field.default, MISSING)
+                    self.assertIs(field.default_factory, MISSING)
+                    self.assertTrue(field.init)
+                    self.assertTrue(field.repr)
+                    self.assertIs(field.hash, None)
+                    self.assertTrue(field.compare)
+                    self.assertIsInstance(field.metadata, Mapping)
+                    self.assertIs(field._field_type, _FIELD)
+
+    def test_nonstatic_dataclass_picks_up_static_fields(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+        """
+        with self.in_module(codestr) as static_mod:
+            codestr = f"""
+            from dataclasses import dataclass
+            from {static_mod.__name__} import C
+
+            @dataclass
+            class D(C):
+                y: int
+            """
+            with self.in_module(codestr, code_gen=PythonCodeGenerator) as mod:
+                d = mod.D("foo", 2)
+                self.assertEqual(d.x, "foo")
+                self.assertEqual(d.y, 2)

@@ -4814,6 +4814,11 @@ class DataclassField(Object[DataclassFieldType]):
         return self._field_name
 
     @property
+    def type_annotation(self) -> str:
+        assert self.type_ref is not None
+        return to_expr(self.type_ref._ref)
+
+    @property
     def _unwrapped_type(self) -> Class:
         assert self.type_ref is not None
         return self.type_ref.resolved(True).unwrap()
@@ -5316,8 +5321,8 @@ class Dataclass(Class):
 
     def emit_extra_members(self, code_gen: Static38CodeGenerator) -> None:
         # import objects needed from dataclasses and store them on the class
-        from_names: List[str] = ["_DataclassParams"]
-        as_names: List[str] = ["_DataclassParams"]
+        from_names: List[str] = ["_DataclassParams", "_FIELD", "field"]
+        as_names: List[str] = ["_DataclassParams", "_FIELD", "_field"]
         if any(field.default_factory is not None for field in self.fields):
             from_names.append("_HAS_DEFAULT_FACTORY")
             as_names.append("_HAS_DEFAULT_FACTORY")
@@ -5332,6 +5337,66 @@ class Dataclass(Class):
             code_gen.emit("IMPORT_FROM", from_name)
             code_gen.emit("STORE_NAME", as_name)
         code_gen.emit("POP_TOP")
+
+        # set __dataclass_fields__
+        for field in self.fields:
+            code_gen.emit("LOAD_NAME", "_field")
+            field_args = []
+
+            # <class>.<field> contains the default or default_factory, if one exists
+            if field.default is not None:
+                code_gen.emit("LOAD_NAME", field.field_name)
+                field_args.append("default")
+
+            if field.default_factory is not None:
+                code_gen.emit("LOAD_NAME", field.field_name)
+                field_args.append("default_factory")
+
+            if not field.init:
+                code_gen.emit("LOAD_CONST", False)
+                field_args.append("init")
+
+            if not field.repr:
+                code_gen.emit("LOAD_CONST", False)
+                field_args.append("repr")
+
+            if field.hash is not None:
+                code_gen.emit("LOAD_CONST", field.hash)
+                field_args.append("hash")
+
+            if not field.compare:
+                code_gen.emit("LOAD_CONST", False)
+                field_args.append("compare")
+
+            if field.metadata is not None:
+                code_gen.visit(field.metadata)
+                field_args.append("metadata")
+
+            if field_args:
+                code_gen.emit("LOAD_CONST", tuple(field_args))
+                code_gen.emit("CALL_FUNCTION_KW", len(field_args))
+            else:
+                code_gen.emit("CALL_FUNCTION", 0)
+
+            code_gen.emit("DUP_TOP")
+            code_gen.emit("LOAD_CONST", field.field_name)
+            code_gen.emit("ROT_TWO")
+            code_gen.emit("STORE_ATTR", "name")
+
+            code_gen.emit("DUP_TOP")
+            code_gen.emit("LOAD_CONST", field.type_annotation)
+            code_gen.emit("ROT_TWO")
+            code_gen.emit("STORE_ATTR", "type")
+
+            # # TODO(T117031799): support InitVar and ClassVar
+            code_gen.emit("DUP_TOP")
+            code_gen.emit("LOAD_NAME", "_FIELD")
+            code_gen.emit("ROT_TWO")
+            code_gen.emit("STORE_ATTR", "_field_type")
+
+        code_gen.emit("LOAD_CONST", tuple(self.field_names))
+        code_gen.emit("BUILD_CONST_KEY_MAP", len(self.fields))
+        code_gen.emit("STORE_NAME", "__dataclass_fields__")
 
         # set __dataclass_params__ with the arguments to @dataclass()
         code_gen.emit("LOAD_NAME", "_DataclassParams")
