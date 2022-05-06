@@ -370,6 +370,12 @@ class TypeEnvironment:
             GenericTypeName("typing", "ClassVar", (GenericParameter("T", 0, self),)),
             self,
         )
+        self.initvar = InitVar(
+            GenericTypeName(
+                "dataclasses", "InitVar", (GenericParameter("T", 0, self),)
+            ),
+            self,
+        )
         self.readonly_type = ReadonlyType(
             GenericTypeName("builtins", "Readonly", (GenericParameter("T", 0, self),)),
             self,
@@ -4802,7 +4808,12 @@ class DataclassField(Object[DataclassFieldType]):
         self.metadata = metadata
         self.kind: DataclassFieldKind = DataclassFieldKind.FIELD
 
-        # TODO(T117031799): support InitVar and ClassVar
+        if type_ref is not None:
+            wrapper = type(type_ref.resolved(True))
+            if wrapper is ClassVar:
+                self.kind = DataclassFieldKind.CLASSVAR
+            elif wrapper is InitVar:
+                self.kind = DataclassFieldKind.INITVAR
 
     @property
     def has_default(self) -> bool:
@@ -4830,6 +4841,28 @@ class DataclassField(Object[DataclassFieldType]):
     @property
     def unwrapped_ref(self) -> TypeRef:
         return ResolvedTypeRef(self._unwrapped_type)
+
+    def bind_field(self, visitor: TypeBinder) -> None:
+        if (
+            self.kind in (DataclassFieldKind.CLASSVAR, DataclassFieldKind.INITVAR)
+            and self.default_factory is not None
+        ):
+            raise TypedSyntaxError(
+                f"field {self.field_name} cannot have a default factory"
+            )
+        if self.kind is DataclassFieldKind.FIELD and self.default is not None:
+            default_type = visitor.get_type(self.default).klass.inexact_type()
+            if default_type in (
+                visitor.type_env.list,
+                visitor.type_env.dict,
+                visitor.type_env.set,
+            ):
+                raise TypedSyntaxError(
+                    f"mutable default {default_type.qualname} for field "
+                    f"{self.field_name} is not allowed: use default_factory"
+                )
+        if self.kind is DataclassFieldKind.INITVAR and not self.init:
+            raise TypedSyntaxError("InitVar fields must have init=True")
 
     def emit_field(self, target: AST, code_gen: Static38CodeGenerator) -> None:
         default = self.default
@@ -4901,6 +4934,13 @@ class Dataclass(Class):
             if isinstance(val, Slot) and val.declared_on_class
         ]
         self.field_names: List[str] = [slot.slot_name for slot in self.field_slots]
+
+        # Fields that are passed as arguments to __init__,
+        # where field.kind is FIELD or INITVAR and field.init is True
+        self.init_fields: List[DataclassField] = []
+
+        # Fields where field.kind is FIELD
+        self.true_fields: List[DataclassField] = []
 
         if order:
             if not eq:
@@ -5015,6 +5055,15 @@ class Dataclass(Class):
                 slot.assignment = None
                 slot.assigned_on_class = False
 
+        self.init_fields = [
+            field
+            for field in self.fields
+            if field.kind is not DataclassFieldKind.CLASSVAR and field.init
+        ]
+        self.true_fields = [
+            field for field in self.fields if field.kind is DataclassFieldKind.FIELD
+        ]
+
         if self.init:
             init_params = [
                 Parameter(
@@ -5023,7 +5072,7 @@ class Dataclass(Class):
             ]
 
             seen_default = False
-            for i, field in enumerate(self.fields):
+            for field in self.init_fields:
                 if has_default := field.has_default:
                     seen_default = True
                 elif seen_default:
@@ -5040,7 +5089,7 @@ class Dataclass(Class):
                 init_params.append(
                     Parameter(
                         field.field_name,
-                        i + 1,
+                        len(init_params),
                         field.unwrapped_ref,
                         has_default,
                         default,
@@ -5071,6 +5120,7 @@ class Dataclass(Class):
         visitor.visitExpectedType(assignment, self.type_env.DYNAMIC)
 
         field = self.field_map[name]
+        field.bind_field(visitor)
         if isinstance(visitor.get_type(assignment), DataclassField):
             visitor.set_type(assignment, field)
             return field.default
@@ -5220,24 +5270,25 @@ class Dataclass(Class):
         graph = self.flow_graph(
             code_gen,
             "__init__",
-            args=(self_name, *self.field_names),
+            args=(self_name, *[field.field_name for field in self.init_fields]),
         )
 
         inexact_descr = self.inexact_type().type_descr
         args = [0, inexact_descr]
-        for i, field in enumerate(self.fields):
+        for i, field in enumerate(self.init_fields):
             if field.default_factory is None:
                 args.append(i + 1)
                 args.append(field.unwrapped_descr)
         graph.emit("CHECK_ARGS", tuple(args))
 
-        for field in self.fields:
+        for field in self.true_fields:
             name = field.field_name
             if field.default_factory is None:
-                graph.emit("LOAD_FAST", name)
-                graph.emit("LOAD_FAST", self_name)
-                graph.emit("STORE_FIELD", (*inexact_descr, name))
-            else:
+                if field.init:
+                    graph.emit("LOAD_FAST", name)
+                    graph.emit("LOAD_FAST", self_name)
+                    graph.emit("STORE_FIELD", (*inexact_descr, name))
+            elif field.init:
                 arg_passed = graph.newBlock()
                 store = graph.newBlock()
                 graph.emit("LOAD_FAST", name)
@@ -5259,18 +5310,31 @@ class Dataclass(Class):
                 graph.nextBlock(store)
                 graph.emit("LOAD_FAST", self_name)
                 graph.emit("STORE_FIELD", (*inexact_descr, name))
+            else:
+                graph.emit("LOAD_GLOBAL", self.type_name.name)
+                graph.emit("LOAD_METHOD", name)
+                graph.emit("CALL_METHOD", 0)
+                graph.emit("CAST", field.unwrapped_descr)
+                graph.emit("LOAD_FAST", self_name)
+                graph.emit("STORE_FIELD", (*inexact_descr, name))
 
         if "__post_init__" in self.wrapped_class.members:
-            # TODO(T117031799): pass InitVar fields as arguments to __post_init__
+            initvar_names = [
+                field.field_name
+                for field in self.fields
+                if field.kind is DataclassFieldKind.INITVAR
+            ]
             graph.emit("LOAD_FAST", self_name)
             graph.emit("LOAD_METHOD", "__post_init__")
-            graph.emit("CALL_METHOD")
+            for name in initvar_names:
+                graph.emit("LOAD_FAST", name)
+            graph.emit("CALL_METHOD", len(initvar_names))
             graph.emit("POP_TOP")
 
         graph.emit("LOAD_CONST", None)
         graph.emit("RETURN_VALUE")
 
-        defaults = [field for field in self.fields if field.has_default]
+        defaults = [field for field in self.init_fields if field.has_default]
         if defaults:
             for field in defaults:
                 if field.default is not None:
@@ -5323,6 +5387,12 @@ class Dataclass(Class):
         # import objects needed from dataclasses and store them on the class
         from_names: List[str] = ["_DataclassParams", "_FIELD", "field"]
         as_names: List[str] = ["_DataclassParams", "_FIELD", "_field"]
+        if any(field.kind is DataclassFieldKind.CLASSVAR for field in self.fields):
+            from_names.append("_FIELD_CLASSVAR")
+            as_names.append("_FIELD_CLASSVAR")
+        if any(field.kind is DataclassFieldKind.INITVAR for field in self.fields):
+            from_names.append("_FIELD_INITVAR")
+            as_names.append("_FIELD_INITVAR")
         if any(field.default_factory is not None for field in self.fields):
             from_names.append("_HAS_DEFAULT_FACTORY")
             as_names.append("_HAS_DEFAULT_FACTORY")
@@ -5388,9 +5458,13 @@ class Dataclass(Class):
             code_gen.emit("ROT_TWO")
             code_gen.emit("STORE_ATTR", "type")
 
-            # # TODO(T117031799): support InitVar and ClassVar
             code_gen.emit("DUP_TOP")
-            code_gen.emit("LOAD_NAME", "_FIELD")
+            if field.kind is DataclassFieldKind.FIELD:
+                code_gen.emit("LOAD_NAME", "_FIELD")
+            elif field.kind is DataclassFieldKind.CLASSVAR:
+                code_gen.emit("LOAD_NAME", "_FIELD_CLASSVAR")
+            else:
+                code_gen.emit("LOAD_NAME", "_FIELD_INITVAR")
             code_gen.emit("ROT_TWO")
             code_gen.emit("STORE_ATTR", "_field_type")
 
@@ -7239,6 +7313,10 @@ class FinalClass(TypeWrapper):
 
 
 class ClassVar(TypeWrapper):
+    pass
+
+
+class InitVar(TypeWrapper):
     pass
 
 

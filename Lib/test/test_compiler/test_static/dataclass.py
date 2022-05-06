@@ -1,5 +1,13 @@
 from compiler.pycodegen import PythonCodeGenerator
-from dataclasses import _DataclassParams, _FIELD, Field, FrozenInstanceError, MISSING
+from dataclasses import (
+    _DataclassParams,
+    _FIELD,
+    _FIELD_CLASSVAR,
+    _FIELD_INITVAR,
+    Field,
+    FrozenInstanceError,
+    MISSING,
+)
 from typing import Mapping
 
 from .common import StaticTestBase
@@ -1166,6 +1174,8 @@ class DataclassTests(StaticTestBase):
     def test_dataclass_has_fields_attribute(self) -> None:
         codestr = """
         from __static__ import dataclass
+        from dataclasses import InitVar
+        from typing import ClassVar
 
         class SomeField:
             pass
@@ -1173,25 +1183,25 @@ class DataclassTests(StaticTestBase):
         @dataclass
         class C:
             x: str
-            y: int
-            z: SomeField
+            y: ClassVar[int]
+            z: InitVar[SomeField]
         """
         with self.in_strict_module(codestr) as mod:
             fields = mod.C.__dataclass_fields__
             self.assertIsInstance(fields, dict)
             self.assertEqual(len(fields), 3)
 
-            for name, type in (
-                ("x", str),
-                ("y", int),
-                ("z", mod.SomeField),
+            for name, type, kind in (
+                ("x", "str", _FIELD),
+                ("y", "ClassVar[int]", _FIELD_CLASSVAR),
+                ("z", "InitVar[SomeField]", _FIELD_INITVAR),
             ):
-                with self.subTest(name=name, type=type):
+                with self.subTest(name=name, type=type, kind=kind):
                     self.assertIn(name, fields)
                     field = fields[name]
                     self.assertIsInstance(field, Field)
                     self.assertEqual(field.name, name)
-                    self.assertEqual(field.type, type.__name__)
+                    self.assertEqual(field.type, type)
                     self.assertIs(field.default, MISSING)
                     self.assertIs(field.default_factory, MISSING)
                     self.assertTrue(field.init)
@@ -1199,7 +1209,7 @@ class DataclassTests(StaticTestBase):
                     self.assertIs(field.hash, None)
                     self.assertTrue(field.compare)
                     self.assertIsInstance(field.metadata, Mapping)
-                    self.assertIs(field._field_type, _FIELD)
+                    self.assertIs(field._field_type, kind)
 
     def test_nonstatic_dataclass_picks_up_static_fields(self) -> None:
         codestr = """
@@ -1222,3 +1232,125 @@ class DataclassTests(StaticTestBase):
                 d = mod.D("foo", 2)
                 self.assertEqual(d.x, "foo")
                 self.assertEqual(d.y, 2)
+
+    def test_classvar_cannot_have_default_factory(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+        from typing import ClassVar
+
+        @dataclass
+        class C:
+            x: ClassVar[list] = field(default_factory=list)
+        """
+        self.type_error(
+            codestr,
+            "field x cannot have a default factory",
+            at="x:",
+        )
+
+    def test_initvar_cannot_have_default_factory(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import InitVar, field
+
+        @dataclass
+        class C:
+            x: InitVar[list] = field(default_factory=list)
+        """
+        self.type_error(
+            codestr,
+            "field x cannot have a default factory",
+            at="x:",
+        )
+
+    def test_field_cannot_have_mutable_default(self) -> None:
+        for type, default in (("list", "[]"), ("dict", "{}"), ("set", "set()")):
+            with self.subTest(type=type, default=default):
+                codestr = f"""
+                from __static__ import dataclass
+
+                @dataclass
+                class C:
+                    x: {type} = {default}
+                """
+                self.type_error(
+                    codestr,
+                    f"mutable default {type} for field x is not allowed: use default_factory",
+                    at="x:",
+                )
+
+    def test_initvar_cannot_have_init_false(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import InitVar, field
+
+        @dataclass
+        class C:
+            x: InitVar[str] = field(init=False)
+        """
+        self.type_error(
+            codestr,
+            "InitVar fields must have init=True",
+            at="x:",
+        )
+
+    def test_classvar_and_init_false_not_dunder_init_args(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import InitVar, field
+        from typing import ClassVar
+
+        @dataclass
+        class C:
+            x: int
+            y: ClassVar[int] = 4
+            z: int = field(init=False)
+
+            def __post_init__(self) -> None:
+                self.z = 42
+
+        c = C(1)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.c.x, 1)
+            self.assertEqual(mod.c.y, 4)
+            self.assertEqual(mod.c.z, 42)
+
+    def test_initvar_passed_to_post_init(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import InitVar, field
+
+        @dataclass
+        class C:
+            x: int
+            y: InitVar[int]
+            z: int
+
+            def __post_init__(self, y: int) -> None:
+                self.z += y
+
+        c = C(1, 2, 3)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.c.x, 1)
+            self.assertFalse(hasattr(mod.c, "y"))
+            self.assertEqual(mod.c.z, 5)
+
+    def test_init_false_still_calls_default_factory(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import InitVar, field
+
+        def foo() -> int:
+            return 42
+
+        @dataclass
+        class C:
+            x: int = field(init=False, default_factory=foo)
+
+        c = C()
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.c.x, 42)
