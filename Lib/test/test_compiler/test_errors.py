@@ -162,6 +162,19 @@ class ErrorTests(CompilerTest):
         ):
             self.compile(", ".join(("x",) * 256) + ", *x, = range(256)")
 
+    def test_recursion_error_when_expression_too_deep(self):
+        fail_depth = sys.getrecursionlimit() * 3
+
+        def check_limit(prefix, repeated):
+            with self.assertRaisesRegex(
+                RecursionError, "maximum recursion depth exceeded during compilation"
+            ):
+                self.compile(f"{prefix}{repeated * fail_depth}")
+
+        check_limit("a", ".b")
+        check_limit("a", "[0]")
+        check_limit("a", "*a")
+
 
 class ErrorTestsBuiltin(ErrorTests):
     def compile(self, code):
