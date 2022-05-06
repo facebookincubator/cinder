@@ -6,11 +6,6 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "structmember.h"         // PyMemberDef
 
-/*[clinic input]
-module _functools
-[clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=e3aa10885b05f3d0]*/
-
 /* _functools module written and maintained
    by Hye-Shik Chang <perky@FreeBSD.org>
    with adaptations by Raymond Hettinger <python@rcn.com>
@@ -762,13 +757,6 @@ iterable is empty.");
 struct lru_list_elem;
 struct lru_cache_object;
 
-#include "clinic/_functoolsmodule.c.h"
-
-/*[clinic input]
-class _functools._lru_cache_wrapper "lru_cache_object *" "&lru_cache_type"
-[clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=ed948bf7f989d9b1]*/
-
 typedef struct lru_list_elem {
     PyObject_HEAD
     struct lru_list_elem *prev, *next;  /* borrowed links */
@@ -1164,27 +1152,23 @@ bounded_lru_cache_wrapper(lru_cache_object *self, PyObject *args, PyObject *kwds
     return result;
 }
 
-
-/*[clinic input]
-@classmethod
-_functools._lru_cache_wrapper.__new__
-    user_function as func: object
-    maxsize as maxsize_O: object
-    typed: bool
-    cache_info_type: object
-[clinic start generated code]*/
-
 static PyObject *
-_functools__lru_cache_wrapper_impl(PyTypeObject *type, PyObject *func,
-                                   PyObject *maxsize_O, int typed,
-                                   PyObject *cache_info_type)
-/*[clinic end generated code: output=df57f5af2f2bea3b input=3775250c03500586]*/
+lru_cache_new(PyTypeObject *type, PyObject *args, PyObject *kw)
 {
-    PyObject *cachedict;
+    PyObject *func, *maxsize_O, *cache_info_type, *cachedict;
+    int typed;
     lru_cache_object *obj;
     Py_ssize_t maxsize;
     PyObject *(*wrapper)(lru_cache_object *, PyObject *, PyObject *);
     _functools_state *state;
+    static char *keywords[] = {"user_function", "maxsize", "typed",
+                               "cache_info_type", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "OOpO:lru_cache", keywords,
+                                     &func, &maxsize_O, &typed,
+                                     &cache_info_type)) {
+        return NULL;
+    }
 
     if (!PyCallable_Check(func)) {
         PyErr_SetString(PyExc_TypeError,
@@ -1427,7 +1411,7 @@ static PyType_Slot lru_cache_type_slots[] = {
     {Py_tp_members, lru_cache_memberlist},
     {Py_tp_getset, lru_cache_getsetlist},
     {Py_tp_descr_get, lru_cache_descr_get},
-    {Py_tp_new, _functools__lru_cache_wrapper},
+    {Py_tp_new, lru_cache_new},
     {0, 0}
 };
 
