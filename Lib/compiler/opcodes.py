@@ -53,6 +53,7 @@ opcode.def_op("INPLACE_RSHIFT", 76)
 opcode.def_op("INPLACE_AND", 77)
 opcode.def_op("INPLACE_XOR", 78)
 opcode.def_op("INPLACE_OR", 79)
+opcode.def_op("LIST_TO_TUPLE", 82)
 opcode.def_op("RETURN_VALUE", 83)
 opcode.def_op("IMPORT_STAR", 84)
 opcode.def_op("SETUP_ANNOTATIONS", 85)
@@ -120,11 +121,8 @@ opcode.def_op("MAP_ADD", 147)
 opcode.def_op("LOAD_CLASSDEREF", 148)
 opcode.hasfree.add(148)
 opcode.def_op("EXTENDED_ARG", 144)
-opcode.def_op("BUILD_LIST_UNPACK", 149)
 opcode.def_op("BUILD_MAP_UNPACK", 150)
 opcode.def_op("BUILD_MAP_UNPACK_WITH_CALL", 151)
-opcode.def_op("BUILD_TUPLE_UNPACK", 152)
-opcode.def_op("BUILD_SET_UNPACK", 153)
 opcode.jrel_op("SETUP_ASYNC_WITH", 154)
 opcode.def_op("FORMAT_VALUE", 155)
 opcode.def_op("BUILD_CONST_KEY_MAP", 156)
@@ -132,6 +130,9 @@ opcode.def_op("BUILD_STRING", 157)
 opcode.def_op("BUILD_TUPLE_UNPACK_WITH_CALL", 158)
 opcode.name_op("LOAD_METHOD", 160)
 opcode.def_op("CALL_METHOD", 161)
+opcode.def_op("LIST_EXTEND", 162)
+opcode.def_op("SET_UPDATE", 163)
+opcode.def_op("DICT_MERGE", 164)
 
 FVC_MASK = 0x3
 FVC_NONE = 0x0
@@ -268,4 +269,8 @@ opcode.stack_effects.update(
     RERAISE=-3,
     WITH_EXCEPT_START=1,
     JUMP_IF_NOT_EXC_MATCH=-2,
+    LIST_TO_TUPLE=0,
+    LIST_EXTEND=-1,
+    SET_UPDATE=-1,
+    DICT_MERGE=-1,
 )

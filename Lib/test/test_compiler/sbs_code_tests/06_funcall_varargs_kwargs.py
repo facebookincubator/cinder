@@ -4,10 +4,16 @@ fun(a, b, *c, **d)
 # EXPECTED:
 [
     ...,
-    BUILD_TUPLE(2),
-    ...,
-    BUILD_TUPLE_UNPACK_WITH_CALL(2),
-    ...,
+    LOAD_NAME("fun"),
+    LOAD_NAME("a"),
+    LOAD_NAME("b"),
+    BUILD_LIST(2),
+    LOAD_NAME("c"),
+    LIST_EXTEND(1),
+    LIST_TO_TUPLE(0),
+    BUILD_MAP(0),
+    LOAD_NAME("d"),
+    DICT_MERGE(1),
     CALL_FUNCTION_EX(1),
     ...,
 ]

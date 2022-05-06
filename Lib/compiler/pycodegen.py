@@ -1724,60 +1724,60 @@ class CodeGenerator(ASTVisitor):
     def insertReadonlyCheck(self, node, nargs, call_method):
         pass
 
-    def _call_helper(self, argcnt, node, args, kwargs):
-        mustdictunpack = any(arg.arg is None for arg in kwargs)
-        nelts = len(args)
-        nkwelts = len(kwargs)
-        # the number of tuples and dictionaries on the stack
-        nsubkwargs = nsubargs = 0
-        nseen = argcnt  # the number of positional arguments on the stack
+    def _fastcall_helper(self, argcnt, node, args, kwargs):
+        # No * or ** args, faster calling sequence.
         for arg in args:
-            if isinstance(arg, ast.Starred):
-                if nseen:
-                    self.emit("BUILD_TUPLE", nseen)
-                    nseen = 0
-                    nsubargs += 1
-                self.visit(arg.value)
-                nsubargs += 1
-            else:
-                self.visit(arg)
-                nseen += 1
-
-        if nsubargs or mustdictunpack:
-            if nseen:
-                self.emit("BUILD_TUPLE", nseen)
-                nsubargs += 1
-            if nsubargs > 1:
-                self.emit("BUILD_TUPLE_UNPACK_WITH_CALL", nsubargs)
-            elif nsubargs == 0:
-                self.emit("BUILD_TUPLE", 0)
-
-            nseen = 0  # the number of keyword arguments on the stack following
-            for i, kw in enumerate(kwargs):
-                if kw.arg is None:
-                    if nseen:
-                        # A keyword argument unpacking.
-                        self.compiler_subkwargs(kwargs, i - nseen, i)
-                        nsubkwargs += 1
-                        nseen = 0
-                    self.visit(kw.value)
-                    nsubkwargs += 1
-                else:
-                    nseen += 1
-            if nseen:
-                self.compiler_subkwargs(kwargs, nkwelts - nseen, nkwelts)
-                nsubkwargs += 1
-            if nsubkwargs > 1:
-                self.emit("BUILD_MAP_UNPACK_WITH_CALL", nsubkwargs)
-            self.emit("CALL_FUNCTION_EX", int(nsubkwargs > 0))
-        elif nkwelts:
-            for kw in kwargs:
-                self.visit(kw.value)
+            self.visit(arg)
+        if len(kwargs) > 0:
+            self.visit(kwargs)
             self.emit("LOAD_CONST", tuple(arg.arg for arg in kwargs))
-            self.emit("CALL_FUNCTION_KW", nelts + nkwelts + argcnt)
+            self.emit("CALL_FUNCTION_KW", argcnt + len(args) + len(kwargs))
+            return
+        self.emit("CALL_FUNCTION", argcnt + len(args))
+
+    def _call_helper(self, argcnt, node, args, kwargs):
+        starred = any(isinstance(arg, ast.Starred) for arg in args)
+        mustdictunpack = any(arg.arg is None for arg in kwargs)
+        if not (starred or mustdictunpack):
+            return self._fastcall_helper(argcnt, node, args, kwargs)
+
+        # Handle positional arguments.
+        if argcnt == 0 and len(args) == 1 and starred:
+            self.visit(args[0].value)
         else:
-            self.insertReadonlyCheck(node, nelts + argcnt, False)
-            self.emit("CALL_FUNCTION", nelts + argcnt)
+            self._visitSequenceLoad(
+                args,
+                "BUILD_LIST",
+                "LIST_APPEND",
+                "LIST_EXTEND",
+                num_pushed=argcnt,
+                is_tuple=True,
+            )
+        nkwelts = len(kwargs)
+        if nkwelts > 0:
+            seen = 0
+            have_dict = False
+            for i, arg in enumerate(kwargs):
+                if arg.arg is None:
+                    if seen > 0:
+                        # Unpack
+                        self.compiler_subkwargs(kwargs, i - seen, i)
+                        if have_dict:
+                            self.emit("DICT_MERGE", 1)
+                        have_dict = True
+                        seen = 0
+                    if not have_dict:
+                        self.emit("BUILD_MAP", 0)
+                        have_dict = True
+                    self.visit(arg.value)
+                    self.emit("DICT_MERGE", 1)
+                else:
+                    seen += 1
+            if seen > 0:
+                self.compiler_subkwargs(kwargs, nkwelts - seen, nkwelts)
+                if have_dict:
+                    self.emit("DICT_MERGE", 1)
+        self.emit("CALL_FUNCTION_EX", int(nkwelts > 0))
 
     def visitCall(self, node):
         if (
@@ -1997,44 +1997,62 @@ class CodeGenerator(ASTVisitor):
                 return True
         return False
 
-    def _visitSequence(self, node, build_op, build_inner_op, build_ex_op, ctx):
+    def _visitSequenceLoad(
+        self, elts, build_op, add_op, extend_op, num_pushed=0, is_tuple=False
+    ):
+        starred_load = self.hasStarred(elts)
+        if len(elts) > 2 and all(isinstance(elt, ast.Constant) for elt in elts):
+            elts_tuple = tuple(elt.value for elt in elts)
+            if is_tuple:
+                self.emit("LOAD_CONST", elts_tuple)
+            else:
+                if add_op == "SET_ADD":
+                    elts_tuple = frozenset(elts_tuple)
+                self.emit(build_op, num_pushed)
+                self.emit("LOAD_CONST", elts_tuple)
+                self.emit(extend_op, 1)
+            return
+
+        if not starred_load:
+            for elt in elts:
+                self.visit(elt)
+            collection_size = num_pushed + len(elts)
+            self.emit("BUILD_TUPLE" if is_tuple else build_op, collection_size)
+            return
+
+        sequence_built = False
+        on_stack = 0
+        for elt in elts:
+            if isinstance(elt, ast.Starred):
+                if not sequence_built:
+                    self.emit(build_op, on_stack + num_pushed)
+                    sequence_built = True
+                self.visit(elt.value)
+                self.emit(extend_op, 1)
+            else:
+                self.visit(elt)
+                if sequence_built:
+                    self.emit(add_op, 1)
+                else:
+                    on_stack += 1
+
+        if is_tuple:
+            self.emit("LIST_TO_TUPLE")
+
+    def _visitSequence(self, node, build_op, add_op, extend_op, ctx, is_tuple=False):
         self.update_lineno(node)
         if isinstance(ctx, ast.Store):
             self._visitUnpack(node)
-            starred_load = False
-        else:
-            starred_load = self.hasStarred(node.elts)
-
-        chunks = 0
-        in_chunk = 0
-
-        def out_chunk():
-            nonlocal chunks, in_chunk
-            if in_chunk:
-                self.emit(build_inner_op, in_chunk)
-                in_chunk = 0
-                chunks += 1
-
-        for elt in node.elts:
-            if starred_load:
+            for elt in node.elts:
                 if isinstance(elt, ast.Starred):
-                    out_chunk()
-                    chunks += 1
+                    self.visit(elt.value)
                 else:
-                    in_chunk += 1
+                    self.visit(elt)
+            return
 
-            if isinstance(elt, ast.Starred):
-                self.visit(elt.value)
-            else:
-                self.visit(elt)
-        # Output trailing chunk, if any
-        out_chunk()
-
-        if isinstance(ctx, ast.Load):
-            if starred_load:
-                self.emit(build_ex_op, chunks)
-            else:
-                self.emit(build_op, len(node.elts))
+        return self._visitSequenceLoad(
+            node.elts, build_op, add_op, extend_op, num_pushed=0, is_tuple=is_tuple
+        )
 
     def visitStarred(self, node):
         if isinstance(node.ctx, ast.Store):
@@ -2049,18 +2067,14 @@ class CodeGenerator(ASTVisitor):
 
     def visitTuple(self, node):
         self._visitSequence(
-            node, "BUILD_TUPLE", "BUILD_TUPLE", "BUILD_TUPLE_UNPACK", node.ctx
+            node, "BUILD_LIST", "LIST_APPEND", "LIST_EXTEND", node.ctx, is_tuple=True
         )
 
     def visitList(self, node):
-        self._visitSequence(
-            node, "BUILD_LIST", "BUILD_TUPLE", "BUILD_LIST_UNPACK", node.ctx
-        )
+        self._visitSequence(node, "BUILD_LIST", "LIST_APPEND", "LIST_EXTEND", node.ctx)
 
     def visitSet(self, node):
-        self._visitSequence(
-            node, "BUILD_SET", "BUILD_SET", "BUILD_SET_UNPACK", ast.Load()
-        )
+        self._visitSequence(node, "BUILD_SET", "SET_ADD", "SET_UPDATE", ast.Load())
 
     def visitSlice(self, node):
         num = 2
