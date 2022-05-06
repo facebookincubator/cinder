@@ -6,13 +6,18 @@ class Opcode:
         "!=",
         ">",
         ">=",
-        "in",
-        "not in",
-        "is",
-        "is not",
         "exception match",
         "BAD",
     )
+    CONTAINS_OP_ARGS = (
+        "in",
+        "not in",
+    )
+    IS_OP_ARGS = (
+        "is",
+        "is not",
+    )
+
     HAVE_ARGUMENT = 90  # Opcodes from here have an argument:
     EXTENDED_ARG = 144
     CODEUNIT_SIZE = 2

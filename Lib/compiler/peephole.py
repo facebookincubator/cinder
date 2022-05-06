@@ -199,21 +199,6 @@ class Optimizer:
             opcode.JUMP_IF_TRUE_OR_POP,
         )
 
-        self.CMP_OP_IN: int = opcode.CMP_OP.index("in")
-        self.CMP_OP_IS_NOT: int = opcode.CMP_OP.index("is not")
-
-        assert self.CMP_OP_IN < self.CMP_OP_IS_NOT
-        assert (
-            opcode.CMP_OP.index("not in") > self.CMP_OP_IN
-            and opcode.CMP_OP.index("not in") < self.CMP_OP_IS_NOT
-        )
-        assert (
-            opcode.CMP_OP.index("is") > self.CMP_OP_IN
-            and opcode.CMP_OP.index("is") < self.CMP_OP_IS_NOT
-        )
-
-        assert (self.CMP_OP_IS_NOT - self.CMP_OP_IN) == 3
-
         self.blocks = self.markblocks()
 
     def is_basic_block(self, start, end) -> bool:

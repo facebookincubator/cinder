@@ -11,23 +11,6 @@ from .peephole import safe_lshift, safe_mod, safe_multiply, safe_power
 from .visitor import ASTRewriter
 
 
-def is_const(node: ast.AST) -> bool:
-    return isinstance(node, (Constant, Num, Str, Bytes, Ellipsis, NameConstant))
-
-
-def get_const_value(node: ast.AST) -> object:
-    if isinstance(node, (Constant, NameConstant)):
-        return node.value
-    elif isinstance(node, Num):
-        return node.n
-    elif isinstance(node, (Str, Bytes)):
-        return node.s
-    elif isinstance(node, Ellipsis):
-        return ...
-
-    raise TypeError("Bad constant value")
-
-
 class PyLimits:
     MAX_INT_SIZE = 128
     MAX_COLLECTION_SIZE = 256
@@ -71,11 +54,10 @@ class AstOptimizer(ASTRewriter):
 
     def visitUnaryOp(self, node: ast.UnaryOp) -> ast.expr:
         op = self.visit(node.operand)
-        if is_const(op):
+        if isinstance(op, Constant):
             conv = UNARY_OPS[type(node.op)]
-            val = get_const_value(op)
             try:
-                return copy_location(Constant(conv(val)), node)
+                return copy_location(Constant(conv(op.value)), node)
             except Exception:
                 pass
         elif (
@@ -94,21 +76,22 @@ class AstOptimizer(ASTRewriter):
         left = self.visit(node.left)
         right = self.visit(node.right)
 
-        if is_const(left) and is_const(right):
+        if isinstance(left, Constant) and isinstance(right, Constant):
             handler = BIN_OPS.get(type(node.op))
             if handler is not None:
-                lval = get_const_value(left)
-                rval = get_const_value(right)
                 try:
-                    return copy_location(Constant(handler(lval, rval)), node)
+                    return copy_location(
+                        Constant(handler(left.value, right.value)), node
+                    )
                 except Exception:
                     pass
 
         return self.update_node(node, left=left, right=right)
 
     def makeConstTuple(self, elts: Iterable[ast.expr]) -> Optional[Constant]:
-        if all(is_const(elt) for elt in elts):
-            return Constant(tuple(get_const_value(elt) for elt in elts))
+        if all(isinstance(elt, Constant) for elt in elts):
+            # pyre-ignore[16]: each elt is a constant at this point.
+            return Constant(tuple(elt.value for elt in elts))
 
         return None
 
@@ -128,14 +111,13 @@ class AstOptimizer(ASTRewriter):
 
         if (
             isinstance(node.ctx, ast.Load)
-            and is_const(value)
-            and isinstance(slice, ast.Index)
-            and is_const(slice.value)
+            and isinstance(value, Constant)
+            and isinstance(slice, Constant)
         ):
             try:
                 return copy_location(
                     # pyre-ignore[16] we know this is unsafe, so it's wrapped in try/except
-                    Constant(get_const_value(value)[get_const_value(slice.value)]),
+                    Constant(value.value[slice.value]),
                     node,
                 )
             except Exception:
