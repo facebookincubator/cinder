@@ -408,6 +408,16 @@ class Compiler:
             },
         )
 
+        self.modules["dataclasses"] = ModuleTable(
+            "dataclasses",
+            "Lib/dataclasses.py",
+            self,
+            {
+                "Field": self.type_env.dataclass_field,
+                "field": self.type_env.dataclass_field_function,
+            },
+        )
+
         self.modules["cinder"] = ModuleTable(
             "cinder",
             "<cinder>",

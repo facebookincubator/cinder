@@ -4,6 +4,7 @@ from __future__ import annotations
 from __static__ import chkdict, chklist
 
 import ast
+import dataclasses
 from ast import (
     AST,
     AnnAssign,
@@ -571,6 +572,8 @@ class TypeEnvironment:
             TypeName("cinder", "async_cached_property"), self
         )
         self.dataclass = DataclassDecorator(self)
+        self.dataclass_field = DataclassFieldType(self)
+        self.dataclass_field_function = DataclassFieldFunction(self)
         self.constant_types: Mapping[Type[object], Value] = {
             str: self.str.exact_type().instance,
             int: self.int.exact_type().instance,
@@ -4691,6 +4694,168 @@ class DataclassDecorator(Callable[Class]):
             super().emit_decorator_call(class_def, code_gen)
 
 
+class DataclassFieldFunction(Callable[Class]):
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        params = [
+            Parameter(
+                "default",
+                0,
+                ResolvedTypeRef(type_env.dynamic),
+                True,
+                dataclasses.MISSING,
+                ParamStyle.KWONLY,
+            ),
+            Parameter(
+                "default_factory",
+                1,
+                ResolvedTypeRef(type_env.dynamic),
+                True,
+                dataclasses.MISSING,
+                ParamStyle.KWONLY,
+            ),
+            Parameter(
+                "init", 2, ResolvedTypeRef(type_env.bool), True, True, ParamStyle.KWONLY
+            ),
+            Parameter(
+                "repr", 3, ResolvedTypeRef(type_env.bool), True, True, ParamStyle.KWONLY
+            ),
+            Parameter(
+                "hash",
+                4,
+                ResolvedTypeRef(type_env.bool),
+                True,
+                None,
+                ParamStyle.KWONLY,
+            ),
+            Parameter(
+                "compare",
+                5,
+                ResolvedTypeRef(type_env.bool),
+                True,
+                True,
+                ParamStyle.KWONLY,
+            ),
+            Parameter(
+                "metadata",
+                6,
+                ResolvedTypeRef(type_env.bool),
+                True,
+                None,
+                ParamStyle.KWONLY,
+            ),
+        ]
+        super().__init__(
+            type_env.function,
+            "dataclass",
+            "field",
+            params,
+            {param.name: param for param in params},
+            0,
+            None,
+            None,
+            ResolvedTypeRef(type_env.dataclass_field),
+        )
+        self.type_env = type_env
+
+
+class DataclassFieldType(Class):
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        super().__init__(
+            TypeName("dataclasses", "Field"),
+            type_env,
+            instance=DataclassField(self),
+            is_exact=True,
+            pytype=dataclasses.Field,
+            is_final=True,
+        )
+
+
+class DataclassFieldKind(Enum):
+    FIELD = 0
+    INITVAR = 1
+    CLASSVAR = 2
+
+
+class DataclassField(Object[DataclassFieldType]):
+    def __init__(
+        self,
+        klass: DataclassFieldType,
+        name: Optional[str] = None,
+        type_ref: Optional[TypeRef] = None,
+        default: Optional[AST] = None,
+        default_factory: Optional[AST] = None,
+        init: bool = True,
+        repr: bool = True,
+        hash: Optional[bool] = None,
+        compare: bool = True,
+        metadata: Optional[AST] = None,
+    ) -> None:
+        super().__init__(klass)
+        self._field_name = name
+        self.type_ref = type_ref
+        self.default = default
+        self.default_factory = default_factory
+        self.init = init
+        self.repr = repr
+        self.hash = hash
+        self.compare = compare
+        self.metadata = metadata
+        self.kind: DataclassFieldKind = DataclassFieldKind.FIELD
+
+        # TODO(T117031799): support InitVar and ClassVar
+
+    @property
+    def has_default(self) -> bool:
+        return self.default is not None or self.default_factory is not None
+
+    @property
+    def field_name(self) -> str:
+        assert self._field_name is not None
+        return self._field_name
+
+    @property
+    def _unwrapped_type(self) -> Class:
+        assert self.type_ref is not None
+        return self.type_ref.resolved(True).unwrap()
+
+    @property
+    def unwrapped_descr(self) -> TypeDescr:
+        return self._unwrapped_type.type_descr
+
+    @property
+    def unwrapped_ref(self) -> TypeRef:
+        return ResolvedTypeRef(self._unwrapped_type)
+
+    def emit_field(self, target: AST, code_gen: Static38CodeGenerator) -> None:
+        default = self.default
+        if default is not None:
+            code_gen.visit(default)
+            assert code_gen.get_type(target).klass.can_assign_from(
+                code_gen.get_type(default).klass
+            )
+            code_gen.visit(target)
+        elif self.default_factory is not None:
+            code_gen.visit(self.default_factory)
+            code_gen.visit(target)
+        # no default value, nothing to emit
+
+    def __repr__(self) -> str:
+        return (
+            "Field("
+            f"name={self.name!r},"
+            f"type={self.type_ref!r},"
+            f"default={self.default!r},"
+            f"default_factory={self.default_factory!r},"
+            f"init={self.init!r},"
+            f"repr={self.repr!r},"
+            f"hash={self.hash!r},"
+            f"compare={self.compare!r},"
+            f"metadata={self.metadata!r},"
+            f"_field_type={self.kind}"
+            ")"
+        )
+
+
 class Dataclass(Class):
     def __init__(
         self,
@@ -4723,54 +4888,18 @@ class Dataclass(Class):
         self.unsafe_hash = unsafe_hash
         self.frozen = frozen
 
-        self.fields: List[Slot[Class]] = [
+        self.fields: List[DataclassField] = []
+        self.field_map: Dict[str, DataclassField] = {}
+        self.field_slots: List[Slot[Class]] = [
             val
             for name, val in self.members.items()
             if isinstance(val, Slot) and val.declared_on_class
         ]
-        self.field_names: List[str] = [field.slot_name for field in self.fields]
-
-        if order and not eq:
-            raise TypedSyntaxError("eq must be true if order is true")
-
-        if init:
-            init_params = [
-                Parameter(
-                    "self", 0, ResolvedTypeRef(self), False, None, ParamStyle.POSONLY
-                )
-            ]
-
-            seen_default = False
-            for i, field in enumerate(self.fields):
-                if has_default := field.assigned_on_class:
-                    seen_default = True
-                elif seen_default:
-                    raise TypedSyntaxError(
-                        f"non-default argument {field.slot_name} follows default argument"
-                    )
-
-                type_ref = field.type_ref
-                assert type_ref is not None
-                init_params.append(
-                    Parameter(
-                        field.slot_name,
-                        i + 1,
-                        type_ref,
-                        has_default,
-                        ast.Name(field.slot_name, ast.Load()) if has_default else None,
-                        ParamStyle.NORMAL,
-                    )
-                )
-
-            if "__init__" not in self.members:
-                self.members["__init__"] = BuiltinMethodDescriptor(
-                    "__init__",
-                    self,
-                    init_params,
-                    ResolvedTypeRef(self.type_env.none),
-                )
+        self.field_names: List[str] = [slot.slot_name for slot in self.field_slots]
 
         if order:
+            if not eq:
+                raise TypedSyntaxError("eq must be true if order is true")
             for name in ("__lt__", "__le__", "__gt__", "__ge__"):
                 if name in self.wrapped_class.members:
                     raise TypedSyntaxError(
@@ -4812,6 +4941,136 @@ class Dataclass(Class):
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         # TODO(T96281456): support subclassing
         raise TypedSyntaxError("Cannot subclass static dataclasses")
+
+    def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
+        for slot in self.field_slots:
+            field = DataclassField(
+                self.type_env.dataclass_field,
+                slot.slot_name,
+                slot.type_ref,
+            )
+
+            self.fields.append(field)
+            self.field_map[slot.slot_name] = field
+
+            if not slot.assigned_on_class:
+                continue
+
+            assignment = slot.assignment
+            assert isinstance(assignment, AnnAssign)
+            default = assignment.value
+            assert default is not None
+
+            if not isinstance(default, ast.Call):
+                field.default = default
+                continue
+
+            func = module.ref_visitor.visit(default.func)
+            if func is not self.type_env.dataclass_field_function:
+                field.default = default
+                continue
+
+            if default.args:
+                raise TypedSyntaxError(
+                    "dataclasses.field() takes no positional arguments"
+                )
+
+            for kw in default.keywords:
+                name, node = kw.arg, kw.value
+                if name in ("default", "default_factory", "metadata"):
+                    setattr(field, name, node)
+                elif name in ("init", "repr", "compare"):
+                    if not isinstance(node, ast.Constant) or not isinstance(
+                        node.value, bool
+                    ):
+                        raise TypedSyntaxError(
+                            f"dataclasses.field() argument '{name}' must be a boolean constant"
+                        )
+                    setattr(field, name, node.value)
+                elif name == "hash":
+                    # hash is allowed to be bool or None
+                    if not isinstance(node, ast.Constant) or not (
+                        node.value is None or isinstance(node.value, bool)
+                    ):
+                        raise TypedSyntaxError(
+                            "dataclasses.field() argument 'hash' must be None or a boolean constant"
+                        )
+                    field.hash = node.value
+                else:
+                    raise TypedSyntaxError(
+                        f"dataclasses.field() got an unexpected keyword argument '{name}'"
+                    )
+
+            if field.default is not None and field.default_factory is not None:
+                raise TypedSyntaxError(
+                    "cannot specify both default and default_factory"
+                )
+            if field.default is None and field.default_factory is None:
+                # no default - clear the assignment from the slot
+                slot.assignment = None
+                slot.assigned_on_class = False
+
+        if self.init:
+            init_params = [
+                Parameter(
+                    "self", 0, ResolvedTypeRef(self), False, None, ParamStyle.POSONLY
+                )
+            ]
+
+            seen_default = False
+            for i, field in enumerate(self.fields):
+                if has_default := field.has_default:
+                    seen_default = True
+                elif seen_default:
+                    raise TypedSyntaxError(
+                        f"non-default argument {field.field_name} follows default argument"
+                    )
+
+                if field.default is not None:
+                    default = ast.Name(field.field_name, ast.Load())
+                elif field.default_factory is not None:
+                    default = ast.Name("_HAS_DEFAULT_FACTORY", ast.Load())
+                else:
+                    default = None
+                init_params.append(
+                    Parameter(
+                        field.field_name,
+                        i + 1,
+                        field.unwrapped_ref,
+                        has_default,
+                        default,
+                        ParamStyle.NORMAL,
+                    )
+                )
+
+            if "__init__" not in self.members:
+                self.members["__init__"] = BuiltinMethodDescriptor(
+                    "__init__",
+                    self,
+                    init_params,
+                    ResolvedTypeRef(self.type_env.none),
+                )
+
+        return super().finish_bind(module, klass)
+
+    def bind_field(
+        self,
+        name: str,
+        assignment: Optional[AST],
+        visitor: TypeBinder,
+    ) -> Optional[AST]:
+        if assignment is None:
+            # annotation without default value or field()
+            return None
+
+        visitor.visitExpectedType(assignment, self.type_env.DYNAMIC)
+
+        field = self.field_map[name]
+        if isinstance(visitor.get_type(assignment), DataclassField):
+            visitor.set_type(assignment, field)
+            return field.default
+
+        return assignment
 
     def flow_graph(
         self,
@@ -4962,14 +5221,39 @@ class Dataclass(Class):
         inexact_descr = self.inexact_type().type_descr
         args = [0, inexact_descr]
         for i, field in enumerate(self.fields):
-            args.append(i + 1)
-            args.append(field.type_descr)
+            if field.default_factory is None:
+                args.append(i + 1)
+                args.append(field.unwrapped_descr)
         graph.emit("CHECK_ARGS", tuple(args))
 
-        for name in self.field_names:
-            graph.emit("LOAD_FAST", name)
-            graph.emit("LOAD_FAST", self_name)
-            graph.emit("STORE_FIELD", (*inexact_descr, name))
+        for field in self.fields:
+            name = field.field_name
+            if field.default_factory is None:
+                graph.emit("LOAD_FAST", name)
+                graph.emit("LOAD_FAST", self_name)
+                graph.emit("STORE_FIELD", (*inexact_descr, name))
+            else:
+                arg_passed = graph.newBlock()
+                store = graph.newBlock()
+                graph.emit("LOAD_FAST", name)
+                graph.emit("LOAD_GLOBAL", self.type_name.name)
+                graph.emit("LOAD_ATTR", "_HAS_DEFAULT_FACTORY")
+                graph.emit("COMPARE_OP", "is")
+                graph.emit("POP_JUMP_IF_FALSE", arg_passed)
+
+                graph.nextBlock()
+                graph.emit("LOAD_GLOBAL", self.type_name.name)
+                graph.emit("LOAD_METHOD", name)
+                graph.emit("CALL_METHOD", 0)
+                graph.emit("CAST", field.unwrapped_descr)
+                graph.emit("JUMP_FORWARD", store)
+
+                graph.nextBlock(arg_passed)
+                graph.emit("LOAD_FAST", name)
+
+                graph.nextBlock(store)
+                graph.emit("LOAD_FAST", self_name)
+                graph.emit("STORE_FIELD", (*inexact_descr, name))
 
         if "__post_init__" in self.wrapped_class.members:
             # TODO(T117031799): pass InitVar fields as arguments to __post_init__
@@ -4981,10 +5265,14 @@ class Dataclass(Class):
         graph.emit("LOAD_CONST", None)
         graph.emit("RETURN_VALUE")
 
-        defaults = [field for field in self.fields if field.assigned_on_class]
+        defaults = [field for field in self.fields if field.has_default]
         if defaults:
             for field in defaults:
-                code_gen.emit("LOAD_NAME", field.slot_name)
+                if field.default is not None:
+                    code_gen.emit("LOAD_NAME", field.field_name)
+                else:
+                    assert field.default_factory is not None
+                    code_gen.emit("LOAD_NAME", "_HAS_DEFAULT_FACTORY")
             code_gen.emit("BUILD_TUPLE", len(defaults))
 
             self.emit_method(code_gen, graph, 1)
@@ -5027,11 +5315,26 @@ class Dataclass(Class):
         code_gen.emit("POP_TOP")
 
     def emit_extra_members(self, code_gen: Static38CodeGenerator) -> None:
-        # set __dataclass_params__ with the arguments to @dataclass()
+        # import objects needed from dataclasses and store them on the class
+        from_names: List[str] = ["_DataclassParams"]
+        as_names: List[str] = ["_DataclassParams"]
+        if any(field.default_factory is not None for field in self.fields):
+            from_names.append("_HAS_DEFAULT_FACTORY")
+            as_names.append("_HAS_DEFAULT_FACTORY")
+        if self.frozen:
+            from_names.append("FrozenInstanceError")
+            as_names.append("_FrozenInstanceError")
+
         code_gen.emit("LOAD_CONST", 0)
-        code_gen.emit("LOAD_CONST", ("_DataclassParams",))
+        code_gen.emit("LOAD_CONST", tuple(from_names))
         code_gen.emit("IMPORT_NAME", "dataclasses")
-        code_gen.emit("IMPORT_FROM", "_DataclassParams")
+        for from_name, as_name in zip(from_names, as_names):
+            code_gen.emit("IMPORT_FROM", from_name)
+            code_gen.emit("STORE_NAME", as_name)
+        code_gen.emit("POP_TOP")
+
+        # set __dataclass_params__ with the arguments to @dataclass()
+        code_gen.emit("LOAD_NAME", "_DataclassParams")
         code_gen.emit("LOAD_CONST", self.init)
         code_gen.emit("LOAD_CONST", self.repr)
         code_gen.emit("LOAD_CONST", self.eq)
@@ -5040,7 +5343,6 @@ class Dataclass(Class):
         code_gen.emit("LOAD_CONST", self.frozen)
         code_gen.emit("CALL_FUNCTION", 6)
         code_gen.emit("STORE_NAME", "__dataclass_params__")
-        code_gen.emit("POP_TOP")
 
         if self.generate_init:
             self.emit_dunder_init(code_gen)
@@ -5058,14 +5360,6 @@ class Dataclass(Class):
             self.emit_dunder_comparison(code_gen, "__ge__", ">=")
 
         if self.frozen:
-            # save dataclasses.FrozenInstanceError on the class object
-            code_gen.emit("LOAD_CONST", 0)
-            code_gen.emit("LOAD_CONST", ("FrozenInstanceError",))
-            code_gen.emit("IMPORT_NAME", "dataclasses")
-            code_gen.emit("IMPORT_FROM", "FrozenInstanceError")
-            code_gen.emit("STORE_NAME", "_FrozenInstanceError")
-            code_gen.emit("POP_TOP")
-
             self.emit_dunder_delattr_or_setattr(code_gen, delete=False)
             self.emit_dunder_delattr_or_setattr(code_gen, delete=True)
 
@@ -5100,7 +5394,7 @@ class DataclassInstance(Object[Dataclass]):
         if (
             self.klass.frozen
             and (store or delete)
-            and any(field.slot_name == node.attr for field in self.klass.fields)
+            and any(field.field_name == node.attr for field in self.klass.fields)
         ):
             msg = "assign to" if store else "delete"
             visitor.syntax_error(

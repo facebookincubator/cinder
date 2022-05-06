@@ -78,6 +78,7 @@ from .types import (
     CheckedListInstance,
     Class,
     ClassVar,
+    Dataclass,
     EnumType,
     FinalClass,
     Function,
@@ -730,6 +731,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         with self.in_target():
             self.visit(target)
         value = node.value
+        if isinstance(self.scope, ClassDef):
+            scope_type = self.get_type(self.scope)
+            if isinstance(scope_type, Dataclass) and isinstance(target, Name):
+                value = scope_type.bind_field(target.id, value, self)
         if value and not is_dynamic_final:
             self.visitExpectedType(value, declared_type)
             if isinstance(target, Name):

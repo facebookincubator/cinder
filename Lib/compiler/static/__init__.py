@@ -60,7 +60,9 @@ from .types import (
     CInstance,
     CType,
     Class,
+    Dataclass,
     DataclassDecorator,
+    DataclassField,
     DecoratedMethod,
     Function,
     FunctionContainer,
@@ -581,11 +583,17 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.set_lineno(node)
         value = node.value
         if value:
-            self.visit(value)
-            self.get_type(node.target).klass.emit_type_check(
-                self.get_type(value).klass, self
-            )
-            self.visit(node.target)
+            value_type = self.get_type(value)
+            if (
+                isinstance(value_type, DataclassField)
+                and isinstance(self.tree, ast.ClassDef)
+                and isinstance(self.get_type(self.tree), Dataclass)
+            ):
+                value_type.emit_field(node.target, self)
+            else:
+                self.visit(value)
+                self.get_type(node.target).klass.emit_type_check(value_type.klass, self)
+                self.visit(node.target)
         target = node.target
         if isinstance(target, ast.Name):
             # If we have a simple name in a module or class, store the annotation

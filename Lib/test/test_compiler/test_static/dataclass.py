@@ -160,7 +160,7 @@ class DataclassTests(StaticTestBase):
             y: str
         """
         self.type_error(
-            codestr, "non-default argument y follows default argument", at="dataclass"
+            codestr, "non-default argument y follows default argument", at="class C:"
         )
 
     def test_dataclass_with_positional_arg(self) -> None:
@@ -975,3 +975,189 @@ class DataclassTests(StaticTestBase):
                 d = mod.D("foo", 2)
                 self.assertEqual(d.x, "foo")
                 self.assertEqual(d.y, 2)
+
+    def test_dataclass_field_in_non_dataclass_fails_type_check(self) -> None:
+        codestr = """
+        from dataclasses import field
+
+        class C:
+            x: str = field(default="foo")
+        """
+        self.type_error(
+            codestr,
+            "type mismatch: dataclasses.Field cannot be assigned to str",
+            at="field",
+        )
+
+    def test_dataclass_field_in_dynamic_dataclass_fails_type_check(self) -> None:
+        codestr = """
+        class C:
+            pass
+        """
+        with self.in_module(codestr, code_gen=PythonCodeGenerator) as nonstatic_mod:
+            codestr = f"""
+            from __static__ import dataclass
+            from dataclasses import field
+            from {nonstatic_mod.__name__} import C
+
+            @dataclass
+            class D(C):
+                x: int = field(hash=False)
+            """
+            self.type_error(
+                codestr,
+                "type mismatch: dataclasses.Field cannot be assigned to int",
+                at="field(hash=False)",
+            )
+
+    def test_dataclass_field_takes_no_positional_arguments(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field("foo")
+        """
+        self.type_error(
+            codestr,
+            r"dataclasses.field\(\) takes no positional arguments",
+            at="class C:",
+        )
+
+    def test_dataclass_field_checks_flags_for_bool_constant(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(init=1)
+        """
+        self.type_error(
+            codestr,
+            r"dataclasses.field\(\) argument 'init' must be a boolean constant",
+            at="class C:",
+        )
+
+    def test_dataclass_field_checks_hash_for_bool_constant_or_none(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(hash=1)
+        """
+        self.type_error(
+            codestr,
+            r"dataclasses.field\(\) argument 'hash' must be None or a boolean constant",
+            at="class C:",
+        )
+
+    def test_dataclass_field_unexpected_keyword(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(foo=1)
+        """
+        self.type_error(
+            codestr,
+            r"dataclasses.field\(\) got an unexpected keyword argument 'foo'",
+            at="class C:",
+        )
+
+    def test_dataclass_field_without_default(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(metadata={"foo": "bar"})
+
+        c = C("hello")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.c.x, "hello")
+            self.assertRaisesRegex(
+                TypeError,
+                r"__init__\(\) missing 1 required positional argument: 'x'",
+                mod.C,
+            )
+
+    def test_dataclass_field_with_default(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(default="foo")
+
+        c1 = C()
+        c2 = C("bar")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C.x, "foo")
+            self.assertEqual(mod.c1.x, "foo")
+            self.assertEqual(mod.c2.x, "bar")
+
+    def test_dataclass_field_with_incorrect_default_type(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(default=1)
+        """
+        self.type_error(
+            codestr,
+            r"type mismatch: Literal\[1\] cannot be assigned to str",
+            at="1",
+        )
+
+    def test_dataclass_field_with_default_factory(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(default_factory=lambda: "foo")
+
+        c1 = C()
+        c2 = C("bar")
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.c1.x, "foo")
+            self.assertEqual(mod.c2.x, "bar")
+
+    def test_dataclass_field_with_incorrect_default_factory_type(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: str = field(default_factory=list)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertRaisesRegex(TypeError, "expected 'str', got 'list'", mod.C)
+
+    def test_dataclass_field_cannot_set_both_default_and_default_factory(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: List[str] = field(default=[], default_factory=list)
+        """
+        self.type_error(
+            codestr, "cannot specify both default and default_factory", at="class C:"
+        )
