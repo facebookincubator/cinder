@@ -115,7 +115,7 @@ class Python37Tests(CompilerTest):
                 f"from __future__ import annotations\ndef f() -> {annotation}:\n    pass",
                 generator=CodeGenerator,
             )
-            self.assertInBytecode(code, "LOAD_CONST", annotation)
+            self.assertInBytecode(code, "LOAD_CONST", ("return", annotation))
         self.assertEqual(
             code.co_flags,
             CO_NOFREE | __future__.CO_FUTURE_ANNOTATIONS,
