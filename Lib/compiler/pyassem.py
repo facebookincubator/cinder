@@ -293,21 +293,6 @@ class Block:
         assert block.prev is None, block.prev
         block.prev = self
 
-    _uncond_transfer = (
-        "RETURN_PRIMITIVE",
-        "RETURN_VALUE",
-        "RAISE_VARARGS",
-        "JUMP_ABSOLUTE",
-        "JUMP_FORWARD",
-    )
-
-    def has_unconditional_transfer(self):
-        """Returns True if there is an unconditional transfer to an other block
-        at the end of this block. This means there is no risk for the bytecode
-        executer to go past this block's bytecode."""
-        if self.insts and self.insts[-1][0] in self._uncond_transfer:
-            return True
-
     def has_return(self):
         return self.insts and self.insts[-1].opname == "RETURN_VALUE"
 
@@ -583,6 +568,7 @@ class PyFlowGraph(FlowGraph):
                     "JUMP_FORWARD",
                     "RETURN_VALUE",
                     "RAISE_VARARGS",
+                    "RERAISE",
                 ):
                     # Remaining code is dead
                     next = None
@@ -653,7 +639,6 @@ class PyFlowGraph(FlowGraph):
                     if op in self.opcode.hasjrel:
                         offset -= pc
 
-                    offset *= 2
                     if instrsize(oparg) != instrsize(offset):
                         extended_arg_recompile = True
 
