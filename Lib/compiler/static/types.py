@@ -146,6 +146,7 @@ from .visitor import GenericVisitor
 if TYPE_CHECKING:
     from . import PyFlowGraph38Static, Static38CodeGenerator
     from .compiler import Compiler
+    from .declaration_visitor import DeclarationVisitor
     from .module_table import AnnotationVisitor, ModuleTable
     from .type_binder import BindingScope, TypeBinder
 
@@ -898,7 +899,12 @@ class Value:
     ) -> Optional[Function | DecoratedMethod]:
         return None
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         return self.klass.type_env.dynamic
 
     def bind_subscr(
@@ -4412,13 +4418,23 @@ class TypingFinalDecorator(Class):
             fn.is_final = True
         return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         klass.is_final = True
         return klass
 
 
 class AllowWeakrefsDecorator(Class):
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         klass.allow_weakrefs = True
         return klass
 
@@ -4497,7 +4513,12 @@ class DoNotCompileDecorator(Class):
         real_fn.donotcompile = True
         return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         klass.donotcompile = True
         return klass
 
@@ -4510,7 +4531,12 @@ class PropertyDecorator(Class):
             return None
         return PropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property")
 
 
@@ -4522,7 +4548,12 @@ class CachedPropertyDecorator(Class):
             return None
         return CachedPropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @cached_property")
 
 
@@ -4534,7 +4565,12 @@ class AsyncCachedPropertyDecorator(Class):
             return None
         return AsyncCachedPropertyMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @async_cached_property")
 
 
@@ -4544,7 +4580,12 @@ class IdentityDecorator(Class):
     ) -> Optional[Function | DecoratedMethod]:
         return fn
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         return klass
 
 
@@ -4556,7 +4597,12 @@ class OverloadDecorator(Class):
             return None
         return TransientDecoratedMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @overload")
 
 
@@ -4586,7 +4632,12 @@ class PropertySetterDecorator(Class):
             return None
         return TransientDecoratedMethod(fn, decorator)
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         raise TypedSyntaxError(f"Cannot decorate a class with @property.setter")
 
 
@@ -4648,11 +4699,21 @@ class DataclassDecorator(Callable[Class]):
     ) -> Optional[Function | DecoratedMethod]:
         raise TypedSyntaxError(f"Cannot decorate a function or method with @dataclass")
 
-    def resolve_decorate_class(self, klass: Class, decorator: expr) -> Class:
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
         for base in klass.mro:
             # any dynamic superclass might be a dataclass
             # fall back to dynamic behavior to pick up __dataclass_fields__ at runtime
             if base is self.type_env.dynamic:
+                visitor.perf_warning(
+                    f"Dataclass {klass.qualname} has a dynamic base. Convert all of "
+                    "its bases to Static Python to resolve dataclass at compile time.",
+                    decorator,
+                )
                 return self.type_env.dynamic
 
         if not isinstance(decorator, ast.Call):

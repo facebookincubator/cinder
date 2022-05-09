@@ -80,6 +80,9 @@ class DeclarationVisitor(GenericVisitor[None]):
     def exit_scope(self) -> None:
         self.scopes.pop()
 
+    def perf_warning(self, msg: str, node: AST) -> None:
+        self.compiler.error_sink.perf_warning(msg, self.module.filename, node)
+
     def visitAnnAssign(self, node: AnnAssign) -> None:
         self.parent_scope().declare_variable(node, self.module)
 
@@ -144,7 +147,7 @@ class DeclarationVisitor(GenericVisitor[None]):
                 break
             with self.compiler.error_sink.error_context(self.filename, d):
                 decorator = self.module.resolve_decorator(d) or self.type_env.dynamic
-                klass = decorator.resolve_decorate_class(klass, d)
+                klass = decorator.resolve_decorate_class(klass, d, self)
 
         parent_scope.declare_class(node, klass.exact_type())
         # We want the name corresponding to `C` to be the exact type when imported.

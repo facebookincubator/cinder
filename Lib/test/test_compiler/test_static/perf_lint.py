@@ -1,3 +1,5 @@
+from compiler.pycodegen import PythonCodeGenerator
+
 from .common import StaticTestBase
 
 
@@ -316,3 +318,26 @@ class PerfLintTests(StaticTestBase):
 
         errors = self.perf_lint(codestr)
         errors.check_warnings()
+
+    def test_dataclass_dynamic_base(self) -> None:
+        codestr = """
+        class SuperClass:
+            pass
+        """
+        with self.in_module(codestr, code_gen=PythonCodeGenerator) as nonstatic_mod:
+            codestr = f"""
+            from __static__ import dataclass
+            from {nonstatic_mod.__name__} import SuperClass
+
+            @dataclass
+            class C(SuperClass):
+                x: int
+            """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings(
+            errors.match(
+                "C has a dynamic base",
+                at="dataclass",
+            )
+        )
