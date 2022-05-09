@@ -51,7 +51,28 @@
         }
         return JSON.parse(str);
       }
+      function utf8_to_b64(str) {
+        return window.btoa(unescape(encodeURIComponent(str)));
+      }
+      function json_to_b64(obj) {
+        return utf8_to_b64(JSON.stringify(obj));
+      }
+      function b64_to_utf8(str) {
+        return decodeURIComponent(escape(window.atob(str)));
+      }
+      function b64_to_json(obj) {
+        return JSON.parse(b64_to_utf8(obj));
+      }
       function loadSavedState() {
+        if (window.location.hash) {
+          // We don't use normal query params, so we can kind of abuse the
+          // normal parser for hash values instead.
+          const url = new URL(window.location.href.replace(/#/g,"?"));
+          const state = url.searchParams.get("state");
+          const result = b64_to_json(state);
+          window.location.hash = "";
+          return result;
+        }
         const default_code = `\
 def add(left, right):
   return left + right
@@ -105,6 +126,7 @@ def test():
         // Auto-submit when code is modified
         editor.onUpdate(debounce(function(value) {
           saveCode(value);
+          updateShareURL();
           submitForm();
         }, 500 /* ms */));
         // Make the editor's private textarea the one that submits in the form
@@ -113,6 +135,7 @@ def test():
         // Don't red-underline non-words
         editor.textarea.spellcheck = false;
         // Kick off the initial page render
+        updateShareURL();
         submitForm();
         document.querySelector('#static-python').addEventListener("change", function() {
           // If enabling Static Python, add the right import. Otherwise, remove
@@ -132,6 +155,7 @@ def test():
           }
           editor.update({"value": new_code});
           saveCode(new_code);
+          updateShareURL();
           // Don't submit the form; changing the text will submit the form on
           // its own.
         });
@@ -139,16 +163,25 @@ def test():
           const selected = document.querySelector("#passes").selectedOptions;
           const passes = [...selected].map(option => option.innerText);
           savePasses(passes);
+          updateShareURL();
           submitForm();
         });
         function updateAsmSyntax(event) {
-        console.log(event.currentTarget);
           saveAsmSyntax(event.currentTarget.value);
+          updateShareURL();
           submitForm();
+        }
+        function updateShareURL(event) {
+          const state = loadSavedState();
+          const urlparam = json_to_b64(state);
+          const urlparams = new URLSearchParams({state: urlparam}).toString();
+          const url = window.location.origin+'/#'+urlparams;
+          document.querySelector('#share-url').value =
+            url.length > 2000 ? 'Code too long to share' : url;
         }
         document.querySelector('#asm-intel').addEventListener('click', updateAsmSyntax);
         document.querySelector('#asm-att').addEventListener('click', updateAsmSyntax);
-      };
+      }
     </script>
   </head>
   <body>
@@ -185,6 +218,10 @@ def test():
           <label for="asm-intel">Intel</label>
           <input type="radio" id="asm-att" name="asm-syntax" value="att">
           <label for="asm-att">AT&amp;T</label>
+          <br />
+          <br />
+          <label for="share-url">Share:</label>
+          <input type="text" id="share-url" name="share-url" value="" onclick="this.select();" readonly/>
           <br />
           <br />
           <label for="code">Put some Python in the box. Currently only one
