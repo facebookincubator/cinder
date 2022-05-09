@@ -1998,5 +1998,159 @@ class TestClearAwaiter(unittest.TestCase):
         self.assertIs(cinder._get_coro_awaiter(outer_coro), None)
 
 
+class TestAwaiterForNonExceptingGatheredTask(unittest.TestCase):
+    def setUp(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
+    @async_test
+    async def test_awaiter_for_gathered_coroutines_are_not_cleared_on_completion(self):
+        """The awaiter for pending gathered coroutines should not be cleared when other
+        gathered coroutines complete normally.
+        """
+
+        async def noop(rendez):
+            rendez.started.set_result(None)
+            await rendez.barrier
+
+        async def gatherer(*coros):
+            try:
+                await asyncio.gather(*coros)
+            except MyException:
+                return True
+
+        coro0_rendez = Rendez()
+        coro0 = noop(coro0_rendez)
+        coro0_task = asyncio.create_task(coro0)
+
+        coro1_rendez = Rendez()
+        coro1 = noop(coro1_rendez)
+
+        gatherer_coro = gatherer(coro0_task, coro1)
+        gatherer_task = asyncio.create_task(gatherer_coro)
+
+        # Wait until both gathered coroutines have started
+        await coro0_rendez.started
+        await coro1_rendez.started
+        self.assertIs(cinder._get_coro_awaiter(coro0), gatherer_coro)
+        self.assertIs(cinder._get_coro_awaiter(coro1), gatherer_coro)
+
+        # Unblock the first coroutine and wait for it to complete
+        coro0_rendez.barrier.set_result(None)
+        await coro0_task
+
+        # coro0 shouldn't have an awaiter because it is complete, while coro1 should
+        # still have an awaiter because it hasn't completed
+        self.assertIs(cinder._get_coro_awaiter(coro0), None)
+        self.assertIs(cinder._get_coro_awaiter(coro1), gatherer_coro)
+
+        coro1_rendez.barrier.set_result(None)
+        await gatherer_task
+
+        # coro1 shouldn't have an awaiter now that it has completed
+        self.assertIs(cinder._get_coro_awaiter(coro1), None)
+
+    @async_test
+    async def test_awaiter_for_gathered_coroutines_are_cleared_on_exception(self):
+        """Ensure that the awaiter is cleared for gathered coroutines when a gathered
+        coroutine raises an exception and the gather propagates exceptions.
+        """
+
+        class MyException(Exception):
+            pass
+
+        async def noop(rendez):
+            rendez.started.set_result(None)
+            await rendez.barrier
+
+        async def raiser(rendez):
+            rendez.started.set_result(None)
+            await rendez.barrier
+            raise MyException("Testing 123")
+
+        async def gatherer(*coros):
+            try:
+                await asyncio.gather(*coros)
+            except MyException:
+                return True
+
+        noop_rendez = Rendez()
+        noop_coro = noop(noop_rendez)
+
+        raiser_rendez = Rendez()
+        raiser_coro = raiser(raiser_rendez)
+
+        gatherer_coro = gatherer(raiser_coro, noop_coro)
+        gatherer_task = asyncio.create_task(gatherer_coro)
+
+        # Wait until both child coroutines have started
+        await noop_rendez.started
+        await raiser_rendez.started
+        self.assertIs(cinder._get_coro_awaiter(noop_coro), gatherer_coro)
+        self.assertIs(cinder._get_coro_awaiter(raiser_coro), gatherer_coro)
+
+        # Unblock the coroutine that raises an exception. Both it and the
+        # gathering coroutine should complete; the exception should be
+        # propagated into the gathering coroutine. The other gathered coroutine
+        # (noop) should continue running.
+        raiser_rendez.barrier.set_result(None)
+        await gatherer_task
+
+        # The awaiter for lone running coroutine should be cleared; its awaiter
+        # is gone.
+        self.assertIs(cinder._get_coro_awaiter(noop_coro), None)
+        noop_rendez.barrier.set_result(None)
+
+    @async_test
+    async def test_awaiter_for_gathered_coroutines_are_cleared_on_cancellation(self):
+        """Ensure that the awaiter is cleared for gathered coroutines when a gathered
+        coroutine is cancelled and the gather propagates exceptions.
+        """
+
+        async def noop(rendez):
+            rendez.started.set_result(None)
+            await rendez.barrier
+
+        async def gatherer(*coros):
+            await asyncio.gather(*coros)
+
+        coro1_rendez = Rendez()
+        coro1 = noop(coro1_rendez)
+        coro1_task = asyncio.create_task(coro1)
+
+        coro2_rendez = Rendez()
+        coro2 = noop(coro2_rendez)
+        coro2_task = asyncio.create_task(coro2)
+
+        gatherer_coro = gatherer(coro1_task, coro2_task)
+        gatherer_task = asyncio.create_task(gatherer_coro)
+
+        # Wait until both child coroutines have started
+        await coro1_rendez.started
+        await coro2_rendez.started
+        self.assertIs(cinder._get_coro_awaiter(coro1), gatherer_coro)
+        self.assertIs(cinder._get_coro_awaiter(coro2), gatherer_coro)
+
+        # Cancel one task. Both it and the gathering coroutine should complete;
+        # the cancellation should be propagated into the gathering coroutine. The
+        # other gathered coroutine should continue running.
+        coro1_task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await gatherer_task
+        with self.assertRaises(asyncio.CancelledError):
+            await coro1_task
+
+        # The awaiter for lone running coroutine should be cleared; its awaiter
+        # is gone.
+        self.assertIs(cinder._get_coro_awaiter(coro2), None)
+        coro2_rendez.barrier.set_result(None)
+        await coro2_task
+
+
 if __name__ == "__main__":
     unittest.main()

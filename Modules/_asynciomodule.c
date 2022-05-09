@@ -6835,6 +6835,19 @@ _GatheringFutureObj_handle_all_done(_GatheringFutureObj *gfut)
     Py_RETURN_NONE;
 }
 
+static void
+_GatheringFutureObj_clear_awaiter_on_error(_GatheringFutureObj *gfut) {
+    // Clear the awaiter for all gathered futures since they may no longer
+    // be awaited. Any non-excepting tasks that were gathered will continue
+    // running after the gather completes. They will have a borrowed
+    // reference to the coroutine that was awaiting the gather, if any, set
+    // as their awaiter. Since the references are borrowed, they won't keep
+    // the coroutine awaiting the gather alive if the coroutine completes
+    // after the gather returns. This would leave a pointer to an
+    // already-freed coroutine as the awaiter for any non-excepting tasks.
+    _GatheringFutureObj_set_awaiter(gfut, NULL);
+}
+
 static PyObject *
 _GatheringFutureObj_child_done(PyObject *self,
                                PyObject **args,
@@ -6857,9 +6870,11 @@ _GatheringFutureObj_child_done(PyObject *self,
         PyMethodTableRef *t = get_or_create_method_table(Py_TYPE(fut));
         int cancelled = t->cancelled(fut);
         if (cancelled < 0) {
+            _GatheringFutureObj_clear_awaiter_on_error(gfut);
             return NULL;
         }
         if (cancelled) {
+            _GatheringFutureObj_clear_awaiter_on_error(gfut);
             // Check if 'fut' is cancelled first, as
             //'fut.exception()' will *raise* a CancelledError
             // instead of returning it.
@@ -6867,9 +6882,11 @@ _GatheringFutureObj_child_done(PyObject *self,
         } else {
             PyObject *exc = t->exception(fut);
             if (exc == NULL) {
+                _GatheringFutureObj_clear_awaiter_on_error(gfut);
                 return NULL;
             }
             if (exc != Py_None) {
+                _GatheringFutureObj_clear_awaiter_on_error(gfut);
                 int ok = future_set_exception((FutureObj *)gfut, exc);
                 Py_DECREF(exc);
                 if (ok < 0) {
