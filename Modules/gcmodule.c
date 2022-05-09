@@ -1805,7 +1805,9 @@ immortalize_object(PyObject *obj, PyObject * /* unused */ args)
     if (Py_IS_IMMORTAL(obj)) {
         return 0;
     }
+
     Py_SET_IMMORTAL(obj);
+
     if (PyCode_Check(obj)) {
         PyCodeObject *code = (PyCodeObject *)obj;
         Py_SET_IMMORTAL(code->co_code);
@@ -1817,6 +1819,11 @@ immortalize_object(PyObject *obj, PyObject * /* unused */ args)
         Py_SET_IMMORTAL(code->co_filename);
         Py_SET_IMMORTAL(code->co_name);
         Py_SET_IMMORTAL(code->co_lnotab);
+    }
+
+    /* Cache the hash value of unicode object to reduce Copy-on-writes */
+    if (PyUnicode_CheckExact(obj)) {
+        PyObject_Hash(obj);
     }
 
     /* Immortalize objects not discoverable through GC  */
