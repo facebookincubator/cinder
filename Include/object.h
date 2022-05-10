@@ -211,6 +211,9 @@ PyAPI_FUNC(PyObject *) _PyType_GetMethodCacheStats(void);
 /* Function to reset stats of method cache */
 PyAPI_FUNC(void) _PyType_ResetMethodCacheStats(void);
 
+/* check and set readonly properties on type object */
+PyAPI_FUNC(void) _PyType_SetReadonlyProperties(struct _typeobject *);
+
 /* Generic type check */
 PyAPI_FUNC(int) PyType_IsSubtype(struct _typeobject *, struct _typeobject *);
 #define PyObject_TypeCheck(ob, tp) \
@@ -294,6 +297,12 @@ Type definitions should use Py_TPFLAGS_DEFAULT for their tp_flags value.
 Code can use PyType_HasFeature(type_ob, flag_value) to test whether the
 given type object has a specified feature.
 */
+
+/* Set if the type object has a descriptor that can have a side effect */
+#define Py_TPFLAG_READONLY_SIDE_EFFECT_DESCR (1UL << 0)
+
+/* Set if the type object has a descriptor that returns a readonly object */
+#define Py_TPFLAG_DESCR_RETURNS_READONLY (1UL << 1)
 
 /* Set if the type object is dynamically allocated by CPython */
 #define Py_TPFLAG_CPYTHON_ALLOCATED (1UL << 5)

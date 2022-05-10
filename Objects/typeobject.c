@@ -6462,6 +6462,8 @@ PyType_Ready(PyTypeObject *type)
 
     _PyType_SetNoShadowingInstances(type);
 
+    _PyType_SetReadonlyProperties(type);
+
     /* All done -- set the ready flag */
     type->tp_flags =
         (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
@@ -9101,4 +9103,103 @@ PyObject *
 _PyType_LookupAttr(PyObject *type, PyObject *name)
 {
     return type_lookupattr((PyTypeObject *)type, name, 1);
+}
+
+static void
+get_readonly_properties(PyTypeObject *tp, int *has_side_effect_descr, int *returns_readonly) {
+    assert(PyType_Check(tp));
+
+    *has_side_effect_descr = 0;
+    *returns_readonly = 0;
+    if (tp->tp_dict == NULL) {
+        return;
+    }
+
+    PyObject *descr = PyDict_GetItemString(tp->tp_dict, "__get__");
+
+    if (descr == NULL || !PyFunction_Check(descr)) {
+        *has_side_effect_descr = *returns_readonly = 0;
+        return;
+    }
+
+    PyFunctionObject *descr_func = (PyFunctionObject *)descr;
+
+    if (!READONLY_FUNC(descr_func->readonly_mask)) {
+        *has_side_effect_descr = 1;
+        *returns_readonly = 0;
+        return;
+    }
+    if (!READONLY_ARG(descr_func->readonly_mask, 1)) {
+        *has_side_effect_descr = 1;
+    }
+
+    *returns_readonly = RETURNS_READONLY(descr_func->readonly_mask);
+}
+
+void
+_PyType_SetReadonlyProperties(PyTypeObject *type) {
+    // check parent types
+    PyObject *bases;
+    bases = type->tp_bases;
+
+    int has_side_effect_descr = 0;
+    int returns_readonly = 0;
+
+    if (bases) {
+        assert(PyTuple_Check(bases));
+        int nbases = PyTuple_GET_SIZE(bases);
+
+        for (int i = 0; i < nbases; i++) {
+            PyTypeObject *base = (PyTypeObject *)PyTuple_GET_ITEM(bases, i);
+
+            if (!has_side_effect_descr) {
+                has_side_effect_descr = PyType_HasFeature(base, Py_TPFLAG_READONLY_SIDE_EFFECT_DESCR);
+            }
+
+            if (!returns_readonly) {
+                returns_readonly = PyType_HasFeature(base, Py_TPFLAG_DESCR_RETURNS_READONLY);
+            }
+        }
+    }
+
+    // check `__dict__` in the current type
+    PyObject *dict = type->tp_dict;
+    if (!dict) {
+        goto done;
+    }
+
+    PyObject *items = PyDict_Items(dict);
+    assert(PyList_Check(items));
+    int nitems = PyList_GET_SIZE(items);
+    PyObject **its = ((PyListObject *)items)->ob_item;
+
+    for (int i = 0; i < nitems && (!has_side_effect_descr || !returns_readonly); i ++) {
+        PyObject *pair = its[i];
+        PyObject *value = PyTuple_GET_ITEM(pair, 1);
+
+        PyTypeObject *descr_type = value->ob_type;
+        descrgetfunc get = descr_type->tp_descr_get;
+
+        if (!get) {
+            continue;
+        }
+
+        int side_effect;
+        int returns_ro;
+        get_readonly_properties(descr_type, &side_effect, &returns_ro);
+
+        has_side_effect_descr |= side_effect;
+        returns_readonly |= returns_ro;
+    }
+
+    Py_DECREF(items);
+
+done:
+    if (has_side_effect_descr) {
+        type->tp_flags |= Py_TPFLAG_READONLY_SIDE_EFFECT_DESCR;
+    }
+
+    if (returns_readonly) {
+        type->tp_flags |= Py_TPFLAG_DESCR_RETURNS_READONLY;
+    }
 }
