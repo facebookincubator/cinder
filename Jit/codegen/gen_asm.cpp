@@ -1050,6 +1050,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   }
 
   as_->bind(env_.hard_exit_label);
+  asmjit::BaseNode* epilogue_error_cursor = as_->cursor();
 
   auto saved_regs = env_.changed_regs & CALLEE_SAVE_REGS;
   if (!saved_regs.Empty()) {
@@ -1073,6 +1074,9 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   as_->leave();
   as_->ret();
 
+  env_.addAnnotation(
+      "Epilogue (restore regs; pop native frame; error exit)",
+      epilogue_error_cursor);
   env_.addAnnotation("Epilogue", epilogue_cursor);
   if (env_.function_indirections.size()) {
     auto jit_helpers = as_->cursor();
