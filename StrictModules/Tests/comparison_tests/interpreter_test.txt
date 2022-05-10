@@ -9901,3 +9901,16 @@ class NewType(metaclass=MetaType):
 ---
 ---
 ---
+test_id_does_not_name_error
+---
+a = id
+---
+---
+---
+test_id_call_on_toplevel_errors
+---
+a = id()
+---
+---
+1 4 UnknownValueCallException id
+---

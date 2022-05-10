@@ -758,6 +758,13 @@ std::shared_ptr<BaseStrictObject> StrictKnownUnknownCallable() {
   return o;
 }
 
+static std::shared_ptr<BaseStrictObject> UnknownBuiltin(std::string name) {
+  static std::shared_ptr<BaseStrictObject> o(new UnknownObject(
+      name,
+      kBuiltinsModule));
+  return o;
+}
+
 bool initializeBuiltinsModuleDict() {
   static bool initialized = false;
   if (!initialized) {
@@ -801,6 +808,7 @@ bool initializeBuiltinsModuleDict() {
         {"False", StrictFalse()},
         {"Ellipsis", EllipsisObject()},
         {"repr", StrictRepr()},
+        {"id", UnknownBuiltin("id")},
         {"issubclass", StrictIssubclass()},
         {"isinstance", StrictIsinstance()},
         {"len", StrictLen()},
