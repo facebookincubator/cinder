@@ -1119,3 +1119,31 @@ class ContextDecoratorTests(StaticTestBase):
                 reveal_type(g())
         """
         self.revealed_type(codestr, "int")
+
+    def test_call_error_nonstatic(self):
+        codestr = """
+            from __static__ import ContextDecorator
+            from types import TracebackType
+            from typing import Literal, Type
+
+            class MyDecorator(ContextDecorator):
+                def __exit__(
+                    self,
+                    exc_type: Type[BaseException] | None,
+                    exc_value: BaseException | None,
+                    traceback: TracebackType | None,
+                ) -> Literal[False]:
+                    assert exc_value is not None, "value is None"
+                    assert type(exc_value) is exc_type, "type is wrong"
+                    assert traceback is not None, "traceback is None"
+                    assert traceback is exc_value.__traceback__, "tracebacks don't match"
+                    return False
+        """
+        with self.in_module(codestr) as mod:
+
+            @mod.MyDecorator()
+            def f(inp):
+                pass
+
+            with self.assertRaisesRegex(TypeError, r"missing 1 required positional"):
+                f()

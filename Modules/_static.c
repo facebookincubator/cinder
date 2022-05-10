@@ -3,6 +3,7 @@
 #include "Python.h"
 #include "boolobject.h"
 #include "dictobject.h"
+#include "frameobject.h"
 #include "funcobject.h"
 #include "import.h"
 #include "methodobject.h"
@@ -362,11 +363,15 @@ ctxmgrwrp_exit(int is_coroutine, PyObject *ctxmgr,
         // exception
         PyObject *ret;
         PyObject *exc, *val, *tb;
+        PyFrameObject* f = PyEval_GetFrame();
+        PyTraceBack_Here(f);
         PyErr_Fetch(&exc, &val, &tb);
+        PyErr_NormalizeException(&exc, &val, &tb);
         if (tb == NULL) {
             tb = Py_None;
             Py_INCREF(tb);
         }
+        PyException_SetTraceback(val, tb);
 
         if (ctxmgr != NULL) {
             assert(Py_TYPE(exit)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR);
