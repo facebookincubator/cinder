@@ -285,11 +285,13 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             return
 
         arg_readonly = list(self.binder.is_readonly(x) for x in node.args)
+        method_flag = 0
 
         if call_method:
             assert isinstance(node.func, ast.Attribute)
             self_readonly = self.binder.is_readonly(node.func.value)
             arg_readonly.insert(0, self_readonly)
+            method_flag = 1
 
         mask = self.calc_function_readonly_mask(
             node,
@@ -301,7 +303,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             args=tuple(arg_readonly),
         )
 
-        self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask))
+        self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask, method_flag))
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int

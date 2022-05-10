@@ -3153,8 +3153,21 @@ main_loop:
 
                 PyObject *nargs = PyTuple_GET_ITEM(arg_tuple, 0);
                 assert(nargs != NULL);
+                int numargs = PyLong_AsLong(nargs);
 
-                PyObject *funcObj = PEEK(PyLong_AsLongLong(nargs) + 1);
+                PyObject *funcObj = PEEK(numargs + 1);
+                int missing_method = 0;
+                if (funcObj == NULL) {
+                    PyObject *method_flag = PyTuple_GET_ITEM(arg_tuple, 2);
+                    if (PyLong_AsUnsignedLong(method_flag)) {
+                        // the only situation in which this happens is when
+                        // the previous opcode is LOAD_METHOD and no method
+                        // was found
+                        funcObj = PEEK(numargs);
+                        missing_method = 1;
+                    }
+                }
+                assert (funcObj != NULL);
                 if (PyMethod_Check(funcObj)) {
                     funcObj = ((PyMethodObject *)funcObj)->im_func;
                 }
@@ -3167,6 +3180,14 @@ main_loop:
 
                     PyObject *call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
                     uint64_t call_mask = PyLong_AsUnsignedLongLong(call_mask_obj);
+                    if (missing_method) {
+                        // if LOAD_METHOD did not find a method, the `self` parameter of the call
+                        // is no longer relevant.
+                        uint64_t non_arg_mask = GET_NONARG_READONLY_MASK(call_mask);
+                        uint64_t arg_mask = CLEAR_NONARG_READONLY_MASK(call_mask);
+                        arg_mask = arg_mask >> 1; // remove `self` from mask
+                        call_mask = non_arg_mask | arg_mask;
+                    }
 
                     // is_readonly_func: error if 1 in callsite but 0 in callable
                     // is_readonly_closure: error if 1 in callsite but 0 in callable

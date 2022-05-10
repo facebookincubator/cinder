@@ -4,6 +4,7 @@
 #include "Python.h"
 #include "ceval.h"
 #include "opcode.h"
+#include "pyreadonly.h"
 #include "structmember.h"
 
 #include "Jit/bitvector.h"
@@ -2763,10 +2764,10 @@ void HIRBuilder::emitReadonlyOperation(
     const jit::BytecodeInstruction& bc_instr) {
   int oparg = bc_instr.oparg();
   PyObject* op_tuple = PyTuple_GET_ITEM(code_->co_consts, oparg);
-  assert(op_tuple != nullptr);
+  JIT_CHECK(op_tuple != nullptr, "op_tuple is nullptr");
 
   PyObject* opobj = PyTuple_GET_ITEM(op_tuple, 0);
-  assert(opobj != nullptr);
+  JIT_CHECK(opobj != nullptr, "opobj is nullptr");
 
   int op = PyLong_AsLong(opobj);
   constexpr size_t kFunctionMaskOffset =
@@ -2791,21 +2792,80 @@ void HIRBuilder::emitReadonlyOperation(
     }
     case READONLY_CHECK_FUNCTION: {
       PyObject* arg_tuple = PyTuple_GET_ITEM(op_tuple, 1);
-      assert(arg_tuple != nullptr);
+      JIT_CHECK(arg_tuple != nullptr, "arg_tuple is nullptr");
 
       constexpr size_t kArgTupleNArgsIndex = 0;
       constexpr size_t kArgTupleMaskIndex = 1;
+      constexpr size_t kArgTupleMethodFlagIndex = 2;
 
       PyObject* nargs_obj = PyTuple_GET_ITEM(arg_tuple, kArgTupleNArgsIndex);
-      assert(nargs_obj != nullptr);
+      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, kArgTupleMaskIndex);
+      PyObject* method_flag_obj =
+          PyTuple_GET_ITEM(arg_tuple, kArgTupleMethodFlagIndex);
+
+      JIT_CHECK(nargs_obj != nullptr, "nargs_obj is nullptr");
+      JIT_CHECK(call_mask_obj != nullptr, "call mask is nullptr");
+      JIT_CHECK(method_flag_obj != nullptr, "method flag is nullptr");
 
       uint64_t objs_above_func = PyLong_AsUnsignedLongLong(nargs_obj);
-      Register* func = tc.frame.stack.peek(objs_above_func + 1);
+      uint64_t call_mask = PyLong_AsUnsignedLong(call_mask_obj);
+      uint64_t method_flag = PyLong_AsUnsignedLongLong(method_flag_obj);
+
+      Register* initial_func = tc.frame.stack.peek(objs_above_func + 1);
+      JIT_CHECK(
+          initial_func != nullptr,
+          "func is null on stack[-%d]",
+          objs_above_func + 1);
+      Register* func = temps_.AllocateStack();
+      Register* call_mask_reg = temps_.AllocateNonStack();
 
       BasicBlock* done_block = cfg.AllocateBlock();
       BasicBlock* func_block = cfg.AllocateBlock();
+      BasicBlock* default_func_block = cfg.AllocateBlock();
 
-      tc.emit<CondBranchCheckType>(func, TFunc, func_block, done_block);
+      // check whether the mask for non-methods will change
+      uint64_t arg_call_mask = CLEAR_NONARG_READONLY_MASK(call_mask);
+      uint64_t nonarg_call_mask = GET_NONARG_READONLY_MASK(call_mask);
+      uint64_t non_method_call_mask = nonarg_call_mask | (arg_call_mask >> 1);
+      bool call_mask_change = non_method_call_mask != call_mask;
+
+      // generates logic that loads the mask and dispatch to func_block
+      auto load_func_and_check = [&](Register* f, uint64_t mask) {
+        // TODO(Shiyu): if call_mask_reg ends up being the same in both
+        // non-method and default cases, LIR generation fails with the Phi node
+        // missing a def. Therefore the `if(call_mask_change)` checks are
+        // necessary
+        if (call_mask_change) {
+          tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(mask, TCUInt64));
+        }
+        tc.emit<Assign>(func, f);
+        tc.emit<CondBranchCheckType>(func, TFunc, func_block, done_block);
+      };
+
+      if (method_flag != 0) {
+        JIT_CHECK(method_flag == 1, "wrong flag %d", method_flag);
+        // LOAD_METHOD case. Need to confirm whether LOAD_METHOD
+        // put a method on stack or not
+        BasicBlock* no_method_block = cfg.AllocateBlock();
+        // in the case of LOAD_METHOD not finding a method, initial_func is None
+        tc.emit<CondBranchCheckType>(
+            initial_func, TNoneType, no_method_block, default_func_block);
+
+        tc.block = no_method_block;
+
+        // if func is None, the real callable is at stack[-objs_above_func]
+        Register* non_method_func = tc.frame.stack.peek(objs_above_func);
+        JIT_CHECK(
+            non_method_func != nullptr,
+            "non method func is null on stack[-%d]",
+            objs_above_func);
+        load_func_and_check(non_method_func, non_method_call_mask);
+      } else {
+        tc.emit<Branch>(default_func_block);
+      }
+
+      tc.block = default_func_block;
+      load_func_and_check(initial_func, call_mask);
 
       tc.block = func_block;
 
@@ -2814,11 +2874,11 @@ void HIRBuilder::emitReadonlyOperation(
       tc.emit<LoadField>(
           func_mask_reg, func, "readonly_mask", kFunctionMaskOffset, TCUInt64);
 
-      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, kArgTupleMaskIndex);
-      uint64_t call_mask = PyLong_AsUnsignedLong(call_mask_obj);
-      Register* call_mask_reg = temps_.AllocateStack();
-      tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(call_mask, TCUInt64));
-
+      // if method and non-method masks are the same, previous blocks will skip
+      // loading the mask. Therefore load the mask here
+      if (!call_mask_change) {
+        tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(call_mask, TCUInt64));
+      }
       Register* args[] = {func, func_mask_reg, call_mask_reg};
       constexpr int kNumArgs = sizeof(args) / sizeof(Register*);
       auto static_call = tc.emit<CallStaticRetVoid>(
@@ -2845,7 +2905,7 @@ void HIRBuilder::emitReadonlyOperation(
     case READONLY_BINARY_XOR:
     case READONLY_BINARY_AND: {
       PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      assert(mask != nullptr);
+      JIT_CHECK(mask != nullptr, "mask is nullptr");
       emitReadonlyBinaryOp(tc, op, PyLong_AsUnsignedLongLong(mask));
       break;
     }
@@ -2854,7 +2914,7 @@ void HIRBuilder::emitReadonlyOperation(
     case READONLY_UNARY_POSITIVE:
     case READONLY_UNARY_NOT: {
       PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      assert(mask != nullptr);
+      JIT_CHECK(mask != nullptr, "mask is nullptr");
       emitReadonlyUnaryOp(tc, op, PyLong_AsUnsignedLongLong(mask));
       break;
     }

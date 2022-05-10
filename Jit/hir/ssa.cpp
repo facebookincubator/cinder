@@ -662,7 +662,7 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
       JIT_CHECK(!instr.IsPhi(), "SSAify does not support Phis in its input");
       instr.visitUses([&](Register*& reg) {
         JIT_CHECK(
-            reg != nullptr, "Instructions should not have nullptr operands.")
+            reg != nullptr, "Instructions should not have nullptr operands.");
         reg = getDefine(ssablock, reg);
         return true;
       });

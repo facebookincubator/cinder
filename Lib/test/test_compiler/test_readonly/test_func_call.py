@@ -1,5 +1,3 @@
-import unittest
-
 from .common import ReadonlyTestBase
 
 
@@ -207,11 +205,41 @@ class FuncCallTests(ReadonlyTestBase):
         @readonly_func
         def f():
             c: Readonly[C] = C()
-            t = c.g(1, 2, 3)
+            t = c.g(1, readonly(2), 3)
             return t
         """
         with self.assertImmutableErrors(
             [(4, "Passing a readonly variable to Argument 0, which is mutable.", (0,))]
+        ):
+            self._compile_and_run(code, "f")
+
+    def test_fake_method_call_ok(self) -> None:
+        code = """
+        class C:
+            @readonly_func
+            @staticmethod
+            def g(a, b: Readonly[int]):
+                return 1
+        @readonly_func
+        def f():
+            readonly(C()).g(1, 2)
+        """
+        with self.assertNoImmutableErrors():
+            self._compile_and_run(code, "f")
+
+    def test_fake_method_call_fail(self) -> None:
+        code = """
+        class C:
+            @readonly_func
+            @staticmethod
+            def g(a, b):
+                return 1
+        @readonly_func
+        def f():
+            C().g(1, readonly(2))
+        """
+        with self.assertImmutableErrors(
+            [(4, "Passing a readonly variable to Argument 1, which is mutable.", (1,))]
         ):
             self._compile_and_run(code, "f")
 

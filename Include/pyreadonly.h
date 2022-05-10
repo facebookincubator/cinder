@@ -27,6 +27,10 @@ extern "C" {
   ((x) & ~(PYFUNCTION_READONLY_FUNC_MASK | PYFUNCTION_READONLY_NONLOCAL_MASK | \
            PYFUNCTION_RETURNS_READONLY | PYFUNCTION_YIELDS_READONLY_MASK |     \
            PYFUNCTION_SENDS_READONLY_MASK))
+#define GET_NONARG_READONLY_MASK(x)                                           \
+  ((x) & (PYFUNCTION_READONLY_FUNC_MASK | PYFUNCTION_READONLY_NONLOCAL_MASK | \
+           PYFUNCTION_RETURNS_READONLY | PYFUNCTION_YIELDS_READONLY_MASK |    \
+           PYFUNCTION_SENDS_READONLY_MASK))
 
 // This is disabled for now until we can get proper performance measurements
 // done to verify the size of the regression.
