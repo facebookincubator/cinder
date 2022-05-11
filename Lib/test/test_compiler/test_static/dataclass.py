@@ -914,7 +914,7 @@ class DataclassTests(StaticTestBase):
             codestr, "Cannot overwrite attribute __hash__ in class C", at="dataclass"
         )
 
-    def test_unsafe_hash_cannot_overwrite_explicit_hash(self) -> None:
+    def test_unsafe_hash_uses_tuple_hash(self) -> None:
         codestr = """
         from __static__ import dataclass
 
@@ -1354,3 +1354,59 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.c.x, 42)
+
+    def test_comparisons_and_hash_with_field_compare_false(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass(frozen=True, order=True)
+        class C:
+            x: int
+            y: int = field(compare=False)
+            z: int
+
+        c1 = C(1, 2, 3)
+        c2 = C(1, 4, 3)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.c1 == mod.c2)
+            self.assertFalse(mod.c1 < mod.c2)
+            self.assertTrue(mod.c1 <= mod.c2)
+            self.assertFalse(mod.c1 > mod.c2)
+            self.assertTrue(mod.c1 >= mod.c2)
+
+            self.assertEqual(hash(mod.c1), hash((1, 3)))
+            self.assertEqual(hash(mod.c2), hash((1, 3)))
+
+    def test_hash_with_field_hash_false(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass(frozen=True)
+        class C:
+            x: int
+            y: int = field(hash=False)
+            z: int
+
+        c = C(1, 2, 3)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(hash(mod.c), hash((1, 3)))
+
+    def test_repr_with_field_repr_false(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int
+            y: int = field(repr=False)
+            z: int
+
+        c = C(1, 2, 3)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertRegex(repr(mod.c), r"C\(x=1, z=3\)")

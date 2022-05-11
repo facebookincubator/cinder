@@ -4868,6 +4868,7 @@ class DataclassField(Object[DataclassFieldType]):
         self.compare = compare
         self.metadata = metadata
         self.kind: DataclassFieldKind = DataclassFieldKind.FIELD
+        self.base_class: Optional[Dataclass] = None
 
         if type_ref is not None:
             wrapper = type(type_ref.resolved(True))
@@ -4889,6 +4890,11 @@ class DataclassField(Object[DataclassFieldType]):
     def type_annotation(self) -> str:
         assert self.type_ref is not None
         return to_expr(self.type_ref._ref)
+
+    @property
+    def type_descr(self) -> TypeDescr:
+        assert self.base_class is not None
+        return (*self.base_class.type_descr, self.field_name)
 
     @property
     def _unwrapped_type(self) -> Class:
@@ -4987,21 +4993,14 @@ class Dataclass(Class):
         self.unsafe_hash = unsafe_hash
         self.frozen = frozen
 
-        self.fields: List[DataclassField] = []
-        self.field_map: Dict[str, DataclassField] = {}
-        self.field_slots: List[Slot[Class]] = [
-            val
-            for name, val in self.members.items()
-            if isinstance(val, Slot) and val.declared_on_class
-        ]
-        self.field_names: List[str] = [slot.slot_name for slot in self.field_slots]
+        self.fields: Dict[str, DataclassField] = {}
 
         # Fields that are passed as arguments to __init__,
         # where field.kind is FIELD or INITVAR and field.init is True
-        self.init_fields: List[DataclassField] = []
+        self.init_fields: Dict[str, DataclassField] = {}
 
         # Fields where field.kind is FIELD
-        self.true_fields: List[DataclassField] = []
+        self.true_fields: Dict[str, DataclassField] = {}
 
         if order:
             if not eq:
@@ -5049,15 +5048,17 @@ class Dataclass(Class):
         raise TypedSyntaxError("Cannot subclass static dataclasses")
 
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
-        for slot in self.field_slots:
-            field = DataclassField(
+        for name, slot in self.members.items():
+            if not isinstance(slot, Slot) or not slot.declared_on_class:
+                continue
+
+            self.fields[name] = field = DataclassField(
                 self.type_env.dataclass_field,
-                slot.slot_name,
+                name,
                 slot.type_ref,
             )
 
-            self.fields.append(field)
-            self.field_map[slot.slot_name] = field
+            field.base_class = self
 
             if not slot.assigned_on_class:
                 continue
@@ -5116,14 +5117,16 @@ class Dataclass(Class):
                 slot.assignment = None
                 slot.assigned_on_class = False
 
-        self.init_fields = [
-            field
-            for field in self.fields
+        self.init_fields = {
+            name: field
+            for name, field in self.fields.items()
             if field.kind is not DataclassFieldKind.CLASSVAR and field.init
-        ]
-        self.true_fields = [
-            field for field in self.fields if field.kind is DataclassFieldKind.FIELD
-        ]
+        }
+        self.true_fields = {
+            name: field
+            for name, field in self.fields.items()
+            if field.kind is DataclassFieldKind.FIELD
+        }
 
         if self.init:
             init_params = [
@@ -5133,23 +5136,23 @@ class Dataclass(Class):
             ]
 
             seen_default = False
-            for field in self.init_fields:
+            for name, field in self.init_fields.items():
                 if has_default := field.has_default:
                     seen_default = True
                 elif seen_default:
                     raise TypedSyntaxError(
-                        f"non-default argument {field.field_name} follows default argument"
+                        f"non-default argument {name} follows default argument"
                     )
 
                 if field.default is not None:
-                    default = ast.Name(field.field_name, ast.Load())
+                    default = ast.Name(name, ast.Load())
                 elif field.default_factory is not None:
                     default = ast.Name("_HAS_DEFAULT_FACTORY", ast.Load())
                 else:
                     default = None
                 init_params.append(
                     Parameter(
-                        field.field_name,
+                        name,
                         len(init_params),
                         field.unwrapped_ref,
                         has_default,
@@ -5180,7 +5183,7 @@ class Dataclass(Class):
 
         visitor.visitExpectedType(assignment, self.type_env.DYNAMIC)
 
-        field = self.field_map[name]
+        field = self.fields[name]
         field.bind_field(visitor)
         if isinstance(visitor.get_type(assignment), DataclassField):
             visitor.set_type(assignment, field)
@@ -5212,13 +5215,16 @@ class Dataclass(Class):
         code_gen.emit("STORE_NAME", graph.name)
 
     def emit_dunder_comparison(
-        self, code_gen: Static38CodeGenerator, method_name: str, op: str
+        self,
+        code_gen: Static38CodeGenerator,
+        fields: List[DataclassField],
+        method_name: str,
+        op: str,
     ) -> None:
         graph = self.flow_graph(code_gen, method_name, ("self", "other"))
         false = graph.newBlock()
 
-        inexact_descr = self.inexact_type().type_descr
-        graph.emit("CHECK_ARGS", (0, inexact_descr))
+        graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_FAST", "other")
         graph.emit("LOAD_TYPE")
         graph.emit("LOAD_FAST", "self")
@@ -5226,16 +5232,16 @@ class Dataclass(Class):
         graph.emit("COMPARE_OP", "is")
         graph.emit("POP_JUMP_IF_FALSE", false)
 
-        for name in self.field_names:
+        for field in fields:
             graph.emit("LOAD_FAST", "self")
-            graph.emit("LOAD_FIELD", (*inexact_descr, name))
-        graph.emit("BUILD_TUPLE", len(self.field_names))
+            graph.emit("LOAD_FIELD", field.type_descr)
+        graph.emit("BUILD_TUPLE", len(fields))
 
         # Since Py_TYPE(self) is Py_TYPE(other), we can depend on slots
-        for name in self.field_names:
+        for field in fields:
             graph.emit("LOAD_FAST", "other")
-            graph.emit("LOAD_FIELD", (*inexact_descr, name))
-        graph.emit("BUILD_TUPLE", len(self.field_names))
+            graph.emit("LOAD_FIELD", field.type_descr)
+        graph.emit("BUILD_TUPLE", len(fields))
 
         graph.emit("COMPARE_OP", op)
         graph.emit("RETURN_VALUE")
@@ -5275,7 +5281,7 @@ class Dataclass(Class):
 
         graph.nextBlock()
         graph.emit("LOAD_FAST", "name")
-        graph.emit("LOAD_CONST", tuple(self.field_names))
+        graph.emit("LOAD_CONST", tuple(self.true_fields))
         graph.emit("COMPARE_OP", "in")
         graph.emit("POP_JUMP_IF_FALSE", super_call)
 
@@ -5308,15 +5314,18 @@ class Dataclass(Class):
 
     def emit_dunder_hash(self, code_gen: Static38CodeGenerator) -> None:
         graph = self.flow_graph(code_gen, "__hash__", ("self",))
-        inexact_descr = self.inexact_type().type_descr
-        graph.emit("CHECK_ARGS", (0, inexact_descr))
+        graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_GLOBAL", "hash")
 
-        if self.field_names:
-            for name in self.field_names:
+        num_hash_fields = 0
+        for field in self.true_fields.values():
+            if field.compare if field.hash is None else field.hash:
                 graph.emit("LOAD_FAST", "self")
-                graph.emit("LOAD_FIELD", (*inexact_descr, name))
-            graph.emit("BUILD_TUPLE", len(self.field_names))
+                graph.emit("LOAD_FIELD", field.type_descr)
+                num_hash_fields += 1
+
+        if num_hash_fields:
+            graph.emit("BUILD_TUPLE", num_hash_fields)
         else:
             graph.emit("LOAD_CONST", ())
 
@@ -5326,29 +5335,27 @@ class Dataclass(Class):
         self.emit_method(code_gen, graph, 0)
 
     def emit_dunder_init(self, code_gen: Static38CodeGenerator) -> None:
-        self_name = "__dataclass_self__" if "self" in self.field_names else "self"
+        self_name = "__dataclass_self__" if "self" in self.fields else "self"
 
         graph = self.flow_graph(
             code_gen,
             "__init__",
-            args=(self_name, *[field.field_name for field in self.init_fields]),
+            args=(self_name, *self.init_fields),
         )
 
-        inexact_descr = self.inexact_type().type_descr
-        args = [0, inexact_descr]
-        for i, field in enumerate(self.init_fields):
+        args = [0, self.inexact_type().type_descr]
+        for i, field in enumerate(self.init_fields.values()):
             if field.default_factory is None:
                 args.append(i + 1)
                 args.append(field.unwrapped_descr)
         graph.emit("CHECK_ARGS", tuple(args))
 
-        for field in self.true_fields:
-            name = field.field_name
+        for name, field in self.true_fields.items():
             if field.default_factory is None:
                 if field.init:
                     graph.emit("LOAD_FAST", name)
                     graph.emit("LOAD_FAST", self_name)
-                    graph.emit("STORE_FIELD", (*inexact_descr, name))
+                    graph.emit("STORE_FIELD", field.type_descr)
             elif field.init:
                 arg_passed = graph.newBlock()
                 store = graph.newBlock()
@@ -5370,19 +5377,19 @@ class Dataclass(Class):
 
                 graph.nextBlock(store)
                 graph.emit("LOAD_FAST", self_name)
-                graph.emit("STORE_FIELD", (*inexact_descr, name))
+                graph.emit("STORE_FIELD", field.type_descr)
             else:
                 graph.emit("LOAD_GLOBAL", self.type_name.name)
                 graph.emit("LOAD_METHOD", name)
                 graph.emit("CALL_METHOD", 0)
                 graph.emit("CAST", field.unwrapped_descr)
                 graph.emit("LOAD_FAST", self_name)
-                graph.emit("STORE_FIELD", (*inexact_descr, name))
+                graph.emit("STORE_FIELD", field.type_descr)
 
         if "__post_init__" in self.wrapped_class.members:
             initvar_names = [
-                field.field_name
-                for field in self.fields
+                name
+                for name, field in self.fields.items()
                 if field.kind is DataclassFieldKind.INITVAR
             ]
             graph.emit("LOAD_FAST", self_name)
@@ -5395,39 +5402,42 @@ class Dataclass(Class):
         graph.emit("LOAD_CONST", None)
         graph.emit("RETURN_VALUE")
 
-        defaults = [field for field in self.init_fields if field.has_default]
-        if defaults:
-            for field in defaults:
-                if field.default is not None:
-                    code_gen.emit("LOAD_NAME", field.field_name)
-                else:
-                    assert field.default_factory is not None
-                    code_gen.emit("LOAD_NAME", "_HAS_DEFAULT_FACTORY")
-            code_gen.emit("BUILD_TUPLE", len(defaults))
+        num_defaults = 0
+        for name, field in self.init_fields.items():
+            if field.default is not None:
+                num_defaults += 1
+                code_gen.emit("LOAD_NAME", name)
+            elif field.default_factory is not None:
+                num_defaults += 1
+                code_gen.emit("LOAD_NAME", "_HAS_DEFAULT_FACTORY")
 
+        if num_defaults:
+            code_gen.emit("BUILD_TUPLE", num_defaults)
             self.emit_method(code_gen, graph, 1)
         else:
             self.emit_method(code_gen, graph, 0)
 
     def emit_dunder_repr(self, code_gen: Static38CodeGenerator) -> None:
         graph = self.flow_graph(code_gen, "__repr__", ("self",))
+        graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_FAST", "self")
         graph.emit("LOAD_TYPE")
         graph.emit("LOAD_ATTR", "__qualname__")
         graph.emit("REFINE_TYPE", self.type_env.str.type_descr)
 
-        if not self.fields:
-            graph.emit("LOAD_CONST", "()")
-        else:
-            inexact_descr = self.inexact_type().type_descr
-            for i, name in enumerate(self.field_names):
-                graph.emit("LOAD_CONST", f", {name}=" if i else f"({name}=")
+        num_repr_fields = 0
+        for name, field in self.true_fields.items():
+            if field.repr:
+                graph.emit(
+                    "LOAD_CONST", f", {name}=" if num_repr_fields else f"({name}="
+                )
                 graph.emit("LOAD_FAST", "self")
-                graph.emit("LOAD_FIELD", (*inexact_descr, name))
+                graph.emit("LOAD_FIELD", field.type_descr)
                 graph.emit("FORMAT_VALUE", FVC_REPR)
-            graph.emit("LOAD_CONST", ")")
+                num_repr_fields += 1
 
-        graph.emit("BUILD_STRING", 2 + 2 * len(self.fields))
+        graph.emit("LOAD_CONST", ")" if num_repr_fields else "()")
+        graph.emit("BUILD_STRING", 2 + 2 * num_repr_fields)
         graph.emit("RETURN_VALUE")
 
         # Wrap the simple __repr__ function with reprlib.recursive_repr
@@ -5448,13 +5458,14 @@ class Dataclass(Class):
         # import objects needed from dataclasses and store them on the class
         from_names: List[str] = ["_DataclassParams", "_FIELD", "field"]
         as_names: List[str] = ["_DataclassParams", "_FIELD", "_field"]
-        if any(field.kind is DataclassFieldKind.CLASSVAR for field in self.fields):
+        field_values = self.fields.values()
+        if any(field.kind is DataclassFieldKind.CLASSVAR for field in field_values):
             from_names.append("_FIELD_CLASSVAR")
             as_names.append("_FIELD_CLASSVAR")
-        if any(field.kind is DataclassFieldKind.INITVAR for field in self.fields):
+        if any(field.kind is DataclassFieldKind.INITVAR for field in field_values):
             from_names.append("_FIELD_INITVAR")
             as_names.append("_FIELD_INITVAR")
-        if any(field.default_factory is not None for field in self.fields):
+        if any(field.default_factory is not None for field in field_values):
             from_names.append("_HAS_DEFAULT_FACTORY")
             as_names.append("_HAS_DEFAULT_FACTORY")
         if self.frozen:
@@ -5470,17 +5481,17 @@ class Dataclass(Class):
         code_gen.emit("POP_TOP")
 
         # set __dataclass_fields__
-        for field in self.fields:
+        for name, field in self.fields.items():
             code_gen.emit("LOAD_NAME", "_field")
             field_args = []
 
             # <class>.<field> contains the default or default_factory, if one exists
             if field.default is not None:
-                code_gen.emit("LOAD_NAME", field.field_name)
+                code_gen.emit("LOAD_NAME", name)
                 field_args.append("default")
 
             if field.default_factory is not None:
-                code_gen.emit("LOAD_NAME", field.field_name)
+                code_gen.emit("LOAD_NAME", name)
                 field_args.append("default_factory")
 
             if not field.init:
@@ -5510,7 +5521,7 @@ class Dataclass(Class):
                 code_gen.emit("CALL_FUNCTION", 0)
 
             code_gen.emit("DUP_TOP")
-            code_gen.emit("LOAD_CONST", field.field_name)
+            code_gen.emit("LOAD_CONST", name)
             code_gen.emit("ROT_TWO")
             code_gen.emit("STORE_ATTR", "name")
 
@@ -5529,7 +5540,7 @@ class Dataclass(Class):
             code_gen.emit("ROT_TWO")
             code_gen.emit("STORE_ATTR", "_field_type")
 
-        code_gen.emit("LOAD_CONST", tuple(self.field_names))
+        code_gen.emit("LOAD_CONST", tuple(self.fields))
         code_gen.emit("BUILD_CONST_KEY_MAP", len(self.fields))
         code_gen.emit("STORE_NAME", "__dataclass_fields__")
 
@@ -5550,14 +5561,15 @@ class Dataclass(Class):
         if self.generate_repr:
             self.emit_dunder_repr(code_gen)
 
+        compare_fields = [field for field in self.true_fields.values() if field.compare]
         if self.generate_eq:
-            self.emit_dunder_comparison(code_gen, "__eq__", "==")
+            self.emit_dunder_comparison(code_gen, compare_fields, "__eq__", "==")
 
         if self.order:
-            self.emit_dunder_comparison(code_gen, "__lt__", "<")
-            self.emit_dunder_comparison(code_gen, "__le__", "<=")
-            self.emit_dunder_comparison(code_gen, "__gt__", ">")
-            self.emit_dunder_comparison(code_gen, "__ge__", ">=")
+            self.emit_dunder_comparison(code_gen, compare_fields, "__lt__", "<")
+            self.emit_dunder_comparison(code_gen, compare_fields, "__le__", "<=")
+            self.emit_dunder_comparison(code_gen, compare_fields, "__gt__", ">")
+            self.emit_dunder_comparison(code_gen, compare_fields, "__ge__", ">=")
 
         if self.frozen:
             self.emit_dunder_delattr_or_setattr(code_gen, delete=False)
@@ -5594,7 +5606,7 @@ class DataclassInstance(Object[Dataclass]):
         if (
             self.klass.frozen
             and (store or delete)
-            and any(field.field_name == node.attr for field in self.klass.fields)
+            and any(name == node.attr for name in self.klass.fields)
         ):
             msg = "assign to" if store else "delete"
             visitor.syntax_error(
