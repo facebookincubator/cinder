@@ -612,6 +612,7 @@ class StaticTestsStrictModuleLoader:
         _allow_list: List[str],
         _allow_list_exact: List[str],
         _load_strictmod_builtin: bool = True,
+        _allow_list_regex: List[str] | None = None,
         /,
     ) -> None:
         pass

@@ -64,18 +64,21 @@ class Compiler(StaticCompiler):
         enable_patching: bool = False,
         loader_factory: StrictModuleLoaderFactory = StrictModuleLoader,
         use_py_compiler: bool = False,
+        allow_list_regex: Optional[Iterable[str]] = None,
     ) -> None:
         super().__init__(StaticCodeGenerator)
         self.import_path: List[str] = list(import_path)
         self.stub_root = stub_root
         self.allow_list_prefix = allow_list_prefix
         self.allow_list_exact = allow_list_exact
+        self.allow_list_regex: Iterable[str] = allow_list_regex or []
         self.loader: IStrictModuleLoader = loader_factory(
             self.import_path,
             str(stub_root),
             list(allow_list_prefix),
             list(allow_list_exact),
             True,
+            list(self.allow_list_regex),
         )
         self.raise_on_error = raise_on_error
         self.log_time_func = log_time_func

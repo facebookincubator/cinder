@@ -69,6 +69,21 @@ int StrictModuleChecker_SetAllowListExact(
   return success ? 0 : -1;
 }
 
+int StrictModuleChecker_SetAllowListRegex(
+    StrictModuleChecker* checker,
+    const char* allowList[],
+    int length) {
+  std::vector<std::string> allowListVec;
+  allowListVec.reserve(length);
+  for (int _i = 0; _i < length; _i++) {
+    allowListVec.emplace_back(allowList[_i]);
+  }
+  auto loader = reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  bool success = loader->setAllowListRegex(allowListVec);
+  return success ? 0 : -1;
+}
+
+
 int StrictModuleChecker_LoadStrictModuleBuiltins(StrictModuleChecker* checker) {
   auto loader = reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
   bool success = loader->loadStrictModuleModule();

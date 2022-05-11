@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <memory>
+#include <regex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -152,6 +153,7 @@ class ModuleLoader {
   bool clearAllowList();
   bool setAllowListPrefix(std::vector<std::string> allowList);
   bool setAllowListExact(std::vector<std::string> allowList);
+  bool setAllowListRegex(std::vector<std::string> allowList);
 
   int getAnalyzedModuleCount() const;
 
@@ -181,6 +183,7 @@ class ModuleLoader {
   std::optional<ForceStrictFunc> forceStrict_;
   ErrorSinkFactory errorSinkFactory_;
   std::unordered_set<std::unique_ptr<AnalyzedModule>> deletedModules_;
+  std::vector<std::regex> allowListRegexes_;
 
   AnalyzedModule* analyze(std::unique_ptr<ModuleInfo> modInfo);
   bool isAllowListed(const std::string& modName);

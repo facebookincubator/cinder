@@ -13,6 +13,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <regex>
 #include <optional>
 
 namespace strictmod::compiler {
@@ -309,6 +310,18 @@ bool ModuleLoader::setAllowListExact(std::vector<std::string> allowList) {
   return true;
 }
 
+bool ModuleLoader::setAllowListRegex(std::vector<std::string> allowList) {
+  for (const std::string& regex : allowList) {
+    try {
+      allowListRegexes_.emplace_back(regex);
+    }
+    catch (const std::regex_error&) {
+      return -1;
+    }
+  }
+  return true;
+}
+
 AnalyzedModule* ModuleLoader::loadModuleFromSource(
     const std::string& source,
     const std::string& name,
@@ -573,6 +586,11 @@ bool ModuleLoader::isAllowListed(const std::string& modName) {
       case AllowListKind::kExact: {
         continue;
       }
+    }
+  }
+  for (const auto& re : allowListRegexes_) {
+    if (std::regex_search(modName, re)) {
+      return true;
     }
   }
   return false;

@@ -274,15 +274,17 @@ static int StrictModuleLoaderObject_init(
   PyObject* allow_list_obj;
   PyObject* allow_list_exact_obj;
   PyObject* load_strictmod_builtin;
+  PyObject* allow_list_regex_obj = nullptr;
   load_strictmod_builtin = Py_True;
   if (!PyArg_ParseTuple(
           args,
-          "OOOO|O",
+          "OOOO|OO",
           &import_paths_obj,
           &stub_import_path_obj,
           &allow_list_obj,
           &allow_list_exact_obj,
-          &load_strictmod_builtin)) {
+          &load_strictmod_builtin,
+          &allow_list_regex_obj)) {
     return -1;
   }
 
@@ -357,6 +359,23 @@ static int StrictModuleLoaderObject_init(
         PyExc_RuntimeError,
         "failed to set allowlist on StrictModuleLoader object");
     return -1;
+  }
+
+  if (allow_list_regex_obj != nullptr) {
+    Py_ssize_t allow_list_regex_size = PyList_GET_SIZE(allow_list_regex_obj);
+    const char* allow_list_regex_arr[allow_list_regex_size];
+    if (PyListToCharArray(
+          allow_list_regex_obj, allow_list_regex_arr, allow_list_regex_size) <
+        0) {
+      return -1;
+    }
+    if (StrictModuleChecker_SetAllowListRegex(
+            self->checker, allow_list_regex_arr, allow_list_regex_size) < 0) {
+      PyErr_SetString(
+           PyExc_RuntimeError,
+          "failed to set the regex allowlist on StrictModuleLoader object");
+      return -1;
+    }
   }
 
   // stub paths

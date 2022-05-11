@@ -187,6 +187,8 @@ class StrictSourceFileLoader(SourceFileLoader):
         ] = None,
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]] = None,
         use_py_compiler: bool = False,
+        # The regexes are parsed on the C++ side, so re.Pattern is not accepted.
+        allow_list_regex: Optional[Iterable[str]] = None,
     ) -> None:
         self.name = fullname
         self.path = path
@@ -201,6 +203,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         self.stub_path: str = stub_path
         self.allow_list_prefix: Iterable[str] = allow_list_prefix or []
         self.allow_list_exact: Iterable[str] = allow_list_exact or []
+        self.allow_list_regex: Iterable[str] = allow_list_regex or []
         self.enable_patching = enable_patching
         self.log_source_load: Optional[
             Callable[[str, Optional[str], bool], None]
@@ -221,6 +224,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         allow_list_exact: Iterable[str],
         log_time_func: Optional[Callable[[], TIMING_LOGGER_TYPE]],
         enable_patching: bool = False,
+        allow_list_regex: Optional[Iterable[str]] = None,
     ) -> Compiler:
         if (comp := cls.compiler) is None:
             comp = cls.compiler = Compiler(
@@ -231,6 +235,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 raise_on_error=True,
                 log_time_func=log_time_func,
                 enable_patching=enable_patching,
+                allow_list_regex=allow_list_regex or [],
             )
         return comp
 
@@ -306,6 +311,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 self.allow_list_exact,
                 self.log_time_func,
                 self.enable_patching,
+                self.allow_list_regex,
             ).load_compiled_module_from_source(
                 data,
                 path,

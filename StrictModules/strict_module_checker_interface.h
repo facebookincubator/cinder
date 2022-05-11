@@ -55,6 +55,11 @@ int StrictModuleChecker_SetAllowListExact(
     const char* allowList[],
     int length);
 
+int StrictModuleChecker_SetAllowListRegex(
+    StrictModuleChecker* checker,
+    const char* allowList[],
+    int length);
+
 int StrictModuleChecker_LoadStrictModuleBuiltins(StrictModuleChecker* checker);
 
 void StrictModuleChecker_Free(StrictModuleChecker* checker);

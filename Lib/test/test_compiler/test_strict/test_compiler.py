@@ -17,10 +17,16 @@ class CompilerTests(StrictTestBase):
         allow_list_prefix: Optional[Sequence[str]] = None,
         stub_root: str = DEFAULT_STUB_PATH,
         forced_strict_name: Optional[str] = None,
+        allow_list_regex: Optional[Sequence[str]] = None,
     ) -> StrictAnalysisResult:
         code = dedent(code)
         compiler = StrictModuleLoader(
-            import_path or [], stub_root, allow_list_prefix or [], [], True
+            import_path or [],
+            stub_root,
+            allow_list_prefix or [],
+            [],
+            True,
+            allow_list_regex or [],
         )
 
         if forced_strict_name is not None:
@@ -82,6 +88,28 @@ class CompilerTests(StrictTestBase):
             """
             m = self.analyze(
                 code, import_path=[str(sbx.root)], allow_list_prefix=["b.a", "b"]
+            )
+            self.assertTrue(m.is_valid)
+            self.assertEqual(m.errors, [])
+
+    def test_allowlist_regex_stub_qualified_access(self) -> None:
+        with sandbox() as sbx:
+            sbx.write_file(
+                "matchme/a.py",
+                """
+                class C:
+                    x = 1
+                """,
+            )
+            code = """
+            import __strict__
+            import matchme.a
+            x = matchme.a.C.x
+            """
+            m = self.analyze(
+                code,
+                import_path=[str(sbx.root)],
+                allow_list_regex=[".*match.*"],
             )
             self.assertTrue(m.is_valid)
             self.assertEqual(m.errors, [])

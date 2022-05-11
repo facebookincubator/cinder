@@ -56,9 +56,10 @@ class StrictModuleLoader(IStrictModuleLoader):
         _allow_list: List[str],
         _allow_list_exact: List[str],
         _load_strictmod_builtin: bool = True,
+        _allow_list_regex: List[str] | None = None,
         /,
     ) -> None: ...
 
 StrictModuleLoaderFactory = Callable[
-    [List[str], str, List[str], List[str], bool], IStrictModuleLoader
+    [List[str], str, List[str], List[str], bool, List[str]], IStrictModuleLoader
 ]
