@@ -254,6 +254,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
                         call = ast.Call(load, [], [])
                         call.lineno = line_node.lineno
                         call.col_offset = line_node.col_offset
+                        self.binder.visitCall(call)
                         return call
 
                     node.args.append(call_function(node.args[0], "globals"))
@@ -456,6 +457,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         self.feature_extractor.scopes[func] = scope
         self.scopes[func] = scope
 
+        self.binder.visitFunctionDef(func)
         self.visitFunctionDef(func)
 
     def emit_globals_function(self) -> None:
