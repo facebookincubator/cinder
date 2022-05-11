@@ -62,6 +62,8 @@ int StrictModuleChecker_SetAllowListRegex(
 
 int StrictModuleChecker_LoadStrictModuleBuiltins(StrictModuleChecker* checker);
 
+int StrictModuleChecker_EnableVerboseLogging(StrictModuleChecker* checker);
+
 void StrictModuleChecker_Free(StrictModuleChecker* checker);
 
 /** Return the analyzed module

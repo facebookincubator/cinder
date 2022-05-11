@@ -62,5 +62,5 @@ class StrictModuleLoader(IStrictModuleLoader):
     ) -> None: ...
 
 StrictModuleLoaderFactory = Callable[
-    [List[str], str, List[str], List[str], bool, List[str]], IStrictModuleLoader
+    [List[str], str, List[str], List[str], bool, List[str], bool], IStrictModuleLoader
 ]

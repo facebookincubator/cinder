@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import ast
 import builtins
+import os
+import sys
 from contextlib import nullcontext
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
 from types import CodeType
@@ -72,13 +74,18 @@ class Compiler(StaticCompiler):
         self.allow_list_prefix = allow_list_prefix
         self.allow_list_exact = allow_list_exact
         self.allow_list_regex: Iterable[str] = allow_list_regex or []
+        self.verbose = bool(
+            os.getenv("PYTHONSTRICTVERBOSE")
+            or sys._xoptions.get("strict-verbose") is True
+        )
         self.loader: IStrictModuleLoader = loader_factory(
             self.import_path,
             str(stub_root),
             list(allow_list_prefix),
             list(allow_list_exact),
-            True,
+            True,  # _load_strictmod_builtin
             list(self.allow_list_regex),
+            self.verbose,  # _verbose_logging
         )
         self.raise_on_error = raise_on_error
         self.log_time_func = log_time_func

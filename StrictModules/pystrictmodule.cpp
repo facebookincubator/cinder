@@ -403,6 +403,18 @@ static int StrictModuleLoaderObject_init(
   }
 
   // load strict module builtins
+  int should_enable_verbose_logging = PyObject_IsTrue(verbose_logging);
+  if (should_enable_verbose_logging < 0) {
+    PyErr_SetString(
+        PyExc_RuntimeError,
+        "error checking 'verbose_logging' on StrictModuleLoader");
+    return -1;
+  }
+  if (should_enable_verbose_logging) {
+    StrictModuleChecker_EnableVerboseLogging(self->checker);
+  }
+
+  // load strict module builtins
   int should_load = PyObject_IsTrue(load_strictmod_builtin);
   if (should_load < 0) {
     PyErr_SetString(
