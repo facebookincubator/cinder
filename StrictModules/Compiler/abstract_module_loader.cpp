@@ -4,9 +4,7 @@
 #include "StrictModules/Compiler/analyzed_module.h"
 #include "StrictModules/Compiler/module_info.h"
 #include "StrictModules/Compiler/stub.h"
-
 #include "StrictModules/Objects/objects.h"
-
 #include "StrictModules/analyzer.h"
 #include "StrictModules/parser_util.h"
 #include "StrictModules/symbol_table.h"
@@ -336,6 +334,7 @@ AnalyzedModule* ModuleLoader::loadModuleFromSource(
     const std::string& name,
     const std::string& filename,
     std::vector<std::string> searchLocations) {
+  log("Loading module from source: %s", name.c_str());
   auto readResult = readFromSource(source, filename.c_str(), arena_);
   if (readResult) {
     AstAndSymbols& result = readResult.value();
@@ -494,6 +493,8 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   const std::string& name = moduleInfo.getModName();
   const std::string& filename = moduleInfo.getFilename();
 
+  log("Analyzing module: %s (from %s)", name.c_str(), filename.c_str());
+
   // if `name` already exist in `modules_`, do not override the existing one
   // but if there were no AST or filename is different, update the AST
   auto existingModIt = modules_.find(name);
@@ -509,6 +510,12 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
           existingMod->getModuleInfo().getFilename();
       const std::string& analyzedName =
           analyzedModule->getModuleInfo().getFilename();
+      log("Found a conflicting module! name=%s (from path=%s), "
+          "existingName=%s, existingPath=%s",
+          name.c_str(),
+          filename.c_str(),
+          existingName.c_str(),
+          analyzedName.c_str());
       existingMod->getErrorSink().error<ConflictingSourceException>(
           0, 0, analyzedName, "", name, existingName, analyzedName);
     }
@@ -633,12 +640,12 @@ bool ModuleLoader::enableVerboseLogging() {
   return true;
 }
 
-
 bool ModuleLoader::isModuleLoaded(const std::string& modName) {
   return modules_.find(modName) != modules_.end();
 }
 
-static std::optional<std::string> getParentModuleName(const std::string& modName) {
+static std::optional<std::string> getParentModuleName(
+    const std::string& modName) {
   size_t pos = modName.rfind('.');
   if (pos == std::string::npos) {
     return std::nullopt;

@@ -4,10 +4,9 @@
 #include "StrictModules/Compiler/abstract_module_loader.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
-#include "StrictModules/exceptions.h"
-
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
+#include "StrictModules/exceptions.h"
 #include "asdl.h"
 
 namespace strictmod {
@@ -821,10 +820,10 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
     // getting __name__ from creator may not be accurate.
     // But we probably don't care about __module__ being accurate
     iSetElement(
-      classDict,
-      context_.makeStr("__module__"),
-      context_.makeStr(modName_),
-      context_);
+        classDict,
+        context_.makeStr("__module__"),
+        context_.makeStr(modName_),
+        context_);
   }
 
   // Step 6, call metaclass with class name, bases, ns, and kwargs
@@ -1176,6 +1175,7 @@ AnalysisResult Analyzer::visitName(const expr_ty expr) {
   if (!value) {
     // TODO? decide whether to raise NameError or UnboundLocalError base on
     // declaration
+    log("%s: NameError (%s)", context_.filename.c_str(), nameStr);
     context_.raiseExceptionStr(
         NameErrorType(), "name {} is not defined", nameStr);
   }
@@ -1957,6 +1957,13 @@ void Analyzer::processUnhandledUserException(
       wrappedObject->getDisplayName(),
       std::move(args),
       exc.getCause());
+}
+
+template <typename... Args>
+void Analyzer::log(const char* fmt, Args... args) {
+  if (loader_) {
+    loader_->log(fmt, args...);
+  }
 }
 
 std::unique_ptr<Analyzer::ScopeT> Analyzer::scopeFactory(

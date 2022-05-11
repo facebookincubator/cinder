@@ -1,18 +1,17 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include <memory>
-#include <optional>
-
-#include "StrictModules/py_headers.h"
-
 #include "StrictModules/Objects/base_object.h"
 #include "StrictModules/Objects/dict_object.h"
 #include "StrictModules/ast_visitor.h"
 #include "StrictModules/caller_context.h"
 #include "StrictModules/error_sink.h"
+#include "StrictModules/py_headers.h"
 #include "StrictModules/scope.h"
 #include "StrictModules/sequence_map.h"
+
+#include <memory>
+#include <optional>
 
 namespace strictmod {
 namespace compiler {
@@ -89,6 +88,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       bool futureAnnotations = false);
 
   void analyze();
+  void log();
   void analyzeFunction(
       std::vector<stmt_ty> body,
       SymtableEntry entry,
@@ -168,6 +168,9 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   static std::unique_ptr<ScopeT> scopeFactory(
       SymtableEntry entry,
       std::shared_ptr<DictType> map);
+
+  template <typename... Args>
+  void log(const char* fmt, Args... args);
 
  private:
   /* C ast is allocated by the CPython parser into a PyArena.

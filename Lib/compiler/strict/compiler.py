@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import logging
 import os
 import sys
 from contextlib import nullcontext
@@ -94,6 +95,7 @@ class Compiler(StaticCompiler):
         self.not_static: Set[str] = set()
         self.use_py_compiler = use_py_compiler
         self.original_builtins: Dict[str, object] = dict(__builtins__)
+        self.logger: logging.Logger = self._setup_logging()
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         res = self.modules.get(name)
@@ -140,6 +142,12 @@ class Compiler(StaticCompiler):
             builtins=self.original_builtins,
         )
 
+    def _setup_logging(self) -> logging.Logger:
+        logger = logging.Logger(__name__)
+        if self.verbose:
+            logger.setLevel(logging.DEBUG)
+        return logger
+
     def load_compiled_module_from_source(
         self,
         source: str | bytes,
@@ -151,6 +159,7 @@ class Compiler(StaticCompiler):
         force_strict: bool = False,
     ) -> Tuple[CodeType | None, bool]:
         if force_strict:
+            self.logger.debug(f"Forcibly treating module {name} as strict")
             self.loader.set_force_strict_by_name(name)
         mod = self.loader.check_source(
             source, filename, name, submodule_search_locations or []

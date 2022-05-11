@@ -169,6 +169,18 @@ class ModuleLoader {
     return arena_;
   }
 
+  void log(const char* format_string, ...) {
+    va_list args;
+    va_start(args, format_string);
+    if (verbose_) {
+      fprintf(stderr, "STRICT: %s:%d -- ", __FILE__, __LINE__); \
+      vfprintf(stderr, format_string, args);
+      fprintf(stderr, "\n"); \
+      fflush(stderr);
+    }
+    va_end(args);
+  }
+
  private:
   static const std::string kArenaNewErrorMsg;
   std::vector<std::string> importPath_;
