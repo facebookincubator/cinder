@@ -57,6 +57,7 @@ class StrictModuleLoader(IStrictModuleLoader):
         _allow_list_exact: List[str],
         _load_strictmod_builtin: bool = True,
         _allow_list_regex: List[str] | None = None,
+        _verbose_logs: bool = False,
         /,
     ) -> None: ...
 

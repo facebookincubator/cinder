@@ -276,15 +276,17 @@ static int StrictModuleLoaderObject_init(
   PyObject* load_strictmod_builtin;
   PyObject* allow_list_regex_obj = nullptr;
   load_strictmod_builtin = Py_True;
+  PyObject* verbose_logging = Py_False;
   if (!PyArg_ParseTuple(
           args,
-          "OOOO|OO",
+          "OOOO|OOO",
           &import_paths_obj,
           &stub_import_path_obj,
           &allow_list_obj,
           &allow_list_exact_obj,
           &load_strictmod_builtin,
-          &allow_list_regex_obj)) {
+          &allow_list_regex_obj,
+          &verbose_logging)) {
     return -1;
   }
 
@@ -313,6 +315,14 @@ static int StrictModuleLoaderObject_init(
     PyErr_Format(
         PyExc_TypeError,
         "stub_import_path is expect to be str, but got %S object",
+        stub_import_path_obj);
+    return -1;
+  }
+
+  if (!PyBool_Check(verbose_logging)) {
+    PyErr_Format(
+        PyExc_TypeError,
+        "verbose_logging is expect to be bool, but got %S object",
         stub_import_path_obj);
     return -1;
   }

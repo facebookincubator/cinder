@@ -90,6 +90,13 @@ int StrictModuleChecker_LoadStrictModuleBuiltins(StrictModuleChecker* checker) {
   return success ? 0 : -1;
 }
 
+int StrictModuleChecker_EnableVerboseLogging(StrictModuleChecker* checker) {
+  auto loader = reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
+  bool success = loader->enableVerboseLogging();
+  return success ? 0 : -1;
+}
+
+
 void StrictModuleChecker_Free(StrictModuleChecker* checker) {
   delete reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
 }

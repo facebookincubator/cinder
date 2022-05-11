@@ -628,6 +628,12 @@ bool ModuleLoader::loadStrictModuleModule() {
   return false;
 }
 
+bool ModuleLoader::enableVerboseLogging() {
+  verbose_ = true;
+  return true;
+}
+
+
 bool ModuleLoader::isModuleLoaded(const std::string& modName) {
   return modules_.find(modName) != modules_.end();
 }

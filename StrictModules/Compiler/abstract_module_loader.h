@@ -163,6 +163,7 @@ class ModuleLoader {
   bool loadStrictModuleModule();
 
   bool isModuleLoaded(const std::string& modName);
+  bool enableVerboseLogging();
 
   PyArena* getArena() {
     return arena_;
@@ -184,6 +185,7 @@ class ModuleLoader {
   ErrorSinkFactory errorSinkFactory_;
   std::unordered_set<std::unique_ptr<AnalyzedModule>> deletedModules_;
   std::vector<std::regex> allowListRegexes_;
+  bool verbose_ = false;
 
   AnalyzedModule* analyze(std::unique_ptr<ModuleInfo> modInfo);
   bool isAllowListed(const std::string& modName);
