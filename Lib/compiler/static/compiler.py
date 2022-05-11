@@ -261,7 +261,6 @@ class Compiler:
             # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
             "ord": reflect_builtin_function(ord, None, self.type_env),
             "pow": reflect_builtin_function(pow, None, self.type_env),
-            # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
             "print": reflect_builtin_function(print, None, self.type_env),
             # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
             "repr": reflect_builtin_function(repr, None, self.type_env),

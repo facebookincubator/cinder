@@ -346,7 +346,6 @@ class StrictSourceFileLoader(SourceFileLoader):
         # fix up the pyc path
         cached = getattr(module, "__cached__", None)
         if cached:
-            # pyre-ignore[16]: `ModuleType` has no attribute `__cached__`.
             module.__cached__ = cached = add_strict_tag(cached, self.enable_patching)
         spec: Optional[ModuleSpec] = module.__spec__
         if cached and spec and spec.cached:
@@ -405,9 +404,13 @@ def install() -> None:
 
     for index, hook in enumerate(sys.path_hooks):
         if not isinstance(hook, type):
+            # pyre-fixme[6]: For 1st param expected `Tuple[Type[Loader], List[str]]`
+            #  but got `Tuple[Loader, List[str]]`.
             sys.path_hooks.insert(index, FileFinder.path_hook(*supported_loaders))
             break
     else:
+        # pyre-fixme[6]: For 1st param expected `Tuple[Type[Loader], List[str]]` but
+        #  got `Tuple[Loader, List[str]]`.
         sys.path_hooks.insert(0, FileFinder.path_hook(*supported_loaders))
 
     # We need to clear the path_importer_cache so that our new FileFinder will
@@ -424,4 +427,4 @@ if __name__ == "__main__":
             "compiler.strict.loader should be used to run strict modules: "
             + type(mod).__name__
         )
-    mod.__main__()  # pyre-ignore[16]: `object` has no attribute `__main__`.
+    mod.__main__()

@@ -162,6 +162,7 @@ class AnnotationVisitor(ReferenceVisitor):
         if sval is None:
             return self.type_env.none
         elif isinstance(sval, str):
+            # pyre-fixme[22]: The cast is redundant.
             n = cast(Expression, ast.parse(node.value, "", "eval")).body
             return self.visit(n)
 

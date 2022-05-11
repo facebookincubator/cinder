@@ -35,6 +35,7 @@ class PyLimits:
     MAX_TOTAL_ITEMS = 1024
 
 
+# pyre-fixme[9]: UNARY_OPS has type `Mapping[Type[unaryop], typing.Callable[[object],...
 UNARY_OPS: Mapping[Type[ast.unaryop], Callable[[object], object]] = {
     ast.Invert: operator.invert,
     ast.Not: operator.not_,

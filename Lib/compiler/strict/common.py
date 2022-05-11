@@ -59,7 +59,7 @@ DEFAULT_STUB_PATH = os.path.dirname(__file__) + "/stubs"
 
 def make_fixed_modules() -> Mapping[str, Mapping[str, object]]:
     typing_members = {}
-    for name in typing.__all__:  # pyre-ignore[16]:
+    for name in typing.__all__:
         typing_members[name] = getattr(typing, name)
     strict_mod_members = {
         "freeze_type": freeze_type,
