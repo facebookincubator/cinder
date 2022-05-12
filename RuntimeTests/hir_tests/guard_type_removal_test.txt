@@ -120,8 +120,7 @@ fun test {
     v3 = LoadConst<CInt32[123]>
     v4 = IntBinaryOp<Add> v2 v3
     v5 = PrimitiveBox<CInt32> v4
-    v6 = CheckExc v5
-    Return v6
+    Return v5
   }
 }
 ---
@@ -136,13 +135,12 @@ fun test {
     v2:CInt32 = PrimitiveUnbox<CInt32> v1
     v3:CInt32[123] = LoadConst<CInt32[123]>
     v4:CInt32 = IntBinaryOp<Add> v2 v3
-    v5:OptLongExact = PrimitiveBox<CInt32> v4
-    v6:LongExact = CheckExc v5 {
+    v5:LongExact = PrimitiveBox<CInt32> v4 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v6
+    Return v5
   }
 }
 ---

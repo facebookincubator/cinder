@@ -919,8 +919,7 @@ fun test {
     v2 = Assign v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -933,13 +932,12 @@ fun test {
         NextInstrOffset 0
       }
     }
-    v4:OptLongExact = PrimitiveBox<CInt32> v3
-    v5:LongExact = CheckExc v4 {
+    v4:LongExact = PrimitiveBox<CInt32> v3 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -952,8 +950,7 @@ fun test {
     v2 = RefineType<Bool> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -962,16 +959,15 @@ fun test {
     v1:Object = LoadArg<0>
     v2:Bool = RefineType<Bool> v1
     UseType<Bool> v2
-    v6:MortalBool[True] = LoadConst<MortalBool[True]>
-    v7:CBool = PrimitiveCompare<Equal> v2 v6
-    v8:CInt32 = IntConvert<CInt32> v7
-    v4:OptLongExact = PrimitiveBox<CInt32> v8
-    v5:LongExact = CheckExc v4 {
+    v5:MortalBool[True] = LoadConst<MortalBool[True]>
+    v6:CBool = PrimitiveCompare<Equal> v2 v5
+    v7:CInt32 = IntConvert<CInt32> v6
+    v4:LongExact = PrimitiveBox<CInt32> v7 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -984,8 +980,7 @@ fun test {
     v2 = RefineType<ListExact> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -994,15 +989,14 @@ fun test {
     v1:Object = LoadArg<0>
     v2:ListExact = RefineType<ListExact> v1
     UseType<ListExact> v2
-    v6:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
-    v7:CInt32 = IntConvert<CInt32> v6
-    v4:OptLongExact = PrimitiveBox<CInt32> v7
-    v5:LongExact = CheckExc v4 {
+    v5:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
+    v6:CInt32 = IntConvert<CInt32> v5
+    v4:LongExact = PrimitiveBox<CInt32> v6 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1046,8 +1040,7 @@ fun test {
     v2 = RefineType<TupleExact> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1056,15 +1049,14 @@ fun test {
     v1:Object = LoadArg<0>
     v2:TupleExact = RefineType<TupleExact> v1
     UseType<TupleExact> v2
-    v6:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
-    v7:CInt32 = IntConvert<CInt32> v6
-    v4:OptLongExact = PrimitiveBox<CInt32> v7
-    v5:LongExact = CheckExc v4 {
+    v5:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
+    v6:CInt32 = IntConvert<CInt32> v5
+    v4:LongExact = PrimitiveBox<CInt32> v6 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1077,8 +1069,7 @@ fun test {
     v2 = RefineType<ArrayExact> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1087,15 +1078,14 @@ fun test {
     v1:Object = LoadArg<0>
     v2:ArrayExact = RefineType<ArrayExact> v1
     UseType<ArrayExact> v2
-    v6:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
-    v7:CInt32 = IntConvert<CInt32> v6
-    v4:OptLongExact = PrimitiveBox<CInt32> v7
-    v5:LongExact = CheckExc v4 {
+    v5:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
+    v6:CInt32 = IntConvert<CInt32> v5
+    v4:LongExact = PrimitiveBox<CInt32> v6 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1108,8 +1098,7 @@ fun test {
     v2 = RefineType<DictExact> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1118,15 +1107,14 @@ fun test {
     v1:Object = LoadArg<0>
     v2:DictExact = RefineType<DictExact> v1
     UseType<DictExact> v2
-    v6:CInt64 = LoadField<ma_used@16, CInt64, borrowed> v2
-    v7:CInt32 = IntConvert<CInt32> v6
-    v4:OptLongExact = PrimitiveBox<CInt32> v7
-    v5:LongExact = CheckExc v4 {
+    v5:CInt64 = LoadField<ma_used@16, CInt64, borrowed> v2
+    v6:CInt32 = IntConvert<CInt32> v5
+    v4:LongExact = PrimitiveBox<CInt32> v6 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1139,8 +1127,7 @@ fun test {
     v2 = RefineType<SetExact> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1149,15 +1136,14 @@ fun test {
     v1:Object = LoadArg<0>
     v2:SetExact = RefineType<SetExact> v1
     UseType<SetExact> v2
-    v6:CInt64 = LoadField<used@24, CInt64, borrowed> v2
-    v7:CInt32 = IntConvert<CInt32> v6
-    v4:OptLongExact = PrimitiveBox<CInt32> v7
-    v5:LongExact = CheckExc v4 {
+    v5:CInt64 = LoadField<used@24, CInt64, borrowed> v2
+    v6:CInt32 = IntConvert<CInt32> v5
+    v4:LongExact = PrimitiveBox<CInt32> v6 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1170,8 +1156,7 @@ fun test {
     v2 = RefineType<UnicodeExact> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1180,15 +1165,14 @@ fun test {
     v1:Object = LoadArg<0>
     v2:UnicodeExact = RefineType<UnicodeExact> v1
     UseType<UnicodeExact> v2
-    v6:CInt64 = LoadField<length@16, CInt64, borrowed> v2
-    v7:CInt32 = IntConvert<CInt32> v6
-    v4:OptLongExact = PrimitiveBox<CInt32> v7
-    v5:LongExact = CheckExc v4 {
+    v5:CInt64 = LoadField<length@16, CInt64, borrowed> v2
+    v6:CInt32 = IntConvert<CInt32> v5
+    v4:LongExact = PrimitiveBox<CInt32> v6 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1201,8 +1185,7 @@ fun test {
     v2 = RefineType<LongExact> v1
     v3 = IsTruthy v2
     v4 = PrimitiveBox<CInt32> v3
-    v5 = CheckExc v4
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1211,16 +1194,15 @@ fun test {
     v1:Object = LoadArg<0>
     v2:LongExact = RefineType<LongExact> v1
     UseType<LongExact> v2
-    v6:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
-    v7:CBool = PrimitiveCompare<NotEqual> v2 v6
-    v8:CInt32 = IntConvert<CInt32> v7
-    v4:OptLongExact = PrimitiveBox<CInt32> v8
-    v5:LongExact = CheckExc v4 {
+    v5:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v6:CBool = PrimitiveCompare<NotEqual> v2 v5
+    v7:CInt32 = IntConvert<CInt32> v6
+    v4:LongExact = PrimitiveBox<CInt32> v7 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    Return v5
+    Return v4
   }
 }
 ---
@@ -1365,7 +1347,12 @@ fun jittestmodule:test {
     v3:Object = LoadArg<0; "x">
     v4:Object = LoadArg<1; "y">
     v8:CBool = PrimitiveCompare<Equal> v3 v4
-    v9:Bool = PrimitiveBox<CBool> v8
+    v9:Bool = PrimitiveBox<CBool> v8 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v3 v4
+      }
+    }
     Return v9
   }
 }
@@ -1380,7 +1367,12 @@ fun jittestmodule:test {
     v3:Object = LoadArg<0; "x">
     v4:Object = LoadArg<1; "y">
     v8:CBool = PrimitiveCompare<NotEqual> v3 v4
-    v9:Bool = PrimitiveBox<CBool> v8
+    v9:Bool = PrimitiveBox<CBool> v8 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v3 v4
+      }
+    }
     Return v9
   }
 }

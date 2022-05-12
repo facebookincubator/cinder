@@ -374,7 +374,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Type type = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
-    NEW_INSTR(PrimitiveBox, dst, operand, type);
+    instruction = newInstr<PrimitiveBox>(dst, operand, type);
   } else if (strcmp(opcode, "InPlaceOp") == 0) {
     expect("<");
     InPlaceOpKind op = ParseInPlaceOpName(GetNextToken());

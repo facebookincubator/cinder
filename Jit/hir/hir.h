@@ -2449,10 +2449,19 @@ class INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
   PrimitiveCompareOp op_;
 };
 
-class INSTR_CLASS(PrimitiveBox, (TPrimitive), HasOutput, Operands<1>) {
+class INSTR_CLASS(
+    PrimitiveBox,
+    (TPrimitive),
+    HasOutput,
+    Operands<1>,
+    DeoptBase) {
  public:
-  PrimitiveBox(Register* dst, Register* value, Type type)
-      : InstrT(dst, value), type_(type) {}
+  PrimitiveBox(
+      Register* dst,
+      Register* value,
+      Type type,
+      const FrameState& frame)
+      : InstrT(dst, value, frame), type_(type) {}
 
   Register* value() const {
     return GetOperand(0);

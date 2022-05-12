@@ -1972,7 +1972,7 @@ void HIRBuilder::emitLoadIterableArg(
   auto tup_idx = temps_.AllocateStack();
   auto element = temps_.AllocateStack();
   tc.emit<LoadConst>(tmp, Type::fromCInt(bc_instr.oparg(), TCInt64));
-  tc.emitChecked<PrimitiveBox>(tup_idx, tmp, TCInt64);
+  tc.emit<PrimitiveBox>(tup_idx, tmp, TCInt64, tc.frame);
   tc.emit<BinaryOp>(
       element, BinaryOpKind::kSubscript, 0, tuple, tup_idx, tc.frame);
   tc.frame.stack.push(element);
@@ -2040,7 +2040,7 @@ std::vector<Register*> HIRBuilder::setupStaticArgs(
     for (auto [argnum, type] : target.primitive_arg_types) {
       Register* reg = arg_regs.at(argnum);
       auto boxed_primitive_tmp = temps_.AllocateStack();
-      tc.emitChecked<PrimitiveBox>(boxed_primitive_tmp, reg, type);
+      tc.emit<PrimitiveBox>(boxed_primitive_tmp, reg, type, tc.frame);
       arg_regs[argnum] = boxed_primitive_tmp;
     }
   }
@@ -2434,7 +2434,7 @@ void HIRBuilder::emitPrimitiveBox(
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
   Type typ = preloader_.type(constArg(bc_instr));
-  tc.emitChecked<PrimitiveBox>(tmp, src, typ);
+  tc.emit<PrimitiveBox>(tmp, src, typ, tc.frame);
   tc.frame.stack.push(tmp);
 }
 

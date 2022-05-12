@@ -229,7 +229,7 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
                                       : PrimitiveCompareOp::kNotEqual,
         instr->left(),
         instr->right());
-    return env.emit<PrimitiveBox>(cbool, TCBool);
+    return env.emit<PrimitiveBox>(cbool, TCBool, *instr->frameState());
   }
   if (left->isA(TNoneType) && right->isA(TNoneType)) {
     if (op == CompareOp::kEqual || op == CompareOp::kNotEqual) {

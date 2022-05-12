@@ -15,17 +15,16 @@ fun jittestmodule:test {
     v10:CInt32 = CallStatic<0>
     v11:CInt64 = IntConvert<CInt64> v10
     v12:MortalLongExact[2147483647] = LoadConst<MortalLongExact[2147483647]>
-    v20:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
-    v21:CInt64[0] = LoadConst<CInt64[0]>
-    v16:CInt64 = IntBinaryOp<FloorDivide> v11 v20
-    v18:OptLongExact = PrimitiveBox<CInt64> v16
-    v19:LongExact = CheckExc v18 {
+    v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
+    v20:CInt64[0] = LoadConst<CInt64[0]>
+    v16:CInt64 = IntBinaryOp<FloorDivide> v11 v19
+    v18:LongExact = PrimitiveBox<CInt64> v16 {
       FrameState {
         NextInstrOffset 22
         Locals<1> v16
       }
     }
-    Return v19
+    Return v18
   }
 }
 ---

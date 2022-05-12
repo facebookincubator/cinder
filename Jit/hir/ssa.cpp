@@ -487,19 +487,16 @@ Type outputType(
 
       auto& pb = static_cast<const PrimitiveBox&>(instr);
       if (pb.type() <= TCEnum) {
-        // Calling an enum type in JITRT_BoxEnum can raise an exception
-        return TOptObject;
+        return TObject;
       }
       if (pb.value()->type() <= TCDouble) {
-        return TOptFloatExact;
+        return TFloatExact;
       }
       if (pb.value()->type() <= (TCUnsigned | TCSigned | TNullptr)) {
         // Special Nullptr case for an uninitialized variable; load zero.
-        return TOptLongExact;
+        return TLongExact;
       }
       if (pb.value()->type() <= TCBool) {
-        // JITRT_BoxBool cannot fail since it returns one of two globals and
-        // does not allocate.
         return TBool;
       }
       JIT_CHECK(
