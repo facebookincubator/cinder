@@ -34,6 +34,8 @@ opcode.def_op("FAST_LEN", 186)
 opcode.def_op("CONVERT_PRIMITIVE", 187)
 opcode.def_op("CHECK_ARGS", 188)
 opcode.hasconst.add(188)
+opcode.def_op("LOAD_CLASS", 190)
+opcode.hasconst.add(190)
 opcode.def_op("BUILD_CHECKED_MAP", 191)
 opcode.hasconst.add(191)
 opcode.def_op("SEQUENCE_GET", 192)
@@ -83,6 +85,7 @@ opcode.stack_effects.update(  # noqa: C408
     LIST_DEL=-2,
     SEQUENCE_GET=-1,
     SEQUENCE_SET=-3,
+    LOAD_CLASS=1,
     LOAD_FIELD=0,
     LOAD_ITERABLE_ARG=1,
     LOAD_LOCAL=1,

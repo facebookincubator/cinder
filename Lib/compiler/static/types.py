@@ -5275,7 +5275,7 @@ class Dataclass(Class):
         graph.emit("LOAD_FAST", "self")
         # TODO(T92470300): graph.emit("CAST", (self.exact_type().type_descr, False))
         graph.emit("LOAD_TYPE")
-        graph.emit("LOAD_GLOBAL", self.type_name.name)
+        graph.emit("LOAD_CLASS", self.type_descr)
         graph.emit("COMPARE_OP", "is")
         graph.emit("POP_JUMP_IF_TRUE", error)
 
@@ -5286,7 +5286,7 @@ class Dataclass(Class):
         graph.emit("POP_JUMP_IF_FALSE", super_call)
 
         graph.nextBlock(error)
-        graph.emit("LOAD_GLOBAL", self.type_name.name)
+        graph.emit("LOAD_CLASS", self.type_descr)
         graph.emit("LOAD_METHOD", "_FrozenInstanceError")
         graph.emit("LOAD_CONST", msg)
         graph.emit("LOAD_FAST", "name")
@@ -5297,7 +5297,7 @@ class Dataclass(Class):
 
         graph.nextBlock(super_call)
         graph.emit("LOAD_GLOBAL", "super")
-        graph.emit("LOAD_GLOBAL", self.type_name.name)
+        graph.emit("LOAD_CLASS", self.type_descr)
         graph.emit("LOAD_FAST", "self")
         graph.emit("LOAD_METHOD_SUPER", (method_name, False))
         graph.emit("LOAD_FAST", "name")
@@ -5360,13 +5360,13 @@ class Dataclass(Class):
                 arg_passed = graph.newBlock()
                 store = graph.newBlock()
                 graph.emit("LOAD_FAST", name)
-                graph.emit("LOAD_GLOBAL", self.type_name.name)
+                graph.emit("LOAD_CLASS", self.type_descr)
                 graph.emit("LOAD_ATTR", "_HAS_DEFAULT_FACTORY")
                 graph.emit("COMPARE_OP", "is")
                 graph.emit("POP_JUMP_IF_FALSE", arg_passed)
 
                 graph.nextBlock()
-                graph.emit("LOAD_GLOBAL", self.type_name.name)
+                graph.emit("LOAD_CLASS", self.type_descr)
                 graph.emit("LOAD_METHOD", name)
                 graph.emit("CALL_METHOD", 0)
                 graph.emit("CAST", field.unwrapped_descr)
@@ -5379,7 +5379,7 @@ class Dataclass(Class):
                 graph.emit("LOAD_FAST", self_name)
                 graph.emit("STORE_FIELD", field.type_descr)
             else:
-                graph.emit("LOAD_GLOBAL", self.type_name.name)
+                graph.emit("LOAD_CLASS", self.type_descr)
                 graph.emit("LOAD_METHOD", name)
                 graph.emit("CALL_METHOD", 0)
                 graph.emit("CAST", field.unwrapped_descr)

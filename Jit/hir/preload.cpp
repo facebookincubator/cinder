@@ -337,6 +337,7 @@ void Preloader::preload() {
         break;
       }
       case CAST:
+      case LOAD_CLASS:
       case PRIMITIVE_BOX:
       case PRIMITIVE_UNBOX:
       case REFINE_TYPE:

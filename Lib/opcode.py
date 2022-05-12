@@ -292,6 +292,9 @@ def_op("CONVERT_PRIMITIVE", 187)
 def_op("CHECK_ARGS", 188)
 hasconst.append(188)
 
+def_op("LOAD_CLASS", 190)
+hasconst.append(190)
+
 def_op("BUILD_CHECKED_MAP", 191)
 hasconst.append(191)
 

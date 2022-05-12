@@ -716,6 +716,7 @@ class PyFlowGraph(FlowGraph):
 
     # similarly for other opcodes...
     _converters = {
+        "LOAD_CLASS": _convert_LOAD_CONST,
         "LOAD_CONST": _convert_LOAD_CONST,
         "INVOKE_FUNCTION": _convert_LOAD_CONST,
         "INVOKE_METHOD": _convert_LOAD_CONST,

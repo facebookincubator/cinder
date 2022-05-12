@@ -220,6 +220,9 @@ class HIRBuilder {
   void emitStoreDeref(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitLoadClass(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitLoadConst(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

@@ -2839,6 +2839,16 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(LOAD_CLASS): {
+            type_descr = GETITEM(consts, oparg);
+            type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
+            if (type == NULL) {
+                goto error;
+            }
+            PUSH((PyObject*)type);
+            FAST_DISPATCH();
+        }
+
         case TARGET(LOAD_TYPE): {
           PyObject *instance = TOP();
           Py_INCREF(Py_TYPE(instance));

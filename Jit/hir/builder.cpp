@@ -984,6 +984,10 @@ void HIRBuilder::translate(
           emitStoreDeref(tc, bc_instr);
           break;
         }
+        case LOAD_CLASS: {
+          emitLoadClass(tc, bc_instr);
+          break;
+        }
         case LOAD_CONST: {
           emitLoadConst(tc, bc_instr);
           break;
@@ -2324,6 +2328,16 @@ void HIRBuilder::emitStoreDeref(
   Register* src = tc.frame.stack.pop();
   tc.emit<StealCellItem>(old, dst);
   tc.emit<SetCellItem>(dst, src, old);
+}
+
+void HIRBuilder::emitLoadClass(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  Register* tmp = temps_.AllocateStack();
+  auto pytype = preloader_.pyType(constArg(bc_instr));
+  auto pytype_as_pyobj = BorrowedRef(pytype);
+  tc.emit<LoadConst>(tmp, Type::fromObject(pytype_as_pyobj));
+  tc.frame.stack.push(tmp);
 }
 
 void HIRBuilder::emitLoadConst(
