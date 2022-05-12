@@ -138,73 +138,74 @@ static const std::string kDunderInit = "__init__";
 /* indices corresponds to enum values in Python-ast.h
  * Do not change the order of names.
  */
-static const std::string kBinOpNames[] = {"",
-                                          "__add__",
-                                          "__sub__",
-                                          "__mul__",
-                                          "__matmul__",
-                                          "__truediv__",
-                                          "__mod__",
-                                          "__pow__",
-                                          "__lshift__",
-                                          "__rshift__",
-                                          "__or__",
-                                          "__xor__",
-                                          "__and__",
-                                          "__floordiv__"};
+static const std::string kBinOpNames[] = {
+    "",
+    "__add__",
+    "__sub__",
+    "__mul__",
+    "__matmul__",
+    "__truediv__",
+    "__mod__",
+    "__pow__",
+    "__lshift__",
+    "__rshift__",
+    "__or__",
+    "__xor__",
+    "__and__",
+    "__floordiv__"};
 
 static const std::string kBinOpDisplays[] =
     {"", "+", "-", "*", "@", "/", "%", "**", "<<", ">>", "|", "^", "&", "//"};
 
-static const std::string kRBinOpNames[] = {"",
-                                           "__radd__",
-                                           "__rsub__",
-                                           "__rmul__",
-                                           "__rmatmul__",
-                                           "__rtruediv__",
-                                           "__rmod__",
-                                           "__rpow__",
-                                           "__rlshift__",
-                                           "__rrshift__",
-                                           "__ror__",
-                                           "__rxor__",
-                                           "__rand__",
-                                           "__rfloordiv__"};
+static const std::string kRBinOpNames[] = {
+    "",
+    "__radd__",
+    "__rsub__",
+    "__rmul__",
+    "__rmatmul__",
+    "__rtruediv__",
+    "__rmod__",
+    "__rpow__",
+    "__rlshift__",
+    "__rrshift__",
+    "__ror__",
+    "__rxor__",
+    "__rand__",
+    "__rfloordiv__"};
 
-static const std::string kUnaryOpNames[] = {"",
-                                            "__invert__",
-                                            "",
-                                            "__pos__",
-                                            "__neg__"};
+static const std::string kUnaryOpNames[] =
+    {"", "__invert__", "", "__pos__", "__neg__"};
 
 static const std::string kUnaryOpDisplays[] = {"", "~", "not", "+", "-"};
 
-static const std::string kCmpOpNames[] = {"",
-                                          "__eq__",
-                                          "__ne__",
-                                          "__lt__",
-                                          "__le__",
-                                          "__gt__",
-                                          "__ge__",
-                                          "",
-                                          "",
-                                          "__contains__",
-                                          ""};
+static const std::string kCmpOpNames[] = {
+    "",
+    "__eq__",
+    "__ne__",
+    "__lt__",
+    "__le__",
+    "__gt__",
+    "__ge__",
+    "",
+    "",
+    "__contains__",
+    ""};
 
 static const std::string kCmpOpDisplays[] =
     {"", "==", "!=", "<", "<=", ">", ">=", "is", "is not", "in", "not in"};
 
-static const std::string kRCmpOpNames[] = {"",
-                                           "__eq__",
-                                           "__ne__",
-                                           "__gt__",
-                                           "__ge__",
-                                           "__lt__",
-                                           "__le__",
-                                           "",
-                                           "",
-                                           "",
-                                           ""};
+static const std::string kRCmpOpNames[] = {
+    "",
+    "__eq__",
+    "__ne__",
+    "__gt__",
+    "__ge__",
+    "__lt__",
+    "__le__",
+    "",
+    "",
+    "",
+    ""};
 
 static const int kIterationLimit = 10000;
 

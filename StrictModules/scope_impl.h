@@ -32,7 +32,8 @@ void ScopeStack<TVar, TScopeData>::set(const std::string& key, TVar value) {
     getGlobalScope()->set(key, std::move(value));
     return;
   } else if (symbol.is_nonlocal()) {
-    for (auto it = std::next(scopes_.rbegin()); it != getBuiltinScopeRevIt(); ++it) {
+    for (auto it = std::next(scopes_.rbegin()); it != getBuiltinScopeRevIt();
+         ++it) {
       auto scope = *it;
       if (!scope->isClassScope() && scope->contains(key)) {
         scope->set(key, std::move(value));
@@ -88,7 +89,8 @@ bool ScopeStack<TVar, TScopeData>::erase(const std::string& key) {
   if (symbol.is_global()) {
     return getGlobalScope()->erase(key);
   } else if (symbol.is_nonlocal()) {
-    for (auto it = std::next(scopes_.rbegin()); it != getBuiltinScopeRevIt(); ++it) {
+    for (auto it = std::next(scopes_.rbegin()); it != getBuiltinScopeRevIt();
+         ++it) {
       auto scope = *it;
       if (!scope->isClassScope() && scope->contains(key)) {
         return scope->erase(key);

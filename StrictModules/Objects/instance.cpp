@@ -2,7 +2,6 @@
 #include "StrictModules/Objects/instance.h"
 
 #include "StrictModules/Objects/type.h"
-
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 

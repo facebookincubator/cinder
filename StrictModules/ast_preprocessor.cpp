@@ -43,7 +43,8 @@ void Preprocessor::visitClassDef(const stmt_ty stmt) {
   }
   const auto& extra_slots = attr.getExtraSlots();
   if (!extra_slots.empty()) {
-    newDecorators.emplace_back(makeNameCall(EXTRA_SLOTS_DECORATOR, extra_slots));
+    newDecorators.emplace_back(
+        makeNameCall(EXTRA_SLOTS_DECORATOR, extra_slots));
   }
   if (attr.isLooseSlots()) {
     newDecorators.emplace_back(makeName(LOOSE_SLOTS_DECORATOR));

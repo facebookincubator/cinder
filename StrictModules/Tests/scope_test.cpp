@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include <utility>
+#include "StrictModules/Tests/test.h"
 #include "StrictModules/scope.h"
 
-#include "StrictModules/Tests/test.h"
+#include <utility>
 class ScopeTest : public PythonTest {};
 
 using strictmod::Scope;

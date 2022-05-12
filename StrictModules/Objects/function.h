@@ -3,7 +3,6 @@
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/object_type.h"
 #include "StrictModules/Objects/signature.h"
-
 #include "StrictModules/analyzer.h"
 
 namespace strictmod::compiler {

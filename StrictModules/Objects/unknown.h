@@ -1,9 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include <fmt/format.h>
 #include "StrictModules/Objects/base_object.h"
 #include "StrictModules/Objects/type.h"
+
+#include <fmt/format.h>
 namespace strictmod::objects {
 
 class UnknownObject : public BaseStrictObject {
@@ -12,7 +13,8 @@ class UnknownObject : public BaseStrictObject {
   UnknownObject(std::string name, std::weak_ptr<StrictModuleObject> creator);
 
   virtual std::string getDisplayName() const override;
-  virtual std::shared_ptr<BaseStrictObject> copy(const CallerContext& caller) override;
+  virtual std::shared_ptr<BaseStrictObject> copy(
+      const CallerContext& caller) override;
   virtual bool isUnknown() const override {
     return true;
   }

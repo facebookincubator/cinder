@@ -1,14 +1,15 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/iterable_objects.h"
+
 #include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
-
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 
 #include <fmt/format.h>
+
 #include <algorithm>
 namespace strictmod::objects {
 
@@ -1006,7 +1007,7 @@ std::shared_ptr<BaseStrictObject> StrictSet::setPop(
     std::shared_ptr<StrictSet> self,
     const CallerContext& caller) {
   checkExternalModification(self, caller);
-  if(self->data_.empty()) {
+  if (self->data_.empty()) {
     caller.raiseExceptionStr(KeyErrorType(), "pop from an empty set");
   }
   auto iter = self->data_.begin();

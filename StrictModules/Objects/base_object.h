@@ -1,19 +1,19 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/py_headers.h"
-
-#include "Jit/ref.h"
 #include "StrictModules/caller_context.h"
+#include "StrictModules/py_headers.h"
 #include "StrictModules/rewriter_attributes.h"
 #include "StrictModules/sequence_map.h"
+
+#include "Jit/ref.h"
+
+#include <fmt/format.h>
 
 #include <list>
 #include <memory>
 #include <optional>
 #include <vector>
-
-#include <fmt/format.h>
 
 namespace strictmod::objects {
 

@@ -1,13 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include <memory>
-#include <optional>
-
 #include "StrictModules/Objects/base_object.h"
+#include "StrictModules/ast_visitor.h"
 #include "StrictModules/py_headers.h"
 
-#include "StrictModules/ast_visitor.h"
+#include <memory>
+#include <optional>
 
 namespace strictmod {
 using strictmod::objects::astToResultT;

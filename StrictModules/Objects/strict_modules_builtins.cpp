@@ -1,5 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/strict_modules_builtins.h"
+
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/rewriter_attributes.h"

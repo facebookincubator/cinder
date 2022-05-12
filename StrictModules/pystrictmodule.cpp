@@ -633,7 +633,8 @@ static PyObject* StrictModuleLoader_set_force_strict_by_name(
   if (!PyArg_ParseTuple(args, "s", &forced_strict_module)) {
     return NULL;
   }
-  int ok = StrictModuleChecker_SetForceStrictByName(self->checker, forced_strict_module);
+  int ok = StrictModuleChecker_SetForceStrictByName(
+      self->checker, forced_strict_module);
   if (ok == 0) {
     Py_RETURN_TRUE;
   }

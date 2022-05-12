@@ -4,20 +4,18 @@
 /** Include this file instead of including the gtest headers to
 avoid macro naming conflict between gtest and python ast.h
 */
-#include <memory>
-#include <vector>
-
-#include "StrictModules/py_headers.h"
-
 #include "StrictModules/Compiler/abstract_module_loader.h"
 #include "StrictModules/Compiler/module_info.h"
+#include "StrictModules/Tests/test_util.h"
 #include "StrictModules/analyzer.h"
 #include "StrictModules/error_sink.h"
 #include "StrictModules/exceptions.h"
 #include "StrictModules/parser_util.h"
-
-#include "StrictModules/Tests/test_util.h"
+#include "StrictModules/py_headers.h"
 #include "gtest/gtest.h"
+
+#include <memory>
+#include <vector>
 
 class PythonTest : public ::testing::Test {
  public:

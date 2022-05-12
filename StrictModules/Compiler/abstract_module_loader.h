@@ -1,6 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "StrictModules/Compiler/analyzed_module.h"
+#include "StrictModules/Compiler/module_info.h"
+#include "StrictModules/analyzer.h"
+#include "StrictModules/error_sink.h"
+
 #include <functional>
 #include <memory>
 #include <regex>
@@ -9,10 +14,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include "StrictModules/Compiler/analyzed_module.h"
-#include "StrictModules/Compiler/module_info.h"
-#include "StrictModules/analyzer.h"
-#include "StrictModules/error_sink.h"
 namespace strictmod::compiler {
 enum class FileSuffixKind { kPythonFile, kStrictStubFile, kTypingStubFile };
 

@@ -1,12 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "StrictModules/py_headers.h"
+
+#include "Jit/ref.h"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include "Jit/ref.h"
-
-#include "StrictModules/py_headers.h"
 namespace strictmod {
 using PySymtable = struct symtable;
 

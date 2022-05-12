@@ -1,11 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include <memory>
 #include "StrictModules/Compiler/module_info.h"
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/error_sink.h"
 #include "StrictModules/symbol_table.h"
+
+#include <memory>
 namespace strictmod::compiler {
 using strictmod::objects::StrictModuleObject;
 

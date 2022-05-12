@@ -1,11 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
+#include <algorithm>
 #include <iterator>
 #include <list>
 #include <unordered_map>
 #include <utility>
-
-#include <algorithm>
 
 /** an unordered_map that can be iterated using insertion order
  *  Note that iterator related operation (find, directly operations on iterator)

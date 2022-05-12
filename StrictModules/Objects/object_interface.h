@@ -4,7 +4,6 @@
 #include "StrictModules/caller_context.h"
 
 #include "Python.h"
-
 #include "Python-ast.h"
 
 namespace strictmod::objects {

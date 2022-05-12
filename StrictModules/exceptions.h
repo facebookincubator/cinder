@@ -2,6 +2,7 @@
 #pragma once
 
 #include <fmt/format.h>
+
 #include <array>
 #include <exception>
 #include <iterator>
@@ -805,8 +806,8 @@ StructuredStrictModuleException<T, E, mp...>::clone() const {
 }
 
 template <typename T, typename E, std::string T::*... mp>
-const char* StructuredStrictModuleException<T, E, mp...>::what() const
-    noexcept {
+const char* StructuredStrictModuleException<T, E, mp...>::what()
+    const noexcept {
   msg_ = formatError();
   return msg_.c_str();
 }

@@ -1,7 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 #include "Python.h"
-
 #include "ast.h"
 #include "symtable.h"
 

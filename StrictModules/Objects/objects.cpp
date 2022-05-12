@@ -759,9 +759,8 @@ std::shared_ptr<BaseStrictObject> StrictKnownUnknownCallable() {
 }
 
 static std::shared_ptr<BaseStrictObject> UnknownBuiltin(std::string name) {
-  static std::shared_ptr<BaseStrictObject> o(new UnknownObject(
-      name,
-      kBuiltinsModule));
+  static std::shared_ptr<BaseStrictObject> o(
+      new UnknownObject(name, kBuiltinsModule));
   return o;
 }
 

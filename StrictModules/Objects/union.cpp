@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/Objects/union.h"
+
 #include "StrictModules/Objects/builtins.h"
 #include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
-
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 
@@ -114,8 +114,8 @@ std::shared_ptr<BaseStrictObject> unionOrHelper(
     std::shared_ptr<BaseStrictObject> left,
     std::shared_ptr<BaseStrictObject> right) {
   if (isUnionableHelper(left) && isUnionableHelper(right)) {
-    std::vector<std::shared_ptr<BaseStrictObject>> args{std::move(left),
-                                                        std::move(right)};
+    std::vector<std::shared_ptr<BaseStrictObject>> args{
+        std::move(left), std::move(right)};
     return std::make_shared<StrictUnion>(caller.caller, std::move(args));
   }
   return NotImplemented();

@@ -4,11 +4,10 @@
 #include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
-#include "StrictModules/sequence_map.h"
-
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 #include "StrictModules/exceptions.h"
+#include "StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 
@@ -603,7 +602,7 @@ void DirectMapDictData::clear() {
 }
 
 void DirectMapDictData::insert(const DictDataInterface& other) {
-  other.const_iter([& data = data_](
+  other.const_iter([&data = data_](
                        std::shared_ptr<BaseStrictObject> k,
                        std::shared_ptr<BaseStrictObject> v) {
     data[std::move(k)] = std::move(v);
@@ -705,7 +704,7 @@ void InstanceDictDictData::clear() {
 }
 
 void InstanceDictDictData::insert(const DictDataInterface& other) {
-  other.const_iter([& data = data_](
+  other.const_iter([&data = data_](
                        std::shared_ptr<BaseStrictObject> k,
                        std::shared_ptr<BaseStrictObject> v) {
     auto keyStr = keyToStr(k);
@@ -767,7 +766,6 @@ std::shared_ptr<BaseStrictObject> StrictInstance::getDunderDict() {
   if (dictObj_ != nullptr) {
     return dictObj_;
   }
-
 
   std::unique_ptr<DictDataInterface> dict =
       std::make_unique<InstanceDictDictData>(dict_, creator_);

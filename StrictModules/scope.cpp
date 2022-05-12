@@ -3,7 +3,6 @@
 #include "StrictModules/scope.h"
 namespace strictmod {
 std::string mangle(const std::string& className, const std::string& name) {
-
   // private names need to start with __
   if (name.size() < 2 || name[0] != '_' || name[1] != '_') {
     return name;

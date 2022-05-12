@@ -1,7 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
-#include <string>
 #include "StrictModules/Objects/instance.h"
+
+#include <string>
 
 namespace strictmod::objects {
 class StrictModuleObject : public StrictInstance {

@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include <fmt/format.h>
-#include "StrictModules/caller_context.h"
-
 #include "StrictModules/Objects/objects.h"
+#include "StrictModules/caller_context.h"
 #include "StrictModules/exceptions.h"
+
+#include <fmt/format.h>
 
 namespace strictmod {
 

@@ -1,5 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/parser_util.h"
+
 #include <fstream>
 
 namespace strictmod {

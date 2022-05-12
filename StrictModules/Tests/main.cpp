@@ -1,8 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+#include "StrictModules/Tests/test.h"
 #include "StrictModules/py_headers.h"
 #include "gtest/gtest.h"
-
-#include "StrictModules/Tests/test.h"
 
 #include <iostream>
 static void register_test(const char* path, const char* ignorePath) {

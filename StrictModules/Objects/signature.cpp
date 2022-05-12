@@ -3,7 +3,6 @@
 
 #include "StrictModules/Objects/objects.h"
 #include "StrictModules/caller_context_impl.h"
-
 #include "StrictModules/sequence_map.h"
 
 namespace strictmod::objects {

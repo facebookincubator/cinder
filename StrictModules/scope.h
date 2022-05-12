@@ -1,13 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
+#include "StrictModules/sequence_map.h"
+#include "StrictModules/symbol_table.h"
+
 #include <functional>
 #include <memory>
 #include <optional>
 #include <sstream>
 #include <tuple>
 #include <vector>
-#include "StrictModules/sequence_map.h"
-#include "StrictModules/symbol_table.h"
 namespace strictmod {
 
 std::string mangle(const std::string& className, const std::string& name);

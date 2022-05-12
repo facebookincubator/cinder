@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "StrictModules/py_headers.h"
+#include "StrictModules/symbol_table.h"
+
 #include <cstdio>
 #include <memory>
 #include <optional>
 #include <vector>
-#include "StrictModules/py_headers.h"
-
-#include "StrictModules/symbol_table.h"
 
 namespace strictmod {
 

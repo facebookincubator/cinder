@@ -4,7 +4,6 @@
 #include "StrictModules/Objects/callable_wrapper.h"
 #include "StrictModules/Objects/object_interface.h"
 #include "StrictModules/Objects/objects.h"
-
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 

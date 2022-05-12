@@ -1,15 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include <memory>
-#include <typeindex>
-#include <vector>
 #include "StrictModules/Objects/module.h"
 #include "StrictModules/caller_context.h"
 
-#include "Python.h"
-
-#include "Python-ast.h"
+#include <memory>
+#include <typeindex>
+#include <vector>
 
 namespace strictmod::objects {
 class StrictIteratorBase;
@@ -273,8 +270,10 @@ class StrictType : public StrictInstance {
   addPyWrappedMethodObj(const std::string& name, PyObject* obj, U convertFunc);
 
   template <int n = 0, typename U>
-  void
-  addPyWrappedStaticMethodObj(const std::string& name, PyObject* obj, U convertFunc);
+  void addPyWrappedStaticMethodObj(
+      const std::string& name,
+      PyObject* obj,
+      U convertFunc);
 
   template <typename U>
   void addPyWrappedMethodDefaultObj(
