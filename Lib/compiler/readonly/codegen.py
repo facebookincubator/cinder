@@ -141,6 +141,20 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
 
         super().visitCall(node)
 
+    def build_operation_mask(self, node: ast.AST, args: List[ast.AST]) -> int:
+        mask = 0x80
+        if self.binder.is_readonly(node):
+            mask |= 0x40
+
+        if len(args) > 6:
+            raise SyntaxError("Too many arguments provided to an operator.")
+        curArgMask = 0x01
+        for arg in args:
+            if self.binder.is_readonly(arg):
+                mask |= curArgMask
+            curArgMask <<= 1
+        return mask
+
     def visitUnaryOp(self, node: ast.UnaryOp) -> None:
         if not self.emit_readonly_checks:
             super().visitUnaryOp(node)
@@ -148,13 +162,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
 
         self.update_lineno(node)
         self.visit(node.operand)
-
-        readonlyMask = 0x80
-        if self.binder.is_readonly(node):
-            readonlyMask |= 0x40
-        if self.binder.is_readonly(node.operand):
-            readonlyMask |= 0x01
-
+        readonlyMask = self.build_operation_mask(node, [node.operand])
         self.emit_readonly_op(self._unary_opcode[type(node.op)], [readonlyMask])
 
     def visitBinOp(self, node: ast.BinOp) -> None:
@@ -165,15 +173,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         self.update_lineno(node)
         self.visit(node.left)
         self.visit(node.right)
-
-        readonlyMask = 0x80
-        if self.binder.is_readonly(node):
-            readonlyMask |= 0x40
-        if self.binder.is_readonly(node.left):
-            readonlyMask |= 0x01
-        if self.binder.is_readonly(node.right):
-            readonlyMask |= 0x02
-
+        readonlyMask = self.build_operation_mask(node, [node.left, node.right])
         self.emit_readonly_op(self._binary_opcode[type(node.op)], [readonlyMask])
 
     def visitName(self, node: ast.Name) -> None:
