@@ -1629,6 +1629,10 @@ static PyObject*
 call_unbound(int unbound, PyObject *func, PyObject *self,
              PyObject **args, Py_ssize_t nargs)
 {
+    if (PyReadonly_CheckReadonlyOperationOnCallable(func) != 0) {
+        return NULL;
+    }
+
     if (unbound) {
         return _PyObject_FastCall_Prepend(func, self, args, nargs);
     }
@@ -1640,6 +1644,10 @@ call_unbound(int unbound, PyObject *func, PyObject *self,
 static PyObject*
 call_unbound_noarg(int unbound, PyObject *func, PyObject *self)
 {
+    if (PyReadonly_CheckReadonlyOperationOnCallable(func) != 0) {
+        return NULL;
+    }
+
     if (unbound) {
         PyObject *args[1] = {self};
         return _PyObject_FastCall(func, args, 1);
@@ -1680,11 +1688,6 @@ call_maybe(PyObject *obj, _Py_Identifier *name,
     if (func == NULL) {
         if (!PyErr_Occurred())
             Py_RETURN_NOTIMPLEMENTED;
-        return NULL;
-    }
-
-    if (PyReadonly_CheckReadonlyOperationOnCallable(func) != 0) {
-        Py_DECREF(func);
         return NULL;
     }
 
@@ -6625,6 +6628,10 @@ wrap_binaryfunc_r(PyObject *self, PyObject *const* stack, Py_ssize_t nargs, void
     if (_PyArg_CheckPositional(NULL, nargs, 1, 1) == 0) {
         return NULL;
     }
+
+    if (PyReadonly_ReorderCurrentOperationArgs2() != 0) {
+        return NULL;
+    }
     return (*func)(stack[0], self);
 }
 
@@ -6645,6 +6652,16 @@ wrap_ternaryfunc_r(PyObject *self, PyObject *const* stack, Py_ssize_t nargs, voi
     ternaryfunc func = (ternaryfunc)wrapped;
     if (_PyArg_CheckPositional(NULL, nargs, 1, 2) == 0) {
         return NULL;
+    }
+
+    if (nargs == 2) {
+        if (PyReadonly_ReorderCurrentOperationArgs2() != 0) {
+            return NULL;
+        }
+    } else {
+        if (PyReadonly_ReorderCurrentOperationArgs3(2, 1, 3) != 0) {
+            return NULL;
+        }
     }
     return (*func)(stack[0], self, nargs == 2 ? stack[1] : Py_None);
 }
@@ -7164,6 +7181,10 @@ FUNCNAME(PyObject *self, PyObject *other) \
     int do_other = Py_TYPE(self) != Py_TYPE(other) && \
         Py_TYPE(other)->tp_as_number != NULL && \
         Py_TYPE(other)->tp_as_number->SLOTNAME == TESTFUNC; \
+    int readonly_op = 0; \
+    if (PyReadonly_SaveCurrentReadonlyOperation(&readonly_op) != 0) { \
+        return NULL; \
+    } \
     if (Py_TYPE(self)->tp_as_number != NULL && \
         Py_TYPE(self)->tp_as_number->SLOTNAME == TESTFUNC) { \
         PyObject *r; \
@@ -7174,10 +7195,16 @@ FUNCNAME(PyObject *self, PyObject *other) \
             } \
             if (ok) { \
                 stack[0] = self; \
+                if (PyReadonly_ReorderCurrentOperationArgs2() != 0) { \
+                    return NULL; \
+                } \
                 r = call_maybe(other, &rop_id, stack, 1); \
                 if (r != Py_NotImplemented) \
                     return r; \
                 Py_DECREF(r); \
+                if (PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) { \
+                    return NULL; \
+                } \
                 do_other = 0; \
             } \
         } \
@@ -7187,9 +7214,15 @@ FUNCNAME(PyObject *self, PyObject *other) \
             Py_TYPE(other) == Py_TYPE(self)) \
             return r; \
         Py_DECREF(r); \
+        if (do_other && PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) { \
+            return NULL; \
+        } \
     } \
     if (do_other) { \
         stack[0] = self; \
+        if (PyReadonly_ReorderCurrentOperationArgs2() != 0) { \
+            return NULL; \
+        } \
         return call_maybe(other, &rop_id, stack, 1); \
     } \
     Py_RETURN_NOTIMPLEMENTED; \

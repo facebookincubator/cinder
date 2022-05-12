@@ -790,6 +790,11 @@ binary_op1(PyObject *v, PyObject *w, const int op_slot)
     PyObject *x;
     binaryfunc slotv = NULL;
     binaryfunc slotw = NULL;
+    int readonly_op = 0;
+
+    if (PyReadonly_SaveCurrentReadonlyOperation(&readonly_op) != 0) {
+        return NULL;
+    }
 
     if (v->ob_type->tp_as_number != NULL)
         slotv = NB_BINOP(v->ob_type->tp_as_number, op_slot);
@@ -810,6 +815,9 @@ binary_op1(PyObject *v, PyObject *w, const int op_slot)
                 return x;
             }
             Py_DECREF(x); /* can't do it */
+            if (PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+                return NULL;
+            }
             slotw = NULL;
         }
         x = slotv(v, w);
@@ -823,6 +831,9 @@ binary_op1(PyObject *v, PyObject *w, const int op_slot)
         Py_DECREF(x); /* can't do it */
     }
     if (slotw) {
+        if (slotv && PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+            return NULL;
+        }
         x = slotw(v, w);
         if (x != Py_NotImplemented) {
             if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
@@ -894,6 +905,11 @@ ternary_op(PyObject *v,
     ternaryfunc slotv = NULL;
     ternaryfunc slotw = NULL;
     ternaryfunc slotz = NULL;
+    int readonly_op = 0;
+
+    if (PyReadonly_SaveCurrentReadonlyOperation(&readonly_op) != 0) {
+        return NULL;
+    }
 
     mv = v->ob_type->tp_as_number;
     mw = w->ob_type->tp_as_number;
@@ -916,6 +932,9 @@ ternary_op(PyObject *v,
                 return x;
             }
             Py_DECREF(x); /* can't do it */
+            if (PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+                return NULL;
+            }
             slotw = NULL;
         }
         x = slotv(v, w, z);
@@ -929,6 +948,9 @@ ternary_op(PyObject *v,
         Py_DECREF(x); /* can't do it */
     }
     if (slotw) {
+        if (slotv && PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+            return NULL;
+        }
         x = slotw(v, w, z);
         if (x != Py_NotImplemented) {
             if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK3(1, 1, 1), 0) != 0) {
@@ -945,6 +967,9 @@ ternary_op(PyObject *v,
         if (slotz == slotv || slotz == slotw)
             slotz = NULL;
         if (slotz) {
+            if ((slotv || slotw) && PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+                return NULL;
+            }
             x = slotz(v, w, z);
             if (x != Py_NotImplemented) {
                 if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK3(1, 1, 1), 0) != 0) {
@@ -992,12 +1017,26 @@ BINARY_FUNC(PyNumber_Divmod, nb_divmod, "divmod()")
 PyObject *
 PyNumber_Add(PyObject *v, PyObject *w)
 {
+    int readonly_op = 0;
+
+    if (PyReadonly_SaveCurrentReadonlyOperation(&readonly_op) != 0) {
+        return NULL;
+    }
+
     PyObject *result = binary_op1(v, w, NB_SLOT(nb_add));
     if (result == Py_NotImplemented) {
         PySequenceMethods *m = v->ob_type->tp_as_sequence;
         Py_DECREF(result);
         if (m && m->sq_concat) {
-            return (*m->sq_concat)(v, w);
+            if (PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+                return NULL;
+            }
+            result = (*m->sq_concat)(v, w);
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+                Py_DECREF(result);
+                return NULL;
+            }
+            return result;
         }
         result = binop_type_error(v, w, "+");
     }
@@ -1031,15 +1070,27 @@ sequence_repeat(ssizeargfunc repeatfunc, PyObject *seq, PyObject *n)
 PyObject *
 PyNumber_Multiply(PyObject *v, PyObject *w)
 {
+    int readonly_op = 0;
+
+    if (PyReadonly_SaveCurrentReadonlyOperation(&readonly_op) != 0) {
+        return NULL;
+    }
+
     PyObject *result = binary_op1(v, w, NB_SLOT(nb_multiply));
     if (result == Py_NotImplemented) {
         PySequenceMethods *mv = v->ob_type->tp_as_sequence;
         PySequenceMethods *mw = w->ob_type->tp_as_sequence;
         Py_DECREF(result);
         if  (mv && mv->sq_repeat) {
+            if (PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+                return NULL;
+            }
             return sequence_repeat(mv->sq_repeat, v, w);
         }
         else if (mw && mw->sq_repeat) {
+            if (PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+                return NULL;
+            }
             return sequence_repeat(mw->sq_repeat, w, v);
         }
         result = binop_type_error(v, w, "*");
