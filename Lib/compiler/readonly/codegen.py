@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from ast import AST
 from types import CodeType
-from typing import Optional, Tuple, Type, cast, Union
+from typing import List, Optional, Tuple, Type, cast, Union
 
 from ..opcodes import opcode
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
@@ -124,6 +124,10 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             optimization_lvl=self.optimization_lvl,
         )
 
+    def emit_readonly_op(self, opname: str, args: List[int | str]) -> None:
+        op = opcode.readonlyop[opname]
+        self.emit("READONLY_OPERATION", (op, *args))
+
     def visitCall(self, node: ast.Call) -> None:
         if (
             isinstance(node.func, ast.Name)
@@ -144,7 +148,6 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
 
         self.update_lineno(node)
         self.visit(node.operand)
-        op = self._unary_opcode[type(node.op)]
 
         readonlyMask = 0x80
         if self.binder.is_readonly(node):
@@ -152,7 +155,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         if self.binder.is_readonly(node.operand):
             readonlyMask |= 0x01
 
-        self.emit_readonly_op(op, readonlyMask)
+        self.emit_readonly_op(self._unary_opcode[type(node.op)], [readonlyMask])
 
     def visitBinOp(self, node: ast.BinOp) -> None:
         if not self.emit_readonly_checks:
@@ -162,7 +165,6 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         self.update_lineno(node)
         self.visit(node.left)
         self.visit(node.right)
-        op = self._binary_opcode[type(node.op)]
 
         readonlyMask = 0x80
         if self.binder.is_readonly(node):
@@ -172,7 +174,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         if self.binder.is_readonly(node.right):
             readonlyMask |= 0x02
 
-        self.emit_readonly_op(op, readonlyMask)
+        self.emit_readonly_op(self._binary_opcode[type(node.op)], [readonlyMask])
 
     def visitName(self, node: ast.Name) -> None:
         if node.id != "__function_credential__":
@@ -206,10 +208,6 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
 
         name_tuple = (module_name, class_name, func_name)
         self.emit("FUNC_CREDENTIAL", name_tuple)
-
-    def emit_readonly_op(self, opname: str, arg: object) -> None:
-        op = opcode.readonlyop[opname]
-        self.emit("READONLY_OPERATION", (op, arg))
 
     def calc_function_readonly_mask(
         self,
@@ -273,7 +271,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             sends_readonly=func_value.sends_readonly,
             args=tuple(x == READONLY for x in func_value.args),
         )
-        self.emit_readonly_op("MAKE_FUNCTION", mask)
+        self.emit_readonly_op("MAKE_FUNCTION", [mask])
 
     def insertReadonlyCheck(
         self, node: Optional[ast.Call], nargs: int, call_method: bool
@@ -303,7 +301,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             args=tuple(arg_readonly),
         )
 
-        self.emit_readonly_op("CHECK_FUNCTION", (nargs, mask, method_flag))
+        self.emit_readonly_op("CHECK_FUNCTION", [nargs, mask, method_flag])
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int

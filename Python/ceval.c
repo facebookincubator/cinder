@@ -3158,17 +3158,14 @@ main_loop:
                 break;
             }
             case READONLY_CHECK_FUNCTION: {
-                PyObject *arg_tuple = PyTuple_GET_ITEM(tuple, 1);
-                assert(arg_tuple != NULL);
-
-                PyObject *nargs = PyTuple_GET_ITEM(arg_tuple, 0);
+                PyObject *nargs = PyTuple_GET_ITEM(tuple, 1);
                 assert(nargs != NULL);
                 int numargs = PyLong_AsLong(nargs);
 
                 PyObject *funcObj = PEEK(numargs + 1);
                 int missing_method = 0;
                 if (funcObj == NULL) {
-                    PyObject *method_flag = PyTuple_GET_ITEM(arg_tuple, 2);
+                    PyObject *method_flag = PyTuple_GET_ITEM(tuple, 3);
                     if (PyLong_AsUnsignedLong(method_flag)) {
                         // the only situation in which this happens is when
                         // the previous opcode is LOAD_METHOD and no method
@@ -3188,7 +3185,7 @@ main_loop:
 
                     uint64_t func_mask = func->readonly_mask;
 
-                    PyObject *call_mask_obj = PyTuple_GET_ITEM(arg_tuple, 1);
+                    PyObject *call_mask_obj = PyTuple_GET_ITEM(tuple, 2);
                     uint64_t call_mask = PyLong_AsUnsignedLongLong(call_mask_obj);
                     if (missing_method) {
                         // if LOAD_METHOD did not find a method, the `self` parameter of the call

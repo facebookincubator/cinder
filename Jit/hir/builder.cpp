@@ -2805,17 +2805,14 @@ void HIRBuilder::emitReadonlyOperation(
       break;
     }
     case READONLY_CHECK_FUNCTION: {
-      PyObject* arg_tuple = PyTuple_GET_ITEM(op_tuple, 1);
-      JIT_CHECK(arg_tuple != nullptr, "arg_tuple is nullptr");
+      constexpr size_t kArgTupleNArgsIndex = 1;
+      constexpr size_t kArgTupleMaskIndex = 2;
+      constexpr size_t kArgTupleMethodFlagIndex = 3;
 
-      constexpr size_t kArgTupleNArgsIndex = 0;
-      constexpr size_t kArgTupleMaskIndex = 1;
-      constexpr size_t kArgTupleMethodFlagIndex = 2;
-
-      PyObject* nargs_obj = PyTuple_GET_ITEM(arg_tuple, kArgTupleNArgsIndex);
-      PyObject* call_mask_obj = PyTuple_GET_ITEM(arg_tuple, kArgTupleMaskIndex);
+      PyObject* nargs_obj = PyTuple_GET_ITEM(op_tuple, kArgTupleNArgsIndex);
+      PyObject* call_mask_obj = PyTuple_GET_ITEM(op_tuple, kArgTupleMaskIndex);
       PyObject* method_flag_obj =
-          PyTuple_GET_ITEM(arg_tuple, kArgTupleMethodFlagIndex);
+          PyTuple_GET_ITEM(op_tuple, kArgTupleMethodFlagIndex);
 
       JIT_CHECK(nargs_obj != nullptr, "nargs_obj is nullptr");
       JIT_CHECK(call_mask_obj != nullptr, "call mask is nullptr");
