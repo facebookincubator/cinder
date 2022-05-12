@@ -17,6 +17,7 @@ from compiler.errors import (
     PerfWarning,
     TypedSyntaxError,
 )
+from compiler.dis_stable import Disassembler
 from compiler.readonly.type_binder import ReadonlyTypeBinder
 from compiler.static import Static38CodeGenerator, StaticCodeGenerator
 from compiler.static.compiler import Compiler
