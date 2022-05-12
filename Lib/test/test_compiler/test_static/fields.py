@@ -466,6 +466,30 @@ class StaticFieldTests(StaticTestBase):
             at="x: ClassVar[int]",
         )
 
+    def test_bad_initvar_arg(self):
+        self.type_error(
+            """
+            from dataclasses import InitVar
+
+            def f(x: InitVar[int]):
+                pass
+            """,
+            r"InitVar is allowed only in class attribute annotations.",
+            at="InitVar[int]",
+        )
+
+    def test_bad_initvar_local(self):
+        self.type_error(
+            """
+            from dataclasses import InitVar
+
+            def f():
+                x: InitVar[int] = 3
+            """,
+            r"InitVar is allowed only in class attribute annotations.",
+            at="x: InitVar[int]",
+        )
+
     def test_final_attr(self):
         codestr = """
         from typing import Final

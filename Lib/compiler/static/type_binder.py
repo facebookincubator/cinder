@@ -84,6 +84,7 @@ from .types import (
     Function,
     FunctionContainer,
     GenericClass,
+    InitVar,
     IsInstanceEffect,
     MethodType,
     ModuleInstance,
@@ -706,9 +707,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         )
         is_final = False
         comp_type, wrapper = comp_type.unwrap(), type(comp_type)
-        if wrapper is ClassVar and not isinstance(self.scope, ClassDef):
+        if wrapper in (ClassVar, InitVar) and not isinstance(self.scope, ClassDef):
             self.syntax_error(
-                "ClassVar is allowed only in class attribute annotations.", node
+                f"{wrapper.__name__} is allowed only in class attribute annotations.",
+                node,
             )
         if wrapper is FinalClass:
             is_final = True

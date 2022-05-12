@@ -40,6 +40,7 @@ from .types import (
     Function,
     FunctionGroup,
     FinalClass,
+    InitVar,
     MethodType,
     TypeDescr,
     UnionType,
@@ -106,6 +107,10 @@ class AnnotationVisitor(ReferenceVisitor):
                     raise TypedSyntaxError(
                         "ClassVar is allowed only in class attribute annotations. "
                         "Class Finals are inferred ClassVar; do not nest with Final."
+                    )
+                if isinstance(klass, InitVar):
+                    raise TypedSyntaxError(
+                        "InitVar is allowed only in class attribute annotations."
                     )
 
             if isinstance(klass, ExactClass):
