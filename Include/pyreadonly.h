@@ -5,6 +5,8 @@ extern "C" {
 #endif
 
 #define PYREADONLY_RETURN_READONLY_IS_TRANSITIVE -1
+#define PYREADONLY_BUILD_FUNCMASK1(arg1_readonly) \
+    ((arg1_readonly) != 0 ? 1 : 0)
 #define PYREADONLY_BUILD_FUNCMASK2(arg1_readonly, arg2_readonly) \
     (((arg1_readonly) != 0 ? 1 : 0) | (((arg2_readonly) != 0 ? 1 : 0) << 1))
 #define PYREADONLY_BUILD_FUNCMASK3(arg1_readonly, arg2_readonly, arg3_readonly) \
@@ -38,17 +40,55 @@ extern "C" {
 
 #ifndef PYREADONLY_ENABLED
 #define PyReadonly_BeginReadonlyOperation(a) ((void)a, 0)
-#define PyReadonly_IsReadonlyOperationValid(a, b, c) ((void)a, (void)b, (void)c, 0)
-#define PyReadonly_IsTransitiveReadonlyOperationValid(a, b) ((void)a, (void)b, 0)
-#define PyReadonly_CheckReadonlyOperation(a, b) ((void)a, (void)b, 0)
-#define PyReadonly_CheckTransitiveReadonlyOperation(a) ((void)a, 0)
-#define PyReadonly_CheckReadonlyOperationOnCallable(a) ((void)a, 0)
+#define PyReadonly_MaybeBeginReadonlyOperation(a, b, c) ((void)(a), (void)(b), (void)(c), 0)
+#define PyReadonly_ReorderCurrentOperationArgs2() 0
+#define PyReadonly_ReorderCurrentOperationArgs3(a, b, c) ((void)(a), (void)(b), (void)(c), 0)
+#define PyReadonly_SaveCurrentReadonlyOperation(a) ((*(a) = 0),0)
+#define PyReadonly_RestoreCurrentReadonlyOperation(a) ((void)(a), 0)
+#define PyReadonly_SuspendCurrentReadonlyOperation(a) ((*(a) = 0),0)
+#define PyReadonly_IsReadonlyOperationValid(a, b, c) ((void)(a), (void)(b), (void)(c), 0)
+#define PyReadonly_IsTransitiveReadonlyOperationValid(a, b) ((void)(a), (void)(b), 0)
+#define PyReadonly_CheckReadonlyOperation(a, b) ((void)(a), (void)(b), 0)
+#define PyReadonly_CheckTransitiveReadonlyOperation(a) ((void)(a), 0)
+#define PyReadonly_CheckReadonlyOperationOnCallable(a) ((void)(a), 0)
 #define PyReadonly_VerifyReadonlyOperationCompleted() 0
 #else
 /**
  * Begin a readonly operation with the specified mask.
  */
 PyAPI_FUNC(int) PyReadonly_BeginReadonlyOperation(int mask);
+
+/**
+ * Begins a readonly operation with the specified mask, but
+ * only if `originalOperation` refers to a readonly operation
+ * that was in progress.
+ */
+PyAPI_FUNC(int) PyReadonly_MaybeBeginReadonlyOperation(int originalOperation, int returnsReadonly, int argMask);
+
+/**
+ * Reorder the arguments of the current operation that takes 2 arguments.
+ */
+PyAPI_FUNC(int) PyReadonly_ReorderCurrentOperationArgs2(void);
+
+/**
+ * Reorder the arguments of the current operation that takes 3 arguments.
+ */
+PyAPI_FUNC(int) PyReadonly_ReorderCurrentOperationArgs3(int newArg1Pos, int newArg2Pos, int newArg3Pos);
+
+/**
+ * Saves a copy of the current readonly operation (if any) in `savedOperation`.
+ */
+PyAPI_FUNC(int) PyReadonly_SaveCurrentReadonlyOperation(int* savedOperation);
+
+/**
+ * Restore the current readonly operation from the value saved by PyReadonly_SaveCurrentReadonlyOperation.
+ */
+PyAPI_FUNC(int) PyReadonly_RestoreCurrentReadonlyOperation(int savedOperation);
+
+/**
+ * Stops the current readonly operation (if any) and store it in `suspendedOperation`.
+ */
+PyAPI_FUNC(int) PyReadonly_SuspendCurrentReadonlyOperation(int* suspendedOperation);
 
 /**
  * Determine if the specified operation is valid without raising any errors.

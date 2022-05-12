@@ -151,6 +151,80 @@ int PyReadonly_BeginReadonlyOperation(int mask) {
     return _PyReadonly_SetCurrentOperationMask(mask | PY_READONLY_IN_OPERATION_FLAG);
 }
 
+int PyReadonly_MaybeBeginReadonlyOperation(int originalOperation, int returnsReadonly, int argMask) {
+    if ((originalOperation & PY_READONLY_IN_OPERATION_FLAG) != 0) {
+        int newMask = returnsReadonly != 0 ? PY_READONLY_RETURN_TYPE_FLAG : 0;
+        newMask |= argMask;
+        return PyReadonly_BeginReadonlyOperation(newMask);
+    }
+    return 0;
+}
+
+int PyReadonly_ReorderCurrentOperationArgs2(void) {
+    PyReadonlyOperationMask currentMask = _PyReadonly_GetCurrentOperationMask();
+    if ((currentMask & PY_READONLY_IN_OPERATION_FLAG) != 0) {
+        if ((currentMask & PY_READONLY_ARGUMENTS_MASK) != (currentMask & 0x03)) {
+            // PyErr("TOO MANY ARGS")
+            return -1;
+        }
+        PyReadonlyOperationMask newArgMask = ((currentMask & 0x01) << 1) | ((currentMask & 0x02) >> 1);
+        currentMask &= ~PY_READONLY_ARGUMENTS_MASK;
+        return _PyReadonly_SetCurrentOperationMask(currentMask | newArgMask);
+    }
+    return 0;
+}
+
+int PyReadonly_ReorderCurrentOperationArgs3(int newArg1Pos, int newArg2Pos, int newArg3Pos) {
+    PyReadonlyOperationMask currentMask = _PyReadonly_GetCurrentOperationMask();
+    if ((currentMask & PY_READONLY_IN_OPERATION_FLAG) != 0) {
+        if ((currentMask & PY_READONLY_ARGUMENTS_MASK) != (currentMask & 0x07)) {
+            // PyErr("TOO MANY ARGS")
+            return -1;
+        }
+        // This check should be trivially eliminated when inlining with LTO enabled.
+        if (newArg1Pos <= 0 || newArg2Pos <= 0 || newArg3Pos <= 0 ||
+            newArg1Pos > 3 || newArg2Pos > 3 || newArg3Pos > 3 ||
+            newArg1Pos == newArg2Pos || newArg2Pos == newArg3Pos || newArg3Pos == newArg1Pos) {
+            // PyErr("Invalid argument positions!")
+            return -1;
+        }
+        PyReadonlyOperationMask newArgMask = 0;
+        newArgMask |= (currentMask & 0x01) << (newArg1Pos - 1);
+        newArgMask |= ((currentMask & 0x02) >> 1) << (newArg2Pos - 1);
+        newArgMask |= ((currentMask & 0x04) >> 2) << (newArg3Pos - 1);
+        currentMask &= ~PY_READONLY_ARGUMENTS_MASK;
+        return _PyReadonly_SetCurrentOperationMask(currentMask | newArgMask);
+    }
+    return 0;
+}
+
+int PyReadonly_SaveCurrentReadonlyOperation(int* savedOperation) {
+    PyReadonlyOperationMask currentMask = _PyReadonly_GetCurrentOperationMask();
+    if ((currentMask & PY_READONLY_IN_OPERATION_FLAG) != 0) {
+        *savedOperation = currentMask;
+        return 0;
+    }
+    *savedOperation = 0;
+    return 0;
+}
+
+int PyReadonly_RestoreCurrentReadonlyOperation(int savedOperation) {
+    if ((savedOperation & PY_READONLY_IN_OPERATION_FLAG) != 0) {
+        return _PyReadonly_SetCurrentOperationMask(savedOperation);
+    }
+    return 0;
+}
+
+int PyReadonly_SuspendCurrentReadonlyOperation(int* suspendedOperation) {
+    PyReadonlyOperationMask currentMask = _PyReadonly_GetCurrentOperationMask();
+    if ((currentMask & PY_READONLY_IN_OPERATION_FLAG) != 0) {
+        *suspendedOperation = currentMask;
+        return _PyReadonly_SetCurrentOperationMask(0);
+    }
+    *suspendedOperation = 0;
+    return 0;
+}
+
 int PyReadonly_IsReadonlyOperationValid(int operationMask, int functionArgsMask, int functionReturnsReadonly) {
     return _PyReadonly_DoReadonlyCheck(PYREADONLY_CHECK_ONLY, operationMask, functionArgsMask, functionReturnsReadonly);
 }
