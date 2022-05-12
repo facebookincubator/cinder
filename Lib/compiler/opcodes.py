@@ -1,5 +1,6 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from .opcodebase import Opcode
+from typing import Tuple
 
 opcode: Opcode = Opcode()
 opcode.def_op("POP_TOP", 1)
@@ -165,6 +166,14 @@ FVC_ASCII = 0x3
 FVS_MASK = 0x4
 FVS_HAVE_SPEC = 0x4
 
+
+def calculate_readonly_op_stack_effect(oparg: Tuple[int], jmp: int) -> int:
+    op = oparg[0]
+    if opcode.readonlyop["BINARY_ADD"] <= op and op <= opcode.readonlyop["BINARY_AND"]:
+        return -1
+    return 0
+
+
 opcode.stack_effects.update(
     NOP=0,
     POP_TOP=-1,
@@ -267,7 +276,9 @@ opcode.stack_effects.update(
     STORE_DEREF=-1,
     DELETE_DEREF=0,
     FUNC_CREDENTIAL=1,
-    READONLY_OPERATION=lambda oparg, jmp=0: -1 if oparg[0] >= 2 and oparg[0] <= 14 else 0,
+    READONLY_OPERATION=lambda oparg, jmp=0: calculate_readonly_op_stack_effect(
+        oparg, jmp
+    ),
     GET_AWAITABLE=0,
     BEFORE_ASYNC_WITH=1,
     GET_AITER=0,
