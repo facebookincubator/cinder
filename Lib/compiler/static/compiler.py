@@ -185,6 +185,7 @@ class Compiler:
             "getattr": self.type_env.DYNAMIC,
             "globals": self.type_env.DYNAMIC,
             "hasattr": self.type_env.DYNAMIC,
+            "memoryview": self.type_env.DYNAMIC,
             "int": self.type_env.int.exact_type(),
             "isinstance": IsInstanceFunction(self.type_env),
             "issubclass": IsSubclassFunction(self.type_env),
