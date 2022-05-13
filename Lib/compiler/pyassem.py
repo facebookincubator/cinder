@@ -256,6 +256,7 @@ class Block:
         self.startdepth = -1
         self.is_exit = False
         self.no_fallthrough = False
+        self.num_predecessors = 0
 
     def __repr__(self):
         data = []
@@ -492,6 +493,7 @@ class PyFlowGraph(FlowGraph):
         assert self.stage == ACTIVE, self.stage
         self.stage = CLOSED
         self.optimizeCFG()
+        self.propagate_line_numbers()
         assert self.stage == OPTIMIZED, self.stage
 
         # assert self.stage == OPTIMIZED, self.stage
@@ -830,6 +832,34 @@ class PyFlowGraph(FlowGraph):
             const[1] for const, idx in sorted(self.consts.items(), key=lambda o: o[1])
         )
 
+    def propagate_line_numbers(self):
+        """Propagate line numbers to instructions without."""
+        for block in self.ordered_blocks:
+            if not block.insts:
+                continue
+            prev_lineno = -1
+            for instr in block.insts:
+                if instr.lineno < 0:
+                    instr.lineno = prev_lineno
+                else:
+                    prev_lineno = instr.lineno
+            if not block.no_fallthrough and block.next.num_predecessors == 1:
+                assert block.next.insts
+                next_instr = block.next.insts[0]
+                if next_instr.lineno < 0:
+                    next_instr.lineno = prev_lineno
+            last_instr = block.insts[-1]
+            if last_instr.is_jump() and last_instr.opname not in {
+                # Only actual jumps, not exception handlers
+                "SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"
+            }:
+                target = last_instr.target
+                if target.num_predecessors == 1:
+                    assert target.insts
+                    next_instr = target.insts[0]
+                    if next_instr.lineno < 0:
+                        next_instr.lineno = prev_lineno
+
     def optimizeCFG(self):
         """Optimize a well-formed CFG."""
         assert self.stage == CLOSED, self.stage
@@ -884,9 +914,11 @@ class PyFlowGraph(FlowGraph):
                 target = instruction.target
                 if target is not None:
                     worklist.append(target)
+                    target.num_predecessors += 1
 
             if not entry.no_fallthrough:
                 worklist.append(entry.next)
+                entry.next.num_predecessors += 1
 
         self.ordered_blocks = [
             block for block in self.ordered_blocks if block.bid in reachable_blocks
