@@ -44,19 +44,6 @@ class DataclassTests(StaticTestBase):
                 code = self.compile(codestr)
                 self.assertNotInBytecode(code, "LOAD_NAME", "dataclass")
 
-    def test_dataclass_bans_subclassing(self) -> None:
-        codestr = """
-        from __static__ import dataclass
-
-        @dataclass
-        class C:
-            pass
-
-        class D(C):
-            pass
-        """
-        self.type_error(codestr, "Cannot subclass static dataclasses", at="class D")
-
     def test_dataclass_basic(self) -> None:
         codestr = """
         from __static__ import dataclass
@@ -169,7 +156,7 @@ class DataclassTests(StaticTestBase):
             y: str
         """
         self.type_error(
-            codestr, "non-default argument y follows default argument", at="class C:"
+            codestr, "non-default argument 'y' follows default argument", at="class C:"
         )
 
     def test_dataclass_with_positional_arg(self) -> None:
@@ -1410,3 +1397,326 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertRegex(repr(mod.c), r"C\(x=1, z=3\)")
+
+    def test_dataclass_subclass_non_default_after_default_disallowed(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int
+            y: int = 1
+
+        @dataclass
+        class D(C):
+            z: int
+        """
+        self.type_error(
+            codestr,
+            "non-default argument 'z' follows default argument",
+            at="class D(C):",
+        )
+
+    def test_dataclass_subclass_default_after_default_allowed(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int
+            y: int = 1
+
+        @dataclass
+        class D(C):
+            z: int = 2
+
+        d1 = D(0)
+        d2 = D(3, 4, 5)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.d1.x, 0)
+            self.assertEqual(mod.d1.y, 1)
+            self.assertEqual(mod.d1.z, 2)
+
+            self.assertEqual(mod.d2.x, 3)
+            self.assertEqual(mod.d2.y, 4)
+            self.assertEqual(mod.d2.z, 5)
+
+    def test_dataclass_with_dataclass_subclass(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+            y: int
+
+        @dataclass
+        class D(C):
+            z: int
+
+        d = D(1, 2, 3)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.d.x, 1)
+            self.assertEqual(mod.d.y, 2)
+            self.assertEqual(mod.d.z, 3)
+
+    def test_dataclass_inheritance_chain(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+            y: int
+
+        # dataclasses.is_dataclass(D) is still True,
+        # but we do not need to process it as a dataclass
+        class D(C):
+            pass
+
+        @dataclass
+        class E(D):
+            z: int
+
+        e = E(1, 2, 3)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.e.x, 1)
+            self.assertEqual(mod.e.y, 2)
+            self.assertEqual(mod.e.z, 3)
+
+    def test_non_frozen_dataclass_cannot_subclass_frozen(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: int
+            y: int
+
+        @dataclass
+        class D(C):
+            z: int
+        """
+        self.type_error(
+            codestr,
+            "cannot inherit non-frozen dataclass from a frozen one",
+            at="class D(C):",
+        )
+
+    def test_frozen_dataclass_cannot_subclass_non_frozen(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int
+            y: int
+
+        @dataclass(frozen=True)
+        class D(C):
+            z: int
+        """
+        self.type_error(
+            codestr,
+            "cannot inherit frozen dataclass from a non-frozen one",
+            at="class D(C):",
+        )
+
+    def test_dataclass_with_no_assignment_inherits_default(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+            y: int = 1
+
+        @dataclass
+        class D(C):
+            y: int
+
+        d = D(0)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.d.x, 0)
+            self.assertEqual(mod.d.y, 1)
+
+    def test_dataclass_can_load_inherited_defaults(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int = 1
+            y: int = field(default_factory=lambda: 2)
+
+        @dataclass
+        class D(C):
+            z: int = 3
+
+        d = D()
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.d.x, 1)
+            self.assertEqual(mod.d.y, 2)
+            self.assertEqual(mod.d.z, 3)
+
+    def test_dataclass_with_field_overrides_default(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int = 1
+
+        @dataclass
+        class D(C):
+            x: int = field(hash=False)
+
+        d = D()
+        """
+        self.type_error(codestr, "D.__init__ expects a value for argument x", at="D()")
+
+    def test_dataclass_cannot_change_field_type(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int
+
+        @dataclass
+        class D(C):
+            x: str
+        """
+        self.type_error(
+            codestr,
+            r"Type of field 'x' on class '.*D' conflicts with base type\. "
+            r"Base field has annotation int, but overridden field has annotation str",
+            at="class D",
+        )
+
+    def test_dataclass_cannot_narrow_field_type(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+        from dataclasses import field
+
+        @dataclass
+        class C:
+            x: int
+
+        @dataclass
+        class D(C):
+            x: bool
+        """
+        self.type_error(
+            codestr,
+            r"Type of field 'x' on class '.*D' conflicts with base type\. "
+            r"Base field has annotation int, but overridden field has annotation bool",
+            at="class D",
+        )
+
+    def test_dataclass_cannot_override_true_field_with_pseudo_field(self) -> None:
+        annotations = ("ClassVar", "InitVar")
+        for psuedo_field in annotations:
+            with self.subTest(override=psuedo_field):
+                codestr = f"""
+                from __static__ import dataclass
+                from dataclasses import InitVar
+                from typing import ClassVar
+
+                @dataclass
+                class C:
+                    x: int
+
+                @dataclass
+                class D(C):
+                    x: {psuedo_field}[int]
+                """
+                self.type_error(
+                    codestr,
+                    f"Override of field 'x' cannot be a {psuedo_field}",
+                    at="class D",
+                )
+
+    def test_dataclass_override_pseudo_field_with_other(self) -> None:
+        annotations = {
+            "ClassVar": ("int", "InitVar[int]"),
+            "InitVar": ("int", "ClassVar[int]"),
+        }
+        for base, overrides in annotations.items():
+            for override in overrides:
+                with self.subTest(base=base, override=override):
+                    codestr = f"""
+                    from __static__ import dataclass
+                    from dataclasses import InitVar
+                    from typing import ClassVar
+
+                    @dataclass
+                    class C:
+                        x: {base}[int]
+
+                    @dataclass
+                    class D(C):
+                        x: {override}
+                    """
+                    self.type_error(
+                        codestr,
+                        f"Override of field 'x' must be a {base}",
+                        at="class D",
+                    )
+
+    def test_dataclass_override_must_be_consistent(self) -> None:
+        codestr = f"""
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+
+        @dataclass
+        class D:
+            x: str
+
+        @dataclass
+        class Join(D, C):
+            pass
+        """
+        self.type_error(
+            codestr,
+            r"Type of field 'x' on class '.*Join' conflicts with base type\. "
+            r"Base field has annotation int, but overridden field has annotation str",
+            at="class Join",
+        )
+
+    def test_dataclass_does_not_allow_multiple_inheritance(self) -> None:
+        codestr = f"""
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+
+        @dataclass
+        class D:
+            x: int
+
+        @dataclass
+        class Join(D, C):
+            pass
+        """
+        self.assertRaisesRegex(
+            TypeError,
+            "multiple bases have instance lay-out conflict",
+            self.run_code,
+            codestr,
+        )

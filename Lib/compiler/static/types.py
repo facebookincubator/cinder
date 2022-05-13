@@ -4869,6 +4869,7 @@ class DataclassField(Object[DataclassFieldType]):
         self.metadata = metadata
         self.kind: DataclassFieldKind = DataclassFieldKind.FIELD
         self.base_class: Optional[Dataclass] = None
+        self.default_class: Optional[Dataclass] = None
 
         if type_ref is not None:
             wrapper = type(type_ref.resolved(True))
@@ -4897,17 +4898,22 @@ class DataclassField(Object[DataclassFieldType]):
         return (*self.base_class.type_descr, self.field_name)
 
     @property
-    def _unwrapped_type(self) -> Class:
+    def unwrapped_type(self) -> Tuple[Class, Type[Class]]:
         assert self.type_ref is not None
-        return self.type_ref.resolved(True).unwrap()
+        klass = self.type_ref.resolved(True)
+        return klass.unwrap(), type(klass)
+
+    @property
+    def type_wrapper(self) -> Type[Class]:
+        return self.unwrapped_type[1]
 
     @property
     def unwrapped_descr(self) -> TypeDescr:
-        return self._unwrapped_type.type_descr
+        return self.unwrapped_type[0].type_descr
 
     @property
     def unwrapped_ref(self) -> TypeRef:
-        return ResolvedTypeRef(self._unwrapped_type)
+        return ResolvedTypeRef(self.unwrapped_type[0])
 
     def bind_field(self, visitor: TypeBinder) -> None:
         if (
@@ -4944,10 +4950,19 @@ class DataclassField(Object[DataclassFieldType]):
             code_gen.visit(target)
         # no default value, nothing to emit
 
+    def load_default(self, klass: Dataclass, code_gen: Static38CodeGenerator) -> None:
+        default = self.default_class
+        assert default is not None
+        if default.inexact_type() is klass.inexact_type():
+            code_gen.emit("LOAD_NAME", self.field_name)
+        else:
+            code_gen.emit("LOAD_CLASS", default.type_descr)
+            code_gen.emit("LOAD_ATTR", self.field_name)
+
     def __repr__(self) -> str:
         return (
             "Field("
-            f"name={self.name!r},"
+            f"name={self.field_name!r},"
             f"type={self.type_ref!r},"
             f"default={self.default!r},"
             f"default_factory={self.default_factory!r},"
@@ -5043,24 +5058,79 @@ class Dataclass(Class):
             and "__eq__" in self.wrapped_class.members
         )
 
-    def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
-        # TODO(T96281456): support subclassing
-        raise TypedSyntaxError("Cannot subclass static dataclasses")
+    def check_consistent_override(
+        self,
+        name: str,
+        existing: DataclassField,
+        field: DataclassField,
+    ) -> None:
+        existing_type, existing_wrapper = existing.unwrapped_type
+        new_type, new_wrapper = field.unwrapped_type
+        if existing_wrapper in (ClassVar, InitVar):
+            if new_wrapper is not existing_wrapper:
+                raise TypedSyntaxError(
+                    f"Override of field '{name}' must be a {existing_wrapper.__name__}"
+                )
+        elif new_wrapper in (ClassVar, InitVar):
+            raise TypedSyntaxError(
+                f"Override of field '{name}' cannot be a {new_wrapper.__name__}"
+            )
+        if new_type is not existing_type:
+            raise TypedSyntaxError(
+                f"Type of field '{name}' on class "
+                f"'{self.qualname}' conflicts with base type. "
+                f"Base field has annotation {existing.type_annotation}, "
+                f"but overridden field has annotation {field.type_annotation}"
+            )
 
     def finish_bind(self, module: ModuleTable, klass: Class | None) -> Optional[Value]:
+        # Class declarations do not allow bases to be forward-referenced,
+        # so by now all base dataclasses have their fields fully resolved
+        any_frozen_base = False
+        has_dataclass_bases = False
+        for base in self.mro[-1:0:-1]:
+            if isinstance(base, Dataclass):
+                has_dataclass_bases = True
+                for name, field in base.fields.items():
+                    if (existing := self.fields.get(name)) is not None:
+                        self.check_consistent_override(name, existing, field)
+                    self.fields[name] = field
+
+                self.fields.update(base.fields)
+                if base.frozen:
+                    any_frozen_base = True
+
+        if has_dataclass_bases:
+            if any_frozen_base and not self.frozen:
+                raise TypedSyntaxError(
+                    "cannot inherit non-frozen dataclass from a frozen one"
+                )
+            if not any_frozen_base and self.frozen:
+                raise TypedSyntaxError(
+                    "cannot inherit frozen dataclass from a non-frozen one"
+                )
+
         for name, slot in self.members.items():
             if not isinstance(slot, Slot) or not slot.declared_on_class:
                 continue
 
+            base_field = self.fields.get(name)
             self.fields[name] = field = DataclassField(
                 self.type_env.dataclass_field,
                 name,
                 slot.type_ref,
             )
 
-            field.base_class = self
+            if base_field is None:
+                field.base_class = self
+            else:
+                self.check_consistent_override(name, base_field, field)
+                field.base_class = base_field.base_class
 
             if not slot.assigned_on_class:
+                if base_field is not None:
+                    field.default = base_field.default
+                    field.default_class = base_field.default_class
                 continue
 
             assignment = slot.assignment
@@ -5070,11 +5140,13 @@ class Dataclass(Class):
 
             if not isinstance(default, ast.Call):
                 field.default = default
+                field.default_class = self
                 continue
 
             func = module.ref_visitor.visit(default.func)
             if func is not self.type_env.dataclass_field_function:
                 field.default = default
+                field.default_class = self
                 continue
 
             if default.args:
@@ -5116,6 +5188,8 @@ class Dataclass(Class):
                 # no default - clear the assignment from the slot
                 slot.assignment = None
                 slot.assigned_on_class = False
+            else:
+                field.default_class = self
 
         self.init_fields = {
             name: field
@@ -5141,7 +5215,7 @@ class Dataclass(Class):
                     seen_default = True
                 elif seen_default:
                     raise TypedSyntaxError(
-                        f"non-default argument {name} follows default argument"
+                        f"non-default argument '{name}' follows default argument"
                     )
 
                 if field.default is not None:
@@ -5406,7 +5480,7 @@ class Dataclass(Class):
         for name, field in self.init_fields.items():
             if field.default is not None:
                 num_defaults += 1
-                code_gen.emit("LOAD_NAME", name)
+                field.load_default(self, code_gen)
             elif field.default_factory is not None:
                 num_defaults += 1
                 code_gen.emit("LOAD_NAME", "_HAS_DEFAULT_FACTORY")
@@ -5487,11 +5561,11 @@ class Dataclass(Class):
 
             # <class>.<field> contains the default or default_factory, if one exists
             if field.default is not None:
-                code_gen.emit("LOAD_NAME", name)
+                field.load_default(self, code_gen)
                 field_args.append("default")
 
             if field.default_factory is not None:
-                code_gen.emit("LOAD_NAME", name)
+                field.load_default(self, code_gen)
                 field_args.append("default_factory")
 
             if not field.init:
