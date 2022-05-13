@@ -118,7 +118,7 @@ class GraphTests(CompilerTest):
         graph = self.get_child_graph(graph, "f")
         expected = Block(
             "entry",
-            Block("async_for_try", Block("except", Block("end", Block("exit")))),
+            Block("async_for_try", Block("except", Block("exit"))),
         )
         self.assert_graph_equal(graph, expected)
 

@@ -849,9 +849,27 @@ class PyFlowGraph(FlowGraph):
         for block in self.ordered_blocks:
             optimizer.extendBlock(block)
 
+        self.eliminate_empty_blocks()
         self.removeUnreachableBlocks()
 
         self.stage = OPTIMIZED
+
+    def eliminate_empty_blocks(self):
+        for block in self.ordered_blocks:
+            next_block = block.next
+            if next_block:
+                while not next_block.insts and next_block.next:
+                    next_block = next_block.next
+                block.next = next_block
+        for block in self.ordered_blocks:
+            if not block.insts:
+                continue
+            last = block.insts[-1]
+            if last.is_jump():
+                target = last.target
+                while not target.insts and target.next:
+                    target = target.next
+                last.target = target
 
     def removeUnreachableBlocks(self):
         # mark all reachable blocks
