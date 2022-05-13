@@ -17,6 +17,7 @@ from contextlib import nullcontext
 from enum import Enum
 from typing import (
     cast,
+    overload,
     ContextManager,
     Dict,
     List,
@@ -24,6 +25,7 @@ from typing import (
     Set,
     TYPE_CHECKING,
     Tuple,
+    Union,
 )
 
 from ..errors import TypedSyntaxError
@@ -69,9 +71,9 @@ class ReferenceVisitor(GenericVisitor[Optional[Value]]):
     def visitName(self, node: Name) -> Optional[Value]:
         if node.id in self.local_names:
             return self.local_names[node.id]
-        return self.module.children.get(
+        return self.module.get_child(
             node.id
-        ) or self.module.compiler.builtins.children.get(node.id)
+        ) or self.module.compiler.builtins.get_child(node.id)
 
     def visitAttribute(self, node: Attribute) -> Optional[Value]:
         val = self.visit(node.value)
@@ -172,6 +174,21 @@ class AnnotationVisitor(ReferenceVisitor):
             return self.visit(n)
 
 
+class DeferredValue:
+    def __init__(self, mod_name: str, name: str, compiler: Compiler) -> None:
+        self.mod_name = mod_name
+        self.name = name
+        self.compiler = compiler
+
+    def resolve(self) -> Value:
+        mod = self.compiler.modules.get(self.mod_name)
+        if mod is not None:
+            val = mod.get_child(self.name)
+            if val is not None:
+                return val
+        return self.compiler.type_env.DYNAMIC
+
+
 class ModuleTable:
     def __init__(
         self,
@@ -182,7 +199,9 @@ class ModuleTable:
     ) -> None:
         self.name = name
         self.filename = filename
-        self.children: Dict[str, Value] = members or {}
+        self.children: Dict[str, Value | DeferredValue] = {}
+        if members is not None:
+            self.children.update(members)
         self.compiler = compiler
         self.types: Dict[AST, Value] = {}
         self.node_data: Dict[Tuple[AST, object], object] = {}
@@ -201,6 +220,16 @@ class ModuleTable:
         self.first_pass_done = False
         self.ann_visitor = AnnotationVisitor(self)
         self.ref_visitor = ReferenceVisitor(self)
+
+    @overload
+    def get_child(self, name: str, default: Value = ...) -> Value:
+        ...
+
+    def get_child(self, name: str, default: Optional[Value] = None) -> Optional[Value]:
+        res = self.children.get(name, default)
+        if isinstance(res, DeferredValue):
+            self.children[name] = res = res.resolve()
+        return res
 
     def syntax_error(self, msg: str, node: AST) -> None:
         return self.compiler.error_sink.syntax_error(msg, self.filename, node)
@@ -234,7 +263,7 @@ class ModuleTable:
     def _get_inferred_type(self, value: ast.expr) -> Optional[Value]:
         if not isinstance(value, ast.Name):
             return None
-        return self.children.get(value.id)
+        return self.get_child(value.id)
 
     def finish_bind(self) -> None:
         self.first_pass_done = True
@@ -321,9 +350,9 @@ class ModuleTable:
     def resolve_name_with_descr(
         self, name: str
     ) -> Tuple[Optional[Value], Optional[TypeDescr]]:
-        if val := self.children.get(name):
+        if val := self.get_child(name):
             return val, (self.name, name)
-        elif val := self.compiler.builtins.children.get(name):
+        elif val := self.compiler.builtins.get_child(name):
             return val, None
         return None, None
 
@@ -347,7 +376,7 @@ class ModuleTable:
             return final_val
 
     def declare_import(
-        self, name: str, source: Tuple[str, str] | None, val: Value
+        self, name: str, source: Tuple[str, str] | None, val: Value | DeferredValue
     ) -> None:
         """Declare a name imported into this module.
 

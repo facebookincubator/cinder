@@ -202,3 +202,25 @@ class ModuleTests(StaticTestBase):
         compiler.load_compiled_module_from_source(
             self.clean_code(codestr), "mod.py", "mod", 1
         )
+
+    def test_recursive_imports(self) -> None:
+        acode = """
+            from typing import TYPE_CHECKING
+            if TYPE_CHECKING:
+                from b import X
+
+            class C:
+                pass
+        """
+        bcode = """
+            from a import C
+            from typing import Optional
+            from __static__ import cast
+
+            class X:
+                def f(self, v) -> Optional[C]:
+                    if isinstance(v, C):
+                        return cast(C, v)
+        """
+        compiler = self.decl_visit(**{"a": acode, "b": bcode})
+        compiler.compile_module("b")

@@ -21,7 +21,7 @@ from ast import (
 )
 from typing import Union, List, TYPE_CHECKING
 
-from .module_table import ModuleTable
+from .module_table import ModuleTable, DeferredValue
 from .types import (
     AwaitableTypeRef,
     Class,
@@ -217,7 +217,7 @@ class DeclarationVisitor(GenericVisitor[None]):
             if mod is None:
                 self.module.declare_import(child_name, None, self.type_env.DYNAMIC)
                 continue
-            val = mod.children.get(name.name)
+            val = mod.get_child(name.name)
             if val is not None:
                 self.module.declare_import(child_name, (mod_name, name.name), val)
             else:
@@ -227,9 +227,10 @@ class DeclarationVisitor(GenericVisitor[None]):
                 # Even if the static compiler doesn't understand an annotation,
                 # declare it as dynamic to ensure we don't throw spurious unknown
                 # name errors.
-                typ = self.type_env.DYNAMIC
                 if module_as_attribute in self.compiler.modules:
                     typ = ModuleInstance(module_as_attribute, self.compiler)
+                else:
+                    typ = DeferredValue(mod_name, name.name, self.compiler)
                 self.module.declare_import(child_name, (mod_name, name.name), typ)
 
     # We don't pick up declarations in nested statements
