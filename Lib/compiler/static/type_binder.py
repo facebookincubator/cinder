@@ -8,6 +8,7 @@ from ast import (
     AnnAssign,
     Assign,
     AsyncFunctionDef,
+    AsyncFor,
     Attribute,
     AugAssign,
     Await,
@@ -1315,7 +1316,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         for gen in generators[1:]:
             self.visit(gen.iter)
             iter_type = self.get_type(gen.iter).get_iter_type(gen.iter, self)
-
             with self.in_target():
                 self.visit(gen.target)
             self.assign_value(gen.target, iter_type)
@@ -1900,6 +1900,21 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     def visitFor(self, node: For) -> None:
         self.visit(node.iter)
         target_type = self.get_type(node.iter).get_iter_type(node.iter, self)
+        with self.in_target():
+            self.visit(node.target)
+        self.assign_value(node.target, target_type)
+        branch = self.scopes[-1].branch()
+        with self.in_loop(node):
+            self.iterate_to_fixed_point(node.body)
+            self.visit(node.body)
+        self.visit(node.orelse)
+        branch.merge()
+
+    def visitAsyncFor(self, node: AsyncFor) -> None:
+        self.visitExpectedType(
+            node.iter, self.type_env.DYNAMIC, "cannot await a primitive value"
+        )
+        target_type = self.type_env.DYNAMIC
         with self.in_target():
             self.visit(node.target)
         self.assign_value(node.target, target_type)
