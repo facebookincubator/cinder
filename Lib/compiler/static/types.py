@@ -174,7 +174,7 @@ class TypeEnvironment:
         self._inexact_types: Dict[Class, Class] = {}
         # Bringing up the type system is a little special as we have dependencies
         # amongst type and object
-        self.type: Class = Class.__new__(Class)
+        self.type: Class = TypeClass.__new__(TypeClass)
         self.type.type_name = TypeName("builtins", "type")
         self.type.type_env = self
         self.type.klass = self.type
@@ -2057,6 +2057,36 @@ class BuiltinObject(Class):
 
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         assert self.can_assign_from(src)
+
+
+class TypeClass(Class):
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        assert self is self.type_env.type.exact_type(), "no metaclass support"
+        if len(node.args) == 1:
+            visitor.visitExpectedType(
+                node.args[0],
+                visitor.type_env.DYNAMIC,
+                CALL_ARGUMENT_CANNOT_BE_PRIMITIVE,
+            )
+            visitor.set_type(node, self)
+            return NO_EFFECT
+        return super().bind_call(node, visitor, type_ctx)
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        assert self is self.type_env.type.exact_type(), "no metaclass support"
+        if len(node.args) == 1:
+            code_gen.update_lineno(node)
+            arg = node.args[0]
+            ty = code_gen.get_type(arg)
+            if ty.klass is not self.klass.type_env.dynamic and ty.klass.is_exact:
+                code_gen.emit("LOAD_CLASS", ty.klass.type_descr)
+                return
+            code_gen.visit(arg)
+            code_gen.emit("LOAD_TYPE")
+            return
+        return super().emit_call(node, code_gen)
 
 
 class Variance(Enum):

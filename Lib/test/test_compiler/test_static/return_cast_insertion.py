@@ -77,3 +77,24 @@ class ReturnCastInsertionTests(StaticTestBase):
         self.assertNotInBytecode(f_code, "CAST")
         # TODO(emacs): How do I get a REFINE_TYPE here?
         # self.assertInBytecode(f_code, "REFINE_TYPE")
+
+    def test_call_type_returns_type(self) -> None:
+        codestr = f"""
+            def f(x) -> type:
+                return type(x)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertNotInBytecode(mod.f, "CAST")
+            self.assertInBytecode(mod.f, "LOAD_TYPE")
+            self.assertIs(mod.f("x"), str)
+
+    def test_call_type_returns_type_exact(self) -> None:
+        codestr = f"""
+            def f() -> type:
+                return type(1)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertNotInBytecode(mod.f, "CAST")
+            self.assertNotInBytecode(mod.f, "LOAD_TYPE")
+            self.assertInBytecode(mod.f, "LOAD_CLASS", ("builtins", "int", "!"))
+            self.assertIs(mod.f(), int)

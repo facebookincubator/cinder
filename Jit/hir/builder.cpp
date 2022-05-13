@@ -141,6 +141,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LIST_APPEND,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
+    LOAD_CLASS,
     LOAD_CLOSURE,
     LOAD_CONST,
     LOAD_DEREF,
