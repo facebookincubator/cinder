@@ -111,13 +111,39 @@ class FlowGraphOptimizer:
             else:
                 instr_index += 1
 
-    def cleanBlock(self, block: Block) -> None:
+    def cleanBlock(self, block: Block, prev_lineno: int) -> None:
         """Remove all NOPs from a function when legal."""
-        prev_instr = None
         new_instrs = []
-        for instr in block.insts:
-            if instr.opname != "NOP":
+        num_instrs = len(block.insts)
+        for idx in range(num_instrs):
+            instr = block.insts[idx]
+            try:
+                if instr.opname == "NOP":
+                    lineno = instr.lineno
+                    # Eliminate no-op if it doesn't have a line number
+                    if (lineno < 0):
+                        continue
+                    # or, if the previous instruction had the same line number.
+                    if (prev_lineno == lineno):
+                        continue
+                    # or, if the next instruction has same line number or no line number
+                    if (idx < num_instrs - 1):
+                        next_instr = block.insts[idx+1]
+                        next_lineno = next_instr.lineno
+                        if (next_lineno < 0 or next_lineno == lineno):
+                            next_instr.lineno = lineno
+                            continue
+                    else:
+                        next_block = block.next
+                        while (next_block and len(next_block.insts) == 0):
+                            next_block = next_block.next
+                        # or if last instruction in BB and next BB has same line number
+                        if (next_block):
+                            if (lineno == next_block.insts[0].lineno):
+                                continue
                 new_instrs.append(instr)
+            finally:
+                prev_lineno = instr.lineno
         block.insts = new_instrs
 
     OP_HANDLERS, ophandler = ophandler_registry()

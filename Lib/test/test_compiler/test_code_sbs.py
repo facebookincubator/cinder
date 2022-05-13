@@ -77,9 +77,6 @@ class CodeTests(CompilerTest):
         while queue:
             instrs = tuple(queue.popleft())
             for i, instr in enumerate(instrs):
-                if instr.opname == "SET_LINENO":
-                    continue
-
                 if isinstance(instr.oparg, CodeGenerator):
                     queue.append(graph_instrs(instr.oparg.graph, instr.oparg.name))
                 if cur_scr == len(script):
@@ -107,9 +104,7 @@ class CodeTests(CompilerTest):
         while queue:
             instrs = queue.popleft()
             for instr in instrs:
-                if instr.opname == "SET_LINENO":
-                    continue
-                elif isinstance(instr.oparg, CodeGenerator):
+                if isinstance(instr.oparg, CodeGenerator):
                     queue.append(graph_instrs(instr.oparg.graph, instr.oparg.name))
                 scr.write(f"    {instr.opname}({format_oparg(instr)}),\n")
         scr.write("]\n")
