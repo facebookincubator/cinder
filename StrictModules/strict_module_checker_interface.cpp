@@ -123,6 +123,7 @@ StrictAnalyzedModule* StrictModuleChecker_Check(
   strictmod::compiler::ModuleLoader* loader =
       reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
   const char* modName = PyUnicode_AsUTF8(module_name);
+  loader->log("Checking module: %s", modName);
   auto analyzedModule = loader->loadModule(modName);
   *is_strict_out = getAnalyzedResult(analyzedModule, out_error_count);
   return reinterpret_cast<StrictAnalyzedModule*>(analyzedModule);

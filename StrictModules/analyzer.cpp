@@ -1041,6 +1041,8 @@ void Analyzer::visitRaise(const stmt_ty stmt) {
   } else {
     exc = currentExceptionContext_;
     if (exc == nullptr) {
+      log("%s: Cannot raise exceptions, no exceptions are active!",
+          context_.filename.c_str());
       context_.raiseExceptionStr(RuntimeErrorType(), "no active exceptions");
     }
   }
@@ -1175,7 +1177,7 @@ AnalysisResult Analyzer::visitName(const expr_ty expr) {
   if (!value) {
     // TODO? decide whether to raise NameError or UnboundLocalError base on
     // declaration
-    log("%s: NameError (%s)", context_.filename.c_str(), nameStr);
+    log("%s: Encountered a NameError (%s)", context_.filename.c_str(), nameStr);
     context_.raiseExceptionStr(
         NameErrorType(), "name {} is not defined", nameStr);
   }
@@ -1190,10 +1192,15 @@ AnalysisResult Analyzer::visitAttribute(const expr_ty expr) {
   assert(attribute.ctx != Del);
   auto result = iLoadAttr(value, attrName, nullptr, context_);
   if (!result) {
+    auto typeName = value->getTypeRef().getName();
+    log("%s: Encountered an AttributeError (%s has no %s)",
+        context_.filename.c_str(),
+        typeName.c_str(),
+        attrName);
     context_.raiseExceptionStr(
         AttributeErrorType(),
         "{} object has no attribute {}",
-        value->getTypeRef().getName(),
+        typeName,
         attrName);
   }
   return result;

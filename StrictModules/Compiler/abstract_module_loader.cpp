@@ -230,6 +230,7 @@ AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
   // look for pys (strict module specific) stub
   auto stubModInfo =
       findModule(modName, stubImportPath_, FileSuffixKind::kStrictStubFile);
+  log("Looking for a stub for %s", modName.c_str());
   bool stubIsNamespacePackage = false;
   if (stubModInfo) {
     stubModInfo = getStubModuleInfo(std::move(stubModInfo), this);
@@ -238,6 +239,8 @@ AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
     }
     stubIsNamespacePackage =
         std::filesystem::is_directory(stubModInfo->getFilename());
+  } else {
+    log("Did not find a stub for %s", modName.c_str());
   }
 
   // look for py source code
@@ -334,7 +337,7 @@ AnalyzedModule* ModuleLoader::loadModuleFromSource(
     const std::string& name,
     const std::string& filename,
     std::vector<std::string> searchLocations) {
-  log("Loading module from source: %s", name.c_str());
+  log("Loading module %s from source: %s", name.c_str(), filename.c_str());
   auto readResult = readFromSource(source, filename.c_str(), arena_);
   if (readResult) {
     AstAndSymbols& result = readResult.value();
@@ -376,6 +379,7 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
   }
 
   const char* suffix = getFileSuffixKindName(suffixKind);
+
   for (const std::string& importPath : searchLocations) {
     // case 1: .py file
     std::filesystem::path pyModPath =
@@ -392,6 +396,7 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
     }
 
     if (readResult) {
+      log("Found %s at %s", modName.c_str(), modPathCstr);
       AstAndSymbols& result = readResult.value();
       bool allowlisted = isAllowListed(modName);
       return std::make_unique<ModuleInfo>(
@@ -417,6 +422,7 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
     }
 
     if (readResult) {
+      log("Found %s at %s", modName.c_str(), modPathCstr);
       AstAndSymbols& result = readResult.value();
       bool allowlisted = isAllowListed(modName);
       return std::make_unique<ModuleInfo>(
@@ -435,6 +441,7 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
     if (std::filesystem::is_directory(nmPackagePath)) {
       readResult = readFromSource("", nmPackagePath.c_str(), arena_);
       if (readResult) {
+        log("Found %s at %s", modName.c_str(), modPathCstr);
         AstAndSymbols& result = readResult.value();
         std::string filename = nmPackagePath.string();
         bool allowlisted = isAllowListed(modName);
