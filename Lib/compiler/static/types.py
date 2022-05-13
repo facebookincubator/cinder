@@ -1249,7 +1249,7 @@ class Object(Value, Generic[TClass]):
     def emit_delete_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
-        if self.klass.find_slot(node):
+        if self.klass.find_slot(node) and node.attr != "__dict__":
             code_gen.emit("DELETE_ATTR", node.attr)
             return
 
@@ -1258,7 +1258,7 @@ class Object(Value, Generic[TClass]):
     def emit_load_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
-        if member := self.klass.find_slot(node):
+        if (member := self.klass.find_slot(node)) and node.attr != "__dict__":
             member.emit_load_from_slot(code_gen)
             return
 
@@ -1267,7 +1267,7 @@ class Object(Value, Generic[TClass]):
     def emit_store_attr(
         self, node: ast.Attribute, code_gen: Static38CodeGenerator
     ) -> None:
-        if member := self.klass.find_slot(node):
+        if (member := self.klass.find_slot(node)) and node.attr != "__dict__":
             member.emit_store_to_slot(code_gen)
             return
 

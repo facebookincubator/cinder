@@ -725,3 +725,32 @@ class StaticFieldTests(StaticTestBase):
             r"Cannot change type of inherited attribute \(inherited type 'object'\)",
             at="x: int",
         )
+
+    def test_explicit_dict(self):
+        codestr = """
+            from typing import Any
+            class A:
+                __dict__: Any
+
+            def get_dict(a: A):
+                return a.__dict__
+        """
+        with self.in_module(codestr) as mod:
+            a = mod.A()
+            a.foo = 42
+            self.assertEqual(mod.get_dict(a), {"foo": 42})
+
+    def test_explicit_weakref(self):
+        codestr = """
+            from typing import Any
+            from weakref import ref
+
+            class A:
+                __weakref__: Any
+
+            def get_ref(a: A):
+                return ref(a)
+        """
+        with self.in_module(codestr) as mod:
+            a = mod.A()
+            self.assertEqual(mod.get_ref(a)(), a)

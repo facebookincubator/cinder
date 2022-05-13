@@ -3581,7 +3581,7 @@ classloader_init_field(PyObject *path, int *field_type)
     }
 
     Py_DECREF(cur);
-    PyErr_Format(PyExc_TypeError, "bad field for class loader XX %R", path);
+    PyErr_Format(PyExc_TypeError, "bad field for class loader %R", path);
     return -1;
 }
 
