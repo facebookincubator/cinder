@@ -10,38 +10,38 @@ from ast import (
     ClassDef,
     Constant,
     Expression,
-    Subscript,
     Name,
+    Subscript,
 )
 from contextlib import nullcontext
 from enum import Enum
 from typing import (
     cast,
-    overload,
     ContextManager,
     Dict,
     List,
     Optional,
+    overload,
     Set,
-    TYPE_CHECKING,
     Tuple,
+    TYPE_CHECKING,
     Union,
 )
 
 from ..errors import TypedSyntaxError
-from ..symbols import Scope, ModuleScope
+from ..symbols import ModuleScope, Scope
 from .types import (
     Callable,
-    CType,
     Callable,
     Class,
     ClassVar,
+    CType,
     DataclassDecorator,
     DynamicClass,
     ExactClass,
+    FinalClass,
     Function,
     FunctionGroup,
-    FinalClass,
     InitVar,
     MethodType,
     TypeDescr,

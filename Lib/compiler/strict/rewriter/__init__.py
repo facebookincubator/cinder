@@ -1,2 +1,2 @@
-from .remove_annotations import remove_annotations, AnnotationRemover
-from .rewriter import StrictModuleRewriter, rewrite
+from .remove_annotations import AnnotationRemover, remove_annotations
+from .rewriter import rewrite, StrictModuleRewriter

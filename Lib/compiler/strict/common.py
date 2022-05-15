@@ -7,27 +7,28 @@ import os.path
 import symtable
 import typing
 from ast import (
+    alias,
     AST,
     AsyncFunctionDef,
     ClassDef,
+    comprehension,
+    copy_location,
     DictComp,
     FunctionDef,
     GeneratorExp,
+    iter_fields,
     Lambda,
     ListComp,
     NodeVisitor,
     SetComp,
     Try,
-    alias,
-    comprehension,
-    copy_location,
-    iter_fields,
 )
 from collections import deque
 from symtable import Class, SymbolTable
 from typing import (
     Callable,
     Dict,
+    final,
     Generic,
     List,
     Mapping,
@@ -35,15 +36,14 @@ from typing import (
     Optional,
     Type,
     TypeVar,
-    final,
 )
 
 from .runtime import (
+    _mark_cached_property,
     freeze_type,
     loose_slots,
-    strict_slots,
     mutable,
-    _mark_cached_property,
+    strict_slots,
 )
 
 from .track_import_call import tracker

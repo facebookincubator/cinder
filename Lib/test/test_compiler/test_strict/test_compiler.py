@@ -1,8 +1,8 @@
 from compiler.strict.common import DEFAULT_STUB_PATH
 from textwrap import dedent
-from typing import Optional, Sequence, final
+from typing import final, Optional, Sequence
 
-from _strictmodule import StrictModuleLoader, StrictAnalysisResult
+from _strictmodule import StrictAnalysisResult, StrictModuleLoader
 
 from .common import StrictTestBase
 from .sandbox import sandbox

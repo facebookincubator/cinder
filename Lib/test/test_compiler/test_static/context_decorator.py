@@ -1,7 +1,8 @@
+from __static__ import ContextDecorator
+
 import asyncio
 import inspect
 
-from __static__ import ContextDecorator
 from test.support.cinder import get_await_stack
 
 from .common import StaticTestBase

@@ -11,13 +11,13 @@ import re
 import symtable
 import sys
 from cinder import StrictModule
+from compiler.dis_stable import Disassembler
 from compiler.errors import (
     CollectingErrorSink,
     ErrorSink,
     PerfWarning,
     TypedSyntaxError,
 )
-from compiler.dis_stable import Disassembler
 from compiler.readonly.type_binder import ReadonlyTypeBinder
 from compiler.static import Static38CodeGenerator, StaticCodeGenerator
 from compiler.static.compiler import Compiler
@@ -33,19 +33,19 @@ from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, T
 
 from _static import (
     TYPED_BOOL,
-    TYPED_INT8,
     TYPED_INT16,
     TYPED_INT32,
     TYPED_INT64,
-    TYPED_UINT8,
+    TYPED_INT8,
     TYPED_UINT16,
     TYPED_UINT32,
     TYPED_UINT64,
+    TYPED_UINT8,
 )
 from _strictmodule import (
-    StrictAnalysisResult,
     NONSTRICT_MODULE_KIND,
     STATIC_MODULE_KIND,
+    StrictAnalysisResult,
     STUB_KIND_MASK_NONE,
     STUB_KIND_MASK_STRICT,
 )

@@ -7,25 +7,19 @@ import sys
 import unittest
 import weakref
 from cinder import (
-    async_cached_property,
     async_cached_classproperty,
-    cached_property,
+    async_cached_property,
     cached_classproperty,
-    StrictModule,
+    cached_property,
     strict_module_patch,
+    StrictModule,
 )
 from functools import wraps
 from textwrap import dedent
-from types import FunctionType, GeneratorType, ModuleType, CodeType
+from types import CodeType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
 
-from test.support import (
-    gc_collect,
-    requires_type_collecting,
-    temp_dir,
-    unlink,
-    TESTFN,
-)
+from test.support import gc_collect, requires_type_collecting, temp_dir, TESTFN, unlink
 from test.support.cinder import get_await_stack, verify_stack
 from test.support.script_helper import assert_python_ok, make_script
 

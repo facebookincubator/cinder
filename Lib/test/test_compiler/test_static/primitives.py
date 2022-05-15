@@ -5,27 +5,26 @@ import itertools
 import re
 import string
 import sys
-import sys
 import warnings
 from array import array
 from compiler.errors import TypedSyntaxError
 from compiler.static import StaticCodeGenerator
-
-from .common import StaticTestBase, PRIM_NAME_TO_TYPE, bad_ret_type, type_mismatch
 from compiler.static.types import (
+    FAST_LEN_INEXACT,
+    FAST_LEN_LIST,
     PRIM_OP_ADD_INT,
     PRIM_OP_GT_INT,
     PRIM_OP_LT_INT,
-    TypeEnvironment,
-    TypedSyntaxError,
-    FAST_LEN_LIST,
-    FAST_LEN_INEXACT,
     SEQ_LIST,
     SEQ_LIST_INEXACT,
+    TypedSyntaxError,
+    TypeEnvironment,
 )
 from unittest import skipIf
 
 from _static import TYPED_INT16, TYPED_INT32, TYPED_INT64
+
+from .common import bad_ret_type, PRIM_NAME_TO_TYPE, StaticTestBase, type_mismatch
 
 
 class PrimitivesTests(StaticTestBase):

@@ -1,10 +1,10 @@
 from __static__ import (
-    Vector,
     chkdict,
     int64,
+    is_type_static,
     make_generic_type,
     StaticGeneric,
-    is_type_static,
+    Vector,
 )
 
 import asyncio
@@ -17,25 +17,25 @@ from compiler.consts import CO_STATICALLY_COMPILED
 from compiler.pycodegen import PythonCodeGenerator
 from compiler.static import StaticCodeGenerator
 from compiler.static.types import (
-    TypedSyntaxError,
-    FAST_LEN_LIST,
-    FAST_LEN_TUPLE,
-    FAST_LEN_INEXACT,
     FAST_LEN_DICT,
+    FAST_LEN_INEXACT,
+    FAST_LEN_LIST,
     FAST_LEN_SET,
     FAST_LEN_STR,
+    FAST_LEN_TUPLE,
     SEQ_LIST,
-    SEQ_TUPLE,
-    SEQ_REPEAT_INEXACT_SEQ,
     SEQ_REPEAT_INEXACT_NUM,
+    SEQ_REPEAT_INEXACT_SEQ,
     SEQ_REPEAT_PRIMITIVE_NUM,
     SEQ_REPEAT_REVERSED,
     SEQ_SUBSCR_UNCHECKED,
+    SEQ_TUPLE,
+    TypedSyntaxError,
 )
 from copy import deepcopy
-from typing import TypeVar, Optional
+from typing import Optional, TypeVar
 
-from .common import StaticTestBase, add_fixed_module, bad_ret_type, type_mismatch
+from .common import add_fixed_module, bad_ret_type, StaticTestBase, type_mismatch
 
 try:
     import cinderjit

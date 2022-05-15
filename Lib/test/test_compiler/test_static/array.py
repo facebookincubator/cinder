@@ -1,39 +1,34 @@
-from __static__ import (
-    Array,
-    int8,
-    int32,
-    int64,
-)
+from __static__ import Array, int32, int64, int8
 
 import itertools
 import re
 from array import array
 from compiler.static.types import (
-    TypedSyntaxError,
     FAST_LEN_ARRAY,
-    SEQ_ARRAY_INT8,
     SEQ_ARRAY_INT16,
     SEQ_ARRAY_INT32,
     SEQ_ARRAY_INT64,
-    SEQ_ARRAY_UINT8,
+    SEQ_ARRAY_INT8,
     SEQ_ARRAY_UINT16,
     SEQ_ARRAY_UINT32,
     SEQ_ARRAY_UINT64,
+    SEQ_ARRAY_UINT8,
     SEQ_SUBSCR_UNCHECKED,
     TYPED_INT8,
+    TypedSyntaxError,
 )
 from copy import deepcopy
 from typing import Mapping
 
 from _static import (
-    TYPED_INT8,
     TYPED_INT16,
     TYPED_INT32,
     TYPED_INT64,
-    TYPED_UINT8,
+    TYPED_INT8,
     TYPED_UINT16,
     TYPED_UINT32,
     TYPED_UINT64,
+    TYPED_UINT8,
 )
 
 from .common import StaticTestBase, type_mismatch

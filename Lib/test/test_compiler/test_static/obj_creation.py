@@ -1,10 +1,10 @@
+from __static__ import Array, chkdict, chklist, int64
+
 import inspect
+from cinder import freeze_type
 from compiler.errors import TypedSyntaxError
 from inspect import CO_SUPPRESS_JIT
 from re import escape
-
-from __static__ import Array, int64, chkdict, chklist
-from cinder import freeze_type
 
 from .common import StaticTestBase
 

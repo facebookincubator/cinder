@@ -4,7 +4,7 @@ from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import TypeEnvironment
 
-from .common import StaticTestBase, bad_ret_type
+from .common import bad_ret_type, StaticTestBase
 
 
 class UnionCompilationTests(StaticTestBase):
@@ -467,7 +467,6 @@ class UnionCompilationTests(StaticTestBase):
             for i in range(51):
                 self.assertEqual(mod.f(1), 1.0)
                 self.assertEqual(mod.f(MyInt(1)), 1.0)
-
 
 
 if __name__ == "__main__":

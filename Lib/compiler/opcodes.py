@@ -1,6 +1,7 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-from .opcodebase import Opcode
 from typing import Tuple
+
+from .opcodebase import Opcode
 
 opcode: Opcode = Opcode()
 opcode.def_op("POP_TOP", 1)

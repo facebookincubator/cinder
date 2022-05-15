@@ -5,42 +5,42 @@ import ast
 import builtins
 from ast import (
     AST,
+    AsyncFunctionDef,
     Call,
     ClassDef,
     expr,
     FunctionDef,
-    AsyncFunctionDef,
-    NodeVisitor,
     ImportFrom,
     Name,
+    NodeVisitor,
     stmt,
 )
 from types import CodeType
-from typing import Any, cast, Dict, final, Optional, List, Mapping
+from typing import Any, cast, Dict, final, List, Mapping, Optional
 
 from _strictmodule import MUTABLE_DECORATOR
 
 from .. import symbols
-from ..pyassem import PyFlowGraph
-from ..pyassem import PyFlowGraphCinder
+from ..pyassem import PyFlowGraph, PyFlowGraphCinder
 from ..pycodegen import (
     CodeGenerator,
-    FOR_LOOP,
     END_FINALLY,
-    TRY_FINALLY_BREAK,
-    TRY_FINALLY,
     Entry,
+    FOR_LOOP,
+    TRY_FINALLY,
+    TRY_FINALLY_BREAK,
 )
 from ..readonly import ReadonlyCodeGenerator, ReadonlyTypeBinder
 from ..symbols import FunctionScope, SymbolVisitor
 from ..visitor import walk
 from .common import FIXED_MODULES
-from .feature_extractor import FeatureExtractor, _IMPLICIT_GLOBALS
+from .feature_extractor import _IMPLICIT_GLOBALS, FeatureExtractor
 
 # Unused but still present until we remove it from IGSRV
 enable_strict_features: bool = True
 
 GLOBALS_HELPER_ALIAS = "<globals-helper>"
+
 
 def is_mutable(node: AST) -> bool:
     return isinstance(node, Name) and node.id == MUTABLE_DECORATOR

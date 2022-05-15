@@ -7,7 +7,7 @@ import operator
 import sys
 from enum import Enum
 from functools import reduce
-from typing import List, NamedTuple, Optional, Tuple, Dict, TextIO, Set
+from typing import Dict, List, NamedTuple, Optional, Set, TextIO, Tuple
 
 # This file is used to generate Jit/hir/type_generated.h. Jit/type.md is
 # recommended reading before trying to understand or change anything in here.

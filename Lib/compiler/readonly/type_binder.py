@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 from ast import AST, Name
-from typing import Dict, Optional, final, List, Tuple
+from typing import Dict, final, List, Optional, Tuple
 
 from ..consts import (
     SC_CELL,
@@ -13,14 +13,14 @@ from ..consts import (
     SC_UNKNOWN,
 )
 from ..errors import CollectingErrorSink
-from ..symbols import SymbolVisitor, Scope
+from ..symbols import Scope, SymbolVisitor
 from ..unparse import to_expr
 from ..visitor import ASTVisitor
-from .types import MUTABLE, READONLY, Value, FunctionValue
+from .types import FunctionValue, MUTABLE, READONLY, Value
 from .util import (
-    is_readonly_wrapped,
     is_readonly_func,
     is_readonly_func_nonlocal,
+    is_readonly_wrapped,
     is_tuple_wrapped,
     READONLY_DECORATORS,
 )

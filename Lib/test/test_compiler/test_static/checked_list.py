@@ -1,7 +1,8 @@
 from __static__ import CheckedList
+
 from _static import SEQ_CHECKED_LIST, SEQ_SUBSCR_UNCHECKED
 
-from .common import StaticTestBase, bad_ret_type, type_mismatch
+from .common import bad_ret_type, StaticTestBase, type_mismatch
 
 
 class CheckedListTests(StaticTestBase):

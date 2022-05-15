@@ -1,6 +1,6 @@
 import asyncio
 
-from .common import StaticTestBase, bad_ret_type
+from .common import bad_ret_type, StaticTestBase
 
 
 class PropertyTests(StaticTestBase):

@@ -5,13 +5,9 @@ import ast
 import builtins
 from ast import AST
 from types import CodeType
-from typing import Any, Optional, Dict, Tuple, Type, TYPE_CHECKING
+from typing import Any, Dict, Optional, Tuple, Type, TYPE_CHECKING
 
-from _static import (
-    posix_clock_gettime_ns,
-    RAND_MAX,
-    rand,
-)
+from _static import posix_clock_gettime_ns, rand, RAND_MAX
 
 from .. import consts
 from ..errors import ErrorSink
@@ -26,21 +22,21 @@ from .types import (
     CastFunction,
     Class,
     ExtremumFunction,
+    IdentityDecorator,
     IsInstanceFunction,
     IsSubclassFunction,
     LenFunction,
     NumClass,
     Object,
-    ReadonlyFunction,
-    IdentityDecorator,
     ProdAssertFunction,
+    ReadonlyFunction,
+    reflect_builtin_function,
     RevealTypeFunction,
     SortedFunction,
-    TypeName,
     TypeEnvironment,
+    TypeName,
     UnboxFunction,
     Value,
-    reflect_builtin_function,
 )
 
 if TYPE_CHECKING:

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import ast
 from ast import (
-    AST,
     AnnAssign,
     Assign,
+    AST,
     AsyncFunctionDef,
     Attribute,
     ClassDef,
@@ -19,15 +19,15 @@ from ast import (
     Name,
 )
 from symtable import SymbolTable
-from typing import List, MutableMapping, Optional, Set, final
+from typing import final, List, MutableMapping, Optional, Set
 
 from .common import (
+    get_symbol_map,
+    imported_name,
     ScopeStack,
     StrictModuleError,
     SymbolMap,
     SymbolScope,
-    get_symbol_map,
-    imported_name,
 )
 from .preprocessor import ALL_INDICATORS
 from .rewriter.rewriter import SymbolVisitor

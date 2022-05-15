@@ -3,26 +3,21 @@ from __future__ import annotations
 import ast
 from ast import AST
 from types import CodeType
-from typing import List, Optional, Tuple, Type, cast, Union
+from typing import cast, List, Optional, Tuple, Type, Union
 
 from ..opcodes import opcode
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
-from ..pycodegen import (
-    CodeGenerator,
-    CinderCodeGenerator,
-    FuncOrLambda,
-    CompNode,
-)
+from ..pycodegen import CinderCodeGenerator, CodeGenerator, CompNode, FuncOrLambda
 from ..symbols import (
+    CinderSymbolVisitor,
     ClassScope,
     FunctionScope,
     ModuleScope,
     Scope,
-    CinderSymbolVisitor,
     SymbolVisitor,
 )
 from .type_binder import ReadonlyTypeBinder, TReadonlyTypes
-from .types import READONLY, FunctionValue
+from .types import FunctionValue, READONLY
 
 
 class ReadonlyCodeGenerator(CinderCodeGenerator):
@@ -302,6 +297,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         )
 
         self.emit_readonly_op("CHECK_FUNCTION", [nargs, mask, method_flag])
+
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int

@@ -2,20 +2,15 @@
 from __future__ import annotations
 
 import ast
-from ast import (
-    AST,
-    Call,
-    Constant,
-    Name,
-)
+from ast import AST, Call, Constant, Name
 from typing import List, Optional, Tuple, TypeVar
 
 from _strictmodule import (
-    MUTABLE_DECORATOR,
-    LOOSE_SLOTS_DECORATOR,
-    EXTRA_SLOTS_DECORATOR,
-    ENABLE_SLOTS_DECORATOR,
     CACHED_PROP_DECORATOR,
+    ENABLE_SLOTS_DECORATOR,
+    EXTRA_SLOTS_DECORATOR,
+    LOOSE_SLOTS_DECORATOR,
+    MUTABLE_DECORATOR,
 )
 
 ALL_INDICATORS: Tuple[str, ...] = (

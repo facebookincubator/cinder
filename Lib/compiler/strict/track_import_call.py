@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
-from typing import Set, final
+from typing import final, Set
 
 
 @final

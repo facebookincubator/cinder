@@ -3,18 +3,18 @@
 try:
     from _static import (
         set_type_code,
-        TYPED_INT8,
+        TYPED_BOOL,
+        TYPED_CHAR,
+        TYPED_DOUBLE,
         TYPED_INT16,
         TYPED_INT32,
         TYPED_INT64,
-        TYPED_UINT8,
+        TYPED_INT8,
+        TYPED_SINGLE,
         TYPED_UINT16,
         TYPED_UINT32,
         TYPED_UINT64,
-        TYPED_DOUBLE,
-        TYPED_SINGLE,
-        TYPED_BOOL,
-        TYPED_CHAR,
+        TYPED_UINT8,
     )
 except ImportError:
     TYPED_INT8 = 0

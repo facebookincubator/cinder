@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from types import CodeType
 from typing import Generator, List, Optional
 
-from . import opcodes, opcode_cinder
+from . import opcode_cinder, opcodes
 from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
 from .peephole import Optimizer
 

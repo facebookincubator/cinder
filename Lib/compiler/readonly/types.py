@@ -34,5 +34,6 @@ class FunctionValue:
         self.sends_readonly = sends_readonly
         self.args = args
 
+
 READONLY = Value(True, [], "readonly")
 MUTABLE = Value(False, [READONLY], "mutable")

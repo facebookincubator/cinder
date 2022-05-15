@@ -2,20 +2,21 @@ from __future__ import annotations
 
 import ast
 import builtins
+
+import cinder
 import gc
 import inspect
 import sys
-from compiler.strict import StrictCodeGenerator, strict_compile
+from cinder import cached_property
+from compiler.strict import strict_compile, StrictCodeGenerator
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import Compiler
 from compiler.strict.loader import StrictModule
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
-from typing import Any, Dict, Mapping, Optional, Tuple, Type, Callable
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Type
 
-import cinder
-from cinder import cached_property
 from test.test_compiler.common import CompilerTest
 
 

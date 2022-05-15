@@ -10,40 +10,39 @@ from dataclasses import dataclass  # noqa: F401
 from types import FunctionType, Union as typesUnion
 from typing import (
     _GenericAlias,
+    _tp_cache,
     Dict,
+    final,
     Iterable,
     Literal,
     Optional,
+    Tuple,
     Type,
     TypeVar,
-    Tuple,
     Union,
-    final,
-    _tp_cache,
 )
 from weakref import WeakValueDictionary
 
 from .enum import Enum, Int64Enum, IntEnum, StringEnum  # noqa: F401
 from .type_code import (
     type_code,
-    TYPED_INT8,
+    TYPED_BOOL,
+    TYPED_CHAR,
+    TYPED_DOUBLE,
     TYPED_INT16,
     TYPED_INT32,
     TYPED_INT64,
-    TYPED_UINT8,
+    TYPED_INT8,
+    TYPED_SINGLE,
     TYPED_UINT16,
     TYPED_UINT32,
     TYPED_UINT64,
-    TYPED_DOUBLE,
-    TYPED_SINGLE,
-    TYPED_BOOL,
-    TYPED_CHAR,
+    TYPED_UINT8,
 )
 
 try:
     import _static
     from _static import (
-        RAND_MAX,
         __build_cinder_class__,
         chkdict,
         chklist,
@@ -51,6 +50,7 @@ try:
         make_recreate_cm,
         posix_clock_gettime_ns,
         rand,
+        RAND_MAX,
         set_type_final,
         set_type_static,
         set_type_static_final,

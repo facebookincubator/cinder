@@ -11,7 +11,7 @@ from compiler.strict.preprocessor import ENABLE_SLOTS_DECORATOR
 from compiler.strict.rewriter import rewrite
 from textwrap import dedent
 from types import CoroutineType, FunctionType, ModuleType
-from typing import Any, Dict, List, Optional, Set, Type, TypeVar, final
+from typing import Any, Dict, final, List, Optional, Set, Type, TypeVar
 from weakref import ref
 
 from .common import StrictTestWithCheckerBase
@@ -182,7 +182,6 @@ class C:
 
 @final
 class SlotificationTestCase(RewriterTestCase):
-
     def test_init(self) -> None:
         """__init__ assignemnts are initialized"""
         code = """

@@ -5,12 +5,12 @@ import importlib
 import sys
 import zipimport
 from importlib.machinery import (
-    SourceFileLoader,
-    SOURCE_SUFFIXES,
-    ExtensionFileLoader,
-    SourcelessFileLoader,
     BYTECODE_SUFFIXES,
+    ExtensionFileLoader,
     FileFinder,
+    SOURCE_SUFFIXES,
+    SourceFileLoader,
+    SourcelessFileLoader,
 )
 
 from . import compile as python_compile

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from textwrap import dedent
-from typing import Sequence, Tuple, List, final
+from typing import final, List, Sequence, Tuple
 
 from _strictmodule import StrictModuleLoader
 

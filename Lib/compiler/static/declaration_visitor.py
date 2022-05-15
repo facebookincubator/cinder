@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from ast import (
-    AST,
     AnnAssign,
     Assign,
+    AST,
     AsyncFor,
     AsyncFunctionDef,
     AsyncWith,
@@ -19,16 +19,16 @@ from ast import (
     While,
     With,
 )
-from typing import Union, List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Union
 
-from .module_table import ModuleTable, DeferredValue
+from .module_table import DeferredValue, ModuleTable
 from .types import (
     AwaitableTypeRef,
     Class,
+    DecoratedMethod,
     Function,
     ModuleInstance,
     ResolvedTypeRef,
-    DecoratedMethod,
     TypeEnvironment,
     TypeName,
     TypeRef,

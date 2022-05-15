@@ -5,61 +5,58 @@ import ast
 import builtins
 import sys
 from ast import (
-    AST,
     Assign,
+    AST,
     AsyncFunctionDef,
     Attribute,
     BinOp,
     BoolOp,
     Call,
     ClassDef,
+    cmpop,
     Compare,
     Constant,
     DictComp,
+    expr,
     FunctionDef,
     Module,
     Name,
     UnaryOp,
-    cmpop,
-    expr,
 )
 from contextlib import contextmanager
 from typing import (
     Any,
     Callable as typingCallable,
+    cast,
     Dict,
-    List,
     Generator,
+    List,
     Optional,
     Type,
-    cast,
 )
 
 from .. import consts, opcode_static
 from ..opcodebase import Opcode
-from ..pyassem import Block, PyFlowGraph, PyFlowGraphCinder, IndexedSet
-from ..pycodegen import (
-    CodeGenerator,
-    compile,
-    FuncOrLambda,
-    CompNode,
-)
+from ..pyassem import Block, IndexedSet, PyFlowGraph, PyFlowGraphCinder
+from ..pycodegen import CodeGenerator, compile, CompNode, FuncOrLambda
 from ..readonly import ReadonlyTypeBinder
-from ..strict import StrictCodeGenerator, FIXED_MODULES
-from ..symbols import Scope, SymbolVisitor, ClassScope
+from ..strict import FIXED_MODULES, StrictCodeGenerator
+from ..symbols import ClassScope, Scope, SymbolVisitor
 from .compiler import Compiler
 from .definite_assignment_checker import DefiniteAssignmentVisitor
 from .effects import NarrowingEffect, TypeState
-from .module_table import ModuleTable, ModuleFlag
+from .module_table import ModuleFlag, ModuleTable
 from .type_binder import UsedRefinementField
 from .types import (
+    _TMP_VAR_PREFIX,
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     AsyncCachedPropertyMethod,
     AwaitableType,
     CACHED_PROPERTY_IMPL_PREFIX,
+    CachedPropertyMethod,
     CInstance,
-    CType,
     Class,
+    CType,
     Dataclass,
     DataclassDecorator,
     DataclassField,
@@ -71,8 +68,6 @@ from .types import (
     TType,
     TypeDescr,
     Value,
-    _TMP_VAR_PREFIX,
-    CachedPropertyMethod,
 )
 
 

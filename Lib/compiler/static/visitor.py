@@ -8,9 +8,9 @@ from typing import (
     Generic,
     Optional,
     Sequence,
-    Union,
     TYPE_CHECKING,
     TypeVar,
+    Union,
 )
 
 from ..visitor import ASTVisitor

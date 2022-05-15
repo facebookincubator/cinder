@@ -9,18 +9,17 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-from cinder import cinder_set_warn_handler
-from cinder import get_warn_handler
+from cinder import cinder_set_warn_handler, get_warn_handler
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import StrictModuleError
 from compiler.strict.loader import (
     _MAGIC_LEN,
     _MAGIC_NONSTRICT,
     _MAGIC_STRICT,
+    install,
     StrictModule,
     StrictModuleTestingPatchProxy,
     StrictSourceFileLoader,
-    install,
 )
 from compiler.strict.runtime import set_freeze_enabled
 from compiler.strict.track_import_call import TrackImportCall
@@ -29,22 +28,22 @@ from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
 from os import path
 from types import ModuleType
 from typing import (
-    TYPE_CHECKING,
     Callable,
+    cast,
+    final,
     Generator,
     List,
     Optional,
     Sequence,
     Tuple,
     Type,
+    TYPE_CHECKING,
     TypeVar,
-    cast,
-    final,
 )
 from unittest.mock import patch
 
 from . import sandbox as base_sandbox
-from .common import StrictTestBase, init_cached_properties
+from .common import init_cached_properties, StrictTestBase
 from .sandbox import (
     file_loader,
     on_sys_path,

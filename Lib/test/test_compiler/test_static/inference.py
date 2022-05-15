@@ -1,4 +1,5 @@
 import re
+
 from .common import StaticTestBase
 
 

@@ -3,11 +3,7 @@ import dis
 import math
 import sys
 import unittest
-from compiler.consts import (
-    CO_NEWLOCALS,
-    CO_NOFREE,
-    CO_OPTIMIZED,
-)
+from compiler.consts import CO_NEWLOCALS, CO_NOFREE, CO_OPTIMIZED
 from compiler.optimizer import AstOptimizer
 from compiler.pyassem import PyFlowGraph
 from compiler.pycodegen import CodeGenerator

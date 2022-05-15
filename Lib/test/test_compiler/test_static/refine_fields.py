@@ -1,5 +1,5 @@
 import dis
-from compiler.static.types import TypedSyntaxError, _TMP_VAR_PREFIX
+from compiler.static.types import _TMP_VAR_PREFIX, TypedSyntaxError
 
 from .common import StaticTestBase
 

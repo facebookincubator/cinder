@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import ast
 from ast import (
-    AST,
     AnnAssign,
     Assign,
+    AST,
     AsyncFunctionDef,
     AugAssign,
     ClassDef,
+    comprehension,
+    copy_location,
     DictComp,
     For,
     FunctionDef,
@@ -24,16 +26,14 @@ from ast import (
     NodeVisitor,
     Raise,
     SetComp,
+    stmt,
     Try,
     While,
     With,
-    comprehension,
-    copy_location,
-    stmt,
 )
 from typing import Iterable, List, Optional, Set, Union
 
-from ..consts import SC_LOCAL, SC_CELL
+from ..consts import SC_CELL, SC_LOCAL
 from ..symbols import Scope
 
 

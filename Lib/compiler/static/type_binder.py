@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import ast
 from ast import (
-    AST,
     And,
     AnnAssign,
     Assign,
-    AsyncFunctionDef,
+    AST,
     AsyncFor,
+    AsyncFunctionDef,
     Attribute,
     AugAssign,
     Await,
@@ -19,6 +19,7 @@ from ast import (
     Compare,
     Constant,
     DictComp,
+    expr,
     For,
     FormattedValue,
     FunctionDef,
@@ -46,39 +47,39 @@ from ast import (
     While,
     Yield,
     YieldFrom,
-    expr,
 )
 from contextlib import contextmanager
 from enum import IntEnum
 from typing import (
+    cast,
     Dict,
     Generator,
     List,
     Optional,
     Sequence,
     Set,
-    TYPE_CHECKING,
     Type,
+    TYPE_CHECKING,
     Union,
-    cast,
 )
 
-from ..consts import SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL, SC_FREE, SC_CELL
+from ..consts import SC_CELL, SC_FREE, SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT, SC_LOCAL
 from ..errors import CollectingErrorSink, TypedSyntaxError
 from ..symbols import SymbolVisitor
 from .declaration_visitor import GenericVisitor
-from .effects import TypeState, NarrowingEffect, NO_EFFECT
-from .module_table import ModuleTable, ModuleFlag
+from .effects import NarrowingEffect, NO_EFFECT, TypeState
+from .module_table import ModuleFlag, ModuleTable
 from .types import (
+    _TMP_VAR_PREFIX,
     access_path,
     BoolClass,
     Callable,
-    CInstance,
-    CType,
     CheckedDictInstance,
     CheckedListInstance,
+    CInstance,
     Class,
     ClassVar,
+    CType,
     Dataclass,
     EnumType,
     FinalClass,
@@ -90,17 +91,16 @@ from .types import (
     MethodType,
     ModuleInstance,
     Object,
-    TypeDescr,
+    OptionalInstance,
+    resolve_instance_attr_by_name,
     Slot,
-    TType,
-    TypeEnvironment,
     TransientDecoratedMethod,
+    TransparentDecoratedMethod,
+    TType,
+    TypeDescr,
+    TypeEnvironment,
     UnionInstance,
     Value,
-    OptionalInstance,
-    TransparentDecoratedMethod,
-    resolve_instance_attr_by_name,
-    _TMP_VAR_PREFIX,
 )
 
 if TYPE_CHECKING:

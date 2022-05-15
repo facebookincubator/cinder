@@ -7,7 +7,6 @@ from compiler.static import (
     CACHED_PROPERTY_IMPL_PREFIX,
 )
 
-
 from .common import StaticTestBase
 
 

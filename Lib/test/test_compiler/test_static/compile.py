@@ -15,16 +15,16 @@ from compiler.pycodegen import PythonCodeGenerator
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import (
-    Object,
-    Function,
-    TypeEnvironment,
-    TypedSyntaxError,
-    FAST_LEN_LIST,
-    FAST_LEN_TUPLE,
-    FAST_LEN_INEXACT,
     FAST_LEN_DICT,
+    FAST_LEN_INEXACT,
+    FAST_LEN_LIST,
     FAST_LEN_SET,
     FAST_LEN_STR,
+    FAST_LEN_TUPLE,
+    Function,
+    Object,
+    TypedSyntaxError,
+    TypeEnvironment,
     Value,
 )
 from io import StringIO
@@ -37,11 +37,11 @@ from unittest.mock import patch
 import xxclassloader
 
 from .common import (
-    StaticTestBase,
     add_fixed_module,
     bad_ret_type,
-    type_mismatch,
     disable_hir_inliner,
+    StaticTestBase,
+    type_mismatch,
 )
 
 try:

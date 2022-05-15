@@ -1,9 +1,9 @@
 from compiler.errors import TypedSyntaxError
 from compiler.static.types import (
-    TYPED_INT8,
-    TYPED_INT16,
-    PRIM_OP_DIV_INT,
     PRIM_OP_ADD_INT,
+    PRIM_OP_DIV_INT,
+    TYPED_INT16,
+    TYPED_INT8,
 )
 
 from .common import StaticTestBase

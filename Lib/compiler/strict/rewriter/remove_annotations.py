@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import ast
-from typing import TypeVar, final
+from typing import final, TypeVar
 
 
 FunctionDefNode = TypeVar("FunctionDefNode", ast.FunctionDef, ast.AsyncFunctionDef)

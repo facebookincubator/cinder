@@ -5,7 +5,7 @@ from compiler.static.compiler import Compiler
 from compiler.static.module_table import ModuleTable
 from textwrap import dedent
 
-from .common import StaticTestBase, bad_ret_type
+from .common import bad_ret_type, StaticTestBase
 
 
 class DeclarationVisitorTests(StaticTestBase):

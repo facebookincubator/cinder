@@ -9,7 +9,7 @@ import re
 import sys
 from dis import dis
 
-from . import pycodegen, static, readonly
+from . import pycodegen, readonly, static
 
 try:
     # pyre-ignore[21]: Could not find a module corresponding to import `cinder`.

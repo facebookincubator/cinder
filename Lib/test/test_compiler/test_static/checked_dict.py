@@ -1,11 +1,8 @@
 from __static__ import chkdict
 
-from compiler.static.types import TypedSyntaxError, FAST_LEN_DICT
+from compiler.static.types import FAST_LEN_DICT, TypedSyntaxError
 
-from .common import (
-    StaticTestBase,
-    type_mismatch,
-)
+from .common import StaticTestBase, type_mismatch
 
 try:
     import cinderjit

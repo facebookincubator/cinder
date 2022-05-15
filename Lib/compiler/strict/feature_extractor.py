@@ -3,17 +3,21 @@ from __future__ import annotations
 
 import ast
 from ast import (
-    AST,
+    alias,
     AnnAssign,
+    arg,
     Assign,
+    AST,
     AsyncFunctionDef,
     Attribute,
     Call,
     ClassDef,
     Constant,
+    copy_location,
     Delete,
     DictComp,
     ExceptHandler,
+    expr,
     For,
     FunctionDef,
     GeneratorExp,
@@ -28,19 +32,17 @@ from ast import (
     NodeVisitor,
     Raise,
     SetComp,
+    stmt,
     Str,
     Try,
-    alias,
-    arg,
-    copy_location,
-    expr,
-    stmt,
 )
 from symtable import SymbolTable
 from types import CodeType, ModuleType
 from typing import (
     Any,
+    cast,
     Dict,
+    final,
     Generic,
     Iterable,
     List,
@@ -51,8 +53,6 @@ from typing import (
     Set,
     TypeVar,
     Union,
-    cast,
-    final,
 )
 
 from ..symbols import ModuleScope, Scope, SymbolVisitor

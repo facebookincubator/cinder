@@ -7,7 +7,7 @@ import re
 import shlex
 import subprocess
 import sys
-from typing import NamedTuple, Iterable, Sequence, Dict
+from typing import Dict, Iterable, NamedTuple, Sequence
 
 
 class Stat(NamedTuple):

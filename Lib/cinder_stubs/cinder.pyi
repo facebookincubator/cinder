@@ -1,5 +1,5 @@
 from types import CodeType, ModuleType
-from typing import Type, TypeVar, Callable, Optional, List, Tuple
+from typing import Callable, List, Optional, Tuple, Type, TypeVar
 
 class _PatchEnabledDescr:
     def __get__(self, inst: StrictModule, typ: Type[StrictModule]) -> bool: ...

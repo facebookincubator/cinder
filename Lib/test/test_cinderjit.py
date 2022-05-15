@@ -12,7 +12,7 @@ import types
 import unittest
 import warnings
 import weakref
-from compiler.consts import CO_SUPPRESS_JIT, CO_NORMAL_FRAME
+from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
 from compiler.static import StaticCodeGenerator
 from contextlib import contextmanager
 from functools import cmp_to_key

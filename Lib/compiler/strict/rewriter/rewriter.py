@@ -3,15 +3,18 @@ from __future__ import annotations
 
 import ast
 from ast import (
-    AST,
+    alias,
     AnnAssign,
+    arg,
     Assign,
+    AST,
     AsyncFunctionDef,
     Attribute,
     Call,
     ClassDef,
     Constant,
     DictComp,
+    expr,
     FunctionDef,
     GeneratorExp,
     Global,
@@ -23,17 +26,16 @@ from ast import (
     Name,
     NodeVisitor,
     SetComp,
+    stmt,
     Str,
     Try,
-    alias,
-    arg,
-    expr,
-    stmt,
 )
 from symtable import SymbolTable
 from types import ModuleType
 from typing import (
+    cast,
     Dict,
+    final,
     Generic,
     Iterable,
     List,
@@ -44,26 +46,24 @@ from typing import (
     Set,
     TypeVar,
     Union,
-    cast,
-    final,
 )
 
 from ..common import (
     AstRewriter,
-    ScopeStack,
-    SymbolMap,
-    SymbolScope,
     get_symbol_map,
     imported_name,
     mangle_priv_name,
+    ScopeStack,
+    SymbolMap,
+    SymbolScope,
 )
 from ..preprocessor import (
     ALL_INDICATORS,
     get_cached_prop_value,
     get_extra_slots,
     is_indicator_dec,
-    is_mutable,
     is_loose_slots,
+    is_mutable,
     is_strict_slots,
 )
 
@@ -326,7 +326,6 @@ class StrictModuleRewriter:
         body = transformer.visit(self.root).body
 
         return body
-
 
 
 def rewrite(

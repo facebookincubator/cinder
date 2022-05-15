@@ -4,7 +4,7 @@ from __future__ import annotations
 import ast
 import operator
 import sys
-from ast import Bytes, Constant, Ellipsis, NameConstant, Num, Str, cmpop, copy_location
+from ast import Bytes, cmpop, Constant, copy_location, Ellipsis, NameConstant, Num, Str
 from typing import Callable, Dict, Iterable, Mapping, Optional, Type
 
 from .peephole import safe_lshift, safe_mod, safe_multiply, safe_power

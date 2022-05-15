@@ -10,25 +10,25 @@ from importlib.abc import Loader
 from importlib.machinery import (
     BYTECODE_SUFFIXES,
     EXTENSION_SUFFIXES,
-    SOURCE_SUFFIXES,
     ExtensionFileLoader,
     FileFinder,
     ModuleSpec,
+    SOURCE_SUFFIXES,
     SourceFileLoader,
     SourcelessFileLoader,
 )
 from types import CodeType, ModuleType
 from typing import (
     Callable,
+    cast,
     Collection,
+    final,
     Iterable,
     List,
     Mapping,
     Optional,
     Tuple,
     Type,
-    cast,
-    final,
 )
 
 from _static import __build_cinder_class__

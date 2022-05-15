@@ -12,22 +12,22 @@ from types import CodeType
 from typing import (
     Callable,
     ContextManager,
+    Dict,
+    final,
     Iterable,
     List,
     Optional,
-    Tuple,
-    final,
-    Dict,
     Set,
+    Tuple,
     TYPE_CHECKING,
 )
 
 from _static import __build_cinder_class__
 from _strictmodule import (
-    StrictAnalysisResult,
-    StrictModuleLoader,
     NONSTRICT_MODULE_KIND,
     STATIC_MODULE_KIND,
+    StrictAnalysisResult,
+    StrictModuleLoader,
     STUB_KIND_MASK_TYPING,
 )
 
@@ -38,7 +38,7 @@ from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerato
 from . import strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
-from .rewriter import rewrite, remove_annotations
+from .rewriter import remove_annotations, rewrite
 
 if TYPE_CHECKING:
     from _strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory

@@ -14,7 +14,7 @@ import opcode
 import re
 import sys
 from types import CodeType
-from typing import TextIO, Pattern, Generator, Iterable, List, Optional, Dict, Tuple
+from typing import Dict, Generator, Iterable, List, Optional, Pattern, TextIO, Tuple
 
 
 def _make_stable(
