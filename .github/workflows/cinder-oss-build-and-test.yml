@@ -7,6 +7,10 @@ env:
   CINDER_BUILD_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder-build
   CINDER_RUNTIME_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder-runtime
   CINDER_EXPLORER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder-explorer
+  CINDER_EXPLORER_AWS_REGION: us-west-1
+  CINDER_EXPLORER_ECS_CLUSTER: trycinder-test-Cluster-YNmjygvkMeeY
+  CINDER_EXPLORER_ECS_SERVICE: trycinder-test-webserver-Service-vvi2qdzv9lgX
+  CINDER_EXPLORER_AUTO_DEPLOY_REPO: facebookincubator/cinder
 
 jobs:
   cinder-oss-build-and-test-job:
@@ -85,3 +89,26 @@ jobs:
           labels: ${{ steps.explorermeta.outputs.labels }}
           target: explorer
           file: .github/workflows/cinder/Dockerfile
+
+      # Redeploy Cinder Explorer to AWS ECS using the new Cinder Explorer image (built above)
+      # by forcing a new deployment that forces Fargate to pull the latest version of the image
+      # (run auto-deploy only on the default branch of the main repo (not forks))
+      - name: Configure AWS credentials
+        if: |
+          github.repository == env.CINDER_EXPLORER_AUTO_DEPLOY_REPO &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CINDER_EXPLORER_BOT_DEPLOYER_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CINDER_EXPLORER_BOT_DEPLOYER_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.CINDER_EXPLORER_AWS_REGION }}
+      - name: Deploy Cinder Explorer to ECS
+        if: |
+          github.repository == env.CINDER_EXPLORER_AUTO_DEPLOY_REPO &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        run: |
+          aws ecs update-service \
+            --region ${{ env.CINDER_EXPLORER_AWS_REGION }} \
+            --cluster ${{ env.CINDER_EXPLORER_ECS_CLUSTER }} \
+            --service ${{ env.CINDER_EXPLORER_ECS_SERVICE }} \
+            --force-new-deployment
