@@ -855,6 +855,7 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case INVOKE_FUNCTION:
     case INVOKE_METHOD:
     case LOAD_ATTR_SUPER:
+    case LOAD_CLASS:
     case LOAD_CONST:
     case LOAD_FIELD:
     case LOAD_LOCAL:
