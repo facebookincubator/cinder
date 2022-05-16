@@ -364,6 +364,7 @@ def make_explorer_class(process_args, prod_hostname=None):
                     "jit",
                     "jit-enable-jit-list-wildcards",
                     "jit-enable-hir-inliner",
+                    "jit-shadow-frame",
                     ("jit-list-file", jitlist_path),
                     ("jit-dump-hir-passes-json", json_dir),
                     ("jit-asm-syntax", asm_syntax),
