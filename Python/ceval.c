@@ -8492,11 +8492,32 @@ PyEntry_LazyInit(PyFunctionObject *func,
     return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
 }
 
+PyObject*
+PyEntry_AutoJIT(PyFunctionObject *func,
+                PyObject **stack,
+                Py_ssize_t nargsf,
+                PyObject *kwnames) {
+    PyCodeObject* code = (PyCodeObject*)func->func_code;
+    if (++(code->co_cache.ncalls) > _PyJIT_AutoJITThreshold()) {
+        if (_PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
+            func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
+            PyEntry_initnow(func);
+        }
+        assert(func->vectorcall != (vectorcallfunc)PyEntry_AutoJIT);
+        return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
+    }
+    return _PyFunction_Vectorcall((PyObject *)func, stack, nargsf, kwnames);
+}
+
 void
 PyEntry_init(PyFunctionObject *func)
 {
     assert(!_PyJIT_IsCompiled((PyObject *)func));
 
+    if (_PyJIT_IsAutoJITEnabled()) {
+      func->vectorcall = (vectorcallfunc)PyEntry_AutoJIT;
+      return;
+    }
     func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
     if (!_PyJIT_RegisterFunction(func)) {
         PyEntry_initnow(func);

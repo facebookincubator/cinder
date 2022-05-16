@@ -61,6 +61,7 @@ struct JitConfig {
   size_t hot_code_section_size{0};
   size_t cold_code_section_size{0};
   int hir_inliner_enabled{0};
+  unsigned int auto_jit_threshold{0};
 };
 static JitConfig jit_config;
 
@@ -82,6 +83,10 @@ size_t _PyJIT_GetJitConfigBatch_compile_workers() {
 
 int _PyJIT_IsJitConfigMultithreaded_compile_test() {
   return jit_config.multithreaded_compile_test;
+}
+
+unsigned int _PyJIT_GetJitConfigAuto_jit_threshold() {
+  return jit_config.auto_jit_threshold;
 }
 
 namespace {
@@ -227,6 +232,17 @@ void initFlagProcessor() {
     // flags are inspected in order of definition below
     xarg_flag_processor.addOption(
         "jit", "PYTHONJIT", use_jit, "Enable the JIT");
+
+    xarg_flag_processor.addOption(
+        "jit-auto",
+        "PYTHONJITAUTO",
+        [](unsigned int threshold) {
+          if (use_jit) {
+            jit_config.auto_jit_threshold = threshold;
+          }
+        },
+        "Enable auto-JIT mode, which compiles functions after the given "
+        "threshold");
 
     xarg_flag_processor.addOption(
         "jit-debug",
@@ -1355,6 +1371,14 @@ void _PyJIT_AfterFork_Child() {
 int _PyJIT_AreTypeSlotsEnabled() {
   return (jit_config.init_state == JIT_INITIALIZED) &&
       jit_config.are_type_slots_enabled;
+}
+
+unsigned int _PyJIT_AutoJITThreshold() {
+  return jit_config.auto_jit_threshold;
+}
+
+int _PyJIT_IsAutoJITEnabled() {
+  return _PyJIT_AutoJITThreshold() > 0;
 }
 
 void _PyJIT_EnableHIRInliner() {

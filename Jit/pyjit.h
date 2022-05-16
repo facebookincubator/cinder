@@ -88,6 +88,16 @@ PyAPI_FUNC(int) _PyJIT_EnableTypeSlots(void);
 PyAPI_FUNC(int) _PyJIT_AreTypeSlotsEnabled(void);
 
 /*
+ * Returns 1 if auto-JIT is enabled and 0 otherwise.
+ */
+PyAPI_FUNC(int) _PyJIT_IsAutoJITEnabled(void);
+
+/*
+ * Returns the threshold if auto-JIT is enabled and 0 otherwise.
+ */
+PyAPI_FUNC(unsigned int) _PyJIT_AutoJITThreshold(void);
+
+/*
    Enable the HIR inliner.
  */
 PyAPI_FUNC(void) _PyJIT_EnableHIRInliner(void);
