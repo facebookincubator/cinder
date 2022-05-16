@@ -194,28 +194,3 @@ fun jittestmodule:test {
   }
 }
 ---
-TypeIsTurnedIntoFieldLoad
----
-def test(x):
-  return type(x)
----
-fun jittestmodule:test {
-  bb 0 {
-    v2:Object = LoadArg<0; "x">
-    v4:Type = LoadField<ob_type@8, Type, borrowed> v2
-    Return v4
-  }
-}
----
-TypeOfExactIsTurnedIntoLoadConst
----
-def test():
-  return type(1)
----
-fun jittestmodule:test {
-  bb 0 {
-    v1:MortalTypeExact[int:obj] = LoadConst<MortalTypeExact[int:obj]>
-    Return v1
-  }
-}
----
