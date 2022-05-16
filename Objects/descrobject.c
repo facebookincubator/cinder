@@ -1,10 +1,12 @@
 /* Descriptors -- a new, flexible way to describe attributes */
 
 #include "Python.h"
+#include "object.h"
 #include "pycore_object.h"
 #include "pycore_pystate.h"
 #include "pycore_pyerrors.h"
 #include "pycore_tupleobject.h"
+#include "pyerrors.h"
 #include "structmember.h" /* Why is this not included in Python.h? */
 #include "classloader.h"
 
@@ -2375,6 +2377,41 @@ cached_property_get_slot(PyCachedPropertyDescrObject *cp, void *closure)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+cached_property_clear(PyCachedPropertyDescrObject *self, PyObject *obj)
+{
+    PyCachedPropertyDescrObject *cp = (PyCachedPropertyDescrObject *)self;
+    PyObject **dictptr;
+
+    if (Py_TYPE(cp->name_or_descr) == &PyMemberDescr_Type) {
+        if (Py_TYPE(cp->name_or_descr)->tp_descr_set(cp->name_or_descr, obj, NULL) < 0) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+                Py_RETURN_NONE;
+            }
+            return NULL;
+        }
+        Py_RETURN_NONE;
+    }
+
+    dictptr = _PyObject_GetDictPtr(obj);
+
+    if (dictptr == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                        "This object has no __dict__");
+        return NULL;
+    }
+
+    if (_PyObjectDict_SetItem(Py_TYPE(obj), dictptr, cp->name_or_descr, NULL) < 0) {
+        if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+            PyErr_Clear();
+            Py_RETURN_NONE;
+        }
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 static PyGetSetDef cached_property_getsetlist[] = {
     {"__doc__", (getter)cached_property_get___doc__, NULL, NULL, NULL},
     {"__name__", (getter)cached_property_get_name, NULL, NULL, NULL},
@@ -2390,6 +2427,10 @@ static PyMemberDef cached_property_members[] = {
     {0}
 };
 
+static PyMethodDef cached_property_methods[] = {
+    {"clear", (PyCFunction)cached_property_clear, METH_O, NULL},
+    {NULL, NULL}
+};
 
 PyTypeObject PyCachedProperty_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
@@ -2407,6 +2448,7 @@ PyTypeObject PyCachedProperty_Type = {
     .tp_init = cached_property_init,
     .tp_alloc = PyType_GenericAlloc,
     .tp_free = PyObject_GC_Del,
+    .tp_methods = cached_property_methods,
 };
 
 PyTypeObject PyCachedPropertyWithDescr_Type = {

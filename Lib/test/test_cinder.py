@@ -522,6 +522,30 @@ class CinderTest(unittest.TestCase):
         a.f = 42
         self.assertEqual(a.f, 42)
 
+    def test_cached_property_clear(self):
+        value = 42
+
+        class C:
+            @cached_property
+            def f(self):
+                return value
+
+        a = C()
+        self.assertEqual(a.f, 42)
+        C.f.clear(a)
+        value = 100
+        self.assertEqual(a.f, 100)
+
+    def test_cached_property_clear_not_set(self):
+        class C:
+            @cached_property
+            def f(self):
+                return 42
+
+        a = C()
+        C.f.clear(a)
+        self.assertEqual(a.f, 42)
+
     def test_cached_property_no_dict(self):
         class C:
             __slots__ = ()
@@ -535,6 +559,17 @@ class CinderTest(unittest.TestCase):
 
         with self.assertRaises(AttributeError):
             C().f = 42
+
+    def test_cached_property_clear_no_dict(self):
+        class C:
+            __slots__ = ()
+
+            @cached_property
+            def f(self):
+                return 42
+
+        with self.assertRaises(AttributeError):
+            a = C.f.clear(C())
 
     def test_cached_property_name(self):
         class C:
@@ -591,6 +626,53 @@ class CinderTest(unittest.TestCase):
 
         self.assertEqual(a.f, 42)
         self.assertEqual(a.calls, 1)
+
+    def test_cached_property_clear_slot(self):
+        value = 42
+
+        class C:
+
+            __slots__ = "f"
+
+        def f(self):
+            return value
+
+        C.f = cached_property(f, C.f)
+        a = C()
+        self.assertEqual(a.f, 42)
+        C.f.clear(a)
+        value = 100
+        self.assertEqual(a.f, 100)
+
+    def test_cached_property_clear_slot_not_set(self):
+        class C:
+            __slots__ = "f"
+
+        def f(self):
+            return 42
+
+        C.f = cached_property(f, C.f)
+        a = C()
+        C.f.clear(a)
+        self.assertEqual(a.f, 42)
+
+    def test_cached_property_clear_slot_bad_value(self):
+        value = 42
+
+        class C:
+
+            __slots__ = "f"
+
+        def f(self):
+            return value
+
+        C.f = cached_property(f, C.f)
+        a = C()
+        self.assertEqual(a.f, 42)
+        with self.assertRaisesRegex(
+            TypeError, "descriptor 'f' for 'C' objects doesn't apply to a 'int' object"
+        ):
+            C.f.clear(42)
 
     def test_cached_property_slot_set_del(self):
         class C:
