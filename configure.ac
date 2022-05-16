@@ -1381,6 +1381,7 @@ if test "$Py_LTO" = 'true' ; then
   fi
 
   CFLAGS_NODIST="$CFLAGS_NODIST $LTOFLAGS"
+  CXXFLAGS_NODIST="$CXXFLAGS_NODIST $LTOFLAGS"
   LDFLAGS_NODIST="$LDFLAGS_NODIST $LTOFLAGS"
 fi
 
@@ -1413,11 +1414,26 @@ then
 fi
 LLVM_PROF_ERR=no
 case $CC in
+  *clang*)
+    # Any changes made here should be reflected in the GCC+Darwin case below
+    PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
+    PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd -Wno-error=profile-instr-unprofiled"
+    LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
+    LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
+    if test "$LLVM_PROF_FOUND" = "not-found"
+    then
+      LLVM_PROF_ERR=yes
+      if test "${REQUIRE_PGO}" = "yes"
+      then
+        AC_MSG_ERROR([llvm-profdata is required for a --enable-optimizations build but could not be found.])
+      fi
+    fi
+    ;;
   *gcc*)
     case $ac_sys_system in
       Darwin*)
         PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
-        PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
+        PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd -Wno-error=profile-instr-unprofiled"
         LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
         LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
         if test "${LLVM_PROF_FOUND}" = "not-found"
@@ -1431,7 +1447,7 @@ case $CC in
         ;;
       *)
         PGO_PROF_GEN_FLAG="-fprofile-generate"
-        PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction"
+        PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction -Wno-error=missing-profile"
         LLVM_PROF_MERGER="true"
         LLVM_PROF_FILE=""
         ;;
