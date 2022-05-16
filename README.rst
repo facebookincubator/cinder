@@ -59,13 +59,22 @@ Cinder should build just like CPython; ``configure`` and ``make -j``. However
 as most development and usage of Cinder occurs in the highly specific context of
 Meta we do not exercise it much in other environments. As such, the most
 reliable way to build and run Cinder is to re-use the Docker-based setup from
-our GitHub CI workflow. A rough guide is as follows:
+our GitHub CI workflow.
+
+If you just want to get a working Cinder without building it yourself, our
+`Runtime Docker Image`_ is going to be the easiest (no repo clone needed!):
+
+#. Install and setup Docker.
+#. Fetch and run our cinder-runtime image:
+    ``docker run -it --rm ghcr.io/facebookincubator/cinder-runtime:cinder.3.8``
+
+If you want to build it yourself:
 
 #. Install and setup Docker.
 #. Clone the Cinder repo:
     ``git clone https://github.com/facebookincubator/cinder``
 #. Run a shell in the Docker environment used by the CI:
-    ``docker run -v "$PWD/cinder:/vol" -w /vol -ti ghcr.io/facebookincubator/cinder/python-build-env:latest bash``
+    ``docker run -v "$PWD/cinder:/vol" -w /vol -it --rm ghcr.io/facebookincubator/cinder/python-build-env:latest bash``
 
    The above command does the following:
         * Downloads (if not already cached) a pre-built Docker image used by the
@@ -73,7 +82,8 @@ our GitHub CI workflow. A rough guide is as follows:
           https://ghcr.io/facebookincubator/cinder/python-build-env.
         * Makes the Cinder checkout above (`$PWD/cinder`) available to the
           Docker environment at the mount point `/vol`.
-        * Interactively (`-ti`) runs `bash` in the `/vol` directory.
+        * Interactively (`-it`) runs `bash` in the `/vol` directory.
+        * Cleanup the local image after it's finished (`--rm`) to avoid disk bloat.
 #. Build Cinder from the shell started the Docker environment:
     ``./configure && make``
 
@@ -89,6 +99,11 @@ testcinder_jit`` runs the test suite with the JIT fully enabled, so all
 functions are JIT'ed. ``make testruntime`` runs a suite of C++ gtest unit
 tests for the JIT. And ``make test_strict_module`` runs a test suite for
 strict modules (see below).
+
+Note that these steps produce a Cinder Python binary without PGO/LTO optimizations enabled,
+so don't expect to use these instructions to get any speedup on any Python workload.
+
+.. _Runtime Docker Image: https://github.com/facebookincubator/cinder/pkgs/container/cinder-runtime
 
 
 How do I explore it?

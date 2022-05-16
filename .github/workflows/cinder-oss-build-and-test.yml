@@ -4,7 +4,8 @@ on: [push]
 
 env:
   REGISTRY: ghcr.io
-  CINDER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder
+  CINDER_BUILD_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder-build
+  CINDER_RUNTIME_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder-runtime
   CINDER_EXPLORER_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cinder-explorer
 
 jobs:
@@ -19,11 +20,13 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build and push the "build" image (only using sha, since it didn't pass tests yet)
       - name: Extract metadata for pre-test Cinder Docker image
-        id: meta
+        id: buildmeta
         uses: docker/metadata-action@v3
         with:
-          images: ${{ env.CINDER_IMAGE_NAME }}
+          images: ${{ env.CINDER_BUILD_IMAGE_NAME }}
           # we publish the [untested] image using the branch + sha (e.g. "cinder-3.8.162db45") for debuggability
           # note: `/` in the branch name (e.g "cinder/3.8") are auto-converted to `-` by this action
           tags: type=sha,prefix={{branch}}.
@@ -31,58 +34,54 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.buildmeta.outputs.tags }}
           push: true
+          target: build
           file: .github/workflows/cinder/Dockerfile
+
+      # Run tests, and build and push the runtime image using the branch and latest tags if tests pass
       - name: Run Cinder Tests
-        run: docker run --rm -w /cinder ${{ steps.meta.outputs.tags }} ./oss-cinder-test.sh
+        run: docker run --rm -w /cinder/build ${{ steps.buildmeta.outputs.tags }} ./oss-cinder-test.sh
       - name: Extract metadata for tested Cinder Docker image push
-        id: metapush
+        id: runtimemeta
         uses: docker/metadata-action@v3
         with:
-          images: ${{ env.CINDER_IMAGE_NAME }}
-          # once the image passes tests, we also publish it using the branch name (e.g. "cinder-3.8")
+          images: ${{ env.CINDER_RUNTIME_IMAGE_NAME }}
+          # once the tests pass, we publish the runtime image using the sha and branch name (e.g. "cinder-3.8")
           # if this is the default branch, we also publish the image as "latest"
           tags: |
+            type=sha,prefix={{branch}}.
             type=ref,event=branch
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-      # This step publishes the image built in the previous step (all layers are cached)
       - name: Publish new version of latest Cinder Docker images
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          tags: ${{ steps.metapush.outputs.tags }}
-          labels: ${{ steps.metapush.outputs.labels }}
+          tags: ${{ steps.runtimemeta.outputs.tags }}
+          labels: ${{ steps.runtimemeta.outputs.labels }}
+          # the build should be efficient, reusing the build image layers from a previous step
+          target: runtime
           file: .github/workflows/cinder/Dockerfile
 
-  cinder-explorer-app-job:
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-    needs: cinder-oss-build-and-test-job
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Log in to the GitHub container registry
-        uses: docker/login-action@v1
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      # Also build and push Cinder Explorer image if tests passed
       - name: Extract metadata for Cinder Explorer app Docker image push
-        id: meta
+        id: explorermeta
         uses: docker/metadata-action@v3
         with:
           images: ${{ env.CINDER_EXPLORER_IMAGE_NAME }}
+          # publish the explorer image using the sha and branch name
+          # if this is the default branch, we also publish the image as "latest"
           tags: |
             type=sha,prefix={{branch}}.
             type=ref,event=branch
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       - name: Build and Push Cinder Explorer Docker Images
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          file: .github/workflows/cinder-explorer/Dockerfile
+          tags: ${{ steps.explorermeta.outputs.tags }}
+          labels: ${{ steps.explorermeta.outputs.labels }}
+          target: explorer
+          file: .github/workflows/cinder/Dockerfile

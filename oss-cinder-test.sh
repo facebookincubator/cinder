@@ -5,7 +5,6 @@ set -xe
 
 env
 
-cd build
 ./python -VV
 make -j 4 VERBOSE=1 testcinder_jit
 make -j 4 VERBOSE=1 testruntime
