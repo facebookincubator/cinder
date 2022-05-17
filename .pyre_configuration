@@ -1,6 +1,6 @@
 {
   "logger": "/usr/local/bin/scribe_cat",
-  "version": "940f637f05f755ba0ba3f3cef53f9722ab1ff871",
+  "version": "23bcd65e00b28488cf2382697f2178ea905f5536",
   "source_directories": [
     "Lib/compiler",
     "Tools/scripts/facebook/perf",
@@ -12,5 +12,6 @@
   ],
   "unstable_client": "Tools/scripts/pyre/pyre_client",
   "stable_client": "Tools/scripts/pyre/pyre_client",
-  "strict": true
+  "strict": true,
+  "python_version": "3.10.3"
 }
