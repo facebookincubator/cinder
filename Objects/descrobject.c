@@ -1,6 +1,8 @@
 /* Descriptors -- a new, flexible way to describe attributes */
 
 #include "Python.h"
+#include "boolobject.h"
+#include "dictobject.h"
 #include "object.h"
 #include "pycore_object.h"
 #include "pycore_pystate.h"
@@ -2412,6 +2414,46 @@ cached_property_clear(PyCachedPropertyDescrObject *self, PyObject *obj)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+cached_property_has_value(PyCachedPropertyDescrObject *self, PyObject *obj)
+{
+    PyCachedPropertyDescrObject *cp = (PyCachedPropertyDescrObject *)self;
+    PyObject **dictptr;
+
+    if (Py_TYPE(cp->name_or_descr) == &PyMemberDescr_Type) {
+        PyObject *value = Py_TYPE(cp->name_or_descr)->tp_descr_get(
+            cp->name_or_descr, obj, (PyObject *)Py_TYPE(obj));
+
+        if (value == NULL) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+                Py_RETURN_FALSE;
+            }
+            return NULL;
+        }
+        Py_DECREF(value);
+        Py_RETURN_TRUE;
+    }
+
+    dictptr = _PyObject_GetDictPtr(obj);
+
+    if (dictptr == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                        "This object has no __dict__");
+        return NULL;
+    }
+
+    if (*dictptr == NULL) {
+        Py_RETURN_FALSE;
+    }
+
+    PyObject *value = PyDict_GetItem(*dictptr, cp->name_or_descr);
+    if (value == NULL) {
+        Py_RETURN_FALSE;
+    }
+    Py_RETURN_TRUE;
+}
+
 static PyGetSetDef cached_property_getsetlist[] = {
     {"__doc__", (getter)cached_property_get___doc__, NULL, NULL, NULL},
     {"__name__", (getter)cached_property_get_name, NULL, NULL, NULL},
@@ -2429,6 +2471,7 @@ static PyMemberDef cached_property_members[] = {
 
 static PyMethodDef cached_property_methods[] = {
     {"clear", (PyCFunction)cached_property_clear, METH_O, NULL},
+    {"has_value", (PyCFunction)cached_property_has_value, METH_O, NULL},
     {NULL, NULL}
 };
 

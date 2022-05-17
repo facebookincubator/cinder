@@ -536,6 +536,20 @@ class CinderTest(unittest.TestCase):
         value = 100
         self.assertEqual(a.f, 100)
 
+    def test_cached_property_has_value(self):
+        value = 42
+
+        class C:
+            @cached_property
+            def f(self):
+                return value
+
+        a = C()
+        self.assertEqual(a.f, 42)
+        self.assertEqual(C.f.has_value(a), True)
+        C.f.clear(a)
+        self.assertEqual(C.f.has_value(a), False)
+
     def test_cached_property_clear_not_set(self):
         class C:
             @cached_property
@@ -643,6 +657,26 @@ class CinderTest(unittest.TestCase):
         C.f.clear(a)
         value = 100
         self.assertEqual(a.f, 100)
+
+    def test_cached_property_has_value_slot(self):
+        value = 42
+
+        class C:
+
+            __slots__ = "f"
+
+        def f(self):
+            return value
+
+        C.f = cached_property(f, C.f)
+        a = C()
+        self.assertEqual(a.f, 42)
+        self.assertEqual(C.f.has_value(a), True)
+        C.f.clear(a)
+        self.assertEqual(C.f.has_value(a), False)
+        value = 100
+        self.assertEqual(a.f, 100)
+        self.assertEqual(C.f.has_value(a), True)
 
     def test_cached_property_clear_slot_not_set(self):
         class C:
