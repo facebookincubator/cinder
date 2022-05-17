@@ -1802,10 +1802,6 @@ PyDoc_STRVAR(gc_immortalize_heap__doc__,
 static int
 immortalize_object(PyObject *obj, PyObject * /* unused */ args)
 {
-    if (Py_IS_IMMORTAL(obj)) {
-        return 0;
-    }
-
     Py_SET_IMMORTAL(obj);
 
     if (PyCode_Check(obj)) {
@@ -1826,21 +1822,6 @@ immortalize_object(PyObject *obj, PyObject * /* unused */ args)
         PyObject_Hash(obj);
     }
 
-    /* Immortalize objects not discoverable through GC  */
-    if (!PyObject_IS_GC(obj) || !_PyObject_GC_IS_TRACKED(obj)) {
-
-        if (Py_TYPE(obj)->tp_traverse == 0) {
-            return 0;
-        }
-
-        /* tp_traverse can not be called for non-heap type object  */
-        if (PyType_Check(obj) && !PyType_HasFeature((PyTypeObject*)(obj), Py_TPFLAGS_HEAPTYPE)) {
-            return 0;
-        }
-
-        Py_TYPE(obj)->tp_traverse(
-              obj, (visitproc)immortalize_object, NULL);
-    }
     return 0;
 }
 
@@ -1857,7 +1838,6 @@ PyObject* PyGC_Immortalize_Heap(PyObject *module, PyObject *Py_UNUSED(ignored))
     /* Immortalize all instances in the permanent generation */
     list = &_PyRuntime.gc.permanent_generation.head;
     for (gc = GC_NEXT(list); gc != list; gc = GC_NEXT(gc)) {
-        immortalize_object(FROM_GC(gc), NULL);
         Py_TYPE(FROM_GC(gc))->tp_traverse(
               FROM_GC(gc), (visitproc)immortalize_object, NULL);
     }
