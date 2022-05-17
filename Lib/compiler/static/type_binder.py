@@ -1950,6 +1950,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         if not may_suppress_exceptions:
             self.set_terminal_kind(node, terminates)
 
+    def visitAsyncWith(self, node: ast.With) -> None:
+        self.visit(node.items)
+        for stmt in node.body:
+            self.visit(stmt)
+
     def visitwithitem(self, node: ast.withitem) -> None:
         self.visit(node.context_expr)
         optional_vars = node.optional_vars
