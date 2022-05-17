@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ast import AST
-    from typing import Tuple, Optional, Generator, List
+    from typing import Generator, List, Optional, Tuple
 
 
 class TypedSyntaxError(SyntaxError):

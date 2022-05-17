@@ -1,6 +1,6 @@
 import io
-from textwrap import dedent
 from compiler.dis_stable import Disassembler
+from textwrap import dedent
 from .common import CompilerTest
 
 
@@ -40,7 +40,9 @@ class Python310Tests(CompilerTest):
                 x: (yield) = 1
                 return x
         """
-        self._check_error(codestr, "'yield expression' can not be used within an annotation")
+        self._check_error(
+            codestr, "'yield expression' can not be used within an annotation"
+        )
 
     def test_yield_ok_in_non_stringified_annotation(self):
         codestr = """

@@ -21,14 +21,14 @@ from .consts import (
     CO_NESTED,
     CO_VARARGS,
     CO_VARKEYWORDS,
+    PyCF_MASK_OBSOLETE,
+    PyCF_ONLY_AST,
+    PyCF_SOURCE_IS_UTF8,
     SC_CELL,
     SC_FREE,
     SC_GLOBAL_EXPLICIT,
     SC_GLOBAL_IMPLICIT,
     SC_LOCAL,
-    PyCF_MASK_OBSOLETE,
-    PyCF_ONLY_AST,
-    PyCF_SOURCE_IS_UTF8,
 )
 from .optimizer import AstOptimizer
 from .pyassem import PyFlowGraph
@@ -38,7 +38,7 @@ from .visitor import ASTVisitor, walk
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
-    from typing import List, Optional, Sequence, Union, Type, Tuple
+    from typing import List, Optional, Sequence, Tuple, Type, Union
 
 try:
     import _parser  # pyre-ignore[21]

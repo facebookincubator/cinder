@@ -65,7 +65,12 @@ class Instruction:
         self.target = target
 
     def __repr__(self):
-        args = [f"{self.opname!r}", f"{self.oparg!r}", f"{self.ioparg!r}", f"{self.lineno!r}"]
+        args = [
+            f"{self.opname!r}",
+            f"{self.oparg!r}",
+            f"{self.ioparg!r}",
+            f"{self.lineno!r}",
+        ]
         if self.target is not None:
             args.append(f"{self.target!r}")
 
@@ -76,7 +81,9 @@ class Instruction:
         return opcodes.opcode.has_jump(op)
 
     def copy(self) -> Instruction:
-        return Instruction(self.opname, self.oparg, self.ioparg, self.lineno, self.target)
+        return Instruction(
+            self.opname, self.oparg, self.ioparg, self.lineno, self.target
+        )
 
 
 class CompileScope:
@@ -350,6 +357,7 @@ ACTIVE = "ACTIVE"  # accepting calls to .emit()
 CLOSED = "CLOSED"  # closed to new instructions, ready for codegen
 OPTIMIZED = "OPTIMIZED"  # peephole optimizations have been run
 FLAT = "FLAT"  # flattened
+
 DONE = "DONE"
 
 
@@ -864,7 +872,9 @@ class PyFlowGraph(FlowGraph):
             last_instr = block.insts[-1]
             if last_instr.is_jump() and last_instr.opname not in {
                 # Only actual jumps, not exception handlers
-                "SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"
+                "SETUP_ASYNC_WITH",
+                "SETUP_WITH",
+                "SETUP_FINALLY",
             }:
                 target = last_instr.target
                 if target.num_predecessors == 1:

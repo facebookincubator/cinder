@@ -5,10 +5,6 @@ import importlib
 import sys
 import zipimport
 from importlib.machinery import (
-    SourceFileLoader,
-    SOURCE_SUFFIXES,
-    ExtensionFileLoader,
-    SourcelessFileLoader,
     BYTECODE_SUFFIXES,
     FileFinder,
 )

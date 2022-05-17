@@ -4,7 +4,7 @@ from __future__ import annotations
 import ast
 import operator
 import sys
-from ast import Bytes, Constant, Ellipsis, NameConstant, Num, Str, cmpop, copy_location
+from ast import Bytes, cmpop, Constant, copy_location, Ellipsis, NameConstant, Num, Str
 from typing import Callable, Dict, Iterable, Mapping, Optional, Type
 
 from .visitor import ASTRewriter
@@ -108,7 +108,7 @@ def safe_power(left, right, limits=DefaultLimits):
         if lbits > limits.MAX_INT_SIZE / right:
             raise OverflowError()
 
-    return left ** right
+    return left**right
 
 
 def safe_mod(left, right, limits=DefaultLimits):
