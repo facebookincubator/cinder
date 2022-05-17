@@ -6,7 +6,7 @@ from types import CodeType
 from typing import cast, List, Optional, Tuple, Type, Union
 
 from ..opcodes import opcode
-from ..pyassem import PyFlowGraph, PyFlowGraphCinder
+from ..pyassem import Block, PyFlowGraph, PyFlowGraphCinder
 from ..pycodegen import CinderCodeGenerator, CodeGenerator, CompNode, FuncOrLambda
 from ..symbols import (
     CinderSymbolVisitor,
@@ -170,6 +170,91 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         self.visit(node.right)
         readonlyMask = self.build_operation_mask(node, [node.left, node.right])
         self.emit_readonly_op(self._binary_opcode[type(node.op)], [readonlyMask])
+
+    def emitReadonlyCompareOp(self, readonlyMask: int, op: ast.AST) -> None:
+        # 'is' and 'is not' are not user overloadable, so are always safe regardless
+        # of any readonlyness.
+        if isinstance(op, ast.Is) or isinstance(op, ast.IsNot):
+            self.defaultEmitCompare(op)
+        else:
+            cmpOp = opcode.CMP_OP.index(self._cmp_opcode[type(op)])
+            self.emit_readonly_op("COMPARE_OP", [readonlyMask, cmpOp])
+
+    def emitReadonlyChainedCompareStep(
+        self,
+        readonlyMask: int,
+        op: ast.AST,
+        value: ast.AST,
+        cleanup: Block,
+        always_pop: bool = False,
+    ) -> None:
+        self.visit(value)
+        self.emit("DUP_TOP")
+        self.emit("ROT_THREE")
+        self.emitReadonlyCompareOp(readonlyMask, op)
+        self.emit(
+            "POP_JUMP_IF_FALSE" if always_pop else "JUMP_IF_FALSE_OR_POP", cleanup
+        )
+        self.nextBlock(label="compare_or_cleanup")
+
+    def visitCompare(self, node: ast.Compare) -> None:
+        if not self.emit_readonly_checks:
+            super().visitCompare(node)
+            return
+
+        self.update_lineno(node)
+        self.visit(node.left)
+        prev_value = node.left
+        cleanup = self.newBlock("cleanup")
+        for op, code in zip(node.ops[:-1], node.comparators[:-1]):
+            readonlyMask = self.build_operation_mask(node, [prev_value, code])
+            self.emitReadonlyChainedCompareStep(readonlyMask, op, code, cleanup)
+            prev_value = code
+        # now do the last comparison
+        if node.ops:
+            op = node.ops[-1]
+            code = node.comparators[-1]
+            self.visit(code)
+            readonlyMask = self.build_operation_mask(node, [prev_value, code])
+            self.emitReadonlyCompareOp(readonlyMask, op)
+        if len(node.ops) > 1:
+            end = self.newBlock("end")
+            self.emit("JUMP_FORWARD", end)
+            self.nextBlock(cleanup)
+            self.emit("ROT_TWO")
+            self.emit("POP_TOP")
+            self.nextBlock(end)
+
+    def compileJumpIf(self, test: ast.AST, next: Block, is_if_true: bool) -> None:
+        if not self.emit_readonly_checks:
+            super().compileJumpIf(test, next, is_if_true)
+            return
+
+        if isinstance(test, ast.Compare) and len(test.ops) > 1:
+            cleanup = self.newBlock()
+            self.visit(test.left)
+            prev_value = test.left
+            for op, comparator in zip(test.ops[:-1], test.comparators[:-1]):
+                readonlyMask = self.build_operation_mask(test, [prev_value, comparator])
+                self.emitReadonlyChainedCompareStep(
+                    readonlyMask, op, comparator, cleanup, always_pop=True
+                )
+                prev_value = comparator
+            self.visit(test.comparators[-1])
+            readonlyMask = self.build_operation_mask(
+                test, [prev_value, test.comparators[-1]]
+            )
+            self.emitReadonlyCompareOp(readonlyMask, test.ops[-1])
+            self.emit("POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next)
+            end = self.newBlock()
+            self.emit("JUMP_FORWARD", end)
+            self.nextBlock(cleanup)
+            self.emit("POP_TOP")
+            if not is_if_true:
+                self.emit("JUMP_FORWARD", next)
+            self.nextBlock(end)
+            return
+        super().compileJumpIf(test, next, is_if_true)
 
     def visitName(self, node: ast.Name) -> None:
         if node.id != "__function_credential__":

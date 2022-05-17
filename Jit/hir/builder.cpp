@@ -949,7 +949,7 @@ void HIRBuilder::translate(
           emitFunctionCredential(tc, bc_instr);
           break;
         case COMPARE_OP: {
-          emitCompareOp(tc, bc_instr);
+          emitCompareOp(tc, bc_instr.oparg(), 0);
           break;
         }
         case DELETE_ATTR: {
@@ -2180,13 +2180,14 @@ bool HIRBuilder::emitInvokeMethod(
 
 void HIRBuilder::emitCompareOp(
     TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
+    int compare_op,
+    uint8_t readonly_mask) {
   auto& stack = tc.frame.stack;
   Register* right = stack.pop();
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
-  CompareOp op = static_cast<CompareOp>(bc_instr.oparg());
-  tc.emit<Compare>(result, op, left, right, tc.frame);
+  CompareOp op = static_cast<CompareOp>(compare_op);
+  tc.emit<Compare>(result, op, readonly_mask, left, right, tc.frame);
   stack.push(result);
 }
 
@@ -2927,6 +2928,18 @@ void HIRBuilder::emitReadonlyOperation(
       PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
       JIT_CHECK(mask != nullptr, "mask is nullptr");
       emitReadonlyUnaryOp(tc, op, PyLong_AsUnsignedLongLong(mask));
+      break;
+    }
+
+    case READONLY_COMPARE_OP: {
+      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
+      assert(mask != nullptr);
+      PyObject* compareOp = PyTuple_GET_ITEM(op_tuple, 2);
+      assert(compareOp != nullptr);
+      emitCompareOp(
+          tc,
+          PyLong_AsUnsignedLongLong(compareOp),
+          PyLong_AsUnsignedLongLong(mask));
       break;
     }
   }

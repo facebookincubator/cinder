@@ -330,10 +330,15 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     std::optional<CompareOp> op = ParseCompareOpName(GetNextToken());
     JIT_CHECK(op.has_value(), "Invalid CompareOp");
+    uint8_t readonly_flags = 0;
+    if (strcmp(peekNextToken(), ",") == 0) {
+      expect(",");
+      readonly_flags = GetNextInteger();
+    }
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    instruction = newInstr<Compare>(dst, *op, left, right);
+    instruction = newInstr<Compare>(dst, *op, readonly_flags, left, right);
   } else if (strcmp(opcode, "LongCompare") == 0) {
     expect("<");
     std::optional<CompareOp> op = ParseCompareOpName(GetNextToken());

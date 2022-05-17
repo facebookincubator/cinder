@@ -214,6 +214,7 @@ readonly_op("UNARY_INVERT", 15)
 readonly_op("UNARY_NEGATIVE", 16)
 readonly_op("UNARY_POSITIVE", 17)
 readonly_op("UNARY_NOT", 18)
+readonly_op("COMPARE_OP", 19)
 
 def_op('CALL_FUNCTION_KW', 141)  # #args + #kwargs
 def_op('CALL_FUNCTION_EX', 142)  # Flags

@@ -2212,10 +2212,13 @@ class INSTR_CLASS(
   Compare(
       Register* dst,
       CompareOp op,
+      uint8_t readonly_flags,
       Register* left,
       Register* right,
       const FrameState& frame)
-      : InstrT(dst, left, right, frame), op_(op) {}
+      : InstrT(dst, left, right, frame),
+        op_(op),
+        readonly_flags_(readonly_flags) {}
 
   CompareOp op() const {
     return op_;
@@ -2229,8 +2232,13 @@ class INSTR_CLASS(
     return GetOperand(1);
   }
 
+  uint8_t readonly_flags() const {
+    return readonly_flags_;
+  }
+
  private:
   CompareOp op_;
+  uint8_t readonly_flags_;
 };
 
 // Perform the comparison indicated by op

@@ -194,9 +194,8 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,
       bool is_awaited);
-  void emitCompareOp(
-      TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr);
+  void
+  emitCompareOp(TranslationContext& tc, int compare_op, uint8_t readonly_mask);
   void emitJumpIf(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

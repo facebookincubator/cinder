@@ -402,7 +402,12 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kCompare: {
       const auto& cmp = static_cast<const Compare&>(instr);
-      return GetCompareOpName(cmp.op());
+      if (cmp.readonly_flags() != 0) {
+        return fmt::format(
+            "{}, {}", GetCompareOpName(cmp.op()), cmp.readonly_flags());
+      } else {
+        return GetCompareOpName(cmp.op());
+      }
     }
     case Opcode::kLongCompare: {
       const auto& cmp = static_cast<const LongCompare&>(instr);

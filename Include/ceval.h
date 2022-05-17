@@ -231,7 +231,7 @@ PyAPI_FUNC(int) _PyEval_SliceIndexNotNone(PyObject *, Py_ssize_t *);
 struct _Py_Identifier;
 
 PyAPI_FUNC(PyObject *)
-    cmp_outcome(PyThreadState *, int, PyObject *, PyObject *);
+    cmp_outcome(PyThreadState *, int, int, PyObject *, PyObject *);
 PyAPI_FUNC(void) format_exc_check_arg(PyThreadState *, PyObject *exc,
                                       const char *format_str, PyObject *obj);
 PyAPI_FUNC(void)

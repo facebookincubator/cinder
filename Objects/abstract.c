@@ -2088,12 +2088,26 @@ _PySequence_IterSearch(PyObject *seq, PyObject *obj, int operation)
     int wrapped;  /* for PY_ITERSEARCH_INDEX, true iff n wrapped around */
     PyObject *it;  /* iter(seq) */
 
+    int orig_readonly_op;
+    if (PyReadonly_SuspendCurrentReadonlyOperation(&orig_readonly_op) != 0) {
+        return -1;
+    }
+
     if (seq == NULL || obj == NULL) {
         null_error();
         return -1;
     }
 
+    if (PyReadonly_MaybeBeginReadonlyOperation(orig_readonly_op, 0, PYREADONLY_BUILD_FUNCMASK1(READONLY_ARG(orig_readonly_op, 0))) != 0) {
+        return -1;
+    }
     it = PyObject_GetIter(seq);
+    if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+        if (it != NULL) {
+            Py_DECREF(it);
+        }
+        return -1;
+    }
     if (it == NULL) {
         if (PyErr_ExceptionMatches(PyExc_TypeError)) {
             type_error("argument of type '%.200s' is not iterable", seq);
@@ -2111,7 +2125,14 @@ _PySequence_IterSearch(PyObject *seq, PyObject *obj, int operation)
             break;
         }
 
+        if (PyReadonly_MaybeBeginReadonlyOperation(orig_readonly_op, 0, PYREADONLY_BUILD_FUNCMASK2(READONLY_ARG(orig_readonly_op, 1), READONLY_ARG(orig_readonly_op, 0))) != 0) {
+            goto Fail;
+        }
         cmp = PyObject_RichCompareBool(obj, item, Py_EQ);
+        if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+            Py_DECREF(item);
+            goto Fail;
+        }
         Py_DECREF(item);
         if (cmp < 0)
             goto Fail;
@@ -2180,8 +2201,13 @@ PySequence_Contains(PyObject *seq, PyObject *ob)
 {
     Py_ssize_t result;
     PySequenceMethods *sqm = seq->ob_type->tp_as_sequence;
-    if (sqm != NULL && sqm->sq_contains != NULL)
-        return (*sqm->sq_contains)(seq, ob);
+    if (sqm != NULL && sqm->sq_contains != NULL) {
+        result = (*sqm->sq_contains)(seq, ob);
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+            return -1;
+        }
+        return result;
+    }
     result = _PySequence_IterSearch(seq, ob, PY_ITERSEARCH_CONTAINS);
     return Py_SAFE_DOWNCAST(result, Py_ssize_t, int);
 }
@@ -2681,6 +2707,8 @@ PyObject_GetIter(PyObject *o)
     PyTypeObject *t = o->ob_type;
     getiterfunc f;
 
+    // TODO: Implement properly.
+    PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0);
     f = t->tp_iter;
     if (f == NULL) {
         if (PySequence_Check(o))

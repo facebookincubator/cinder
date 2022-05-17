@@ -803,7 +803,7 @@ class CodeGenerator(ASTVisitor):
     def visitBoolOp(self, node):
         self.visitTest(node, type(node.op) == ast.Or)
 
-    _cmp_opcode = {
+    _cmp_opcode: Dict[Type, str] = {
         ast.Eq: "==",
         ast.NotEq: "!=",
         ast.Lt: "<",
@@ -859,7 +859,7 @@ class CodeGenerator(ASTVisitor):
                         op, comparator, cleanup, always_pop=True
                     )
                 self.visit(test.comparators[-1])
-                self.emit("COMPARE_OP", self._cmp_opcode[type(test.ops[-1])])
+                self.defaultEmitCompare(test.ops[-1])
                 self.emit(
                     "POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next
                 )

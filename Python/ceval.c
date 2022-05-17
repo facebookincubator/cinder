@@ -168,7 +168,7 @@ static void maybe_dtrace_line(PyFrameObject *, int *, int *, int *);
 static void dtrace_function_entry(PyFrameObject *);
 static void dtrace_function_return(PyFrameObject *);
 
-PyObject * cmp_outcome(PyThreadState *, int, PyObject *, PyObject *);
+PyObject * cmp_outcome(PyThreadState *, int, int, PyObject *, PyObject *);
 
 static int import_all_from(PyThreadState *, PyFrameObject *, PyObject *);
 void format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
@@ -3368,6 +3368,24 @@ main_loop:
                 STACK_SHRINK(1);
                 goto error;
             }
+            case READONLY_COMPARE_OP: {
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                assert(mask != NULL);
+                PyObject *cmpop = PyTuple_GetItem(tuple, 2);
+                assert(cmpop != NULL);
+
+                PyObject *right = POP();
+                PyObject *left = TOP();
+                PyObject *res = cmp_outcome(tstate, PyLong_AsUnsignedLongLong(cmpop), PyLong_AsUnsignedLongLong(mask), left, right);
+                Py_DECREF(left);
+                Py_DECREF(right);
+                SET_TOP(res);
+                if (res == NULL)
+                    goto error;
+                PREDICT(POP_JUMP_IF_FALSE);
+                PREDICT(POP_JUMP_IF_TRUE);
+                DISPATCH();
+            }
             default:
                 assert(0);
             }
@@ -3629,7 +3647,7 @@ main_loop:
         case TARGET(COMPARE_OP): {
             PyObject *right = POP();
             PyObject *left = TOP();
-            PyObject *res = cmp_outcome(tstate, oparg, left, right);
+            PyObject *res = cmp_outcome(tstate, oparg, 0, left, right);
             Py_DECREF(left);
             Py_DECREF(right);
             SET_TOP(res);
@@ -8577,7 +8595,7 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
                          "BaseException is not allowed"
 
 PyObject *
-cmp_outcome(PyThreadState *tstate, int op, PyObject *v, PyObject *w)
+cmp_outcome(PyThreadState *tstate, int op, int readonly_mask, PyObject *v, PyObject *w)
 {
     int res = 0;
     switch (op) {
@@ -8588,12 +8606,24 @@ cmp_outcome(PyThreadState *tstate, int op, PyObject *v, PyObject *w)
         res = (v != w);
         break;
     case PyCmp_IN:
+        if (readonly_mask != 0 && PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
+            return NULL;
+        }
         res = PySequence_Contains(w, v);
+        if (readonly_mask != 0 && PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+            return NULL;
+        }
         if (res < 0)
             return NULL;
         break;
     case PyCmp_NOT_IN:
+        if (readonly_mask != 0 && PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
+            return NULL;
+        }
         res = PySequence_Contains(w, v);
+        if (readonly_mask != 0 && PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+            return NULL;
+        }
         if (res < 0)
             return NULL;
         res = !res;
@@ -8621,7 +8651,17 @@ cmp_outcome(PyThreadState *tstate, int op, PyObject *v, PyObject *w)
         res = PyErr_GivenExceptionMatches(v, w);
         break;
     default:
-        return PyObject_RichCompare(v, w, op);
+        if (readonly_mask != 0 && PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
+            return NULL;
+        }
+        v = PyObject_RichCompare(v, w, op);
+        if (readonly_mask != 0 && PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+            if (v != NULL) {
+                Py_DECREF(v);
+            }
+            return NULL;
+        }
+        return v;
     }
     v = res ? Py_True : Py_False;
     Py_INCREF(v);

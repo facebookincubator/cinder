@@ -9,6 +9,7 @@
 #include "classloader.h"
 #include "frameobject.h"
 #include "interpreteridobject.h"
+#include "pyreadonly.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -713,26 +714,58 @@ do_richcompare(PyObject *v, PyObject *w, int op)
     richcmpfunc f;
     PyObject *res;
     int checked_reverse_op = 0;
+    int readonly_op = 0;
+
+    if (PyReadonly_SaveCurrentReadonlyOperation(&readonly_op) != 0) {
+        return NULL;
+    }
 
     if (v->ob_type != w->ob_type &&
         PyType_IsSubtype(w->ob_type, v->ob_type) &&
         (f = w->ob_type->tp_richcompare) != NULL) {
         checked_reverse_op = 1;
+        if (PyReadonly_ReorderCurrentOperationArgs2() != 0) {
+            return NULL;
+        }
         res = (*f)(w, v, _Py_SwappedOp[op]);
-        if (res != Py_NotImplemented)
+        if (res != Py_NotImplemented) {
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+                Py_DECREF(res);
+                return NULL;
+            }
             return res;
+        }
         Py_DECREF(res);
     }
     if ((f = v->ob_type->tp_richcompare) != NULL) {
+        if (checked_reverse_op && PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+            return NULL;
+        }
         res = (*f)(v, w, op);
-        if (res != Py_NotImplemented)
+        if (res != Py_NotImplemented) {
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+                Py_DECREF(res);
+                return NULL;
+            }
             return res;
+        }
         Py_DECREF(res);
     }
     if (!checked_reverse_op && (f = w->ob_type->tp_richcompare) != NULL) {
+        if (v->ob_type->tp_richcompare != NULL && PyReadonly_RestoreCurrentReadonlyOperation(readonly_op) != 0) {
+            return NULL;
+        }
+        if (PyReadonly_ReorderCurrentOperationArgs2() != 0) {
+            return NULL;
+        }
         res = (*f)(w, v, _Py_SwappedOp[op]);
-        if (res != Py_NotImplemented)
+        if (res != Py_NotImplemented){
+            if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK2(1, 1), 0) != 0) {
+                Py_DECREF(res);
+                return NULL;
+            }
             return res;
+        }
         Py_DECREF(res);
     }
     /* If neither object implements it, provide a sensible default

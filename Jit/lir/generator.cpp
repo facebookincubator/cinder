@@ -1536,6 +1536,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             cmp_outcome,
             "__asm_tstate",
             static_cast<int>(instr->op()),
+            static_cast<int>(instr->readonly_flags()),
             instr->left(),
             instr->right());
         break;
