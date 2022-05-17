@@ -5,7 +5,7 @@ import ast
 import operator
 import sys
 from ast import Bytes, cmpop, Constant, copy_location, Ellipsis, NameConstant, Num, Str
-from typing import Callable, Dict, Iterable, Mapping, Optional, Type
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 from .visitor import ASTRewriter
 
@@ -17,20 +17,21 @@ class PyLimits:
     MAX_TOTAL_ITEMS = 1024
 
 
-UNARY_OPS: Mapping[Type[ast.unaryop], Callable[[object], object]] = {
+# pyre-fixme[5]: Global annotation cannot contain `Any`.
+UNARY_OPS: Mapping[type[ast.unaryop], Callable[[Any], object]] = {
     ast.Invert: operator.invert,
     ast.Not: operator.not_,
     ast.UAdd: operator.pos,
     ast.USub: operator.neg,
 }
-INVERSE_OPS: Mapping[Type[cmpop], Type[cmpop]] = {
+INVERSE_OPS: Mapping[type[cmpop], type[cmpop]] = {
     ast.Is: ast.IsNot,
     ast.IsNot: ast.Is,
     ast.In: ast.NotIn,
     ast.NotIn: ast.In,
 }
 
-BIN_OPS: Mapping[Type[ast.operator], Callable[[object, object], object]] = {
+BIN_OPS: Mapping[type[ast.operator], Callable[[object, object], object]] = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
     ast.Mult: lambda l, r: safe_multiply(l, r, PyLimits),
@@ -53,7 +54,11 @@ class DefaultLimits:
     MAX_TOTAL_ITEMS = 1024
 
 
-def safe_lshift(left, right, limits=DefaultLimits):
+LimitsType = type[PyLimits] | type[DefaultLimits]
+
+
+# pyre-fixme[2]: Parameter annotation cannot be `Any`.
+def safe_lshift(left: Any, right: Any, limits: LimitsType = DefaultLimits) -> object:
     if isinstance(left, int) and isinstance(right, int) and left and right:
         lbits = left.bit_length()
         if (
@@ -77,7 +82,8 @@ def check_complexity(obj: object, limit: int) -> int:
     return limit
 
 
-def safe_multiply(left, right, limits=DefaultLimits):
+# pyre-fixme[2]: Parameter annotation cannot be `Any`.
+def safe_multiply(left: Any, right: Any, limits: LimitsType = DefaultLimits) -> object:
     if isinstance(left, int) and isinstance(right, int) and left and right:
         lbits = left.bit_length()
         rbits = right.bit_length()
@@ -89,7 +95,7 @@ def safe_multiply(left, right, limits=DefaultLimits):
             if left < 0 or left > limits.MAX_COLLECTION_SIZE / rsize:
                 raise OverflowError()
             if left:
-                if check_complexity(right, limits.MAX_TOTAL_ITEMS / left) < 0:
+                if check_complexity(right, limits.MAX_TOTAL_ITEMS // left) < 0:
                     raise OverflowError()
     elif isinstance(left, int) and isinstance(right, (str, bytes)):
         rsize = len(right)
@@ -102,7 +108,8 @@ def safe_multiply(left, right, limits=DefaultLimits):
     return left * right
 
 
-def safe_power(left, right, limits=DefaultLimits):
+# pyre-fixme[2]: Parameter annotation cannot be `Any`.
+def safe_power(left: Any, right: Any, limits: LimitsType = DefaultLimits) -> object:
     if isinstance(left, int) and isinstance(right, int) and left and right > 0:
         lbits = left.bit_length()
         if lbits > limits.MAX_INT_SIZE / right:
@@ -111,7 +118,8 @@ def safe_power(left, right, limits=DefaultLimits):
     return left**right
 
 
-def safe_mod(left, right, limits=DefaultLimits):
+# pyre-fixme[2]: Parameter annotation cannot be `Any`.
+def safe_mod(left: Any, right: Any, limits: LimitsType = DefaultLimits) -> object:
     if isinstance(left, (str, bytes)):
         raise OverflowError()
 
@@ -187,7 +195,6 @@ class AstOptimizer(ASTRewriter):
         ):
             try:
                 return copy_location(
-                    # pyre-ignore[16] we know this is unsafe, so it's wrapped in try/except
                     Constant(value.value[slice.value]),
                     node,
                 )
