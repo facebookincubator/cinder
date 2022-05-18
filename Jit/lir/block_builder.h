@@ -209,15 +209,15 @@ class BasicBlockBuilder {
   }
 
   void AppendTokenizedCodeLine(const std::vector<std::string>& tokens);
-  void AppendCodeLine(const std::string& s) {
+  void AppendCodeLine(std::string_view s) {
     AppendTokenizedCodeLine(Tokenize(s));
   }
 
-  bool IsConstant(const std::string& s) {
+  bool IsConstant(std::string_view s) {
     return isdigit(s[0]) || (s[0] == '-');
   }
 
-  static bool IsLabel(const std::string& s) {
+  static bool IsLabel(std::string_view s) {
     return s.back() == ':';
   }
 
@@ -230,7 +230,7 @@ class BasicBlockBuilder {
       const std::vector<std::string>& tokens,
       bool is_invoke,
       bool is_vector_call);
-  static std::vector<std::string> Tokenize(const std::string& s);
+  static std::vector<std::string> Tokenize(std::string_view s);
 };
 
 } // namespace lir

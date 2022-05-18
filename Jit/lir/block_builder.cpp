@@ -28,23 +28,27 @@ static inline std::string GetId(const std::string& s) {
 
 static inline std::pair<std::string, Operand::DataType> GetIdAndType(
     const std::string& name) {
+  static UnorderedMap<std::string_view, Operand::DataType> typeMap = {
+      {"CInt8", Operand::k8bit},
+      {"CUInt8", Operand::k8bit},
+      {"CBool", Operand::k8bit},
+      {"CInt16", Operand::k16bit},
+      {"CUInt16", Operand::k16bit},
+      {"CInt32", Operand::k32bit},
+      {"CUInt32", Operand::k32bit},
+      {"CInt64", Operand::k64bit},
+      {"CUInt64", Operand::k64bit},
+      {"CDouble", Operand::kDouble},
+  };
   size_t colon;
   Operand::DataType data_type = Operand::kObject;
 
   if ((colon = name.find(':')) != std::string::npos) {
-    std::string type = name.substr(colon + 1);
-    if (type == "CInt8" || type == "CUInt8" || type == "CBool") {
-      data_type = Operand::k8bit;
-    } else if (type == "CInt16" || type == "CUInt16") {
-      data_type = Operand::k16bit;
-    } else if (type == "CInt32" || type == "CUInt32") {
-      data_type = Operand::k32bit;
-    } else if (type == "CInt64" || type == "CUInt64") {
-      data_type = Operand::k64bit;
-    } else if (type == "CDouble") {
-      data_type = Operand::kDouble;
+    auto type = std::string_view(name).substr(colon + 1);
+    auto t = typeMap.find(type);
+    if (t != typeMap.end()) {
+      data_type = t->second;
     }
-
     return {name.substr(0, colon), data_type};
   } else {
     return {name, data_type};
@@ -58,11 +62,25 @@ BasicBlockBuilder::BasicBlockBuilder(jit::codegen::Environ* env, Function* func)
 }
 
 void BasicBlockBuilder::AppendCode(const std::string& s) {
-  auto stream = std::stringstream{s};
-  for (std::string line; std::getline(stream, line, '\n');) {
+  size_t pos = 0;
+  do {
+    auto end = s.find('\n', pos);
+    std::string_view line;
+    if (end != std::string::npos) {
+      line = std::string_view(s).substr(pos, end - pos);
+      pos = end + 1;
+    } else {
+      line = std::string_view(s).substr(pos);
+      pos = end;
+    }
+
+    if (line == "\n" || line.empty()) {
+      continue;
+    }
+
     if (IsLabel(line)) {
-      line.pop_back();
-      auto next_bb = GetBasicBlockByLabel(line);
+      auto next_bb =
+          GetBasicBlockByLabel(std::string(line.substr(0, line.size() - 1)));
       if (cur_bb_->successors().size() < 2) {
         cur_bb_->addSuccessor(next_bb);
       }
@@ -71,10 +89,10 @@ void BasicBlockBuilder::AppendCode(const std::string& s) {
     } else {
       AppendCodeLine(line);
     }
-  }
+  } while (pos != std::string::npos);
 }
 
-std::vector<std::string> BasicBlockBuilder::Tokenize(const std::string& s) {
+std::vector<std::string> BasicBlockBuilder::Tokenize(std::string_view s) {
   std::vector<std::string> tokens;
 
   auto it = s.begin();
