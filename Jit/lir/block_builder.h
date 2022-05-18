@@ -220,6 +220,16 @@ class BasicBlockBuilder {
   static bool IsLabel(const std::string& s) {
     return s.back() == ':';
   }
+
+  void createBasicInstr(
+      Instruction::Opcode opc,
+      bool has_output,
+      int arg_count,
+      const std::vector<std::string>& tokens);
+  void createBasicCallInstr(
+      const std::vector<std::string>& tokens,
+      bool is_invoke,
+      bool is_vector_call);
   static std::vector<std::string> Tokenize(const std::string& s);
 };
 
