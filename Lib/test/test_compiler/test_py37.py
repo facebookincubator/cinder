@@ -156,8 +156,3 @@ class Python37Tests(CompilerTest):
     def test_compile_opt_chained_cmp_op(self):
         graph = self.to_graph("assert not a > b > c")
         self.assertNotInGraph(graph, "UNARY_NOT")
-
-    def test_const_fold(self):
-        code = "{" + "**{}, " * 256 + "}"
-        graph = self.to_graph(code)
-        self.assertInGraph(graph, "BUILD_MAP_UNPACK", 256)

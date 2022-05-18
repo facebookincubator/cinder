@@ -121,8 +121,6 @@ opcode.def_op("MAP_ADD", 147)
 opcode.def_op("LOAD_CLASSDEREF", 148)
 opcode.hasfree.add(148)
 opcode.def_op("EXTENDED_ARG", 144)
-opcode.def_op("BUILD_MAP_UNPACK", 150)
-opcode.def_op("BUILD_MAP_UNPACK_WITH_CALL", 151)
 opcode.jrel_op("SETUP_ASYNC_WITH", 154)
 opcode.def_op("FORMAT_VALUE", 155)
 opcode.def_op("BUILD_CONST_KEY_MAP", 156)
@@ -133,6 +131,7 @@ opcode.def_op("CALL_METHOD", 161)
 opcode.def_op("LIST_EXTEND", 162)
 opcode.def_op("SET_UPDATE", 163)
 opcode.def_op("DICT_MERGE", 164)
+opcode.def_op("DICT_UPDATE", 165)
 
 FVC_MASK = 0x3
 FVC_NONE = 0x0
@@ -212,8 +211,6 @@ opcode.stack_effects.update(
     BUILD_TUPLE_UNPACK=lambda oparg, jmp=0: 1 - oparg,
     BUILD_TUPLE_UNPACK_WITH_CALL=lambda oparg, jmp=0: 1 - oparg,
     BUILD_SET_UNPACK=lambda oparg, jmp=0: 1 - oparg,
-    BUILD_MAP_UNPACK=lambda oparg, jmp=0: 1 - oparg,
-    BUILD_MAP_UNPACK_WITH_CALL=lambda oparg, jmp=0: 1 - oparg,
     BUILD_MAP=lambda oparg, jmp=0: 1 - 2 * oparg,
     BUILD_CONST_KEY_MAP=lambda oparg, jmp=0: -oparg,
     LOAD_ATTR=0,
@@ -272,4 +269,5 @@ opcode.stack_effects.update(
     LIST_EXTEND=-1,
     SET_UPDATE=-1,
     DICT_MERGE=-1,
+    DICT_UPDATE=-1,
 )
