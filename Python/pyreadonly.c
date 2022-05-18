@@ -281,6 +281,22 @@ int PyReadonly_VerifyReadonlyOperationCompleted(void) {
 }
 #endif
 
+void PyReadonly_Check_LoadAttr(PyObject *obj, int check_return,
+                               int check_read) {
+  assert(obj);
+  PyTypeObject *type = Py_TYPE(obj);
+
+  if (check_read &&
+      PyType_HasFeature(type, Py_TPFLAG_READONLY_SIDE_EFFECT_DESCR)) {
+
+    _PyErr_IMMUTABLE_ERR(ReadonlyAttributeAccess);
+  }
+  if (check_return &&
+      PyType_HasFeature(type, Py_TPFLAG_DESCR_RETURNS_READONLY)) {
+    _PyErr_IMMUTABLE_ERR(ReadonlyAttributeAccessReturnReadonly);
+  }
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -144,7 +144,13 @@ PyAPI_FUNC(int) PyReadonly_CheckReadonlyOperationOnCallable(PyObject* callable);
  * encountered.
  */
 PyAPI_FUNC(int) PyReadonly_VerifyReadonlyOperationCompleted(void);
+
 #endif
+
+/**
+ * Check if attribute access violates readonly rules.
+ */
+PyAPI_FUNC(void) PyReadonly_Check_LoadAttr(PyObject *obj, int check_return, int check_read);
 
 #ifdef __cplusplus
 }

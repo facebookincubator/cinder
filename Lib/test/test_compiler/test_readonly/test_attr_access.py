@@ -136,6 +136,89 @@ class AttrAccessTests(ReadonlyTestBase):
         result = self._compile_and_run(code, "f")
         self.assertEqual(result & 0x3, 3)
 
-    def _compile_and_run(self, code: str, func: str) -> None:
-        f = self.compile_and_run(code)[func]
+    def test_readonly_access_read(self) -> None:
+        code = """
+        class Descr:
+            @readonly_func
+            def __get__(self, cls, t):
+                pass
+
+        class NewClass:
+            a = Descr()
+
+        def f():
+            o = readonly(NewClass())
+            t = o.a
+        """
+        with self.assertImmutableErrors(
+            [
+                (
+                    16,
+                    "Attempted to access an attribute of an object whose descriptors may change the object.",
+                    (),
+                )
+            ]
+        ):
+            self._compile_and_run(code, "f")
+
+    def test_readonly_access_attr_return_readonly(self) -> None:
+        code = """
+        class Descr:
+            @readonly_func
+            def __get__(self, cls, t) -> Readonly[object]:
+                return None
+
+        class NewClass:
+            a = Descr()
+
+        def f():
+            o = NewClass()
+            t = o.a
+        """
+        with self.assertImmutableErrors(
+            [
+                (
+                    17,
+                    "Attempted to access an attribute of an object which may return a readonly object.",
+                    (),
+                )
+            ]
+        ):
+            self._compile_and_run(code, "f")
+
+    def test_readonly_annotation(self) -> None:
+        code = """
+        class Descr:
+            @readonly_func
+            def __get__(self, cls, t):
+                return None
+
+        class NewType:
+            a = Descr()
+
+        def f():
+            def g(c: readonly(NewType()).a):
+                pass
+            g(3)
+            pass
+        """
+
+        with self.assertImmutableErrors(
+            [
+                (
+                    16,
+                    "Attempted to access an attribute of an object whose descriptors may change the object.",
+                    (),
+                )
+            ]
+        ):
+            self._compile_and_run(code, "f", False)
+
+        with self.assertNoImmutableErrors():
+            self._compile_and_run(code, "f", True)
+
+    def _compile_and_run(
+        self, code: str, func: str, future_annotations: bool = True
+    ) -> None:
+        f = self.compile_and_run(code, future_annotations)[func]
         return f()

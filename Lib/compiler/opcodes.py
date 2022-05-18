@@ -136,6 +136,7 @@ opcode.readonly_op("UNARY_NEGATIVE", 16)
 opcode.readonly_op("UNARY_POSITIVE", 17)
 opcode.readonly_op("UNARY_NOT", 18)
 opcode.readonly_op("COMPARE_OP", 19)
+opcode.readonly_op("CHECK_LOAD_ATTR", 20)
 opcode.def_op("CALL_FUNCTION_KW", 141)  # #args + #kwargs
 opcode.def_op("CALL_FUNCTION_EX", 142)  # Flags
 opcode.jrel_op("SETUP_WITH", 143)

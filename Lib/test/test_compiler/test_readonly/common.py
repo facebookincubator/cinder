@@ -55,13 +55,15 @@ class ReadonlyTestBase(TestBase):
                 ast_optimizer_enabled,
             )
 
-    def compile_and_run(self, code):
+    def compile_and_run(self, code, future_annotations=True):
         # find out indent
         index = 0
         while code[index].isspace():
             index += 1
 
-        code = code[:index] + "from __future__ import annotations\n" + code
+        if future_annotations:
+            code = code[:index] + "from __future__ import annotations\n" + code
+
         errors = self.lint(code)
         self.assertEqual(errors.errors, [])
         compiled = self.compile(code)

@@ -3386,6 +3386,17 @@ main_loop:
                 PREDICT(POP_JUMP_IF_TRUE);
                 DISPATCH();
             }
+            case READONLY_CHECK_LOAD_ATTR: {
+                PyObject *check_return = PyTuple_GET_ITEM(tuple, 1);
+                PyObject *check_read = PyTuple_GET_ITEM(tuple, 2);
+
+                assert(check_return && check_read);
+                assert(check_return == Py_True || check_read == Py_True);
+                PyReadonly_Check_LoadAttr(TOP(), check_return == Py_True,
+                                          check_read == Py_True);
+
+                break;
+            }
             default:
                 assert(0);
             }

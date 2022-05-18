@@ -42,6 +42,9 @@ DEF_ERROR(ReadonlyOperatorArgumentReadonlyMismatch, 13, "Attempted to pass a rea
 DEF_ERROR(ReadonlyOperatorReturnsReadonlyMismatch, 14, "Operator returns readonly, but expected mutable.");
 DEF_ERROR(ReadonlyOperatorCallOnUnknownCallableType, 15, "Attempted to perform a readonly operator call, but was unable to determine what kind of callable object was used. No check was performed.");
 
+DEF_ERROR(ReadonlyAttributeAccess, 16, "Attempted to access an attribute of an object whose descriptors may change the object.");
+DEF_ERROR(ReadonlyAttributeAccessReturnReadonly, 17, "Attempted to access an attribute of an object which may return a readonly object.");
+
 #undef DEF_ERROR
 
 #ifdef __cplusplus

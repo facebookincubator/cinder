@@ -383,6 +383,27 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
 
         self.emit_readonly_op("CHECK_FUNCTION", [nargs, mask, method_flag])
 
+    def visitAttribute(self, node: ast.Attribute) -> None:
+        self.update_lineno(node)
+        self.visit(node.value)
+        if isinstance(node.ctx, ast.Store):
+            self.emit("STORE_ATTR", self.mangle(node.attr))
+            return
+        elif isinstance(node.ctx, ast.Del):
+            self.emit("DELETE_ATTR", self.mangle(node.attr))
+            return
+
+        # check if readonly
+        binder = self.binder
+        check_attr_return = not binder.is_readonly(node)
+        check_attr_read = binder.is_readonly(node.value)
+
+        if check_attr_read or check_attr_return:
+            self.emit_readonly_op(
+                "CHECK_LOAD_ATTR", [check_attr_return, check_attr_read]
+            )
+
+        self.emit("LOAD_ATTR", self.mangle(node.attr))
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int
