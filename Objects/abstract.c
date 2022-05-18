@@ -1290,8 +1290,14 @@ PyNumber_Negative(PyObject *o)
     }
 
     m = o->ob_type->tp_as_number;
-    if (m && m->nb_negative)
-        return (*m->nb_negative)(o);
+    if (m && m->nb_negative) {
+        PyObject *result = (*m->nb_negative)(o);
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        return result;
+    }
 
     return type_error("bad operand type for unary -: '%.200s'", o);
 }
@@ -1306,8 +1312,14 @@ PyNumber_Positive(PyObject *o)
     }
 
     m = o->ob_type->tp_as_number;
-    if (m && m->nb_positive)
-        return (*m->nb_positive)(o);
+    if (m && m->nb_positive) {
+        PyObject *result = (*m->nb_positive)(o);
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        return result;
+    }
 
     return type_error("bad operand type for unary +: '%.200s'", o);
 }
@@ -1322,8 +1334,14 @@ PyNumber_Invert(PyObject *o)
     }
 
     m = o->ob_type->tp_as_number;
-    if (m && m->nb_invert)
-        return (*m->nb_invert)(o);
+    if (m && m->nb_invert) {
+        PyObject *result = (*m->nb_invert)(o);
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        return result;
+    }
 
     return type_error("bad operand type for unary ~: '%.200s'", o);
 }
@@ -1338,8 +1356,14 @@ PyNumber_Absolute(PyObject *o)
     }
 
     m = o->ob_type->tp_as_number;
-    if (m && m->nb_absolute)
-        return m->nb_absolute(o);
+    if (m && m->nb_absolute){
+        PyObject *result = m->nb_absolute(o);
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        return result;
+    }
 
     return type_error("bad operand type for abs(): '%.200s'", o);
 }

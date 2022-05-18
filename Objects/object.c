@@ -1612,11 +1612,11 @@ PyObject_IsTrue(PyObject *v)
 {
     Py_ssize_t res;
     if (v == Py_True)
-        return 1;
-    if (v == Py_False)
-        return 0;
-    if (v == Py_None)
-        return 0;
+        res = 1;
+    else if (v == Py_False)
+        res = 0;
+    else if (v == Py_None)
+        res = 0;
     else if (v->ob_type->tp_as_number != NULL &&
              v->ob_type->tp_as_number->nb_bool != NULL)
         res = (*v->ob_type->tp_as_number->nb_bool)(v);
@@ -1627,7 +1627,12 @@ PyObject_IsTrue(PyObject *v)
              v->ob_type->tp_as_sequence->sq_length != NULL)
         res = (*v->ob_type->tp_as_sequence->sq_length)(v);
     else
-        return 1;
+        res = 1;
+
+    if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
+        return -1;
+    }
+
     /* if it is negative, it should be either -1 or -2 */
     return (res > 0) ? 1 : Py_SAFE_DOWNCAST(res, Py_ssize_t, int);
 }
