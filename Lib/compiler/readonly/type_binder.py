@@ -36,9 +36,10 @@ class ReadonlyBindingScope:
         node: AST,
         binder: ReadonlyTypeBinder,
         parent: Optional[ReadonlyBindingScope] = None,
+        predefined: Optional[Dict[str, Value]] = None,
     ) -> None:
         self.node = node
-        self.types: Dict[str, Value] = {}
+        self.types: Dict[str, Value] = predefined or {}
         self.binder = binder
         self.parent = parent
         self._parent_function: Optional[
@@ -178,19 +179,24 @@ class ReadonlyComprehensionBindingScope(ReadonlyBindingScope):
     pass
 
 
+class ReadonlyFunctionArgumentBindingScope(ReadonlyBindingScope):
+    pass
+
+
 class ReadonlyFunctionBindingScope(ReadonlyBindingScope):
     def __init__(
         self,
         node: AST,
         binder: ReadonlyTypeBinder,
         parent: Optional[ReadonlyBindingScope] = None,
+        args_readonly: Dict[str, Value] = {},
         returns_readonly: bool = False,
         yields_readonly: bool = False,
         sends_readonly: bool = False,
         readonly_nonlocal: bool = False,
         pre_visit: bool = False,
     ) -> None:
-        super().__init__(node, binder, parent)
+        super().__init__(node, binder, parent, args_readonly)
         self._returns_readonly = returns_readonly
         self._yields_readonly = yields_readonly
         self._sends_readonly = sends_readonly
@@ -444,7 +450,11 @@ class ReadonlyTypeBinder(ASTVisitor):
         name = node.id
         name_scope = self.scope_check_name(name)
         if name_scope in (SC_LOCAL, SC_CELL):
-            is_readonly = self.get_name_readonly(name, is_local=True)
+            # when compiling function argument, we may refer the names from an outer scope.
+            is_local = not isinstance(
+                self.readonly_scope, ReadonlyFunctionArgumentBindingScope
+            )
+            is_readonly = self.get_name_readonly(name, is_local=is_local)
             if is_readonly is not None:
                 self.store_node(node, is_readonly)
             else:
@@ -1004,9 +1014,16 @@ class ReadonlyTypeBinder(ASTVisitor):
                 sends_readonly = gen[1]
                 returns_readonly = gen[2]
 
+        # copying argument types to the function scope
+        func_arg_scope = ReadonlyFunctionArgumentBindingScope(node, self)
+        self.child_scope(func_arg_scope)
+        self.visit(node.args)
+        self.restore_scope()
+
         func_scope = ReadonlyFunctionBindingScope(
             node,
             self,
+            args_readonly=func_arg_scope.types,
             returns_readonly=returns_readonly,
             yields_readonly=yields_readonly,
             sends_readonly=sends_readonly,
@@ -1016,8 +1033,7 @@ class ReadonlyTypeBinder(ASTVisitor):
         self.child_scope(func_scope)
         # Declare the function itself in the local scope.
         self.declare(name, node, MUTABLE)
-        # put parameters in scope
-        self.visit(node.args)
+
         self.walk_list(node.body)
         func_scope.finish_previsit()
         self.walk_list(func_scope.post_visit)
@@ -1058,11 +1074,15 @@ class ReadonlyTypeBinder(ASTVisitor):
         self.walk_list([n for n in node.kw_defaults if n is not None])
 
     def visitarg(self, node: ast.arg) -> None:
+        if node.annotation:
+            self.visit(node.annotation, READONLY)
+
         if (annotation := node.annotation) is not None:
             is_readonly = self.is_readonly_annotation(annotation)
             readonly_value = READONLY if is_readonly else MUTABLE
         else:
             readonly_value = MUTABLE
+
         self.declare(node.arg, node, readonly_value)
 
     def visitalias(self, node: ast.alias) -> None:
