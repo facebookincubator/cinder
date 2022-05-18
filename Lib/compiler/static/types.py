@@ -5205,7 +5205,12 @@ class Dataclass(Class):
         if self.init:
             init_params = [
                 Parameter(
-                    "self", 0, ResolvedTypeRef(self), False, None, ParamStyle.POSONLY
+                    "self",
+                    0,
+                    ResolvedTypeRef(self.inexact_type()),
+                    False,
+                    None,
+                    ParamStyle.POSONLY,
                 )
             ]
 
@@ -5703,12 +5708,17 @@ class BuiltinFunction(Callable[Class]):
         return_type: Optional[TypeRef] = None,
     ) -> None:
         assert isinstance(return_type, (TypeRef, type(None)))
+        args_by_name = (
+            {}
+            if args is None
+            else {arg.name: arg for arg in args if arg.style is not ParamStyle.POSONLY}
+        )
         super().__init__(
             type_env.builtin_method_desc,
             func_name,
             module_name,
             args,
-            {},
+            args_by_name,
             0,
             None,
             None,
@@ -5794,12 +5804,17 @@ class BuiltinMethodDescriptor(Callable[Class]):
     ) -> None:
         assert isinstance(return_type, (TypeRef, type(None)))
         self.type_env: TypeEnvironment = container_type.type_env
+        args_by_name = (
+            {}
+            if args is None
+            else {arg.name: arg for arg in args if arg.style is not ParamStyle.POSONLY}
+        )
         super().__init__(
             self.type_env.builtin_method_desc,
             func_name,
             container_type.type_name.module,
             args,
-            {},
+            args_by_name,
             0,
             None,
             None,
@@ -5891,7 +5906,7 @@ class BuiltinMethod(Callable[Class]):
             desc.func_name,
             desc.module_name,
             desc.args,
-            {},
+            desc.args_by_name,
             0,
             None,
             None,

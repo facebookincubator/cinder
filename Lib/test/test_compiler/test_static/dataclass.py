@@ -59,6 +59,21 @@ class DataclassTests(StaticTestBase):
             self.assertEqual(mod.c.x, "foo")
             self.assertEqual(mod.c.y, 42)
 
+    def test_dataclass_init_by_name(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: str
+            y: int
+
+        c = C(y=42, x="foo")
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.c.x, "foo")
+            self.assertEqual(mod.c.y, 42)
+
     def test_dataclass_no_fields(self) -> None:
         codestr = """
         from __static__ import dataclass
@@ -1720,3 +1735,20 @@ class DataclassTests(StaticTestBase):
             self.run_code,
             codestr,
         )
+
+    def test_dataclass_can_call_init_on_subclass(self) -> None:
+        codestr = f"""
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+
+        class D(C):
+            pass
+
+        d = D(1)
+        d.__init__(2)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.d.x, 2)
