@@ -5248,6 +5248,13 @@ class Dataclass(Class):
                     ResolvedTypeRef(self.type_env.none),
                 )
 
+        # Replace the wrapped class with self in all methods
+        for member in self.members.values():
+            if not isinstance(member, Callable):
+                continue
+            if member.container_type is self.wrapped_class.inexact_type():
+                member.set_container_type(self.inexact_type())
+
         return super().finish_bind(module, klass)
 
     def bind_field(
@@ -5664,7 +5671,7 @@ class Dataclass(Class):
                 code_gen.emit("STORE_NAME", "__hash__")
 
     def _create_exact_type(self) -> Class:
-        return type(self)(
+        klass = type(self)(
             type_env=self.type_env,
             klass=self.wrapped_class.exact_type(),
             init=self.init,
@@ -5674,6 +5681,8 @@ class Dataclass(Class):
             unsafe_hash=self.unsafe_hash,
             frozen=self.frozen,
         )
+        klass.members = self.members
+        return klass
 
 
 class DataclassInstance(Object[Dataclass]):

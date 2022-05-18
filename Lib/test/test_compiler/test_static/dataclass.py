@@ -1752,3 +1752,20 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.d.x, 2)
+
+    def test_dataclass_method_call(self) -> None:
+        codestr = f"""
+        from __static__ import dataclass
+
+        @dataclass
+        class C:
+            x: int
+
+            def squared(self) -> int:
+                return self.x * self.x
+
+        c = C(10)
+        res = c.squared()
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.res, 100)
