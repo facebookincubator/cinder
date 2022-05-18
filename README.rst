@@ -66,7 +66,7 @@ If you just want to get a working Cinder without building it yourself, our
 
 #. Install and setup Docker.
 #. Fetch and run our cinder-runtime image:
-    ``docker run -it --rm ghcr.io/facebookincubator/cinder-runtime:cinder.3.8``
+    ``docker run -it --rm ghcr.io/facebookincubator/cinder-runtime:cinder-3.8``
 
 If you want to build it yourself:
 
