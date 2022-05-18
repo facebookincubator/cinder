@@ -3,6 +3,7 @@
 
 #include "Jit/codegen/annotations.h"
 #include "Jit/codegen/x86_64.h"
+#include "Jit/containers.h"
 #include "Jit/debug_info.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
@@ -78,9 +79,9 @@ struct Environ {
     void** indirect;
     asmjit::Label trampoline{0};
   };
-  std::unordered_map<PyFunctionObject*, IndirectInfo> function_indirections;
+  UnorderedMap<PyFunctionObject*, IndirectInfo> function_indirections;
 
-  std::unordered_map<PyFunctionObject*, std::unique_ptr<_PyTypedArgsInfo>>
+  UnorderedMap<PyFunctionObject*, std::unique_ptr<_PyTypedArgsInfo>>
       function_typed_args;
 
   // Global runtime data.
@@ -96,22 +97,22 @@ struct Environ {
 
   // Map of GenYieldPoints which need their resume_target_ setting after code-
   // gen is complete.
-  std::unordered_map<GenYieldPoint*, asmjit::Label> unresolved_gen_entry_labels;
+  UnorderedMap<GenYieldPoint*, asmjit::Label> unresolved_gen_entry_labels;
 
   // maps an output name to its defining instruction
-  std::unordered_map<std::string, jit::lir::Instruction*> output_map;
+  UnorderedMap<std::string, jit::lir::Instruction*> output_map;
 
   // maps the original name to the propagated name.
   // TODO(tiansi, bsimmers): this is a temporary hack. Need to do the real
   // copy propagation after LIR cleanup is done. Related to
   // jit::lir::LIRGenerator::AnalyzeCopies().
-  std::unordered_map<std::string, std::string> copy_propagation_map;
+  UnorderedMap<std::string, std::string> copy_propagation_map;
 
   // the operand needs to be fixed after code generation
-  std::unordered_map<std::string, std::vector<jit::lir::LinkedOperand*>>
+  UnorderedMap<std::string, std::vector<jit::lir::LinkedOperand*>>
       operand_to_fix;
 
-  std::unordered_map<jit::lir::BasicBlock*, asmjit::Label> block_label_map;
+  UnorderedMap<jit::lir::BasicBlock*, asmjit::Label> block_label_map;
 
   hir::FrameMode frame_mode;
   int initial_yield_spill_size_{-1};

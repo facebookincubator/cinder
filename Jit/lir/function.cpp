@@ -1,19 +1,18 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/function.h"
 
+#include "Jit/containers.h"
 #include "Jit/lir/blocksorter.h"
 #include "Jit/lir/printer.h"
 
 #include <stack>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace jit {
 namespace lir {
 
 // Helper for copyOperand.
 static void copyIndirect(
-    std::unordered_map<LinkedOperand*, int>& instr_refs,
+    UnorderedMap<LinkedOperand*, int>& instr_refs,
     Operand* dest_op,
     MemoryIndirect* source_op) {
   auto base = source_op->getBaseRegOperand();
@@ -63,8 +62,8 @@ static void copyIndirect(
 // Helper for copyOperandBase.
 // Assume that type and data type are already be set.
 static void copyOperand(
-    std::unordered_map<int, BasicBlock*>& block_index_map,
-    std::unordered_map<LinkedOperand*, int>& instr_refs,
+    UnorderedMap<int, BasicBlock*>& block_index_map,
+    UnorderedMap<LinkedOperand*, int>& instr_refs,
     Operand* operand,
     Operand* operand_copy) {
   switch (operand->type()) {
@@ -102,8 +101,8 @@ static void copyOperand(
 
 // Helper for deepCopyBasicBlocks.
 static void copyInput(
-    std::unordered_map<int, BasicBlock*>& block_index_map,
-    std::unordered_map<LinkedOperand*, int>& instr_refs,
+    UnorderedMap<int, BasicBlock*>& block_index_map,
+    UnorderedMap<LinkedOperand*, int>& instr_refs,
     OperandBase* input,
     Instruction* instr_copy) {
   if (input->isLinked()) {
@@ -122,8 +121,8 @@ static void copyInput(
 
 // Helper for deepCopyBasicBlocks.
 static void connectLinkedOperands(
-    std::unordered_map<int, Instruction*>& output_index_map_,
-    std::unordered_map<LinkedOperand*, int>& instr_refs_) {
+    UnorderedMap<int, Instruction*>& output_index_map_,
+    UnorderedMap<LinkedOperand*, int>& instr_refs_) {
   for (auto& [operand, instr_index] : instr_refs_) {
     auto instr = map_get_strict(output_index_map_, instr_index);
     instr->output()->addUse(operand);
@@ -135,10 +134,10 @@ static void connectLinkedOperands(
 // Copies the instructions and successors from src_blocks.
 static void deepCopyBasicBlocks(
     const std::vector<BasicBlock*>& src_blocks,
-    std::unordered_map<int, BasicBlock*>& block_index_map_,
+    UnorderedMap<int, BasicBlock*>& block_index_map_,
     const hir::Instr* origin) {
-  std::unordered_map<int, Instruction*> output_index_map;
-  std::unordered_map<LinkedOperand*, int> instr_refs;
+  UnorderedMap<int, Instruction*> output_index_map;
+  UnorderedMap<LinkedOperand*, int> instr_refs;
 
   for (auto bb : src_blocks) {
     BasicBlock* bb_copy = map_get_strict(block_index_map_, bb->id());
@@ -176,7 +175,7 @@ Function::CopyResult Function::copyFrom(
       prev_bb->successors().size() == 1 && prev_bb->successors()[0] == next_bb,
       "prev_bb should only have 1 successor which should be next_bb.");
 
-  std::unordered_map<int, BasicBlock*> block_index_map;
+  UnorderedMap<int, BasicBlock*> block_index_map;
 
   // Initialize the basic blocks.
   for (auto bb : src_func->basicblocks()) {

@@ -8,6 +8,7 @@
 #include "listobject.h"
 
 #include "Jit/codegen/x86_64.h"
+#include "Jit/containers.h"
 #include "Jit/deopt.h"
 #include "Jit/frame.h"
 #include "Jit/hir/analysis.h"
@@ -179,7 +180,7 @@ std::unique_ptr<jit::lir::Function> LIRGenerator::TranslateFunction() {
   // generate entry block and exit block
   entry_block_ = GenerateEntryBlock();
 
-  std::unordered_map<const hir::BasicBlock*, TranslatedBlock> bb_map;
+  UnorderedMap<const hir::BasicBlock*, TranslatedBlock> bb_map;
   std::vector<const hir::BasicBlock*> translated;
   auto translate_block = [&](const hir::BasicBlock* hir_bb) {
     bb_map.emplace(hir_bb, TranslateOneBasicBlock(hir_bb));
@@ -2751,7 +2752,7 @@ std::string LIRGenerator::GetSafeLabelName() {
 }
 
 void LIRGenerator::FixPhiNodes(
-    std::unordered_map<const hir::BasicBlock*, TranslatedBlock>& bb_map) {
+    UnorderedMap<const hir::BasicBlock*, TranslatedBlock>& bb_map) {
   for (auto& bb : basic_blocks_) {
     bb->foreachPhiInstr([&bb_map](Instruction* instr) {
       auto num_inputs = instr->getNumInputs();

@@ -2,6 +2,7 @@
 #include "Jit/lir/postalloc.h"
 
 #include "Jit/codegen/x86_64.h"
+#include "Jit/containers.h"
 #include "Jit/lir/operand.h"
 
 #include <optional>
@@ -987,8 +988,8 @@ class RegisterToMemoryMoves {
   }
 
  private:
-  std::unordered_map<PhyLocation, PhyLocation> reg_to_mem_;
-  std::unordered_map<PhyLocation, std::pair<PhyLocation, Rewrite::instr_iter_t>>
+  UnorderedMap<PhyLocation, PhyLocation> reg_to_mem_;
+  UnorderedMap<PhyLocation, std::pair<PhyLocation, Rewrite::instr_iter_t>>
       mem_to_reg_;
 
   void invalidateRegister(PhyLocation reg) {

@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Jit/containers.h"
 #include "Jit/lir/function.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/operand.h"
@@ -78,14 +79,14 @@ class LIRInliner {
   // Assume that instr_it corresponds to a kLoadArg instruction.
   // Assume that arguments are immediate or linked.
   void resolveLoadArg(
-      std::unordered_map<lir::OperandBase*, lir::LinkedOperand*>& vreg_map,
+      UnorderedMap<lir::OperandBase*, lir::LinkedOperand*>& vreg_map,
       lir::BasicBlock* bb,
       lir::BasicBlock::InstrList::iterator& instr_it);
 
   // For instr_it that aren't kLoadArg,
   // fix up linked arguments that refer to outputs of kLoadArg instructions.
   void resolveLinkedArgumentsUses(
-      std::unordered_map<lir::OperandBase*, lir::LinkedOperand*>& vreg_map,
+      UnorderedMap<lir::OperandBase*, lir::LinkedOperand*>& vreg_map,
       std::list<std::unique_ptr<lir::Instruction>>::iterator& instr_it);
 
   // Expects callee to have one empty epilogue block.

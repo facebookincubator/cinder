@@ -2,6 +2,7 @@
 
 #include "Jit/lir/dce.h"
 
+#include "Jit/containers.h"
 #include "Jit/lir/instruction.h"
 #include "Jit/lir/operand.h"
 #include "Jit/util.h"
@@ -34,7 +35,7 @@ static bool isUseful(const Instruction* instruction) {
 
 void eliminateDeadCode(Function* function) {
   Worklist<Instruction*> worklist;
-  std::unordered_set<Instruction*> live_set;
+  UnorderedSet<Instruction*> live_set;
   auto mark_live = [&](Instruction* instruction) {
     if (live_set.insert(instruction).second) {
       worklist.push(instruction);

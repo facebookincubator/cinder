@@ -10,6 +10,7 @@
 #include "Jit/bitvector.h"
 #include "Jit/bytecode.h"
 #include "Jit/codegen/environ.h"
+#include "Jit/containers.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/preload.h"
@@ -226,7 +227,7 @@ const std::unordered_set<int> kSupportedReadonlyOperations = {
 };
 
 #define NAMES(op, value) {value, #op},
-const std::unordered_map<int, const char*> kReadonlyOperationNames = {
+const UnorderedMap<int, const char*> kReadonlyOperationNames = {
     READONLY_OPERATIONS(NAMES)};
 #undef NAMES
 
@@ -776,7 +777,7 @@ InlineResult HIRBuilder::inlineHIR(
   // Map of FrameState to parent pointers. We must completely disconnect the
   // inlined function's CFG from its caller for SSAify to run properly: it will
   // find uses (in FrameState) before defs and insert LoadConst<Nullptr>.
-  std::unordered_map<FrameState*, FrameState*> framestate_parent;
+  UnorderedMap<FrameState*, FrameState*> framestate_parent;
   for (BasicBlock* block : caller->cfg.GetRPOTraversal(entry_block)) {
     for (Instr& instr : *block) {
       JIT_CHECK(

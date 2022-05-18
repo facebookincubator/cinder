@@ -2,13 +2,13 @@
 #pragma once
 
 #include "Jit/codegen/environ.h"
+#include "Jit/containers.h"
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
 #include "Jit/lir/lir.h"
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 namespace jit {
 namespace lir {
@@ -87,7 +87,7 @@ class LIRGenerator {
   std::string GetSafeLabelName();
 
   void FixPhiNodes(
-      std::unordered_map<const hir::BasicBlock*, TranslatedBlock>& bb_map);
+      UnorderedMap<const hir::BasicBlock*, TranslatedBlock>& bb_map);
   void FixOperands();
   void emitExceptionCheck(
       const jit::hir::DeoptBase& i,

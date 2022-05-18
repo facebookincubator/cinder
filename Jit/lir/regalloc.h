@@ -14,7 +14,6 @@
 #include <memory>
 #include <ostream>
 #include <queue>
-#include <set>
 #include <utility>
 
 namespace jit {
@@ -170,7 +169,7 @@ class LinearScanAllocator {
  private:
   lir::Function* func_;
   UnorderedMap<const lir::Operand*, LiveInterval> vreg_interval_;
-  UnorderedMap<const lir::Operand*, std::set<LIRLocation>> vreg_phy_uses_;
+  UnorderedMap<const lir::Operand*, OrderedSet<LIRLocation>> vreg_phy_uses_;
   UnorderedMap<const lir::BasicBlock*, RegallocBlockState> regalloc_blocks_;
   // collect the last uses for all the vregs
   // key: def operand

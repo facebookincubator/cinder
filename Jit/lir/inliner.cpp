@@ -1,12 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/inliner.h"
 
+#include "Jit/containers.h"
 #include "Jit/lir/c_helper_translations.h"
 #include "Jit/lir/lir.h"
 #include "Jit/lir/parser.h"
 
 #include <string_view>
-#include <unordered_map>
 
 using namespace jit::codegen;
 
@@ -191,7 +191,7 @@ lir::Function* LIRInliner::findFunction() {
 
 lir::Function* LIRInliner::parseFunction(uint64_t addr) {
   // addr_to_function maps function address to parsed function
-  static std::unordered_map<uint64_t, std::unique_ptr<Function>>
+  static UnorderedMap<uint64_t, std::unique_ptr<Function>>
       addr_to_function;
 
   {
@@ -237,7 +237,7 @@ lir::Function* LIRInliner::parseFunction(uint64_t addr) {
 
 bool LIRInliner::resolveArguments() {
   // Remove load arg instructions and update virtual registers.
-  std::unordered_map<OperandBase*, LinkedOperand*> vreg_map;
+  UnorderedMap<OperandBase*, LinkedOperand*> vreg_map;
   auto caller_blocks = &call_instr_->basicblock()->function()->basicblocks();
   for (int i = callee_start_; i < callee_end_; i++) {
     auto bb = caller_blocks->at(i);
@@ -258,7 +258,7 @@ bool LIRInliner::resolveArguments() {
 }
 
 void LIRInliner::resolveLoadArg(
-    std::unordered_map<OperandBase*, LinkedOperand*>& vreg_map,
+    UnorderedMap<OperandBase*, LinkedOperand*>& vreg_map,
     BasicBlock* bb,
     BasicBlock::InstrList::iterator& instr_it) {
   auto instr = instr_it->get();
@@ -290,7 +290,7 @@ void LIRInliner::resolveLoadArg(
 }
 
 void LIRInliner::resolveLinkedArgumentsUses(
-    std::unordered_map<OperandBase*, LinkedOperand*>& vreg_map,
+    UnorderedMap<OperandBase*, LinkedOperand*>& vreg_map,
     std::list<std::unique_ptr<Instruction>>::iterator& instr_it) {
   auto setLinkedOperand = [&](OperandBase* opnd) {
     auto new_def = map_get(vreg_map, opnd->getDefine(), nullptr);

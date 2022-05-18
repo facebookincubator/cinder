@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Jit/containers.h"
 #include "Jit/lir/x86_64.h"
 #include "Jit/log.h"
 
@@ -8,7 +9,6 @@
 #include <memory>
 #include <ostream>
 #include <tuple>
-#include <unordered_set>
 #include <variant>
 
 // This file defines operand classes in LIR.
@@ -411,7 +411,7 @@ class Operand : public OperandBase {
       std::unique_ptr<MemoryIndirect>>
       value_;
 
-  std::unordered_set<LinkedOperand*> uses_;
+  UnorderedSet<LinkedOperand*> uses_;
 };
 
 // Linked operand
