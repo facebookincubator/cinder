@@ -2708,7 +2708,7 @@ PyObject_GetIter(PyObject *o)
     getiterfunc f;
 
     // TODO: Implement properly.
-    PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0);
+    (void)PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0);
     f = t->tp_iter;
     if (f == NULL) {
         if (PySequence_Check(o))
