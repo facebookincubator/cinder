@@ -140,6 +140,7 @@ def test():
         document.querySelector('#static-python').addEventListener("change", function() {
           // If enabling Static Python, add the right import. Otherwise, remove
           // it.
+          // TODO(T120976390): Put this after future imports
           const prefix = "import __static__\n";
           const use_static_python = document.querySelector("#static-python").checked === true;
           saveUseStaticPython(use_static_python);

@@ -259,6 +259,7 @@ def make_explorer_class(process_args, prod_hostname=None):
         security_headers[
             "Strict-Transport-Security"
         ] = "max-age=31536000; includeSubDomains; preload"
+    use_strict_compiler = args.strict
 
     class ExplorerServer(http.server.SimpleHTTPRequestHandler):
         def _begin_response(self, code, content_type):
@@ -344,6 +345,10 @@ def make_explorer_class(process_args, prod_hostname=None):
                 "static-python" in self.params
                 and self.params["static-python"][0] == "on"
             )
+            if use_strict_compiler and not use_static_python:
+                # Static implies strict
+                # TODO(T120976390): Put this after future imports
+                user_code = "import __strict__\n" + user_code
             asm_syntax = self.params["asm-syntax"][0]
             with tempfile.TemporaryDirectory() as tmp:
                 lib_name = "explorer_lib"
@@ -370,7 +375,7 @@ def make_explorer_class(process_args, prod_hostname=None):
                     ("jit-asm-syntax", asm_syntax),
                 )
                 timeout = ["timeout", "--signal=KILL", f"{TIMEOUT_SEC}s"]
-                if use_static_python:
+                if use_static_python or use_strict_compiler:
                     jit_options += ["-X", "install-strict-loader"]
                 try:
                     run(
@@ -500,6 +505,9 @@ if __name__ == "__main__":
         type=executable_file,
         help="Path to Cinder runtime used for generating JSON",
         default=os.path.expanduser("~/local/cinder/build/python"),
+    )
+    explorer_parser.add_argument(
+        "--strict", action="store_true", help="Enforce strict modules"
     )
     add_server_args(explorer_parser)
     explorer_parser.set_defaults(func=gen_explorer)
