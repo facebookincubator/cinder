@@ -50,21 +50,6 @@ class GraphTests(CompilerTest):
                     ):
                         return instr.oparg.graph
 
-    def test_future_no_longer_relevant(self):
-        graph = self.to_graph(
-            """
-        while x:
-            pass"""
-        )
-        expected = Block(
-            "entry",
-            Block(
-                "while_loop",
-                Block("while_body", Block("while_else", Block("while_after"))),
-            ),
-        )
-        self.assert_graph_equal(graph, expected)
-
     def test_if(self):
         graph = self.to_graph(
             """
@@ -73,7 +58,7 @@ class GraphTests(CompilerTest):
         else:
             pass"""
         )
-        expected = Block("entry", Block("", Block("if_else", Block("if_end"))))
+        expected = Block("entry", Block("", Block("if_end", Block(""))))
         self.assert_graph_equal(graph, expected)
 
     def test_try_except(self):
@@ -93,7 +78,7 @@ class GraphTests(CompilerTest):
                     "try_handlers",
                     Block(
                         "try_cleanup_body0",
-                        Block("try_except_0", Block("try_else", Block("try_end"))),
+                        Block("try_except_0", Block("try_end")),
                     ),
                 ),
             ),

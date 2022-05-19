@@ -165,9 +165,7 @@ def make_compiler(
 
 
 def is_const(node):
-    is_const_node = isinstance(node, ast.Constant)
-    is_debug = isinstance(node, ast.Name) and node.id == "__debug__"
-    return is_const_node or is_debug
+    return isinstance(node, ast.Constant)
 
 
 def all_items_const(seq, begin, end):
@@ -1453,8 +1451,6 @@ class CodeGenerator(ASTVisitor):
             self.storeName(node.id)
         elif isinstance(node.ctx, ast.Del):
             self.delName(node.id)
-        elif node.id == "__debug__":
-            self.emit("LOAD_CONST", not bool(self.optimization_lvl))
         else:
             self.loadName(node.id)
 
@@ -2115,30 +2111,12 @@ class CodeGenerator(ASTVisitor):
             self.emit("STORE_SUBSCR")
 
     def _const_value(self, node):
-        if isinstance(node, (ast.NameConstant, ast.Constant)):
-            return node.value
-        elif isinstance(node, ast.Num):
-            return node.n
-        elif isinstance(node, (ast.Str, ast.Bytes)):
-            return node.s
-        elif isinstance(node, ast.Ellipsis):
-            return ...
-        else:
-            assert isinstance(node, ast.Name) and node.id == "__debug__"
-            return not self.optimized
+        assert isinstance(node, ast.Constant)
+        return node.value
 
-    def get_bool_const(self, node):
+    def get_bool_const(self, node) -> bool | None:
         """Return True if node represent constantly true value, False if
         constantly false value, and None otherwise (non-constant)."""
-        if isinstance(node, ast.Num):
-            return bool(node.n)
-        if isinstance(node, ast.NameConstant):
-            return bool(node.value)
-        if isinstance(node, ast.Str):
-            return bool(node.s)
-        if isinstance(node, ast.Name):
-            if node.id == "__debug__":
-                return not bool(self.optimization_lvl)
         if isinstance(node, ast.Constant):
             return bool(node.value)
 
