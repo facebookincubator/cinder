@@ -375,15 +375,7 @@ double JITRT_Power64(int64_t x, int64_t y);
 double JITRT_PowerUnsigned64(uint64_t x, uint64_t y);
 
 /* Array lookup helpers */
-uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx, ssize_t offset);
-uint64_t JITRT_GetU8_FromArray(char* arr, int64_t idx, ssize_t offset);
-uint64_t JITRT_GetI16_FromArray(char* arr, int64_t idx, ssize_t offset);
-uint64_t JITRT_GetU16_FromArray(char* arr, int64_t idx, ssize_t offset);
-uint64_t JITRT_GetI32_FromArray(char* arr, int64_t idx, ssize_t offset);
-uint64_t JITRT_GetU32_FromArray(char* arr, int64_t idx, ssize_t offset);
 uint64_t JITRT_GetI64_FromArray(char* arr, int64_t idx, ssize_t offset);
-uint64_t JITRT_GetU64_FromArray(char* arr, int64_t idx, ssize_t offset);
-PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx, ssize_t offset);
 
 /* Array set helpers */
 void JITRT_SetI8_InArray(char* arr, uint64_t val, int64_t idx);

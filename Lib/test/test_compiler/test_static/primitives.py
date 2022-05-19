@@ -2016,6 +2016,56 @@ class PrimitivesTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(), 2)
 
+    def test_list_get_primitive_int_unknown(self):
+        codestr = """
+            from __static__ import int8
+            def f(x: int8):
+                l = [1, 2, 3]
+                return l[x]
+        """
+        f = self.find_code(self.compile(codestr))
+        self.assertInBytecode(f, "SEQUENCE_GET", SEQ_LIST)
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.f(1), 2)
+
+    def test_array_get_primitive_int(self):
+        type_env = TypeEnvironment()
+        PRIMITIVE_TYPES = type_env.all_cint_types + [
+            # TODO(T120983004): Add cbool and double here once supported.
+            type_env.char,
+        ]
+        PRIMITIVE_NAMES = [klass.instance_name for klass in PRIMITIVE_TYPES]
+        for name in PRIMITIVE_NAMES:
+            codestr = f"""
+                from __static__ import {name}, Array
+
+                def f() -> {name}:
+                    l = Array[{name}]([1, 2, 3])
+                    return l[1]
+            """
+            with self.subTest(klass=name):
+                with self.in_module(codestr) as mod:
+                    self.assertEqual(mod.f(), 2)
+
+    def test_array_get_primitive_int_unknown_index(self):
+        type_env = TypeEnvironment()
+        PRIMITIVE_TYPES = type_env.all_cint_types + [
+            # TODO(T120983004): Add cbool and double here once supported.
+            type_env.char,
+        ]
+        PRIMITIVE_NAMES = [klass.instance_name for klass in PRIMITIVE_TYPES]
+        for name in PRIMITIVE_NAMES:
+            codestr = f"""
+                from __static__ import int32, {name}, Array
+
+                def f(x: int32) -> {name}:
+                    l = Array[{name}]([1, 2, 3])
+                    return l[x]
+            """
+            with self.subTest(klass=name):
+                with self.in_module(codestr) as mod:
+                    self.assertEqual(mod.f(1), 2)
+
     def test_list_set_primitive_int(self):
         codestr = """
             from __static__ import int8

@@ -920,59 +920,6 @@ BB %1 - preds: %6
   CheckCast(caller.get());
 }
 
-TEST_F(BackendTest, InlineJITRTFromArrayTest) {
-  auto caller = std::make_unique<Function>();
-  auto bb = caller->allocateBasicBlock();
-  auto r1 =
-      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
-  auto r2 =
-      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(1));
-  auto r3 =
-      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(2));
-  auto call_instr = bb->allocateInstr(
-      Instruction::kCall,
-      nullptr,
-      OutVReg(),
-      Imm(reinterpret_cast<uint64_t>(JITRT_GetI64_FromArray)),
-      VReg(r1),
-      VReg(r2),
-      VReg(r3));
-  bb->allocateInstr(Instruction::kReturn, nullptr, VReg(call_instr));
-  auto epilogue = caller->allocateBasicBlock();
-  bb->addSuccessor(epilogue);
-  LIRInliner inliner(call_instr);
-  inliner.inlineCall();
-
-  // Check that caller LIR is as expected.
-  auto expected_caller = fmt::format(R"(Function:
-BB %0 - succs: %8
-       %1:Object = LoadArg 0(0x0):Object
-       %2:Object = LoadArg 1(0x1):Object
-       %3:Object = LoadArg 2(0x2):Object
-
-BB %8 - preds: %0 - succs: %9
-       %13:64bit = Add %1:Object, %3:Object
-       %14:64bit = Move [%13:64bit + %2:Object * 8]:64bit
-
-BB %9 - preds: %8 - succs: %7
-      %16:Object = Phi (BB%8, %14:64bit)
-
-BB %7 - preds: %9 - succs: %6
-       %4:Object = Move %16:Object
-                   Return %4:Object
-
-BB %6 - preds: %7
-
-)");
-  std::stringstream ss;
-  caller->sortBasicBlocks();
-  ss << *caller;
-  ASSERT_EQ(expected_caller, ss.str());
-
-  // Test execution of caller
-  CheckFromArray(caller.get());
-}
-
 TEST_F(BackendTest, InlineJITRTCastTest) {
   auto caller = std::make_unique<Function>();
   auto bb = caller->allocateBasicBlock();
@@ -1041,60 +988,6 @@ BB %5 - preds: %6
 
   // Test execution of caller
   CheckCast(caller.get());
-}
-
-TEST_F(BackendTest, PostgenJITRTFromArrayTest) {
-  auto caller = std::make_unique<Function>();
-  auto bb = caller->allocateBasicBlock();
-  auto r1 =
-      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(0));
-  auto r2 =
-      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(1));
-  auto r3 =
-      bb->allocateInstr(Instruction::kLoadArg, nullptr, OutVReg(), Imm(2));
-  auto call_instr = bb->allocateInstr(
-      Instruction::kCall,
-      nullptr,
-      OutVReg(),
-      Imm(reinterpret_cast<uint64_t>(JITRT_GetI64_FromArray)),
-      VReg(r1),
-      VReg(r2),
-      VReg(r3));
-  bb->allocateInstr(Instruction::kReturn, nullptr, VReg(call_instr));
-  auto epilogue = caller->allocateBasicBlock();
-  bb->addSuccessor(epilogue);
-
-  Environ environ;
-  InitEnviron(environ);
-  PostGenerationRewrite post_gen(caller.get(), &environ);
-  post_gen.run();
-
-  // Check that caller LIR is as expected.
-  auto expected_caller = fmt::format(
-      R"(Function:
-BB %0 - succs: %8
-       %1:Object = Bind RDI:Object
-       %2:Object = Bind RSI:Object
-       %3:Object = Bind RDX:Object
-
-BB %8 - preds: %0 - succs: %9
-       %13:64bit = Add %1:Object, %3:Object
-       %14:64bit = Move [%13:64bit + %2:Object * 8]:64bit
-
-BB %9 - preds: %8 - succs: %7
-      %16:Object = Phi (BB%8, %14:64bit)
-
-BB %7 - preds: %9 - succs: %6
-       %4:Object = Move %16:Object
-                   Return %4:Object
-
-BB %6 - preds: %7
-
-)");
-  std::stringstream ss;
-  caller->sortBasicBlocks();
-  ss << *caller;
-  ASSERT_EQ(expected_caller, ss.str());
 }
 
 TEST_F(BackendTest, PostgenJITRTCastTest) {

@@ -7831,6 +7831,7 @@ class OptionalInstance(UnionInstance):
 class ArrayInstance(Object["ArrayClass"]):
     def _seq_type(self) -> int:
         idx = self.klass.index
+        # TODO(T120983004): Support Array[cbool] and Array[double]
         if not isinstance(idx, CIntType):
             # should never happen
             raise SyntaxError(f"Invalid Array type: {idx}")

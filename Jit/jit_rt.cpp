@@ -1319,36 +1319,8 @@ double JITRT_PowerUnsigned64(uint64_t x, uint64_t y) {
   return pow(x, y);
 }
 
-uint64_t JITRT_GetI8_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (uint64_t)(int64_t)((int8_t*)(arr + offset))[idx];
-}
-
-uint64_t JITRT_GetU8_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (uint64_t)((uint8_t*)(arr + offset))[idx];
-}
-
-uint64_t JITRT_GetI16_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (uint64_t)(int64_t)((int16_t*)(arr + offset))[idx];
-}
-
-uint64_t JITRT_GetU16_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (uint64_t)((uint16_t*)(arr + offset))[idx];
-}
-
-uint64_t JITRT_GetI32_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (uint64_t)(int64_t)((int32_t*)(arr + offset))[idx];
-}
-
-uint64_t JITRT_GetU32_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return (uint64_t)((uint32_t*)(arr + offset))[idx];
-}
-
 uint64_t JITRT_GetI64_FromArray(char* arr, int64_t idx, ssize_t offset) {
   return (uint64_t)((int64_t*)(arr + offset))[idx];
-}
-
-uint64_t JITRT_GetU64_FromArray(char* arr, int64_t idx, ssize_t offset) {
-  return ((uint64_t*)(arr + offset))[idx];
 }
 
 PyObject* JITRT_GetObj_FromArray(char* arr, int64_t idx, ssize_t offset) {

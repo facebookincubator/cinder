@@ -677,5 +677,21 @@ Type Type::asBoxed() const {
   JIT_CHECK(false, "%s does not have a boxed equivalent", *this);
 }
 
+unsigned int Type::sizeInBytes() const {
+  if (*this <= (TCBool | TCInt8 | TCUInt8)) {
+    return 1;
+  }
+  if (*this <= (TCInt16 | TCUInt16)) {
+    return 2;
+  }
+  if (*this <= (TCInt32 | TCUInt32)) {
+    return 4;
+  }
+  if (*this <= (TCInt64 | TCUInt64 | TCPtr | TCDouble | TObject)) {
+    return 8;
+  }
+  JIT_CHECK(false, "unexpected type %s", *this);
+}
+
 } // namespace hir
 } // namespace jit

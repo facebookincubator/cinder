@@ -79,6 +79,10 @@ class Type {
   // equivalent (e.g., TCInt32.asBoxed() == TLong).
   Type asBoxed() const;
 
+  // Return the size required to refer to (a pointer to) this object. (e.g.
+  // PyObject* => 8, CInt32 => 4, etc)
+  unsigned int sizeInBytes() const;
+
   // Return the PyTypeObject* that uniquely represents this type, or nullptr if
   // there isn't one. The PyTypeObject* may be from a type specialization.
   // "Uniquely" here means that there should be no loss of information in the

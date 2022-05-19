@@ -2056,54 +2056,31 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadArrayItem: {
         auto instr = static_cast<const LoadArrayItem*>(&i);
         auto type = instr->type();
-        decltype(JITRT_GetI8_FromArray)* func = nullptr;
-        if (type <= TObject && instr->idx()->type().hasIntSpec()) {
+        unsigned int scale = type.sizeInBytes();
+        if (instr->idx()->type().hasIntSpec()) {
+          // Fast path: index known at compile-time.
           // TODO: We could support more array types here, or in general
           // attempt to support more array types w/ register inputs w/o
           // calling to a helper.
           const size_t item_offset =
-              instr->idx()->type().intSpec() * kPointerSize + instr->offset();
+              instr->idx()->type().intSpec() * scale + instr->offset();
           bbb.AppendCode(
               "Load {} {} {}",
               instr->GetOutput(),
               instr->ob_item(),
               item_offset);
           break;
-        } else if (type <= TCInt8) {
-          func = JITRT_GetI8_FromArray;
-        } else if (type <= TCUInt8) {
-          func = JITRT_GetU8_FromArray;
-        } else if (type <= TCInt16) {
-          func = JITRT_GetI16_FromArray;
-        } else if (type <= TCUInt16) {
-          func = JITRT_GetU16_FromArray;
-        } else if (type <= TCInt32) {
-          func = JITRT_GetI32_FromArray;
-        } else if (type <= TCUInt32) {
-          func = JITRT_GetU32_FromArray;
-        } else if (type <= TCInt64) {
-          func = JITRT_GetI64_FromArray;
-        } else if (type <= TCUInt64) {
-          func = JITRT_GetU64_FromArray;
-        } else if (type <= TObject) {
-          bbb.AppendCall(
-              instr->dst(),
-              JITRT_GetObj_FromArray,
-              instr->ob_item(),
-              instr->idx(),
-              instr->offset());
-          break;
-        } else {
-          JIT_CHECK(
-              func != 0, "unknown array type %s", type.toString().c_str());
         }
-
-        bbb.AppendCall(
-            instr->dst(),
-            func,
-            instr->ob_item(),
-            instr->idx(),
-            instr->offset());
+        // TODO(T120848876): Use Load instead of Mul+Add+Load.
+        std::string scaled = instr->idx()->name();
+        if (scale != 1) {
+          scaled = GetSafeTempName();
+          bbb.AppendCode("Mul {} {} {}", scaled, instr->idx(), scale);
+        }
+        std::string plus_index = GetSafeTempName();
+        bbb.AppendCode("Add {} {} {}", plus_index, instr->ob_item(), scaled);
+        bbb.AppendCode(
+            "Load {} {} {}", instr->GetOutput(), plus_index, instr->offset());
         break;
       }
       case Opcode::kStoreArrayItem: {

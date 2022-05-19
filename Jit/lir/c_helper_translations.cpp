@@ -41,28 +41,7 @@ BB %4 - preds: %2 %3
 )",
              offsetof(PyObject, ob_type),
              offsetof(PyTypeObject, tp_name))},
-        {reinterpret_cast<uint64_t>(JITRT_GetI32_FromArray), R"(Function:
-BB %0 - succs: %7
-       %1:Object = LoadArg 0(0x0):Object
-        %2:64bit = LoadArg 1(0x1):64bit
-        %3:64bit = LoadArg 2(0x2):64bit
-        %4:64bit = Add %1:Object, %3:64bit
-        %5:32bit = Move [%4:64bit + %2:64bit * 4]:32bit
-                   Return %5:32bit
-
-BB %7 - preds: %0
-)"},
-        {reinterpret_cast<uint64_t>(JITRT_GetI64_FromArray), R"(Function:
-BB %0 - succs: %7
-       %1:Object = LoadArg 0(0x0):Object
-        %2:64bit = LoadArg 1(0x1):64bit
-        %3:64bit = LoadArg 2(0x2):64bit
-        %4:64bit = Add %1:Object, %3:64bit
-        %5:64bit = Move [%4:64bit + %2:64bit * 8]:64bit
-                   Return %5:64bit
-
-BB %7 - preds: %0
-)"}};
+};
 
 const std::unordered_map<uint64_t, std::string> kCHelperMapping = [] {
   // Create map from the manual translations.
