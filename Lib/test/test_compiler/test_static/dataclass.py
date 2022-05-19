@@ -6,6 +6,7 @@ from dataclasses import (
     _FIELD_INITVAR,
     Field,
     FrozenInstanceError,
+    is_dataclass,
     MISSING,
 )
 from typing import Mapping
@@ -1769,3 +1770,20 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.res, 100)
+
+    def test_dynamic_dataclass_type_bind_visits_arguments(self) -> None:
+        codestr = """
+        from __static__ import dataclass
+
+        def foo():
+            @dataclass(frozen=True)
+            class C:
+                pass
+
+            return C
+
+        C = foo()
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(is_dataclass(mod.C))
+            self.assertTrue(mod.C.__dataclass_params__.frozen)

@@ -4748,8 +4748,9 @@ class DataclassDecorator(Callable[Class]):
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
     ) -> NarrowingEffect:
+        res = super().bind_call(node, visitor, type_ctx)
         visitor.set_type(node, self)
-        return NO_EFFECT
+        return res
 
     def emit_decorator_call(
         self, class_def: ClassDef, code_gen: Static38CodeGenerator
