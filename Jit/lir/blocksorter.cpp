@@ -13,17 +13,14 @@ namespace lir {
 
 BasicBlockSorter::BasicBlockSorter(const std::vector<BasicBlock*>& blocks)
     : entry_(blocks.empty() ? nullptr : blocks[0]),
-      exit_(blocks.empty() ? nullptr : blocks.back()) {
-  basic_blocks_.reserve(blocks.size());
-  for (auto& block : blocks) {
-    basic_blocks_.insert(block);
-  }
-}
+      exit_(blocks.empty() ? nullptr : blocks.back()),
+      basic_blocks_store_(blocks.begin(), blocks.end()),
+      basic_blocks_(basic_blocks_store_) {}
 
 BasicBlockSorter::BasicBlockSorter(
-    const std::unordered_set<BasicBlock*>& blocks,
+    const UnorderedSet<BasicBlock*>& blocks,
     BasicBlock* entry)
-    : entry_(entry), basic_blocks_(blocks.begin(), blocks.end()) {
+    : entry_(entry), basic_blocks_store_(), basic_blocks_(blocks) {
   JIT_DCHECK(blocks.count(entry), "Entry basic block is not in blocks");
 }
 
@@ -159,7 +156,7 @@ void BasicBlockSorter::sortRPO() {
   scc_blocks_.clear();
 
   // maps a SCC to its index in sccblocks
-  std::unordered_map<SCCBasicBlocks*, size_t> block_index_map;
+  UnorderedMap<SCCBasicBlocks*, size_t> block_index_map;
 
   for (size_t i = 0; i < sccblocks.size(); i++) {
     block_index_map.emplace(sccblocks.at(i).get(), i);
@@ -167,7 +164,7 @@ void BasicBlockSorter::sortRPO() {
 
   auto entry = map_get(block_to_scc_map_, entry_);
 
-  std::unordered_set<SCCBasicBlocks*> visited_blocks;
+  UnorderedSet<SCCBasicBlocks*> visited_blocks;
   std::stack<std::pair<std::unique_ptr<SCCBasicBlocks>, size_t>> stack;
 
   // If we encounter the exit block in the traversal below, it's stashed here
