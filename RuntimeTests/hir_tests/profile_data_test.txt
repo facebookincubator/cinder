@@ -56,3 +56,29 @@ fun jittestmodule:test {
   }
 }
 ---
+CreateUnreachableCFGLoop
+---
+def test(x, y):
+  if x is None:
+    while y:
+      pass
+
+test(True, 1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v9:Object = LoadArg<0; "x">
+    v10:Object = LoadArg<1; "y">
+    v12:NoneType = LoadConst<NoneType>
+    v13:Bool = GuardType<Bool> v9 {
+    }
+    UseType<Bool> v13
+    UseType<NoneType> v12
+    v29:MortalBool[False] = LoadConst<MortalBool[False]>
+    UseType<MortalBool[False]> v29
+    v30:CInt32[0] = LoadConst<CInt32[0]>
+    v28:NoneType = LoadConst<NoneType>
+    Return v28
+  }
+}
+---

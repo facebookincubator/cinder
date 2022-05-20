@@ -324,20 +324,31 @@ void PhiElimination::Run(Function& func) {
     changed = false;
 
     for (auto& block : func.cfg.blocks) {
-      std::vector<Instr*> assigns;
+      std::vector<Instr*> assigns_or_loads;
       for (auto it = block.begin(); it != block.end();) {
         auto& instr = *it;
         ++it;
         if (!instr.IsPhi()) {
-          for (auto assign : assigns) {
+          for (auto assign : assigns_or_loads) {
             assign->InsertBefore(instr);
           }
           break;
         }
         if (auto value = static_cast<Phi&>(instr).isTrivial()) {
-          auto assign = Assign::create(instr.GetOutput(), value);
-          assign->copyBytecodeOffset(instr);
-          assigns.emplace_back(assign);
+          // If a trivial Phi references itself then it can never be
+          // initialized, and we can use a LoadConst<Bottom> to signify that.
+          Register* model_value = value;
+          while (model_value->instr()->IsAssign()) {
+            model_value = model_value->instr()->GetOperand(0);
+          }
+          Instr* new_instr;
+          if (model_value == instr.GetOutput()) {
+            new_instr = LoadConst::create(instr.GetOutput(), TBottom);
+          } else {
+            new_instr = Assign::create(instr.GetOutput(), value);
+          }
+          new_instr->copyBytecodeOffset(instr);
+          assigns_or_loads.emplace_back(new_instr);
           instr.unlink();
           delete &instr;
           changed = true;
