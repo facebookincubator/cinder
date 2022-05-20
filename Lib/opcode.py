@@ -125,7 +125,8 @@ def_op('BUILD_MAP', 105)        # Number of dict entries
 name_op('LOAD_ATTR', 106)       # Index in name list
 def_op('COMPARE_OP', 107)       # Comparison operator
 hascompare.append(107)
-name_op('IMPORT_NAME', 108)     # Index in name list
+name_op('EAGER_IMPORT_NAME', 108)     # Index in name list
+name_op('IMPORT_NAME', 177)     # Index in name list
 name_op('IMPORT_FROM', 109)     # Index in name list
 jrel_op('JUMP_FORWARD', 110)    # Number of words to skip
 jrel_op('JUMP_IF_FALSE_OR_POP', 111) # Number of words to skip

@@ -1079,6 +1079,7 @@ stack_effect(int opcode, int oparg, int jump)
         case CHECK_EG_MATCH:
             return 0;
         case IMPORT_NAME:
+        case EAGER_IMPORT_NAME:
             return -1;
         case IMPORT_FROM:
             return 1;

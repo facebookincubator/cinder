@@ -643,6 +643,7 @@ def _find_imports(co):
     name is the imported module and level, fromlist are
     the corresponding args to __import__.
     """
+    EAGER_IMPORT_NAME = opmap['EAGER_IMPORT_NAME']
     IMPORT_NAME = opmap['IMPORT_NAME']
     LOAD_CONST = opmap['LOAD_CONST']
 
@@ -651,7 +652,7 @@ def _find_imports(co):
     opargs = [(op, arg) for _, op, arg in _unpack_opargs(co.co_code)
                   if op != EXTENDED_ARG]
     for i, (op, oparg) in enumerate(opargs):
-        if op == IMPORT_NAME and i >= 2:
+        if op in (EAGER_IMPORT_NAME, IMPORT_NAME) and i >= 2:
             from_op = opargs[i-1]
             level_op = opargs[i-2]
             if (from_op[0] in hasconst and level_op[0] in hasconst):
