@@ -92,6 +92,7 @@ from .types import (
     ModuleInstance,
     Object,
     OptionalInstance,
+    resolve_assign_error_msg,
     resolve_instance_attr_by_name,
     Slot,
     TransientDecoratedMethod,
@@ -453,7 +454,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 continue
             else:
                 arg_type = self.type_env.dynamic
-            arg_type = arg_type.unwrap()
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
                 self.check_can_assign_from(
@@ -479,7 +479,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 continue
             else:
                 arg_type = self.type_env.dynamic
-            arg_type = arg_type.unwrap()
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
                 self.check_can_assign_from(
@@ -514,7 +513,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
             else:
                 arg_type = self.type_env.dynamic
-            arg_type = arg_type.unwrap()
 
             if default_index >= 0:
                 default = args.kw_defaults[default_index]
@@ -716,6 +714,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         if wrapper is FinalClass:
             is_final = True
 
+        is_readonly = comp_type.is_readonly
+
         declared_type = comp_type.instance
         is_dynamic_final = is_final and declared_type is self.type_env.DYNAMIC
         if isinstance(target, Name):
@@ -744,6 +744,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 # We could be narrowing the type after the assignment, so we update it here
                 # even though we assigned it above (but we never narrow primtives)
                 new_type = self.get_type(value)
+                # When the annotation contains Readonly, do not narrow it to be non-readonly,
+                # but keep narrowing the inner parts
+                if is_readonly:
+                    new_type = new_type.klass.readonly_type().instance
                 local_type = self.maybe_set_local_type(target.id, new_type)
                 self.set_type(target, local_type)
 
@@ -842,17 +846,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         if not dest.can_assign_from(src) and (
             src is not self.type_env.dynamic or isinstance(dest, CType)
         ):
-            if dest.inexact_type().can_assign_from(src):
-                reason = reason.format(
-                    src.instance.name_with_exact, dest.instance.name_with_exact
-                )
-            else:
-                reason = reason.format(src.instance.name, dest.instance.name)
-
-            self.syntax_error(
-                reason,
-                node,
-            )
+            reason = resolve_assign_error_msg(dest, src, reason)
+            self.syntax_error(reason, node)
 
     def clear_refinements_for_nonbool_test(self, test_node: ast.AST) -> None:
         # If we visit an expression of an unknown type in a test context, such as
@@ -1658,11 +1653,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 returned is not self.type_env.dynamic
                 and not expected.klass.can_assign_from(returned)
             ):
-                self.syntax_error(
-                    f"return type must be {expected.name}, not "
-                    + str(self.get_type(value).name),
-                    node,
+                reason = resolve_assign_error_msg(
+                    expected.klass, returned, "return type must be {1}, not {0}"
                 )
+                self.syntax_error(reason, node)
 
     def visitImport(self, node: Import) -> None:
         # If we're doing an import within a function, we need to declare the import to retain type

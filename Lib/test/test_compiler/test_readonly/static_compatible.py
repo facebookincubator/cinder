@@ -14,6 +14,19 @@ class StaticCompatTests(ReadonlyTestBase):
             errors.match("Literal[42] cannot be assigned to str", at="readonly(42)"),
         )
 
+    def test_static_lint_ro_error(self) -> None:
+        code = """
+            from typing import List
+            def f():
+                b: List[str] = readonly(['abc'])
+        """
+        errors = self.static_lint(code)
+        errors.check(
+            errors.match(
+                "Readonly[list] cannot be assigned to list", at="readonly(['abc'])"
+            ),
+        )
+
     def test_calls(self) -> None:
         code = """
             def f(x: Readonly[int]):
@@ -129,5 +142,19 @@ class StaticCompatTests(ReadonlyTestBase):
             errors.match(
                 "int64 cannot be assigned to str",
                 at="f()",
+            ),
+        )
+
+    def test_no_inner_readonly(self) -> None:
+        codestr = """
+        from typing import List
+        def f() -> List[Readonly[int]]:
+            return [1]
+        """
+        errors = self.static_lint(codestr)
+        errors.check(
+            errors.match(
+                "Readonly annotation must be the outermost annotation",
+                at="Readonly[int]",
             ),
         )

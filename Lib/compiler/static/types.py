@@ -172,6 +172,8 @@ class TypeEnvironment:
         self._nonliteral_types: Dict[Value, Value] = {}
         self._exact_types: Dict[Class, Class] = {}
         self._inexact_types: Dict[Class, Class] = {}
+        self._readonly_types: Dict[Class, Class] = {}
+        self._non_readonly_types: Dict[Class, Class] = {}
         # Bringing up the type system is a little special as we have dependencies
         # amongst type and object
         self.type: Class = Class.__new__(Class)
@@ -182,6 +184,7 @@ class TypeEnvironment:
         self.type.members = {}
         self.type.is_exact = False
         self.type.is_final = False
+        self.type.is_readonly = False
         self.type.allow_weakrefs = False
         self.type.donotcompile = False
         self.type._mro = None
@@ -377,10 +380,7 @@ class TypeEnvironment:
             ),
             self,
         )
-        self.readonly_type = ReadonlyType(
-            GenericTypeName("builtins", "Readonly", (GenericParameter("T", 0, self),)),
-            self,
-        )
+        self.readonly_type = ReadonlyType(TypeName("builtins", "Readonly"), self)
         self.exact = ExactClass(
             GenericTypeName("typing", "Exact", (GenericParameter("T", 0, self),)), self
         )
@@ -662,7 +662,15 @@ class TypeEnvironment:
             return klass
         if klass in self._exact_types:
             return self._exact_types[klass]
-        exact_klass = klass._create_exact_type()
+        is_readonly = klass.is_readonly
+        # to make sure only one version of type, is_exact, is_readonly triple
+        # exists, to create a exact readonly type, must create from
+        # non-exact+non-readonly->exact+non readonly->exact readonly
+        if is_readonly and klass in self._non_readonly_types:
+            exact_klass = self.get_exact_type(self._non_readonly_types[klass])
+            exact_klass = self.get_readonly_type(exact_klass)
+        else:
+            exact_klass = klass._create_exact_type()
         self._exact_types[klass] = exact_klass
         self._inexact_types[exact_klass] = klass
         return exact_klass
@@ -675,6 +683,26 @@ class TypeEnvironment:
         if klass not in self._inexact_types:
             return klass
         return self._inexact_types[klass]
+
+    def get_readonly_type(self, klass: Class) -> Class:
+        if klass.is_readonly:
+            return klass
+        if isinstance(klass, CType):
+            return klass
+        if klass in self._readonly_types:
+            return self._readonly_types[klass]
+        readonly_klass = klass._create_readonly_type()
+        self._readonly_types[klass] = readonly_klass
+        self._non_readonly_types[readonly_klass] = klass
+        return readonly_klass
+
+    def get_non_readonly_type(self, klass: Class) -> Class:
+        if not klass.is_readonly:
+            return klass
+        if klass not in self._non_readonly_types:
+            # can only happen when klass only has readonly form
+            return klass
+        return self._non_readonly_types[klass]
 
     @property
     def DYNAMIC(self) -> Value:
@@ -822,6 +850,10 @@ class Value:
 
     @property
     def name_with_exact(self) -> str:
+        return self.name
+
+    @property
+    def name_with_readonly(self) -> str:
         return self.name
 
     def exact(self) -> Value:
@@ -1218,6 +1250,10 @@ class Object(Value, Generic[TClass]):
     def name_with_exact(self) -> str:
         return self.klass.instance_name_with_exact
 
+    @property
+    def name_with_readonly(self) -> str:
+        return self.klass.instance_name_with_readonly
+
     def as_oparg(self) -> int:
         return TYPED_OBJECT
 
@@ -1471,6 +1507,7 @@ class Class(Object["Class"]):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
         is_final: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(klass or type_env.type)
         assert isinstance(bases, (type(None), list))
@@ -1483,6 +1520,7 @@ class Class(Object["Class"]):
         self.members: Dict[str, Value] = members or {}
         self.is_exact = is_exact
         self.is_final = is_final
+        self.is_readonly = is_readonly
         self.allow_weakrefs = False
         self.donotcompile = False
         # This will cause all built-in method calls on the type to be done dynamically
@@ -1542,6 +1580,10 @@ class Class(Object["Class"]):
         return f"Type[{self.instance_name_with_exact}]"
 
     @property
+    def name_with_readonly(self) -> str:
+        return f"Type[{self.instance_name_with_readonly}]"
+
+    @property
     def instance_name(self) -> str:
         # We need to break the loop for `builtins.type`, as `builtins.type`'s instance is a Class.
         if type(self.instance) == Class:
@@ -1553,6 +1595,13 @@ class Class(Object["Class"]):
         name = self.instance.name
         if self.is_exact:
             return f"Exact[{name}]"
+        return name
+
+    @property
+    def instance_name_with_readonly(self) -> str:
+        name = self.instance.name
+        if self.is_readonly:
+            return f"Readonly[{name}]"
         return name
 
     def declare_class(self, node: ClassDef, klass: Class) -> None:
@@ -1785,6 +1834,7 @@ class Class(Object["Class"]):
             (not self.is_exact or src.instance.nonliteral() is self.instance)
             and not isinstance(src, CType)
             and src.instance.nonliteral().klass.is_subclass_of(self)
+            and (not src.is_readonly or self.is_readonly)
         )
 
     def __repr__(self) -> str:
@@ -1801,6 +1851,12 @@ class Class(Object["Class"]):
 
     def inexact_type(self) -> Class:
         return self.type_env.get_inexact_type(self)
+
+    def readonly_type(self) -> Class:
+        return self.type_env.get_readonly_type(self)
+
+    def non_readonly_type(self) -> Class:
+        return self.type_env.get_non_readonly_type(self)
 
     def _create_exact_type(self) -> Class:
         instance = copy(self.instance)
@@ -1823,6 +1879,28 @@ class Class(Object["Class"]):
         klass.allow_weakrefs = self.allow_weakrefs
         return klass
 
+    def _create_readonly_type(self) -> Class:
+        instance = copy(self.instance)
+        klass = type(self)(
+            type_name=self.type_name,
+            type_env=self.type_env,
+            bases=self.bases,
+            klass=self.klass,
+            members=self.members,
+            instance=instance,
+            is_exact=self.is_exact,
+            pytype=self.pytype,
+            is_final=self.is_final,
+            is_readonly=True,
+        )
+        # We need to point the instance's klass to the new class we just created.
+        instance.klass = klass
+        # `donotcompile` and `allow_weakrefs` are set via decorators after construction, and we
+        # need to persist these for consistency.
+        klass.donotcompile = self.donotcompile
+        klass.allow_weakrefs = self.allow_weakrefs
+        return klass
+
     def isinstance(self, src: Value) -> bool:
         return src.klass.is_subclass_of(self)
 
@@ -1832,7 +1910,7 @@ class Class(Object["Class"]):
             # self < A | B if either self < A or self < B. Requiring both wouldn't be correct,
             # as we want to allow assignments of A into A | B.
             return any(self.is_subclass_of(t) for t in src.type_args)
-        return src.exact_type() in self.mro
+        return src.non_readonly_type().exact_type() in self.mro
 
     def _check_compatible_property_override(
         self, override: Value, inherited: Value
@@ -2042,6 +2120,7 @@ class BuiltinObject(Class):
         is_exact: bool = False,
         is_final: bool = False,
         pytype: Optional[Type[object]] = None,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             type_name,
@@ -2052,6 +2131,7 @@ class BuiltinObject(Class):
             members,
             is_exact,
             is_final=is_final,
+            is_readonly=is_readonly,
         )
         self.dynamic_builtinmethod_dispatch = True
 
@@ -2081,6 +2161,7 @@ class GenericClass(Class):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
         is_final: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             type_name,
@@ -2092,6 +2173,7 @@ class GenericClass(Class):
             is_exact,
             pytype,
             is_final,
+            is_readonly,
         )
         self.gen_name = type_name
         self.type_def = type_def
@@ -2228,6 +2310,7 @@ class GenericClass(Class):
             {},
             is_exact=self.is_exact,
             type_def=self,
+            is_readonly=self.is_readonly,
         )
         instance.klass = concrete
         return concrete
@@ -2295,6 +2378,7 @@ class CType(Class):
         members: Optional[Dict[str, Value]] = None,
         is_exact: bool = True,
         pytype: Optional[Type[object]] = None,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             type_name,
@@ -2305,6 +2389,7 @@ class CType(Class):
             members,
             is_exact,
             pytype,
+            is_readonly,
         )
 
     @property
@@ -2357,9 +2442,16 @@ class DynamicClass(Class):
     def instance_name_with_exact(self) -> str:
         return "dynamic"
 
+    @property
+    def instance_name_with_readonly(self) -> str:
+        if self.is_readonly:
+            return "Readonly[dynamic]"
+        return "dynamic"
+
     def can_assign_from(self, src: Class) -> bool:
         # No automatic boxing to the dynamic type
-        return not isinstance(src, CType)
+        # disallow assigning non read only to read only
+        return not isinstance(src, CType) and (not src.is_readonly or self.is_readonly)
 
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         assert self.can_assign_from(src)
@@ -2371,6 +2463,11 @@ class DynamicClass(Class):
         # We special case the type descr to avoid the exactness tag ("!") to ensure that thunks
         # type check against the `(builtins, object)` descr instead of the exact one.
         return ("builtins", "object")
+
+    def _create_readonly_type(self) -> Class:
+        result = type(self)(self.type_env)
+        result.is_readonly = True
+        return result
 
 
 class DynamicInstance(Object[DynamicClass]):
@@ -2392,6 +2489,9 @@ class NoneType(Class):
             NoneInstance(self),
             is_exact=True,
         )
+
+    def _create_readonly_type(self) -> Class:
+        return self
 
 
 UNARY_SYMBOLS: Mapping[Type[ast.unaryop], str] = {
@@ -2516,8 +2616,10 @@ def _merge(seqs: Iterable[List[Class]]) -> List[Class]:
 
 def _mro(C: Class) -> List[Class]:
     "Compute the class precedence list (mro) according to C3"
-    bases = list(map(lambda base: base.exact_type(), C.bases))
-    return _merge([[C.exact_type()]] + list(map(_mro, bases)) + [bases])
+    bases = list(map(lambda base: base.non_readonly_type().exact_type(), C.bases))
+    return _merge(
+        [[C.non_readonly_type().exact_type()]] + list(map(_mro, bases)) + [bases]
+    )
 
 
 class ParamStyle(Enum):
@@ -2788,7 +2890,7 @@ class ArgMapping:
     def visit_arg(
         self, visitor: TypeBinder, param: Parameter, arg: expr, arg_style: str
     ) -> Class:
-        resolved_type = param.type_ref.resolved().unwrap()
+        resolved_type = param.type_ref.resolved()
         desc = (
             f"{arg_style} arg '{param.name}'"
             if param.name
@@ -3208,7 +3310,7 @@ class FunctionContainer(Object[Class]):
         return gen
 
     def get_expected_return(self) -> Value:
-        func_returns = self.return_type.resolved().unwrap()
+        func_returns = self.return_type.resolved()
         if isinstance(func_returns, AwaitableType):
             func_returns = func_returns.type_args[0]
         return func_returns.instance
@@ -3216,6 +3318,22 @@ class FunctionContainer(Object[Class]):
     @property
     def return_type(self) -> TypeRef:
         raise NotImplementedError("No return_type")
+
+
+def resolve_assign_error_msg(
+    dest: Class, src: Class, reason: str = "type mismatch: {} cannot be assigned to {}"
+) -> str:
+    if dest.readonly_type().can_assign_from(src):
+        reason = reason.format(
+            src.instance.name_with_readonly, dest.instance.name_with_readonly
+        )
+    elif dest.inexact_type().can_assign_from(src):
+        reason = reason.format(
+            src.instance.name_with_exact, dest.instance.name_with_exact
+        )
+    else:
+        reason = reason.format(src.instance.name, dest.instance.name)
+    return reason
 
 
 class Callable(Object[TClass]):
@@ -3301,8 +3419,9 @@ class Callable(Object[TClass]):
         if not ret_type.can_assign_from(override_ret_type):
             module.syntax_error(
                 f"{override.qualname} overrides {self.qualname} inconsistently. "
-                f"Returned type `{override_ret_type.instance_name}` is not a subtype "
-                f"of the overridden return `{ret_type.instance_name}`",
+                f"Returned type `{override_ret_type.instance_name_with_readonly}` "
+                "is not a subtype "
+                f"of the overridden return `{ret_type.instance_name_with_readonly}`",
                 override.node,
             )
 
@@ -3349,12 +3468,13 @@ class Callable(Object[TClass]):
             override_type = override_arg.type_ref.resolved()
             arg_type = arg.type_ref.resolved()
             if not override_type.can_assign_from(arg_type):
-                module.syntax_error(
+                reason = (
                     f"{override.qualname} overrides {self.qualname} inconsistently. "
-                    f"Parameter {arg.name} of type `{override_type.instance_name}` is not a supertype "
-                    f"of the overridden parameter `{arg_type.instance_name}`",
-                    override.node,
+                    + f"Parameter {arg.name}"
+                    + " of type `{1}` is not a supertype of the overridden parameter `{0}`"
                 )
+                reason = resolve_assign_error_msg(override_type, arg_type, reason)
+                module.syntax_error(reason, override.node)
 
         if self.has_vararg != override.has_vararg:
             module.syntax_error(
@@ -3387,7 +3507,7 @@ class Callable(Object[TClass]):
             descr_override=descr_override,
         )
         arg_mapping.bind_args(visitor)
-        return arg_mapping, self.return_type.resolved().unwrap().instance
+        return arg_mapping, self.return_type.resolved().instance
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -3460,6 +3580,7 @@ class AwaitableType(GenericClass):
         type_name: Optional[GenericTypeName] = None,
         type_def: Optional[GenericClass] = None,
         is_exact: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             type_name
@@ -3472,10 +3593,26 @@ class AwaitableType(GenericClass):
             instance=AwaitableInstance(self),
             type_def=type_def,
             is_exact=is_exact,
+            is_readonly=is_readonly,
         )
 
     def _create_exact_type(self) -> Class:
-        return type(self)(self.type_env, self.type_name, self.type_def, is_exact=True)
+        return type(self)(
+            self.type_env,
+            self.type_name,
+            self.type_def,
+            is_exact=True,
+            is_readonly=self.is_readonly,
+        )
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(
+            self.type_env,
+            self.type_name,
+            self.type_def,
+            is_exact=self.is_exact,
+            is_readonly=True,
+        )
 
     @property
     def type_descr(self) -> TypeDescr:
@@ -3485,7 +3622,9 @@ class AwaitableType(GenericClass):
     def make_generic_type(self, index: Tuple[Class, ...]) -> Class:
         assert len(index) == 1
         type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
-        return AwaitableType(self.type_env, type_name, type_def=self)
+        return AwaitableType(
+            self.type_env, type_name, type_def=self, is_readonly=self.is_readonly
+        )
 
 
 class AwaitableInstance(Object[AwaitableType]):
@@ -4999,6 +5138,7 @@ class Dataclass(Class):
             is_exact=klass.is_exact,
             pytype=klass.pytype,
             is_final=klass.is_final,
+            is_readonly=klass.is_readonly,
         )
         self.wrapped_class = klass
 
@@ -5684,6 +5824,18 @@ class Dataclass(Class):
         )
         klass.members = self.members
         return klass
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(
+            type_env=self.type_env,
+            klass=self.wrapped_class.readonly_type(),
+            init=self.init,
+            repr=self.repr,
+            eq=self.eq,
+            order=self.order,
+            unsafe_hash=self.unsafe_hash,
+            frozen=self.frozen,
+        )
 
 
 class DataclassInstance(Object[Dataclass]):
@@ -6483,9 +6635,17 @@ class ReadonlyFunction(Object[Class]):
             visitor.syntax_error("readonly() accepts exactly one argument", node)
         arg = node.args[0]
         visitor.visit(arg)
-        arg_type = visitor.get_type(arg)
+        arg_type = visitor.get_type(arg).klass.readonly_type().instance
         visitor.set_type(node, arg_type)
         return NO_EFFECT
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        if len(node.args) != 1:
+            raise code_gen.syntax_error(
+                f"readonly() requires a single argument, given {len(node.args)}", node
+            )
+        arg = node.args[0]
+        code_gen.visit(arg)
 
 
 class NumClass(Class):
@@ -6497,6 +6657,7 @@ class NumClass(Class):
         is_exact: bool = False,
         literal_value: Optional[int] = None,
         is_final: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         bases: List[Class] = [type_env.object]
         if literal_value is not None:
@@ -6511,6 +6672,7 @@ class NumClass(Class):
             pytype=pytype,
             is_exact=is_exact,
             is_final=is_final,
+            is_readonly=is_readonly,
         )
         self.literal_value = literal_value
 
@@ -6527,7 +6689,22 @@ class NumClass(Class):
             is_exact=True,
             literal_value=self.literal_value,
             is_final=self.is_final,
+            is_readonly=self.is_readonly,
         )
+
+    def _create_readonly_type(self) -> Class:
+        if self.is_exact:
+            return self  # exact num is always mutable
+        else:
+            return type(self)(
+                self.type_name,
+                self.type_env,
+                pytype=self.pytype,
+                is_exact=self.is_exact,
+                literal_value=self.literal_value,
+                is_final=self.is_final,
+                is_readonly=True,
+            )
 
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         if self.literal_value is None or src is not self.type_env.dynamic:
@@ -6830,7 +7007,12 @@ def common_literal_emit_type_check(
 
 
 class TupleClass(Class):
-    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        is_exact: bool = False,
+        is_readonly: bool = False,
+    ) -> None:
         instance = TupleExactInstance(self) if is_exact else TupleInstance(self)
         super().__init__(
             type_name=TypeName("builtins", "tuple"),
@@ -6838,6 +7020,7 @@ class TupleClass(Class):
             instance=instance,
             is_exact=is_exact,
             pytype=tuple,
+            is_readonly=is_readonly,
         )
         self.members["__new__"] = BuiltinNewFunction(
             "__new__",
@@ -6866,7 +7049,10 @@ class TupleClass(Class):
         )
 
     def _create_exact_type(self) -> Class:
-        return type(self)(self.type_env, is_exact=True)
+        return type(self)(self.type_env, is_exact=True, is_readonly=self.is_readonly)
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=self.is_exact, is_readonly=True)
 
 
 class TupleInstance(Object[TupleClass]):
@@ -6939,30 +7125,48 @@ class TupleExactInstance(TupleInstance):
 
 
 class FrozenSetClass(Class):
-    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        is_exact: bool = False,
+        is_readonly: bool = False,
+    ) -> None:
         super().__init__(
             type_name=TypeName("builtins", "frozenset"),
             type_env=type_env,
             is_exact=is_exact,
             pytype=frozenset,
+            is_readonly=is_readonly,
         )
 
     def _create_exact_type(self) -> Class:
-        return type(self)(self.type_env, is_exact=True)
+        return type(self)(self.type_env, is_exact=True, is_readonly=self.is_readonly)
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=self.is_exact, is_readonly=True)
 
 
 class SetClass(Class):
-    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        is_exact: bool = False,
+        is_readonly: bool = False,
+    ) -> None:
         super().__init__(
             type_name=TypeName("builtins", "set"),
             type_env=type_env,
             instance=SetInstance(self),
             is_exact=is_exact,
             pytype=set,
+            is_readonly=is_readonly,
         )
 
     def _create_exact_type(self) -> Class:
-        return type(self)(self.type_env, is_exact=True)
+        return type(self)(self.type_env, is_exact=True, is_readonly=self.is_readonly)
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=self.is_exact, is_readonly=True)
 
 
 class SetInstance(Object[SetClass]):
@@ -7059,7 +7263,12 @@ class ListAppendBuiltinMethod(BuiltinMethod):
 
 
 class ListClass(Class):
-    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        is_exact: bool = False,
+        is_readonly: bool = False,
+    ) -> None:
         instance = ListExactInstance(self) if is_exact else ListInstance(self)
         super().__init__(
             type_name=TypeName("builtins", "list"),
@@ -7067,10 +7276,14 @@ class ListClass(Class):
             instance=instance,
             is_exact=is_exact,
             pytype=list,
+            is_readonly=is_readonly,
         )
 
     def _create_exact_type(self) -> Class:
-        return type(self)(self.type_env, is_exact=True)
+        return type(self)(self.type_env, is_exact=True, is_readonly=self.is_readonly)
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=self.is_exact, is_readonly=True)
 
     def make_type_dict(self) -> None:
         super().make_type_dict()
@@ -7219,13 +7432,19 @@ class ListExactInstance(ListInstance):
 
 
 class StrClass(Class):
-    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        is_exact: bool = False,
+        is_readonly: bool = False,
+    ) -> None:
         super().__init__(
             type_name=TypeName("builtins", "str"),
             type_env=type_env,
             instance=StrInstance(self),
             is_exact=is_exact,
             pytype=str,
+            is_readonly=is_readonly,
         )
 
     def reflected_method_types(self, type_env: TypeEnvironment) -> Dict[str, Class]:
@@ -7238,7 +7457,12 @@ class StrClass(Class):
         }
 
     def _create_exact_type(self) -> Class:
-        return type(self)(self.type_env, is_exact=True)
+        return type(self)(self.type_env, is_exact=True, is_readonly=self.is_readonly)
+
+    def _create_readonly_type(self) -> Class:
+        if self.is_exact:
+            return self  # exact str
+        return type(self)(self.type_env, is_exact=self.is_exact, is_readonly=True)
 
 
 class StrInstance(Object[StrClass]):
@@ -7267,17 +7491,26 @@ class StrInstance(Object[StrClass]):
 
 
 class DictClass(Class):
-    def __init__(self, type_env: TypeEnvironment, is_exact: bool = False) -> None:
+    def __init__(
+        self,
+        type_env: TypeEnvironment,
+        is_exact: bool = False,
+        is_readonly: bool = False,
+    ) -> None:
         super().__init__(
             type_name=TypeName("builtins", "dict"),
             type_env=type_env,
             instance=DictInstance(self),
             is_exact=is_exact,
             pytype=dict,
+            is_readonly=is_readonly,
         )
 
     def _create_exact_type(self) -> Class:
-        return type(self)(self.type_env, is_exact=True)
+        return type(self)(self.type_env, is_exact=True, is_readonly=self.is_readonly)
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(self.type_env, is_exact=self.is_exact, is_readonly=True)
 
 
 class DictInstance(Object[DictClass]):
@@ -7388,6 +7621,9 @@ class BoolClass(Class):
         if self.literal_value is None or src is not self.type_env.dynamic:
             return super().emit_type_check(src, code_gen)
         common_literal_emit_type_check(self.literal_value, "is", code_gen)
+
+    def _create_readonly_type(self) -> Class:
+        return self  # exact bool is always mutable
 
 
 class BoolInstance(Object[BoolClass]):
@@ -7501,8 +7737,28 @@ class ExactClass(TypeWrapper):
     pass
 
 
-class ReadonlyType(TypeWrapper):
-    pass
+class ReadonlyType(Class):
+    def resolve_subscr(
+        self,
+        node: ast.Subscript,
+        type: Value,
+        visitor: AnnotationVisitor,
+    ) -> Optional[Value]:
+        slice = node.slice
+
+        if not isinstance(slice, ast.Index):
+            visitor.syntax_error("can't slice generic types", node)
+            return visitor.type_env.DYNAMIC
+
+        val = slice.value
+
+        if isinstance(val, ast.Tuple):
+            visitor.syntax_error("can't have multiple readonly indices", node)
+            return visitor.type_env.DYNAMIC
+        actual_type = visitor.resolve_annotation(val)
+        if actual_type is None:
+            actual_type = visitor.type_env.dynamic
+        return actual_type.readonly_type()
 
 
 class UnionTypeName(GenericTypeName):
@@ -7577,6 +7833,7 @@ class UnionType(GenericClass):
         type_def: Optional[GenericClass] = None,
         instance_type: Optional[Type[Object[Class]]] = None,
         is_instantiated: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         instance_type = instance_type or UnionInstance
         super().__init__(
@@ -7585,6 +7842,7 @@ class UnionType(GenericClass):
             bases=[],
             instance=instance_type(self),
             type_def=type_def,
+            is_readonly=is_readonly,
         )
         self.is_instantiated = is_instantiated
 
@@ -7603,6 +7861,22 @@ class UnionType(GenericClass):
         if self.is_instantiated:
             return self.type_env.get_union(
                 tuple(a.inexact_type() for a in self.type_args)
+            )
+        return self
+
+    def readonly_type(self) -> Class:
+        if self.is_instantiated:
+            typ = self.type_env.get_union(
+                tuple(a.readonly_type() for a in self.type_args)
+            )
+            typ.is_readonly = True
+            return typ
+        return self
+
+    def non_readonly_type(self) -> Class:
+        if self.is_instantiated:
+            return self.type_env.get_union(
+                tuple(a.non_readonly_type() for a in self.type_args)
             )
         return self
 
@@ -7938,7 +8212,7 @@ class ArrayInstance(Object["ArrayClass"]):
 class ArrayClass(GenericClass):
     def __init__(
         self,
-        name: GenericTypeName,
+        type_name: GenericTypeName,
         type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
@@ -7948,11 +8222,12 @@ class ArrayClass(GenericClass):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
         is_final: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         default_bases: List[Class] = [type_env.object]
         default_instance: Object[Class] = ArrayInstance(self)
         super().__init__(
-            name,
+            type_name,
             type_env,
             bases or default_bases,
             instance or default_instance,
@@ -7962,6 +8237,7 @@ class ArrayClass(GenericClass):
             is_exact,
             pytype,
             is_final,
+            is_readonly=is_readonly,
         )
         self.members["__new__"] = BuiltinNewFunction(
             "__new__",
@@ -8010,7 +8286,7 @@ class ArrayClass(GenericClass):
 class VectorClass(ArrayClass):
     def __init__(
         self,
-        name: GenericTypeName,
+        type_name: GenericTypeName,
         type_env: TypeEnvironment,
         bases: Optional[List[Class]] = None,
         instance: Optional[Object[Class]] = None,
@@ -8019,9 +8295,10 @@ class VectorClass(ArrayClass):
         type_def: Optional[GenericClass] = None,
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
-            name,
+            type_name,
             type_env,
             bases,
             instance,
@@ -8030,13 +8307,19 @@ class VectorClass(ArrayClass):
             type_def,
             is_exact,
             pytype,
+            is_readonly=is_readonly,
         )
         self.members["append"] = BuiltinMethodDescriptor(
             "append",
             self,
             [
                 Parameter(
-                    "self", 0, ResolvedTypeRef(self), False, None, ParamStyle.POSONLY
+                    "self",
+                    0,
+                    ResolvedTypeRef(self.non_readonly_type()),
+                    False,
+                    None,
+                    ParamStyle.POSONLY,
                 ),
                 Parameter(
                     "v",
@@ -8063,6 +8346,7 @@ class CheckedDict(GenericClass):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
         is_final: bool = True,
+        is_readonly: bool = False,
     ) -> None:
         if instance is None:
             instance = CheckedDictInstance(self)
@@ -8077,6 +8361,7 @@ class CheckedDict(GenericClass):
             is_exact,
             pytype,
             is_final,
+            is_readonly,
         )
         self.members["__init__"] = self.init_func = BuiltinFunction(
             "__init__",
@@ -8190,6 +8475,7 @@ class CheckedList(GenericClass):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
         is_final: bool = True,
+        is_readonly: bool = False,
     ) -> None:
         if instance is None:
             instance = CheckedListInstance(self)
@@ -8204,6 +8490,7 @@ class CheckedList(GenericClass):
             is_exact,
             pytype,
             is_final,
+            is_readonly,
         )
         self.members["__init__"] = self.init_func = BuiltinFunction(
             "__init__",
@@ -8378,6 +8665,10 @@ class CInstance(Value, Generic[TClass]):
     @property
     def name_with_exact(self) -> str:
         return self.klass.instance_name_with_exact
+
+    @property
+    def name_with_readonly(self) -> str:
+        return self.klass.instance_name_with_readonly
 
     def binop_error(self, left: str, right: str, op: ast.operator) -> str:
         return f"cannot {self._op_name[type(op)]} {left} and {right}"
@@ -8720,12 +9011,20 @@ class BoxedEnumClass(Class):
             boxed_bases,
             BoxedEnumInstance(self),
             is_exact=True,
+            is_readonly=False,
         )
 
         self.values: Dict[str, BoxedEnumInstance] = {}
 
     def add_enum_value(self, name: str, value: int) -> None:
         self.values[name] = BoxedEnumInstance(self, name, value)
+
+    def _create_readonly_type(self) -> Class:
+        # Static compiler will disallow mutations to
+        # objects of enum type, so enums do not need a readonly version.
+        # When static compiler cannot decide the type (i.e. dynamic), this code
+        # path is not used.
+        return self  # enum has no readonly version now
 
 
 class BoxedEnumInstance(Object[BoxedEnumClass]):
@@ -8749,6 +9048,10 @@ class BoxedEnumInstance(Object[BoxedEnumClass]):
 
     @property
     def name_with_exact(self) -> str:
+        return self.name
+
+    @property
+    def name_with_readonly(self) -> str:
         return self.name
 
     def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
@@ -9373,6 +9676,11 @@ class ModuleType(Class):
     def __init__(self, type_env: TypeEnvironment) -> None:
         super().__init__(TypeName("types", "ModuleType"), type_env, is_exact=True)
 
+    def _create_readonly_type(self) -> Class:
+        result = type(self)(self.type_env)
+        result.is_readonly = True
+        return result
+
 
 class ModuleInstance(Object["ModuleType"]):
     SPECIAL_NAMES: typingClassVar[Set[str]] = {
@@ -9436,6 +9744,7 @@ class ContextDecoratorClass(Class):
         subclass: bool = False,
         is_exact: bool = False,
         members: Optional[Dict[str, Value]] = None,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             name,
@@ -9444,6 +9753,7 @@ class ContextDecoratorClass(Class):
             ContextDecoratorInstance(self),
             is_exact=is_exact,
             members=members,
+            is_readonly=is_readonly,
         )
         self.subclass = subclass
         if (
@@ -9549,6 +9859,18 @@ class ContextDecoratorClass(Class):
             subclass=self.subclass,
             is_exact=True,
             members=self.members,
+            is_readonly=self.is_readonly,
+        )
+
+    def _create_readonly_type(self) -> Class:
+        return type(self)(
+            type_env=self.type_env,
+            name=self.type_name,
+            bases=self.bases,
+            subclass=self.subclass,
+            is_exact=self.is_exact,
+            members=self.members,
+            is_readonly=True,
         )
 
 
@@ -9717,6 +10039,7 @@ class EnumType(Class):
         type_name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
         is_exact: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             type_name=(type_name or TypeName("__static__", "Enum")),
@@ -9724,6 +10047,7 @@ class EnumType(Class):
             type_env=type_env,
             instance=EnumInstance(self),
             is_exact=is_exact,
+            is_readonly=is_readonly,
         )
         self.values: Dict[str, EnumInstance] = {}
 
@@ -9783,9 +10107,26 @@ class EnumType(Class):
             code_gen.defaultVisit(node)
 
     def _create_exact_type(self) -> Class:
-        exact = type(self)(self.type_env, self.type_name, self.bases, is_exact=True)
+        exact = type(self)(
+            self.type_env,
+            self.type_name,
+            self.bases,
+            is_exact=True,
+            is_readonly=self.is_readonly,
+        )
         exact.values = self.values
         return exact
+
+    def _create_readonly_type(self) -> Class:
+        rotype = type(self)(
+            self.type_env,
+            self.type_name,
+            self.bases,
+            is_exact=self.is_exact,
+            is_readonly=True,
+        )
+        rotype.values = self.values
+        return rotype
 
 
 class EnumInstance(Object[EnumType]):
@@ -9831,12 +10172,14 @@ class IntEnumType(EnumType):
         type_name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
         is_exact: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             type_name=(type_name or TypeName("__static__", "IntEnum")),
             bases=bases or cast(List[Class], [type_env.enum, type_env.int]),
             type_env=type_env,
             is_exact=is_exact,
+            is_readonly=is_readonly,
         )
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
@@ -9861,12 +10204,14 @@ class StringEnumType(EnumType):
         type_name: Optional[TypeName] = None,
         bases: Optional[List[Class]] = None,
         is_exact: bool = False,
+        is_readonly: bool = False,
     ) -> None:
         super().__init__(
             type_name=(type_name or TypeName("__static__", "StringEnum")),
             bases=bases or cast(List[Class], [type_env.enum, type_env.str]),
             type_env=type_env,
             is_exact=is_exact,
+            is_readonly=is_readonly,
         )
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
@@ -9899,6 +10244,7 @@ if spamobj is not None:
             is_exact: bool = False,
             pytype: Optional[Type[object]] = None,
             is_final: bool = False,
+            is_readonly: bool = False,
         ) -> None:
             super().__init__(
                 type_name,
@@ -9910,6 +10256,8 @@ if spamobj is not None:
                 type_def,
                 is_exact=is_exact,
                 pytype=pytype,
+                is_final=is_final,
+                is_readonly=is_readonly,
             )
 
             self.members["foo"] = BuiltinMethodDescriptor(
