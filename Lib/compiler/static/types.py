@@ -2104,7 +2104,9 @@ class Class(Object["Class"]):
         else:
             assert self.can_assign_from(src)
 
-    def emit_extra_members(self, code_gen: Static38CodeGenerator) -> None:
+    def emit_extra_members(
+        self, node: ClassDef, code_gen: Static38CodeGenerator
+    ) -> None:
         pass
 
 
@@ -5420,6 +5422,7 @@ class Dataclass(Class):
 
     def flow_graph(
         self,
+        node: ClassDef,
         code_gen: Static38CodeGenerator,
         func: str,
         args: Tuple[str, ...],
@@ -5427,7 +5430,12 @@ class Dataclass(Class):
         scope = FunctionScope(func, code_gen.cur_mod, code_gen.scope.klass)
         scope.parent = code_gen.scope
         return code_gen.flow_graph(
-            func, code_gen.graph.filename, scope, args=args, optimized=1
+            func,
+            code_gen.graph.filename,
+            scope,
+            args=args,
+            optimized=1,
+            firstline=node.lineno,
         )
 
     def emit_method(
@@ -5443,12 +5451,13 @@ class Dataclass(Class):
 
     def emit_dunder_comparison(
         self,
+        node: ClassDef,
         code_gen: Static38CodeGenerator,
         fields: List[DataclassField],
         method_name: str,
         op: str,
     ) -> None:
-        graph = self.flow_graph(code_gen, method_name, ("self", "other"))
+        graph = self.flow_graph(node, code_gen, method_name, ("self", "other"))
         false = graph.newBlock()
 
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
@@ -5480,7 +5489,7 @@ class Dataclass(Class):
         self.emit_method(code_gen, graph, 0)
 
     def emit_dunder_delattr_or_setattr(
-        self, code_gen: Static38CodeGenerator, delete: bool
+        self, node: ClassDef, code_gen: Static38CodeGenerator, delete: bool
     ) -> None:
         if delete:
             method_name = "__delattr__"
@@ -5491,7 +5500,7 @@ class Dataclass(Class):
             args = ("self", "name", "value")
             msg = "cannot assign to field "
 
-        graph = self.flow_graph(code_gen, method_name, args)
+        graph = self.flow_graph(node, code_gen, method_name, args)
         error = graph.newBlock()
         super_call = graph.newBlock()
 
@@ -5539,8 +5548,12 @@ class Dataclass(Class):
 
         self.emit_method(code_gen, graph, 0)
 
-    def emit_dunder_hash(self, code_gen: Static38CodeGenerator) -> None:
-        graph = self.flow_graph(code_gen, "__hash__", ("self",))
+    def emit_dunder_hash(
+        self,
+        node: ClassDef,
+        code_gen: Static38CodeGenerator,
+    ) -> None:
+        graph = self.flow_graph(node, code_gen, "__hash__", ("self",))
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_GLOBAL", "hash")
 
@@ -5561,10 +5574,15 @@ class Dataclass(Class):
 
         self.emit_method(code_gen, graph, 0)
 
-    def emit_dunder_init(self, code_gen: Static38CodeGenerator) -> None:
+    def emit_dunder_init(
+        self,
+        node: ClassDef,
+        code_gen: Static38CodeGenerator,
+    ) -> None:
         self_name = "__dataclass_self__" if "self" in self.fields else "self"
 
         graph = self.flow_graph(
+            node,
             code_gen,
             "__init__",
             args=(self_name, *self.init_fields),
@@ -5644,8 +5662,12 @@ class Dataclass(Class):
         else:
             self.emit_method(code_gen, graph, 0)
 
-    def emit_dunder_repr(self, code_gen: Static38CodeGenerator) -> None:
-        graph = self.flow_graph(code_gen, "__repr__", ("self",))
+    def emit_dunder_repr(
+        self,
+        node: ClassDef,
+        code_gen: Static38CodeGenerator,
+    ) -> None:
+        graph = self.flow_graph(node, code_gen, "__repr__", ("self",))
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_FAST", "self")
         graph.emit("LOAD_TYPE")
@@ -5681,7 +5703,9 @@ class Dataclass(Class):
         code_gen.emit("STORE_NAME", "__repr__")
         code_gen.emit("POP_TOP")
 
-    def emit_extra_members(self, code_gen: Static38CodeGenerator) -> None:
+    def emit_extra_members(
+        self, node: ClassDef, code_gen: Static38CodeGenerator
+    ) -> None:
         # import objects needed from dataclasses and store them on the class
         from_names: List[str] = ["_DataclassParams", "_FIELD", "field"]
         as_names: List[str] = ["_DataclassParams", "_FIELD", "_field"]
@@ -5783,30 +5807,30 @@ class Dataclass(Class):
         code_gen.emit("STORE_NAME", "__dataclass_params__")
 
         if self.generate_init:
-            self.emit_dunder_init(code_gen)
+            self.emit_dunder_init(node, code_gen)
 
         if self.generate_repr:
-            self.emit_dunder_repr(code_gen)
+            self.emit_dunder_repr(node, code_gen)
 
         compare_fields = [field for field in self.true_fields.values() if field.compare]
         if self.generate_eq:
-            self.emit_dunder_comparison(code_gen, compare_fields, "__eq__", "==")
+            self.emit_dunder_comparison(node, code_gen, compare_fields, "__eq__", "==")
 
         if self.order:
-            self.emit_dunder_comparison(code_gen, compare_fields, "__lt__", "<")
-            self.emit_dunder_comparison(code_gen, compare_fields, "__le__", "<=")
-            self.emit_dunder_comparison(code_gen, compare_fields, "__gt__", ">")
-            self.emit_dunder_comparison(code_gen, compare_fields, "__ge__", ">=")
+            self.emit_dunder_comparison(node, code_gen, compare_fields, "__lt__", "<")
+            self.emit_dunder_comparison(node, code_gen, compare_fields, "__le__", "<=")
+            self.emit_dunder_comparison(node, code_gen, compare_fields, "__gt__", ">")
+            self.emit_dunder_comparison(node, code_gen, compare_fields, "__ge__", ">=")
 
         if self.frozen:
-            self.emit_dunder_delattr_or_setattr(code_gen, delete=False)
-            self.emit_dunder_delattr_or_setattr(code_gen, delete=True)
+            self.emit_dunder_delattr_or_setattr(node, code_gen, delete=False)
+            self.emit_dunder_delattr_or_setattr(node, code_gen, delete=True)
 
         if self.unsafe_hash:
-            self.emit_dunder_hash(code_gen)
+            self.emit_dunder_hash(node, code_gen)
         elif self.eq and "__hash__" not in self.wrapped_class.members:
             if self.frozen:
-                self.emit_dunder_hash(code_gen)
+                self.emit_dunder_hash(node, code_gen)
             else:
                 code_gen.emit("LOAD_CONST", None)
                 code_gen.emit("STORE_NAME", "__hash__")
