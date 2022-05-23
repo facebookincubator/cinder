@@ -678,26 +678,28 @@ class CodeGenerator(ASTVisitor):
         self.setups.pop()
 
     def visitFor(self, node):
-        start = self.newBlock()
-        anchor = self.newBlock()
-        after = self.newBlock()
+        start = self.newBlock("for_start")
+        body = self.newBlock("for_body")
+        cleanup = self.newBlock("for_cleanup")
+        end = self.newBlock("for_end")
 
         self.set_lineno(node)
-        self.push_loop(FOR_LOOP, start, after)
+        self.push_loop(FOR_LOOP, start, end)
         self.visit(node.iter)
         self.emit("GET_ITER")
 
         self.nextBlock(start)
-        self.emit("FOR_ITER", anchor)
+        self.emit("FOR_ITER", cleanup)
+        self.nextBlock(body)
         self.visit(node.target)
         self.visit(node.body)
-        self.emit("JUMP_ABSOLUTE", start)
-        self.nextBlock(anchor)
+        self.emit_noline("JUMP_ABSOLUTE", start)
+        self.nextBlock(cleanup)
         self.pop_loop()
 
         if node.orelse:
             self.visit(node.orelse)
-        self.nextBlock(after)
+        self.nextBlock(end)
 
     def visitAsyncFor(self, node):
         start = self.newBlock("async_for_try")
@@ -729,19 +731,22 @@ class CodeGenerator(ASTVisitor):
 
     def visitBreak(self, node):
         self.set_lineno(node)
+        self.emit("NOP") # for line number
         for b in reversed(self.setups):
             self.unwind_setup_entry(b, 0)
             if b.kind == WHILE_LOOP or b.kind == FOR_LOOP:
                 self.emit("JUMP_ABSOLUTE", b.exit)
+                self.nextBlock()
                 return
         raise SyntaxError("'break' outside loop", self.syntax_error_position(node))
 
     def visitContinue(self, node):
         self.set_lineno(node)
-
+        self.emit("NOP") # for line number
         for e in reversed(self.setups):
             if e.kind in (FOR_LOOP, WHILE_LOOP):
                 self.emit("JUMP_ABSOLUTE", e.block)
+                self.nextBlock()
                 return
             self.unwind_setup_entry(e, 0)
         raise SyntaxError(
@@ -1447,6 +1452,7 @@ class CodeGenerator(ASTVisitor):
 
     def visitPass(self, node):
         self.set_lineno(node)
+        self.emit("NOP")  # for line number
 
     def visitImport(self, node):
         self.set_lineno(node)

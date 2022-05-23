@@ -908,7 +908,7 @@ class PyFlowGraph(FlowGraph):
                     continue
                 target = last.target
                 assert target.insts
-                if target.is_exit and target.insts[0].lineno < 0:
+                if target.is_exit and target.insts[0].lineno < 0 and target.num_predecessors > 1:
                     new_target = target.copy()
                     new_target.insts[0].lineno = last.lineno
                     last.target = new_target
@@ -1024,17 +1024,19 @@ class PyFlowGraph(FlowGraph):
             if instr.opname in ("RETURN_VALUE", "RAISE_VARARGS", "RERAISE"):
                 block.is_exit = True
                 block.no_fallthrough = True
+                continue
             elif instr.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
                 block.no_fallthrough = True
-            elif instr.opname in (
+            elif instr.opname not in (
                 "POP_JUMP_IF_TRUE",
                 "POP_JUMP_IF_FALSE",
                 "JUMP_IF_TRUE_OR_POP",
                 "JUMP_IF_FALSE_OR_POP",
                 "FOR_ITER",
             ):
-                while not instr.target.insts:
-                    instr.target = instr.target.next
+                continue
+            while not instr.target.insts:
+                instr.target = instr.target.next
 
     def extend_block(self, block: Block) -> None:
         """If this block ends with an unconditional jump to an exit block,
@@ -1055,7 +1057,7 @@ class PyFlowGraph(FlowGraph):
         last.oparg = last.ioparg = 0
         last.target = None
         for instr in target.insts:
-            block.insts.append(instr)
+            block.insts.append(instr.copy())
         block.next = None
         block.is_exit = True
         block.no_fallthrough = True
@@ -1106,6 +1108,8 @@ class LineAddrTable:
         self.current_end += self.opcode.CODEUNIT_SIZE
 
     def nextLine(self, lineno):
+        if not lineno:
+            return
         self.emitCurrentLine()
 
         self.current_start = self.current_end
