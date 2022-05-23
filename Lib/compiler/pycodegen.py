@@ -959,6 +959,7 @@ class CodeGenerator(ASTVisitor):
         args = self.conjure_arguments([ast.arg(".0", None)])
         self.set_lineno(node)
         gen = self.make_func_codegen(node, args, name, node.lineno)
+        gen.set_lineno(node)
 
         if opcode:
             gen.emit(opcode, oparg)

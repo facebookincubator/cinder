@@ -9,7 +9,7 @@ from types import CodeType
 from typing import Generator, List, Optional
 
 from . import opcodes
-from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
+from .consts import CO_ASYNC_GENERATOR, CO_COROUTINE, CO_GENERATOR, CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
 from .flow_graph_optimizer import FlowGraphOptimizer
 
 
@@ -469,6 +469,15 @@ class PyFlowGraph(FlowGraph):
         self.extra_consts = []
         self.initializeConsts()
         self.fast_vars = set()
+        self.gen_kind = None
+        if flags & CO_COROUTINE:
+            self.gen_kind = 1
+        elif flags & CO_ASYNC_GENERATOR:
+            self.gen_kind = 2
+        elif flags & CO_GENERATOR:
+            self.gen_kind = 0
+        if self.gen_kind is not None:
+            self.emit("GEN_START", self.gen_kind, -1)
 
     def setFlag(self, flag: int) -> None:
         self.flags |= flag
@@ -566,7 +575,7 @@ class PyFlowGraph(FlowGraph):
     def stackdepth_walk(self, block):
         maxdepth = 0
         worklist = []
-        self.push_block(worklist, block, 0)
+        self.push_block(worklist, block, 0 if self.gen_kind is None else 1)
         while worklist:
             block = worklist.pop()
             next = block.next
@@ -789,7 +798,7 @@ class PyFlowGraph(FlowGraph):
         self.lnotab = lnotab = LineAddrTable(self.opcode)
         lnotab.setFirstLine(self.firstline or self.first_inst_lineno or 1)
 
-        prev_lineno = -1
+        prev_lineno = lnotab.prev_line
         for t in self.insts:
             if prev_lineno != t.lineno:
                 lnotab.nextLine(t.lineno)
