@@ -1,5 +1,3 @@
-import sys
-
 from .test_api import ApiTests
 from .test_code_sbs import CodeTests
 

@@ -27,7 +27,6 @@ PyCmp_IS = 8
 PyCmp_IS_NOT = 9
 PyCmp_EXC_MATCH = 10
 
-MAX_COPY_SIZE = 4
 UNARY_OPS: Dict[str, object] = {
     "UNARY_INVERT": lambda v: ~v,
     "UNARY_NEGATIVE": lambda v: -v,
@@ -73,7 +72,7 @@ class FlowGraphOptimizer:
     ) -> None:
         self.consts = consts
 
-    def optimizeBlock(self, block: Block) -> None:
+    def optimize_basic_block(self, block: Block) -> None:
         instr_index = 0
 
         while instr_index < len(block.insts):
@@ -101,39 +100,37 @@ class FlowGraphOptimizer:
             else:
                 instr_index += 1
 
-    def cleanBlock(self, block: Block, prev_lineno: int) -> None:
+    def clean_basic_block(self, block: Block, prev_lineno: int) -> None:
         """Remove all NOPs from a function when legal."""
         new_instrs = []
         num_instrs = len(block.insts)
         for idx in range(num_instrs):
             instr = block.insts[idx]
-            try:
-                if instr.opname == "NOP":
-                    lineno = instr.lineno
-                    # Eliminate no-op if it doesn't have a line number
-                    if lineno < 0:
+            if instr.opname == "NOP":
+                lineno = instr.lineno
+                # Eliminate no-op if it doesn't have a line number
+                if lineno < 0:
+                    continue
+                # or, if the previous instruction had the same line number.
+                if prev_lineno == lineno:
+                    continue
+                # or, if the next instruction has same line number or no line number
+                if idx < num_instrs - 1:
+                    next_instr = block.insts[idx + 1]
+                    next_lineno = next_instr.lineno
+                    if next_lineno < 0 or next_lineno == lineno:
+                        next_instr.lineno = lineno
                         continue
-                    # or, if the previous instruction had the same line number.
-                    if prev_lineno == lineno:
-                        continue
-                    # or, if the next instruction has same line number or no line number
-                    if idx < num_instrs - 1:
-                        next_instr = block.insts[idx + 1]
-                        next_lineno = next_instr.lineno
-                        if next_lineno < 0 or next_lineno == lineno:
-                            next_instr.lineno = lineno
+                else:
+                    next_block = block.next
+                    while next_block and len(next_block.insts) == 0:
+                        next_block = next_block.next
+                    # or if last instruction in BB and next BB has same line number
+                    if next_block:
+                        if lineno == next_block.insts[0].lineno:
                             continue
-                    else:
-                        next_block = block.next
-                        while next_block and len(next_block.insts) == 0:
-                            next_block = next_block.next
-                        # or if last instruction in BB and next BB has same line number
-                        if next_block:
-                            if lineno == next_block.insts[0].lineno:
-                                continue
-                new_instrs.append(instr)
-            finally:
-                prev_lineno = instr.lineno
+            new_instrs.append(instr)
+            prev_lineno = instr.lineno
         block.insts = new_instrs
 
     OP_HANDLERS, ophandler = ophandler_registry()
@@ -153,51 +150,21 @@ class FlowGraphOptimizer:
             jump_if_true = next_instr.opname == "POP_JUMP_IF_TRUE"
             if is_true == jump_if_true:
                 next_instr.opname = "JUMP_ABSOLUTE"
+                block.no_fallthrough = True
             else:
                 next_instr.opname = "NOP"
+                next_instr.target = None
         elif next_instr.opname in ("JUMP_IF_FALSE_OR_POP", "JUMP_IF_TRUE_OR_POP"):
             is_true = bool(const)
             jump_if_true = next_instr.opname == "JUMP_IF_TRUE_OR_POP"
             if is_true == jump_if_true:
                 next_instr.opname = "JUMP_ABSOLUTE"
+                block.no_fallthrough = True
             else:
                 instr.opname = "NOP"
                 next_instr.opname = "NOP"
+                next_instr.target = None
 
     @ophandler("RETURN_VALUE", "RETURN_PRIMITIVE")
     def opt_return_value(self, instr_index, instr, next_instr, target, block):
         block.insts = block.insts[: instr_index + 1]
-
-    def extendBlock(self, block: Block) -> None:
-        if len(block.insts) == 0:
-            return
-        last = block.insts[-1]
-        if last.opname not in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
-            return
-        target = last.target
-        if not target.is_exit:
-            return
-        if len(target.insts) > MAX_COPY_SIZE:
-            return
-        block.insts[-1] = target.insts[0]
-        for instr in target.insts[1:]:
-            block.insts.append(instr)
-
-    def normalizeBlock(self, block: Block) -> None:
-        """Sets the `fallthrough` and `exit` properties of a block, and ensures that the targets of
-        any jumps point to non-empty blocks by following the next pointer of empty blocks."""
-        for instr in block.getInstructions():
-            if instr.opname in ("RETURN_VALUE", "RAISE_VARARGS", "RERAISE"):
-                block.is_exit = True
-                block.no_fallthrough = True
-            elif instr.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
-                block.no_fallthrough = True
-            elif instr.opname in (
-                "POP_JUMP_IF_TRUE",
-                "POP_JUMP_IF_FALSE",
-                "JUMP_IF_TRUE_OR_POP",
-                "JUMP_IF_FALSE_OR_POP",
-                "FOR_ITER",
-            ):
-                while not instr.target.insts:
-                    instr.target = instr.target.next
