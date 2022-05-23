@@ -26,13 +26,14 @@ CodeSection codeSectionFromName(const char* name) {
 void populateCodeSections(
     std::vector<std::pair<void*, std::size_t>>& code_sections,
     asmjit::CodeHolder& code,
-    void* entry) {
+    void* code_base_ptr) {
   forEachSection([&](CodeSection section) {
     auto asmjit_section = code.sectionByName(codeSectionName(section));
     if (asmjit_section == nullptr || asmjit_section->realSize() == 0) {
       return;
     }
-    auto section_start = static_cast<char*>(entry) + asmjit_section->offset();
+    auto section_start =
+        static_cast<char*>(code_base_ptr) + asmjit_section->offset();
     code_sections.push_back(std::make_pair(
         reinterpret_cast<void*>(section_start), asmjit_section->realSize()));
   });

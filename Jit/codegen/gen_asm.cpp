@@ -1466,7 +1466,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // For perf, we want only the size of the code, so we get that directly from
   // the text sections.
   std::vector<std::pair<void*, std::size_t>> code_sections;
-  populateCodeSections(code_sections, codeholder, entry_);
+  populateCodeSections(code_sections, codeholder, orig_entry);
   perf::registerFunction(code_sections, func->fullname, prefix);
 }
 
