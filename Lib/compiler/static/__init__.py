@@ -450,11 +450,15 @@ class Static38CodeGenerator(StrictCodeGenerator):
             if value.is_classvar:
                 continue
 
+            value_type = value.decl_type
             if value.decl_type is self.compiler.type_env.dynamic:
-                continue
+                if value.is_typed_descriptor_with_default_value():
+                    value_type = self.compiler.type_env.object
+                else:
+                    continue
 
             gen.emit("LOAD_CONST", name)
-            gen.emit("LOAD_CONST", value.type_descr)
+            gen.emit("LOAD_CONST", value_type.type_descr)
             count += 1
 
         if count:

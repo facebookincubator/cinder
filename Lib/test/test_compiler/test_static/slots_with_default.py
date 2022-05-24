@@ -1,6 +1,6 @@
 import builtins
 from cinder import cached_property
-from compiler.static.types import TypedSyntaxError
+from compiler.pycodegen import PythonCodeGenerator
 from unittest.mock import Mock, patch
 
 from .common import StaticTestBase
@@ -625,3 +625,24 @@ class SlotsWithDefaultTests(StaticTestBase):
 
             with self.assertRaisesRegex(TypeError, "expected 'int', got 'str'"):
                 c.x = ""
+
+    def test_type_descriptor_of_dynamic_type(self) -> None:
+        non_static = """
+        class SomeType:
+            pass
+        """
+        with self.in_module(non_static, code_gen=PythonCodeGenerator) as nonstatic_mod:
+            static = f"""
+                from dataclasses import dataclass
+                from {nonstatic_mod.__name__} import SomeType
+
+                class C:
+                    dynamic_field: SomeType = SomeType()
+            """
+            with self.in_strict_module(static) as static_mod:
+                c = static_mod.C()
+                ST = nonstatic_mod.SomeType()
+                self.assertNotEqual(c.dynamic_field, ST)
+                c.dynamic_field = ST
+                self.assertEqual(c.dynamic_field, ST)
+                self.assertNotEqual(static_mod.C.dynamic_field, ST)
