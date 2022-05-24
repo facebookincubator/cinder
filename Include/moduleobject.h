@@ -8,9 +8,11 @@ extern "C" {
 #endif
 
 PyAPI_DATA(PyTypeObject) PyModule_Type;
+PyAPI_DATA(PyTypeObject) PyLazyImport_Type;
 
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
 #define PyModule_CheckExact(op) Py_IS_TYPE(op, &PyModule_Type)
+#define PyLazyImport_CheckExact(op) (Py_TYPE(op) == &PyLazyImport_Type)
 
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03030000
 PyAPI_FUNC(PyObject *) PyModule_NewObject(
@@ -40,6 +42,10 @@ PyAPI_FUNC(void*) PyModule_GetState(PyObject*);
 PyAPI_FUNC(PyObject *) PyModuleDef_Init(PyModuleDef*);
 PyAPI_DATA(PyTypeObject) PyModuleDef_Type;
 #endif
+
+// TODO(lazy_imports): ifdef guards?
+PyAPI_FUNC(PyObject *) PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
+PyAPI_FUNC(PyObject *) PyLazyImportObject_NewObject(PyObject *from, PyObject *name);
 
 typedef struct PyModuleDef_Base {
   PyObject_HEAD
@@ -83,6 +89,20 @@ struct PyModuleDef {
   freefunc m_free;
 };
 
+typedef struct {
+    PyObject_HEAD
+    PyObject *lz_lazy_import;
+    PyObject *lz_name;
+    PyObject *lz_globals;
+    PyObject *lz_locals;
+    PyObject *lz_fromlist;
+    PyObject *lz_level;
+    PyObject *lz_obj;
+    PyObject *lz_next;
+    int lz_resolving;
+} PyLazyImport;
+
+int PyLazyImport_Match(PyLazyImport *lazy_import, PyObject *mod_dict, PyObject *name);
 
 // Internal C API
 #ifdef Py_BUILD_CORE
