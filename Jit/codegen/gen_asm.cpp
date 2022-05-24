@@ -1945,10 +1945,10 @@ int NativeGenerator::calcMaxInlineDepth(const hir::Function* func) {
   int result = 0;
   for (const auto& block : func->cfg.blocks) {
     for (const auto& instr : block) {
-      auto bif = dynamic_cast<const BeginInlinedFunction*>(&instr);
-      if (!bif) {
+      if (instr.opcode() != Opcode::kBeginInlinedFunction) {
         continue;
       }
+      auto bif = dynamic_cast<const BeginInlinedFunction*>(&instr);
       int depth = bif->inlineDepth();
       result = std::max(depth, result);
     }

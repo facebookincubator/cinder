@@ -366,7 +366,7 @@ void PhiElimination::Run(Function& func) {
 
 static bool isUseful(Instr& instr) {
   return instr.IsTerminator() || instr.IsSnapshot() ||
-      dynamic_cast<const DeoptBase*>(&instr) != nullptr ||
+      instr.asDeoptBase() != nullptr ||
       (!instr.IsPhi() && memoryEffects(instr).may_store != AEmpty);
 }
 
@@ -509,10 +509,10 @@ void GuardTypeRemoval::Run(Function& func) {
 }
 
 static bool absorbDstBlock(BasicBlock* block) {
-  auto branch = dynamic_cast<Branch*>(block->GetTerminator());
-  if (!branch) {
+  if (block->GetTerminator()->opcode() != Opcode::kBranch) {
     return false;
   }
+  auto branch = dynamic_cast<Branch*>(block->GetTerminator());
   BasicBlock* target = branch->target();
   if (target == block) {
     return false;
@@ -697,7 +697,8 @@ struct AbstractCall {
         instr(instr) {}
 
   Register* arg(std::size_t i) const {
-    if (auto f = dynamic_cast<InvokeStaticFunction*>(instr)) {
+    if (instr->opcode() == Opcode::kInvokeStaticFunction) {
+      auto f = dynamic_cast<InvokeStaticFunction*>(instr);
       return f->arg(i);
     }
     if (auto f = dynamic_cast<VectorCallBase*>(instr)) {
@@ -955,7 +956,7 @@ static void tryEliminateBeginEnd(EndInlinedFunction* end) {
     // Instructions that either deopt or otherwise materialize a PyFrameObject
     // need the shadow frames to exist. Everything that materializes a
     // PyFrameObject should also be marked as deopting.
-    if (dynamic_cast<DeoptBase*>(&*it)) {
+    if (it->asDeoptBase()) {
       return;
     }
   }

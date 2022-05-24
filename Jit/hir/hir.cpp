@@ -947,7 +947,7 @@ const FrameState* get_frame_state(const Instr& instr) {
   if (instr.IsBeginInlinedFunction()) {
     return static_cast<const BeginInlinedFunction&>(instr).callerFrameState();
   }
-  if (auto db = dynamic_cast<const DeoptBase*>(&instr)) {
+  if (auto db = instr.asDeoptBase()) {
     return db->frameState();
   }
   return nullptr;

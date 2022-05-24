@@ -487,6 +487,8 @@ inline std::vector<OperandType> makeTypeVec(Args&&... args) {
   return {args...};
 }
 
+class DeoptBase;
+
 // Base class that all concrete HIR instructions must derive from.
 //
 // Instructions have variable sized instances; the operands are stored
@@ -718,6 +720,14 @@ class Instr {
   // functions that cannot deopt, we will have to do something different.
   virtual BorrowedRef<PyCodeObject> code() const;
 
+  virtual DeoptBase* asDeoptBase() {
+    return nullptr;
+  }
+
+  virtual const DeoptBase* asDeoptBase() const {
+    return nullptr;
+  }
+
  protected:
   Instr& operator=(const Instr&) = delete;
 
@@ -812,6 +822,14 @@ class DeoptBase : public Instr {
     if (FrameState* copy_fs = other.frameState()) {
       setFrameState(std::make_unique<FrameState>(*copy_fs));
     }
+  }
+
+  DeoptBase* asDeoptBase() override {
+    return this;
+  }
+
+  const DeoptBase* asDeoptBase() const override {
+    return this;
   }
 
   template <typename... Args>

@@ -787,9 +787,10 @@ InlineResult HIRBuilder::inlineHIR(
           !instr.IsEndInlinedFunction(),
           "there should be no EndInlinedFunction in inlined functions");
       FrameState* fs = nullptr;
-      if (auto db = dynamic_cast<DeoptBase*>(&instr)) {
+      if (auto db = instr.asDeoptBase()) {
         fs = db->frameState();
-      } else if (auto snap = dynamic_cast<Snapshot*>(&instr)) {
+      } else if (instr.opcode() == Opcode::kSnapshot) {
+        auto snap = dynamic_cast<Snapshot*>(&instr);
         fs = snap->frameState();
       }
       if (fs == nullptr || fs->parent == nullptr) {

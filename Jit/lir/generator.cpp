@@ -2667,7 +2667,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
     }
 
-    if (auto db = dynamic_cast<const DeoptBase*>(&i)) {
+    if (auto db = i.asDeoptBase()) {
       switch (db->opcode()) {
         case Opcode::kCheckExc:
         case Opcode::kCheckField:

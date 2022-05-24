@@ -412,9 +412,11 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveInstrs(
     return kRemoved;
   }
 
-  auto in_opnd = dynamic_cast<Operand*>(instr->getInput(0));
-  if (in_opnd != nullptr && in_opnd->isImm() && !in_opnd->isFp() &&
-      in_opnd->getConstant() == 0 && out->type() == OperandBase::kReg) {
+  Operand* in_opnd = nullptr;
+  auto inp = instr->getInput(0);
+  if (inp->isImm() && !inp->isFp() && inp->getConstant() == 0 &&
+      out->type() == OperandBase::kReg &&
+      (in_opnd = dynamic_cast<Operand*>(inp))) {
     instr->setOpcode(Instruction::kXor);
     auto reg = out->getPhyRegister();
     in_opnd->setPhyRegister(reg);

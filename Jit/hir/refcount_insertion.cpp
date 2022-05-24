@@ -883,7 +883,7 @@ void updateInState(Env& env, BasicBlock* block) {
 
 // If the given instruction can deopt, fill in its live registers.
 void fillDeoptLiveRegs(const StateMap& live_regs, Instr& instr) {
-  auto deopt = dynamic_cast<DeoptBase*>(&instr);
+  auto deopt = instr.asDeoptBase();
   if (deopt == nullptr) {
     return;
   }
