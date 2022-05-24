@@ -889,6 +889,11 @@ static PyObject* mlock_profiler_dependencies(PyObject* /* self */, PyObject*) {
   Py_RETURN_NONE;
 }
 
+static PyObject* page_in_profiler_dependencies(PyObject*, PyObject*) {
+  Ref<> qualnames = Runtime::get()->pageInProfilerDependencies();
+  return qualnames.release();
+}
+
 namespace {
 
 // Simple wrapper functions to turn NULL or -1 return values from C-API
@@ -1234,6 +1239,10 @@ static PyMethodDef jit_methods[] = {
      mlock_profiler_dependencies,
      METH_NOARGS,
      "Keep profiler dependencies paged in"},
+    {"page_in_profiler_dependencies",
+     page_in_profiler_dependencies,
+     METH_NOARGS,
+     "Read the memory needed by ebpf-based profilers."},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {

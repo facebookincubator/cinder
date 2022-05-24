@@ -3544,6 +3544,11 @@ class OtherTests(unittest.TestCase):
     def test_mlock_profiler_dependencies(self):
         cinderjit.mlock_profiler_dependencies()
 
+    @unittest.skipIf(cinderjit is None, "not jitting")
+    def test_page_in_profiler_dependencies(self):
+        qualnames = cinderjit.page_in_profiler_dependencies()
+        self.assertTrue(len(qualnames) > 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -64,6 +64,28 @@ void Runtime::mlockProfilerDependencies() {
   runtimes_.lock();
 }
 
+Ref<> Runtime::pageInProfilerDependencies() {
+  ThreadedCompileSerialize guard;
+  Ref<> qualnames = Ref<>::steal(PyList_New(0));
+  if (qualnames == nullptr) {
+    return nullptr;
+  }
+  // We want to force the OS to page in the memory on the
+  // code_rt->code->qualname path and keep the compiler from optimizing away
+  // the code to do so. There are probably more efficient ways of doing this
+  // but perf isn't a major concern.
+  for (auto& code_rt : runtimes_) {
+    BorrowedRef<> qualname = code_rt.frameState()->code()->co_qualname;
+    if (qualname == nullptr) {
+      continue;
+    }
+    if (PyList_Append(qualnames, qualname) < 0) {
+      return nullptr;
+    }
+  }
+  return qualnames;
+}
+
 GlobalCache Runtime::findGlobalCache(PyObject* globals, PyObject* name) {
   JIT_CHECK(PyUnicode_CheckExact(name), "Name must be a str");
   JIT_CHECK(PyUnicode_CHECK_INTERNED(name), "Name must be interned");

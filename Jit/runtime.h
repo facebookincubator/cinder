@@ -390,6 +390,18 @@ class Runtime {
     return static_cast<T*>(deopt_patchers_.back().get());
   }
 
+  // Some profilers need to walk the code_rt->code->qualname chain for jitted
+  // functions on the call stack. The JIT rarely touches this memory and, as a
+  // result, the OS may page it out. Out of process profilers (i.e. those that
+  // use eBPF) that attempt to read the memory after it has been paged out will
+  // fail; the read would cause a page fault which is currently unsupported
+  // inside of an eBPF probe. Periodically calling this function will ensure
+  // that the OS doesn't page out the memory too aggressively.
+  //
+  // Returns a PyListObject containing the qualnames of the units for which
+  // memory was paged in.
+  Ref<> pageInProfilerDependencies();
+
  private:
   static Runtime* s_runtime_;
 
