@@ -46,7 +46,7 @@ class BasicBlockBuilder {
   template <typename... T>
   void AppendCode(fmt::format_string<T...> s, T&&... args) {
     fmt::memory_buffer buf;
-    fmt::format_to(buf, s, std::forward<T>(args)...);
+    fmt::format_to(std::back_inserter(buf), s, std::forward<T>(args)...);
     AppendCode(buf);
   }
 

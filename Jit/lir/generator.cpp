@@ -252,7 +252,8 @@ void LIRGenerator::AppendGuard(
   auto id = env_->rt->addDeoptMetadata(std::move(deopt_meta));
 
   fmt::memory_buffer buf;
-  fmt::format_to(buf, "Guard {}, {}", kind, id);
+  auto buf_ins = std::back_inserter(buf);
+  fmt::format_to(buf_ins, "Guard {}, {}", kind, id);
 
   JIT_CHECK(
       guard_var.empty() == (kind == "AlwaysFail"),
@@ -269,7 +270,7 @@ void LIRGenerator::AppendGuard(
     const auto& guard = static_cast<const GuardIs&>(instr);
     auto guard_ptr = static_cast<void*>(guard.target());
     env_->code_rt->addReference(static_cast<PyObject*>(guard_ptr));
-    fmt::format_to(buf, ", {}", guard_ptr);
+    fmt::format_to(buf_ins, ", {}", guard_ptr);
   } else if (instr.IsGuardType()) {
     const auto& guard = static_cast<const GuardType&>(instr);
     // TODO(T101999851): Handle non-Exact types
@@ -277,14 +278,14 @@ void LIRGenerator::AppendGuard(
     PyTypeObject* guard_type = guard.target().uniquePyType();
     JIT_CHECK(guard_type != nullptr, "Ensure unique representation exists");
     env_->code_rt->addReference(reinterpret_cast<PyObject*>(guard_type));
-    fmt::format_to(buf, ", {}", reinterpret_cast<void*>(guard_type));
+    fmt::format_to(buf_ins, ", {}", reinterpret_cast<void*>(guard_type));
   } else {
     buf.append(std::string_view(", 0"));
   }
 
   auto& regstates = instr.live_regs();
   for (const auto& reg_state : regstates) {
-    fmt::format_to(buf, ", {}", reg_state.reg->name());
+    fmt::format_to(buf_ins, ", {}", reg_state.reg->name());
   }
 
   bbb.AppendCode(buf);
@@ -357,14 +358,15 @@ bool LIRGenerator::TranslateSpecializedCall(
   }
 
   fmt::memory_buffer buf;
+  auto buf_ins = std::back_inserter(buf);
   fmt::format_to(
-      buf,
+      buf_ins,
       "Vectorcall {}, {}, 0, {}",
       instr.dst()->name(),
       reinterpret_cast<uint64_t>(func),
       reinterpret_cast<uint64_t>(callee));
   for (size_t i = 0, num_args = instr.numArgs(); i < num_args; i++) {
-    fmt::format_to(buf, ", {}", instr.arg(i));
+    fmt::format_to(buf_ins, ", {}", instr.arg(i));
   }
   buf.append(std::string_view(", 0"));
   bbb.AppendCode(buf);
