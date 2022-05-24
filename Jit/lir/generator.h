@@ -61,10 +61,11 @@ class LIRGenerator {
   BasicBlock* GenerateEntryBlock();
   BasicBlock* GenerateExitBlock();
 
-  std::string MakeGuard(
-      const std::string& kind,
+  void AppendGuard(
+      BasicBlockBuilder& bbb,
+      std::string_view kind,
       const hir::DeoptBase& instr,
-      const std::string& guard_var = std::string());
+      std::string_view guard_var = std::string_view());
 
   void MakeIncref(
       BasicBlockBuilder& bbb,

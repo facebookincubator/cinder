@@ -243,31 +243,33 @@ std::unique_ptr<jit::lir::Function> LIRGenerator::TranslateFunction() {
   return function;
 }
 
-std::string LIRGenerator::MakeGuard(
-    const std::string& kind,
+void LIRGenerator::AppendGuard(
+    BasicBlockBuilder& bbb,
+    std::string_view kind,
     const DeoptBase& instr,
-    const std::string& guard_var) {
+    std::string_view guard_var) {
   auto deopt_meta = jit::DeoptMetadata::fromInstr(instr, env_->code_rt);
   auto id = env_->rt->addDeoptMetadata(std::move(deopt_meta));
 
-  std::stringstream ss;
-  ss << "Guard " << kind << ", " << id;
+  fmt::memory_buffer buf;
+  fmt::format_to(buf, "Guard {}, {}", kind, id);
 
   JIT_CHECK(
       guard_var.empty() == (kind == "AlwaysFail"),
       "MakeGuard expects a register name to guard iff the kind is not "
       "AlwaysFail");
   if (!guard_var.empty()) {
-    ss << ", " << guard_var;
+    buf.append(std::string_view(", "));
+    buf.append(guard_var);
   } else {
-    ss << ", 0";
+    buf.append(std::string_view(", 0"));
   }
 
   if (instr.IsGuardIs()) {
     const auto& guard = static_cast<const GuardIs&>(instr);
     auto guard_ptr = static_cast<void*>(guard.target());
     env_->code_rt->addReference(static_cast<PyObject*>(guard_ptr));
-    ss << ", " << guard_ptr;
+    fmt::format_to(buf, ", {}", guard_ptr);
   } else if (instr.IsGuardType()) {
     const auto& guard = static_cast<const GuardType&>(instr);
     // TODO(T101999851): Handle non-Exact types
@@ -275,17 +277,17 @@ std::string LIRGenerator::MakeGuard(
     PyTypeObject* guard_type = guard.target().uniquePyType();
     JIT_CHECK(guard_type != nullptr, "Ensure unique representation exists");
     env_->code_rt->addReference(reinterpret_cast<PyObject*>(guard_type));
-    ss << ", " << guard_type;
+    fmt::format_to(buf, ", {}", reinterpret_cast<void*>(guard_type));
   } else {
-    ss << ", 0";
+    buf.append(std::string_view(", 0"));
   }
 
   auto& regstates = instr.live_regs();
   for (const auto& reg_state : regstates) {
-    ss << ", " << *reg_state.reg;
+    fmt::format_to(buf, ", {}", reg_state.reg->name());
   }
 
-  return ss.str();
+  bbb.AppendCode(buf);
 }
 
 // Attempt to emit a type-specialized call, returning true if successful.
@@ -354,16 +356,18 @@ bool LIRGenerator::TranslateSpecializedCall(
     return false;
   }
 
-  std::string call = fmt::format(
+  fmt::memory_buffer buf;
+  fmt::format_to(
+      buf,
       "Vectorcall {}, {}, 0, {}",
       instr.dst()->name(),
       reinterpret_cast<uint64_t>(func),
       reinterpret_cast<uint64_t>(callee));
   for (size_t i = 0, num_args = instr.numArgs(); i < num_args; i++) {
-    call += fmt::format(", {}", instr.arg(i));
+    fmt::format_to(buf, ", {}", instr.arg(i));
   }
-  call += ", 0";
-  bbb.AppendCode(call);
+  buf.append(std::string_view(", 0"));
+  bbb.AppendCode(buf);
   return true;
 }
 
@@ -391,10 +395,10 @@ void LIRGenerator::emitExceptionCheck(
     jit::lir::BasicBlockBuilder& bbb) {
   Register* out = i.GetOutput();
   if (out->isA(TBottom)) {
-    bbb.AppendCode(MakeGuard("AlwaysFail", i));
+    AppendGuard(bbb, "AlwaysFail", i);
   } else {
-    std::string kind = out->isA(TCSigned) ? "NotNegative" : "NotZero";
-    bbb.AppendCode(MakeGuard(kind, i, out->name()));
+    std::string_view kind = out->isA(TCSigned) ? "NotNegative" : "NotZero";
+    AppendGuard(bbb, kind, i, out->name());
   }
 }
 
@@ -413,57 +417,34 @@ void LIRGenerator::MakeIncref(
   auto end_incref = GetSafeLabelName();
   if (xincref) {
     auto cont = GetSafeLabelName();
-    bbb.AppendCode(
-        "JumpIf {}, {}, {}\n"
-        "{}:",
-        obj,
-        cont,
-        end_incref,
-        cont);
+    bbb.AppendCode("JumpIf {}, {}, {}", obj, cont, end_incref);
+    bbb.AppendLabel(cont);
   }
 
   auto r1 = GetSafeTempName();
-  bbb.AppendCode(
-      "Load {}, {}, {:#x}\n", r1, obj, offsetof(PyObject, ob_refcnt));
+  bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
 
 #ifdef Py_DEBUG
   auto r0 = GetSafeTempName();
   bbb.AppendCode(
-      "Load {}, {:#x}\n"
-      "Inc {}\n"
-      "Store {}, {:#x}",
-      r0,
-      reinterpret_cast<uint64_t>(&_Py_RefTotal),
-      r0,
-      r0,
-      reinterpret_cast<uint64_t>(&_Py_RefTotal));
+      "Load {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
+  bbb.AppendCode("Inc {}", r0);
+  bbb.AppendCode(
+      "Store {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
 #endif
 
 #ifdef Py_IMMORTAL_INSTANCES
   if (obj->type().couldBe(TImmortalObject)) {
     auto mortal = GetSafeLabelName();
-    bbb.AppendCode(
-        "BitTest {}, {}\n"
-        "BranchC {}\n"
-        "{}:\n",
-        r1, // BitTest
-        kImmortalBitPos,
-        end_incref, // BranchC
-        mortal // label
-    );
+    bbb.AppendCode("BitTest {}, {}", r1, kImmortalBitPos);
+    bbb.AppendCode("BranchC {}", end_incref);
+    bbb.AppendLabel(mortal);
   }
 #endif
 
-  bbb.AppendCode(
-      "Inc {}\n"
-      "Store {}, {}, {:#x}\n"
-      "{}:",
-      r1, // Inc
-      r1, // Store
-      obj,
-      offsetof(PyObject, ob_refcnt),
-      end_incref // label
-  );
+  bbb.AppendCode("Inc {}", r1);
+  bbb.AppendCode("Store {}, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
+  bbb.AppendLabel(end_incref);
 }
 
 void LIRGenerator::MakeDecref(
@@ -482,70 +463,45 @@ void LIRGenerator::MakeDecref(
   auto end_decref = GetSafeLabelName();
   if (xdecref) {
     auto cont = GetSafeLabelName();
-    bbb.AppendCode(
-        "JumpIf {}, {}, {}\n"
-        "{}:",
-        obj,
-        cont,
-        end_decref,
-        cont);
+    bbb.AppendCode("JumpIf {}, {}, {}", obj, cont, end_decref);
+    bbb.AppendLabel(cont);
   }
 
   auto r1 = GetSafeTempName();
   auto r2 = GetSafeTempName();
 
-  bbb.AppendCode(
-      "Load {}, {}, {:#x}\n", r1, obj, offsetof(PyObject, ob_refcnt));
+  bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
 
 #ifdef Py_DEBUG
   auto r0 = GetSafeTempName();
   bbb.AppendCode(
-      "Load {}, {:#x}\n"
-      "Dec {}\n"
-      "Store {}, {:#x}",
-      r0,
-      reinterpret_cast<uint64_t>(&_Py_RefTotal),
-      r0,
-      r0,
-      reinterpret_cast<uint64_t>(&_Py_RefTotal));
+      "Load {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
+  bbb.AppendCode("Dec {}", r0);
+  bbb.AppendCode(
+      "Store {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
 #endif
 
 #ifdef Py_IMMORTAL_INSTANCES
   if (obj->type().couldBe(TImmortalObject)) {
     auto mortal = GetSafeLabelName();
-    bbb.AppendCode(
-        "BitTest {}, {}\n"
-        "BranchC {}\n"
-        "{}:\n",
-        r1, // BitTest
-        kImmortalBitPos,
-        end_decref, // BranchC
-        mortal // label
-    );
+    bbb.AppendCode("BitTest {}, {}", r1, kImmortalBitPos);
+    bbb.AppendCode("BranchC {}", end_decref);
+    bbb.AppendLabel(mortal);
   }
 #endif
 
   auto dealloc = GetSafeLabelName();
-  bbb.AppendCode(
-      "Sub {}, {}, 1\n"
-      "Store {}, {}, {:#x}\n",
-      r2,
-      r1,
-      r2,
-      obj,
-      offsetof(PyObject, ob_refcnt));
+  bbb.AppendCode("Sub {}, {}, 1", r2, r1);
+  bbb.AppendCode("Store {}, {}, {:#x}", r2, obj, offsetof(PyObject, ob_refcnt));
 
-  bbb.AppendCode(
-      "BranchNZ {}\n"
-      "{}:",
-      end_decref,
-      dealloc);
+  bbb.AppendCode("BranchNZ {}", end_decref);
+  bbb.AppendLabel(dealloc);
   if (_PyJIT_MultipleCodeSectionsEnabled()) {
     bbb.SetBlockSection(dealloc, codegen::CodeSection::kCold);
   }
 
   bbb.AppendInvoke(JITRT_Dealloc, obj);
-  bbb.AppendCode("{}:", end_decref);
+  bbb.AppendLabel(end_decref);
 }
 
 // Checks if a type has reasonable == semantics, that is that
@@ -1113,7 +1069,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto done = GetSafeLabelName();
         auto check_err = GetSafeLabelName();
         bbb.AppendCode("JumpIf {}, {}, {}", is_not_negative, done, check_err);
-        bbb.AppendCode("{}:", check_err);
+        bbb.AppendLabel(check_err);
         auto curexc_type = GetSafeTempName();
         bbb.AppendCode(
             "Load {}, __asm_tstate, {}",
@@ -1123,10 +1079,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode("Equal {}, {}, {:#x}", is_no_err_set, curexc_type, 0);
         auto set_err = GetSafeLabelName();
         bbb.AppendCode("JumpIf {}, {}, {}", is_no_err_set, done, set_err);
-        bbb.AppendCode("{}:", set_err);
+        bbb.AppendLabel(set_err);
         // Set to -1 in the error case
         bbb.AppendCode("Dec {}", instr->dst());
-        bbb.AppendCode("{}:", done);
+        bbb.AppendLabel(done);
         break;
       }
 
@@ -1295,7 +1251,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             reinterpret_cast<uint64_t>(PyObject_SetAttr),
             instr->GetOperand(0),
             reinterpret_cast<uint64_t>(name));
-        bbb.AppendCode(MakeGuard("NotNegative", *instr, tmp));
+        AppendGuard(bbb, "NotNegative", *instr, tmp);
         break;
       }
       case Opcode::kLoadAttr: {
@@ -1360,7 +1316,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto func = reinterpret_cast<uint64_t>(JITRT_GetMethod);
         auto cache_entry = env_->code_rt->AllocateLoadMethodCache();
         bbb.AppendCode(
-            "Call {}, {:#x}, {}, {}, {:#x}\n",
+            "Call {}, {:#x}, {}, {}, {:#x}",
             instr->dst(),
             func,
             instr->receiver(),
@@ -1370,7 +1326,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kGetLoadMethodInstance: {
-        bbb.AppendCode("Load2ndCallResult {}\n", i.GetOutput());
+        bbb.AppendCode("Load2ndCallResult {}", i.GetOutput());
         break;
       }
       case Opcode::kLoadMethodSuper: {
@@ -1383,7 +1339,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         auto func = reinterpret_cast<uint64_t>(JITRT_GetMethodFromSuper);
         bbb.AppendCode(
-            "Call {}, {:#x}, {}, {}, {}, {}, {}\n",
+            "Call {}, {:#x}, {}, {}, {}, {}, {}",
             instr->dst(),
             func,
             instr->global_super(),
@@ -1645,8 +1601,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kDeopt: {
-        bbb.AppendCode(
-            MakeGuard("AlwaysFail", static_cast<const DeoptBase&>(i)));
+        AppendGuard(bbb, "AlwaysFail", static_cast<const DeoptBase&>(i));
         break;
       }
       case Opcode::kDeoptPatchpoint: {
@@ -1670,7 +1625,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "__asm_tstate",
             instr.GetOperand(0),
             static_cast<int>(instr.with_opcode()));
-        bbb.AppendCode(MakeGuard("AlwaysFail", instr));
+        AppendGuard(bbb, "AlwaysFail", instr);
         break;
       }
       case Opcode::kCheckExc:
@@ -1681,19 +1636,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kGuard:
       case Opcode::kGuardIs: {
         const auto& instr = static_cast<const DeoptBase&>(i);
-        std::string kind = "NotZero";
+        std::string_view kind = "NotZero";
         if (instr.IsCheckNeg()) {
           kind = "NotNegative";
         } else if (instr.IsGuardIs()) {
           kind = "Is";
         }
-        bbb.AppendCode(MakeGuard(kind, instr, instr.GetOperand(0)->name()));
+        AppendGuard(bbb, kind, instr, instr.GetOperand(0)->name());
         break;
       }
       case Opcode::kGuardType: {
         const auto& instr = static_cast<const DeoptBase&>(i);
-        bbb.AppendCode(
-            MakeGuard("HasType", instr, instr.GetOperand(0)->name()));
+        AppendGuard(bbb, "HasType", instr, instr.GetOperand(0)->name());
         break;
       }
       case Opcode::kRefineType: {
@@ -1895,7 +1849,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(ss.str());
 
         // functions that return primitives will signal error via edx/xmm1
-        std::string err_indicator;
+        std::string_view err_indicator;
         Type ret_type = instr->ret_type();
         if (ret_type <= TCDouble) {
           err_indicator = "reg:xmm1";
@@ -1904,8 +1858,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else {
           err_indicator = instr->GetOutput()->name();
         }
-        bbb.AppendCode(MakeGuard(
-            "NotZero", static_cast<const DeoptBase&>(i), err_indicator));
+        AppendGuard(
+            bbb, "NotZero", static_cast<const DeoptBase&>(i), err_indicator);
         break;
       }
 
@@ -2507,9 +2461,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto done = GetSafeLabelName();
         bbb.AppendCode("BranchNC {}", done);
         // TODO(T109445584): Remove this unused label.
-        bbb.AppendCode("{}:", GetSafeLabelName());
+        bbb.AppendLabel(GetSafeLabelName());
         bbb.AppendInvoke(JITRT_UnlinkFrame, "__asm_tstate");
-        bbb.AppendCode("{}:", done);
+        bbb.AppendLabel(done);
         if (py_debug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
@@ -2563,7 +2517,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             reinterpret_cast<uint64_t>(&_Py_DoRaise),
             exc,
             cause);
-        bbb.AppendCode(MakeGuard("AlwaysFail", instr));
+        AppendGuard(bbb, "AlwaysFail", instr);
         break;
       }
       case Opcode::kRaiseStatic: {
@@ -2578,7 +2532,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             reinterpret_cast<uint64_t>(instr.excType()),
             reinterpret_cast<uint64_t>(instr.fmt()),
             args.str());
-        bbb.AppendCode(MakeGuard("AlwaysFail", instr));
+        AppendGuard(bbb, "AlwaysFail", instr);
         break;
       }
       case Opcode::kFormatValue: {
@@ -2651,7 +2605,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             reinterpret_cast<uint64_t>(PyObject_DelItem),
             instr.GetOperand(0),
             instr.GetOperand(1));
-        bbb.AppendCode(MakeGuard("NotNegative", instr, tmp));
+        AppendGuard(bbb, "NotNegative", instr, tmp);
         break;
       }
       case Opcode::kUnpackExToTuple: {

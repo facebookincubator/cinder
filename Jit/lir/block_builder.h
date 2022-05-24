@@ -35,11 +35,19 @@ class BasicBlockBuilder {
     cur_hir_instr_ = inst;
   }
 
-  void AppendCode(const std::string& s);
+  void AppendCode(std::string_view s) {
+    AppendTokenizedCodeLine(Tokenize(s));
+  }
+  void AppendCode(const fmt::memory_buffer& buf) {
+    AppendCode(std::string_view(buf.data(), buf.size()));
+  }
+  void AppendLabel(const std::string& s);
 
   template <typename... T>
   void AppendCode(fmt::format_string<T...> s, T&&... args) {
-    AppendCode(fmt::format(s, std::forward<T>(args)...));
+    fmt::memory_buffer buf;
+    fmt::format_to(buf, s, std::forward<T>(args)...);
+    AppendCode(buf);
   }
 
   template <
@@ -209,9 +217,6 @@ class BasicBlockBuilder {
   }
 
   void AppendTokenizedCodeLine(const std::vector<std::string>& tokens);
-  void AppendCodeLine(std::string_view s) {
-    AppendTokenizedCodeLine(Tokenize(s));
-  }
 
   bool IsConstant(std::string_view s) {
     return isdigit(s[0]) || (s[0] == '-');

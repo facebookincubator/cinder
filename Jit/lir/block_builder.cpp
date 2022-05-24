@@ -61,35 +61,13 @@ BasicBlockBuilder::BasicBlockBuilder(jit::codegen::Environ* env, Function* func)
   bbs_.push_back(cur_bb_);
 }
 
-void BasicBlockBuilder::AppendCode(const std::string& s) {
-  size_t pos = 0;
-  do {
-    auto end = s.find('\n', pos);
-    std::string_view line;
-    if (end != std::string::npos) {
-      line = std::string_view(s).substr(pos, end - pos);
-      pos = end + 1;
-    } else {
-      line = std::string_view(s).substr(pos);
-      pos = end;
-    }
-
-    if (line == "\n" || line.empty()) {
-      continue;
-    }
-
-    if (IsLabel(line)) {
-      auto next_bb =
-          GetBasicBlockByLabel(std::string(line.substr(0, line.size() - 1)));
-      if (cur_bb_->successors().size() < 2) {
-        cur_bb_->addSuccessor(next_bb);
-      }
-      cur_bb_ = next_bb;
-      bbs_.push_back(cur_bb_);
-    } else {
-      AppendCodeLine(line);
-    }
-  } while (pos != std::string::npos);
+void BasicBlockBuilder::AppendLabel(const std::string& s) {
+  auto next_bb = GetBasicBlockByLabel(s);
+  if (cur_bb_->successors().size() < 2) {
+    cur_bb_->addSuccessor(next_bb);
+  }
+  cur_bb_ = next_bb;
+  bbs_.push_back(cur_bb_);
 }
 
 std::vector<std::string> BasicBlockBuilder::Tokenize(std::string_view s) {
