@@ -3537,6 +3537,13 @@ class OtherTests(unittest.TestCase):
         # will fail during compilation.
         self.cmp_key = _cmp_key
 
+    @unittest.skipIf(
+        not cinderjit,
+        "meaningless without JIT enabled",
+    )
+    def test_mlock_profiler_dependencies(self):
+        cinderjit.mlock_profiler_dependencies()
+
 
 if __name__ == "__main__":
     unittest.main()

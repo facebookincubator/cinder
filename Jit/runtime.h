@@ -329,6 +329,8 @@ class Runtime {
     return runtimes_.allocate(std::forward<Args>(args)...);
   }
 
+  void mlockProfilerDependencies();
+
   // Create or look up a cache for the global with the given name, in the
   // context of the given globals dict.  This cache will fall back to
   // builtins if the value isn't defined in this dict.

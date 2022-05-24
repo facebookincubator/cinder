@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/runtime.h"
 
+#include <sys/mman.h>
+
 #include <memory>
 
 namespace jit {
@@ -51,6 +53,15 @@ void Runtime::shutdown() {
   _PyJIT_ClearDictCaches();
   delete s_runtime_;
   s_runtime_ = nullptr;
+}
+
+void Runtime::mlockProfilerDependencies() {
+  for (auto& codert : runtimes_) {
+    PyCodeObject* code = codert.frameState()->code().get();
+    ::mlock(code, sizeof(PyCodeObject));
+    ::mlock(code->co_qualname, Py_SIZE(code->co_qualname));
+  }
+  runtimes_.lock();
 }
 
 GlobalCache Runtime::findGlobalCache(PyObject* globals, PyObject* name) {

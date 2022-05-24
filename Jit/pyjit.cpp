@@ -881,6 +881,14 @@ static PyObject* get_num_inlined_functions(PyObject*, PyObject* func) {
   return PyLong_FromLong(size);
 }
 
+static PyObject* mlock_profiler_dependencies(PyObject* /* self */, PyObject*) {
+  if (jit_ctx == NULL) {
+    Py_RETURN_NONE;
+  }
+  Runtime::get()->mlockProfilerDependencies();
+  Py_RETURN_NONE;
+}
+
 namespace {
 
 // Simple wrapper functions to turn NULL or -1 return values from C-API
@@ -1222,6 +1230,10 @@ static PyMethodDef jit_methods[] = {
      get_num_inlined_functions,
      METH_O,
      "Return the number of inline sites in this function."},
+    {"mlock_profiler_dependencies",
+     mlock_profiler_dependencies,
+     METH_NOARGS,
+     "Keep profiler dependencies paged in"},
     {NULL, NULL, 0, NULL}};
 
 static PyModuleDef jit_module = {
