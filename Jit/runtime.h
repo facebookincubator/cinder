@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Jit/bump_allocator.h"
 #include "Jit/containers.h"
 #include "Jit/debug_info.h"
 #include "Jit/deopt.h"
@@ -325,9 +326,7 @@ class Runtime {
   CodeRuntime* allocateCodeRuntime(Args&&... args) {
     // Serialize as we modify the globally shared runtimes data.
     ThreadedCompileSerialize guard;
-    runtimes_.emplace_back(
-        std::make_unique<CodeRuntime>(std::forward<Args>(args)...));
-    return runtimes_.back().get();
+    return runtimes_.allocate(std::forward<Args>(args)...);
   }
 
   // Create or look up a cache for the global with the given name, in the
@@ -392,7 +391,9 @@ class Runtime {
  private:
   static Runtime* s_runtime_;
 
-  std::vector<std::unique_ptr<CodeRuntime>> runtimes_;
+  // 1,000,000 runtimes should be enough for now. They are not eagerly
+  // allocated.
+  BumpAllocator<CodeRuntime> runtimes_{1000000};
   GlobalCacheMap global_caches_;
   FunctionEntryCacheMap function_entry_caches_;
 

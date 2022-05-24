@@ -1222,6 +1222,7 @@ regen-typeslots:
 # Private interface for the JIT that isn't exposed to the rest of CPython
 JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/bitvector.h \
+		$(srcdir)/Jit/bump_allocator.h \
 		$(srcdir)/Jit/bytecode.h \
 		$(srcdir)/Jit/capsule.h \
 		$(srcdir)/Jit/code_allocator.h \

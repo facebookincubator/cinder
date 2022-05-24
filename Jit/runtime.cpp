@@ -167,7 +167,7 @@ void Runtime::addReference(PyObject* obj) {
 
 void Runtime::releaseReferences() {
   for (auto& code_rt : runtimes_) {
-    code_rt->releaseReferences();
+    code_rt.releaseReferences();
   }
   references_.clear();
 }
