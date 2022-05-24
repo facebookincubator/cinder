@@ -40,7 +40,7 @@ class ReadonlyTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "type mismatch: Readonly\[list\] received for positional arg 'l'",
+            r"type mismatch: Readonly\[list\] received for positional arg 'l'",
             "l",
         )
 
@@ -56,7 +56,7 @@ class ReadonlyTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "type mismatch: Readonly\[list\] received for positional arg 'l'",
+            r"type mismatch: Readonly\[list\] received for positional arg 'l'",
             "l",
         )
 
@@ -94,7 +94,7 @@ class ReadonlyTests(StaticTestBase):
             x: int = f()
         """
         self.type_error(
-            codestr, "type mismatch: Readonly\[int\] cannot be assigned to int", "f()"
+            codestr, r"type mismatch: Readonly\[int\] cannot be assigned to int", "f()"
         )
 
     def test_readonly_nonexact_int_assign(self):
@@ -108,7 +108,7 @@ class ReadonlyTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "type mismatch: Readonly\[<module>.C\] cannot be assigned to int",
+            r"type mismatch: Readonly\[<module>.C\] cannot be assigned to int",
             "readonly(x)",
         )
 
@@ -121,7 +121,7 @@ class ReadonlyTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "return type must be int, not Readonly\[int\]",
+            r"return type must be int, not Readonly\[int\]",
             "return readonly(g())",
         )
 
@@ -153,7 +153,7 @@ class ReadonlyTests(StaticTestBase):
         self.type_error(
             codestr,
             "Parameter x of type `int` is not a supertype "
-            "of the overridden parameter `Readonly\[int\]`",
+            r"of the overridden parameter `Readonly\[int\]`",
             "def f(self, x: int)",
         )
 
@@ -169,7 +169,7 @@ class ReadonlyTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "Returned type `Readonly\[int\]` is not a "
+            r"Returned type `Readonly\[int\]` is not a "
             "subtype of the overridden return `int`",
             "def f(self, x: int) -> Readonly[int]",
         )
