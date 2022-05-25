@@ -118,14 +118,14 @@ void BasicBlockBuilder::createBasicCallInstr(
 
   for (size_t i = is_invoke ? 1 : 2; i < tokens.size(); i++) {
     if (IsConstant(tokens[i])) {
-      CreateInstrImmediateInput(instr, tokens[i]);
+      CreateInstrImmediateInputFromStr(instr, tokens[i]);
     } else {
-      CreateInstrInput(instr, tokens[i]);
+      CreateInstrInputFromStr(instr, tokens[i]);
     }
   }
 
   if (!is_invoke) {
-    CreateInstrOutput(instr, tokens[1]);
+    CreateInstrOutputFromStr(instr, tokens[1]);
   }
 }
 
@@ -148,14 +148,14 @@ void BasicBlockBuilder::createBasicInstr(
 
   for (size_t i = input_base; i < tokens.size(); i++) {
     if (IsConstant(tokens[i])) {
-      CreateInstrImmediateInput(instr, tokens[i]);
+      CreateInstrImmediateInputFromStr(instr, tokens[i]);
     } else {
-      CreateInstrInput(instr, tokens[i]);
+      CreateInstrInputFromStr(instr, tokens[i]);
     }
   }
 
   if (has_output) {
-    CreateInstrOutput(instr, tokens[1]);
+    CreateInstrOutputFromStr(instr, tokens[1]);
   }
 }
 
@@ -174,18 +174,18 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
            instr->allocateAddressInput(
                reinterpret_cast<void*>(std::stoull(tokens[2], nullptr, 0)));
          } else {
-           bldr.CreateInstrIndirect(
+           bldr.CreateInstrIndirectFromStr(
                instr, tokens[2], std::stoull(tokens[3], nullptr, 0));
          }
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
        }},
       {"LoadArg",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          JIT_CHECK(tokens.size() == 3, "expected 3 args");
          auto instr = bldr.createInstr(Instruction::kLoadArg);
 
-         bldr.CreateInstrImmediateInput(instr, tokens[2]);
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrImmediateInputFromStr(instr, tokens[2]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
        }},
       {"Store",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
@@ -196,15 +196,15 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
              "Syntax error for Store");
 
          if (bldr.IsConstant(tokens[1])) {
-           bldr.CreateInstrImmediateInput(instr, tokens[1]);
+           bldr.CreateInstrImmediateInputFromStr(instr, tokens[1]);
          } else {
-           bldr.CreateInstrInput(instr, tokens[1]);
+           bldr.CreateInstrInputFromStr(instr, tokens[1]);
          }
          if (tokens.size() == 3) {
            instr->output()->setMemoryAddress(
                reinterpret_cast<void*>(std::stoull(tokens[2], nullptr, 0)));
          } else {
-           bldr.CreateInstrIndirectOutput(
+           bldr.CreateInstrIndirectOutputFromStr(
                instr, tokens[2], std::stoull(tokens[3], nullptr, 0));
          }
          instr->output()->setDataType(instr->getInput(0)->dataType());
@@ -219,11 +219,11 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
          auto instr = bldr.createInstr(Instruction::kMove);
 
          if (bldr.IsConstant(tokens[2])) {
-           bldr.CreateInstrImmediateInput(instr, tokens[2]);
+           bldr.CreateInstrImmediateInputFromStr(instr, tokens[2]);
          } else {
-           bldr.CreateInstrInput(instr, tokens[2]);
+           bldr.CreateInstrInputFromStr(instr, tokens[2]);
          }
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
        }},
       {"Lea",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
@@ -234,15 +234,15 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
              tokens[1].c_str());
          auto instr = bldr.createInstr(Instruction::kLea);
 
-         bldr.CreateInstrIndirect(
+         bldr.CreateInstrIndirectFromStr(
              instr, tokens[2], std::stoull(tokens[3], nullptr, 0));
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
        }},
       {"Return",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          auto instr = bldr.createInstr(Instruction::kReturn);
 
-         bldr.CreateInstrInput(instr, tokens[1]);
+         bldr.CreateInstrInputFromStr(instr, tokens[1]);
        }},
       {"Convert",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
@@ -384,9 +384,9 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
 
          auto cond = tokens[1];
          if (bldr.IsConstant(cond)) {
-           bldr.CreateInstrImmediateInput(instr, cond);
+           bldr.CreateInstrImmediateInputFromStr(instr, cond);
          } else {
-           bldr.CreateInstrInput(instr, cond);
+           bldr.CreateInstrInputFromStr(instr, cond);
          }
        }},
       {"JumpIf",
@@ -399,9 +399,9 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
          auto instr = bldr.createInstr(Instruction::kCondBranch);
          auto cond = tokens[1];
          if (bldr.IsConstant(cond)) {
-           bldr.CreateInstrImmediateInput(instr, cond);
+           bldr.CreateInstrImmediateInputFromStr(instr, cond);
          } else {
-           bldr.CreateInstrInput(instr, cond);
+           bldr.CreateInstrInputFromStr(instr, cond);
          }
          auto true_bb = bldr.GetBasicBlockByLabel(tokens[2]);
          auto false_bb = bldr.GetBasicBlockByLabel(tokens[3]);
@@ -446,18 +446,18 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
       {"BitTest",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          auto instr = bldr.createInstr(Instruction::kBitTest);
-         bldr.CreateInstrInput(instr, tokens[1]);
-         bldr.CreateInstrImmediateInput(instr, tokens[2]);
+         bldr.CreateInstrInputFromStr(instr, tokens[1]);
+         bldr.CreateInstrImmediateInputFromStr(instr, tokens[2]);
        }},
       {"Inc",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          auto instr = bldr.createInstr(Instruction::kInc);
-         bldr.CreateInstrInput(instr, tokens[1]);
+         bldr.CreateInstrInputFromStr(instr, tokens[1]);
        }},
       {"Dec",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          auto instr = bldr.createInstr(Instruction::kDec);
-         bldr.CreateInstrInput(instr, tokens[1]);
+         bldr.CreateInstrInputFromStr(instr, tokens[1]);
        }},
       {"Guard",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
@@ -479,7 +479,7 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
            JIT_CHECK(false, "unknown check kind: {}", kind);
          }
          instr->allocateImmediateInput(guard_kind);
-         bldr.CreateInstrImmediateInput(instr, tokens[2]);
+         bldr.CreateInstrImmediateInputFromStr(instr, tokens[2]);
 
          for (size_t i = 3; i < tokens.size(); i++) {
            if (tokens[i] == "reg:edx") {
@@ -489,9 +489,9 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
              Operand* opnd = instr->allocatePhyRegisterInput(PhyLocation::XMM1);
              opnd->setDataType(OperandBase::kDouble);
            } else if (bldr.IsConstant(tokens[i])) {
-             bldr.CreateInstrImmediateInput(instr, tokens[i]);
+             bldr.CreateInstrImmediateInputFromStr(instr, tokens[i]);
            } else {
-             bldr.CreateInstrInput(instr, tokens[i]);
+             bldr.CreateInstrInputFromStr(instr, tokens[i]);
            }
          }
        }},
@@ -505,7 +505,7 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
          auto instr = bldr.createInstr(Instruction::kMove);
 
          instr->allocatePhyRegisterInput(PhyLocation::RDX);
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
        }},
       {"Phi",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
@@ -515,56 +515,61 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
          for (size_t i = 2; i < tokens.size() - 1; i += 2) {
            instr->allocateLabelInput(reinterpret_cast<BasicBlock*>(
                std::stoull(tokens[i], nullptr, 0)));
-           bldr.CreateInstrInput(instr, tokens[i + 1]);
+           bldr.CreateInstrInputFromStr(instr, tokens[i + 1]);
          }
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
        }},
       {"YieldInitial",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          Instruction* instr = bldr.createInstr(Instruction::kYieldInitial);
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
          for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInput(instr, tokens[tok_n]);
+           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
          }
-         bldr.CreateInstrImmediateInput(instr, tokens[tokens.size() - 1]);
+         bldr.CreateInstrImmediateInputFromStr(
+             instr, tokens[tokens.size() - 1]);
        }},
       {"YieldValue",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          Instruction* instr = bldr.createInstr(Instruction::kYieldValue);
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
          for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInput(instr, tokens[tok_n]);
+           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
          }
-         bldr.CreateInstrImmediateInput(instr, tokens[tokens.size() - 1]);
+         bldr.CreateInstrImmediateInputFromStr(
+             instr, tokens[tokens.size() - 1]);
        }},
       {"YieldFromSkipInitialSend",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          Instruction* instr =
              bldr.createInstr(Instruction::kYieldFromSkipInitialSend);
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
          for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInput(instr, tokens[tok_n]);
+           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
          }
-         bldr.CreateInstrImmediateInput(instr, tokens[tokens.size() - 1]);
+         bldr.CreateInstrImmediateInputFromStr(
+             instr, tokens[tokens.size() - 1]);
        }},
       {"YieldFromHandleStopAsyncIteration",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          Instruction* instr =
              bldr.createInstr(Instruction::kYieldFromHandleStopAsyncIteration);
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
          for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInput(instr, tokens[tok_n]);
+           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
          }
-         bldr.CreateInstrImmediateInput(instr, tokens[tokens.size() - 1]);
+         bldr.CreateInstrImmediateInputFromStr(
+             instr, tokens[tokens.size() - 1]);
        }},
       {"YieldFrom",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          Instruction* instr = bldr.createInstr(Instruction::kYieldFrom);
-         bldr.CreateInstrOutput(instr, tokens[1]);
+         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
          for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInput(instr, tokens[tok_n]);
+           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
          }
-         bldr.CreateInstrImmediateInput(instr, tokens[tokens.size() - 1]);
+         bldr.CreateInstrImmediateInputFromStr(
+             instr, tokens[tokens.size() - 1]);
        }},
       {"BatchDecref",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
@@ -592,7 +597,7 @@ BasicBlock* BasicBlockBuilder::GetBasicBlockByLabel(const std::string& label) {
   return iter->second;
 }
 
-void BasicBlockBuilder::CreateInstrImmediateInput(
+void BasicBlockBuilder::CreateInstrImmediateInputFromStr(
     Instruction* instr,
     const std::string& val_type) {
   std::string sval;
@@ -627,8 +632,7 @@ Instruction* BasicBlockBuilder::getDefInstr(const std::string& name) {
 
 void BasicBlockBuilder::CreateInstrInput(
     Instruction* instr,
-    const std::string& name_size) {
-  std::string name = GetId(name_size);
+    const std::string& name) {
   auto def_instr = getDefInstr(name);
   auto operand = instr->allocateLinkedInput(def_instr);
 
@@ -643,11 +647,8 @@ void BasicBlockBuilder::CreateInstrInput(
 
 void BasicBlockBuilder::CreateInstrOutput(
     Instruction* instr,
-    const std::string& name_size) {
-  std::string name;
-  Operand::DataType data_type;
-  std::tie(name, data_type) = GetIdAndType(name_size);
-
+    const std::string& name,
+    Operand::DataType data_type) {
   auto pair = env_->output_map.emplace(name, instr);
   JIT_DCHECK(
       pair.second,
@@ -658,7 +659,23 @@ void BasicBlockBuilder::CreateInstrOutput(
   output->setDataType(data_type);
 }
 
-void BasicBlockBuilder::CreateInstrIndirect(
+void BasicBlockBuilder::CreateInstrInputFromStr(
+    Instruction* instr,
+    const std::string& name_size) {
+  std::string name = GetId(name_size);
+  CreateInstrInput(instr, name);
+}
+
+void BasicBlockBuilder::CreateInstrOutputFromStr(
+    Instruction* instr,
+    const std::string& name_size) {
+  std::string name;
+  Operand::DataType data_type;
+  std::tie(name, data_type) = GetIdAndType(name_size);
+  CreateInstrOutput(instr, name, data_type);
+}
+
+void BasicBlockBuilder::CreateInstrIndirectFromStr(
     Instruction* instr,
     const std::string& name_size,
     int offset) {
@@ -679,7 +696,7 @@ void BasicBlockBuilder::CreateInstrIndirect(
   }
 }
 
-void BasicBlockBuilder::CreateInstrIndirectOutput(
+void BasicBlockBuilder::CreateInstrIndirectOutputFromStr(
     Instruction* instr,
     const std::string& name_size,
     int offset) {

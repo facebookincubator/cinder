@@ -79,17 +79,26 @@ class BasicBlockBuilder {
 
   Instruction* getDefInstr(const std::string& name);
 
-  void CreateInstrInput(Instruction* instr, const std::string& name_size);
-  void CreateInstrImmediateInput(
+  void CreateInstrInput(Instruction* instr, const std::string& name);
+  void CreateInstrOutput(
+      Instruction* instr,
+      const std::string& name,
+      Operand::DataType data_type);
+  void CreateInstrInputFromStr(
+      Instruction* instr,
+      const std::string& name_size);
+  void CreateInstrImmediateInputFromStr(
       Instruction* instr,
       const std::string& val_size);
-  void CreateInstrOutput(Instruction* instr, const std::string& name_size);
+  void CreateInstrOutputFromStr(
+      Instruction* instr,
+      const std::string& name_size);
 
-  void CreateInstrIndirect(
+  void CreateInstrIndirectFromStr(
       Instruction* instr,
       const std::string& name_size,
       int offset);
-  void CreateInstrIndirectOutput(
+  void CreateInstrIndirectOutputFromStr(
       Instruction* instr,
       const std::string& name_size,
       int offset);
@@ -121,26 +130,21 @@ class BasicBlockBuilder {
         sizeof...(FuncArgs) == sizeof...(AppendArgs),
         "The number of parameters the function accepts and the number of "
         "arguments passed is different.");
-    std::vector<std::string> tokenized_call{};
 
-    if (dst != nullptr) {
-      tokenized_call.emplace_back("Call");
-      tokenized_call.emplace_back(fmt::format("{}", dst));
-    } else {
-      tokenized_call.emplace_back("Invoke");
-    }
-
-    tokenized_call.emplace_back(
-        fmt::format("{:#x}", reinterpret_cast<uint64_t>(func)));
+    auto instr = createInstr(Instruction::kCall);
+    GenericCreateInstrInput(instr, func);
 
     // Although the static_assert above will fail if this is false, the compiler
     // will still attempt to instatiate AppendCallArguments, which will result
     // in a ton of error spew that hides the actual error that we've generated.
     if constexpr (sizeof...(FuncArgs) == sizeof...(AppendArgs)) {
       AppendCallArguments<sizeof...(FuncArgs), 0, std::tuple<FuncArgs...>>(
-          tokenized_call, std::forward<AppendArgs>(args)...);
+          instr, std::forward<AppendArgs>(args)...);
     }
-    AppendTokenizedCodeLine(tokenized_call);
+
+    if (dst != nullptr) {
+      GenericCreateInstrOutput(instr, dst);
+    }
   }
 
   template <
@@ -149,7 +153,7 @@ class BasicBlockBuilder {
       typename FuncArgTuple,
       typename... AppendArgs>
   std::enable_if_t<ArgsLeft == 0, void> AppendCallArguments(
-      std::vector<std::string>&,
+      Instruction*,
       AppendArgs&&...) {}
 
   template <
@@ -158,7 +162,7 @@ class BasicBlockBuilder {
       typename FuncArgTuple,
       typename... AppendArgs>
   std::enable_if_t<ArgsLeft != 0, void> AppendCallArguments(
-      std::vector<std::string>& token_list,
+      Instruction* instr,
       AppendArgs&&... args) {
     using CurArgType = std::remove_cv_t<std::remove_reference_t<
         std::tuple_element_t<CurArg, std::tuple<AppendArgs...>>>>;
@@ -176,44 +180,117 @@ class BasicBlockBuilder {
       JIT_CHECK(
           std::string_view(asm_thread_state) == cur_arg,
           "The thread state was passed as a string that wasn't __asm_tstate.");
-      token_list.emplace_back(fmt::format("{}", cur_arg));
     } else if constexpr (
         std::is_same_v<CurArgType, hir::Register*> ||
         std::is_same_v<CurArgType, std::string>) {
       // Could add a runtime check here to ensure the type of the register is
       // correct, at least for non-temp-register args, but not doing that
       // currently.
-      token_list.emplace_back(fmt::format("{}", cur_arg));
-    } else {
-      if constexpr (std::is_pointer_v<CurFuncArgType>) {
-        if constexpr (std::is_function_v<CurArgType>) {
-          // This came in as a reference to a function, as a bare function is
-          // not a valid parameter type. The ref was removed as part of the
-          // uniform handling above, so compare without the pointer on the
-          // CurFuncArgType.
-          static_assert(
-              std::is_same_v<CurArgType, std::remove_pointer_t<CurFuncArgType>>,
-              "Mismatched function pointer parameter types!");
-        } else if constexpr (!std::is_same_v<CurArgType, std::nullptr_t>) {
-          static_assert(
-              std::is_same_v<CurArgType, CurFuncArgType>,
-              "Mismatched function parameter types!");
-        }
-        token_list.emplace_back(
-            fmt::format("{:#x}", reinterpret_cast<uint64_t>(cur_arg)));
-      } else {
+    } else if constexpr (std::is_pointer_v<CurFuncArgType>) {
+      if constexpr (std::is_function_v<CurArgType>) {
+        // This came in as a reference to a function, as a bare function is
+        // not a valid parameter type. The ref was removed as part of the
+        // uniform handling above, so compare without the pointer on the
+        // CurFuncArgType.
+        static_assert(
+            std::is_same_v<CurArgType, std::remove_pointer_t<CurFuncArgType>>,
+            "Mismatched function pointer parameter types!");
+      } else if constexpr (!std::is_same_v<CurArgType, std::nullptr_t>) {
         static_assert(
             std::is_same_v<CurArgType, CurFuncArgType>,
             "Mismatched function parameter types!");
-        if constexpr (std::is_same_v<CurArgType, bool>) {
-          token_list.emplace_back(fmt::format("{}", cur_arg ? 1 : 0));
+      }
+    } else {
+      static_assert(
+          std::is_same_v<CurArgType, CurFuncArgType>,
+          "Mismatched function parameter types!");
+    }
+    GenericCreateInstrInput(instr, cur_arg);
+    AppendCallArguments<ArgsLeft - 1, CurArg + 1, FuncArgTuple>(
+        instr, std::forward<AppendArgs>(args)...);
+  }
+
+  Operand::DataType hirTypeToDataType(hir::Type tp) {
+    if (tp <= hir::TCDouble) {
+      return Operand::DataType::kDouble;
+    } else if (tp <= (hir::TCInt8 | hir::TCUInt8 | hir::TCBool)) {
+      return Operand::DataType::k8bit;
+    } else if (tp <= (hir::TCInt16 | hir::TCUInt16)) {
+      return Operand::DataType::k16bit;
+    } else if (tp <= (hir::TCInt32 | hir::TCUInt32)) {
+      return Operand::DataType::k32bit;
+    } else if (tp <= (hir::TCInt64 | hir::TCUInt64)) {
+      return Operand::DataType::k64bit;
+    } else {
+      return Operand::DataType::kObject;
+    }
+  }
+
+  template <typename T>
+  void GenericCreateInstrInput(Instruction* instr, const T& val) {
+    using CurArgType = std::remove_cv_t<std::remove_reference_t<T>>;
+    if constexpr (std::is_same_v<CurArgType, hir::Register*>) {
+      if (val == nullptr) {
+        instr->allocateImmediateInput(
+            static_cast<uint64_t>(0), Operand::DataType::k64bit);
+      } else {
+        auto tp = val->type();
+        auto dat = hirTypeToDataType(tp);
+        if (tp.hasDoubleSpec()) {
+          instr->allocateImmediateInput(
+              bit_cast<uint64_t>(tp.doubleSpec()), dat);
+        } else if (tp.hasIntSpec()) {
+          instr->allocateImmediateInput(
+              static_cast<uint64_t>(tp.intSpec()), dat);
+        } else if (tp.hasObjectSpec()) {
+          env_->code_rt->addReference(tp.objectSpec());
+          instr->allocateImmediateInput(
+              reinterpret_cast<uint64_t>(tp.objectSpec()),
+              Operand::DataType::kObject);
         } else {
-          token_list.emplace_back(fmt::format("{}", cur_arg));
+          CreateInstrInput(instr, val->name());
         }
       }
+    } else if constexpr (
+        std::is_same_v<CurArgType, std::string> ||
+        std::is_same_v<CurArgType, std::string_view> ||
+        std::is_same_v<CurArgType, char*> || std::is_array_v<CurArgType>) {
+      CreateInstrInput(instr, val);
+    } else if constexpr (
+        std::is_pointer_v<CurArgType> || std::is_function_v<CurArgType>) {
+      instr->allocateImmediateInput(
+          reinterpret_cast<uint64_t>(val), Operand::DataType::kObject);
+    } else if constexpr (std::is_same_v<CurArgType, std::nullptr_t>) {
+      instr->allocateImmediateInput(
+          static_cast<uint64_t>(0), Operand::DataType::kObject);
+    } else if constexpr (std::is_same_v<CurArgType, bool>) {
+      instr->allocateImmediateInput(val ? 1 : 0, Operand::DataType::k8bit);
+    } else if constexpr (std::is_floating_point_v<CurArgType>) {
+      instr->allocateImmediateInput(
+          bit_cast<uint64_t>(val), Operand::DataType::kDouble);
+    } else if constexpr (std::is_integral_v<CurArgType>) {
+      if constexpr (sizeof(CurArgType) == 1) {
+        instr->allocateImmediateInput(
+            static_cast<uint64_t>(val), Operand::DataType::k8bit);
+      } else if constexpr (sizeof(CurArgType) == 2) {
+        instr->allocateImmediateInput(
+            static_cast<uint64_t>(val), Operand::DataType::k16bit);
+      } else if constexpr (sizeof(CurArgType) == 4) {
+        instr->allocateImmediateInput(
+            static_cast<uint64_t>(val), Operand::DataType::k32bit);
+      } else if constexpr (sizeof(CurArgType) == 8) {
+        instr->allocateImmediateInput(
+            static_cast<uint64_t>(val), Operand::DataType::k64bit);
+      } else {
+        static_assert(!std::is_same_v<T, T>, "Unknown integral size!");
+      }
+    } else {
+      static_assert(!std::is_same_v<T, T>, "Unknown instruction input type!");
     }
-    AppendCallArguments<ArgsLeft - 1, CurArg + 1, FuncArgTuple>(
-        token_list, std::forward<AppendArgs>(args)...);
+  }
+
+  void GenericCreateInstrOutput(Instruction* instr, hir::Register* dst) {
+    CreateInstrOutput(instr, dst->name(), hirTypeToDataType(dst->type()));
   }
 
   void AppendTokenizedCodeLine(const std::vector<std::string>& tokens);

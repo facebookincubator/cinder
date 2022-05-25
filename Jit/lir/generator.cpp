@@ -2224,7 +2224,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             _Invoke_PySlice_New,
             instr->start(),
             instr->stop(),
-            instr->step() != nullptr ? instr->step()->name() : "0x0");
+            instr->step() != nullptr ? instr->step() : nullptr);
 
         break;
       }
