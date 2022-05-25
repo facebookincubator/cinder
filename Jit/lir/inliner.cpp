@@ -6,6 +6,7 @@
 #include "Jit/lir/lir.h"
 #include "Jit/lir/parser.h"
 
+#include <shared_mutex>
 #include <string_view>
 
 using namespace jit::codegen;
@@ -193,10 +194,11 @@ lir::Function* LIRInliner::parseFunction(uint64_t addr) {
   // addr_to_function maps function address to parsed function
   static UnorderedMap<uint64_t, std::unique_ptr<Function>>
       addr_to_function;
+  static std::shared_mutex addr_map_guard;
 
   {
     // Guard usage of addr_to_function
-    ThreadedCompileSerialize guard;
+    std::shared_lock guard{addr_map_guard};
 
     // Check if function has already been parsed.
     auto iter = addr_to_function.find(addr);
@@ -209,7 +211,7 @@ lir::Function* LIRInliner::parseFunction(uint64_t addr) {
   auto lir_text_iter = kCHelperMapping.find(addr);
   if (lir_text_iter == kCHelperMapping.end()) {
     // Guard usage of addr_to_function
-    ThreadedCompileSerialize guard;
+    std::unique_lock guard{addr_map_guard};
     // Add nullptr to map in case same addr is used again.
     addr_to_function.emplace(addr, nullptr);
     return nullptr; // No LIR text for that address.
@@ -221,14 +223,14 @@ lir::Function* LIRInliner::parseFunction(uint64_t addr) {
     parsed_func = parser.parse(lir_text_iter->second);
   } catch (const ParserException&) {
     // Guard usage of addr_to_function
-    ThreadedCompileSerialize guard;
+    std::unique_lock guard{addr_map_guard};
     // Add nullptr to map in case same addr is used again.
     addr_to_function.emplace(addr, nullptr);
     return nullptr;
   }
 
   // Guard usage of addr_to_function
-  ThreadedCompileSerialize guard;
+  std::unique_lock guard{addr_map_guard};
   // Add function to map.
   addr_to_function.emplace(addr, std::move(parsed_func));
   // Return parsed function.

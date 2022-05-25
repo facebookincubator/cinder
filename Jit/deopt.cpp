@@ -9,14 +9,11 @@
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
+#include <shared_mutex>
+
 using jit::codegen::PhyLocation;
 
 namespace jit {
-
-namespace {
-// Set of interned strings for deopt descriptions.
-std::unordered_set<std::string> s_descrs;
-} // namespace
 
 hir::ValueKind deoptValueKind(hir::Type type) {
   if (type <= jit::hir::TCBool) {
@@ -354,9 +351,21 @@ DeoptMetadata DeoptMetadata::fromInstr(
   if (descr.empty()) {
     descr = hir::kOpcodeNames[static_cast<size_t>(instr.opcode())];
   }
+
   {
-    ThreadedCompileSerialize guard;
-    meta.descr = s_descrs.emplace(descr).first->c_str();
+    // Set of interned strings for deopt descriptions.
+    static std::unordered_set<std::string> s_descrs;
+    static std::shared_mutex s_descrs_mutex;
+
+    std::shared_lock guard{s_descrs_mutex};
+    auto iter = s_descrs.find(descr);
+    if (iter != s_descrs.end()) {
+      meta.descr = iter->c_str();
+    } else {
+      guard.unlock();
+      std::unique_lock guard{s_descrs_mutex};
+      meta.descr = s_descrs.emplace(descr).first->c_str();
+    }
   }
   return meta;
 }
