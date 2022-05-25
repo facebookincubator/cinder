@@ -3432,7 +3432,13 @@ class Callable(Object[TClass]):
             # Untyped builtin method; cannot validate signature compatibility.
             return
 
-        if len(args) != len(override.args):
+        override_args = override.args
+        if self.has_kwarg:
+            # if we accept **kwargs, the overridden method can define any kwarg it wants
+            # and it remains a valid override
+            override_args = [p for p in override_args if not p.has_default]
+
+        if len(args) != len(override_args):
             module.syntax_error(
                 f"{override.qualname} overrides {self.qualname} inconsistently. "
                 "Number of arguments differ",

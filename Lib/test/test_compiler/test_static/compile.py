@@ -1415,6 +1415,26 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
+    def test_compat_override_method_extra_kwarg(self):
+        codestr = """
+            class A:
+                def m(self, **kwargs) -> int:
+                    return 42
+
+            class B(A):
+                def m(self, a: int = 1, **kwargs) -> int:
+                    return 0
+
+            def invoke(o: A) -> int:
+                return o.m()
+        """
+        with self.in_module(codestr) as mod:
+            a = mod.A()
+            b = mod.B()
+
+            self.assertEqual(mod.invoke(a), 42)
+            self.assertEqual(mod.invoke(b), 0)
+
     def test_incompat_override_method_kwonly_mismatch(self):
         codestr = """
             class A:
