@@ -42,6 +42,7 @@ from .sequence import SequenceTests
 from .slots_with_default import SlotsWithDefaultTests
 from .subclass import SubclassTests
 from .top_level import TopLevelTests
+from .typed_dict import TypedDictTests
 from .union import UnionCompilationTests
 from .variadic_arg import VariadicArgTests
 from .walrus_operator import WalrusOperatorTests

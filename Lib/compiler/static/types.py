@@ -386,6 +386,7 @@ class TypeEnvironment:
         )
         self.named_tuple = Class(TypeName("typing", "NamedTuple"), self)
         self.protocol = Class(TypeName("typing", "Protocol"), self)
+        self.typed_dict = Class(TypeName("typing", "TypedDict"), self)
         self.literal = LiteralType(TypeName("typing", "Literal"), self)
         self.annotated = AnnotatedType(TypeName("typing", "Annotated"), self)
         self.not_implemented = Class(

@@ -122,6 +122,12 @@ class DeclarationVisitor(GenericVisitor[None]):
                 klass = self.type_env.dynamic
                 break
 
+            if base is self.type_env.typed_dict:
+                # TODO(T121706684) Supporting typed dicts is tricky, similar
+                # to protocols and named tuples
+                klass = self.type_env.dynamic
+                break
+
             if base.is_final:
                 self.syntax_error(
                     f"Class `{klass.instance.name}` cannot subclass a Final class: `{base.instance.name}`",

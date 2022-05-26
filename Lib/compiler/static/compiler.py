@@ -291,12 +291,14 @@ class Compiler:
             "Union": self.type_env.union,
             "Tuple": self.type_env.tuple,
             "Type": self.type_env.dynamic,
+            "TypedDict": self.type_env.typed_dict,
             "TypeVar": self.type_env.dynamic,
             "TYPE_CHECKING": self.type_env.bool.instance,
         }
         typing_extensions_children: Dict[str, Value] = {
             "Annotated": self.type_env.annotated,
             "Protocol": self.type_env.protocol,
+            "TypedDict": self.type_env.typed_dict,
         }
         strict_modules_children: Dict[str, Value] = {
             "mutable": IdentityDecorator(
