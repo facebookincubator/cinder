@@ -591,12 +591,9 @@ static inline void _Py_INCREF(PyObject *op)
 {
     _Py_INC_REFTOTAL;
 #ifdef Py_IMMORTAL_INSTANCES
-    unsigned int new_refcount;
-    if (__builtin_uadd_overflow((unsigned int)op->ob_refcnt, 1, &new_refcount)) {
+    if (Py_IS_IMMORTAL(op)) {
         return;
     }
-    op->ob_refcnt = new_refcount;
-    return;
 #endif
     op->ob_refcnt++;
 }
