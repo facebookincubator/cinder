@@ -186,6 +186,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
 
     instruction =
         newInstr<MakeListTuple>(kind == ListOrTuple::Tuple, dst, nvalues);
+  } else if (strcmp(opcode, "MakeSet") == 0) {
+    NEW_INSTR(MakeSet, dst);
+  } else if (strcmp(opcode, "SetSetItem") == 0) {
+    auto receiver = ParseRegister();
+    auto item = ParseRegister();
+    NEW_INSTR(SetSetItem, dst, receiver, item);
   } else if (strcmp(opcode, "LoadArg") == 0) {
     expect("<");
     int idx = GetNextNameIdx();

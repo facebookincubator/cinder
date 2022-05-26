@@ -834,3 +834,38 @@ fun test {
 )";
   EXPECT_NO_FATAL_FAILURE(testSSAify(hir_source, expected));
 }
+
+TEST_F(SSAifyTest, MakeSetReturnsSetExact) {
+  const char* hir_source = R"(
+fun test {
+  bb 0 {
+    v0 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<MortalLongExact[2]>
+    v2 = LoadConst<MortalLongExact[3]>
+    v3 = MakeSet
+    v4 = SetSetItem v3 v0
+    v5 = SetSetItem v3 v1
+    v6 = SetSetItem v3 v2
+    Return v3
+  }
+}
+)";
+  const char* expected = R"(fun test {
+  bb 0 {
+    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v9:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v10:MortalSetExact = MakeSet {
+    }
+    v11:CInt32 = SetSetItem v10 v7 {
+    }
+    v12:CInt32 = SetSetItem v10 v8 {
+    }
+    v13:CInt32 = SetSetItem v10 v9 {
+    }
+    Return v10
+  }
+}
+)";
+  EXPECT_NO_FATAL_FAILURE(testSSAify(hir_source, expected));
+}

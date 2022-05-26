@@ -392,7 +392,7 @@ Type outputType(
     case Opcode::kMakeFunction:
       return TMortalFunc;
     case Opcode::kMakeSet:
-      return TMortalSet;
+      return TMortalSetExact;
     case Opcode::kLongBinaryOp: {
       auto& binop = static_cast<const LongBinaryOp&>(instr);
       if (binop.op() == BinaryOpKind::kTrueDivide) {
