@@ -205,25 +205,16 @@ const std::unordered_set<int> kSupportedOpcodes = {
 };
 
 const std::unordered_set<int> kSupportedReadonlyOperations = {
-    READONLY_MAKE_FUNCTION,
-    READONLY_CHECK_FUNCTION,
-    READONLY_BINARY_SUBTRACT,
-    READONLY_BINARY_MULTIPLY,
-    READONLY_BINARY_MATRIX_MULTIPLY,
-    READONLY_BINARY_TRUE_DIVIDE,
-    READONLY_BINARY_FLOOR_DIVIDE,
-    READONLY_BINARY_MODULO,
-    READONLY_BINARY_POWER,
-    READONLY_BINARY_ADD,
-    READONLY_BINARY_LSHIFT,
-    READONLY_BINARY_RSHIFT,
-    READONLY_BINARY_OR,
-    READONLY_BINARY_XOR,
-    READONLY_BINARY_AND,
-    READONLY_UNARY_INVERT,
-    READONLY_UNARY_NEGATIVE,
-    READONLY_UNARY_POSITIVE,
-    READONLY_UNARY_NOT,
+    READONLY_MAKE_FUNCTION,      READONLY_CHECK_FUNCTION,
+    READONLY_CHECK_LOAD_ATTR,    READONLY_BINARY_SUBTRACT,
+    READONLY_BINARY_MULTIPLY,    READONLY_BINARY_MATRIX_MULTIPLY,
+    READONLY_BINARY_TRUE_DIVIDE, READONLY_BINARY_FLOOR_DIVIDE,
+    READONLY_BINARY_MODULO,      READONLY_BINARY_POWER,
+    READONLY_BINARY_ADD,         READONLY_BINARY_LSHIFT,
+    READONLY_BINARY_RSHIFT,      READONLY_BINARY_OR,
+    READONLY_BINARY_XOR,         READONLY_BINARY_AND,
+    READONLY_UNARY_INVERT,       READONLY_UNARY_NEGATIVE,
+    READONLY_UNARY_POSITIVE,     READONLY_UNARY_NOT,
 };
 
 #define NAMES(op, value) {value, #op},
@@ -2903,6 +2894,31 @@ void HIRBuilder::emitReadonlyOperation(
       tc.emit<Branch>(done_block);
 
       tc.block = done_block;
+      break;
+    }
+    case READONLY_CHECK_LOAD_ATTR: {
+      PyObject* check_return = PyTuple_GET_ITEM(op_tuple, 1);
+      PyObject* check_read = PyTuple_GET_ITEM(op_tuple, 2);
+
+      assert(check_return && check_read);
+      assert(check_return == Py_True || check_read == Py_True);
+      Register* obj = tc.frame.stack.top();
+
+      Register* check_return_reg = temps_.AllocateStack();
+      tc.emit<LoadConst>(
+          check_return_reg, Type::fromCInt(check_return == Py_True, TCInt32));
+      Register* check_read_reg = temps_.AllocateStack();
+      tc.emit<LoadConst>(
+          check_read_reg, Type::fromCInt(check_read == Py_True, TCInt32));
+
+      Register* args[] = {obj, check_return_reg, check_read_reg};
+      constexpr size_t kNumArgs = sizeof(args) / sizeof(Register*);
+      auto static_call = tc.emit<CallStaticRetVoid>(
+          kNumArgs, reinterpret_cast<void*>(PyReadonly_Check_LoadAttr));
+
+      for (size_t i = 0; i < kNumArgs; i++) {
+        static_call->SetOperand(i, args[i]);
+      }
       break;
     }
     case READONLY_BINARY_ADD:
