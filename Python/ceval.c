@@ -194,8 +194,6 @@ static void maybe_dtrace_line(_PyInterpreterFrame *, PyTraceInfo *, int);
 static void dtrace_function_entry(_PyInterpreterFrame *);
 static void dtrace_function_return(_PyInterpreterFrame *);
 
-static PyObject * import_name(PyThreadState *, _PyInterpreterFrame *,
-                              PyObject *, PyObject *, PyObject *);
 static PyObject * import_from(PyThreadState *, PyObject *, PyObject *);
 static int import_all_from(PyThreadState *, PyObject *, PyObject *);
 static void format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
@@ -3952,7 +3950,8 @@ handle_eval_breaker:
             PyObject *fromlist = POP();
             PyObject *level = TOP();
             PyObject *res;
-            res = import_name(tstate, frame, name, fromlist, level);
+            res = PyImport_EagerImportName(
+                frame->f_builtins, frame->f_globals, frame->f_locals, name, fromlist, level);
             Py_DECREF(level);
             Py_DECREF(fromlist);
             SET_TOP(res);
@@ -3966,7 +3965,8 @@ handle_eval_breaker:
             PyObject *fromlist = POP();
             PyObject *level = TOP();
             PyObject *res;
-            res = import_name(tstate, frame, name, fromlist, level);
+            res = PyImport_ImportName(
+                frame->f_builtins, frame->f_globals, frame->f_locals, name, fromlist, level);
             Py_DECREF(level);
             Py_DECREF(fromlist);
             SET_TOP(res);
@@ -7342,48 +7342,6 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
     }
     *pi = x;
     return 1;
-}
-
-static PyObject *
-import_name(PyThreadState *tstate, _PyInterpreterFrame *frame,
-            PyObject *name, PyObject *fromlist, PyObject *level)
-{
-    PyObject *import_func, *res;
-    PyObject* stack[5];
-
-    import_func = _PyDict_GetItemWithError(frame->f_builtins, &_Py_ID(__import__));
-    if (import_func == NULL) {
-        if (!_PyErr_Occurred(tstate)) {
-            _PyErr_SetString(tstate, PyExc_ImportError, "__import__ not found");
-        }
-        return NULL;
-    }
-    PyObject *locals = frame->f_locals;
-    /* Fast path for not overloaded __import__. */
-    if (import_func == tstate->interp->import_func) {
-        int ilevel = _PyLong_AsInt(level);
-        if (ilevel == -1 && _PyErr_Occurred(tstate)) {
-            return NULL;
-        }
-        res = PyImport_ImportModuleLevelObject(
-                        name,
-                        frame->f_globals,
-                        locals == NULL ? Py_None :locals,
-                        fromlist,
-                        ilevel);
-        return res;
-    }
-
-    Py_INCREF(import_func);
-
-    stack[0] = name;
-    stack[1] = frame->f_globals;
-    stack[2] = locals == NULL ? Py_None : locals;
-    stack[3] = fromlist;
-    stack[4] = level;
-    res = _PyObject_FastCall(import_func, stack, 5);
-    Py_DECREF(import_func);
-    return res;
 }
 
 static PyObject *

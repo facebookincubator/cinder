@@ -86,6 +86,23 @@ PyAPI_FUNC(int) PyImport_AppendInittab(
     PyObject* (*initfunc)(void)
     );
 
+// TODO(lazy_imports): ifdef guards?
+PyObject * PyImport_EagerImportName(
+    PyObject *builtins,
+    PyObject *globals,
+    PyObject *locals,
+    PyObject *name,
+    PyObject *fromlist,
+    PyObject *level
+    );
+PyObject * PyImport_ImportName(
+    PyObject *builtins,
+    PyObject *globals,
+    PyObject *locals,
+    PyObject *name,
+    PyObject *fromlist,
+    PyObject *level);
+
 #ifndef Py_LIMITED_API
 #  define Py_CPYTHON_IMPORT_H
 #  include "cpython/import.h"

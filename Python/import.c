@@ -1755,6 +1755,66 @@ import_find_and_load(PyThreadState *tstate, PyObject *abs_name)
 }
 
 PyObject *
+PyImport_EagerImportName(PyObject *builtins, PyObject *globals, PyObject *locals,
+                         PyObject *name, PyObject *fromlist, PyObject *level)
+{
+    PyObject *import_func, *res;
+    PyObject* stack[5];
+
+    PyThreadState *tstate = _PyThreadState_GET();
+
+    import_func = _PyDict_GetItemWithError(builtins, &_Py_ID(__import__));
+    if (import_func == NULL) {
+        if (!_PyErr_Occurred(tstate)) {
+            _PyErr_SetString(tstate, PyExc_ImportError, "__import__ not found");
+        }
+        return NULL;
+    }
+    /* Fast path for not overloaded __import__. */
+    if (import_func == tstate->interp->import_func) {
+        int ilevel = _PyLong_AsInt(level);
+        if (ilevel == -1 && _PyErr_Occurred(tstate)) {
+            return NULL;
+        }
+        res = PyImport_ImportModuleLevelObject(
+                        name,
+                        globals,
+                        locals == NULL ? Py_None :locals,
+                        fromlist,
+                        ilevel);
+        return res;
+    }
+
+    Py_INCREF(import_func);
+
+    stack[0] = name;
+    stack[1] = globals;
+    stack[2] = locals == NULL ? Py_None : locals;
+    stack[3] = fromlist;
+    stack[4] = level;
+    res = _PyObject_FastCall(import_func, stack, 5);
+    Py_DECREF(import_func);
+    return res;
+}
+
+PyObject *
+PyImport_ImportName(PyObject *builtins, PyObject *globals, PyObject *locals,
+                    PyObject *name, PyObject *fromlist, PyObject *level)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    int verbose = _PyInterpreterState_GetConfig(tstate->interp)->verbose;
+    int lazy_imports_enabled = _PyInterpreterState_GetConfig(tstate->interp)->lazy_imports;
+
+    if (!lazy_imports_enabled) {
+        return PyImport_EagerImportName(builtins, globals, locals, name, fromlist, level);
+    }
+    if (verbose) {
+        fprintf(stderr, "# lazy import '%s'\n", PyUnicode_AsUTF8(name));
+    }
+    return PyImport_EagerImportName(builtins, globals, locals, name, fromlist, level);
+}
+
+PyObject *
 PyImport_GetModule(PyObject *name)
 {
     PyThreadState *tstate = _PyThreadState_GET();
