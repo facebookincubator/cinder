@@ -7,7 +7,7 @@ import sys
 import unittest
 import weakref
 from collections import UserDict
-from test.support.script_helper import assert_python_ok
+from test.support.script_helper import assert_python_ok, run_python_until_end
 from unittest import skipIf
 from unittest.case import CINDERJIT_ENABLED
 try:
@@ -34,6 +34,16 @@ if cinder is not None:
     if "shadowcode" in knobs:
         cinder.setknobs({"shadowcode":True})
         cinder.setknobs({"polymorphiccache":True})
+
+
+# Tests with immortalizaiton will cause expected leaks
+# This function skips return code check for ASAN build
+def skip_ret_code_check_for_leaking_test_in_asan_mode(*args, **env_vars):
+    if sys._built_with_asan:
+        res, _ = run_python_until_end(*args, **env_vars)
+        return res
+    else:
+        return assert_python_ok(*args, **env_vars)
 
 
 class ShadowCodeTests(unittest.TestCase):
@@ -2773,7 +2783,7 @@ def f(x):
 
             print(f(100))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'100')
 
     def test_load_immortal_staticmethod(self):
@@ -2795,7 +2805,7 @@ def f(x):
 
             print(f(100))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'100')
 
     def test_load_immortal_wrapper_descr(self):
@@ -2816,7 +2826,7 @@ def f(x):
 
             print(f())
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b"'hello'")
 
     def test_load_immortal_function(self):
@@ -2837,7 +2847,7 @@ def f(x):
 
             print(f())
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b"42")
 
     def test_load_immortal_method_descriptor(self):
@@ -2854,7 +2864,7 @@ def f(x):
 
             print(f([42]))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b"42")
 
     def test_load_immortal_builtin_function(self):
@@ -2874,7 +2884,7 @@ def f(x):
 
             print(isinstance(f(), Foo))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b"True")
 
     def test_load_unshadowed_immortal_method_split_dict(self):
@@ -2898,8 +2908,9 @@ def f(x):
 
             print(f(Oracle()))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'42')
+
     def test_load_shadowed_immortal_method_split_dict(self):
         code = f"""if 1:
             class Oracle:
@@ -2925,7 +2936,7 @@ def f(x):
 
             print(f(Oracle()))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'42')
 
     def test_load_unshadowed_immortal_method_combineddict(self):
@@ -2987,7 +2998,7 @@ def f(x):
 
             print(f(Oracle()))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'42')
 
     def test_load_unshadowed_immortal_method_no_dict(self):
@@ -3005,7 +3016,7 @@ def f(x):
 
             print(f(l))
             """
-        rc, out, err = assert_python_ok('-c', code)
+        rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'2')
 
     def test_instance_to_type(self):

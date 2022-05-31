@@ -956,6 +956,33 @@ class GCImmortalizeTests(unittest.TestCase):
             """
         rc, out, err = assert_python_ok('-c', code)
         self.assertEqual(out.strip(), b'False')
+
+    def test_recursive_heap_walk_when_immortalize(self):
+        code = """if 1:
+            import gc
+            import cinder
+            cinder.setknobs({"immortalrecursiveheapwalk": True})
+            # long string to avoid string interning
+            obj = {"a" : {"b" : "c" * 5120}}
+            gc.immortalize_heap()
+            print(gc.is_immortal(obj["a"]["b"]))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'True')
+
+    def test_no_recursive_heap_walk_when_immortalize(self):
+        code = """if 1:
+            import gc
+            import cinder
+            cinder.setknobs({"immortalrecursiveheapwalk": False})
+            # long string to avoid string interning
+            obj = {"a" : {"b" : "c" * 5120}}
+            gc.immortalize_heap()
+            print(gc.is_immortal(obj["a"]["b"]))
+            """
+        rc, out, err = assert_python_ok('-c', code)
+        self.assertEqual(out.strip(), b'False')
+
 # end facebook
 
 

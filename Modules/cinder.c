@@ -11,6 +11,7 @@ PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 extern int _PyShadow_PolymorphicCacheEnabled;
 extern int _Py_SkipFinalCleanup;
 extern int _Py_SetShortcutTypeCall;
+extern int _PyImmortal_RecursiveHeapWalk;
 
 /* facebook begin */
 static PyObject *
@@ -59,6 +60,11 @@ cinder_setknobs(PyObject *self, PyObject *o)
         _Py_SetShortcutTypeCall = ok != -1 && ok;
     }
 
+    PyObject *immortlization_recursive_heap_walk = PyDict_GetItemString(o, "immortalrecursiveheapwalk");
+    if (immortlization_recursive_heap_walk != NULL) {
+        int enabled = PyObject_IsTrue(immortlization_recursive_heap_walk);
+        _PyImmortal_RecursiveHeapWalk = enabled != -1 && enabled;
+    }
     Py_RETURN_NONE;
 }
 
