@@ -80,7 +80,10 @@ extern PyObject *_PyDict_Pop_KnownHash(PyObject *, PyObject *, Py_hash_t, PyObje
 typedef enum {
     DICT_KEYS_GENERAL = 0,
     DICT_KEYS_UNICODE = 1,
-    DICT_KEYS_SPLIT = 2
+    DICT_KEYS_SPLIT = 2,
+    // use high bit to represent laziness
+    DICT_KEYS_GENERAL_LAZY = 128,
+    DICT_KEYS_UNICODE_LAZY = 129
 } DictKeysKind;
 
 /* See dictobject.c for actual layout of DictKeysObject */
@@ -153,11 +156,17 @@ struct _dictvalues {
         1 : DK_LOG_SIZE(dk) <= 15 ?       \
             2 : sizeof(int32_t))
 #endif
+
+#define DK_IS_GENERIC(dk) (((dk)->dk_kind & 127) == DICT_KEYS_GENERAL)
+#define DK_IS_UNICODE_EXACT(dk) (((dk)->dk_kind & 127) == DICT_KEYS_UNICODE)
+#define DK_IS_SPLIT(dk) (((dk)->dk_kind & 127) == DICT_KEYS_SPLIT)
+#define DK_HAS_LAZY_IMPORTS(dk) ((dk)->dk_kind & 128)
+
 #define DK_ENTRIES(dk) \
-    (assert(dk->dk_kind == DICT_KEYS_GENERAL), (PyDictKeyEntry*)(&((int8_t*)((dk)->dk_indices))[(size_t)1 << (dk)->dk_log2_index_bytes]))
+    (assert(DK_IS_GENERIC(dk)), (PyDictKeyEntry*)(&((int8_t*)((dk)->dk_indices))[(size_t)1 << (dk)->dk_log2_index_bytes]))
 #define DK_UNICODE_ENTRIES(dk) \
-    (assert(dk->dk_kind != DICT_KEYS_GENERAL), (PyDictUnicodeEntry*)(&((int8_t*)((dk)->dk_indices))[(size_t)1 << (dk)->dk_log2_index_bytes]))
-#define DK_IS_UNICODE(dk) ((dk)->dk_kind != DICT_KEYS_GENERAL)
+    (assert(!DK_IS_GENERIC(dk)), (PyDictUnicodeEntry*)(&((int8_t*)((dk)->dk_indices))[(size_t)1 << (dk)->dk_log2_index_bytes]))
+#define DK_IS_UNICODE(dk) ((dk)->dk_kind & 127)
 
 extern uint64_t _pydict_global_version;
 

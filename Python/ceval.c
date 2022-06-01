@@ -1508,7 +1508,7 @@ eval_frame_handle_pending(PyThreadState *tstate)
     assert(dict != NULL); \
     DEOPT_IF(dict->ma_keys->dk_version != read_u32(cache->version), \
              LOAD_##attr_or_method); \
-    assert(dict->ma_keys->dk_kind == DICT_KEYS_UNICODE); \
+    assert(DK_IS_UNICODE_EXACT(dict->ma_keys)); \
     assert(cache->index < dict->ma_keys->dk_nentries); \
     PyDictUnicodeEntry *ep = DK_UNICODE_ENTRIES(dict->ma_keys) + cache->index; \
     res = ep->me_value; \

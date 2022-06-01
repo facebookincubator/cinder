@@ -823,7 +823,7 @@ class PyDictObjectPtr(PyObjectPtr):
 
         ent_addr = keys['dk_indices'].address
         ent_addr = ent_addr.cast(_type_unsigned_char_ptr()) + offset
-        if int(keys['dk_kind']) == 0:  # DICT_KEYS_GENERAL
+        if int(keys['dk_kind']) & 0x7F == 0:  # DICT_KEYS_GENERAL
             ent_ptr_t = gdb.lookup_type('PyDictKeyEntry').pointer()
         else:
             ent_ptr_t = gdb.lookup_type('PyDictUnicodeEntry').pointer()

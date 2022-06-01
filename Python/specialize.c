@@ -497,7 +497,7 @@ specialize_module_load_attr(PyObject *owner, _Py_CODEUNIT *instr,
         SPECIALIZATION_FAIL(opcode, SPEC_FAIL_NO_DICT);
         return -1;
     }
-    if (dict->ma_keys->dk_kind != DICT_KEYS_UNICODE) {
+    if (!DK_IS_UNICODE_EXACT(dict->ma_keys)) {
         SPECIALIZATION_FAIL(opcode, SPEC_FAIL_ATTR_NON_STRING_OR_SPLIT);
         return -1;
     }
