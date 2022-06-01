@@ -1,4 +1,5 @@
 import itertools
+import unittest
 from compiler.static.types import TypedSyntaxError
 
 from _static import PRIM_OP_EQ_INT, TYPED_INT64
@@ -461,6 +462,7 @@ class StaticEnumTests(StaticTestBase):
                 self.assertEqual(mod.convert_to_bit(0), mod.Bit.ZERO)
                 self.assertEqual(mod.convert_to_bit(1), mod.Bit.ONE)
 
+    @unittest.skipUnderCinderJIT("Return of enums is known broken for now T122247745")
     def test_int64enum_primitive_return(self):
         vals = [("Foo.BAR", 1), ("Foo.BAZ", 2)]
         tf = [True, False]

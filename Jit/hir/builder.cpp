@@ -2081,28 +2081,44 @@ bool HIRBuilder::emitInvokeFunction(
     // try to emit a direct x64 call (InvokeStaticFunction/CallStatic) if we can
     if (!target.uses_runtime_func) {
       if (target.is_function && target.is_statically_typed) {
-        if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
-          JIT_DLOG(
-              "Warning: recursive compile of '%s' failed as it is already "
-              "being compiled",
-              funcFullname(target.func()));
+        switch (_PyJIT_CompileFunction(target.func())) {
+          case PYJIT_RESULT_RETRY:
+            JIT_DLOG(
+                "Warning: recursive compile of '%s' failed as it is already "
+                "being compiled",
+                funcFullname(target.func()));
+            // FALLTHROUGH
+          case PYJIT_RESULT_NO_PRELOADER:
+            if (!_PyJIT_OnJitList(target.func())) {
+              break;
+            }
+            // FALLTHROUGH
+          case PYJIT_NOT_INITIALIZED:
+            // Comes up in some tests
+            // FALLTHROUGH
+          case PYJIT_RESULT_OK: {
+            // Direct invoke is safe whether we succeeded in JIT-compiling or
+            // not, it'll just have an extra indirection if not JIT compiled.
+            Register* out = temps_.AllocateStack();
+            Type typ =
+                target.return_type <= TCEnum ? TCInt64 : target.return_type;
+            auto call =
+                tc.emit<InvokeStaticFunction>(nargs, out, target.func(), typ);
+            for (auto i = nargs - 1; i >= 0; i--) {
+              Register* operand = tc.frame.stack.pop();
+              call->SetOperand(i, operand);
+            }
+            call->setFrameState(tc.frame);
+
+            tc.frame.stack.push(out);
+
+            return false;
+          }
+          case PYJIT_RESULT_CANNOT_SPECIALIZE:
+          case PYJIT_RESULT_UNKNOWN_ERROR:
+          case PYJIT_RESULT_NOT_ON_JITLIST:
+            break;
         }
-
-        // Direct invoke is safe whether we succeeded in JIT-compiling or not,
-        // it'll just have an extra indirection if not JIT compiled.
-        Register* out = temps_.AllocateStack();
-        Type typ = target.return_type <= TCEnum ? TCInt64 : target.return_type;
-        auto call =
-            tc.emit<InvokeStaticFunction>(nargs, out, target.func(), typ);
-        for (auto i = nargs - 1; i >= 0; i--) {
-          Register* operand = tc.frame.stack.pop();
-          call->SetOperand(i, operand);
-        }
-        call->setFrameState(tc.frame);
-
-        tc.frame.stack.push(out);
-
-        return false;
       } else if (
           target.is_builtin && tryEmitDirectMethodCall(target, tc, nargs)) {
         return false;

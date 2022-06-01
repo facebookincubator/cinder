@@ -1486,13 +1486,13 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
 
     auto it = jit_preloaders.find(func->func_code);
     if (it == jit_preloaders.end()) {
-      return PYJIT_RESULT_CANNOT_SPECIALIZE;
+      return PYJIT_RESULT_NO_PRELOADER;
     }
     return _PyJITContext_CompilePreloader(jit_ctx, it->second);
   }
 
   if (!_PyJIT_OnJitList(func)) {
-    return PYJIT_RESULT_CANNOT_SPECIALIZE;
+    return PYJIT_RESULT_NOT_ON_JITLIST;
   }
 
   CompilationTimer timer(func);
