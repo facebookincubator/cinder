@@ -753,12 +753,28 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
     return NULL;
   }
 
-  if (jit_reg_units.count(func)) {
-    _PyJIT_CompileFunction((PyFunctionObject*)func);
-    Py_RETURN_TRUE;
+  if (_PyJIT_IsCompiled(func)) {
+    Py_RETURN_FALSE;
   }
 
-  Py_RETURN_FALSE;
+  switch (_PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func))) {
+    case PYJIT_RESULT_OK:
+      Py_RETURN_TRUE;
+    case PYJIT_RESULT_CANNOT_SPECIALIZE:
+      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_CANNOT_SPECIALIZE");
+      return NULL;
+    case PYJIT_RESULT_RETRY:
+      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_RETRY");
+      return NULL;
+    case PYJIT_RESULT_UNKNOWN_ERROR:
+      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_UNKNOWN_ERROR");
+      return NULL;
+    case PYJIT_NOT_INITIALIZED:
+      PyErr_SetString(PyExc_RuntimeError, "PYJIT_NOT_INITIALIZED");
+      return NULL;
+  }
+  PyErr_SetString(PyExc_RuntimeError, "Unhandled compilation result");
+  return NULL;
 }
 
 int _PyJIT_IsCompiled(PyObject* func) {
