@@ -2510,8 +2510,13 @@ void
 _PyClassLoader_ClearCache()
 {
     Py_CLEAR(classloader_cache);
-    Py_CLEAR(genericinst_cache);
     Py_CLEAR(static_enum);
+}
+
+void
+_PyClassLoader_ClearGenericTypes()
+{
+    Py_CLEAR(genericinst_cache);
 }
 
 /**

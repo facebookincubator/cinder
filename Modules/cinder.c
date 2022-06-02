@@ -358,6 +358,7 @@ static PyObject * strict_module_patch_enabled(PyObject *self, PyObject *mod)
 
 
 PyAPI_FUNC(int) _PyClassLoader_ClearVtables(void);
+PyAPI_FUNC(int) _PyClassLoader_ClearGenericTypes(void);
 PyAPI_FUNC(int) _PyClassLoader_ClearCache(void);
 
 static PyObject *
@@ -365,6 +366,7 @@ clear_classloader_caches(PyObject *self, PyObject *obj)
 {
     _PyClassLoader_ClearVtables();
     _PyClassLoader_ClearCache();
+    _PyClassLoader_ClearGenericTypes();
     Py_RETURN_NONE;
 }
 

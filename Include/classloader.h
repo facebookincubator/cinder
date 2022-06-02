@@ -98,6 +98,7 @@ int _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type);
 
 _PyType_VTable *_PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses);
 int _PyClassLoader_ClearVtables(void);
+void _PyClassLoader_ClearGenericTypes(void);
 
 /* Gets an indirect pointer for a function.  This should be used if
 * the given container is mutable, and the indirect pointer will
