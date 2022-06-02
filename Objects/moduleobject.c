@@ -597,8 +597,7 @@ _PyModule_ClearDict(PyObject *d)
 
     int verbose = _Py_GetConfig()->verbose;
 
-    // TODO(lazy_imports)
-    // _PyDict_UnsetHasLazyImportObjects(d);
+    _PyDict_UnsetHasLazyImports(d);
 
     /* First, clear only names starting with a single underscore */
     pos = 0;

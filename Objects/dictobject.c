@@ -473,6 +473,24 @@ static PyDictKeysObject empty_keys_struct = {
 #  define ASSERT_CONSISTENT(op) assert(_PyDict_CheckConsistency((PyObject *)(op), 0))
 #endif
 
+void
+_PyDict_SetHasLazyImports(PyObject *dict)
+{
+    assert(PyDict_Check(dict));
+    PyDictObject *mp = (PyDictObject *)dict;
+    assert(!DK_IS_SPLIT(mp->ma_keys));
+    mp->ma_keys->dk_kind |= 128;
+}
+
+void
+_PyDict_UnsetHasLazyImports(PyObject *dict)
+{
+    assert(PyDict_Check(dict));
+    PyDictObject *mp = (PyDictObject *)dict;
+    assert(!DK_IS_SPLIT(mp->ma_keys));
+    mp->ma_keys->dk_kind &= 127;
+}
+
 static inline int
 get_index_from_order(PyDictObject *mp, Py_ssize_t i)
 {

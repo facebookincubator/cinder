@@ -45,6 +45,12 @@ PyAPI_FUNC(int) _PyDict_DelItemIf(PyObject *mp, PyObject *key,
 PyAPI_FUNC(int) _PyDict_Next(
     PyObject *mp, Py_ssize_t *pos, PyObject **key, PyObject **value, Py_hash_t *hash);
 
+/* Flag dictionary as having lazy imports in it */
+void _PyDict_SetHasLazyImports(PyObject *);
+
+/* Unflag dictionary as having lazy imports in it */
+void _PyDict_UnsetHasLazyImports(PyObject *);
+
 /* Get the number of items of a dictionary. */
 static inline Py_ssize_t PyDict_GET_SIZE(PyObject *op) {
     PyDictObject *mp;
