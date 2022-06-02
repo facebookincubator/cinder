@@ -468,6 +468,25 @@ class UnionCompilationTests(StaticTestBase):
                 self.assertEqual(mod.f(1), 1.0)
                 self.assertEqual(mod.f(MyInt(1)), 1.0)
 
+    def test_isinstance_refine_dynamic(self) -> None:
+        codestr = f"""
+            from something import D
+
+            class B:
+                def __init__(self):
+                    p: int = 1
+
+            class C:
+                def __init__(self, x: B | None) -> None:
+                    self.x: B | None = x
+
+                def f(self, y: B | None) -> int:
+                    if isinstance(y, D):
+                        reveal_type(y)
+                    return -1
+        """
+        self.revealed_type(codestr, "dynamic")
+
 
 if __name__ == "__main__":
     unittest.main()

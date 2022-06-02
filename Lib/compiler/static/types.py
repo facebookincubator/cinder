@@ -6585,7 +6585,11 @@ class IsInstanceFunction(Object[Class]):
                     )
             else:
                 arg1_type = visitor.get_type(node.args[1])
-                if isinstance(arg1_type, Class):
+                if arg1_type == visitor.type_env.DYNAMIC:
+                    # if we have `isinstance(x, SomeUnknownClass)`, `x` should
+                    # be refined to `dynamic`.
+                    klass_type = visitor.type_env.DYNAMIC.klass
+                elif isinstance(arg1_type, Class):
                     klass_type = arg1_type.inexact()
 
             if klass_type is not None:
