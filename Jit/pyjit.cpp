@@ -772,6 +772,12 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
     case PYJIT_NOT_INITIALIZED:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_NOT_INITIALIZED");
       return NULL;
+    case PYJIT_RESULT_NO_PRELOADER:
+      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_NO_PRELOADER");
+      return NULL;
+    case PYJIT_RESULT_NOT_ON_JITLIST:
+      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_NOT_ON_JITLIST");
+      return NULL;
   }
   PyErr_SetString(PyExc_RuntimeError, "Unhandled compilation result");
   return NULL;
