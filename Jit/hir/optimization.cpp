@@ -779,6 +779,33 @@ static bool canInline(
   return true;
 }
 
+// As canInline() for checks which require a preloader.
+static bool canInlineWithPreloader(
+    AbstractCall* call_instr,
+    const std::string& fullname,
+    const Preloader& preloader) {
+  auto has_primitive_args = [&]() {
+    for (int i = 0; i < preloader.numArgs(); i++) {
+      if (preloader.checkArgType(i) <= TPrimitive) {
+        return true;
+      }
+    }
+    return false;
+  };
+  if ((call_instr->instr->IsVectorCall() ||
+       call_instr->instr->IsVectorCallStatic()) &&
+      (preloader.code()->co_flags & CO_STATICALLY_COMPILED) &&
+      (preloader.returnType() <= TPrimitive || has_primitive_args())) {
+    // TODO(T122371281) remove this constraint
+    JIT_DLOG(
+        "Can't inline %s as it is a vectorcalled static function with pimitive "
+        "args",
+        fullname);
+    return false;
+  }
+  return true;
+}
+
 void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   PyFunctionObject* func = call_instr->func;
   PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
@@ -811,13 +838,22 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   // single-threaded compilation can make Preloaders on the fly.
   InlineResult result;
   if (g_threaded_compile_context.compileRunning()) {
-    HIRBuilder hir_builder(getPreloader(func));
+    const Preloader& preloader{getPreloader(func)};
+    if (!canInlineWithPreloader(call_instr, fullname, preloader)) {
+      JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+      return;
+    }
+    HIRBuilder hir_builder(preloader);
     result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
   } else {
     // This explicit temporary is necessary because HIRBuilder takes a const
     // reference and stores it and we need to make sure the target doesn't go
     // away.
     Preloader preloader(func);
+    if (!canInlineWithPreloader(call_instr, fullname, preloader)) {
+      JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+      return;
+    }
     HIRBuilder hir_builder(preloader);
     result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
   }
