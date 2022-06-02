@@ -350,12 +350,20 @@ void HIRBuilder::addInitialYield(TranslationContext& tc) {
 // treatment of registers that correspond to arguments (vs locals) during
 // definite assignment analysis.
 void HIRBuilder::addLoadArgs(TranslationContext& tc, int num_args) {
+  PyCodeObject* code = tc.frame.code;
+  int starargs_idx = (code->co_flags & CO_VARARGS)
+      ? code->co_argcount + code->co_kwonlyargcount
+      : -1;
   for (int i = 0; i < num_args; i++) {
     // Arguments in CPython are the first N locals
     Register* dst = tc.frame.locals[i];
     JIT_CHECK(dst != nullptr, "No register for argument %d", i);
-    Type type = preloader_.checkArgType(i);
-    tc.emit<LoadArg>(dst, i, type);
+    if (i == starargs_idx) {
+      tc.emit<LoadArg>(dst, i, TTupleExact);
+    } else {
+      Type type = preloader_.checkArgType(i);
+      tc.emit<LoadArg>(dst, i, type);
+    }
   }
 }
 

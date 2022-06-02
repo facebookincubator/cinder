@@ -3879,3 +3879,44 @@ fun jittestmodule:test {
   }
 }
 ---
+StarargsIsRefinedToTupleExact
+---
+def test(x, y, *args):
+  return args
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "x">
+    v1 = LoadArg<1; "y">
+    v2 = LoadArg<2; "args", TupleExact>
+    v2 = CheckVar<"args"> v2 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<3> v0 v1 v2
+      }
+    }
+    Return v2
+  }
+}
+---
+StarargsIsRefinedToTupleExactWithKwonlyArgs
+---
+def test(x, y, *args, kwonly=None):
+  return args
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "x">
+    v1 = LoadArg<1; "y">
+    v2 = LoadArg<2; "kwonly">
+    v3 = LoadArg<3; "args", TupleExact>
+    v3 = CheckVar<"args"> v3 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<4> v0 v1 v2 v3
+      }
+    }
+    Return v3
+  }
+}
+---
