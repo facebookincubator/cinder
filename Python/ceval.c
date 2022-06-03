@@ -4007,7 +4007,10 @@ handle_eval_breaker:
             PyObject *name = GETITEM(names, oparg);
             PyObject *from = TOP();
             PyObject *res;
-            res = import_from(tstate, from, name);
+            if (PyLazyImport_CheckExact(from))
+                res = PyLazyImportObject_NewObject(from, name);
+            else
+                res = import_from(tstate, from, name);
             PUSH(res);
             if (res == NULL)
                 goto error;
