@@ -189,6 +189,17 @@ class BeginInlinedFunctionElimination : public Pass {
   }
 };
 
+class BuiltinLoadMethodElimination : public Pass {
+ public:
+  BuiltinLoadMethodElimination() : Pass("BuiltinLoadMethodElimination") {}
+
+  void Run(Function& irfunc) override;
+
+  static std::unique_ptr<BuiltinLoadMethodElimination> Factory() {
+    return std::make_unique<BuiltinLoadMethodElimination>();
+  }
+};
+
 class PassRegistry {
  public:
   PassRegistry();

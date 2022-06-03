@@ -41,6 +41,7 @@ PassRegistry::PassRegistry() {
   addPass(DeadCodeElimination::Factory);
   addPass(GuardTypeRemoval::Factory);
   addPass(BeginInlinedFunctionElimination::Factory);
+  addPass(BuiltinLoadMethodElimination::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
@@ -1015,6 +1016,99 @@ void BeginInlinedFunctionElimination::Run(Function& irfunc) {
   for (EndInlinedFunction* end : ends) {
     tryEliminateBeginEnd(end);
   }
+}
+
+struct MethodInvoke {
+  LoadMethod* load_method{nullptr};
+  GetLoadMethodInstance* get_instance{nullptr};
+  CallMethod* call_method{nullptr};
+};
+
+static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
+  ThreadedCompileSerialize guard;
+  PyCodeObject* code = invoke.load_method->frameState()->code;
+  PyObject* names = code->co_names;
+  PyObject* name = PyTuple_GetItem(names, invoke.load_method->name_idx());
+  JIT_DCHECK(name != nullptr, "name must not be null");
+  Register* receiver = invoke.load_method->receiver();
+  Type receiver_type = receiver->type();
+  // This is a list of common builtin types whose methods cannot be overwritten
+  // from managed code and for which looking up the methods is guaranteed to
+  // not do anything "weird" that needs to happen at runtime, like make a
+  // network request.
+  if (!(receiver_type <= TArrayExact || receiver_type <= TBool ||
+        receiver_type <= TBytesExact || receiver_type <= TCode ||
+        receiver_type <= TDictExact || receiver_type <= TFloatExact ||
+        receiver_type <= TListExact || receiver_type <= TLongExact ||
+        receiver_type <= TNoneType || receiver_type <= TSetExact ||
+        receiver_type <= TTupleExact || receiver_type <= TUnicodeExact)) {
+    return;
+  }
+  // Types with object specialization like LongExact[1] will not have a uniue
+  // PyTypeObject but they will have type specialization. Types without object
+  // specialization like MortalLongExact will not have type specialization but
+  // they will have a unique PyTypeObject.
+  PyTypeObject* type = receiver_type.hasTypeSpec()
+      ? receiver_type.typeSpec()
+      : receiver_type.uniquePyType();
+  JIT_DCHECK(type != nullptr, "type must not be null");
+  Ref<> method_obj =
+      Ref<>::steal(PyObject_GetAttr(reinterpret_cast<PyObject*>(type), name));
+  if (method_obj == nullptr) {
+    // No such method. Let the LoadMethod fail at runtime.
+    PyErr_Clear();
+    return;
+  }
+  Register* method_reg = invoke.load_method->dst();
+  auto load_const = LoadConst::create(
+      method_reg,
+      Type::fromObject(irfunc.env.addReference(std::move(method_obj))));
+  auto call_static = VectorCallStatic::create(
+      invoke.call_method->NumOperands(),
+      invoke.call_method->dst(),
+      invoke.call_method->isAwaited(),
+      *invoke.call_method->frameState());
+  call_static->SetOperand(0, method_reg);
+  call_static->SetOperand(1, receiver);
+  for (std::size_t i = 2; i < invoke.call_method->NumOperands(); i++) {
+    call_static->SetOperand(i, invoke.call_method->GetOperand(i));
+  }
+  auto use_type = UseType::create(receiver, receiver_type.unspecialized());
+  invoke.load_method->ExpandInto({use_type, load_const});
+  invoke.get_instance->ReplaceWith(
+      *Assign::create(invoke.get_instance->dst(), receiver));
+  invoke.call_method->ReplaceWith(*call_static);
+  delete invoke.load_method;
+  delete invoke.get_instance;
+  delete invoke.call_method;
+}
+
+void BuiltinLoadMethodElimination::Run(Function& irfunc) {
+  std::vector<MethodInvoke> invokes;
+  for (auto& block : irfunc.cfg.blocks) {
+    for (auto& instr : block) {
+      if (!instr.IsCallMethod()) {
+        continue;
+      }
+      auto cm = static_cast<CallMethod*>(&instr);
+      auto func_instr = cm->func()->instr();
+      if (func_instr->IsLoadMethodSuper()) {
+        continue;
+      }
+      JIT_DCHECK(
+          func_instr->IsLoadMethod(), "LoadMethod/CallMethod should be paired");
+      auto lm = static_cast<LoadMethod*>(func_instr);
+      JIT_DCHECK(
+          cm->self()->instr()->IsGetLoadMethodInstance(),
+          "GetLoadMethodInstance/CallMethod should be paired");
+      auto glmi = static_cast<GetLoadMethodInstance*>(cm->self()->instr());
+      invokes.push_back(MethodInvoke{lm, glmi, cm});
+    }
+  }
+  for (MethodInvoke& invoke : invokes) {
+    tryEliminateLoadMethod(irfunc, invoke);
+  }
+  reflowTypes(irfunc);
 }
 
 } // namespace hir
