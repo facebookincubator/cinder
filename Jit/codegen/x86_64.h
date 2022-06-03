@@ -231,7 +231,7 @@ static constexpr PhyRegisterSet CALLER_SAVE_REGS =
 static constexpr PhyRegisterSet CALLEE_SAVE_REGS =
     INIT_REGISTERS - CALLER_SAVE_REGS;
 
-static constexpr PhyLocation ARGUMENT_REGS[] = {
+static constexpr PhyLocation GP_ARGUMENT_REGS[] = {
     PhyLocation::RDI,
     PhyLocation::RSI,
     PhyLocation::RDX,
@@ -239,7 +239,7 @@ static constexpr PhyLocation ARGUMENT_REGS[] = {
     PhyLocation::R8,
     PhyLocation::R9};
 
-static constexpr size_t ARGUMENT_REG_COUNT = ARRAYSIZE(ARGUMENT_REGS);
+static constexpr size_t GP_ARGUMENT_REG_COUNT = ARRAYSIZE(GP_ARGUMENT_REGS);
 
 static constexpr PhyLocation FP_ARGUMENT_REGS[] = {
     PhyLocation::XMM0,
