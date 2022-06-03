@@ -86,7 +86,9 @@ void NativeGenerator::generateEpilogueUnlinkFrame(
   static_assert(
       PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
       "Unexpected constants");
-  as_->bt(x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)), 0);
+  as_->bt(
+      x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)),
+      _PyShadowFrame_PtrKindOff);
 
   // Unlink shadow frame. The send implementation handles unlinking these for
   // generators.

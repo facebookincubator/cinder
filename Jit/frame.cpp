@@ -195,6 +195,11 @@ Ref<PyFrameObject> createPyFrame(
   JIT_CHECK(py_frame != nullptr, "failed allocating frame");
   // PyFrame_New links the frame into the thread stack.
   Py_CLEAR(py_frame->f_back);
+  if (_PyShadowFrame_GetReadonly(shadow_frame) == PYSF_IN_READONLY) {
+    // Save the readonly mask if currently in an operation.
+    py_frame->f_readonly_operation_mask =
+        reinterpret_cast<JITShadowFrame*>(shadow_frame)->readonly_mask;
+  }
   if (frame_state->isGen()) {
     // Transfer ownership of the new reference to frame to the generator
     // epilogue.  It handles detecting and unlinking the frame if the generator

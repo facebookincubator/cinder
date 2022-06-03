@@ -149,7 +149,7 @@ class GenYieldPoint {
   const ptrdiff_t yieldFromOffs_;
 };
 
-class RuntimeFrameState {
+class alignas(16) RuntimeFrameState {
  public:
   RuntimeFrameState(BorrowedRef<PyCodeObject> code, BorrowedRef<> globals)
       : code_(code), globals_(globals) {}
@@ -178,7 +178,7 @@ class RuntimeFrameState {
 
 // Runtime data for a PyCodeObject object, containing caches and any other data
 // associated with a JIT-compiled function.
-class CodeRuntime {
+class alignas(16) CodeRuntime {
  public:
   explicit CodeRuntime(
       PyCodeObject* code,

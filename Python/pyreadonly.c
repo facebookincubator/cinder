@@ -30,12 +30,13 @@ static PyReadonlyOperationMask _PyReadonly_GetCurrentOperationMask(void) {
     PyThreadState *tstate = _PyThreadState_GET();
     _PyShadowFrame* shadow_frame = tstate->shadow_frame;
     if (shadow_frame != NULL) {
-        if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-            frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+        if (_PyShadowFrame_GetReadonly(shadow_frame) == PYSF_IN_READONLY) {
+            if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+                frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+            } else {
+                return ((JITShadowFrame*)shadow_frame)->readonly_mask;
+            }
         } else {
-            // Not a full frame, so definitely not a readonly op, as
-            // SetCurrentOperationMask currently forces the materialization of
-            // a full PyFrameObject. T116253972 tracks making that not required.
             return 0;
         }
     } else {
@@ -52,10 +53,21 @@ static PyReadonlyOperationMask _PyReadonly_GetCurrentOperationMask(void) {
 }
 
 static int _PyReadonly_SetCurrentOperationMask(int mask) {
-    // This will force materialization of the PyFrameObject, which is fine for
-    // now. Eventually this should be backed by storage in the shadow frame or
-    // adjacent storage.
-    PyFrameObject *frame = PyEval_GetFrame();
+    PyFrameObject *frame = NULL;
+    PyThreadState *tstate = _PyThreadState_GET();
+    _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+    if (shadow_frame != NULL) {
+        _PyShadowFrame_SetReadonly(shadow_frame, mask != 0 ? PYSF_IN_READONLY : PYSF_NO_READONLY);
+        if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+            frame = _PyShadowFrame_GetPyFrame(shadow_frame);
+        } else {
+            ((JITShadowFrame*)shadow_frame)->readonly_mask = (unsigned char)mask;
+            return 0;
+        }
+    } else {
+        frame = PyEval_GetFrame();
+    }
+
     if (frame == NULL) {
         // No frame exists, which means we're likely in the constant
         // folding pass, which doesn't know anything about readonly
