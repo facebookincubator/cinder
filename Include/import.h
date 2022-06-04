@@ -102,6 +102,10 @@ PyObject * PyImport_ImportName(
     PyObject *name,
     PyObject *fromlist,
     PyObject *level);
+PyObject * _PyImport_ImportFrom(
+    PyThreadState *tstate,
+    PyObject *v,
+    PyObject *name);
 
 #ifndef Py_LIMITED_API
 #  define Py_CPYTHON_IMPORT_H
