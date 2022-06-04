@@ -2081,3 +2081,18 @@ class StaticPatchTests(StaticTestBase):
             # Try patching C's staticmethod. This will crash if F's v-table
             # isn't initialized.
             setattr(mod.C, "f", lambda x: 100)
+
+    def test_set_code_raises_runtime_error(self):
+        codestr = """
+            def f():
+                return 42
+
+            def g():
+                return f()
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaises(RuntimeError) as ctx:
+                mod.f.__code__ = mod.g.__code__
+            self.assertEqual(
+                str(ctx.exception), "Cannot modify __code__ of Static Python function"
+            )
