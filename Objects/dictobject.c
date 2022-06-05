@@ -281,6 +281,7 @@ dict_modify_key(PyDictObject *dict, PyObject *key, PyObject *new_value)
     if (UNLIKELY(dict_is_watched(dict))) {
         dict->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
         _PyJIT_NotifyDictKey((PyObject *)dict, key, new_value);
+        _PyClassLoader_NotifyDictChange(dict, key);
     } else {
         dict->ma_version_tag = DICT_NEXT_VERSION();
     }

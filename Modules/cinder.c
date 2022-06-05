@@ -579,6 +579,24 @@ err:
   return NULL;
 }
 
+static PyObject *
+watch_sys_modules(PyObject *self, PyObject *obj)
+{
+    PyObject *sys = PyImport_ImportModule("sys");
+    if (sys == NULL) {
+      Py_RETURN_NONE;
+    }
+
+    PyObject *modules = PyObject_GetAttrString(sys, "modules");
+    Py_DECREF(sys);
+    if (modules == NULL) {
+      Py_RETURN_NONE;
+    }
+    _PyDict_Watch(modules);
+    Py_DECREF(modules);
+    Py_RETURN_NONE;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
@@ -689,6 +707,10 @@ static struct PyMethodDef cinder_module_methods[] = {
         get_entire_call_stack_as_qualnames,
         METH_NOARGS,
         "Return the current stack as a list of qualnames."},
+    {"watch_sys_modules",
+        watch_sys_modules,
+        METH_NOARGS,
+        "Watch the sys.modules dict to allow invalidating Static Python's internal caches."},
     {NULL, NULL} /* sentinel */
 };
 

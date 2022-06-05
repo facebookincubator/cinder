@@ -12,6 +12,7 @@
 #include "pycore_unionobject.h" // _Py_Union()
 
 static PyObject *classloader_cache;
+static PyObject *classloader_cache_module_to_keys;
 static PyObject *genericinst_cache;
 static PyTypeObject *static_enum;
 
@@ -2510,6 +2511,7 @@ void
 _PyClassLoader_ClearCache()
 {
     Py_CLEAR(classloader_cache);
+    Py_CLEAR(classloader_cache_module_to_keys);
     Py_CLEAR(static_enum);
 }
 
@@ -3108,7 +3110,34 @@ _PyClassLoader_ResolveType(PyObject *descr, int *optional, int *exact)
         }
     }
 
+    if (classloader_cache_module_to_keys == NULL) {
+        classloader_cache_module_to_keys = PyDict_New();
+        if (classloader_cache_module_to_keys == NULL) {
+            Py_DECREF(res);
+            return NULL;
+        }
+    }
+
     if (PyDict_SetItem(classloader_cache, descr, res)) {
+        Py_DECREF(res);
+        return NULL;
+    }
+    PyObject *module_key = PyTuple_GET_ITEM(descr, 0);
+    PyObject *existing_modules_to_keys = PyDict_GetItem(classloader_cache_module_to_keys,
+                                                        module_key);
+    if (existing_modules_to_keys == NULL) {
+        existing_modules_to_keys = PyList_New(0);
+        if (existing_modules_to_keys == NULL) {
+            Py_DECREF(res);
+            return NULL;
+        }
+        if (PyDict_SetItem(classloader_cache_module_to_keys, module_key, existing_modules_to_keys) < 0) {
+            Py_DECREF(res);
+            return NULL;
+        }
+        Py_DECREF(existing_modules_to_keys);
+    }
+    if (PyList_Append(existing_modules_to_keys, descr) < 0) {
         Py_DECREF(res);
         return NULL;
     }
@@ -4495,5 +4524,28 @@ int _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code) {
       return 1;
     }
   }
+  return 0;
+}
+
+int _PyClassLoader_NotifyDictChange(PyDictObject *dict, PyObject *key) {
+  PyThreadState *tstate = PyThreadState_GET();
+  PyObject *modules_dict = tstate->interp->modules;
+  if (((PyObject *)dict) != modules_dict) {
+    return 0;
+  }
+  if (classloader_cache_module_to_keys == NULL) {
+      return 0;
+  }
+  PyObject *keys_to_invalidate = PyDict_GetItem(classloader_cache_module_to_keys, key);
+  if (keys_to_invalidate == NULL) {
+      return 0;
+  }
+  for (Py_ssize_t i = 0; i < PyList_GET_SIZE(keys_to_invalidate); i++) {
+      PyObject* key_to_invalidate = PyList_GET_ITEM(keys_to_invalidate, i);
+      if (PyDict_DelItem(classloader_cache, key_to_invalidate) < 0) {
+          return 0;
+      }
+  }
+  PyDict_DelItem(classloader_cache_module_to_keys, key);
   return 0;
 }

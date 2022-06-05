@@ -627,6 +627,9 @@ _PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value) {
   return 1;
 }
 
+int _PyClassLoader_NotifyDictChange(PyDictObject *dict, PyObject *key);
+
+
 #endif
 
 #ifdef __cplusplus

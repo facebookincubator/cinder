@@ -4,7 +4,7 @@ from __future__ import annotations
 import builtins
 import os
 import sys
-from cinder import StrictModule
+from cinder import StrictModule, watch_sys_modules
 from enum import Enum
 from importlib.abc import Loader
 from importlib.machinery import (
@@ -328,10 +328,13 @@ class StrictSourceFileLoader(SourceFileLoader):
 
         return code
 
-    def _ensure_build_class_patched(self) -> None:
+    def _ensure_static_python_builtins_enabled(self) -> None:
         # pyre-ignore[61]: __build_class__ isn't exposed in builtins.pyi.
         if builtins.__build_class__ is not __build_cinder_class__:
+            # We use builtins.__build_class__ not being patched as a proxy that we need to
+            # install the Static Python machinery.
             builtins.__build_class__ = __build_cinder_class__
+            watch_sys_modules()
 
     def exec_module(self, module: ModuleType) -> None:
         # This ends up being slightly convoluted, because create_module
@@ -370,7 +373,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 "<init-cached-properties>": self.init_cached_properties,
             }
             if code.co_flags & CO_STATICALLY_COMPILED:
-                self._ensure_build_class_patched()
+                self._ensure_static_python_builtins_enabled()
                 new_dict["<imported-from>"] = code.co_consts[-1]
 
             new_dict.update(module.__dict__)
