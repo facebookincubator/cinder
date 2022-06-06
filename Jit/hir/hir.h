@@ -105,7 +105,7 @@ class Register {
 std::ostream& operator<<(std::ostream& os, const Register& reg);
 
 // The refcount semantics of a value held in a Register.
-enum class RefKind {
+enum class RefKind : char {
   // A PyObject* that is either null or points to an immortal object, and
   // doesn't need to be reference counted, or a primitive.
   kUncounted,
@@ -117,7 +117,7 @@ enum class RefKind {
 std::ostream& operator<<(std::ostream& os, RefKind kind);
 
 // The kind of value held in a Register.
-enum class ValueKind {
+enum class ValueKind : char {
   // A PyObject*.
   kObject,
   // A signed 64-bit integer.

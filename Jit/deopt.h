@@ -44,7 +44,7 @@ struct LiveValue {
   // During deoptimization we need to translate this stack layout into the
   // form expected by the interpreter. To do so, we tag the `LiveValue` for
   // the stack slot that contains `<callable>` with this field.
-  enum class Source {
+  enum class Source : char {
     kLoadMethod,
     kUnknown,
   };
@@ -83,7 +83,7 @@ struct LiveValue {
   X(UnhandledUnboundFreevar) \
   X(UnhandledNullField)
 
-enum class DeoptReason {
+enum class DeoptReason : char {
 #define REASON(name) k##name,
   DEOPT_REASONS(REASON)
 #undef REASON
@@ -91,7 +91,7 @@ enum class DeoptReason {
 
 const char* deoptReasonName(DeoptReason reason);
 
-enum class DeoptAction {
+enum class DeoptAction : char {
   kResumeInInterpreter,
   kUnwind,
 };
@@ -128,12 +128,6 @@ struct DeoptFrameMetadata {
 // DeoptMetadata captures all the information necessary to reconstruct a
 // PyFrameObject when deoptimization occurs.
 struct DeoptMetadata {
-  // Why we are de-opting
-  DeoptReason reason{DeoptReason::kUnhandledException};
-
-  // What to do when we de-opt
-  DeoptAction action{DeoptAction::kUnwind};
-
   // The name index of the unbound local or attribute, if we are deopting
   // because of an undefined value.
   BorrowedRef<> eh_name;
@@ -141,16 +135,8 @@ struct DeoptMetadata {
   // All live values
   std::vector<LiveValue> live_values;
 
-  // If not -1, index into live_values for a context-dependent value that is
-  // relevant to this deopt event.
-  int guilty_value{-1};
-
   // Stack of inlined frame metadata unwound from the deopting instruction.
   std::vector<DeoptFrameMetadata> frame_meta;
-
-  // An identifier that can be used to map back to the guard from which
-  // this was generated.
-  int nonce{-1};
 
   // Runtime metadata associated with the JIT-compiled function from which this
   // was generated.
@@ -159,9 +145,25 @@ struct DeoptMetadata {
   // A human-readable description of why this deopt happened.
   const char* descr{nullptr};
 
+  // If not -1, index into live_values for a context-dependent value that is
+  // relevant to this deopt event.
+  int guilty_value{-1};
+
+  // An identifier that can be used to map back to the guard from which
+  // this was generated.
+  int nonce{-1};
+
+  // Why we are de-opting
+  DeoptReason reason{DeoptReason::kUnhandledException};
+
+  // What to do when we de-opt
+  DeoptAction action{DeoptAction::kUnwind};
+
   // If part of an inlined function, the depth into the call stack that this
   // code *would* be (1, 2, 3, ...). If not inlined, 0.
-  int inline_depth{0};
+  int inline_depth() const {
+    return frame_meta.size() - 1;
+  }
 
   const LiveValue& getStackValue(int i, const DeoptFrameMetadata& frame) const {
     return live_values[frame.stack[i]];
@@ -195,7 +197,7 @@ struct DeoptMetadata {
         deoptReasonName(reason),
         deoptActionName(action),
         descr,
-        inline_depth,
+        inline_depth(),
         fmt::join(live_value_strings, ", "));
   }
 

@@ -317,8 +317,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
 
   auto fs = instr.frameState();
 
-  meta.inline_depth = fs->inlineDepth();
-  int num_frames = meta.inline_depth;
+  int num_frames = fs->inlineDepth();
   meta.frame_meta.resize(num_frames + 1); // +1 for caller
   for (hir::FrameState* frame = fs; frame != NULL; frame = frame->parent) {
     int i = num_frames--;

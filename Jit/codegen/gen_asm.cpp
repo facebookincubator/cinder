@@ -1443,7 +1443,7 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
   PyFrameObject* frame_iter = frame;
   _PyShadowFrame* sf_iter = tstate->shadow_frame;
   // Iterate one past the inline depth because that is the caller frame.
-  for (int i = deopt_meta.inline_depth; i >= 0; i--) {
+  for (int i = deopt_meta.inline_depth(); i >= 0; i--) {
     // Transfer ownership of shadow frame to the interpreter. The associated
     // Python frame will be ignored during future attempts to materialize the
     // stack.
@@ -1515,7 +1515,7 @@ static PyObject* resumeInInterpreter(
   PyObject* result = nullptr;
   // Resume all of the inlined frames and the caller
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
-  int inline_depth = deopt_meta.inline_depth;
+  int inline_depth = deopt_meta.inline_depth();
   int err_occurred = (deopt_meta.reason != DeoptReason::kGuardFailure);
   while (inline_depth >= 0) {
     // TODO(emacs): Investigate skipping resuming frames that do not have

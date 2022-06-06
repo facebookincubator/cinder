@@ -943,7 +943,7 @@ Ref<> make_deopt_stats() {
 
   for (auto& pair : runtime->deoptStats()) {
     const DeoptMetadata& meta = runtime->getDeoptMetadata(pair.first);
-    const DeoptFrameMetadata& frame_meta = meta.frame_meta[meta.inline_depth];
+    const DeoptFrameMetadata& frame_meta = meta.frame_meta[meta.inline_depth()];
     const DeoptStat& stat = pair.second;
     BorrowedRef<PyCodeObject> code = frame_meta.code;
 
