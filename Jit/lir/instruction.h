@@ -90,6 +90,10 @@ enum class FlagEffects {
   X(BranchLE)                                                                \
   X(BranchC)                                                                 \
   X(BranchNC)                                                                \
+  X(BranchO)                                                                 \
+  X(BranchNO)                                                                \
+  X(BranchS)                                                                 \
+  X(BranchNS)                                                                \
   X(BitTest, false, FlagEffects::kSet, kDefault, 1, {1})                     \
   X(Inc, false, FlagEffects::kSet)                                           \
   X(Dec, false, FlagEffects::kSet)                                           \
@@ -416,6 +420,10 @@ class Instruction {
     switch (opcode_) {
       case kBranchC:
       case kBranchNC:
+      case kBranchO:
+      case kBranchNO:
+      case kBranchS:
+      case kBranchNS:
       case kBranchZ:
       case kBranchNZ:
       case kBranchA:
@@ -469,6 +477,8 @@ class Instruction {
   static Opcode negateBranchCC(Opcode opcode) {
     switch (opcode) {
       CASE_FLIP(kBranchC, kBranchNC)
+      CASE_FLIP(kBranchO, kBranchNO)
+      CASE_FLIP(kBranchS, kBranchNS)
       CASE_FLIP(kBranchZ, kBranchNZ)
       CASE_FLIP(kBranchA, kBranchBE)
       CASE_FLIP(kBranchB, kBranchAE)

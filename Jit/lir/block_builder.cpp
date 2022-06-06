@@ -443,6 +443,30 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
          auto succ_bb = bldr.GetBasicBlockByLabel(tokens[1]);
          bldr.cur_bb_->addSuccessor(succ_bb);
        }},
+      {"BranchO",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
+         bldr.createInstr(Instruction::kBranchO);
+         auto succ_bb = bldr.GetBasicBlockByLabel(tokens[1]);
+         bldr.cur_bb_->addSuccessor(succ_bb);
+       }},
+      {"BranchNO",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
+         bldr.createInstr(Instruction::kBranchNO);
+         auto succ_bb = bldr.GetBasicBlockByLabel(tokens[1]);
+         bldr.cur_bb_->addSuccessor(succ_bb);
+       }},
+      {"BranchS",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
+         bldr.createInstr(Instruction::kBranchS);
+         auto succ_bb = bldr.GetBasicBlockByLabel(tokens[1]);
+         bldr.cur_bb_->addSuccessor(succ_bb);
+       }},
+      {"BranchNS",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
+         bldr.createInstr(Instruction::kBranchNS);
+         auto succ_bb = bldr.GetBasicBlockByLabel(tokens[1]);
+         bldr.cur_bb_->addSuccessor(succ_bb);
+       }},
       {"BitTest",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          auto instr = bldr.createInstr(Instruction::kBitTest);
