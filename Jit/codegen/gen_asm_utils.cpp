@@ -16,7 +16,7 @@ void recordDebugEntry(Environ& env, const jit::lir::Instruction* instr) {
   env.as->bind(addr);
   env.pending_debug_locs.emplace_back(addr, instr->origin());
 }
-}
+} // namespace
 
 void emitCall(
     Environ& env,

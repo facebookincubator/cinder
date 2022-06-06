@@ -32,7 +32,6 @@ uint32_t hashBytecode(PyCodeObject* code) {
 namespace {
 
 const uint64_t kMagicHeader = 0x7265646e6963;
-const uint64_t kMegamorphicNumber = 4;
 
 using ProfileData = UnorderedMap<CodeKey, CodeProfileData>;
 ProfileData s_profile_data;
@@ -130,20 +129,17 @@ void writeVersion2(std::ostream& stream, const TypeProfiles& profiles) {
       }
       auto& vec = code_data[profile_pair.first];
       // Store a list of profile row indices sorted by number of times seen
-      int sorted_rows[kMegamorphicNumber];
-      int num_profiles = 0;
-      while (num_profiles < profile.rows() && profile.count(num_profiles) > 0) {
-        sorted_rows[num_profiles] = num_profiles;
-        num_profiles++;
+      std::vector<int> sorted_rows;
+      for (int row = 0; row < profile.rows() && profile.count(row) > 0; row++) {
+        sorted_rows.emplace_back(row);
       }
-      std::sort(
-          sorted_rows, sorted_rows + num_profiles, [&profile](int a, int b) {
-            return profile.count(a) > profile.count(b);
-          });
-      for (int row = 0; row < num_profiles; ++row) {
+      std::sort(sorted_rows.begin(), sorted_rows.end(), [&](int a, int b) {
+        return profile.count(a) > profile.count(b);
+      });
+      for (int row : sorted_rows) {
         std::vector<std::string> single_profile;
         for (int col = 0; col < profile.cols(); ++col) {
-          BorrowedRef<PyTypeObject> type = profile.type(sorted_rows[row], col);
+          BorrowedRef<PyTypeObject> type = profile.type(row, col);
           if (type == nullptr) {
             single_profile.emplace_back("<NULL>");
           } else {

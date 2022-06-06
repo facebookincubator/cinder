@@ -192,8 +192,7 @@ lir::Function* LIRInliner::findFunction() {
 
 lir::Function* LIRInliner::parseFunction(uint64_t addr) {
   // addr_to_function maps function address to parsed function
-  static UnorderedMap<uint64_t, std::unique_ptr<Function>>
-      addr_to_function;
+  static UnorderedMap<uint64_t, std::unique_ptr<Function>> addr_to_function;
   static std::shared_mutex addr_map_guard;
 
   {
