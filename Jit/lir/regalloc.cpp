@@ -1117,7 +1117,7 @@ void LinearScanAllocator::rewriteInstrOneIndirectOperand(
   PhyLocation index_phy_reg = PhyLocation::REG_INVALID;
   bool index_last_use = false;
   if (index != nullptr) {
-    index_phy_reg = index->isVreg()
+    index_phy_reg = (index->isVreg() || index->isLinked())
         ? map_get(mapping, index->getDefine())->allocated_loc
         : PhyLocation(index->getPhyRegister());
 
