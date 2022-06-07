@@ -61,7 +61,9 @@ extern Py_ssize_t _PyDict_KeysSize(PyDictKeysObject *keys);
  * -1 when no entry found, -3 when compare raises error.
  */
 extern Py_ssize_t _Py_dict_lookup(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr);
+extern Py_ssize_t dict_lookup_impl(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr, int resolve_lazy_imports);
 
+extern PyObject *_PyDict_GetItemKeepLazy(PyObject *op, PyObject *key);
 extern Py_ssize_t _PyDict_GetItemHint(PyDictObject *, PyObject *, Py_ssize_t, PyObject **);
 extern Py_ssize_t _PyDictKeys_StringLookup(PyDictKeysObject* dictkeys, PyObject *key);
 extern PyObject *_PyDict_LoadGlobal(PyDictObject *, PyDictObject *, PyObject *);
@@ -76,6 +78,7 @@ extern PyObject *_PyDict_Pop_KnownHash(PyObject *, PyObject *, Py_hash_t, PyObje
 #define DKIX_DUMMY (-2)  /* Used internally */
 #define DKIX_ERROR (-3)
 #define DKIX_KEY_CHANGED (-4) /* Used internally */
+#define DKIX_VALUE_ERROR (-5) /* Used internally */
 
 typedef enum {
     DICT_KEYS_GENERAL = 0,

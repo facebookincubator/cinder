@@ -533,7 +533,7 @@ _odict_get_index_raw(PyODictObject *od, PyObject *key, Py_hash_t hash)
     PyDictKeysObject *keys = ((PyDictObject *)od)->ma_keys;
     Py_ssize_t ix;
 
-    ix = _Py_dict_lookup((PyDictObject *)od, key, hash, &value);
+    ix = dict_lookup_impl((PyDictObject *)od, key, hash, &value, 0);
     if (ix == DKIX_EMPTY) {
         return keys->dk_nentries;  /* index of new entry */
     }

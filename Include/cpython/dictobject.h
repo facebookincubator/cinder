@@ -45,6 +45,11 @@ PyAPI_FUNC(int) _PyDict_DelItemIf(PyObject *mp, PyObject *key,
 PyAPI_FUNC(int) _PyDict_Next(
     PyObject *mp, Py_ssize_t *pos, PyObject **key, PyObject **value, Py_hash_t *hash);
 
+PyObject *_PyDict_GetAttrItem(PyObject *op, PyObject *key);
+
+/* Return non-zero if the given dict has lazy imports, 0 otherwise. */
+int _PyDict_HasLazyImports(PyObject *);
+
 /* Flag dictionary as having lazy imports in it */
 void _PyDict_SetHasLazyImports(PyObject *);
 

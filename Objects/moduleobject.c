@@ -1145,7 +1145,7 @@ lazy_import_clear(PyLazyImport *m)
 int
 PyLazyImport_Match(PyLazyImport *lazy_import, PyObject *mod_dict, PyObject *name)
 {
-    PyObject *mod_name = PyDict_GetItemWithError(mod_dict, &_Py_ID(__name__));
+    PyObject *mod_name = PyDict_GetItem(mod_dict, &_Py_ID(__name__));
     if (mod_name == NULL || !PyUnicode_Check(mod_name)) {
         return 0;
     }

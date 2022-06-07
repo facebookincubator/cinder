@@ -2770,8 +2770,16 @@ handle_eval_breaker:
                 goto error;
             }
             if (PyDict_CheckExact(ns)) {
-                if (PyLazyImport_CheckExact(v))
+                if (PyLazyImport_CheckExact(v)) {
+                    PyObject *d = _PyDict_GetItemKeepLazy(ns, name);
+                    // if `ns` has a lazy import object at `name`, chain it to the new lazy import object
+                    if (d != NULL && PyLazyImport_CheckExact(d)) {
+                        assert(((PyLazyImport *)v)->lz_next == NULL);
+                        Py_INCREF(d);
+                        ((PyLazyImport *)v)->lz_next = d;
+                    }
                     _PyDict_SetHasLazyImports(ns);
+                }
                 err = PyDict_SetItem(ns, name, v);
             } else {
                 err = PyObject_SetItem(ns, name, v);
@@ -3955,7 +3963,8 @@ handle_eval_breaker:
             PyObject *level = TOP();
             PyObject *res;
             res = PyImport_EagerImportName(
-                frame->f_builtins, frame->f_globals, frame->f_locals, name, fromlist, level);
+                frame->f_builtins, frame->f_globals, frame->f_locals,
+                name, fromlist, level, NULL);
             Py_DECREF(level);
             Py_DECREF(fromlist);
             SET_TOP(res);
@@ -3982,6 +3991,15 @@ handle_eval_breaker:
         TARGET(IMPORT_STAR) {
             PyObject *from = POP(), *locals;
             int err;
+            if (PyLazyImport_CheckExact(from)) {
+                PyObject *mod = PyImport_LoadLazyImport(from);
+                Py_XINCREF(mod);
+                Py_DECREF(from);
+                if (mod == NULL) {
+                    goto error;
+                }
+                from = mod;
+            }
             if (_PyFrame_FastToLocalsWithError(frame) < 0) {
                 Py_DECREF(from);
                 goto error;
@@ -7361,20 +7379,24 @@ import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v)
     if (_PyObject_LookupAttr(v, &_Py_ID(__all__), &all) < 0) {
         return -1; /* Unexpected error */
     }
+    if (_PyObject_LookupAttr(v, &_Py_ID(__dict__), &dict) < 0) {
+        return -1; /* Unexpected error */
+    }
     if (all == NULL) {
-        if (_PyObject_LookupAttr(v, &_Py_ID(__dict__), &dict) < 0) {
-            return -1;
-        }
         if (dict == NULL) {
             _PyErr_SetString(tstate, PyExc_ImportError,
                     "from-import-* object has no __dict__ and no __all__");
             return -1;
         }
         all = PyMapping_Keys(dict);
-        Py_DECREF(dict);
-        if (all == NULL)
+        if (all == NULL) {
+            Py_DECREF(dict);
             return -1;
+        }
         skip_leading_underscores = 1;
+    } else if (dict == NULL) {
+        Py_DECREF(all);
+        return -1;
     }
 
     for (pos = 0, err = 0; ; pos++) {

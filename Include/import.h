@@ -62,8 +62,8 @@ PyAPI_FUNC(PyObject *) PyImport_ImportModuleLevelObject(
     PyObject *globals,
     PyObject *locals,
     PyObject *fromlist,
-    int level
-    );
+    int level);
+    // PyObject *lazy_loaded);
 #endif
 
 #define PyImport_ImportModuleEx(n, g, l, f) \
@@ -87,14 +87,15 @@ PyAPI_FUNC(int) PyImport_AppendInittab(
     );
 
 // TODO(lazy_imports): ifdef guards?
+PyObject * PyImport_LoadLazyImport(PyObject *lazy_import);
 PyObject * PyImport_EagerImportName(
     PyObject *builtins,
     PyObject *globals,
     PyObject *locals,
     PyObject *name,
     PyObject *fromlist,
-    PyObject *level
-    );
+    PyObject *level,
+    PyObject *lazy_loaded);
 PyObject * PyImport_ImportName(
     PyObject *builtins,
     PyObject *globals,
