@@ -1,0 +1,4 @@
+[cinder]
+    type = WIKI
+    srcs = [glob(**/*.rst), glob(**/*.png)]
+    wiki_root_path = Python/Cinder/External_Public
