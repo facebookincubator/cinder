@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
       HIRTest::kUseProfileData | HIRTest::kCompileStatic);
   register_json_test("RuntimeTests/hir_tests/json_test.txt");
   register_test(
-      "RuntimeTests/hir_tests/builtin_loadmethod_elimination_test.txt");
+      "RuntimeTests/hir_tests/builtin_load_method_elimination_test.txt");
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {
