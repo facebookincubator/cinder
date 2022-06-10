@@ -142,3 +142,18 @@ Tools/ssl/win32
 /Programs/_freeze_module
 /Python/deepfreeze/
 /Python/frozen_modules/
+
+# Cinder-related ignores
+.vs/
+gmon.out
+ThirdParty/**/*.a
+ThirdParty/dynasm/minilua
+RuntimeTests/dynasm_test.cpp
+runtime_tests
+Jit/code_gen.cpp
+Jit/code_gen.c
+compile_commands.json
+g++.par.sh
+gcc.par.sh
+clang.par.sh
+pyembed_includes
