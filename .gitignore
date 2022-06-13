@@ -156,3 +156,4 @@ g++.par.sh
 gcc.par.sh
 clang.par.sh
 pyembed_includes
+.sphinx-build/
