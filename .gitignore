@@ -148,8 +148,6 @@ Tools/ssl/win32
 .vs/
 gmon.out
 ThirdParty/**/*.a
-ThirdParty/dynasm/minilua
-RuntimeTests/dynasm_test.cpp
 runtime_tests
 compile_commands.json
 g++.par.sh
