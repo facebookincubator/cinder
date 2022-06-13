@@ -55,6 +55,7 @@ Doc/.venv/
 Doc/env/
 Doc/.env/
 Include/pydtrace_probes.h
+Include/pydtrace_probes_import.h
 Lib/distutils/command/*.pdb
 Lib/lib2to3/*.pickle
 Lib/test/data/*
