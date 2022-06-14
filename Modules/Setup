@@ -156,6 +156,7 @@ PYTHONPATH=$(COREPYTHONPATH)
 #math mathmodule.c
 #mmap mmapmodule.c
 #select selectmodule.c
+#_lazydebug _imp.c
 
 # XML
 #_elementtree _elementtree.c
@@ -263,7 +264,7 @@ PYTHONPATH=$(COREPYTHONPATH)
 # *** Always uncomment this; X11 libraries to link with:
 #	-lX11
 
-# Some system have -lcurses 
+# Some system have -lcurses
 #_curses -lncurses -lncursesw -ltermcap _cursesmodule.c
 #_curses_panel -lpanel -lncurses _curses_panel.c
 

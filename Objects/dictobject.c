@@ -3929,6 +3929,33 @@ static PyMethodDef mapp_methods[] = {
     {NULL,              NULL}   /* sentinel */
 };
 
+
+// return 1 if the 'key' of 'mp' is not loaded (a lazy key)
+// return 0 if the 'key' of 'mp' is loaded
+// return -1 if existing an error
+int
+PyDict_IsLazyKey(PyObject *mp, PyObject *key)
+{
+    PyObject *value = _PyDict_GetItemKeepLazy(mp, key);
+
+    if (value == NULL) {
+        // error
+        fprintf(stderr, "# '%s' ERROR! \n", PyUnicode_AsUTF8(key));
+        return -1;
+    }
+
+    if (PyLazyImport_CheckExact(value)) {
+        // not loaded
+        fprintf(stderr, "# '%s' is NOT loaded\n", PyUnicode_AsUTF8(key));
+        return 1;
+    }
+
+    // loaded
+    fprintf(stderr, "# '%s' is loaded\n", PyUnicode_AsUTF8(key));
+    return 0;
+}
+
+
 /* Return 1 if `key` is in dict `op`, 0 if not, and -1 on error. */
 int
 PyDict_Contains(PyObject *op, PyObject *key)

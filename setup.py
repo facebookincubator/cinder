@@ -1009,6 +1009,9 @@ class PyBuildExt(build_ext):
         # POSIX subprocess module helper.
         self.addext(Extension('_posixsubprocess', ['_posixsubprocess.c']))
 
+        # lazy imports debugging module
+        self.addext(Extension('_lazydebug', ['_imp.c']))
+
     def detect_test_extensions(self):
         # Python C API test module
         self.addext(Extension('_testcapi', ['_testcapimodule.c']))
