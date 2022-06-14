@@ -11,7 +11,7 @@ is_lazy_key_impl(PyObject *module, PyObject *dict, PyObject *key)
 
 static PyMethodDef LazyDebugMethods[] = {
     IS_LAZY_KEY_METHODDEF
-    {NULL, NULL, 0, NULL}        /* Sentinel */
+    {NULL, NULL, 0, NULL}
 };
 
 static struct PyModuleDef lazydebugmodule = {

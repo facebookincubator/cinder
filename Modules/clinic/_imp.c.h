@@ -1,5 +1,9 @@
 PyDoc_STRVAR(is_lazy_key__doc__,
-"is_lazy_key__doc__ content\n"
+"is_lazy_key(module, dict, key)\n"
+"It will check if *key*'s value in dict is loaded or not.\n"
+"It will return 1 if the value is not loaded (a lazy key).\n"
+"It will return 0 if the value is loaded.\n"
+"It will return -1 if existing an error.\n"
 );
 
 #define IS_LAZY_KEY_METHODDEF    \
