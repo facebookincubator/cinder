@@ -3929,6 +3929,30 @@ static PyMethodDef mapp_methods[] = {
     {NULL,              NULL}   /* sentinel */
 };
 
+
+// return 1 if `key` in `mp` contains a lazy import object
+// return 0 if `key` in `mp` is not a lazy import object
+// return -1 if `key` doesn't exist in `mp`, or an error occurred
+int
+PyDict_IsLazyImport(PyObject *mp, PyObject *key)
+{
+    PyObject *value = _PyDict_GetItemKeepLazy(mp, key);
+
+    // error
+    if (value == NULL) {
+        return -1;
+    }
+
+    // not loaded
+    if (PyLazyImport_CheckExact(value)) {
+        return 1;
+    }
+
+    // loaded
+    return 0;
+}
+
+
 /* Return 1 if `key` is in dict `op`, 0 if not, and -1 on error. */
 int
 PyDict_Contains(PyObject *op, PyObject *key)
