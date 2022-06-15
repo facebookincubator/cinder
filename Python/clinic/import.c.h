@@ -560,10 +560,10 @@ exit:
 
 PyDoc_STRVAR(_imp_is_lazy_import__doc__,
 "is_lazy_import(module, dict, key)\n"
-"It will check if *key*'s value in dict is loaded or not.\n"
-"It will return 1 if the value is not loaded (a lazy key).\n"
-"It will return 0 if the value is loaded.\n"
-"It will return -1 if existing an error.\n"
+"It will check if `key` in `dict` contains a lazy import object.\n"
+"Return 1 if `key` in `dict` contains a lazy import object.\n"
+"Return 0 if `key` in `dict` is not a lazy import object.\n"
+"Return -1 if `key` doesn't exist in `dict`, or an error occurred.\n"
 );
 
 #define _IMP_IS_LAZY_IMPORT_METHODDEF    \

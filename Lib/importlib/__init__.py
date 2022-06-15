@@ -62,6 +62,9 @@ import warnings
 from ._bootstrap import __import__
 
 def is_lazy_import(dictionary, key):
+    """Call is_lazy_import(dictionary, key) to check if `key` in `dictionary`
+    contains a lazy import object.
+    """
     return _imp.is_lazy_import(dictionary, key)
 
 def invalidate_caches():
