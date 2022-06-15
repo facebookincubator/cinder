@@ -3930,9 +3930,9 @@ static PyMethodDef mapp_methods[] = {
 };
 
 
-// return 1 if the module `key` in `mp` is not loaded (a lazy key)
-// return 0 if the module `key` in `mp` is loaded
-// return -1 if existing an error
+// return 1 if `key` in `mp` contains a lazy import object
+// return 0 if `key` in `mp` is not a lazy import object
+// return -1 if `key` doesn't exist in `mp`, or an error occurred
 int
 PyDict_IsLazyImport(PyObject *mp, PyObject *key)
 {

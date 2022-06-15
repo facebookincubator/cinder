@@ -11,12 +11,10 @@ is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *key)
         PyErr_SetObject(PyExc_KeyError, key);
         return NULL;
     }
-    else if (res == 1) {
+    if (res == 1) {
         Py_RETURN_TRUE;
     }
-    else {
-        Py_RETURN_FALSE;
-    }
+    Py_RETURN_FALSE;
 }
 
 static PyMethodDef ImportlibMethods[] = {
