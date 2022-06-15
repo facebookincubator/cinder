@@ -453,6 +453,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 default_index += 1
                 continue
             else:
+                self.perf_warning(
+                    "Missing type annotation for positional-only argument "
+                    f"'{arg.arg}' prevents type specialization in Static Python",
+                    arg,
+                )
                 arg_type = self.type_env.dynamic
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
@@ -478,6 +483,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 default_index += 1
                 continue
             else:
+                self.perf_warning(
+                    f"Missing type annotation for argument '{arg.arg}' "
+                    "prevents type specialization in Static Python",
+                    arg,
+                )
                 arg_type = self.type_env.dynamic
             if default_index >= 0:
                 self.visit(args.defaults[default_index], arg_type.instance)
@@ -512,6 +522,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 )
                 arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
             else:
+                self.perf_warning(
+                    "Missing type annotation for keyword-only argument "
+                    f"'{arg.arg}' prevents type specialization in Static Python",
+                    arg,
+                )
                 arg_type = self.type_env.dynamic
 
             if default_index >= 0:

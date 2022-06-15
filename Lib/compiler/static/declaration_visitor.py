@@ -80,9 +80,6 @@ class DeclarationVisitor(GenericVisitor[None]):
     def exit_scope(self) -> None:
         self.scopes.pop()
 
-    def perf_warning(self, msg: str, node: AST) -> None:
-        self.compiler.error_sink.perf_warning(msg, self.module.filename, node)
-
     def visitAnnAssign(self, node: AnnAssign) -> None:
         self.parent_scope().declare_variable(node, self.module)
 

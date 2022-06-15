@@ -1,4 +1,5 @@
 from compiler.pycodegen import PythonCodeGenerator
+from compiler.static.types import ParamStyle
 
 from .common import StaticTestBase
 
@@ -341,3 +342,33 @@ class PerfLintTests(StaticTestBase):
                 at="dataclass",
             )
         )
+
+    def test_self_missing_annotation_no_warning(self) -> None:
+        codestr = """
+        @final
+        class C:
+            def foo(self) -> int:
+                return 42
+
+        C().foo()
+        """
+
+        errors = self.perf_lint(codestr)
+        errors.check_warnings()
+
+    def test_missing_arg_annotation(self) -> None:
+        for style, args in (
+            (ParamStyle.NORMAL, "missing"),
+            (ParamStyle.POSONLY, "missing, /"),
+            (ParamStyle.KWONLY, "*, missing"),
+        ):
+            with self.subTest(param_style=style.name):
+                codestr = f"""
+                def add1({args}) -> int:
+                    return missing + 1
+                """
+
+                errors = self.perf_lint(codestr)
+                errors.check_warnings(
+                    errors.match("Missing type annotation", at="missing")
+                )
