@@ -3,18 +3,24 @@
 #include "clinic/_importlib.c.h"
 
 static PyObject *
-is_lazy_key_impl(PyObject *module, PyObject *dict, PyObject *key)
+is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *key)
 {
     int res = PyDict_IsLazyImport(dict, key);
 
-    if (res == 1) {
-        return Py_BuildValue("O", Py_True);
+    if (res == -1) {
+        PyErr_SetObject(PyExc_KeyError, key);
+        return NULL;
     }
-    return Py_BuildValue("O", Py_False);
+    else if (res == 1) {
+        Py_RETURN_TRUE;
+    }
+    else {
+        Py_RETURN_FALSE;
+    }
 }
 
 static PyMethodDef ImportlibMethods[] = {
-    IS_LAZY_KEY_METHODDEF
+    IS_LAZY_IMPORT_METHODDEF
     {NULL, NULL, 0, NULL}
 };
 

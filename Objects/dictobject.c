@@ -3940,9 +3940,6 @@ PyDict_IsLazyImport(PyObject *mp, PyObject *key)
 
     // error
     if (value == NULL) {
-        PyErr_SetString(PyExc_KeyError,
-                        "cannot find this key "
-                        "in the specified dictionary");
         return -1;
     }
 
