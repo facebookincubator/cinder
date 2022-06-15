@@ -156,7 +156,6 @@ PYTHONPATH=$(COREPYTHONPATH)
 #math mathmodule.c
 #mmap mmapmodule.c
 #select selectmodule.c
-#_lazydebug _imp.c
 
 # XML
 #_elementtree _elementtree.c

@@ -3934,12 +3934,15 @@ static PyMethodDef mapp_methods[] = {
 // return 0 if the module `key` in `mp` is loaded
 // return -1 if existing an error
 int
-PyDict_IsLazyKey(PyObject *mp, PyObject *key)
+PyDict_IsLazyImport(PyObject *mp, PyObject *key)
 {
     PyObject *value = _PyDict_GetItemKeepLazy(mp, key);
 
     // error
     if (value == NULL) {
+        PyErr_SetString(PyExc_KeyError,
+                        "cannot find this key "
+                        "in the specified dictionary");
         return -1;
     }
 
