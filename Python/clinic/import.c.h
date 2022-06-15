@@ -558,6 +558,45 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_imp_is_lazy_import__doc__,
+"is_lazy_import(module, dict, key)\n"
+"It will check if `key` in `dict` contains a lazy import object.\n"
+"Return 1 if `key` in `dict` contains a lazy import object.\n"
+"Return 0 if `key` in `dict` is not a lazy import object.\n"
+"Return -1 if `key` doesn't exist in `dict`, or an error occurred.\n"
+);
+
+#define _IMP_IS_LAZY_IMPORT_METHODDEF    \
+    {"is_lazy_import", _PyCFunction_CAST(_imp_is_lazy_import), METH_FASTCALL, _imp_is_lazy_import__doc__},
+
+static PyObject *
+_imp_is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *key);
+
+static PyObject *
+_imp_is_lazy_import(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyObject *return_value = NULL;
+
+    if (!_PyArg_CheckPositional("is_lazy_import", nargs, 2, 2)) {
+        goto exit;
+    }
+
+    if (!PyDict_Check(args[0])) {
+        _PyArg_BadArgument("is_lazy_import", "argument 1", "dict", args[0]);
+        goto exit;
+    }
+
+    if (!PyUnicode_Check(args[1])) {
+        _PyArg_BadArgument("is_lazy_import", "argument 2", "str", args[1]);
+        goto exit;
+    }
+
+    return_value = _imp_is_lazy_import_impl(module, args[0], args[1]);
+
+exit:
+    return return_value;
+}
+
 #ifndef _IMP_CREATE_DYNAMIC_METHODDEF
     #define _IMP_CREATE_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_CREATE_DYNAMIC_METHODDEF) */
