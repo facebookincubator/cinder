@@ -116,7 +116,7 @@ public:
 template<typename T>
 class ZoneStack : public ZoneStackBase {
 public:
-  ASMJIT_NONCOPYABLE(ZoneStack<T>)
+  ASMJIT_NONCOPYABLE(ZoneStack)
 
   enum : uint32_t {
     kNumBlockItems   = uint32_t((kBlockSize - sizeof(Block)) / sizeof(T)),

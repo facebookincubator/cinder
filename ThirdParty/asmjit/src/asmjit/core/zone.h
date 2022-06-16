@@ -369,7 +369,7 @@ public:
 template<size_t N>
 class ZoneTmp : public Zone {
 public:
-  ASMJIT_NONCOPYABLE(ZoneTmp<N>)
+  ASMJIT_NONCOPYABLE(ZoneTmp)
 
   struct Storage {
     char data[N];
