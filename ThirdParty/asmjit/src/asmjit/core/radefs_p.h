@@ -687,7 +687,7 @@ struct LiveRegData {
 
   inline LiveRegData() noexcept : id(BaseReg::kIdBad) {}
   inline explicit LiveRegData(uint32_t id) noexcept : id(id) {}
-  inline explicit LiveRegData(const LiveRegData& other) noexcept : id(other.id) {}
+  inline explicit LiveRegData(const LiveRegData& other) noexcept = default;
 
   inline void init(const LiveRegData& other) noexcept { id = other.id; }
 

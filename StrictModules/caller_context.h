@@ -78,14 +78,7 @@ class CallerContext {
     assert(errorSink != nullptr);
   }
 
-  CallerContext(const CallerContext& ctx)
-      : caller(ctx.caller),
-        filename(ctx.filename),
-        scopeName(ctx.scopeName),
-        lineno(ctx.lineno),
-        col(ctx.col),
-        errorSink(ctx.errorSink),
-        loader(ctx.loader) {}
+  CallerContext(const CallerContext& ctx) = default;
 
   template <typename T, typename... Args>
   void error(Args&&... args) const {
