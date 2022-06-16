@@ -42,11 +42,11 @@ extern "C" {
 
 typedef enum _Py_memory_order {
 #ifdef __cplusplus
-    _Py_memory_order_relaxed = std::memory_order_relaxed,
-    _Py_memory_order_acquire = std::memory_order_acquire,
-    _Py_memory_order_release = std::memory_order_release,
-    _Py_memory_order_acq_rel = std::memory_order_acq_rel,
-    _Py_memory_order_seq_cst = std::memory_order_seq_cst
+    _Py_memory_order_relaxed = (int)std::memory_order_relaxed,
+    _Py_memory_order_acquire = (int)std::memory_order_acquire,
+    _Py_memory_order_release = (int)std::memory_order_release,
+    _Py_memory_order_acq_rel = (int)std::memory_order_acq_rel,
+    _Py_memory_order_seq_cst = (int)std::memory_order_seq_cst
 #else
     _Py_memory_order_relaxed = memory_order_relaxed,
     _Py_memory_order_acquire = memory_order_acquire,
