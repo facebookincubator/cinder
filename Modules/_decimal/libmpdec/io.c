@@ -329,7 +329,12 @@ conversion_error:
 /* Print word x with n decimal digits to string s. dot is either NULL
    or the location of a decimal point. */
 #define EXTRACT_DIGIT(s, x, d, dot) \
-        if (s == dot) *s++ = '.'; *s++ = '0' + (char)(x / d); x %= d
+        do { \
+            if (s == dot) \
+                *s++ = '.'; \
+            *s++ = '0' + (char)(x / d); \
+            x %= d; \
+        } while (0)
 static inline char *
 word_to_string(char *s, mpd_uint_t x, int n, char *dot)
 {
