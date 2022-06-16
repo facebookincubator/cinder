@@ -262,7 +262,10 @@ class alignas(16) CodeRuntime {
   }
 
   static constexpr int64_t frameStateOffset() {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
     return offsetof(CodeRuntime, frame_state_);
+#pragma GCC diagnostic pop
   }
 
   static const int64_t kPyCodeOffset;
