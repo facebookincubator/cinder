@@ -10,18 +10,18 @@
 
 namespace {
 template <typename T>
-bool isPowerOfTwo(T x) {
+constexpr bool isPowerOfTwo(T x) {
   return (x & (x - 1)) == 0;
 }
 
 template <typename T>
-T roundDown(T x, int n) {
+constexpr T roundDown(T x, int n) {
   JIT_DCHECK(isPowerOfTwo(n), "must be power of 2");
   return (x & -n);
 }
 
 template <typename T>
-T roundUp(T x, int n) {
+constexpr T roundUp(T x, int n) {
   return roundDown(x + n - 1, n);
 }
 
@@ -115,7 +115,7 @@ class BumpAllocator {
   }
 
  private:
-  size_t element_size_ = sizeof(T);
+  size_t element_size_ = roundUp(sizeof(T), alignof(T));
   bool locked_{false};
   uintptr_t end_{0};
   uintptr_t fill_{0};
