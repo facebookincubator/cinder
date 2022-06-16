@@ -651,8 +651,6 @@ pycore_create_interpreter(_PyRuntimeState *runtime,
     }
     assert(_Py_IsMainInterpreter(interp));
 
-    interp->lazy_imports_enabled = 0;
-
     status = _PyConfig_Copy(&interp->config, config);
     if (_PyStatus_EXCEPTION(status)) {
         return status;

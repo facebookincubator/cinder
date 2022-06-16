@@ -2788,7 +2788,6 @@ _imp_is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *key)
 static PyObject *
 _imp_set_lazy_imports_impl(PyObject *module)
 {
-    // enable lazy imports
     PyImport_EnableLazyImports();
     Py_RETURN_NONE;
 }
