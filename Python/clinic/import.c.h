@@ -599,7 +599,7 @@ exit:
 
 PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
 "set_lazy_imports(module)\n"
-"It will enable Lazy Imports.\n"
+"Enable Lazy Imports at runtime.\n"
 );
 
 #define _IMP_SET_LAZY_IMPORTS_METHODDEF    \

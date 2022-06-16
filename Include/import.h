@@ -86,7 +86,7 @@ PyAPI_FUNC(int) PyImport_AppendInittab(
     PyObject* (*initfunc)(void)
     );
 
-PyAPI_FUNC(int) PyImport_EnableLazyImports(void);
+PyAPI_FUNC(void) PyImport_EnableLazyImports(void);
 
 // TODO(lazy_imports): ifdef guards?
 PyObject * PyImport_LoadLazyImport(PyObject *lazy_import);
