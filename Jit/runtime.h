@@ -143,7 +143,7 @@ class GenYieldPoint {
   }
 
  private:
-  uint64_t resume_target_;
+  uint64_t resume_target_{0};
   const std::vector<ptrdiff_t> pyobj_offs_;
   const bool isYieldFrom_;
   const ptrdiff_t yieldFromOffs_;
