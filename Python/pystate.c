@@ -295,6 +295,7 @@ init_interpreter(PyInterpreterState *interp,
     PyConfig_InitPythonConfig(&interp->config);
     _PyType_InitCache(interp);
 
+    interp->lazy_imports_enabled = 0;
     interp->_initialized = 1;
 }
 
