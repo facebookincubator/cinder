@@ -109,11 +109,13 @@ class CallerContext {
   template <typename... Args>
   [[noreturn]] void raiseExceptionStr(
       std::shared_ptr<StrictType> error,
-      std::string&& fmtStr,
+      fmt::format_string<Args...> fmtStr,
       Args&&... args) const;
 
   template <typename... Args>
-  [[noreturn]] void raiseTypeError(std::string&& fmtStr, Args&&... args) const;
+  [[noreturn]] void raiseTypeError(
+      fmt::format_string<Args...> fmtStr,
+      Args&&... args) const;
 
   // convenience methods
   std::shared_ptr<BaseStrictObject> makeInt(long long i) const;

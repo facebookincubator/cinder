@@ -42,10 +42,9 @@ template <typename... Args>
 template <typename... Args>
 [[noreturn]] void CallerContext::raiseExceptionStr(
     std::shared_ptr<StrictType> error,
-    std::string&& fmtStr,
+    fmt::format_string<Args...> fmtStr,
     Args&&... args) const {
-  std::string excMsg = fmt::format(
-      std::forward<std::string>(fmtStr), std::forward<Args>(args)...);
+  std::string excMsg = fmt::format(fmtStr, std::forward<Args>(args)...);
 
   raiseException(
       std::move(error),
@@ -55,12 +54,10 @@ template <typename... Args>
 
 template <typename... Args>
 [[noreturn]] void CallerContext::raiseTypeError(
-    std::string&& fmtStr,
+    fmt::format_string<Args...> fmtStr,
     Args&&... args) const {
   raiseExceptionStr(
-      objects::TypeErrorType(),
-      std::forward<std::string>(fmtStr),
-      std::forward<Args>(args)...);
+      objects::TypeErrorType(), fmtStr, std::forward<Args>(args)...);
 }
 
 inline std::shared_ptr<BaseStrictObject> CallerContext::makeInt(

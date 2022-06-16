@@ -165,7 +165,7 @@ uint64_t getTimestamp() {
 }
 
 FileInfo openFileInfo(std::string filename_format) {
-  auto filename = fmt::format(filename_format, getpid());
+  auto filename = fmt::format(fmt::runtime(filename_format), getpid());
   auto file = std::fopen(filename.c_str(), "w+");
   if (file == nullptr) {
     JIT_LOG("Couldn't open %s for writing (%s)", filename, string_error(errno));
@@ -284,7 +284,8 @@ void copyFileInfo(FileInfo& info) {
 
   std::fclose(info.file);
   auto parent_filename = info.filename;
-  auto child_filename = fmt::format(info.filename_format, getpid());
+  auto child_filename =
+      fmt::format(fmt::runtime(info.filename_format), getpid());
   info = {};
 
   unlink(child_filename.c_str());

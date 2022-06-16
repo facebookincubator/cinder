@@ -33,39 +33,6 @@
 
 using namespace jit::hir;
 
-template <>
-struct fmt::formatter<Register*> {
-  template <typename ParseContext>
-  constexpr auto parse(ParseContext& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  auto format(Register* const& reg, FormatContext& ctx) {
-    if (reg->type().hasIntSpec()) {
-      return fmt::format_to(
-          ctx.out(),
-          "{}:{}",
-          reg->type().intSpec(),
-          reg->type().unspecialized());
-    } else if (reg->type().hasDoubleSpec()) {
-      return fmt::format_to(
-          ctx.out(),
-          "{}:{}",
-          reg->type().doubleSpec(),
-          reg->type().unspecialized());
-    } else if (reg->type() <= TPrimitive) {
-      return fmt::format_to(
-          ctx.out(), "{}:{}", reg->name(), reg->type().toString());
-    } else {
-      return fmt::format_to(ctx.out(), "{}", reg->name());
-    }
-  }
-};
-
-template <>
-struct fmt::formatter<PyObject*> : fmt::formatter<void*> {};
-
 namespace jit {
 namespace lir {
 

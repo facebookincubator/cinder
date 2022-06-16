@@ -37,7 +37,7 @@ void StrictLazyObject::forceEvaluate(const CallerContext& caller) {
     result = mod;
   }
   if (!result) {
-    result = makeUnknown(caller, std::string(unknownName_));
+    result = makeUnknown(caller, "{}", unknownName_);
   }
   obj_ = result;
 }

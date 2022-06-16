@@ -25,8 +25,10 @@ class UnknownObject : public BaseStrictObject {
 
 /* create an unknown object from a format string and its format args */
 template <typename... Args>
-std::shared_ptr<UnknownObject>
-makeUnknown(const CallerContext& caller, std::string&& fmtStr, Args&&... args);
+std::shared_ptr<UnknownObject> makeUnknown(
+    const CallerContext& caller,
+    fmt::format_string<Args...> fmtStr,
+    Args&&... args);
 
 class UnknownObjectType : public StrictType {
  public:
@@ -138,11 +140,11 @@ class UnknownObjectType : public StrictType {
 };
 
 template <typename... Args>
-std::shared_ptr<UnknownObject>
-makeUnknown(const CallerContext& caller, std::string&& fmtStr, Args&&... args) {
+std::shared_ptr<UnknownObject> makeUnknown(
+    const CallerContext& caller,
+    fmt::format_string<Args...> fmtStr,
+    Args&&... args) {
   return std::make_shared<UnknownObject>(
-      fmt::format(
-          std::forward<std::string>(fmtStr), std::forward<Args>(args)...),
-      caller.caller);
+      fmt::format(fmtStr, std::forward<Args>(args)...), caller.caller);
 }
 } // namespace strictmod::objects

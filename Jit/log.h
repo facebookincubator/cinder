@@ -17,8 +17,11 @@
 
 namespace jit {
 
-template <typename Fmt, typename... Args>
-auto format_to(std::string& s, const Fmt& format, Args&&... args) {
+template <typename... Args>
+auto format_to(
+    std::string& s,
+    fmt::format_string<Args...> format,
+    Args&&... args) {
   return fmt::format_to(
       std::back_inserter(s), format, std::forward<Args>(args)...);
 }
