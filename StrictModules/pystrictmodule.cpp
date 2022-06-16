@@ -216,18 +216,45 @@ static PyMemberDef AnalysisResult_members[] = {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 PyTypeObject StrictModuleAnalysisResult_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name =
-        "strictmodule.StrictModuleAnalysisResult",
-    .tp_basicsize = sizeof(StrictModuleAnalysisResult),
-    .tp_itemsize = 0,
-    .tp_dealloc = (destructor)AnalysisResult_dealloc,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
-    .tp_doc = "Analysis result of strict module loader",
-    .tp_traverse = (traverseproc)AnalysisResult_traverse,
-    .tp_clear = (inquiry)AnalysisResult_clear,
-    .tp_members = AnalysisResult_members,
-    .tp_init = (initproc)AnalysisResult_init,
-    .tp_new = AnalysisResult_new,
+    PyVarObject_HEAD_INIT(
+        NULL,
+        0) "strictmodule.StrictModuleAnalysisResult", /* tp_name */
+    sizeof(StrictModuleAnalysisResult), /* tp_basicsize */
+    0, /* tp_itemsize */
+    (destructor)AnalysisResult_dealloc, /* tp_dealloc */
+    0, /* tp_vectorcall_offset */
+    0, /* tp_getattr */
+    0, /* tp_setattr */
+    0, /* tp_as_async */
+    0, /* tp_repr */
+    0, /* tp_as_number */
+    0, /* tp_as_sequence */
+    0, /* tp_as_mapping */
+    0, /* tp_hash */
+    0, /* tp_call */
+    0, /* tp_str */
+    0, /* tp_getattro */
+    0, /* tp_setattro */
+    0, /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags */
+    "Analysis result of strict module loader", /* tp_doc */
+    (traverseproc)AnalysisResult_traverse, /* tp_traverse */
+    (inquiry)AnalysisResult_clear, /* tp_clear */
+    0, /* tp_richcompare */
+    0, /* tp_weaklistoffset */
+    0, /* tp_iter */
+    0, /* tp_iternext */
+    0, /* tp_methods */
+    AnalysisResult_members, /* tp_members */
+    0, /* tp_getset */
+    0, /* tp_base */
+    0, /* tp_dict */
+    0, /* tp_descr_get */
+    0, /* tp_descr_set */
+    0, /* tp_dictoffset */
+    (initproc)AnalysisResult_init, /* tp_init */
+    0, /* tp_alloc */
+    AnalysisResult_new, /* tp_new */
 };
 #pragma GCC diagnostic pop
 
@@ -692,18 +719,49 @@ static PyMethodDef StrictModuleLoader_methods[] = {
      PyDoc_STR("delete_module(name: str) -> bool")},
     {NULL, NULL, 0, NULL} /* sentinel */
 };
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 PyTypeObject StrictModuleLoader_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "strictmodule.StrictModuleLoader",
-    .tp_basicsize = sizeof(StrictModuleLoaderObject),
-    .tp_itemsize = 0,
-    .tp_dealloc = (destructor)StrictModuleLoader_dealloc,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = "Cinder implementation of strict module checker",
-    .tp_methods = StrictModuleLoader_methods,
-    .tp_init = (initproc)StrictModuleLoaderObject_init,
-    .tp_new = StrictModuleLoaderObject_new,
+    PyVarObject_HEAD_INIT(
+        NULL,
+        0) "strictmodule.StrictModuleLoader", /* tp_name */
+    sizeof(StrictModuleLoaderObject), /* tp_basicsize */
+    0, /* tp_itemsize */
+    (destructor)StrictModuleLoader_dealloc, /* tp_dealloc */
+    0, /* tp_vectorcall_offset */
+    0, /* tp_getattr */
+    0, /* tp_setattr */
+    0, /* tp_as_async */
+    0, /* tp_repr */
+    0, /* tp_as_number */
+    0, /* tp_as_sequence */
+    0, /* tp_as_mapping */
+    0, /* tp_hash */
+    0, /* tp_call */
+    0, /* tp_str */
+    0, /* tp_getattro */
+    0, /* tp_setattro */
+    0, /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT, /* tp_flags */
+    "Cinder implementation of strict module checker", /* tp_doc */
+    0, /* tp_traverse */
+    0, /* tp_clear */
+    0, /* tp_richcompare */
+    0, /* tp_weaklistoffset */
+    0, /* tp_iter */
+    0, /* tp_iternext */
+    StrictModuleLoader_methods, /* tp_methods */
+    0, /* tp_members */
+    0, /* tp_getset */
+    0, /* tp_base */
+    0, /* tp_dict */
+    0, /* tp_descr_get */
+    0, /* tp_descr_set */
+    0, /* tp_dictoffset */
+    (initproc)StrictModuleLoaderObject_init, /* tp_init */
+    0, /* tp_alloc */
+    StrictModuleLoaderObject_new, /* tp_new */
 };
 #pragma GCC diagnostic pop
 

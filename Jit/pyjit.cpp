@@ -1269,14 +1269,15 @@ static PyMethodDef jit_methods[] = {
 
 static PyModuleDef jit_module = {
     PyModuleDef_HEAD_INIT,
-    .m_name = "cinderjit",
-    .m_doc = NULL,
-    .m_size = -1,
-    .m_methods = jit_methods,
-    .m_slots = nullptr,
-    .m_traverse = nullptr,
-    .m_clear = nullptr,
-    .m_free = nullptr};
+    "cinderjit", /* m_name */
+    nullptr, /* m_doc */
+    -1, /* m_size */
+    jit_methods, /* m_methods */
+    nullptr, /* m_slots */
+    nullptr, /* m_traverse */
+    nullptr, /* m_clear */
+    nullptr, /* m_free */
+};
 
 static int onJitListImpl(
     BorrowedRef<PyCodeObject> code,
