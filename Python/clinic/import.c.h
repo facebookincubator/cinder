@@ -597,6 +597,32 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
+"set_lazy_imports(module)\n"
+"It will enable Lazy Imports.\n"
+);
+
+#define _IMP_SET_LAZY_IMPORTS_METHODDEF    \
+    {"set_lazy_imports", _PyCFunction_CAST(_imp_set_lazy_imports), METH_FASTCALL, _imp_set_lazy_imports__doc__},
+
+static PyObject *
+_imp_set_lazy_imports_impl(PyObject *module);
+
+static PyObject *
+_imp_set_lazy_imports(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyObject *return_value = NULL;
+
+    if (!_PyArg_CheckPositional("set_lazy_imports", nargs, 0, 0)) {
+        goto exit;
+    }
+
+    return_value = _imp_set_lazy_imports_impl(module);
+
+exit:
+    return return_value;
+}
+
 #ifndef _IMP_CREATE_DYNAMIC_METHODDEF
     #define _IMP_CREATE_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_CREATE_DYNAMIC_METHODDEF) */

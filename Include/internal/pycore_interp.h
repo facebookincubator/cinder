@@ -191,6 +191,9 @@ struct _is {
 
     /* the initial PyInterpreterState.threads.head */
     PyThreadState _initial_thread;
+
+    // lazy imports status in runtime
+    int lazy_imports_enabled;
 };
 
 

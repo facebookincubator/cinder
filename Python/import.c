@@ -26,6 +26,7 @@ extern "C" {
 
 /* Forward references */
 static PyObject *import_add_module(PyThreadState *tstate, PyObject *name);
+static bool _PyImport_LazyImportsIsEnabled(void);
 
 /* See _PyImport_FixupExtensionObject() below */
 static PyObject *extensions = NULL;
@@ -2078,7 +2079,7 @@ PyImport_ImportName(PyObject *builtins, PyObject *globals, PyObject *locals,
 {
     PyThreadState *tstate = _PyThreadState_GET();
     int verbose = _PyInterpreterState_GetConfig(tstate->interp)->verbose;
-    int lazy_imports_enabled = _PyInterpreterState_GetConfig(tstate->interp)->lazy_imports;
+    bool lazy_imports_enabled = _PyImport_LazyImportsIsEnabled();
 
     if (!lazy_imports_enabled) {
         return PyImport_EagerImportName(builtins, globals, locals, name, fromlist, level, NULL);
@@ -2784,6 +2785,18 @@ _imp_is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *key)
     Py_RETURN_FALSE;
 }
 
+static PyObject *
+_imp_set_lazy_imports_impl(PyObject *module)
+{
+    // enable lazy imports
+    int lazy_imports_status = PyImport_EnableLazyImports();
+
+    if (lazy_imports_status == 1) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
 
 PyDoc_STRVAR(doc_imp,
 "(Extremely) low-level import machinery bits as used by importlib and imp.");
@@ -2808,6 +2821,7 @@ static PyMethodDef imp_methods[] = {
     _IMP__FIX_CO_FILENAME_METHODDEF
     _IMP_SOURCE_HASH_METHODDEF
     _IMP_IS_LAZY_IMPORT_METHODDEF
+    _IMP_SET_LAZY_IMPORTS_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
 
@@ -2963,6 +2977,32 @@ PyImport_AppendInittab(const char *name, PyObject* (*initfunc)(void))
 
     return PyImport_ExtendInittab(newtab);
 }
+
+
+static bool
+_PyImport_LazyImportsIsEnabled()
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (_PyInterpreterState_GetConfig(interp)->lazy_imports |
+        interp->lazy_imports_enabled)
+    {
+        return true;
+    }
+    return false;
+}
+
+int
+PyImport_EnableLazyImports()
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    interp->lazy_imports_enabled = 1;
+
+    if (_PyImport_LazyImportsIsEnabled()) {
+        return 1;
+    }
+    return 0;
+}
+
 
 #ifdef __cplusplus
 }

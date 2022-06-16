@@ -67,6 +67,17 @@ def is_lazy_import(dictionary, key):
     """
     return _imp.is_lazy_import(dictionary, key)
 
+def set_lazy_imports():
+    """Call set_lazy_imports() to enable Lazy Imports.
+
+    The imported modules after this point will be lazily imported.
+    """
+    enabled = _imp.set_lazy_imports()
+
+    # failed in enabling lazy imports
+    if not enabled:
+        raise SystemError('Cannot use set_lazy_imports() to enable Lazy Imports.')
+
 def invalidate_caches():
     """Call the invalidate_caches() method on all meta path finders stored in
     sys.meta_path (where implemented)."""
