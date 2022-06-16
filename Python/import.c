@@ -2984,7 +2984,7 @@ _PyImport_LazyImportsIsEnabled()
 {
     PyInterpreterState *interp = _PyInterpreterState_GET();
     if (interp->lazy_imports_enabled ||
-        _PyInterpreterState_GetConfig(interp)->lazy_imports )
+        _PyInterpreterState_GetConfig(interp)->lazy_imports)
     {
         return true;
     }
