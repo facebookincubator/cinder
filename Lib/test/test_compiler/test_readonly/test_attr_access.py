@@ -18,7 +18,7 @@ class AttrAccessTests(ReadonlyTestBase):
             return NewClass.__flags__
         """
 
-        result = self._compile_and_run(code, "f")
+        result = self.compile_and_call(code, "f")
         self.assertEqual(result & 0x3, 0)
 
     def test_readonly_flags1(self) -> None:
@@ -35,7 +35,7 @@ class AttrAccessTests(ReadonlyTestBase):
             return NewClass.__flags__
         """
 
-        result = self._compile_and_run(code, "f")
+        result = self.compile_and_call(code, "f")
         self.assertEqual(result & 0x3, 1)
 
     def test_readonly_flags2(self) -> None:
@@ -52,7 +52,7 @@ class AttrAccessTests(ReadonlyTestBase):
             return NewClass.__flags__
         """
 
-        result = self._compile_and_run(code, "f")
+        result = self.compile_and_call(code, "f")
         self.assertEqual(result & 0x3, 2)
 
     def test_readonly_flags3(self) -> None:
@@ -69,7 +69,7 @@ class AttrAccessTests(ReadonlyTestBase):
             return NewClass.__flags__
         """
 
-        result = self._compile_and_run(code, "f")
+        result = self.compile_and_call(code, "f")
         self.assertEqual(result & 0x3, 3)
 
     def test_readonly_flags_no_readonly(self) -> None:
@@ -85,7 +85,7 @@ class AttrAccessTests(ReadonlyTestBase):
             return NewClass.__flags__
         """
 
-        result = self._compile_and_run(code, "f")
+        result = self.compile_and_call(code, "f")
         self.assertEqual(result & 0x3, 1)
 
     def test_readonly_flags_inheritance(self) -> None:
@@ -105,7 +105,7 @@ class AttrAccessTests(ReadonlyTestBase):
             return DerivedClass.__flags__
         """
 
-        result = self._compile_and_run(code, "f")
+        result = self.compile_and_call(code, "f")
         self.assertEqual(result & 0x3, 1)
 
     def test_readonly_flags_multiple_inheritance(self) -> None:
@@ -133,7 +133,7 @@ class AttrAccessTests(ReadonlyTestBase):
             return DerivedClass.__flags__
         """
 
-        result = self._compile_and_run(code, "f")
+        result = self.compile_and_call(code, "f")
         self.assertEqual(result & 0x3, 3)
 
     def test_readonly_access_read(self) -> None:
@@ -159,7 +159,7 @@ class AttrAccessTests(ReadonlyTestBase):
                 )
             ]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_readonly_access_attr_return_readonly(self) -> None:
         code = """
@@ -184,7 +184,7 @@ class AttrAccessTests(ReadonlyTestBase):
                 )
             ]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_readonly_annotation(self) -> None:
         code = """
@@ -212,13 +212,7 @@ class AttrAccessTests(ReadonlyTestBase):
                 )
             ]
         ):
-            self._compile_and_run(code, "f", False)
+            self.compile_and_call(code, "f", False)
 
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f", True)
-
-    def _compile_and_run(
-        self, code: str, func: str, future_annotations: bool = True
-    ) -> None:
-        f = self.compile_and_run(code, future_annotations)[func]
-        return f()
+            self.compile_and_call(code, "f", True)

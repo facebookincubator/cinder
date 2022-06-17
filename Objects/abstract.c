@@ -2731,16 +2731,20 @@ PyObject_GetIter(PyObject *o)
     PyTypeObject *t = o->ob_type;
     getiterfunc f;
 
-    // TODO: Implement properly.
-    (void)PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0);
     f = t->tp_iter;
     if (f == NULL) {
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
+            return NULL;
+        }
         if (PySequence_Check(o))
             return PySeqIter_New(o);
         return type_error("'%.200s' object is not iterable", o);
     }
     else {
         PyObject *res = (*f)(o);
+        if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
+            res = NULL;
+        }
         if (res != NULL && !PyIter_Check(res)) {
             PyErr_Format(PyExc_TypeError,
                          "iter() returned non-iterator "

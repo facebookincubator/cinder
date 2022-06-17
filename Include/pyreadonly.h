@@ -36,7 +36,7 @@ extern "C" {
 
 // This is disabled for now until we can get proper performance measurements
 // done to verify the size of the regression.
-//#define PYREADONLY_ENABLED
+// #define PYREADONLY_ENABLED
 
 #ifndef PYREADONLY_ENABLED
 #define PyReadonly_BeginReadonlyOperation(a) ((void)a, 0)
@@ -120,7 +120,7 @@ PyAPI_FUNC(int) PyReadonly_CheckReadonlyOperation(int functionArgsMask, int func
  * is expected to be readonly if any of the operation arguments are readonly.
  * The function args are assumed to all be readonly.
  *
- * @param argCount The numer of arguments to the operation.
+ * @param argCount The number of arguments to the operation.
  */
 PyAPI_FUNC(int) PyReadonly_CheckTransitiveReadonlyOperation(int argCount);
 

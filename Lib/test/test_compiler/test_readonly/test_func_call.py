@@ -12,7 +12,7 @@ class FuncCallTests(ReadonlyTestBase):
             return g()
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_call_ro_nro(self) -> None:
         code = """
@@ -28,7 +28,7 @@ class FuncCallTests(ReadonlyTestBase):
                 (1, "A mutable function cannot be called in a readonly function.", ()),
             ]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_call_ro_ro(self) -> None:
         code = """
@@ -41,7 +41,7 @@ class FuncCallTests(ReadonlyTestBase):
             return g()
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_returns_readonly_err(self) -> None:
         code = """
@@ -57,7 +57,7 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [(3, "Cannot assign a readonly value to a mutable variable.", ())]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_no_returns_readonly_error(self) -> None:
         code = """
@@ -71,7 +71,7 @@ class FuncCallTests(ReadonlyTestBase):
             return t
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_arguments(self) -> None:
         code = """
@@ -88,7 +88,7 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [(4, "Passing a readonly variable to Argument 2, which is mutable.", (2,))]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_readonly_closure_no_error(self) -> None:
         code = """
@@ -106,7 +106,7 @@ class FuncCallTests(ReadonlyTestBase):
             g()
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_readonly_closure_error(self) -> None:
         code = """
@@ -131,7 +131,7 @@ class FuncCallTests(ReadonlyTestBase):
                 )
             ]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_method_call_nro_ro(self) -> None:
         code = """
@@ -144,7 +144,7 @@ class FuncCallTests(ReadonlyTestBase):
             return C().g()
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_method_call_ro_nro(self) -> None:
         code = """
@@ -161,7 +161,7 @@ class FuncCallTests(ReadonlyTestBase):
                 (1, "A mutable function cannot be called in a readonly function.", ()),
             ]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_method_call_ro_ro(self) -> None:
         code = """
@@ -175,7 +175,7 @@ class FuncCallTests(ReadonlyTestBase):
             return C().g()
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_method_call_arguments(self) -> None:
         code = """
@@ -193,7 +193,7 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [(4, "Passing a readonly variable to Argument 3, which is mutable.", (3,))]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_method_check_self(self) -> None:
         code = """
@@ -211,7 +211,7 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [(4, "Passing a readonly variable to Argument 0, which is mutable.", (0,))]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_fake_method_call_ok(self) -> None:
         code = """
@@ -225,7 +225,7 @@ class FuncCallTests(ReadonlyTestBase):
             readonly(C()).g(1, 2)
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_fake_method_call_fail(self) -> None:
         code = """
@@ -241,7 +241,7 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [(4, "Passing a readonly variable to Argument 1, which is mutable.", (1,))]
         ):
-            self._compile_and_run(code, "f")
+            self.compile_and_call(code, "f")
 
     def test_call_in_subscr(self) -> None:
         code = """
@@ -256,7 +256,7 @@ class FuncCallTests(ReadonlyTestBase):
             return l
         """
         with self.assertNoImmutableErrors():
-            self._compile_and_run(code, "g")
+            self.compile_and_call(code, "g")
 
     def test_disallowed_call_in_subscr(self) -> None:
         code = """
@@ -273,8 +273,4 @@ class FuncCallTests(ReadonlyTestBase):
         with self.assertImmutableErrors(
             [(4, "Passing a readonly variable to Argument 0, which is mutable.", (0,))]
         ):
-            self._compile_and_run(code, "g")
-
-    def _compile_and_run(self, code: str, func: str) -> None:
-        f = self.compile_and_run(code)[func]
-        return f()
+            self.compile_and_call(code, "g")

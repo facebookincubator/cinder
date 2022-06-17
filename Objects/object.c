@@ -1173,6 +1173,9 @@ _PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset)
 PyObject *
 PyObject_SelfIter(PyObject *obj)
 {
+    if (PyReadonly_CheckTransitiveReadonlyOperation(1) != 0) {
+        return NULL;
+    }
     Py_INCREF(obj);
     return obj;
 }

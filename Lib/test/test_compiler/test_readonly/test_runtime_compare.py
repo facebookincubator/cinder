@@ -4,11 +4,6 @@ from .common import ReadonlyTestBase
 
 
 class RuntimeCompareTests(ReadonlyTestBase):
-    def _compile_and_run(self, code: str, func: str) -> None:
-        compiled = self.compile_and_run(code)
-        f = compiled[func]
-        return f()
-
     def test_compare_eq_mutable_arg(self) -> None:
         code = """
         class TestObj:
@@ -36,7 +31,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
                 ),
             ]
         ):
-            c = self._compile_and_run(code, "f")
+            c = self.compile_and_call(code, "f")
             self.assertEqual(c, False)
 
     def test_compare_eq_readonly_return(self) -> None:
@@ -62,7 +57,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
                 (14, "Operator returns readonly, but expected mutable.", ()),
             ]
         ):
-            c = self._compile_and_run(code, "f")
+            c = self.compile_and_call(code, "f")
             self.assertEqual(c, False)
 
     def test_compare_eq_working(self) -> None:
@@ -84,7 +79,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
             return c
         """
         with self.assertNoImmutableErrors():
-            c = self._compile_and_run(code, "f")
+            c = self.compile_and_call(code, "f")
             self.assertEqual(c, False)
 
     def test_compare_reverse_mutable_arg(self) -> None:
@@ -123,7 +118,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
                 ),
             ]
         ):
-            c = self._compile_and_run(code, "f")
+            c = self.compile_and_call(code, "f")
             self.assertEqual(c, True)
 
     def test_compare_reverse_fallback_mutable_arg(self) -> None:
@@ -162,5 +157,5 @@ class RuntimeCompareTests(ReadonlyTestBase):
                 ),
             ]
         ):
-            c = self._compile_and_run(code, "f")
+            c = self.compile_and_call(code, "f")
             self.assertEqual(c, False)

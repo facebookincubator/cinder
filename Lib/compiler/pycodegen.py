@@ -232,6 +232,7 @@ class CodeGenerator(ASTVisitor):
 
     def _setupGraphDelegation(self):
         self.emit = self.graph.emit
+        self.emitWithBlock = self.graph.emitWithBlock
         self.newBlock = self.graph.newBlock
         self.nextBlock = self.graph.nextBlock
 

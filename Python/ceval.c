@@ -3397,6 +3397,62 @@ main_loop:
 
                 break;
             }
+            case READONLY_GET_ITER: {
+                /* before: [obj]; after [getiter(obj)] */
+
+                PyObject *iterable = TOP();
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                if (PyReadonly_BeginReadonlyOperation(PyLong_AsUnsignedLongLong(mask)) != 0) {
+                    goto error;
+                }
+                PyObject *iter = PyObject_GetIter(iterable);
+                if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+                    iter = NULL;
+                }
+                Py_DECREF(iterable);
+                SET_TOP(iter);
+                if (iter == NULL)
+                    goto error;
+                DISPATCH();
+            }
+            case READONLY_FOR_ITER: {
+                /* before: [iter]; after: [iter, iter()] *or* [] */
+                PyObject *iter = TOP();
+                PyObject *mask = PyTuple_GetItem(tuple, 1);
+                if (PyReadonly_BeginReadonlyOperation(PyLong_AsUnsignedLongLong(mask)) != 0) {
+                    goto error;
+                }
+                PyObject *next = (*iter->ob_type->tp_iternext)(iter);
+                if (PyReadonly_CheckReadonlyOperation(0, 0) != 0) {
+                    next = NULL;
+                }
+                if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+                    next = NULL;
+                }
+                if (next != NULL) {
+                    PUSH(next);
+                    PREDICT(STORE_FAST);
+                    PREDICT(UNPACK_SEQUENCE);
+                    DISPATCH();
+                }
+                if (_PyErr_Occurred(tstate)) {
+                    if (!_PyErr_ExceptionMatches(tstate, PyExc_StopIteration)) {
+                        goto error;
+                    }
+                    else if (tstate->c_tracefunc != NULL) {
+                        call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f);
+                    }
+                    _PyErr_Clear(tstate);
+                }
+                /* iterator ended normally */
+                int jump_dist = PyLong_AsLong(PyTuple_GetItem(tuple, 2));
+                STACK_SHRINK(1);
+                Py_DECREF(iter);
+                JUMPBY(jump_dist);
+                PREDICT(POP_BLOCK);
+                DISPATCH();
+            }
+
             default:
                 assert(0);
             }

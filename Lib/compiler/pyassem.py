@@ -216,6 +216,12 @@ class FlowGraph:
         if opcode == "SET_LINENO" and not self.first_inst_lineno:
             self.first_inst_lineno = ioparg
 
+    def emitWithBlock(self, opcode: str, oparg: object, target: Block):
+        self.maybeEmitSetLineno()
+        if not self.do_not_emit_bytecode:
+            self.current.addOutEdge(target)
+            self.current.emit(Instruction(opcode, oparg, target=target))
+
     def maybeEmitSetLineno(self):
         if not self.do_not_emit_bytecode and not self.lineno_set and self.lineno:
             self.lineno_set = True
@@ -662,6 +668,25 @@ class PyFlowGraph(FlowGraph):
 
                     assert offset >= 0, "Offset value: %d" % offset
                     inst.ioparg = offset
+                elif inst.opname == "READONLY_OPERATION":
+                    oparg = inst.oparg
+                    orig_ioparg = inst.ioparg
+                    # special case READONLY_FOR_ITER
+                    # offset for the target block becomes part of the const
+                    if oparg[0] == opcodes.opcode.readonlyop["FOR_ITER"]:
+                        target = inst.target
+                        if target is None:
+                            continue
+                        offset = target.offset - pc
+                        offset *= 2
+                        # readonly_op, mask, offset
+                        new_oparg = (oparg[0], oparg[1], offset)
+                        ioparg = self._convert_LOAD_CONST(new_oparg)
+                        inst.ioparg = ioparg
+                        inst.target = None
+                        if instrsize(orig_ioparg) != instrsize(ioparg):
+                            extended_arg_recompile = True
+
         self.stage = FLAT
 
     def sort_cellvars(self):

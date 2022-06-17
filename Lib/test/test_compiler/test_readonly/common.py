@@ -73,6 +73,11 @@ class ReadonlyTestBase(TestBase):
         exec(compiled, d)
         return d
 
+    def compile_and_call(self, code: str, func: str, future_annotations=True) -> None:
+        compiled = self.compile_and_run(code, future_annotations=future_annotations)
+        f = compiled[func]
+        return f()
+
     def static_compile(
         self,
         code,

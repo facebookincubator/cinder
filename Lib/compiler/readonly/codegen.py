@@ -7,16 +7,15 @@ from typing import cast, List, Optional, Tuple, Type, Union
 
 from ..opcodes import opcode
 from ..pyassem import Block, PyFlowGraph, PyFlowGraphCinder
-from ..pycodegen import CinderCodeGenerator, CodeGenerator, CompNode, FuncOrLambda
-from ..symbols import (
-    CinderSymbolVisitor,
-    ClassScope,
-    FunctionScope,
-    ModuleScope,
-    Scope,
-    SymbolVisitor,
+from ..pycodegen import (
+    CinderCodeGenerator,
+    CodeGenerator,
+    CompNode,
+    FOR_LOOP,
+    FuncOrLambda,
 )
-from .type_binder import ReadonlyTypeBinder, TReadonlyTypes
+from ..symbols import CinderSymbolVisitor, ClassScope, ModuleScope, SymbolVisitor
+from .type_binder import ReadonlyTypeBinder
 from .types import FunctionValue, READONLY
 
 
@@ -119,9 +118,14 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             optimization_lvl=self.optimization_lvl,
         )
 
-    def emit_readonly_op(self, opname: str, args: List[int | str]) -> None:
+    def emit_readonly_op(
+        self, opname: str, args: List[int | str], target: Optional[Block] = None
+    ) -> None:
         op = opcode.readonlyop[opname]
-        self.emit("READONLY_OPERATION", (op, *args))
+        if target is None:
+            self.emit("READONLY_OPERATION", (op, *args))
+        else:
+            self.emitWithBlock("READONLY_OPERATION", (op, *args), target=target)
 
     def visitCall(self, node: ast.Call) -> None:
         if (
@@ -136,9 +140,9 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
 
         super().visitCall(node)
 
-    def build_operation_mask(self, node: ast.AST, args: List[ast.AST]) -> int:
+    def build_operation_mask(self, node: Optional[ast.AST], args: List[ast.AST]) -> int:
         mask = 0x80
-        if self.binder.is_readonly(node):
+        if node is not None and self.binder.is_readonly(node):
             mask |= 0x40
 
         if len(args) > 6:
@@ -255,6 +259,46 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             self.nextBlock(end)
             return
         super().compileJumpIf(test, next, is_if_true)
+
+    def visitFor(self, node: ast.For) -> None:
+        if not self.emit_readonly_checks:
+            super().visitFor(node)
+            return
+        start = self.newBlock()
+        body_start = self.newBlock()
+        anchor = self.newBlock()
+        after = self.newBlock()
+
+        self.set_lineno(node)
+        self.push_loop(FOR_LOOP, start, after)
+        self.visit(node.iter)
+        # for e1 in e2
+        # emit READONLY_GET_ITER with mask: arg0 follows e2 readonlyness
+        # there is no way to specify e2.__iter__() returns readonly in a for loop
+        # , so we require it to be mutable
+        mask = self.build_operation_mask(None, [node.iter])
+        self.emit_readonly_op("GET_ITER", [mask])
+
+        # for e1 in e2
+        # emit READONLY_FOR_ITER with mask: e2.__iter__().__next__
+        # arg0 is always mutable, since we assumed e2.__iter__() to be mutable
+        # expected return type follows e1 readonlyness
+        mask = self.build_operation_mask(node.target, [])
+        self.emit_readonly_op("FOR_ITER", [mask], target=anchor)
+        self.emit("JUMP_ABSOLUTE", body_start)
+
+        self.nextBlock(start)
+        self.emit("FOR_ITER", anchor)
+        self.nextBlock(body_start)
+        self.visit(node.target)
+        self.visit(node.body)
+        self.emit("JUMP_ABSOLUTE", start)
+        self.nextBlock(anchor)
+        self.pop_loop()
+
+        if node.orelse:
+            self.visit(node.orelse)
+        self.nextBlock(after)
 
     def visitName(self, node: ast.Name) -> None:
         if node.id != "__function_credential__":
@@ -404,6 +448,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             )
 
         self.emit("LOAD_ATTR", self.mangle(node.attr))
+
 
 def readonly_compile(
     name: str, filename: str, tree: AST, flags: int, optimize: int

@@ -5,5 +5,6 @@ from .test_func_credential import FuncCredentialTests
 
 # from .test_runtime_binops import RuntimeBinopsTests
 # from .test_runtime_compare import RuntimeCompareTests
+# from .test_runtime_iter import RuntimeIterTests
 # from .test_runtime_unaryops import RuntimeUnaryOpsTests
 from .test_type_binder import TypeBinderTests
