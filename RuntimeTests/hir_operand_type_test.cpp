@@ -108,6 +108,21 @@ TEST_F(HIROperandTypeTest, LoadMethodSuperReturnsTypesForMultipleOperands) {
   EXPECT_EQ(op_type.kind, Constraint::kType);
 }
 
+TEST_F(HIROperandTypeTest, PrimitiveBoxGetOperandTypeImplReturnsCorrectType) {
+  Function func;
+  auto dst = func.env.AllocateRegister();
+  auto val = func.env.AllocateRegister();
+  FrameState frame;
+  std::unique_ptr<Instr> instr_TCInt32(
+      PrimitiveBox::create(dst, val, TCInt32, frame));
+  OperandType op_type_1 = instr_TCInt32->GetOperandType(0);
+  EXPECT_EQ(op_type_1.type, TCInt32);
+  std::unique_ptr<Instr> instr_TCEnum(
+      PrimitiveBox::create(dst, val, TCEnum, frame));
+  OperandType op_type_2 = instr_TCEnum->GetOperandType(0);
+  EXPECT_EQ(op_type_2.type, TCInt64);
+}
+
 static void funcTypeCheckPasses(const char* hir_source) {
   std::ostringstream err;
   auto func = HIRParser().ParseHIR(hir_source);

@@ -2505,6 +2505,13 @@ class INSTR_CLASS(
     return type_;
   }
 
+  OperandType GetOperandTypeImpl(std::size_t /* i */) const {
+    if (type_ <= TCEnum) {
+      return TCInt64;
+    }
+    return type_;
+  }
+
  private:
   Type type_;
 };
