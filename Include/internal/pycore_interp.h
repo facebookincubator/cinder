@@ -125,8 +125,8 @@ struct _is {
     // importlib module
     PyObject *importlib;
     PyObject *lazy_loaded;
-    // modules pass this filter need to be eager when enabling lazy imports
-    PyObject *eager_filter;
+    // modules pass this filter need to be eager loaded when enabling lazy imports
+    PyObject *eager_loaded_filter;
 
     // override for config->use_frozen_modules (for tests)
     // (-1: "off", 1: "on", 0: no override)

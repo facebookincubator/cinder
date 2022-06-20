@@ -598,9 +598,9 @@ exit:
 }
 
 PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
-"set_lazy_imports(module, eager_imports_filter)\n"
+"set_lazy_imports(module, eager_filter)\n"
 "Enable Lazy Imports at runtime.\n"
-"`eager_imports_filter` is an optional argument.\n"
+"`eager_filter` is an optional argument.\n"
 "This filter can be a list or a callback function.\n"
 );
 
@@ -608,7 +608,7 @@ PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
     {"set_lazy_imports", _PyCFunction_CAST(_imp_set_lazy_imports), METH_FASTCALL, _imp_set_lazy_imports__doc__},
 
 static PyObject *
-_imp_set_lazy_imports_impl(PyObject *module, PyObject *eager_imports_filter);
+_imp_set_lazy_imports_impl(PyObject *module, PyObject *eager_filter);
 
 static PyObject *
 _imp_set_lazy_imports(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
