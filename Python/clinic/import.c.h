@@ -598,26 +598,36 @@ exit:
 }
 
 PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
-"set_lazy_imports(module)\n"
+"set_lazy_imports(module, eager_imports_filter)\n"
 "Enable Lazy Imports at runtime.\n"
+"`eager_imports_filter` is an optional argument.\n"
+"This filter can be a list or a callback function.\n"
 );
 
 #define _IMP_SET_LAZY_IMPORTS_METHODDEF    \
     {"set_lazy_imports", _PyCFunction_CAST(_imp_set_lazy_imports), METH_FASTCALL, _imp_set_lazy_imports__doc__},
 
 static PyObject *
-_imp_set_lazy_imports_impl(PyObject *module);
+_imp_set_lazy_imports_impl(PyObject *module, PyObject *eager_imports_filter);
 
 static PyObject *
 _imp_set_lazy_imports(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
 
-    if (!_PyArg_CheckPositional("set_lazy_imports", nargs, 0, 0)) {
+    if (!_PyArg_CheckPositional("set_lazy_imports", nargs, 1, 1)) {
         goto exit;
     }
 
-    return_value = _imp_set_lazy_imports_impl(module);
+    if ((args[0] != Py_None) &&
+        (!PyList_Check(args[0]) && !PyFunction_Check(args[0])))
+    {
+        _PyArg_BadArgument("set_lazy_imports", "argument 1", "list or callback function", args[0]);
+        goto exit;
+    }
+
+    // enable lazy imports and marked modules in `args[0]` as eager loaded
+    return_value = _imp_set_lazy_imports_impl(module, args[0]);
 
 exit:
     return return_value;

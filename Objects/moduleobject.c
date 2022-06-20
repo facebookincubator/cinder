@@ -1023,6 +1023,7 @@ PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals
     m->lz_obj = NULL;
     m->lz_next = NULL;
     m->lz_resolving = 0;
+    m->lz_eager_loaded = -1;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -1066,6 +1067,7 @@ PyLazyImportObject_NewObject(PyObject *from, PyObject *name)
     m->lz_obj = NULL;
     m->lz_next = NULL;
     m->lz_resolving = 0;
+    m->lz_eager_loaded = -1;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }

@@ -2077,11 +2077,13 @@ PyObject *
 PyImport_ImportName(PyObject *builtins, PyObject *globals, PyObject *locals,
                     PyObject *name, PyObject *fromlist, PyObject *level)  // replaces PyImport_DeferredImportName
 {
-    PyThreadState *tstate = _PyThreadState_GET();
-    int verbose = _PyInterpreterState_GetConfig(tstate->interp)->verbose;
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    int verbose = _PyInterpreterState_GetConfig(interp)->verbose;
     int lazy_imports_enabled = _PyImport_IsLazyImportsEnabled();
 
-    if (!lazy_imports_enabled) {
+    if (!lazy_imports_enabled ||
+        interp->outermost_is_eager_loaded == 1)
+    {
         return PyImport_EagerImportName(builtins, globals, locals, name, fromlist, level, NULL);
     }
     if (verbose) {
@@ -2221,6 +2223,34 @@ _imp_load_lazy_import_impl(PyLazyImport *lazy_import)  // was _imp_import_deferr
     return obj;
 }
 
+int
+_PyImport_LazyImportMatchEagerLoadedFilter(PyObject *name)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+
+    // check if this module satisfied with `excluding` condition
+    // i.e. module name is in the excluded list or matches callback function
+    PyObject *filter = interp->eager_filter;
+
+    if (filter == NULL) {
+        return 0;
+    }
+
+    // match the list filter
+    if (PySet_Check(filter) && PySet_Contains(filter, name)) {
+        return 1;
+    }
+
+    // match the cb function filter
+    if (PyFunction_Check(filter) &&
+        PyObject_CallObject(filter, PyTuple_Pack(1, name)) == Py_True)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
 PyObject *
 PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(PyObject *deferred)
 {
@@ -2228,8 +2258,35 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
     assert(PyLazyImport_CheckExact(lazy_import));
     PyLazyImport *lz = (PyLazyImport *)lazy_import;
     PyObject *obj = lz->lz_obj;
+
     if (obj == NULL) {
-        obj = _imp_load_lazy_import_impl(lz);
+        PyInterpreterState *interp = _PyInterpreterState_GET();
+        bool outmost = false;
+        if (interp->outermost_is_eager_loaded == -1) {
+            outmost = true;
+            interp->outermost_is_eager_loaded = _PyImport_LazyImportMatchEagerLoadedFilter(lz->lz_name);
+        }
+
+        lz->lz_eager_loaded = interp->outermost_is_eager_loaded;
+        assert(lz->lz_eager_loaded != -1);
+
+        if (lz->lz_eager_loaded == 1) {
+            obj = PyImport_EagerImportName(PyEval_GetBuiltins(),
+                                       lz->lz_globals,
+                                       lz->lz_locals,
+                                       lz->lz_name,
+                                       lz->lz_fromlist,
+                                       lz->lz_level,
+                                       NULL);
+        }
+        else {
+            obj = _imp_load_lazy_import_impl(lz);
+        }
+
+        if (outmost) {
+            interp->outermost_is_eager_loaded = -1;
+        }
+
         if (obj != NULL)
             lz->lz_obj = obj;
     }
@@ -2786,8 +2843,42 @@ _imp_is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *key)
 }
 
 static PyObject *
-_imp_set_lazy_imports_impl(PyObject *module)
+_imp_set_lazy_imports_impl(PyObject *module, PyObject *eager_imports_filter)
 {
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+
+    // eager_imports_filter is a list
+    if (PyList_Check(eager_imports_filter)) {
+        if (interp->eager_filter != NULL) {
+            Py_CLEAR(interp->eager_filter);
+        }
+
+        interp->eager_filter = PySet_New(NULL);
+        assert(interp->eager_filter != NULL);
+
+        // record modules which will need to be eager
+        Py_ssize_t i, n_imports;
+        n_imports = PyList_Size(eager_imports_filter);
+        for (i = 0; i < n_imports; i++) {
+            PyObject *eager_import = PyList_GetItem(eager_imports_filter, i);
+            PySet_Add(interp->eager_filter, eager_import);
+        }
+    }
+    // eager_imports_filter is a callback function
+    else if (PyFunction_Check(eager_imports_filter)) {
+        if (interp->eager_filter != NULL) {
+            Py_CLEAR(interp->eager_filter);
+        }
+
+        // set the callback function
+        interp->eager_filter = eager_imports_filter;
+        assert(interp->eager_filter != NULL);
+    }
+    // eager_imports_filter is empty
+    else {
+        assert(eager_imports_filter == Py_None);
+    }
+
     PyImport_EnableLazyImports();
     Py_RETURN_NONE;
 }

@@ -67,12 +67,19 @@ def is_lazy_import(dictionary, key):
     """
     return _imp.is_lazy_import(dictionary, key)
 
-def set_lazy_imports():
+def set_lazy_imports(excluding=None):
     """Call set_lazy_imports() to enable Lazy Imports.
 
     The imported modules after this point will be lazily imported.
+
+    It has an optional argument `excluding` which can set conditions for
+    specifying some modules are eagerly loaded when they are loading.
+
+    `excluding` can accept a list of module names or a callback function.
+    If a imported module matches the list or the callback function, it will
+    load all sub-modules when it is loaded.
     """
-    _imp.set_lazy_imports()
+    _imp.set_lazy_imports(excluding)
 
 def invalidate_caches():
     """Call the invalidate_caches() method on all meta path finders stored in

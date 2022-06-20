@@ -100,6 +100,7 @@ typedef struct {
     PyObject *lz_obj;
     PyObject *lz_next;
     int lz_resolving;
+    int lz_eager_loaded;
 } PyLazyImport;
 
 int PyLazyImport_Match(PyLazyImport *lazy_import, PyObject *mod_dict, PyObject *name);
