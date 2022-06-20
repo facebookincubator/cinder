@@ -48,7 +48,7 @@ __all__ = ['TestResult', 'TestCase', 'IsolatedAsyncioTestCase', 'TestSuite',
            'TextTestRunner', 'TestLoader', 'FunctionTestCase', 'main',
            'defaultTestLoader', 'SkipTest', 'skip', 'skipIf', 'skipUnless',
            'skipUnderCinderJIT', 'skipUnderCinderJITNotFullFrame',
-           'skipUnlessCinderJITEnabled', 'failUnlessJITCompiled', 'skipIfDebug',
+           'skipUnlessCinderJITEnabled', 'skipUnlessReadonly', 'failUnlessJITCompiled', 'skipIfDebug',
            'skipIfASANEnabled', 'expectedFailure', 'TextTestResult',
            'installHandler', 'registerResult', 'removeResult', 'removeHandler',
            'addModuleCleanup', 'skipUnderUwsgi', 'hasInfiniteRecursion']
@@ -62,7 +62,7 @@ from .result import TestResult
 from .async_case import IsolatedAsyncioTestCase
 from .case import (addModuleCleanup, TestCase, FunctionTestCase, SkipTest, skip,
                    skipIf, skipUnderCinderJIT, skipUnless, skipUnlessCinderJITEnabled,
-                   skipUnderCinderJITNotFullFrame, skipIfDebug, skipUnderUwsgi,
+                   skipUnderCinderJITNotFullFrame, skipUnlessReadonly, skipIfDebug, skipUnderUwsgi,
                    skipIfASANEnabled, failUnlessJITCompiled, expectedFailure,
                    hasInfiniteRecursion)
 from .suite import BaseTestSuite, TestSuite

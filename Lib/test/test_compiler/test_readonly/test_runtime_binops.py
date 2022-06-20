@@ -4,6 +4,7 @@ from .common import ReadonlyTestBase
 
 
 class RuntimeBinopsTests(ReadonlyTestBase):
+    @unittest.skipUnlessReadonly()
     def test_binop_add_mutable_arg(self) -> None:
         code = """
         class TestObj:
@@ -34,6 +35,7 @@ class RuntimeBinopsTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, 7)
 
+    @unittest.skipUnlessReadonly()
     def test_binop_add_readonly_return(self) -> None:
         code = """
         class TestObj:
@@ -60,6 +62,7 @@ class RuntimeBinopsTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, 7)
 
+    @unittest.skipUnlessReadonly()
     def test_binop_add_working(self) -> None:
         code = """
         class TestObj:
@@ -82,6 +85,7 @@ class RuntimeBinopsTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, 7)
 
+    @unittest.skipUnlessReadonly()
     def test_binop_radd_mutable_arg(self) -> None:
         code = """
         class TestObj:
@@ -121,6 +125,7 @@ class RuntimeBinopsTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, 15)
 
+    @unittest.skipUnlessReadonly()
     def test_binop_fallback_add_mutable_arg(self) -> None:
         code = """
         class TestObj:

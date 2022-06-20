@@ -1,8 +1,10 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
 
+#include "boolobject.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
+#include "pyreadonly.h"
 
 #include "Jit/pyjit.h"
 
@@ -597,6 +599,15 @@ watch_sys_modules(PyObject *self, PyObject *obj)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+readonly_enabled(PyObject *self, PyObject *args) {
+#ifdef PYREADONLY_ENABLED
+    Py_RETURN_TRUE;
+#else
+    Py_RETURN_FALSE;
+#endif
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
@@ -711,6 +722,10 @@ static struct PyMethodDef cinder_module_methods[] = {
         watch_sys_modules,
         METH_NOARGS,
         "Watch the sys.modules dict to allow invalidating Static Python's internal caches."},
+    {"readonly_enabled",
+        readonly_enabled,
+        METH_NOARGS,
+        "Return True if readonly support is enabled."},
     {NULL, NULL} /* sentinel */
 };
 

@@ -9,6 +9,7 @@ class RuntimeUnaryOpsTests(ReadonlyTestBase):
         f = compiled[func]
         return f()
 
+    @unittest.skipUnlessReadonly()
     def test_neg_mutable_arg(self) -> None:
         code = """
         class TestObj:
@@ -38,6 +39,7 @@ class RuntimeUnaryOpsTests(ReadonlyTestBase):
             c = self._compile_and_run(code, "f")
             self.assertEqual(c, -3)
 
+    @unittest.skipUnlessReadonly()
     def test_neg_readonly_return(self) -> None:
         code = """
         class TestObj:
@@ -63,6 +65,7 @@ class RuntimeUnaryOpsTests(ReadonlyTestBase):
             c = self._compile_and_run(code, "f")
             self.assertEqual(c, -3)
 
+    @unittest.skipUnlessReadonly()
     def test_neg_working(self) -> None:
         code = """
         class TestObj:

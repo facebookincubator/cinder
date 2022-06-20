@@ -1,7 +1,10 @@
+import unittest
+
 from .common import ReadonlyTestBase
 
 
 class RuntimeIterTests(ReadonlyTestBase):
+    @unittest.skipUnlessReadonly()
     def test_for_loop_iter(self) -> None:
         code = """
         from typing import List
@@ -30,6 +33,7 @@ class RuntimeIterTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, [1, 2])
 
+    @unittest.skipUnlessReadonly()
     def test_for_loop_iter_ro(self) -> None:
         code = """
         from typing import Iterator
@@ -52,6 +56,7 @@ class RuntimeIterTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, [1, 2])
 
+    @unittest.skipUnlessReadonly()
     def test_for_loop_iter_next_ro(self) -> None:
         code = """
         from typing import List
@@ -83,6 +88,7 @@ class RuntimeIterTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, [1, 1])
 
+    @unittest.skipUnlessReadonly()
     def test_for_loop_iter_next_self_ro_ok(self) -> None:
         code = """
         from typing import List
@@ -107,6 +113,7 @@ class RuntimeIterTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, [])
 
+    @unittest.skipUnlessReadonly()
     def test_for_loop_iter_ro_self_iter(self) -> None:
         code = """
         @readonly_func

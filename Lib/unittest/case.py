@@ -39,6 +39,8 @@ except ImportError:
         return False
     CINDERJIT_ENABLED = False
 
+from cinder import readonly_enabled
+
 class SkipTest(Exception):
     """
     Raise this exception in a test to skip it.
@@ -219,6 +221,11 @@ def failUnlessJITCompiled(func):
     def decorator(*args, **kwargs):
         raise AssertionError(f"Function '{func.__qualname__}' is not JIT-compiled")
     return decorator
+
+def skipUnlessReadonly(reason="Readonly support is not enabled."):
+    if not readonly_enabled():
+        return skip
+    return _id
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True

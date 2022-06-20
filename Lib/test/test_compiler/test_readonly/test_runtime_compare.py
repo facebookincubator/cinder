@@ -4,6 +4,7 @@ from .common import ReadonlyTestBase
 
 
 class RuntimeCompareTests(ReadonlyTestBase):
+    @unittest.skipUnlessReadonly()
     def test_compare_eq_mutable_arg(self) -> None:
         code = """
         class TestObj:
@@ -34,6 +35,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, False)
 
+    @unittest.skipUnlessReadonly()
     def test_compare_eq_readonly_return(self) -> None:
         code = """
         class TestObj:
@@ -60,6 +62,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, False)
 
+    @unittest.skipUnlessReadonly()
     def test_compare_eq_working(self) -> None:
         code = """
         class TestObj:
@@ -82,6 +85,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, False)
 
+    @unittest.skipUnlessReadonly()
     def test_compare_reverse_mutable_arg(self) -> None:
         code = """
         class TestObj:
@@ -121,6 +125,7 @@ class RuntimeCompareTests(ReadonlyTestBase):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, True)
 
+    @unittest.skipUnlessReadonly()
     def test_compare_reverse_fallback_mutable_arg(self) -> None:
         code = """
         class TestObj:
