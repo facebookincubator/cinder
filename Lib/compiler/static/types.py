@@ -9512,6 +9512,10 @@ class CIntType(CType):
 
         return False
 
+    def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
+        assert self.can_assign_from(src)
+        self.instance.emit_convert(src.instance, code_gen)
+
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         if len(node.args) != 1:
             raise code_gen.syntax_error(

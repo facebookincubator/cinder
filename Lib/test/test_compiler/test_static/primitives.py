@@ -3873,3 +3873,14 @@ class PrimitivesTests(StaticTestBase):
                                 f(val)
                         else:
                             self.assertEqual(f(val), val)
+
+    def test_emits_convert_primitive_while_boxing(self):
+        codestr = """
+        import __static__
+        from __static__ import rand, RAND_MAX, box, int64
+        def f():
+            x: int64 = rand()
+            return box(x)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "CONVERT_PRIMITIVE")
