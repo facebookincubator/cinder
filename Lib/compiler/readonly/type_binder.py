@@ -18,8 +18,8 @@ from ..unparse import to_expr
 from ..visitor import ASTVisitor
 from .types import FunctionValue, MUTABLE, READONLY, Value
 from .util import (
+    is_readonly_closure,
     is_readonly_func,
-    is_readonly_func_nonlocal,
     is_readonly_wrapped,
     is_tuple_wrapped,
     READONLY_DECORATORS,
@@ -95,7 +95,7 @@ class ReadonlyBindingScope:
         """
         return False
 
-    def readonly_nonlocal(self) -> bool:
+    def readonly_closure(self) -> bool:
         """
         Returns whether nonlocal names in the scope are always readonly
         """
@@ -193,18 +193,18 @@ class ReadonlyFunctionBindingScope(ReadonlyBindingScope):
         returns_readonly: bool = False,
         yields_readonly: bool = False,
         sends_readonly: bool = False,
-        readonly_nonlocal: bool = False,
+        readonly_closure: bool = False,
         pre_visit: bool = False,
     ) -> None:
         super().__init__(node, binder, parent, args_readonly)
         self._returns_readonly = returns_readonly
         self._yields_readonly = yields_readonly
         self._sends_readonly = sends_readonly
-        self._readonly_nonlocal = readonly_nonlocal
+        self._readonly_nonlocal = readonly_closure
         self._pre_visit = pre_visit
         self.post_visit: List[ast.AST] = []
 
-    def readonly_nonlocal(self) -> bool:
+    def readonly_closure(self) -> bool:
         return self._readonly_nonlocal
 
     def returns_readonly(self) -> bool:
@@ -306,8 +306,8 @@ class ReadonlyTypeBinder(ASTVisitor):
         return self.readonly_scope.returns_readonly()
 
     @property
-    def readonly_nonlocal(self) -> bool:
-        return self.readonly_scope.readonly_nonlocal()
+    def readonly_closure(self) -> bool:
+        return self.readonly_scope.readonly_closure()
 
     def declare(
         self,
@@ -476,10 +476,13 @@ class ReadonlyTypeBinder(ASTVisitor):
                 )
                 self.store_mutable(node)
         elif name_scope in (SC_GLOBAL_IMPLICIT, SC_GLOBAL_EXPLICIT):
-            # globals are not readonly. They are handled separately
-            self.store_mutable(node)
+            # globals are implicitly readonly in readonly functions
+            if self.readonly_closure:
+                self.store_readonly(node)
+            else:
+                self.store_mutable(node)
         elif name_scope == SC_FREE:
-            if self.readonly_nonlocal:
+            if self.readonly_closure:
                 self.store_readonly(node)
             else:
                 is_readonly = self.get_name_readonly(name)
@@ -730,7 +733,7 @@ class ReadonlyTypeBinder(ASTVisitor):
         if isinstance(lhs, ast.Name):
             lname = lhs.id
             name_scope = self.scope.check_name(lname)
-            if name_scope == SC_FREE and self.readonly_nonlocal:
+            if name_scope == SC_FREE and self.readonly_closure:
                 # cannot modify closure in readonly_func
                 self.readonly_type_error(
                     f"cannot modify '{lname}' from a closure, inside a readonly_func annotated function",
@@ -994,9 +997,7 @@ class ReadonlyTypeBinder(ASTVisitor):
             return
 
         readonly_func = any(is_readonly_func(dec) for dec in node.decorator_list)
-        readonly_nonlocal = any(
-            is_readonly_func_nonlocal(dec) for dec in node.decorator_list
-        )
+        readonly_closure = any(is_readonly_closure(dec) for dec in node.decorator_list)
         node.decorator_list = [
             x
             for x in node.decorator_list
@@ -1027,7 +1028,7 @@ class ReadonlyTypeBinder(ASTVisitor):
             returns_readonly=returns_readonly,
             yields_readonly=yields_readonly,
             sends_readonly=sends_readonly,
-            readonly_nonlocal=readonly_nonlocal,
+            readonly_closure=readonly_closure,
             pre_visit=True,
         )
         self.child_scope(func_scope)
@@ -1052,7 +1053,7 @@ class ReadonlyTypeBinder(ASTVisitor):
             else:
                 arg_values.append(MUTABLE)
         func_value = FunctionValue(
-            readonly_nonlocal,
+            readonly_closure,
             returns_readonly,
             yields_readonly,
             sends_readonly,

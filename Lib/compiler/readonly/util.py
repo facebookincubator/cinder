@@ -6,7 +6,7 @@ from typing import Any, Optional, Tuple, Union
 
 READONLY_CALL: str = "readonly"
 READONLY_FUNC: str = "readonly_func"
-READONLY_FUNC_NONLOCAL: str = "readonly_closure"
+READONLY_CLOSURE: str = "readonly_closure"
 
 READONLY_DECORATORS = ("readonly_func", "readonly_closure")
 
@@ -27,5 +27,5 @@ def is_readonly_func(node: AST) -> bool:
     return isinstance(node, Name) and node.id == READONLY_FUNC
 
 
-def is_readonly_func_nonlocal(node: AST) -> bool:
-    return isinstance(node, Name) and node.id == READONLY_FUNC_NONLOCAL
+def is_readonly_closure(node: AST) -> bool:
+    return isinstance(node, Name) and node.id == READONLY_CLOSURE

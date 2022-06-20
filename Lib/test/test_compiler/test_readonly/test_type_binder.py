@@ -1863,3 +1863,17 @@ class TypeBinderTests(ReadonlyTestBase):
         """
         errors = self.lint(code)
         self.assertEqual(errors.errors, [])
+
+    def test_readonly_closure_globals(self) -> None:
+        code = """
+        lst = [2]
+        @readonly_func
+        @readonly_closure
+        def f():
+            y = 1
+            lst[0] = y
+        """
+        errors = self.lint(code)
+        errors.check(
+            errors.match("Cannot modify readonly expression 'lst' via subscript"),
+        )
