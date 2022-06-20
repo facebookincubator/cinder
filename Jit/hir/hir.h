@@ -400,6 +400,7 @@ struct FrameState {
   V(TpAlloc)                           \
   V(UnaryOp)                           \
   V(UnicodeCompare)                    \
+  V(UnicodeRepeat)                     \
   V(UnpackExToTuple)                   \
   V(UseType)                           \
   V(VectorCall)                        \
@@ -2310,6 +2311,13 @@ class INSTR_CLASS(
  private:
   CompareOp op_;
 };
+
+DEFINE_SIMPLE_INSTR(
+    UnicodeRepeat,
+    (TUnicodeExact, TCInt64),
+    HasOutput,
+    Operands<2>,
+    DeoptBase)
 
 // NB: This needs to be in the order that the values appear in the
 // BinaryOpKind enum

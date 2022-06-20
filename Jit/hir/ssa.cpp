@@ -550,6 +550,10 @@ Type outputType(
       return get_op_type(0) & type;
     }
 
+    case Opcode::kUnicodeRepeat: {
+      return TUnicodeExact;
+    }
+
       // Finally, some opcodes have no destination.
     case Opcode::kBatchDecref:
     case Opcode::kBeginInlinedFunction:

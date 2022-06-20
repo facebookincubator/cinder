@@ -284,6 +284,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
     case Opcode::kYieldFromHandleStopAsyncIteration:
+    case Opcode::kUnicodeRepeat:
     case Opcode::kYieldValue: {
       return "";
     }

@@ -1406,3 +1406,106 @@ fun jittestmodule:test {
   }
 }
 ---
+UnicodeRepeatEmittedWhenMultiplyingString
+---
+def test():
+  a = "abc"
+  b = 2
+  return a*b
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v16:CInt64[2] = LoadConst<CInt64[2]>
+    v17:CInt64[0] = LoadConst<CInt64[0]>
+    v15:UnicodeExact = UnicodeRepeat v6 v16 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v6 v8
+      }
+    }
+    Return v15
+  }
+}
+---
+UnicodeRepeatDoesNotEmitWhenStringMultipliedByNonLongExact
+---
+def test():
+  a = "abc"
+  b = True
+  return a*b
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v8:MortalBool[True] = LoadConst<MortalBool[True]>
+    v12:Object = BinaryOp<Multiply> v6 v8 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v6 v8
+      }
+    }
+    Return v12
+  }
+}
+---
+UnicodeRepeatDoesNotEmitDuringStringAddition
+---
+def test():
+  a = "abc"
+  b = "xyz"
+  return a+b
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v8:MortalUnicodeExact["xyz"] = LoadConst<MortalUnicodeExact["xyz"]>
+    v12:Object = BinaryOp<Add> v6 v8 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v6 v8
+      }
+    }
+    Return v12
+  }
+}
+---
+UnicodeRepeatEmittedWhenSimplyfingMultiplyWithNonConstLongExact
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = LoadArg<1>
+    v3 = RefineType<UnicodeExact> v1
+    v4 = RefineType<LongExact> v2
+    v5:UnicodeExact = BinaryOp<Multiply> v3 v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Object = LoadArg<1>
+    v3:UnicodeExact = RefineType<UnicodeExact> v1
+    v4:LongExact = RefineType<LongExact> v2
+    v6:CInt64 = PrimitiveUnbox<CInt64> v4
+    v7:CInt64 = IsNegativeAndErrOccurred v6 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v8:UnicodeExact = UnicodeRepeat v3 v6 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Return v8
+  }
+}
+---

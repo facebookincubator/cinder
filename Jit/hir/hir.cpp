@@ -240,6 +240,7 @@ bool Instr::isReplayable() const {
     case Opcode::kStoreSubscr:
     case Opcode::kTpAlloc:
     case Opcode::kUnaryOp:
+    case Opcode::kUnicodeRepeat:
     case Opcode::kUnpackExToTuple:
     case Opcode::kVectorCall:
     case Opcode::kVectorCallStatic:

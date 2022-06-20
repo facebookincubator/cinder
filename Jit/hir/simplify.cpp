@@ -437,6 +437,12 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
     env.emit<UseType>(rhs, TLongExact);
     return env.emit<LongBinaryOp>(instr->op(), lhs, rhs, *instr->frameState());
   }
+  if ((lhs->isA(TUnicodeExact) && rhs->isA(TLongExact)) &&
+      (instr->op() == BinaryOpKind::kMultiply)) {
+    Register* unboxed_rhs = env.emit<PrimitiveUnbox>(rhs, TCInt64);
+    env.emit<IsNegativeAndErrOccurred>(unboxed_rhs, *instr->frameState());
+    return env.emit<UnicodeRepeat>(lhs, unboxed_rhs, *instr->frameState());
+  }
   // Unsupported case.
   return nullptr;
 }
