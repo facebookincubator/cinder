@@ -674,7 +674,9 @@ PyObject* LoadTypeAttrCache::invoke(
   return cache->doInvoke(obj, name);
 }
 
-void GlobalCache::init() const {
+void GlobalCache::init(PyObject** cache) const {
+  pair_->second.ptr = cache;
+
   // We want to try and only watch builtins if this is really a
   // builtin.  So we will start only watching globals, and if
   // the value gets deleted from globals then we'll start

@@ -14,42 +14,6 @@
 
 namespace jit {
 
-// A pool of objects where the number of objects is known and the address of
-// the objects needs to remain stable.
-//
-// This is oddly specific set of requirements is used during code generation.
-// When emitting code for a function, we calculate the number of caches that
-// need to be allocated prior to emitting any code. Then, we allocate a cache
-// from the pool on-demand as we emit code and burn the address of the cache
-// into the emitted code.
-template <typename T>
-class InlineCachePool {
- public:
-  explicit InlineCachePool(std::size_t num_entries) {
-    if (num_entries > 0) {
-      entries_ = std::make_unique<T[]>(num_entries);
-    } else {
-      entries_ = nullptr;
-    }
-    num_entries_ = num_entries;
-    num_allocated_ = 0;
-  }
-
-  T* allocate() {
-    JIT_CHECK(num_allocated_ < num_entries_, "no free entries");
-    T* entry = &entries_[num_allocated_];
-    num_allocated_++;
-    return entry;
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(InlineCachePool);
-
-  std::unique_ptr<T[]> entries_;
-  std::size_t num_entries_;
-  std::size_t num_allocated_;
-};
-
 // Mutator for an instance attribute that is stored in a split dictionary
 struct SplitMutator {
   PyObject* setAttr(PyObject* obj, PyObject* name, PyObject* value);
@@ -232,9 +196,7 @@ struct GlobalCacheKeyHash {
 };
 
 struct GlobalCacheValue {
-  GlobalCacheValue() : ptr_(std::make_unique<PyObject*>()) {}
-
-  std::unique_ptr<PyObject*> ptr_;
+  PyObject** ptr;
 };
 
 using GlobalCacheMap =
@@ -252,12 +214,12 @@ class GlobalCache {
   }
 
   PyObject** valuePtr() const {
-    return pair_->second.ptr_.get();
+    return pair_->second.ptr;
   }
 
   // Initialize the cache: subscribe to both dicts and fill in the current
   // value.
-  void init() const;
+  void init(PyObject** cache) const;
 
   // Update the cached value after an update to one of the dicts.
   //
@@ -289,9 +251,7 @@ void notifyICsTypeChanged(BorrowedRef<PyTypeObject> type);
 } // namespace jit
 
 struct FunctionEntryCacheValue {
-  FunctionEntryCacheValue() : ptr_(std::make_unique<void*>()) {}
-
-  std::unique_ptr<void*> ptr_;
+  void** ptr{nullptr};
   Ref<_PyTypedArgsInfo> arg_info;
 };
 

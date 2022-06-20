@@ -56,12 +56,12 @@ void Runtime::shutdown() {
 }
 
 void Runtime::mlockProfilerDependencies() {
-  for (auto& codert : runtimes_) {
+  for (auto& codert : code_runtimes_) {
     PyCodeObject* code = codert.frameState()->code().get();
     ::mlock(code, sizeof(PyCodeObject));
     ::mlock(code->co_qualname, Py_SIZE(code->co_qualname));
   }
-  runtimes_.lock();
+  code_runtimes_.mlock();
 }
 
 Ref<> Runtime::pageInProfilerDependencies() {
@@ -74,7 +74,7 @@ Ref<> Runtime::pageInProfilerDependencies() {
   // code_rt->code->qualname path and keep the compiler from optimizing away
   // the code to do so. There are probably more efficient ways of doing this
   // but perf isn't a major concern.
-  for (auto& code_rt : runtimes_) {
+  for (auto& code_rt : code_runtimes_) {
     BorrowedRef<> qualname = code_rt.frameState()->code()->co_qualname;
     if (qualname == nullptr) {
       continue;
@@ -86,33 +86,29 @@ Ref<> Runtime::pageInProfilerDependencies() {
   return qualnames;
 }
 
-GlobalCache Runtime::findGlobalCache(PyObject* globals, PyObject* name) {
+GlobalCache Runtime::findGlobalCache(
+    PyObject* builtins,
+    PyObject* globals,
+    PyObject* name) {
   JIT_CHECK(PyUnicode_CheckExact(name), "Name must be a str");
   JIT_CHECK(PyUnicode_CHECK_INTERNED(name), "Name must be interned");
   auto result = global_caches_.emplace(
       std::piecewise_construct,
-      std::forward_as_tuple(PyEval_GetBuiltins(), globals, name),
+      std::forward_as_tuple(builtins, globals, name),
       std::forward_as_tuple());
   GlobalCache cache(&*result.first);
   if (result.second) {
-    cache.init();
+    cache.init(reinterpret_cast<PyObject**>(pointer_caches_.allocate()));
   }
   return cache;
 }
 
+GlobalCache Runtime::findGlobalCache(PyObject* globals, PyObject* name) {
+  return findGlobalCache(PyEval_GetBuiltins(), globals, name);
+}
+
 GlobalCache Runtime::findDictCache(PyObject* dict, PyObject* name) {
-  JIT_CHECK(PyUnicode_CheckExact(name), "Name must be a str");
-  JIT_CHECK(PyUnicode_CHECK_INTERNED(name), "Name must be interned");
-  auto result = global_caches_.emplace(
-      std::piecewise_construct,
-      std::forward_as_tuple(dict, dict, name),
-      std::forward_as_tuple());
-  GlobalCache cache(&*result.first);
-  if (result.second) {
-    cache.init();
-  }
-  JIT_CHECK(_PyDict_IsWatched(dict), "dict isn't watched");
-  return cache;
+  return findGlobalCache(dict, dict, name);
 }
 
 void** Runtime::findFunctionEntryCache(PyFunctionObject* function) {
@@ -122,13 +118,14 @@ void** Runtime::findFunctionEntryCache(PyFunctionObject* function) {
       std::forward_as_tuple());
   addReference((PyObject*)function);
   if (result.second) {
+    result.first->second.ptr = pointer_caches_.allocate();
     if (_PyClassLoader_HasPrimitiveArgs((PyCodeObject*)function->func_code)) {
       result.first->second.arg_info =
           Ref<_PyTypedArgsInfo>::steal(_PyClassLoader_GetTypedArgsInfo(
               (PyCodeObject*)function->func_code, 1));
     }
   }
-  return result.first->second.ptr_.get();
+  return result.first->second.ptr;
 }
 
 _PyTypedArgsInfo* Runtime::findFunctionPrimitiveArgInfo(
@@ -142,7 +139,6 @@ _PyTypedArgsInfo* Runtime::findFunctionPrimitiveArgInfo(
 
 void Runtime::forgetLoadGlobalCache(GlobalCache cache) {
   auto it = global_caches_.find(cache.key());
-  orphaned_global_caches_.emplace_back(std::move(it->second));
   global_caches_.erase(it);
 }
 
@@ -199,7 +195,7 @@ void Runtime::addReference(PyObject* obj) {
 }
 
 void Runtime::releaseReferences() {
-  for (auto& code_rt : runtimes_) {
+  for (auto& code_rt : code_runtimes_) {
     code_rt.releaseReferences();
   }
   references_.clear();

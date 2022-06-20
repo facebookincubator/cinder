@@ -235,23 +235,10 @@ void* NativeGenerator::GetEntryPoint() {
 
   auto func = GetFunction();
 
-  auto num_lm_caches = func->env.numLoadMethodCaches();
-  auto num_la_caches =
-      func->CountInstrs([](const Instr& instr) { return instr.IsLoadAttr(); });
-  auto num_sa_caches =
-      func->CountInstrs([](const Instr& instr) { return instr.IsStoreAttr(); });
-  auto num_lat_caches = func->env.numLoadAttrCaches();
-
   env_.rt = Runtime::get();
   PyCodeObject* code_obj = func->code;
   env_.code_rt = env_.rt->allocateCodeRuntime(
-      code_obj,
-      GetFunction()->globals,
-      func->frameMode,
-      num_lm_caches,
-      num_la_caches,
-      num_sa_caches,
-      num_lat_caches);
+      code_obj, GetFunction()->globals, func->frameMode);
 
   for (auto& ref : func->env.references()) {
     env_.code_rt->addReference(ref);

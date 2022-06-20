@@ -12,6 +12,7 @@
 #include "Jit/deopt.h"
 #include "Jit/frame.h"
 #include "Jit/hir/analysis.h"
+#include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
 #include "Jit/lir/block_builder.h"
 #include "Jit/log.h"
@@ -86,6 +87,21 @@ extern "C" uint64_t __Invoke_PyDict_MergeEx(
     return 0;
   }
   return reinterpret_cast<uint64_t>(Py_None);
+}
+
+LIRGenerator::LIRGenerator(
+    const jit::hir::Function* func,
+    jit::codegen::Environ* env)
+    : func_(func),
+      env_(env),
+      entry_block_(nullptr),
+      exit_block_(nullptr),
+      temp_id(0),
+      label_id(0) {
+  for (int i = 0, n = func->env.numLoadTypeAttrCaches(); i < n; i++) {
+    load_type_attr_caches_.emplace_back(
+        Runtime::get()->allocateLoadTypeAttrCache());
+  }
 }
 
 BasicBlock* LIRGenerator::GenerateEntryBlock() {
@@ -1231,7 +1247,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCall(
             instr->dst(),
             jit::LoadAttrCache::invoke,
-            env_->code_rt->AllocateLoadAttrCache(),
+            Runtime::get()->allocateLoadAttrCache(),
             instr->GetOperand(0),
             tmp_id);
         break;
@@ -1248,7 +1264,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadTypeAttrCacheItem: {
         auto instr = static_cast<const LoadTypeAttrCacheItem*>(&i);
-        auto cache = env_->code_rt->getLoadTypeAttrCache(instr->cache_id());
+        auto cache = load_type_attr_caches_.at(instr->cache_id());
         auto addr =
             reinterpret_cast<uint64_t>(&(cache->items[instr->item_idx()]));
         bbb.AppendCode("Load {}, {:#x}", instr->GetOutput(), addr);
@@ -1264,7 +1280,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCall(
             instr->GetOutput(),
             jit::LoadTypeAttrCache::invoke,
-            env_->code_rt->getLoadTypeAttrCache(instr->cache_id()),
+            load_type_attr_caches_.at(instr->cache_id()),
             instr->receiver(),
             tmp_id);
         break;
@@ -1280,7 +1296,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
 
         auto func = reinterpret_cast<uint64_t>(JITRT_GetMethod);
-        auto cache_entry = env_->code_rt->AllocateLoadMethodCache();
+        auto cache_entry = Runtime::get()->allocateLoadMethodCache();
         bbb.AppendCode(
             "Call {}, {:#x}, {}, {}, {:#x}",
             instr->dst(),
@@ -1666,7 +1682,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCall(
             instr->dst(),
             jit::StoreAttrCache::invoke,
-            env_->code_rt->allocateStoreAttrCache(),
+            Runtime::get()->allocateStoreAttrCache(),
             instr->GetOperand(0),
             ob_item[instr->name_idx()],
             instr->GetOperand(1));

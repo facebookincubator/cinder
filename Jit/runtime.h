@@ -1,7 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "Jit/bump_allocator.h"
 #include "Jit/containers.h"
 #include "Jit/debug_info.h"
 #include "Jit/deopt.h"
@@ -9,6 +8,7 @@
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
 #include "Jit/pyjit.h"
+#include "Jit/slab_arena.h"
 #include "Jit/threaded_compile.h"
 #include "Jit/type_profiler.h"
 #include "Jit/util.h"
@@ -18,39 +18,6 @@
 #include <unordered_set>
 
 namespace jit {
-class LoadMethodCachePool {
- public:
-  explicit LoadMethodCachePool(std::size_t num_entries)
-      : entries_(nullptr), num_entries_(num_entries), num_allocated_(0) {
-    if (num_entries == 0) {
-      return;
-    }
-    entries_.reset(new JITRT_LoadMethodCache[num_entries]);
-    for (std::size_t i = 0; i < num_entries_; i++) {
-      JITRT_InitLoadMethodCache(&(entries_[i]));
-    }
-  }
-
-  ~LoadMethodCachePool() {}
-
-  JITRT_LoadMethodCache* AllocateEntry() {
-    JIT_CHECK(
-        num_allocated_ < num_entries_,
-        "not enough space alloc=%lu capacity=%lu",
-        num_allocated_,
-        num_entries_);
-    JITRT_LoadMethodCache* entry = &entries_[num_allocated_];
-    num_allocated_++;
-    return entry;
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(LoadMethodCachePool);
-
-  std::unique_ptr<JITRT_LoadMethodCache[]> entries_;
-  std::size_t num_entries_;
-  std::size_t num_allocated_;
-};
 
 class GenYieldPoint;
 
@@ -183,18 +150,8 @@ class alignas(16) CodeRuntime {
   explicit CodeRuntime(
       PyCodeObject* code,
       PyObject* globals,
-      jit::hir::FrameMode frame_mode,
-      std::size_t num_lm_caches,
-      std::size_t num_la_caches,
-      std::size_t num_sa_caches,
-      std::size_t num_lat_caches)
-      : frame_state_(code, globals),
-        frame_mode_(frame_mode),
-        load_method_cache_pool_(num_lm_caches),
-        load_attr_cache_pool_(num_la_caches),
-        store_attr_cache_pool_(num_sa_caches),
-        load_type_attr_caches_(
-            std::make_unique<LoadTypeAttrCache[]>(num_lat_caches)) {
+      jit::hir::FrameMode frame_mode)
+      : frame_state_(code, globals), frame_mode_(frame_mode) {
     // TODO(T88040922): Until we work out something smarter, force code and
     // globals objects for compiled functions to live as long as the JIT is
     // initialized.
@@ -211,8 +168,6 @@ class alignas(16) CodeRuntime {
     return inlined_frame_states_.back().get();
   }
 
-  ~CodeRuntime() {}
-
   jit::hir::FrameMode frameMode() const {
     return frame_mode_;
   }
@@ -223,22 +178,6 @@ class alignas(16) CodeRuntime {
 
   // Release any references this CodeRuntime holds to Python objects.
   void releaseReferences();
-
-  JITRT_LoadMethodCache* AllocateLoadMethodCache() {
-    return load_method_cache_pool_.AllocateEntry();
-  }
-
-  LoadAttrCache* AllocateLoadAttrCache() {
-    return load_attr_cache_pool_.allocate();
-  }
-
-  StoreAttrCache* allocateStoreAttrCache() {
-    return store_attr_cache_pool_.allocate();
-  }
-
-  LoadTypeAttrCache* getLoadTypeAttrCache(int id) {
-    return &load_type_attr_caches_[id];
-  }
 
   // Ensure that this CodeRuntime owns a reference to the given object, keeping
   // it alive for use by the compiled code.
@@ -274,10 +213,6 @@ class alignas(16) CodeRuntime {
   RuntimeFrameState frame_state_;
   std::vector<std::unique_ptr<RuntimeFrameState>> inlined_frame_states_;
   jit::hir::FrameMode frame_mode_;
-  LoadMethodCachePool load_method_cache_pool_;
-  InlineCachePool<LoadAttrCache> load_attr_cache_pool_;
-  InlineCachePool<StoreAttrCache> store_attr_cache_pool_;
-  std::unique_ptr<LoadTypeAttrCache[]> load_type_attr_caches_;
 
   std::unordered_set<Ref<PyObject>> references_;
 
@@ -327,9 +262,7 @@ class Runtime {
 
   template <typename... Args>
   CodeRuntime* allocateCodeRuntime(Args&&... args) {
-    // Serialize as we modify the globally shared runtimes data.
-    ThreadedCompileSerialize guard;
-    return runtimes_.allocate(std::forward<Args>(args)...);
+    return code_runtimes_.allocate(std::forward<Args>(args)...);
   }
 
   void mlockProfilerDependencies();
@@ -337,6 +270,8 @@ class Runtime {
   // Create or look up a cache for the global with the given name, in the
   // context of the given globals dict.  This cache will fall back to
   // builtins if the value isn't defined in this dict.
+  GlobalCache
+  findGlobalCache(PyObject* builtins, PyObject* globals, PyObject* name);
   GlobalCache findGlobalCache(PyObject* globals, PyObject* name);
 
   // Create or look up a cache for a member with the given name, in the
@@ -393,6 +328,22 @@ class Runtime {
     return static_cast<T*>(deopt_patchers_.back().get());
   }
 
+  LoadAttrCache* allocateLoadAttrCache() {
+    return load_attr_caches_.allocate();
+  }
+
+  LoadTypeAttrCache* allocateLoadTypeAttrCache() {
+    return load_type_attr_caches_.allocate();
+  }
+
+  JITRT_LoadMethodCache* allocateLoadMethodCache() {
+    return load_method_caches_.allocate();
+  }
+
+  StoreAttrCache* allocateStoreAttrCache() {
+    return store_attr_caches_.allocate();
+  }
+
   // Some profilers need to walk the code_rt->code->qualname chain for jitted
   // functions on the call stack. The JIT rarely touches this memory and, as a
   // result, the OS may page it out. Out of process profilers (i.e. those that
@@ -408,15 +359,21 @@ class Runtime {
  private:
   static Runtime* s_runtime_;
 
-  // 1,000,000 runtimes should be enough for now. They are not eagerly
-  // allocated.
-  BumpAllocator<CodeRuntime> runtimes_{1000000};
+  // Allocate all CodeRuntimes together so they can be mlocked() without
+  // including any other data that happened to be on the same page.
+  SlabArena<CodeRuntime> code_runtimes_;
+
+  // These SlabAreas hold data that is allocated at compile-time and likely to
+  // change at runtime, and should be isolated from other data to avoid COW
+  // casualties.
+  SlabArena<LoadAttrCache> load_attr_caches_;
+  SlabArena<LoadTypeAttrCache> load_type_attr_caches_;
+  SlabArena<JITRT_LoadMethodCache> load_method_caches_;
+  SlabArena<StoreAttrCache> store_attr_caches_;
+  SlabArena<void*> pointer_caches_;
+
   GlobalCacheMap global_caches_;
   FunctionEntryCacheMap function_entry_caches_;
-
-  // Global caches removed by forgetGlobalCaches() may still be reachable from
-  // compiled code, and are kept alive here until runtime shutdown.
-  std::vector<GlobalCacheValue> orphaned_global_caches_;
 
   std::vector<DeoptMetadata> deopt_metadata_;
   DeoptStats deopt_stats_;

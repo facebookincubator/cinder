@@ -5,23 +5,27 @@
 #include "classloader.h"
 #include "frameobject.h"
 
+#include <array>
+
 namespace jit {
 class CodeRuntime;
 }
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct JITRT_LoadMethodCacheEntry {
+  PyTypeObject* type{nullptr};
+  PyObject* value{nullptr};
+};
 
-typedef struct {
-  PyTypeObject* type;
-  PyObject* value;
-} JITRT_LoadMethodCacheEntry;
+const size_t kLoadMethodCacheSize = 4;
 
-typedef struct {
+struct JITRT_LoadMethodCache {
+  std::array<JITRT_LoadMethodCacheEntry, kLoadMethodCacheSize> entries{};
+};
+
+struct JITRT_LoadMethodResult {
   PyObject* func;
   PyObject* inst;
-} JITRT_LoadMethodResult;
+};
 
 // static->static call convention for primitive returns is to return error flag
 // in rdx (null means error occurred); for C helpers that need to implement this
@@ -35,12 +39,6 @@ typedef struct {
   double xmm0;
   double xmm1;
 } JITRT_StaticCallFPReturn;
-
-#define LOAD_METHOD_CACHE_SIZE 4
-
-typedef struct {
-  JITRT_LoadMethodCacheEntry entries[LOAD_METHOD_CACHE_SIZE];
-} JITRT_LoadMethodCache;
 
 /*
  * Allocate a new PyFrameObject and link it into the current thread's
@@ -266,8 +264,6 @@ PyObject* JITRT_ReadonlyTernaryOp(
     PyObject* c,
     ternaryfunc operation_ptr,
     int readonly_mask);
-
-void JITRT_InitLoadMethodCache(JITRT_LoadMethodCache* cache);
 
 /*
  * Invokes a function stored within the method table for the object.
@@ -556,7 +552,3 @@ int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op);
 
 /* perform a batch decref to the objects in args */
 void JITRT_BatchDecref(PyObject** args, int nargs);
-
-#ifdef __cplusplus
-}
-#endif

@@ -61,6 +61,32 @@ namespace jit {
 
 const int kPointerSize = sizeof(void*);
 
+const int kKiB = 1024;
+const int kMiB = kKiB * kKiB;
+const int kGiB = kKiB * kKiB * kKiB;
+
+#ifdef __x86_64__
+const int kPageSize = 4 * kKiB;
+#else
+#error Please define kPageSize for the current architecture
+#endif
+
+template <typename T>
+constexpr bool isPowerOfTwo(T x) {
+  return (x & (x - 1)) == 0;
+}
+
+template <typename T>
+constexpr T roundDown(T x, size_t n) {
+  JIT_DCHECK(isPowerOfTwo(n), "must be power of 2");
+  return (x & -n);
+}
+
+template <typename T>
+constexpr T roundUp(T x, size_t n) {
+  return roundDown(x + n - 1, n);
+}
+
 const int kCoFlagsAnyGenerator =
     CO_ASYNC_GENERATOR | CO_COROUTINE | CO_GENERATOR | CO_ITERABLE_COROUTINE;
 

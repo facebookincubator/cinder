@@ -519,7 +519,7 @@ Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
     return nullptr;
   }
 
-  const int cache_id = env.func.env.allocateLoadAttrCache();
+  const int cache_id = env.func.env.allocateLoadTypeAttrCache();
   env.emit<UseType>(receiver, TType);
   Register* guard = env.emit<LoadTypeAttrCacheItem>(cache_id, 0);
   Register* type_matches =

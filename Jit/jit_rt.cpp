@@ -937,15 +937,15 @@ static void invalidate_load_method_cache(
       static_cast<JITRT_LoadMethodCache*>(PyCapsule_GetPointer(capsule, NULL));
 
   PyObject* modified_type = PyWeakref_GetObject(modified_type_weakref);
-  for (int i = 0; i < LOAD_METHOD_CACHE_SIZE; i++) {
+  for (auto& entry : cache->entries) {
     // If the type that was referenced went away, we clear all the cache
     // entries as we cannot be sure which ones are invalid.
     //
     // Otherwise, only clear the matching entry.
     if ((modified_type == Py_None) ||
-        (((PyTypeObject*)modified_type) == cache->entries[i].type)) {
-      cache->entries[i].type = NULL;
-      cache->entries[i].value = NULL;
+        (reinterpret_cast<PyTypeObject*>(modified_type) == entry.type)) {
+      entry.type = NULL;
+      entry.value = NULL;
     }
   }
 
@@ -970,9 +970,9 @@ static void fill_method_cache(
     return;
   }
 
-  for (int i = 0; i < LOAD_METHOD_CACHE_SIZE; i++) {
-    if (cache->entries[i].type == NULL) {
-      to_fill = &(cache->entries[i]);
+  for (auto& entry : cache->entries) {
+    if (entry.type == NULL) {
+      to_fill = &(entry);
       break;
     }
   }
@@ -1081,9 +1081,9 @@ JITRT_LoadMethodResult __attribute__((hot))
 JITRT_GetMethod(PyObject* obj, PyObject* name, JITRT_LoadMethodCache* cache) {
   PyTypeObject* tp = Py_TYPE(obj);
 
-  for (int i = 0; i < LOAD_METHOD_CACHE_SIZE; i++) {
-    if (cache->entries[i].type == tp) {
-      PyObject* result = cache->entries[i].value;
+  for (auto& entry : cache->entries) {
+    if (entry.type == tp) {
+      PyObject* result = entry.value;
       Py_INCREF(result);
       Py_INCREF(obj);
       return {result, obj};
@@ -1142,10 +1142,6 @@ PyObject* JITRT_GetAttrFromSuper(
       name,
       no_args_in_super_call,
       NULL);
-}
-
-void JITRT_InitLoadMethodCache(JITRT_LoadMethodCache* cache) {
-  memset(cache, 0, sizeof(*cache));
 }
 
 PyObject* JITRT_InvokeMethod(

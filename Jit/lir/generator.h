@@ -26,14 +26,7 @@ class LIRGenerator {
  public:
   explicit LIRGenerator(
       const jit::hir::Function* func,
-      jit::codegen::Environ* env)
-      : func_(func),
-        env_(env),
-        entry_block_(nullptr),
-        exit_block_(nullptr),
-        temp_id(0),
-        label_id(0) {}
-  virtual ~LIRGenerator() {}
+      jit::codegen::Environ* env);
 
   std::unique_ptr<jit::lir::Function> TranslateFunction();
 
@@ -56,6 +49,10 @@ class LIRGenerator {
   BasicBlock* exit_block_;
 
   std::vector<BasicBlock*> basic_blocks_;
+
+  // Borrowed pointers so the caches can be looked up by index; they're
+  // allocated from and owned by Runtime.
+  std::vector<LoadTypeAttrCache*> load_type_attr_caches_;
 
   void AnalyzeCopies();
   BasicBlock* GenerateEntryBlock();

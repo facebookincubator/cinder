@@ -4063,12 +4063,12 @@ class Environment {
     next_register_id_ = id;
   }
 
-  int allocateLoadAttrCache() {
-    return next_load_attr_cache_++;
+  int allocateLoadTypeAttrCache() {
+    return next_load_type_attr_cache_++;
   }
 
-  int numLoadAttrCaches() const {
-    return next_load_attr_cache_;
+  int numLoadTypeAttrCaches() const {
+    return next_load_type_attr_cache_;
   }
 
   int allocateLoadMethodCache() {
@@ -4085,7 +4085,7 @@ class Environment {
   RegisterMap registers_;
   ReferenceSet references_;
   int next_register_id_{0};
-  int next_load_attr_cache_{0};
+  int next_load_type_attr_cache_{0};
   int next_load_method_cache_{0};
 };
 
