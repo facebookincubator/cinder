@@ -2846,13 +2846,14 @@ static PyObject *
 _imp_set_lazy_imports_impl(PyObject *module, PyObject *eager_filter)
 {
     PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (interp->eager_loaded_filter != NULL &&
+        PySet_Check(interp->eager_loaded_filter))
+    {
+        Py_CLEAR(interp->eager_loaded_filter);
+    }
 
     // eager_filter is a list
     if (PyList_Check(eager_filter)) {
-        if (interp->eager_loaded_filter != NULL) {
-            Py_CLEAR(interp->eager_loaded_filter);
-        }
-
         interp->eager_loaded_filter = PySet_New(NULL);
         assert(interp->eager_loaded_filter != NULL);
 
@@ -2866,10 +2867,6 @@ _imp_set_lazy_imports_impl(PyObject *module, PyObject *eager_filter)
     }
     // eager_filter is a callback function
     else if (PyFunction_Check(eager_filter)) {
-        if (interp->eager_loaded_filter != NULL) {
-            Py_CLEAR(interp->eager_loaded_filter);
-        }
-
         // set the callback function
         interp->eager_loaded_filter = eager_filter;
         assert(interp->eager_loaded_filter != NULL);
