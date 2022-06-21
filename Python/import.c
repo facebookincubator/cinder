@@ -2272,12 +2272,12 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
 
         if (lz->lz_eager_loaded == 1) {
             obj = PyImport_EagerImportName(PyEval_GetBuiltins(),
-                                       lz->lz_globals,
-                                       lz->lz_locals,
-                                       lz->lz_name,
-                                       lz->lz_fromlist,
-                                       lz->lz_level,
-                                       NULL);
+                                           lz->lz_globals,
+                                           lz->lz_locals,
+                                           lz->lz_name,
+                                           lz->lz_fromlist,
+                                           lz->lz_level,
+                                           NULL);
         }
         else {
             obj = _imp_load_lazy_import_impl(lz);
