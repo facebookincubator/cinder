@@ -167,7 +167,7 @@ class ErrorTests(CompilerTest):
 
         def check_limit(prefix, repeated):
             with self.assertRaisesRegex(
-                RecursionError, "maximum recursion depth exceeded during compilation"
+                RecursionError, "maximum recursion depth exceeded.*"
             ):
                 self.compile(f"{prefix}{repeated * fail_depth}")
 
