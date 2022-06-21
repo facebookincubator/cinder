@@ -3452,7 +3452,37 @@ main_loop:
                 PREDICT(POP_BLOCK);
                 DISPATCH();
             }
+            case READONLY_POP_JUMP_IF_TRUE:
+            case READONLY_POP_JUMP_IF_FALSE: {
+              PyObject *cond = POP();
+              int next = PyLong_AsLong(PyTuple_GetItem(tuple, 1));
 
+              // self has to be readonly
+              int readonly_mask = PYREADONLY_BUILD_FUNCMASK1(1);
+              if (PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
+                return NULL;
+              }
+
+              int result = PyObject_IsTrue(cond);
+              if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+                  goto error;
+              }
+
+              Py_DECREF(cond);
+              if (result > 0) {
+                if (op_val == READONLY_POP_JUMP_IF_TRUE) {
+                  JUMPTO(next);
+                }
+              } else if (result == 0) {
+                if (op_val == READONLY_POP_JUMP_IF_FALSE) {
+                  JUMPTO(next);
+                }
+              } else {
+                goto error;
+              }
+
+              DISPATCH();
+            }
             default:
                 assert(0);
             }

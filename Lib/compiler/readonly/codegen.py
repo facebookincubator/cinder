@@ -230,6 +230,21 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             self.emit("POP_TOP")
             self.nextBlock(end)
 
+    def _maybeEmitReadonlyJumpIf(
+        self, test: AST, next: Block, is_if_true: bool
+    ) -> None:
+        binder = self.binder
+        ro = binder.is_readonly(test)
+
+        if ro:
+            self.emit_readonly_op(
+                "POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE",
+                [],
+                target=next,
+            )
+        else:
+            self.emit("POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next)
+
     def compileJumpIf(self, test: ast.AST, next: Block, is_if_true: bool) -> None:
         if not self.emit_readonly_checks:
             super().compileJumpIf(test, next, is_if_true)
@@ -259,7 +274,17 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
                 self.emit("JUMP_FORWARD", next)
             self.nextBlock(end)
             return
-        super().compileJumpIf(test, next, is_if_true)
+        elif (
+            isinstance(test, ast.UnaryOp)
+            or isinstance(test, ast.BoolOp)
+            or isinstance(test, ast.IfExp)
+            or isinstance(test, ast.Compare)
+        ):
+            super().compileJumpIf(test, next, is_if_true)
+            return
+
+        self.visit(test)
+        self._maybeEmitReadonlyJumpIf(test, next, is_if_true)
 
     def visitFor(self, node: ast.For) -> None:
         if not self.emit_readonly_checks:

@@ -137,8 +137,11 @@ opcode.readonly_op("UNARY_POSITIVE", 17)
 opcode.readonly_op("UNARY_NOT", 18)
 opcode.readonly_op("COMPARE_OP", 19)
 opcode.readonly_op("CHECK_LOAD_ATTR", 20)
-opcode.readonly_op("GET_ITER", 21)
-opcode.readonly_op("FOR_ITER", 22)
+opcode.readonly_op("CHECK_STORE_ATTR", 21)
+opcode.readonly_op("GET_ITER", 22)
+opcode.readonly_op("FOR_ITER", 23)
+opcode.readonly_op("POP_JUMP_IF_TRUE", 24)
+opcode.readonly_op("POP_JUMP_IF_FALSE", 25)
 opcode.def_op("CALL_FUNCTION_KW", 141)  # #args + #kwargs
 opcode.def_op("CALL_FUNCTION_EX", 142)  # Flags
 opcode.jrel_op("SETUP_WITH", 143)
@@ -180,6 +183,11 @@ def calculate_readonly_op_stack_effect(oparg: Tuple[int], jmp: int) -> int:
         return -1
     if op == opcode.readonlyop["FOR_ITER"]:
         return -1 if jmp > 0 else 1
+    if (
+        op == opcode.readonlyop["POP_JUMP_IF_TRUE"]
+        or op == opcode.readonlyop["POP_JUMP_IF_FALSE"]
+    ):
+        return -1
     return 0
 
 

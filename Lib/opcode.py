@@ -216,8 +216,11 @@ readonly_op("UNARY_POSITIVE", 17)
 readonly_op("UNARY_NOT", 18)
 readonly_op("COMPARE_OP", 19)
 readonly_op("CHECK_LOAD_ATTR", 20)
-readonly_op("GET_ITER", 21)
-readonly_op("FOR_ITER", 22)
+readonly_op("CHECK_STORE_ATTR", 21)
+readonly_op("GET_ITER", 22)
+readonly_op("FOR_ITER", 23)
+readonly_op("POP_JUMP_IF_TRUE", 24)
+readonly_op("POP_JUMP_IF_FALSE", 25)
 
 def_op('CALL_FUNCTION_KW', 141)  # #args + #kwargs
 def_op('CALL_FUNCTION_EX', 142)  # Flags

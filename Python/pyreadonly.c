@@ -291,6 +291,7 @@ int PyReadonly_VerifyReadonlyOperationCompleted(void) {
     }
     return 0;
 }
+
 #endif
 
 void PyReadonly_Check_LoadAttr(PyObject *obj, int check_return,
@@ -308,7 +309,6 @@ void PyReadonly_Check_LoadAttr(PyObject *obj, int check_return,
     _PyErr_IMMUTABLE_ERR(ReadonlyAttributeAccessReturnReadonly);
   }
 }
-
 #ifdef __cplusplus
 }
 #endif

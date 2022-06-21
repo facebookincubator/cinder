@@ -668,24 +668,23 @@ class PyFlowGraph(FlowGraph):
 
                     assert offset >= 0, "Offset value: %d" % offset
                     inst.ioparg = offset
-                elif inst.opname == "READONLY_OPERATION":
+                elif inst.opname == "READONLY_OPERATION" and inst.target:
                     oparg = inst.oparg
                     orig_ioparg = inst.ioparg
-                    # special case READONLY_FOR_ITER
+                    # special case for readonly operations with branch
                     # offset for the target block becomes part of the const
-                    if oparg[0] == opcodes.opcode.readonlyop["FOR_ITER"]:
-                        target = inst.target
-                        if target is None:
-                            continue
-                        offset = target.offset - pc
-                        offset *= 2
-                        # readonly_op, mask, offset
-                        new_oparg = (oparg[0], oparg[1], offset)
-                        ioparg = self._convert_LOAD_CONST(new_oparg)
-                        inst.ioparg = ioparg
-                        inst.target = None
-                        if instrsize(orig_ioparg) != instrsize(ioparg):
-                            extended_arg_recompile = True
+                    target = inst.target
+                    if target is None:
+                        continue
+                    offset = target.offset - pc
+                    offset *= 2
+                    # readonly_op, mask, offset
+                    new_oparg = (*oparg, offset)
+                    ioparg = self._convert_LOAD_CONST(new_oparg)
+                    inst.ioparg = ioparg
+                    inst.target = None
+                    if instrsize(orig_ioparg) != instrsize(ioparg):
+                        extended_arg_recompile = True
 
         self.stage = FLAT
 
